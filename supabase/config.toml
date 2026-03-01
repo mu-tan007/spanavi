@@ -1,0 +1,4 @@
+project_id = "baiiznjzvzhxwwqzsozn"
+
+[functions.get-zoom-recording]
+verify_jwt = false

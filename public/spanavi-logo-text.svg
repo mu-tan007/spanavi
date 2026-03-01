@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 185 46">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@800&amp;display=swap');
+    </style>
+    <!-- Gold gradient: top=#c6a358, bottom=#a8883a — matches CSS linear-gradient(180deg,...) -->
+    <linearGradient id="goldGrad" x1="0" y1="6" x2="0" y2="42" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c6a358"/>
+      <stop offset="100%" stop-color="#a8883a"/>
+    </linearGradient>
+  </defs>
+  <text
+    x="2" y="38"
+    font-family="Outfit, sans-serif"
+    font-weight="800"
+    font-size="36"
+    letter-spacing="2"
+  ><tspan fill="#1a3a5c">Spa</tspan><tspan fill="url(#goldGrad)">navi</tspan></text>
+</svg>

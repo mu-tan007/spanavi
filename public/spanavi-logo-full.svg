@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 224 60">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@800&amp;display=swap');
+    </style>
+    <linearGradient id="shieldGradF" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#1a3a5c"/>
+      <stop offset="100%" stop-color="#22496e"/>
+    </linearGradient>
+    <clipPath id="shieldClipF">
+      <path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z"/>
+    </clipPath>
+    <!-- Gold gradient aligned to text cap-height (font-size 34, baseline y=42) -->
+    <linearGradient id="goldGradF" x1="0" y1="10" x2="0" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c6a358"/>
+      <stop offset="100%" stop-color="#a8883a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Shield (native 52×60) -->
+  <path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z" fill="url(#shieldGradF)"/>
+  <g clip-path="url(#shieldClipF)" stroke="white" fill="none">
+    <g opacity="0.45" stroke-width="1.2">
+      <line x1="26" y1="30" x2="26" y2="-5"/>
+      <line x1="26" y1="30" x2="55" y2="30"/>
+      <line x1="26" y1="30" x2="26" y2="65"/>
+      <line x1="26" y1="30" x2="-3" y2="30"/>
+      <line x1="26" y1="30" x2="47" y2="5"/>
+      <line x1="26" y1="30" x2="47" y2="55"/>
+      <line x1="26" y1="30" x2="5"  y2="55"/>
+      <line x1="26" y1="30" x2="5"  y2="5"/>
+    </g>
+    <g opacity="0.30" stroke-width="0.8">
+      <line x1="26" y1="30" x2="37" y2="-2"/>
+      <line x1="26" y1="30" x2="53" y2="16"/>
+      <line x1="26" y1="30" x2="53" y2="44"/>
+      <line x1="26" y1="30" x2="37" y2="62"/>
+      <line x1="26" y1="30" x2="15" y2="62"/>
+      <line x1="26" y1="30" x2="-1" y2="44"/>
+      <line x1="26" y1="30" x2="-1" y2="16"/>
+      <line x1="26" y1="30" x2="15" y2="-2"/>
+    </g>
+  </g>
+
+  <!-- Spanavi text — x=66 (shield 52 + gap 14), vertically centered in 60px -->
+  <text
+    x="66" y="42"
+    font-family="Outfit, sans-serif"
+    font-weight="800"
+    font-size="34"
+    letter-spacing="2"
+  ><tspan fill="#1a3a5c">Spa</tspan><tspan fill="url(#goldGradF)">navi</tspan></text>
+</svg>

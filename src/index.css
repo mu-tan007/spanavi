@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* スクロールバー */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #1a2332;
+}
+::-webkit-scrollbar-thumb {
+  background: #3a4a5c;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #4a5a6c;
+}
+
+/* 選択範囲 */
+::selection {
+  background: rgba(200, 164, 90, 0.3);
+}
+
+/* ログイン画面のinput文字色 */
+input[type="email"],
+input[type="password"],
+input[type="text"] {
+  color: #1a2332 !important;
+}
+input::placeholder {
+  color: #8896a6 !important;
+}

@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(echo:*)",
+      "Bash(dir:*)",
+      "Bash(cmd /c \"dir C:\\\\Users\\\\篠宮拓武\\\\Downloads /b /ad\")",
+      "Bash(cmd /c \"dir C:\\\\Users\\\\篠宮拓武\\\\Downloads /b /ad 2>&1\")",
+      "Bash(node:*)",
+      "Bash(npm install:*)",
+      "Bash(ls:*)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(python3:*)",
+      "Bash(true:*)",
+      "Bash(cd /c/Users/篠宮拓武/Downloads/spanavi-project/spanavi && supabase functions deploy get-zoom-recording 2>&1)",
+      "WebFetch(domain:developers.zoom.us)",
+      "WebSearch",
+      "WebFetch(domain:portal.apis.huit.harvard.edu)",
+      "WebFetch(domain:devforum.zoom.us)",
+      "WebFetch(domain:www.postman.com)",
+      "WebFetch(domain:marketplace.zoom.us)",
+      "WebFetch(domain:community.zoom.com)",
+      "WebFetch(domain:marketplace.zoomgov.com)",
+      "WebFetch(domain:devmp.zoomdev.us)",
+      "WebFetch(domain:www.nudgesecurity.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(cd /c/Users/篠宮拓武/Downloads/spanavi-project/spanavi && npx supabase functions deploy get-zoom-recording --project-ref baiiznjzvzhxwwqzsozn 2>&1)",
+      "Bash(claude --version 2>/dev/null || npx claude --version 2>/dev/null)",
+      "Bash(cd:*)",
+      "Bash(find:*)",
+      "Bash(cd \"C:/Users/篠宮拓武/Downloads/spanavi-project/spanavi\" && npx supabase functions deploy transcribe-recording --project-ref baiiznjzvzhxwwqzsozn --no-verify-jwt 2>&1)",
+      "WebFetch(domain:localhost)",
+      "Bash(cd \"C:/Users/篠宮拓武/Downloads/spanavi-project/spanavi\" && npx sharp-cli --input public/spanavi-logo-full.svg --output public/spanavi-logo-full.jpg --width 3000 2>&1)",
+      "Bash(head:*)",
+      "Bash(grep:*)",
+      "Bash(cd \"C:/Users/篠宮拓武/Downloads/spanavi-project/spanavi\" && npx sharp-cli -i public/spanavi-logo-full.svg -o public/ -f jpg resize 3000 -- flatten \"#ffffff\" 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\篠宮拓武\\\\Downloads\\\\spanavi-project\\\\spanavi\" && npx supabase functions deploy post-appo-to-slack --project-ref baiiznjzvzhxwwqzsozn --no-verify-jwt 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\篠宮拓武\\\\Downloads\\\\spanavi-project\\\\spanavi\" && npx supabase functions deploy notify-ranking --project-ref baiiznjzvzhxwwqzsozn --no-verify-jwt 2>&1)"
+    ]
+  }
+}
