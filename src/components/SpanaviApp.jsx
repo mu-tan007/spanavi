@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import React from "react";
-import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId } from "../lib/supabaseWrite";
+import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount } from "../lib/supabaseWrite";
 
 // ============================================================
 // LOGO (base64 embedded)
@@ -9931,11 +9931,11 @@ function DetailModal({ list, callLogs, onClose, onAddLog, industryRules, now, ca
     if (!window.confirm('インポート済みのデータをクリアしますか？リストの箱は残ります')) return;
     setDeleting(true);
     const e1 = await deleteCallRecordsByListId(list._supaId);
-    if (e1) { alert('架電履歴の削除に失敗しました: ' + (e1.message || '不明なエラー')); setDeleting(false); return; }
+    if (e1) { alert('架電履歴の削除に失敗しました: ' + (e1.message || JSON.stringify(e1))); setDeleting(false); return; }
     const e2 = await deleteCallListItemsByListId(list._supaId);
-    if (e2) { alert('企業データの削除に失敗しました: ' + (e2.message || '不明なエラー')); setDeleting(false); return; }
-    const e3 = await updateCallList(list._supaId, { ...list, count: 0 });
-    if (e3) { alert('件数更新に失敗しました: ' + (e3.message || '不明なエラー')); setDeleting(false); return; }
+    if (e2) { alert('企業データの削除に失敗しました: ' + (e2.message || JSON.stringify(e2))); setDeleting(false); return; }
+    const e3 = await updateCallListCount(list._supaId, 0);
+    if (e3) { alert('件数更新に失敗しました: ' + (e3.message || JSON.stringify(e3))); setDeleting(false); return; }
     setDeleting(false);
     setItemCount(0);
     setCsvImported(false);
@@ -10126,9 +10126,13 @@ function DetailModal({ list, callLogs, onClose, onAddLog, industryRules, now, ca
         alert('CSV取込に失敗しました: ' + (error.message || JSON.stringify(error)));
         return;
       }
-      console.log('[CSV取込] Supabaseに保存完了:', rows.length, '件 / 返却data:', data?.length, '件');
-      setCsvImported(rows.length);
-      setItemCount(prev => (prev ?? 0) + (data?.length ?? rows.length));
+      const insertedCount = data?.length ?? rows.length;
+      const newTotalCount = (itemCount ?? 0) + insertedCount;
+      console.log('[CSV取込] Supabaseに保存完了:', rows.length, '件 / 返却data:', insertedCount, '件 / newTotalCount:', newTotalCount);
+      await updateCallListCount(list._supaId, newTotalCount);
+      if (setCallListData) setCallListData(prev => prev.map(l => l.id === list.id ? { ...l, count: newTotalCount } : l));
+      setCsvImported(insertedCount);
+      setItemCount(newTotalCount);
     };
     reader.readAsText(file, "UTF-8");
   };
@@ -10333,9 +10337,10 @@ function DetailModal({ list, callLogs, onClose, onAddLog, industryRules, now, ca
         })()}
 
         {/* CSV取込 / リスト削除（管理者のみ） */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
-          {isAdmin && <>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
+          {isAdmin && (
             <label style={{
+              display: "inline-block",
               padding: "6px 16px", borderRadius: 6,
               background: C.offWhite, color: C.navy, cursor: "pointer",
               fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
@@ -10346,18 +10351,21 @@ function DetailModal({ list, callLogs, onClose, onAddLog, industryRules, now, ca
               {csvImporting ? "取込中..." : "CSV取込"}
               <input type="file" accept=".csv" onChange={handleCSVImport} style={{ display: "none" }} />
             </label>
+          )}
+          {isAdmin && (
             <button
+              type="button"
               onClick={handleDeleteList}
               disabled={deleting}
               style={{
-                padding: "6px 16px", borderRadius: 6,
+                padding: "6px 16px", borderRadius: 6, border: "none",
                 background: deleting ? "#ccc" : "#e53835",
                 color: "#fff", cursor: deleting ? "default" : "pointer",
                 fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-                border: "none", opacity: deleting ? 0.6 : 1,
+                opacity: deleting ? 0.6 : 1,
               }}
             >{deleting ? "クリア中..." : "CSVクリア"}</button>
-          </>}
+          )}
           {csvImported && (
             <span style={{ fontSize: 11, color: C.green, fontWeight: 600 }}>
               ✓ {csvImported}件をSupabaseに保存しました

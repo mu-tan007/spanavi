@@ -737,6 +737,16 @@ export async function fetchCallRecordsByItemIds(itemIds) {
   return { data: data || [], error }
 }
 
+export async function updateCallListCount(supaId, count) {
+  if (!supaId) { console.warn('[DB] updateCallListCount: no supaId'); return null }
+  const { error } = await supabase
+    .from('call_lists')
+    .update({ total_count: count })
+    .eq('id', supaId)
+  if (error) console.error('[DB] updateCallListCount error:', error)
+  return error
+}
+
 export async function fetchListIdsByItemCriteria({ prefecture, revenueMin, revenueMax, netIncomeMin, netIncomeMax, callStatus, callCountMin, callCountMax } = {}) {
   let query = supabase.from('call_list_items').select('list_id')
   if (prefecture) query = query.ilike('address', '%' + prefecture + '%')
