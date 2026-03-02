@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import React from "react";
-import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount } from "../lib/supabaseWrite";
+import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, insertCallSession, updateCallSession, fetchCallSessions } from "../lib/supabaseWrite";
 
 // ============================================================
 // LOGO (base64 embedded)
@@ -1172,13 +1172,8 @@ function SpanaviApp({ userName, isAdmin: isAdminProp, onLogout, supabaseData, on
 // Live Status View (架電状況)
 // ============================================================
 function LiveStatusView({ now }) {
-  const CF_SESSIONS_KEY = 'callflow_sessions_v1';
-
-  // ── localStorageからセッション情報を読み込む ──────────────────────
-  const readSessions = () => {
-    try { return JSON.parse(localStorage.getItem(CF_SESSIONS_KEY) || '[]'); } catch { return []; }
-  };
-  const [sessions, setSessions] = useState(readSessions);
+  // ── Supabaseからセッション情報と架電済み件数を取得 ────────────────
+  const [sessions, setSessions] = useState([]);
   // ── Supabaseから取得した架電済み件数 { sessionId: count } ────────
   const [calledCounts, setCalledCounts] = useState({});
   // ── 過去日セクションの折りたたみ状態（デフォルト折りたたみ） ────
@@ -1197,23 +1192,33 @@ function LiveStatusView({ now }) {
     return days;
   };
 
-  // 2秒ごとにlocalStorageを再読み込み
+  // 5秒ごとにSupabaseからセッション一覧と架電件数を取得（3営業日分）
   useEffect(() => {
-    setSessions(readSessions());
-    const id = setInterval(() => setSessions(readSessions()), 2000);
-    return () => clearInterval(id);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // 2秒ごとにSupabaseから架電済み件数を取得（3営業日分）
-  useEffect(() => {
-    const fetchCounts = async () => {
+    const sinceISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const load = async () => {
+      const { data: rawSessions } = await fetchCallSessions(sinceISO);
+      const mappedSessions = rawSessions.map(s => ({
+        id: s.id,
+        listId: s.list_id,
+        listSupaId: s.list_supa_id,
+        listName: s.list_name,
+        industry: s.industry,
+        callerName: s.caller_name,
+        startNo: s.start_no,
+        endNo: s.end_no,
+        totalCount: s.total_count,
+        calledCount: 0,
+        startedAt: s.started_at,
+        finishedAt: s.finished_at,
+        lastCalledAt: s.last_called_at,
+      }));
+      setSessions(mappedSessions);
       const pastDays = getPastBusinessDays(new Date(), 2);
       const validDates = new Set([
         new Date().toDateString(),
         ...pastDays.map(d => d.toDateString()),
       ]);
-      const allSessions = readSessions();
-      const targetSessions = allSessions.filter(s => validDates.has(new Date(s.startedAt).toDateString()));
+      const targetSessions = mappedSessions.filter(s => validDates.has(new Date(s.startedAt).toDateString()));
       if (!targetSessions.length) return;
       const results = await Promise.all(
         targetSessions.map(async (s) => {
@@ -1229,8 +1234,8 @@ function LiveStatusView({ now }) {
       results.forEach(r => { map[r.id] = { count: r.count, total: r.total }; });
       setCalledCounts(map);
     };
-    fetchCounts();
-    const id = setInterval(fetchCounts, 2000);
+    load();
+    const id = setInterval(load, 5000);
     return () => clearInterval(id);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1369,7 +1374,7 @@ function LiveStatusView({ now }) {
           <div style={{ fontSize: 11, color: C.textLight, marginTop: 2 }}>架電開始時に自動登録されます。直近3営業日分を表示中</div>
         </div>
         <button
-          onClick={() => { localStorage.setItem('callflow_sessions_v1', '[]'); setSessions([]); setCalledCounts({}); }}
+          onClick={() => { setSessions([]); setCalledCounts({}); }}
           style={{ fontSize: 10, padding: '4px 10px', borderRadius: 4, border: '1px solid ' + C.border, background: C.white, color: C.textMid, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}
         >セッションリセット</button>
       </div>
@@ -5230,37 +5235,68 @@ function StatsView({ importedCSVs, callListData, currentUser, appoData, members,
     return "";
   };
 
-  // Collect all call records
-  const allRecords = [];
-  Object.entries(importedCSVs).forEach(([listIdStr, rows]) => {
-    const listId = Number(listIdStr);
-    const listInfo = callListData.find(l => l.id === listId);
-    rows.forEach(row => {
-      if (!row.rounds) return;
-      Object.entries(row.rounds).forEach(([round, data]) => {
-        allRecords.push({
-          listId, listInfo, company: row.company,
-          round: Number(round), status: data.status,
-          caller: data.caller || "", timestamp: data.timestamp || "",
-          hasAppoReport: !!data.appoReport,
-        });
-      });
+  // === Supabase-based rankings ===
+  const [supaRecords, setSupaRecords] = useState([]);
+  const [supaTodayRecords, setSupaTodayRecords] = useState([]);
+  const [rankLoading, setRankLoading] = useState(false);
+
+  // JST boundary helpers
+  const _jstStart = (dateStr) => new Date(dateStr + 'T00:00:00+09:00').toISOString();
+  const _jstEnd = (dateStr) => new Date(dateStr + 'T23:59:59.999+09:00').toISOString();
+
+  // Fetch period records on filter change
+  useEffect(() => {
+    let from, to;
+    if (callPeriod === "day") {
+      from = _jstStart(todayStr); to = _jstEnd(todayStr);
+    } else if (callPeriod === "week") {
+      from = _jstStart(weekStartStr); to = _jstEnd(todayStr);
+    } else if (callPeriod === "month") {
+      const firstDay = callSelectedMonth + '-01';
+      const d = new Date(firstDay); d.setMonth(d.getMonth() + 1); d.setDate(0);
+      from = _jstStart(firstDay); to = _jstEnd(d.toISOString().slice(0, 10));
+    } else if (callPeriod === "custom" && callCustomFrom) {
+      const fromDay = callCustomFrom + '-01';
+      const toYM = (callCustomTo || callCustomFrom) + '-01';
+      const d = new Date(toYM); d.setMonth(d.getMonth() + 1); d.setDate(0);
+      from = _jstStart(fromDay); to = _jstEnd(d.toISOString().slice(0, 10));
+    } else {
+      return;
+    }
+    setRankLoading(true);
+    fetchCallRecordsForRanking(from, to).then(({ data }) => {
+      setSupaRecords(data);
+      setRankLoading(false);
     });
-  });
+  }, [callPeriod, callSelectedMonth, callCustomFrom, callCustomTo, todayStr, weekStartStr]);
+
+  // Fetch today records with 60s polling
+  useEffect(() => {
+    const load = () => {
+      fetchCallRecordsForRanking(_jstStart(todayStr), _jstEnd(todayStr)).then(({ data }) => {
+        setSupaTodayRecords(data);
+      });
+    };
+    load();
+    const timer = setInterval(load, 60 * 1000);
+    return () => clearInterval(timer);
+  }, [todayStr]);
 
   // Build team map
   const teamMap = {};
   members.forEach(m => { teamMap[m.name] = m.team ? (m.team + "チーム") : "営業統括"; });
 
-  // === Call Ranking ===
-  const callFiltered = allRecords.filter(r => inPeriod(r.timestamp, callPeriod, callCustomFrom, callCustomTo, callSelectedMonth));
+  const CEO_STATUSES = new Set(['社長再コール', 'アポ獲得', '社長お断り']);
+  const APPO_STATUSES = new Set(['アポ獲得']);
+
+  // === Call Ranking (period) ===
   const callByCaller = {};
-  callFiltered.forEach(r => {
-    const key = r.caller || "不明";
+  supaRecords.forEach(r => {
+    const key = r.getter_name || "不明";
     if (!callByCaller[key]) callByCaller[key] = { total: 0, ceoConnect: 0, appo: 0 };
     callByCaller[key].total++;
-    if (["absent", "ceo_recall", "ceo_decline", "ceo_claim", "appointment"].includes(r.status)) callByCaller[key].ceoConnect++;
-    if (r.status === "appointment") callByCaller[key].appo++;
+    if (CEO_STATUSES.has(r.status)) callByCaller[key].ceoConnect++;
+    if (APPO_STATUSES.has(r.status)) callByCaller[key].appo++;
   });
 
   const callIndiv = Object.entries(callByCaller).map(([name, d]) => ({ name, ...d })).sort((a, b) => b.total - a.total);
@@ -5271,16 +5307,16 @@ function StatsView({ importedCSVs, callListData, currentUser, appoData, members,
   }));
   // team aggregation for calls
   const callByTeam = {};
-  callFiltered.forEach(r => {
-    const tn = teamMap[r.caller] || "その他";
+  supaRecords.forEach(r => {
+    const tn = teamMap[r.getter_name] || "その他";
     if (!callByTeam[tn]) callByTeam[tn] = { total: 0, ceoConnect: 0, appo: 0 };
     callByTeam[tn].total++;
-    if (["absent", "ceo_recall", "ceo_decline", "ceo_claim", "appointment"].includes(r.status)) callByTeam[tn].ceoConnect++;
-    if (r.status === "appointment") callByTeam[tn].appo++;
+    if (CEO_STATUSES.has(r.status)) callByTeam[tn].ceoConnect++;
+    if (APPO_STATUSES.has(r.status)) callByTeam[tn].appo++;
   });
   const callTeamRank = Object.entries(callByTeam).sort((a, b) => b[1].total - a[1].total);
 
-  // === Sales Ranking ===
+  // === Sales Ranking (appoData unchanged) ===
   const countableStatuses = new Set(["面談済", "事前確認済", "アポ取得"]);
   const salesFiltered = (appoData || []).filter(a => {
     if (!countableStatuses.has(a.status)) return false;
@@ -5307,17 +5343,16 @@ function StatsView({ importedCSVs, callListData, currentUser, appoData, members,
   const salesIndivRank = Object.entries(salesByIndiv).sort((a, b) => b[1].total - a[1].total);
   const maxIndivSales = salesIndivRank.length > 0 ? salesIndivRank[0][1].total : 1;
 
-  // === Today realtime for notification & display ===
-  const todayRecords = allRecords.filter(r => r.timestamp.slice(0, 10) === todayStr);
+  // === Today realtime ranking ===
   const todayByCaller = {};
-  todayRecords.forEach(r => {
-    const key = r.caller || "不明";
+  supaTodayRecords.forEach(r => {
+    const key = r.getter_name || "不明";
     if (!todayByCaller[key]) todayByCaller[key] = { total: 0, ceoConnect: 0, appo: 0, sales: 0 };
     todayByCaller[key].total++;
-    if (["absent", "ceo_recall", "ceo_decline", "ceo_claim", "appointment"].includes(r.status)) todayByCaller[key].ceoConnect++;
-    if (r.status === "appointment") todayByCaller[key].appo++;
+    if (CEO_STATUSES.has(r.status)) todayByCaller[key].ceoConnect++;
+    if (APPO_STATUSES.has(r.status)) todayByCaller[key].appo++;
   });
-  // Add sales from appoData for today
+  // Add today's sales from appoData
   const countableToday = new Set(["面談済", "事前確認済", "アポ取得"]);
   (appoData || []).forEach(a => {
     if (!countableToday.has(a.status)) return;
@@ -5348,7 +5383,7 @@ function StatsView({ importedCSVs, callListData, currentUser, appoData, members,
       });
     }, 30 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [todayRecords.length]);
+  }, [supaTodayRecords.length]);
 
   // === Shared UI components ===
   const inputStyle = {
@@ -5423,7 +5458,7 @@ function StatsView({ importedCSVs, callListData, currentUser, appoData, members,
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
           <span style={{ fontSize: 16 }}>🔥</span>
           <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>本日のリアルタイムランキング</span>
-          <span style={{ fontSize: 10, color: C.textLight }}>{todayRecords.length}件の架電</span>
+          <span style={{ fontSize: 10, color: C.textLight }}>{supaTodayRecords.length}件の架電</span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
           {[
@@ -5473,7 +5508,7 @@ function StatsView({ importedCSVs, callListData, currentUser, appoData, members,
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 16 }}>📞</span>
             <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>架電ランキング</span>
-            <span style={{ fontSize: 10, color: C.textLight }}>({callFiltered.length}件)</span>
+            <span style={{ fontSize: 10, color: C.textLight }}>({supaRecords.length}件)</span>
           </div>
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             {periodSelector(callPeriod, setCallPeriod, callCustomFrom, setCallCustomFrom, callCustomTo, setCallCustomTo, callSelectedMonth, setCallSelectedMonth, C.navy)}
@@ -8961,7 +8996,6 @@ function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setA
   const PAGE_SIZE = 30;
   const sessionIdRef = React.useRef(null);
   const isRealCloseRef = React.useRef(false);
-  const CF_SESSIONS_KEY = 'callflow_sessions_v1';
   const [autoDial, setAutoDial] = useState(() => {
     try { return localStorage.getItem('cf_autocall') === 'true'; } catch { return false; }
   });
@@ -8971,19 +9005,6 @@ function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setA
       try { localStorage.setItem('cf_autocall', String(next)); } catch {}
       return next;
     });
-  };
-  const _readSessions = () => { try { return JSON.parse(localStorage.getItem(CF_SESSIONS_KEY) || '[]'); } catch { return []; } };
-  const _updateSession = (updates) => {
-    if (!sessionIdRef.current) { console.warn('[Session] _updateSession — sessionIdRef.current が null のためスキップ'); return; }
-    const sessions = _readSessions();
-    const idx = sessions.findIndex(s => s.id === sessionIdRef.current);
-    if (idx >= 0) {
-      sessions[idx] = { ...sessions[idx], ...updates };
-      localStorage.setItem(CF_SESSIONS_KEY, JSON.stringify(sessions));
-      console.log('[Session] localStorage書き込み完了 — id:', sessionIdRef.current, '/ updates:', updates, '/ 全セッション数:', sessions.length);
-    } else {
-      console.warn('[Session] _updateSession — セッションが見つからない — id:', sessionIdRef.current, '/ sessions:', sessions.map(s => s.id));
-    }
   };
 
   useEffect(() => {
@@ -9029,46 +9050,46 @@ function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setA
   React.useEffect(() => {
     const id = `cf_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     sessionIdRef.current = id;
-    const sessions = _readSessions();
-    sessions.push({
+    const totalCount = (startNo != null && endNo != null)
+      ? (Number(endNo) - Number(startNo) + 1)
+      : 0;
+    insertCallSession({
       id,
-      listId: list.id,
-      listSupaId: list._supaId || null,
-      listName: list.company || '',
+      list_id: list.id,
+      list_supa_id: list._supaId || null,
+      list_name: list.company || '',
       industry: list.industry || '',
-      callerName: currentUser || '不明',
-      startNo: startNo ?? null,
-      endNo: endNo ?? null,
-      // 範囲指定あり → 作成時に確定。なし → items ロード後に更新
-      totalCount: (startNo != null && endNo != null)
-        ? (Number(endNo) - Number(startNo) + 1)
-        : 0,
-      calledCount: 0,
-      startedAt: new Date().toISOString(),
-      finishedAt: null,
-      lastCalledAt: null,
-    });
-    localStorage.setItem(CF_SESSIONS_KEY, JSON.stringify(sessions));
-    console.log('[Session] セッション作成 — id:', id, '/ listId:', list.id, '/ totalCount:', sessions[sessions.length - 1].totalCount, '/ localStorage key:', CF_SESSIONS_KEY);
+      caller_name: currentUser || '不明',
+      start_no: startNo ?? null,
+      end_no: endNo ?? null,
+      total_count: totalCount,
+      started_at: new Date().toISOString(),
+      finished_at: null,
+      last_called_at: null,
+    }).catch(e => console.error('[Session] insertCallSession error:', e));
+    console.log('[Session] セッション作成 — id:', id, '/ list_id:', list.id, '/ total_count:', totalCount);
 
-    // タブ閉じ・リロード時にも finishedAt を書き込む
+    // タブ閉じ・リロード時にも finished_at を書き込む
     const handleBeforeUnload = () => {
-      _updateSession({ finishedAt: new Date().toISOString() });
+      updateCallSession(sessionIdRef.current, { finished_at: new Date().toISOString() })
+        .catch(e => console.error('[Session] beforeunload error:', e));
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      // React Strict Modeの偽unmountでは finishedAt を設定しない
+      // React Strict Modeの偽unmountでは finished_at を設定しない
       if (isRealCloseRef.current) {
-        _updateSession({ finishedAt: new Date().toISOString() });
+        updateCallSession(sessionIdRef.current, { finished_at: new Date().toISOString() })
+          .catch(e => console.error('[Session] unmount error:', e));
       }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClose = () => {
     isRealCloseRef.current = true;
-    _updateSession({ finishedAt: new Date().toISOString() });
+    updateCallSession(sessionIdRef.current, { finished_at: new Date().toISOString() })
+      .catch(e => console.error('[Session] handleClose error:', e));
     onClose();
   };
 
@@ -9103,22 +9124,19 @@ function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setA
     });
   })();
 
-  // 範囲指定なし時のみ: items ロード完了後に totalCount を実件数で確定
+  // 範囲指定なし時のみ: items ロード完了後に total_count を実件数で確定
   React.useEffect(() => {
     if (!loading && items.length > 0 && (startNo == null || endNo == null)) {
-      _updateSession({ totalCount: items.length });
+      updateCallSession(sessionIdRef.current, { total_count: items.length })
+        .catch(e => console.error('[Session] updateCallSession totalCount error:', e));
     }
   }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // call_record 追加のたびに calledCount を +1（セッション開始後の架電件数を積算）
+  // 架電のたびに last_called_at を更新
   const _updateSessionProgress = () => {
-    if (!sessionIdRef.current) { console.warn('[Session] _updateSessionProgress — sessionIdRef.current が null'); return; }
-    const current = _readSessions().find(s => s.id === sessionIdRef.current);
-    if (!current) { console.warn('[Session] _updateSessionProgress — セッションが見つからない — id:', sessionIdRef.current); return; }
-    const prev = current.calledCount ?? 0;
-    const newCalledCount = prev + 1;
-    console.log('[Session] calledCount更新:', prev, '→', newCalledCount, '/ sessionId:', sessionIdRef.current);
-    _updateSession({ calledCount: newCalledCount, lastCalledAt: new Date().toISOString() });
+    if (!sessionIdRef.current) return;
+    updateCallSession(sessionIdRef.current, { last_called_at: new Date().toISOString() })
+      .catch(e => console.error('[Session] _updateSessionProgress error:', e));
   };
 
   const filtered = (() => {
@@ -9235,29 +9253,6 @@ function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setA
       return;
     }
 
-    try {
-      const key = "callflow_sessions_v1";
-      const raw = localStorage.getItem(key);
-      console.log("[handleResult] localStorage raw:", raw);
-      if (raw) {
-        const arr = JSON.parse(raw);
-        const sid = sessionIdRef.current;
-        console.log("[handleResult] sessionId:", sid, "sessions数:", arr.length);
-        const idx = arr.findIndex(s => s.id === sid);
-        if (idx >= 0) {
-          arr[idx].calledCount = (arr[idx].calledCount || 0) + 1;
-          localStorage.setItem(key, JSON.stringify(arr));
-          console.log("[handleResult] calledCount更新成功:", arr[idx].calledCount, "/", arr[idx].totalCount);
-        } else {
-          console.warn("[handleResult] セッションがlocalStorageに見つからない。sid:", sid, "keys:", arr.map(s=>s.id));
-        }
-      } else {
-        console.warn("[handleResult] localStorageにcallflow_sessions_v1が存在しない");
-      }
-    } catch(e) {
-      console.error("[handleResult] localStorage更新エラー:", e);
-    }
-
     const newRecords = [...callRecords, newRec];
 
     const itemRecs = newRecords.filter(r => r.item_id === selectedRow.id);
@@ -9354,29 +9349,6 @@ function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setA
     if (recErr || !newRec) {
       console.error('[handleAppoSave] insertCallRecord 失敗 — calledCountは更新しない');
       return;
-    }
-
-    try {
-      const key = "callflow_sessions_v1";
-      const raw = localStorage.getItem(key);
-      console.log("[handleAppoSave] localStorage raw:", raw);
-      if (raw) {
-        const arr = JSON.parse(raw);
-        const sid = sessionIdRef.current;
-        console.log("[handleAppoSave] sessionId:", sid, "sessions数:", arr.length);
-        const idx = arr.findIndex(s => s.id === sid);
-        if (idx >= 0) {
-          arr[idx].calledCount = (arr[idx].calledCount || 0) + 1;
-          localStorage.setItem(key, JSON.stringify(arr));
-          console.log("[handleAppoSave] calledCount更新成功:", arr[idx].calledCount, "/", arr[idx].totalCount);
-        } else {
-          console.warn("[handleAppoSave] セッションがlocalStorageに見つからない。sid:", sid, "keys:", arr.map(s=>s.id));
-        }
-      } else {
-        console.warn("[handleAppoSave] localStorageにcallflow_sessions_v1が存在しない");
-      }
-    } catch(e) {
-      console.error("[handleAppoSave] localStorage更新エラー:", e);
     }
 
     const newRecords = [...callRecords, newRec];

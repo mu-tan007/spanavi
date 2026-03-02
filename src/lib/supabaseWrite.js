@@ -759,3 +759,42 @@ export async function fetchListIdsByItemCriteria({ prefecture, revenueMin, reven
   if (error) { console.error('[DB] fetchListIdsByItemCriteria error:', error); return null }
   return [...new Set((data || []).map(r => r.list_id))]
 }
+
+export async function fetchCallRecordsForRanking(fromISO, toISO) {
+  const { data, error } = await supabase
+    .from('call_records')
+    .select('id, getter_name, status, called_at')
+    .gte('called_at', fromISO)
+    .lte('called_at', toISO)
+  if (error) console.error('[DB] fetchCallRecordsForRanking error:', error)
+  return { data: data || [], error }
+}
+
+export async function insertCallSession(data) {
+  const { data: row, error } = await supabase
+    .from('call_sessions')
+    .insert([data])
+    .select()
+    .single()
+  if (error) console.error('[DB] insertCallSession error:', error)
+  return { data: row, error }
+}
+
+export async function updateCallSession(id, updates) {
+  const { error } = await supabase
+    .from('call_sessions')
+    .update(updates)
+    .eq('id', id)
+  if (error) console.error('[DB] updateCallSession error:', error)
+  return { error }
+}
+
+export async function fetchCallSessions(sinceISO) {
+  const { data, error } = await supabase
+    .from('call_sessions')
+    .select('*')
+    .gte('started_at', sinceISO)
+    .order('started_at', { ascending: false })
+  if (error) console.error('[DB] fetchCallSessions error:', error)
+  return { data: data || [], error }
+}
