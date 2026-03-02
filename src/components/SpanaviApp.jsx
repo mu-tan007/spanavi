@@ -1192,11 +1192,16 @@ function LiveStatusView({ now }) {
     return days;
   };
 
+  // UTC → JST (Asia/Tokyo) の日付文字列に変換（比較用）
+  const toJSTDateStr = (d) =>
+    new Date(d).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' });
+
   // 5秒ごとにSupabaseからセッション一覧と架電件数を取得（3営業日分）
   useEffect(() => {
     const sinceISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const load = async () => {
       const { data: rawSessions } = await fetchCallSessions(sinceISO);
+      if (!rawSessions) return;
       const mappedSessions = rawSessions.map(s => ({
         id: s.id,
         listId: s.list_id,
@@ -1213,12 +1218,13 @@ function LiveStatusView({ now }) {
         lastCalledAt: s.last_called_at,
       }));
       setSessions(mappedSessions);
-      const pastDays = getPastBusinessDays(new Date(), 2);
+      const today = new Date();
+      const pastDays = getPastBusinessDays(today, 2);
       const validDates = new Set([
-        new Date().toDateString(),
-        ...pastDays.map(d => d.toDateString()),
+        toJSTDateStr(today),
+        ...pastDays.map(d => toJSTDateStr(d)),
       ]);
-      const targetSessions = mappedSessions.filter(s => validDates.has(new Date(s.startedAt).toDateString()));
+      const targetSessions = mappedSessions.filter(s => validDates.has(toJSTDateStr(s.startedAt)));
       if (!targetSessions.length) return;
       const results = await Promise.all(
         targetSessions.map(async (s) => {
@@ -1239,52 +1245,22 @@ function LiveStatusView({ now }) {
     return () => clearInterval(id);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── listId 単位でグルーピング（1リスト1カード） ──────────────────
-  const groupSessions = (daySessions) => {
-    const map = {};
-    daySessions.forEach(s => {
-      if (!map[s.listId]) {
-        map[s.listId] = {
-          listId: s.listId,
-          listName: s.listName,
-          industry: s.industry,
-          callers: new Set(),
-          isActive: false,
-          startedAt: s.startedAt,
-          lastCalledAt: s.lastCalledAt || null,
-          activeSession: null,
-          latestSession: s,
-        };
-      }
-      const g = map[s.listId];
-      if (s.callerName) g.callers.add(s.callerName);
-      if (!s.finishedAt) { g.isActive = true; g.activeSession = s; }
-      if (s.startedAt > g.latestSession.startedAt) g.latestSession = s;
-      if (s.lastCalledAt && (!g.lastCalledAt || s.lastCalledAt > g.lastCalledAt)) {
-        g.lastCalledAt = s.lastCalledAt;
-      }
-      if (s.startedAt < g.startedAt) g.startedAt = s.startedAt;
-    });
-    return Object.values(map);
-  };
-
-  // ── 3営業日分のday groupsを構築 ─────────────────────────────────
+  // ── 3営業日分のday groupsを構築（セッションID単位、1セッション1カード） ─────
   const dayGroups = React.useMemo(() => {
     const pastDays = getPastBusinessDays(now, 2);
     const days = [
-      { date: now,       label: '本日',      key: 0 },
+      { date: now,         label: '本日',      key: 0 },
       { date: pastDays[0], label: '1営業日前', key: 1 },
       { date: pastDays[1], label: '2営業日前', key: 2 },
     ];
     return days.map(({ date, label, key }) => {
-      const dateStr = date.toDateString();
-      const daySessions = sessions.filter(s => new Date(s.startedAt).toDateString() === dateStr);
-      const groups = groupSessions(daySessions);
+      const dateStr = toJSTDateStr(date);
+      const groups = sessions.filter(s => toJSTDateStr(s.startedAt) === dateStr);
       return {
         key, label, date,
         groups,
-        activeLists: groups.filter(g => g.isActive),
-        finishedLists: groups.filter(g => !g.isActive),
+        activeLists: groups.filter(s => !s.finishedAt),
+        finishedLists: groups.filter(s => s.finishedAt),
       };
     });
   }, [sessions, now]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1298,43 +1274,41 @@ function LiveStatusView({ now }) {
   const formatDateLabel = (date) =>
     date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' });
 
-  const renderGroupCard = (g) => {
-    const refSess = g.activeSession || g.latestSession;
-    const dbEntry    = calledCounts[refSess?.id];
-    const calledCount = dbEntry?.count ?? refSess?.calledCount ?? 0;
-    const totalCount  = dbEntry?.total || refSess?.totalCount || refSess?.totalInRange || 0;
+  const renderSessionCard = (s) => {
+    const dbEntry     = calledCounts[s.id];
+    const calledCount = dbEntry?.count ?? 0;
+    const totalCount  = dbEntry?.total || s.totalCount || 0;
     const progress    = totalCount > 0 ? Math.round((calledCount / totalCount) * 100) : 0;
-    const callerArr   = [...g.callers];
-    const nameOnly    = callerArr.filter(n => !n.includes('@'));
-    const callerStr   = (nameOnly.length > 0 ? nameOnly : callerArr).join(' / ') || '—';
-    const lastActivity = g.lastCalledAt
-      ? new Date(g.lastCalledAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+    const isActive    = !s.finishedAt;
+    const callerStr   = (s.callerName && !s.callerName.includes('@')) ? s.callerName : (s.callerName || '—');
+    const lastActivity = s.lastCalledAt
+      ? new Date(s.lastCalledAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
       : null;
 
     return (
-      <div key={g.listId} style={{
+      <div key={s.id} style={{
         background: C.white, borderRadius: 8, padding: '12px 16px',
         border: '1px solid ' + C.borderLight, boxShadow: '0 1px 4px rgba(26,58,92,0.04)',
-        borderLeft: '3px solid ' + (g.isActive ? C.green : C.textLight),
-        opacity: g.isActive ? 1 : 0.8,
+        borderLeft: '3px solid ' + (isActive ? C.green : C.textLight),
+        opacity: isActive ? 1 : 0.8,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {g.isActive && (
+            {isActive && (
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.green, display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
             )}
             <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>{callerStr}</span>
           </div>
           <span style={{ fontSize: 9, color: C.textLight, fontFamily: "'JetBrains Mono'" }}>
-            {new Date(g.startedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}〜（{getElapsed(g.startedAt)}）
+            {new Date(s.startedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}〜（{getElapsed(s.startedAt)}）
           </span>
         </div>
         <div style={{ fontSize: 10, color: C.textMid, marginBottom: 6 }}>
-          {g.listName}
-          {g.industry ? <span style={{ marginLeft: 4, color: C.textLight }}>› {g.industry}</span> : ''}
-          {refSess?.startNo != null && refSess?.endNo != null && (
+          {s.listName}
+          {s.industry ? <span style={{ marginLeft: 4, color: C.textLight }}>› {s.industry}</span> : ''}
+          {s.startNo != null && s.endNo != null && (
             <span style={{ marginLeft: 8, fontWeight: 600, color: C.navy, fontFamily: "'JetBrains Mono'" }}>
-              No.{refSess.startNo}〜{refSess.endNo}
+              No.{s.startNo}〜{s.endNo}
             </span>
           )}
         </div>
@@ -1342,7 +1316,7 @@ function LiveStatusView({ now }) {
           <div style={{ flex: 1, height: 6, background: C.offWhite, borderRadius: 3, overflow: 'hidden' }}>
             <div style={{
               height: '100%', borderRadius: 3, width: progress + '%', transition: 'width 0.3s',
-              background: g.isActive
+              background: isActive
                 ? 'linear-gradient(90deg, ' + C.gold + ', ' + C.green + ')'
                 : C.textLight,
             }} />
@@ -1356,7 +1330,7 @@ function LiveStatusView({ now }) {
           {lastActivity && (
             <span>最終架電 <span style={{ fontWeight: 700, color: C.navy }}>{lastActivity}</span></span>
           )}
-          {!g.isActive && <span>完了</span>}
+          {!isActive && <span>完了</span>}
         </div>
       </div>
     );
@@ -1393,7 +1367,7 @@ function LiveStatusView({ now }) {
                   現在架電中（{todayGroup.activeLists.length}件）
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
-                  {todayGroup.activeLists.map(g => renderGroupCard(g))}
+                  {todayGroup.activeLists.map(s => renderSessionCard(s))}
                 </div>
               </div>
             )}
@@ -1403,7 +1377,7 @@ function LiveStatusView({ now }) {
                   完了（{todayGroup.finishedLists.length}件）
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
-                  {todayGroup.finishedLists.map(g => renderGroupCard(g))}
+                  {todayGroup.finishedLists.map(s => renderSessionCard(s))}
                 </div>
               </div>
             )}
@@ -1459,7 +1433,7 @@ function LiveStatusView({ now }) {
               <div style={{ padding: '10px', border: '1px solid ' + C.borderLight, borderTop: 'none', borderRadius: '0 0 6px 6px', background: C.white }}>
                 {dg.groups.length > 0 ? (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
-                    {dg.groups.map(g => renderGroupCard(g))}
+                    {dg.groups.map(s => renderSessionCard(s))}
                   </div>
                 ) : (
                   <div style={{ textAlign: 'center', padding: '16px', color: C.textLight, fontSize: 12 }}>
@@ -9070,15 +9044,29 @@ function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setA
     console.log('[Session] セッション作成 — id:', id, '/ list_id:', list.id, '/ total_count:', totalCount);
 
     // タブ閉じ・リロード時にも finished_at を書き込む
+    // ※ 通常の非同期fetchはbeforeunload時にブラウザにキャンセルされるため
+    //   keepalive: true のfetchでSupabase REST APIを直接叩く
     const handleBeforeUnload = () => {
-      updateCallSession(sessionIdRef.current, { finished_at: new Date().toISOString() })
-        .catch(e => console.error('[Session] beforeunload error:', e));
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      if (!supabaseUrl || !supabaseKey || !sessionIdRef.current) return;
+      fetch(`${supabaseUrl}/rest/v1/call_sessions?id=eq.${sessionIdRef.current}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({ finished_at: new Date().toISOString() }),
+        keepalive: true,
+      });
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       // React Strict Modeの偽unmountでは finished_at を設定しない
+      // 通常の終了（handleClose経由）は isRealCloseRef=true になっているので書き込む
       if (isRealCloseRef.current) {
         updateCallSession(sessionIdRef.current, { finished_at: new Date().toISOString() })
           .catch(e => console.error('[Session] unmount error:', e));
@@ -9086,10 +9074,10 @@ function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setA
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // handleClose ではフラグだけ立てて onClose() を呼ぶ
+  // finished_at の書き込みはunmount時のcleanupに一元化（二重呼び出し防止）
   const handleClose = () => {
     isRealCloseRef.current = true;
-    updateCallSession(sessionIdRef.current, { finished_at: new Date().toISOString() })
-      .catch(e => console.error('[Session] handleClose error:', e));
     onClose();
   };
 
