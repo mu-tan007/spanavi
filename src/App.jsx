@@ -5,10 +5,10 @@ import SpanaviApp from './components/SpanaviApp'
 
 export default function App() {
   const { session, profile, loading, signOut, isAdmin } = useAuth()
-  const { data: supabaseData, refetch: onDataRefetch } = useSpanaviData()
+  const { data: supabaseData, loading: dataLoading, error: dataError, refetch: onDataRefetch } = useSpanaviData()
 
-  // ローディング中
-  if (loading) {
+  // ローディング中（auth + Supabase fetch 両方が完了するまで待つ）
+  if (loading || dataLoading) {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -54,6 +54,20 @@ export default function App() {
   // 未ログイン
   if (!session) {
     return <LoginPage />
+  }
+
+  // Supabase fetch 失敗
+  if (dataError && !supabaseData) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f0e8', fontFamily: "'Noto Sans JP', sans-serif" }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ color: '#c0392b', fontSize: 14, marginBottom: 16 }}>データの読み込みに失敗しました。リロードしてください。</p>
+          <button onClick={() => window.location.reload()} style={{ padding: '8px 20px', borderRadius: 6, background: '#1a3a5c', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: "'Noto Sans JP', sans-serif" }}>
+            リロード
+          </button>
+        </div>
+      </div>
+    )
   }
 
   // ログイン済み → 元のSpanaviをそのまま表示

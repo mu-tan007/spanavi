@@ -497,12 +497,12 @@ function InlineAudioPlayer({ url, onClose }) {
 }
 
 function SpanaviApp({ userName, isAdmin: isAdminProp, onLogout, supabaseData, onDataRefetch }) {
-  const [callListData, setCallListData] = useState(() => {
-    if (supabaseData?.callLists?.length) return supabaseData.callLists;
-    try { const saved = localStorage.getItem("masp_v2_callListData"); return saved ? JSON.parse(saved) : CALL_LISTS; } catch(e) { return CALL_LISTS; }
-  });
+  const [callListData, setCallListData] = useState(supabaseData?.callLists ?? []);
   useEffect(() => {
-    try { localStorage.setItem("masp_v2_callListData", JSON.stringify(callListData)); } catch(e) {}
+    // _supaId が付いているデータのみ保存（古いキャッシュの上書きを防ぐ）
+    if (callListData.length > 0 && callListData.every(l => l._supaId)) {
+      try { localStorage.setItem("masp_v2_callListData", JSON.stringify(callListData)); } catch(e) {}
+    }
   }, [callListData]);
   const [importedCSVs, setImportedCSVs] = useState(() => {
     try { const saved = localStorage.getItem("masp_v2_importedCSVs"); return saved ? JSON.parse(saved) : {}; } catch(e) { return {}; }
