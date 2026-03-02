@@ -9937,6 +9937,8 @@ function DetailModal({ list, callLogs, onClose, onAddLog, industryRules, now, ca
     const e3 = await updateCallList(list._supaId, { ...list, count: 0 });
     if (e3) { alert('件数更新に失敗しました: ' + (e3.message || '不明なエラー')); setDeleting(false); return; }
     setDeleting(false);
+    setItemCount(0);
+    setCsvImported(false);
     if (setCallListData) setCallListData(prev => prev.map(l => l.id === list.id ? { ...l, count: 0 } : l));
     alert('CSVデータをクリアしました');
     onClose();
