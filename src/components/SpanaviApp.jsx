@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import React from "react";
-import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordByItemRound, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, insertCallSession, updateCallSession, fetchCallSessions, fetchRecentDuplicateSession } from "../lib/supabaseWrite";
+import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordByItemRound, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, fetchMyCallRecords, insertCallSession, updateCallSession, fetchCallSessions, fetchRecentDuplicateSession } from "../lib/supabaseWrite";
 
 // ============================================================
 // LOGO (base64 embedded)
@@ -1116,12 +1116,12 @@ function SpanaviApp({ userName, isAdmin: isAdminProp, onLogout, supabaseData, on
         {currentTab === "crm" && <CRMView isAdmin={isAdmin} clientData={clientData} setClientData={isAdmin ? setClientData : null} />}
         {currentTab === "members" && <MembersView members={members} setMembers={isAdmin ? setMembers : null} />}
         {currentTab === "search" && <CompanySearchView importedCSVs={importedCSVs} callListData={callListData} setCallingScreen={setCallingScreen} setImportedCSVs={setImportedCSVs} clientData={clientData} currentUser={currentUser} members={members} setCallFlowScreen={setCallFlowScreen} />}
-        {currentTab === "stats" && <StatsView importedCSVs={importedCSVs} callListData={callListData} currentUser={currentUser} appoData={appoData} members={members} now={now} />}
+        {currentTab === "stats" && <StatsView callListData={callListData} currentUser={currentUser} appoData={appoData} members={members} now={now} />}
         {currentTab === "recall" && <RecallListView callListData={callListData} supaRecalls={supaRecalls} onRecallComplete={handleSupaRecallComplete} members={memberNames} currentUser={currentUser} isAdmin={isAdmin} onRefresh={fetchSupaRecalls} />}
         {currentTab === "payroll" && <PayrollView members={members} appoData={appoData} />}
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView industryRules={industryRules} setIndustryRules={setIndustryRules} ruleEditorOpen={ruleEditorOpen} setRuleEditorOpen={setRuleEditorOpen} editingRule={editingRule} setEditingRule={setEditingRule} isAdmin={isAdmin} />}
-        {currentTab === "mypage" && <MyPageView currentUser={currentUser} importedCSVs={importedCSVs} callListData={callListData} members={members} now={now} appoData={appoData} />}
+        {currentTab === "mypage" && <MyPageView currentUser={currentUser} callListData={callListData} members={members} now={now} appoData={appoData} />}
         {currentTab === "edu_script" && <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} />}
         {currentTab === "edu_rules" && <PlaceholderView title="ルール管理ページ" />}
         {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} />}
@@ -5101,7 +5101,7 @@ function CompanySearchView({ importedCSVs, callListData, setCallingScreen, setIm
   );
 }
 
-function StatsView({ importedCSVs, callListData, currentUser, appoData, members, now: nowProp }) {
+function StatsView({ callListData, currentUser, appoData, members, now: nowProp }) {
   const [callTab, setCallTab] = useState("team");
   const [callPeriod, setCallPeriod] = useState(() =>
     localStorage.getItem('spanavi_stats_callPeriod') || "week"
@@ -6621,7 +6621,7 @@ function RecallListView({ callListData, supaRecalls = [], onRecallComplete, memb
 // ============================================================
 // MyPage View
 // ============================================================
-function MyPageView({ currentUser, importedCSVs, callListData, members, now, appoData }) {
+function MyPageView({ currentUser, callListData, members, now, appoData }) {
   const [periodTab, setPeriodTab] = useState("daily"); // daily, weekly, monthly, cumulative
   const [trainingExpanded, setTrainingExpanded] = useState(true);
   const profileImageKey = "spanavi_profile_" + (currentUser || '');
@@ -6641,25 +6641,21 @@ function MyPageView({ currentUser, importedCSVs, callListData, members, now, app
     reader.readAsDataURL(file);
   };
 
-  // Collect all records for this user
-  const myRecords = useMemo(() => {
-    const records = [];
-    Object.entries(importedCSVs).forEach(([listIdStr, rows]) => {
-      rows.forEach(row => {
-        if (!row.rounds) return;
-        Object.entries(row.rounds).forEach(([round, data]) => {
-          if (data.caller === currentUser) {
-            records.push({
-              status: data.status,
-              timestamp: data.timestamp || "",
-              date: (data.timestamp || "").slice(0, 10),
-            });
-          }
-        });
-      });
+  // Supabaseから自分の架電レコードを全件取得
+  const [myRecords, setMyRecords] = useState([]);
+  const [myRecordsLoading, setMyRecordsLoading] = useState(true);
+  const _jstDate = (isoStr) =>
+    new Date(new Date(isoStr).getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  useEffect(() => {
+    setMyRecordsLoading(true);
+    fetchMyCallRecords(currentUser).then(({ data }) => {
+      setMyRecords((data || []).map(r => ({
+        status: r.status,
+        date: _jstDate(r.called_at),
+      })));
+      setMyRecordsLoading(false);
     });
-    return records;
-  }, [importedCSVs, currentUser]);
+  }, [currentUser]);
 
   const todayStr2 = now.toISOString().slice(0, 10);
 
@@ -6675,12 +6671,13 @@ function MyPageView({ currentUser, importedCSVs, callListData, members, now, app
   const salesAggregate = (salesList) => salesList.reduce((s, r) => s + r.sales, 0);
 
   // Aggregate by period
+  const MY_CEO_STATUSES = new Set(['社長再コール', 'アポ獲得', '社長お断り']);
   const aggregate = (records) => {
     let total = 0, ceoConnect = 0, appo = 0;
     records.forEach(r => {
       total++;
-      if (["absent", "ceo_recall", "ceo_decline", "ceo_claim", "appointment"].includes(r.status)) ceoConnect++;
-      if (r.status === "appointment") appo++;
+      if (MY_CEO_STATUSES.has(r.status)) ceoConnect++;
+      if (r.status === 'アポ獲得') appo++;
     });
     return { total, ceoConnect, appo };
   };

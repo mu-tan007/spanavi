@@ -814,6 +814,29 @@ export async function fetchCallRecordsForRanking(fromISO, toISO) {
   return { data: data || [], error }
 }
 
+export async function fetchMyCallRecords(userName) {
+  if (!userName) return { data: [], error: null }
+  const PAGE_SIZE = 1000
+  let from = 0
+  let allData = []
+  while (true) {
+    const { data, error } = await supabase
+      .from('call_records')
+      .select('id, status, called_at')
+      .eq('getter_name', userName)
+      .order('called_at')
+      .range(from, from + PAGE_SIZE - 1)
+    if (error) {
+      console.error('[DB] fetchMyCallRecords error:', error)
+      return { data: allData.length ? allData : [], error }
+    }
+    allData = allData.concat(data || [])
+    if (!data || data.length < PAGE_SIZE) break
+    from += PAGE_SIZE
+  }
+  return { data: allData, error: null }
+}
+
 export async function insertCallSession(data) {
   const { data: row, error } = await supabase
     .from('call_sessions')
