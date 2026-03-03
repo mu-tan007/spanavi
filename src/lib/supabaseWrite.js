@@ -759,25 +759,49 @@ export async function fetchItemsByCallStatus(statuses) {
 }
 
 export async function fetchAllCallListItemsBasic() {
-  const { data, error } = await supabase
-    .from('call_list_items')
-    .select('id, list_id, no, company, business, representative, phone, call_status')
-    .order('list_id')
-    .order('no')
-  if (error) console.error('[DB] fetchAllCallListItemsBasic error:', error)
-  return { data: data || [], error }
+  const PAGE_SIZE = 1000
+  let from = 0
+  let allData = []
+  while (true) {
+    const { data, error } = await supabase
+      .from('call_list_items')
+      .select('id, list_id, no, company, business, representative, phone, call_status')
+      .order('list_id')
+      .order('no')
+      .range(from, from + PAGE_SIZE - 1)
+    if (error) {
+      console.error('[DB] fetchAllCallListItemsBasic error:', error)
+      return { data: allData.length ? allData : [], error }
+    }
+    allData = allData.concat(data || [])
+    if (!data || data.length < PAGE_SIZE) break
+    from += PAGE_SIZE
+  }
+  return { data: allData, error: null }
 }
 
 export async function fetchCallListItemsByIds(itemIds) {
   if (!itemIds?.length) return { data: [], error: null }
-  const { data, error } = await supabase
-    .from('call_list_items')
-    .select('*')
-    .in('id', itemIds)
-    .order('list_id')
-    .order('no')
-  if (error) console.error('[DB] fetchCallListItemsByIds error:', error)
-  return { data: data || [], error }
+  const PAGE_SIZE = 1000
+  let from = 0
+  let allData = []
+  while (true) {
+    const { data, error } = await supabase
+      .from('call_list_items')
+      .select('*')
+      .in('id', itemIds)
+      .order('list_id')
+      .order('no')
+      .range(from, from + PAGE_SIZE - 1)
+    if (error) {
+      console.error('[DB] fetchCallListItemsByIds error:', error)
+      return { data: allData.length ? allData : [], error }
+    }
+    allData = allData.concat(data || [])
+    if (!data || data.length < PAGE_SIZE) break
+    from += PAGE_SIZE
+  }
+  return { data: allData, error: null }
 }
 
 export async function fetchCallRecordsByItemIds(itemIds) {
