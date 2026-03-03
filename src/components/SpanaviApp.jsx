@@ -504,13 +504,7 @@ function SpanaviApp({ userName, isAdmin: isAdminProp, onLogout, supabaseData, on
       try { localStorage.setItem("masp_v2_callListData", JSON.stringify(callListData)); } catch(e) {}
     }
   }, [callListData]);
-  const [importedCSVs, setImportedCSVs] = useState(() => {
-    try { const saved = localStorage.getItem("masp_v2_importedCSVs"); return saved ? JSON.parse(saved) : {}; } catch(e) { return {}; }
-  });
-  // Persist importedCSVs to localStorage
-  useEffect(() => {
-    try { localStorage.setItem("masp_v2_importedCSVs", JSON.stringify(importedCSVs)); } catch(e) {}
-  }, [importedCSVs]);
+  const [importedCSVs, setImportedCSVs] = useState({});
   const [callingScreen, setCallingScreen] = useState(null); // { listId, list } - when set, shows full calling screen
   const [callFlowScreen, setCallFlowScreen] = useState(null); // { list } - when set, shows call flow screen
   const callFlowRestoredRef = useRef(false);
@@ -657,22 +651,6 @@ function SpanaviApp({ userName, isAdmin: isAdminProp, onLogout, supabaseData, on
         notifiedIdsRef.current.add(r.id);
       }
     });
-    Object.entries(importedCSVs).forEach(([listIdStr, rows]) => {
-      rows.forEach((row, rowIdx) => {
-        if (!row.rounds) return;
-        Object.entries(row.rounds).forEach(([round, data]) => {
-          if ((data.status === "reception_recall" || data.status === "ceo_recall") && data.recall) {
-            const { recallDate, recallTime, assignee: csvAssignee } = data.recall;
-            if ((csvAssignee || '') !== currentUser) return;
-            const notifId = `csv-${listIdStr}-${rowIdx}-${round}`;
-            if (recallDate === todayStr && recallTime === nowTimeStr && !notifiedIdsRef.current.has(notifId)) {
-              new Notification("再コール予定", { body: `${row.company} - ${data.status} ${recallTime}` });
-              notifiedIdsRef.current.add(notifId);
-            }
-          }
-        });
-      });
-    });
   }, [now]);
 
   const enrichedLists = useMemo(() => callListData.map(list => {
@@ -709,16 +687,6 @@ function SpanaviApp({ userName, isAdmin: isAdminProp, onLogout, supabaseData, on
     isOverdue(r._memoObj.recall_date, r._memoObj.recall_time) &&
     (isAdmin || (r._memoObj.assignee || '') === currentUser)
   );
-  let overdueCsvCount = 0;
-  Object.values(importedCSVs).forEach(rows => rows.forEach(row => {
-    if (!row.rounds) return;
-    Object.values(row.rounds).forEach(data => {
-      if ((data.status === "reception_recall" || data.status === "ceo_recall") && data.recall) {
-        if (isOverdue(data.recall.recallDate, data.recall.recallTime) &&
-            (isAdmin || (data.recall.assignee || '') === currentUser)) overdueCsvCount++;
-      }
-    });
-  }));
   // 事前確認未完了通知（面談1営業日前以内）
   const _addBizDay = (d) => { const r = new Date(d); while (true) { r.setDate(r.getDate() + 1); if (r.getDay() !== 0 && r.getDay() !== 6) return r; } };
   const _toDS = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -732,7 +700,7 @@ function SpanaviApp({ userName, isAdmin: isAdminProp, onLogout, supabaseData, on
     if (md !== _toDS(_pcToday) && md !== _toDS(_pcT1)) return false;
     return isAdmin || a.getter === currentUser;
   });
-  const overdueCount = overdueSupaRecalls.length + overdueCsvCount + preCheckPendingAppos.length;
+  const overdueCount = overdueSupaRecalls.length + preCheckPendingAppos.length;
 
   const handleSupaRecallComplete = async (item) => {
     const memoObj = { ...item._memoObj, recall_completed: true };
@@ -1149,7 +1117,7 @@ function SpanaviApp({ userName, isAdmin: isAdminProp, onLogout, supabaseData, on
         {currentTab === "members" && <MembersView members={members} setMembers={isAdmin ? setMembers : null} />}
         {currentTab === "search" && <CompanySearchView importedCSVs={importedCSVs} callListData={callListData} setCallingScreen={setCallingScreen} setImportedCSVs={setImportedCSVs} clientData={clientData} currentUser={currentUser} members={members} setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "stats" && <StatsView importedCSVs={importedCSVs} callListData={callListData} currentUser={currentUser} appoData={appoData} members={members} now={now} />}
-        {currentTab === "recall" && <RecallListView importedCSVs={importedCSVs} setImportedCSVs={setImportedCSVs} callListData={callListData} supaRecalls={supaRecalls} onRecallComplete={handleSupaRecallComplete} members={memberNames} currentUser={currentUser} isAdmin={isAdmin} onRefresh={fetchSupaRecalls} />}
+        {currentTab === "recall" && <RecallListView callListData={callListData} supaRecalls={supaRecalls} onRecallComplete={handleSupaRecallComplete} members={memberNames} currentUser={currentUser} isAdmin={isAdmin} onRefresh={fetchSupaRecalls} />}
         {currentTab === "payroll" && <PayrollView members={members} appoData={appoData} />}
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView industryRules={industryRules} setIndustryRules={setIndustryRules} ruleEditorOpen={ruleEditorOpen} setRuleEditorOpen={setRuleEditorOpen} editingRule={editingRule} setEditingRule={setEditingRule} isAdmin={isAdmin} />}
@@ -6284,7 +6252,7 @@ function ShiftInputModal({ modal, onClose, onSaved, year, month }) {
   );
 }
 
-function RecallListView({ importedCSVs, setImportedCSVs, callListData, supaRecalls = [], onRecallComplete, members = [], currentUser = '', isAdmin = false, onRefresh }) {
+function RecallListView({ callListData, supaRecalls = [], onRecallComplete, members = [], currentUser = '', isAdmin = false, onRefresh }) {
   const [sortBy, setSortBy] = useState("date");
   const [selectedItem, setSelectedItem] = useState(null);
   const [rightMemo, setRightMemo] = useState('');
@@ -6347,23 +6315,24 @@ function RecallListView({ importedCSVs, setImportedCSVs, callListData, supaRecal
     if (onRefresh) onRefresh();
   };
 
-  // Collect recall items
-  const recallItems = [];
-  Object.entries(importedCSVs).forEach(([listIdStr, rows]) => {
-    const listId = Number(listIdStr);
-    const listInfo = callListData.find(l => l.id === listId);
-    rows.forEach((row, rowIdx) => {
-      if (!row.rounds) return;
-      Object.entries(row.rounds).forEach(([round, data]) => {
-        if ((data.status === "reception_recall" || data.status === "ceo_recall") && data.recall) {
-          recallItems.push({ listId, listInfo, row, rowIdx, round: Number(round), status: data.status, recallDate: data.recall.recallDate || "", recallTime: data.recall.recallTime || "", assignee: data.recall.assignee || "", note: data.recall.note || "", company: row.company, phone: row.phone, representative: row.representative, address: row.address || '', timestamp: data.timestamp });
-        }
-      });
-    });
-  });
-  (supaRecalls || []).forEach(r => {
-    recallItems.push({ _source: 'supabase', _supaRecord: r, company: r._item.company || '企業名不明', phone: r._item.phone || '', representative: r._item.representative || '', address: r._item.address || '', status: r.status, recallDate: r._memoObj.recall_date || '', recallTime: r._memoObj.recall_time || '', assignee: r._memoObj.assignee || '', note: r._memoObj.note || '', listInfo: null, _list_name: r._list_name || '', _list_industry: r._list_industry || '', _client_name: r._client_name || '' });
-  });
+  // Collect recall items (Supabaseのみ)
+  const recallItems = (supaRecalls || []).map(r => ({
+    _source: 'supabase',
+    _supaRecord: r,
+    company: r._item.company || '企業名不明',
+    phone: r._item.phone || '',
+    representative: r._item.representative || '',
+    address: r._item.address || '',
+    status: r.status,
+    recallDate: r._memoObj.recall_date || '',
+    recallTime: r._memoObj.recall_time || '',
+    assignee: r._memoObj.assignee || '',
+    note: r._memoObj.note || '',
+    listInfo: null,
+    _list_name: r._list_name || '',
+    _list_industry: r._list_industry || '',
+    _client_name: r._client_name || '',
+  }));
 
   // 一般ユーザーは自分担当分のみ表示
   const baseRecallItems = isAdmin
@@ -8503,7 +8472,7 @@ function CSVPhoneList({ listId, list, importedCSVs, setImportedCSVs, setCallingS
               <span style={{ fontSize: 10, color: C.textMid }}>〜</span>
               <input type="number" value={flowEndNo} onChange={e => setFlowEndNo(e.target.value)} placeholder="終了"
                 style={{ width: 52, padding: "3px 5px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 10, fontFamily: "'JetBrains Mono'", textAlign: "center", outline: "none" }} />
-              <button onClick={() => setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : undefined, endNo: flowEndNo ? parseInt(flowEndNo) : undefined })} style={{
+              <button onClick={() => setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null })} style={{
                 padding: "4px 12px", borderRadius: 6,
                 background: C.navy, color: C.white, cursor: "pointer",
                 fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'",
@@ -9032,6 +9001,10 @@ HP：${form.hp}
 // ============================================================
 // Call Flow View (架電フロー) — 左右分割レイアウト
 // ============================================================
+// モジュールレベルのセッションIDキャッシュ（React Strict Mode 二重INSERT防止）
+// useRef と異なりStrict Modeのfake unmount/remountでもリセットされない
+const _cfSessionCache = new Map(); // `${listId}|${startNo}|${endNo}` → sessionId
+
 function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setAppoData, members = [], currentUser = '', defaultItemId = null }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -9109,34 +9082,34 @@ function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setA
     const totalCount = (startNo != null && endNo != null)
       ? (Number(endNo) - Number(startNo) + 1)
       : 0;
-    // 直近1分以内に同じ list_id + start_no + end_no のセッションが存在する場合は
-    // INSERTをスキップして既存セッションを再利用する (React Strict Mode の二重mount対策)
-    fetchRecentDuplicateSession(list.id, startNo ?? null, endNo ?? null)
-      .then(({ data: existing }) => {
-        if (existing) {
-          console.log('[Session] 重複セッション検出 — 既存IDを使用:', existing.id);
-          sessionIdRef.current = existing.id;
-        } else {
-          const id = `cf_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-          sessionIdRef.current = id;
-          insertCallSession({
-            id,
-            list_id: list.id,
-            list_supa_id: list._supaId || null,
-            list_name: list.company || '',
-            industry: list.industry || '',
-            caller_name: currentUser || '不明',
-            start_no: startNo ?? null,
-            end_no: endNo ?? null,
-            total_count: totalCount,
-            started_at: new Date().toISOString(),
-            finished_at: null,
-            last_called_at: null,
-          }).catch(e => console.error('[Session] insertCallSession error:', e));
-          console.log('[Session] セッション作成 — id:', id, '/ list_id:', list.id, '/ total_count:', totalCount);
-        }
-      })
-      .catch(e => console.error('[Session] fetchRecentDuplicateSession error:', e));
+
+    // モジュールレベルキャッシュでStrict Modeの二重INSERT防止
+    // useRefはfake unmount/remountでリセットされるが、Mapはモジュールスコープなので保持される
+    const cacheKey = `${list.id}|${startNo ?? ''}|${endNo ?? ''}`;
+    if (_cfSessionCache.has(cacheKey)) {
+      // Strict Mode 2回目のマウント: キャッシュのIDを再利用してINSERTをスキップ
+      sessionIdRef.current = _cfSessionCache.get(cacheKey);
+      console.log('[Session] キャッシュ済みID再利用（Strict Mode対応） — sessionId:', sessionIdRef.current, '/ cacheKey:', cacheKey);
+    } else {
+      const newId = `cf_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      sessionIdRef.current = newId;
+      _cfSessionCache.set(cacheKey, newId);
+      insertCallSession({
+        id: newId,
+        list_id: list.id,
+        list_supa_id: list._supaId || null,
+        list_name: list.company || '',
+        industry: list.industry || '',
+        caller_name: currentUser || '不明',
+        start_no: startNo ?? null,
+        end_no: endNo ?? null,
+        total_count: totalCount,
+        started_at: new Date().toISOString(),
+        finished_at: null,
+        last_called_at: null,
+      }).catch(e => console.error('[Session] insertCallSession error:', e));
+      console.log('[Session] セッション作成 — id:', newId, '/ list_id:', list.id, '/ cacheKey:', cacheKey, '/ total_count:', totalCount);
+    }
 
     // タブ閉じ・リロード時にも finished_at を書き込む
     // ※ 通常の非同期fetchはbeforeunload時にブラウザにキャンセルされるため
@@ -9159,11 +9132,22 @@ function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setA
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
+      console.log('[Session] cleanup — isRealClose:', isRealCloseRef.current, '/ sessionId:', sessionIdRef.current, '/ cacheKey:', cacheKey);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       // React Strict Modeの偽unmountでは finished_at を設定しない
       // 通常の終了（handleClose経由）は isRealCloseRef=true になっているので書き込む
       if (isRealCloseRef.current) {
+        _cfSessionCache.delete(cacheKey); // リアルクローズ時のみキャッシュ削除
+        if (!sessionIdRef.current) {
+          console.warn('[Session] cleanup: sessionIdRef が null のため finished_at 更新スキップ');
+          return;
+        }
+        console.log('[Session] finished_at 更新開始 — sessionId:', sessionIdRef.current);
         updateCallSession(sessionIdRef.current, { finished_at: new Date().toISOString() })
+          .then(({ error }) => {
+            if (error) console.error('[Session] finished_at 更新エラー:', error);
+            else console.log('[Session] finished_at 更新成功 — sessionId:', sessionIdRef.current);
+          })
           .catch(e => console.error('[Session] unmount error:', e));
       }
     };
@@ -9172,6 +9156,7 @@ function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setA
   // handleClose ではフラグだけ立てて onClose() を呼ぶ
   // finished_at の書き込みはunmount時のcleanupに一元化（二重呼び出し防止）
   const handleClose = () => {
+    console.log('[Session] handleClose — sessionId:', sessionIdRef.current, '/ isRealClose before:', isRealCloseRef.current);
     isRealCloseRef.current = true;
     onClose();
   };
@@ -10336,7 +10321,7 @@ function DetailModal({ list, callLogs, onClose, onAddLog, industryRules, now, ca
             onClick={() => {
               const sf = selectedStatuses.length > 0 ? selectedStatuses : null;
               console.log('[DetailModal] 架電開始 clicked — list:', list, 'startNo:', flowStartNo, 'endNo:', flowEndNo, 'statusFilter:', sf);
-              setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : undefined, endNo: flowEndNo ? parseInt(flowEndNo) : undefined, statusFilter: sf });
+              setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf });
             }}
             style={{
               padding: "6px 20px", borderRadius: 6,
