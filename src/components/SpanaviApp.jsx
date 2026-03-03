@@ -10638,7 +10638,7 @@ function ScriptView({ isAdmin, clientData, callListData }) {
 // ============================================================
 // Roleplay View (ロープレページ)
 // ============================================================
-function RoleplayView({ currentUser }) {
+function RoleplayView({ currentUser, userId }) {
   // ===== AI ロープレ =====
   const patterns = [
     { id: "strict_reception", label: "厳しい受付" },
