@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import React from "react";
-import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordByItemRound, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, fetchMyCallRecords, insertCallSession, updateCallSession, fetchCallSessions, fetchRecentDuplicateSession, getProfileImageUrl, uploadProfileImage } from "../lib/supabaseWrite";
+import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordByItemRound, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, fetchMyCallRecords, insertCallSession, updateCallSession, fetchCallSessions, fetchRecentDuplicateSession, getProfileImageUrl, uploadProfileImage, fetchSetting, saveSetting } from "../lib/supabaseWrite";
 
 // ============================================================
 // LOGO (base64 embedded)
@@ -10462,19 +10462,27 @@ const DEFAULT_BASIC_SCRIPT = `■受付編
 (篠宮)お忙しいところお時間を頂きましてありがとうございました!失礼いたします!`;
 
 function ScriptView({ isAdmin, clientData, callListData }) {
-  const [basicScript, setBasicScript] = useState(() => {
-    try { return localStorage.getItem("basic_script") || DEFAULT_BASIC_SCRIPT; } catch(e) { return DEFAULT_BASIC_SCRIPT; }
-  });
-  const [basicScriptEdit, setBasicScriptEdit] = useState(() => {
-    try { return localStorage.getItem("basic_script") || DEFAULT_BASIC_SCRIPT; } catch(e) { return DEFAULT_BASIC_SCRIPT; }
-  });
+  const [basicScript, setBasicScript] = useState(DEFAULT_BASIC_SCRIPT);
+  const [basicScriptEdit, setBasicScriptEdit] = useState(DEFAULT_BASIC_SCRIPT);
   const [savedOk, setSavedOk] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [clientTabs, setClientTabs] = useState({});
   const [videoOpen, setVideoOpen] = useState(false);
   const VIDEO_ID = '1j465Gq-MIEqzcL3LreZmNRaC1zhWtHdt';
 
-  const handleSaveBasicScript = () => {
-    try { localStorage.setItem("basic_script", basicScriptEdit); } catch(e) {}
+  useEffect(() => {
+    fetchSetting('basic_script').then(({ value }) => {
+      const text = value || DEFAULT_BASIC_SCRIPT;
+      setBasicScript(text);
+      setBasicScriptEdit(text);
+    });
+  }, []);
+
+  const handleSaveBasicScript = async () => {
+    setSaving(true);
+    const err = await saveSetting('basic_script', basicScriptEdit);
+    setSaving(false);
+    if (err) { alert('保存に失敗しました'); return; }
     setBasicScript(basicScriptEdit);
     setSavedOk(true);
     setTimeout(() => setSavedOk(false), 2000);
@@ -10490,15 +10498,28 @@ function ScriptView({ isAdmin, clientData, callListData }) {
 
         <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, padding: "16px 20px" }}>
           {isAdmin ? (
-            <textarea
-              value={basicScriptEdit}
-              onChange={e => setBasicScriptEdit(e.target.value)}
-              rows={10}
-              style={{ width: "100%", border: "none", outline: "none", resize: "vertical",
-                fontSize: 13, color: C.textDark, fontFamily: "'Noto Sans JP', sans-serif",
-                background: "transparent", lineHeight: 1.8, boxSizing: "border-box" }}
-              placeholder="基本スクリプトを入力してください..."
-            />
+            <>
+              <textarea
+                value={basicScriptEdit}
+                onChange={e => setBasicScriptEdit(e.target.value)}
+                rows={10}
+                style={{ width: "100%", border: "none", outline: "none", resize: "vertical",
+                  fontSize: 13, color: C.textDark, fontFamily: "'Noto Sans JP', sans-serif",
+                  background: "transparent", lineHeight: 1.8, boxSizing: "border-box" }}
+                placeholder="基本スクリプトを入力してください..."
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+                <button
+                  onClick={handleSaveBasicScript}
+                  disabled={saving}
+                  style={{ padding: "6px 18px", borderRadius: 6, background: C.navy, color: C.white,
+                    border: "none", cursor: saving ? "not-allowed" : "pointer", fontSize: 12,
+                    fontFamily: "'Noto Sans JP', sans-serif", opacity: saving ? 0.6 : 1 }}>
+                  {saving ? "保存中..." : "保存"}
+                </button>
+                {savedOk && <span style={{ fontSize: 12, color: "#27ae60" }}>保存しました</span>}
+              </div>
+            </>
           ) : (
             <div style={{ fontSize: 13, color: C.textDark, lineHeight: 1.8, whiteSpace: "pre-wrap", minHeight: 120 }}>
               {basicScript || <span style={{ color: C.textLight, fontStyle: "italic" }}>（スクリプト未設定）</span>}
@@ -10539,10 +10560,10 @@ function ScriptView({ isAdmin, clientData, callListData }) {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             {activeClients.map((client, cIdx) => {
-              const lists = (callListData || []).filter(l => l.company === client.company && l.scriptBody);
-              const allIndustries = [...new Set((callListData || []).filter(l => l.company === client.company).map(l => l.industry).filter(Boolean))];
+              const clientLists = (callListData || []).filter(l => l.company === client.company);
+              const allIndustries = [...new Set(clientLists.map(l => l.industry).filter(Boolean))];
               const activeTab = clientTabs[cIdx] ?? 0;
-              const activeList = lists.find(l => l.industry === allIndustries[activeTab]) || lists[0];
+              const activeList = clientLists.find(l => l.industry === allIndustries[activeTab]) ?? clientLists[0];
               return (
                 <div key={client._supaId || cIdx}
                   style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, overflow: "hidden" }}>

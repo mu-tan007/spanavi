@@ -929,3 +929,30 @@ export async function uploadProfileImage(userId, file) {
   console.log('[Storage] uploadProfileImage 成功 — publicUrl:', data.publicUrl)
   return { url: data.publicUrl + '?t=' + Date.now(), error: null }
 }
+
+// ============================================================
+// Settings (全体共通設定)
+// ============================================================
+
+export async function fetchSetting(key) {
+  console.log('[DB] fetchSetting 開始 — key:', key)
+  const { data, error } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', key)
+    .maybeSingle()
+  if (error) console.error('[DB] fetchSetting error:', error)
+  else console.log('[DB] fetchSetting 完了 — key:', key, '/ value:', data?.value ?? null)
+  return { value: data?.value ?? null, error }
+}
+
+export async function saveSetting(key, value) {
+  console.log('[DB] saveSetting 開始 — key:', key, '/ value length:', value?.length ?? 0)
+  const { data, error } = await supabase
+    .from('settings')
+    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
+    .select()
+  if (error) console.error('[DB] saveSetting error — message:', error.message, '/ code:', error.code, '/ details:', error)
+  else console.log('[DB] saveSetting 完了 — upsert result:', data)
+  return error
+}
