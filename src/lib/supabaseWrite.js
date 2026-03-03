@@ -236,13 +236,25 @@ export async function deleteAppointment(supaId) {
 // ============================================================
 
 export async function fetchCallListItems(listId) {
-  const { data, error } = await supabase
-    .from('call_list_items')
-    .select('*')
-    .eq('list_id', listId)
-    .order('no')
-  if (error) console.error('[DB] fetchCallListItems error:', error)
-  return { data: data || [], error }
+  const PAGE_SIZE = 1000
+  let from = 0
+  let allData = []
+  while (true) {
+    const { data, error } = await supabase
+      .from('call_list_items')
+      .select('*')
+      .eq('list_id', listId)
+      .order('no')
+      .range(from, from + PAGE_SIZE - 1)
+    if (error) {
+      console.error('[DB] fetchCallListItems error:', error)
+      return { data: allData.length ? allData : [], error }
+    }
+    allData = allData.concat(data || [])
+    if (!data || data.length < PAGE_SIZE) break
+    from += PAGE_SIZE
+  }
+  return { data: allData, error: null }
 }
 
 export async function updateCallListItem(id, updates) {
@@ -257,27 +269,36 @@ export async function updateCallListItem(id, updates) {
 
 export async function insertCallListItems(listId, rows) {
   if (!listId || !rows?.length) return { data: null, error: null }
-  const items = rows.map(r => ({
-    org_id: ORG_ID,
-    list_id: listId,
-    no: r.no,
-    company: r.company || '',
-    business: r.business || '',
-    representative: r.representative || '',
-    phone: r.phone || '',
-    address: r.address || '',
-    revenue: r.revenue ?? null,
-    net_income: r.net_income ?? null,
-    employees: r.employees ?? null,
-    url: r.url || null,
-    memo: r.memo || null,
-  }))
-  const { data, error } = await supabase
-    .from('call_list_items')
-    .upsert(items, { onConflict: 'list_id,no', ignoreDuplicates: true })
-    .select()
-  if (error) console.error('[DB] insertCallListItems error:', error)
-  return { data, error }
+  const CHUNK_SIZE = 500
+  const totalChunks = Math.ceil(rows.length / CHUNK_SIZE)
+  for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+    const chunk = rows.slice(i, i + CHUNK_SIZE)
+    const items = chunk.map(r => ({
+      org_id: ORG_ID,
+      list_id: listId,
+      no: r.no,
+      company: r.company || '',
+      business: r.business || '',
+      representative: r.representative || '',
+      phone: r.phone || '',
+      address: r.address || '',
+      revenue: r.revenue ?? null,
+      net_income: r.net_income ?? null,
+      employees: r.employees ?? null,
+      url: r.url || null,
+      memo: r.memo || null,
+    }))
+    const chunkNo = Math.floor(i / CHUNK_SIZE) + 1
+    console.log(`[DB] insertCallListItems チャンク ${chunkNo}/${totalChunks} — ${chunk.length}件`)
+    const { error } = await supabase
+      .from('call_list_items')
+      .upsert(items, { onConflict: 'list_id,no', ignoreDuplicates: true })
+    if (error) {
+      console.error(`[DB] insertCallListItems error (チャンク${chunkNo}/${totalChunks}):`, error)
+      return { data: null, error }
+    }
+  }
+  return { data: null, error: null }
 }
 
 // ============================================================
@@ -359,13 +380,25 @@ export async function updateMemberReward(supaId, { cumulativeSales, rank, incent
 // ============================================================
 
 export async function fetchCallRecords(listId) {
-  const { data, error } = await supabase
-    .from('call_records')
-    .select('*')
-    .eq('list_id', listId)
-    .order('round')
-  if (error) console.error('[DB] fetchCallRecords error:', error)
-  return { data: data || [], error }
+  const PAGE_SIZE = 1000
+  let from = 0
+  let allData = []
+  while (true) {
+    const { data, error } = await supabase
+      .from('call_records')
+      .select('*')
+      .eq('list_id', listId)
+      .order('round')
+      .range(from, from + PAGE_SIZE - 1)
+    if (error) {
+      console.error('[DB] fetchCallRecords error:', error)
+      return { data: allData.length ? allData : [], error }
+    }
+    allData = allData.concat(data || [])
+    if (!data || data.length < PAGE_SIZE) break
+    from += PAGE_SIZE
+  }
+  return { data: allData, error: null }
 }
 
 export async function insertCallRecord(data) {

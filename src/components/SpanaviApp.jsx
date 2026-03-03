@@ -561,7 +561,7 @@ function SpanaviApp({ userName, isAdmin: isAdminProp, onLogout, supabaseData, on
           if (savedData) {
             const { listSupaId, startNo, endNo } = savedData;
             const list = supabaseData.callLists.find(l => l._supaId === listSupaId);
-            if (list) setCallFlowScreen({ list, startNo: startNo ?? undefined, endNo: endNo ?? undefined });
+            if (list) setCallFlowScreen({ list, startNo: startNo ?? null, endNo: endNo ?? null });
           }
         } catch(e) {}
       }
@@ -9059,6 +9059,9 @@ function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setA
         const target = fetchedItems.find(i => i.id === defaultItemId);
         if (target) setSelectedRow(target);
       }
+      setLoading(false);
+    }).catch(err => {
+      console.error('[CallFlowView] データ取得エラー:', err);
       setLoading(false);
     });
   }, [list._supaId]);
