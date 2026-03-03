@@ -866,6 +866,25 @@ export async function fetchCallSessions(sinceISO) {
   return { data: data || [], error }
 }
 
+// 複数リストの最終架電セッション日時を一括取得 → { [supaId]: latestStartedAt }
+export async function fetchLatestSessionPerList(supaIds) {
+  if (!supaIds?.length) return { data: {}, error: null }
+  const { data, error } = await supabase
+    .from('call_sessions')
+    .select('list_id, started_at')
+    .in('list_id', supaIds)
+    .order('started_at', { ascending: false })
+  if (error) {
+    console.error('[DB] fetchLatestSessionPerList error:', error)
+    return { data: {}, error }
+  }
+  const map = {}
+  ;(data || []).forEach(row => {
+    if (!map[row.list_id]) map[row.list_id] = row.started_at
+  })
+  return { data: map, error: null }
+}
+
 export async function fetchRecentDuplicateSession(listId, startNo, endNo) {
   const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString()
   let query = supabase

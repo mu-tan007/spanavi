@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import React from "react";
-import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordByItemRound, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, fetchMyCallRecords, insertCallSession, updateCallSession, fetchCallSessions, fetchRecentDuplicateSession, getProfileImageUrl, uploadProfileImage, fetchSetting, saveSetting } from "../lib/supabaseWrite";
+import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordByItemRound, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, fetchMyCallRecords, insertCallSession, updateCallSession, fetchCallSessions, fetchRecentDuplicateSession, getProfileImageUrl, uploadProfileImage, fetchSetting, saveSetting, fetchLatestSessionPerList } from "../lib/supabaseWrite";
 
 // ============================================================
 // LOGO (base64 embedded)
@@ -244,7 +244,8 @@ const parseTimeRange = (str) => {
   });
 };
 
-const getCurrentRecommendation = (rules, industry, now, listId, callLogs) => {
+// latestCallAt: そのリストの最終架電セッション started_at (ISO string | null)
+const getCurrentRecommendation = (rules, industry, now, latestCallAt) => {
   const dayOfWeek = now.getDay();
   const hour = now.getHours();
   const minutes = now.getMinutes();
@@ -281,19 +282,15 @@ const getCurrentRecommendation = (rules, industry, now, listId, callLogs) => {
   // --- Recency score (0-100): higher = longer since last called = more fresh ---
   let recencyScore = 100; // default: not recently called = highest priority
   let recencyLabel = "未架電";
-  if (callLogs && callLogs.length > 0) {
-    const listLogs = callLogs.filter(l => l.listId === listId);
-    if (listLogs.length > 0) {
-      const latestLog = listLogs.reduce((a, b) => new Date(a.date) > new Date(b.date) ? a : b);
-      const daysSince = (now - new Date(latestLog.date)) / (1000 * 60 * 60 * 24);
-      if (daysSince < 1) { recencyScore = 10; recencyLabel = "本日架電済"; }
-      else if (daysSince < 2) { recencyScore = 30; recencyLabel = "昨日架電"; }
-      else if (daysSince < 3) { recencyScore = 50; recencyLabel = "3日以内"; }
-      else if (daysSince < 7) { recencyScore = 65; recencyLabel = "1週間以内"; }
-      else if (daysSince < 14) { recencyScore = 80; recencyLabel = "2週間以内"; }
-      else if (daysSince < 30) { recencyScore = 90; recencyLabel = "1ヶ月以内"; }
-      else { recencyScore = 95; recencyLabel = Math.floor(daysSince) + "日前"; }
-    }
+  if (latestCallAt) {
+    const daysSince = (now - new Date(latestCallAt)) / (1000 * 60 * 60 * 24);
+    if (daysSince < 1) { recencyScore = 10; recencyLabel = "本日架電済"; }
+    else if (daysSince < 2) { recencyScore = 30; recencyLabel = "昨日架電"; }
+    else if (daysSince < 3) { recencyScore = 50; recencyLabel = "3日以内"; }
+    else if (daysSince < 7) { recencyScore = 65; recencyLabel = "1週間以内"; }
+    else if (daysSince < 14) { recencyScore = 80; recencyLabel = "2週間以内"; }
+    else if (daysSince < 30) { recencyScore = 90; recencyLabel = "1ヶ月以内"; }
+    else { recencyScore = 95; recencyLabel = Math.floor(daysSince) + "日前"; }
   }
 
   // --- Combined score: 35% time, 65% recency ---
@@ -573,18 +570,13 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
     try { localStorage.setItem("masp_v2_listSubTab", listSubTab); } catch(e) {}
   }, [listSubTab]);
   const [now, setNow] = useState(new Date());
-  const [callLogs, setCallLogs] = useState(() => {
-    try { const saved = localStorage.getItem("masp_v2_callLogs"); return saved ? JSON.parse(saved) : []; } catch(e) { return []; }
-  });
-  useEffect(() => {
-    try { localStorage.setItem("masp_v2_callLogs", JSON.stringify(callLogs)); } catch(e) {}
-  }, [callLogs]);
+  // call_sessions ベースの「リストごと最終架電日時」マップ { [supaId]: ISO string }
+  const [latestSessionMap, setLatestSessionMap] = useState({});
   const [industryRules, setIndustryRules] = useState(DEFAULT_INDUSTRY_RULES);
   const [filterStatus, setFilterStatus] = useState("架電可能");
   const [filterType, setFilterType] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedList, setSelectedList] = useState(null);
-  const [logFormOpen, setLogFormOpen] = useState(false);
   const [ruleEditorOpen, setRuleEditorOpen] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
   const [sortBy, setSortBy] = useState("date");
@@ -598,6 +590,15 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   }, [liveStatuses]);
 
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 60000); return () => clearInterval(t); }, []);
+
+  // callListData がロードされたら call_sessions から各リストの最終架電日時を取得
+  useEffect(() => {
+    const supaIds = (callListData || []).map(l => l._supaId).filter(Boolean);
+    if (!supaIds.length) return;
+    fetchLatestSessionPerList(supaIds).then(({ data }) => {
+      setLatestSessionMap(data || {});
+    });
+  }, [callListData]);
 
   // ── 再コール・ベル通知 ──
   const [supaRecalls, setSupaRecalls] = useState([]);
@@ -636,11 +637,10 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   }, [now]);
 
   const enrichedLists = useMemo(() => callListData.map(list => {
-    const rec = getCurrentRecommendation(industryRules, list.industry, now, list.id, callLogs);
-    const recentLogs = callLogs.filter(l => l.listId === list.id);
-    const todayLogs = recentLogs.filter(l => new Date(l.date).toDateString() === now.toDateString());
-    return { ...list, recommendation: rec, recentLogs, todayLogs };
-  }), [now, callLogs, industryRules, callListData]);
+    const latestCallAt = latestSessionMap[list._supaId] || null;
+    const rec = getCurrentRecommendation(industryRules, list.industry, now, latestCallAt);
+    return { ...list, recommendation: rec };
+  }), [now, latestSessionMap, industryRules, callListData]);
 
   const filteredLists = useMemo(() => {
     let lists = enrichedLists;
@@ -655,8 +655,6 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
 
   const activeCount = enrichedLists.filter(l => l.status === "架電可能").length;
   const recommendedCount = enrichedLists.filter(l => l.status === "架電可能" && l.recommendation.score >= 80).length;
-  const todayLogCount = callLogs.filter(l => new Date(l.date).toDateString() === now.toDateString()).length;
-  const addCallLog = useCallback((log) => { setCallLogs(prev => [...prev, { ...log, id: Date.now(), date: new Date().toISOString() }]); setLogFormOpen(false); }, []);
 
   const timeStr = now.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
   const dateStr = now.toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
@@ -1111,7 +1109,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       </main>
 
       {callingScreen && <CallingScreen listId={callingScreen.listId} list={callingScreen.list} importedCSVs={importedCSVs} setImportedCSVs={setImportedCSVs} onClose={() => setCallingScreen(null)} currentUser={currentUser} liveStatuses={liveStatuses} setLiveStatuses={setLiveStatuses} members={members} />}
-      {selectedList && <DetailModal list={enrichedLists.find(l => l.id === selectedList)} callLogs={callLogs} onClose={() => setSelectedList(null)} onAddLog={() => { setLogFormOpen(true); setCurrentTab("logs"); }} industryRules={industryRules} now={now} callListData={callListData} setCallListData={setCallListData} setCallFlowScreen={setCallFlowScreen} isAdmin={isAdmin} onDelete={(id) => { setCallListData(prev => prev.filter(l => l.id !== id)); setSelectedList(null); }} />}
+      {selectedList && <DetailModal list={enrichedLists.find(l => l.id === selectedList)} onClose={() => setSelectedList(null)} industryRules={industryRules} now={now} callListData={callListData} setCallListData={setCallListData} setCallFlowScreen={setCallFlowScreen} isAdmin={isAdmin} onDelete={(id) => { setCallListData(prev => prev.filter(l => l.id !== id)); setSelectedList(null); }} />}
       {callFlowScreen && <CallFlowView list={callFlowScreen.list} startNo={callFlowScreen.startNo} endNo={callFlowScreen.endNo} statusFilter={callFlowScreen.statusFilter ?? null} onClose={() => setCallFlowScreen(null)} setAppoData={isAdmin ? setAppoData : null} members={members} currentUser={currentUser} defaultItemId={callFlowScreen.defaultItemId ?? null} />}
     </div>
   );
@@ -9973,9 +9971,8 @@ function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setA
   );
 }
 
-function DetailModal({ list, callLogs, onClose, onAddLog, industryRules, now, callListData, setCallListData, setCallFlowScreen, isAdmin, onDelete }) {
+function DetailModal({ list, onClose, industryRules, now, callListData, setCallListData, setCallFlowScreen, isAdmin, onDelete }) {
   if (!list) return null;
-  const listLogs = callLogs.filter(l => l.listId === list.id).reverse();
   const cat = getIndustryCategory(list.industry);
   const rule = industryRules.find(r => r.industry === cat);
 
