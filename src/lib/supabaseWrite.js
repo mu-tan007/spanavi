@@ -398,6 +398,17 @@ export async function deleteCallRecord(id) {
   return error
 }
 
+export async function deleteCallRecordByItemRound(itemId, round) {
+  if (!itemId || round == null) { console.warn('[DB] deleteCallRecordByItemRound: missing args'); return null }
+  const { error } = await supabase
+    .from('call_records')
+    .delete()
+    .eq('item_id', itemId)
+    .eq('round', round)
+  if (error) console.error('[DB] deleteCallRecordByItemRound error:', error)
+  return error
+}
+
 export async function deleteCallRecordsByListId(listId) {
   if (!listId) { console.warn('[DB] deleteCallRecordsByListId: no listId'); return null }
   const { error } = await supabase
@@ -797,4 +808,20 @@ export async function fetchCallSessions(sinceISO) {
     .order('started_at', { ascending: false })
   if (error) console.error('[DB] fetchCallSessions error:', error)
   return { data: data || [], error }
+}
+
+export async function fetchRecentDuplicateSession(listId, startNo, endNo) {
+  const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString()
+  let query = supabase
+    .from('call_sessions')
+    .select('id')
+    .eq('list_id', listId)
+    .gte('started_at', oneMinuteAgo)
+    .order('started_at', { ascending: false })
+    .limit(1)
+  if (startNo != null) query = query.eq('start_no', startNo)
+  if (endNo != null) query = query.eq('end_no', endNo)
+  const { data, error } = await query
+  if (error) console.error('[DB] fetchRecentDuplicateSession error:', error)
+  return { data: data?.[0] || null, error }
 }

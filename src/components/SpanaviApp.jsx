@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import React from "react";
-import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, insertCallSession, updateCallSession, fetchCallSessions } from "../lib/supabaseWrite";
+import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordByItemRound, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, insertCallSession, updateCallSession, fetchCallSessions, fetchRecentDuplicateSession } from "../lib/supabaseWrite";
 
 // ============================================================
 // LOGO (base64 embedded)
@@ -7417,6 +7417,22 @@ function CallingScreen({ listId, list, importedCSVs, setImportedCSVs, onClose, c
   const [sessionKey] = useState(() => "self_" + (currentUser || "unknown") + "_" + Date.now());
   const csvData = importedCSVs[listId] || [];
 
+  // Supabase item ID lookup: { [no]: call_list_items.id }
+  const [itemIdMap, setItemIdMap] = useState({});
+  useEffect(() => {
+    console.log('[CallingScreen] itemIdMap構築 — list._supaId:', list?._supaId);
+    if (!list?._supaId) { console.warn('[CallingScreen] _supaId 未設定のため itemIdMap は空のまま'); return; }
+    fetchCallListItems(list._supaId).then(({ data, error }) => {
+      if (error) { console.error('[CallingScreen] fetchCallListItems error:', error); return; }
+      console.log('[CallingScreen] fetchCallListItems 結果 件数:', data?.length, '/ 先頭:', data?.[0]);
+      if (!data?.length) return;
+      const map = {};
+      data.forEach(item => { map[item.no] = item.id; });
+      console.log('[CallingScreen] itemIdMap構築完了 エントリ数:', Object.keys(map).length);
+      setItemIdMap(map);
+    });
+  }, [list?._supaId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Range input
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
@@ -7502,48 +7518,116 @@ function CallingScreen({ listId, list, importedCSVs, setImportedCSVs, onClose, c
   };
 
   const markStatus = (idx, statusId, extraData) => {
+    const calledAt = new Date().toISOString();
+    const statusLabel = getStatusDef(statusId).label;
+
+    // ① importedCSVs への書き込み（既存・維持）
     setImportedCSVs(prev => {
       const updated = [...(prev[listId] || [])];
       const row = { ...updated[idx] };
       if (!row.rounds) row.rounds = {};
-      row.rounds = { ...row.rounds, [currentRound]: { status: statusId, memo: memo, timestamp: new Date().toISOString(), caller: currentUser || "", ...extraData } };
-      // Keep legacy fields for compatibility
+      row.rounds = { ...row.rounds, [currentRound]: { status: statusId, memo: memo, timestamp: calledAt, caller: currentUser || "", ...extraData } };
       row.called = true;
-      row.result = getStatusDef(statusId).label;
+      row.result = statusLabel;
       updated[idx] = row;
       return { ...prev, [listId]: updated };
     });
+
+    // ② Supabase への書き込み（新規追加）
+    const row = csvData[idx];
+    const itemId = itemIdMap[row?.no];
+    console.log('[CallingScreen] markStatus — idx:', idx, '/ row.no:', row?.no, '/ itemId:', itemId, '/ list._supaId:', list?._supaId, '/ itemIdMap keys:', Object.keys(itemIdMap).length);
+    if (itemId && list?._supaId) {
+      // recall の場合は CallFlowView と同じ memo JSON 形式に変換
+      let memoStr = memo || null;
+      if (extraData?.recall) {
+        const rc = extraData.recall;
+        memoStr = JSON.stringify({ recall_date: rc.recallDate, recall_time: rc.recallTime, assignee: rc.assignee || '', note: rc.note || '', recall_completed: false });
+      }
+      console.log('[CallingScreen] markStatus — Supabase書き込み開始 insertCallRecord:', { item_id: itemId, list_id: list._supaId, round: currentRound, status: statusLabel });
+      insertCallRecord({
+        item_id: itemId, list_id: list._supaId,
+        round: currentRound, status: statusLabel,
+        memo: memoStr, called_at: calledAt,
+        getter_name: currentUser || null,
+      }).then(({ result, error }) => {
+        if (error) console.error('[CallingScreen] markStatus insertCallRecord error:', error);
+        else console.log('[CallingScreen] markStatus insertCallRecord 成功:', result);
+      }).catch(e => console.error('[CallingScreen] markStatus insertCallRecord catch:', e));
+      updateCallListItem(itemId, { call_status: statusLabel, called_at: calledAt })
+        .then(err => {
+          if (err) console.error('[CallingScreen] markStatus updateCallListItem error:', err);
+          else console.log('[CallingScreen] markStatus updateCallListItem 成功');
+        }).catch(e => console.error('[CallingScreen] markStatus updateCallListItem catch:', e));
+    } else {
+      console.warn('[CallingScreen] markStatus — Supabase書き込みスキップ（itemId or _supaId が未設定）');
+    }
+
     // Auto-advance to next callable
     const next = csvData.findIndex((r, i) => i > idx && isCallable(r));
     if (next >= 0) { setSelectedRow(next); setMemo(""); }
-    // Update live status after marking
     setTimeout(() => updateLiveStatus(), 100);
   };
 
   const saveMemo = (idx, memoText) => {
+    // ① importedCSVs への書き込み（既存・維持）
     setImportedCSVs(prev => {
       const updated = [...(prev[listId] || [])];
       updated[idx] = { ...updated[idx], memo: memoText };
       return { ...prev, [listId]: updated };
     });
+
+    // ② Supabase への書き込み（新規追加）
+    const row = csvData[idx];
+    const itemId = itemIdMap[row?.no];
+    console.log('[CallingScreen] saveMemo — idx:', idx, '/ row.no:', row?.no, '/ itemId:', itemId);
+    if (itemId) {
+      updateCallListItem(itemId, { memo: memoText || null })
+        .then(err => {
+          if (err) console.error('[CallingScreen] saveMemo updateCallListItem error:', err);
+          else console.log('[CallingScreen] saveMemo updateCallListItem 成功');
+        }).catch(e => console.error('[CallingScreen] saveMemo updateCallListItem catch:', e));
+    } else {
+      console.warn('[CallingScreen] saveMemo — Supabase書き込みスキップ（itemId 未設定）');
+    }
   };
 
   const undoStatus = (idx, round) => {
+    const row = csvData[idx];
+
+    // ① importedCSVs への書き込み（既存・維持）
     setImportedCSVs(prev => {
       const updated = [...(prev[listId] || [])];
-      const row = { ...updated[idx] };
-      if (row.rounds) {
-        const newRounds = { ...row.rounds };
+      const r = { ...updated[idx] };
+      if (r.rounds) {
+        const newRounds = { ...r.rounds };
         delete newRounds[round];
-        row.rounds = newRounds;
-        // Update legacy fields
+        r.rounds = newRounds;
         const remaining = Object.values(newRounds);
-        row.called = remaining.length > 0;
-        row.result = remaining.length > 0 ? getStatusDef(remaining[remaining.length - 1].status).label : "";
+        r.called = remaining.length > 0;
+        r.result = remaining.length > 0 ? getStatusDef(remaining[remaining.length - 1].status).label : "";
       }
-      updated[idx] = row;
+      updated[idx] = r;
       return { ...prev, [listId]: updated };
     });
+
+    // ② Supabase への書き込み（新規追加）
+    const itemId = itemIdMap[row?.no];
+    if (itemId) {
+      deleteCallRecordByItemRound(itemId, round)
+        .catch(e => console.error('[CallingScreen] undoStatus deleteCallRecordByItemRound error:', e));
+      // 前のラウンドのステータスを call_list_items.call_status に反映
+      const remainingRounds = row?.rounds
+        ? Object.entries(row.rounds)
+            .filter(([r]) => Number(r) !== round)
+            .sort((a, b) => Number(b[0]) - Number(a[0]))
+        : [];
+      const prevStatusLabel = remainingRounds.length > 0
+        ? getStatusDef(remainingRounds[0][1].status).label
+        : null;
+      updateCallListItem(itemId, { call_status: prevStatusLabel })
+        .catch(e => console.error('[CallingScreen] undoStatus updateCallListItem error:', e));
+    }
   };
 
   // Filtered list
@@ -9022,26 +9106,37 @@ function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setA
 
   // Session creation on mount + beforeunload guard
   React.useEffect(() => {
-    const id = `cf_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    sessionIdRef.current = id;
     const totalCount = (startNo != null && endNo != null)
       ? (Number(endNo) - Number(startNo) + 1)
       : 0;
-    insertCallSession({
-      id,
-      list_id: list.id,
-      list_supa_id: list._supaId || null,
-      list_name: list.company || '',
-      industry: list.industry || '',
-      caller_name: currentUser || '不明',
-      start_no: startNo ?? null,
-      end_no: endNo ?? null,
-      total_count: totalCount,
-      started_at: new Date().toISOString(),
-      finished_at: null,
-      last_called_at: null,
-    }).catch(e => console.error('[Session] insertCallSession error:', e));
-    console.log('[Session] セッション作成 — id:', id, '/ list_id:', list.id, '/ total_count:', totalCount);
+    // 直近1分以内に同じ list_id + start_no + end_no のセッションが存在する場合は
+    // INSERTをスキップして既存セッションを再利用する (React Strict Mode の二重mount対策)
+    fetchRecentDuplicateSession(list.id, startNo ?? null, endNo ?? null)
+      .then(({ data: existing }) => {
+        if (existing) {
+          console.log('[Session] 重複セッション検出 — 既存IDを使用:', existing.id);
+          sessionIdRef.current = existing.id;
+        } else {
+          const id = `cf_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+          sessionIdRef.current = id;
+          insertCallSession({
+            id,
+            list_id: list.id,
+            list_supa_id: list._supaId || null,
+            list_name: list.company || '',
+            industry: list.industry || '',
+            caller_name: currentUser || '不明',
+            start_no: startNo ?? null,
+            end_no: endNo ?? null,
+            total_count: totalCount,
+            started_at: new Date().toISOString(),
+            finished_at: null,
+            last_called_at: null,
+          }).catch(e => console.error('[Session] insertCallSession error:', e));
+          console.log('[Session] セッション作成 — id:', id, '/ list_id:', list.id, '/ total_count:', totalCount);
+        }
+      })
+      .catch(e => console.error('[Session] fetchRecentDuplicateSession error:', e));
 
     // タブ閉じ・リロード時にも finished_at を書き込む
     // ※ 通常の非同期fetchはbeforeunload時にブラウザにキャンセルされるため
