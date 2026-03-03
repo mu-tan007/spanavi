@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import React from "react";
-import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordByItemRound, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, fetchMyCallRecords, insertCallSession, updateCallSession, fetchCallSessions, fetchRecentDuplicateSession, getProfileImageUrl, uploadProfileImage, fetchSetting, saveSetting, fetchLatestSessionPerList } from "../lib/supabaseWrite";
+import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordByItemRound, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, fetchMyCallRecords, insertCallSession, updateCallSession, fetchCallSessions, fetchRecentDuplicateSession, getProfileImageUrl, uploadProfileImage, fetchSetting, saveSetting, fetchLatestSessionPerList, fetchRoleplayBookings, insertRoleplayBooking, deleteRoleplayBooking } from "../lib/supabaseWrite";
 
 // ============================================================
 // LOGO (base64 embedded)
@@ -10673,8 +10673,6 @@ function RoleplayView({ currentUser }) {
   const GCAL_CAL_ID = import.meta.env.VITE_GOOGLE_CALENDAR_ID || 'primary';
   const GCAL_SCOPE = 'https://www.googleapis.com/auth/calendar email';
   const TOKEN_KEY = 'gcal_token_v1';
-  const BOOKINGS_KEY = 'roleplay_bookings_v1';
-
   const loadToken = () => {
     try {
       const d = JSON.parse(localStorage.getItem(TOKEN_KEY) || 'null');
@@ -10689,9 +10687,7 @@ function RoleplayView({ currentUser }) {
   const [loadingBusy, setLoadingBusy] = useState(false);
   const [gcalError, setGcalError] = useState(null);
   const [confirmSlot, setConfirmSlot] = useState(null);
-  const [bookings, setBookings] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(BOOKINGS_KEY) || '[]'); } catch(e) { return []; }
-  });
+  const [bookings, setBookings] = useState([]);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccessMsg, setBookingSuccessMsg] = useState('');
   const [userEmail, setUserEmail] = useState(() => {
@@ -10773,6 +10769,14 @@ function RoleplayView({ currentUser }) {
   };
 
   useEffect(() => { if (gcalToken) fetchBusy(gcalToken); }, [gcalToken]);
+
+  // ロープレ予約をSupabaseから取得
+  useEffect(() => {
+    if (!userId) return;
+    fetchRoleplayBookings(userId).then(({ data }) => {
+      setBookings(data || []);
+    });
+  }, [userId]);
 
   // OAuth後にユーザーのメールアドレスを取得
   useEffect(() => {
@@ -10936,9 +10940,8 @@ function RoleplayView({ currentUser }) {
         endLabel: confirmSlot.endLabel,
         attendeeEmail: modalEmail,
       };
-      const updated = [...bookings, nb];
-      setBookings(updated);
-      try { localStorage.setItem(BOOKINGS_KEY, JSON.stringify(updated)); } catch(e) {}
+      setBookings(prev => [...prev, nb]);
+      insertRoleplayBooking(userId, nb);
       await fetchBusy(activeToken);
       setBookingSuccessMsg('✅ Googleカレンダーに登録しました');
       setTimeout(() => setBookingSuccessMsg(''), 4000);
@@ -10962,9 +10965,8 @@ function RoleplayView({ currentUser }) {
         await fetchBusy(gcalToken);
       } catch(e) { /* ローカルからは削除する */ }
     }
-    const updated = bookings.filter(b => b.id !== booking.id);
-    setBookings(updated);
-    try { localStorage.setItem(BOOKINGS_KEY, JSON.stringify(updated)); } catch(e) {}
+    setBookings(prev => prev.filter(b => b.id !== booking.id));
+    deleteRoleplayBooking(booking.id, userId);
   };
 
   const currentDaySlots = getSlots(days[selectedDay]?.dateStr || '');

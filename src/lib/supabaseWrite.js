@@ -975,3 +975,57 @@ export async function saveSetting(key, value) {
   else console.log('[DB] saveSetting 完了 — upsert result:', data)
   return error
 }
+
+// ============================================================
+// Roleplay Bookings (ロープレ予約)
+// ============================================================
+
+export async function fetchRoleplayBookings(userId) {
+  if (!userId) return { data: [], error: null }
+  const { data, error } = await supabase
+    .from('roleplay_bookings')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  if (error) console.error('[DB] fetchRoleplayBookings error:', error)
+  return { data: (data || []).map(r => ({
+    id: r.gcal_event_id,
+    title: r.user_name ? `ロープレ - ${r.user_name}` : 'ロープレ',
+    startISO: r.start_iso,
+    endISO: r.end_iso,
+    dayLabel: r.day_label,
+    startLabel: r.start_label,
+    endLabel: r.end_label,
+    attendeeEmail: r.attendee_email,
+  })), error }
+}
+
+export async function insertRoleplayBooking(userId, booking) {
+  if (!userId) return null
+  const { error } = await supabase
+    .from('roleplay_bookings')
+    .insert({
+      gcal_event_id: booking.id,
+      user_id: userId,
+      user_name: booking.title?.replace('ロープレ - ', '') || '',
+      start_iso: booking.startISO,
+      end_iso: booking.endISO,
+      day_label: booking.dayLabel,
+      start_label: booking.startLabel,
+      end_label: booking.endLabel,
+      attendee_email: booking.attendeeEmail || null,
+    })
+  if (error) console.error('[DB] insertRoleplayBooking error:', error)
+  return error
+}
+
+export async function deleteRoleplayBooking(gcalEventId, userId) {
+  if (!gcalEventId || !userId) return null
+  const { error } = await supabase
+    .from('roleplay_bookings')
+    .delete()
+    .eq('gcal_event_id', gcalEventId)
+    .eq('user_id', userId)
+  if (error) console.error('[DB] deleteRoleplayBooking error:', error)
+  return error
+}
