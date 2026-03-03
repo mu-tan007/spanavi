@@ -65,6 +65,7 @@ export default function RoleplayView({ currentUser, userId }) {
   const [modalEmail, setModalEmail] = useState('');
   const [selectedDay, setSelectedDay] = useState(0);
   const tokenClientRef = React.useRef(null);
+  const pendingRefreshRef = React.useRef(null); // silentRefresh の Promise コールバック
 
   // Google Identity Services 初期化
   useEffect(() => {
@@ -75,12 +76,23 @@ export default function RoleplayView({ currentUser, userId }) {
         client_id: GCAL_CLIENT_ID,
         scope: GCAL_SCOPE,
         callback: (resp) => {
-          if (resp.error) { setGcalError('認証エラー: ' + (resp.error_description || resp.error)); return; }
+          if (resp.error) {
+            setGcalError('認証エラー: ' + (resp.error_description || resp.error));
+            if (pendingRefreshRef.current) {
+              pendingRefreshRef.current.reject(new Error(resp.error));
+              pendingRefreshRef.current = null;
+            }
+            return;
+          }
           if (resp.access_token) {
             const data = { token: resp.access_token, exp: Date.now() + 55 * 60 * 1000 };
             try { localStorage.setItem(TOKEN_KEY, JSON.stringify(data)); } catch(e) {}
             setGcalToken(resp.access_token);
             setGcalError(null);
+            if (pendingRefreshRef.current) {
+              pendingRefreshRef.current.resolve(resp.access_token);
+              pendingRefreshRef.current = null;
+            }
           }
         },
       });
@@ -91,6 +103,29 @@ export default function RoleplayView({ currentUser, userId }) {
       return () => clearInterval(timer);
     }
   }, [GCAL_CLIENT_ID]);
+
+  // サイレントリフレッシュ（ユーザーが Google にサインイン済みなら UI なしで取得）
+  // ※ GIS の implicit flow はリフレッシュトークンを返さないため、
+  //    requestAccessToken({ prompt: '' }) でサイレント再取得する
+  const silentRefresh = () => new Promise((resolve, reject) => {
+    if (!tokenClientRef.current) { reject(new Error('GIS not ready')); return; }
+    pendingRefreshRef.current = { resolve, reject };
+    tokenClientRef.current.requestAccessToken({ prompt: '' });
+  });
+
+  // 有効なアクセストークンを取得（期限 2 分以内なら自動リフレッシュ）
+  const ensureValidToken = async () => {
+    const stored = (() => { try { return JSON.parse(localStorage.getItem(TOKEN_KEY) || 'null'); } catch(e) { return null; } })();
+    if (stored && Date.now() < stored.exp - 2 * 60 * 1000) return stored.token;
+    try {
+      return await silentRefresh();
+    } catch(e) {
+      setGcalToken(null);
+      try { localStorage.removeItem(TOKEN_KEY); } catch(e2) {}
+      setGcalError('セッションが切れました。再度連携してください。');
+      throw e;
+    }
+  };
 
   const handleConnect = () => {
     setGcalError(null);
@@ -108,25 +143,44 @@ export default function RoleplayView({ currentUser, userId }) {
     try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem('gcal_user_email'); } catch(e) {}
   };
 
-  // FreeBusy 取得
-  const fetchBusy = async (token) => {
+  // バックグラウンドで期限 5 分前にサイレントリフレッシュ
+  useEffect(() => {
+    if (!gcalToken) return;
+    const stored = (() => { try { return JSON.parse(localStorage.getItem(TOKEN_KEY) || 'null'); } catch(e) { return null; } })();
+    if (!stored) return;
+    const delay = Math.max(0, stored.exp - Date.now() - 5 * 60 * 1000);
+    const timer = setTimeout(() => {
+      silentRefresh().catch(() => { /* 失敗時は次回 API 呼び出し時に再取得 */ });
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [gcalToken]);
+
+  // FreeBusy 取得（引数なし — ensureValidToken で自動取得）
+  const fetchBusy = async () => {
+    let token;
+    try { token = await ensureValidToken(); } catch(e) { return; }
     setLoadingBusy(true);
     setGcalError(null);
     const now = new Date();
     const base = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const timeMin = base.toISOString();
     const timeMax = new Date(base.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const buildReq = (t) => fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ timeMin, timeMax, items: [{ id: GCAL_CAL_ID }] }),
+    });
     try {
-      const res = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timeMin, timeMax, items: [{ id: GCAL_CAL_ID }] }),
-      });
+      let res = await buildReq(token);
       if (res.status === 401) {
-        setGcalToken(null);
-        try { localStorage.removeItem(TOKEN_KEY); } catch(e) {}
-        setGcalError('セッションが切れました。再度連携してください。');
-        return;
+        // サイレントリフレッシュを 1 回試みる
+        try { token = await silentRefresh(); } catch(e) {
+          setGcalToken(null);
+          try { localStorage.removeItem(TOKEN_KEY); } catch(e2) {}
+          setGcalError('セッションが切れました。再度連携してください。');
+          return;
+        }
+        res = await buildReq(token);
       }
       const d = await res.json();
       setBusySlots(d.calendars?.[GCAL_CAL_ID]?.busy || []);
@@ -137,7 +191,7 @@ export default function RoleplayView({ currentUser, userId }) {
     }
   };
 
-  useEffect(() => { if (gcalToken) fetchBusy(gcalToken); }, [gcalToken]);
+  useEffect(() => { if (gcalToken) fetchBusy(); }, [gcalToken]);
 
   // ロープレ予約をSupabaseから取得
   useEffect(() => {
@@ -235,16 +289,9 @@ export default function RoleplayView({ currentUser, userId }) {
   const handleBook = async () => {
     if (!confirmSlot) return;
 
-    // トークン有効性チェック
-    const storedData = (() => { try { return JSON.parse(localStorage.getItem(TOKEN_KEY) || 'null'); } catch(e) { return null; } })();
-    if (!storedData || Date.now() > storedData.exp) {
-      setGcalToken(null);
-      try { localStorage.removeItem(TOKEN_KEY); } catch(e) {}
-      setGcalError('セッションが切れました。再度連携してください。');
-      setConfirmSlot(null);
-      return;
-    }
-    const activeToken = storedData.token;
+    // ensureValidToken でトークン取得（期限切れなら自動リフレッシュ）
+    let activeToken;
+    try { activeToken = await ensureValidToken(); } catch(e) { setConfirmSlot(null); return; }
 
     setBookingLoading(true);
     setGcalError(null);
@@ -270,23 +317,29 @@ export default function RoleplayView({ currentUser, userId }) {
     const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CAL_ID)}/events?sendUpdates=all`;
     console.log('[GCal] Creating event:', title, confirmSlot.startISO, '-', confirmSlot.endISO, 'attendees:', eventBody.attendees.map(a => a.email));
 
+    const doPost = (t) => fetch(url, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' },
+      body: JSON.stringify(eventBody),
+    });
+
     try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + activeToken, 'Content-Type': 'application/json' },
-        body: JSON.stringify(eventBody),
-      });
+      let res = await doPost(activeToken);
+
+      if (res.status === 401) {
+        // サイレントリフレッシュを 1 回試みてリトライ
+        try { activeToken = await silentRefresh(); } catch(e) {
+          setGcalToken(null);
+          try { localStorage.removeItem(TOKEN_KEY); } catch(e2) {}
+          setGcalError('セッションが切れました。再度連携してください。');
+          setConfirmSlot(null);
+          return;
+        }
+        res = await doPost(activeToken);
+      }
 
       const resText = await res.text();
       console.log('[GCal] Response status:', res.status, resText.slice(0, 300));
-
-      if (res.status === 401) {
-        setGcalToken(null);
-        try { localStorage.removeItem(TOKEN_KEY); } catch(e) {}
-        setGcalError('セッションが切れました。再度連携してください。');
-        setConfirmSlot(null);
-        return;
-      }
 
       if (!res.ok) {
         let errMsg = String(res.status);
@@ -311,7 +364,7 @@ export default function RoleplayView({ currentUser, userId }) {
       };
       setBookings(prev => [...prev, nb]);
       insertRoleplayBooking(userId, nb);
-      await fetchBusy(activeToken);
+      await fetchBusy();
       setBookingSuccessMsg('✅ Googleカレンダーに登録しました');
       setTimeout(() => setBookingSuccessMsg(''), 4000);
       setConfirmSlot(null);
@@ -325,14 +378,18 @@ export default function RoleplayView({ currentUser, userId }) {
 
   // イベント削除
   const handleCancel = async (booking) => {
-    if (gcalToken && booking.id) {
-      try {
-        await fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CAL_ID)}/events/${booking.id}`,
-          { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + gcalToken } }
-        );
-        await fetchBusy(gcalToken);
-      } catch(e) { /* ローカルからは削除する */ }
+    if (booking.id) {
+      let token = null;
+      try { token = await ensureValidToken(); } catch(e) { /* トークン取得失敗でもローカル削除は続行 */ }
+      if (token) {
+        try {
+          await fetch(
+            `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CAL_ID)}/events/${booking.id}`,
+            { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } }
+          );
+          await fetchBusy();
+        } catch(e) { /* ローカルからは削除する */ }
+      }
     }
     setBookings(prev => prev.filter(b => b.id !== booking.id));
     deleteRoleplayBooking(booking.id, userId);
@@ -396,7 +453,7 @@ export default function RoleplayView({ currentUser, userId }) {
                 <span style={{ fontSize: 11, color: C.textMid, fontWeight: 600 }}>Googleカレンダー連携中</span>
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <button onClick={() => fetchBusy(gcalToken)} disabled={loadingBusy}
+                <button onClick={() => fetchBusy()} disabled={loadingBusy}
                   style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, border: "1px solid " + C.borderLight,
                     background: "transparent", color: C.textMid, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
                   {loadingBusy ? '読込中...' : '更新'}
