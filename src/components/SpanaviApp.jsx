@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import React from "react";
-import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordByItemRound, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, fetchMyCallRecords, insertCallSession, updateCallSession, fetchCallSessions, fetchRecentDuplicateSession } from "../lib/supabaseWrite";
+import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordByItemRound, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, fetchMyCallRecords, insertCallSession, updateCallSession, fetchCallSessions, fetchRecentDuplicateSession, getProfileImageUrl, uploadProfileImage } from "../lib/supabaseWrite";
 
 // ============================================================
 // LOGO (base64 embedded)
@@ -496,7 +496,7 @@ function InlineAudioPlayer({ url, onClose }) {
   );
 }
 
-function SpanaviApp({ userName, isAdmin: isAdminProp, onLogout, supabaseData, onDataRefetch }) {
+function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabaseData, onDataRefetch }) {
   const [callListData, setCallListData] = useState(supabaseData?.callLists ?? []);
   useEffect(() => {
     // _supaId が付いているデータのみ保存（古いキャッシュの上書きを防ぐ）
@@ -1121,7 +1121,7 @@ function SpanaviApp({ userName, isAdmin: isAdminProp, onLogout, supabaseData, on
         {currentTab === "payroll" && <PayrollView members={members} appoData={appoData} />}
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView industryRules={industryRules} setIndustryRules={setIndustryRules} ruleEditorOpen={ruleEditorOpen} setRuleEditorOpen={setRuleEditorOpen} editingRule={editingRule} setEditingRule={setEditingRule} isAdmin={isAdmin} />}
-        {currentTab === "mypage" && <MyPageView currentUser={currentUser} callListData={callListData} members={members} now={now} appoData={appoData} />}
+        {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} />}
         {currentTab === "edu_script" && <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} />}
         {currentTab === "edu_rules" && <PlaceholderView title="ルール管理ページ" />}
         {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} />}
@@ -6621,24 +6621,25 @@ function RecallListView({ callListData, supaRecalls = [], onRecallComplete, memb
 // ============================================================
 // MyPage View
 // ============================================================
-function MyPageView({ currentUser, callListData, members, now, appoData }) {
+function MyPageView({ currentUser, userId, callListData, members, now, appoData }) {
   const [periodTab, setPeriodTab] = useState("daily"); // daily, weekly, monthly, cumulative
   const [trainingExpanded, setTrainingExpanded] = useState(true);
-  const profileImageKey = "spanavi_profile_" + (currentUser || '');
-  const [profileImage, setProfileImage] = useState(() => {
-    try { return localStorage.getItem(profileImageKey) || null; } catch(e) { return null; }
-  });
+  const [profileImage, setProfileImage] = useState(() => getProfileImageUrl(userId));
+  const [profileUploading, setProfileUploading] = useState(false);
   const fileInputRef = React.useRef(null);
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
+    console.log('[Profile] handleImageChange 呼び出し — files:', e.target.files?.length, '/ profileUploading:', profileUploading);
     const file = e.target.files?.[0];
+    e.target.value = ''; // 同じファイルを再選択しても onChange が発火するようリセット
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const b64 = evt.target.result;
-      setProfileImage(b64);
-      try { localStorage.setItem(profileImageKey, b64); } catch(e) {}
-    };
-    reader.readAsDataURL(file);
+    setProfileUploading(true);
+    try {
+      const { url, error } = await uploadProfileImage(userId, file);
+      if (error) { alert('画像のアップロードに失敗しました'); return; }
+      setProfileImage(url);
+    } finally {
+      setProfileUploading(false); // 成功・失敗・例外いずれの場合も必ず解除
+    }
   };
 
   // Supabaseから自分の架電レコードを全件取得
@@ -6769,18 +6770,21 @@ function MyPageView({ currentUser, callListData, members, now, appoData }) {
         color: C.white, display: "flex", alignItems: "center", gap: 20,
       }}>
         <div
-          onClick={() => fileInputRef.current?.click()}
-          title="クリックして画像を変更"
+          onClick={() => !profileUploading && fileInputRef.current?.click()}
+          title={profileUploading ? "アップロード中..." : "クリックして画像を変更"}
           style={{
             width: 56, height: 56, borderRadius: "50%", background: C.gold,
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 24, fontWeight: 800, color: C.navyDeep, flexShrink: 0,
-            cursor: "pointer", overflow: "hidden",
+            cursor: profileUploading ? "default" : "pointer", overflow: "hidden",
+            opacity: profileUploading ? 0.6 : 1,
           }}
         >
-          {profileImage
-            ? <img src={profileImage} alt="profile" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%", display: "block" }} />
-            : (currentUser || "?").charAt(0)
+          {profileUploading
+            ? <span style={{ fontSize: 10, color: C.navyDeep }}>...</span>
+            : profileImage
+              ? <img src={profileImage} alt="profile" onError={() => setProfileImage(null)} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%", display: "block" }} />
+              : (currentUser || "?").charAt(0)
           }
         </div>
         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} style={{ display: "none" }} />

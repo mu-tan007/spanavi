@@ -881,3 +881,51 @@ export async function fetchRecentDuplicateSession(listId, startNo, endNo) {
   if (error) console.error('[DB] fetchRecentDuplicateSession error:', error)
   return { data: data?.[0] || null, error }
 }
+
+// ============================================================
+// Profile Image (Supabase Storage)
+// ============================================================
+const PROFILE_BUCKET = 'profile-images'
+
+export function getProfileImageUrl(userId) {
+  if (!userId) return null
+  const { data } = supabase.storage
+    .from(PROFILE_BUCKET)
+    .getPublicUrl(`${ORG_ID}/${userId}`)
+  return data.publicUrl
+}
+
+export async function uploadProfileImage(userId, file) {
+  if (!userId || !file) return { url: null, error: new Error('invalid args') }
+  const path = `${ORG_ID}/${userId}`
+  console.log('[Storage] uploadProfileImage — bucket:', PROFILE_BUCKET, '/ path:', path, '/ fileName:', file.name, '/ fileSize:', file.size, 'bytes / contentType:', file.type)
+
+  // まず upload を試みる。409（既存ファイル）なら update にフォールバック
+  let finalError = null
+  const { error: uploadError } = await supabase.storage
+    .from(PROFILE_BUCKET)
+    .upload(path, file, { contentType: file.type })
+
+  if (uploadError) {
+    const is409 = uploadError.statusCode === '409' || uploadError.statusCode === 409
+                  || uploadError.message?.toLowerCase().includes('already exists')
+    if (is409) {
+      console.log('[Storage] 既存ファイルを検出 — update にフォールバック')
+      const { error: updateError } = await supabase.storage
+        .from(PROFILE_BUCKET)
+        .update(path, file, { contentType: file.type })
+      finalError = updateError ?? null
+    } else {
+      finalError = uploadError
+    }
+  }
+
+  if (finalError) {
+    console.error('[Storage] uploadProfileImage error — message:', finalError.message, '/ statusCode:', finalError.statusCode, '/ details:', finalError)
+    return { url: null, error: finalError }
+  }
+
+  const { data } = supabase.storage.from(PROFILE_BUCKET).getPublicUrl(path)
+  console.log('[Storage] uploadProfileImage 成功 — publicUrl:', data.publicUrl)
+  return { url: data.publicUrl + '?t=' + Date.now(), error: null }
+}

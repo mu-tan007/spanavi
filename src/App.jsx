@@ -84,6 +84,7 @@ export default function App() {
   return (
     <SpanaviApp
       userName={profile?.name || session.user.email?.split('@')[0]}
+      userId={session.user.id}
       isAdmin={isAdmin}
       onLogout={handleLogout}
       supabaseData={supabaseData}
