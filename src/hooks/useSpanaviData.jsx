@@ -131,6 +131,7 @@ export function useSpanaviData() {
         cancelReason: a.cancel_reason || '',
         phone: a.phone || '',
         appoReport: (a.appo_report || '').replace(/\\n/g, '\n'),
+        isCounted: a.is_counted_in_cumulative || false,
       }))
 
       setData({

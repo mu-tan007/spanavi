@@ -1,11 +1,21 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import React from "react";
-import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordByItemRound, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, fetchMyCallRecords, insertCallSession, updateCallSession, fetchCallSessions, fetchRecentDuplicateSession, getProfileImageUrl, uploadProfileImage, fetchSetting, saveSetting, fetchLatestSessionPerList, fetchRoleplayBookings, insertRoleplayBooking, deleteRoleplayBooking } from "../lib/supabaseWrite";
+import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordByItemRound, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, fetchMyCallRecords, insertCallSession, updateCallSession, fetchCallSessions, fetchRecentDuplicateSession, getProfileImageUrl, uploadProfileImage, fetchSetting, saveSetting, fetchLatestSessionPerList, fetchRoleplayBookings, insertRoleplayBooking, deleteRoleplayBooking, updateAppoCounted } from "../lib/supabaseWrite";
 
 // ============================================================
 // LOGO (base64 embedded)
 // ============================================================
 const LOGO_SRC = "data:image/png;base64,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";
+
+// ============================================================
+// 共通: ランク・インセンティブ率計算
+// ============================================================
+const calcRankAndRate = (totalSales) => {
+  if (totalSales >= 10000000) return { rank: 'スーパースパルタン', rate: 0.28 };
+  if (totalSales >= 5000000)  return { rank: 'スパルタン',         rate: 0.26 };
+  if (totalSales >= 2000000)  return { rank: 'プレイヤー',          rate: 0.24 };
+  return { rank: 'トレーニー', rate: 0.22 };
+};
 
 // ============================================================
 // DATA: 架電リスト一覧（実データ90件）
@@ -1098,7 +1108,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         {currentTab === "search" && <CompanySearchView importedCSVs={importedCSVs} callListData={callListData} setCallingScreen={setCallingScreen} setImportedCSVs={setImportedCSVs} clientData={clientData} currentUser={currentUser} members={members} setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "stats" && <StatsView callListData={callListData} currentUser={currentUser} appoData={appoData} members={members} now={now} />}
         {currentTab === "recall" && <RecallListView callListData={callListData} supaRecalls={supaRecalls} onRecallComplete={handleSupaRecallComplete} members={memberNames} currentUser={currentUser} isAdmin={isAdmin} onRefresh={fetchSupaRecalls} />}
-        {currentTab === "payroll" && <PayrollView members={members} appoData={appoData} />}
+        {currentTab === "payroll" && <PayrollView members={members} appoData={appoData} isAdmin={isAdmin} setMembers={setMembers} onDataRefetch={onDataRefetch} />}
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView industryRules={industryRules} setIndustryRules={setIndustryRules} ruleEditorOpen={ruleEditorOpen} setRuleEditorOpen={setRuleEditorOpen} editingRule={editingRule} setEditingRule={setEditingRule} isAdmin={isAdmin} />}
         {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} />}
@@ -2959,12 +2969,6 @@ function MemberSuggestInput({ value, onChange, members = [], style, placeholder 
 function AppoListView({ appoData, setAppoData, members = [], setMembers, clientData = [] }) {
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
   // ── ランク・レート自動計算 ──────────────────────────────────────
-  const calcRankAndRate = (totalSales) => {
-    if (totalSales >= 10000000) return { rank: 'Super Spartan', rate: 0.28 };
-    if (totalSales >= 5000000)  return { rank: 'Spartan',       rate: 0.26 };
-    if (totalSales >= 2000000)  return { rank: 'Player',        rate: 0.24 };
-    return { rank: 'Trainee', rate: 0.22 };
-  };
   const [apPeriod, setApPeriod] = useState(() =>
     localStorage.getItem('spanavi_appo_period') || "all"
   );
@@ -3274,6 +3278,7 @@ function AppoListView({ appoData, setAppoData, members = [], setMembers, clientD
                               ? { ...m, totalSales: newTotal, rank: newRank, rate: newRate }
                               : m
                           ));
+                          if (original?._supaId) await updateAppoCounted(original._supaId, isKanryo);
                         }
                       }
                     }
@@ -5649,12 +5654,12 @@ function StatsView({ callListData, currentUser, appoData, members, now: nowProp 
 // ============================================================
 const PAYROLL_DATA = [];
 
-function PayrollView({ members, appoData }) {
+function PayrollView({ members, appoData, isAdmin, setMembers, onDataRefetch }) {
   const payrollMonths = (() => {
     const now = new Date();
     const result = [];
-    let y = 2026, m = 3; // 3月固定スタート（要件通り）
-    const endD = new Date(now.getFullYear(), now.getMonth() + 3, 0); // 翌々月末日
+    let y = 2026, m = 3;
+    const endD = new Date(now.getFullYear(), now.getMonth() + 3, 0);
     while (new Date(y, m - 1, 1) <= endD) {
       result.push({ label: m + "月", year: y, month: m });
       if (++m > 12) { m = 1; y++; }
@@ -5665,27 +5670,23 @@ function PayrollView({ members, appoData }) {
     const s = localStorage.getItem('spanavi_payroll_month');
     return (s && payrollMonths.some(x => x.label === s)) ? s : (payrollMonths[payrollMonths.length - 1]?.label || "3月");
   });
-  useEffect(() => {
-    localStorage.setItem('spanavi_payroll_month', monthTab);
-  }, [monthTab]);
+  useEffect(() => { localStorage.setItem('spanavi_payroll_month', monthTab); }, [monthTab]);
   const [teamFilter, setTeamFilter] = useState("all");
   const [sortKey, setSortKey] = useState("total");
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState('');
 
   // リファラル採用インセンティブ計算
-  // 条件: 紹介された人がoperation_start_dateから30日以内にcumulative_sales >= 100,000
   const referralMap = React.useMemo(() => {
     const map = {};
     const sel = payrollMonths.find(x => x.label === monthTab) ?? { year: 2026, month: 3 };
-    const monthNum = sel.month;
-    const year = sel.year;
-    const monthStart = new Date(year, monthNum - 1, 1);
-    const monthEnd = new Date(year, monthNum, 0); // 月末日
+    const monthStart = new Date(sel.year, sel.month - 1, 1);
+    const monthEnd = new Date(sel.year, sel.month, 0);
     members.forEach(m => {
-      if (!m.referrerName || !m.operationStartDate || (m.totalSales || 0) < 100000) return;
+      if (typeof m !== 'object' || !m.referrerName || !m.operationStartDate || (m.totalSales || 0) < 100000) return;
       const opDate = new Date(m.operationStartDate);
       const deadline = new Date(opDate);
       deadline.setDate(deadline.getDate() + 30);
-      // 30日ウィンドウが今月と重なる場合に支給
       if (opDate <= monthEnd && deadline >= monthStart) {
         map[m.referrerName] = (map[m.referrerName] || 0) + 50000;
       }
@@ -5693,47 +5694,108 @@ function PayrollView({ members, appoData }) {
     return map;
   }, [members, monthTab]);
 
-  const PAYROLL_COUNTABLE = new Set(["面談済", "事前確認済", "アポ取得"]);
+  // 月次報酬計算（面談済のみ・ランク動的算出・役職ボーナス）
   const data = React.useMemo(() => {
     const sel = payrollMonths.find(x => x.label === monthTab) ?? { year: 2026, month: 3 };
     const yyyymm = `${sel.year}-${String(sel.month).padStart(2, "0")}`;
     const monthAppos = (appoData || []).filter(a =>
-      a.meetDate && a.meetDate.slice(0, 7) === yyyymm &&
-      PAYROLL_COUNTABLE.has(a.status)
+      a.meetDate && a.meetDate.slice(0, 7) === yyyymm && a.status === '面談済'
     );
     const memberMap = {};
-    members.forEach(m => { memberMap[m.name] = m; });
+    members.forEach(m => { if (typeof m === 'object' && m.name) memberMap[m.name] = m; });
+    const teamSales = {};
     const byGetter = {};
     monthAppos.forEach(a => {
+      const mem = memberMap[a.getter] || {};
+      const { rank, rate } = calcRankAndRate(mem.totalSales || 0);
+      const team = mem.team || '';
       if (!byGetter[a.getter]) {
-        const mem = memberMap[a.getter] || {};
         byGetter[a.getter] = {
-          name: a.getter,
-          team: mem.team || "",
-          rank: mem.rank || "",
-          rate: mem.rate || 0,
-          sales: 0, incentive: 0, teamBonus: 0, referral: 0, total: 0, bonus: 0,
+          name: a.getter, team, rank, rate,
+          role: mem.role || '',
+          totalSales: mem.totalSales || 0,
+          sales: 0, incentive: 0, teamBonus: 0, total: 0,
         };
       }
       byGetter[a.getter].sales += a.sales || 0;
+      teamSales[team] = (teamSales[team] || 0) + (a.sales || 0);
     });
-    Object.values(byGetter).forEach(p => {
-      p.incentive = Math.round(p.sales * p.rate);
-      p.total = p.incentive + p.teamBonus;
+    // インセンティブ
+    Object.values(byGetter).forEach(p => { p.incentive = Math.round(p.sales * p.rate); });
+    // 役職ボーナス: チーム売上合計×3%を原資。リーダー60%、副リーダー40%÷人数
+    [...new Set(Object.values(byGetter).map(p => p.team))].forEach(team => {
+      const pool = Math.round((teamSales[team] || 0) * 0.03);
+      const tm = Object.values(byGetter).filter(p => p.team === team);
+      const leaders = tm.filter(p => p.role === 'リーダー');
+      const subs = tm.filter(p => p.role === '副リーダー');
+      leaders.forEach(p => { p.teamBonus = leaders.length ? Math.round(pool * 0.6 / leaders.length) : 0; });
+      subs.forEach(p => { p.teamBonus = subs.length ? Math.round(pool * 0.4 / subs.length) : 0; });
     });
+    Object.values(byGetter).forEach(p => { p.total = p.incentive + p.teamBonus; });
     return Object.values(byGetter);
   }, [appoData, members, monthTab]);
-  const filtered = data.filter(p => {
-    if (teamFilter !== "all" && p.team !== teamFilter) return false;
-    return true;
-  }).sort((a, b) => b[sortKey] - a[sortKey]);
 
+  // 累計同期処理（管理者のみ）
+  const uncountedCount = React.useMemo(() =>
+    (appoData || []).filter(a => a.status === '面談済' && !a.isCounted).length,
+    [appoData]
+  );
+  const handleSync = async () => {
+    if (!isAdmin || syncing) return;
+    const uncounted = (appoData || []).filter(a => a.status === '面談済' && !a.isCounted);
+    if (!uncounted.length) {
+      setSyncMsg('未加算のアポはありません');
+      setTimeout(() => setSyncMsg(''), 3000);
+      return;
+    }
+    setSyncing(true);
+    setSyncMsg('');
+    try {
+      const memberMap = {};
+      members.forEach(m => { if (typeof m === 'object' && m.name) memberMap[m.name] = m; });
+      const deltas = {};
+      uncounted.forEach(a => { deltas[a.getter] = (deltas[a.getter] || 0) + (a.sales || 0); });
+      for (const [getterName, delta] of Object.entries(deltas)) {
+        const member = memberMap[getterName];
+        if (!member?._supaId || delta === 0) continue;
+        const newTotal = Math.max(0, (member.totalSales || 0) + delta);
+        const { rank: newRank, rate: newRate } = calcRankAndRate(newTotal);
+        await updateMemberReward(member._supaId, { cumulativeSales: newTotal, rank: newRank, incentiveRate: newRate });
+        if (setMembers) {
+          setMembers(prev => prev.map(m =>
+            (typeof m !== 'string' && m._supaId === member._supaId)
+              ? { ...m, totalSales: newTotal, rank: newRank, rate: newRate }
+              : m
+          ));
+        }
+      }
+      for (const a of uncounted) {
+        if (a._supaId) await updateAppoCounted(a._supaId, true);
+      }
+      setSyncMsg(`✅ ${uncounted.length}件のアポを累計に加算しました`);
+      if (onDataRefetch) setTimeout(onDataRefetch, 500);
+      setTimeout(() => setSyncMsg(''), 5000);
+    } catch (e) {
+      setSyncMsg('❌ 同期に失敗しました: ' + e.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const filtered = data
+    .filter(p => teamFilter === "all" || p.team === teamFilter)
+    .sort((a, b) => b[sortKey] - a[sortKey]);
   const teams = [...new Set(data.map(p => p.team))];
   const grandTotal = data.reduce((s, p) => s + p.total + (referralMap[p.name] || 0), 0);
   const grandSales = data.reduce((s, p) => s + p.sales, 0);
   const paidCount = data.filter(p => p.total > 0).length;
-
   const fmt = (v) => v > 0 ? "¥" + v.toLocaleString() : "-";
+  const RANK_COLORS = {
+    'スーパースパルタン': { bg: C.gold + "22", color: '#b7791f' },
+    'スパルタン':         { bg: C.green + "15", color: C.green },
+    'プレイヤー':          { bg: C.gold + "15", color: C.gold },
+    'トレーニー':          { bg: C.offWhite,     color: C.textLight },
+  };
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
@@ -5745,10 +5807,7 @@ function PayrollView({ members, appoData }) {
           { label: "支給対象者", value: paidCount + "名", color: C.gold },
           { label: "対象月", value: monthTab, color: C.navyLight },
         ].map((s, i) => (
-          <div key={i} style={{
-            background: C.white, borderRadius: 10, padding: "14px 18px",
-            border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
-          }}>
+          <div key={i} style={{ background: C.white, borderRadius: 10, padding: "14px 18px", border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)" }}>
             <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>{s.label}</div>
             <div style={{ fontSize: 22, fontWeight: 900, color: s.color, fontFamily: "'JetBrains Mono'" }}>{s.value}</div>
           </div>
@@ -5756,12 +5815,11 @@ function PayrollView({ members, appoData }) {
       </div>
 
       {/* Filters */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
         <div style={{ display: "flex", gap: 4 }}>
           {payrollMonths.map(({ label }) => (
             <button key={label} onClick={() => setMonthTab(label)} style={{
-              padding: "5px 14px", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer",
-              fontFamily: "'Noto Sans JP'",
+              padding: "5px 14px", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Noto Sans JP'",
               background: monthTab === label ? C.navy : C.white,
               color: monthTab === label ? C.white : C.textMid,
               border: "1px solid " + (monthTab === label ? C.navy : C.borderLight),
@@ -5771,49 +5829,78 @@ function PayrollView({ members, appoData }) {
         <div style={{ display: "flex", gap: 4, marginLeft: 12 }}>
           {["all", ...teams].map(t => (
             <button key={t} onClick={() => setTeamFilter(t)} style={{
-              padding: "4px 10px", borderRadius: 12, fontSize: 10, fontWeight: 600, cursor: "pointer",
-              fontFamily: "'Noto Sans JP'",
+              padding: "4px 10px", borderRadius: 12, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'",
               background: teamFilter === t ? C.gold + "15" : C.white,
               color: teamFilter === t ? C.navy : C.textMid,
               border: "1px solid " + (teamFilter === t ? C.gold : C.borderLight),
             }}>{t === "all" ? "全チーム" : t + "チーム"}</button>
           ))}
         </div>
+        {isAdmin && (
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+            {uncountedCount > 0 && (
+              <span style={{ fontSize: 10, color: C.gold, fontWeight: 600 }}>未加算: {uncountedCount}件</span>
+            )}
+            <button onClick={handleSync} disabled={syncing} style={{
+              padding: "5px 14px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+              cursor: syncing ? "default" : "pointer", opacity: syncing ? 0.6 : 1,
+              background: C.navy, color: C.white, border: "none", fontFamily: "'Noto Sans JP'",
+            }}>{syncing ? '同期中...' : '累計同期'}</button>
+          </div>
+        )}
       </div>
+
+      {syncMsg && (
+        <div style={{ marginBottom: 10, padding: "8px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+          background: syncMsg.startsWith('✅') ? "#f0faf4" : "#fff5f5",
+          color: syncMsg.startsWith('✅') ? C.green : C.red,
+          border: "1px solid " + (syncMsg.startsWith('✅') ? "#34a853" : C.red) }}>
+          {syncMsg}
+        </div>
+      )}
 
       {/* Table */}
       <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, overflow: "hidden" }}>
         <div style={{
-          display: "grid", gridTemplateColumns: "1.2fr 0.6fr 0.6fr 0.5fr 0.8fr 0.8fr 0.7fr 0.6fr 0.9fr 0.5fr",
+          display: "grid", gridTemplateColumns: "1.4fr 0.6fr 0.9fr 0.5fr 0.8fr 0.9fr 0.8fr 0.6fr 0.9fr",
           padding: "8px 14px", background: C.navyDeep, fontSize: 9, fontWeight: 600, color: C.goldLight,
         }}>
-          {["名前", "チーム", "ランク", "率", "今月売上", "①インセンティブ", "②チームボーナス", "③紹介", "合計支給額", "賞与"].map((h, i) => (
-            <span key={i} style={{ cursor: ["sales", "incentive", "teamBonus", "total"][i-4] ? "pointer" : "default" }}
-              onClick={() => {
-                const keys = [null, null, null, null, "sales", "incentive", "teamBonus", "referral", "total", "bonus"];
-                if (keys[i]) setSortKey(keys[i]);
-              }}>{h}{sortKey === ["", "", "", "", "sales", "incentive", "teamBonus", "referral", "total", "bonus"][i] ? " ▼" : ""}</span>
-          ))}
+          {["名前", "チーム", "ランク", "率", "今月売上", "①インセンティブ", "②役職ボーナス", "③紹介", "合計支給額"].map((h, i) => {
+            const sortKeys = [null, null, null, null, "sales", "incentive", "teamBonus", null, "total"];
+            return (
+              <span key={i} style={{ cursor: sortKeys[i] ? "pointer" : "default" }}
+                onClick={() => { if (sortKeys[i]) setSortKey(sortKeys[i]); }}>
+                {h}{sortKey === sortKeys[i] ? " ▼" : ""}
+              </span>
+            );
+          })}
         </div>
-        {filtered.map((p, i) => (
-          <div key={i} style={{
-            display: "grid", gridTemplateColumns: "1.2fr 0.6fr 0.6fr 0.5fr 0.8fr 0.8fr 0.7fr 0.6fr 0.9fr 0.5fr",
-            padding: "7px 14px", fontSize: 11, alignItems: "center",
-            borderBottom: "1px solid " + C.borderLight,
-            background: p.total > 100000 ? C.gold + "06" : i % 2 === 0 ? C.white : C.offWhite + "80",
-          }}>
-            <span style={{ fontWeight: 600, color: C.navy }}>{p.name}</span>
-            <span style={{ fontSize: 10, color: C.textMid }}>{p.team}</span>
-            <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, background: p.rank === "プレイヤー" ? C.gold + "15" : C.offWhite, color: p.rank === "プレイヤー" ? C.gold : C.textLight, fontWeight: 600 }}>{p.rank || "-"}</span>
-            <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono'", color: C.textLight }}>{p.rate ? (p.rate * 100).toFixed(0) + "%" : "-"}</span>
-            <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono'", fontWeight: 600, color: C.navy }}>{fmt(p.sales)}</span>
-            <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono'", color: C.green }}>{fmt(p.incentive)}</span>
-            <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono'", color: C.textMid }}>{fmt(p.teamBonus)}</span>
-            <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono'", color: referralMap[p.name] ? C.green : C.textMid }}>{fmt(referralMap[p.name] || p.referral)}</span>
-            <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono'", fontWeight: 800, color: C.navy }}>{fmt(p.total + (referralMap[p.name] || 0))}</span>
-            <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono'", color: C.gold }}>{p.bonus ? fmt(p.bonus) : "-"}</span>
-          </div>
-        ))}
+        {filtered.length === 0 ? (
+          <div style={{ padding: "24px 14px", textAlign: "center", color: C.textLight, fontSize: 12 }}>該当データがありません</div>
+        ) : filtered.map((p, i) => {
+          const rankStyle = RANK_COLORS[p.rank] || RANK_COLORS['トレーニー'];
+          return (
+            <div key={i} style={{
+              display: "grid", gridTemplateColumns: "1.4fr 0.6fr 0.9fr 0.5fr 0.8fr 0.9fr 0.8fr 0.6fr 0.9fr",
+              padding: "7px 14px", fontSize: 11, alignItems: "center",
+              borderBottom: "1px solid " + C.borderLight,
+              background: p.total > 100000 ? C.gold + "06" : i % 2 === 0 ? C.white : C.offWhite + "80",
+            }}>
+              <div>
+                <div style={{ fontWeight: 600, color: C.navy }}>{p.name}</div>
+                {p.role && <div style={{ fontSize: 9, color: C.textLight }}>{p.role}</div>}
+              </div>
+              <span style={{ fontSize: 10, color: C.textMid }}>{p.team}</span>
+              <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, fontWeight: 600, background: rankStyle.bg, color: rankStyle.color }}>{p.rank || "-"}</span>
+              <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono'", color: C.textLight }}>{p.rate ? (p.rate * 100).toFixed(0) + "%" : "-"}</span>
+              <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono'", fontWeight: 600, color: C.navy }}>{fmt(p.sales)}</span>
+              <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono'", color: C.green }}>{fmt(p.incentive)}</span>
+              <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono'", color: p.teamBonus > 0 ? C.gold : C.textMid }}>{fmt(p.teamBonus)}</span>
+              <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono'", color: referralMap[p.name] ? C.green : C.textMid }}>{fmt(referralMap[p.name] || 0)}</span>
+              <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono'", fontWeight: 800, color: C.navy }}>{fmt(p.total + (referralMap[p.name] || 0))}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

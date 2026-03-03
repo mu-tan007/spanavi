@@ -361,6 +361,16 @@ export async function deleteMember(supaId) {
   return error
 }
 
+export async function updateAppoCounted(supaId, isCounted) {
+  if (!supaId) return null
+  const { error } = await supabase
+    .from('appointments')
+    .update({ is_counted_in_cumulative: isCounted })
+    .eq('id', supaId)
+  if (error) console.error('[DB] updateAppoCounted error:', error)
+  return error
+}
+
 export async function updateMemberReward(supaId, { cumulativeSales, rank, incentiveRate }) {
   if (!supaId) { console.warn('[DB] updateMemberReward: no supaId'); return null }
   const { error } = await supabase
