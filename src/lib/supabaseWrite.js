@@ -877,25 +877,24 @@ export async function fetchCallSessions(sinceISO) {
 }
 
 // 複数リストの最終架電セッション日時を一括取得 → { [supaId]: latestStartedAt }
+// .in()によるURL長超過を避けるため、全セッションを取得してJS側でフィルタリング
 export async function fetchLatestSessionPerList(supaIds) {
   if (!supaIds?.length) return { data: {}, error: null }
-  const CHUNK = 10
-  const map = {}
-  for (let i = 0; i < supaIds.length; i += CHUNK) {
-    const chunk = supaIds.slice(i, i + CHUNK)
-    const { data, error } = await supabase
-      .from('call_sessions')
-      .select('list_id, started_at')
-      .in('list_id', chunk)
-      .order('started_at', { ascending: false })
-    if (error) {
-      console.error('[DB] fetchLatestSessionPerList error:', error)
-      return { data: {}, error }
-    }
-    ;(data || []).forEach(row => {
-      if (!map[row.list_id]) map[row.list_id] = row.started_at
-    })
+  const idSet = new Set(supaIds)
+  const { data, error } = await supabase
+    .from('call_sessions')
+    .select('list_id, started_at')
+    .order('started_at', { ascending: false })
+  if (error) {
+    console.error('[DB] fetchLatestSessionPerList error:', error)
+    return { data: {}, error }
   }
+  const map = {}
+  ;(data || []).forEach(row => {
+    if (idSet.has(row.list_id) && !map[row.list_id]) {
+      map[row.list_id] = row.started_at
+    }
+  })
   return { data: map, error: null }
 }
 
