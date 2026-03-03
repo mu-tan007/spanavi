@@ -869,19 +869,23 @@ export async function fetchCallSessions(sinceISO) {
 // 複数リストの最終架電セッション日時を一括取得 → { [supaId]: latestStartedAt }
 export async function fetchLatestSessionPerList(supaIds) {
   if (!supaIds?.length) return { data: {}, error: null }
-  const { data, error } = await supabase
-    .from('call_sessions')
-    .select('list_id, started_at')
-    .in('list_id', supaIds)
-    .order('started_at', { ascending: false })
-  if (error) {
-    console.error('[DB] fetchLatestSessionPerList error:', error)
-    return { data: {}, error }
-  }
+  const CHUNK = 20
   const map = {}
-  ;(data || []).forEach(row => {
-    if (!map[row.list_id]) map[row.list_id] = row.started_at
-  })
+  for (let i = 0; i < supaIds.length; i += CHUNK) {
+    const chunk = supaIds.slice(i, i + CHUNK)
+    const { data, error } = await supabase
+      .from('call_sessions')
+      .select('list_id, started_at')
+      .in('list_id', chunk)
+      .order('started_at', { ascending: false })
+    if (error) {
+      console.error('[DB] fetchLatestSessionPerList error:', error)
+      return { data: {}, error }
+    }
+    ;(data || []).forEach(row => {
+      if (!map[row.list_id]) map[row.list_id] = row.started_at
+    })
+  }
   return { data: map, error: null }
 }
 
