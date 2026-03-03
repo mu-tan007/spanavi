@@ -10488,7 +10488,10 @@ function ScriptView({ isAdmin, clientData, callListData }) {
     setTimeout(() => setSavedOk(false), 2000);
   };
 
-  const activeClients = (clientData || []).filter(c => c.status === '支援中');
+  const activeClients = (clientData || []).filter(c =>
+    c.status === '支援中' &&
+    (callListData || []).some(l => l.company === c.company && !l.is_archived)
+  );
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease", padding: "0 0 40px 0" }}>
@@ -10560,7 +10563,7 @@ function ScriptView({ isAdmin, clientData, callListData }) {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             {activeClients.map((client, cIdx) => {
-              const clientLists = (callListData || []).filter(l => l.company === client.company);
+              const clientLists = (callListData || []).filter(l => l.company === client.company && !l.is_archived);
               const allIndustries = [...new Set(clientLists.map(l => l.industry).filter(Boolean))];
               const activeTab = clientTabs[cIdx] ?? 0;
               const activeList = clientLists.find(l => l.industry === allIndustries[activeTab]) ?? clientLists[0];
