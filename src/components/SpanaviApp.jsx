@@ -3610,13 +3610,10 @@ function MembersView({ members, setMembers }) {
                       <option value="メンバー">メンバー</option><option value="副リーダー">副リーダー</option><option value="チームリーダー">チームリーダー</option><option value="営業統括">営業統括</option>
                     </select>
                   </div>
-                  <div><label style={labelStyle}>ランク</label>
-                    <select value={editForm.rank} onChange={e => u("rank", e.target.value)} style={inputStyle}>
-                      <option value="トレーニー">トレーニー</option><option value="プレイヤー">プレイヤー</option>
-                    </select>
-                  </div>
+                  <div><label style={labelStyle}>累計売上 (¥)</label><input type="number" value={editForm.totalSales || 0} onChange={e => { const s = Number(e.target.value); const { rank, rate } = calcRankAndRate(s); setEditForm(p => ({ ...p, totalSales: s, rank, rate })); }} style={inputStyle} /></div>
+                  <div><label style={labelStyle}>ランク <span style={{ fontWeight: 400, color: C.textLight }}>(自動)</span></label><input value={editForm.rank || 'トレーニー'} readOnly style={{ ...inputStyle, background: '#f0f4f8', color: C.navy, fontWeight: 600 }} /></div>
                   <div><label style={labelStyle}>内定先</label><input value={editForm.offer || ""} onChange={e => u("offer", e.target.value)} style={inputStyle} /></div>
-                  <div><label style={labelStyle}>インセンティブ率</label><input type="number" step="0.01" value={editForm.rate} onChange={e => u("rate", Number(e.target.value))} style={inputStyle} /></div>
+                  <div><label style={labelStyle}>インセンティブ率 <span style={{ fontWeight: 400, color: C.textLight }}>(自動)</span></label><input value={((editForm.rate || 0) * 100).toFixed(0) + '%'} readOnly style={{ ...inputStyle, background: '#f0f4f8', color: C.navy, fontWeight: 600 }} /></div>
                   <div><label style={labelStyle}>入社日</label><input type="date" value={editForm.joinDate || ""} onChange={e => u("joinDate", e.target.value)} style={inputStyle} /></div>
                   <div>
                     <label style={labelStyle}>稼働開始日</label>
@@ -3659,6 +3656,7 @@ function MembersView({ members, setMembers }) {
                     if (editForm._supaId) {
                       const error = await updateMember(editForm._supaId, editForm);
                       if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
+                      await updateMemberReward(editForm._supaId, { cumulativeSales: editForm.totalSales || 0, rank: editForm.rank, incentiveRate: editForm.rate });
                     }
                     setMembers(prev => prev.map(m => m.id === editForm.id ? { ...m, ...editForm } : m));
                     setEditForm(null);

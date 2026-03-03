@@ -879,7 +879,7 @@ export async function fetchCallSessions(sinceISO) {
 // 複数リストの最終架電セッション日時を一括取得 → { [supaId]: latestStartedAt }
 export async function fetchLatestSessionPerList(supaIds) {
   if (!supaIds?.length) return { data: {}, error: null }
-  const CHUNK = 20
+  const CHUNK = 10
   const map = {}
   for (let i = 0; i < supaIds.length; i += CHUNK) {
     const chunk = supaIds.slice(i, i + CHUNK)
