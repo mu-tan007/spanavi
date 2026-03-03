@@ -498,12 +498,6 @@ function InlineAudioPlayer({ url, onClose }) {
 
 function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabaseData, onDataRefetch }) {
   const [callListData, setCallListData] = useState(supabaseData?.callLists ?? []);
-  useEffect(() => {
-    // _supaId が付いているデータのみ保存（古いキャッシュの上書きを防ぐ）
-    if (callListData.length > 0 && callListData.every(l => l._supaId)) {
-      try { localStorage.setItem("masp_v2_callListData", JSON.stringify(callListData)); } catch(e) {}
-    }
-  }, [callListData]);
   const [importedCSVs, setImportedCSVs] = useState({});
   const [callingScreen, setCallingScreen] = useState(null); // { listId, list } - when set, shows full calling screen
   const [callFlowScreen, setCallFlowScreen] = useState(null); // { list } - when set, shows call flow screen
@@ -534,19 +528,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   const [currentUser, setCurrentUser] = useState(userName || "管理者");
   const [appoData, setAppoData] = useState(supabaseData?.appoData?.length ? supabaseData.appoData : APPO_DATA);
   const [clientData, setClientData] = useState(supabaseData?.clientData?.length ? supabaseData.clientData : CLIENT_DATA);
-  const [members, setMembers] = useState(() => {
-    if (supabaseData?.membersDetailed?.length) return supabaseData.membersDetailed;
-    try {
-      const saved = localStorage.getItem("masp_v2_members");
-      return saved ? JSON.parse(saved) : DEFAULT_MEMBERS;
-    } catch(e) { return DEFAULT_MEMBERS; }
-  });
-  useEffect(() => {
-    try { if (currentUser) localStorage.setItem("masp_v2_currentUser", currentUser); } catch(e) {}
-  }, [currentUser]);
-  useEffect(() => {
-    try { localStorage.setItem("masp_v2_members", JSON.stringify(members)); } catch(e) {}
-  }, [members]);
+  const [members, setMembers] = useState(supabaseData?.membersDetailed?.length ? supabaseData.membersDetailed : DEFAULT_MEMBERS);
   // supabaseData が非同期で届いた後に各 state を同期する
   useEffect(() => {
     if (supabaseData?.appoData?.length) setAppoData(supabaseData.appoData);
@@ -966,7 +948,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         })}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, paddingRight: 4 }}>
           <span style={{ fontSize: 11, color: C.goldLight, fontWeight: 500 }}>{currentUser}</span>
-          <button onClick={() => { if (onLogout) onLogout(); else { setCurrentUser(null); try { localStorage.removeItem("masp_v2_currentUser"); } catch(e) {} } }} style={{
+          <button onClick={() => { if (onLogout) onLogout(); else setCurrentUser(null); }} style={{
             padding: "4px 10px", borderRadius: 4, border: "1px solid " + C.white + "30",
             background: "transparent", cursor: "pointer", fontSize: 10, color: C.white + "90",
             fontFamily: "'Noto Sans JP'",
@@ -3778,6 +3760,29 @@ function MembersView({ members, setMembers }) {
 // ============================================================
 // Company Search View (企業検索)
 // ============================================================
+
+// call_list_items.memo は CSV インポート時に {"備考":"..."} のような JSON が入っている場合がある。
+// ユーザーメモは _note キーで保持し、既存データを破壊しない。
+const extractUserNote = (memo) => {
+  if (!memo) return '';
+  try {
+    const parsed = JSON.parse(memo);
+    return (typeof parsed === 'object' && parsed !== null) ? (parsed._note || '') : memo;
+  } catch { return memo; }
+};
+const buildMemoWithNote = (currentMemo, newNote) => {
+  if (!currentMemo) return newNote || null;
+  try {
+    const parsed = JSON.parse(currentMemo);
+    if (typeof parsed === 'object' && parsed !== null) {
+      const updated = { ...parsed, _note: newNote };
+      if (!newNote) delete updated._note;
+      return Object.keys(updated).length > 0 ? JSON.stringify(updated) : null;
+    }
+    return newNote || null;
+  } catch { return newNote || null; }
+};
+
 function CompanySearchView({ importedCSVs, callListData, setCallingScreen, setImportedCSVs, clientData = [], currentUser, members = [], setCallFlowScreen }) {
   const [subTab, setSubTab] = useState("company");
   const [searchTerm, setSearchTerm] = useState("");
@@ -3852,8 +3857,7 @@ function CompanySearchView({ importedCSVs, callListData, setCallingScreen, setIm
       setSelectedItemFull(full);
       const nextRound = recs.length === 0 ? 1 : Math.min(Math.max(...recs.map(r => r.round)) + 1, 8);
       setSelectedRound(nextRound);
-      const key = 'cf_note_' + selectedItem.id;
-      setLocalMemo(localStorage.getItem(key) || '');
+      setLocalMemo(extractUserNote(full?.memo));
       setSubPhone(full?.sub_phone_number || '');
       setLoadingItemRecords(false);
     });
@@ -4428,11 +4432,16 @@ function CompanySearchView({ importedCSVs, callListData, setCallingScreen, setIm
     });
   };
 
-  const handleDetailMemoBlur = () => {
+  const handleDetailMemoBlur = async () => {
     if (!selectedItem) return;
-    const key = 'cf_note_' + selectedItem.id;
-    if (localMemo === (localStorage.getItem(key) || '')) return;
-    localStorage.setItem(key, localMemo);
+    const currentNote = extractUserNote(selectedItemFull?.memo);
+    if (localMemo === currentNote) return;
+    setSavingMemo(true);
+    const newMemo = buildMemoWithNote(selectedItemFull?.memo, localMemo);
+    const err = await updateCallListItem(selectedItem.id, { memo: newMemo });
+    setSavingMemo(false);
+    if (err) { console.error('[memo] DB保存失敗', err); return; }
+    setSelectedItemFull(prev => prev ? { ...prev, memo: newMemo } : prev);
   };
 
   const handleDetailSubPhoneBlur = async () => {
@@ -9068,7 +9077,7 @@ function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setA
   }, [list._supaId]);
 
   useEffect(() => {
-    setLocalMemo(selectedRow?.id ? (localStorage.getItem('cf_note_' + selectedRow.id) || '') : '');
+    setLocalMemo(selectedRow?.id ? extractUserNote(selectedRow.memo) : '');
     console.log('[subPhone] 企業切り替え — item_id:', selectedRow?.id, '/ sub_phone_number:', selectedRow?.sub_phone_number);
     setSubPhone(selectedRow?.sub_phone_number || '');
     setLastDialedPhone(null);
@@ -9515,11 +9524,17 @@ function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setA
     setRecallModal(null);
   };
 
-  const handleMemoBlur = () => {
+  const handleMemoBlur = async () => {
     if (!selectedRow) return;
-    const key = 'cf_note_' + selectedRow.id;
-    if (localMemo === (localStorage.getItem(key) || '')) return;
-    localStorage.setItem(key, localMemo);
+    const currentNote = extractUserNote(selectedRow.memo);
+    if (localMemo === currentNote) return;
+    setSavingMemo(true);
+    const newMemo = buildMemoWithNote(selectedRow.memo, localMemo);
+    const err = await updateCallListItem(selectedRow.id, { memo: newMemo });
+    setSavingMemo(false);
+    if (err) { console.error('[memo] DB保存失敗', err); return; }
+    setItems(prev => prev.map(i => i.id === selectedRow.id ? { ...i, memo: newMemo } : i));
+    setSelectedRow(prev => prev?.id === selectedRow.id ? { ...prev, memo: newMemo } : prev);
   };
 
   const handleSubPhoneBlur = async () => {
