@@ -780,6 +780,46 @@ export async function fetchAllCallListItemsBasic() {
   return { data: allData, error: null }
 }
 
+const _STATUS_ID_TO_JP = {
+  normal: '不通', excluded: '除外', absent: '社長不在',
+  reception_block: '受付ブロック', reception_recall: '受付再コール',
+  ceo_recall: '社長再コール', appointment: 'アポ獲得', ceo_decline: '社長お断り',
+};
+
+export async function searchCallListItemsServerSide({
+  keyword = '', searchField = 'all', statusFilter = 'all', page = 0, pageSize = 50
+} = {}) {
+  let query = supabase
+    .from('call_list_items')
+    .select('id, list_id, no, company, business, representative, phone, call_status', { count: 'exact' });
+
+  if (statusFilter === 'uncalled') {
+    query = query.is('call_status', null);
+  } else if (statusFilter !== 'all') {
+    const jp = _STATUS_ID_TO_JP[statusFilter];
+    if (jp) query = query.eq('call_status', jp);
+  }
+
+  const kw = keyword.trim().replace(/%/g, '\\%').replace(/_/g, '\\_');
+  if (kw) {
+    if (searchField === 'all') {
+      query = query.or(
+        `company.ilike.%${kw}%,representative.ilike.%${kw}%,phone.ilike.%${kw}%,business.ilike.%${kw}%,call_status.ilike.%${kw}%`
+      );
+    } else if (searchField === 'status') {
+      query = query.ilike('call_status', `%${kw}%`);
+    } else {
+      query = query.ilike(searchField, `%${kw}%`);
+    }
+  }
+
+  query = query.order('list_id').order('no').range(page * pageSize, (page + 1) * pageSize - 1);
+
+  const { data, error, count } = await query;
+  if (error) console.error('[DB] searchCallListItemsServerSide error:', error);
+  return { data: data || [], error, count: count ?? 0 };
+}
+
 export async function fetchCallListItemsByIds(itemIds) {
   if (!itemIds?.length) return { data: [], error: null }
   const PAGE_SIZE = 1000

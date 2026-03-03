@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { C } from '../../constants/colors';
 import { CALL_RESULTS } from '../../constants/callResults';
 import { dialPhone } from '../../utils/phone';
@@ -7,7 +7,7 @@ import {
   updateCallList,
   fetchCallListItems,
   updateCallListItem,
-  fetchAllCallListItemsBasic,
+  searchCallListItemsServerSide,
   fetchCallListItemsByIds,
   fetchCalledItemCountsByListIds,
   fetchCallRecordsByItemId,
@@ -65,14 +65,12 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
     "社長再コール": "社再", "アポ獲得": "アポ", "社長お断り": "社断",
   };
 
-  const [allItems, setAllItems] = useState([]);
-  const [loadingItems, setLoadingItems] = useState(true);
-  useEffect(() => {
-    fetchAllCallListItemsBasic().then(({ data }) => {
-      setAllItems(data || []);
-      setLoadingItems(false);
-    });
-  }, []);
+  const [searchResults, setSearchResults] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const currentPageRef = useRef(0);
+  const sentinelRef = useRef(null);
 
   const [selectedItem, setSelectedItem] = useState(null);
   const [itemRecords, setItemRecords] = useState([]);
@@ -112,33 +110,8 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   const [selectedItemFull, setSelectedItemFull] = useState(null);
 
   // Filter
-  const filtered = useMemo(() => {
-    let list = allItems;
-    if (statusFilter !== "all") {
-      if (statusFilter === "uncalled") list = list.filter(c => !c.call_status);
-      else {
-        const jpStatus = STATUS_ID_TO_JP[statusFilter];
-        list = list.filter(c => c.call_status === jpStatus);
-      }
-    }
-    if (!searchTerm.trim()) return list;
-    const term = searchTerm.trim().toLowerCase();
-    return list.filter(c => {
-      if (searchField === "company") return (c.company || "").toLowerCase().includes(term);
-      if (searchField === "representative") return (c.representative || "").toLowerCase().includes(term);
-      if (searchField === "phone") return (c.phone || "").includes(term);
-      if (searchField === "status") return (c.call_status || "").includes(term);
-      return (c.company || "").toLowerCase().includes(term) ||
-        (c.representative || "").toLowerCase().includes(term) ||
-        (c.phone || "").includes(term) ||
-        (c.call_status || "").toLowerCase().includes(term) ||
-        (c.business || "").toLowerCase().includes(term);
-    });
-  }, [allItems, searchTerm, searchField, statusFilter]);
-
-  const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
-  const sortedFiltered = clientSortBy ? [...filtered].sort((a, b) => {
+  const sortedResults = clientSortBy ? [...searchResults].sort((a, b) => {
     let va, vb;
     if (clientSortBy === "company") { va = a.company || ""; vb = b.company || ""; }
     else if (clientSortBy === "representative") { va = a.representative || ""; vb = b.representative || ""; }
@@ -159,16 +132,13 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
     else { va = 0; vb = 0; }
     if (typeof va === "number") return clientSortDir === "asc" ? va - vb : vb - va;
     return clientSortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
-  }) : filtered;
-  const paged = sortedFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const totalPages = Math.ceil(sortedFiltered.length / PAGE_SIZE);
+  }) : searchResults;
 
-  // Lazy-load call records for current page items
-  const pagedItemIdKey = useMemo(() => paged.map(i => i.id).join(','), [paged]);
+  // Lazy-load call records for all currently loaded results
+  const resultIdsKey = useMemo(() => searchResults.map(i => i.id).join(','), [searchResults]);
   useEffect(() => {
-    if (!paged.length) { setPageRecords({}); return; }
-    const itemIds = paged.map(i => i.id).filter(Boolean);
-    fetchCallRecordsByItemIds(itemIds).then(({ data }) => {
+    if (!searchResults.length) { setPageRecords({}); return; }
+    fetchCallRecordsByItemIds(searchResults.map(i => i.id)).then(({ data }) => {
       const map = {};
       (data || []).forEach(r => {
         if (!map[r.item_id]) map[r.item_id] = {};
@@ -176,10 +146,60 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       });
       setPageRecords(map);
     });
-  }, [pagedItemIdKey]);
+  }, [resultIdsKey]);
 
-  // Reset page on search change
-  useEffect(() => setPage(0), [searchTerm, searchField, statusFilter]);
+  // サーバーサイド検索（デバウンス300ms）
+  useEffect(() => {
+    currentPageRef.current = 0;
+    setSearchResults([]);
+    setTotalCount(0);
+    setHasMore(false);
+
+    if (!searchTerm.trim() && statusFilter === 'all') {
+      setSearchLoading(false);
+      return;
+    }
+
+    setSearchLoading(true);
+    const timer = setTimeout(async () => {
+      const { data, count } = await searchCallListItemsServerSide({
+        keyword: searchTerm, searchField, statusFilter, page: 0, pageSize: PAGE_SIZE,
+      });
+      setSearchResults(data);
+      setTotalCount(count);
+      setHasMore(data.length === PAGE_SIZE && count > PAGE_SIZE);
+      setSearchLoading(false);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, searchField, statusFilter]);
+
+  // 追加読み込み（次ページ）
+  const loadMore = useCallback(async () => {
+    if (searchLoading || !hasMore) return;
+    const nextPage = currentPageRef.current + 1;
+    currentPageRef.current = nextPage;
+    setSearchLoading(true);
+    const { data, count } = await searchCallListItemsServerSide({
+      keyword: searchTerm, searchField, statusFilter, page: nextPage, pageSize: PAGE_SIZE,
+    });
+    setSearchResults(prev => [...prev, ...data]);
+    setTotalCount(count);
+    setHasMore((currentPageRef.current + 1) * PAGE_SIZE < count);
+    setSearchLoading(false);
+  }, [searchLoading, hasMore, searchTerm, searchField, statusFilter]);
+
+  // IntersectionObserver でスクロール最下部到達時に loadMore
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting) loadMore(); },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   const statusOptions = [
     { id: "all", label: "すべて" }, { id: "uncalled", label: "未架電" },
@@ -644,7 +664,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
     const newRecs = [...itemRecords, newRec].sort((a, b) => a.round - b.round);
     setItemRecords(newRecs);
     await updateCallListItem(selectedItem.id, { call_status: label });
-    setAllItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, call_status: label } : i));
+    setSearchResults(prev => prev.map(i => i.id === selectedItem.id ? { ...i, call_status: label } : i));
     const newNext = Math.min(Math.max(...newRecs.map(r => r.round)) + 1, 8);
     setSelectedRound(newNext);
     setPageRecords(prev => {
@@ -661,7 +681,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
     const lastRec = [...newRecs].sort((a, b) => b.round - a.round)[0];
     const newStatus = lastRec?.status || null;
     await updateCallListItem(selectedItem.id, { call_status: newStatus });
-    setAllItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, call_status: newStatus } : i));
+    setSearchResults(prev => prev.map(i => i.id === selectedItem.id ? { ...i, call_status: newStatus } : i));
     setSelectedRound(record.round);
     setPageRecords(prev => {
       const itemMap = { ...(prev[selectedItem.id] || {}) };
@@ -734,7 +754,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>企業検索</span>
-          <span style={{ fontSize: 10, color: C.textLight }}>全リストから横断検索（{loadingItems ? "読込中..." : allItems.length.toLocaleString() + "社"}）</span>
+          <span style={{ fontSize: 10, color: C.textLight }}>全リストから横断検索{totalCount > 0 ? `（${totalCount.toLocaleString()}社）` : ""}</span>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <select value={searchField} onChange={e => setSearchField(e.target.value)} style={{
@@ -764,9 +784,9 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       </div>
 
       {/* Results count */}
-      <div style={{ fontSize: 11, color: C.textLight, marginBottom: 8, display: "flex", justifyContent: "space-between" }}>
-        <span>検索結果: <span style={{ fontWeight: 700, color: C.navy }}>{filtered.length.toLocaleString()}</span>件</span>
-        {totalPages > 1 && <span>ページ {page + 1} / {totalPages}</span>}
+      <div style={{ fontSize: 11, color: C.textLight, marginBottom: 8 }}>
+        <span>検索結果: <span style={{ fontWeight: 700, color: C.navy }}>{totalCount.toLocaleString()}</span>件</span>
+        {searchResults.length < totalCount && <span>（{searchResults.length}件表示中）</span>}
       </div>
 
       {/* Results table */}
@@ -776,18 +796,18 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           padding: "8px 14px", background: C.navyDeep, fontSize: 9, fontWeight: 600, color: C.goldLight, letterSpacing: 0.5,
         }}>
           {[["company","企業名"],["representative","代表者"],["phone","電話番号"],["list","クライアント名"],["industry","業種"],["lastCall","最終発信日"],["status","最終ステータス"]].map(([key, label]) => (
-            <span key={key} onClick={() => { if (clientSortBy === key) { setClientSortBy(null); setClientSortDir("asc"); } else { setClientSortBy(key); setClientSortDir("desc"); } setPage(0); }} style={{ cursor: "pointer", userSelect: "none" }}>
+            <span key={key} onClick={() => { if (clientSortBy === key) { setClientSortBy(null); setClientSortDir("asc"); } else { setClientSortBy(key); setClientSortDir("desc"); } }} style={{ cursor: "pointer", userSelect: "none" }}>
               {label}{clientSortBy === key ? " ▲" : " ▽"}
             </span>
           ))}
         </div>
-        {loadingItems ? (
-          <div style={{ padding: "40px 0", textAlign: "center", fontSize: 13, color: C.textLight }}>データを読み込み中...</div>
-        ) : paged.length === 0 ? (
+        {searchLoading && !searchResults.length ? (
+          <div style={{ padding: "40px 0", textAlign: "center", fontSize: 13, color: C.textLight }}>検索中...</div>
+        ) : sortedResults.length === 0 ? (
           <div style={{ padding: "40px 0", textAlign: "center", fontSize: 13, color: C.textLight }}>
-            {searchTerm || statusFilter !== "all" ? "該当する企業が見つかりませんでした" : "検索条件を入力してください"}
+            {(searchTerm || statusFilter !== "all") ? "該当する企業が見つかりませんでした" : "検索キーワードを入力してください"}
           </div>
-        ) : paged.map((c, i) => {
+        ) : sortedResults.map((c, i) => {
           const listInfo = callListData.find(l => l._supaId === c.list_id);
           const rounds = pageRecords[c.id] || {};
           const latestCalled = (() => { let latest = ""; Object.values(rounds).forEach(r => { if (r.called_at && r.called_at > latest) latest = r.called_at; }); return latest; })();
@@ -826,20 +846,14 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
         })}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 12 }}>
-          <button disabled={page === 0} onClick={() => setPage(page - 1)} style={{
-            padding: "5px 14px", borderRadius: 4, border: "1px solid " + C.border,
-            background: page === 0 ? C.offWhite : C.white, cursor: page === 0 ? "default" : "pointer",
-            fontSize: 11, color: C.textMid, fontFamily: "'Noto Sans JP'",
-          }}>← 前へ</button>
-          <span style={{ fontSize: 11, color: C.textMid, padding: "5px 8px" }}>{page + 1} / {totalPages}</span>
-          <button disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} style={{
-            padding: "5px 14px", borderRadius: 4, border: "1px solid " + C.border,
-            background: page >= totalPages - 1 ? C.offWhite : C.white, cursor: page >= totalPages - 1 ? "default" : "pointer",
-            fontSize: 11, color: C.textMid, fontFamily: "'Noto Sans JP'",
-          }}>次へ →</button>
+      {/* 無限スクロール sentinel */}
+      <div ref={sentinelRef} style={{ height: 1 }} />
+      {searchLoading && searchResults.length > 0 && (
+        <div style={{ padding: "16px 0", textAlign: "center", fontSize: 12, color: C.textLight }}>読み込み中...</div>
+      )}
+      {!hasMore && searchResults.length > 0 && (
+        <div style={{ padding: "10px 0", textAlign: "center", fontSize: 11, color: C.textLight }}>
+          全 {totalCount.toLocaleString()} 件を表示
         </div>
       )}
       {/* 企業詳細モーダル */}
