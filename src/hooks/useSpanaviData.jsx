@@ -31,7 +31,7 @@ export function useSpanaviData() {
         supabase.from('call_lists').select('*').order('sort_order'),
         supabase.from('members').select('*').order('sort_order'),
         supabase.from('appointments').select('*').order('appointment_date', { ascending: false }),
-        supabase.from('reward_types').select('*').order('type_code'),
+        supabase.from('reward_types').select('*').order('type_id'),
       ])
 
       // エラーチェック

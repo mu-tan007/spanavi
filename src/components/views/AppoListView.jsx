@@ -3,7 +3,7 @@ import React from 'react';
 import { C } from '../../constants/colors';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
-import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember } from '../../lib/supabaseWrite';
+import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward } from '../../lib/supabaseWrite';
 
 export function MemberSuggestInput({ value, onChange, members = [], style, placeholder = '名前を入力して絞り込み' }) {
   const [suggs, setSuggs] = React.useState([]);
@@ -337,15 +337,12 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                     const wasKanryo = original?.status === '面談済';
                     const isKanryo  = updated.status === '面談済';
 
-                    // ── 面談済ステータス変更時の報酬自動計算 ──────────
+                    // ── 面談済ステータス変更時の累計売上更新 ──────────
+                    // intern_reward はアポ取得時の確定値を維持（上書きしない）
                     if ((isKanryo || wasKanryo) && setMembers) {
                       const member = members.find(m => typeof m !== 'string' && m.name === updated.getter);
                       if (member?._supaId) {
-                        // intern_reward = sales × incentive_rate（面談済移行時のみ）
-                        if (isKanryo && !wasKanryo) {
-                          updated.reward = Math.round((updated.sales || 0) * (member.rate || 0));
-                        }
-                        // cumulative_sales の増減
+                        // cumulative_sales の増減のみ（rewardは触らない）
                         const delta = (isKanryo && !wasKanryo)  ?  (updated.sales  || 0)
                                     : (!isKanryo && wasKanryo)  ? -(original.sales || 0)
                                     : 0;
@@ -557,7 +554,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 // ============================================================
 // Members View (Employee Directory)
 // ============================================================
-function MembersView({ members, setMembers }) {
+export function MembersView({ members, setMembers }) {
   const [search, setSearch] = useState("");
   const [addForm, setAddForm] = useState(null);
   const [addSaving, setAddSaving] = useState(false);

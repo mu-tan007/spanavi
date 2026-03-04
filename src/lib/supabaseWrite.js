@@ -940,6 +940,36 @@ export async function deleteCallSessionsByIds(ids) {
   return { error }
 }
 
+// ── 報酬確定スナップショット ─────────────────────────────────────────
+export async function fetchPayrollSnapshots(payMonth) {
+  const { data, error } = await supabase
+    .from('payroll_snapshots')
+    .select('*')
+    .eq('org_id', ORG_ID)
+    .eq('pay_month', payMonth)
+    .order('total_payout', { ascending: false })
+  if (error) console.error('[DB] fetchPayrollSnapshots error:', error)
+  return { data: data || [], error }
+}
+
+export async function upsertPayrollSnapshots(rows) {
+  const { error } = await supabase
+    .from('payroll_snapshots')
+    .upsert(rows, { onConflict: 'org_id,pay_month,member_name' })
+  if (error) console.error('[DB] upsertPayrollSnapshots error:', error)
+  return { error }
+}
+
+export async function deletePayrollSnapshots(payMonth) {
+  const { error } = await supabase
+    .from('payroll_snapshots')
+    .delete()
+    .eq('org_id', ORG_ID)
+    .eq('pay_month', payMonth)
+  if (error) console.error('[DB] deletePayrollSnapshots error:', error)
+  return { error }
+}
+
 export async function fetchCallSessions(sinceISO) {
   const { data, error } = await supabase
     .from('call_sessions')

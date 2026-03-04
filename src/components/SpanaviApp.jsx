@@ -17,7 +17,7 @@ import CallFlowView from './views/CallFlowView';
 import ScriptView from './views/ScriptView';
 import MyPageView from './views/MyPageView';
 import CRMView from './views/CRMView';
-import AppoListView from './views/AppoListView';
+import AppoListView, { MembersView } from './views/AppoListView';
 import PayrollView from './views/PayrollView';
 import ListView from './views/ListView';
 import RewardMasterView from './views/RewardMasterView';
@@ -969,7 +969,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         {currentTab === "search" && <CompanySearchView importedCSVs={importedCSVs} callListData={callListData} setCallingScreen={setCallingScreen} setImportedCSVs={setImportedCSVs} clientData={clientData} currentUser={currentUser} members={members} setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "stats" && <StatsView callListData={callListData} currentUser={currentUser} appoData={appoData} members={members} now={now} />}
         {currentTab === "recall" && <RecallListView callListData={callListData} supaRecalls={supaRecalls} onRecallComplete={handleSupaRecallComplete} members={memberNames} currentUser={currentUser} isAdmin={isAdmin} onRefresh={fetchSupaRecalls} />}
-        {currentTab === "payroll" && <PayrollView members={members} appoData={appoData} isAdmin={isAdmin} setMembers={setMembers} onDataRefetch={onDataRefetch} />}
+        {currentTab === "payroll" && <PayrollView members={members} appoData={appoData} isAdmin={isAdmin} setMembers={setMembers} onDataRefetch={onDataRefetch} currentUser={currentUser} />}
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView industryRules={industryRules} setIndustryRules={setIndustryRules} ruleEditorOpen={ruleEditorOpen} setRuleEditorOpen={setRuleEditorOpen} editingRule={editingRule} setEditingRule={setEditingRule} isAdmin={isAdmin} />}
         {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} />}
