@@ -3,6 +3,10 @@ import { C } from '../../constants/colors';
 import { CALL_RESULTS } from '../../constants/callResults';
 import { getIndustryCategory } from '../../utils/industry';
 import { deleteCallRecordsByListId, deleteCallListItemsByListId, updateCallListCount, fetchCallListItems, insertCallListItems } from '../../lib/supabaseWrite';
+import { Badge } from '../common/Badge';
+import { ScorePill } from '../common/ScorePill';
+
+const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
 export default function DetailModal({ list, onClose, industryRules, now, callListData, setCallListData, setCallFlowScreen, isAdmin, onDelete }) {
   if (!list) return null;

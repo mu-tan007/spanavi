@@ -15,7 +15,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   const [shiftModal, setShiftModal] = useState(null);
 
   // Fix3: 入社日昇順（古い順）
-  const sortedMembers = React.useMemo(() => {
+  const sortedMembers = useMemo(() => {
     return [...members]
       .filter(m => typeof m === 'object' && m.name)
       .sort((a, b) => (a.joinDate || '').localeCompare(b.joinDate || ''));
@@ -29,7 +29,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   const weekBlockEnd = Math.min(weekBlockStart + 6, daysInMonth);
   const weekDays = Array.from({ length: weekBlockEnd - weekBlockStart + 1 }, (_, i) => weekBlockStart + i);
 
-  React.useEffect(() => { loadShifts(); }, [year, month]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadShifts(); }, [year, month]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadShifts = async () => {
     setLoading(true);

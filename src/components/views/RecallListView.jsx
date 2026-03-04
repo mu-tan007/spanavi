@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { C } from '../../constants/colors';
 import { CALL_RESULTS } from '../../constants/callResults';
 import { insertCallRecord, updateCallListItem, fetchCallRecordsByItemId } from '../../lib/supabaseWrite';
+import { dialPhone } from '../../utils/phone';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import RecallModal from './RecallModal';
 

@@ -1,20 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { C } from '../../constants/colors';
 import { CALL_RESULTS } from '../../constants/callResults';
 import { updatePreCheckResult } from '../../lib/supabaseWrite';
 import { Badge } from '../common/Badge';
+import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 
 export function PreCheckModal({ appo, onSave, onCancel }) {
   const PRE_CHECK_OPTIONS = ['確認完了', '確認中', 'リスケ', 'キャンセル'];
-  const [form, setForm] = React.useState({
+  const [form, setForm] = useState({
     preCheckStatus: appo.preCheckStatus || '',
     rescheduleStatus: appo.rescheduledAt ? '日時確定' : '調整中',
     rescheduledAt: appo.rescheduledAt || '',
     cancelReason: appo.cancelReason || '',
     preCheckMemo: appo.preCheckMemo || '',
   });
-  const [saving, setSaving] = React.useState(false);
-  const [showRecording, setShowRecording] = React.useState(false);
+  const [saving, setSaving] = useState(false);
+  const [showRecording, setShowRecording] = useState(false);
   const u = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSave = async () => {
@@ -189,7 +190,7 @@ export function PreCheckModal({ appo, onSave, onCancel }) {
 const PRECHECK_SLACK_WEBHOOK = 'https://hooks.slack.com/services/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';
 
 export default function PreCheckView({ appoData, setAppoData }) {
-  const [selectedAppo, setSelectedAppo] = React.useState(null);
+  const [selectedAppo, setSelectedAppo] = useState(null);
 
   const handlePreCheckSave = async (saveData) => {
     if (!selectedAppo?._supaId) { alert('保存先が見つかりません'); return; }
