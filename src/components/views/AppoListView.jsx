@@ -5,7 +5,7 @@ import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
 import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember } from '../../lib/supabaseWrite';
 
-function MemberSuggestInput({ value, onChange, members = [], style, placeholder = '名前を入力して絞り込み' }) {
+export function MemberSuggestInput({ value, onChange, members = [], style, placeholder = '名前を入力して絞り込み' }) {
   const [suggs, setSuggs] = React.useState([]);
   const [show, setShow] = React.useState(false);
   const [rect, setRect] = React.useState(null);

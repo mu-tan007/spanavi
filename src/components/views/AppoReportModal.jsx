@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
 import { invokeAppoAiReport, invokeTranscribeRecording, fetchZoomUserId, insertAppointment } from '../../lib/supabaseWrite';
+import { MemberSuggestInput } from './AppoListView';
 
 export default function AppoReportModal({ row, list, currentUser = '', members = [], onClose, onSave, onDone, initialRecordingUrl = '', onFetchRecordingUrl, clientData = [], rewardMaster = [] }) {
   const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
@@ -17,15 +18,16 @@ export default function AppoReportModal({ row, list, currentUser = '', members =
   const initialNetIncome   = row.net_income != null ? Number(row.net_income).toLocaleString() + '千円' : '';
   // フォームオープン時に ourSales も計算済みにする
   const initialOurSales = (() => {
-    if (isFixed) return String(rewardRows[0].price);
     if (!rewardRows.length) return '';
+    const applyTax = p => rewardRows[0].tax === '税別' ? Math.round(p * 1.1) : p;
+    if (isFixed) return String(applyTax(rewardRows[0].price));
     const basis = rewardRows[0].basis;
     const amount = basis === '売上高'
       ? (row.revenue    != null ? row.revenue    * 1000 : null)
       : (row.net_income != null ? row.net_income * 1000 : null);
     if (amount === null) return '';
     const match = rewardRows.find(r => amount >= r.lo && amount < r.hi);
-    return match ? String(match.price) : '';
+    return match ? String(applyTax(match.price)) : '';
   })();
 
   const [form, setForm] = React.useState({
@@ -102,12 +104,13 @@ export default function AppoReportModal({ row, list, currentUser = '', members =
   // REWARD_MASTERから当社売上を自動計算
   const computeOurSales = (salesYen, netYen) => {
     if (!rewardRows.length) return null;
+    const applyTax = p => rewardRows[0].tax === '税別' ? Math.round(p * 1.1) : p;
     const basis = rewardRows[0].basis;
-    if (basis === '-') return rewardRows[0].price; // 固定単価
+    if (basis === '-') return applyTax(rewardRows[0].price); // 固定単価
     const amount = basis === '売上高' ? salesYen : netYen;
     if (amount === null) return null;
     const match = rewardRows.find(r => amount >= r.lo && amount < r.hi);
-    return match ? match.price : null;
+    return match ? applyTax(match.price) : null;
   };
 
   const dateWithWeekday = (d) => {
