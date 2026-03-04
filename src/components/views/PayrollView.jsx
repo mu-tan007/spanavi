@@ -6,6 +6,9 @@ import { updateMemberReward } from '../../lib/supabaseWrite';
 
 const PAYROLL_DATA = [];
 
+// 報酬計算に含めるステータス（アポ取得・事前確認済・面談済）
+const PAYROLL_COUNTABLE = new Set(['アポ取得', '事前確認済', '面談済']);
+
 export default function PayrollView({ members, appoData, isAdmin, setMembers, onDataRefetch }) {
   const payrollMonths = (() => {
     const now = new Date();
@@ -46,15 +49,16 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
     return map;
   }, [members, monthTab]);
 
-  // 月次報酬計算（面談済のみ）
+  // 月次報酬計算（アポ取得・事前確認済・面談済）
   // インセンティブは appointments.intern_reward の保存済み確定値を合算（現在レートで再計算しない）
   // ランク・率は参考表示のみ
   const data = React.useMemo(() => {
     const sel = payrollMonths.find(x => x.label === monthTab) ?? { year: 2026, month: 3 };
     const yyyymm = `${sel.year}-${String(sel.month).padStart(2, "0")}`;
-    const monthAppos = (appoData || []).filter(a =>
-      a.meetDate && a.meetDate.slice(0, 7) === yyyymm && a.status === '面談済'
-    );
+    const monthAppos = (appoData || []).filter(a => {
+      const dateKey = (a.meetDate || a.getDate || '').slice(0, 7);
+      return dateKey === yyyymm && PAYROLL_COUNTABLE.has(a.status);
+    });
     const memberMap = {};
     members.forEach(m => { if (typeof m === 'object' && m.name) memberMap[m.name] = m; });
     const teamSales = {};
@@ -76,7 +80,20 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
       byGetter[a.getter].incentive += a.reward || 0;
       teamSales[team] = (teamSales[team] || 0) + (a.sales || 0);
     });
+    // リーダー・副リーダーは当月アポがなくてもbyGetterに追加（役職ボーナス受取のため）
+    members.forEach(m => {
+      if (typeof m !== 'object' || !m.name) return;
+      if (!['リーダー', '副リーダー'].includes(m.role)) return;
+      if (byGetter[m.name]) return; // 既にアポがある場合はスキップ
+      const { rank, rate } = calcRankAndRate(m.totalSales || 0);
+      byGetter[m.name] = {
+        name: m.name, team: m.team || '', rank, rate,
+        role: m.role || '', totalSales: m.totalSales || 0,
+        sales: 0, incentive: 0, teamBonus: 0, total: 0,
+      };
+    });
     // 役職ボーナス: チーム売上合計×3%を原資。リーダー60%、副リーダー40%÷人数
+    // teamSalesはアポ売上ベースのため、リーダーのチームに売上がある場合のみpool発生
     [...new Set(Object.values(byGetter).map(p => p.team))].forEach(team => {
       const pool = Math.round((teamSales[team] || 0) * 0.03);
       const tm = Object.values(byGetter).filter(p => p.team === team);
