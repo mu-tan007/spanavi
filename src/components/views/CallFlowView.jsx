@@ -99,15 +99,17 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       : 0;
 
     // モジュールレベルキャッシュでStrict Modeの二重INSERT防止
-    // useRefはfake unmount/remountでリセットされるが、Mapはモジュールスコープなので保持される
     const cacheKey = `${list.id}|${startNo ?? ''}|${endNo ?? ''}`;
+    console.log('[Session] useEffect mount — cacheKey:', cacheKey, '/ cache hit:', _cfSessionCache.has(cacheKey));
+
     if (_cfSessionCache.has(cacheKey)) {
-      // Strict Mode 2回目のマウント: キャッシュのIDを再利用してINSERTをスキップ
       sessionIdRef.current = _cfSessionCache.get(cacheKey);
+      console.log('[Session] cache hit — reuse sessionId:', sessionIdRef.current);
     } else {
       const newId = `cf_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       sessionIdRef.current = newId;
       _cfSessionCache.set(cacheKey, newId);
+      console.log('[Session] INSERT — sessionId:', newId, '/ list.id:', list.id, '/ list._supaId:', list._supaId);
       insertCallSession({
         id: newId,
         list_id: list.id,
@@ -121,16 +123,17 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         started_at: new Date().toISOString(),
         finished_at: null,
         last_called_at: null,
-      }).catch(e => console.error('[Session] insertCallSession error:', e));
+      })
+        .then(r => console.log('[Session] INSERT result:', r?.error ?? 'OK'))
+        .catch(e => console.error('[Session] insertCallSession error:', e));
     }
 
     // タブ閉じ・リロード時にも finished_at を書き込む
-    // ※ 通常の非同期fetchはbeforeunload時にブラウザにキャンセルされるため
-    //   keepalive: true のfetchでSupabase REST APIを直接叩く
     const handleBeforeUnload = () => {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       if (!supabaseUrl || !supabaseKey || !sessionIdRef.current) return;
+      console.log('[Session] beforeunload — writing finished_at for:', sessionIdRef.current);
       fetch(`${supabaseUrl}/rest/v1/call_sessions?id=eq.${sessionIdRef.current}`, {
         method: 'PATCH',
         headers: {
@@ -147,23 +150,27 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     return () => {
       const sessionId = sessionIdRef.current;
       const isRealClose = sessionId != null && _cfRealCloseSet.has(sessionId);
+      console.log('[Session] cleanup — sessionId:', sessionId, '/ isRealClose:', isRealClose, '/ _cfRealCloseSet:', [..._cfRealCloseSet]);
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      // モジュールレベルの _cfRealCloseSet でリアルクローズか判定
-      // useRef ベースのフラグと異なり Strict Mode の fake unmount でも安全
       if (isRealClose) {
         _cfRealCloseSet.delete(sessionId);
         _cfSessionCache.delete(cacheKey);
+        console.log('[Session] writing finished_at for:', sessionId);
         updateCallSession(sessionId, { finished_at: new Date().toISOString() })
-          .catch(e => console.error('[Session] unmount error:', e));
+          .then(r => console.log('[Session] finished_at SET — error:', r?.error ?? 'none'))
+          .catch(e => console.error('[Session] unmount updateCallSession error:', e));
+      } else {
+        console.log('[Session] cleanup — skipped (fake unmount or missing sessionId)');
       }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // handleClose ではモジュールレベルの _cfRealCloseSet にセッションIDを登録してから onClose()
-  // finished_at の書き込みはunmount時のcleanupに一元化（二重呼び出し防止）
   const handleClose = () => {
     const sessionId = sessionIdRef.current;
+    console.log('[Session] handleClose — sessionId:', sessionId, '/ _cfRealCloseSet before:', [..._cfRealCloseSet]);
     if (sessionId) _cfRealCloseSet.add(sessionId);
+    console.log('[Session] handleClose — _cfRealCloseSet after add:', [..._cfRealCloseSet]);
     onClose();
   };
 
