@@ -945,7 +945,6 @@ export async function fetchCallSessions(sinceISO) {
     .from('call_sessions')
     .select('*')
     .gte('started_at', sinceISO)
-    .is('finished_at', null)
     .order('started_at', { ascending: false })
   if (error) console.error('[DB] fetchCallSessions error:', error)
   return { data: data || [], error }

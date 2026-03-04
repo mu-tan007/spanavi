@@ -1079,13 +1079,15 @@ function LiveStatusView({ now }) {
         key, label, date,
         groups,
         activeLists: groups.filter(s => !s.finishedAt),
-        finishedLists: groups.filter(s => s.finishedAt),
+        finishedLists: groups.filter(s => s.finishedAt).sort((a, b) => new Date(b.finishedAt) - new Date(a.finishedAt)),
       };
     });
   }, [sessions, now]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const getElapsed = (startedAt) => {
-    const diff = Math.floor((now - new Date(startedAt)) / 60000);
+  const getDuration = (startedAt, finishedAt = null) => {
+    const end = finishedAt ? new Date(finishedAt) : now;
+    const diff = Math.floor((end - new Date(startedAt)) / 60000);
+    if (diff < 0) return '0分';
     if (diff < 60) return diff + '分';
     return Math.floor(diff / 60) + 'h' + (diff % 60) + 'm';
   };
@@ -1100,6 +1102,11 @@ function LiveStatusView({ now }) {
     const progress    = totalCount > 0 ? Math.round((calledCount / totalCount) * 100) : 0;
     const isActive    = !s.finishedAt;
     const callerStr   = (s.callerName && !s.callerName.includes('@')) ? s.callerName : (s.callerName || '—');
+    const startTime   = new Date(s.startedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+    const endTime     = s.finishedAt
+      ? new Date(s.finishedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+      : null;
+    const duration    = getDuration(s.startedAt, s.finishedAt);
     const lastActivity = s.lastCalledAt
       ? new Date(s.lastCalledAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
       : null;
@@ -1109,19 +1116,28 @@ function LiveStatusView({ now }) {
         background: C.white, borderRadius: 8, padding: '12px 16px',
         border: '1px solid ' + C.borderLight, boxShadow: '0 1px 4px rgba(26,58,92,0.04)',
         borderLeft: '3px solid ' + (isActive ? C.green : C.textLight),
-        opacity: isActive ? 1 : 0.8,
+        opacity: isActive ? 1 : 0.75,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        {/* 1行目: 架電者 + バッジ + 時刻 */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {isActive && (
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.green, display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
-            )}
+            {isActive
+              ? <span style={{ fontSize: 9, background: '#e8f8ee', color: C.green, padding: '2px 7px', borderRadius: 10, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.green, display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
+                  架電中
+                </span>
+              : <span style={{ fontSize: 9, background: C.offWhite, color: C.textLight, padding: '2px 7px', borderRadius: 10, fontWeight: 700 }}>架電終了</span>
+            }
             <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>{callerStr}</span>
           </div>
-          <span style={{ fontSize: 9, color: C.textLight, fontFamily: "'JetBrains Mono'" }}>
-            {new Date(s.startedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}〜（{getElapsed(s.startedAt)}）
+          <span style={{ fontSize: 9, color: C.textLight, fontFamily: "'JetBrains Mono'", whiteSpace: 'nowrap' }}>
+            {isActive
+              ? `${startTime}〜（${duration}経過）`
+              : `${startTime}〜${endTime}（${duration}）`
+            }
           </span>
         </div>
+        {/* 2行目: リスト名 */}
         <div style={{ fontSize: 10, color: C.textMid, marginBottom: 6 }}>
           {s.listName}
           {s.industry ? <span style={{ marginLeft: 4, color: C.textLight }}>› {s.industry}</span> : ''}
@@ -1131,6 +1147,7 @@ function LiveStatusView({ now }) {
             </span>
           )}
         </div>
+        {/* 3行目: プログレスバー */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
           <div style={{ flex: 1, height: 6, background: C.offWhite, borderRadius: 3, overflow: 'hidden' }}>
             <div style={{
@@ -1144,12 +1161,12 @@ function LiveStatusView({ now }) {
             {progress}%
           </span>
         </div>
+        {/* 4行目: 架電済件数・最終架電 */}
         <div style={{ display: 'flex', gap: 12, fontSize: 10, color: C.textLight }}>
           <span>架電済 <span style={{ fontWeight: 700, color: C.navy }}>{calledCount}</span> / {totalCount}</span>
           {lastActivity && (
             <span>最終架電 <span style={{ fontWeight: 700, color: C.navy }}>{lastActivity}</span></span>
           )}
-          {!isActive && <span>完了</span>}
         </div>
       </div>
     );
@@ -1245,9 +1262,29 @@ function LiveStatusView({ now }) {
             {!isCollapsed && (
               <div style={{ padding: '10px', border: '1px solid ' + C.borderLight, borderTop: 'none', borderRadius: '0 0 6px 6px', background: C.white }}>
                 {dg.groups.length > 0 ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
-                    {dg.groups.map(s => renderSessionCard(s))}
-                  </div>
+                  <>
+                    {dg.activeLists.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.green, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.green, display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
+                          架電中（{dg.activeLists.length}件）
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+                          {dg.activeLists.map(s => renderSessionCard(s))}
+                        </div>
+                      </div>
+                    )}
+                    {dg.finishedLists.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>
+                          完了（{dg.finishedLists.length}件）
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+                          {dg.finishedLists.map(s => renderSessionCard(s))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div style={{ textAlign: 'center', padding: '16px', color: C.textLight, fontSize: 12 }}>
                     この日の架電記録はありません
