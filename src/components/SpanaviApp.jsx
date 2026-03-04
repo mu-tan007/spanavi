@@ -2337,7 +2337,6 @@ function ShiftInputModal({ modal, onClose, onSaved, year, month }) {
     if (startTime >= endTime) { setErrMsg('開始時間は終了時間より前にしてください'); return; }
     setSaving(true);
     setErrMsg('');
-    console.log('[Shift] handleSave: member=', member.name, '_supaId=', member._supaId, 'id=', member.id, 'memId=', memId, 'dateStr=', dateStr, 'start=', startTime, 'end=', endTime);
     if (shift) {
       const err = await updateShift(shift.id, { start_time: startTime + ':00', end_time: endTime + ':00' });
       if (err) {
@@ -2456,7 +2455,6 @@ function RecallListView({ callListData, supaRecalls = [], onRecallComplete, memb
   };
 
   const handleStatusClick = async (item, statusLabel, statusId) => {
-    console.log('[handleStatusClick] 開始 — status:', statusLabel, '/ item._source:', item._source, '/ component: RecallListView');
     if (item._source !== 'supabase') { console.warn('[handleStatusClick] 早期リターン — sourceがsupabaseでない:', item._source); return; }
     const r = item._supaRecord;
     if (statusLabel === '受付再コール' || statusLabel === '社長再コール') {
@@ -2709,7 +2707,7 @@ function RecallListView({ callListData, supaRecalls = [], onRecallComplete, memb
                       const btnColor = isAppo ? C.white : isExcl ? C.red        : C.navy;
                       const btnBdr   = isAppo ? '1.5px solid ' + C.gold : isExcl ? '1.5px solid ' + C.red + '40' : '1px solid ' + C.navy + '25';
                       return (
-                        <button key={r.id} onClick={() => { console.log('[STATUS CLICK]', 'clicked', r.label, '/ component: RecallListView / handleStatusClick'); handleStatusClick(selectedItem, r.label, r.id); }}
+                        <button key={r.id} onClick={() => handleStatusClick(selectedItem, r.label, r.id)}
                           style={{ padding: '9px 6px', borderRadius: 7, border: btnBdr, background: btnBg, color: btnColor, cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: "'Noto Sans JP'", lineHeight: 1.2 }}>
                           {r.label}
                         </button>
@@ -3585,12 +3583,10 @@ function DetailModal({ list, onClose, industryRules, now, callListData, setCallL
 
   useEffect(() => {
     if (!list._supaId) {
-      console.log('[DetailModal] _supaId が未設定のため call_list_items を取得できません');
       return;
     }
     fetchCallListItems(list._supaId).then(({ data }) => {
       const count = data?.length ?? 0;
-      console.log('[DetailModal] call_list_items 件数 (list._supaId=' + list._supaId + '):', count);
       setItemCount(count);
     });
   }, [list._supaId]);
@@ -3598,7 +3594,6 @@ function DetailModal({ list, onClose, industryRules, now, callListData, setCallL
   const handleCSVImport = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    console.log('[CSV取込] ファイル選択:', file.name, '/ list._supaId:', list._supaId);
     if (!list._supaId) {
       alert('このリストはSupabase IDが未設定のためインポートできません。');
       return;
@@ -3607,7 +3602,6 @@ function DetailModal({ list, onClose, industryRules, now, callListData, setCallL
     reader.onload = async (ev) => {
       const text = ev.target.result;
       const lines = text.split(/\r?\n/).filter(l => l.trim());
-      console.log('[CSV取込] 行数 (ヘッダー含む):', lines.length);
       if (lines.length < 2) {
         alert('CSVが空か、データ行がありません。');
         return;
@@ -3638,7 +3632,6 @@ function DetailModal({ list, onClose, industryRules, now, callListData, setCallL
       };
 
       const rawHeaders = parseCSVLine(lines[0]).map(normalizeHeader);
-      console.log('[CSV取込] 正規化ヘッダー:', rawHeaders);
 
       const detectUnit = (h) => {
         if (h.includes('(億円)')) return '億円';
@@ -3693,7 +3686,6 @@ function DetailModal({ list, onClose, industryRules, now, callListData, setCallL
           unknownCols.push({ idx, header: h });
         }
       });
-      console.log('[CSV取込] マッピング結果:', fieldIndices, '/ 未知列:', unknownCols.map(c => c.header));
 
       const revenueUnit = fieldIndices.revenue?.unit || '千円';
       const netIncomeUnit = fieldIndices.net_income?.unit || '千円';
@@ -3746,14 +3738,12 @@ function DetailModal({ list, onClose, industryRules, now, callListData, setCallL
         });
       }
 
-      console.log('[CSV取込] パース完了 — 行数:', rows.length, '/ 先頭3件:', rows.slice(0, 3));
       if (rows.length === 0) {
         alert('CSVのパース結果が0件です。ヘッダー名を確認してください。\n検出したヘッダー: ' + rawHeaders.join(', '));
         return;
       }
 
       setCsvImporting(true);
-      console.log('[CSV取込] insertCallListItems 呼び出し — supaId:', list._supaId, '/ 件数:', rows.length);
       const { data, error } = await insertCallListItems(list._supaId, rows);
       setCsvImporting(false);
       if (error) {
@@ -3763,7 +3753,6 @@ function DetailModal({ list, onClose, industryRules, now, callListData, setCallL
       }
       const insertedCount = data?.length ?? rows.length;
       const newTotalCount = (itemCount ?? 0) + insertedCount;
-      console.log('[CSV取込] Supabaseに保存完了:', rows.length, '件 / 返却data:', insertedCount, '件 / newTotalCount:', newTotalCount);
       await updateCallListCount(list._supaId, newTotalCount);
       if (setCallListData) setCallListData(prev => prev.map(l => l.id === list.id ? { ...l, count: newTotalCount } : l));
       setCsvImported(insertedCount);
@@ -3915,7 +3904,6 @@ function DetailModal({ list, onClose, industryRules, now, callListData, setCallL
           <button
             onClick={() => {
               const sf = selectedStatuses.length > 0 ? selectedStatuses : null;
-              console.log('[DetailModal] 架電開始 clicked — list:', list, 'startNo:', flowStartNo, 'endNo:', flowEndNo, 'statusFilter:', sf);
               setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf });
             }}
             style={{

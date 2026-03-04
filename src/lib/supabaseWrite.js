@@ -289,7 +289,6 @@ export async function insertCallListItems(listId, rows) {
       memo: r.memo || null,
     }))
     const chunkNo = Math.floor(i / CHUNK_SIZE) + 1
-    console.log(`[DB] insertCallListItems チャンク ${chunkNo}/${totalChunks} — ${chunk.length}件`)
     const { error } = await supabase
       .from('call_list_items')
       .upsert(items, { onConflict: 'list_id,no', ignoreDuplicates: true })
@@ -593,8 +592,7 @@ export async function insertShift(data) {
       .limit(1)
     if (lookupErr) console.error('[DB] insertShift: member lookup error:', lookupErr)
     memberId = found?.[0]?.id || null
-    if (memberId) console.log('[DB] insertShift: resolved member_id by name:', data.member_name, '->', memberId)
-    else console.warn('[DB] insertShift: could not resolve member_id for name:', data.member_name)
+    if (!memberId) console.warn('[DB] insertShift: could not resolve member_id for name:', data.member_name)
   }
   const insertPayload = {
     org_id: ORG_ID,
@@ -604,7 +602,6 @@ export async function insertShift(data) {
     start_time: data.start_time,
     end_time: data.end_time,
   }
-  console.log('[DB] insertShift payload:', JSON.stringify(insertPayload))
   const { data: result, error } = await supabase
     .from('shifts')
     .insert(insertPayload)
@@ -654,7 +651,6 @@ export async function fetchCalledItemCountsByListIds(listIds) {
 
 // セッション期間中に架電されたユニーク件数とリスト総件数をSupabaseから取得
 export async function fetchCalledCountForSession(listSupaId, startedAt, finishedAt, startNo, endNo) {
-  console.log('[fetchCalledCount] params:', listSupaId, startedAt, finishedAt)
   if (!listSupaId || !startedAt) {
     console.warn('[fetchCalledCount] listSupaIdまたはstartedAtが未設定 — スキップ')
     return { count: 0, total: 0, error: null }
@@ -675,11 +671,9 @@ export async function fetchCalledCountForSession(listSupaId, startedAt, finished
   }
 
   const [calledRes, totalRes] = await Promise.all([calledQuery, totalQuery])
-  console.log('[fetchCalledCount] calledRes:', calledRes.data, 'totalRes.count:', totalRes.count)
   if (calledRes.error) { console.error('[DB] fetchCalledCountForSession error:', calledRes.error) }
   if (totalRes.error) { console.error('[DB] fetchCalledCountForSession total error:', totalRes.error) }
   const distinct = new Set((calledRes.data || []).map(r => r.item_id))
-  console.log('[fetchCalledCount] distinctCount:', distinct.size, 'total:', totalRes.count)
   return { count: distinct.size, total: totalRes.count || 0, error: calledRes.error || null }
 }
 
@@ -725,13 +719,11 @@ export async function invokeTranscribeRecording(payload) {
 
 export async function updateCallRecordRecordingUrl(id, recordingUrl) {
   if (!id) { console.warn('[DB] updateCallRecordRecordingUrl: no id'); return null }
-  console.log('[DB] updateCallRecordRecordingUrl: id=', id, 'url=', recordingUrl)
   const { data, error } = await supabase
     .from('call_records')
     .update({ recording_url: recordingUrl })
     .eq('id', id)
     .select('id, recording_url')
-  console.log('[DB] updateCallRecordRecordingUrl: result=', data, 'error=', error)
   if (error) console.error('[DB] updateCallRecordRecordingUrl error:', error)
   return error
 }
@@ -1034,7 +1026,6 @@ export function getProfileImageUrl(userId) {
 export async function uploadProfileImage(userId, file) {
   if (!userId || !file) return { url: null, error: new Error('invalid args') }
   const path = `${ORG_ID}/${userId}`
-  console.log('[Storage] uploadProfileImage — bucket:', PROFILE_BUCKET, '/ path:', path, '/ fileName:', file.name, '/ fileSize:', file.size, 'bytes / contentType:', file.type)
 
   // まず upload を試みる。409（既存ファイル）なら update にフォールバック
   let finalError = null
@@ -1046,7 +1037,6 @@ export async function uploadProfileImage(userId, file) {
     const is409 = uploadError.statusCode === '409' || uploadError.statusCode === 409
                   || uploadError.message?.toLowerCase().includes('already exists')
     if (is409) {
-      console.log('[Storage] 既存ファイルを検出 — update にフォールバック')
       const { error: updateError } = await supabase.storage
         .from(PROFILE_BUCKET)
         .update(path, file, { contentType: file.type })
@@ -1062,7 +1052,6 @@ export async function uploadProfileImage(userId, file) {
   }
 
   const { data } = supabase.storage.from(PROFILE_BUCKET).getPublicUrl(path)
-  console.log('[Storage] uploadProfileImage 成功 — publicUrl:', data.publicUrl)
   return { url: data.publicUrl + '?t=' + Date.now(), error: null }
 }
 
@@ -1071,25 +1060,21 @@ export async function uploadProfileImage(userId, file) {
 // ============================================================
 
 export async function fetchSetting(key) {
-  console.log('[DB] fetchSetting 開始 — key:', key)
   const { data, error } = await supabase
     .from('settings')
     .select('value')
     .eq('key', key)
     .maybeSingle()
   if (error) console.error('[DB] fetchSetting error:', error)
-  else console.log('[DB] fetchSetting 完了 — key:', key, '/ value:', data?.value ?? null)
   return { value: data?.value ?? null, error }
 }
 
 export async function saveSetting(key, value) {
-  console.log('[DB] saveSetting 開始 — key:', key, '/ value length:', value?.length ?? 0)
   const { data, error } = await supabase
     .from('settings')
     .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
     .select()
   if (error) console.error('[DB] saveSetting error — message:', error.message, '/ code:', error.code, '/ details:', error)
-  else console.log('[DB] saveSetting 完了 — upsert result:', data)
   return error
 }
 

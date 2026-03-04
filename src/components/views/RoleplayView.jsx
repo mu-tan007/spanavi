@@ -315,7 +315,6 @@ export default function RoleplayView({ currentUser, userId }) {
     };
 
     const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CAL_ID)}/events?sendUpdates=all`;
-    console.log('[GCal] Creating event:', title, confirmSlot.startISO, '-', confirmSlot.endISO, 'attendees:', eventBody.attendees.map(a => a.email));
 
     const doPost = (t) => fetch(url, {
       method: 'POST',
@@ -339,7 +338,6 @@ export default function RoleplayView({ currentUser, userId }) {
       }
 
       const resText = await res.text();
-      console.log('[GCal] Response status:', res.status, resText.slice(0, 300));
 
       if (!res.ok) {
         let errMsg = String(res.status);
@@ -350,7 +348,6 @@ export default function RoleplayView({ currentUser, userId }) {
       }
 
       const ev = JSON.parse(resText);
-      console.log('[GCal] Event created successfully. id:', ev.id, 'link:', ev.htmlLink);
 
       const nb = {
         id: ev.id,

@@ -160,7 +160,6 @@ HP：${form.hp}
         futureConsider: form.futureConsider,
         other:          form.other,
       });
-      console.log('[handleGenerateReport] response:', { data, error });
       if (error || data?.error) throw new Error(error?.message || data?.error);
       setGenerateStep('enhancing');
       setForm(prev => ({
@@ -188,9 +187,6 @@ HP：${form.hp}
     const acquirerMember = members.find(m => (typeof m === 'string' ? m : (m.name || '')) === form.acquirer);
     const acquirerRate = parseFloat(acquirerMember?.rate ?? acquirerMember?.incentive_rate ?? 0) || 0;
     const rewardVal = salesVal && acquirerRate ? Math.round(salesVal * acquirerRate) : 0;
-    console.log('[handleSave] ourSales:', form.ourSales, '→ salesVal:', salesVal);
-    console.log('[handleSave] acquirer:', form.acquirer, '→ member:', acquirerMember, '→ rate:', acquirerRate, '→ rewardVal:', rewardVal);
-    console.log('[handleSave] members 件数:', members.length, '先頭サンプル:', members[0]);
     const reportNote = generateReport();
     // Step 1: アポをDBに登録（appointments テーブルへ insert + ローカル状態更新）
     const { result: insResult } = await insertAppointment({
@@ -204,7 +200,6 @@ HP：${form.hp}
       sales:    salesVal,
       reward:   rewardVal,
     });
-    console.log('[AppoReportModal] insertAppointment result:', insResult, 'sales:', salesVal, 'reward:', rewardVal);
     await onSave({
       company:  row.company,
       client:   list.company,

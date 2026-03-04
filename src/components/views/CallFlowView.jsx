@@ -51,7 +51,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   };
 
   useEffect(() => {
-    console.log('[CallFlowView] mount — list:', list, '/ list._supaId:', list._supaId, '/ startNo:', startNo, '/ endNo:', endNo);
     if (!list._supaId) {
       console.warn('[CallFlowView] list._supaId が未設定 — データ取得をスキップ');
       setLoading(false);
@@ -63,8 +62,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     ]).then(([itemsRes, recordsRes]) => {
       const fetchedItems = itemsRes.data || [];
       const fetchedRecords = recordsRes.data || [];
-      console.log('[CallFlowView] fetchCallListItems — 件数:', fetchedItems.length, '/ error:', itemsRes.error, '/ 先頭3件:', fetchedItems.slice(0, 3));
-      console.log('[CallFlowView] fetchCallRecords — 件数:', fetchedRecords.length, '/ error:', recordsRes.error);
       setItems(fetchedItems);
       setCallRecords(fetchedRecords);
       if (defaultItemId) {
@@ -80,7 +77,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
   useEffect(() => {
     setLocalMemo(selectedRow?.id ? extractUserNote(selectedRow.memo) : '');
-    console.log('[subPhone] 企業切り替え — item_id:', selectedRow?.id, '/ sub_phone_number:', selectedRow?.sub_phone_number);
     setSubPhone(selectedRow?.sub_phone_number || '');
     setLastDialedPhone(null);
   }, [selectedRow?.id]);
@@ -100,16 +96,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
     // モジュールレベルキャッシュでStrict Modeの二重INSERT防止
     const cacheKey = `${list.id}|${startNo ?? ''}|${endNo ?? ''}`;
-    console.log('[Session] useEffect mount — cacheKey:', cacheKey, '/ cache hit:', _cfSessionCache.has(cacheKey));
 
     if (_cfSessionCache.has(cacheKey)) {
       sessionIdRef.current = _cfSessionCache.get(cacheKey);
-      console.log('[Session] cache hit — reuse sessionId:', sessionIdRef.current);
     } else {
       const newId = `cf_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       sessionIdRef.current = newId;
       _cfSessionCache.set(cacheKey, newId);
-      console.log('[Session] INSERT — sessionId:', newId, '/ list.id:', list.id, '/ list._supaId:', list._supaId);
       insertCallSession({
         id: newId,
         list_id: list.id,
@@ -124,7 +117,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         finished_at: null,
         last_called_at: null,
       })
-        .then(r => console.log('[Session] INSERT result:', r?.error ?? 'OK'))
         .catch(e => console.error('[Session] insertCallSession error:', e));
     }
 
@@ -133,7 +125,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       if (!supabaseUrl || !supabaseKey || !sessionIdRef.current) return;
-      console.log('[Session] beforeunload — writing finished_at for:', sessionIdRef.current);
       fetch(`${supabaseUrl}/rest/v1/call_sessions?id=eq.${sessionIdRef.current}`, {
         method: 'PATCH',
         headers: {
@@ -150,17 +141,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     return () => {
       const sessionId = sessionIdRef.current;
       const isRealClose = sessionId != null && _cfRealCloseSet.has(sessionId);
-      console.log('[Session] cleanup — sessionId:', sessionId, '/ isRealClose:', isRealClose, '/ _cfRealCloseSet:', [..._cfRealCloseSet]);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       if (isRealClose) {
         _cfRealCloseSet.delete(sessionId);
         _cfSessionCache.delete(cacheKey);
-        console.log('[Session] writing finished_at for:', sessionId);
         updateCallSession(sessionId, { finished_at: new Date().toISOString() })
-          .then(r => console.log('[Session] finished_at SET — error:', r?.error ?? 'none'))
           .catch(e => console.error('[Session] unmount updateCallSession error:', e));
       } else {
-        console.log('[Session] cleanup — skipped (fake unmount or missing sessionId)');
       }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -168,9 +155,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   // handleClose ではモジュールレベルの _cfRealCloseSet にセッションIDを登録してから onClose()
   const handleClose = () => {
     const sessionId = sessionIdRef.current;
-    console.log('[Session] handleClose — sessionId:', sessionId, '/ _cfRealCloseSet before:', [..._cfRealCloseSet]);
     if (sessionId) _cfRealCloseSet.add(sessionId);
-    console.log('[Session] handleClose — _cfRealCloseSet after add:', [..._cfRealCloseSet]);
     onClose();
   };
 
@@ -187,10 +172,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     if (startNo != null && endNo != null) {
       const s = Number(startNo), e = Number(endNo);
       const result = items.filter(i => Number(i.no) >= s && Number(i.no) <= e);
-      console.log('[CallFlowView] rangeFilter — startNo:', s, 'endNo:', e, '/ 全件:', items.length, '/ 絞込後:', result.length);
       return result;
     }
-    console.log('[CallFlowView] rangeFilter — 範囲指定なし, 全件:', items.length);
     return items;
   })();
 
@@ -228,7 +211,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       if (filterMode === 'excluded') return isExcludedItem(item.id);
       return true;
     });
-    console.log('[CallFlowView] filtered — filterMode:', filterMode, '/ statusFilteredItems:', statusFilteredItems.length, '→ filtered:', result.length);
     return result;
   })();
 
@@ -300,8 +282,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   };
 
   const handleResult = async (result) => {
-    console.log('[handleResult] 開始');
-    console.log('[handleResult] 開始 — status:', result, '/ itemId:', selectedRow?.id, '/ selectedRow:', selectedRow, '/ selectedRound:', selectedRound);
     if (!selectedRow || selectedRound === null) { console.warn('[handleResult] 早期リターン — selectedRow:', selectedRow, '/ selectedRound:', selectedRound); return; }
     if (result === 'アポ獲得') { setAppoModal(selectedRow); return; }
     if (result === '受付再コール' || result === '社長再コール') {
@@ -322,13 +302,11 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
     const recordingUrl = await fetchRecordingUrl(lastDialedPhone || selectedRow.phone, calledAt, _prevCalledAtResult);
 
-    console.log('[handleResult] insertCallRecord 呼び出し — list._supaId:', list._supaId, '/ item_id:', selectedRow.id, '/ status:', result);
     const { result: newRec, error } = await insertCallRecord({
       item_id: selectedRow.id, list_id: list._supaId,
       round: selectedRound, status: result, memo: localMemo || null,
       called_at: calledAt, recording_url: recordingUrl, getter_name: currentUser,
     });
-    console.log('[handleResult] insertCallRecord 結果 — newRec:', newRec, '/ error:', error);
     if (error || !newRec) {
       console.error('[handleResult] insertCallRecord 失敗 — calledCountは更新しない');
       return;
@@ -375,12 +353,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const handleFetchRecording = async (rec) => {
     const item = items.find(i => i.id === rec.item_id);
     if (!item) return;
-    console.log('[handleFetchRecording] rec.id=', rec.id, 'item.phone=', item.phone, 'rec.called_at=', rec.called_at);
     const url = await fetchRecordingUrl(item.phone, rec.called_at, null);
-    console.log('[handleFetchRecording] fetchRecordingUrl result=', url);
     if (!url) { alert('録音URLを取得できませんでした'); return; }
     const dbError = await updateCallRecordRecordingUrl(rec.id, url);
-    console.log('[handleFetchRecording] DB更新結果 error=', dbError);
     if (dbError) { alert('録音URLのDB保存に失敗しました: ' + dbError.message); return; }
     setCallRecords(prev => prev.map(r => r.id === rec.id ? { ...r, recording_url: url } : r));
   };
@@ -420,13 +395,11 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
     const recordingUrlAppo = await fetchRecordingUrl(appoModal.phone, calledAtAppo, _prevCalledAtAppo);
 
-    console.log('[handleAppoSave] insertCallRecord 呼び出し — list._supaId:', list._supaId, '/ item_id:', appoModal.id);
     const { result: newRec, error: recErr } = await insertCallRecord({
       item_id: appoModal.id, list_id: list._supaId,
       round: selectedRound, status: 'アポ獲得', memo: localMemo || null,
       called_at: calledAtAppo, recording_url: recordingUrlAppo, getter_name: currentUser,
     });
-    console.log('[handleAppoSave] insertCallRecord 結果 — newRec:', newRec, '/ error:', recErr);
     if (recErr || !newRec) {
       console.error('[handleAppoSave] insertCallRecord 失敗 — calledCountは更新しない');
       return;
@@ -445,7 +418,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     if (setAppoData) {
       const salesVal  = formData.sales  || 0;
       const rewardVal = formData.reward || 0;
-      console.log('[handleAppoSave] sales:', salesVal, '/ reward:', rewardVal, '/ getter:', formData.getter, '/ supaId:', formData.supaId);
       const newAppo = {
         client:   formData.client,
         company:  formData.company,
@@ -539,13 +511,11 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
   const handleSubPhoneBlur = async () => {
     if (!selectedRow) return;
-    console.log('[subPhone] 保存開始 — item_id:', selectedRow.id, '/ value:', subPhone);
     const err = await updateCallListItem(selectedRow.id, { sub_phone_number: subPhone });
     if (err) {
       console.error('[subPhone] DB保存失敗 — call_list_items.sub_phone_numberカラムが存在しない可能性があります。SQL: ALTER TABLE call_list_items ADD COLUMN IF NOT EXISTS sub_phone_number TEXT;', err);
       return;
     }
-    console.log('[subPhone] DB保存成功 — item_id:', selectedRow.id, '/ value:', subPhone);
     // DB保存後にメモリ上のitemsも更新（企業切り替え後に復元できるように）
     setItems(prev => prev.map(i => i.id === selectedRow.id ? { ...i, sub_phone_number: subPhone } : i));
     setSelectedRow(prev => prev?.id === selectedRow.id ? { ...prev, sub_phone_number: subPhone } : prev);
@@ -831,7 +801,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                       const btnColor = isAppo ? C.white   : isExcl ? C.red        : C.navy;
                       const btnBdr   = isAppo ? '1.5px solid ' + C.gold : isExcl ? '1.5px solid ' + C.red + '40' : '1px solid ' + C.navy + '25';
                       return (
-                        <button key={r.id} onClick={() => { console.log('[ステータスボタン] クリック:', r.label, '/ selectedRow:', selectedRow?.id, '/ selectedRound:', selectedRound); handleResult(r.label); }}
+                        <button key={r.id} onClick={() => handleResult(r.label)}
                           style={{ padding: '9px 6px', borderRadius: 7, border: btnBdr, background: btnBg, color: btnColor, cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: "'Noto Sans JP'", lineHeight: 1.2 }}>
                           {r.label}
                         </button>

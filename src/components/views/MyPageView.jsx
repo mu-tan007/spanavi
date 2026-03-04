@@ -10,7 +10,6 @@ export default function MyPageView({ currentUser, userId, callListData, members,
   const [profileUploading, setProfileUploading] = useState(false);
   const fileInputRef = React.useRef(null);
   const handleImageChange = async (e) => {
-    console.log('[Profile] handleImageChange 呼び出し — files:', e.target.files?.length, '/ profileUploading:', profileUploading);
     const file = e.target.files?.[0];
     e.target.value = ''; // 同じファイルを再選択しても onChange が発火するようリセット
     if (!file) return;

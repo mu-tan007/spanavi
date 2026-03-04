@@ -24,15 +24,12 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
   // Supabase item ID lookup: { [no]: call_list_items.id }
   const [itemIdMap, setItemIdMap] = useState({});
   useEffect(() => {
-    console.log('[CallingScreen] itemIdMap構築 — list._supaId:', list?._supaId);
     if (!list?._supaId) { console.warn('[CallingScreen] _supaId 未設定のため itemIdMap は空のまま'); return; }
     fetchCallListItems(list._supaId).then(({ data, error }) => {
       if (error) { console.error('[CallingScreen] fetchCallListItems error:', error); return; }
-      console.log('[CallingScreen] fetchCallListItems 結果 件数:', data?.length, '/ 先頭:', data?.[0]);
       if (!data?.length) return;
       const map = {};
       data.forEach(item => { map[item.no] = item.id; });
-      console.log('[CallingScreen] itemIdMap構築完了 エントリ数:', Object.keys(map).length);
       setItemIdMap(map);
     });
   }, [list?._supaId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -140,7 +137,6 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
     // ② Supabase への書き込み（新規追加）
     const row = csvData[idx];
     const itemId = itemIdMap[row?.no];
-    console.log('[CallingScreen] markStatus — idx:', idx, '/ row.no:', row?.no, '/ itemId:', itemId, '/ list._supaId:', list?._supaId, '/ itemIdMap keys:', Object.keys(itemIdMap).length);
     if (itemId && list?._supaId) {
       // recall の場合は CallFlowView と同じ memo JSON 形式に変換
       let memoStr = memo || null;
@@ -148,7 +144,6 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
         const rc = extraData.recall;
         memoStr = JSON.stringify({ recall_date: rc.recallDate, recall_time: rc.recallTime, assignee: rc.assignee || '', note: rc.note || '', recall_completed: false });
       }
-      console.log('[CallingScreen] markStatus — Supabase書き込み開始 insertCallRecord:', { item_id: itemId, list_id: list._supaId, round: currentRound, status: statusLabel });
       insertCallRecord({
         item_id: itemId, list_id: list._supaId,
         round: currentRound, status: statusLabel,
@@ -156,12 +151,10 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
         getter_name: currentUser || null,
       }).then(({ result, error }) => {
         if (error) console.error('[CallingScreen] markStatus insertCallRecord error:', error);
-        else console.log('[CallingScreen] markStatus insertCallRecord 成功:', result);
       }).catch(e => console.error('[CallingScreen] markStatus insertCallRecord catch:', e));
       updateCallListItem(itemId, { call_status: statusLabel, called_at: calledAt })
         .then(err => {
           if (err) console.error('[CallingScreen] markStatus updateCallListItem error:', err);
-          else console.log('[CallingScreen] markStatus updateCallListItem 成功');
         }).catch(e => console.error('[CallingScreen] markStatus updateCallListItem catch:', e));
     } else {
       console.warn('[CallingScreen] markStatus — Supabase書き込みスキップ（itemId or _supaId が未設定）');
@@ -184,12 +177,10 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
     // ② Supabase への書き込み（新規追加）
     const row = csvData[idx];
     const itemId = itemIdMap[row?.no];
-    console.log('[CallingScreen] saveMemo — idx:', idx, '/ row.no:', row?.no, '/ itemId:', itemId);
     if (itemId) {
       updateCallListItem(itemId, { memo: memoText || null })
         .then(err => {
           if (err) console.error('[CallingScreen] saveMemo updateCallListItem error:', err);
-          else console.log('[CallingScreen] saveMemo updateCallListItem 成功');
         }).catch(e => console.error('[CallingScreen] saveMemo updateCallListItem catch:', e));
     } else {
       console.warn('[CallingScreen] saveMemo — Supabase書き込みスキップ（itemId 未設定）');
