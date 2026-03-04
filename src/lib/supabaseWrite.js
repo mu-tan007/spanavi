@@ -1117,3 +1117,96 @@ export async function deleteRoleplayBooking(gcalEventId, userId) {
   if (error) console.error('[DB] deleteRoleplayBooking error:', error)
   return error
 }
+
+// ============================================================
+// Reward Master (報酬マスター)
+// ============================================================
+
+export async function fetchRewardMaster() {
+  const { data, error } = await supabase
+    .from('reward_tiers')
+    .select('*, reward_types(name, timing, basis, tax)')
+    .order('type_id')
+    .order('sort_order')
+  if (error) { console.error('[DB] fetchRewardMaster error:', error); return { data: [], error } }
+  const flat = (data || []).map(row => ({
+    id: row.type_id,
+    name: row.reward_types?.name || '',
+    timing: row.reward_types?.timing || '',
+    basis: row.reward_types?.basis || '',
+    tax: row.reward_types?.tax || '',
+    lo: row.lo,
+    hi: row.hi,
+    price: row.price,
+    memo: row.memo,
+    _tierId: row.id,
+    _typeSort: row.reward_types?.sort_order ?? 99,
+    _tierSort: row.sort_order,
+  }))
+  return { data: flat, error: null }
+}
+
+export async function fetchRewardTypes() {
+  const { data, error } = await supabase
+    .from('reward_types')
+    .select('*, reward_tiers(*)')
+    .order('sort_order')
+  if (error) console.error('[DB] fetchRewardTypes error:', error)
+  return { data: data || [], error }
+}
+
+export async function insertRewardType(data) {
+  const { data: row, error } = await supabase
+    .from('reward_types')
+    .insert([data])
+    .select()
+    .single()
+  if (error) console.error('[DB] insertRewardType error:', error)
+  return { data: row, error }
+}
+
+export async function updateRewardType(typeId, updates) {
+  const { error } = await supabase
+    .from('reward_types')
+    .update(updates)
+    .eq('type_id', typeId)
+  if (error) console.error('[DB] updateRewardType error:', error)
+  return { error }
+}
+
+export async function deleteRewardType(typeId) {
+  const { error } = await supabase
+    .from('reward_types')
+    .delete()
+    .eq('type_id', typeId)
+  if (error) console.error('[DB] deleteRewardType error:', error)
+  return { error }
+}
+
+export async function insertRewardTier(data) {
+  const { data: row, error } = await supabase
+    .from('reward_tiers')
+    .insert([data])
+    .select()
+    .single()
+  if (error) console.error('[DB] insertRewardTier error:', error)
+  return { data: row, error }
+}
+
+export async function updateRewardTier(id, updates) {
+  const { error } = await supabase
+    .from('reward_tiers')
+    .update(updates)
+    .eq('id', id)
+  if (error) console.error('[DB] updateRewardTier error:', error)
+  return { error }
+}
+
+export async function deleteRewardTier(id) {
+  const { error } = await supabase
+    .from('reward_tiers')
+    .delete()
+    .eq('id', id)
+  if (error) console.error('[DB] deleteRewardTier error:', error)
+  return { error }
+}

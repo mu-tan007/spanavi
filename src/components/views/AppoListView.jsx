@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
-import { REWARD_MASTER } from '../../constants/rewardMaster';
 import { calcRankAndRate } from '../../utils/calculations';
 import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember } from '../../lib/supabaseWrite';
 
@@ -51,7 +50,7 @@ function MemberSuggestInput({ value, onChange, members = [], style, placeholder 
   );
 }
 
-export default function AppoListView({ appoData, setAppoData, members = [], setMembers, clientData = [] }) {
+export default function AppoListView({ appoData, setAppoData, members = [], setMembers, clientData = [], rewardMaster = [] }) {
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
   // ── ランク・レート自動計算 ──────────────────────────────────────
   const [apPeriod, setApPeriod] = useState(() =>
@@ -293,7 +292,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                     <select value={editForm.client} onChange={e => {
                       const name = e.target.value;
                       const client = clientOptions.find(c => c.company === name);
-                      const rewardRow = client?.rewardType ? REWARD_MASTER.find(r => r.id === client.rewardType) : null;
+                      const rewardRow = client?.rewardType ? rewardMaster.find(r => r.id === client.rewardType) : null;
                       setEditForm(p => ({ ...p, client: name, ...(name && rewardRow ? { sales: rewardRow.price } : {}) }));
                     }} style={inputStyle}>
                       <option value="">選択...</option>
@@ -404,7 +403,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                     <select value={addAppoForm.client} onChange={e => {
                       const name = e.target.value;
                       const client = clientOptions.find(c => c.company === name);
-                      const rewardRow = client?.rewardType ? REWARD_MASTER.find(r => r.id === client.rewardType) : null;
+                      const rewardRow = client?.rewardType ? rewardMaster.find(r => r.id === client.rewardType) : null;
                       setAddAppoForm(p => ({ ...p, client: name, ...(name && rewardRow ? { sales: rewardRow.price } : {}) }));
                     }} style={inputStyle}>
                       <option value="">選択...</option>

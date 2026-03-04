@@ -18,7 +18,7 @@ const _cfSessionCache = new Map(); // `${listId}|${startNo}|${endNo}` → sessio
 // isRealCloseRef（useRef）はStrict Modeで信頼できないため、同じパターンで管理
 const _cfRealCloseSet = new Set(); // sessionId → リアルクローズ時にadd、cleanup後にdelete
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setAppoData, members = [], currentUser = '', defaultItemId = null }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setAppoData, members = [], currentUser = '', defaultItemId = null, clientData = [], rewardMaster = [] }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRow, setSelectedRow] = useState(null);
@@ -941,6 +941,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           list={list}
           currentUser={currentUser}
           members={members}
+          clientData={clientData}
+          rewardMaster={rewardMaster}
           onClose={() => setAppoModal(null)}
           onSave={handleAppoSave}
           initialRecordingUrl={

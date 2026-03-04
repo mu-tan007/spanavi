@@ -3,7 +3,7 @@ import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { fetchCallListItems, insertCallRecord, updateCallListItem, deleteCallRecordByItemRound } from '../../lib/supabaseWrite';
 
-export default function CallingScreen({ listId, list, importedCSVs, setImportedCSVs, onClose, currentUser, liveStatuses, setLiveStatuses, members = [] }) {
+export default function CallingScreen({ listId, list, importedCSVs, setImportedCSVs, onClose, currentUser, liveStatuses, setLiveStatuses, members = [], clientData = [], rewardMaster = [] }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [pageStart, setPageStart] = useState(0);
   const [selectedRow, setSelectedRow] = useState(null);
@@ -746,6 +746,8 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
         list={list}
         currentUser={currentUser}
         members={members}
+        clientData={clientData}
+        rewardMaster={rewardMaster}
         onClose={() => setAppoModal(null)}
         onSave={(formData) => {
           markStatus(appoModal.idx, "appointment", { appoReport: formData.note });

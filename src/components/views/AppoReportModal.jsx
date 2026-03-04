@@ -1,17 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
-import { REWARD_MASTER } from '../../constants/rewardMaster';
 import { invokeAppoAiReport, invokeTranscribeRecording, fetchZoomUserId, insertAppointment } from '../../lib/supabaseWrite';
 
-export default function AppoReportModal({ row, list, currentUser = '', members = [], onClose, onSave, onDone, initialRecordingUrl = '', onFetchRecordingUrl }) {
-  console.log('[AppoReportModal] members:', members.length, 'currentUser:', currentUser);
+export default function AppoReportModal({ row, list, currentUser = '', members = [], onClose, onSave, onDone, initialRecordingUrl = '', onFetchRecordingUrl, clientData = [], rewardMaster = [] }) {
   const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
   // クライアントの報酬タイプを特定
-  const clientInfo = CLIENT_DATA.find(c => c.company === list.company);
+  const clientInfo = (clientData || []).find(c => c.company === list.company);
   const rewardType = clientInfo?.rewardType || '';
-  const rewardRows = REWARD_MASTER.filter(r => r.id === rewardType);
+  const rewardRows = (rewardMaster || []).filter(r => r.id === rewardType);
   const isFixed = rewardRows.length > 0 && rewardRows[0].basis === '-';
 
   // 右パネルと同じフォーマット（千円単位の数値 → "1,004,947千円"）

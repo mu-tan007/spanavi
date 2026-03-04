@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { C } from '../../constants/colors';
-import { REWARD_MASTER } from '../../constants/rewardMaster';
 import { updateClient, insertClient, deleteClient } from '../../lib/supabaseWrite';
 
-export default function CRMView({ isAdmin, clientData, setClientData }) {
+export default function CRMView({ isAdmin, clientData, setClientData, rewardMaster = [] }) {
   const [statusFilter, setStatusFilter] = useState("支援中");
   const [search, setSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState(null);
@@ -33,7 +32,7 @@ export default function CRMView({ isAdmin, clientData, setClientData }) {
   clientData.forEach(c => { statusCounts[c.status] = (statusCounts[c.status] || 0) + 1; });
 
   const rewardMap = {};
-  REWARD_MASTER.forEach(r => {
+  rewardMaster.forEach(r => {
     if (!rewardMap[r.id]) rewardMap[r.id] = { name: r.name, timing: r.timing, basis: r.basis, tax: r.tax, tiers: [] };
     rewardMap[r.id].tiers.push(r);
   });
@@ -287,7 +286,7 @@ export default function CRMView({ isAdmin, clientData, setClientData }) {
         const inputStyle = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", background: C.offWhite };
         const labelStyle = { fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 2, display: "block" };
         const u = (k, v) => setAddForm(p => ({ ...p, [k]: v }));
-        const rewardIds = [...new Set(REWARD_MASTER.map(r => r.id))].sort();
+        const rewardIds = [...new Set(rewardMaster.map(r => r.id))].sort();
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20001, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <div style={{ background: C.white, borderRadius: 12, width: 580, maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
@@ -359,7 +358,7 @@ export default function CRMView({ isAdmin, clientData, setClientData }) {
         const inputStyle = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", background: C.offWhite };
         const labelStyle = { fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 2, display: "block" };
         const u = (k, v) => setEditForm(p => ({ ...p, [k]: v }));
-        const rewardIds = [...new Set(REWARD_MASTER.map(r => r.id))].sort();
+        const rewardIds = [...new Set(rewardMaster.map(r => r.id))].sort();
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20001, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <div style={{ background: C.white, borderRadius: 12, width: 580, maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
