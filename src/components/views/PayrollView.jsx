@@ -46,7 +46,9 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
     return map;
   }, [members, monthTab]);
 
-  // 月次報酬計算（面談済のみ・ランク動的算出・役職ボーナス）
+  // 月次報酬計算（面談済のみ）
+  // インセンティブは appointments.intern_reward の保存済み確定値を合算（現在レートで再計算しない）
+  // ランク・率は参考表示のみ
   const data = React.useMemo(() => {
     const sel = payrollMonths.find(x => x.label === monthTab) ?? { year: 2026, month: 3 };
     const yyyymm = `${sel.year}-${String(sel.month).padStart(2, "0")}`;
@@ -70,10 +72,10 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
         };
       }
       byGetter[a.getter].sales += a.sales || 0;
+      // intern_reward の保存済み確定値を合算（現在レートで再計算しない）
+      byGetter[a.getter].incentive += a.reward || 0;
       teamSales[team] = (teamSales[team] || 0) + (a.sales || 0);
     });
-    // インセンティブ
-    Object.values(byGetter).forEach(p => { p.incentive = Math.round(p.sales * p.rate); });
     // 役職ボーナス: チーム売上合計×3%を原資。リーダー60%、副リーダー40%÷人数
     [...new Set(Object.values(byGetter).map(p => p.team))].forEach(team => {
       const pool = Math.round((teamSales[team] || 0) * 0.03);
@@ -217,7 +219,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
           display: "grid", gridTemplateColumns: "1.4fr 0.6fr 0.9fr 0.5fr 0.8fr 0.9fr 0.8fr 0.6fr 0.9fr",
           padding: "8px 14px", background: C.navyDeep, fontSize: 9, fontWeight: 600, color: C.goldLight,
         }}>
-          {["名前", "チーム", "ランク", "率", "今月売上", "①インセンティブ", "②役職ボーナス", "③紹介", "合計支給額"].map((h, i) => {
+          {["名前", "チーム", "ランク（参考）", "率（参考）", "今月売上", "①インセンティブ", "②役職ボーナス", "③紹介", "合計支給額"].map((h, i) => {
             const sortKeys = [null, null, null, null, "sales", "incentive", "teamBonus", null, "total"];
             return (
               <span key={i} style={{ cursor: sortKeys[i] ? "pointer" : "default" }}
