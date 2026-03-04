@@ -930,11 +930,22 @@ export async function updateCallSession(id, updates) {
   return { error }
 }
 
+export async function deleteCallSessionsByIds(ids) {
+  if (!ids?.length) return { error: null }
+  const { error } = await supabase
+    .from('call_sessions')
+    .delete()
+    .in('id', ids)
+  if (error) console.error('[DB] deleteCallSessionsByIds error:', error)
+  return { error }
+}
+
 export async function fetchCallSessions(sinceISO) {
   const { data, error } = await supabase
     .from('call_sessions')
     .select('*')
     .gte('started_at', sinceISO)
+    .is('finished_at', null)
     .order('started_at', { ascending: false })
   if (error) console.error('[DB] fetchCallSessions error:', error)
   return { data: data || [], error }

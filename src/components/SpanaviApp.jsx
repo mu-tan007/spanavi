@@ -1155,15 +1155,9 @@ function LiveStatusView({ now }) {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       {/* ヘッダー */}
-      <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: C.navy, fontFamily: "'Noto Serif JP', serif" }}>架電状況ボード</h2>
-          <div style={{ fontSize: 11, color: C.textLight, marginTop: 2 }}>架電開始時に自動登録されます。直近3営業日分を表示中</div>
-        </div>
-        <button
-          onClick={() => { setSessions([]); setCalledCounts({}); }}
-          style={{ fontSize: 10, padding: '4px 10px', borderRadius: 4, border: '1px solid ' + C.border, background: C.white, color: C.textMid, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}
-        >セッションリセット</button>
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: C.navy, fontFamily: "'Noto Serif JP', serif" }}>架電状況ボード</h2>
+        <div style={{ fontSize: 11, color: C.textLight, marginTop: 2 }}>架電開始時に自動登録されます。直近3営業日分を表示中</div>
       </div>
 
       {/* 本日セクション */}

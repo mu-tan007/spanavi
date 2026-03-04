@@ -14,6 +14,9 @@ import AppoReportModal from './AppoReportModal';
 // モジュールレベルのセッションIDキャッシュ（React Strict Mode 二重INSERT防止）
 // useRef と異なりStrict Modeのfake unmount/remountでもリセットされない
 const _cfSessionCache = new Map(); // `${listId}|${startNo}|${endNo}` → sessionId
+// モジュールレベルの「リアルクローズ済みセッションID」セット
+// isRealCloseRef（useRef）はStrict Modeで信頼できないため、同じパターンで管理
+const _cfRealCloseSet = new Set(); // sessionId → リアルクローズ時にadd、cleanup後にdelete
 
 export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setAppoData, members = [], currentUser = '', defaultItemId = null }) {
   const [items, setItems] = useState([]);
@@ -36,7 +39,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [activeRecordingId, setActiveRecordingId] = useState(null);
   const PAGE_SIZE = 30;
   const sessionIdRef = React.useRef(null);
-  const isRealCloseRef = React.useRef(false);
   const [autoDial, setAutoDial] = useState(() => {
     try { return localStorage.getItem('cf_autocall') === 'true'; } catch { return false; }
   });
@@ -102,7 +104,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     if (_cfSessionCache.has(cacheKey)) {
       // Strict Mode 2回目のマウント: キャッシュのIDを再利用してINSERTをスキップ
       sessionIdRef.current = _cfSessionCache.get(cacheKey);
-      console.log('[Session] キャッシュ済みID再利用（Strict Mode対応） — sessionId:', sessionIdRef.current, '/ cacheKey:', cacheKey);
     } else {
       const newId = `cf_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       sessionIdRef.current = newId;
@@ -121,7 +122,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         finished_at: null,
         last_called_at: null,
       }).catch(e => console.error('[Session] insertCallSession error:', e));
-      console.log('[Session] セッション作成 — id:', newId, '/ list_id:', list.id, '/ cacheKey:', cacheKey, '/ total_count:', totalCount);
     }
 
     // タブ閉じ・リロード時にも finished_at を書き込む
@@ -145,32 +145,25 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
-      console.log('[Session] cleanup — isRealClose:', isRealCloseRef.current, '/ sessionId:', sessionIdRef.current, '/ cacheKey:', cacheKey);
+      const sessionId = sessionIdRef.current;
+      const isRealClose = sessionId != null && _cfRealCloseSet.has(sessionId);
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      // React Strict Modeの偽unmountでは finished_at を設定しない
-      // 通常の終了（handleClose経由）は isRealCloseRef=true になっているので書き込む
-      if (isRealCloseRef.current) {
-        _cfSessionCache.delete(cacheKey); // リアルクローズ時のみキャッシュ削除
-        if (!sessionIdRef.current) {
-          console.warn('[Session] cleanup: sessionIdRef が null のため finished_at 更新スキップ');
-          return;
-        }
-        console.log('[Session] finished_at 更新開始 — sessionId:', sessionIdRef.current);
-        updateCallSession(sessionIdRef.current, { finished_at: new Date().toISOString() })
-          .then(({ error }) => {
-            if (error) console.error('[Session] finished_at 更新エラー:', error);
-            else console.log('[Session] finished_at 更新成功 — sessionId:', sessionIdRef.current);
-          })
+      // モジュールレベルの _cfRealCloseSet でリアルクローズか判定
+      // useRef ベースのフラグと異なり Strict Mode の fake unmount でも安全
+      if (isRealClose) {
+        _cfRealCloseSet.delete(sessionId);
+        _cfSessionCache.delete(cacheKey);
+        updateCallSession(sessionId, { finished_at: new Date().toISOString() })
           .catch(e => console.error('[Session] unmount error:', e));
       }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // handleClose ではフラグだけ立てて onClose() を呼ぶ
+  // handleClose ではモジュールレベルの _cfRealCloseSet にセッションIDを登録してから onClose()
   // finished_at の書き込みはunmount時のcleanupに一元化（二重呼び出し防止）
   const handleClose = () => {
-    console.log('[Session] handleClose — sessionId:', sessionIdRef.current, '/ isRealClose before:', isRealCloseRef.current);
-    isRealCloseRef.current = true;
+    const sessionId = sessionIdRef.current;
+    if (sessionId) _cfRealCloseSet.add(sessionId);
     onClose();
   };
 
