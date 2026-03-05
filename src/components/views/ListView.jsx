@@ -43,6 +43,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
   const emptyForm = { company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", companyInfo: "", scriptBody: "", cautions: "", notes: "" };
   const [formData, setFormData] = useState(emptyForm);
   const [showRec, setShowRec] = useState(true);
+  const [showArchived, setShowArchived] = useState(false);
 
   const topRecommended = filteredLists.filter(l => l.status === "架電可能" && l.recommendation && l.recommendation.score >= 80).sort((a, b) => b.recommendation.score - a.recommendation.score);
 
@@ -357,16 +358,18 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
           if (archivedLists.length === 0) return null;
           return (
             <div style={{ marginTop: 16 }}>
-              <div style={{
+              <div onClick={() => setShowArchived(v => !v)} style={{
                 padding: "8px 16px", background: C.offWhite,
-                border: "1px solid " + C.borderLight, borderRadius: "8px 8px 0 0",
-                display: "flex", alignItems: "center", gap: 8,
+                border: "1px solid " + C.borderLight, borderRadius: showArchived ? "8px 8px 0 0" : 8,
+                display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
+                userSelect: "none",
               }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: C.textLight }}>
                   アーカイブ済み ({archivedLists.length}件)
                 </span>
+                <span style={{ marginLeft: "auto", fontSize: 11, color: C.textLight }}>{showArchived ? "▲" : "▼"}</span>
               </div>
-              <div style={{ border: "1px solid " + C.borderLight, borderTop: "none", borderRadius: "0 0 8px 8px", overflow: "hidden" }}>
+              {showArchived && <div style={{ border: "1px solid " + C.borderLight, borderTop: "none", borderRadius: "0 0 8px 8px", overflow: "hidden" }}>
                 {archivedLists.map(list => (
                   <div key={list.id} style={{
                     display: "grid", gridTemplateColumns: "2fr 70px 1fr 70px 0.8fr 80px",
@@ -392,7 +395,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                     </span>
                   </div>
                 ))}
-              </div>
+              </div>}
             </div>
           );
         })()}
