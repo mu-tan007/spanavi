@@ -1,11 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
+import { supabase } from '../../lib/supabase';
 import {
   fetchRoleplayBookings,
   insertRoleplayBooking,
   deleteRoleplayBooking,
 } from '../../lib/supabaseWrite';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export default function RoleplayView({ currentUser, userId }) {
   // ===== AI ロープレ =====
@@ -37,21 +41,7 @@ export default function RoleplayView({ currentUser, userId }) {
     setTimeout(() => setChatMessages(prev => [...prev, { role: 'ai', text: '（AIロープレ機能は準備中です）' }]), 500);
   };
 
-  // ===== Google Calendar =====
-  const GCAL_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
-  const GCAL_CAL_ID = import.meta.env.VITE_GOOGLE_CALENDAR_ID || 'primary';
-  const GCAL_SCOPE = 'https://www.googleapis.com/auth/calendar email';
-  const TOKEN_KEY = 'gcal_token_v1';
-  const loadToken = () => {
-    try {
-      const d = JSON.parse(localStorage.getItem(TOKEN_KEY) || 'null');
-      if (!d) return null;
-      if (Date.now() > d.exp) { localStorage.removeItem(TOKEN_KEY); return null; }
-      return d.token;
-    } catch(e) { return null; }
-  };
-
-  const [gcalToken, setGcalToken] = useState(loadToken);
+  // ===== Google Calendar (Edge Function 経由) =====
   const [busySlots, setBusySlots] = useState(null);
   const [loadingBusy, setLoadingBusy] = useState(false);
   const [gcalError, setGcalError] = useState(null);
@@ -59,141 +49,23 @@ export default function RoleplayView({ currentUser, userId }) {
   const [bookings, setBookings] = useState([]);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccessMsg, setBookingSuccessMsg] = useState('');
-  const [userEmail, setUserEmail] = useState(() => {
-    try { return localStorage.getItem('gcal_user_email') || ''; } catch(e) { return ''; }
-  });
+  const [userEmail, setUserEmail] = useState('');
   const [modalEmail, setModalEmail] = useState('');
   const [selectedDay, setSelectedDay] = useState(0);
-  const tokenClientRef = React.useRef(null);
-  const pendingRefreshRef = React.useRef(null); // silentRefresh の Promise コールバック
 
-  // Google Identity Services 初期化
+  // Supabase Auth からメールアドレス自動取得
   useEffect(() => {
-    if (!GCAL_CLIENT_ID) return;
-    const init = () => {
-      if (!window.google?.accounts?.oauth2) return false;
-      tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
-        client_id: GCAL_CLIENT_ID,
-        scope: GCAL_SCOPE,
-        callback: (resp) => {
-          if (resp.error) {
-            setGcalError('認証エラー: ' + (resp.error_description || resp.error));
-            if (pendingRefreshRef.current) {
-              pendingRefreshRef.current.reject(new Error(resp.error));
-              pendingRefreshRef.current = null;
-            }
-            return;
-          }
-          if (resp.access_token) {
-            const data = { token: resp.access_token, exp: Date.now() + 55 * 60 * 1000 };
-            try { localStorage.setItem(TOKEN_KEY, JSON.stringify(data)); } catch(e) {}
-            setGcalToken(resp.access_token);
-            setGcalError(null);
-            if (pendingRefreshRef.current) {
-              pendingRefreshRef.current.resolve(resp.access_token);
-              pendingRefreshRef.current = null;
-            }
-          }
-        },
-      });
-      return true;
-    };
-    if (!init()) {
-      const timer = setInterval(() => { if (init()) clearInterval(timer); }, 300);
-      return () => clearInterval(timer);
-    }
-  }, [GCAL_CLIENT_ID]);
-
-  // サイレントリフレッシュ（ユーザーが Google にサインイン済みなら UI なしで取得）
-  // ※ GIS の implicit flow はリフレッシュトークンを返さないため、
-  //    requestAccessToken({ prompt: '' }) でサイレント再取得する
-  const silentRefresh = () => new Promise((resolve, reject) => {
-    if (!tokenClientRef.current) { reject(new Error('GIS not ready')); return; }
-    pendingRefreshRef.current = { resolve, reject };
-    tokenClientRef.current.requestAccessToken({ prompt: '' });
-  });
-
-  // 有効なアクセストークンを取得（期限 2 分以内なら自動リフレッシュ）
-  const ensureValidToken = async () => {
-    const stored = (() => { try { return JSON.parse(localStorage.getItem(TOKEN_KEY) || 'null'); } catch(e) { return null; } })();
-    if (stored && Date.now() < stored.exp - 2 * 60 * 1000) return stored.token;
-    try {
-      return await silentRefresh();
-    } catch(e) {
-      setGcalToken(null);
-      try { localStorage.removeItem(TOKEN_KEY); } catch(e2) {}
-      setGcalError('セッションが切れました。再度連携してください。');
-      throw e;
-    }
-  };
-
-  const handleConnect = () => {
-    setGcalError(null);
-    if (!tokenClientRef.current) {
-      setGcalError('Google APIが読み込まれていません。ページを再読み込みしてください。');
-      return;
-    }
-    tokenClientRef.current.requestAccessToken({ prompt: '' });
-  };
-
-  const handleDisconnect = () => {
-    setGcalToken(null);
-    setBusySlots(null);
-    setUserEmail('');
-    try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem('gcal_user_email'); } catch(e) {}
-  };
-
-  // バックグラウンドで期限 5 分前にサイレントリフレッシュ
-  useEffect(() => {
-    if (!gcalToken) return;
-    const stored = (() => { try { return JSON.parse(localStorage.getItem(TOKEN_KEY) || 'null'); } catch(e) { return null; } })();
-    if (!stored) return;
-    const delay = Math.max(0, stored.exp - Date.now() - 5 * 60 * 1000);
-    const timer = setTimeout(() => {
-      silentRefresh().catch(() => { /* 失敗時は次回 API 呼び出し時に再取得 */ });
-    }, delay);
-    return () => clearTimeout(timer);
-  }, [gcalToken]);
-
-  // FreeBusy 取得（引数なし — ensureValidToken で自動取得）
-  const fetchBusy = async () => {
-    let token;
-    try { token = await ensureValidToken(); } catch(e) { return; }
-    setLoadingBusy(true);
-    setGcalError(null);
-    const now = new Date();
-    const base = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const timeMin = base.toISOString();
-    const timeMax = new Date(base.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    const buildReq = (t) => fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ timeMin, timeMax, items: [{ id: GCAL_CAL_ID }] }),
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.email) setUserEmail(data.user.email);
     });
-    try {
-      let res = await buildReq(token);
-      if (res.status === 401) {
-        // サイレントリフレッシュを 1 回試みる
-        try { token = await silentRefresh(); } catch(e) {
-          setGcalToken(null);
-          try { localStorage.removeItem(TOKEN_KEY); } catch(e2) {}
-          setGcalError('セッションが切れました。再度連携してください。');
-          return;
-        }
-        res = await buildReq(token);
-      }
-      const d = await res.json();
-      setBusySlots(d.calendars?.[GCAL_CAL_ID]?.busy || []);
-    } catch(e) {
-      setGcalError('カレンダーの取得に失敗しました');
-    } finally {
-      setLoadingBusy(false);
-    }
-  };
+  }, []);
 
-  useEffect(() => { if (gcalToken) fetchBusy(); }, [gcalToken]);
+  // confirmSlot が開いたとき取得済みメールをモーダルに設定
+  useEffect(() => {
+    if (confirmSlot) setModalEmail(userEmail || '');
+  }, [confirmSlot]);
 
-  // ロープレ予約をSupabaseから取得
+  // ロープレ予約を Supabase から取得
   useEffect(() => {
     if (!userId) return;
     fetchRoleplayBookings(userId).then(({ data }) => {
@@ -201,29 +73,40 @@ export default function RoleplayView({ currentUser, userId }) {
     });
   }, [userId]);
 
-  // OAuth後にユーザーのメールアドレスを取得
-  useEffect(() => {
-    if (!gcalToken) return;
-    (async () => {
-      try {
-        const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { 'Authorization': 'Bearer ' + gcalToken },
-        });
-        if (res.ok) {
-          const d = await res.json();
-          if (d.email) {
-            setUserEmail(d.email);
-            try { localStorage.setItem('gcal_user_email', d.email); } catch(e) {}
-          }
-        }
-      } catch(e) { /* メール取得失敗は無視 */ }
-    })();
-  }, [gcalToken]);
+  // gcal-proxy Edge Function 呼び出しヘルパー
+  const gcalFetch = (path, options = {}) =>
+    fetch(`${SUPABASE_URL}/functions/v1/gcal-proxy${path}`, {
+      ...options,
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      },
+    });
 
-  // confirmSlotが開いたとき、取得済みメールをモーダル入力欄に設定
-  useEffect(() => {
-    if (confirmSlot) setModalEmail(userEmail || '');
-  }, [confirmSlot]);
+  // 空き時間取得
+  const fetchBusy = async () => {
+    setLoadingBusy(true);
+    setGcalError(null);
+    const now = new Date();
+    const base = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const timeMin = base.toISOString();
+    const timeMax = new Date(base.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    try {
+      const res = await gcalFetch(`?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'fetch failed');
+      setBusySlots(data.busy || []);
+    } catch (e) {
+      setGcalError('カレンダーの取得に失敗しました');
+    } finally {
+      setLoadingBusy(false);
+    }
+  };
+
+  // マウント時に自動取得（OAuth 不要）
+  useEffect(() => { fetchBusy(); }, []);
 
   // 7日分の日付リスト
   const days = useMemo(() => {
@@ -264,7 +147,6 @@ export default function RoleplayView({ currentUser, userId }) {
       s: new Date(b.start).getTime() - BUFFER,
       e: new Date(b.end).getTime() + BUFFER,
     })).sort((a, b) => a.s - b.s);
-    // マージ
     const merged = [blocks[0]];
     for (let i = 1; i < blocks.length; i++) {
       const last = merged[merged.length - 1];
@@ -288,11 +170,6 @@ export default function RoleplayView({ currentUser, userId }) {
   // イベント作成
   const handleBook = async () => {
     if (!confirmSlot) return;
-
-    // ensureValidToken でトークン取得（期限切れなら自動リフレッシュ）
-    let activeToken;
-    try { activeToken = await ensureValidToken(); } catch(e) { setConfirmSlot(null); return; }
-
     setBookingLoading(true);
     setGcalError(null);
     const title = `ロープレ - ${currentUser || 'インターン生'}`;
@@ -313,44 +190,15 @@ export default function RoleplayView({ currentUser, userId }) {
         ],
       },
     };
-
-    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CAL_ID)}/events?sendUpdates=all`;
-
-    const doPost = (t) => fetch(url, {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' },
-      body: JSON.stringify(eventBody),
-    });
-
     try {
-      let res = await doPost(activeToken);
-
-      if (res.status === 401) {
-        // サイレントリフレッシュを 1 回試みてリトライ
-        try { activeToken = await silentRefresh(); } catch(e) {
-          setGcalToken(null);
-          try { localStorage.removeItem(TOKEN_KEY); } catch(e2) {}
-          setGcalError('セッションが切れました。再度連携してください。');
-          setConfirmSlot(null);
-          return;
-        }
-        res = await doPost(activeToken);
-      }
-
-      const resText = await res.text();
-
+      const res = await gcalFetch('', { method: 'POST', body: JSON.stringify(eventBody) });
+      const data = await res.json();
       if (!res.ok) {
-        let errMsg = String(res.status);
-        try { errMsg = JSON.parse(resText)?.error?.message || errMsg; } catch(e) {}
-        console.error('[GCal] Event creation failed:', res.status, resText);
-        setGcalError(`予約に失敗しました (${res.status}): ${errMsg}`);
+        setGcalError(`予約に失敗しました: ${data.error || res.status}`);
         return;
       }
-
-      const ev = JSON.parse(resText);
-
       const nb = {
-        id: ev.id,
+        id: data.eventId,
         title,
         startISO: confirmSlot.startISO,
         endISO: confirmSlot.endISO,
@@ -365,8 +213,7 @@ export default function RoleplayView({ currentUser, userId }) {
       setBookingSuccessMsg('✅ Googleカレンダーに登録しました');
       setTimeout(() => setBookingSuccessMsg(''), 4000);
       setConfirmSlot(null);
-    } catch(e) {
-      console.error('[GCal] handleBook unexpected error:', e);
+    } catch (e) {
       setGcalError('予約の作成に失敗しました: ' + e.message);
     } finally {
       setBookingLoading(false);
@@ -376,17 +223,10 @@ export default function RoleplayView({ currentUser, userId }) {
   // イベント削除
   const handleCancel = async (booking) => {
     if (booking.id) {
-      let token = null;
-      try { token = await ensureValidToken(); } catch(e) { /* トークン取得失敗でもローカル削除は続行 */ }
-      if (token) {
-        try {
-          await fetch(
-            `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CAL_ID)}/events/${booking.id}`,
-            { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } }
-          );
-          await fetchBusy();
-        } catch(e) { /* ローカルからは削除する */ }
-      }
+      try {
+        await gcalFetch(`?eventId=${encodeURIComponent(booking.id)}`, { method: 'DELETE' });
+        await fetchBusy();
+      } catch (e) { /* ローカルからは削除する */ }
     }
     setBookings(prev => prev.filter(b => b.id !== booking.id));
     deleteRoleplayBooking(booking.id, userId);
@@ -414,120 +254,76 @@ export default function RoleplayView({ currentUser, userId }) {
       <div style={{ width: 380, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14 }}>
         <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.navy }}>代表とのロープレ予約</h2>
 
-        {/* 未連携 */}
-        {!gcalToken ? (
-          <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, padding: 20 }}>
-            <div style={{ fontSize: 12, color: C.textMid, marginBottom: 16, lineHeight: 1.7 }}>
-              Googleカレンダーと連携して、代表の空き時間を確認・予約できます。
-            </div>
-            <button onClick={handleConnect}
-              style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 8,
-                border: "1.5px solid " + C.borderLight, background: C.white,
-                color: C.textDark, fontSize: 12, fontWeight: 600, cursor: "pointer",
-                fontFamily: "'Noto Sans JP'", width: "100%", justifyContent: "center" }}>
-              <svg width="16" height="16" viewBox="0 0 48 48">
-                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-              </svg>
-              Googleカレンダーと連携
-            </button>
-            {gcalError && (
-              <div style={{ marginTop: 10, fontSize: 11, color: C.red, background: C.redLight,
-                padding: "6px 10px", borderRadius: 6 }}>
-                {gcalError}
+        {gcalError && (
+          <div style={{ fontSize: 11, color: C.red, background: C.redLight,
+            padding: "6px 10px", borderRadius: 6 }}>
+            {gcalError}
+          </div>
+        )}
+
+        {/* 日付タブ */}
+        <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, overflow: "hidden" }}>
+          <div style={{ display: "flex", overflowX: "auto", background: C.offWhite, borderBottom: "1px solid " + C.borderLight }}>
+            {days.map((day, i) => (
+              <button key={i} onClick={() => setSelectedDay(i)}
+                style={{ padding: "7px 10px", border: "none", cursor: "pointer", whiteSpace: "nowrap",
+                  background: "transparent",
+                  color: selectedDay === i ? C.navy : (day.isWeekend ? C.red : C.textMid),
+                  fontSize: 10, fontWeight: selectedDay === i ? 700 : 400,
+                  borderBottom: "2px solid " + (selectedDay === i ? C.gold : "transparent"),
+                  fontFamily: "'Noto Sans JP'" }}>
+                {day.label}
+              </button>
+            ))}
+          </div>
+
+          {/* スロット一覧 */}
+          <div style={{ padding: 12, maxHeight: 280, overflowY: "auto" }}>
+            {loadingBusy ? (
+              <div style={{ textAlign: "center", padding: 20, color: C.textLight, fontSize: 12 }}>読み込み中...</div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 5 }}>
+                {currentDaySlots.map((slot, si) => {
+                  const busy = isBusy(slot.startISO, slot.endISO);
+                  const booked = isBooked(slot.startISO);
+                  const past = isPast(slot.startISO);
+                  const disabled = busy || past;
+                  return (
+                    <button key={si}
+                      onClick={() => !disabled && !booked && setConfirmSlot({ ...slot, dayLabel: days[selectedDay].label })}
+                      disabled={disabled || booked}
+                      style={{ padding: "5px 0", borderRadius: 5, fontSize: 10, fontWeight: 600, textAlign: "center",
+                        cursor: disabled || booked ? "default" : "pointer",
+                        border: booked ? "1.5px solid " + C.navy : (disabled ? "1px solid " + C.borderLight : "1.5px solid " + C.gold),
+                        background: booked ? C.navy : (disabled ? C.offWhite : C.goldGlow),
+                        color: booked ? C.white : (disabled ? C.textLight : C.navy),
+                        fontFamily: "'JetBrains Mono', monospace" }}>
+                      {slot.startLabel}
+                    </button>
+                  );
+                })}
               </div>
             )}
-          </div>
-        ) : (
-          <>
-            {/* 連携中ヘッダー */}
-            <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, padding: "10px 14px",
-              display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.green }} />
-                <span style={{ fontSize: 11, color: C.textMid, fontWeight: 600 }}>Googleカレンダー連携中</span>
-              </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ marginTop: 10, display: "flex", gap: 12, fontSize: 9, color: C.textLight, alignItems: "center" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 2, background: C.goldGlow, border: "1.5px solid " + C.gold, display: "inline-block" }} />空き
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 2, background: C.offWhite, border: "1px solid " + C.borderLight, display: "inline-block" }} />予定あり
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 2, background: C.navy, display: "inline-block" }} />予約済
+              </span>
+              <span style={{ marginLeft: "auto" }}>
                 <button onClick={() => fetchBusy()} disabled={loadingBusy}
                   style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, border: "1px solid " + C.borderLight,
                     background: "transparent", color: C.textMid, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
                   {loadingBusy ? '読込中...' : '更新'}
                 </button>
-                <button onClick={handleDisconnect}
-                  style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, border: "1px solid " + C.borderLight,
-                    background: "transparent", color: C.textLight, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
-                  連携解除
-                </button>
-              </div>
+              </span>
             </div>
-
-            {gcalError && (
-              <div style={{ fontSize: 11, color: C.red, background: C.redLight,
-                padding: "6px 10px", borderRadius: 6 }}>
-                {gcalError}
-              </div>
-            )}
-
-            {/* 日付タブ */}
-            <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, overflow: "hidden" }}>
-              <div style={{ display: "flex", overflowX: "auto", background: C.offWhite, borderBottom: "1px solid " + C.borderLight }}>
-                {days.map((day, i) => (
-                  <button key={i} onClick={() => setSelectedDay(i)}
-                    style={{ padding: "7px 10px", border: "none", cursor: "pointer", whiteSpace: "nowrap",
-                      background: "transparent",
-                      color: selectedDay === i ? C.navy : (day.isWeekend ? C.red : C.textMid),
-                      fontSize: 10, fontWeight: selectedDay === i ? 700 : 400,
-                      borderBottom: "2px solid " + (selectedDay === i ? C.gold : "transparent"),
-                      fontFamily: "'Noto Sans JP'" }}>
-                    {day.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* スロット一覧 */}
-              <div style={{ padding: 12, maxHeight: 280, overflowY: "auto" }}>
-                {loadingBusy ? (
-                  <div style={{ textAlign: "center", padding: 20, color: C.textLight, fontSize: 12 }}>読み込み中...</div>
-                ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 5 }}>
-                    {currentDaySlots.map((slot, si) => {
-                      const busy = isBusy(slot.startISO, slot.endISO);
-                      const booked = isBooked(slot.startISO);
-                      const past = isPast(slot.startISO);
-                      const disabled = busy || past;
-                      return (
-                        <button key={si}
-                          onClick={() => !disabled && !booked && setConfirmSlot({ ...slot, dayLabel: days[selectedDay].label })}
-                          disabled={disabled || booked}
-                          style={{ padding: "5px 0", borderRadius: 5, fontSize: 10, fontWeight: 600, textAlign: "center",
-                            cursor: disabled || booked ? "default" : "pointer",
-                            border: booked ? "1.5px solid " + C.navy : (disabled ? "1px solid " + C.borderLight : "1.5px solid " + C.gold),
-                            background: booked ? C.navy : (disabled ? C.offWhite : C.goldGlow),
-                            color: booked ? C.white : (disabled ? C.textLight : C.navy),
-                            fontFamily: "'JetBrains Mono', monospace" }}>
-                          {slot.startLabel}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                <div style={{ marginTop: 10, display: "flex", gap: 12, fontSize: 9, color: C.textLight }}>
-                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 2, background: C.goldGlow, border: "1.5px solid " + C.gold, display: "inline-block" }} />空き
-                  </span>
-                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 2, background: C.offWhite, border: "1px solid " + C.borderLight, display: "inline-block" }} />予定あり
-                  </span>
-                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 2, background: C.navy, display: "inline-block" }} />予約済
-                  </span>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+          </div>
+        </div>
 
         {/* 予約完了メッセージ */}
         {bookingSuccessMsg && (
