@@ -86,7 +86,6 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const statusOrder = { "面談済": 0, "事前確認済": 1, "アポ取得": 2, "リスケ中": 3, "キャンセル": 4 };
   const filtered = appoData.filter(a => {
     const dm = a.meetDate ? a.meetDate.slice(0, 7) : "";
-    if (dm < "2026-03") return false; // 2月以前を除外
     if (apPeriod === "month") { if (dm !== apSelectedMonth) return false; }
     else if (apPeriod === "custom") {
       if (apCustomFrom && dm < apCustomFrom) return false;
