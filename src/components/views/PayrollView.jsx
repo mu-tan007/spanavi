@@ -59,22 +59,32 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
     : null;
 
   // リファラル採用インセンティブ計算
+  // 条件: 紹介されたインターン生の稼働開始30日以内のアポ売上合計が10万円以上に達した場合、紹介者に5万円支給
   const referralMap = React.useMemo(() => {
     const map = {};
     const sel = payrollMonths.find(x => x.label === monthTab) ?? { year: 2026, month: 3 };
     const monthStart = new Date(sel.year, sel.month - 1, 1);
     const monthEnd = new Date(sel.year, sel.month, 0);
     members.forEach(m => {
-      if (typeof m !== 'object' || !m.referrerName || !m.operationStartDate || (m.totalSales || 0) < 100000) return;
+      if (typeof m !== 'object' || !m.referrerName || !m.operationStartDate) return;
       const opDate = new Date(m.operationStartDate);
       const deadline = new Date(opDate);
       deadline.setDate(deadline.getDate() + 30);
-      if (opDate <= monthEnd && deadline >= monthStart) {
+      // 稼働開始30日以内のアポ売上合計を計算
+      const salesWithin30Days = appoData
+        .filter(a =>
+          a.getter === m.name &&
+          PAYROLL_COUNTABLE.has(a.status) &&
+          a.meetDate && new Date(a.meetDate) >= opDate && new Date(a.meetDate) <= deadline
+        )
+        .reduce((sum, a) => sum + (a.sales || 0), 0);
+      // 10万円以上達成 かつ 30日期間が当月と重なる月に支給
+      if (salesWithin30Days >= 100000 && opDate <= monthEnd && deadline >= monthStart) {
         map[m.referrerName] = (map[m.referrerName] || 0) + 50000;
       }
     });
     return map;
-  }, [members, monthTab]);
+  }, [members, appoData, monthTab]);
 
   // 月次報酬計算（アポ取得・事前確認済・面談済）
   // インセンティブは appointments.intern_reward の保存済み確定値を合算（現在レートで再計算しない）
