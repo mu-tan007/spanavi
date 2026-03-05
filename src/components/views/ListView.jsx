@@ -169,11 +169,6 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
         border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
       }}>
         <input type="text" placeholder="企業名・業種・担当者で検索..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ ...inputStyle, flex: "1 1 200px", minWidth: 180 }} />
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={inputStyle}>
-          <option value="all">全ステータス</option>
-          <option value="架電可能">架電可能</option>
-          <option value="架電停止">架電停止</option>
-        </select>
         <select value={filterType} onChange={e => setFilterType(e.target.value)} style={inputStyle}>
           <option value="all">全種別</option>
           <option value="M&A仲介">M&A仲介</option>
@@ -238,13 +233,6 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
             <div>
               <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>リスト社数 *</label>
               <input type="number" value={formData.count} onChange={e => setFormData(p => ({ ...p, count: e.target.value }))} style={formInputStyle} placeholder="例: 1000" />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>ステータス</label>
-              <select value={formData.status} onChange={e => setFormData(p => ({ ...p, status: e.target.value }))} style={formInputStyle}>
-                <option value="架電可能">架電可能</option>
-                <option value="架電停止">架電停止</option>
-              </select>
             </div>
             <div>
               <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>クライアント担当者</label>
