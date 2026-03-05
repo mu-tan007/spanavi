@@ -327,7 +327,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                   </div>
                   <div><label style={labelStyle}>カレンダー</label>
                     <select value={addForm.calendar} onChange={e => u("calendar", e.target.value)} style={inputStyle}>
-                      <option value="">-</option><option value="Google">Google</option><option value="Spir">Spir</option><option value="Outlook">Outlook</option><option value="なし">なし</option>
+                      <option value="">-</option><option value="Google">Google</option><option value="Spir">Spir</option><option value="Outlook">Outlook</option><option value="なし">なし</option><option value="調整アポ">調整アポ</option><option value="Google(入力)">Google(入力)</option>
                     </select>
                   </div>
                   <div><label style={labelStyle}>連絡手段</label>
@@ -396,7 +396,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                   </div>
                   <div><label style={labelStyle}>カレンダー</label>
                     <select value={editForm.calendar} onChange={e => u("calendar", e.target.value)} style={inputStyle}>
-                      <option value="Google">Google</option><option value="Spir">Spir</option><option value="Outlook">Outlook</option><option value="なし">なし</option><option value="">-</option>
+                      <option value="Google">Google</option><option value="Spir">Spir</option><option value="Outlook">Outlook</option><option value="なし">なし</option><option value="調整アポ">調整アポ</option><option value="Google(入力)">Google(入力)</option><option value="">-</option>
                     </select>
                   </div>
                   <div><label style={labelStyle}>連絡手段</label>
