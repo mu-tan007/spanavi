@@ -12,13 +12,14 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
   const [addSaving, setAddSaving] = useState(false);
   const [addToast, setAddToast] = useState(null);
 
-  const statusList = ["支援中", "準備中", "停止中", "保留", "中期フォロー"];
+  const statusList = ["支援中", "準備中", "停止中", "保留", "中期フォロー", "面談予定"];
   const statusStyle = (st) => {
     if (st === "支援中") return { bg: C.green + "15", color: C.green, dot: C.green };
     if (st === "準備中") return { bg: C.gold + "15", color: C.gold, dot: C.gold };
     if (st === "停止中") return { bg: "#e5383515", color: "#e53835", dot: "#e53835" };
     if (st === "保留") return { bg: C.textLight + "15", color: C.textLight, dot: C.textLight };
     if (st === "中期フォロー") return { bg: C.navy + "10", color: C.navy, dot: C.navy };
+    if (st === "面談予定") return { bg: "#7c3aed15", color: "#7c3aed", dot: "#7c3aed" };
     return { bg: C.textLight + "10", color: C.textLight, dot: C.textLight };
   };
 
@@ -298,7 +299,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div><label style={labelStyle}>ステータス</label>
                     <select value={addForm.status} onChange={e => u("status", e.target.value)} style={inputStyle}>
-                      {["支援中", "準備中", "停止中", "保留", "中期フォロー"].map(s => <option key={s} value={s}>{s}</option>)}
+                      {statusList.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div><label style={labelStyle}>契約</label>
