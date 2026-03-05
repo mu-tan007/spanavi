@@ -295,7 +295,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
           padding: "10px 16px", background: C.navyDeep,
           fontSize: 10, fontWeight: 600, color: C.goldLight, letterSpacing: 1,
         }}>
-          <span>クライアント</span><span>種別</span><span>業種</span><span>社数</span><span>担当者</span><span style={{ textAlign: "right" }}>おすすめ度</span><span></span>
+          <span>クライアント</span><span>種別</span><span>業種</span><span>社数</span><span>担当者</span><span>おすすめ度</span><span></span>
         </div>
         <div style={{ maxHeight: 600, overflowY: "auto" }}>
           {(() => {
