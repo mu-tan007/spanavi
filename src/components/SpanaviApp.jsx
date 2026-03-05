@@ -346,7 +346,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
     } catch(e) {}
   }, [callFlowScreen]);
   const [currentUser, setCurrentUser] = useState(userName || "管理者");
-  const [appoData, setAppoData] = useState(supabaseData?.appoData?.length ? supabaseData.appoData : APPO_DATA);
+  const [appoData, setAppoData] = useState(supabaseData?.appoData ?? []);
   const [clientData, setClientData] = useState(supabaseData?.clientData?.length ? supabaseData.clientData : CLIENT_DATA);
   const [members, setMembers] = useState(supabaseData?.membersDetailed?.length ? supabaseData.membersDetailed : DEFAULT_MEMBERS);
   const [rewardMaster, setRewardMaster] = useState([]);
@@ -355,7 +355,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   }, []);
   // supabaseData が非同期で届いた後に各 state を同期する
   useEffect(() => {
-    if (supabaseData?.appoData?.length) setAppoData(supabaseData.appoData);
+    if (supabaseData?.appoData) setAppoData(supabaseData.appoData);
     if (supabaseData?.clientData?.length) setClientData(supabaseData.clientData);
     if (supabaseData?.callLists?.length) {
       setCallListData(supabaseData.callLists);
