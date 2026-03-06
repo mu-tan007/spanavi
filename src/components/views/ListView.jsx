@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { C } from '../../constants/colors';
 import { updateCallList, insertCallList, archiveCallList, restoreCallList } from '../../lib/supabaseWrite';
+import { supabase } from '../../lib/supabase';
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -40,10 +41,11 @@ const ScorePill = ({ score, label, color }) => (
 
 export default function ListView({ filteredLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [] }) {
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
-  const emptyForm = { company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", companyInfo: "", scriptBody: "", cautions: "", notes: "" };
+  const emptyForm = { company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "" };
   const [formData, setFormData] = useState(emptyForm);
   const [showRec, setShowRec] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
+  const [generatingInfo, setGeneratingInfo] = useState(false);
 
   const topRecommended = filteredLists.filter(l => l.status === "架電可能" && l.recommendation && l.recommendation.score >= 80).sort((a, b) => b.recommendation.score - a.recommendation.score);
 
@@ -57,7 +59,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
     setFormData({
       company: list.company, type: list.type, status: list.status,
       industry: list.industry, count: String(list.count), manager: list.manager,
-      companyInfo: list.companyInfo || "", scriptBody: list.scriptBody || "", cautions: list.cautions || "", notes: list.notes || "",
+      companyInfo: list.companyInfo || "", companyUrl: list.companyUrl || "", scriptBody: list.scriptBody || "", cautions: list.cautions || "", notes: list.notes || "",
     });
     setEditingListId(list.id);
     setListFormOpen(true);
@@ -241,7 +243,50 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
             </div>
 <div style={{ gridColumn: "span 3" }}>
               <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>企業概要</label>
-              <textarea value={formData.companyInfo} onChange={e => setFormData(p => ({ ...p, companyInfo: e.target.value }))} style={{ ...formInputStyle, minHeight: 60, resize: "vertical" }} placeholder="クライアントの企業概要を入力..." />
+              <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+                <input
+                  type="url"
+                  value={formData.companyUrl || ''}
+                  onChange={e => setFormData(p => ({ ...p, companyUrl: e.target.value }))}
+                  placeholder="ホームページURLを入力して自動生成..."
+                  style={{ ...formInputStyle, flex: 1 }}
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!formData.companyUrl) return
+                    setGeneratingInfo(true)
+                    try {
+                      const { data, error } = await supabase.functions.invoke('generate-company-info', {
+                        body: { url: formData.companyUrl },
+                      })
+                      if (error) throw error
+                      if (data?.text) setFormData(p => ({ ...p, companyInfo: data.text }))
+                    } catch (e) {
+                      console.error(e)
+                      alert('企業概要の生成に失敗しました: ' + (e?.message || '不明なエラー'))
+                    } finally {
+                      setGeneratingInfo(false)
+                    }
+                  }}
+                  disabled={generatingInfo || !formData.companyUrl}
+                  style={{
+                    padding: '8px 16px', borderRadius: 8, border: 'none',
+                    cursor: generatingInfo ? 'not-allowed' : 'pointer',
+                    background: 'linear-gradient(135deg, #c8a45a, #a8883a)',
+                    color: '#fff', fontSize: 12, fontWeight: 700,
+                    whiteSpace: 'nowrap', opacity: generatingInfo || !formData.companyUrl ? 0.6 : 1
+                  }}
+                >
+                  {generatingInfo ? '生成中...' : '✨ 自動生成'}
+                </button>
+              </div>
+              <textarea
+                value={formData.companyInfo}
+                onChange={e => setFormData(p => ({ ...p, companyInfo: e.target.value }))}
+                style={{ ...formInputStyle, minHeight: 60, resize: 'vertical' }}
+                placeholder="クライアントの企業概要を入力..."
+              />
             </div>
             <div style={{ gridColumn: "span 3" }}>
               <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>スクリプト</label>
