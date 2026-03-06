@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
       formatSection(top3('appo')),
     ].join('\n')
 
-    const webhookUrl = Deno.env.get('SLACK_INFO_WEBHOOK_URL')
+    const webhookUrl = Deno.env.get('SLACK_RANKING_WEBHOOK_URL')
     if (!webhookUrl) {
       return new Response(
         JSON.stringify({ error: 'SLACK_INFO_WEBHOOK_URL not configured' }),
