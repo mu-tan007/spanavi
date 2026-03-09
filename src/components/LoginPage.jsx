@@ -175,8 +175,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
 
   const [signupEmail, setSignupEmail] = useState('')
-  const [signupPassword, setSignupPassword] = useState('')
-  const [signupPassword2, setSignupPassword2] = useState('')
   const [name, setName] = useState('')
   const [university, setUniversity] = useState('')
   const [grade, setGrade] = useState('')
@@ -222,13 +220,11 @@ export default function LoginPage() {
   const handleSignup = async (e) => {
     e.preventDefault()
     setError('')
-    if (signupPassword !== signupPassword2) { setError('パスワードが一致しません'); return }
-    if (signupPassword.length < 6) { setError('パスワードは6文字以上で入力してください'); return }
     if (!team) { setError('チームを選択してください'); return }
     setLoading(true)
     try {
       const { error: err } = await supabase.auth.signUp({
-        email: signupEmail, password: signupPassword,
+        email: signupEmail, password: 'masp2026',
         options: { data: { name, university, grade: grade ? parseInt(grade) : null, team, start_date: startDate || null, operation_start_date: operationStartDate || null, referrer_name: referrerName || null, zoom_user_id: zoomUserId || null } }
       })
       if (err) throw err
@@ -347,8 +343,6 @@ export default function LoginPage() {
                 <AutocompleteField label="紹介者" value={referrerName} onChange={setReferrerName} candidates={memberNames} />
                 <InputField label="Zoom User ID" value={zoomUserId} onChange={setZoomUserId} placeholder="lXsqw8miT5iHmX7cKz0R5w" />
                 <InputField label="メールアドレス" type="email" value={signupEmail} onChange={setSignupEmail} placeholder="email@example.com" required autoComplete="email" />
-                <InputField label="パスワード" type="password" value={signupPassword} onChange={setSignupPassword} placeholder="6文字以上" required />
-                <InputField label="パスワード（確認）" type="password" value={signupPassword2} onChange={setSignupPassword2} placeholder="もう一度入力" required />
               </div>
             </div>
             {errBlock}
