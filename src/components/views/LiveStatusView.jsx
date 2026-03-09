@@ -96,7 +96,7 @@ export default function LiveStatusView({ now }) {
           {clientGroups.map(group => {
             const activeSessions = group.sessions.filter(s => isActiveSession(s, todayStr));
             const hasActive = activeSessions.length > 0;
-            const isOpen = !collapsed[group.clientId];
+            const isOpen = collapsed[group.clientId] === true;
 
             // 最終架電日（最も新しい last_called_at or started_at）
             const latestDate = group.sessions.reduce((best, s) => {
