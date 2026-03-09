@@ -46,12 +46,24 @@ export default function LiveStatusView({ now }) {
       groups[key].sessions.push(s);
     });
 
+    // 各グループ内のセッションを last_called_at 新しい順にソート
+    Object.values(groups).forEach(g => {
+      g.sessions.sort((a, b) => {
+        const da = a.last_called_at || a.started_at || '';
+        const db = b.last_called_at || b.started_at || '';
+        return db.localeCompare(da);
+      });
+    });
+
+    // グループ自体も「グループ内最新 last_called_at」新しい順、稼働中優先
     return Object.values(groups).sort((a, b) => {
       const aActive = a.sessions.some(s => isActiveSession(s, todayStr));
       const bActive = b.sessions.some(s => isActiveSession(s, todayStr));
       if (aActive && !bActive) return -1;
       if (!aActive && bActive) return 1;
-      return a.clientName.localeCompare(b.clientName, 'ja');
+      const aLatest = a.sessions[0]?.last_called_at || a.sessions[0]?.started_at || '';
+      const bLatest = b.sessions[0]?.last_called_at || b.sessions[0]?.started_at || '';
+      return bLatest.localeCompare(aLatest);
     });
   }, [sessions, todayStr]);
 
