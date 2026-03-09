@@ -426,7 +426,8 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
     if (md !== _toDS(_pcToday) && md !== _toDS(_pcT1)) return false;
     return isAdmin || a.getter === currentUser;
   });
-  const overdueCount = overdueSupaRecalls.length + preCheckPendingAppos.length;
+  const overdueCsvCount = 0;
+  const overdueCount = overdueSupaRecalls.length + preCheckPendingAppos.length + overdueCsvCount;
 
   const handleSupaRecallComplete = async (item) => {
     const memoObj = { ...item._memoObj, recall_completed: true };
