@@ -972,6 +972,42 @@ export async function fetchCallSessions(sinceISO) {
   return { data: data || [], error }
 }
 
+export async function fetchAllCallSessionsWithClients() {
+  const { data: sessions, error: sErr } = await supabase
+    .from('call_sessions')
+    .select('*')
+    .order('started_at', { ascending: false })
+  if (sErr) console.error('[DB] fetchAllCallSessionsWithClients error:', sErr)
+  if (!sessions?.length) return { data: [], error: sErr }
+
+  const supaIds = [...new Set(sessions.map(s => s.list_supa_id).filter(Boolean))]
+  let listClientMap = {}
+  if (supaIds.length) {
+    const { data: lists } = await supabase
+      .from('call_lists')
+      .select('id, client_id')
+      .in('id', supaIds)
+    ;(lists || []).forEach(l => { listClientMap[l.id] = l.client_id })
+  }
+
+  const clientIds = [...new Set(Object.values(listClientMap).filter(Boolean))]
+  let clientNameMap = {}
+  if (clientIds.length) {
+    const { data: clients } = await supabase
+      .from('clients')
+      .select('id, name')
+      .in('id', clientIds)
+    ;(clients || []).forEach(c => { clientNameMap[c.id] = c.name })
+  }
+
+  const enriched = sessions.map(s => ({
+    ...s,
+    clientId: listClientMap[s.list_supa_id] || null,
+    clientName: clientNameMap[listClientMap[s.list_supa_id]] || '未設定',
+  }))
+  return { data: enriched, error: sErr }
+}
+
 // 複数リストの最終架電セッション日時を一括取得 → { [supaId]: latestStartedAt }
 // .in()によるURL長超過を避けるため、全セッションを取得してJS側でフィルタリング
 export async function fetchLatestSessionPerList(supaIds) {
