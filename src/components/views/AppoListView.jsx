@@ -72,7 +72,10 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [addAppoForm, setAddAppoForm] = useState(null);
   const [reportDetail, setReportDetail] = useState(null); // Appointment detail modal
   const [showRecordingDetail, setShowRecordingDetail] = useState(false);
-  useEffect(() => { setShowRecordingDetail(false); }, [reportDetail]);
+  const [editingReport, setEditingReport] = useState(false);
+  const [reportDraft, setReportDraft] = useState('');
+  const [reportSaving, setReportSaving] = useState(false);
+  useEffect(() => { setShowRecordingDetail(false); setEditingReport(false); setReportDraft(''); }, [reportDetail]);
 
   useEffect(() => {
     localStorage.setItem('spanavi_appo_period', apPeriod);
@@ -509,16 +512,64 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   <div style={{ fontSize: 12, color: C.textDark, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{reportDetail.note}</div>
                 </div>
               )}
-              {reportDetail.appoReport ? (
-                <div style={{ padding: "10px 14px", borderRadius: 8, background: C.gold + "06", border: "1px solid " + C.gold + "20", borderLeft: "3px solid " + C.gold }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.gold, marginBottom: 6 }}>📋 アポ取得報告</div>
+              {/* ── アポ取得報告 ── */}
+              <div style={{ padding: "10px 14px", borderRadius: 8, background: C.gold + "06", border: "1px solid " + C.gold + "20", borderLeft: "3px solid " + C.gold, marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.gold }}>📋 アポ取得報告</div>
+                  {!editingReport && (
+                    <button
+                      onClick={() => { setReportDraft(reportDetail.appoReport || ''); setEditingReport(true); }}
+                      style={{ fontSize: 10, padding: "2px 10px", borderRadius: 5, border: "1px solid " + C.gold + "80",
+                        background: "transparent", color: C.gold, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
+                      ✏ {reportDetail.appoReport ? '編集' : '入力'}
+                    </button>
+                  )}
+                </div>
+                {editingReport ? (
+                  <>
+                    <textarea
+                      value={reportDraft}
+                      onChange={e => setReportDraft(e.target.value)}
+                      rows={10}
+                      style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid " + C.borderLight,
+                        fontSize: 11, fontFamily: "'Noto Sans JP'", lineHeight: 1.7, resize: "vertical",
+                        outline: "none", background: C.white, color: C.textDark, boxSizing: "border-box" }}
+                    />
+                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
+                      <button onClick={() => setEditingReport(false)}
+                        style={{ padding: "5px 14px", borderRadius: 5, border: "1px solid " + C.border,
+                          background: C.white, cursor: "pointer", fontSize: 11, color: C.textMid, fontFamily: "'Noto Sans JP'" }}>
+                        キャンセル
+                      </button>
+                      <button
+                        disabled={reportSaving}
+                        onClick={async () => {
+                          if (!reportDetail._supaId) return;
+                          setReportSaving(true);
+                          const error = await updateAppointment(reportDetail._supaId, { ...reportDetail, appoReport: reportDraft });
+                          setReportSaving(false);
+                          if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
+                          const updated = { ...reportDetail, appoReport: reportDraft };
+                          setReportDetail(updated);
+                          if (setAppoData) setAppoData(prev => prev.map(a => a._supaId === reportDetail._supaId ? updated : a));
+                          setEditingReport(false);
+                        }}
+                        style={{ padding: "5px 18px", borderRadius: 5, border: "none",
+                          background: reportSaving ? C.border : "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")",
+                          color: C.white, cursor: reportSaving ? "default" : "pointer",
+                          fontSize: 11, fontWeight: 700, fontFamily: "'Noto Sans JP'" }}>
+                        {reportSaving ? '保存中…' : '保存'}
+                      </button>
+                    </div>
+                  </>
+                ) : reportDetail.appoReport ? (
                   <div style={{ fontSize: 11, color: C.textDark, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{reportDetail.appoReport}</div>
-                </div>
-              ) : (
-                <div style={{ padding: "12px", borderRadius: 6, background: C.offWhite, textAlign: "center" }}>
-                  <div style={{ fontSize: 11, color: C.textLight }}>アポ取得報告はまだ登録されていません</div>
-                </div>
-              )}
+                ) : (
+                  <div style={{ fontSize: 11, color: C.textLight, textAlign: "center", padding: "8px 0" }}>
+                    アポ取得報告はまだ登録されていません
+                  </div>
+                )}
+              </div>
               {(() => {
                 const src = reportDetail.appoReport || reportDetail.note || '';
                 const m = src.match(/録音URL[：:]\s*(https?:\/\/\S+)/);
