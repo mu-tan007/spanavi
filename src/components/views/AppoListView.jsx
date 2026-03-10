@@ -522,7 +522,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                       onClick={() => { setNoteDraft(reportDetail.note || ''); setEditingNote(true); }}
                       style={{ fontSize: 10, padding: "2px 10px", borderRadius: 5, border: "1px solid " + C.border,
                         background: "transparent", color: C.textMid, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
-                      ✏ {reportDetail.note ? '編集' : '入力'}
+                      ✏ 入力
                     </button>
                   )}
                 </div>
@@ -578,7 +578,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                       onClick={() => { setReportDraft(reportDetail.appoReport || ''); setEditingReport(true); }}
                       style={{ fontSize: 10, padding: "2px 10px", borderRadius: 5, border: "1px solid " + C.gold + "80",
                         background: "transparent", color: C.gold, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
-                      ✏ {reportDetail.appoReport ? '編集' : '入力'}
+                      ✏ 編集
                     </button>
                   )}
                 </div>
