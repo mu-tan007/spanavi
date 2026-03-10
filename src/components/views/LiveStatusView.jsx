@@ -85,6 +85,9 @@ function ListCard({ sessions, calledCountMap, todayStr }) {
   // 棒グラフに表示するセッション（start_no・end_noが両方ある）
   const barsessions = sorted.filter(s => s.start_no != null && s.end_no != null && totalCount > 0);
 
+  // 範囲なしセッション用: 架電済み割合（%）
+  const calledPct = totalCount > 0 ? Math.min((totalCalled / totalCount) * 100, 100) : 0;
+
   return (
     <div style={{
       background: C.white,
@@ -143,15 +146,8 @@ function ListCard({ sessions, calledCountMap, todayStr }) {
           background: C.offWhite, border: '1px solid ' + C.borderLight,
           overflow: 'hidden',
         }}>
-          {barsessions.length === 0 && (
-            <div style={{
-              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
-              justifyContent: 'center', fontSize: 10, color: C.textLight,
-            }}>
-              範囲データなし
-            </div>
-          )}
-          {barsessions.map(s => {
+          {/* 範囲あり: セッションごとに位置指定バー */}
+          {barsessions.length > 0 && barsessions.map(s => {
             const left  = ((s.start_no - 1) / totalCount) * 100;
             const width = ((s.end_no - s.start_no + 1) / totalCount) * 100;
             const color = callerColorMap[s.caller_name || '不明'];
@@ -173,6 +169,28 @@ function ListCard({ sessions, calledCountMap, todayStr }) {
               />
             );
           })}
+          {/* 範囲なし・totalCountあり: 架電済み件数プログレスバー */}
+          {barsessions.length === 0 && totalCount > 0 && (
+            <>
+              <div style={{
+                position: 'absolute', left: 0, width: `${calledPct}%`, height: '100%',
+                background: '#c8a45a', transition: 'width 0.4s',
+              }} />
+              <div style={{
+                position: 'absolute', left: `${calledPct}%`, right: 0, height: '100%',
+                background: '#e0e0e0',
+              }} />
+            </>
+          )}
+          {/* 範囲なし・totalCountなし */}
+          {barsessions.length === 0 && totalCount === 0 && (
+            <div style={{
+              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', fontSize: 10, color: C.textLight,
+            }}>
+              範囲データなし
+            </div>
+          )}
         </div>
 
         {/* ── 凡例 ── */}
@@ -201,7 +219,12 @@ function ListCard({ sessions, calledCountMap, todayStr }) {
                     </span>
                   )}
                   {!hasRange && (
-                    <span style={{ fontSize: 9, color: C.textLight, marginLeft: 3 }}>（範囲なし）</span>
+                    <span style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: 9, color: C.textLight, marginLeft: 3,
+                    }}>
+                      1〜{(calledCountMap[s.id]?.count || 0).toLocaleString()}件架電済
+                    </span>
                   )}
                   {active && (
                     <span style={{
