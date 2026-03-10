@@ -78,10 +78,14 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [editingNote, setEditingNote] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
+  const [detailEditing, setDetailEditing] = useState(false);
+  const [detailEditForm, setDetailEditForm] = useState(null);
+  const [detailSaving, setDetailSaving] = useState(false);
   useEffect(() => {
     setShowRecordingDetail(false);
     setEditingReport(false); setReportDraft('');
     setEditingNote(false); setNoteDraft('');
+    setDetailEditing(false); setDetailEditForm(null);
   }, [reportDetail]);
 
   useEffect(() => {
@@ -277,7 +281,6 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               }}>{a.status}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: C.navy }}>{a.sales > 0 ? (a.sales / 10000).toFixed(1) + "万" : "-"}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid }}>{a.reward > 0 ? (a.reward / 10000).toFixed(1) + "万" : "-"}</span>
-              {setAppoData && <span style={{ textAlign: "center" }}><button onClick={() => setEditForm({ ...a, _idx: appoData.indexOf(a) })} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, padding: 2 }}>&#9998;</button></span>}
             </div>
           );
         })}
@@ -484,35 +487,146 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               display: "flex", alignItems: "center", justifyContent: "space-between",
             }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: C.white }}>アポイント詳細</span>
-              <button onClick={() => setReportDetail(null)} style={{ width: 28, height: 28, borderRadius: 6, background: C.white + "15", border: "none", color: C.white, cursor: "pointer", fontSize: 14 }}>✕</button>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {!detailEditing ? (
+                  <button onClick={() => { setDetailEditForm({ ...reportDetail, _idx: appoData.findIndex(a => a._supaId === reportDetail._supaId) }); setDetailEditing(true); }}
+                    style={{ padding: "4px 12px", borderRadius: 5, border: "1px solid " + C.white + "40", background: "transparent", color: C.white, cursor: "pointer", fontSize: 11, fontFamily: "'Noto Sans JP'" }}>
+                    ✏ 編集
+                  </button>
+                ) : (
+                  <>
+                    <button onClick={() => { setDetailEditing(false); setDetailEditForm(null); }}
+                      style={{ padding: "4px 12px", borderRadius: 5, border: "1px solid " + C.white + "40", background: "transparent", color: C.white + "cc", cursor: "pointer", fontSize: 11, fontFamily: "'Noto Sans JP'" }}>
+                      キャンセル
+                    </button>
+                    <button disabled={detailSaving} onClick={async () => {
+                      const idx = detailEditForm._idx;
+                      const original = appoData[idx];
+                      const updated = { ...detailEditForm };
+                      delete updated._idx;
+                      const wasKanryo = original?.status === '面談済';
+                      const isKanryo  = updated.status === '面談済';
+                      if ((isKanryo || wasKanryo) && setMembers) {
+                        const member = members.find(m => typeof m !== 'string' && m.name === updated.getter);
+                        if (member?._supaId) {
+                          const delta = (isKanryo && !wasKanryo) ? (updated.sales || 0) : (!isKanryo && wasKanryo) ? -(original.sales || 0) : 0;
+                          if (delta !== 0) {
+                            const newTotal = Math.max(0, (member.totalSales || 0) + delta);
+                            const { rank: newRank, rate: newRate } = calcRankAndRate(newTotal);
+                            await updateMemberReward(member._supaId, { cumulativeSales: newTotal, rank: newRank, incentiveRate: newRate });
+                            setMembers(prev => prev.map(m => (typeof m !== 'string' && m._supaId === member._supaId) ? { ...m, totalSales: newTotal, rank: newRank, rate: newRate } : m));
+                            if (original?._supaId) await updateAppoCounted(original._supaId, isKanryo);
+                          }
+                        }
+                      }
+                      setDetailSaving(true);
+                      if (updated._supaId) {
+                        const error = await updateAppointment(updated._supaId, updated);
+                        setDetailSaving(false);
+                        if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
+                      } else { setDetailSaving(false); }
+                      setAppoData(prev => prev.map((a, i) => i === idx ? updated : a));
+                      setReportDetail(updated);
+                      setDetailEditing(false); setDetailEditForm(null);
+                    }} style={{ padding: "4px 14px", borderRadius: 5, border: "none", background: detailSaving ? C.border : C.gold, color: C.white, cursor: detailSaving ? "default" : "pointer", fontSize: 11, fontWeight: 700, fontFamily: "'Noto Sans JP'" }}>
+                      {detailSaving ? '保存中…' : '保存'}
+                    </button>
+                  </>
+                )}
+                <button onClick={() => setReportDetail(null)} style={{ width: 28, height: 28, borderRadius: 6, background: C.white + "15", border: "none", color: C.white, cursor: "pointer", fontSize: 14 }}>✕</button>
+              </div>
             </div>
             <div style={{ padding: 20 }}>
-              <div style={{ fontSize: 18, fontWeight: 800, color: C.navy, marginBottom: 12 }}>{reportDetail.company}</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
-                {[
-                  { label: "クライアント", value: reportDetail.client },
-                  { label: "取得者", value: reportDetail.getter },
-                  { label: "取得日", value: reportDetail.getDate },
-                  { label: "面談日", value: reportDetail.meetDate },
-                  { label: "ステータス", value: reportDetail.status },
-                  { label: "月", value: reportDetail.meetDate ? (parseInt(reportDetail.meetDate.slice(5, 7), 10) + "月") : null },
-                ].map((item, i) => (
-                  <div key={i} style={{ padding: "8px 12px", borderRadius: 6, background: C.offWhite, border: "1px solid " + C.borderLight }}>
-                    <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>{item.label}</div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>{item.value}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
-                <div style={{ padding: "10px 14px", borderRadius: 8, background: C.navy + "08", border: "1px solid " + C.navy + "15" }}>
-                  <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>当社売上</div>
-                  <div style={{ fontSize: 20, fontWeight: 900, color: C.navy, fontFamily: "'JetBrains Mono'" }}>{reportDetail.sales > 0 ? "¥" + reportDetail.sales.toLocaleString() : "-"}</div>
-                </div>
-                <div style={{ padding: "10px 14px", borderRadius: 8, background: C.gold + "08", border: "1px solid " + C.gold + "15" }}>
-                  <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>インターン報酬</div>
-                  <div style={{ fontSize: 20, fontWeight: 900, color: C.gold, fontFamily: "'JetBrains Mono'" }}>{reportDetail.reward > 0 ? "¥" + reportDetail.reward.toLocaleString() : "-"}</div>
-                </div>
-              </div>
+              {(() => {
+                const ef = detailEditForm;
+                const iS = { width: "100%", padding: "4px 8px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", background: C.white, boxSizing: "border-box" };
+                const u = (k, v) => setDetailEditForm(p => ({ ...p, [k]: v }));
+                return (
+                  <>
+                    {detailEditing
+                      ? <input value={ef.company} onChange={e => u("company", e.target.value)} style={{ ...iS, fontSize: 16, fontWeight: 700, marginBottom: 12, padding: "6px 10px" }} />
+                      : <div style={{ fontSize: 18, fontWeight: 800, color: C.navy, marginBottom: 12 }}>{reportDetail.company}</div>
+                    }
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+                      {/* クライアント */}
+                      <div style={{ padding: "8px 12px", borderRadius: 6, background: C.offWhite, border: "1px solid " + C.borderLight }}>
+                        <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>クライアント</div>
+                        {detailEditing
+                          ? <select value={ef.client} onChange={e => { const name = e.target.value; const cl = clientOptions.find(c => c.company === name); const rr = cl?.rewardType ? rewardMaster.find(r => r.id === cl.rewardType) : null; u("client", name); if (name && rr) u("sales", rr.price); }} style={iS}>
+                              <option value="">選択...</option>
+                              {clientOptions.map(c => <option key={c._supaId || c.company} value={c.company}>{c.company}{c.status === "停止中" ? "（停止中）" : ""}</option>)}
+                            </select>
+                          : <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>{reportDetail.client}</div>}
+                      </div>
+                      {/* 取得者 */}
+                      <div style={{ padding: "8px 12px", borderRadius: 6, background: C.offWhite, border: "1px solid " + C.borderLight }}>
+                        <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>取得者</div>
+                        {detailEditing
+                          ? <MemberSuggestInput value={ef.getter} onChange={v => u("getter", v)} members={members} style={iS} />
+                          : <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>{reportDetail.getter}</div>}
+                      </div>
+                      {/* 取得日 */}
+                      <div style={{ padding: "8px 12px", borderRadius: 6, background: C.offWhite, border: "1px solid " + C.borderLight }}>
+                        <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>取得日</div>
+                        {detailEditing
+                          ? <input type="date" value={ef.getDate} onChange={e => u("getDate", e.target.value)} style={iS} />
+                          : <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>{reportDetail.getDate}</div>}
+                      </div>
+                      {/* 面談日 */}
+                      <div style={{ padding: "8px 12px", borderRadius: 6, background: C.offWhite, border: "1px solid " + C.borderLight }}>
+                        <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>面談日</div>
+                        {detailEditing
+                          ? <input type="date" value={ef.meetDate} onChange={e => u("meetDate", e.target.value)} style={iS} />
+                          : <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>{reportDetail.meetDate}</div>}
+                      </div>
+                      {/* ステータス */}
+                      <div style={{ padding: "8px 12px", borderRadius: 6, background: C.offWhite, border: "1px solid " + C.borderLight }}>
+                        <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>ステータス</div>
+                        {detailEditing
+                          ? <select value={ef.status} onChange={e => u("status", e.target.value)} style={iS}>
+                              <option value="面談済">面談済</option><option value="事前確認済">事前確認済</option><option value="アポ取得">アポ取得</option><option value="リスケ中">リスケ中</option><option value="キャンセル">キャンセル</option>
+                            </select>
+                          : <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>{reportDetail.status}</div>}
+                      </div>
+                      {/* 月（読み取り専用） */}
+                      <div style={{ padding: "8px 12px", borderRadius: 6, background: C.offWhite, border: "1px solid " + C.borderLight }}>
+                        <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>月</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>
+                          {(detailEditing ? ef.meetDate : reportDetail.meetDate) ? (parseInt((detailEditing ? ef.meetDate : reportDetail.meetDate).slice(5, 7), 10) + "月") : null}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+                      <div style={{ padding: "10px 14px", borderRadius: 8, background: C.navy + "08", border: "1px solid " + C.navy + "15" }}>
+                        <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>当社売上</div>
+                        {detailEditing
+                          ? <input type="number" value={ef.sales} onChange={e => u("sales", Number(e.target.value))} style={iS} />
+                          : <div style={{ fontSize: 20, fontWeight: 900, color: C.navy, fontFamily: "'JetBrains Mono'" }}>{reportDetail.sales > 0 ? "¥" + reportDetail.sales.toLocaleString() : "-"}</div>}
+                      </div>
+                      <div style={{ padding: "10px 14px", borderRadius: 8, background: C.gold + "08", border: "1px solid " + C.gold + "15" }}>
+                        <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>インターン報酬</div>
+                        {detailEditing
+                          ? <input type="number" value={ef.reward} onChange={e => u("reward", Number(e.target.value))} style={iS} />
+                          : <div style={{ fontSize: 20, fontWeight: 900, color: C.gold, fontFamily: "'JetBrains Mono'" }}>{reportDetail.reward > 0 ? "¥" + reportDetail.reward.toLocaleString() : "-"}</div>}
+                      </div>
+                    </div>
+                    {detailEditing && (
+                      <div style={{ marginBottom: 12, textAlign: "right" }}>
+                        <button onClick={async () => {
+                          if (!reportDetail._supaId) return;
+                          if (!window.confirm('このアポを削除しますか？')) return;
+                          const error = await deleteAppointment(reportDetail._supaId);
+                          if (error) { alert('削除に失敗しました: ' + (error.message || '不明なエラー')); return; }
+                          if (setAppoData) setAppoData(prev => prev.filter(a => a._supaId !== reportDetail._supaId));
+                          setReportDetail(null);
+                        }} style={{ padding: "6px 16px", borderRadius: 5, border: "1px solid #e5383530", background: C.white, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#e53835", fontFamily: "'Noto Sans JP'" }}>
+                          🗑 削除
+                        </button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
               {/* ── 備考 ── */}
               <div style={{ padding: "10px 14px", borderRadius: 8, background: C.offWhite, border: "1px solid " + C.borderLight, marginBottom: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
