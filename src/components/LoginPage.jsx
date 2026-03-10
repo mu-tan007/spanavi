@@ -332,15 +332,15 @@ export default function LoginPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
               <div>
                 <InputField label="氏名" value={name} onChange={setName} placeholder="篠宮 拓武" required />
-                <InputField label="稼働開始日" type="date" value={operationStartDate} onChange={setOperationStartDate} />
-                <AutocompleteField label="紹介者" value={referrerName} onChange={setReferrerName} candidates={memberNames} />
+                <InputField label="大学名" value={university} onChange={setUniversity} placeholder="早稲田大学" required />
+                <SelectField label="学年" value={grade} onChange={setGrade} options={['1', '2', '3', '4', '5', '6']} required />
                 <InputField label="メールアドレス" type="email" value={signupEmail} onChange={setSignupEmail} placeholder="email@example.com" required autoComplete="email" />
               </div>
               <div>
                 <InputField label="入社日" type="date" value={startDate} onChange={setStartDate} />
-                <InputField label="大学名" value={university} onChange={setUniversity} placeholder="早稲田大学" required />
-                <SelectField label="学年" value={grade} onChange={setGrade} options={['1', '2', '3', '4', '5', '6']} required />
+                <InputField label="稼働開始日" type="date" value={operationStartDate} onChange={setOperationStartDate} />
                 <SelectField label="チーム" value={team} onChange={setTeam} options={teams} required />
+                <AutocompleteField label="紹介者" value={referrerName} onChange={setReferrerName} candidates={memberNames} />
               </div>
             </div>
             {errBlock}
