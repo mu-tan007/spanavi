@@ -299,11 +299,10 @@ export default function LiveStatusView({ now }) {
     return sections.map(({ key, label, date, dateStr }) => {
       const daySessions = sessions.filter(s => toJSTDateStr(s.started_at) === dateStr);
 
-      // list_id でグループ化（同じリストを1カードに集約）
+      // list_supa_id（call_listsのUUID）でグループ化 → 同じリストを1カードに集約
       const listMap = {};
       daySessions.forEach(s => {
-        // list_id がなければ list_supa_id → list_name で代替キー
-        const k = s.list_id || s.list_supa_id || s.list_name || `__${s.id}`;
+        const k = s.list_supa_id || s.list_id || s.list_name || `__${s.id}`;
         if (!listMap[k]) listMap[k] = [];
         listMap[k].push(s);
       });
@@ -400,10 +399,10 @@ export default function LiveStatusView({ now }) {
               {/* カード一覧 */}
               {!isCollapsed && (
                 cards.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     {cards.map((cardSessions, i) => (
                       <ListCard
-                        key={cardSessions[0].list_id || cardSessions[0].list_supa_id || i}
+                        key={cardSessions[0].list_supa_id || cardSessions[0].list_id || i}
                         sessions={cardSessions}
                         calledCountMap={calledCounts}
                         todayStr={todayStr}
