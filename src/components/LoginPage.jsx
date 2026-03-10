@@ -182,7 +182,6 @@ export default function LoginPage() {
   const [startDate, setStartDate] = useState('')
   const [operationStartDate, setOperationStartDate] = useState('')
   const [referrerName, setReferrerName] = useState('')
-  const [zoomUserId, setZoomUserId] = useState('')
 
   const [resetEmail, setResetEmail] = useState('')
   const [error, setError] = useState('')
@@ -225,7 +224,7 @@ export default function LoginPage() {
     try {
       const { error: err } = await supabase.auth.signUp({
         email: signupEmail, password: 'masp2026',
-        options: { data: { name, university, grade: grade ? parseInt(grade) : null, team, start_date: startDate || null, operation_start_date: operationStartDate || null, referrer_name: referrerName || null, zoom_user_id: zoomUserId || null } }
+        options: { data: { name, university, grade: grade ? parseInt(grade) : null, team, start_date: startDate || null, operation_start_date: operationStartDate || null, referrer_name: referrerName || null } }
       })
       if (err) throw err
       setMode('success')
@@ -333,16 +332,15 @@ export default function LoginPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
               <div>
                 <InputField label="氏名" value={name} onChange={setName} placeholder="篠宮 拓武" required />
+                <InputField label="稼働開始日" type="date" value={operationStartDate} onChange={setOperationStartDate} />
+                <AutocompleteField label="紹介者" value={referrerName} onChange={setReferrerName} candidates={memberNames} />
+                <InputField label="メールアドレス" type="email" value={signupEmail} onChange={setSignupEmail} placeholder="email@example.com" required autoComplete="email" />
+              </div>
+              <div>
+                <InputField label="入社日" type="date" value={startDate} onChange={setStartDate} />
                 <InputField label="大学名" value={university} onChange={setUniversity} placeholder="早稲田大学" required />
                 <SelectField label="学年" value={grade} onChange={setGrade} options={['1', '2', '3', '4', '5', '6']} required />
                 <SelectField label="チーム" value={team} onChange={setTeam} options={teams} required />
-                <InputField label="入社日" type="date" value={startDate} onChange={setStartDate} />
-              </div>
-              <div>
-                <InputField label="稼働開始日" type="date" value={operationStartDate} onChange={setOperationStartDate} />
-                <AutocompleteField label="紹介者" value={referrerName} onChange={setReferrerName} candidates={memberNames} />
-                <InputField label="Zoom User ID" value={zoomUserId} onChange={setZoomUserId} placeholder="lXsqw8miT5iHmX7cKz0R5w" />
-                <InputField label="メールアドレス" type="email" value={signupEmail} onChange={setSignupEmail} placeholder="email@example.com" required autoComplete="email" />
               </div>
             </div>
             {errBlock}

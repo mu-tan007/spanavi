@@ -3,7 +3,7 @@ import React from 'react';
 import { C } from '../../constants/colors';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
-import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward } from '../../lib/supabaseWrite';
+import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers } from '../../lib/supabaseWrite';
 
 export function MemberSuggestInput({ value, onChange, members = [], style, placeholder = '名前を入力して絞り込み' }) {
   const [suggs, setSuggs] = React.useState([]);
@@ -699,6 +699,8 @@ export function MembersView({ members, setMembers }) {
   const [editForm, setEditForm] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
 
   const filtered = members.filter(m => {
     if (search && !m.name.includes(search) && !m.university.includes(search)) return false;
@@ -740,11 +742,43 @@ export function MembersView({ members, setMembers }) {
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="名前・大学で検索..."
             style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", width: 180 }} />
-          {setMembers && <button onClick={() => setAddForm({ name: "", university: "", year: 1, team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, referrerName: "" })} style={{
-            padding: "6px 12px", borderRadius: 6, border: "none", fontSize: 11, fontWeight: 600,
-            background: "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")",
-            color: C.white, cursor: "pointer", fontFamily: "'Noto Sans JP'",
-          }}>+ 追加</button>}
+          {setMembers && <button
+            onClick={() => setAddForm({ name: "", university: "", year: 1, team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, referrerName: "" })}
+            style={{
+              padding: "6px 12px", borderRadius: 6, border: "none", fontSize: 11, fontWeight: 600,
+              background: "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")",
+              color: C.white, cursor: "pointer", fontFamily: "'Noto Sans JP'",
+            }}>+ 追加</button>}
+          {setMembers && <button
+            disabled={syncLoading}
+            onClick={async () => {
+              setSyncLoading(true);
+              setSyncResult(null);
+              const { data, error } = await invokeSyncZoomUsers();
+              setSyncLoading(false);
+              if (error || !data) {
+                setSyncResult({ error: error?.message || '通信エラーが発生しました' });
+              } else {
+                setSyncResult(data);
+                // ページのmembersステートを更新（zoom_user_idをsetMembersで反映）
+                if (data.updated?.length > 0) {
+                  setMembers(prev => prev.map(m => {
+                    const matched = data._updatedMap?.[m._supaId];
+                    return matched ? { ...m, zoomUserId: matched } : m;
+                  }));
+                }
+              }
+            }}
+            style={{
+              padding: "6px 12px", borderRadius: 6, border: "none", fontSize: 11, fontWeight: 600,
+              background: syncLoading
+                ? "linear-gradient(135deg, #aaa, #ccc)"
+                : "linear-gradient(135deg, #1a7f5a, #2da57a)",
+              color: C.white, cursor: syncLoading ? "not-allowed" : "pointer",
+              fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap",
+            }}>
+            {syncLoading ? "同期中..." : "🔄 Zoom ID同期"}
+          </button>}
         </div>
       </div>
 
@@ -798,6 +832,70 @@ export function MembersView({ members, setMembers }) {
           </div>
         ))}
       </div>
+
+      {/* Zoom ID Sync Result Modal */}
+      {syncResult && (
+        <div
+          onClick={() => setSyncResult(null)}
+          style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 12, width: 480, maxHeight: "80vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+            <div style={{ padding: "14px 20px", background: "linear-gradient(135deg, #1a7f5a, #2da57a)", borderRadius: "12px 12px 0 0", color: C.white }}>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>🔄 Zoom ID同期結果</div>
+            </div>
+            <div style={{ padding: "20px 24px" }}>
+              {syncResult.error ? (
+                <div style={{ color: "#c0392b", fontSize: 13, padding: "12px 16px", background: "#fdf0ef", borderRadius: 8, border: "1px solid #e8b4b0" }}>
+                  ❌ エラー：{syncResult.error}
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+                    <div style={{ padding: "10px 14px", background: "#f0faf5", borderRadius: 8, border: "1px solid #a8dfc5" }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#1a7f5a" }}>
+                        ✅ 更新成功：{syncResult.updated?.length ?? 0}名
+                      </span>
+                      {syncResult.updated?.length > 0 && (
+                        <div style={{ marginTop: 6, fontSize: 11, color: "#2d6a4f", lineHeight: 1.8 }}>
+                          {syncResult.updated.join('　/　')}
+                        </div>
+                      )}
+                    </div>
+                    {syncResult.skipped?.length > 0 && (
+                      <div style={{ padding: "10px 14px", background: "#f8f9fa", borderRadius: 8, border: "1px solid " + C.borderLight }}>
+                        <span style={{ fontSize: 12, color: C.textMid }}>
+                          ✔ 登録済みスキップ：{syncResult.skipped.length}名
+                        </span>
+                      </div>
+                    )}
+                    {syncResult.unmatched?.length > 0 && (
+                      <div style={{ padding: "10px 14px", background: "#fff8f0", borderRadius: 8, border: "1px solid #f5c99a" }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#b05e00" }}>
+                          ✗ 未マッチ：{syncResult.unmatched.length}名
+                        </span>
+                        <div style={{ marginTop: 6, fontSize: 11, color: "#7a4200", lineHeight: 1.8 }}>
+                          {syncResult.unmatched.map(u => (
+                            <div key={u.email}>{u.name}（{u.email}）</div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {syncResult.errors?.length > 0 && (
+                      <div style={{ padding: "10px 14px", background: "#fdf0ef", borderRadius: 8, border: "1px solid #e8b4b0" }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#c0392b" }}>
+                          ❌ 更新エラー：{syncResult.errors.length}名
+                        </span>
+                        <div style={{ marginTop: 6, fontSize: 11, color: "#7b241c" }}>{syncResult.errors.join('、')}</div>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 11, color: C.textLight, textAlign: "center" }}>クリックで閉じる</div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Member Modal */}
       {editForm && setMembers && (() => {

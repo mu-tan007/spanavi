@@ -312,6 +312,21 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       return;
     }
 
+    // 録音URL未取得の場合、90秒後に自動リトライ（Zoomの録音処理遅延対策）
+    if (!recordingUrl && newRec?.id) {
+      const _phone = lastDialedPhone || selectedRow.phone;
+      setTimeout(async () => {
+        try {
+          const url = await fetchRecordingUrl(_phone, calledAt, _prevCalledAtResult);
+          if (url) {
+            await updateCallRecordRecordingUrl(newRec.id, url);
+            setCallRecords(prev => prev.map(r => r.id === newRec.id ? { ...r, recording_url: url } : r));
+            console.log('[handleResult] 録音URL自動取得成功:', newRec.id);
+          }
+        } catch (e) { console.warn('[handleResult] 録音URL再試行エラー:', e); }
+      }, 90_000);
+    }
+
     const newRecords = [...callRecords, newRec];
 
     const itemRecs = newRecords.filter(r => r.item_id === selectedRow.id);
@@ -405,6 +420,20 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       return;
     }
 
+    // 録音URL未取得の場合、90秒後に自動リトライ（Zoomの録音処理遅延対策）
+    if (!recordingUrlAppo && newRec?.id) {
+      setTimeout(async () => {
+        try {
+          const url = await fetchRecordingUrl(appoModal.phone, calledAtAppo, _prevCalledAtAppo);
+          if (url) {
+            await updateCallRecordRecordingUrl(newRec.id, url);
+            setCallRecords(prev => prev.map(r => r.id === newRec.id ? { ...r, recording_url: url } : r));
+            console.log('[handleAppoSave] 録音URL自動取得成功:', newRec.id);
+          }
+        } catch (e) { console.warn('[handleAppoSave] 録音URL再試行エラー:', e); }
+      }, 90_000);
+    }
+
     const newRecords = [...callRecords, newRec];
     setCallRecords(newRecords);
 
@@ -472,6 +501,21 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       called_at: calledAtRecall, recording_url: recordingUrlRecall, getter_name: currentUser,
     });
     if (error || !newRec) { setRecallModal(null); return; }
+
+    // 録音URL未取得の場合、90秒後に自動リトライ（Zoomの録音処理遅延対策）
+    if (!recordingUrlRecall && newRec?.id) {
+      const _prevCalledAtRecall = _prevRecRecall?.called_at || null;
+      setTimeout(async () => {
+        try {
+          const url = await fetchRecordingUrl(row.phone, calledAtRecall, _prevCalledAtRecall);
+          if (url) {
+            await updateCallRecordRecordingUrl(newRec.id, url);
+            setCallRecords(prev => prev.map(r => r.id === newRec.id ? { ...r, recording_url: url } : r));
+            console.log('[handleRecallSave] 録音URL自動取得成功:', newRec.id);
+          }
+        } catch (e) { console.warn('[handleRecallSave] 録音URL再試行エラー:', e); }
+      }, 90_000);
+    }
 
     const newRecords = [...callRecords, newRec];
     setCallRecords(newRecords);

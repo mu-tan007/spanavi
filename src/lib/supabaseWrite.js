@@ -701,6 +701,15 @@ export async function invokeAppoAiReport(payload) {
   return { data, error }
 }
 
+export async function invokeSyncZoomUsers() {
+  const { data, error } = await supabase.functions.invoke('sync-zoom-users', {
+    body: {},
+    headers: { Authorization: 'Bearer ' + import.meta.env.VITE_SUPABASE_ANON_KEY },
+  })
+  if (error) console.error('[Edge] sync-zoom-users error:', error)
+  return { data, error }
+}
+
 export async function invokeGetZoomRecording(payload) {
   const { data, error } = await supabase.functions.invoke('get-zoom-recording', {
     body: payload,

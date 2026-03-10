@@ -152,9 +152,9 @@ async function main() {
   const allRecordings = await fetchAllRecordings(token, from, to);
   console.log(`   ✓ アカウント全体: ${allRecordings.length} 件\n`);
 
-  // owner_id でフィルタ
-  const myRecordings = allRecordings.filter(r => r.owner_id === zoomUserId);
-  console.log(`3. owner_id="${zoomUserId}" でフィルタ: ${myRecordings.length} 件\n`);
+  // owner.id でフィルタ（APIレスポンスは owner オブジェクトの中に id がある）
+  const myRecordings = allRecordings.filter(r => r.owner?.id === zoomUserId);
+  console.log(`3. owner.id="${zoomUserId}" でフィルタ: ${myRecordings.length} 件\n`);
 
   // ── 整形表示（フィルタ後） ─────────────────────────────────────────────
   console.log('━'.repeat(80));
@@ -163,7 +163,7 @@ async function main() {
     console.log('\n【アカウント全体の owner_id 別件数（全データ）】');
     const byOwner = {};
     for (const r of allRecordings) {
-      const key = r.owner_id ?? '(なし)';
+      const key = (r.owner?.id ?? '(なし)') + ' ' + (r.owner?.name ?? '');
       byOwner[key] = (byOwner[key] || 0) + 1;
     }
     for (const [ownerId, cnt] of Object.entries(byOwner).sort((a, b) => b[1] - a[1])) {
@@ -176,9 +176,9 @@ async function main() {
                 : r.direction ?? '—';
       const calleeNorm = normalizePhone(r.callee_number || '');
 
-      console.log(`[${String(i + 1).padStart(3, ' ')}] ${fmt(r.start_time)}  (${dir})  ${dur(r.duration)}`);
-      console.log(`      owner_id           : ${r.owner_id           ?? '—'}`);
-      console.log(`      owner_extension_id : ${r.owner_extension_id ?? '—'}`);
+      console.log(`[${String(i + 1).padStart(3, ' ')}] ${fmt(r.date_time)}  (${dir})  ${dur(r.duration)}`);
+      console.log(`      owner.id           : ${r.owner?.id          ?? '—'}`);
+      console.log(`      owner.name         : ${r.owner?.name        ?? '—'}`);
       console.log(`      caller_number      : ${r.caller_number      ?? '—'}`);
       console.log(`      callee_number      : ${r.callee_number      ?? '—'}`);
       console.log(`      callee_number(正規) : ${calleeNorm || '—'}  ← Spanavi側電話番号と照合`);

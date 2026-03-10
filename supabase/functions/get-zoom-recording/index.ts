@@ -35,6 +35,45 @@ async function getZoomToken(accountId: string, clientId: string, clientSecret: s
   return tokenData.access_token
 }
 
+// 全ページ取得（next_page_token によるページネーション対応）
+async function fetchAllRecordings(token: string, from: string, to: string): Promise<{
+  owner?: { id?: string; name?: string; type?: string }
+  callee_number?: string
+  download_url?: string
+  date_time?: string
+}[]> {
+  const all: {
+    owner?: { id?: string; name?: string; type?: string }
+    callee_number?: string
+    download_url?: string
+    date_time?: string
+  }[] = []
+  let nextPageToken = ''
+  let page = 1
+
+  do {
+    const params = new URLSearchParams({ page_size: '100', from, to })
+    if (nextPageToken) params.set('next_page_token', nextPageToken)
+    const url = `https://api.zoom.us/v2/phone/recordings?${params}`
+
+    console.log(`[get-zoom-recording] 録音API p${page}:`, url)
+    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+    const data = await res.json()
+
+    console.log(`[get-zoom-recording] 録音API p${page} HTTP:${res.status} total_records:${data.total_records ?? '?'} 件数:${(data.recordings || []).length}`)
+    if (!res.ok) {
+      console.error('[get-zoom-recording] 録音API エラー:', JSON.stringify(data))
+      break
+    }
+
+    all.push(...(data.recordings || []))
+    nextPageToken = data.next_page_token || ''
+    page++
+  } while (nextPageToken)
+
+  return all
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -152,33 +191,23 @@ Deno.serve(async (req) => {
     console.log('[get-zoom-recording] モードB: 録音URL検索開始')
     console.log('[get-zoom-recording] callee_phone(正規化):', normalizePhone(callee_phone || ''))
 
-    // ── アカウント全体の録音を取得（過去2時間） ───────────────────────────
-    const fromDate = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    // ── 日付範囲: 今日 + 昨日（セッション長に関わらず全営業日の録音をカバー）
+    // Zoom API の from/to は YYYY-MM-DD（UTC基準）
+    // 昨日を下限にすることで日付またぎ・長時間セッションに対応
     const toDate   = new Date().toISOString().slice(0, 10)
-    const apiUrl   = `https://api.zoom.us/v2/phone/recordings?from=${fromDate}&to=${toDate}&page_size=100`
+    const fromDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
-    console.log('[get-zoom-recording] Zoom録音API呼び出し:', apiUrl)
-    const recRes = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${zoomToken}` } })
-    const recData = await recRes.json()
+    // 全ページ取得（ページネーション対応）
+    const allRecordings = await fetchAllRecordings(zoomToken, fromDate, toDate)
+    console.log(`[get-zoom-recording] 全体取得完了: ${allRecordings.length} 件`)
 
-    console.log('[get-zoom-recording] Zoom録音API HTTP:', recRes.status)
-    console.log('[get-zoom-recording] total_records:', recData.total_records ?? '(フィールドなし)')
-    console.log('[get-zoom-recording] 取得件数 (recordings配列):', (recData.recordings || []).length)
-
-    const allRecordings: {
-      owner?: { id?: string; name?: string; type?: string }
-      callee_number?: string
-      download_url?: string
-      date_time?: string  // Zoom録音APIの実際のフィールド名（start_timeではない）
-    }[] = recData.recordings || []
-
-    // 全録音のowner・callee_numberを出力
+    // 全録音のowner・callee_numberを出力（デバッグ用）
     console.log('[get-zoom-recording] 全録音一覧:')
     allRecordings.forEach((r, i) => {
-      console.log(`  [${i + 1}] owner=${JSON.stringify(r.owner ?? null)} / owner.id=${r.owner?.id ?? '—'} / callee_number=${r.callee_number ?? '—'} / callee_number(正規)=${normalizePhone(r.callee_number || '')} / date_time=${r.date_time ?? '—'}`)
+      console.log(`  [${i + 1}] owner.id=${r.owner?.id ?? '—'} / callee_number=${r.callee_number ?? '—'} / callee_number(正規)=${normalizePhone(r.callee_number || '')} / date_time=${r.date_time ?? '—'}`)
     })
 
-    // owner.id でフィルタ
+    // owner.id でフィルタ（APIレスポンスは owner.id のネスト構造）
     const myRecordings = allRecordings.filter(r => r.owner?.id === zoom_user_id)
     console.log(`[get-zoom-recording] owner.id="${zoom_user_id}" フィルタ後: ${myRecordings.length} 件`)
 
@@ -189,28 +218,25 @@ Deno.serve(async (req) => {
       : myRecordings
     console.log(`[get-zoom-recording] callee_phone="${calleePhoneNorm}" フィルタ後: ${phoneFiltered.length} 件`)
 
-    const matched = phoneFiltered
-    console.log(`[get-zoom-recording] callee_phoneフィルタ後 合計: ${matched.length} 件`)
-
     // 時間ウィンドウ方式で録音を選択
-    // 窓: prev_called_at < date_time <= called_at
-    // これにより「直前の架電」と「今回の架電」の間に始まった録音だけが選ばれる
+    // 窓: prev_called_at < date_time <= called_at + 30秒
+    // +30秒バッファ: Zoomサーバーとクライアントの時刻ずれ・録音処理遅延を吸収
     let target = null
-    if (matched.length > 0) {
-      matched.forEach(r => {
+    if (phoneFiltered.length > 0) {
+      phoneFiltered.forEach(r => {
         console.log(`  [候補] date_time=${r.date_time ?? '—'} / called_at=${called_at ?? '—'} / prev_called_at=${prev_called_at ?? '—'}`)
       })
       if (called_at) {
-        const calledTime  = new Date(called_at).getTime()
+        const calledTime  = new Date(called_at).getTime() + 30_000  // +30秒バッファ
         const prevTime    = prev_called_at ? new Date(prev_called_at).getTime() : null
-        // 時間窓フィルタ: prev_called_at < date_time <= called_at
-        const inWindow = matched.filter(r => {
+        // 時間窓フィルタ: prev_called_at < date_time <= called_at + 30s
+        const inWindow = phoneFiltered.filter(r => {
           const st = new Date(r.date_time || 0).getTime()
-          if (st > calledTime) return false               // called_at より後 → 次の通話の録音
+          if (st > calledTime) return false               // called_at+30sより後 → 次の通話の録音
           if (prevTime !== null && st <= prevTime) return false  // prev_called_at 以前 → 前の通話の録音
           return true
         })
-        console.log(`[get-zoom-recording] 時間窓フィルタ後: ${inWindow.length}/${matched.length} 件`)
+        console.log(`[get-zoom-recording] 時間窓フィルタ後: ${inWindow.length}/${phoneFiltered.length} 件`)
         if (inWindow.length > 0) {
           target = inWindow.sort((a, b) => (b.date_time || '').localeCompare(a.date_time || ''))[0]
           console.log(`[get-zoom-recording] 選択: date_time=${target?.date_time ?? '—'}`)
@@ -220,7 +246,7 @@ Deno.serve(async (req) => {
         }
       } else {
         // called_at なし（AppoReportModal等）: 最新を選択
-        target = matched.sort((a, b) => (b.date_time || '').localeCompare(a.date_time || ''))[0]
+        target = phoneFiltered.sort((a, b) => (b.date_time || '').localeCompare(a.date_time || ''))[0]
         console.log(`[get-zoom-recording] called_at未指定: 最新録音を選択 date_time=${target?.date_time ?? '—'}`)
       }
     }
