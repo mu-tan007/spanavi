@@ -167,13 +167,99 @@ function AutocompleteField({ label, value, onChange, candidates }) {
   )
 }
 
+// メンバー名検索コンポーネント（名前選択 → email内部セット）
+function MemberNameSelect({ members, selectedName, onSelect }) {
+  const [query, setQuery] = useState(selectedName)
+  const [focused, setFocused] = useState(false)
+  const [showList, setShowList] = useState(false)
+  const wrapperRef = useRef(null)
+
+  // 親から selectedName がリセットされたら query もリセット
+  useEffect(() => { setQuery(selectedName) }, [selectedName])
+
+  const filtered = members.filter(m =>
+    query.length === 0 || m.name.includes(query)
+  )
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setShowList(false)
+        // 未確定の場合はリセット
+        if (!members.find(m => m.name === query)) {
+          setQuery(selectedName)
+        }
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [query, selectedName, members])
+
+  const handleSelect = (member) => {
+    setQuery(member.name)
+    setShowList(false)
+    onSelect(member)
+  }
+
+  return (
+    <div style={{ marginBottom: 14, position: 'relative' }} ref={wrapperRef}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: C.navy, marginBottom: 5, letterSpacing: 1 }}>
+        氏名<span style={{ color: '#e74c3c', marginLeft: 2 }}>*</span>
+      </div>
+      <input
+        type="text"
+        value={query}
+        onChange={e => { setQuery(e.target.value); setShowList(true); onSelect(null) }}
+        placeholder="名前を入力して選択..."
+        autoComplete="off"
+        style={{
+          width: '100%', padding: '10px 12px', borderRadius: 8,
+          border: `2px solid ${focused ? C.gold : C.border}`, fontSize: 13,
+          fontFamily: "'Noto Sans JP'", outline: 'none',
+          transition: 'border-color 0.2s', boxSizing: 'border-box',
+          background: C.white,
+        }}
+        onFocus={() => { setFocused(true); setShowList(true) }}
+        onBlur={() => setFocused(false)}
+      />
+      {showList && filtered.length > 0 && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+          background: C.white, border: '2px solid ' + C.gold, borderRadius: 8,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.15)', maxHeight: 200, overflowY: 'auto',
+        }}>
+          {filtered.map(m => (
+            <div
+              key={m.name}
+              onMouseDown={() => handleSelect(m)}
+              style={{ padding: '10px 12px', fontSize: 13, color: C.navy, cursor: 'pointer', borderBottom: '1px solid ' + C.borderLight }}
+              onMouseEnter={e => e.currentTarget.style.background = '#f5f0e8'}
+              onMouseLeave={e => e.currentTarget.style.background = C.white}
+            >
+              {m.name}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function LoginPage() {
   const { signIn } = useAuth()
-  const [mode, setMode] = useState('login')
+  // mode: 'member' | 'login' | 'signup' | 'forgot' | 'forgotSent' | 'success'
+  const [mode, setMode] = useState('member')
 
+  // メンバーログイン用
+  const [loginMembers, setLoginMembers] = useState([])   // { name, email }[]
+  const [selectedMember, setSelectedMember] = useState(null)
+  const [memberPassword, setMemberPassword] = useState('')
+
+  // 管理者ログイン用
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
+  // 新規登録用
   const [signupEmail, setSignupEmail] = useState('')
   const [name, setName] = useState('')
   const [university, setUniversity] = useState('')
@@ -192,9 +278,21 @@ export default function LoginPage() {
 
   useEffect(() => {
     const fetchMasterData = async () => {
+      // メンバーログイン用：adminロール除外、email必須
+      const { data: loginMembersData } = await supabase
+        .from('members')
+        .select('name, email')
+        .eq('is_active', true)
+        .neq('role', 'admin')
+        .not('email', 'is', null)
+        .order('sort_order')
+      if (loginMembersData) setLoginMembers(loginMembersData.filter(m => m.name && m.email))
+
+      // 新規登録用チーム一覧
       const { data: teamsData } = await supabase.from('teams').select('name').order('name')
       if (teamsData) setTeams(teamsData.map(t => t.name))
 
+      // 新規登録用メンバー名（紹介者）
       const { data: membersData } = await supabase
         .from('members').select('name').eq('is_active', true).order('sort_order')
       if (membersData) setMemberNames(membersData.map(m => m.name).filter(Boolean))
@@ -202,6 +300,24 @@ export default function LoginPage() {
     fetchMasterData()
   }, [])
 
+  // メンバーログイン
+  const handleMemberLogin = async (e) => {
+    e.preventDefault()
+    setError('')
+    if (!selectedMember) { setError('氏名を選択してください'); return }
+    if (!selectedMember.email) { setError('このメンバーにはメールアドレスが登録されていません。管理者にお問い合わせください。'); return }
+    setLoading(true)
+    try {
+      await signIn(selectedMember.email, memberPassword)
+    } catch (err) {
+      setError(err.message === 'Invalid login credentials'
+        ? 'パスワードが正しくありません' : err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 管理者ログイン
   const handleLogin = async (e) => {
     e.preventDefault()
     setError('')
@@ -270,6 +386,8 @@ export default function LoginPage() {
     <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: 8, background: '#fff0f0', border: '1px solid #ffcccc', fontSize: 12, color: '#c0392b' }}>{error}</div>
   )
 
+  const isLoginTab = ['member', 'login', 'signup'].includes(mode)
+
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -293,21 +411,58 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {(mode === 'login' || mode === 'signup') && (
+        {/* メンバー / 管理者 タブ */}
+        {isLoginTab && (
           <div style={{ display: 'flex', marginBottom: 24, borderRadius: 10, overflow: 'hidden', border: '2px solid ' + C.borderLight }}>
-            {['login', 'signup'].map(m => (
-              <button key={m} onClick={() => { setMode(m); setError('') }} style={{
-                flex: 1, padding: '10px', border: 'none', cursor: 'pointer',
-                background: mode === m ? `linear-gradient(135deg, ${C.gold}, #a8883a)` : C.white,
-                color: mode === m ? C.white : C.textLight,
-                fontSize: 13, fontWeight: 700, fontFamily: "'Noto Sans JP'", letterSpacing: 1,
-              }}>
-                {m === 'login' ? 'ログイン' : '新規登録'}
-              </button>
-            ))}
+            {[
+              { key: 'member', label: 'メンバーログイン' },
+              { key: 'login',  label: '管理者ログイン' },
+            ].map(({ key, label }) => {
+              const active = mode === key || (mode === 'signup' && key === 'login')
+              return (
+                <button key={key} onClick={() => { setMode(key); setError('') }} style={{
+                  flex: 1, padding: '10px', border: 'none', cursor: 'pointer',
+                  background: active ? `linear-gradient(135deg, ${C.gold}, #a8883a)` : C.white,
+                  color: active ? C.white : C.textLight,
+                  fontSize: 13, fontWeight: 700, fontFamily: "'Noto Sans JP'", letterSpacing: 1,
+                }}>
+                  {label}
+                </button>
+              )
+            })}
           </div>
         )}
 
+        {/* ── メンバーログイン ── */}
+        {mode === 'member' && (
+          <form onSubmit={handleMemberLogin}>
+            <MemberNameSelect
+              members={loginMembers}
+              selectedName={selectedMember?.name ?? ''}
+              onSelect={setSelectedMember}
+            />
+            <div style={{ fontSize: 11, fontWeight: 600, color: C.navy, marginBottom: 6, letterSpacing: 1 }}>
+              パスワード<span style={{ color: '#e74c3c', marginLeft: 2 }}>*</span>
+            </div>
+            <input
+              type="password"
+              value={memberPassword}
+              onChange={e => setMemberPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              autoComplete="current-password"
+              style={{ ...inputStyle, marginBottom: 16 }}
+              onFocus={e => e.target.style.borderColor = C.gold}
+              onBlur={e => e.target.style.borderColor = C.border}
+            />
+            {errBlock}
+            <button type="submit" disabled={loading} style={btnStyle}>
+              {loading ? 'ログイン中...' : 'ログイン'}
+            </button>
+          </form>
+        )}
+
+        {/* ── 管理者ログイン ── */}
         {mode === 'login' && (
           <form onSubmit={handleLogin}>
             <div style={{ fontSize: 11, fontWeight: 600, color: C.navy, marginBottom: 6, letterSpacing: 1 }}>メールアドレス</div>
@@ -324,9 +479,15 @@ export default function LoginPage() {
             </div>
             {errBlock}
             <button type="submit" disabled={loading} style={btnStyle}>{loading ? 'ログイン中...' : 'ログイン'}</button>
+            <div style={{ textAlign: 'center', marginTop: 14 }}>
+              <span onClick={() => { setMode('signup'); setError('') }} style={{ fontSize: 11, color: C.textLight, cursor: 'pointer', textDecoration: 'underline' }}>
+                新規登録はこちら
+              </span>
+            </div>
           </form>
         )}
 
+        {/* ── 新規登録 ── */}
         {mode === 'signup' && (
           <form onSubmit={handleSignup}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
@@ -348,6 +509,7 @@ export default function LoginPage() {
           </form>
         )}
 
+        {/* ── パスワードリセット ── */}
         {mode === 'forgot' && (
           <form onSubmit={handleForgotPassword}>
             <div style={{ fontSize: 13, color: C.textLight, marginBottom: 20, lineHeight: 1.8 }}>
@@ -386,7 +548,7 @@ export default function LoginPage() {
             <div style={{ fontSize: 13, color: C.textLight, lineHeight: 1.8, marginBottom: 24 }}>
               確認メールを送信しました。<br />メール内のリンクをクリックして<br />アカウントを有効化してください。
             </div>
-            <button onClick={() => setMode('login')} style={{ padding: '10px 32px', borderRadius: 8, border: 'none', cursor: 'pointer', background: `linear-gradient(135deg, ${C.gold}, #a8883a)`, color: C.white, fontSize: 13, fontWeight: 700, fontFamily: "'Noto Sans JP'" }}>
+            <button onClick={() => setMode('member')} style={{ padding: '10px 32px', borderRadius: 8, border: 'none', cursor: 'pointer', background: `linear-gradient(135deg, ${C.gold}, #a8883a)`, color: C.white, fontSize: 13, fontWeight: 700, fontFamily: "'Noto Sans JP'" }}>
               ログイン画面へ
             </button>
           </div>
