@@ -419,16 +419,17 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       const salesVal  = formData.sales  || 0;
       const rewardVal = formData.reward || 0;
       const newAppo = {
-        client:   formData.client,
-        company:  formData.company,
-        getter:   formData.getter,
-        getDate:  formData.getDate,
-        meetDate: formData.meetDate,
-        status:   'アポ取得',
-        note:     formData.note,
-        sales:    salesVal,
-        reward:   rewardVal,
-        month:    formData.meetDate ? (parseInt(formData.meetDate.slice(5, 7), 10) + '月') : '',
+        client:     formData.client,
+        company:    formData.company,
+        getter:     formData.getter,
+        getDate:    formData.getDate,
+        meetDate:   formData.meetDate,
+        status:     'アポ取得',
+        note:       formData.note || '',
+        appoReport: formData.appoReport || '',
+        sales:      salesVal,
+        reward:     rewardVal,
+        month:      formData.meetDate ? (parseInt(formData.meetDate.slice(5, 7), 10) + '月') : '',
       };
       if (formData.supaId) newAppo._supaId = formData.supaId;
       setAppoData(prev => [...prev, newAppo]);
