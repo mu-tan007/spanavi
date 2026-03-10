@@ -980,14 +980,14 @@ export async function fetchAllCallSessionsWithClients() {
   if (sErr) console.error('[DB] fetchAllCallSessionsWithClients error:', sErr)
   if (!sessions?.length) return { data: [], error: sErr }
 
-  // call_sessions.list_id → call_lists.id でJOIN
-  const listIds = [...new Set(sessions.map(s => s.list_id).filter(Boolean))]
-  let listInfoMap = {}   // { list_id: { name, total_count, client_id } }
-  if (listIds.length) {
+  // call_sessions.list_supa_id::uuid = call_lists.id でJOIN
+  const supaIds = [...new Set(sessions.map(s => s.list_supa_id).filter(Boolean))]
+  let listInfoMap = {}   // { list_supa_id: { name, total_count, client_id } }
+  if (supaIds.length) {
     const { data: lists } = await supabase
       .from('call_lists')
       .select('id, client_id, name, total_count')
-      .in('id', listIds)
+      .in('id', supaIds)
     ;(lists || []).forEach(l => { listInfoMap[l.id] = l })
   }
 
@@ -1002,7 +1002,7 @@ export async function fetchAllCallSessionsWithClients() {
   }
 
   const enriched = sessions.map(s => {
-    const listInfo = listInfoMap[s.list_id] || {}
+    const listInfo = listInfoMap[s.list_supa_id] || {}
     return {
       ...s,
       listName:       listInfo.name       || s.list_name || '—',
