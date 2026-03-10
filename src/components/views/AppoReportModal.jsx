@@ -190,26 +190,26 @@ HP：${form.hp}
     const reportNote = generateReport();
     // Step 1: アポをDBに登録（appointments テーブルへ insert + ローカル状態更新）
     const { result: insResult } = await insertAppointment({
-      company:  row.company,
-      client:   list.company,
-      meetDate: form.appoDate,
-      getDate:  form.appoDate,
-      getter:   form.acquirer,
-      note:     reportNote,
-      status:   'アポ取得',
-      sales:    salesVal,
-      reward:   rewardVal,
+      company:    row.company,
+      client:     list.company,
+      meetDate:   form.appoDate,
+      getDate:    form.appoDate,
+      getter:     form.acquirer,
+      appoReport: reportNote,
+      status:     'アポ取得',
+      sales:      salesVal,
+      reward:     rewardVal,
     });
     await onSave({
-      company:  row.company,
-      client:   list.company,
-      meetDate: form.appoDate,
-      getDate:  form.appoDate,
-      getter:   form.acquirer,
-      note:     reportNote,
-      sales:    salesVal,
-      reward:   rewardVal,
-      supaId:   insResult?.id,
+      company:    row.company,
+      client:     list.company,
+      meetDate:   form.appoDate,
+      getDate:    form.appoDate,
+      getter:     form.acquirer,
+      appoReport: reportNote,
+      sales:      salesVal,
+      reward:     rewardVal,
+      supaId:     insResult?.id,
     });
     // Step 2: #アポ取得報告チャンネルへSlack即時投稿
     setAiStatus('slack');

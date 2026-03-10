@@ -167,7 +167,8 @@ export async function updateAppointment(supaId, data) {
       meeting_date: data.meetDate || null,
       sales_amount: parseInt(data.sales) || 0,
       intern_reward: parseInt(data.reward) || 0,
-      notes: data.note,
+      notes: data.note || null,
+      appo_report: data.appoReport ?? undefined,
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateAppointment error:', error)
@@ -196,7 +197,8 @@ export async function insertAppointment(data) {
       meeting_date: data.meetDate || null,
       sales_amount: parseInt(data.sales) || 0,
       intern_reward: parseInt(data.reward) || 0,
-      notes: data.note,
+      notes: data.note || null,
+      appo_report: data.appoReport || null,
       appo_month: appoMonth,
     })
     .select()
