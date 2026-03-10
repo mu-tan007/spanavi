@@ -35,6 +35,12 @@ body {
   background: rgba(200, 164, 90, 0.3);
 }
 
+/* 長いURL・文字列の折り返し */
+p, span, div, li, td, th, pre, blockquote {
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
 /* ログイン画面のinput文字色 */
 input[type="email"],
 input[type="password"],
