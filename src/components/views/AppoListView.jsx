@@ -75,7 +75,14 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [editingReport, setEditingReport] = useState(false);
   const [reportDraft, setReportDraft] = useState('');
   const [reportSaving, setReportSaving] = useState(false);
-  useEffect(() => { setShowRecordingDetail(false); setEditingReport(false); setReportDraft(''); }, [reportDetail]);
+  const [editingNote, setEditingNote] = useState(false);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
+  useEffect(() => {
+    setShowRecordingDetail(false);
+    setEditingReport(false); setReportDraft('');
+    setEditingNote(false); setNoteDraft('');
+  }, [reportDetail]);
 
   useEffect(() => {
     localStorage.setItem('spanavi_appo_period', apPeriod);
@@ -506,12 +513,62 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   <div style={{ fontSize: 20, fontWeight: 900, color: C.gold, fontFamily: "'JetBrains Mono'" }}>{reportDetail.reward > 0 ? "¥" + reportDetail.reward.toLocaleString() : "-"}</div>
                 </div>
               </div>
-              {reportDetail.note && (
-                <div style={{ padding: "10px 14px", borderRadius: 8, background: C.offWhite, border: "1px solid " + C.borderLight, marginBottom: 12 }}>
-                  <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>備考</div>
-                  <div style={{ fontSize: 12, color: C.textDark, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{reportDetail.note}</div>
+              {/* ── 備考 ── */}
+              <div style={{ padding: "10px 14px", borderRadius: 8, background: C.offWhite, border: "1px solid " + C.borderLight, marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                  <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600 }}>備考</div>
+                  {!editingNote && (
+                    <button
+                      onClick={() => { setNoteDraft(reportDetail.note || ''); setEditingNote(true); }}
+                      style={{ fontSize: 10, padding: "2px 10px", borderRadius: 5, border: "1px solid " + C.border,
+                        background: "transparent", color: C.textMid, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
+                      ✏ {reportDetail.note ? '編集' : '入力'}
+                    </button>
+                  )}
                 </div>
-              )}
+                {editingNote ? (
+                  <>
+                    <textarea
+                      value={noteDraft}
+                      onChange={e => setNoteDraft(e.target.value)}
+                      rows={4}
+                      style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid " + C.borderLight,
+                        fontSize: 12, fontFamily: "'Noto Sans JP'", lineHeight: 1.7, resize: "vertical",
+                        outline: "none", background: C.white, color: C.textDark, boxSizing: "border-box" }}
+                    />
+                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
+                      <button onClick={() => setEditingNote(false)}
+                        style={{ padding: "5px 14px", borderRadius: 5, border: "1px solid " + C.border,
+                          background: C.white, cursor: "pointer", fontSize: 11, color: C.textMid, fontFamily: "'Noto Sans JP'" }}>
+                        キャンセル
+                      </button>
+                      <button
+                        disabled={noteSaving}
+                        onClick={async () => {
+                          if (!reportDetail._supaId) return;
+                          setNoteSaving(true);
+                          const error = await updateAppointment(reportDetail._supaId, { ...reportDetail, note: noteDraft });
+                          setNoteSaving(false);
+                          if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
+                          const updated = { ...reportDetail, note: noteDraft };
+                          setReportDetail(updated);
+                          if (setAppoData) setAppoData(prev => prev.map(a => a._supaId === reportDetail._supaId ? updated : a));
+                          setEditingNote(false);
+                        }}
+                        style={{ padding: "5px 18px", borderRadius: 5, border: "none",
+                          background: noteSaving ? C.border : "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")",
+                          color: C.white, cursor: noteSaving ? "default" : "pointer",
+                          fontSize: 11, fontWeight: 700, fontFamily: "'Noto Sans JP'" }}>
+                        {noteSaving ? '保存中…' : '保存'}
+                      </button>
+                    </div>
+                  </>
+                ) : reportDetail.note ? (
+                  <div style={{ fontSize: 12, color: C.textDark, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{reportDetail.note}</div>
+                ) : (
+                  <div style={{ fontSize: 11, color: C.textLight }}>備考なし</div>
+                )}
+              </div>
               {/* ── アポ取得報告 ── */}
               <div style={{ padding: "10px 14px", borderRadius: 8, background: C.gold + "06", border: "1px solid " + C.gold + "20", borderLeft: "3px solid " + C.gold, marginBottom: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
