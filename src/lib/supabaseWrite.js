@@ -980,17 +980,18 @@ export async function fetchAllCallSessionsWithClients() {
   if (sErr) console.error('[DB] fetchAllCallSessionsWithClients error:', sErr)
   if (!sessions?.length) return { data: [], error: sErr }
 
-  const supaIds = [...new Set(sessions.map(s => s.list_supa_id).filter(Boolean))]
-  let listClientMap = {}
-  if (supaIds.length) {
+  // call_sessions.list_id → call_lists.id でJOIN
+  const listIds = [...new Set(sessions.map(s => s.list_id).filter(Boolean))]
+  let listInfoMap = {}   // { list_id: { name, total_count, client_id } }
+  if (listIds.length) {
     const { data: lists } = await supabase
       .from('call_lists')
-      .select('id, client_id')
-      .in('id', supaIds)
-    ;(lists || []).forEach(l => { listClientMap[l.id] = l.client_id })
+      .select('id, client_id, name, total_count')
+      .in('id', listIds)
+    ;(lists || []).forEach(l => { listInfoMap[l.id] = l })
   }
 
-  const clientIds = [...new Set(Object.values(listClientMap).filter(Boolean))]
+  const clientIds = [...new Set(Object.values(listInfoMap).map(l => l.client_id).filter(Boolean))]
   let clientNameMap = {}
   if (clientIds.length) {
     const { data: clients } = await supabase
@@ -1000,11 +1001,16 @@ export async function fetchAllCallSessionsWithClients() {
     ;(clients || []).forEach(c => { clientNameMap[c.id] = c.name })
   }
 
-  const enriched = sessions.map(s => ({
-    ...s,
-    clientId: listClientMap[s.list_supa_id] || null,
-    clientName: clientNameMap[listClientMap[s.list_supa_id]] || '未設定',
-  }))
+  const enriched = sessions.map(s => {
+    const listInfo = listInfoMap[s.list_id] || {}
+    return {
+      ...s,
+      listName:       listInfo.name       || s.list_name || '—',
+      listTotalCount: listInfo.total_count ?? s.total_count ?? 0,
+      clientId:       listInfo.client_id  || null,
+      clientName:     clientNameMap[listInfo.client_id] || '未設定',
+    }
+  })
   return { data: enriched, error: sErr }
 }
 

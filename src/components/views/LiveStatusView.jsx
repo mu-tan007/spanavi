@@ -55,9 +55,9 @@ function ListCard({ sessions, calledCountMap, todayStr }) {
   });
 
   const first = sorted[0];
-  const listName   = first.list_name   || '—';
-  const clientName = first.clientName  || '—';
-  const totalCount = first.total_count || 0;
+  const listName   = first.listName      || first.list_name || '—';
+  const clientName = first.clientName    || '—';
+  const totalCount = first.listTotalCount ?? first.total_count ?? 0;
 
   // 担当者→色マッピング（このカード内でのみ使用）
   const callerColorMap = {};
@@ -299,10 +299,10 @@ export default function LiveStatusView({ now }) {
     return sections.map(({ key, label, date, dateStr }) => {
       const daySessions = sessions.filter(s => toJSTDateStr(s.started_at) === dateStr);
 
-      // list_supa_id（call_listsのUUID）でグループ化 → 同じリストを1カードに集約
+      // call_sessions.list_id でグループ化 → 同じリストを1カードに集約
       const listMap = {};
       daySessions.forEach(s => {
-        const k = s.list_supa_id || s.list_id || s.list_name || `__${s.id}`;
+        const k = s.list_id || s.list_supa_id || s.list_name || `__${s.id}`;
         if (!listMap[k]) listMap[k] = [];
         listMap[k].push(s);
       });
@@ -402,7 +402,7 @@ export default function LiveStatusView({ now }) {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     {cards.map((cardSessions, i) => (
                       <ListCard
-                        key={cardSessions[0].list_supa_id || cardSessions[0].list_id || i}
+                        key={cardSessions[0].list_id || cardSessions[0].list_supa_id || i}
                         sessions={cardSessions}
                         calledCountMap={calledCounts}
                         todayStr={todayStr}
