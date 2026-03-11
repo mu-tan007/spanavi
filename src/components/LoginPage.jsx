@@ -171,7 +171,13 @@ export default function LoginPage() {
       if (loginErr.message === 'Invalid login credentials') {
         // アカウント未作成の可能性 → 初回サインアップを試みる
         try {
-          const { error: signUpErr } = await supabase.auth.signUp({ email, password })
+          const { error: signUpErr } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: { name: selected?.name || '' }
+            }
+          })
           if (signUpErr) {
             if (
               signUpErr.message === 'User already registered' ||
