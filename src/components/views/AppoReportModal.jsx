@@ -33,6 +33,7 @@ export default function AppoReportModal({ row, list, currentUser = '', members =
   const [form, setForm] = React.useState({
     contactName:    row.representative || '',
     contactTitle:   '代表取締役',
+    getDate:        new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10),
     appoDate:       '',
     appoTime:       '',
     visitLocation:  (row.address || '').replace(/\/\s*$/, ''),
@@ -124,7 +125,8 @@ export default function AppoReportModal({ row, list, currentUser = '', members =
 `【アポ取得報告】
 企業名：${row.company}
 担当者：${form.contactName}様（${form.contactTitle}）
-日時：${dateWithWeekday(form.appoDate)} ${form.appoTime}～
+アポ取得日：${form.getDate}
+面談日時：${dateWithWeekday(form.appoDate)} ${form.appoTime}～
 訪問先：${form.visitLocation}
 事業内容：${form.businessDetail}
 財務：売上${form.salesAmount}、当期純利益${form.netIncome}
@@ -193,7 +195,7 @@ HP：${form.hp}
       company:    row.company,
       client:     list.company,
       meetDate:   form.appoDate,
-      getDate:    form.appoDate,
+      getDate:    form.getDate,
       getter:     form.acquirer,
       appoReport: reportNote,
       status:     'アポ取得',
@@ -204,7 +206,7 @@ HP：${form.hp}
       company:    row.company,
       client:     list.company,
       meetDate:   form.appoDate,
-      getDate:    form.appoDate,
+      getDate:    form.getDate,
       getter:     form.acquirer,
       appoReport: reportNote,
       sales:      salesVal,
@@ -262,8 +264,9 @@ HP：${form.hp}
   const FIELDS = [
     { key: 'contactName',    label: '担当者名',       span: 1 },
     { key: 'contactTitle',   label: '役職',           span: 1 },
-    { key: 'appoDate',       label: 'アポ日',          span: 1, type: 'date' },
-    { key: 'appoTime',       label: '時間',           span: 1, type: 'time' },
+    { key: 'getDate',        label: 'アポ取得日',      span: 1, type: 'date' },
+    { key: 'appoDate',       label: '面談日',          span: 1, type: 'date' },
+    { key: 'appoTime',       label: '面談時間',        span: 1, type: 'time' },
     { key: 'visitLocation',  label: '訪問先',          span: 2, placeholder: '例：本社、Zoom等' },
     { key: 'businessDetail', label: '事業内容',        span: 2 },
     { key: 'salesAmount',    label: '売上',           span: 1, placeholder: '例：5.0億円' },

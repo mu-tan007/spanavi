@@ -195,13 +195,21 @@ export default function StatsView({ callListData, currentUser, appoData, members
     if (!todayByCaller[key]) todayByCaller[key] = { total: 0, ceoConnect: 0, appo: 0, sales: 0 };
     todayByCaller[key].total++;
     if (CEO_STATUSES.has(r.status)) todayByCaller[key].ceoConnect++;
-    if (APPO_STATUSES.has(r.status)) todayByCaller[key].appo++;
+    // アポ取得数はappointmentsテーブルから集計するため、ここではカウントしない
   });
-  // Add today's sales from appoData
+  // Add today's appo count and sales from appoData (getter = アポ取得者 を正しく反映)
   const countableToday = new Set(["面談済", "事前確認済", "アポ取得"]);
   (appoData || []).forEach(a => {
+    // アポ取得数：今日取得したアポ（キャンセル除く）をアポ取得者にカウント
+    const gd = (a.getDate || '').slice(0, 10);
+    if (gd === todayStr && a.status !== 'キャンセル') {
+      const key = a.getter || "不明";
+      if (!todayByCaller[key]) todayByCaller[key] = { total: 0, ceoConnect: 0, appo: 0, sales: 0 };
+      todayByCaller[key].appo++;
+    }
+    // 売上：countableStatusesかつ取得日または面談日が今日
     if (!countableToday.has(a.status)) return;
-    const d = a.appoDate || a.meetDate || "";
+    const d = a.getDate || a.meetDate || "";
     if (d.slice(0, 10) !== todayStr) return;
     const key = a.getter || "不明";
     if (!todayByCaller[key]) todayByCaller[key] = { total: 0, ceoConnect: 0, appo: 0, sales: 0 };
