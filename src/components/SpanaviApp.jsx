@@ -484,7 +484,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   // if (!currentUser) { return <LoginScreen ... />; }
 
   return (
-    <div style={{ minHeight: "100vh", background: C.cream, color: C.textDark, fontFamily: "'Noto Sans JP', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: '#F3F2F2', color: C.textDark, fontFamily: "'Noto Sans JP', sans-serif" }}>
       <link href={FONT_URL} rel="stylesheet" />
       <style>{String.raw`
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -497,6 +497,202 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
       `}</style>
 
+      {/* ===== SIDEBAR ===== */}
+      <div style={{ width: 220, position: 'fixed', left: 0, top: 0, height: '100vh', background: '#032D60', overflowY: 'auto', zIndex: 200, boxShadow: '2px 0 8px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column' }}>
+        {/* Logo */}
+        <div onClick={() => setCurrentTab('live')} style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <svg width="28" height="32" viewBox="0 0 52 60">
+            <defs>
+              <linearGradient id="spShieldSidebar" x1="0" y1="0" x2="0.3" y2="1">
+                <stop offset="0%" stopColor="#0176D3"/>
+                <stop offset="100%" stopColor="#032D60"/>
+              </linearGradient>
+              <clipPath id="shieldClipSB"><path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z"/></clipPath>
+            </defs>
+            <path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z" fill="url(#spShieldSidebar)"/>
+            <g clipPath="url(#shieldClipSB)" stroke="white" fill="none">
+              <g opacity="0.45" strokeWidth="1.2">
+                <line x1="26" y1="30" x2="26" y2="-5"/><line x1="26" y1="30" x2="55" y2="30"/>
+                <line x1="26" y1="30" x2="26" y2="65"/><line x1="26" y1="30" x2="-3" y2="30"/>
+                <line x1="26" y1="30" x2="47" y2="5"/><line x1="26" y1="30" x2="47" y2="55"/>
+                <line x1="26" y1="30" x2="5" y2="55"/><line x1="26" y1="30" x2="5" y2="5"/>
+              </g>
+              <g opacity="0.30" strokeWidth="0.8">
+                <line x1="26" y1="30" x2="37" y2="-2"/><line x1="26" y1="30" x2="53" y2="16"/>
+                <line x1="26" y1="30" x2="53" y2="44"/><line x1="26" y1="30" x2="37" y2="62"/>
+                <line x1="26" y1="30" x2="15" y2="62"/><line x1="26" y1="30" x2="-1" y2="44"/>
+                <line x1="26" y1="30" x2="-1" y2="16"/><line x1="26" y1="30" x2="15" y2="-2"/>
+              </g>
+            </g>
+          </svg>
+          <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 800, letterSpacing: 2, lineHeight: 1 }}>
+            <span style={{ color: '#0176D3' }}>Spa</span><span style={{ color: '#C8A84B' }}>navi</span>
+          </div>
+        </div>
+        {/* User area */}
+        <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#0176D3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+            {(currentUser || '?')[0]}
+          </div>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser}</span>
+        </div>
+        {/* Navigation */}
+        <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>
+          {navGroups.map(group => {
+            const _sbIcons = { g_call: '📞', g_appo: '📅', stats: '📊', g_other: '⚙️', g_education: '🎓', mypage: '👤', ai: '🤖' };
+            const _sbIcon = _sbIcons[group.id] || '';
+            if (!group.children) {
+              const _sbActive = currentTab === group.id;
+              return (
+                <button key={group.id} onClick={() => setCurrentTab(group.id)} style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  width: '100%', padding: '11px 20px',
+                  background: _sbActive ? 'rgba(1,118,211,0.35)' : 'transparent',
+                  border: 'none', borderLeft: _sbActive ? '3px solid #C8A84B' : '3px solid transparent',
+                  color: _sbActive ? '#FFFFFF' : 'rgba(255,255,255,0.75)',
+                  fontSize: 13, fontWeight: _sbActive ? 600 : 400,
+                  fontFamily: "'Noto Sans JP', sans-serif",
+                  cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box',
+                }}>
+                  <span>{_sbIcon}</span>{group.label}
+                </button>
+              );
+            }
+            return (
+              <div key={group.id}>
+                <div style={{ padding: '16px 20px 6px', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>{_sbIcon}</span>{group.label}
+                </div>
+                {group.children.map(child => {
+                  const _sbChildActive = currentTab === child.id;
+                  return (
+                    <button key={child.id} onClick={() => setCurrentTab(child.id)} style={{
+                      display: 'block', width: '100%', padding: '8px 20px 8px 28px',
+                      background: _sbChildActive ? 'rgba(1,118,211,0.35)' : 'transparent',
+                      border: 'none', borderLeft: _sbChildActive ? '3px solid #C8A84B' : '3px solid transparent',
+                      color: _sbChildActive ? '#FFFFFF' : 'rgba(255,255,255,0.75)',
+                      fontSize: 13, fontWeight: _sbChildActive ? 600 : 400,
+                      fontFamily: "'Noto Sans JP', sans-serif",
+                      cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box',
+                    }}
+                    onMouseEnter={e => { if (!_sbChildActive) e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; }}
+                    onMouseLeave={e => { if (!_sbChildActive) e.currentTarget.style.background = 'transparent'; }}
+                    >{child.label}</button>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+        {/* Logout */}
+        <div style={{ position: 'sticky', bottom: 0, background: '#021d47', padding: '12px 20px' }}>
+          <button onClick={() => { if (onLogout) onLogout(); else setCurrentUser(null); }} style={{
+            width: '100%', padding: '8px', borderRadius: 6,
+            border: '1px solid rgba(255,255,255,0.2)', background: 'transparent',
+            color: '#fff', fontSize: 12, fontWeight: 600,
+            fontFamily: "'Noto Sans JP', sans-serif", cursor: 'pointer',
+          }}>ログアウト</button>
+        </div>
+      </div>
+
+      {/* ===== NEW HEADER ===== */}
+      <header style={{
+        position: 'fixed', top: 0, left: 220, right: 0, height: 54, zIndex: 150,
+        background: '#FFFFFF', borderBottom: '2px solid #C8A84B',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 24px', boxSizing: 'border-box',
+      }} onClick={() => setShowBellDropdown(false)}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: '#032D60' }}>
+          {(() => {
+            for (const _hg of navGroups) {
+              if (!_hg.children && _hg.id === currentTab) return _hg.label;
+              if (_hg.children) { const _hc = _hg.children.find(c => c.id === currentTab); if (_hc) return _hc.label; }
+            }
+            return '';
+          })()}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ position: "relative" }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowBellDropdown(p => !p)}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, fontSize: 20, color: C.gold, lineHeight: 1 }}>
+              🔔
+            </button>
+            {overdueCount > 0 && (
+              <div style={{ position: "absolute", top: 0, right: 0, minWidth: 16, height: 16, borderRadius: 8,
+                background: "#e53e3e", color: "white", fontSize: 9, fontWeight: 700,
+                display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", pointerEvents: "none" }}>
+                {overdueCount}
+              </div>
+            )}
+            {showBellDropdown && (
+              <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 300,
+                background: C.white, borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
+                border: "1px solid " + C.borderLight, zIndex: 300, overflow: "hidden" }}>
+                <div style={{ padding: "10px 14px", background: C.navy, color: C.white, fontSize: 11, fontWeight: 700 }}>
+                  🔔 通知（{overdueCount}件）
+                </div>
+                <div style={{ maxHeight: 280, overflowY: "auto" }}>
+                  {preCheckPendingAppos.length > 0 && (<>
+                    <div style={{ padding: "6px 14px", background: "#fff8ed", fontSize: 10, fontWeight: 700, color: C.orange, borderBottom: "1px solid " + C.borderLight }}>
+                      ⚠ 事前確認が必要なアポ（{preCheckPendingAppos.length}件）
+                    </div>
+                    {preCheckPendingAppos.map((a, i) => (
+                      <div key={i} onClick={() => { setCurrentTab("precheck"); setShowBellDropdown(false); }}
+                        onMouseEnter={e => { e.currentTarget.style.background = C.offWhite; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = ''; }}
+                        style={{ padding: "8px 14px", borderBottom: "1px solid " + C.borderLight, cursor: "pointer" }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: C.navy }}>{a.company}</div>
+                        <div style={{ fontSize: 9, color: C.textLight }}>{a.client} ／ 面談: {a.meetDate?.slice(5)} ／ {a.preCheckStatus || '未確認'}</div>
+                      </div>
+                    ))}
+                  </>)}
+                  {(overdueSupaRecalls.length + overdueCsvCount) > 0 && (<>
+                    <div style={{ padding: "6px 14px", background: C.navy + "08", fontSize: 10, fontWeight: 700, color: C.navy, borderBottom: "1px solid " + C.borderLight }}>
+                      📞 期限超過の再コール（{overdueSupaRecalls.length + overdueCsvCount}件）
+                    </div>
+                    {overdueSupaRecalls.map(r => (
+                      <div key={r.id} style={{ padding: "8px 14px", borderBottom: "1px solid " + C.borderLight, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: C.navy }}>{r._item.company || "企業名不明"}</div>
+                          <div style={{ fontSize: 9, color: C.textLight }}>{r.status} / {r._memoObj.recall_time || "--:--"}</div>
+                        </div>
+                      </div>
+                    ))}
+                    {overdueCsvCount > 0 && (
+                      <div style={{ padding: "8px 14px", borderBottom: "1px solid " + C.borderLight, fontSize: 10, color: C.textMid }}>
+                        CSV架電リストから {overdueCsvCount}件
+                      </div>
+                    )}
+                  </>)}
+                  {overdueCount === 0 && (
+                    <div style={{ padding: "20px 14px", textAlign: "center", color: C.textLight, fontSize: 11 }}>通知なし</div>
+                  )}
+                </div>
+                <div style={{ padding: "8px 14px", borderTop: "1px solid " + C.borderLight, display: "flex", flexDirection: "column", gap: 6 }}>
+                  {preCheckPendingAppos.length > 0 && (
+                    <button onClick={() => { setCurrentTab("precheck"); setShowBellDropdown(false); }}
+                      style={{ width: "100%", padding: "6px", borderRadius: 5, border: "none", background: C.orange, color: C.white, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
+                      事前確認ページを開く
+                    </button>
+                  )}
+                  <button onClick={() => { setCurrentTab("recall"); setShowBellDropdown(false); }}
+                    style={{ width: "100%", padding: "6px", borderRadius: 5, border: "none",
+                      background: C.navy, color: C.white, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
+                    再コール一覧を開く
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: C.navy }}>{timeStr}</div>
+            <div style={{ fontSize: 10, color: C.textLight }}>{dateStr}</div>
+          </div>
+        </div>
+      </header>
+
+      {/* OLD_HEADER_START */}
+      {false && (<>
       {/* ===== HEADER ===== */}
       <header onClick={() => setShowBellDropdown(false)} style={{
         background: C.white,
@@ -701,9 +897,11 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
           }}>ログアウト</button>
         </div>
       </nav>
+      </>)}
+      {/* OLD_HEADER_END */}
 
       {/* ===== CONTENT ===== */}
-      <main style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
+      <main style={{ padding: 24, maxWidth: 1400, margin: "0 auto", marginLeft: 220, paddingTop: 78 }}>
         {currentTab === "live" && <LiveStatusView now={now} callListData={callListData} />}
         {currentTab === "lists" && (() => {
           const CLIENT_CATEGORIES = [
