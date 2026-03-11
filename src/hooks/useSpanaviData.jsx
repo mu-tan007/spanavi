@@ -131,7 +131,7 @@ export function useSpanaviData() {
         client: clientMap[a.client_id]?.name || '',
         company: a.company_name || '',
         getter: a.getter_name || '',
-        getDate: a.appointment_date || '',
+        getDate: a.created_at ? new Date(a.created_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }) : '',
         meetDate: a.meeting_date ? new Date(a.meeting_date).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }) : '',
         status: a.status || '',
         sales: a.sales_amount || 0,
