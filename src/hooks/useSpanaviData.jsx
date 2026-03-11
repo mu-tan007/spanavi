@@ -11,10 +11,7 @@ export function useSpanaviData(session) {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    if (!session) {
-      setLoading(false)
-      return
-    }
+    if (!session) return
     fetchAllData()
   }, [session])
 
