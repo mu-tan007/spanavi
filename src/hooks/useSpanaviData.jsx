@@ -5,15 +5,14 @@ import { supabase } from '../lib/supabase'
  * Supabaseから全データを取得してSpanaviAppに渡す形式に変換するフック
  * 既存のハードコードデータと同じ形式に変換することで、SpanaviApp内の変更を最小限にする
  */
-export function useSpanaviData(session) {
+export function useSpanaviData() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    if (!session) return
     fetchAllData()
-  }, [session])
+  }, [])
 
   const fetchAllData = async () => {
     try {

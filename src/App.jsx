@@ -5,7 +5,7 @@ import SpanaviApp from './components/SpanaviApp'
 
 export default function App() {
   const { session, profile, loading, signOut, isAdmin } = useAuth()
-  const { data: supabaseData, loading: dataLoading, error: dataError, refetch: onDataRefetch } = useSpanaviData(session)
+  const { data: supabaseData, loading: dataLoading, error: dataError, refetch: onDataRefetch } = useSpanaviData()
 
   // ローディング中（auth + Supabase fetch 両方が完了するまで待つ）
   if (loading || dataLoading) {
