@@ -376,14 +376,14 @@ export default function StatsView({ callListData, currentUser, appoData, members
 
         {/* Call - Team */}
         {callTab === "team" && (
-          <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid " + C.borderLight }}>
-            <div style={{ display: "grid", gridTemplateColumns: "36px 1.5fr 0.8fr 0.8fr 0.8fr", padding: "8px 16px", background: C.navyDeep, fontSize: 9, fontWeight: 600, color: C.goldLight }}>
+          <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #E5E5E5", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "36px 1.5fr 0.8fr 0.8fr 0.8fr", padding: "8px 16px", background: "#F3F2F2", fontSize: 11, fontWeight: 700, color: "#706E6B", letterSpacing: "0.06em", textTransform: "uppercase", borderBottom: "2px solid #E5E5E5" }}>
               <span>#</span><span>チーム</span><span>架電件数</span><span>社長接続</span><span>アポ取得</span>
             </div>
             {callTeamRank.length === 0 ? (
               <div style={{ padding: 24, textAlign: "center", color: C.textLight, fontSize: 12 }}>データなし</div>
             ) : callTeamRank.map(([tn, d], idx) => (
-              <div key={tn} style={{ display: "grid", gridTemplateColumns: "36px 1.5fr 0.8fr 0.8fr 0.8fr", padding: "10px 16px", fontSize: 12, alignItems: "center", borderBottom: "1px solid " + C.borderLight }}>
+              <div key={tn} style={{ display: "grid", gridTemplateColumns: "36px 1.5fr 0.8fr 0.8fr 0.8fr", padding: "10px 16px", fontSize: 12, alignItems: "center", borderBottom: "1px solid #F3F2F2", transition: "background 0.15s" }} onMouseEnter={e => e.currentTarget.style.background = "#EAF4FF"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                 <span style={rankBadge(idx + 1)}>{idx === 0 ? "👑" : idx + 1}</span>
                 <span style={{ fontWeight: 700, color: C.navy }}>{tn}</span>
                 <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: C.textDark }}>{d.total}</span>
@@ -396,8 +396,8 @@ export default function StatsView({ callListData, currentUser, appoData, members
 
         {/* Call - Individual */}
         {callTab === "individual" && (
-          <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid " + C.borderLight }}>
-            <div style={{ display: "grid", gridTemplateColumns: "36px 1.2fr 0.8fr 0.8fr 0.8fr", padding: "8px 16px", background: C.navyDeep, fontSize: 9, fontWeight: 600, color: C.goldLight }}>
+          <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #E5E5E5", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "36px 1.2fr 0.8fr 0.8fr 0.8fr", padding: "8px 16px", background: "#F3F2F2", fontSize: 11, fontWeight: 700, color: "#706E6B", letterSpacing: "0.06em", textTransform: "uppercase", borderBottom: "2px solid #E5E5E5" }}>
               <span>#</span><span>名前</span><span>架電件数</span><span>社長接続</span><span>アポ取得</span>
             </div>
             {callIndivRanked.length === 0 ? (
@@ -407,7 +407,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
               return (
                 <div key={p.name} style={{
                   display: "grid", gridTemplateColumns: "36px 1.2fr 0.8fr 0.8fr 0.8fr", padding: "10px 16px", fontSize: 12, alignItems: "center",
-                  borderBottom: "1px solid " + C.borderLight, background: isMe ? C.navy + "08" : "transparent",
+                  borderBottom: "1px solid #F3F2F2", background: isMe ? C.navy + "08" : "transparent",
                   borderLeft: isMe ? "3px solid " + C.navy : "3px solid transparent",
                 }}>
                   <span style={rankBadge(idx + 1)}>{idx === 0 ? "👑" : idx + 1}</span>
@@ -471,14 +471,14 @@ export default function StatsView({ callListData, currentUser, appoData, members
 
         {/* Sales - Team */}
         {salesTab === "team" && (
-          <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid " + C.borderLight }}>
-            <div style={{ display: "grid", gridTemplateColumns: "36px 1.5fr 0.6fr 1fr", padding: "8px 16px", background: C.navyDeep, fontSize: 9, fontWeight: 600, color: C.goldLight }}>
+          <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #E5E5E5", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "36px 1.5fr 0.6fr 1fr", padding: "8px 16px", background: "#F3F2F2", fontSize: 11, fontWeight: 700, color: "#706E6B", letterSpacing: "0.06em", textTransform: "uppercase", borderBottom: "2px solid #E5E5E5" }}>
               <span>#</span><span>チーム</span><span>件数</span><span>売上</span>
             </div>
             {salesTeamRank.length === 0 ? (
               <div style={{ padding: 24, textAlign: "center", color: C.textLight, fontSize: 12 }}>データなし</div>
             ) : salesTeamRank.map(([tn, d], idx) => (
-              <div key={tn} style={{ display: "grid", gridTemplateColumns: "36px 1.5fr 0.6fr 1fr", padding: "10px 16px", fontSize: 12, alignItems: "center", borderBottom: "1px solid " + C.borderLight }}>
+              <div key={tn} style={{ display: "grid", gridTemplateColumns: "36px 1.5fr 0.6fr 1fr", padding: "10px 16px", fontSize: 12, alignItems: "center", borderBottom: "1px solid #F3F2F2", transition: "background 0.15s" }} onMouseEnter={e => e.currentTarget.style.background = "#EAF4FF"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                 <span style={rankBadge(idx + 1)}>{idx === 0 ? "👑" : idx + 1}</span>
                 <span style={{ fontWeight: 700, color: C.navy }}>{tn}</span>
                 <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 600 }}>{d.count}</span>
@@ -490,8 +490,8 @@ export default function StatsView({ callListData, currentUser, appoData, members
 
         {/* Sales - Individual */}
         {salesTab === "individual" && (
-          <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid " + C.borderLight }}>
-            <div style={{ display: "grid", gridTemplateColumns: "36px 1.2fr 0.6fr 0.8fr 0.8fr", padding: "8px 16px", background: C.navyDeep, fontSize: 9, fontWeight: 600, color: C.goldLight }}>
+          <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #E5E5E5", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "36px 1.2fr 0.6fr 0.8fr 0.8fr", padding: "8px 16px", background: "#F3F2F2", fontSize: 11, fontWeight: 700, color: "#706E6B", letterSpacing: "0.06em", textTransform: "uppercase", borderBottom: "2px solid #E5E5E5" }}>
               <span>#</span><span>名前</span><span>件数</span><span>売上</span><span>報酬</span>
             </div>
             {salesIndivRank.length === 0 ? (
@@ -501,7 +501,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
               return (
                 <div key={name} style={{
                   display: "grid", gridTemplateColumns: "36px 1.2fr 0.6fr 0.8fr 0.8fr", padding: "10px 16px", fontSize: 12, alignItems: "center",
-                  borderBottom: "1px solid " + C.borderLight, background: isMe ? C.gold + "08" : "transparent",
+                  borderBottom: "1px solid #F3F2F2", background: isMe ? C.gold + "08" : "transparent",
                   borderLeft: isMe ? "3px solid " + C.gold : "3px solid transparent",
                 }}>
                   <span style={rankBadge(idx + 1)}>{idx === 0 ? "👑" : idx + 1}</span>

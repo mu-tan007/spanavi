@@ -244,11 +244,12 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       </div>
 
       {/* Table */}
-      <div style={{ background: C.white, borderRadius: 10, overflow: "hidden", border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)" }}>
+      <div style={{ background: C.white, borderRadius: 8, overflow: "hidden", border: "1px solid #E5E5E5", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
         <div style={{
           display: "grid", gridTemplateColumns: colTemplate,
-          padding: "8px 16px", background: C.navyDeep,
-          fontSize: 9, fontWeight: 600, color: C.goldLight, letterSpacing: 0.5,
+          padding: "8px 16px", background: "#F3F2F2",
+          fontSize: 11, fontWeight: 700, color: "#706E6B", letterSpacing: "0.06em",
+          textTransform: "uppercase", borderBottom: "2px solid #E5E5E5",
         }}>
           <span>クライアント</span><span>企業名</span><span>取得者</span><span>取得日</span><span>面談日</span><span>ステータス</span><span>当社売上</span><span>インターン報酬</span>{setAppoData && <span></span>}
         </div>
@@ -260,8 +261,11 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             <div key={i} style={{
               display: "grid", gridTemplateColumns: colTemplate,
               padding: "8px 16px", fontSize: 11, alignItems: "center",
-              borderBottom: "1px solid " + C.borderLight,
-            }}>
+              borderBottom: "1px solid #F3F2F2",
+              transition: "background 0.15s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = "#EAF4FF"}
+            onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
               <span style={{ color: C.textMid, fontSize: 10 }}>{a.client}</span>
               <span style={{ fontWeight: 600, color: C.navy, cursor: "pointer", textDecoration: "underline dotted", textUnderlineOffset: 2 }} onClick={() => setReportDetail(a)}>{a.company}</span>
               <span style={{ color: C.textDark }}>{a.getter}</span>

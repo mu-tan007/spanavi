@@ -151,11 +151,12 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
       </div>
 
       {/* Table */}
-      <div style={{ background: C.white, borderRadius: 10, overflow: "hidden", border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)" }}>
+      <div style={{ background: C.white, borderRadius: 8, overflow: "hidden", border: "1px solid #E5E5E5", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
         <div style={{
           display: "grid", gridTemplateColumns: colTemplate,
-          padding: "8px 16px", background: C.navyDeep,
-          fontSize: 9, fontWeight: 600, color: C.goldLight, letterSpacing: 0.5,
+          padding: "8px 16px", background: "#F3F2F2",
+          fontSize: 11, fontWeight: 700, color: "#706E6B", letterSpacing: "0.06em",
+          textTransform: "uppercase", borderBottom: "2px solid #E5E5E5",
         }}>
           <span>ステータス</span><span>企業名</span><span>業界</span><span>目標</span><span>報酬体系</span><span>リスト</span><span>カレンダー</span><span>連絡</span>{setClientData && <span></span>}
         </div>
@@ -168,10 +169,10 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
             <div key={i} style={{
               display: "grid", gridTemplateColumns: colTemplate,
               padding: "9px 16px", fontSize: 11, alignItems: "center",
-              borderBottom: "1px solid " + C.borderLight,
+              borderBottom: "1px solid #F3F2F2",
               cursor: "pointer", transition: "background 0.15s",
             }} onClick={() => setSelectedClient(c)}
-              onMouseEnter={e => e.currentTarget.style.background = C.offWhite}
+              onMouseEnter={e => e.currentTarget.style.background = "#EAF4FF"}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
               <span style={{
                 fontSize: 9, padding: "2px 6px", borderRadius: 3, textAlign: "center", fontWeight: 600,

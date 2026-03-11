@@ -374,10 +374,11 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
       )}
 
       {/* Table */}
-      <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, overflow: "hidden" }}>
+      <div style={{ background: C.white, borderRadius: 8, border: "1px solid #E5E5E5", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
         <div style={{
           display: "grid", gridTemplateColumns: "1.4fr 0.6fr 0.9fr 0.5fr 0.8fr 0.9fr 0.8fr 0.6fr 0.9fr",
-          padding: "8px 14px", background: C.navyDeep, fontSize: 9, fontWeight: 600, color: C.goldLight,
+          padding: "8px 14px", background: "#F3F2F2", fontSize: 11, fontWeight: 700, color: "#706E6B",
+          letterSpacing: "0.06em", textTransform: "uppercase", borderBottom: "2px solid #E5E5E5",
         }}>
           {["名前", "チーム", "ランク（参考）", "率（参考）", "今月売上", "①インセンティブ", "②役職ボーナス", "③紹介", "合計支給額"].map((h, i) => {
             const sortKeys = [null, null, null, null, "sales", "incentive", "teamBonus", null, "total"];
@@ -400,7 +401,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
             <div key={i} style={{
               display: "grid", gridTemplateColumns: "1.4fr 0.6fr 0.9fr 0.5fr 0.8fr 0.9fr 0.8fr 0.6fr 0.9fr",
               padding: "7px 14px", fontSize: 11, alignItems: "center",
-              borderBottom: "1px solid " + C.borderLight,
+              borderBottom: "1px solid #F3F2F2",
               background: p.total > 100000 ? C.gold + "06" : i % 2 === 0 ? C.white : C.offWhite + "80",
             }}>
               <div>

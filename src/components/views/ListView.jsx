@@ -320,14 +320,15 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
 
       {/* Table */}
       <div style={{
-        background: C.white, border: "1px solid " + C.borderLight,
-        borderRadius: 10, overflow: "hidden",
-        boxShadow: "0 1px 6px rgba(26,58,92,0.06)",
+        background: C.white, border: "1px solid #E5E5E5",
+        borderRadius: 8, overflow: "hidden",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
       }}>
         <div style={{
           display: "grid", gridTemplateColumns: "2fr 70px 1fr 70px 0.8fr 120px 60px",
-          padding: "10px 16px", background: C.navyDeep,
-          fontSize: 10, fontWeight: 600, color: C.goldLight, letterSpacing: 1,
+          padding: "10px 16px", background: "#F3F2F2",
+          fontSize: 11, fontWeight: 700, color: "#706E6B", letterSpacing: "0.06em",
+          textTransform: "uppercase", borderBottom: "2px solid #E5E5E5",
         }}>
           <span>クライアント</span><span>種別</span><span>業種</span><span>社数</span><span>担当者</span><span>おすすめ度</span><span></span>
         </div>
@@ -357,13 +358,13 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                     <div key={list.id} style={{
                       display: "grid", gridTemplateColumns: "2fr 70px 1fr 70px 0.8fr 120px 60px",
                       padding: "10px 16px",
-                      borderBottom: "1px solid " + C.borderLight,
+                      borderBottom: "1px solid #F3F2F2",
                       fontSize: 12, alignItems: "center",
                       transition: "background 0.15s",
                       opacity: list.status === "架電停止" ? 0.4 : 1,
                       animation: "fadeIn 0.2s ease " + (i * 0.015) + "s both",
                     }}
-                    onMouseEnter={e => e.currentTarget.style.background = C.gold + "08"}
+                    onMouseEnter={e => e.currentTarget.style.background = "#EAF4FF"}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                     >
                       <span onClick={() => setSelectedList(list.id)} style={{ fontWeight: 500, paddingRight: 8, cursor: "pointer", wordBreak: "break-all" }}>
