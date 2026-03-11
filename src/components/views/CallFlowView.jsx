@@ -367,40 +367,21 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       .filter(r => r.item_id === selectedRow.id)
       .sort((a, b) => (b.called_at || '').localeCompare(a.called_at || ''))[0];
     const _prevCalledAtResult = _prevRecResult?.called_at || null;
+    const _phone = lastDialedPhone || selectedRow.phone;
 
-    const recordingUrl = await fetchRecordingUrl(lastDialedPhone || selectedRow.phone, calledAt, _prevCalledAtResult);
-
+    // 録音URLなしで即DB登録
     const { result: newRec, error } = await insertCallRecord({
       item_id: selectedRow.id, list_id: list._supaId,
       round: selectedRound, status: result, memo: localMemo || null,
-      called_at: calledAt, recording_url: recordingUrl, getter_name: currentUser,
+      called_at: calledAt, recording_url: null, getter_name: currentUser,
     });
     if (error || !newRec) {
-      console.error('[handleResult] insertCallRecord 失敗 — calledCountは更新しない');
+      console.error('[handleResult] insertCallRecord 失敗');
       return;
     }
 
-    // 録音URL未取得の場合、90秒後に自動リトライ（Zoomの録音処理遅延対策）
-    if (!recordingUrl && newRec?.id) {
-      const _phone = lastDialedPhone || selectedRow.phone;
-      setTimeout(async () => {
-        try {
-          const url = await fetchRecordingUrl(_phone, calledAt, _prevCalledAtResult);
-          if (url) {
-            await updateCallRecordRecordingUrl(newRec.id, url);
-            setCallRecords(prev => prev.map(r => r.id === newRec.id ? { ...r, recording_url: url } : r));
-            console.log('[handleResult] 録音URL自動取得成功:', newRec.id);
-            uploadRecordingToStorage(newRec.id, url);
-          }
-        } catch (e) { console.warn('[handleResult] 録音URL再試行エラー:', e); }
-      }, 90_000);
-    }
-
-    // zoom.us URLをSupabase Storageに変換（非ブロッキング）
-    if (recordingUrl && newRec?.id) uploadRecordingToStorage(newRec.id, recordingUrl);
-
+    // State更新・次企業遷移（即時）
     const newRecords = [...callRecords, newRec];
-
     const itemRecs = newRecords.filter(r => r.item_id === selectedRow.id);
     const newIsExcl = itemRecs.some(r => EXCLUDED_STATUSES.has(r.status));
     await updateCallListItem(selectedRow.id, { call_status: result, is_excluded: newIsExcl });
@@ -420,6 +401,30 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     }
     setSelectedRow(next || updatedItem);
     if (autoDial && next?.phone) dialPhone(next.phone);
+
+    // 録音URLをバックグラウンドで取得してDBを後から更新
+    ;(async () => {
+      try {
+        const url = await fetchRecordingUrl(_phone, calledAt, _prevCalledAtResult);
+        if (url) {
+          await updateCallRecordRecordingUrl(newRec.id, url);
+          setCallRecords(prev => prev.map(r => r.id === newRec.id ? { ...r, recording_url: url } : r));
+          uploadRecordingToStorage(newRec.id, url);
+        } else {
+          // 90秒後に再試行（Zoomの録音処理遅延対策）
+          setTimeout(async () => {
+            try {
+              const url2 = await fetchRecordingUrl(_phone, calledAt, _prevCalledAtResult);
+              if (url2) {
+                await updateCallRecordRecordingUrl(newRec.id, url2);
+                setCallRecords(prev => prev.map(r => r.id === newRec.id ? { ...r, recording_url: url2 } : r));
+                uploadRecordingToStorage(newRec.id, url2);
+              }
+            } catch (e) { console.warn('[handleResult] 録音URL再試行エラー:', e); }
+          }, 90_000);
+        }
+      } catch (e) { console.warn('[handleResult] 録音URL取得エラー:', e); }
+    })();
   };
 
   const handleDeleteRecord = async (record) => {
