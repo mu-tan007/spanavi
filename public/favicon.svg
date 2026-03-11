@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 60">
   <defs>
     <linearGradient id="shieldGradF" x1="0" y1="0" x2="0.3" y2="1">
-      <stop offset="0%" stop-color="#1a3a5c"/>
-      <stop offset="100%" stop-color="#22496e"/>
+      <stop offset="0%" stop-color="#0176D3"/>
+      <stop offset="100%" stop-color="#032D60"/>
     </linearGradient>
     <clipPath id="shieldClipF">
       <path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z"/>
