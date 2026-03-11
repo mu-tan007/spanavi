@@ -42,6 +42,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [autoDial, setAutoDial] = useState(() => {
     try { return localStorage.getItem('cf_autocall') === 'true'; } catch { return false; }
   });
+  const [listMode, setListMode] = useState(true); // true=リスト表示, false=フォーカスモード
   const toggleAutoDial = () => {
     setAutoDial(prev => {
       const next = !prev;
@@ -254,6 +255,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setPage(0);
   };
 
+  const currentIdx = sorted.findIndex(i => i.id === selectedRow?.id);
   const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
   const pageItems = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
@@ -588,7 +590,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const inputStyle = { width: '100%', padding: '6px 10px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: C.offWhite, boxSizing: 'border-box' };
   const labelStyle = { fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 2, display: 'block' };
 
-  return (
+  // OLD_UI_START — 旧UIはここから（ロジックは一切変更なし）
+  // eslint-disable-next-line no-constant-condition
+  if (false) { return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: C.cream, zIndex: 10000, display: 'flex', flexDirection: 'column', fontFamily: "'Noto Sans JP'" }}>
       {/* ─── ヘッダー ─── */}
       <div style={{ padding: '10px 20px 8px', background: 'linear-gradient(135deg, ' + C.navyDeep + ', ' + C.navy + ')', flexShrink: 0 }}>
@@ -996,6 +1000,412 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       )}
 
       {/* ─── 再コール日時設定モーダル ─── */}
+      {recallModal && (
+        <RecallModal
+          row={recallModal.row}
+          statusId={recallModal.statusId}
+          onSubmit={handleRecallSave}
+          onCancel={() => setRecallModal(null)}
+          members={members}
+        />
+      )}
+    </div>
+  ); } // OLD_UI_END
+
+  // ── NEW UI: フルスクリーン・1企業集中モード ──────────────────────────
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#F3F2F2', zIndex: 10000, display: 'flex', flexDirection: 'column', fontFamily: "'Noto Sans JP'" }}>
+
+      {/* ── ヘッダーバー（height:48px） ── */}
+      <div style={{ height: 48, background: '#032D60', display: 'flex', alignItems: 'center', padding: '0 14px', gap: 10, flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+
+        {/* 左: リストに戻る */}
+        <button onClick={() => setListMode(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 6, flexShrink: 0,
+            border: '1px solid rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+            background: listMode ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.07)', color: '#fff' }}>
+          ◀ リストに戻る
+        </button>
+
+        {/* 中央: 位置表示 + 前へ/次へ */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          <button
+            onClick={() => { if (currentIdx > 0) { setSelectedRow(sorted[currentIdx - 1]); setListMode(false); } }}
+            disabled={currentIdx <= 0}
+            style={{ padding: '4px 14px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+              background: currentIdx <= 0 ? 'transparent' : 'rgba(255,255,255,0.1)',
+              color: currentIdx <= 0 ? 'rgba(255,255,255,0.25)' : '#fff',
+              cursor: currentIdx <= 0 ? 'default' : 'pointer' }}>
+            ◀ 前へ
+          </button>
+          <span style={{ fontSize: 12, color: '#fff', fontWeight: 700, minWidth: 90, textAlign: 'center', fontFamily: "'JetBrains Mono'" }}>
+            {currentIdx >= 0 ? `${currentIdx + 1} / ${sorted.length}` : `- / ${sorted.length}`}件
+          </span>
+          <button
+            onClick={() => { if (currentIdx < sorted.length - 1) { setSelectedRow(sorted[currentIdx + 1]); setListMode(false); } }}
+            disabled={currentIdx >= sorted.length - 1}
+            style={{ padding: '4px 14px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+              background: currentIdx >= sorted.length - 1 ? 'transparent' : 'rgba(255,255,255,0.1)',
+              color: currentIdx >= sorted.length - 1 ? 'rgba(255,255,255,0.25)' : '#fff',
+              cursor: currentIdx >= sorted.length - 1 ? 'default' : 'pointer' }}>
+            次へ ▶
+          </button>
+        </div>
+
+        {/* 右: オートコール + 閉じる */}
+        <button onClick={toggleAutoDial}
+          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 6, cursor: 'pointer', flexShrink: 0,
+            border: '1px solid ' + (autoDial ? C.gold : 'rgba(255,255,255,0.2)'),
+            background: autoDial ? C.gold : 'rgba(255,255,255,0.07)',
+            color: autoDial ? C.navy : 'rgba(255,255,255,0.65)',
+            fontSize: 10, fontWeight: 700, fontFamily: "'Noto Sans JP'" }}>
+          <span>{autoDial ? '🔁' : '▶'}</span>
+          オートコール {autoDial ? 'ON' : 'OFF'}
+        </button>
+        <button onClick={handleClose}
+          style={{ width: 32, height: 32, borderRadius: 6, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer', fontSize: 16, flexShrink: 0 }}>
+          ✕
+        </button>
+      </div>
+
+      {/* ── メインエリア（2カラム） ── */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+
+        {/* 左カラム 60% */}
+        <div style={{ width: '60%', overflow: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+          {listMode ? (
+            /* ────────────── リスト表示モード ────────────── */
+            <div style={{ background: '#fff', borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+              {/* 検索バー */}
+              <div style={{ padding: '8px 12px', borderBottom: '1px solid #E5E5E5', display: 'flex', gap: 6, alignItems: 'center', background: '#FAFAFA' }}>
+                <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} placeholder="企業名・代表者・電話番号で検索..."
+                  style={{ flex: 1, padding: '6px 12px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', boxSizing: 'border-box' }} />
+                {[['callable','架電可能'],['all','全件'],['excluded','除外']].map(([mode, label]) => (
+                  <button key={mode} onClick={() => { setFilterMode(mode); setPage(0); }}
+                    style={{ padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
+                      background: filterMode === mode ? '#032D60' : 'transparent',
+                      color: filterMode === mode ? '#fff' : '#706E6B',
+                      border: '1px solid ' + (filterMode === mode ? '#032D60' : '#E5E5E5') }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {/* テーブル */}
+              <div style={{ overflow: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
+                {loading ? (
+                  <div style={{ textAlign: 'center', padding: '60px 0', color: '#706E6B', fontSize: 13 }}>読み込み中...</div>
+                ) : !list._supaId ? (
+                  <div style={{ textAlign: 'center', padding: '60px 0', color: '#706E6B', fontSize: 13 }}>Supabase未登録リストです</div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                    <thead>
+                      <tr style={{ background: '#F3F2F2', position: 'sticky', top: 0, zIndex: 1 }}>
+                        {[['No', '36px'], ['企業名', null], ['事業内容', null], ['代表者', '90px'], ['電話番号', '112px'], ['結果', '80px']].map(([h, w]) => {
+                          const isActive = sortState.column === h && sortState.direction === 'desc';
+                          return (
+                            <th key={h} onClick={() => handleSort(h)}
+                              style={{ padding: '8px 8px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#706E6B', letterSpacing: '0.04em', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none', borderBottom: '2px solid #E5E5E5', ...(w ? { width: w } : {}) }}>
+                              {h}{isActive ? ' ▼' : ''}
+                            </th>
+                          );
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pageItems.map((item, i) => {
+                        const isSelected = selectedRow?.id === item.id;
+                        const sc = callStatusColor(item.call_status, item.is_excluded);
+                        return (
+                          <tr key={item.id}
+                            onClick={() => { setSelectedRow(item); setListMode(false); }}
+                            style={{ cursor: 'pointer', background: isSelected ? '#EAF4FF' : 'transparent', borderBottom: '1px solid #F3F2F2', transition: 'background 0.12s', borderLeft: isSelected ? '3px solid #0176D3' : '3px solid transparent' }}
+                            onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#EAF4FF'; }}
+                            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}>
+                            <td style={{ padding: '7px 8px', fontFamily: "'JetBrains Mono'", fontSize: 9, color: '#706E6B' }}>{item.no}</td>
+                            <td style={{ padding: '7px 8px', fontWeight: 600, color: '#032D60', maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</td>
+                            <td style={{ padding: '7px 8px', color: '#706E6B', fontSize: 10, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.business}</td>
+                            <td style={{ padding: '7px 8px', color: '#706E6B', fontSize: 10, whiteSpace: 'nowrap' }}>{item.representative}</td>
+                            <td style={{ padding: '7px 8px' }}>
+                              {item.phone
+                                ? <span onClick={e => { e.stopPropagation(); dialPhone(item.phone); setSelectedRow(item); setListMode(false); setLastDialedPhone(item.phone); }}
+                                    style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: '#0176D3', fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: '#EAF4FF', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                                    {item.phone}
+                                  </span>
+                                : <span style={{ color: '#c0c0c0', fontSize: 10 }}>-</span>}
+                            </td>
+                            <td style={{ padding: '7px 8px' }}>
+                              <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 10, fontWeight: 600, background: sc.bg, color: sc.color, whiteSpace: 'nowrap' }}>
+                                {getRecordsForItem(item.id).length > 0
+                                  ? (() => {
+                                      const recs = getRecordsForItem(item.id);
+                                      const statusVal = item.call_status || recs.reduce((a, b) => a.round >= b.round ? a : b).status;
+                                      return `${recs.length}回/${statusVal}`;
+                                    })()
+                                  : '未架電'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+              {/* ページネーション */}
+              {totalPages > 1 && (
+                <div style={{ padding: '8px 12px', borderTop: '1px solid #E5E5E5', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
+                    style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #E5E5E5', background: '#F3F2F2', cursor: page === 0 ? 'default' : 'pointer', fontSize: 11, color: page === 0 ? '#c0c0c0' : '#032D60', fontFamily: "'Noto Sans JP'" }}>← 前</button>
+                  <span style={{ fontSize: 11, color: '#706E6B' }}>{page + 1} / {totalPages}（{sorted.length}件）</span>
+                  <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}
+                    style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #E5E5E5', background: '#F3F2F2', cursor: page === totalPages - 1 ? 'default' : 'pointer', fontSize: 11, color: page === totalPages - 1 ? '#c0c0c0' : '#032D60', fontFamily: "'Noto Sans JP'" }}>次 →</button>
+                </div>
+              )}
+            </div>
+
+          ) : selectedRow ? (
+            /* ────────────── フォーカスモード ────────────── */
+            <>
+              {/* ① 企業情報カード */}
+              {(() => {
+                const recs = getRecordsForItem(selectedRow.id);
+                const latest = recs.length > 0 ? recs.reduce((a, b) => a.round >= b.round ? a : b) : null;
+                const lastResult = latest ? latest.status : '未架電';
+                const prevBadgeStyle = (() => {
+                  if (!latest) return { bg: '#F3F2F2', color: '#706E6B' };
+                  const s = latest.status;
+                  if (s === '不通' || s === '受付ブロック') return { bg: '#FEF1EE', color: '#EA001E' };
+                  if (s === '社長不在' || s === '受付再コール' || s === '社長再コール') return { bg: '#FFF8ED', color: '#C07600' };
+                  if (s === 'アポ獲得') return { bg: '#EEF7EE', color: '#2E844A' };
+                  return { bg: '#F3F2F2', color: '#706E6B' };
+                })();
+                let parsedMemo = null;
+                if (selectedRow.memo) { try { parsedMemo = JSON.parse(selectedRow.memo); } catch {} }
+                return (
+                  <div style={{ padding: 20, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #E5E5E5' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, gap: 12 }}>
+                      <div style={{ fontSize: 22, fontWeight: 700, color: '#032D60', flex: 1, lineHeight: 1.3 }}>{selectedRow.company}</div>
+                      <span style={{ fontSize: 13, padding: '4px 14px', borderRadius: 20, fontWeight: 700, background: prevBadgeStyle.bg, color: prevBadgeStyle.color, flexShrink: 0 }}>
+                        {lastResult}
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 20px', marginBottom: 14 }}>
+                      {[
+                        { label: '事業内容', value: selectedRow.business },
+                        { label: '代表者', value: selectedRow.representative },
+                        { label: '住所', value: (selectedRow.address || '').replace(/\/\s*$/, '') },
+                        { label: '売上', value: selectedRow.revenue != null ? Number(selectedRow.revenue).toLocaleString() + ' 千円' : null },
+                      ].filter(x => x.value).map(({ label, value }) => (
+                        <div key={label} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                          <span style={{ fontSize: 10, color: '#a0a0a0', flexShrink: 0, paddingTop: 2, minWidth: 56 }}>{label}</span>
+                          <span style={{ fontSize: 12, color: '#032D60', fontWeight: 500, wordBreak: 'break-all' }}>{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 10, color: '#a0a0a0', marginBottom: 4 }}>
+                        メモ{savingMemo && <span style={{ marginLeft: 6, fontSize: 9, color: '#b0b0b0' }}>保存中...</span>}
+                      </div>
+                      <textarea value={localMemo} onChange={e => setLocalMemo(e.target.value)} onBlur={handleMemoBlur}
+                        placeholder="架電メモ（フォーカスを外すと自動保存）"
+                        style={{ width: '100%', minHeight: 52, padding: '7px 10px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', resize: 'vertical', boxSizing: 'border-box', background: '#FAFAFA' }} />
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ② 架電エリア */}
+              <div style={{ padding: 16, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #E5E5E5' }}>
+                {/* 電話番号 */}
+                <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: '#032D60', fontFamily: "'JetBrains Mono'", letterSpacing: 2 }}>
+                    {selectedRow.phone || '電話番号なし'}
+                  </div>
+                </div>
+                {/* 架電ラウンド選択 */}
+                <div style={{ display: 'flex', gap: 5, justifyContent: 'center', marginBottom: 14 }}>
+                  {[1,2,3,4,5,6,7,8].map(r => {
+                    const roundRec = getRecordsForItem(selectedRow.id).find(rec => rec.round === r);
+                    const nextRound = getNextRound(selectedRow.id);
+                    const isCompleted = !!roundRec;
+                    const isCurrent = r === nextRound && !isCompleted;
+                    const isFuture = r > nextRound;
+                    const isSelectedR = r === selectedRound;
+                    return (
+                      <button key={r} disabled={isFuture} onClick={() => !isFuture && setSelectedRound(r)}
+                        style={{ width: 36, height: 36, borderRadius: 8, fontSize: 13, fontWeight: 700, fontFamily: "'JetBrains Mono'",
+                          background: isCompleted ? '#e8e8e8' : isCurrent ? '#C07600' : 'transparent',
+                          color: isCompleted ? '#999' : isCurrent ? '#fff' : '#b0b0b0',
+                          border: isSelectedR ? '2px solid #0176D3' : isCompleted ? '1px solid #d0d0d0' : isFuture ? '1px dashed #e0e0e0' : '1px solid #C07600',
+                          cursor: isFuture ? 'default' : 'pointer', opacity: isFuture ? 0.3 : 1 }}>
+                        {r}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* 電話ボタン */}
+                {selectedRow.phone && (
+                  <button onClick={() => { dialPhone(selectedRow.phone); setLastDialedPhone(selectedRow.phone); }}
+                    style={{ display: 'block', width: '100%', height: 56, borderRadius: 8, background: '#0176D3', border: 'none', color: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'", letterSpacing: 1 }}>
+                    📞 電話をかける
+                  </button>
+                )}
+                {/* サブ電話番号 */}
+                <div style={{ display: 'flex', gap: 6, marginTop: 10, alignItems: 'center' }}>
+                  <input type="tel" value={subPhone} onChange={e => setSubPhone(e.target.value)} onBlur={handleSubPhoneBlur}
+                    placeholder="別番号に架電"
+                    style={{ flex: 1, padding: '7px 10px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: '#FAFAFA' }} />
+                  <button onClick={() => { if (!subPhone.trim()) return; dialPhone(subPhone.trim()); setLastDialedPhone(subPhone.trim()); }}
+                    disabled={!subPhone.trim()}
+                    style={{ padding: '7px 12px', borderRadius: 6, border: '1px solid #E5E5E5', background: '#F3F2F2', cursor: subPhone.trim() ? 'pointer' : 'default', fontSize: 13, opacity: subPhone.trim() ? 1 : 0.4 }}>📞</button>
+                </div>
+              </div>
+
+              {/* ③ 結果入力エリア */}
+              {(() => {
+                const roundRec = getRecordsForItem(selectedRow.id).find(r => r.round === selectedRound);
+                const sc = roundRec ? callStatusColor(roundRec.status) : null;
+                if (roundRec) {
+                  return (
+                    <div style={{ padding: 16, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #E5E5E5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: sc.color }}>{selectedRound}回目の結果：{roundRec.status}</span>
+                      <button onClick={() => handleDeleteRecord(roundRec)}
+                        style={{ fontSize: 11, padding: '5px 14px', borderRadius: 6, border: '1px solid #E5E5E5', background: '#F3F2F2', cursor: 'pointer', color: '#706E6B', fontFamily: "'Noto Sans JP'" }}>取消</button>
+                    </div>
+                  );
+                }
+                return (
+                  <div style={{ padding: 16, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #E5E5E5' }}>
+                    {/* 大ボタン3つ */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+                      <button onClick={() => handleResult('不通')}
+                        style={{ height: 56, borderRadius: 8, border: '1px solid #E5E5E5', background: '#F3F2F2', color: '#706E6B', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                        不通
+                      </button>
+                      <button onClick={() => handleResult('社長不在')}
+                        style={{ height: 56, borderRadius: 8, border: '1px solid #C07600', background: '#FFF8ED', color: '#C07600', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                        社長不在
+                      </button>
+                      <button onClick={() => handleResult('アポ獲得')}
+                        style={{ height: 56, borderRadius: 8, border: 'none', background: '#0176D3', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                        アポ獲得
+                      </button>
+                    </div>
+                    {/* 小ボタン */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+                      {['受付ブロック', '受付再コール', '社長再コール', '社長お断り', '除外'].map(label => (
+                        <button key={label} onClick={() => handleResult(label)}
+                          style={{ height: 40, borderRadius: 6, border: '1px solid #E5E5E5', background: '#F3F2F2', color: '#706E6B', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* 架電履歴 */}
+              {(() => {
+                const recs = getRecordsForItem(selectedRow.id).slice().sort((a, b) => a.round - b.round);
+                if (recs.length === 0) return null;
+                return (
+                  <div style={{ padding: 16, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #E5E5E5' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#032D60', marginBottom: 8 }}>📋 架電履歴</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      {recs.map(rec => {
+                        const sc = callStatusColor(rec.status);
+                        const dt = rec.called_at ? new Date(rec.called_at) : null;
+                        const dtStr = dt ? `${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}` : '';
+                        return (
+                          <div key={rec.id}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 6, background: '#FAFAFA', fontSize: 11, border: '1px solid #F0F0F0' }}>
+                              <span style={{ fontWeight: 700, color: '#032D60', minWidth: 40, fontFamily: "'JetBrains Mono'", fontSize: 10 }}>{rec.round}回目</span>
+                              <span style={{ flex: 1, color: sc.color, fontWeight: 600 }}>{rec.status}</span>
+                              <span style={{ color: '#b0b0b0', fontSize: 10 }}>{dtStr}</span>
+                              {rec.recording_url
+                                ? <button onClick={() => setActiveRecordingId(activeRecordingId === rec.id ? null : rec.id)}
+                                    style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: activeRecordingId === rec.id ? '#e53e3e' : 'inherit' }}>🎙</button>
+                                : <button onClick={() => handleFetchRecording(rec)}
+                                    style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>🔄</button>
+                              }
+                            </div>
+                            {activeRecordingId === rec.id && rec.recording_url && (
+                              <InlineAudioPlayer url={rec.recording_url} onClose={() => setActiveRecordingId(null)} />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
+          ) : (
+            /* フォーカスモードで企業未選択 */
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#b0b0b0', fontSize: 14, flexDirection: 'column', gap: 8 }}>
+              <span style={{ fontSize: 32 }}>👈</span>
+              リストから企業を選択してください
+            </div>
+          )}
+        </div>
+
+        {/* 右カラム 40% — スクリプト・企業概要・注意事項（常時表示） */}
+        <div style={{ width: '40%', background: '#fff', borderLeft: '1px solid #E5E5E5', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {/* タブヘッダー */}
+          <div style={{ display: 'flex', borderBottom: '2px solid #E5E5E5', background: '#FAFAFA', flexShrink: 0 }}>
+            {[{ key: 'script', label: '📝 スクリプト' }, { key: 'info', label: '🏢 企業概要' }, { key: 'cautions', label: '⚠ 注意事項' }].map(tab => (
+              <button key={tab.key} onClick={() => setScriptTab(tab.key)}
+                style={{ flex: 1, padding: '11px 4px', border: 'none', borderBottom: scriptTab === tab.key ? '2px solid #0176D3' : '2px solid transparent',
+                  background: 'transparent', color: scriptTab === tab.key ? '#0176D3' : '#706E6B',
+                  fontSize: 11, fontWeight: scriptTab === tab.key ? 700 : 400, cursor: 'pointer',
+                  fontFamily: "'Noto Sans JP'", marginBottom: -2, transition: 'color 0.15s' }}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          {/* タブコンテンツ */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+            {scriptTab === 'script' && (
+              list.scriptBody
+                ? <pre style={{ fontSize: 12, color: '#032D60', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.scriptBody}</pre>
+                : <div style={{ color: '#b0b0b0', fontSize: 12 }}>スクリプト未設定</div>
+            )}
+            {scriptTab === 'info' && (
+              list.companyInfo
+                ? <pre style={{ fontSize: 12, color: '#4a4a4a', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.companyInfo}</pre>
+                : <div style={{ color: '#b0b0b0', fontSize: 12 }}>企業概要未設定</div>
+            )}
+            {scriptTab === 'cautions' && (
+              list.cautions
+                ? <pre style={{ fontSize: 12, color: '#C07600', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.cautions}</pre>
+                : <div style={{ color: '#b0b0b0', fontSize: 12 }}>注意事項未設定</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ─── アポ取得報告モーダル（既存） ─── */}
+      {appoModal && (
+        <AppoReportModal
+          row={appoModal}
+          list={list}
+          currentUser={currentUser}
+          members={members}
+          clientData={clientData}
+          rewardMaster={rewardMaster}
+          onClose={() => setAppoModal(null)}
+          onSave={handleAppoSave}
+          initialRecordingUrl={
+            callRecords
+              .filter(r => r.item_id === appoModal.id && r.recording_url)
+              .sort((a, b) => (b.called_at || '').localeCompare(a.called_at || ''))[0]?.recording_url || ''
+          }
+          onFetchRecordingUrl={() => handleAppoFetchRecording(appoModal.id, appoModal.phone)}
+        />
+      )}
+
+      {/* ─── 再コール日時設定モーダル（既存） ─── */}
       {recallModal && (
         <RecallModal
           row={recallModal.row}
