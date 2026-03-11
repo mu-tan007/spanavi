@@ -306,7 +306,7 @@ export default function LiveStatusView({ now }) {
     };
 
     load();
-    const id = setInterval(load, 5000);
+    const id = setInterval(load, 30000); // 5秒→30秒（過剰なポーリングを抑制）
     return () => clearInterval(id);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

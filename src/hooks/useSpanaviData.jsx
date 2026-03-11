@@ -11,15 +11,11 @@ export function useSpanaviData() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        fetchAllData()
-      } else {
-        setLoading(false) // 未ログイン時はスピナーを止める
-      }
-    }
-    init()
+    // セッションあり時のfetchAllDataはApp.jsxのsession変化useEffectが唯一のトリガー（二重フェッチ防止）
+    // 未ログイン時のみローディングを止める
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) setLoading(false)
+    })
   }, [])
 
   const fetchAllData = async () => {
