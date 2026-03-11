@@ -101,6 +101,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   }, [selectedItem?.id]);
 
   const [pageRecords, setPageRecords] = useState({});
+  const fetchedRecordIdsRef = useRef(new Set());
 
   // Detail panel state
   const [selectedRound, setSelectedRound] = useState(null);
@@ -112,7 +113,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   const [selectedItemFull, setSelectedItemFull] = useState(null);
 
   // Filter
-  const PAGE_SIZE = 1000;
+  const PAGE_SIZE = 100;
   const sortedResults = clientSortBy ? [...searchResults].sort((a, b) => {
     let va, vb;
     if (clientSortBy === "company") { va = a.company || ""; vb = b.company || ""; }
@@ -136,17 +137,24 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
     return clientSortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
   }) : searchResults;
 
-  // Lazy-load call records for all currently loaded results
+  // Lazy-load call records for newly added results only（ページ追加時に既フェッチIDを再取得しない）
   const resultIdsKey = useMemo(() => searchResults.map(i => i.id).join(','), [searchResults]);
   useEffect(() => {
-    if (!searchResults.length) { setPageRecords({}); return; }
-    fetchCallRecordsByItemIds(searchResults.map(i => i.id)).then(({ data }) => {
+    if (!searchResults.length) {
+      setPageRecords({});
+      fetchedRecordIdsRef.current = new Set();
+      return;
+    }
+    const newIds = searchResults.map(i => i.id).filter(id => !fetchedRecordIdsRef.current.has(id));
+    if (!newIds.length) return;
+    newIds.forEach(id => fetchedRecordIdsRef.current.add(id));
+    fetchCallRecordsByItemIds(newIds).then(({ data }) => {
       const map = {};
       (data || []).forEach(r => {
         if (!map[r.item_id]) map[r.item_id] = {};
         map[r.item_id][r.round] = r;
       });
-      setPageRecords(map);
+      setPageRecords(prev => ({ ...prev, ...map }));
     });
   }, [resultIdsKey]);
 
