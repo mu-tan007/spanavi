@@ -205,7 +205,7 @@ export default function PreCheckView({ appoData, setAppoData }) {
     // Slack通知（非同期・エラー無視）
     try {
       const appo = selectedAppo;
-      let msg = `【事前確認報告】 *${appo.company}* ／ ${appo.client}\n`;
+      let msg = `【事前確認結果】 *${appo.company}* ／ ${appo.client}\n`;
       msg += `・取得者：${appo.getter}\n`;
       msg += `・面談日：${appo.meetDate}\n`;
       msg += `・事前確認結果：${saveData.preCheckStatus}\n`;
@@ -214,6 +214,7 @@ export default function PreCheckView({ appoData, setAppoData }) {
         if (saveData.rescheduledAt) msg += `・リスケ先日時：${saveData.rescheduledAt.replace('T', ' ')}\n`;
       }
       if (saveData.preCheckStatus === 'キャンセル' && saveData.cancelReason) msg += `・キャンセル理由：${saveData.cancelReason}\n`;
+      if (appo.note) msg += `・備考：${appo.note}\n`;
       if (saveData.preCheckMemo) msg += `・メモ：${saveData.preCheckMemo}\n`;
       fetch(PRECHECK_SLACK_WEBHOOK, { method: 'POST', body: JSON.stringify({ text: msg }) })
         .catch(e => console.error('[Slack] precheck notification error:', e));

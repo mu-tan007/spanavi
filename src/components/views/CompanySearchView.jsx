@@ -20,6 +20,7 @@ import {
   invokeGetZoomRecording,
   updateCallRecordRecordingUrl,
 } from '../../lib/supabaseWrite';
+import AppoReportModal from './AppoReportModal';
 
 export default function CompanySearchView({ importedCSVs, callListData, setCallingScreen, setImportedCSVs, clientData = [], currentUser, members = [], setCallFlowScreen }) {
   const [subTab, setSubTab] = useState("company");
@@ -105,6 +106,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   const [selectedRound, setSelectedRound] = useState(null);
   const [localMemo, setLocalMemo] = useState('');
   const [savingMemo, setSavingMemo] = useState(false);
+  const [appoModal, setAppoModal] = useState(null);
   const [subPhone, setSubPhone] = useState('');
   const [activeRecordingId, setActiveRecordingId] = useState(null);
   const [selectedItemFull, setSelectedItemFull] = useState(null);
@@ -650,6 +652,13 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
 
   const handleDetailResult = async (label) => {
     if (!selectedItem || selectedRound === null) return;
+    // アポ獲得はモーダルを開いて詳細入力
+    if (label === 'アポ獲得') {
+      const l = callListData.find(li => li._supaId === selectedItem.list_id);
+      if (!l) { alert('リスト情報が見つかりません'); return; }
+      setAppoModal({ item: { ...(selectedItemFull || {}), ...selectedItem }, list: l, round: selectedRound });
+      return;
+    }
     const calledAt = new Date().toISOString();
     const { result: newRec, error } = await insertCallRecord({
       item_id: selectedItem.id,
@@ -671,6 +680,33 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       const itemMap = { ...(prev[selectedItem.id] || {}) };
       itemMap[selectedRound] = newRec;
       return { ...prev, [selectedItem.id]: itemMap };
+    });
+  };
+
+  const handleAppoSave = async (_formData) => {
+    if (!appoModal) return;
+    const { item, round } = appoModal;
+    const calledAt = new Date().toISOString();
+    const { result: newRec, error } = await insertCallRecord({
+      item_id: item.id,
+      list_id: item.list_id,
+      round,
+      status: 'アポ獲得',
+      memo: localMemo || null,
+      called_at: calledAt,
+      getter_name: currentUser || null,
+    });
+    if (error || !newRec) { console.error('[AppoSave] insertCallRecord 失敗', error); return; }
+    const newRecs = [...itemRecords, newRec].sort((a, b) => a.round - b.round);
+    setItemRecords(newRecs);
+    await updateCallListItem(item.id, { call_status: 'アポ獲得' });
+    setSearchResults(prev => prev.map(i => i.id === item.id ? { ...i, call_status: 'アポ獲得' } : i));
+    const newNext = Math.min(Math.max(...newRecs.map(r => r.round)) + 1, 8);
+    setSelectedRound(newNext);
+    setPageRecords(prev => {
+      const itemMap = { ...(prev[item.id] || {}) };
+      itemMap[round] = newRec;
+      return { ...prev, [item.id]: itemMap };
     });
   };
 
@@ -1358,6 +1394,19 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           </div>
         )}
       </div>)}
+      {/* ─── アポ取得報告モーダル（リスト検索から） ─── */}
+      {appoModal && (
+        <AppoReportModal
+          row={appoModal.item}
+          list={appoModal.list}
+          currentUser={currentUser}
+          members={members}
+          clientData={clientData}
+          onClose={() => setAppoModal(null)}
+          onSave={handleAppoSave}
+          onDone={() => setAppoModal(null)}
+        />
+      )}
     </div>
   );
 }
