@@ -266,7 +266,6 @@ HP：${form.hp}
     { key: 'contactTitle',   label: '役職',           span: 1 },
     { key: 'getDate',        label: 'アポ取得日',      span: 1, type: 'date' },
     { key: 'appoDate',       label: '面談日',          span: 1, type: 'date' },
-    { key: 'appoTime',       label: '面談時間',        span: 1, type: 'time' },
     { key: 'visitLocation',  label: '訪問先',          span: 2, placeholder: '例：本社、Zoom等' },
     { key: 'businessDetail', label: '事業内容',        span: 2 },
     { key: 'salesAmount',    label: '売上',           span: 1, placeholder: '例：5.0億円' },
@@ -297,6 +296,38 @@ HP：${form.hp}
             {FIELDS.map(f => {
               const isRecUrl = f.key === 'recordingUrl';
               const isLoading = isRecUrl && recordingUrlLoading;
+
+              // 面談日：日付選択後に時間プルダウンを自動表示する一体型UI
+              if (f.key === 'appoDate') {
+                const meetTimeOptions = Array.from({ length: 23 }, (_, i) => {
+                  const total = 540 + i * 30; // 9:00〜20:00（30分刻み）
+                  const h = Math.floor(total / 60);
+                  const m = total % 60;
+                  return {
+                    label: `${h}:${String(m).padStart(2, '0')}`,
+                    value: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+                  };
+                });
+                return (
+                  <div key="appoDate">
+                    <label style={lStyle}>面談日</label>
+                    <input type="date" value={form.appoDate} onChange={e => { set('appoDate', e.target.value); if (!e.target.value) set('appoTime', ''); }} style={iStyle} />
+                    {form.appoDate && (
+                      <div style={{ marginTop: 4 }}>
+                        <label style={lStyle}>面談時間</label>
+                        <select value={form.appoTime} onChange={e => set('appoTime', e.target.value)}
+                          style={{ ...iStyle, cursor: 'pointer', appearance: 'auto' }}>
+                          <option value="">-- 時間を選択 --</option>
+                          {meetTimeOptions.map(o => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
               return (
                 <div key={f.key} style={{ gridColumn: f.span === 2 ? '1 / -1' : undefined }}>
                   <label style={{ ...lStyle, display: 'flex', alignItems: 'center' }}>
