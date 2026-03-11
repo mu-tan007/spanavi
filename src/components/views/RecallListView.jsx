@@ -209,7 +209,13 @@ export default function RecallListView({ callListData, supaRecalls = [], onRecal
                 const past = isOverdue(item.recallDate, item.recallTime);
                 const isSel = selectedItem && (item._source === 'supabase' ? item._supaRecord?.id === selectedItem._supaRecord?.id : (item.listId === selectedItem.listId && item.rowIdx === selectedItem.rowIdx && item.round === selectedItem.round));
                 return (
-                  <div key={i} onClick={() => { setSelectedItem(item); setRightMemo(item.note || ''); }}
+                  <div key={i} onClick={() => {
+                      if (setCallFlowScreen && item._source === 'supabase') {
+                        const _list = callListData.find(l => l._supaId === item._supaRecord?.list_id);
+                        if (_list) { setCallFlowScreen({ list: _list, defaultItemId: item._supaRecord.item_id, defaultListMode: false }); return; }
+                      }
+                      setSelectedItem(item); setRightMemo(item.note || '');
+                    }}
                     style={{ display: 'grid', gridTemplateColumns: '78px 1.6fr 0.8fr 110px 58px 0.7fr', padding: '8px 14px', fontSize: 11, alignItems: 'center', borderBottom: '1px solid ' + C.borderLight, borderLeft: isSel ? '3px solid ' + C.gold : '3px solid transparent', background: isSel ? C.gold + '10' : past ? '#fff5f5' : 'transparent', cursor: 'pointer' }}>
                     <div>
                       <div style={{ fontWeight: 700, color: past ? '#e53e3e' : C.navy, fontFamily: "'JetBrains Mono'", fontSize: 11 }}>{item.recallTime || '--:--'}</div>
@@ -279,16 +285,6 @@ export default function RecallListView({ callListData, supaRecalls = [], onRecal
                       <span style={{ color: C.textLight, minWidth: 40, flexShrink: 0 }}>電話</span>
                       <span style={{ color: C.navy, fontWeight: 600, fontFamily: "'JetBrains Mono'", whiteSpace: 'nowrap' }}>{selectedItem.phone}</span>
                       <button onClick={() => dialPhone(selectedItem.phone)} style={{ padding: '3px 10px', borderRadius: 4, border: 'none', background: C.navy, color: C.white, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", flexShrink: 0 }}>📞 発信</button>
-                      {setCallFlowScreen && selectedItem._source === 'supabase' && (() => {
-                        const _list = callListData.find(l => l._supaId === selectedItem._supaRecord?.list_id);
-                        if (!_list) return null;
-                        return (
-                          <button onClick={() => setCallFlowScreen({ list: _list, defaultItemId: selectedItem._supaRecord.item_id })}
-                            style={{ padding: '3px 10px', borderRadius: 4, border: '1px solid ' + C.gold, background: C.gold, color: C.navy, fontSize: 10, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'", flexShrink: 0 }}>
-                            架電フローへ
-                          </button>
-                        );
-                      })()}
                     </div>
                   )}
                 </div>

@@ -925,7 +925,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                     const l = callListData.find(li => li._supaId === selectedItem.list_id);
                     if (!l) { alert('リスト情報が見つかりません'); return; }
                     setSelectedItem(null);
-                    if (setCallFlowScreen) setCallFlowScreen({ list: l, defaultItemId: selectedItem.id });
+                    if (setCallFlowScreen) setCallFlowScreen({ list: l, defaultItemId: selectedItem.id, defaultListMode: false });
                     else setCallingScreen({ listId: l.id, list: l });
                   }}
                   style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid ' + C.goldLight, background: C.gold, color: C.navy, fontSize: 10, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: "'Noto Sans JP'" }}>

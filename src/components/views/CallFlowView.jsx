@@ -18,7 +18,7 @@ const _cfSessionCache = new Map(); // `${listId}|${startNo}|${endNo}` → sessio
 // isRealCloseRef（useRef）はStrict Modeで信頼できないため、同じパターンで管理
 const _cfRealCloseSet = new Set(); // sessionId → リアルクローズ時にadd、cleanup後にdelete
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setAppoData, members = [], currentUser = '', defaultItemId = null, clientData = [], rewardMaster = [] }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [] }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRow, setSelectedRow] = useState(null);
@@ -43,6 +43,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     try { return localStorage.getItem('cf_autocall') === 'true'; } catch { return false; }
   });
   const [listMode, setListMode] = useState(() => {
+    if (defaultListMode !== null && defaultListMode !== undefined) return defaultListMode;
     try { return sessionStorage.getItem('callflow_list_mode') !== 'false'; } catch { return true; }
   }); // true=リスト表示, false=フォーカスモード
   useEffect(() => {
