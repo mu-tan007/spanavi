@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
     // appointments テーブルを取得（status = 'アポ取得' かつ meeting_date が対象日）
     const { data: appos, error: apposError } = await supabase
       .from('appointments')
-      .select('company_name, getter_name, meeting_date, client_id')
+      .select('company_name, getter_name, meeting_date, client_id, notes')
       .eq('status', 'アポ取得')
       .in('meeting_date', targetDates)
       .order('meeting_date')
@@ -117,6 +117,9 @@ Deno.serve(async (req) => {
       for (const a of grouped[dateStr]) {
         const clientName = clientMap[a.client_id] || 'クライアント不明'
         sections.push(`・${a.company_name} / アポ取得者：${a.getter_name} / クライアント：${clientName}`)
+        if (a.notes && (a.notes as string).trim()) {
+          sections.push(`　備考：${(a.notes as string).trim()}`)
+        }
       }
       sections.push('')
     }
