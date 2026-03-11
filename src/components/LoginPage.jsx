@@ -253,7 +253,7 @@ export default function LoginPage() {
         {/* ロゴ */}
         <div style={{ textAlign: 'center', marginBottom: 28, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <ShieldLogo />
-          <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: 2, color: C.navy }}>
+          <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: 2, color: '#0176D3' }}>
             Spa<span style={{ background: 'linear-gradient(180deg, #c6a358, #a8883a)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>navi</span>
           </div>
         </div>

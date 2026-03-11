@@ -530,7 +530,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
               </g>
             </g>
           </svg>
-          <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 24, fontWeight: 800, color: C.navy, letterSpacing: 2, lineHeight: 1 }}>
+          <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 24, fontWeight: 800, color: "#0176D3", letterSpacing: 2, lineHeight: 1 }}>
             Spa<span style={{ background: "linear-gradient(180deg, #c6a358, #a8883a)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>navi</span>
           </div>
         </div>
