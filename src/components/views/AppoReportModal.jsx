@@ -297,7 +297,7 @@ HP：${form.hp}
               const isRecUrl = f.key === 'recordingUrl';
               const isLoading = isRecUrl && recordingUrlLoading;
 
-              // 面談日：日付選択後に時間プルダウンを自動表示する一体型UI
+              // 面談日：日付と時間プルダウンを1ラベル・横並びで表示
               if (f.key === 'appoDate') {
                 const meetTimeOptions = Array.from({ length: 23 }, (_, i) => {
                   const total = 540 + i * 30; // 9:00〜20:00（30分刻み）
@@ -311,19 +311,20 @@ HP：${form.hp}
                 return (
                   <div key="appoDate">
                     <label style={lStyle}>面談日</label>
-                    <input type="date" value={form.appoDate} onChange={e => { set('appoDate', e.target.value); if (!e.target.value) set('appoTime', ''); }} style={iStyle} />
-                    {form.appoDate && (
-                      <div style={{ marginTop: 4 }}>
-                        <label style={lStyle}>面談時間</label>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <input type="date" value={form.appoDate}
+                        onChange={e => { set('appoDate', e.target.value); if (!e.target.value) set('appoTime', ''); }}
+                        style={{ ...iStyle, flex: '1 1 auto' }} />
+                      {form.appoDate && (
                         <select value={form.appoTime} onChange={e => set('appoTime', e.target.value)}
-                          style={{ ...iStyle, cursor: 'pointer', appearance: 'auto' }}>
-                          <option value="">-- 時間を選択 --</option>
+                          style={{ ...iStyle, flex: '0 0 90px', cursor: 'pointer', appearance: 'auto' }}>
+                          <option value="">時間</option>
                           {meetTimeOptions.map(o => (
                             <option key={o.value} value={o.value}>{o.label}</option>
                           ))}
                         </select>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 );
               }
