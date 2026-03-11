@@ -597,7 +597,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
 
       {/* ===== NEW HEADER ===== */}
       <header style={{
-        position: 'fixed', top: 0, left: 220, right: 0, height: 54, zIndex: 150,
+        position: 'fixed', top: 0, left: 220, right: 0, width: 'calc(100% - 220px)', height: 54, zIndex: 150,
         background: '#FFFFFF', borderBottom: '2px solid #C8A84B',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 24px', boxSizing: 'border-box',
@@ -901,7 +901,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       {/* OLD_HEADER_END */}
 
       {/* ===== CONTENT ===== */}
-      <main style={{ padding: 24, maxWidth: 1400, margin: "0 auto", marginLeft: 220, paddingTop: 78 }}>
+      <main style={{ marginLeft: 220, paddingTop: 54, paddingLeft: 28, paddingRight: 28, paddingBottom: 24, minHeight: '100vh', width: 'calc(100% - 220px)', boxSizing: 'border-box' }}>
         {currentTab === "live" && <LiveStatusView now={now} callListData={callListData} />}
         {currentTab === "lists" && (() => {
           const CLIENT_CATEGORIES = [
