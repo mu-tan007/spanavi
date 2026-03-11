@@ -465,7 +465,6 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       { id: "edu_rules", label: "ルール" },
       { id: "edu_roleplay", label: "ロープレ" },
     ]},
-    { id: "ai", label: "AIアシスタント", children: null },
   ];
 
   const getActiveGroup = () => {
