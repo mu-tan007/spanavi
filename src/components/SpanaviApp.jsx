@@ -465,7 +465,6 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       { id: "edu_rules", label: "ルール" },
       { id: "edu_roleplay", label: "ロープレ" },
     ]},
-    { id: "mypage", label: "MyPage", children: null },
     { id: "ai", label: "AIアシスタント", children: null },
   ];
 
@@ -529,13 +528,23 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
             <span style={{ color: '#0176D3' }}>Spa</span><span style={{ color: '#C8A84B' }}>navi</span>
           </div>
         </div>
-        {/* User area */}
-        <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#0176D3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-            {(currentUser || '?')[0]}
-          </div>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser}</span>
-        </div>
+        {/* User area — クリックでマイページへ */}
+        {(() => {
+          const _currentMember = Array.isArray(members) ? members.find(m => (typeof m === 'object' ? m.name : m) === currentUser) : null;
+          const _avatarUrl = typeof _currentMember === 'object' ? _currentMember?.avatarUrl : null;
+          return (
+            <div onClick={() => setCurrentTab('mypage')} style={{ padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#0176D3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
+                {_avatarUrl
+                  ? <img src={_avatarUrl} alt={currentUser} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : (currentUser || '?')[0]}
+              </div>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser}</span>
+            </div>
+          );
+        })()}
         {/* Navigation */}
         <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>
           {navGroups.map(group => {
@@ -1042,9 +1051,9 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         {currentTab === "crm" && <CRMView isAdmin={isAdmin} clientData={clientData} setClientData={isAdmin ? setClientData : null} rewardMaster={rewardMaster} />}
         {currentTab === "reward_master" && isAdmin && <RewardMasterView rewardMaster={rewardMaster} setRewardMaster={setRewardMaster} />}
         {currentTab === "members" && <MembersView members={members} setMembers={isAdmin ? setMembers : null} />}
-        {currentTab === "search" && <CompanySearchView importedCSVs={importedCSVs} callListData={callListData} setCallingScreen={setCallingScreen} setImportedCSVs={setImportedCSVs} clientData={clientData} currentUser={currentUser} members={members} setCallFlowScreen={setCallFlowScreen} />}
+        {currentTab === "search" && <CompanySearchView importedCSVs={importedCSVs} callListData={callListData} setCallingScreen={setCallingScreen} setImportedCSVs={setImportedCSVs} clientData={clientData} currentUser={currentUser} members={members} setCallFlowScreen={setCallFlowScreen} rewardMaster={rewardMaster} />}
         {currentTab === "stats" && <StatsView callListData={callListData} currentUser={currentUser} appoData={appoData} members={members} now={now} />}
-        {currentTab === "recall" && <RecallListView callListData={callListData} supaRecalls={supaRecalls} onRecallComplete={handleSupaRecallComplete} members={memberNames} currentUser={currentUser} isAdmin={isAdmin} onRefresh={fetchSupaRecalls} />}
+        {currentTab === "recall" && <RecallListView callListData={callListData} supaRecalls={supaRecalls} onRecallComplete={handleSupaRecallComplete} members={memberNames} currentUser={currentUser} isAdmin={isAdmin} onRefresh={fetchSupaRecalls} setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "payroll" && <PayrollView members={members} appoData={appoData} isAdmin={isAdmin} setMembers={setMembers} onDataRefetch={onDataRefetch} currentUser={currentUser} />}
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView industryRules={industryRules} setIndustryRules={setIndustryRules} ruleEditorOpen={ruleEditorOpen} setRuleEditorOpen={setRuleEditorOpen} editingRule={editingRule} setEditingRule={setEditingRule} isAdmin={isAdmin} />}

@@ -22,7 +22,7 @@ import {
 } from '../../lib/supabaseWrite';
 import AppoReportModal from './AppoReportModal';
 
-export default function CompanySearchView({ importedCSVs, callListData, setCallingScreen, setImportedCSVs, clientData = [], currentUser, members = [], setCallFlowScreen }) {
+export default function CompanySearchView({ importedCSVs, callListData, setCallingScreen, setImportedCSVs, clientData = [], currentUser, members = [], setCallFlowScreen, rewardMaster = [] }) {
   const [subTab, setSubTab] = useState("company");
   const [searchTerm, setSearchTerm] = useState("");
   const [searchField, setSearchField] = useState("all");
@@ -1402,6 +1402,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           currentUser={currentUser}
           members={members}
           clientData={clientData}
+          rewardMaster={rewardMaster}
           onClose={() => setAppoModal(null)}
           onSave={handleAppoSave}
           onDone={() => setAppoModal(null)}

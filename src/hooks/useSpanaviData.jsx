@@ -118,6 +118,7 @@ export function useSpanaviData() {
         operationStartDate: m.operation_start_date || '',
         referrerName: m.referrer_name || '',
         zoomUserId: m.zoom_user_id || '',
+        avatarUrl: m.avatar_url || '',
       }))
 
       // appointments → 既存APPO_DATAフォーマットに変換

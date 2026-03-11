@@ -6,7 +6,7 @@ import { dialPhone } from '../../utils/phone';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import RecallModal from './RecallModal';
 
-export default function RecallListView({ callListData, supaRecalls = [], onRecallComplete, members = [], currentUser = '', isAdmin = false, onRefresh }) {
+export default function RecallListView({ callListData, supaRecalls = [], onRecallComplete, members = [], currentUser = '', isAdmin = false, onRefresh, setCallFlowScreen }) {
   const [sortBy, setSortBy] = useState("date");
   const [selectedItem, setSelectedItem] = useState(null);
   const [rightMemo, setRightMemo] = useState('');
@@ -279,6 +279,16 @@ export default function RecallListView({ callListData, supaRecalls = [], onRecal
                       <span style={{ color: C.textLight, minWidth: 40, flexShrink: 0 }}>電話</span>
                       <span style={{ color: C.navy, fontWeight: 600, fontFamily: "'JetBrains Mono'", whiteSpace: 'nowrap' }}>{selectedItem.phone}</span>
                       <button onClick={() => dialPhone(selectedItem.phone)} style={{ padding: '3px 10px', borderRadius: 4, border: 'none', background: C.navy, color: C.white, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", flexShrink: 0 }}>📞 発信</button>
+                      {setCallFlowScreen && selectedItem._source === 'supabase' && (() => {
+                        const _list = callListData.find(l => l._supaId === selectedItem._supaRecord?.list_id);
+                        if (!_list) return null;
+                        return (
+                          <button onClick={() => setCallFlowScreen({ list: _list, defaultItemId: selectedItem._supaRecord.item_id })}
+                            style={{ padding: '3px 10px', borderRadius: 4, border: '1px solid ' + C.gold, background: C.gold, color: C.navy, fontSize: 10, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'", flexShrink: 0 }}>
+                            架電フローへ
+                          </button>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
