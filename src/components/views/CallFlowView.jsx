@@ -347,6 +347,31 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     }
   };
 
+  // zoom.us URLをSupabase Storageにアップロードして state を更新（非ブロッキング）
+  const uploadRecordingToStorage = (recId, zoomUrl) => {
+    if (!zoomUrl || !zoomUrl.includes('zoom.us')) return;
+    ;(async () => {
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        const res = await fetch(`${supabaseUrl}/functions/v1/upload-recording-to-drive`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': anonKey },
+          body: JSON.stringify({ call_record_id: recId, zoom_recording_url: zoomUrl }),
+        });
+        const data = await res.json();
+        if (data.public_url) {
+          setCallRecords(prev => prev.map(r => r.id === recId ? { ...r, recording_url: data.public_url } : r));
+          console.log('[uploadRecordingToStorage] 完了:', recId, data.public_url);
+        } else {
+          console.warn('[uploadRecordingToStorage] 失敗:', data.error);
+        }
+      } catch (e) {
+        console.error('[uploadRecordingToStorage] エラー:', e);
+      }
+    })();
+  };
+
   const callStatusColor = (st, isExcluded) => {
     if (isExcluded) return { bg: '#fee2e2', color: '#e53e3e' };
     const s = st || '未架電';
@@ -403,10 +428,14 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             await updateCallRecordRecordingUrl(newRec.id, url);
             setCallRecords(prev => prev.map(r => r.id === newRec.id ? { ...r, recording_url: url } : r));
             console.log('[handleResult] 録音URL自動取得成功:', newRec.id);
+            uploadRecordingToStorage(newRec.id, url);
           }
         } catch (e) { console.warn('[handleResult] 録音URL再試行エラー:', e); }
       }, 90_000);
     }
+
+    // zoom.us URLをSupabase Storageに変換（非ブロッキング）
+    if (recordingUrl && newRec?.id) uploadRecordingToStorage(newRec.id, recordingUrl);
 
     const newRecords = [...callRecords, newRec];
 
@@ -512,6 +541,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             await updateCallRecordRecordingUrl(newRec.id, url);
             setCallRecords(prev => prev.map(r => r.id === newRec.id ? { ...r, recording_url: url } : r));
             console.log('[handleAppoSave] 録音URL自動取得成功:', newRec.id);
+            uploadRecordingToStorage(newRec.id, url);
           }
         } catch (e) { console.warn('[handleAppoSave] 録音URL再試行エラー:', e); }
       }, 90_000);
@@ -563,29 +593,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setLocalConnectCount(c => c + 1);
     setStatsRefreshKey(k => k + 1);
 
-    // Zoom録音をGoogle Driveにアップロード（zoom.usドメインの場合のみ、非同期・非ブロッキング）
-    if (recordingUrlAppo && recordingUrlAppo.includes('zoom.us') && newRec?.id) {
-      ;(async () => {
-        try {
-          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-          const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-          const res = await fetch(`${supabaseUrl}/functions/v1/upload-recording-to-drive`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': anonKey },
-            body: JSON.stringify({ call_record_id: newRec.id, zoom_recording_url: recordingUrlAppo }),
-          });
-          const data = await res.json();
-          if (data.drive_url) {
-            setCallRecords(prev => prev.map(r => r.id === newRec.id ? { ...r, recording_url: data.drive_url } : r));
-            console.log('[handleAppoSave] Drive upload完了:', data.drive_url);
-          } else {
-            console.warn('[handleAppoSave] Drive upload失敗:', data.error);
-          }
-        } catch (e) {
-          console.error('[handleAppoSave] upload-recording-to-drive エラー:', e);
-        }
-      })();
-    }
+    // zoom.us URLをSupabase Storageに変換（非ブロッキング）
+    if (recordingUrlAppo && newRec?.id) uploadRecordingToStorage(newRec.id, recordingUrlAppo);
   };
 
   const handleRecallSave = async (recallData) => {
@@ -622,10 +631,14 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             await updateCallRecordRecordingUrl(newRec.id, url);
             setCallRecords(prev => prev.map(r => r.id === newRec.id ? { ...r, recording_url: url } : r));
             console.log('[handleRecallSave] 録音URL自動取得成功:', newRec.id);
+            uploadRecordingToStorage(newRec.id, url);
           }
         } catch (e) { console.warn('[handleRecallSave] 録音URL再試行エラー:', e); }
       }, 90_000);
     }
+
+    // zoom.us URLをSupabase Storageに変換（非ブロッキング）
+    if (recordingUrlRecall && newRec?.id) uploadRecordingToStorage(newRec.id, recordingUrlRecall);
 
     const newRecords = [...callRecords, newRec];
     setCallRecords(newRecords);
