@@ -33,10 +33,10 @@ const getPastBusinessDays = (baseDate, n) => {
 
 // 担当者ごとの色（Spanaviブランドカラーに合わせた複数色）
 const CALLER_COLORS = [
-  '#c5a55a', // gold
-  '#2e8b57', // green
-  '#24537a', // navyLight
-  '#d4760a', // orange
+  '#C8A84B', // gold
+  '#2E844A', // green
+  '#0176D3', // primary blue
+  '#FFB75D', // orange
   '#7b52ab', // purple
   '#c0415c', // rose
   '#1a8c8c', // teal

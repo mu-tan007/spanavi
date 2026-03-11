@@ -2,28 +2,39 @@
 // カラー定数（全コンポーネント共通）
 // ============================================================
 export const C = {
-  navy: "#1a3a5c",
-  navyDark: "#0f2540",
-  navyDeep: "#0a1929",
-  navyLight: "#24537a",
-  gold: "#c5a55a",
-  goldLight: "#d4ba7a",
-  goldDim: "#9e8545",
-  goldGlow: "rgba(197, 165, 90, 0.12)",
+  // ── ブルー系ベース ──────────────────────────────────────────
+  navy: "#032D60",              // ダークネイビー（ヘッダー・テーブルヘッダー）
+  navyDark: "#021B40",          // より深いネイビー
+  navyDeep: "#011226",          // 最深部ネイビー
+  navyLight: "#0176D3",         // プライマリブルー（リンク・アクティブ・ボタン）
+
+  // ── ゴールド（ブランドアクセント・維持） ─────────────────────
+  gold: "#C8A84B",
+  goldLight: "#D4BB6A",
+  goldDim: "#A08040",
+  goldGlow: "rgba(200, 168, 75, 0.12)",
+
+  // ── ベース背景 ────────────────────────────────────────────
   white: "#ffffff",
-  offWhite: "#f5f3ef",
-  cream: "#faf8f4",
-  snow: "#fefdfb",
-  textDark: "#1a2a3a",
-  textMid: "#4a5e72",
-  textLight: "#8a9bb0",
-  border: "#d8d2c4",
-  borderLight: "#e8e3da",
-  borderDark: "#2a4a6a",
-  green: "#2e8b57",
-  greenLight: "rgba(46, 139, 87, 0.1)",
-  red: "#c0392b",
-  redLight: "rgba(192, 57, 43, 0.08)",
-  orange: "#d4760a",
-  orangeLight: "rgba(212, 118, 10, 0.1)",
+  offWhite: "#F3F2F2",          // ページ背景
+  cream: "#F8F8F8",             // カード内サブ背景
+  snow: "#FAFAFA",
+
+  // ── テキスト ─────────────────────────────────────────────
+  textDark: "#181818",          // メインテキスト
+  textMid: "#706E6B",           // サブテキスト
+  textLight: "#A0A0A0",         // プレースホルダー・弱テキスト
+
+  // ── ボーダー ─────────────────────────────────────────────
+  border: "#E5E5E5",
+  borderLight: "#F0F0F0",
+  borderDark: "#0176D3",        // 暗背景上の強調ボーダー
+
+  // ── ステータスカラー ──────────────────────────────────────
+  green: "#2E844A",
+  greenLight: "rgba(46, 132, 74, 0.1)",
+  red: "#EA001E",
+  redLight: "rgba(234, 0, 30, 0.08)",
+  orange: "#FFB75D",
+  orangeLight: "rgba(255, 183, 93, 0.1)",
 };

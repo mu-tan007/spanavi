@@ -3,14 +3,14 @@ import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 
 const C = {
-  navy: '#1a2332',
-  navyDeep: '#0f1923',
-  navyLight: '#243044',
-  gold: '#c8a45a',
+  navy: '#032D60',
+  navyDeep: '#021B40',
+  navyLight: '#0176D3',
+  gold: '#C8A84B',
   white: '#ffffff',
-  border: '#d0d5dd',
-  borderLight: '#e8ecf0',
-  textLight: '#8896a6',
+  border: '#E5E5E5',
+  borderLight: '#F0F0F0',
+  textLight: '#706E6B',
 }
 
 function ShieldLogo() {
@@ -18,8 +18,8 @@ function ShieldLogo() {
     <svg width="72" height="82" viewBox="0 0 52 60" style={{ marginBottom: 16 }}>
       <defs>
         <linearGradient id="spShieldBg" x1="0" y1="0" x2="0.3" y2="1">
-          <stop offset="0%" stopColor="#1a3a5c"/>
-          <stop offset="100%" stopColor="#22496e"/>
+          <stop offset="0%" stopColor="#0176D3"/>
+          <stop offset="100%" stopColor="#032D60"/>
         </linearGradient>
         <clipPath id="shieldClipL"><path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z"/></clipPath>
       </defs>
@@ -237,7 +237,7 @@ export default function LoginPage() {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: `linear-gradient(160deg, ${C.navyDeep} 0%, ${C.navy} 35%, #2a5d8f 60%, ${C.navyLight} 100%)`,
+      background: `linear-gradient(160deg, ${C.navyDeep} 0%, ${C.navy} 35%, #0553A1 60%, ${C.navyLight} 100%)`,
       fontFamily: "'Noto Sans JP', sans-serif", position: 'relative', overflow: 'hidden', padding: '20px',
     }}>
       <div style={{ position: 'fixed', top: -80, right: -80, width: 300, height: 300, borderRadius: '50%', background: C.gold + '12' }} />

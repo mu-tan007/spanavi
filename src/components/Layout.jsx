@@ -17,9 +17,9 @@ export default function Layout({ currentView, setCurrentView, children }) {
   })
 
   return (
-    <div className="h-screen flex flex-col bg-[#111927]">
+    <div className="h-screen flex flex-col bg-[#F3F2F2]">
       {/* Header */}
-      <header className="flex items-center justify-between h-12 px-4 bg-[#1a2332] border-b border-[#2a3a4a] flex-shrink-0">
+      <header className="flex items-center justify-between h-12 px-4 bg-[#032D60] border-b border-[#1A4E8A] flex-shrink-0">
         <div className="flex items-center gap-3">
           <img src={LOGO_SRC} alt="Spanavi" className="w-7 h-7 object-contain" />
           <h1 className="text-base font-bold text-white tracking-tight">
@@ -34,8 +34,8 @@ export default function Layout({ currentView, setCurrentView, children }) {
               onClick={() => setCurrentView(item.key)}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 currentView === item.key
-                  ? 'bg-[#c8a45a]/15 text-[#c8a45a] border border-[#c8a45a]/30'
-                  : 'text-[#a0a8b4] hover:text-white hover:bg-[#243044]'
+                  ? 'bg-[#C8A84B]/15 text-[#C8A84B] border border-[#C8A84B]/30'
+                  : 'text-white/70 hover:text-white hover:bg-[#0176D3]'
               }`}
             >
               <span className="mr-1.5">{item.icon}</span>
@@ -47,11 +47,11 @@ export default function Layout({ currentView, setCurrentView, children }) {
         <div className="flex items-center gap-3">
           <div className="text-right">
             <div className="text-xs font-medium text-white">{profile?.name}</div>
-            <div className="text-[10px] text-[#6a7380]">{profile?.organizations?.name}</div>
+            <div className="text-[10px] text-white/50">{profile?.organizations?.name}</div>
           </div>
           <button
             onClick={signOut}
-            className="px-2.5 py-1 rounded-md text-xs text-[#6a7380] hover:text-[#c0392b] hover:bg-[#c0392b]/10 transition-colors"
+            className="px-2.5 py-1 rounded-md text-xs text-white/50 hover:text-[#EA001E] hover:bg-[#EA001E]/10 transition-colors"
           >
             ログアウト
           </button>

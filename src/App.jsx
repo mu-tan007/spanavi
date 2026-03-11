@@ -24,8 +24,8 @@ export default function App() {
           <svg width="72" height="82" viewBox="0 0 52 60" style={{ marginBottom: 20, animation: 'shieldGlow 2s ease-in-out infinite' }}>
             <defs>
               <linearGradient id="spShieldLoad" x1="0" y1="0" x2="0.3" y2="1">
-                <stop offset="0%" stopColor="#1a3a5c"/>
-                <stop offset="100%" stopColor="#22496e"/>
+                <stop offset="0%" stopColor="#0176D3"/>
+                <stop offset="100%" stopColor="#032D60"/>
               </linearGradient>
               <clipPath id="shieldClipLoad"><path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z"/></clipPath>
             </defs>
@@ -62,7 +62,7 @@ export default function App() {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f0e8', fontFamily: "'Noto Sans JP', sans-serif" }}>
         <div style={{ textAlign: 'center' }}>
           <p style={{ color: '#c0392b', fontSize: 14, marginBottom: 16 }}>データの読み込みに失敗しました。リロードしてください。</p>
-          <button onClick={() => window.location.reload()} style={{ padding: '8px 20px', borderRadius: 6, background: '#1a3a5c', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: "'Noto Sans JP', sans-serif" }}>
+          <button onClick={() => window.location.reload()} style={{ padding: '8px 20px', borderRadius: 6, background: '#0176D3', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: "'Noto Sans JP', sans-serif" }}>
             リロード
           </button>
         </div>

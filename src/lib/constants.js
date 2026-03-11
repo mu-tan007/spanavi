@@ -1,24 +1,24 @@
-// Spanavi カラーパレット（既存デザイン準拠）
+// Spanavi カラーパレット（ブルーテーマ）
 export const C = {
-  navy: '#1a2332',
-  navyLight: '#243044',
-  navyMid: '#1e2d3d',
-  dark: '#111927',
-  gold: '#c8a45a',
-  goldLight: '#d4b76e',
+  navy: '#032D60',        // ダークネイビー（ナビ背景）
+  navyLight: '#0176D3',   // プライマリブルー
+  navyMid: '#014486',     // ミドルブルー
+  dark: '#021B40',        // 最深部ネイビー
+  gold: '#C8A84B',        // ゴールド（ブランドアクセント）
+  goldLight: '#D4BB6A',
   white: '#ffffff',
-  offWhite: '#f0ece4',
-  textMain: '#e8e0d0',
-  textMid: '#a0a8b4',
-  textLight: '#6a7380',
-  green: '#2d8a4e',
-  greenLight: '#34a853',
-  red: '#c0392b',
-  redLight: '#e74c3c',
-  orange: '#e67e22',
-  blue: '#3498db',
-  border: '#2a3a4a',
-  borderLight: '#3a4a5c',
+  offWhite: '#F3F2F2',    // ページ背景
+  textMain: '#ffffff',    // 暗背景上のテキスト
+  textMid: '#A8C4E0',     // 暗背景上のサブテキスト
+  textLight: '#706E6B',   // 明背景上のサブテキスト
+  green: '#2E844A',
+  greenLight: '#4CAF70',
+  red: '#EA001E',
+  redLight: '#FF4D4D',
+  orange: '#FFB75D',
+  blue: '#0176D3',        // プライマリブルー
+  border: '#1A4E8A',      // 暗背景上のボーダー
+  borderLight: '#2A6CC4', // 暗背景上の明ボーダー
 }
 
 // 架電結果ステータス
