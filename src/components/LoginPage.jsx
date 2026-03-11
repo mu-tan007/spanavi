@@ -120,27 +120,29 @@ function MemberNameSelect({ members, selected, onSelect }) {
   )
 }
 
+// 名前からSupabase auth用メールアドレスを自動生成
+const generateEmail = (name) =>
+  `${name.replace(/\s/g, '')}.spanavi@masp-internal.com`
+
 export default function LoginPage() {
   const { signIn } = useAuth()
   // mode: 'login' | 'forgot' | 'forgotSent'
   const [mode, setMode] = useState('login')
 
-  // ログイン用メンバー一覧 { name, email, rank }
+  // ログイン用メンバー一覧 { name, rank }
   const [members, setMembers] = useState([])
   const [selected, setSelected] = useState(null)
   const [password, setPassword] = useState('')
-  const [adminEmail, setAdminEmail] = useState('')  // 管理者確認用
 
-  const [resetEmail, setResetEmail] = useState('')
+  // パスワードリセット用（名前選択で自動生成）
+  const [resetSelected, setResetSelected] = useState(null)
   const [error, setError]   = useState('')
   const [loading, setLoading] = useState(false)
-
-  const isAdmin = selected?.rank === 'admin'
 
   useEffect(() => {
     supabase
       .from('members')
-      .select('name, email, rank')
+      .select('name, rank')
       .eq('is_active', true)
       .order('sort_order')
       .then(({ data }) => {
@@ -153,16 +155,8 @@ export default function LoginPage() {
     setError('')
 
     if (!selected) { setError('氏名を選択してください'); return }
-    if (!selected.email) {
-      setError('メールアドレスが登録されていません。管理者にお問い合わせください。')
-      return
-    }
-    if (isAdmin && adminEmail && adminEmail !== selected.email) {
-      setError('メールアドレスが一致しません')
-      return
-    }
 
-    const email = selected.email
+    const email = generateEmail(selected.name)
     setLoading(true)
     try {
       // まず通常ログインを試みる
@@ -175,7 +169,7 @@ export default function LoginPage() {
             email,
             password,
             options: {
-              data: { name: selected?.name || '' }
+              data: { name: selected.name }
             }
           })
           if (signUpErr) {
@@ -208,9 +202,11 @@ export default function LoginPage() {
   const handleForgotPassword = async (e) => {
     e.preventDefault()
     setError('')
+    if (!resetSelected) { setError('氏名を選択してください'); return }
     setLoading(true)
     try {
-      const { error: err } = await supabase.auth.resetPasswordForEmail(resetEmail)
+      const email = generateEmail(resetSelected.name)
+      const { error: err } = await supabase.auth.resetPasswordForEmail(email)
       if (err) throw err
       setMode('forgotSent')
     } catch (err) {
@@ -275,27 +271,8 @@ export default function LoginPage() {
             <MemberNameSelect
               members={members}
               selected={selected}
-              onSelect={(m) => { setSelected(m); setAdminEmail(''); setPassword(''); setError('') }}
+              onSelect={(m) => { setSelected(m); setPassword(''); setError('') }}
             />
-
-            {/* 管理者のみ：メールアドレス確認 */}
-            {isAdmin && (
-              <div style={{ marginBottom: 14 }}>
-                <div style={{ ...labelStyle, color: C.gold }}>
-                  メールアドレス<span style={{ fontWeight: 400, color: C.textLight, marginLeft: 4 }}>（管理者確認）</span>
-                </div>
-                <input
-                  type="email"
-                  value={adminEmail}
-                  onChange={e => setAdminEmail(e.target.value)}
-                  placeholder={selected?.email ?? ''}
-                  autoComplete="off"
-                  style={{ ...inputStyle, border: `2px solid ${C.gold}` }}
-                  onFocus={e => e.target.style.borderColor = C.gold}
-                  onBlur={e => e.target.style.borderColor = C.gold}
-                />
-              </div>
-            )}
 
             {/* パスワード */}
             <div style={{ marginBottom: 4 }}>
@@ -335,18 +312,12 @@ export default function LoginPage() {
         {mode === 'forgot' && (
           <form onSubmit={handleForgotPassword}>
             <div style={{ fontSize: 13, color: C.textLight, marginBottom: 20, lineHeight: 1.8 }}>
-              登録済みのメールアドレスを入力してください。<br />パスワード再設定のリンクをお送りします。
+              氏名を選択してください。<br />パスワード再設定のリンクをお送りします。
             </div>
-            <div style={labelStyle}>メールアドレス</div>
-            <input
-              type="email"
-              value={resetEmail}
-              onChange={e => setResetEmail(e.target.value)}
-              placeholder="email@example.com"
-              required
-              style={{ ...inputStyle, marginBottom: 16 }}
-              onFocus={e => e.target.style.borderColor = C.gold}
-              onBlur={e => e.target.style.borderColor = C.border}
+            <MemberNameSelect
+              members={members}
+              selected={resetSelected}
+              onSelect={(m) => { setResetSelected(m); setError('') }}
             />
             {errBlock}
             <button type="submit" disabled={loading} style={btnStyle}>
@@ -368,7 +339,7 @@ export default function LoginPage() {
             <div style={{ fontSize: 40, marginBottom: 12 }}>📧</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 12 }}>メールを送信しました</div>
             <div style={{ fontSize: 13, color: C.textLight, lineHeight: 1.8, marginBottom: 24 }}>
-              {resetEmail} に<br />パスワード再設定のリンクを送りました。<br />メールをご確認ください。
+              {resetSelected?.name} 宛に<br />パスワード再設定のリンクを送りました。<br />メールをご確認ください。
             </div>
             <span
               onClick={() => { setMode('login'); setError('') }}
