@@ -5,6 +5,7 @@ import { CALL_RESULTS } from '../../constants/callResults';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
 import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, fetchCallRecordsForRanking } from '../../lib/supabaseWrite';
+import { supabase } from '../../lib/supabase';
 import RecallModal from './RecallModal';
 import AppoReportModal from './AppoReportModal';
 
@@ -57,45 +58,70 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     });
   };
 
-  // ── 本日のリアルタイム架電統計（60秒ポーリング）──
-  const CEO_STATUSES = new Set(['社長不在', '社長再コール', '社長お断り', 'アポ獲得']);
+  // ── 本日のリアルタイム架電統計（Supabaseリアルタイム購読）──
+  // 社長接続の定義: アポ獲得・社長再コール・社長お断りのみ（社長不在は含まない）
+  const CEO_STATUSES = new Set(['アポ獲得', '社長再コール', '社長お断り']);
   const [todayStats, setTodayStats] = useState(null);
-  const [localCallCount, setLocalCallCount] = useState(0);
-  const [localConnectCount, setLocalConnectCount] = useState(0);
-  const [statsRefreshKey, setStatsRefreshKey] = useState(0);
+  const allTodayRecordsRef = useRef([]);
   useEffect(() => {
     const internCount = members.filter(m => typeof m === 'object' && m.rank !== 'admin').length;
-    const fetchStats = async () => {
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
+    const fromISO = new Date(todayStr + 'T00:00:00+09:00').toISOString();
+    const toISO = new Date(todayStr + 'T23:59:59+09:00').toISOString();
+
+    const computeStats = (recs) => {
+      const myRecs = recs.filter(r => r.getter_name === currentUser);
+      const myCallCount = myRecs.length;
+      const myCeoCount = myRecs.filter(r => CEO_STATUSES.has(r.status)).length;
+      const myAppoCount = myRecs.filter(r => r.status === 'アポ獲得').length;
+      const callersCount = new Set(recs.map(r => r.getter_name)).size;
+      const ceoPeople = new Set(recs.filter(r => CEO_STATUSES.has(r.status)).map(r => r.getter_name)).size;
+      const appoByPerson = {};
+      recs.filter(r => r.status === 'アポ獲得').forEach(r => {
+        appoByPerson[r.getter_name] = (appoByPerson[r.getter_name] || 0) + 1;
+      });
+      const appersSorted = Object.values(appoByPerson).sort((a, b) => b - a);
+      const myAppoRank = myAppoCount > 0
+        ? appersSorted.findIndex(v => v <= myAppoCount) + 1
+        : null;
+      return { myCallCount, myCeoCount, myAppoCount, myAppoRank, callersCount, ceoPeople, internCount };
+    };
+
+    const fetchTodayStats = async () => {
       try {
-        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
-        const fromISO = new Date(todayStr + 'T00:00:00+09:00').toISOString();
-        const toISO = new Date(todayStr + 'T23:59:59+09:00').toISOString();
         const { data: recs } = await fetchCallRecordsForRanking(fromISO, toISO);
         if (!recs) return;
-        const myRecs = recs.filter(r => r.getter_name === currentUser);
-        const myCallCount = myRecs.length;
-        const myCeoCount = myRecs.filter(r => CEO_STATUSES.has(r.status)).length;
-        const myAppoCount = myRecs.filter(r => r.status === 'アポ獲得').length;
-        const callersCount = new Set(recs.map(r => r.getter_name)).size;
-        const ceoPeople = new Set(recs.filter(r => CEO_STATUSES.has(r.status)).map(r => r.getter_name)).size;
-        // アポランキング
-        const appoByPerson = {};
-        recs.filter(r => r.status === 'アポ獲得').forEach(r => {
-          appoByPerson[r.getter_name] = (appoByPerson[r.getter_name] || 0) + 1;
-        });
-        const appersSorted = Object.values(appoByPerson).sort((a, b) => b - a);
-        const myAppoRank = myAppoCount > 0
-          ? appersSorted.findIndex(v => v <= myAppoCount) + 1
-          : null;
-        setTodayStats({ myCallCount, myCeoCount, myAppoCount, myAppoRank, callersCount, ceoPeople, internCount });
+        allTodayRecordsRef.current = recs;
+        setTodayStats(computeStats(recs));
       } catch (e) {
         console.error('[CallFlowView] todayStats fetch error:', e);
       }
     };
-    fetchStats();
-    const tid = setInterval(fetchStats, 60000);
-    return () => clearInterval(tid);
-  }, [currentUser, statsRefreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const updateStatsFromPayload = (newRecord) => {
+      if (newRecord.called_at < fromISO || newRecord.called_at > toISO) return;
+      allTodayRecordsRef.current = [...allTodayRecordsRef.current, newRecord];
+      setTodayStats(computeStats(allTodayRecordsRef.current));
+    };
+
+    fetchTodayStats();
+
+    const channel = supabase
+      .channel('header-stats')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'call_records',
+        filter: `org_id=eq.a0000000-0000-0000-0000-000000000001`,
+      }, (payload) => {
+        updateStatsFromPayload(payload.new);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!list._supaId) {
@@ -448,9 +474,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setItems(newItems);
     setCallRecords(newRecords);
     _updateSessionProgress();
-    setLocalCallCount(c => c + 1);
-    if (CEO_STATUSES.has(result)) setLocalConnectCount(c => c + 1);
-
     const idx = newItems.findIndex(i => i.id === selectedRow.id);
     let next = null;
     for (let j = idx + 1; j < newItems.length; j++) {
@@ -590,10 +613,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setSelectedRow(next || updatedItem);
     if (autoDial && next?.phone) dialPhone(next.phone);
     setAppoModal(null);
-    setLocalCallCount(c => c + 1);
-    setLocalConnectCount(c => c + 1);
-    setStatsRefreshKey(k => k + 1);
-
     // zoom.us URLをSupabase Storageに変換（非ブロッキング）
     if (recordingUrlAppo && newRec?.id) uploadRecordingToStorage(newRec.id, recordingUrlAppo);
   };
@@ -663,8 +682,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setSelectedRow(next || updatedItem);
     if (autoDial && next?.phone) dialPhone(next.phone);
     setRecallModal(null);
-    setLocalCallCount(c => c + 1);
-    if (label === '社長再コール') setLocalConnectCount(c => c + 1);
   };
 
   const handleMemoBlur = async () => {
@@ -1135,9 +1152,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         {/* 中央左: 本日の統計 */}
         {todayStats && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11, color: 'rgba(255,255,255,0.85)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            <span>📞 <span style={{ color: '#fff', fontWeight: 700 }}>{todayStats.myCallCount + localCallCount}</span>件 ({todayStats.callersCount}/{todayStats.internCount}人)</span>
+            <span>📞 <span style={{ color: '#fff', fontWeight: 700 }}>{todayStats.myCallCount}</span>件 ({todayStats.callersCount}/{todayStats.internCount}人)</span>
             <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
-            <span>🤝 <span style={{ color: '#fff', fontWeight: 700 }}>{todayStats.myCeoCount + localConnectCount}</span>件 ({todayStats.ceoPeople}/{todayStats.internCount}人)</span>
+            <span>🤝 <span style={{ color: '#fff', fontWeight: 700 }}>{todayStats.myCeoCount}</span>件 ({todayStats.ceoPeople}/{todayStats.internCount}人)</span>
             <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
             <span>🏆 <span style={{ color: '#fff', fontWeight: 700 }}>{todayStats.myAppoCount}</span>件 (<span style={{ color: '#F4C430', fontWeight: 700 }}>{todayStats.myAppoRank != null ? todayStats.myAppoRank + '位' : '-位'}</span>/{todayStats.internCount}人)</span>
           </div>
