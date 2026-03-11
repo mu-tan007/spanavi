@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
         continue
       }
 
-      if (member.zoom_user_id === zu.id) {
+      if (member.zoom_user_id === zu.id && member.email) {
         skipped.push(member.name)
         continue
       }
