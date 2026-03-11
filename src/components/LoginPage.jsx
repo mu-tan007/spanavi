@@ -173,8 +173,12 @@ export default function LoginPage() {
         try {
           const { error: signUpErr } = await supabase.auth.signUp({ email, password })
           if (signUpErr) {
-            // 既登録 = パスワードが違う
-            if (signUpErr.message === 'User already registered') {
+            if (
+              signUpErr.message === 'User already registered' ||
+              signUpErr.message.includes('Database error') ||
+              signUpErr.message.includes('already registered') ||
+              signUpErr.message.includes('duplicate')
+            ) {
               setError('パスワードが正しくありません')
             } else {
               setError(signUpErr.message)
