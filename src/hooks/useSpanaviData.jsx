@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 /**
@@ -10,25 +10,20 @@ export function useSpanaviData() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const hasLoadedRef = useRef(false)
-
   useEffect(() => {
-    // 1. 初回フェッチ
-    fetchAllData().then(() => {
-      hasLoadedRef.current = true
-    })
-
-    // 2. SIGNED_INイベントを監視（初回ロード済みの場合は無視）
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && !hasLoadedRef.current) {
-        fetchAllData().then(() => {
-          hasLoadedRef.current = true
-        })
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        fetchAllData()
+      } else {
+        // セッションがない場合は500ms待ってリトライ（1回のみ）
+        setTimeout(async () => {
+          const { data: { session: retrySession } } = await supabase.auth.getSession()
+          if (retrySession) fetchAllData()
+        }, 500)
       }
-    })
-
-    // 3. アンマウント時にリスナー解除
-    return () => subscription.unsubscribe()
+    }
+    init()
   }, [])
 
   const fetchAllData = async () => {
