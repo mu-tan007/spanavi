@@ -42,134 +42,9 @@ function ShieldLogo() {
   )
 }
 
-function InputField({ label, type = 'text', value, onChange, placeholder, required, autoComplete }) {
-  const [focused, setFocused] = useState(false)
-  return (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: C.navy, marginBottom: 5, letterSpacing: 1 }}>
-        {label}{required && <span style={{ color: '#e74c3c', marginLeft: 2 }}>*</span>}
-      </div>
-      <input
-        type={type}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        required={required}
-        autoComplete={autoComplete}
-        style={{
-          width: '100%', padding: '10px 12px', borderRadius: 8,
-          border: `2px solid ${focused ? C.gold : C.border}`, fontSize: 13,
-          fontFamily: "'Noto Sans JP'", outline: 'none',
-          transition: 'border-color 0.2s', boxSizing: 'border-box',
-          background: C.white,
-        }}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-      />
-    </div>
-  )
-}
-
-function SelectField({ label, value, onChange, options, required }) {
-  const [focused, setFocused] = useState(false)
-  return (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: C.navy, marginBottom: 5, letterSpacing: 1 }}>
-        {label}{required && <span style={{ color: '#e74c3c', marginLeft: 2 }}>*</span>}
-      </div>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        required={required}
-        style={{
-          width: '100%', padding: '10px 12px', borderRadius: 8,
-          border: `2px solid ${focused ? C.gold : C.border}`, fontSize: 13,
-          fontFamily: "'Noto Sans JP'", outline: 'none',
-          transition: 'border-color 0.2s', boxSizing: 'border-box',
-          background: C.white, cursor: 'pointer', color: C.navy,
-        }}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-      >
-        <option value="" style={{ color: C.navy }}>選択してください</option>
-        {options.map(o => <option key={o} value={o} style={{ color: C.navy }}>{o}</option>)}
-      </select>
-    </div>
-  )
-}
-
-function AutocompleteField({ label, value, onChange, candidates }) {
-  const [focused, setFocused] = useState(false)
-  const [showList, setShowList] = useState(false)
-  const wrapperRef = useRef(null)
-
-  const filtered = value.length > 0
-    ? candidates.filter(c => c.includes(value) && c !== value)
-    : []
-
-  useEffect(() => {
-    const handleClick = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setShowList(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  return (
-    <div style={{ marginBottom: 14, position: 'relative' }} ref={wrapperRef}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: C.navy, marginBottom: 5, letterSpacing: 1 }}>
-        {label}
-      </div>
-      <input
-        type="text"
-        value={value}
-        onChange={e => { onChange(e.target.value); setShowList(true) }}
-        placeholder="名前を入力..."
-        autoComplete="off"
-        style={{
-          width: '100%', padding: '10px 12px', borderRadius: 8,
-          border: `2px solid ${focused ? C.gold : C.border}`, fontSize: 13,
-          fontFamily: "'Noto Sans JP'", outline: 'none',
-          transition: 'border-color 0.2s', boxSizing: 'border-box',
-          background: C.white,
-        }}
-        onFocus={() => { setFocused(true); setShowList(true) }}
-        onBlur={() => setFocused(false)}
-      />
-      {showList && filtered.length > 0 && (
-        <div style={{
-          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-          background: C.white, border: '2px solid ' + C.gold, borderRadius: 8,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.12)', maxHeight: 160, overflowY: 'auto',
-        }}>
-          <div
-            onMouseDown={() => { onChange(''); setShowList(false) }}
-            style={{ padding: '8px 12px', fontSize: 13, color: C.textLight, cursor: 'pointer', borderBottom: '1px solid ' + C.borderLight }}
-          >
-            （なし）
-          </div>
-          {filtered.map(name => (
-            <div
-              key={name}
-              onMouseDown={() => { onChange(name); setShowList(false) }}
-              style={{ padding: '8px 12px', fontSize: 13, color: C.navy, cursor: 'pointer', borderBottom: '1px solid ' + C.borderLight }}
-              onMouseEnter={e => e.currentTarget.style.background = '#f5f0e8'}
-              onMouseLeave={e => e.currentTarget.style.background = C.white}
-            >
-              {name}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// 名前選択オートコンプリート（member オブジェクトを返す）
+// 名前オートコンプリート（メンバーオブジェクトを返す）
 function MemberNameSelect({ members, selected, onSelect }) {
-  const [query, setQuery] = useState(selected?.name ?? '')
+  const [query, setQuery]     = useState(selected?.name ?? '')
   const [focused, setFocused] = useState(false)
   const [showList, setShowList] = useState(false)
   const wrapperRef = useRef(null)
@@ -181,16 +56,15 @@ function MemberNameSelect({ members, selected, onSelect }) {
   )
 
   useEffect(() => {
-    const handleClick = (e) => {
+    const onClickOutside = (e) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
         setShowList(false)
-        if (!members.find(m => m.name === query)) {
-          setQuery(selected?.name ?? '')
-        }
+        // 確定されていない入力はリセット
+        if (!members.find(m => m.name === query)) setQuery(selected?.name ?? '')
       }
     }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
   }, [query, selected, members])
 
   const handleSelect = (m) => {
@@ -224,13 +98,16 @@ function MemberNameSelect({ members, selected, onSelect }) {
         <div style={{
           position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
           background: C.white, border: '2px solid ' + C.gold, borderRadius: 8,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.15)', maxHeight: 200, overflowY: 'auto',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.15)', maxHeight: 220, overflowY: 'auto',
         }}>
           {filtered.map(m => (
             <div
               key={m.name}
               onMouseDown={() => handleSelect(m)}
-              style={{ padding: '10px 12px', fontSize: 13, color: C.navy, cursor: 'pointer', borderBottom: '1px solid ' + C.borderLight }}
+              style={{
+                padding: '10px 12px', fontSize: 13, color: C.navy,
+                cursor: 'pointer', borderBottom: '1px solid ' + C.borderLight,
+              }}
               onMouseEnter={e => e.currentTarget.style.background = '#f5f0e8'}
               onMouseLeave={e => e.currentTarget.style.background = C.white}
             >
@@ -245,94 +122,74 @@ function MemberNameSelect({ members, selected, onSelect }) {
 
 export default function LoginPage() {
   const { signIn } = useAuth()
-  // mode: 'login' | 'signup' | 'forgot' | 'forgotSent' | 'success'
+  // mode: 'login' | 'forgot' | 'forgotSent'
   const [mode, setMode] = useState('login')
 
-  // ログインフォーム
-  const [loginMembers, setLoginMembers] = useState([])   // { name, email, rank }[]
-  const [selected, setSelected]         = useState(null) // 選択中メンバー
-  const [password, setPassword]         = useState('')
-  const [adminEmail, setAdminEmail]     = useState('')   // 管理者確認用メール
-
-  // 新規登録フォーム
-  const [signupEmail, setSignupEmail]               = useState('')
-  const [name, setName]                             = useState('')
-  const [university, setUniversity]                 = useState('')
-  const [grade, setGrade]                           = useState('')
-  const [team, setTeam]                             = useState('')
-  const [startDate, setStartDate]                   = useState('')
-  const [operationStartDate, setOperationStartDate] = useState('')
-  const [referrerName, setReferrerName]             = useState('')
+  // ログイン用メンバー一覧 { name, email, rank }
+  const [members, setMembers] = useState([])
+  const [selected, setSelected] = useState(null)
+  const [password, setPassword] = useState('')
+  const [adminEmail, setAdminEmail] = useState('')  // 管理者確認用
 
   const [resetEmail, setResetEmail] = useState('')
-  const [error, setError]           = useState('')
-  const [loading, setLoading]       = useState(false)
-
-  const [teams, setTeams]           = useState([])
-  const [memberNames, setMemberNames] = useState([])
+  const [error, setError]   = useState('')
+  const [loading, setLoading] = useState(false)
 
   const isAdmin = selected?.rank === 'admin'
 
   useEffect(() => {
-    const fetchData = async () => {
-      // ログイン用メンバー一覧（name, email, rank）
-      const { data: membersData } = await supabase
-        .from('members')
-        .select('name, email, rank')
-        .eq('is_active', true)
-        .order('sort_order')
-      if (membersData) setLoginMembers(membersData.filter(m => m.name))
-
-      // 新規登録用チーム
-      const { data: teamsData } = await supabase.from('teams').select('name').order('name')
-      if (teamsData) setTeams(teamsData.map(t => t.name))
-
-      // 新規登録用メンバー名（紹介者）
-      const { data: names } = await supabase
-        .from('members').select('name').eq('is_active', true).order('sort_order')
-      if (names) setMemberNames(names.map(m => m.name).filter(Boolean))
-    }
-    fetchData()
+    supabase
+      .from('members')
+      .select('name, email, rank')
+      .eq('is_active', true)
+      .order('sort_order')
+      .then(({ data }) => {
+        if (data) setMembers(data.filter(m => m.name))
+      })
   }, [])
 
   const handleLogin = async (e) => {
     e.preventDefault()
     setError('')
+
     if (!selected) { setError('氏名を選択してください'); return }
     if (!selected.email) {
-      setError('このメンバーにはメールアドレスが登録されていません。管理者にお問い合わせください。')
+      setError('メールアドレスが登録されていません。管理者にお問い合わせください。')
       return
     }
-    // 管理者はメール確認
     if (isAdmin && adminEmail && adminEmail !== selected.email) {
       setError('メールアドレスが一致しません')
       return
     }
-    setLoading(true)
-    try {
-      await signIn(selected.email, password)
-    } catch (err) {
-      setError(err.message === 'Invalid login credentials'
-        ? 'パスワードが正しくありません' : err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
 
-  const handleSignup = async (e) => {
-    e.preventDefault()
-    setError('')
-    if (!team) { setError('チームを選択してください'); return }
+    const email = selected.email
     setLoading(true)
     try {
-      const { error: err } = await supabase.auth.signUp({
-        email: signupEmail, password: 'masp2026',
-        options: { data: { name, university, grade: grade ? parseInt(grade) : null, team, start_date: startDate || null, operation_start_date: operationStartDate || null, referrer_name: referrerName || null } }
-      })
-      if (err) throw err
-      setMode('success')
-    } catch (err) {
-      setError(err.message === 'User already registered' ? 'このメールアドレスは既に登録されています' : err.message)
+      // まず通常ログインを試みる
+      await signIn(email, password)
+    } catch (loginErr) {
+      if (loginErr.message === 'Invalid login credentials') {
+        // アカウント未作成の可能性 → 初回サインアップを試みる
+        try {
+          const { error: signUpErr } = await supabase.auth.signUp({ email, password })
+          if (signUpErr) {
+            // 既登録 = パスワードが違う
+            if (signUpErr.message === 'User already registered') {
+              setError('パスワードが正しくありません')
+            } else {
+              setError(signUpErr.message)
+            }
+            setLoading(false)
+            return
+          }
+          // サインアップ成功 → そのままサインイン
+          await signIn(email, password)
+        } catch (signUpError) {
+          setError('パスワードが正しくありません')
+        }
+      } else {
+        setError(loginErr.message)
+      }
     } finally {
       setLoading(false)
     }
@@ -357,8 +214,8 @@ export default function LoginPage() {
     width: '100%', padding: '10px 12px', borderRadius: 8,
     border: '2px solid ' + C.border, fontSize: 13,
     fontFamily: "'Noto Sans JP'", outline: 'none',
-    transition: 'border-color 0.2s', marginBottom: 14,
-    boxSizing: 'border-box',
+    transition: 'border-color 0.2s', marginBottom: 0,
+    boxSizing: 'border-box', background: C.white,
   }
 
   const btnStyle = {
@@ -370,10 +227,12 @@ export default function LoginPage() {
   }
 
   const errBlock = error && (
-    <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: 8, background: '#fff0f0', border: '1px solid #ffcccc', fontSize: 12, color: '#c0392b' }}>{error}</div>
+    <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: 12, background: '#fff0f0', border: '1px solid #ffcccc', fontSize: 12, color: '#c0392b' }}>
+      {error}
+    </div>
   )
 
-  const isLoginTab = ['login', 'signup'].includes(mode)
+  const labelStyle = { fontSize: 11, fontWeight: 600, color: C.navy, marginBottom: 5, letterSpacing: 1 }
 
   return (
     <div style={{
@@ -381,65 +240,47 @@ export default function LoginPage() {
       background: `linear-gradient(160deg, ${C.navyDeep} 0%, ${C.navy} 35%, #2a5d8f 60%, ${C.navyLight} 100%)`,
       fontFamily: "'Noto Sans JP', sans-serif", position: 'relative', overflow: 'hidden', padding: '20px',
     }}>
-      <div style={{ position: 'fixed', top: -80, right: -80, width: 300, height: 300, borderRadius: '50%', background: C.gold + '12' }}></div>
-      <div style={{ position: 'fixed', bottom: -60, left: -60, width: 200, height: 200, borderRadius: '50%', background: C.gold + '08' }}></div>
+      <div style={{ position: 'fixed', top: -80, right: -80, width: 300, height: 300, borderRadius: '50%', background: C.gold + '12' }} />
+      <div style={{ position: 'fixed', bottom: -60, left: -60, width: 200, height: 200, borderRadius: '50%', background: C.gold + '08' }} />
 
       <div style={{
         background: C.white, borderRadius: 20,
-        padding: mode === 'signup' ? '32px 36px 28px' : '40px 40px 32px',
-        width: mode === 'signup' ? 500 : 380, maxWidth: '100%',
+        padding: '40px 40px 32px',
+        width: 380, maxWidth: '100%',
         boxShadow: '0 16px 64px rgba(0,0,0,0.35)', position: 'relative', zIndex: 1,
         borderTop: '4px solid ' + C.gold,
       }}>
-        <div style={{ textAlign: 'center', marginBottom: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        {/* ロゴ */}
+        <div style={{ textAlign: 'center', marginBottom: 28, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <ShieldLogo />
           <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: 2, color: C.navy }}>
             Spa<span style={{ background: 'linear-gradient(180deg, #c6a358, #a8883a)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>navi</span>
           </div>
         </div>
 
-        {/* ログイン / 新規登録 タブ */}
-        {isLoginTab && (
-          <div style={{ display: 'flex', marginBottom: 24, borderRadius: 10, overflow: 'hidden', border: '2px solid ' + C.borderLight }}>
-            {[
-              { key: 'login',  label: 'ログイン' },
-              { key: 'signup', label: '新規登録' },
-            ].map(({ key, label }) => (
-              <button key={key} onClick={() => { setMode(key); setError('') }} style={{
-                flex: 1, padding: '10px', border: 'none', cursor: 'pointer',
-                background: mode === key ? `linear-gradient(135deg, ${C.gold}, #a8883a)` : C.white,
-                color: mode === key ? C.white : C.textLight,
-                fontSize: 13, fontWeight: 700, fontFamily: "'Noto Sans JP'", letterSpacing: 1,
-              }}>
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
-
         {/* ── ログインフォーム ── */}
         {mode === 'login' && (
-          <form onSubmit={handleLogin}>
+          <form onSubmit={handleLogin} autoComplete="off">
             {/* 名前選択 */}
             <MemberNameSelect
-              members={loginMembers}
+              members={members}
               selected={selected}
-              onSelect={(m) => { setSelected(m); setAdminEmail(''); setError('') }}
+              onSelect={(m) => { setSelected(m); setAdminEmail(''); setPassword(''); setError('') }}
             />
 
-            {/* 管理者のみ：メールアドレス確認欄 */}
+            {/* 管理者のみ：メールアドレス確認 */}
             {isAdmin && (
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: C.gold, marginBottom: 5, letterSpacing: 1 }}>
-                  メールアドレス（管理者確認）
+                <div style={{ ...labelStyle, color: C.gold }}>
+                  メールアドレス<span style={{ fontWeight: 400, color: C.textLight, marginLeft: 4 }}>（管理者確認）</span>
                 </div>
                 <input
                   type="email"
                   value={adminEmail}
                   onChange={e => setAdminEmail(e.target.value)}
-                  placeholder={selected.email}
-                  autoComplete="email"
-                  style={{ ...inputStyle, marginBottom: 0, border: `2px solid ${C.gold}` }}
+                  placeholder={selected?.email ?? ''}
+                  autoComplete="off"
+                  style={{ ...inputStyle, border: `2px solid ${C.gold}` }}
                   onFocus={e => e.target.style.borderColor = C.gold}
                   onBlur={e => e.target.style.borderColor = C.gold}
                 />
@@ -447,8 +288,8 @@ export default function LoginPage() {
             )}
 
             {/* パスワード */}
-            <div style={{ marginBottom: selected ? 4 : 14 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: C.navy, marginBottom: 5, letterSpacing: 1 }}>
+            <div style={{ marginBottom: 4 }}>
+              <div style={labelStyle}>
                 パスワード<span style={{ color: '#e74c3c', marginLeft: 2 }}>*</span>
               </div>
               <input
@@ -457,15 +298,18 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                autoComplete="current-password"
-                style={{ ...inputStyle, marginBottom: 0 }}
+                autoComplete="off"
+                style={inputStyle}
                 onFocus={e => e.target.style.borderColor = C.gold}
                 onBlur={e => e.target.style.borderColor = C.border}
               />
             </div>
 
-            <div style={{ textAlign: 'right', marginBottom: 12, marginTop: 4 }}>
-              <span onClick={() => { setMode('forgot'); setError('') }} style={{ fontSize: 11, color: C.gold, cursor: 'pointer', textDecoration: 'underline' }}>
+            <div style={{ textAlign: 'right', marginBottom: 16, marginTop: 6 }}>
+              <span
+                onClick={() => { setMode('forgot'); setError('') }}
+                style={{ fontSize: 11, color: C.gold, cursor: 'pointer', textDecoration: 'underline' }}
+              >
                 パスワードを忘れた方はこちら
               </span>
             </div>
@@ -477,41 +321,32 @@ export default function LoginPage() {
           </form>
         )}
 
-        {/* ── 新規登録 ── */}
-        {mode === 'signup' && (
-          <form onSubmit={handleSignup}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-              <div>
-                <InputField label="氏名" value={name} onChange={setName} placeholder="篠宮 拓武" required />
-                <InputField label="大学名" value={university} onChange={setUniversity} placeholder="早稲田大学" required />
-                <SelectField label="学年" value={grade} onChange={setGrade} options={['1', '2', '3', '4', '5', '6']} required />
-                <InputField label="メールアドレス" type="email" value={signupEmail} onChange={setSignupEmail} placeholder="email@example.com" required autoComplete="email" />
-              </div>
-              <div>
-                <InputField label="入社日" type="date" value={startDate} onChange={setStartDate} />
-                <InputField label="稼働開始日" type="date" value={operationStartDate} onChange={setOperationStartDate} />
-                <SelectField label="チーム" value={team} onChange={setTeam} options={teams} required />
-                <AutocompleteField label="紹介者" value={referrerName} onChange={setReferrerName} candidates={memberNames} />
-              </div>
-            </div>
-            {errBlock}
-            <button type="submit" disabled={loading} style={btnStyle}>{loading ? '登録中...' : '登録する'}</button>
-          </form>
-        )}
-
         {/* ── パスワードリセット ── */}
         {mode === 'forgot' && (
           <form onSubmit={handleForgotPassword}>
             <div style={{ fontSize: 13, color: C.textLight, marginBottom: 20, lineHeight: 1.8 }}>
               登録済みのメールアドレスを入力してください。<br />パスワード再設定のリンクをお送りします。
             </div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: C.navy, marginBottom: 6, letterSpacing: 1 }}>メールアドレス</div>
-            <input type="email" value={resetEmail} onChange={e => setResetEmail(e.target.value)} placeholder="email@example.com" required style={inputStyle}
-              onFocus={e => e.target.style.borderColor = C.gold} onBlur={e => e.target.style.borderColor = C.border} />
+            <div style={labelStyle}>メールアドレス</div>
+            <input
+              type="email"
+              value={resetEmail}
+              onChange={e => setResetEmail(e.target.value)}
+              placeholder="email@example.com"
+              required
+              style={{ ...inputStyle, marginBottom: 16 }}
+              onFocus={e => e.target.style.borderColor = C.gold}
+              onBlur={e => e.target.style.borderColor = C.border}
+            />
             {errBlock}
-            <button type="submit" disabled={loading} style={btnStyle}>{loading ? '送信中...' : '再設定メールを送る'}</button>
+            <button type="submit" disabled={loading} style={btnStyle}>
+              {loading ? '送信中...' : '再設定メールを送る'}
+            </button>
             <div style={{ textAlign: 'center', marginTop: 16 }}>
-              <span onClick={() => { setMode('login'); setError('') }} style={{ fontSize: 12, color: C.gold, cursor: 'pointer', textDecoration: 'underline' }}>
+              <span
+                onClick={() => { setMode('login'); setError('') }}
+                style={{ fontSize: 12, color: C.gold, cursor: 'pointer', textDecoration: 'underline' }}
+              >
                 ログインに戻る
               </span>
             </div>
@@ -525,22 +360,12 @@ export default function LoginPage() {
             <div style={{ fontSize: 13, color: C.textLight, lineHeight: 1.8, marginBottom: 24 }}>
               {resetEmail} に<br />パスワード再設定のリンクを送りました。<br />メールをご確認ください。
             </div>
-            <span onClick={() => { setMode('login'); setError('') }} style={{ fontSize: 12, color: C.gold, cursor: 'pointer', textDecoration: 'underline' }}>
+            <span
+              onClick={() => { setMode('login'); setError('') }}
+              style={{ fontSize: 12, color: C.gold, cursor: 'pointer', textDecoration: 'underline' }}
+            >
               ログインに戻る
             </span>
-          </div>
-        )}
-
-        {mode === 'success' && (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: C.navy, marginBottom: 12 }}>登録完了！</div>
-            <div style={{ fontSize: 13, color: C.textLight, lineHeight: 1.8, marginBottom: 24 }}>
-              確認メールを送信しました。<br />メール内のリンクをクリックして<br />アカウントを有効化してください。
-            </div>
-            <button onClick={() => setMode('login')} style={{ padding: '10px 32px', borderRadius: 8, border: 'none', cursor: 'pointer', background: `linear-gradient(135deg, ${C.gold}, #a8883a)`, color: C.white, fontSize: 13, fontWeight: 700, fontFamily: "'Noto Sans JP'" }}>
-              ログイン画面へ
-            </button>
           </div>
         )}
 
