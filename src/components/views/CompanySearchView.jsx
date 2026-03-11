@@ -112,7 +112,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   const [selectedItemFull, setSelectedItemFull] = useState(null);
 
   // Filter
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 1000;
   const sortedResults = clientSortBy ? [...searchResults].sort((a, b) => {
     let va, vb;
     if (clientSortBy === "company") { va = a.company || ""; vb = b.company || ""; }

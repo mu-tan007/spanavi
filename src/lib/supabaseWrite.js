@@ -803,13 +803,12 @@ export async function searchCallListItemsServerSide({
     if (jp) query = query.eq('call_status', jp);
   }
 
-  // .ilike() 直接呼び出しは SQL の % ワイルドカード
-  // .or() 内の PostgREST フィルタ式は * ワイルドカード（% は誤り）
-  const kw = keyword.trim().replace(/\*/g, '\\*');
+  // ilike のワイルドカードは % （.or() 内でも .ilike() 直接呼び出しでも同じ）
+  const kw = keyword.trim().replace(/%/g, '\\%').replace(/_/g, '\\_');
   if (kw) {
     if (searchField === 'all') {
       query = query.or(
-        `company.ilike.*${kw}*,representative.ilike.*${kw}*,phone.ilike.*${kw}*,business.ilike.*${kw}*,call_status.ilike.*${kw}*`
+        `company.ilike.%${kw}%,representative.ilike.%${kw}%,phone.ilike.%${kw}%,business.ilike.%${kw}%,call_status.ilike.%${kw}%`
       );
     } else if (searchField === 'status') {
       query = query.ilike('call_status', `%${kw}%`);
