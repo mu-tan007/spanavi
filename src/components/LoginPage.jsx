@@ -126,15 +126,19 @@ const generateEmail = (name) =>
 
 export default function LoginPage() {
   const { signIn } = useAuth()
-  // mode: 'login' | 'forgot' | 'forgotSent'
+  // mode: 'login' | 'admin' | 'forgot' | 'forgotSent'
   const [mode, setMode] = useState('login')
 
-  // ログイン用メンバー一覧 { name, rank }
+  // 通常ログイン用メンバー一覧（adminを除外）
   const [members, setMembers] = useState([])
   const [selected, setSelected] = useState(null)
   const [password, setPassword] = useState('')
 
-  // パスワードリセット用（名前選択で自動生成）
+  // 管理者ログイン用
+  const [adminEmail, setAdminEmail] = useState('')
+  const [adminPassword, setAdminPassword] = useState('')
+
+  // パスワードリセット用
   const [resetSelected, setResetSelected] = useState(null)
   const [error, setError]   = useState('')
   const [loading, setLoading] = useState(false)
@@ -144,6 +148,7 @@ export default function LoginPage() {
       .from('members')
       .select('name, rank')
       .eq('is_active', true)
+      .neq('rank', 'admin')
       .order('sort_order')
       .then(({ data }) => {
         if (data) setMembers(data.filter(m => m.name))
@@ -159,18 +164,14 @@ export default function LoginPage() {
     const email = generateEmail(selected.name)
     setLoading(true)
     try {
-      // まず通常ログインを試みる
       await signIn(email, password)
     } catch (loginErr) {
       if (loginErr.message === 'Invalid login credentials') {
-        // アカウント未作成の可能性 → 初回サインアップを試みる
         try {
           const { error: signUpErr } = await supabase.auth.signUp({
             email,
             password,
-            options: {
-              data: { name: selected.name }
-            }
+            options: { data: { name: selected.name } }
           })
           if (signUpErr) {
             if (
@@ -186,14 +187,26 @@ export default function LoginPage() {
             setLoading(false)
             return
           }
-          // サインアップ成功 → そのままサインイン
           await signIn(email, password)
-        } catch (signUpError) {
+        } catch {
           setError('パスワードが正しくありません')
         }
       } else {
         setError(loginErr.message)
       }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAdminLogin = async (e) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      await signIn(adminEmail, adminPassword)
+    } catch (err) {
+      setError('メールアドレスまたはパスワードが正しくありません')
     } finally {
       setLoading(false)
     }
@@ -305,6 +318,71 @@ export default function LoginPage() {
             <button type="submit" disabled={loading} style={btnStyle}>
               {loading ? 'ログイン中...' : 'ログイン'}
             </button>
+
+            <div style={{ textAlign: 'center', marginTop: 20 }}>
+              <span
+                onClick={() => { setMode('admin'); setError('') }}
+                style={{ fontSize: 10, color: C.textLight, cursor: 'pointer', textDecoration: 'underline', letterSpacing: 0.5 }}
+              >
+                管理者の方はこちら
+              </span>
+            </div>
+          </form>
+        )}
+
+        {/* ── 管理者ログイン ── */}
+        {mode === 'admin' && (
+          <form onSubmit={handleAdminLogin} autoComplete="off">
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 20, textAlign: 'center', letterSpacing: 1 }}>
+              管理者ログイン
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <div style={labelStyle}>
+                メールアドレス<span style={{ color: '#e74c3c', marginLeft: 2 }}>*</span>
+              </div>
+              <input
+                type="email"
+                value={adminEmail}
+                onChange={e => setAdminEmail(e.target.value)}
+                placeholder="email@example.com"
+                required
+                autoComplete="off"
+                style={inputStyle}
+                onFocus={e => e.target.style.borderColor = C.gold}
+                onBlur={e => e.target.style.borderColor = C.border}
+              />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <div style={labelStyle}>
+                パスワード<span style={{ color: '#e74c3c', marginLeft: 2 }}>*</span>
+              </div>
+              <input
+                type="password"
+                value={adminPassword}
+                onChange={e => setAdminPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                autoComplete="off"
+                style={inputStyle}
+                onFocus={e => e.target.style.borderColor = C.gold}
+                onBlur={e => e.target.style.borderColor = C.border}
+              />
+            </div>
+
+            {errBlock}
+            <button type="submit" disabled={loading} style={btnStyle}>
+              {loading ? 'ログイン中...' : 'ログイン'}
+            </button>
+            <div style={{ textAlign: 'center', marginTop: 16 }}>
+              <span
+                onClick={() => { setMode('login'); setError(''); setAdminEmail(''); setAdminPassword('') }}
+                style={{ fontSize: 12, color: C.gold, cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                ← 戻る
+              </span>
+            </div>
           </form>
         )}
 
