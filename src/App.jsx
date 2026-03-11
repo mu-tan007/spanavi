@@ -2,10 +2,20 @@ import { useAuth } from './hooks/useAuth'
 import { useSpanaviData } from './hooks/useSpanaviData'
 import LoginPage from './components/LoginPage'
 import SpanaviApp from './components/SpanaviApp'
+import { useEffect, useRef } from 'react'
 
 export default function App() {
   const { session, profile, loading, signOut, isAdmin } = useAuth()
   const { data: supabaseData, loading: dataLoading, error: dataError, refetch: onDataRefetch } = useSpanaviData()
+
+  // session が null→有効 に変わった時だけデータを再フェッチ（ログイン直後の1回のみ）
+  const prevSessionRef = useRef(undefined)
+  useEffect(() => {
+    if (session && !prevSessionRef.current) {
+      onDataRefetch()
+    }
+    prevSessionRef.current = session
+  }, [session])
 
   // ローディング中（auth + Supabase fetch 両方が完了するまで待つ）
   if (loading || dataLoading) {

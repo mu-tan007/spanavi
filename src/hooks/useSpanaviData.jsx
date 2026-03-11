@@ -11,15 +11,15 @@ export function useSpanaviData() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    fetchAllData()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN') {
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
         fetchAllData()
+      } else {
+        setLoading(false) // 未ログイン時はスピナーを止める
       }
-    })
-
-    return () => subscription.unsubscribe()
+    }
+    init()
   }, [])
 
   const fetchAllData = async () => {
