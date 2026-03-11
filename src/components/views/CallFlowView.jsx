@@ -4,8 +4,7 @@ import { C } from '../../constants/colors';
 import { CALL_RESULTS } from '../../constants/callResults';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, fetchCallRecordsForRanking } from '../../lib/supabaseWrite';
-import { supabase } from '../../lib/supabase';
+import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList } from '../../lib/supabaseWrite';
 import RecallModal from './RecallModal';
 import AppoReportModal from './AppoReportModal';
 
@@ -57,71 +56,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       return next;
     });
   };
-
-  // ── 本日のリアルタイム架電統計（Supabaseリアルタイム購読）──
-  // 社長接続の定義: アポ獲得・社長再コール・社長お断りのみ（社長不在は含まない）
-  const CEO_STATUSES = new Set(['アポ獲得', '社長再コール', '社長お断り']);
-  const [todayStats, setTodayStats] = useState(null);
-  const allTodayRecordsRef = useRef([]);
-  useEffect(() => {
-    const internCount = members.filter(m => typeof m === 'object' && m.rank !== 'admin').length;
-    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
-    const fromISO = new Date(todayStr + 'T00:00:00+09:00').toISOString();
-    const toISO = new Date(todayStr + 'T23:59:59+09:00').toISOString();
-
-    const computeStats = (recs) => {
-      const myRecs = recs.filter(r => r.getter_name === currentUser);
-      const myCallCount = myRecs.length;
-      const myCeoCount = myRecs.filter(r => CEO_STATUSES.has(r.status)).length;
-      const myAppoCount = myRecs.filter(r => r.status === 'アポ獲得').length;
-      const callersCount = new Set(recs.map(r => r.getter_name)).size;
-      const ceoPeople = new Set(recs.filter(r => CEO_STATUSES.has(r.status)).map(r => r.getter_name)).size;
-      const appoByPerson = {};
-      recs.filter(r => r.status === 'アポ獲得').forEach(r => {
-        appoByPerson[r.getter_name] = (appoByPerson[r.getter_name] || 0) + 1;
-      });
-      const appersSorted = Object.values(appoByPerson).sort((a, b) => b - a);
-      const myAppoRank = myAppoCount > 0
-        ? appersSorted.findIndex(v => v <= myAppoCount) + 1
-        : null;
-      return { myCallCount, myCeoCount, myAppoCount, myAppoRank, callersCount, ceoPeople, internCount };
-    };
-
-    const fetchTodayStats = async () => {
-      try {
-        const { data: recs } = await fetchCallRecordsForRanking(fromISO, toISO);
-        if (!recs) return;
-        allTodayRecordsRef.current = recs;
-        setTodayStats(computeStats(recs));
-      } catch (e) {
-        console.error('[CallFlowView] todayStats fetch error:', e);
-      }
-    };
-
-    const updateStatsFromPayload = (newRecord) => {
-      if (newRecord.called_at < fromISO || newRecord.called_at > toISO) return;
-      allTodayRecordsRef.current = [...allTodayRecordsRef.current, newRecord];
-      setTodayStats(computeStats(allTodayRecordsRef.current));
-    };
-
-    fetchTodayStats();
-
-    const channel = supabase
-      .channel('header-stats')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'call_records',
-        filter: `org_id=eq.a0000000-0000-0000-0000-000000000001`,
-      }, (payload) => {
-        updateStatsFromPayload(payload.new);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!list._supaId) {
@@ -1149,16 +1083,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           ◀ リストに戻る
         </button>
 
-        {/* 中央左: 本日の統計 */}
-        {todayStats && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11, color: 'rgba(255,255,255,0.85)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            <span>📞 <span style={{ color: '#fff', fontWeight: 700 }}>{todayStats.myCallCount}</span>件 ({todayStats.callersCount}/{todayStats.internCount}人)</span>
-            <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
-            <span>🤝 <span style={{ color: '#fff', fontWeight: 700 }}>{todayStats.myCeoCount}</span>件 ({todayStats.ceoPeople}/{todayStats.internCount}人)</span>
-            <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
-            <span>🏆 <span style={{ color: '#fff', fontWeight: 700 }}>{todayStats.myAppoCount}</span>件 (<span style={{ color: '#F4C430', fontWeight: 700 }}>{todayStats.myAppoRank != null ? todayStats.myAppoRank + '位' : '-位'}</span>/{todayStats.internCount}人)</span>
-          </div>
-        )}
 
         {/* 中央: 位置表示 + 前へ/次へ */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
