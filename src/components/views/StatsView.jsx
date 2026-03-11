@@ -49,7 +49,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
       salesPeriod, salesSelectedMonth, salesCustomFrom, salesCustomTo]);
 
   const now = nowProp ? new Date(nowProp) : new Date();
-  const todayStr = now.toISOString().slice(0, 10);
+  const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
   const todayD = new Date(todayStr);
   const dayOfWeek = todayD.getDay();
   const weekStart = new Date(todayD); weekStart.setDate(todayD.getDate() - ((dayOfWeek + 6) % 7));
