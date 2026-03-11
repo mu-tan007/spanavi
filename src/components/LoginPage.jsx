@@ -120,9 +120,9 @@ function MemberNameSelect({ members, selected, onSelect }) {
   )
 }
 
-// 名前からSupabase auth用メールアドレスを自動生成
-const generateEmail = (name) =>
-  `${name.replace(/\s/g, '')}.spanavi@masp-internal.com`
+// user IDからSupabase auth用メールアドレスを自動生成
+const generateEmail = (id) =>
+  `user_${id}@masp-internal.com`
 
 export default function LoginPage() {
   const { signIn } = useAuth()
@@ -146,7 +146,7 @@ export default function LoginPage() {
   useEffect(() => {
     supabase
       .from('members')
-      .select('name, rank')
+      .select('id, name, rank')
       .eq('is_active', true)
       .neq('rank', 'admin')
       .order('sort_order')
@@ -161,7 +161,7 @@ export default function LoginPage() {
 
     if (!selected) { setError('氏名を選択してください'); return }
 
-    const email = generateEmail(selected.name)
+    const email = generateEmail(selected.id)
     setLoading(true)
     try {
       await signIn(email, password)
@@ -218,7 +218,7 @@ export default function LoginPage() {
     if (!resetSelected) { setError('氏名を選択してください'); return }
     setLoading(true)
     try {
-      const email = generateEmail(resetSelected.name)
+      const email = generateEmail(resetSelected.id)
       const { error: err } = await supabase.auth.resetPasswordForEmail(email)
       if (err) throw err
       setMode('forgotSent')
