@@ -562,6 +562,30 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setLocalCallCount(c => c + 1);
     setLocalConnectCount(c => c + 1);
     setStatsRefreshKey(k => k + 1);
+
+    // Zoom録音をGoogle Driveにアップロード（zoom.usドメインの場合のみ、非同期・非ブロッキング）
+    if (recordingUrlAppo && recordingUrlAppo.includes('zoom.us') && newRec?.id) {
+      ;(async () => {
+        try {
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+          const res = await fetch(`${supabaseUrl}/functions/v1/upload-recording-to-drive`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': anonKey },
+            body: JSON.stringify({ call_record_id: newRec.id, zoom_recording_url: recordingUrlAppo }),
+          });
+          const data = await res.json();
+          if (data.drive_url) {
+            setCallRecords(prev => prev.map(r => r.id === newRec.id ? { ...r, recording_url: data.drive_url } : r));
+            console.log('[handleAppoSave] Drive upload完了:', data.drive_url);
+          } else {
+            console.warn('[handleAppoSave] Drive upload失敗:', data.error);
+          }
+        } catch (e) {
+          console.error('[handleAppoSave] upload-recording-to-drive エラー:', e);
+        }
+      })();
+    }
   };
 
   const handleRecallSave = async (recallData) => {
