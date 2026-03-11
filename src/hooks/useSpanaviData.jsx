@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
 /**
@@ -9,13 +9,21 @@ export function useSpanaviData() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  // init()がfetchAllDataを呼んだことをApp.jsxのrefetch呼び出しに伝えるフラグ
+  // ページリロード時の二重フェッチを防ぎつつ、新規ログイン時のrefetchは通す
+  const _initCalledRef = useRef(false)
 
   useEffect(() => {
-    // セッションあり時のfetchAllDataはApp.jsxのsession変化useEffectが唯一のトリガー（二重フェッチ防止）
-    // 未ログイン時のみローディングを止める
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) setLoading(false)
-    })
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        _initCalledRef.current = true
+        fetchAllData()
+      } else {
+        setLoading(false) // 未ログイン時はスピナーを止める
+      }
+    }
+    init()
   }, [])
 
   const fetchAllData = async () => {
@@ -157,5 +165,8 @@ export function useSpanaviData() {
     }
   }
 
-  return { data, loading, error, refetch: fetchAllData }
+  return { data, loading, error, refetch: () => {
+    if (_initCalledRef.current) { _initCalledRef.current = false; return; }
+    fetchAllData()
+  }}
 }
