@@ -174,16 +174,8 @@ export default function LoginPage() {
             options: { data: { name: selected.name } }
           })
           if (signUpErr) {
-            if (
-              signUpErr.message === 'User already registered' ||
-              signUpErr.message.includes('Database error') ||
-              signUpErr.message.includes('already registered') ||
-              signUpErr.message.includes('duplicate')
-            ) {
-              setError('パスワードが正しくありません')
-            } else {
-              setError(signUpErr.message)
-            }
+            // 一時デバッグ用：エラー内容を全て表示
+            setError(`signUpエラー: ${signUpErr.message} / status: ${signUpErr.status}`)
             setLoading(false)
             return
           }
