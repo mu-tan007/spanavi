@@ -146,19 +146,27 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       const isRealClose = sessionId != null && _cfRealCloseSet.has(sessionId);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       if (isRealClose) {
+        // handleClose 経由のクローズ: finished_at は handleClose で既に更新済みだが
+        // cleanup でも念のため更新（冪等なので問題なし）
         _cfRealCloseSet.delete(sessionId);
         _cfSessionCache.delete(cacheKey);
         updateCallSession(sessionId, { finished_at: new Date().toISOString() })
           .catch(e => console.error('[Session] unmount updateCallSession error:', e));
-      } else {
       }
+      // isRealClose = false の場合は Strict Mode の fake unmount のため何もしない
+      // (beforeunload や handleClose で対処済み)
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // handleClose ではモジュールレベルの _cfRealCloseSet にセッションIDを登録してから onClose()
+  // handleClose: セッションを即座にクローズしてから画面を閉じる
   const handleClose = () => {
     const sessionId = sessionIdRef.current;
-    if (sessionId) _cfRealCloseSet.add(sessionId);
+    if (sessionId) {
+      _cfRealCloseSet.add(sessionId);
+      // cleanup()に頼らず、ここで直接 finished_at を更新（確実なクローズ）
+      updateCallSession(sessionId, { finished_at: new Date().toISOString() })
+        .catch(e => console.error('[Session] handleClose updateCallSession error:', e));
+    }
     onClose();
   };
 
