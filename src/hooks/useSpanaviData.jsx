@@ -11,7 +11,14 @@ export function useSpanaviData() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    fetchAllData()
+    const fetchWithRetry = async () => {
+      const isEmpty = await fetchAllData()
+      // データが空の場合（セッション未確立）1.5秒後に1回リトライ
+      if (isEmpty) {
+        setTimeout(() => fetchAllData(), 1500)
+      }
+    }
+    fetchWithRetry()
   }, [])
 
   const fetchAllData = async () => {
@@ -144,9 +151,12 @@ export function useSpanaviData() {
         // 生データも保持（書き込み時に使う）
         _raw: { clients, callLists, members, appointments, rewardTypes },
       })
+      // データが空ならtrueを返す（リトライ判定用）
+      return appointments.length === 0 && callLists.length === 0
     } catch (err) {
       console.error('Failed to fetch Spanavi data:', err)
       setError(err.message)
+      return true
     } finally {
       setLoading(false)
     }
