@@ -803,11 +803,13 @@ export async function searchCallListItemsServerSide({
     if (jp) query = query.eq('call_status', jp);
   }
 
-  const kw = keyword.trim().replace(/%/g, '\\%').replace(/_/g, '\\_');
+  // .ilike() 直接呼び出しは SQL の % ワイルドカード
+  // .or() 内の PostgREST フィルタ式は * ワイルドカード（% は誤り）
+  const kw = keyword.trim().replace(/\*/g, '\\*');
   if (kw) {
     if (searchField === 'all') {
       query = query.or(
-        `company.ilike.%${kw}%,representative.ilike.%${kw}%,phone.ilike.%${kw}%,business.ilike.%${kw}%,call_status.ilike.%${kw}%`
+        `company.ilike.*${kw}*,representative.ilike.*${kw}*,phone.ilike.*${kw}*,business.ilike.*${kw}*,call_status.ilike.*${kw}*`
       );
     } else if (searchField === 'status') {
       query = query.ilike('call_status', `%${kw}%`);
@@ -1080,6 +1082,16 @@ export async function fetchRecentDuplicateSession(listId, startNo, endNo) {
 // Profile Image (Supabase Storage)
 // ============================================================
 const PROFILE_BUCKET = 'profile-images'
+
+export async function updateMemberAvatarUrl(memberName, avatarUrl) {
+  if (!memberName) return null
+  const { error } = await supabase
+    .from('members')
+    .update({ avatar_url: avatarUrl })
+    .eq('name', memberName)
+  if (error) console.error('[DB] updateMemberAvatarUrl error:', error)
+  return error
+}
 
 export function getProfileImageUrl(userId) {
   if (!userId) return null

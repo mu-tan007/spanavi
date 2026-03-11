@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
-import { getProfileImageUrl, uploadProfileImage, fetchMyCallRecords } from '../../lib/supabaseWrite';
+import { getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl, fetchMyCallRecords } from '../../lib/supabaseWrite';
 
-export default function MyPageView({ currentUser, userId, callListData, members, now, appoData }) {
+export default function MyPageView({ currentUser, userId, callListData, members, now, appoData, onDataRefetch }) {
   const [periodTab, setPeriodTab] = useState("daily"); // daily, weekly, monthly, cumulative
   const [trainingExpanded, setTrainingExpanded] = useState(true);
   const [profileImage, setProfileImage] = useState(() => getProfileImageUrl(userId));
@@ -18,6 +18,8 @@ export default function MyPageView({ currentUser, userId, callListData, members,
       const { url, error } = await uploadProfileImage(userId, file);
       if (error) { alert('画像のアップロードに失敗しました'); return; }
       setProfileImage(url);
+      await updateMemberAvatarUrl(currentUser, url);
+      if (onDataRefetch) onDataRefetch();
     } finally {
       setProfileUploading(false); // 成功・失敗・例外いずれの場合も必ず解除
     }
