@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
             'Prefer': 'return=minimal',
           },
-          body: JSON.stringify({ zoom_user_id: zu.id }),
+          body: JSON.stringify({ zoom_user_id: zu.id, email: zu.email }),
         }
       )
       if (upRes.ok) {
