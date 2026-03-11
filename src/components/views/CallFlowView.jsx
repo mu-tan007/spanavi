@@ -4,7 +4,7 @@ import { C } from '../../constants/colors';
 import { CALL_RESULTS } from '../../constants/callResults';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, invokeGetZoomRecording } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList } from '../../lib/supabaseWrite';
 import RecallModal from './RecallModal';
 import AppoReportModal from './AppoReportModal';
 
@@ -103,6 +103,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       const newId = `cf_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       sessionIdRef.current = newId;
       _cfSessionCache.set(cacheKey, newId);
+      // リロード等で残留した同一リスト・同一担当者の未完了セッションを先に閉じる
+      closeOpenCallSessionsForList(list._supaId, currentUser || '不明')
+        .catch(e => console.warn('[Session] closeOpenCallSessionsForList error:', e));
       insertCallSession({
         id: newId,
         list_id: list.id,

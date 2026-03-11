@@ -933,6 +933,19 @@ export async function updateCallSession(id, updates) {
   return { error }
 }
 
+// 同一リスト・同一担当者の未完了セッションを閉じる（リロード・再開時の残留セッション対策）
+export async function closeOpenCallSessionsForList(listSupaId, callerName) {
+  if (!listSupaId || !callerName) return { error: null }
+  const { error } = await supabase
+    .from('call_sessions')
+    .update({ finished_at: new Date().toISOString() })
+    .eq('list_supa_id', listSupaId)
+    .eq('caller_name', callerName)
+    .is('finished_at', null)
+  if (error) console.error('[DB] closeOpenCallSessionsForList error:', error)
+  return { error }
+}
+
 export async function deleteCallSessionsByIds(ids) {
   if (!ids?.length) return { error: null }
   const { error } = await supabase
