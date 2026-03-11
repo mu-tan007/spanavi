@@ -42,7 +42,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [autoDial, setAutoDial] = useState(() => {
     try { return localStorage.getItem('cf_autocall') === 'true'; } catch { return false; }
   });
-  const [listMode, setListMode] = useState(true); // true=リスト表示, false=フォーカスモード
+  const [listMode, setListMode] = useState(() => {
+    try { return sessionStorage.getItem('callflow_list_mode') !== 'false'; } catch { return true; }
+  }); // true=リスト表示, false=フォーカスモード
+  useEffect(() => {
+    try { sessionStorage.setItem('callflow_list_mode', String(listMode)); } catch {}
+  }, [listMode]);
   const toggleAutoDial = () => {
     setAutoDial(prev => {
       const next = !prev;
@@ -108,6 +113,14 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       if (defaultItemId) {
         const target = fetchedItems.find(i => i.id === defaultItemId);
         if (target) setSelectedRow(target);
+      } else {
+        try {
+          const savedId = sessionStorage.getItem('callflow_selected_id');
+          if (savedId) {
+            const target = fetchedItems.find(i => String(i.id) === savedId);
+            if (target) setSelectedRow(target);
+          }
+        } catch {}
       }
       setLoading(false);
     }).catch(err => {
@@ -120,6 +133,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setLocalMemo(selectedRow?.id ? extractUserNote(selectedRow.memo) : '');
     setSubPhone(selectedRow?.sub_phone_number || '');
     setLastDialedPhone(null);
+    try {
+      if (selectedRow?.id != null) sessionStorage.setItem('callflow_selected_id', String(selectedRow.id));
+    } catch {}
   }, [selectedRow?.id]);
 
   useEffect(() => {
@@ -207,6 +223,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
   // handleClose: セッションを即座にクローズしてから画面を閉じる
   const handleClose = () => {
+    try {
+      sessionStorage.removeItem('callflow_list_mode');
+      sessionStorage.removeItem('callflow_selected_id');
+    } catch {}
     const sessionId = sessionIdRef.current;
     if (sessionId) {
       _cfRealCloseSet.add(sessionId);
