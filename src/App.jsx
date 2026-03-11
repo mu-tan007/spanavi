@@ -83,7 +83,7 @@ export default function App() {
 
   return (
     <SpanaviApp
-      userName={profile?.name || session.user.email?.split('@')[0]}
+      userName={profile?.name || session.user.user_metadata?.name || '不明'}
       userId={session.user.id}
       isAdmin={isAdmin}
       onLogout={handleLogout}
