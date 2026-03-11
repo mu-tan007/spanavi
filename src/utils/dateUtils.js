@@ -21,3 +21,25 @@ export const getTodayEndJST = () => {
 export const getJSTDateStr = (date = new Date()) => {
   return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' })
 }
+
+// UTC ISO文字列をJSTの「M月D日 HH:mm」形式で表示
+export const formatJST = (isoString) => {
+  if (!isoString) return '-'
+  return new Date(isoString).toLocaleString('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+// UTC ISO文字列をJSTの「M月D日」形式で表示（時刻なし）
+export const formatJSTShort = (isoString) => {
+  if (!isoString) return '-'
+  return new Date(isoString).toLocaleDateString('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    month: 'numeric',
+    day: 'numeric',
+  })
+}

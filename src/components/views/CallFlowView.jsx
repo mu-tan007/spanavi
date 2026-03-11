@@ -5,6 +5,7 @@ import { CALL_RESULTS } from '../../constants/callResults';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
 import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList } from '../../lib/supabaseWrite';
+import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
 import AppoReportModal from './AppoReportModal';
 
@@ -956,10 +957,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       {recs.map(rec => {
                         const sc = callStatusColor(rec.status);
-                        const dt = rec.called_at ? new Date(rec.called_at) : null;
-                        const dtStr = dt
-                          ? `${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`
-                          : '';
+                        const dtStr = formatJST(rec.called_at);
                         return (
                           <div key={rec.id}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6,
@@ -1372,8 +1370,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                       {recs.map(rec => {
                         const sc = callStatusColor(rec.status);
-                        const dt = rec.called_at ? new Date(rec.called_at) : null;
-                        const dtStr = dt ? `${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}` : '';
+                        const dtStr = formatJST(rec.called_at);
                         return (
                           <div key={rec.id}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 6, background: '#FAFAFA', fontSize: 11, border: '1px solid #F0F0F0' }}>

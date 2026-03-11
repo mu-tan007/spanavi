@@ -1,21 +1,23 @@
-// 日付フォーマット
+// 日付フォーマット（JST明示）
 export function formatDate(dateStr) {
   if (!dateStr) return '-'
-  const d = new Date(dateStr)
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const h = String(d.getHours()).padStart(2, '0')
-  const min = String(d.getMinutes()).padStart(2, '0')
-  return `${m}-${day} ${h}:${min}`
+  return new Date(dateStr).toLocaleString('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
-// 短い日付
+// 短い日付（JST明示）
 export function formatDateShort(dateStr) {
   if (!dateStr) return '-'
-  const d = new Date(dateStr)
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${m}-${day}`
+  return new Date(dateStr).toLocaleDateString('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    month: 'numeric',
+    day: 'numeric',
+  })
 }
 
 // 数値カンマ区切り
