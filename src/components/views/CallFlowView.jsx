@@ -103,24 +103,27 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       const newId = `cf_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       sessionIdRef.current = newId;
       _cfSessionCache.set(cacheKey, newId);
-      // リロード等で残留した同一リスト・同一担当者の未完了セッションを先に閉じる
+      // リロード等で残留した同一リスト・同一担当者の未完了セッションを先に閉じてからINSERT
+      // （先に閉じないと、新セッションが即座にcloseされる競合が起きる）
       closeOpenCallSessionsForList(list._supaId, currentUser || '不明')
-        .catch(e => console.warn('[Session] closeOpenCallSessionsForList error:', e));
-      insertCallSession({
-        id: newId,
-        list_id: list.id,
-        list_supa_id: list._supaId || null,
-        list_name: list.company || '',
-        industry: list.industry || '',
-        caller_name: currentUser || '不明',
-        start_no: startNo ?? null,
-        end_no: endNo ?? null,
-        total_count: totalCount,
-        started_at: new Date().toISOString(),
-        finished_at: null,
-        last_called_at: null,
-      })
-        .catch(e => console.error('[Session] insertCallSession error:', e));
+        .catch(e => console.warn('[Session] closeOpenCallSessionsForList error:', e))
+        .finally(() => {
+          insertCallSession({
+            id: newId,
+            list_id: list.id,
+            list_supa_id: list._supaId || null,
+            list_name: list.company || '',
+            industry: list.industry || '',
+            caller_name: currentUser || '不明',
+            start_no: startNo ?? null,
+            end_no: endNo ?? null,
+            total_count: totalCount,
+            started_at: new Date().toISOString(),
+            finished_at: null,
+            last_called_at: null,
+          })
+            .catch(e => console.error('[Session] insertCallSession error:', e));
+        });
     }
 
     // タブ閉じ・リロード時にも finished_at を書き込む
@@ -152,6 +155,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         _cfSessionCache.delete(cacheKey);
         updateCallSession(sessionId, { finished_at: new Date().toISOString() })
           .catch(e => console.error('[Session] unmount updateCallSession error:', e));
+        // IDベース更新が失敗した場合の保険: 全未完了セッションをまとめてクローズ
+        closeOpenCallSessionsForList(list._supaId, currentUser || '不明')
+          .catch(e => console.error('[Session] unmount closeOpenCallSessionsForList error:', e));
       }
       // isRealClose = false の場合は Strict Mode の fake unmount のため何もしない
       // (beforeunload や handleClose で対処済み)
@@ -163,9 +169,11 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     const sessionId = sessionIdRef.current;
     if (sessionId) {
       _cfRealCloseSet.add(sessionId);
-      // cleanup()に頼らず、ここで直接 finished_at を更新（確実なクローズ）
+      // IDベースの更新 + 同一リスト/ユーザーの全未完了セッションをまとめてクローズ（二重対策）
       updateCallSession(sessionId, { finished_at: new Date().toISOString() })
         .catch(e => console.error('[Session] handleClose updateCallSession error:', e));
+      closeOpenCallSessionsForList(list._supaId, currentUser || '不明')
+        .catch(e => console.error('[Session] handleClose closeOpenCallSessionsForList error:', e));
     }
     onClose();
   };
