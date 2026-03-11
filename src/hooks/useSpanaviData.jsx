@@ -132,7 +132,7 @@ export function useSpanaviData() {
         company: a.company_name || '',
         getter: a.getter_name || '',
         getDate: a.appointment_date || '',
-        meetDate: a.meeting_date ? a.meeting_date.split('T')[0] : '',
+        meetDate: a.meeting_date ? new Date(a.meeting_date).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }) : '',
         status: a.status || '',
         sales: a.sales_amount || 0,
         reward: a.intern_reward || 0,
