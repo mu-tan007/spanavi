@@ -893,6 +893,7 @@ export async function fetchCallRecordsForRanking(fromISO, toISO) {
       .select('id, getter_name, status, called_at')
       .gte('called_at', fromISO)
       .lte('called_at', toISO)
+      .order('called_at', { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
     if (error) { console.error('[DB] fetchCallRecordsForRanking error:', error); break; }
     allData = allData.concat(data || []);
