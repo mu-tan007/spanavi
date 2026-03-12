@@ -31,6 +31,14 @@ const getPastBusinessDays = (baseDate, n) => {
   return days;
 };
 
+// caller_nameが "user_{uuid}" 形式の場合、membersから名前を解決する
+const resolveName = (callerName, members) => {
+  if (!callerName?.startsWith('user_')) return callerName;
+  const memberId = callerName.replace('user_', '');
+  const member = members?.find(m => m.id === memberId);
+  return member?.name || callerName;
+};
+
 // 担当者ごとの色（Spanaviブランドカラーに合わせた複数色）
 const CALLER_COLORS = [
   '#C8A84B', // gold
@@ -46,7 +54,7 @@ const CALLER_COLORS = [
 ];
 
 // ─── ListCard コンポーネント ─────────────────────────────────────
-function ListCard({ sessions, calledCountMap, todayStr }) {
+function ListCard({ sessions, calledCountMap, todayStr, members }) {
   // セッションをfinished_at昇順でソート（完了済み→稼働中の順で描画、稼働中が上に重なる）
   const sorted = [...sessions].sort((a, b) => {
     const aFin = a.finished_at ? 1 : 0;
@@ -63,7 +71,7 @@ function ListCard({ sessions, calledCountMap, todayStr }) {
   const callerColorMap = {};
   let colorIdx = 0;
   sorted.forEach(s => {
-    const name = s.caller_name || '不明';
+    const name = resolveName(s.caller_name, members) || '不明';
     if (!callerColorMap[name]) {
       callerColorMap[name] = CALLER_COLORS[colorIdx % CALLER_COLORS.length];
       colorIdx++;
@@ -150,12 +158,12 @@ function ListCard({ sessions, calledCountMap, todayStr }) {
           {barsessions.length > 0 && barsessions.map(s => {
             const left  = ((s.start_no - 1) / totalCount) * 100;
             const width = ((s.end_no - s.start_no + 1) / totalCount) * 100;
-            const color = callerColorMap[s.caller_name || '不明'];
+            const color = callerColorMap[resolveName(s.caller_name, members) || '不明'];
             const active = !s.finished_at && toJSTDateStr(s.started_at) === todayStr;
             return (
               <div
                 key={s.id}
-                title={`${s.caller_name || '不明'}: No.${s.start_no}〜${s.end_no}`}
+                title={`${resolveName(s.caller_name, members) || '不明'}: No.${s.start_no}〜${s.end_no}`}
                 style={{
                   position: 'absolute',
                   left: `${left}%`,
@@ -196,7 +204,7 @@ function ListCard({ sessions, calledCountMap, todayStr }) {
         {/* ── 凡例 ── */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px 14px', marginTop: 8 }}>
           {sorted.map(s => {
-            const name   = s.caller_name || '不明';
+            const name   = resolveName(s.caller_name, members) || '不明';
             const color  = callerColorMap[name];
             const active = !s.finished_at && toJSTDateStr(s.started_at) === todayStr;
             const hasRange = s.start_no != null && s.end_no != null;
@@ -265,7 +273,7 @@ function ListCard({ sessions, calledCountMap, todayStr }) {
 }
 
 // ─── メインコンポーネント ────────────────────────────────────────
-export default function LiveStatusView({ now }) {
+export default function LiveStatusView({ now, members }) {
   const [sessions, setSessions]             = useState([]);
   const [calledCounts, setCalledCounts]     = useState({});
   // 過去日セクションはデフォルト折りたたみ（today = key 0 はデフォルト展開）
@@ -429,6 +437,7 @@ export default function LiveStatusView({ now }) {
                         sessions={cardSessions}
                         calledCountMap={calledCounts}
                         todayStr={todayStr}
+                        members={members}
                       />
                     ))}
                   </div>
