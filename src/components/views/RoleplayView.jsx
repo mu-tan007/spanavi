@@ -264,12 +264,15 @@ export default function RoleplayView({ currentUser, userId }) {
 
         {/* 日付タブ */}
         <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", background: C.offWhite, borderBottom: "1px solid " + C.borderLight }}>
-            <button onClick={() => { setWeekOffset(w => Math.max(0, w - 1)); setSelectedDay(0); }}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: C.offWhite, borderBottom: "1px solid " + C.borderLight, gap: 8 }}>
+            <button onClick={() => { setWeekOffset(w => w - 1); setSelectedDay(0); }}
               disabled={weekOffset === 0}
-              style={{ padding: "7px 10px", border: "none", background: "transparent", cursor: weekOffset === 0 ? "default" : "pointer",
-                color: weekOffset === 0 ? C.borderLight : C.textMid, fontSize: 14, flexShrink: 0 }}>
-              ‹
+              style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid #C8A84B',
+                background: 'white', color: weekOffset === 0 ? '#e0c880' : '#C8A84B',
+                fontWeight: 700, fontSize: 13, cursor: weekOffset === 0 ? 'default' : 'pointer',
+                flexShrink: 0, fontFamily: "'Noto Sans JP'",
+                opacity: weekOffset === 0 ? 0.5 : 1 }}>
+              ← 前の週
             </button>
             <div style={{ display: "flex", overflowX: "auto", flex: 1 }}>
               {days.map((day, i) => (
@@ -284,11 +287,14 @@ export default function RoleplayView({ currentUser, userId }) {
                 </button>
               ))}
             </div>
-            <button onClick={() => { setWeekOffset(w => Math.min(3, w + 1)); setSelectedDay(0); }}
+            <button onClick={() => { setWeekOffset(w => w + 1); setSelectedDay(0); }}
               disabled={weekOffset >= 3}
-              style={{ padding: "7px 10px", border: "none", background: "transparent", cursor: weekOffset >= 3 ? "default" : "pointer",
-                color: weekOffset >= 3 ? C.borderLight : C.textMid, fontSize: 14, flexShrink: 0 }}>
-              ›
+              style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid #C8A84B',
+                background: 'white', color: weekOffset >= 3 ? '#e0c880' : '#C8A84B',
+                fontWeight: 700, fontSize: 13, cursor: weekOffset >= 3 ? 'default' : 'pointer',
+                flexShrink: 0, fontFamily: "'Noto Sans JP'",
+                opacity: weekOffset >= 3 ? 0.5 : 1 }}>
+              次の週 →
             </button>
           </div>
 
