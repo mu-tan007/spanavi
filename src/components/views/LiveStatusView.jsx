@@ -90,11 +90,12 @@ function ListCard({ sessions, calledCountMap, todayStr, members }) {
     return d && (!best || d > best) ? d : best;
   }, null);
 
-  // 棒グラフに表示するセッション（start_no・end_noが両方ある）
-  const barsessions = sorted.filter(s => s.start_no != null && s.end_no != null && totalCount > 0);
-
-  // 範囲なしセッション用: 架電済み割合（%）
-  const calledPct = totalCount > 0 ? Math.min((totalCalled / totalCount) * 100, 100) : 0;
+  // 棒グラフに表示するセッション（start_no/end_noがNULLの場合は全体 1〜totalCount として扱う）
+  const barsessions = totalCount > 0 ? sorted.map(s => ({
+    ...s,
+    start_no: s.start_no ?? 1,
+    end_no: s.end_no ?? totalCount,
+  })) : [];
 
   return (
     <div style={{
@@ -177,21 +178,8 @@ function ListCard({ sessions, calledCountMap, todayStr, members }) {
               />
             );
           })}
-          {/* 範囲なし・totalCountあり: 架電済み件数プログレスバー */}
-          {barsessions.length === 0 && totalCount > 0 && (
-            <>
-              <div style={{
-                position: 'absolute', left: 0, width: `${calledPct}%`, height: '100%',
-                background: '#c8a45a', transition: 'width 0.4s',
-              }} />
-              <div style={{
-                position: 'absolute', left: `${calledPct}%`, right: 0, height: '100%',
-                background: '#e0e0e0',
-              }} />
-            </>
-          )}
-          {/* 範囲なし・totalCountなし */}
-          {barsessions.length === 0 && totalCount === 0 && (
+          {/* totalCountなし */}
+          {barsessions.length === 0 && (
             <div style={{
               position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
               justifyContent: 'center', fontSize: 10, color: C.textLight,
@@ -216,33 +204,23 @@ function ListCard({ sessions, calledCountMap, todayStr, members }) {
             const name   = s.resolvedName;
             const color  = callerColorMap[name];
             const active = !s.finished_at && toJSTDateStr(s.started_at) === todayStr;
-            const hasRange = s.start_no != null && s.end_no != null;
+            const dispStart = s.start_no ?? 1;
+            const dispEnd   = s.end_no ?? totalCount;
             return (
               <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <span style={{
                   width: 10, height: 10, borderRadius: 2, flexShrink: 0,
-                  background: hasRange ? color : 'transparent',
-                  border: hasRange ? 'none' : `1.5px dashed ${color}`,
+                  background: color,
                   opacity: active ? 1 : 0.6,
                 }} />
                 <span style={{ fontSize: 10, color: C.textMid, whiteSpace: 'nowrap' }}>
                   {name}
-                  {hasRange && (
-                    <span style={{
-                      fontFamily: "'JetBrains Mono', monospace",
-                      fontSize: 9, color: C.textLight, marginLeft: 3,
-                    }}>
-                      {s.start_no.toLocaleString()}〜{s.end_no.toLocaleString()}
-                    </span>
-                  )}
-                  {!hasRange && (
-                    <span style={{
-                      fontFamily: "'JetBrains Mono', monospace",
-                      fontSize: 9, color: C.textLight, marginLeft: 3,
-                    }}>
-                      1〜{(calledCountMap[s.id]?.count || 0).toLocaleString()}件架電済
-                    </span>
-                  )}
+                  <span style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 9, color: C.textLight, marginLeft: 3,
+                  }}>
+                    {dispStart.toLocaleString()}〜{dispEnd.toLocaleString()}
+                  </span>
                   {active && (
                     <span style={{
                       display: 'inline-block', width: 5, height: 5, borderRadius: '50%',
