@@ -122,6 +122,7 @@ export function useSpanaviData() {
         operationStartDate: m.operation_start_date || '',
         referrerName: m.referrer_name || '',
         zoomUserId: m.zoom_user_id || '',
+        zoomPhoneNumber: m.zoom_phone_number || '',
         avatarUrl: m.avatar_url || '',
       }))
 

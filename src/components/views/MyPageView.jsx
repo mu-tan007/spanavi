@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
-import { getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl, fetchMyCallRecords } from '../../lib/supabaseWrite';
+import { getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl, fetchMyCallRecords, updateMember } from '../../lib/supabaseWrite';
 
-export default function MyPageView({ currentUser, userId, callListData, members, now, appoData, onDataRefetch }) {
+export default function MyPageView({ currentUser, userId, callListData, members, now, appoData, onDataRefetch, isAdmin = false }) {
   const [periodTab, setPeriodTab] = useState("daily"); // daily, weekly, monthly, cumulative
   const [trainingExpanded, setTrainingExpanded] = useState(true);
   const [profileImage, setProfileImage] = useState(() => getProfileImageUrl(userId));
@@ -132,6 +132,20 @@ export default function MyPageView({ currentUser, userId, callListData, members,
 
   // Member info
   const memberInfo = members.find(m => m.name === currentUser);
+  const [zoomPhone, setZoomPhone] = useState('');
+  const [zoomPhoneEditing, setZoomPhoneEditing] = useState(false);
+  const [zoomPhoneSaving, setZoomPhoneSaving] = useState(false);
+  useEffect(() => {
+    if (memberInfo?.zoomPhoneNumber !== undefined) setZoomPhone(memberInfo.zoomPhoneNumber || '');
+  }, [memberInfo?.zoomPhoneNumber]);
+  const handleSaveZoomPhone = async () => {
+    if (!memberInfo?._supaId) return;
+    setZoomPhoneSaving(true);
+    await updateMember(memberInfo._supaId, { ...memberInfo, zoomPhoneNumber: zoomPhone.trim() });
+    setZoomPhoneEditing(false);
+    setZoomPhoneSaving(false);
+    if (onDataRefetch) onDataRefetch();
+  };
 
   // Training stages
   const trainingStages = [
@@ -173,11 +187,54 @@ export default function MyPageView({ currentUser, userId, callListData, members,
         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} style={{ display: "none" }} />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>{currentUser}</div>
-          <div style={{ display: "flex", gap: 12, fontSize: 11, color: C.goldLight }}>
+          <div style={{ display: "flex", gap: 12, fontSize: 11, color: C.goldLight, marginBottom: 6 }}>
             {memberInfo && <span>{memberInfo.team}</span>}
             {memberInfo && <span>{memberInfo.rank}</span>}
             <span>累計架電: {cumAgg.total}件</span>
             <span>累計アポ: {cumAgg.appo}件</span>
+          </div>
+          {/* Zoom Phone番号 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11 }}>
+            <span style={{ color: 'rgba(255,255,255,0.5)' }}>📱 Zoom Phone:</span>
+            {zoomPhoneEditing ? (
+              <>
+                <input
+                  value={zoomPhone}
+                  onChange={e => setZoomPhone(e.target.value)}
+                  placeholder="例: 0312345678"
+                  style={{
+                    padding: '3px 8px', borderRadius: 5, border: '1px solid ' + C.gold,
+                    background: 'rgba(255,255,255,0.1)', color: C.white,
+                    fontSize: 11, fontFamily: "'JetBrains Mono'", width: 140,
+                  }}
+                />
+                <button onClick={handleSaveZoomPhone} disabled={zoomPhoneSaving} style={{
+                  padding: '3px 8px', borderRadius: 5, border: 'none',
+                  background: C.gold, color: C.navyDeep,
+                  fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                }}>{zoomPhoneSaving ? '保存中...' : '保存'}</button>
+                <button onClick={() => setZoomPhoneEditing(false)} style={{
+                  padding: '3px 8px', borderRadius: 5,
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  background: 'transparent', color: 'rgba(255,255,255,0.6)',
+                  fontSize: 10, cursor: 'pointer',
+                }}>キャンセル</button>
+              </>
+            ) : (
+              <>
+                <span style={{ color: C.white, fontFamily: "'JetBrains Mono'", fontWeight: 600 }}>
+                  {zoomPhone || '未設定'}
+                </span>
+                {isAdmin && (
+                  <button onClick={() => setZoomPhoneEditing(true)} style={{
+                    padding: '2px 7px', borderRadius: 4,
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    background: 'transparent', color: 'rgba(255,255,255,0.5)',
+                    fontSize: 9, cursor: 'pointer',
+                  }}>編集</button>
+                )}
+              </>
+            )}
           </div>
         </div>
         <div style={{ display: "flex", gap: 12 }}>

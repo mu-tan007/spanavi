@@ -322,6 +322,7 @@ export async function updateMember(supaId, data) {
       operation_start_date: data.operationStartDate || null,
       referrer_name: data.referrerName || null,
       zoom_user_id: data.zoomUserId || null,
+      zoom_phone_number: data.zoomPhoneNumber ?? null,
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateMember error:', error)
