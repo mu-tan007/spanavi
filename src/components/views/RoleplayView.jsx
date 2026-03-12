@@ -52,6 +52,7 @@ export default function RoleplayView({ currentUser, userId }) {
   const [userEmail, setUserEmail] = useState('');
   const [modalEmail, setModalEmail] = useState('');
   const [selectedDay, setSelectedDay] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(0);
 
   // Supabase Auth からメールアドレス自動取得
   useEffect(() => {
@@ -113,11 +114,11 @@ export default function RoleplayView({ currentUser, userId }) {
     const DAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
     const now = new Date();
     return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + weekOffset * 7 + i);
       const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       return { dateStr: ds, label: `${d.getMonth() + 1}/${d.getDate()} (${DAY_LABELS[d.getDay()]})`, isWeekend: d.getDay() === 0 || d.getDay() === 6 };
     });
-  }, []);
+  }, [weekOffset]);
 
   // 30分枠生成 (9:00-21:00)
   const getSlots = (dateStr) => {
@@ -263,18 +264,32 @@ export default function RoleplayView({ currentUser, userId }) {
 
         {/* 日付タブ */}
         <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, overflow: "hidden" }}>
-          <div style={{ display: "flex", overflowX: "auto", background: C.offWhite, borderBottom: "1px solid " + C.borderLight }}>
-            {days.map((day, i) => (
-              <button key={i} onClick={() => setSelectedDay(i)}
-                style={{ padding: "7px 10px", border: "none", cursor: "pointer", whiteSpace: "nowrap",
-                  background: "transparent",
-                  color: selectedDay === i ? C.navy : (day.isWeekend ? C.red : C.textMid),
-                  fontSize: 10, fontWeight: selectedDay === i ? 700 : 400,
-                  borderBottom: "2px solid " + (selectedDay === i ? C.gold : "transparent"),
-                  fontFamily: "'Noto Sans JP'" }}>
-                {day.label}
-              </button>
-            ))}
+          <div style={{ display: "flex", alignItems: "center", background: C.offWhite, borderBottom: "1px solid " + C.borderLight }}>
+            <button onClick={() => { setWeekOffset(w => Math.max(0, w - 1)); setSelectedDay(0); }}
+              disabled={weekOffset === 0}
+              style={{ padding: "7px 10px", border: "none", background: "transparent", cursor: weekOffset === 0 ? "default" : "pointer",
+                color: weekOffset === 0 ? C.borderLight : C.textMid, fontSize: 14, flexShrink: 0 }}>
+              ‹
+            </button>
+            <div style={{ display: "flex", overflowX: "auto", flex: 1 }}>
+              {days.map((day, i) => (
+                <button key={i} onClick={() => setSelectedDay(i)}
+                  style={{ padding: "7px 10px", border: "none", cursor: "pointer", whiteSpace: "nowrap",
+                    background: "transparent",
+                    color: selectedDay === i ? C.navy : (day.isWeekend ? C.red : C.textMid),
+                    fontSize: 10, fontWeight: selectedDay === i ? 700 : 400,
+                    borderBottom: "2px solid " + (selectedDay === i ? C.gold : "transparent"),
+                    fontFamily: "'Noto Sans JP'" }}>
+                  {day.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => { setWeekOffset(w => Math.min(3, w + 1)); setSelectedDay(0); }}
+              disabled={weekOffset >= 3}
+              style={{ padding: "7px 10px", border: "none", background: "transparent", cursor: weekOffset >= 3 ? "default" : "pointer",
+                color: weekOffset >= 3 ? C.borderLight : C.textMid, fontSize: 14, flexShrink: 0 }}>
+              ›
+            </button>
           </div>
 
           {/* スロット一覧 */}
