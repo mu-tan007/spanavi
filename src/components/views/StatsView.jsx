@@ -207,6 +207,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
     if (gd === todayStr && a.status !== 'キャンセル') {
       const key = a.getter || "不明";
       if (!todayByCaller[key]) todayByCaller[key] = { total: 0, ceoConnect: 0, appo: 0, sales: 0 };
+      todayByCaller[key].appo++;
     }
     // 売上：countableStatusesかつ取得日または面談日が今日
     if (!countableToday.has(a.status)) return;
