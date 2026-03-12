@@ -207,8 +207,7 @@ function ListCard({ sessions, calledCountMap, todayStr, members }) {
             arr.findIndex(x =>
               x.caller_name === s.caller_name &&
               x.start_no === s.start_no &&
-              x.end_no === s.end_no &&
-              x.finished_at === s.finished_at
+              x.end_no === s.end_no
             ) === idx
           ).map(s => {
             const name   = resolveName(s.caller_name, members) || '不明';
