@@ -68,6 +68,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   );
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState('meetDate');
+  const [sortDir, setSortDir] = useState('asc');
   const [editForm, setEditForm] = useState(null);
   const [addAppoForm, setAddAppoForm] = useState(null);
   const [reportDetail, setReportDetail] = useState(null); // Appointment detail modal
@@ -101,10 +103,13 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     if (search && !a.company.includes(search) && !a.client.includes(search) && !a.getter.includes(search)) return false;
     return true;
   }).sort((a, b) => {
-    const sa = statusOrder[a.status] ?? 99;
-    const sb = statusOrder[b.status] ?? 99;
-    if (sa !== sb) return sa - sb;
-    return (a.meetDate || "").localeCompare(b.meetDate || "");
+    let valA, valB;
+    if (sortKey === 'meetDate') { valA = a.meetDate || ''; valB = b.meetDate || ''; }
+    else if (sortKey === 'client') { valA = a.client || ''; valB = b.client || ''; }
+    else if (sortKey === 'getter') { valA = a.getter || ''; valB = b.getter || ''; }
+    else { valA = a.meetDate || ''; valB = b.meetDate || ''; }
+    const cmp = valA.localeCompare(valB);
+    return sortDir === 'asc' ? cmp : -cmp;
   });
 
   const countableStatuses = ["面談済", "事前確認済", "アポ取得"];
@@ -251,7 +256,23 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           fontSize: 11, fontWeight: 700, color: "#706E6B", letterSpacing: "0.06em",
           textTransform: "uppercase", borderBottom: "2px solid #E5E5E5",
         }}>
-          <span>クライアント</span><span>企業名</span><span>取得者</span><span>取得日</span><span>面談日</span><span>ステータス</span><span>当社売上</span><span>インターン報酬</span>{setAppoData && <span></span>}
+          {[
+            { label: 'クライアント', key: 'client' },
+            { label: '企業名', key: null },
+            { label: '取得者', key: 'getter' },
+            { label: '取得日', key: null },
+            { label: '面談日', key: 'meetDate' },
+            { label: 'ステータス', key: null },
+            { label: '当社売上', key: null },
+            { label: 'インターン報酬', key: null },
+          ].map(({ label, key }) => (
+            <span key={label}
+              onClick={key ? () => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); } } : undefined}
+              style={key ? { cursor: 'pointer', userSelect: 'none' } : {}}>
+              {label}{key && sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+            </span>
+          ))}
+          {setAppoData && <span></span>}
         </div>
         {filtered.length === 0 ? (
           <div style={{ padding: "30px 0", textAlign: "center", color: C.textLight, fontSize: 12 }}>データがありません</div>
