@@ -43,8 +43,24 @@ export function AuthProvider({ children }) {
         .eq('id', userId)
         .single()
 
-      if (error) {
-        console.warn('Profile fetch failed (RLS or missing row):', error.message)
+      if (error || !data) {
+        // フォールバック：auth.usersのemailからmember_idを抽出してmembersから名前取得
+        const { data: authUser } = await supabase.auth.getUser()
+        const email = authUser?.user?.email || ''
+        const match = email.match(/^user_(.+)@masp-internal\.com$/)
+        if (match) {
+          const memberId = match[1]
+          const { data: member } = await supabase
+            .from('members')
+            .select('id, name, email, role')
+            .eq('id', memberId)
+            .single()
+          if (member) {
+            setProfile({ id: userId, name: member.name, email: member.email, role: member.role || 'caller' })
+            return
+          }
+        }
+        console.warn('Profile fetch failed (RLS or missing row):', error?.message)
         setProfile(null)
       } else {
         setProfile(data)
