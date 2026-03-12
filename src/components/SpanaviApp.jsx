@@ -26,6 +26,8 @@ import { updateCallList, insertCallList, deleteCallList, archiveCallList, restor
 import LoginScreen from './views/LoginScreen';
 import LiveStatusView from './views/LiveStatusView';
 import PreCheckView from './views/PreCheckView';
+import IncomingCallBanner from './views/IncomingCallBanner';
+import IncomingCallsView from './views/IncomingCallsView';
 import RecallListView from './views/RecallListView';
 import ShiftManagementView from './views/ShiftManagementView';
 import RulesView from './views/RulesView';
@@ -438,6 +440,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       { id: "search", label: "企業・リスト検索" },
       { id: "recall", label: "再コール一覧" },
       { id: "rules", label: "業種ルール" },
+      { id: "incoming", label: "着信履歴" },
     ]},
     { id: "g_appo", label: "アポ管理", children: [
       { id: "appo", label: "アポ一覧" },
@@ -902,6 +905,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       {/* ===== CONTENT ===== */}
       <main style={{ marginLeft: 220, paddingTop: 54, paddingLeft: 28, paddingRight: 28, paddingBottom: 24, minHeight: '100vh', width: 'calc(100% - 220px)', boxSizing: 'border-box' }}>
         {currentTab === "live" && <LiveStatusView now={now} callListData={callListData} />}
+        {currentTab === "incoming" && <IncomingCallsView setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "lists" && <ListView filteredLists={filteredLists} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterType={filterType} setFilterType={setFilterType} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy} setSelectedList={setSelectedList} callListData={callListData} setCallListData={setCallListData} listFormOpen={listFormOpen} setListFormOpen={setListFormOpen} editingListId={editingListId} setEditingListId={setEditingListId} now={now} isAdmin={isAdmin} clientData={clientData} />}
         {currentTab === "appo" && <AppoListView appoData={appoData} setAppoData={isAdmin ? setAppoData : null} members={members} setMembers={isAdmin ? setMembers : null} clientData={clientData} rewardMaster={rewardMaster} />}
         {currentTab === "precheck" && <PreCheckView appoData={appoData} setAppoData={isAdmin ? setAppoData : null} />}
@@ -924,6 +928,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       {callingScreen && <CallingScreen listId={callingScreen.listId} list={callingScreen.list} importedCSVs={importedCSVs} setImportedCSVs={setImportedCSVs} onClose={() => setCallingScreen(null)} currentUser={currentUser} liveStatuses={liveStatuses} setLiveStatuses={setLiveStatuses} members={members} clientData={clientData} rewardMaster={rewardMaster} />}
       {selectedList && <DetailModal list={enrichedLists.find(l => l.id === selectedList)} onClose={() => setSelectedList(null)} industryRules={industryRules} now={now} callListData={callListData} setCallListData={setCallListData} setCallFlowScreen={setCallFlowScreen} isAdmin={isAdmin} onDelete={(id) => { setCallListData(prev => prev.filter(l => l.id !== id)); setSelectedList(null); }} />}
       {callFlowScreen && <CallFlowView list={callFlowScreen.list} startNo={callFlowScreen.startNo} endNo={callFlowScreen.endNo} statusFilter={callFlowScreen.statusFilter ?? null} onClose={() => setCallFlowScreen(null)} setAppoData={isAdmin ? setAppoData : null} members={members} currentUser={currentUser} defaultItemId={callFlowScreen.defaultItemId ?? null} defaultListMode={callFlowScreen.defaultListMode ?? null} clientData={clientData} rewardMaster={rewardMaster} />}
+      <IncomingCallBanner onNavigateToIncoming={() => setCurrentTab('incoming')} />
     </div>
   );
 }
