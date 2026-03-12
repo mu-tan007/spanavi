@@ -918,7 +918,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         {currentTab === "payroll" && <PayrollView members={members} appoData={appoData} isAdmin={isAdmin} setMembers={setMembers} onDataRefetch={onDataRefetch} currentUser={currentUser} />}
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView industryRules={industryRules} setIndustryRules={setIndustryRules} ruleEditorOpen={ruleEditorOpen} setRuleEditorOpen={setRuleEditorOpen} editingRule={editingRule} setEditingRule={setEditingRule} isAdmin={isAdmin} />}
-        {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} />}
+        {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} />}
         {currentTab === "edu_script" && <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} />}
         {currentTab === "edu_rules" && <PlaceholderView title="ルール管理ページ" />}
         {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} />}
@@ -928,7 +928,10 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       {callingScreen && <CallingScreen listId={callingScreen.listId} list={callingScreen.list} importedCSVs={importedCSVs} setImportedCSVs={setImportedCSVs} onClose={() => setCallingScreen(null)} currentUser={currentUser} liveStatuses={liveStatuses} setLiveStatuses={setLiveStatuses} members={members} clientData={clientData} rewardMaster={rewardMaster} />}
       {selectedList && <DetailModal list={enrichedLists.find(l => l.id === selectedList)} onClose={() => setSelectedList(null)} industryRules={industryRules} now={now} callListData={callListData} setCallListData={setCallListData} setCallFlowScreen={setCallFlowScreen} isAdmin={isAdmin} onDelete={(id) => { setCallListData(prev => prev.filter(l => l.id !== id)); setSelectedList(null); }} />}
       {callFlowScreen && <CallFlowView list={callFlowScreen.list} startNo={callFlowScreen.startNo} endNo={callFlowScreen.endNo} statusFilter={callFlowScreen.statusFilter ?? null} onClose={() => setCallFlowScreen(null)} setAppoData={isAdmin ? setAppoData : null} members={members} currentUser={currentUser} defaultItemId={callFlowScreen.defaultItemId ?? null} defaultListMode={callFlowScreen.defaultListMode ?? null} clientData={clientData} rewardMaster={rewardMaster} />}
-      <IncomingCallBanner onNavigateToIncoming={() => setCurrentTab('incoming')} />
+      <IncomingCallBanner
+        onNavigateToIncoming={() => setCurrentTab('incoming')}
+        onOpenCompany={(itemId) => setCallFlowScreen({ list: { _supaId: null, id: null, company: '' }, defaultItemId: itemId, defaultListMode: false })}
+      />
     </div>
   );
 }

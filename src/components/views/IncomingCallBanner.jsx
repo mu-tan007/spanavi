@@ -4,8 +4,8 @@ import { C } from '../../constants/colors';
 
 const ORG_ID = 'a0000000-0000-0000-0000-000000000001';
 
-export default function IncomingCallBanner({ onNavigateToIncoming }) {
-  const [banners, setBanners] = useState([]); // [{ id, company_name, caller_number, recordId }]
+export default function IncomingCallBanner({ onNavigateToIncoming, onOpenCompany }) {
+  const [banners, setBanners] = useState([]); // [{ id, company_name, caller_number, recordId, item_id }]
   const timersRef = useRef({});
 
   const dismiss = async (bannerId, recordId) => {
@@ -45,6 +45,7 @@ export default function IncomingCallBanner({ onNavigateToIncoming }) {
           company_name: rec.company_name || '不明',
           caller_number: rec.caller_number || '番号不明',
           recordId: rec.id,
+          item_id: rec.item_id || null,
         }]);
         autoDismiss(bannerId, rec.id);
       })
@@ -98,6 +99,20 @@ export default function IncomingCallBanner({ onNavigateToIncoming }) {
               >
                 対応済み
               </button>
+              {onOpenCompany && b.item_id && (
+                <button
+                  onClick={() => { onOpenCompany(b.item_id); dismiss(b.id, b.recordId); }}
+                  style={{
+                    padding: '5px 12px', borderRadius: 6,
+                    border: '1px solid ' + C.gold + '80',
+                    background: 'transparent', color: C.goldLight,
+                    fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                    fontFamily: "'Noto Sans JP'",
+                  }}
+                >
+                  企業ページを開く
+                </button>
+              )}
               {onNavigateToIncoming && (
                 <button
                   onClick={() => { onNavigateToIncoming(); dismiss(b.id, b.recordId); }}
