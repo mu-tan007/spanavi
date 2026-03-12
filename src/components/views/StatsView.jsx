@@ -137,11 +137,11 @@ export default function StatsView({ callListData, currentUser, appoData, members
   // === Call Ranking (period) ===
   const callByCaller = {};
   supaRecords.forEach(r => {
-    const key = r.getter_name || "不明";
+    const key = r.getter_name || '不明';
     if (!callByCaller[key]) callByCaller[key] = { total: 0, ceoConnect: 0, appo: 0 };
-    callByCaller[key].total++;
-    if (CEO_STATUSES.has(r.status)) callByCaller[key].ceoConnect++;
-    if (APPO_STATUSES.has(r.status)) callByCaller[key].appo++;
+    callByCaller[key].total += Number(r.total) || 0;
+    callByCaller[key].ceoConnect += Number(r.ceo_connect) || 0;
+    callByCaller[key].appo += Number(r.appo) || 0;
   });
 
   const callIndiv = Object.entries(callByCaller).map(([name, d]) => ({ name, ...d })).sort((a, b) => b.total - a.total);
@@ -153,11 +153,11 @@ export default function StatsView({ callListData, currentUser, appoData, members
   // team aggregation for calls
   const callByTeam = {};
   supaRecords.forEach(r => {
-    const tn = teamMap[r.getter_name] || "その他";
+    const tn = teamMap[r.getter_name] || 'その他';
     if (!callByTeam[tn]) callByTeam[tn] = { total: 0, ceoConnect: 0, appo: 0 };
-    callByTeam[tn].total++;
-    if (CEO_STATUSES.has(r.status)) callByTeam[tn].ceoConnect++;
-    if (APPO_STATUSES.has(r.status)) callByTeam[tn].appo++;
+    callByTeam[tn].total += Number(r.total) || 0;
+    callByTeam[tn].ceoConnect += Number(r.ceo_connect) || 0;
+    callByTeam[tn].appo += Number(r.appo) || 0;
   });
   const callTeamRank = Object.entries(callByTeam).sort((a, b) => b[1].total - a[1].total);
 
@@ -191,11 +191,13 @@ export default function StatsView({ callListData, currentUser, appoData, members
   // === Today realtime ranking ===
   const todayByCaller = {};
   supaTodayRecords.forEach(r => {
-    const key = r.getter_name || "不明";
-    if (!todayByCaller[key]) todayByCaller[key] = { total: 0, ceoConnect: 0, appo: 0, sales: 0 };
-    todayByCaller[key].total++;
-    if (CEO_STATUSES.has(r.status)) todayByCaller[key].ceoConnect++;
-    // アポ取得数はappointmentsテーブルから集計するため、ここではカウントしない
+    const key = r.getter_name || '不明';
+    todayByCaller[key] = {
+      total: Number(r.total) || 0,
+      ceoConnect: Number(r.ceo_connect) || 0,
+      appo: Number(r.appo) || 0,
+      sales: todayByCaller[key]?.sales || 0,
+    };
   });
   // Add today's appo count and sales from appoData (getter = アポ取得者 を正しく反映)
   const countableToday = new Set(["面談済", "事前確認済", "アポ取得"]);
@@ -311,7 +313,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
           <span style={{ fontSize: 16 }}>🔥</span>
           <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>本日のリアルタイムランキング</span>
-          <span style={{ fontSize: 10, color: C.textLight }}>{supaTodayRecords.length}件の架電</span>
+          <span style={{ fontSize: 10, color: C.textLight }}>{supaTodayRecords.reduce((s, r) => s + Number(r.total), 0)}件の架電</span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
           {[
@@ -361,7 +363,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 16 }}>📞</span>
             <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>架電ランキング</span>
-            <span style={{ fontSize: 10, color: C.textLight }}>({supaRecords.length}件)</span>
+            <span style={{ fontSize: 10, color: C.textLight }}>({supaRecords.reduce((s, r) => s + Number(r.total), 0)}件)</span>
           </div>
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             {periodSelector(callPeriod, setCallPeriod, callCustomFrom, setCallCustomFrom, callCustomTo, setCallCustomTo, callSelectedMonth, setCallSelectedMonth, C.navy)}

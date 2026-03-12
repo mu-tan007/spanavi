@@ -884,23 +884,10 @@ export async function fetchListIdsByItemCriteria({ prefecture, revenueMin, reven
 }
 
 export async function fetchCallRecordsForRanking(fromISO, toISO) {
-  const PAGE_SIZE = 1000;
-  let allData = [];
-  let from = 0;
-  while (true) {
-    const { data, error } = await supabase
-      .from('call_records')
-      .select('id, getter_name, status, called_at')
-      .gte('called_at', fromISO)
-      .lte('called_at', toISO)
-      .order('called_at', { ascending: true })
-      .range(from, from + PAGE_SIZE - 1);
-    if (error) { console.error('[DB] fetchCallRecordsForRanking error:', error); break; }
-    allData = allData.concat(data || []);
-    if (!data || data.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
-  }
-  return { data: allData, error: null };
+  const { data, error } = await supabase
+    .rpc('get_call_ranking', { from_iso: fromISO, to_iso: toISO });
+  if (error) console.error('[DB] fetchCallRecordsForRanking error:', error);
+  return { data: data || [], error };
 }
 
 export async function fetchMyCallRecords(userName) {
