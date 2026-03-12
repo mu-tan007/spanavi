@@ -68,7 +68,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   );
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState('meetDate');
+  const [sortKey, setSortKey] = useState('status');
   const [sortDir, setSortDir] = useState('asc');
   const [editForm, setEditForm] = useState(null);
   const [addAppoForm, setAddAppoForm] = useState(null);
@@ -103,6 +103,12 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     if (search && !a.company.includes(search) && !a.client.includes(search) && !a.getter.includes(search)) return false;
     return true;
   }).sort((a, b) => {
+    if (sortKey === 'status') {
+      const sa = statusOrder[a.status] ?? 99;
+      const sb = statusOrder[b.status] ?? 99;
+      if (sa !== sb) return sa - sb;
+      return (a.meetDate || '').localeCompare(b.meetDate || '');
+    }
     let valA, valB;
     if (sortKey === 'meetDate') { valA = a.meetDate || ''; valB = b.meetDate || ''; }
     else if (sortKey === 'client') { valA = a.client || ''; valB = b.client || ''; }
@@ -255,6 +261,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           padding: "8px 16px", background: "#F3F2F2",
           fontSize: 11, fontWeight: 700, color: "#706E6B", letterSpacing: "0.06em",
           textTransform: "uppercase", borderBottom: "2px solid #E5E5E5",
+          alignItems: "center",
         }}>
           {[
             { label: 'クライアント', key: 'client' },
@@ -268,11 +275,29 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           ].map(({ label, key }) => (
             <span key={label}
               onClick={key ? () => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); } } : undefined}
-              style={key ? { cursor: 'pointer', userSelect: 'none' } : {}}>
-              {label}{key && sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+              style={key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : {}}>
+              {label}
+              {key && (
+                <span style={{ marginLeft: 2 }}>
+                  <span style={{ color: sortKey === key && sortDir === 'asc' ? '#0D2247' : '#ccc' }}>▲</span>
+                  <span style={{ color: sortKey === key && sortDir === 'desc' ? '#0D2247' : '#ccc' }}>▼</span>
+                </span>
+              )}
             </span>
           ))}
-          {setAppoData && <span></span>}
+          {setAppoData && (
+            <span style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setSortKey('status'); setSortDir('asc'); }}
+                style={{
+                  padding: '3px 10px', borderRadius: 6,
+                  border: '1px solid #0D2247',
+                  background: sortKey === 'status' ? '#0D2247' : 'white',
+                  color: sortKey === 'status' ? 'white' : '#0D2247',
+                  fontSize: 10, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                }}>デフォルト</button>
+            </span>
+          )}
         </div>
         {filtered.length === 0 ? (
           <div style={{ padding: "30px 0", textAlign: "center", color: C.textLight, fontSize: 12 }}>データがありません</div>
