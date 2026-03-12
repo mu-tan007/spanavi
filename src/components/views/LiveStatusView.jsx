@@ -203,7 +203,14 @@ function ListCard({ sessions, calledCountMap, todayStr, members }) {
 
         {/* ── 凡例 ── */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px 14px', marginTop: 8 }}>
-          {sorted.map(s => {
+          {sorted.filter((s, idx, arr) =>
+            arr.findIndex(x =>
+              x.caller_name === s.caller_name &&
+              x.start_no === s.start_no &&
+              x.end_no === s.end_no &&
+              x.finished_at === s.finished_at
+            ) === idx
+          ).map(s => {
             const name   = resolveName(s.caller_name, members) || '不明';
             const color  = callerColorMap[name];
             const active = !s.finished_at && toJSTDateStr(s.started_at) === todayStr;
