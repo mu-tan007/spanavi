@@ -267,11 +267,11 @@ export default function RoleplayView({ currentUser, userId }) {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: C.offWhite, borderBottom: "1px solid " + C.borderLight, gap: 8 }}>
             <button onClick={() => { setWeekOffset(w => w - 1); setSelectedDay(0); }}
               disabled={weekOffset === 0}
-              style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid #C8A84B',
-                background: 'white', color: weekOffset === 0 ? '#e0c880' : '#C8A84B',
-                fontWeight: 700, fontSize: 13, cursor: weekOffset === 0 ? 'default' : 'pointer',
+              style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #C8A84B',
+                background: 'white', color: '#C8A84B',
+                fontWeight: 600, fontSize: 11, cursor: weekOffset === 0 ? 'default' : 'pointer',
                 flexShrink: 0, fontFamily: "'Noto Sans JP'",
-                opacity: weekOffset === 0 ? 0.5 : 1 }}>
+                opacity: weekOffset === 0 ? 0.4 : 1 }}>
               ← 前の週
             </button>
             <div style={{ display: "flex", overflowX: "auto", flex: 1 }}>
@@ -289,11 +289,11 @@ export default function RoleplayView({ currentUser, userId }) {
             </div>
             <button onClick={() => { setWeekOffset(w => w + 1); setSelectedDay(0); }}
               disabled={weekOffset >= 3}
-              style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid #C8A84B',
-                background: 'white', color: weekOffset >= 3 ? '#e0c880' : '#C8A84B',
-                fontWeight: 700, fontSize: 13, cursor: weekOffset >= 3 ? 'default' : 'pointer',
+              style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #C8A84B',
+                background: 'white', color: '#C8A84B',
+                fontWeight: 600, fontSize: 11, cursor: weekOffset >= 3 ? 'default' : 'pointer',
                 flexShrink: 0, fontFamily: "'Noto Sans JP'",
-                opacity: weekOffset >= 3 ? 0.5 : 1 }}>
+                opacity: weekOffset >= 3 ? 0.4 : 1 }}>
               次の週 →
             </button>
           </div>
