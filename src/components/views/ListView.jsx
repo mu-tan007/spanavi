@@ -47,7 +47,22 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
   const [showArchived, setShowArchived] = useState(false);
   const [generatingInfo, setGeneratingInfo] = useState(false);
 
-  const topRecommended = filteredLists.filter(l => l.status === "架電可能" && l.recommendation && l.recommendation.score >= 80).sort((a, b) => b.recommendation.score - a.recommendation.score);
+  // Step1: 足切り（定休日・非推奨帯・timeScore 40以下を除外）
+  const callable = filteredLists.filter(l =>
+    l.status === "架電可能" &&
+    l.recommendation &&
+    l.recommendation.timeScore > 40
+  );
+  // Step2: インポートから1週間以内のものに絞る
+  const withinOneWeek = callable.filter(l => {
+    if (!l.created_at) return false;
+    const daysSinceImport = (Date.now() - new Date(l.created_at).getTime()) / (1000 * 60 * 60 * 24);
+    return daysSinceImport <= 7;
+  });
+  // Step3: インポート日が新しい順にソートして最大10件
+  const topRecommended = [...withinOneWeek]
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 10);
 
   const handleOpenAdd = () => {
     setFormData(emptyForm);

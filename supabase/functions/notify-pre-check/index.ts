@@ -61,15 +61,22 @@ Deno.serve(async (req) => {
     const targetDates = [toDateStr(day0), toDateStr(day1), toDateStr(day2)]
 
     // appointments テーブルを取得（status = 'アポ取得' かつ meeting_date が対象日）
-    const { data: appos, error: apposError } = await supabase
+    // meeting_date は timestamptz 型のため範囲クエリで取得し、JS側で3日分にフィルタ
+    const { data: raw, error: apposError } = await supabase
       .from('appointments')
       .select('company_name, getter_name, meeting_date, client_id, notes')
       .eq('status', 'アポ取得')
-      .in('meeting_date', targetDates)
+      .gte('meeting_date', `${targetDates[0]}T00:00:00+00:00`)
+      .lte('meeting_date', `${targetDates[2]}T23:59:59+00:00`)
       .order('meeting_date')
       .order('company_name')
 
     if (apposError) throw new Error(`appointments fetch error: ${apposError.message}`)
+
+    const appos = (raw || []).filter(a => {
+      const d = (a.meeting_date as string).slice(0, 10)
+      return targetDates.includes(d)
+    })
 
     if (!appos || appos.length === 0) {
       console.log('[notify-pre-check] 対象アポなし:', targetDates)

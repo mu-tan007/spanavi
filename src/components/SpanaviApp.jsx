@@ -377,7 +377,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
 
   const enrichedLists = useMemo(() => callListData.map(list => {
     const latestCallAt = latestSessionMap[list._supaId] || null;
-    const rec = getCurrentRecommendation(industryRules, list.industry, now, latestCallAt);
+    const rec = getCurrentRecommendation(industryRules, list.industry, now, latestCallAt, list.created_at || null);
     return { ...list, recommendation: rec };
   }), [now, latestSessionMap, industryRules, callListData]);
 
@@ -393,7 +393,15 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   }, [enrichedLists, filterStatus, filterType, searchQuery, sortBy]);
 
   const activeCount = enrichedLists.filter(l => l.status === "架電可能").length;
-  const recommendedCount = enrichedLists.filter(l => l.status === "架電可能" && l.recommendation.score >= 80).length;
+  const recommendedCount = (() => {
+    const c = enrichedLists.filter(l => {
+      if (l.status !== "架電可能" || !l.recommendation || l.recommendation.timeScore <= 40) return false;
+      if (!l.created_at) return false;
+      const days = (Date.now() - new Date(l.created_at).getTime()) / (1000 * 60 * 60 * 24);
+      return days <= 7;
+    });
+    return Math.min(c.length, 10);
+  })();
 
   const timeStr = now.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
   const dateStr = now.toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric", weekday: "long" });

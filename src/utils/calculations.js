@@ -14,7 +14,8 @@ export const calcRankAndRate = (totalSales) => {
 
 // 架電おすすめスコア計算
 // latestCallAt: そのリストの最終架電セッション started_at (ISO string | null)
-export const getCurrentRecommendation = (rules, industry, now, latestCallAt) => {
+// createdAt:    call_lists.created_at (ISO string | null)
+export const getCurrentRecommendation = (rules, industry, now, latestCallAt, createdAt) => {
   const dayOfWeek = now.getDay();
   const hour = now.getHours();
   const minutes = now.getMinutes();
@@ -62,8 +63,21 @@ export const getCurrentRecommendation = (rules, industry, now, latestCallAt) => 
     else { recencyScore = 95; recencyLabel = Math.floor(daysSince) + "日前"; }
   }
 
-  // --- Combined score: 35% time, 65% recency ---
-  const combined = Math.round(timeScore * 0.30 + recencyScore * 0.70);
+  // --- Import score (0-100): higher = imported more recently = higher priority ---
+  let importScore = 25; // default: unknown age
+  if (createdAt) {
+    const daysSinceImport = (now - new Date(createdAt)) / (1000 * 60 * 60 * 24);
+    if (daysSinceImport <= 1)       { importScore = 100; }
+    else if (daysSinceImport <= 2)  { importScore = 90; }
+    else if (daysSinceImport <= 3)  { importScore = 80; }
+    else if (daysSinceImport <= 7)  { importScore = 65; }
+    else if (daysSinceImport <= 14) { importScore = 45; }
+    else if (daysSinceImport <= 31) { importScore = 25; }
+    else                            { importScore = 10; }
+  }
+
+  // --- Combined score: 50% time, 30% import, 20% recency ---
+  const combined = Math.round(timeScore * 0.50 + importScore * 0.30 + recencyScore * 0.20);
 
   // --- Determine label and color ---
   let label, color;
@@ -87,5 +101,5 @@ export const getCurrentRecommendation = (rules, industry, now, latestCallAt) => 
     color = C.red;
   }
 
-  return { score: combined, label, color, timeScore, timeLabel, recencyScore, recencyLabel };
+  return { score: combined, label, color, timeScore, timeLabel, recencyScore, recencyLabel, importScore };
 };

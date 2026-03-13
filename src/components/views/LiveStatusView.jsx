@@ -54,6 +54,15 @@ const CALLER_COLORS = [
 ];
 
 // ─── ListCard コンポーネント ─────────────────────────────────────
+// セッションが「稼働中」かどうか判定するヘルパー（8時間タイムアウト込み）
+function isActiveSession(s, todayStr) {
+  if (s.finished_at) return false;
+  if (toJSTDateStr(s.started_at) !== todayStr) return false;
+  const lastActivity = s.last_called_at || s.started_at;
+  const diffHours = (Date.now() - new Date(lastActivity).getTime()) / (1000 * 60 * 60);
+  return diffHours < 3;
+}
+
 function ListCard({ sessions, calledCountMap, todayStr, members }) {
   // セッションをfinished_at昇順でソート（完了済み→稼働中の順で描画、稼働中が上に重なる）
   const sorted = [...sessions].sort((a, b) => {
@@ -78,8 +87,8 @@ function ListCard({ sessions, calledCountMap, todayStr, members }) {
     }
   });
 
-  // 稼働中判定
-  const hasActive = sorted.some(s => !s.finished_at && toJSTDateStr(s.started_at) === todayStr);
+  // 稼働中判定（8時間タイムアウト込み）
+  const hasActive = sorted.some(s => isActiveSession(s, todayStr));;
 
   // 架電済み合計
   const totalCalled = sorted.reduce((sum, s) => sum + (calledCountMap[s.id]?.count || 0), 0);
@@ -160,7 +169,7 @@ function ListCard({ sessions, calledCountMap, todayStr, members }) {
             const left  = ((s.start_no - 1) / totalCount) * 100;
             const width = ((s.end_no - s.start_no + 1) / totalCount) * 100;
             const color = callerColorMap[resolveName(s.caller_name, members) || '不明'];
-            const active = !s.finished_at && toJSTDateStr(s.started_at) === todayStr;
+            const active = isActiveSession(s, todayStr);
             return (
               <div
                 key={s.id}
@@ -203,7 +212,7 @@ function ListCard({ sessions, calledCountMap, todayStr, members }) {
           ).map(s => {
             const name   = s.resolvedName;
             const color  = callerColorMap[name];
-            const active = !s.finished_at && toJSTDateStr(s.started_at) === todayStr;
+            const active = isActiveSession(s, todayStr);
             const dispStart = s.start_no ?? 1;
             const dispEnd   = s.end_no ?? totalCount;
             return (
@@ -327,8 +336,8 @@ export default function LiveStatusView({ now, members }) {
 
       // カードを「稼働中優先 → 最終架電新しい順」でソート
       const cards = Object.values(listMap).sort((a, b) => {
-        const aActive = a.some(s => !s.finished_at);
-        const bActive = b.some(s => !s.finished_at);
+        const aActive = a.some(s => isActiveSession(s, dateStr));
+        const bActive = b.some(s => isActiveSession(s, dateStr));
         if (aActive && !bActive) return -1;
         if (!aActive && bActive) return 1;
         const latest = (arr) => arr.reduce((m, s) => {
@@ -361,7 +370,7 @@ export default function LiveStatusView({ now, members }) {
         {dayGroups.map(({ key, label, date, cards }) => {
           const isToday     = key === 0;
           const isCollapsed = !!collapsed[key];
-          const activeCards = cards.filter(ss => ss.some(s => !s.finished_at));
+          const activeCards = cards.filter(ss => ss.some(s => isActiveSession(s, todayStr)));
 
           return (
             <div key={key}>
