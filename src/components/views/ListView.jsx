@@ -59,6 +59,9 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
     const daysSinceImport = (Date.now() - new Date(l.created_at).getTime()) / (1000 * 60 * 60 * 24);
     return daysSinceImport <= 7;
   });
+  console.log('callable:', callable.length);
+  console.log('withinOneWeek:', withinOneWeek.length);
+  console.log('sample created_at:', callable[0]?.created_at);
   // Step3: インポート日が新しい順にソートして最大10件
   const topRecommended = [...withinOneWeek]
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))

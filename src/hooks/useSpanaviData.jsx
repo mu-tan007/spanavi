@@ -79,6 +79,7 @@ export function useSpanaviData() {
         script: cl.script_name || '',
         notes: cl.notes || '',
         is_archived: cl.is_archived || false,
+        created_at: cl.created_at || null,
       }))
 
       // clients → 既存CLIENT_DATAフォーマットに変換
