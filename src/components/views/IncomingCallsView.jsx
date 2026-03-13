@@ -211,7 +211,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
                                       textDecoration: setCallFlowScreen ? 'underline' : 'none',
                                     }}
                                   >
-                                    {[m.clientName, m.listName].filter(Boolean).join(' / ')}
+                                    {[m.clientName, m.listName].filter(Boolean).join(' – ')}
                                   </span>
                                 </div>
                               ))}
@@ -295,7 +295,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
                   onMouseEnter={e => { e.currentTarget.style.background = '#EAF4FF'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = C.offWhite; }}
                 >
-                  {[m.clientName, m.listName].filter(Boolean).join(' / ')}
+                  {[m.clientName, m.listName].filter(Boolean).join(' – ')}
                   {m.company && (
                     <span style={{ fontSize: 10, color: C.textLight, fontWeight: 400, marginLeft: 8 }}>
                       {m.company}
