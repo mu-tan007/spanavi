@@ -64,7 +64,7 @@ function isActiveSession(s, todayStr) {
   return diffHours < 3;
 }
 
-function ListCard({ sessions, calledCountMap, todayStr, members, currentUserId, isAdmin, onUpdateEndNo }) {
+function ListCard({ sessions, calledCountMap, todayStr, members, profile, isAdmin, onUpdateEndNo }) {
   const [editingId, setEditingId] = useState(null);  // 編集中のセッションid
   const [editValue, setEditValue] = useState('');
   const [saving, setSaving] = useState(false);
@@ -215,7 +215,7 @@ function ListCard({ sessions, calledCountMap, todayStr, members, currentUserId, 
             const active = isActiveSession(s, todayStr);
             const dispStart = s.start_no ?? 1;
             const dispEnd   = s.end_no ?? totalCount;
-            const isSelf    = currentUserId && s.caller_name === 'user_' + currentUserId;
+            const isSelf    = profile?.name && resolveName(s.caller_name, members) === profile.name;
             const canEdit   = isSelf || isAdmin;
             const isEditing = editingId === s.id;
 
@@ -490,7 +490,7 @@ export default function LiveStatusView({ now, members }) {
                         calledCountMap={calledCounts}
                         todayStr={todayStr}
                         members={members}
-                        currentUserId={profile?.id}
+                        profile={profile}
                         isAdmin={isAdmin}
                         onUpdateEndNo={(sessionId, newEndNo) => {
                           setSessions(prev => prev.map(s =>
