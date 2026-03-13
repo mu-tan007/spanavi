@@ -32,6 +32,7 @@ import RecallListView from './views/RecallListView';
 import ShiftManagementView from './views/ShiftManagementView';
 import RulesView from './views/RulesView';
 import PlaceholderView from './views/PlaceholderView';
+import InternRulesView from './views/InternRulesView';
 import AIAssistantView from './views/AIAssistantView';
 import DetailModal from './views/DetailModal';
 
@@ -928,7 +929,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         {currentTab === "rules" && <RulesView industryRules={industryRules} setIndustryRules={setIndustryRules} ruleEditorOpen={ruleEditorOpen} setRuleEditorOpen={setRuleEditorOpen} editingRule={editingRule} setEditingRule={setEditingRule} isAdmin={isAdmin} />}
         {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} />}
         {currentTab === "edu_script" && <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} />}
-        {currentTab === "edu_rules" && <PlaceholderView title="ルール管理ページ" />}
+        {currentTab === "edu_rules" && <InternRulesView />}
         {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} />}
         {currentTab === "ai" && <AIAssistantView appoData={appoData} members={members} callListData={callListData} industryRules={industryRules} currentUser={currentUser} />}
       </main>
