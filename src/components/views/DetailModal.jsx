@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { C } from '../../constants/colors';
 import { CALL_RESULTS } from '../../constants/callResults';
 import { getIndustryCategory } from '../../utils/industry';
@@ -40,6 +40,8 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
   const [flowEndNo, setFlowEndNo] = useState('');
   const [itemCount, setItemCount] = useState(null);
   const [selectedStatuses, setSelectedStatuses] = useState([]); // 空配列=全ステータス
+  const [revenueMin, setRevenueMin] = useState('');
+  const [revenueMax, setRevenueMax] = useState('');
 
   useEffect(() => {
     if (!list._supaId) {
@@ -364,7 +366,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
           <button
             onClick={() => {
               const sf = selectedStatuses.length > 0 ? selectedStatuses : null;
-              setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf });
+              setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf, revenueMin: revenueMin || null, revenueMax: revenueMax || null });
             }}
             style={{
               padding: "6px 20px", borderRadius: 6,
@@ -418,6 +420,29 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             </div>
           );
         })()}
+
+        {/* 売上高フィルター */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#706E6B', marginBottom: 10, flexWrap: 'wrap' }}>
+          <span style={{ whiteSpace: 'nowrap' }}>売上高</span>
+          {[
+            { value: revenueMin, setter: setRevenueMin, isMax: false },
+            { value: revenueMax, setter: setRevenueMax, isMax: true },
+          ].map(({ value, setter, isMax }, idx) => (
+            <React.Fragment key={idx}>
+              {idx === 1 && <span>〜</span>}
+              <select value={value} onChange={e => setter(e.target.value)}
+                style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", background: value ? '#EAF4FF' : C.white, color: C.navy, cursor: 'pointer' }}>
+                <option value="">指定なし</option>
+                {[['1億円',100000],['2億円',200000],['3億円',300000],['4億円',400000],['5億円',500000],
+                  ['6億円',600000],['7億円',700000],['8億円',800000],['9億円',900000],['10億円',1000000],
+                  ['20億円',2000000],['30億円',3000000],['40億円',4000000],['50億円',5000000]].map(([label, val]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
+                {isMax && <option value="999999999">50億円以上</option>}
+              </select>
+            </React.Fragment>
+          ))}
+        </div>
 
         {/* CSV取込 / リスト削除（管理者のみ） */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4, flexWrap: "wrap" }}>

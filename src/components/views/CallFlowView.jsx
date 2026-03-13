@@ -19,7 +19,7 @@ const _cfSessionCache = new Map(); // `${listId}|${startNo}|${endNo}` → sessio
 // isRealCloseRef（useRef）はStrict Modeで信頼できないため、同じパターンで管理
 const _cfRealCloseSet = new Set(); // sessionId → リアルクローズ時にadd、cleanup後にdelete
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [] }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRow, setSelectedRow] = useState(null);
@@ -34,8 +34,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [callRecords, setCallRecords] = useState([]);
   const [selectedRound, setSelectedRound] = useState(null);
   const [filterMode, setFilterMode] = useState('callable');
-  const [revenueMin, setRevenueMin] = useState('');  // 千円単位（例: 100000 = 1億円）
-  const [revenueMax, setRevenueMax] = useState('');  // 空文字 = 上限なし
+  const [revenueMin, setRevenueMin] = useState(initialRevenueMin ? String(initialRevenueMin) : '');  // 千円単位（例: 100000 = 1億円）
+  const [revenueMax, setRevenueMax] = useState(initialRevenueMax ? String(initialRevenueMax) : '');  // 空文字 = 上限なし
   const [recallModal, setRecallModal] = useState(null); // { row, statusId, round, label }
   const [subPhone, setSubPhone] = useState('');
   const [lastDialedPhone, setLastDialedPhone] = useState(null);
