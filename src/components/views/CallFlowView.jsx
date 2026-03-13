@@ -280,8 +280,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
   const handleSort = (col) => {
     setSortState(prev => {
-      if (prev.column === col && prev.direction === 'desc') return { column: null, direction: null };
-      return { column: col, direction: 'desc' };
+      if (prev.column !== col) return { column: col, direction: 'asc' };
+      if (prev.direction === 'asc') return { column: col, direction: 'desc' };
+      return { column: null, direction: null };
     });
     setPage(0);
   };
@@ -735,16 +736,18 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 <thead>
                   <tr style={{ background: C.navyDeep, position: 'sticky', top: 0, zIndex: 1 }}>
                     {[['No', '36px'], ['企業名', null], ['事業内容', null], ['代表者', '90px'], ['電話番号', '112px'], ['結果', '76px']].map(([h, w]) => {
-                      const isActive = sortState.column === h && sortState.direction === 'desc';
+                      const dir = sortState.column === h ? sortState.direction : null;
                       return (
                         <th key={h} onClick={() => handleSort(h)}
                           style={{ padding: '7px 8px', textAlign: 'left', fontSize: 9, fontWeight: 600, color: C.goldLight, letterSpacing: 0.5, whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none', ...(w ? { width: w } : {}) }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                             {h}
                             <svg width="8" height="7" viewBox="0 0 8 7" style={{ flexShrink: 0 }}>
-                              {isActive
+                              {dir === 'desc'
                                 ? <polygon points="2,7 8,7 5,2" fill={C.goldLight} />
-                                : <polygon points="2,2 8,2 5,7" fill="none" stroke={C.goldLight + '80'} strokeWidth="1" />
+                                : dir === 'asc'
+                                  ? <polygon points="2,0 8,0 5,5" fill={C.goldLight} />
+                                  : <polygon points="2,2 8,2 5,7" fill="none" stroke={C.goldLight + '80'} strokeWidth="1" />
                               }
                             </svg>
                           </span>
@@ -1193,11 +1196,11 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     <thead>
                       <tr style={{ background: '#F3F2F2', position: 'sticky', top: 0, zIndex: 1 }}>
                         {[['No', '36px'], ['企業名', null], ['事業内容', null], ['代表者', '90px'], ['電話番号', '112px'], ['売上高', '90px'], ['結果', '80px']].map(([h, w]) => {
-                          const isActive = sortState.column === h && sortState.direction === 'desc';
+                          const dir = sortState.column === h ? sortState.direction : null;
                           return (
                             <th key={h} onClick={() => handleSort(h)}
                               style={{ padding: '8px 8px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#706E6B', letterSpacing: '0.04em', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none', borderBottom: '2px solid #E5E5E5', ...(w ? { width: w } : {}) }}>
-                              {h}{isActive ? ' ▼' : ''}
+                              {h}{dir === 'desc' ? ' ▼' : dir === 'asc' ? ' ▲' : ''}
                             </th>
                           );
                         })}
