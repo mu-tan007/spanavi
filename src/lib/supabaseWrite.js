@@ -1300,10 +1300,18 @@ export async function deleteRewardTier(id) {
   return { error }
 }
 
-export async function updateSessionEndNo(sessionId, endNo) {
+export async function updateSessionRange(sessionId, startNo, endNo) {
   const { error } = await supabase
     .from('call_sessions')
-    .update({ end_no: endNo })
+    .update({ start_no: startNo, end_no: endNo })
+    .eq('id', sessionId)
+  if (error) throw error
+}
+
+export async function deleteSession(sessionId) {
+  const { error } = await supabase
+    .from('call_sessions')
+    .delete()
     .eq('id', sessionId)
   if (error) throw error
 }

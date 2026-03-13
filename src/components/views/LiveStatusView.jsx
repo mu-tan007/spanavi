@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { C } from '../../constants/colors';
-import { fetchAllCallSessionsWithClients, fetchCalledCountForSession, updateSessionEndNo } from '../../lib/supabaseWrite';
-import { useAuth } from '../../hooks/useAuth';
+import { fetchAllCallSessionsWithClients, fetchCalledCountForSession, updateSessionRange, deleteSession } from '../../lib/supabaseWrite';
 
 // ─── ユーティリティ ─────────────────────────────────────────────
 const toJSTDateStr = (d) =>
@@ -64,9 +63,10 @@ function isActiveSession(s, todayStr) {
   return diffHours < 3;
 }
 
-function ListCard({ sessions, calledCountMap, todayStr, members, profile, isAdmin, onUpdateEndNo }) {
-  const [editingId, setEditingId] = useState(null);  // 編集中のセッションid
-  const [editValue, setEditValue] = useState('');
+function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, onDeleteSession }) {
+  const [editingId, setEditingId] = useState(null);
+  const [editStart, setEditStart] = useState('');
+  const [editEnd, setEditEnd] = useState('');
   const [saving, setSaving] = useState(false);
   // セッションをfinished_at昇順でソート（完了済み→稼働中の順で描画、稼働中が上に重なる）
   const sorted = [...sessions].sort((a, b) => {
@@ -210,33 +210,44 @@ function ListCard({ sessions, calledCountMap, todayStr, members, profile, isAdmi
           })).filter((s, idx, arr) =>
             arr.findIndex(x => x.id === s.id) === idx
           ).map(s => {
-            const name   = s.resolvedName;
-            const color  = callerColorMap[name];
-            const active = isActiveSession(s, todayStr);
+            const name      = s.resolvedName;
+            const color     = callerColorMap[name];
+            const active    = isActiveSession(s, todayStr);
             const dispStart = s.start_no ?? 1;
             const dispEnd   = s.end_no ?? totalCount;
-            const isSelf    = profile?.name && resolveName(s.caller_name, members) === profile.name;
-            const canEdit   = isSelf || isAdmin;
             const isEditing = editingId === s.id;
 
             const handleEdit = () => {
               setEditingId(s.id);
-              setEditValue(String(s.end_no ?? ''));
+              setEditStart(String(s.start_no ?? ''));
+              setEditEnd(String(s.end_no ?? ''));
             };
-            const handleCancel = () => { setEditingId(null); setEditValue(''); };
+            const handleCancel = () => { setEditingId(null); setEditStart(''); setEditEnd(''); };
             const handleSave = async () => {
-              const num = parseInt(editValue, 10);
-              if (isNaN(num) || num < 1) { alert('正しい番号を入力してください'); return; }
+              const sn = parseInt(editStart, 10);
+              const en = parseInt(editEnd, 10);
+              if (isNaN(sn) || sn < 1 || isNaN(en) || en < sn) {
+                alert('正しい番号を入力してください（開始 ≤ 終了）');
+                return;
+              }
               setSaving(true);
               try {
-                await updateSessionEndNo(s.id, num);
-                onUpdateEndNo(s.id, num);
-                setEditingId(null);
-                setEditValue('');
+                await updateSessionRange(s.id, sn, en);
+                onUpdateRange(s.id, sn, en);
+                handleCancel();
               } catch (e) {
                 alert('保存に失敗しました: ' + e.message);
               } finally {
                 setSaving(false);
+              }
+            };
+            const handleDelete = async () => {
+              if (!window.confirm('このセッション履歴を削除しますか？')) return;
+              try {
+                await deleteSession(s.id);
+                onDeleteSession(s.id);
+              } catch (e) {
+                alert('削除に失敗しました: ' + e.message);
               }
             };
 
@@ -261,27 +272,34 @@ function ListCard({ sessions, calledCountMap, todayStr, members, profile, isAdmi
                     }} />
                   )}
                 </span>
-                {/* 編集UI */}
-                {canEdit && !isEditing && (
-                  <button onClick={handleEdit} title="終了番号を編集" style={{
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    fontSize: 10, padding: '0 2px', color: C.textLight, lineHeight: 1,
-                  }}>✏️</button>
+                {/* ✏️ / 🗑️ ボタン */}
+                {!isEditing && (
+                  <>
+                    <button onClick={handleEdit} title="範囲を編集" style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: 10, padding: '0 2px', lineHeight: 1,
+                    }}>✏️</button>
+                    <button onClick={handleDelete} title="セッションを削除" style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: 10, padding: '0 2px', lineHeight: 1,
+                    }}>🗑️</button>
+                  </>
                 )}
+                {/* インライン編集UI */}
                 {isEditing && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ fontSize: 9, color: C.textLight, fontFamily: "'JetBrains Mono'" }}>
-                      {dispStart.toLocaleString()}〜
-                    </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 9, color: C.textLight }}>開始:</span>
                     <input
-                      type="number" value={editValue} onChange={e => setEditValue(e.target.value)}
+                      type="number" value={editStart} onChange={e => setEditStart(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') handleCancel(); }}
                       autoFocus
-                      style={{
-                        width: 60, padding: '2px 5px', borderRadius: 4,
-                        border: '1px solid ' + C.navy, fontSize: 10,
-                        fontFamily: "'JetBrains Mono'", textAlign: 'center', outline: 'none',
-                      }}
+                      style={{ width: 56, padding: '2px 4px', borderRadius: 4, border: '1px solid ' + C.navy, fontSize: 10, fontFamily: "'JetBrains Mono'", textAlign: 'center', outline: 'none' }}
+                    />
+                    <span style={{ fontSize: 9, color: C.textLight }}>〜 終了:</span>
+                    <input
+                      type="number" value={editEnd} onChange={e => setEditEnd(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') handleCancel(); }}
+                      style={{ width: 56, padding: '2px 4px', borderRadius: 4, border: '1px solid ' + C.navy, fontSize: 10, fontFamily: "'JetBrains Mono'", textAlign: 'center', outline: 'none' }}
                     />
                     <button onClick={handleSave} disabled={saving} style={{
                       padding: '2px 7px', borderRadius: 4, border: 'none', cursor: saving ? 'default' : 'pointer',
@@ -325,7 +343,6 @@ function ListCard({ sessions, calledCountMap, todayStr, members, profile, isAdmi
 
 // ─── メインコンポーネント ────────────────────────────────────────
 export default function LiveStatusView({ now, members }) {
-  const { profile, isAdmin } = useAuth();
   const [sessions, setSessions]             = useState([]);
   const [calledCounts, setCalledCounts]     = useState({});
   // 過去日セクションはデフォルト折りたたみ（today = key 0 はデフォルト展開）
@@ -490,12 +507,13 @@ export default function LiveStatusView({ now, members }) {
                         calledCountMap={calledCounts}
                         todayStr={todayStr}
                         members={members}
-                        profile={profile}
-                        isAdmin={isAdmin}
-                        onUpdateEndNo={(sessionId, newEndNo) => {
+                        onUpdateRange={(sessionId, startNo, endNo) => {
                           setSessions(prev => prev.map(s =>
-                            s.id === sessionId ? { ...s, end_no: newEndNo } : s
+                            s.id === sessionId ? { ...s, start_no: startNo, end_no: endNo } : s
                           ));
+                        }}
+                        onDeleteSession={(sessionId) => {
+                          setSessions(prev => prev.filter(s => s.id !== sessionId));
                         }}
                       />
                     ))}
