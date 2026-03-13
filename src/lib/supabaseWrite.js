@@ -1299,3 +1299,11 @@ export async function deleteRewardTier(id) {
   if (error) console.error('[DB] deleteRewardTier error:', error)
   return { error }
 }
+
+export async function updateSessionEndNo(sessionId, endNo) {
+  const { error } = await supabase
+    .from('call_sessions')
+    .update({ end_no: endNo })
+    .eq('id', sessionId)
+  if (error) throw error
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { C } from '../../constants/colors';
-import { fetchAllCallSessionsWithClients, fetchCalledCountForSession } from '../../lib/supabaseWrite';
+import { fetchAllCallSessionsWithClients, fetchCalledCountForSession, updateSessionEndNo } from '../../lib/supabaseWrite';
+import { useAuth } from '../../hooks/useAuth';
 
 // ─── ユーティリティ ─────────────────────────────────────────────
 const toJSTDateStr = (d) =>
@@ -63,7 +64,10 @@ function isActiveSession(s, todayStr) {
   return diffHours < 3;
 }
 
-function ListCard({ sessions, calledCountMap, todayStr, members }) {
+function ListCard({ sessions, calledCountMap, todayStr, members, currentUserId, isAdmin, onUpdateEndNo }) {
+  const [editingId, setEditingId] = useState(null);  // 編集中のセッションid
+  const [editValue, setEditValue] = useState('');
+  const [saving, setSaving] = useState(false);
   // セッションをfinished_at昇順でソート（完了済み→稼働中の順で描画、稼働中が上に重なる）
   const sorted = [...sessions].sort((a, b) => {
     const aFin = a.finished_at ? 1 : 0;
@@ -204,32 +208,51 @@ function ListCard({ sessions, calledCountMap, todayStr, members }) {
             ...s,
             resolvedName: resolveName(s.caller_name, members) || '不明',
           })).filter((s, idx, arr) =>
-            arr.findIndex(x =>
-              x.resolvedName === s.resolvedName &&
-              x.start_no === s.start_no &&
-              x.end_no === s.end_no
-            ) === idx
+            arr.findIndex(x => x.id === s.id) === idx
           ).map(s => {
             const name   = s.resolvedName;
             const color  = callerColorMap[name];
             const active = isActiveSession(s, todayStr);
             const dispStart = s.start_no ?? 1;
             const dispEnd   = s.end_no ?? totalCount;
+            const isSelf    = currentUserId && s.caller_name === 'user_' + currentUserId;
+            const canEdit   = isSelf || isAdmin;
+            const isEditing = editingId === s.id;
+
+            const handleEdit = () => {
+              setEditingId(s.id);
+              setEditValue(String(s.end_no ?? ''));
+            };
+            const handleCancel = () => { setEditingId(null); setEditValue(''); };
+            const handleSave = async () => {
+              const num = parseInt(editValue, 10);
+              if (isNaN(num) || num < 1) { alert('正しい番号を入力してください'); return; }
+              setSaving(true);
+              try {
+                await updateSessionEndNo(s.id, num);
+                onUpdateEndNo(s.id, num);
+                setEditingId(null);
+                setEditValue('');
+              } catch (e) {
+                alert('保存に失敗しました: ' + e.message);
+              } finally {
+                setSaving(false);
+              }
+            };
+
             return (
-              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                 <span style={{
                   width: 10, height: 10, borderRadius: 2, flexShrink: 0,
-                  background: color,
-                  opacity: active ? 1 : 0.6,
+                  background: color, opacity: active ? 1 : 0.6,
                 }} />
                 <span style={{ fontSize: 10, color: C.textMid, whiteSpace: 'nowrap' }}>
                   {name}
-                  <span style={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: 9, color: C.textLight, marginLeft: 3,
-                  }}>
-                    {dispStart.toLocaleString()}〜{dispEnd.toLocaleString()}
-                  </span>
+                  {!isEditing && (
+                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: C.textLight, marginLeft: 3 }}>
+                      {dispStart.toLocaleString()}〜{dispEnd.toLocaleString()}
+                    </span>
+                  )}
                   {active && (
                     <span style={{
                       display: 'inline-block', width: 5, height: 5, borderRadius: '50%',
@@ -238,6 +261,38 @@ function ListCard({ sessions, calledCountMap, todayStr, members }) {
                     }} />
                   )}
                 </span>
+                {/* 編集UI */}
+                {canEdit && !isEditing && (
+                  <button onClick={handleEdit} title="終了番号を編集" style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontSize: 10, padding: '0 2px', color: C.textLight, lineHeight: 1,
+                  }}>✏️</button>
+                )}
+                {isEditing && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 9, color: C.textLight, fontFamily: "'JetBrains Mono'" }}>
+                      {dispStart.toLocaleString()}〜
+                    </span>
+                    <input
+                      type="number" value={editValue} onChange={e => setEditValue(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') handleCancel(); }}
+                      autoFocus
+                      style={{
+                        width: 60, padding: '2px 5px', borderRadius: 4,
+                        border: '1px solid ' + C.navy, fontSize: 10,
+                        fontFamily: "'JetBrains Mono'", textAlign: 'center', outline: 'none',
+                      }}
+                    />
+                    <button onClick={handleSave} disabled={saving} style={{
+                      padding: '2px 7px', borderRadius: 4, border: 'none', cursor: saving ? 'default' : 'pointer',
+                      background: C.navy, color: C.white, fontSize: 9, fontWeight: 700,
+                    }}>{saving ? '...' : '保存'}</button>
+                    <button onClick={handleCancel} disabled={saving} style={{
+                      padding: '2px 6px', borderRadius: 4, border: '1px solid ' + C.border,
+                      background: C.white, color: C.textMid, fontSize: 9, cursor: 'pointer',
+                    }}>✕</button>
+                  </span>
+                )}
               </div>
             );
           })}
@@ -270,6 +325,7 @@ function ListCard({ sessions, calledCountMap, todayStr, members }) {
 
 // ─── メインコンポーネント ────────────────────────────────────────
 export default function LiveStatusView({ now, members }) {
+  const { profile, isAdmin } = useAuth();
   const [sessions, setSessions]             = useState([]);
   const [calledCounts, setCalledCounts]     = useState({});
   // 過去日セクションはデフォルト折りたたみ（today = key 0 はデフォルト展開）
@@ -434,6 +490,13 @@ export default function LiveStatusView({ now, members }) {
                         calledCountMap={calledCounts}
                         todayStr={todayStr}
                         members={members}
+                        currentUserId={profile?.id}
+                        isAdmin={isAdmin}
+                        onUpdateEndNo={(sessionId, newEndNo) => {
+                          setSessions(prev => prev.map(s =>
+                            s.id === sessionId ? { ...s, end_no: newEndNo } : s
+                          ));
+                        }}
                       />
                     ))}
                   </div>
