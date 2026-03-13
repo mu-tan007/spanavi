@@ -227,13 +227,16 @@ Deno.serve(async (req) => {
         console.log(`  [候補] date_time=${r.date_time ?? '—'} / called_at=${called_at ?? '—'} / prev_called_at=${prev_called_at ?? '—'}`)
       })
       if (called_at) {
-        const calledTime  = new Date(called_at).getTime() + 30_000  // +30秒バッファ
-        const prevTime    = prev_called_at ? new Date(prev_called_at).getTime() : null
-        // 時間窓フィルタ: prev_called_at < date_time <= called_at + 30s
+        const calledTime    = new Date(called_at).getTime() + 30_000  // +30秒バッファ
+        const prevTime      = prev_called_at ? new Date(prev_called_at).getTime() : null
+        // 3時間以上前の録音は除外（通話時間の上限として保守的に設定）
+        const earliestTime  = new Date(called_at).getTime() - 3 * 60 * 60 * 1000
+        // 時間窓フィルタ: MAX(prev_called_at, called_at-3h) < date_time <= called_at + 30s
         const inWindow = phoneFiltered.filter(r => {
           const st = new Date(r.date_time || 0).getTime()
-          if (st > calledTime) return false               // called_at+30sより後 → 次の通話の録音
-          if (prevTime !== null && st <= prevTime) return false  // prev_called_at 以前 → 前の通話の録音
+          if (st > calledTime) return false                              // called_at+30sより後 → 次の通話の録音
+          if (prevTime !== null && st <= prevTime) return false         // prev_called_at 以前 → 前の通話の録音
+          if (st < earliestTime) return false                           // 3時間以上前 → 別日の古い録音
           return true
         })
         console.log(`[get-zoom-recording] 時間窓フィルタ後: ${inWindow.length}/${phoneFiltered.length} 件`)

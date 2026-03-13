@@ -454,7 +454,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const handleFetchRecording = async (rec) => {
     const item = items.find(i => i.id === rec.item_id);
     if (!item) return;
-    const url = await fetchRecordingUrl(item.phone, rec.called_at, null);
+    const prevRec = callRecords
+      .filter(r => r.item_id === rec.item_id && r.called_at < rec.called_at)
+      .sort((a, b) => (b.called_at || '').localeCompare(a.called_at || ''))[0];
+    const url = await fetchRecordingUrl(item.phone, rec.called_at, prevRec?.called_at || null);
     if (!url) { alert('録音URLを取得できませんでした'); return; }
     const dbError = await updateCallRecordRecordingUrl(rec.id, url);
     if (dbError) { alert('録音URLのDB保存に失敗しました: ' + dbError.message); return; }
