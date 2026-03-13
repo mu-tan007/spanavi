@@ -465,7 +465,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
     ]},
     { id: "g_education", label: "教育", children: [
       { id: "edu_script", label: "スクリプト" },
-      { id: "edu_rules", label: "ルール" },
+      { id: "edu_rules", label: "インターン22箇条" },
       { id: "edu_roleplay", label: "ロープレ" },
     ]},
   ];
