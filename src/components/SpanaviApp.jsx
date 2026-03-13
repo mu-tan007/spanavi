@@ -34,6 +34,7 @@ import RulesView from './views/RulesView';
 import PlaceholderView from './views/PlaceholderView';
 import InternRulesView from './views/InternRulesView';
 import AIAssistantView from './views/AIAssistantView';
+import AdminView from './views/AdminView';
 import DetailModal from './views/DetailModal';
 
 // ============================================================
@@ -299,7 +300,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   const isAdmin = isAdminProp || currentUser === "管理者";
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
-  const _VALID_TABS = ["live","incoming","lists","appo","precheck","crm","members","search","stats","recall","payroll","shift","rules","mypage","edu_script","edu_rules","edu_roleplay","ai","reward_master"];
+  const _VALID_TABS = ["live","incoming","lists","appo","precheck","crm","members","search","stats","recall","payroll","shift","rules","mypage","edu_script","edu_rules","edu_roleplay","ai","reward_master","admin"];
   const [currentTab, setCurrentTab] = useState(() => {
     try {
       const saved = localStorage.getItem("masp_v2_currentTab");
@@ -468,6 +469,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       { id: "edu_rules", label: "インターン22箇条" },
       { id: "edu_roleplay", label: "ロープレ" },
     ]},
+    ...(isAdmin ? [{ id: "admin", label: "⚙️ 管理者設定", children: null }] : []),
   ];
 
   const getActiveGroup = () => {
@@ -932,6 +934,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         {currentTab === "edu_rules" && <InternRulesView />}
         {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} />}
         {currentTab === "ai" && <AIAssistantView appoData={appoData} members={members} callListData={callListData} industryRules={industryRules} currentUser={currentUser} />}
+        {currentTab === "admin" && isAdmin && <AdminView isAdmin={isAdmin} setCurrentTab={setCurrentTab} />}
       </main>
 
       {callingScreen && <CallingScreen listId={callingScreen.listId} list={callingScreen.list} importedCSVs={importedCSVs} setImportedCSVs={setImportedCSVs} onClose={() => setCallingScreen(null)} currentUser={currentUser} liveStatuses={liveStatuses} setLiveStatuses={setLiveStatuses} members={members} clientData={clientData} rewardMaster={rewardMaster} />}

@@ -133,7 +133,16 @@ Deno.serve(async (req) => {
 
     const text = sections.join('\n').trimEnd()
 
-    const webhookUrl = Deno.env.get('SLACK_PRECHECK_WEBHOOK_URL')
+    // org_settings から Webhook URL を取得（なければ env var にフォールバック）
+    const { data: orgSetting } = await supabase
+      .from('org_settings')
+      .select('setting_value')
+      .eq('org_id', 'a0000000-0000-0000-0000-000000000001')
+      .eq('setting_key', 'slack_webhook_precheck')
+      .maybeSingle()
+    const webhookUrl = (orgSetting?.setting_value && orgSetting.setting_value.startsWith('http'))
+      ? orgSetting.setting_value
+      : Deno.env.get('SLACK_PRECHECK_WEBHOOK_URL')
     if (!webhookUrl) {
       return new Response(
         JSON.stringify({ error: 'SLACK_PRECHECK_WEBHOOK_URL not configured' }),

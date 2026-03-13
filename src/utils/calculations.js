@@ -5,11 +5,17 @@ import { C } from '../constants/colors';
 import { getIndustryCategory, parseTimeRange } from './industry';
 
 // ランクとインセンティブ率の自動計算（累計売上から判定）
-export const calcRankAndRate = (totalSales) => {
-  if (totalSales >= 10000000) return { rank: 'スーパースパルタン', rate: 0.28 };
-  if (totalSales >= 5000000)  return { rank: 'スパルタン',         rate: 0.26 };
-  if (totalSales >= 2000000)  return { rank: 'プレイヤー',          rate: 0.24 };
-  return { rank: 'トレーニー', rate: 0.22 };
+// orgSettings: org_settingsテーブルから取得した { setting_key: setting_value } マップ（省略時はデフォルト値）
+export const calcRankAndRate = (totalSales, orgSettings = null) => {
+  const s = orgSettings || {};
+  const superRate   = s.reward_rate_super_spartan != null ? Number(s.reward_rate_super_spartan) / 100 : 0.28;
+  const spartanRate = s.reward_rate_spartan       != null ? Number(s.reward_rate_spartan)       / 100 : 0.27;
+  const playerRate  = s.reward_rate_player        != null ? Number(s.reward_rate_player)        / 100 : 0.25;
+  const traineeRate = s.reward_rate_trainee       != null ? Number(s.reward_rate_trainee)       / 100 : 0.22;
+  if (totalSales >= 10000000) return { rank: 'スーパースパルタン', rate: superRate };
+  if (totalSales >= 5000000)  return { rank: 'スパルタン',         rate: spartanRate };
+  if (totalSales >= 2000000)  return { rank: 'プレイヤー',          rate: playerRate };
+  return { rank: 'トレーニー', rate: traineeRate };
 };
 
 // 架電おすすめスコア計算
