@@ -13,6 +13,13 @@ const formatJST = (iso) => {
   });
 };
 
+// リスト表示ラベル: call_lists.nameがclientName含む場合はlistNameのみ
+const listLabel = (m) => {
+  if (!m.clientName) return m.listName || '';
+  if (m.listName.startsWith(m.clientName)) return m.listName;
+  return m.listName ? `${m.clientName} – ${m.listName}` : m.clientName;
+};
+
 const normalizePhone = (n) => {
   if (!n) return '';
   const digits = n.replace(/\D/g, '');
@@ -211,7 +218,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
                                       textDecoration: setCallFlowScreen ? 'underline' : 'none',
                                     }}
                                   >
-                                    {[m.clientName, m.listName].filter(Boolean).join(' – ')}
+                                    {listLabel(m)}
                                   </span>
                                 </div>
                               ))}
@@ -295,7 +302,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
                   onMouseEnter={e => { e.currentTarget.style.background = '#EAF4FF'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = C.offWhite; }}
                 >
-                  {[m.clientName, m.listName].filter(Boolean).join(' – ')}
+                  {listLabel(m)}
                   {m.company && (
                     <span style={{ fontSize: 10, color: C.textLight, fontWeight: 400, marginLeft: 8 }}>
                       {m.company}
