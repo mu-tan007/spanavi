@@ -34,6 +34,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [callRecords, setCallRecords] = useState([]);
   const [selectedRound, setSelectedRound] = useState(null);
   const [filterMode, setFilterMode] = useState('callable');
+  const [revenueMin, setRevenueMin] = useState('');  // 千円単位（例: 100000 = 1億円）
+  const [revenueMax, setRevenueMax] = useState('');  // 空文字 = 上限なし
   const [recallModal, setRecallModal] = useState(null); // { row, statusId, round, label }
   const [subPhone, setSubPhone] = useState('');
   const [lastDialedPhone, setLastDialedPhone] = useState(null);
@@ -249,20 +251,27 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     const result = statusFilteredItems.filter(item => {
       const matchSearch = !search || item.company?.includes(search) || item.representative?.includes(search) || item.phone?.includes(search);
       if (!matchSearch) return false;
-      if (filterMode === 'callable') return !isExcludedItem(item.id);
-      if (filterMode === 'excluded') return isExcludedItem(item.id);
+      if (filterMode === 'callable') { if (isExcludedItem(item.id)) return false; }
+      else if (filterMode === 'excluded') { if (!isExcludedItem(item.id)) return false; }
+      if (revenueMin !== '') {
+        if (item.revenue == null || Number(item.revenue) < Number(revenueMin)) return false;
+      }
+      if (revenueMax !== '') {
+        if (item.revenue == null || Number(item.revenue) > Number(revenueMax)) return false;
+      }
       return true;
     });
     return result;
   })();
 
-  const COL_KEY_MAP = { 'No': 'no', '企業名': 'company', '事業内容': 'business', '代表者': 'representative', '電話番号': 'phone', '結果': 'call_status' };
+  const COL_KEY_MAP = { 'No': 'no', '企業名': 'company', '事業内容': 'business', '代表者': 'representative', '電話番号': 'phone', '結果': 'call_status', '売上高': 'revenue' };
+  const NUMERIC_COLS = new Set(['no', 'revenue']);
   const sorted = sortState.column && sortState.direction
     ? [...filtered].sort((a, b) => {
         const key = COL_KEY_MAP[sortState.column];
         const av = a[key] ?? '';
         const bv = b[key] ?? '';
-        const cmp = key === 'no'
+        const cmp = NUMERIC_COLS.has(key)
           ? (Number(av) || 0) - (Number(bv) || 0)
           : String(av).localeCompare(String(bv), 'ja');
         return sortState.direction === 'desc' ? -cmp : cmp;
@@ -1138,9 +1147,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             /* ────────────── リスト表示モード ────────────── */
             <div style={{ background: '#fff', borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
               {/* 検索バー */}
-              <div style={{ padding: '8px 12px', borderBottom: '1px solid #E5E5E5', display: 'flex', gap: 6, alignItems: 'center', background: '#FAFAFA' }}>
+              <div style={{ padding: '8px 12px', borderBottom: '1px solid #E5E5E5', display: 'flex', gap: 6, alignItems: 'center', background: '#FAFAFA', flexWrap: 'wrap' }}>
                 <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} placeholder="企業名・代表者・電話番号で検索..."
-                  style={{ flex: 1, padding: '6px 12px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', boxSizing: 'border-box' }} />
+                  style={{ flex: 1, minWidth: 160, padding: '6px 12px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', boxSizing: 'border-box' }} />
                 {[['callable','架電可能'],['all','全件'],['excluded','除外']].map(([mode, label]) => (
                   <button key={mode} onClick={() => { setFilterMode(mode); setPage(0); }}
                     style={{ padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
@@ -1150,6 +1159,28 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     {label}
                   </button>
                 ))}
+                {/* 売上高フィルター */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#706E6B', whiteSpace: 'nowrap' }}>
+                  <span>売上高</span>
+                  {[
+                    { value: revenueMin, setter: (v) => { setRevenueMin(v); setPage(0); }, isMax: false },
+                    { value: revenueMax, setter: (v) => { setRevenueMax(v); setPage(0); }, isMax: true },
+                  ].map(({ value, setter, isMax }, idx) => (
+                    <React.Fragment key={idx}>
+                      {idx === 1 && <span>〜</span>}
+                      <select value={value} onChange={e => setter(e.target.value)}
+                        style={{ padding: '3px 4px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 10, fontFamily: "'Noto Sans JP'", background: value ? '#EAF4FF' : '#fff', color: '#032D60', cursor: 'pointer' }}>
+                        <option value="">指定なし</option>
+                        {[['1億円',100000],['2億円',200000],['3億円',300000],['4億円',400000],['5億円',500000],
+                          ['6億円',600000],['7億円',700000],['8億円',800000],['9億円',900000],['10億円',1000000],
+                          ['20億円',2000000],['30億円',3000000],['40億円',4000000],['50億円',5000000]].map(([label, val]) => (
+                          <option key={val} value={val}>{label}</option>
+                        ))}
+                        {isMax && <option value="999999999">50億円以上</option>}
+                      </select>
+                    </React.Fragment>
+                  ))}
+                </div>
               </div>
               {/* テーブル */}
               <div style={{ overflow: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
@@ -1161,7 +1192,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                     <thead>
                       <tr style={{ background: '#F3F2F2', position: 'sticky', top: 0, zIndex: 1 }}>
-                        {[['No', '36px'], ['企業名', null], ['事業内容', null], ['代表者', '90px'], ['電話番号', '112px'], ['結果', '80px']].map(([h, w]) => {
+                        {[['No', '36px'], ['企業名', null], ['事業内容', null], ['代表者', '90px'], ['電話番号', '112px'], ['売上高', '90px'], ['結果', '80px']].map(([h, w]) => {
                           const isActive = sortState.column === h && sortState.direction === 'desc';
                           return (
                             <th key={h} onClick={() => handleSort(h)}
@@ -1193,6 +1224,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                                     {item.phone}
                                   </span>
                                 : <span style={{ color: '#c0c0c0', fontSize: 10 }}>-</span>}
+                            </td>
+                            <td style={{ padding: '7px 8px', fontFamily: "'JetBrains Mono'", fontSize: 9, color: '#706E6B', whiteSpace: 'nowrap', textAlign: 'right' }}>
+                              {item.revenue != null ? `${Number(item.revenue).toLocaleString()}千円` : <span style={{ color: '#c0c0c0' }}>-</span>}
                             </td>
                             <td style={{ padding: '7px 8px' }}>
                               <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 10, fontWeight: 600, background: sc.bg, color: sc.color, whiteSpace: 'nowrap' }}>

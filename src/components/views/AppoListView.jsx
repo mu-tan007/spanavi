@@ -113,6 +113,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     if (sortKey === 'meetDate') { valA = a.meetDate || ''; valB = b.meetDate || ''; }
     else if (sortKey === 'client') { valA = a.client || ''; valB = b.client || ''; }
     else if (sortKey === 'getter') { valA = a.getter || ''; valB = b.getter || ''; }
+    else if (sortKey === 'getDate') { valA = a.getDate || ''; valB = b.getDate || ''; }
     else { valA = a.meetDate || ''; valB = b.meetDate || ''; }
     const cmp = valA.localeCompare(valB);
     return sortDir === 'asc' ? cmp : -cmp;
@@ -267,7 +268,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             { label: 'クライアント', key: 'client' },
             { label: '企業名', key: null },
             { label: '取得者', key: 'getter' },
-            { label: '取得日', key: null },
+            { label: '取得日', key: 'getDate' },
             { label: '面談日', key: 'meetDate' },
             { label: 'ステータス', key: null },
             { label: '当社売上', key: null },
