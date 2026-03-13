@@ -8,6 +8,7 @@ import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListI
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
 import AppoReportModal from './AppoReportModal';
+import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 
 // ============================================================
 // Call Flow View (架電フロー) — 左右分割レイアウト
