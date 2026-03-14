@@ -1,8 +1,49 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { C } from '../../constants/colors';
 import { fetchShifts, insertShift, updateShift, deleteShift } from '../../lib/supabaseWrite';
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
+
+// ── タイムライン定数 ──────────────────────────────────────────
+const TL_START = 480;   // 8:00 (分)
+const TL_END   = 1320;  // 22:00 (分)
+const TL_TOTAL = 840;
+
+const snapTo30   = (m) => Math.round(m / 30) * 30;
+const clampTL    = (m) => Math.max(TL_START, Math.min(TL_END, m));
+const clampSnap  = (m) => snapTo30(clampTL(m));
+const minToStr   = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const minToPct   = (m) => ((m - TL_START) / TL_TOTAL) * 100;
+const getClientX = (e) => (e.touches ? e.touches[0].clientX : e.clientX);
+const tlFromRect = (cx, rect) => TL_START + ((cx - rect.left) / rect.width) * TL_TOTAL;
+const strToMin   = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+
+const tlHasOverlap = (s, e, shifts, excludeId = null) =>
+  shifts.filter(sh => sh.id !== excludeId).some(sh => {
+    const ss = strToMin(sh.start_time);
+    const se = strToMin(sh.end_time);
+    return s < se && e > ss;
+  });
+
+const tlGetPreview = (d) => {
+  if (!d) return null;
+  if (d.mode === 'create') {
+    const s = snapTo30(clampTL(Math.min(d.anchorMin, d.currentMin)));
+    const e = snapTo30(clampTL(Math.max(d.anchorMin, d.currentMin)));
+    return { s, e: Math.max(e, s + 30) };
+  }
+  if (d.mode === 'move') {
+    const s = clampSnap(d.currentMin - d.offsetMin);
+    return { s, e: Math.min(TL_END, s + d.duration) };
+  }
+  if (d.mode === 'resize') {
+    const s = strToMin(d.shift.start_time);
+    const e = clampSnap(d.currentMin);
+    return { s, e: Math.max(e, s + 30) };
+  }
+  return null;
+};
+// ─────────────────────────────────────────────────────────────
 
 export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   const today = new Date();
@@ -63,7 +104,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   // 30分スロットごとの同時稼働数
   const SLOTS_30 = (() => {
     const s = [];
-    for (let h = 8; h < 22; h++) { s.push(`${String(h).padStart(2,'0')}:00`); s.push(`${String(h).padStart(2,'0')}:30`); }
+    for (let h = 8; h < 22; h++) { s.push(`${String(h).padStart(2, '0')}:00`); s.push(`${String(h).padStart(2, '0')}:30`); }
     return s;
   })();
   const getConcurrentCount = (slotStr, dateStr) => {
@@ -80,14 +121,14 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
 
   const canEdit = (member) => isAdmin || member.name === currentUser;
 
-  // 追加モーダルを開く
+  // 追加モーダルを開く（月・週ビュー用）
   const handleAddShift = (member, day) => {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const memId = member._supaId || member.id;
     setShiftModal({ member, dateStr, existingShifts: getShifts(memId, day), editingShift: null });
   };
 
-  // 編集モーダルを開く
+  // 編集モーダルを開く（月・週ビュー用）
   const handleEditShift = (member, day, shift) => {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const memId = member._supaId || member.id;
@@ -232,18 +273,12 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   );
 
   const renderDayView = () => {
-    const TIMELINE_START = 8 * 60;
-    const TIMELINE_END = 22 * 60;
-    const TIMELINE_TOTAL = TIMELINE_END - TIMELINE_START;
-    const HOURS = Array.from({ length: 15 }, (_, i) => i + 8);
+    const HOURS  = Array.from({ length: 15 }, (_, i) => i + 8);
     const NAME_W = 130;
     const TOTAL_W = 72;
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
     const { isSun, isSat } = getDayMeta(selectedDay);
-    const timeToPercent = (t) => {
-      const [h, m] = t.split(':').map(Number);
-      return ((h * 60 + m - TIMELINE_START) / TIMELINE_TOTAL) * 100;
-    };
+
     return (
       <div>
         {/* 日付ピッカー */}
@@ -260,10 +295,12 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
             );
           })}
         </div>
+
         {/* タイムラインカード */}
         <div style={{ margin: '16px 20px 0', background: C.white, borderRadius: 10, border: '1px solid ' + C.borderLight, overflow: 'hidden' }}>
           <div style={{ padding: '10px 16px', background: isSun ? '#c53030' : isSat ? '#2b6cb0' : C.navy, color: C.white, fontSize: 13, fontWeight: 700 }}>
             {year}年{month}月{selectedDay}日（{getDayMeta(selectedDay).name}）のシフト
+            <span style={{ marginLeft: 12, fontSize: 10, fontWeight: 400, opacity: 0.75 }}>空きをドラッグで追加 / ブロックをドラッグで移動・右端で長さ変更</span>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <div style={{ minWidth: 700, padding: '12px 16px' }}>
@@ -273,65 +310,33 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                   <div key={h} style={{ flex: 1, fontSize: 9, color: C.textLight, borderLeft: '1px solid ' + C.borderLight, paddingLeft: 2 }}>{h}:00</div>
                 ))}
               </div>
-              {/* メンバー行 */}
+              {/* メンバー行（ドラッグ対応） */}
               {sortedMembers.map((member, mi) => {
                 const memId = member._supaId || member.id;
                 const isMe = member.name === currentUser;
                 const isEditable = canEdit(member);
-                const dayShifts = memId ? shifts.filter(s => s.member_id === memId && s.shift_date === dateStr).sort((a, b) => a.start_time.localeCompare(b.start_time)) : [];
+                const dayShifts = memId
+                  ? shifts.filter(s => s.member_id === memId && s.shift_date === dateStr)
+                      .sort((a, b) => a.start_time.localeCompare(b.start_time))
+                  : [];
                 const dayH = totalShiftHours(dayShifts);
                 return (
-                  <div key={memId || mi} style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-                    <div style={{ width: NAME_W, flexShrink: 0, fontSize: 11, fontWeight: isMe ? 700 : 500, color: isMe ? C.navy : C.textDark, paddingRight: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
-                    <div style={{ flex: 1, height: 36, background: C.cream, borderRadius: 5, position: 'relative', border: '1px solid ' + C.borderLight }}>
-                      {/* 時間グリッド線 */}
-                      {HOURS.slice(1).map((h, i) => (
-                        <div key={h} style={{ position: 'absolute', top: 0, bottom: 0, left: ((i + 1) / (HOURS.length - 1)) * 100 + '%', width: 1, background: C.borderLight }} />
-                      ))}
-                      {/* 複数シフトバー */}
-                      {dayShifts.map(shift => (
-                        <div
-                          key={shift.id}
-                          onClick={() => isEditable && handleEditShift(member, selectedDay, shift)}
-                          style={{
-                            position: 'absolute', top: 3, bottom: 3, borderRadius: 4,
-                            left: timeToPercent(shift.start_time) + '%',
-                            width: Math.max(timeToPercent(shift.end_time) - timeToPercent(shift.start_time), 0) + '%',
-                            background: isMe ? C.gold : C.navy + '25',
-                            border: '1px solid ' + (isMe ? C.gold + '80' : C.navy + '40'),
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 9, fontWeight: 700, color: isMe ? '#7d5c00' : C.navy,
-                            overflow: 'hidden', whiteSpace: 'nowrap',
-                            cursor: isEditable ? 'pointer' : 'default',
-                            zIndex: 1,
-                          }}
-                        >
-                          {fmtTime(shift.start_time)}–{fmtTime(shift.end_time)}
-                        </div>
-                      ))}
-                      {/* ＋追加ボタン（タイムラインの右端）*/}
-                      {isEditable && (
-                        <button
-                          onClick={() => handleAddShift(member, selectedDay)}
-                          title="シフトを追加"
-                          style={{
-                            position: 'absolute', right: 2, top: '50%', transform: 'translateY(-50%)',
-                            width: 18, height: 18, borderRadius: 9,
-                            border: '1px dashed ' + C.border, background: C.white,
-                            color: C.textLight, fontSize: 11, cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            lineHeight: 1, padding: 0, zIndex: 2,
-                          }}
-                        >＋</button>
-                      )}
-                    </div>
-                    {/* 日別合計時間 */}
-                    <div style={{ width: TOTAL_W, flexShrink: 0, marginLeft: 8, textAlign: 'center', background: C.offWhite, borderLeft: '2px solid ' + C.gold, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0 4px 4px 0' }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: C.navy }}>
-                        {dayH > 0 ? dayH.toFixed(1) + 'h' : '-'}
-                      </span>
-                    </div>
-                  </div>
+                  <DraggableTimeline
+                    key={memId || mi}
+                    member={member}
+                    memId={memId}
+                    isMe={isMe}
+                    isEditable={isEditable}
+                    dayShifts={dayShifts}
+                    dayH={dayH}
+                    dateStr={dateStr}
+                    year={year}
+                    month={month}
+                    onReload={loadShifts}
+                    NAME_W={NAME_W}
+                    TOTAL_W={TOTAL_W}
+                    HOURS={HOURS}
+                  />
                 );
               })}
             </div>
@@ -415,6 +420,266 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
     </div>
   );
 }
+
+// ── ドラッグ対応タイムライン行 ────────────────────────────────
+function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, dateStr, year, month, onReload, NAME_W, TOTAL_W, HOURS }) {
+  const [drag, setDrag]   = useState(null);
+  const dragRef           = useRef(null);
+  const commitRef         = useRef(null);
+  const trackRef          = useRef(null);
+
+  const NAVY = '#0D2247';
+  const GOLD = '#C8A84B';
+  const ROW_H = 52;
+
+  // commitRef は毎レンダーで最新の dayShifts を参照する
+  commitRef.current = async () => {
+    const d = dragRef.current;
+    if (!d || !d.hasMoved) { dragRef.current = null; setDrag(null); return; }
+    const preview = tlGetPreview(d);
+    if (!preview || preview.e <= preview.s) { dragRef.current = null; setDrag(null); return; }
+    const excludeId = (d.mode === 'move' || d.mode === 'resize') ? d.shift.id : null;
+    if (tlHasOverlap(preview.s, preview.e, dayShifts, excludeId)) {
+      // 重複 → キャンセル
+      dragRef.current = null; setDrag(null); return;
+    }
+    const startStr = minToStr(preview.s) + ':00';
+    const endStr   = minToStr(preview.e) + ':00';
+    if (d.mode === 'create') {
+      await insertShift({
+        member_id: memId || null,
+        member_name: member.name,
+        shift_date: dateStr,
+        start_time: startStr,
+        end_time: endStr,
+      });
+    } else {
+      await updateShift(d.shift.id, { start_time: startStr, end_time: endStr });
+    }
+    dragRef.current = null;
+    setDrag(null);
+    await onReload();
+  };
+
+  const onWindowMove = useCallback((e) => {
+    const d = dragRef.current;
+    if (!d) return;
+    if (e.cancelable) e.preventDefault();
+    const cx = getClientX(e);
+    const currentMin = clampTL(tlFromRect(cx, d.trackRect));
+    const ref = d.anchorMin ?? d.currentMin;
+    const hasMoved = d.hasMoved || Math.abs(currentMin - ref) > 4;
+    const next = { ...d, currentMin, hasMoved };
+    dragRef.current = next;
+    setDrag({ ...next });
+  }, []);
+
+  const onWindowUp = useCallback(() => {
+    window.removeEventListener('mousemove', onWindowMove);
+    window.removeEventListener('mouseup', onWindowUp);
+    window.removeEventListener('touchmove', onWindowMove);
+    window.removeEventListener('touchend', onWindowUp);
+    commitRef.current?.();
+  }, [onWindowMove]);
+
+  const startDrag = useCallback((state) => {
+    dragRef.current = state;
+    setDrag({ ...state });
+    window.addEventListener('mousemove', onWindowMove);
+    window.addEventListener('mouseup', onWindowUp);
+    window.addEventListener('touchmove', onWindowMove, { passive: false });
+    window.addEventListener('touchend', onWindowUp);
+  }, [onWindowMove, onWindowUp]);
+
+  useEffect(() => () => {
+    window.removeEventListener('mousemove', onWindowMove);
+    window.removeEventListener('mouseup', onWindowUp);
+    window.removeEventListener('touchmove', onWindowMove);
+    window.removeEventListener('touchend', onWindowUp);
+  }, [onWindowMove, onWindowUp]);
+
+  const handleTrackDown = (e) => {
+    if (!isEditable) return;
+    if (e.target.closest('[data-shift-block]')) return;
+    const rect = trackRef.current.getBoundingClientRect();
+    const cx = getClientX(e);
+    const anchorMin = clampTL(tlFromRect(cx, rect));
+    startDrag({ mode: 'create', trackRect: rect, anchorMin, currentMin: anchorMin, hasMoved: false });
+  };
+
+  const handleBlockDown = (e, shift) => {
+    if (!isEditable) return;
+    e.stopPropagation();
+    const rect = trackRef.current.getBoundingClientRect();
+    const cx = getClientX(e);
+    const clickMin   = tlFromRect(cx, rect);
+    const shiftStart = strToMin(shift.start_time);
+    const shiftEnd   = strToMin(shift.end_time);
+    const duration   = shiftEnd - shiftStart;
+    // 右端 14px 以内ならリサイズ
+    const pixelsFromEnd = ((shiftEnd - clickMin) / TL_TOTAL) * rect.width;
+    if (pixelsFromEnd < 14) {
+      startDrag({ mode: 'resize', shift, trackRect: rect, currentMin: shiftEnd, hasMoved: false });
+    } else {
+      const offsetMin = Math.max(0, Math.min(duration, clickMin - shiftStart));
+      startDrag({ mode: 'move', shift, trackRect: rect, offsetMin, currentMin: clampTL(clickMin), duration, hasMoved: false });
+    }
+  };
+
+  const handleDelete = async (e, shift) => {
+    e.stopPropagation();
+    if (!window.confirm(`${shift.start_time.slice(0, 5)}〜${shift.end_time.slice(0, 5)} を削除しますか？`)) return;
+    await deleteShift(shift.id);
+    await onReload();
+  };
+
+  const preview         = drag ? tlGetPreview(drag) : null;
+  const hiddenId        = (drag?.mode === 'move' || drag?.mode === 'resize') && drag?.hasMoved ? drag?.shift?.id : null;
+  const previewExclude  = (drag?.mode === 'move' || drag?.mode === 'resize') ? drag?.shift?.id : null;
+  const previewConflict = preview ? tlHasOverlap(preview.s, preview.e, dayShifts, previewExclude) : false;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+      {/* メンバー名 */}
+      <div style={{
+        width: NAME_W, flexShrink: 0, fontSize: 11, fontWeight: isMe ? 700 : 500,
+        color: isMe ? NAVY : C.textDark, paddingRight: 8,
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      }}>
+        {member.name}
+      </div>
+
+      {/* タイムライントラック */}
+      <div
+        ref={trackRef}
+        onMouseDown={handleTrackDown}
+        onTouchStart={(e) => { if (e.cancelable) e.preventDefault(); handleTrackDown(e); }}
+        style={{
+          flex: 1, height: ROW_H, background: C.cream, borderRadius: 5, position: 'relative',
+          border: '1px solid ' + C.borderLight,
+          cursor: isEditable ? 'crosshair' : 'default',
+          userSelect: 'none',
+        }}
+      >
+        {/* 時間グリッド線 */}
+        {HOURS.slice(1).map((h, i) => (
+          <div key={h} style={{
+            position: 'absolute', top: 0, bottom: 0,
+            left: ((i + 1) / (HOURS.length - 1)) * 100 + '%',
+            width: 1, background: C.borderLight, pointerEvents: 'none',
+          }} />
+        ))}
+
+        {/* 既存シフトブロック */}
+        {dayShifts.map(shift => {
+          if (shift.id === hiddenId) return null;
+          const s = strToMin(shift.start_time);
+          const e = strToMin(shift.end_time);
+          const w = Math.max(minToPct(e) - minToPct(s), 0.5);
+          return (
+            <div
+              key={shift.id}
+              data-shift-block="1"
+              onMouseDown={(ev) => isEditable && handleBlockDown(ev, shift)}
+              onTouchStart={(ev) => { if (ev.cancelable) ev.preventDefault(); isEditable && handleBlockDown(ev, shift); }}
+              style={{
+                position: 'absolute', top: 4, bottom: 4,
+                left: minToPct(s) + '%', width: w + '%',
+                background: isMe ? GOLD : NAVY + '25',
+                border: '1px solid ' + (isMe ? GOLD + '80' : NAVY + '40'),
+                borderRadius: 4,
+                display: 'flex', alignItems: 'center',
+                paddingLeft: 5, paddingRight: 18,
+                fontSize: 9, fontWeight: 700, color: isMe ? '#7d5c00' : NAVY,
+                overflow: 'hidden', whiteSpace: 'nowrap',
+                cursor: isEditable ? 'grab' : 'default',
+                zIndex: 1,
+              }}
+            >
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0, pointerEvents: 'none' }}>
+                {shift.start_time.slice(0, 5)}–{shift.end_time.slice(0, 5)}
+              </span>
+              {/* リサイズハンドル（右端） */}
+              {isEditable && (
+                <div
+                  data-shift-block="1"
+                  onMouseDown={(ev) => {
+                    ev.stopPropagation();
+                    const rect = trackRef.current.getBoundingClientRect();
+                    startDrag({ mode: 'resize', shift, trackRect: rect, currentMin: strToMin(shift.end_time), hasMoved: false });
+                  }}
+                  onTouchStart={(ev) => {
+                    ev.stopPropagation();
+                    if (ev.cancelable) ev.preventDefault();
+                    const rect = trackRef.current.getBoundingClientRect();
+                    startDrag({ mode: 'resize', shift, trackRect: rect, currentMin: strToMin(shift.end_time), hasMoved: false });
+                  }}
+                  style={{
+                    position: 'absolute', right: 0, top: 0, bottom: 0, width: 14,
+                    cursor: 'ew-resize',
+                    background: 'rgba(0,0,0,0.07)',
+                    borderRadius: '0 4px 4px 0',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <div style={{ width: 2, height: 12, background: 'rgba(0,0,0,0.25)', borderRadius: 1, pointerEvents: 'none' }} />
+                </div>
+              )}
+              {/* 削除ボタン */}
+              {isEditable && (
+                <button
+                  onClick={(ev) => handleDelete(ev, shift)}
+                  onMouseDown={(ev) => ev.stopPropagation()}
+                  onTouchStart={(ev) => ev.stopPropagation()}
+                  style={{
+                    position: 'absolute', top: 2, right: 16,
+                    width: 13, height: 13, borderRadius: 2,
+                    border: 'none', background: 'rgba(150,0,0,0.2)',
+                    color: '#c53030', fontSize: 8, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    lineHeight: 1, padding: 0, fontWeight: 700, zIndex: 2,
+                  }}
+                >×</button>
+              )}
+            </div>
+          );
+        })}
+
+        {/* プレビューブロック */}
+        {preview && preview.e > preview.s && (
+          <div style={{
+            position: 'absolute', top: 2, bottom: 2,
+            left: minToPct(preview.s) + '%',
+            width: Math.max(minToPct(preview.e) - minToPct(preview.s), 0.1) + '%',
+            background: previewConflict ? 'rgba(229,62,62,0.8)' : GOLD + 'CC',
+            border: '2px solid ' + (previewConflict ? '#c53030' : GOLD),
+            borderRadius: 4,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 9, fontWeight: 700,
+            color: previewConflict ? '#fff' : '#7d5c00',
+            pointerEvents: 'none', zIndex: 3,
+            overflow: 'hidden', whiteSpace: 'nowrap',
+          }}>
+            {minToStr(preview.s)}–{minToStr(preview.e)}
+          </div>
+        )}
+      </div>
+
+      {/* 日別合計 */}
+      <div style={{
+        width: TOTAL_W, flexShrink: 0, marginLeft: 8, textAlign: 'center',
+        background: C.offWhite, borderLeft: '2px solid ' + GOLD,
+        height: ROW_H, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        borderRadius: '0 4px 4px 0',
+      }}>
+        <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: NAVY }}>
+          {dayH > 0 ? dayH.toFixed(1) + 'h' : '-'}
+        </span>
+      </div>
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────
 
 export function ShiftInputModal({ modal, onClose, onSaved, year, month }) {
   const { member, dateStr, existingShifts = [], editingShift } = modal;
