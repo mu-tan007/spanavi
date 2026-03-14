@@ -53,8 +53,6 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   const [selectedDay, setSelectedDay] = useState(today.getDate());
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [shiftModal, setShiftModal] = useState(null);
-  // shiftModal: { member, dateStr, existingShifts: [], editingShift: null|shiftObj }
 
   const sortedMembers = useMemo(() => {
     return [...members]
@@ -119,30 +117,6 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
     }).length;
   };
 
-  const canEdit = (member) => isAdmin || member.name === currentUser;
-
-  // 追加モーダルを開く（月・週ビュー用）
-  const handleAddShift = (member, day) => {
-    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const memId = member._supaId || member.id;
-    setShiftModal({ member, dateStr, existingShifts: getShifts(memId, day), editingShift: null });
-  };
-
-  // 編集モーダルを開く（月・週ビュー用）
-  const handleEditShift = (member, day, shift) => {
-    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const memId = member._supaId || member.id;
-    setShiftModal({ member, dateStr, existingShifts: getShifts(memId, day), editingShift: shift });
-  };
-
-  // × ボタンで直接削除
-  const handleDeleteShiftDirect = async (e, shift) => {
-    e.stopPropagation();
-    if (!window.confirm(`${fmtTime(shift.start_time)}〜${fmtTime(shift.end_time)} を削除しますか？`)) return;
-    await deleteShift(shift.id);
-    await loadShifts();
-  };
-
   const prevMonth = () => { if (month === 1) { setYear(y => y - 1); setMonth(12); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setYear(y => y + 1); setMonth(1); } else setMonth(m => m + 1); };
   const prevWeek = () => setSelectedDay(d => Math.max(1, d - 7));
@@ -160,118 +134,100 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   const navBtn = { border: '1px solid ' + C.border, cursor: 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: 600, borderRadius: 5, padding: '5px 10px', background: C.offWhite, color: C.navy, fontSize: 12 };
   const modeBtn = (active) => ({ border: '1px solid ' + C.border, cursor: 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: 600, borderRadius: 5, padding: '5px 12px', background: active ? C.navy : C.white, color: active ? C.white : C.navy, fontSize: 11 });
 
+  // ── 月間・週間表示（閲覧専用） ─────────────────────────────
   const renderGridView = (displayDays, isMonthView) => (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: 140 + displayDays.length * 72 + 76 }}>
-        <thead>
-          <tr style={{ background: C.navy }}>
-            <th style={{ position: 'sticky', left: 0, width: 130, minWidth: 130, padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.white, borderRight: '2px solid rgba(255,255,255,0.2)', background: C.navy, zIndex: 3 }}>メンバー</th>
-            {displayDays.map(d => {
-              const { isSun, isSat, name } = getDayMeta(d);
+    <div>
+      {/* 案内バナー */}
+      <div style={{ padding: '8px 16px', background: '#fffbeb', borderBottom: '1px solid #fbd38d', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 15 }}>📅</span>
+        <span style={{ fontSize: 12, color: '#744210', fontWeight: 600 }}>
+          シフトの登録・編集は「日別表示」から行ってください
+        </span>
+        <button
+          onClick={() => setViewMode('day')}
+          style={{ marginLeft: 8, border: 'none', background: '#c8a84b', color: '#fff', fontWeight: 700, fontSize: 11, borderRadius: 5, padding: '4px 12px', cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}
+        >
+          日別表示へ →
+        </button>
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: 140 + displayDays.length * 72 + 76 }}>
+          <thead>
+            <tr style={{ background: C.navy }}>
+              <th style={{ position: 'sticky', left: 0, width: 130, minWidth: 130, padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.white, borderRight: '2px solid rgba(255,255,255,0.2)', background: C.navy, zIndex: 3 }}>メンバー</th>
+              {displayDays.map(d => {
+                const { isSun, isSat, name } = getDayMeta(d);
+                return (
+                  <th key={d} style={{ width: 72, minWidth: 72, padding: '6px 4px', textAlign: 'center', fontSize: 10, fontWeight: 700, color: isSun ? '#fc8181' : isSat ? '#90cdf4' : C.white, borderRight: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ fontSize: 12 }}>{d}</div>
+                    <div style={{ fontSize: 9, opacity: 0.8 }}>{name}</div>
+                  </th>
+                );
+              })}
+              <th style={{ position: 'sticky', right: 0, width: 76, minWidth: 76, padding: '6px 8px', textAlign: 'center', fontSize: 10, fontWeight: 700, color: C.navy, background: C.offWhite, borderLeft: '2px solid ' + C.gold, zIndex: 3 }}>合計</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedMembers.map((member, mi) => {
+              const memId = member._supaId || member.id;
+              const isMe = member.name === currentUser;
+              const rowBg = isMe ? C.gold + '18' : mi % 2 === 0 ? C.white : C.cream;
+              const totalH = getMemberHours(memId, displayDays);
+              const monthlyH = isMonthView ? totalH : getMemberHours(memId, days);
+              const isUnder80 = isMonthView && monthlyH < 80;
               return (
-                <th key={d} style={{ width: 72, minWidth: 72, padding: '6px 4px', textAlign: 'center', fontSize: 10, fontWeight: 700, color: isSun ? '#fc8181' : isSat ? '#90cdf4' : C.white, borderRight: '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ fontSize: 12 }}>{d}</div>
-                  <div style={{ fontSize: 9, opacity: 0.8 }}>{name}</div>
-                </th>
-              );
-            })}
-            <th style={{ position: 'sticky', right: 0, width: 76, minWidth: 76, padding: '6px 8px', textAlign: 'center', fontSize: 10, fontWeight: 700, color: C.navy, background: C.offWhite, borderLeft: '2px solid ' + C.gold, zIndex: 3 }}>合計</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sortedMembers.map((member, mi) => {
-            const memId = member._supaId || member.id;
-            const isMe = member.name === currentUser;
-            const isEditable = canEdit(member);
-            const rowBg = isMe ? C.gold + '18' : mi % 2 === 0 ? C.white : C.cream;
-            const totalH = getMemberHours(memId, displayDays);
-            const monthlyH = isMonthView ? totalH : getMemberHours(memId, days);
-            const isUnder80 = isMonthView && monthlyH < 80;
-            return (
-              <tr key={memId || mi} style={{ borderBottom: '1px solid ' + C.borderLight }}>
-                <td style={{ position: 'sticky', left: 0, padding: '6px 12px', fontWeight: isMe ? 700 : 500, fontSize: 11, color: isMe ? C.navy : C.textDark, background: rowBg, borderRight: '2px solid ' + C.border, whiteSpace: 'nowrap', zIndex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span>{member.name}</span>
-                    {isUnder80 && (
-                      <span title={`今月の稼働時間: ${monthlyH.toFixed(1)}時間（80時間未達）`}
-                        style={{ color: '#ed8936', fontSize: 13, cursor: 'help', lineHeight: 1 }}>⚠</span>
-                    )}
-                  </div>
-                </td>
-                {displayDays.map(d => {
-                  const { isSun, isSat } = getDayMeta(d);
-                  const dayShifts = getShifts(memId, d);
-                  const cellBg = dayShifts.length > 0 ? 'transparent' : isSun ? '#fff5f5' : isSat ? '#ebf8ff' : rowBg;
-                  return (
-                    <td key={d} style={{ padding: '3px 4px', textAlign: 'center', background: cellBg, borderRight: '1px solid ' + C.borderLight, verticalAlign: 'top' }}>
-                      {/* 登録済みシフト（縦並び） */}
-                      {dayShifts.map(shift => (
-                        <div key={shift.id} style={{ position: 'relative', marginBottom: 2 }}>
-                          <div
-                            onClick={() => isEditable && handleEditShift(member, d, shift)}
-                            style={{
+                <tr key={memId || mi} style={{ borderBottom: '1px solid ' + C.borderLight }}>
+                  <td style={{ position: 'sticky', left: 0, padding: '6px 12px', fontWeight: isMe ? 700 : 500, fontSize: 11, color: isMe ? C.navy : C.textDark, background: rowBg, borderRight: '2px solid ' + C.border, whiteSpace: 'nowrap', zIndex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span>{member.name}</span>
+                      {isUnder80 && (
+                        <span title={`今月の稼働時間: ${monthlyH.toFixed(1)}時間（80時間未達）`}
+                          style={{ color: '#ed8936', fontSize: 13, cursor: 'help', lineHeight: 1 }}>⚠</span>
+                      )}
+                    </div>
+                  </td>
+                  {displayDays.map(d => {
+                    const { isSun, isSat } = getDayMeta(d);
+                    const dayShifts = getShifts(memId, d);
+                    const cellBg = dayShifts.length > 0 ? 'transparent' : isSun ? '#fff5f5' : isSat ? '#ebf8ff' : rowBg;
+                    return (
+                      <td key={d} style={{ padding: '3px 4px', textAlign: 'center', background: cellBg, borderRight: '1px solid ' + C.borderLight, verticalAlign: 'top' }}>
+                        {/* 登録済みシフト（閲覧のみ） */}
+                        {dayShifts.map(shift => (
+                          <div key={shift.id} style={{ marginBottom: 2 }}>
+                            <div style={{
                               background: isMe ? C.gold : C.navy + '18',
                               border: '1px solid ' + (isMe ? C.gold + '80' : C.navy + '30'),
-                              borderRadius: 4, padding: '2px 14px 2px 4px',
+                              borderRadius: 4, padding: '2px 4px',
                               fontSize: 9, fontWeight: 700,
                               color: isMe ? '#7d5c00' : C.navy,
-                              lineHeight: 1.4,
-                              cursor: isEditable ? 'pointer' : 'default',
-                              textAlign: 'left',
-                            }}
-                          >
-                            <div>{fmtTime(shift.start_time)}</div>
-                            <div>{fmtTime(shift.end_time)}</div>
+                              lineHeight: 1.4, textAlign: 'left',
+                            }}>
+                              <div>{fmtTime(shift.start_time)}</div>
+                              <div>{fmtTime(shift.end_time)}</div>
+                            </div>
                           </div>
-                          {isEditable && (
-                            <button
-                              onClick={e => handleDeleteShiftDirect(e, shift)}
-                              title="削除"
-                              style={{
-                                position: 'absolute', top: 1, right: 1,
-                                width: 13, height: 13, borderRadius: 2,
-                                border: 'none', background: 'rgba(150,0,0,0.15)',
-                                color: '#c53030', fontSize: 9, cursor: 'pointer',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                lineHeight: 1, padding: 0, fontWeight: 700,
-                              }}
-                            >×</button>
-                          )}
-                        </div>
-                      ))}
-                      {/* ＋追加ボタン */}
-                      {isEditable && (
-                        <button
-                          onClick={() => handleAddShift(member, d)}
-                          style={{
-                            width: '100%', border: '1px dashed ' + C.border,
-                            borderRadius: 4, background: 'transparent',
-                            color: C.textLight, fontSize: 10, cursor: 'pointer',
-                            padding: '1px 0', marginTop: dayShifts.length > 0 ? 2 : 8,
-                            lineHeight: 1.4, fontFamily: "'Noto Sans JP'",
-                          }}
-                        >＋</button>
-                      )}
-                      {!isEditable && dayShifts.length === 0 && (
-                        <div style={{ height: 36 }} />
-                      )}
-                    </td>
-                  );
-                })}
-                {/* 合計時間列 */}
-                <td style={{ position: 'sticky', right: 0, padding: '6px 8px', textAlign: 'center', background: C.offWhite, borderLeft: '2px solid ' + C.gold, whiteSpace: 'nowrap', zIndex: 1, verticalAlign: 'middle' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: isUnder80 ? '#e53e3e' : C.navy }}>
-                    {totalH > 0 ? totalH.toFixed(1) + 'h' : '-'}
-                  </span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                        ))}
+                        {dayShifts.length === 0 && <div style={{ height: 36 }} />}
+                      </td>
+                    );
+                  })}
+                  {/* 合計時間列 */}
+                  <td style={{ position: 'sticky', right: 0, padding: '6px 8px', textAlign: 'center', background: C.offWhite, borderLeft: '2px solid ' + C.gold, whiteSpace: 'nowrap', zIndex: 1, verticalAlign: 'middle' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: isUnder80 ? '#e53e3e' : C.navy }}>
+                      {totalH > 0 ? totalH.toFixed(1) + 'h' : '-'}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 
+  // ── 日別表示（シフト入力専用） ────────────────────────────
   const renderDayView = () => {
     const HOURS  = Array.from({ length: 15 }, (_, i) => i + 8);
     const NAME_W = 130;
@@ -300,7 +256,9 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
         <div style={{ margin: '16px 20px 0', background: C.white, borderRadius: 10, border: '1px solid ' + C.borderLight, overflow: 'hidden' }}>
           <div style={{ padding: '10px 16px', background: isSun ? '#c53030' : isSat ? '#2b6cb0' : C.navy, color: C.white, fontSize: 13, fontWeight: 700 }}>
             {year}年{month}月{selectedDay}日（{getDayMeta(selectedDay).name}）のシフト
-            <span style={{ marginLeft: 12, fontSize: 10, fontWeight: 400, opacity: 0.75 }}>空きをドラッグで追加 / ブロックをドラッグで移動・右端で長さ変更</span>
+            <span style={{ marginLeft: 12, fontSize: 10, fontWeight: 400, opacity: 0.75 }}>
+              クリック→30分登録 ／ ドラッグ→任意登録 ／ ブロックドラッグ→移動・右端→リサイズ
+            </span>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <div style={{ minWidth: 700, padding: '12px 16px' }}>
@@ -314,7 +272,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
               {sortedMembers.map((member, mi) => {
                 const memId = member._supaId || member.id;
                 const isMe = member.name === currentUser;
-                const isEditable = canEdit(member);
+                const isEditable = isAdmin || member.name === currentUser;
                 const dayShifts = memId
                   ? shifts.filter(s => s.member_id === memId && s.shift_date === dateStr)
                       .sort((a, b) => a.start_time.localeCompare(b.start_time))
@@ -407,16 +365,6 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
           : viewMode === 'week' ? renderGridView(weekDays, false)
           : renderDayView()}
       </div>
-
-      {shiftModal && (
-        <ShiftInputModal
-          modal={shiftModal}
-          onClose={() => setShiftModal(null)}
-          onSaved={(newShifts) => { setShifts(newShifts); setShiftModal(null); }}
-          year={year}
-          month={month}
-        />
-      )}
     </div>
   );
 }
@@ -435,24 +383,39 @@ function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, d
   // commitRef は毎レンダーで最新の dayShifts を参照する
   commitRef.current = async () => {
     const d = dragRef.current;
-    if (!d || !d.hasMoved) { dragRef.current = null; setDrag(null); return; }
+    if (!d) { dragRef.current = null; setDrag(null); return; }
+
+    // ── クリック（移動距離 ≤ 5px）→ 30分即登録 ──────────────
+    if (d.mode === 'create' && !d.hasMoved) {
+      const s = Math.min(snapTo30(clampTL(d.anchorMin)), TL_END - 30);
+      const e = s + 30;
+      if (!tlHasOverlap(s, e, dayShifts)) {
+        await insertShift({
+          member_id: memId || null,
+          member_name: member.name,
+          shift_date: dateStr,
+          start_time: minToStr(s) + ':00',
+          end_time:   minToStr(e) + ':00',
+        });
+        await onReload();
+      }
+      dragRef.current = null; setDrag(null); return;
+    }
+
+    // ── ドラッグ未移動（move/resize で動かなかった）→ キャンセル
+    if (!d.hasMoved) { dragRef.current = null; setDrag(null); return; }
+
+    // ── ドラッグ確定 ────────────────────────────────────────
     const preview = tlGetPreview(d);
     if (!preview || preview.e <= preview.s) { dragRef.current = null; setDrag(null); return; }
     const excludeId = (d.mode === 'move' || d.mode === 'resize') ? d.shift.id : null;
     if (tlHasOverlap(preview.s, preview.e, dayShifts, excludeId)) {
-      // 重複 → キャンセル
       dragRef.current = null; setDrag(null); return;
     }
     const startStr = minToStr(preview.s) + ':00';
     const endStr   = minToStr(preview.e) + ':00';
     if (d.mode === 'create') {
-      await insertShift({
-        member_id: memId || null,
-        member_name: member.name,
-        shift_date: dateStr,
-        start_time: startStr,
-        end_time: endStr,
-      });
+      await insertShift({ member_id: memId || null, member_name: member.name, shift_date: dateStr, start_time: startStr, end_time: endStr });
     } else {
       await updateShift(d.shift.id, { start_time: startStr, end_time: endStr });
     }
@@ -467,8 +430,8 @@ function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, d
     if (e.cancelable) e.preventDefault();
     const cx = getClientX(e);
     const currentMin = clampTL(tlFromRect(cx, d.trackRect));
-    const ref = d.anchorMin ?? d.currentMin;
-    const hasMoved = d.hasMoved || Math.abs(currentMin - ref) > 4;
+    // ピクセル距離で hasMoved を判定（5px超えたらドラッグ）
+    const hasMoved = d.hasMoved || Math.abs(cx - d.startX) > 5;
     const next = { ...d, currentMin, hasMoved };
     dragRef.current = next;
     setDrag({ ...next });
@@ -504,7 +467,7 @@ function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, d
     const rect = trackRef.current.getBoundingClientRect();
     const cx = getClientX(e);
     const anchorMin = clampTL(tlFromRect(cx, rect));
-    startDrag({ mode: 'create', trackRect: rect, anchorMin, currentMin: anchorMin, hasMoved: false });
+    startDrag({ mode: 'create', trackRect: rect, anchorMin, currentMin: anchorMin, startX: cx, hasMoved: false });
   };
 
   const handleBlockDown = (e, shift) => {
@@ -516,13 +479,12 @@ function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, d
     const shiftStart = strToMin(shift.start_time);
     const shiftEnd   = strToMin(shift.end_time);
     const duration   = shiftEnd - shiftStart;
-    // 右端 14px 以内ならリサイズ
     const pixelsFromEnd = ((shiftEnd - clickMin) / TL_TOTAL) * rect.width;
     if (pixelsFromEnd < 14) {
-      startDrag({ mode: 'resize', shift, trackRect: rect, currentMin: shiftEnd, hasMoved: false });
+      startDrag({ mode: 'resize', shift, trackRect: rect, currentMin: shiftEnd, startX: cx, hasMoved: false });
     } else {
       const offsetMin = Math.max(0, Math.min(duration, clickMin - shiftStart));
-      startDrag({ mode: 'move', shift, trackRect: rect, offsetMin, currentMin: clampTL(clickMin), duration, hasMoved: false });
+      startDrag({ mode: 'move', shift, trackRect: rect, offsetMin, currentMin: clampTL(clickMin), duration, startX: cx, hasMoved: false });
     }
   };
 
@@ -606,13 +568,15 @@ function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, d
                   onMouseDown={(ev) => {
                     ev.stopPropagation();
                     const rect = trackRef.current.getBoundingClientRect();
-                    startDrag({ mode: 'resize', shift, trackRect: rect, currentMin: strToMin(shift.end_time), hasMoved: false });
+                    const cx = getClientX(ev);
+                    startDrag({ mode: 'resize', shift, trackRect: rect, currentMin: strToMin(shift.end_time), startX: cx, hasMoved: false });
                   }}
                   onTouchStart={(ev) => {
                     ev.stopPropagation();
                     if (ev.cancelable) ev.preventDefault();
                     const rect = trackRef.current.getBoundingClientRect();
-                    startDrag({ mode: 'resize', shift, trackRect: rect, currentMin: strToMin(shift.end_time), hasMoved: false });
+                    const cx = getClientX(ev);
+                    startDrag({ mode: 'resize', shift, trackRect: rect, currentMin: strToMin(shift.end_time), startX: cx, hasMoved: false });
                   }}
                   style={{
                     position: 'absolute', right: 0, top: 0, bottom: 0, width: 14,
@@ -645,8 +609,8 @@ function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, d
           );
         })}
 
-        {/* プレビューブロック */}
-        {preview && preview.e > preview.s && (
+        {/* プレビューブロック（ドラッグ中のみ表示） */}
+        {preview && preview.e > preview.s && drag?.hasMoved && (
           <div style={{
             position: 'absolute', top: 2, bottom: 2,
             left: minToPct(preview.s) + '%',
@@ -698,7 +662,6 @@ export function ShiftInputModal({ modal, onClose, onSaved, year, month }) {
 
   const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 
-  // 時間帯の重複チェック（編集中のシフト自身は除外）
   const checkOverlap = (newStart, newEnd) => {
     const ns = toMin(newStart);
     const ne = toMin(newEnd);
@@ -713,34 +676,16 @@ export function ShiftInputModal({ modal, onClose, onSaved, year, month }) {
 
   const handleSave = async () => {
     if (startTime >= endTime) { setErrMsg('開始時間は終了時間より前にしてください'); return; }
-    if (checkOverlap(startTime, endTime)) {
-      setErrMsg('この時間帯は既存のシフトと重複しています');
-      return;
-    }
-    setSaving(true);
-    setErrMsg('');
-
+    if (checkOverlap(startTime, endTime)) { setErrMsg('この時間帯は既存のシフトと重複しています'); return; }
+    setSaving(true); setErrMsg('');
     if (editingShift) {
       const err = await updateShift(editingShift.id, { start_time: startTime + ':00', end_time: endTime + ':00' });
-      if (err) {
-        setErrMsg('保存に失敗しました: ' + (err.message || JSON.stringify(err)));
-        setSaving(false); return;
-      }
+      if (err) { setErrMsg('保存に失敗しました: ' + (err.message || JSON.stringify(err))); setSaving(false); return; }
     } else {
       if (!memId) { console.warn('[Shift] memId missing for', member.name); }
-      const { error: err } = await insertShift({
-        member_id: memId || null,
-        member_name: member.name,
-        shift_date: dateStr,
-        start_time: startTime + ':00',
-        end_time: endTime + ':00',
-      });
-      if (err) {
-        setErrMsg('保存に失敗しました: ' + (err.message || JSON.stringify(err)));
-        setSaving(false); return;
-      }
+      const { error: err } = await insertShift({ member_id: memId || null, member_name: member.name, shift_date: dateStr, start_time: startTime + ':00', end_time: endTime + ':00' });
+      if (err) { setErrMsg('保存に失敗しました: ' + (err.message || JSON.stringify(err))); setSaving(false); return; }
     }
-
     const { data } = await fetchShifts(`${year}-${String(month).padStart(2, '0')}`);
     onSaved(data || []);
   };
@@ -757,39 +702,27 @@ export function ShiftInputModal({ modal, onClose, onSaved, year, month }) {
   const selStyle = { width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid ' + C.border, fontSize: 13, fontFamily: "'Noto Sans JP'", background: C.white, color: C.navy, outline: 'none', cursor: 'pointer' };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}
-      onClick={onClose}>
-      <div style={{ background: C.white, borderRadius: 14, padding: 28, width: 360, boxShadow: '0 8px 36px rgba(0,0,0,0.22)' }}
-        onClick={e => e.stopPropagation()}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 20 }}>
-          シフト{editingShift ? '編集' : '追加'}
-        </div>
-
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }} onClick={onClose}>
+      <div style={{ background: C.white, borderRadius: 14, padding: 28, width: 360, boxShadow: '0 8px 36px rgba(0,0,0,0.22)' }} onClick={e => e.stopPropagation()}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 20 }}>シフト{editingShift ? '編集' : '追加'}</div>
         {[{ label: 'メンバー', value: member.name }, { label: '日付', value: dateStr }].map(({ label, value }) => (
           <div key={label} style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4, letterSpacing: 0.5 }}>{label}</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: C.navy, padding: '8px 12px', background: C.cream, borderRadius: 6, border: '1px solid ' + C.borderLight }}>{value}</div>
           </div>
         ))}
-
-        {/* 既存シフトの一覧表示 */}
         {existingShifts.filter(s => !editingShift || s.id !== editingShift.id).length > 0 && (
           <div style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 6, letterSpacing: 0.5 }}>登録済みシフト</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-              {existingShifts
-                .filter(s => !editingShift || s.id !== editingShift.id)
-                .map(s => (
-                  <span key={s.id} style={{ fontSize: 11, padding: '3px 8px', background: C.navy + '12', border: '1px solid ' + C.navy + '25', borderRadius: 10, color: C.navy, fontWeight: 600 }}>
-                    {s.start_time.slice(0, 5)}〜{s.end_time.slice(0, 5)}
-                  </span>
-                ))
-              }
+              {existingShifts.filter(s => !editingShift || s.id !== editingShift.id).map(s => (
+                <span key={s.id} style={{ fontSize: 11, padding: '3px 8px', background: C.navy + '12', border: '1px solid ' + C.navy + '25', borderRadius: 10, color: C.navy, fontWeight: 600 }}>
+                  {s.start_time.slice(0, 5)}〜{s.end_time.slice(0, 5)}
+                </span>
+              ))}
             </div>
           </div>
         )}
-
-        {/* 時間選択 */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4, letterSpacing: 0.5 }}>開始時間</div>
@@ -804,18 +737,12 @@ export function ShiftInputModal({ modal, onClose, onSaved, year, month }) {
             </select>
           </div>
         </div>
-
         {errMsg && (
           <div style={{ fontSize: 11, color: '#c53030', marginBottom: 12, padding: '6px 10px', background: '#fff5f5', borderRadius: 5, border: '1px solid #fed7d7' }}>{errMsg}</div>
         )}
-
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={handleSave} disabled={saving} style={btnStyle(C.navy, C.white)}>
-            {saving ? '保存中...' : '保存'}
-          </button>
-          {editingShift && (
-            <button onClick={handleDelete} disabled={saving} style={btnStyle('#fed7d7', '#c53030')}>削除</button>
-          )}
+          <button onClick={handleSave} disabled={saving} style={btnStyle(C.navy, C.white)}>{saving ? '保存中...' : '保存'}</button>
+          {editingShift && <button onClick={handleDelete} disabled={saving} style={btnStyle('#fed7d7', '#c53030')}>削除</button>}
           <button onClick={onClose} style={{ ...btnStyle(C.offWhite, C.textMid), marginLeft: 'auto' }}>キャンセル</button>
         </div>
       </div>
