@@ -13,8 +13,8 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [shiftModal, setShiftModal] = useState(null);
+  // shiftModal: { member, dateStr, existingShifts: [], editingShift: null|shiftObj }
 
-  // Fix3: 入社日昇順（古い順）
   const sortedMembers = useMemo(() => {
     return [...members]
       .filter(m => typeof m === 'object' && m.name)
@@ -24,7 +24,6 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   const daysInMonth = new Date(year, month, 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
-  // 週表示: selectedDay が属する7日ブロック（1-7, 8-14, 15-21, 22-28, 29-末日）
   const weekBlockStart = Math.floor((selectedDay - 1) / 7) * 7 + 1;
   const weekBlockEnd = Math.min(weekBlockStart + 6, daysInMonth);
   const weekDays = Array.from({ length: weekBlockEnd - weekBlockStart + 1 }, (_, i) => weekBlockStart + i);
@@ -38,24 +37,30 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
     setLoading(false);
   };
 
-  const getShift = (memberId, day) => {
-    if (!memberId) return null;
+  // 1日に複数シフト対応: 配列を返す
+  const getShifts = (memberId, day) => {
+    if (!memberId) return [];
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return shifts.find(s => s.member_id === memberId && s.shift_date === dateStr) || null;
+    return shifts
+      .filter(s => s.member_id === memberId && s.shift_date === dateStr)
+      .sort((a, b) => a.start_time.localeCompare(b.start_time));
   };
 
-  // Fix5: シフト時間（時間単位）
-  const shiftHours = (shift) => {
-    if (!shift) return 0;
-    const parse = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
-    return (parse(shift.end_time) - parse(shift.start_time)) / 60;
+  const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+
+  // 複数シフトの合計時間
+  const totalShiftHours = (shiftsArr) => {
+    return shiftsArr.reduce((sum, s) => {
+      return sum + (toMin(s.end_time) - toMin(s.start_time)) / 60;
+    }, 0);
   };
+
   const getMemberHours = (memberId, displayDays) => {
     if (!memberId) return 0;
-    return displayDays.reduce((sum, d) => sum + shiftHours(getShift(memberId, d)), 0);
+    return displayDays.reduce((sum, d) => sum + totalShiftHours(getShifts(memberId, d)), 0);
   };
 
-  // Fix2: 30分スロットごとの同時稼働数
+  // 30分スロットごとの同時稼働数
   const SLOTS_30 = (() => {
     const s = [];
     for (let h = 8; h < 22; h++) { s.push(`${String(h).padStart(2,'0')}:00`); s.push(`${String(h).padStart(2,'0')}:30`); }
@@ -73,15 +78,28 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
     }).length;
   };
 
-  // 管理者は全員分、一般ユーザーは自分のシフトのみ編集可能
   const canEdit = (member) => isAdmin || member.name === currentUser;
 
-  const handleCellClick = (member, day) => {
-    if (!canEdit(member)) return;
+  // 追加モーダルを開く
+  const handleAddShift = (member, day) => {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const memId = member._supaId || member.id;
-    const shift = getShift(memId, day);
-    setShiftModal({ member, dateStr, shift });
+    setShiftModal({ member, dateStr, existingShifts: getShifts(memId, day), editingShift: null });
+  };
+
+  // 編集モーダルを開く
+  const handleEditShift = (member, day, shift) => {
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const memId = member._supaId || member.id;
+    setShiftModal({ member, dateStr, existingShifts: getShifts(memId, day), editingShift: shift });
+  };
+
+  // × ボタンで直接削除
+  const handleDeleteShiftDirect = async (e, shift) => {
+    e.stopPropagation();
+    if (!window.confirm(`${fmtTime(shift.start_time)}〜${fmtTime(shift.end_time)} を削除しますか？`)) return;
+    await deleteShift(shift.id);
+    await loadShifts();
   };
 
   const prevMonth = () => { if (month === 1) { setYear(y => y - 1); setMonth(12); } else setMonth(m => m - 1); };
@@ -101,7 +119,6 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   const navBtn = { border: '1px solid ' + C.border, cursor: 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: 600, borderRadius: 5, padding: '5px 10px', background: C.offWhite, color: C.navy, fontSize: 12 };
   const modeBtn = (active) => ({ border: '1px solid ' + C.border, cursor: 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: 600, borderRadius: 5, padding: '5px 12px', background: active ? C.navy : C.white, color: active ? C.white : C.navy, fontSize: 11 });
 
-  // Fix4・Fix5: isMonthView=trueのとき⚠アラートと赤字。合計列を右端にsticky追加
   const renderGridView = (displayDays, isMonthView) => (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: 140 + displayDays.length * 72 + 76 }}>
@@ -134,7 +151,6 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                 <td style={{ position: 'sticky', left: 0, padding: '6px 12px', fontWeight: isMe ? 700 : 500, fontSize: 11, color: isMe ? C.navy : C.textDark, background: rowBg, borderRight: '2px solid ' + C.border, whiteSpace: 'nowrap', zIndex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <span>{member.name}</span>
-                    {/* Fix4: 80時間未達アラート */}
                     {isUnder80 && (
                       <span title={`今月の稼働時間: ${monthlyH.toFixed(1)}時間（80時間未達）`}
                         style={{ color: '#ed8936', fontSize: 13, cursor: 'help', lineHeight: 1 }}>⚠</span>
@@ -143,24 +159,66 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                 </td>
                 {displayDays.map(d => {
                   const { isSun, isSat } = getDayMeta(d);
-                  const shift = getShift(memId, d);
-                  const cellBg = shift ? 'transparent' : isSun ? '#fff5f5' : isSat ? '#ebf8ff' : rowBg;
+                  const dayShifts = getShifts(memId, d);
+                  const cellBg = dayShifts.length > 0 ? 'transparent' : isSun ? '#fff5f5' : isSat ? '#ebf8ff' : rowBg;
                   return (
-                    <td key={d}
-                      style={{ padding: '3px 4px', textAlign: 'center', background: cellBg, borderRight: '1px solid ' + C.borderLight, cursor: 'default', verticalAlign: 'middle' }}>
-                      {shift ? (
-                        <div style={{ background: isMe ? C.gold : C.navy + '18', border: '1px solid ' + (isMe ? C.gold + '80' : C.navy + '30'), borderRadius: 4, padding: '3px 4px', fontSize: 9, fontWeight: 700, color: isMe ? '#7d5c00' : C.navy, lineHeight: 1.5 }}>
-                          <div>{fmtTime(shift.start_time)}</div>
-                          <div>{fmtTime(shift.end_time)}</div>
+                    <td key={d} style={{ padding: '3px 4px', textAlign: 'center', background: cellBg, borderRight: '1px solid ' + C.borderLight, verticalAlign: 'top' }}>
+                      {/* 登録済みシフト（縦並び） */}
+                      {dayShifts.map(shift => (
+                        <div key={shift.id} style={{ position: 'relative', marginBottom: 2 }}>
+                          <div
+                            onClick={() => isEditable && handleEditShift(member, d, shift)}
+                            style={{
+                              background: isMe ? C.gold : C.navy + '18',
+                              border: '1px solid ' + (isMe ? C.gold + '80' : C.navy + '30'),
+                              borderRadius: 4, padding: '2px 14px 2px 4px',
+                              fontSize: 9, fontWeight: 700,
+                              color: isMe ? '#7d5c00' : C.navy,
+                              lineHeight: 1.4,
+                              cursor: isEditable ? 'pointer' : 'default',
+                              textAlign: 'left',
+                            }}
+                          >
+                            <div>{fmtTime(shift.start_time)}</div>
+                            <div>{fmtTime(shift.end_time)}</div>
+                          </div>
+                          {isEditable && (
+                            <button
+                              onClick={e => handleDeleteShiftDirect(e, shift)}
+                              title="削除"
+                              style={{
+                                position: 'absolute', top: 1, right: 1,
+                                width: 13, height: 13, borderRadius: 2,
+                                border: 'none', background: 'rgba(150,0,0,0.15)',
+                                color: '#c53030', fontSize: 9, cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                lineHeight: 1, padding: 0, fontWeight: 700,
+                              }}
+                            >×</button>
+                          )}
                         </div>
-                      ) : (
+                      ))}
+                      {/* ＋追加ボタン */}
+                      {isEditable && (
+                        <button
+                          onClick={() => handleAddShift(member, d)}
+                          style={{
+                            width: '100%', border: '1px dashed ' + C.border,
+                            borderRadius: 4, background: 'transparent',
+                            color: C.textLight, fontSize: 10, cursor: 'pointer',
+                            padding: '1px 0', marginTop: dayShifts.length > 0 ? 2 : 8,
+                            lineHeight: 1.4, fontFamily: "'Noto Sans JP'",
+                          }}
+                        >＋</button>
+                      )}
+                      {!isEditable && dayShifts.length === 0 && (
                         <div style={{ height: 36 }} />
                       )}
                     </td>
                   );
                 })}
-                {/* Fix5: 合計時間列（sticky right） */}
-                <td style={{ position: 'sticky', right: 0, padding: '6px 8px', textAlign: 'center', background: C.offWhite, borderLeft: '2px solid ' + C.gold, whiteSpace: 'nowrap', zIndex: 1 }}>
+                {/* 合計時間列 */}
+                <td style={{ position: 'sticky', right: 0, padding: '6px 8px', textAlign: 'center', background: C.offWhite, borderLeft: '2px solid ' + C.gold, whiteSpace: 'nowrap', zIndex: 1, verticalAlign: 'middle' }}>
                   <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: isUnder80 ? '#e53e3e' : C.navy }}>
                     {totalH > 0 ? totalH.toFixed(1) + 'h' : '-'}
                   </span>
@@ -220,32 +278,55 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                 const memId = member._supaId || member.id;
                 const isMe = member.name === currentUser;
                 const isEditable = canEdit(member);
-                const shift = memId ? shifts.find(s => s.member_id === memId && s.shift_date === dateStr) : null;
-                const dayH = shiftHours(shift);
+                const dayShifts = memId ? shifts.filter(s => s.member_id === memId && s.shift_date === dateStr).sort((a, b) => a.start_time.localeCompare(b.start_time)) : [];
+                const dayH = totalShiftHours(dayShifts);
                 return (
                   <div key={memId || mi} style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
                     <div style={{ width: NAME_W, flexShrink: 0, fontSize: 11, fontWeight: isMe ? 700 : 500, color: isMe ? C.navy : C.textDark, paddingRight: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</div>
-                    <div style={{ flex: 1, height: 32, background: C.cream, borderRadius: 5, position: 'relative', cursor: isEditable ? 'pointer' : 'default', border: '1px solid ' + C.borderLight }}
-                      onClick={() => isEditable && handleCellClick(member, selectedDay)}>
+                    <div style={{ flex: 1, height: 36, background: C.cream, borderRadius: 5, position: 'relative', border: '1px solid ' + C.borderLight }}>
+                      {/* 時間グリッド線 */}
                       {HOURS.slice(1).map((h, i) => (
                         <div key={h} style={{ position: 'absolute', top: 0, bottom: 0, left: ((i + 1) / (HOURS.length - 1)) * 100 + '%', width: 1, background: C.borderLight }} />
                       ))}
-                      {shift && (
-                        <div style={{
-                          position: 'absolute', top: 3, bottom: 3, borderRadius: 4,
-                          left: timeToPercent(shift.start_time) + '%',
-                          width: Math.max(timeToPercent(shift.end_time) - timeToPercent(shift.start_time), 0) + '%',
-                          background: isMe ? C.gold : C.navy + '25',
-                          border: '1px solid ' + (isMe ? C.gold + '80' : C.navy + '40'),
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 9, fontWeight: 700, color: isMe ? '#7d5c00' : C.navy, overflow: 'hidden', whiteSpace: 'nowrap'
-                        }}>
+                      {/* 複数シフトバー */}
+                      {dayShifts.map(shift => (
+                        <div
+                          key={shift.id}
+                          onClick={() => isEditable && handleEditShift(member, selectedDay, shift)}
+                          style={{
+                            position: 'absolute', top: 3, bottom: 3, borderRadius: 4,
+                            left: timeToPercent(shift.start_time) + '%',
+                            width: Math.max(timeToPercent(shift.end_time) - timeToPercent(shift.start_time), 0) + '%',
+                            background: isMe ? C.gold : C.navy + '25',
+                            border: '1px solid ' + (isMe ? C.gold + '80' : C.navy + '40'),
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 9, fontWeight: 700, color: isMe ? '#7d5c00' : C.navy,
+                            overflow: 'hidden', whiteSpace: 'nowrap',
+                            cursor: isEditable ? 'pointer' : 'default',
+                            zIndex: 1,
+                          }}
+                        >
                           {fmtTime(shift.start_time)}–{fmtTime(shift.end_time)}
                         </div>
+                      ))}
+                      {/* ＋追加ボタン（タイムラインの右端）*/}
+                      {isEditable && (
+                        <button
+                          onClick={() => handleAddShift(member, selectedDay)}
+                          title="シフトを追加"
+                          style={{
+                            position: 'absolute', right: 2, top: '50%', transform: 'translateY(-50%)',
+                            width: 18, height: 18, borderRadius: 9,
+                            border: '1px dashed ' + C.border, background: C.white,
+                            color: C.textLight, fontSize: 11, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            lineHeight: 1, padding: 0, zIndex: 2,
+                          }}
+                        >＋</button>
                       )}
                     </div>
-                    {/* Fix5: 日別合計時間 */}
-                    <div style={{ width: TOTAL_W, flexShrink: 0, marginLeft: 8, textAlign: 'center', background: C.offWhite, borderLeft: '2px solid ' + C.gold, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0 4px 4px 0' }}>
+                    {/* 日別合計時間 */}
+                    <div style={{ width: TOTAL_W, flexShrink: 0, marginLeft: 8, textAlign: 'center', background: C.offWhite, borderLeft: '2px solid ' + C.gold, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0 4px 4px 0' }}>
                       <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: C.navy }}>
                         {dayH > 0 ? dayH.toFixed(1) + 'h' : '-'}
                       </span>
@@ -257,7 +338,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
           </div>
         </div>
 
-        {/* Fix2: 同時稼働数フッター（sticky bottom） */}
+        {/* 同時稼働数フッター */}
         <div style={{ position: 'sticky', bottom: 0, background: C.navy, borderTop: '2px solid ' + C.gold, zIndex: 5, marginTop: 4 }}>
           <div style={{ overflowX: 'auto' }}>
             <div style={{ minWidth: 700, display: 'flex', alignItems: 'center', padding: '6px 16px' }}>
@@ -276,7 +357,6 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
             </div>
           </div>
         </div>
-
         <div style={{ height: 16 }} />
       </div>
     );
@@ -287,13 +367,11 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
       {/* ヘッダー */}
       <div style={{ padding: '14px 24px', background: C.white, borderBottom: '1px solid ' + C.borderLight, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 16, fontWeight: 800, color: C.navy }}>シフト管理</div>
-        {/* 月ナビ */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button onClick={prevMonth} style={navBtn}>◀</button>
           <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, minWidth: 88, textAlign: 'center' }}>{year}年{month}月</div>
           <button onClick={nextMonth} style={navBtn}>▶</button>
         </div>
-        {/* 週ナビ（週表示時のみ） */}
         {viewMode === 'week' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <button onClick={prevWeek} style={navBtn}>← 前週</button>
@@ -301,7 +379,6 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
             <button onClick={nextWeek} style={navBtn}>次週 →</button>
           </div>
         )}
-        {/* 日ナビ（日表示時のみ） */}
         {viewMode === 'day' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <button onClick={prevDay} style={navBtn}>← 前日</button>
@@ -309,7 +386,6 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
             <button onClick={nextDay} style={navBtn}>次日 →</button>
           </div>
         )}
-        {/* 表示切替 + 更新 */}
         <div style={{ display: 'flex', gap: 4, marginLeft: 'auto', flexWrap: 'wrap' }}>
           {[['month', '月間表示'], ['week', '週間表示'], ['day', '日別表示']].map(([mode, label]) => (
             <button key={mode} onClick={() => setViewMode(mode)} style={modeBtn(viewMode === mode)}>{label}</button>
@@ -341,52 +417,73 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
 }
 
 export function ShiftInputModal({ modal, onClose, onSaved, year, month }) {
-  const { member, dateStr, shift } = modal;
+  const { member, dateStr, existingShifts = [], editingShift } = modal;
   const memId = member._supaId || member.id;
 
   const timeOptions = [];
   for (let h = 8; h <= 22; h++) {
     timeOptions.push(`${String(h).padStart(2, '0')}:00`);
-    if (h < 22) timeOptions.push(`${String(h).padStart(2, '0')}:30`);
+    if (h < 22) timeOptions.push(`${String(h).padStart(2, '00')}:30`);
   }
 
-  const [startTime, setStartTime] = useState(shift ? shift.start_time.slice(0, 5) : '09:00');
-  const [endTime, setEndTime] = useState(shift ? shift.end_time.slice(0, 5) : '18:00');
+  const [startTime, setStartTime] = useState(editingShift ? editingShift.start_time.slice(0, 5) : '09:00');
+  const [endTime, setEndTime]     = useState(editingShift ? editingShift.end_time.slice(0, 5)   : '18:00');
   const [saving, setSaving] = useState(false);
   const [errMsg, setErrMsg] = useState('');
 
+  const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+
+  // 時間帯の重複チェック（編集中のシフト自身は除外）
+  const checkOverlap = (newStart, newEnd) => {
+    const ns = toMin(newStart);
+    const ne = toMin(newEnd);
+    return existingShifts
+      .filter(s => !editingShift || s.id !== editingShift.id)
+      .some(s => {
+        const ss = toMin(s.start_time.slice(0, 5));
+        const se = toMin(s.end_time.slice(0, 5));
+        return ns < se && ne > ss;
+      });
+  };
+
   const handleSave = async () => {
     if (startTime >= endTime) { setErrMsg('開始時間は終了時間より前にしてください'); return; }
+    if (checkOverlap(startTime, endTime)) {
+      setErrMsg('この時間帯は既存のシフトと重複しています');
+      return;
+    }
     setSaving(true);
     setErrMsg('');
-    if (shift) {
-      const err = await updateShift(shift.id, { start_time: startTime + ':00', end_time: endTime + ':00' });
+
+    if (editingShift) {
+      const err = await updateShift(editingShift.id, { start_time: startTime + ':00', end_time: endTime + ':00' });
       if (err) {
-        const msg = err.message || JSON.stringify(err);
-        console.error('[Shift] updateShift failed:', msg);
-        alert('保存に失敗しました: ' + msg);
-        setErrMsg('保存に失敗しました: ' + msg);
+        setErrMsg('保存に失敗しました: ' + (err.message || JSON.stringify(err)));
         setSaving(false); return;
       }
     } else {
       if (!memId) { console.warn('[Shift] memId missing for', member.name); }
-      const { error: err } = await insertShift({ member_id: memId || null, member_name: member.name, shift_date: dateStr, start_time: startTime + ':00', end_time: endTime + ':00' });
+      const { error: err } = await insertShift({
+        member_id: memId || null,
+        member_name: member.name,
+        shift_date: dateStr,
+        start_time: startTime + ':00',
+        end_time: endTime + ':00',
+      });
       if (err) {
-        const msg = err.message || JSON.stringify(err);
-        console.error('[Shift] insertShift failed:', msg);
-        alert('保存に失敗しました: ' + msg);
-        setErrMsg('保存に失敗しました: ' + msg);
+        setErrMsg('保存に失敗しました: ' + (err.message || JSON.stringify(err)));
         setSaving(false); return;
       }
     }
+
     const { data } = await fetchShifts(`${year}-${String(month).padStart(2, '0')}`);
     onSaved(data || []);
   };
 
   const handleDelete = async () => {
-    if (!shift) return;
+    if (!editingShift) return;
     setSaving(true);
-    await deleteShift(shift.id);
+    await deleteShift(editingShift.id);
     const { data } = await fetchShifts(`${year}-${String(month).padStart(2, '0')}`);
     onSaved(data || []);
   };
@@ -397,16 +494,36 @@ export function ShiftInputModal({ modal, onClose, onSaved, year, month }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}
       onClick={onClose}>
-      <div style={{ background: C.white, borderRadius: 14, padding: 28, width: 350, boxShadow: '0 8px 36px rgba(0,0,0,0.22)' }}
+      <div style={{ background: C.white, borderRadius: 14, padding: 28, width: 360, boxShadow: '0 8px 36px rgba(0,0,0,0.22)' }}
         onClick={e => e.stopPropagation()}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 20 }}>シフト{shift ? '編集' : '入力'}</div>
-        {/* メンバー・日付（読み取り専用） */}
+        <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 20 }}>
+          シフト{editingShift ? '編集' : '追加'}
+        </div>
+
         {[{ label: 'メンバー', value: member.name }, { label: '日付', value: dateStr }].map(({ label, value }) => (
           <div key={label} style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4, letterSpacing: 0.5 }}>{label}</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: C.navy, padding: '8px 12px', background: C.cream, borderRadius: 6, border: '1px solid ' + C.borderLight }}>{value}</div>
           </div>
         ))}
+
+        {/* 既存シフトの一覧表示 */}
+        {existingShifts.filter(s => !editingShift || s.id !== editingShift.id).length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 6, letterSpacing: 0.5 }}>登録済みシフト</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {existingShifts
+                .filter(s => !editingShift || s.id !== editingShift.id)
+                .map(s => (
+                  <span key={s.id} style={{ fontSize: 11, padding: '3px 8px', background: C.navy + '12', border: '1px solid ' + C.navy + '25', borderRadius: 10, color: C.navy, fontWeight: 600 }}>
+                    {s.start_time.slice(0, 5)}〜{s.end_time.slice(0, 5)}
+                  </span>
+                ))
+              }
+            </div>
+          </div>
+        )}
+
         {/* 時間選択 */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
           <div style={{ flex: 1 }}>
@@ -422,15 +539,16 @@ export function ShiftInputModal({ modal, onClose, onSaved, year, month }) {
             </select>
           </div>
         </div>
+
         {errMsg && (
           <div style={{ fontSize: 11, color: '#c53030', marginBottom: 12, padding: '6px 10px', background: '#fff5f5', borderRadius: 5, border: '1px solid #fed7d7' }}>{errMsg}</div>
         )}
-        {/* ボタン */}
+
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={handleSave} disabled={saving} style={btnStyle(C.navy, C.white)}>
             {saving ? '保存中...' : '保存'}
           </button>
-          {shift && (
+          {editingShift && (
             <button onClick={handleDelete} disabled={saving} style={btnStyle('#fed7d7', '#c53030')}>削除</button>
           )}
           <button onClick={onClose} style={{ ...btnStyle(C.offWhite, C.textMid), marginLeft: 'auto' }}>キャンセル</button>
