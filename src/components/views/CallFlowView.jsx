@@ -205,12 +205,20 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   };
 
   const EXCLUDED_STATUSES = new Set(['アポ獲得', '除外']);
+  const RECALL_STATUSES = new Set(['受付再コール', '社長再コール']);
   const getRecordsForItem = (itemId) => callRecords.filter(r => r.item_id === itemId);
   const getNextRound = (itemId) => {
     const recs = getRecordsForItem(itemId);
     return recs.length === 0 ? 1 : Math.min(Math.max(...recs.map(r => r.round)) + 1, 8);
   };
   const isExcludedItem = (itemId) => callRecords.some(r => r.item_id === itemId && EXCLUDED_STATUSES.has(r.status));
+  const isHiddenFromCallable = (itemId) => {
+    if (isExcludedItem(itemId)) return true;
+    const recs = getRecordsForItem(itemId);
+    if (recs.length === 0) return false;
+    const latestRec = recs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b);
+    return RECALL_STATUSES.has(latestRec.status);
+  };
 
   // Range filter (Number() で型統一: DBからstringで返る場合も安全)
   const rangeItems = (() => {
@@ -252,7 +260,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     const result = statusFilteredItems.filter(item => {
       const matchSearch = !search || item.company?.includes(search) || item.representative?.includes(search) || item.phone?.includes(search);
       if (!matchSearch) return false;
-      if (filterMode === 'callable') { if (isExcludedItem(item.id)) return false; }
+      if (filterMode === 'callable') { if (isHiddenFromCallable(item.id)) return false; }
       else if (filterMode === 'excluded') { if (!isExcludedItem(item.id)) return false; }
       if (revenueMin !== '') {
         if (item.revenue == null || Number(item.revenue) < Number(revenueMin)) return false;
