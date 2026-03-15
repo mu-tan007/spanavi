@@ -80,6 +80,7 @@ export default function RecallListView({ callListData, supaRecalls = [], onRecal
     recallDate: r._memoObj.recall_date || '',
     recallTime: r._memoObj.recall_time || '',
     assignee: r._memoObj.assignee || '',
+    setter: r.getter_name || '',
     note: r._memoObj.note || '',
     listInfo: null,
     _list_name: r._list_name || '',
@@ -87,10 +88,8 @@ export default function RecallListView({ callListData, supaRecalls = [], onRecal
     _client_name: r._client_name || '',
   }));
 
-  // 一般ユーザーは自分担当分のみ表示
-  const baseRecallItems = isAdmin
-    ? recallItems
-    : recallItems.filter(item => (item.assignee || '') === currentUser);
+  // 全メンバーの再コールを全員に表示
+  const baseRecallItems = recallItems;
   const filteredRecallItems = filterAssignee
     ? baseRecallItems.filter(item => item.assignee === filterAssignee)
     : baseRecallItems;
@@ -118,8 +117,8 @@ export default function RecallListView({ callListData, supaRecalls = [], onRecal
             <span style={{ fontSize: 10, color: C.textLight }}>{sorted.length}{filterAssignee ? `/${baseRecallItems.length}` : ''}件</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* 担当者フィルター combobox（管理者のみ表示） */}
-            {isAdmin && <div style={{ position: 'relative' }}>
+            {/* 担当者フィルター combobox */}
+            {<div style={{ position: 'relative' }}>
               <div style={{
                 display: 'flex', alignItems: 'center',
                 border: '1px solid ' + C.navy, borderRadius: 6, background: C.white,
@@ -202,8 +201,8 @@ export default function RecallListView({ callListData, supaRecalls = [], onRecal
             <div style={{ padding: '40px 0', textAlign: 'center', color: C.textLight, fontSize: 13 }}>再コール予定はありません</div>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '78px 1.6fr 0.8fr 110px 58px 0.7fr', padding: '5px 14px', background: C.offWhite, borderBottom: '1px solid ' + C.borderLight, fontSize: 9, fontWeight: 700, color: C.textLight, letterSpacing: 0.5, flexShrink: 0 }}>
-                <span>予定日時</span><span>企業名</span><span>代表者</span><span>電話番号</span><span>種別</span><span>担当</span>
+              <div style={{ display: 'grid', gridTemplateColumns: '78px 1.4fr 0.7fr 100px 50px 0.65fr 0.65fr', padding: '5px 14px', background: C.offWhite, borderBottom: '1px solid ' + C.borderLight, fontSize: 9, fontWeight: 700, color: C.textLight, letterSpacing: 0.5, flexShrink: 0 }}>
+                <span>予定日時</span><span>企業名</span><span>代表者</span><span>電話番号</span><span>種別</span><span>担当</span><span>設定者</span>
               </div>
               {sorted.map((item, i) => {
                 const past = isOverdue(item.recallDate, item.recallTime);
@@ -216,7 +215,7 @@ export default function RecallListView({ callListData, supaRecalls = [], onRecal
                       }
                       setSelectedItem(item); setRightMemo(item.note || '');
                     }}
-                    style={{ display: 'grid', gridTemplateColumns: '78px 1.6fr 0.8fr 110px 58px 0.7fr', padding: '8px 14px', fontSize: 11, alignItems: 'center', borderBottom: '1px solid ' + C.borderLight, borderLeft: isSel ? '3px solid ' + C.gold : '3px solid transparent', background: isSel ? C.gold + '10' : past ? '#fff5f5' : 'transparent', cursor: 'pointer' }}>
+                    style={{ display: 'grid', gridTemplateColumns: '78px 1.4fr 0.7fr 100px 50px 0.65fr 0.65fr', padding: '8px 14px', fontSize: 11, alignItems: 'center', borderBottom: '1px solid ' + C.borderLight, borderLeft: isSel ? '3px solid ' + C.gold : '3px solid transparent', background: isSel ? C.gold + '10' : past ? '#fff5f5' : 'transparent', cursor: 'pointer' }}>
                     <div>
                       <div style={{ fontWeight: 700, color: past ? '#e53e3e' : C.navy, fontFamily: "'JetBrains Mono'", fontSize: 11 }}>{item.recallTime || '--:--'}</div>
                       <div style={{ fontSize: 9, color: C.textLight }}>{item.recallDate ? item.recallDate.slice(5).replace('-', '/') : '日時未設定'}</div>
@@ -228,6 +227,7 @@ export default function RecallListView({ callListData, supaRecalls = [], onRecal
                       {item.status === 'ceo_recall' || item.status === '社長再コール' ? '社長' : '受付'}
                     </span>
                     <span style={{ fontSize: 10, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.assignee || '—'}</span>
+                    <span style={{ fontSize: 10, color: C.textLight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.setter || '—'}</span>
                   </div>
                 );
               })}
@@ -289,31 +289,44 @@ export default function RecallListView({ callListData, supaRecalls = [], onRecal
                   )}
                 </div>
               </div>
-              {/* ステータスボタン (supabase only) */}
-              {selectedItem._source === 'supabase' && (
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, marginBottom: 8 }}>📋 架電結果</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                    {CALL_RESULTS.map(r => {
-                      const isAppo = r.id === 'appointment';
-                      const isExcl = r.id === 'excluded';
-                      const btnBg    = isAppo ? C.gold  : isExcl ? C.red + '10' : C.navy + '08';
-                      const btnColor = isAppo ? C.white : isExcl ? C.red        : C.navy;
-                      const btnBdr   = isAppo ? '1.5px solid ' + C.gold : isExcl ? '1.5px solid ' + C.red + '40' : '1px solid ' + C.navy + '25';
-                      return (
-                        <button key={r.id} onClick={() => handleStatusClick(selectedItem, r.label, r.id)}
-                          style={{ padding: '9px 6px', borderRadius: 7, border: btnBdr, background: btnBg, color: btnColor, cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: "'Noto Sans JP'", lineHeight: 1.2 }}>
-                          {r.label}
-                        </button>
-                      );
-                    })}
+              {/* 担当者・設定者表示 */}
+              <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {selectedItem.assignee && (
+                  <div style={{ fontSize: 11, color: C.textMid }}>担当: {selectedItem.assignee}</div>
+                )}
+                {selectedItem.setter && (
+                  <div style={{ fontSize: 11, color: C.textLight }}>設定者: {selectedItem.setter}</div>
+                )}
+              </div>
+              {/* ステータスボタン (supabase only・本人または管理者のみ) */}
+              {selectedItem._source === 'supabase' && (() => {
+                const canEdit = isAdmin || currentUser === selectedItem.setter || currentUser === selectedItem.assignee;
+                if (!canEdit) return (
+                  <div style={{ marginBottom: 14, padding: '8px 12px', borderRadius: 6, background: C.offWhite, border: '1px solid ' + C.borderLight, fontSize: 11, color: C.textLight }}>
+                    架電結果の記録は設定者・担当者・管理者のみ操作できます
                   </div>
-                </div>
-              )}
-              {/* 担当者表示 */}
-              {selectedItem.assignee && (
-                <div style={{ marginBottom: 8, fontSize: 11, color: C.textMid }}>担当: {selectedItem.assignee}</div>
-              )}
+                );
+                return (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, marginBottom: 8 }}>📋 架電結果</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      {CALL_RESULTS.map(r => {
+                        const isAppo = r.id === 'appointment';
+                        const isExcl = r.id === 'excluded';
+                        const btnBg    = isAppo ? C.gold  : isExcl ? C.red + '10' : C.navy + '08';
+                        const btnColor = isAppo ? C.white : isExcl ? C.red        : C.navy;
+                        const btnBdr   = isAppo ? '1.5px solid ' + C.gold : isExcl ? '1.5px solid ' + C.red + '40' : '1px solid ' + C.navy + '25';
+                        return (
+                          <button key={r.id} onClick={() => handleStatusClick(selectedItem, r.label, r.id)}
+                            style={{ padding: '9px 6px', borderRadius: 7, border: btnBdr, background: btnBg, color: btnColor, cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: "'Noto Sans JP'", lineHeight: 1.2 }}>
+                            {r.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
               {/* 架電履歴 */}
               {itemCallHistory.length > 0 && (
                 <div style={{ marginBottom: 14 }}>
