@@ -3,7 +3,8 @@ import React from 'react';
 import { C } from '../../constants/colors';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
-import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers } from '../../lib/supabaseWrite';
+import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording } from '../../lib/supabaseWrite';
+import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 
 export function MemberSuggestInput({ value, onChange, members = [], style, placeholder = '名前を入力して絞り込み' }) {
   const [suggs, setSuggs] = React.useState([]);
@@ -77,6 +78,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [detailEditing, setDetailEditing] = useState(false);
   const [detailEditForm, setDetailEditForm] = useState(null);
   const [detailSaving, setDetailSaving] = useState(false);
+  // 'idle' | 'fetching' | 'transcribing' | 'enhancing' | 'done' | 'error'
+  const [transcribeStep, setTranscribeStep] = React.useState('idle');
   useEffect(() => {
     setShowRecordingDetail(false);
     setDetailEditing(false); setDetailEditForm(null);
@@ -145,6 +148,68 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const colTemplate = setAppoData
     ? "1.2fr 1.2fr 0.6fr 0.6fr 0.6fr 0.5fr 0.6fr 0.6fr 32px"
     : "1.2fr 1.2fr 0.6fr 0.6fr 0.6fr 0.5fr 0.6fr 0.6fr";
+
+  const handleTranscribeDetail = async () => {
+    if (transcribeStep !== 'idle') return;
+    // Step 1: アポ取得報告または備考から録音URLを取得
+    const src = detailEditForm?.appoReport || detailEditForm?.note || '';
+    const urlMatch = src.match(/録音URL[：:]\s*(https?:\/\/\S+)/);
+    let recordingUrl = urlMatch?.[1]?.trim() || '';
+    if (!recordingUrl) {
+      // Zoom APIから録音URLを取得
+      setTranscribeStep('fetching');
+      const phone = (reportDetail?.phone || '').replace(/[^\d]/g, '');
+      const getterName = detailEditForm?.getter || '';
+      const member = (members || []).find(m => (typeof m === 'string' ? m : m.name) === getterName);
+      const zoomUserId = typeof member === 'object' ? member?.zoomUserId : null;
+      if (zoomUserId && phone) {
+        try {
+          const { data } = await invokeGetZoomRecording({
+            zoom_user_id: zoomUserId,
+            callee_phone: phone,
+            called_at: new Date().toISOString(),
+            prev_called_at: null,
+          });
+          recordingUrl = data?.recording_url || '';
+        } catch (e) {
+          console.error('[handleTranscribeDetail] Zoom取得エラー:', e);
+        }
+      }
+      if (!recordingUrl) {
+        setTranscribeStep('error');
+        setTimeout(() => setTranscribeStep('idle'), 3000);
+        return;
+      }
+    }
+    // Step 2: 文字起こし＋AI添削
+    setTranscribeStep('transcribing');
+    try {
+      const { data, error } = await invokeTranscribeRecording({
+        recording_url: recordingUrl,
+        item_id: '',
+        temperature: '', meetingExp: '', futureConsider: '', other: '',
+      });
+      if (error || data?.error) throw new Error(error?.message || data?.error);
+      setTranscribeStep('enhancing');
+      // アポ取得報告テキストの該当フィールドを添削結果で更新
+      let report = detailEditForm?.appoReport || '';
+      const replaceField = (text, pattern, value) => {
+        return pattern.test(text) ? text.replace(pattern, value) : text + '\n' + value;
+      };
+      if (data.temperature)    report = replaceField(report, /^　・先方の温度感→.*$/m, `　・先方の温度感→${data.temperature}`);
+      if (data.meetingExp)     report = replaceField(report, /^　・面談経験の有無→.*$/m, `　・面談経験の有無→${data.meetingExp}`);
+      if (data.futureConsider) report = replaceField(report, /^　・将来的な検討可否→.*$/m, `　・将来的な検討可否→${data.futureConsider}`);
+      if (data.other)          report = replaceField(report, /^　・その他→.*$/m, `　・その他→${data.other}`);
+      if (data.publicRecordingUrl) report = replaceField(report, /^　・録音URL：.*$/m, `　・録音URL：${data.publicRecordingUrl}`);
+      setDetailEditForm(f => ({ ...f, appoReport: report }));
+      setTranscribeStep('done');
+      setTimeout(() => setTranscribeStep('idle'), 3000);
+    } catch (e) {
+      console.error('[handleTranscribeDetail]', e);
+      setTranscribeStep('error');
+      setTimeout(() => setTranscribeStep('idle'), 4000);
+    }
+  };
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
@@ -706,6 +771,19 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   <div style={{ fontSize: 11, color: C.textLight, textAlign: "center", padding: "8px 0" }}>
                     アポ取得報告はまだ登録されていません
                   </div>
+                )}
+                {detailEditing && (
+                  <button
+                    onClick={handleTranscribeDetail}
+                    disabled={transcribeStep !== 'idle'}
+                    style={{ marginTop: 8, padding: '7px 14px', borderRadius: 6, border: '1px solid ' + C.navy + '40', background: C.navy + '08', cursor: transcribeStep !== 'idle' ? 'default' : 'pointer', fontSize: 11, fontWeight: 600, color: C.navy, fontFamily: "'Noto Sans JP'", opacity: transcribeStep !== 'idle' ? 0.6 : 1 }}>
+                    {transcribeStep === 'fetching'     && '🔍 録音を検索中...'}
+                    {transcribeStep === 'transcribing' && '🎙 文字起こし中...'}
+                    {transcribeStep === 'enhancing'    && '🤖 AI添削中...'}
+                    {transcribeStep === 'done'         && '✅ 添削完了'}
+                    {transcribeStep === 'error'        && '⚠ 録音データが見つかりませんでした'}
+                    {transcribeStep === 'idle'         && '🎙 文字起こし＋AI添削'}
+                  </button>
                 )}
               </div>
               {(() => {
