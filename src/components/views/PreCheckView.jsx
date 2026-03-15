@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { C } from '../../constants/colors';
 import { CALL_RESULTS } from '../../constants/callResults';
-import { updatePreCheckResult } from '../../lib/supabaseWrite';
+import { updatePreCheckResult, fetchCallListItemByAppo } from '../../lib/supabaseWrite';
 import { Badge } from '../common/Badge';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 
-export function PreCheckModal({ appo, onSave, onCancel }) {
+export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
   const PRE_CHECK_OPTIONS = ['確認完了', '確認中', 'リスケ', 'キャンセル'];
   const [form, setForm] = useState({
     preCheckStatus: appo.preCheckStatus || '',
@@ -16,6 +16,22 @@ export function PreCheckModal({ appo, onSave, onCancel }) {
   });
   const [saving, setSaving] = useState(false);
   const [showRecording, setShowRecording] = useState(false);
+  const [navigating, setNavigating] = useState(false);
+
+  const handleNavigate = async () => {
+    if (navigating || !onNavigate) return;
+    setNavigating(true);
+    try {
+      const { data } = await fetchCallListItemByAppo(appo.company, displayPhone);
+      if (!data?.list_id) { alert('架電リストが見つかりませんでした'); return; }
+      onNavigate({ listId: data.list_id, itemId: data.id });
+    } catch (e) {
+      console.error('[handleNavigate]', e);
+      alert('遷移に失敗しました');
+    } finally {
+      setNavigating(false);
+    }
+  };
   const u = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSave = async () => {
@@ -65,7 +81,17 @@ export function PreCheckModal({ appo, onSave, onCancel }) {
           {/* ── アポ取得報告セクション ── */}
           <div style={{ padding: '16px 20px', borderBottom: '1px solid ' + C.borderLight }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: C.navy }}>{appo.company}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: C.navy }}>{appo.company}</div>
+                {onNavigate && (
+                  <button onClick={handleNavigate} disabled={navigating} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 3, padding: '4px 10px',
+                    borderRadius: 6, border: '1px solid ' + C.navy + '60', background: C.navy + '0a',
+                    fontSize: 10, fontWeight: 600, color: C.navy, cursor: navigating ? 'default' : 'pointer',
+                    opacity: navigating ? 0.6 : 1, fontFamily: "'Noto Sans JP'",
+                  }}>🔗 {navigating ? '検索中...' : '集中ページへ'}</button>
+                )}
+              </div>
               {displayPhone ? (
                 <a href={'tel:' + displayPhone} style={{
                   display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, marginLeft: 10,
@@ -189,8 +215,15 @@ export function PreCheckModal({ appo, onSave, onCancel }) {
 
 const PRECHECK_SLACK_WEBHOOK = 'https://hooks.slack.com/services/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';
 
-export default function PreCheckView({ appoData, setAppoData }) {
+export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen }) {
   const [selectedAppo, setSelectedAppo] = useState(null);
+
+  const handlePreCheckNavigate = ({ listId, itemId }) => {
+    setSelectedAppo(null);
+    if (setCallFlowScreen) {
+      setCallFlowScreen({ list: { _supaId: listId, id: listId }, defaultItemId: itemId, defaultListMode: false });
+    }
+  };
 
   const handlePreCheckSave = async (saveData) => {
     if (!selectedAppo?._supaId) { alert('保存先が見つかりません'); return; }
@@ -421,6 +454,7 @@ export default function PreCheckView({ appoData, setAppoData }) {
           appo={selectedAppo}
           onSave={handlePreCheckSave}
           onCancel={() => setSelectedAppo(null)}
+          onNavigate={setCallFlowScreen ? handlePreCheckNavigate : undefined}
         />
       )}
     </div>

@@ -1315,3 +1315,24 @@ export async function deleteSession(sessionId) {
     .eq('id', sessionId)
   if (error) throw error
 }
+
+export async function fetchCallListItemByAppo(company, phone) {
+  const normalizedPhone = phone ? phone.replace(/[^\d]/g, '') : '';
+  if (normalizedPhone) {
+    const { data } = await supabase
+      .from('call_list_items')
+      .select('id, list_id')
+      .eq('phone', normalizedPhone)
+      .limit(1);
+    if (data?.length) return { data: data[0], error: null };
+  }
+  if (company) {
+    const { data, error } = await supabase
+      .from('call_list_items')
+      .select('id, list_id')
+      .eq('company', company)
+      .limit(1);
+    return { data: data?.[0] || null, error };
+  }
+  return { data: null, error: null };
+}
