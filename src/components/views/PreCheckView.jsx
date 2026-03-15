@@ -81,32 +81,25 @@ export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
           {/* ── アポ取得報告セクション ── */}
           <div style={{ padding: '16px 20px', borderBottom: '1px solid ' + C.borderLight }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ fontSize: 16, fontWeight: 800, color: C.navy }}>{appo.company}</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: C.navy }}>{appo.company}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 10 }}>
+                {displayPhone && (
+                  <a href={'tel:' + displayPhone} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    fontSize: 11, color: C.white, background: C.navy,
+                    borderRadius: 6, padding: '5px 12px', textDecoration: 'none',
+                    fontFamily: "'JetBrains Mono'", fontWeight: 600,
+                  }}>📞 {displayPhone}</a>
+                )}
                 {onNavigate && (
                   <button onClick={handleNavigate} disabled={navigating} style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 3, padding: '4px 10px',
+                    display: 'inline-flex', alignItems: 'center', gap: 3, padding: '5px 12px',
                     borderRadius: 6, border: '1px solid ' + C.navy + '60', background: C.navy + '0a',
-                    fontSize: 10, fontWeight: 600, color: C.navy, cursor: navigating ? 'default' : 'pointer',
+                    fontSize: 11, fontWeight: 600, color: C.navy, cursor: navigating ? 'default' : 'pointer',
                     opacity: navigating ? 0.6 : 1, fontFamily: "'Noto Sans JP'",
-                  }}>🔗 {navigating ? '検索中...' : '集中ページへ'}</button>
+                  }}>🔗 {navigating ? '検索中...' : '架電ページへ'}</button>
                 )}
               </div>
-              {displayPhone ? (
-                <a href={'tel:' + displayPhone} style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, marginLeft: 10,
-                  fontSize: 11, color: C.white, background: C.navy,
-                  borderRadius: 6, padding: '5px 12px', textDecoration: 'none',
-                  fontFamily: "'JetBrains Mono'", fontWeight: 600,
-                }}>📞 {displayPhone}</a>
-              ) : (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, marginLeft: 10,
-                  fontSize: 11, color: C.textLight, background: C.offWhite,
-                  borderRadius: 6, padding: '5px 12px',
-                  border: '1px solid ' + C.borderLight, fontFamily: "'JetBrains Mono'",
-                }}>📞 登録なし</span>
-              )}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
               {[
