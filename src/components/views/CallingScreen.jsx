@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
-import { fetchCallListItems, insertCallRecord, updateCallListItem, deleteCallRecordByItemRound } from '../../lib/supabaseWrite';
+import { fetchCallListItems, insertCallRecord, updateCallListItem, deleteCallRecordByItemRound, invokeGetZoomRecording, updateCallRecordRecordingUrl } from '../../lib/supabaseWrite';
+import { supabase } from '../../lib/supabase';
 
 export default function CallingScreen({ listId, list, importedCSVs, setImportedCSVs, onClose, currentUser, liveStatuses, setLiveStatuses, members = [], clientData = [], rewardMaster = [] }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -149,8 +150,43 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
         round: currentRound, status: statusLabel,
         memo: memoStr, called_at: calledAt,
         getter_name: currentUser || null,
-      }).then(({ result, error }) => {
-        if (error) console.error('[CallingScreen] markStatus insertCallRecord error:', error);
+      }).then(({ result: newRec, error }) => {
+        if (error) { console.error('[CallingScreen] markStatus insertCallRecord error:', error); return; }
+        if (!newRec) return;
+        // バックグラウンドで録音URL取得・保存（失敗してもステータス保存には影響しない）
+        ;(async () => {
+          try {
+            const member = members.find(m => (typeof m === 'string' ? m : m.name) === currentUser);
+            const zoomUserId = typeof member === 'object' ? member?.zoomUserId : null;
+            const phone = row?.phone;
+            if (!zoomUserId || !phone) return;
+            // 同itemの直前レコードを取得して prev_called_at を設定
+            const { data: prevRecs } = await supabase
+              .from('call_records')
+              .select('called_at')
+              .eq('item_id', itemId)
+              .neq('id', newRec.id)
+              .order('called_at', { ascending: false })
+              .limit(1);
+            const prevCalledAt = prevRecs?.[0]?.called_at || null;
+            const normalizedPhone = phone.replace(/[^\d]/g, '');
+            const { data } = await invokeGetZoomRecording({ zoom_user_id: zoomUserId, callee_phone: normalizedPhone, called_at: calledAt, prev_called_at: prevCalledAt });
+            const url = data?.recording_url;
+            if (url) {
+              await updateCallRecordRecordingUrl(newRec.id, url);
+            } else {
+              // 90秒後に再試行（Zoom録音処理遅延対策）
+              setTimeout(async () => {
+                try {
+                  const { data: data2 } = await invokeGetZoomRecording({ zoom_user_id: zoomUserId, callee_phone: normalizedPhone, called_at: calledAt, prev_called_at: prevCalledAt });
+                  if (data2?.recording_url) await updateCallRecordRecordingUrl(newRec.id, data2.recording_url);
+                } catch (e) { console.warn('[CallingScreen] 録音URL再試行エラー:', e); }
+              }, 90_000);
+            }
+          } catch (e) {
+            console.error('[CallingScreen] 録音URL取得エラー:', e);
+          }
+        })();
       }).catch(e => console.error('[CallingScreen] markStatus insertCallRecord catch:', e));
       updateCallListItem(itemId, { call_status: statusLabel, called_at: calledAt })
         .then(err => {
