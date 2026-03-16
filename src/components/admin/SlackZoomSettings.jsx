@@ -8,7 +8,7 @@ const ORG_ID = 'a0000000-0000-0000-0000-000000000001';
 const SETTING_GROUPS = [
   {
     title: 'Slack Webhook URL',
-    icon: '💬',
+    icon: '',
     items: [
       { key: 'slack_webhook_ranking',  label: 'ランキング通知（#ランキング）', placeholder: 'https://hooks.slack.com/services/...' },
       { key: 'slack_webhook_precheck', label: '事前確認通知（#事前確認）',      placeholder: 'https://hooks.slack.com/services/...' },
@@ -17,7 +17,7 @@ const SETTING_GROUPS = [
   },
   {
     title: 'Zoom API 設定',
-    icon: '🎥',
+    icon: '',
     items: [
       { key: 'zoom_account_id',    label: 'Account ID',    placeholder: 'Zoom Account ID' },
       { key: 'zoom_client_id',     label: 'Client ID',     placeholder: 'Zoom Client ID' },
@@ -114,13 +114,13 @@ export default function SlackZoomSettings({ onToast }) {
   return (
     <div style={{ maxWidth: 640 }}>
       <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: '#92400E' }}>
-        ⚠️ Webhook URLやAPIキーは機密情報です。取り扱いにご注意ください。変更後はEdge Functionが次回呼び出し時に新しい値を使用します。
+        ⚠ Webhook URLやAPIキーは機密情報です。取り扱いにご注意ください。変更後はEdge Functionが次回呼び出し時に新しい値を使用します。
       </div>
 
       {SETTING_GROUPS.map(group => (
         <div key={group.title} style={{ background: '#fff', borderRadius: 10, border: '1px solid #E5E5E5', padding: '20px 24px', marginBottom: 20 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 16, paddingBottom: 10, borderBottom: `2px solid ${GOLD}`, display: 'inline-block' }}>
-            {group.icon} {group.title}
+            {group.title}
           </div>
           {group.items.map(item => (
             <div key={item.key} style={{ marginBottom: 14 }}>

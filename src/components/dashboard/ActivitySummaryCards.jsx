@@ -50,7 +50,6 @@ export default function ActivitySummaryCards({
     <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 16 }}>📞</span>
           <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>活動サマリー</span>
           {loading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
         </div>
@@ -71,7 +70,7 @@ export default function ActivitySummaryCards({
       <div style={{ display: 'flex', gap: 14 }}>
         {/* 総架電数 */}
         <div style={cardStyle}>
-          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 8 }}>☎️ 総架電数</div>
+          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 8 }}>総架電数</div>
           <div style={{ fontSize: 28, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'" }}>
             {cur.total}<span style={{ fontSize: 13, fontWeight: 600 }}>件</span>
           </div>
@@ -81,7 +80,7 @@ export default function ActivitySummaryCards({
 
         {/* 社長接続数＋接続率 */}
         <div style={cardStyle}>
-          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 8 }}>👔 社長接続数</div>
+          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 8 }}>社長接続数</div>
           <div style={{ fontSize: 28, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'" }}>
             {cur.ceoConnect}<span style={{ fontSize: 13, fontWeight: 600 }}>件</span>
           </div>
@@ -91,7 +90,7 @@ export default function ActivitySummaryCards({
 
         {/* アポ取得数＋アポ率 */}
         <div style={cardStyle}>
-          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 8 }}>🎯 アポ取得数</div>
+          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 8 }}>アポ取得数</div>
           <div style={{ fontSize: 28, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'" }}>
             {cur.appo}<span style={{ fontSize: 13, fontWeight: 600 }}>件</span>
           </div>

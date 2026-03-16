@@ -237,7 +237,6 @@ export default function PerformanceView({ members, currentUser }) {
       {/* セクション4: 成長トレンド */}
       <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 16, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          <span style={{ fontSize: 16 }}>📈</span>
           <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>成長トレンド（週次推移）</span>
           {trendLoading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
         </div>
@@ -259,7 +258,6 @@ export default function PerformanceView({ members, currentUser }) {
       {alerts.length > 0 && (
         <div style={{ background: '#fff', borderRadius: 12, padding: '14px 20px', marginBottom: 16, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <span style={{ fontSize: 16 }}>⚠️</span>
             <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>アラート検知</span>
           </div>
           {alerts.map((a, i) => (
@@ -275,7 +273,6 @@ export default function PerformanceView({ members, currentUser }) {
       <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>🏆</span>
             <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>活動ランキング・チーム分析</span>
             {rankLoading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
           </div>

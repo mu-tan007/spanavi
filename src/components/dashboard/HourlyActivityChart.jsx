@@ -74,7 +74,6 @@ export default function HourlyActivityChart({ records, selectedDate, setSelected
     <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 16 }}>⏰</span>
           <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>時間帯別活動グラフ</span>
           {loading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
           {bestAppoSlot && bestAppoSlot.appo > 0 && (
@@ -86,7 +85,6 @@ export default function HourlyActivityChart({ records, selectedDate, setSelected
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <button style={navBtnStyle} onClick={() => setSelectedDate(addDays(selectedDate, -1))}>◀ 前日</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontSize: 13 }}>📅</span>
             <input
               type='date'
               value={selectedDate}

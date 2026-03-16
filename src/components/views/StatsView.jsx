@@ -418,7 +418,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
         {/* Card 1: 今月累計売上 */}
         <div style={cardStyle}>
           <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>今月（{parseInt(monthStr.slice(5))}月1日〜{dayOfMonth}日）</div>
-          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>🔥 今月累計売上</div>
+          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>今月累計売上</div>
           <div style={{ fontSize: 24, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'", letterSpacing: '-0.5px' }}>
             {kpiMonthSales >= 10000 ? <>{(kpiMonthSales / 10000).toFixed(1)}<span style={{ fontSize: 13, fontWeight: 600 }}>万円</span></> : fmtFull(kpiMonthSales)}
           </div>
@@ -430,7 +430,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
         {/* Card 2: 今月アポ取得数 */}
         <div style={cardStyle}>
           <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>今月（{parseInt(monthStr.slice(5))}月1日〜{dayOfMonth}日）</div>
-          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>🎯 今月アポ取得数</div>
+          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>今月アポ取得数</div>
           <div style={{ fontSize: 24, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'" }}>
             {kpiMonthAppo}<span style={{ fontSize: 13, fontWeight: 600 }}>件</span>
           </div>
@@ -442,7 +442,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
         {/* Card 3: 今週の架電数 */}
         <div style={cardStyle}>
           <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>今週（{weekStartStr.slice(5).replace('-', '/')}〜{todayStr.slice(5).replace('-', '/')}）</div>
-          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>📞 今週の架電数{kpiLoading && <span style={{ fontSize: 9, color: C.textLight, marginLeft: 4 }}>…</span>}</div>
+          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>今週の架電数{kpiLoading && <span style={{ fontSize: 9, color: C.textLight, marginLeft: 4 }}>…</span>}</div>
           <div style={{ fontSize: 24, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'" }}>
             {kpiWeekCalls}<span style={{ fontSize: 13, fontWeight: 600 }}>件</span>
           </div>
@@ -454,7 +454,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
         {/* Card 4: 今週のアポ率 */}
         <div style={cardStyle}>
           <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>今週（{weekStartStr.slice(5).replace('-', '/')}〜{todayStr.slice(5).replace('-', '/')}）</div>
-          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>📊 今週のアポ率{kpiLoading && <span style={{ fontSize: 9, color: C.textLight, marginLeft: 4 }}>…</span>}</div>
+          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>今週のアポ率{kpiLoading && <span style={{ fontSize: 9, color: C.textLight, marginLeft: 4 }}>…</span>}</div>
           <div style={{ fontSize: 24, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'" }}>
             {kpiWeekAppoRate.toFixed(1)}<span style={{ fontSize: 13, fontWeight: 600 }}>%</span>
           </div>
@@ -473,7 +473,6 @@ export default function StatsView({ callListData, currentUser, appoData, members
       <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>📈</span>
             <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>売上推移グラフ</span>
           </div>
           <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -570,7 +569,6 @@ export default function StatsView({ callListData, currentUser, appoData, members
         <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 15 }}>🏅</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>個人売上ランキング</span>
             </div>
             {simplePeriodSelector(rankPersonPeriod, setRankPersonPeriod, rankPersonFrom, setRankPersonFrom, rankPersonTo, setRankPersonTo, GOLD)}
@@ -586,7 +584,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
               <div key={name} style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8, background: isMe ? NAVY + '08' : 'transparent', borderLeft: isMe ? '3px solid ' + GOLD : '3px solid transparent' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
                   <span style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: idx < 3 ? 11 : 9, fontWeight: 700, background: medalBg, color: idx < 3 ? '#fff' : C.textLight, flexShrink: 0 }}>
-                    {idx === 0 ? '👑' : idx + 1}
+                    {idx + 1}
                   </span>
                   <span style={{ flex: 1, fontSize: 12, fontWeight: isMe ? 700 : 500, color: isMe ? NAVY : C.textDark }}>{name}{isMe ? ' ★' : ''}</span>
                   <span style={{ fontSize: 13, fontWeight: 900, fontFamily: "'JetBrains Mono'", color: GOLD }}>{fmt(d.total)}</span>
@@ -604,7 +602,6 @@ export default function StatsView({ callListData, currentUser, appoData, members
         <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 15 }}>🏢</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>チーム別売上ランキング</span>
             </div>
             {simplePeriodSelector(rankTeamPeriod, setRankTeamPeriod, rankTeamFrom, setRankTeamFrom, rankTeamTo, setRankTeamTo, NAVY)}
@@ -619,7 +616,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
               <div key={tn} style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
                   <span style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: idx < 3 ? 11 : 9, fontWeight: 700, background: medalBg, color: idx < 3 ? '#fff' : C.textLight, flexShrink: 0 }}>
-                    {idx === 0 ? '👑' : idx + 1}
+                    {idx + 1}
                   </span>
                   <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: NAVY }}>{tn}</span>
                   <span style={{ fontSize: 13, fontWeight: 900, fontFamily: "'JetBrains Mono'", color: GOLD }}>{fmt(d.total)}</span>
@@ -653,7 +650,6 @@ export default function StatsView({ callListData, currentUser, appoData, members
           <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 16 }}>🏛️</span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>クライアント別売上分析</span>
                 <span style={{ fontSize: 10, color: C.textLight }}>({clientData.length}社 / {clientFilteredData.length}件)</span>
               </div>
@@ -748,9 +744,9 @@ export default function StatsView({ callListData, currentUser, appoData, members
       {(() => {
         const rateColor = (r) => r < 5 ? '#ef4444' : r < 15 ? '#f59e0b' : '#10b981';
         const RateBar = ({ rate }) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
-            <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, minWidth: 38, textAlign: 'right' }}>{rate.toFixed(1)}%</span>
-            <div style={{ flex: 1, height: 4, borderRadius: 2, background: '#F0F0F0', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, width: 44, textAlign: 'right', flexShrink: 0 }}>{rate.toFixed(1)}%</span>
+            <div style={{ width: 100, height: 4, borderRadius: 2, background: '#F0F0F0', overflow: 'hidden', flexShrink: 0 }}>
               <div style={{ height: '100%', background: rateColor(rate), width: Math.min(rate * 5, 100) + '%', borderRadius: 2 }} />
             </div>
           </div>
@@ -762,12 +758,11 @@ export default function StatsView({ callListData, currentUser, appoData, members
             {label}{listSortKey === sk ? (listSortDir === 'asc' ? ' ▲' : ' ▼') : ''}
           </span>
         );
-        const LGRID = '0.9fr 1.4fr 0.55fr 0.6fr 1fr 0.55fr 1fr 0.85fr';
+        const LGRID = 'minmax(180px,2fr) minmax(120px,1.5fr) 100px 100px 220px 100px 220px 130px';
         return (
           <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 16 }}>📋</span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>リスト別パフォーマンス</span>
                 <span style={{ fontSize: 10, color: C.textLight }}>{listFiltered.length}件のリスト</span>
                 {listLoading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
@@ -779,8 +774,8 @@ export default function StatsView({ callListData, currentUser, appoData, members
                 <button key={k} onClick={() => setListFilter(k)} style={tabBtn(listFilter === k, NAVY)}>{l}</button>
               ))}
             </div>
-            <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, borderBottom: '2px solid #E5E5E5' }}>
+            <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5', overflowX: 'auto' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, borderBottom: '2px solid #E5E5E5', minWidth: 1170 }}>
                 <SortHdr label='クライアント' sk='clientName' />
                 <SortHdr label='業種' sk='name' />
                 <SortHdr label='架電数' sk='calls' />
@@ -797,11 +792,11 @@ export default function StatsView({ callListData, currentUser, appoData, members
               ) : listFiltered.map((row, idx) => {
                 const isTop3 = listTop3Ids.has(row.listId);
                 return (
-                  <div key={row.listId} style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '9px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', background: isTop3 ? GOLD + '0F' : idx % 2 === 0 ? 'transparent' : '#FAFAFA', borderLeft: isTop3 ? '3px solid ' + GOLD : '3px solid transparent' }}>
+                  <div key={row.listId} style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '9px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', background: isTop3 ? GOLD + '0F' : idx % 2 === 0 ? 'transparent' : '#FAFAFA', borderLeft: isTop3 ? '3px solid ' + GOLD : '3px solid transparent', minWidth: 1170 }}>
                     <span style={{ fontSize: 11, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.clientName}</span>
                     <span style={{ fontWeight: 600, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
                       {row.name.includes(' - ') ? row.name.split(' - ').slice(1).join(' - ') : row.name}
-                      {row.isArchived && <span style={{ fontSize: 9, background: '#F3F2F2', borderRadius: 3, padding: '1px 4px', color: C.textLight, flexShrink: 0 }}>📦</span>}
+                      {row.isArchived && <span style={{ fontSize: 9, background: '#F3F2F2', borderRadius: 3, padding: '1px 4px', color: C.textLight, flexShrink: 0 }}>Arc</span>}
                     </span>
                     <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: isTop3 ? GOLD : NAVY }}>{row.calls}</span>
                     <span style={{ fontFamily: "'JetBrains Mono'" }}>{row.connect}</span>

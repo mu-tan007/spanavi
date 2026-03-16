@@ -8,10 +8,10 @@ const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
 
 const TABS = [
-  { id: 'members', label: 'メンバー管理',         icon: '👥' },
-  { id: 'reward',  label: '報酬・給与設定',        icon: '💰' },
-  { id: 'slack',   label: 'Slack / Zoom設定',      icon: '🔧' },
-  { id: 'clients', label: 'クライアント・リスト管理', icon: '📋' },
+  { id: 'members', label: 'メンバー管理',         icon: '' },
+  { id: 'reward',  label: '報酬・給与設定',        icon: '' },
+  { id: 'slack',   label: 'Slack / Zoom設定',      icon: '' },
+  { id: 'clients', label: 'クライアント・リスト管理', icon: '' },
 ];
 
 // ────────────────────────────────────────────────
@@ -68,7 +68,6 @@ export default function AdminView({ isAdmin, setCurrentTab }) {
       <div style={{ background: NAVY, borderRadius: 12, padding: '24px 32px', marginBottom: 24 }}>
         <div style={{ width: 40, height: 3, background: GOLD, borderRadius: 2, marginBottom: 12 }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 20 }}>⚙️</span>
           <div>
             <h1 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0 }}>管理者設定</h1>
             <p style={{ fontSize: 12, color: GOLD, margin: '2px 0 0' }}>代表のみアクセス可能</p>
@@ -95,7 +94,6 @@ export default function AdminView({ isAdmin, setCurrentTab }) {
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
             >
-              <span>{tab.icon}</span>
               <span style={{ display: 'none', ['@media (min-width: 600px)']: { display: 'inline' } }}>{tab.label}</span>
               <span>{tab.label}</span>
             </button>

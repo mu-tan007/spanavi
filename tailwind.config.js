@@ -23,7 +23,7 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['"Noto Sans JP"', 'sans-serif'],
+        sans: ['Inter', '"Noto Sans JP"', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'monospace'],
       }
     },

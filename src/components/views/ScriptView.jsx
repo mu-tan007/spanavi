@@ -62,7 +62,7 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.navy }}>基本スクリプト</h2>
-          <button onClick={() => setQaOpen(true)} style={{ padding: '4px 12px', borderRadius: 6, background: C.navy, color: '#fff', border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>💬 想定問答を見る</button>
+          <button onClick={() => setQaOpen(true)} style={{ padding: '4px 12px', borderRadius: 6, background: C.navy, color: '#fff', border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>想定問答を見る</button>
         </div>
 
         <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, padding: "16px 20px" }}>
@@ -98,7 +98,7 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
 
         {/* 参考動画サムネイル */}
         <div style={{ marginTop: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: C.textMid, marginBottom: 6 }}>📹 参考動画</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: C.textMid, marginBottom: 6 }}>参考動画</div>
           <div onClick={() => setVideoOpen(true)}
             style={{ position: "relative", width: 200, height: 120, borderRadius: 8,
               overflow: "hidden", cursor: "pointer",
@@ -181,7 +181,7 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
             style={{ width: '90vw', maxWidth: 640, maxHeight: '80vh', borderRadius: 12,
               background: '#fff', boxShadow: '0 8px 40px rgba(0,0,0,0.3)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ background: C.navy, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-              <span style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>💬 想定問答集</span>
+              <span style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>想定問答集</span>
               <button onClick={() => setQaOpen(false)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>✕</button>
             </div>
             <div style={{ display: 'flex', borderBottom: '1px solid #E5E5E5', flexShrink: 0 }}>
