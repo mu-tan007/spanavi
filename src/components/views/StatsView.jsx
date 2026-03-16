@@ -12,7 +12,6 @@ import ActivitySummaryCards from '../dashboard/ActivitySummaryCards';
 import HourlyActivityChart from '../dashboard/HourlyActivityChart';
 import ActivityRankingSection from '../dashboard/ActivityRankingSection';
 import TeamPerformanceTable from '../dashboard/TeamPerformanceTable';
-import DistributionCharts from '../dashboard/DistributionCharts';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
@@ -750,38 +749,40 @@ export default function StatsView({ callListData, currentUser, appoData, members
                 {pieData.length === 0 ? (
                   <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
                 ) : (
-                  <ResponsiveContainer width='100%' height={380}>
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        cx='50%' cy='50%'
-                        outerRadius={180}
-                        dataKey='value'
-                        onClick={d => setSelectedClientPie(selectedClientPie === d.key ? null : d.key)}
-                      >
-                        {pieData.map(({ key }, idx) => (
-                          <Cell
-                            key={key}
-                            fill={CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length]}
-                            stroke={selectedClientPie === key ? GOLD : 'none'}
-                            strokeWidth={selectedClientPie === key ? 3 : 0}
-                            opacity={selectedClientPie && selectedClientPie !== key ? 0.45 : 1}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip content={<ClientPieTooltip />} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', marginTop: 8 }}>
-                    {pieData.map(({ key, name, value }, idx) => (
-                      <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, cursor: 'pointer' }}
-                        onClick={() => setSelectedClientPie(selectedClientPie === key ? null : key)}>
-                        <span style={{ width: 10, height: 10, background: CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length], borderRadius: 2, flexShrink: 0, border: selectedClientPie === key ? '2px solid ' + GOLD : '2px solid transparent' }} />
-                        <span style={{ color: NAVY, fontWeight: selectedClientPie === key ? 700 : 400 }}>{name}</span>
-                        <span style={{ color: C.textLight }}>{totalPie > 0 ? (value / totalPie * 100).toFixed(1) : 0}%</span>
-                      </div>
-                    ))}
-                  </div>
+                  <>
+                    <ResponsiveContainer width='100%' height={380}>
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx='50%' cy='50%'
+                          outerRadius={180}
+                          dataKey='value'
+                          labelLine={false}
+                          onClick={d => setSelectedClientPie(selectedClientPie === d.key ? null : d.key)}
+                        >
+                          {pieData.map(({ key }, idx) => (
+                            <Cell
+                              key={key}
+                              fill={CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length]}
+                              stroke={selectedClientPie === key ? GOLD : 'none'}
+                              strokeWidth={selectedClientPie === key ? 3 : 0}
+                              opacity={selectedClientPie && selectedClientPie !== key ? 0.45 : 1}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<ClientPieTooltip />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', marginTop: 8 }}>
+                      {pieData.map(({ key, name, value }, idx) => (
+                        <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, cursor: 'pointer' }}
+                          onClick={() => setSelectedClientPie(selectedClientPie === key ? null : key)}>
+                          <span style={{ width: 10, height: 10, background: CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length], borderRadius: 2, flexShrink: 0, border: selectedClientPie === key ? '2px solid ' + GOLD : '2px solid transparent' }} />
+                          <span style={{ color: NAVY, fontWeight: selectedClientPie === key ? 700 : 400 }}>{name}（{totalPie > 0 ? (value / totalPie * 100).toFixed(1) : 0}%）</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -832,16 +833,6 @@ export default function StatsView({ callListData, currentUser, appoData, members
         />
       </div>
 
-      {/* ========== セクションE: 分布グラフ ========== */}
-      <DistributionCharts
-        hourlyRecords={hourlyRecords}
-        rankRecords={rankActivityRecords}
-        loading={hourlyLoading || rankActivityLoading}
-        hourlyDate={hourlyDate}
-        rankPeriod={rankActivityPeriod}
-        rankFrom={rankActivityFrom}
-        rankTo={rankActivityTo}
-      />
 
 
     </div>
