@@ -2,7 +2,7 @@ import { C } from '../../constants/colors';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
-const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール', '社長不在']);
+const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール']);
 
 function aggregate(records) {
   const total = records.length;

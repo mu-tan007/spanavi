@@ -23,11 +23,11 @@ function CustomTooltip({ active, payload }) {
 function renderLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) {
   if (percent < 0.05) return null;
   const RADIAN = Math.PI / 180;
-  const r = innerRadius + (outerRadius - innerRadius) * 1.35;
+  const r = innerRadius + (outerRadius - innerRadius) * 1.25;
   const x = cx + r * Math.cos(-midAngle * RADIAN);
   const y = cy + r * Math.sin(-midAngle * RADIAN);
   return (
-    <text x={x} y={y} textAnchor={x > cx ? 'start' : 'end'} fill={NAVY} fontSize={9} fontWeight={600}>
+    <text x={x} y={y} textAnchor={x > cx ? 'start' : 'end'} fill={NAVY} fontSize={11} fontWeight={600}>
       {name}
     </text>
   );
@@ -40,9 +40,9 @@ function PieSection({ title, data, emptyMsg }) {
       {data.length === 0 ? (
         <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textLight, fontSize: 12 }}>{emptyMsg}</div>
       ) : (
-        <ResponsiveContainer width='100%' height={220}>
+        <ResponsiveContainer width='100%' height={350}>
           <PieChart>
-            <Pie data={data} cx='50%' cy='50%' outerRadius={75} dataKey='value' label={renderLabel} labelLine={false}>
+            <Pie data={data} cx='50%' cy='50%' outerRadius={140} dataKey='value' label={renderLabel} labelLine={false}>
               {data.map((_, idx) => <Cell key={idx} fill={PALETTE[idx % PALETTE.length]} />)}
             </Pie>
             <Tooltip content={<CustomTooltip />} />

@@ -3,7 +3,7 @@ import { C } from '../../constants/colors';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
-const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール', '社長不在']);
+const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール']);
 
 const MEDAL = (idx) => idx === 0 ? `linear-gradient(135deg,${GOLD},#e0c97a)` : idx === 1 ? 'linear-gradient(135deg,#b0b0b0,#d8d8d8)' : idx === 2 ? 'linear-gradient(135deg,#cd7f32,#e8a060)' : null;
 

@@ -3,7 +3,7 @@ import { C } from '../../constants/colors';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
-const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール', '社長不在']);
+const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール']);
 const GRID = '1.5fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr 0.55fr';
 const GRID_MBR = '1.5fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr';
 

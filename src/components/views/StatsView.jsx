@@ -80,9 +80,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
   const [activityLoading, setActivityLoading] = useState(false);
 
   // ── セクションB: 時間帯別 ──────────────────────────────────────────────
-  const [hourlyPeriod, setHourlyPeriod] = useState('day');
-  const [hourlyFrom, setHourlyFrom] = useState('');
-  const [hourlyTo, setHourlyTo] = useState('');
+  const [hourlyDate, setHourlyDate] = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }));
   const [hourlyRecords, setHourlyRecords] = useState([]);
   const [hourlyLoading, setHourlyLoading] = useState(false);
 
@@ -191,16 +189,15 @@ export default function StatsView({ callListData, currentUser, appoData, members
 
   // ── セクションB: 時間帯別 fetch ──────────────────────────────────────────
   useEffect(() => {
-    const range = getActivityDateRange(hourlyPeriod, hourlyFrom, hourlyTo, todayStr, weekStartStr, monthStr);
-    if (!range) return;
+    if (!hourlyDate) return;
     let cancelled = false;
     setHourlyLoading(true);
-    fetchCallActivity(_jstStart(range.from), _jstEnd(range.to))
+    fetchCallActivity(_jstStart(hourlyDate), _jstEnd(hourlyDate))
       .then(({ data }) => { if (!cancelled) setHourlyRecords(data || []); })
       .catch(err => console.error('[StatsView] hourlyFetch:', err))
       .finally(() => { if (!cancelled) setHourlyLoading(false); });
     return () => { cancelled = true; };
-  }, [hourlyPeriod, hourlyFrom, hourlyTo, todayStr, weekStartStr, monthStr]);
+  }, [hourlyDate]);
 
   // ── セクションC+D+E右: ランキング fetch ───────────────────────────────────
   useEffect(() => {
@@ -752,12 +749,12 @@ export default function StatsView({ callListData, currentUser, appoData, members
                 {pieData.length === 0 ? (
                   <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
                 ) : (
-                  <ResponsiveContainer width='100%' height={260}>
+                  <ResponsiveContainer width='100%' height={420}>
                     <PieChart>
                       <Pie
                         data={pieData}
                         cx='50%' cy='50%'
-                        outerRadius={90}
+                        outerRadius={180}
                         dataKey='value'
                         onClick={d => setSelectedClientPie(selectedClientPie === d.key ? null : d.key)}
                         label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
@@ -806,14 +803,9 @@ export default function StatsView({ callListData, currentUser, appoData, members
       {/* ========== セクションB: 時間帯別活動グラフ ========== */}
       <HourlyActivityChart
         records={hourlyRecords}
-        period={hourlyPeriod}
-        setPeriod={setHourlyPeriod}
-        customFrom={hourlyFrom}
-        setCustomFrom={setHourlyFrom}
-        customTo={hourlyTo}
-        setCustomTo={setHourlyTo}
+        selectedDate={hourlyDate}
+        setSelectedDate={setHourlyDate}
         loading={hourlyLoading}
-        todayStr={todayStr}
       />
 
       {/* ========== セクションC+D: 活動ランキング・チーム別パフォーマンス ========== */}
