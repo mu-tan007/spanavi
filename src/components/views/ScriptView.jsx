@@ -10,7 +10,28 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
   const [saving, setSaving] = useState(false);
   const [clientTabs, setClientTabs] = useState({});
   const [videoOpen, setVideoOpen] = useState(false);
+  const [qaOpen, setQaOpen] = useState(false);
+  const [qaTab, setQaTab] = useState('reception');
   const VIDEO_ID = '1j465Gq-MIEqzcL3LreZmNRaC1zhWtHdt';
+
+  const QA_DATA = {
+    reception: [
+      { q: 'ご用件は何でしょうか？', a: 'M＆Aに関するご案内でご連絡しております。社長様はいらっしゃいますか？' },
+      { q: 'どちらの会社の方ですか？', a: '○○株式会社の○○と申します。' },
+      { q: '資料を送ってください', a: 'ご説明の機会をいただいた際にお持ちします。ぜひ30分ほどお時間をいただけますでしょうか。' },
+      { q: '後でかけ直してください', a: '承知しました。何時頃にお電話すればよろしいでしょうか。' },
+      { q: '担当者名を教えてください', a: '私、○○と申します。' },
+      { q: '何の件ですか？と聞かれた場合', a: '事業承継・M＆Aに関する情報提供でご連絡しております。' },
+    ],
+    president: [
+      { q: '売る気はない', a: 'おっしゃる通りです。今すぐではなく、将来の選択肢として情報だけでも持っておいていただければ、いざという時に役立ちます。30分だけお時間いただけますか？' },
+      { q: '他の会社からも電話が来る', a: 'そうですよね。数多くの業者の中で、私どもは○○という点でご支持いただいており、実績も豊富です。ぜひ一度比較していただければと思います。' },
+      { q: '忙しいから時間がない', a: 'お忙しいところ申し訳ございません。30分だけで結構です。ご都合のよい日時を教えていただけますか？' },
+      { q: '今は考えていない', a: '承知しました。ただ、情報として知っておいていただくだけでも将来必ずお役に立てます。簡単なご説明だけさせてください。' },
+      { q: '子供に継がせる', a: 'それは素晴らしいですね。ただ、もし事情が変わった場合の選択肢として知っておいていただくだけでも損はないかと思います。' },
+      { q: '会社の状況が良くない', a: 'そのような状況だからこそ、M＆Aを活用することで従業員の雇用を守りながら最善の判断ができる場合があります。ぜひ一度お話だけでも。' },
+    ],
+  };
 
   useEffect(() => {
     fetchSetting('basic_script').then(({ value }) => {
@@ -39,7 +60,10 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
     <div style={{ animation: "fadeIn 0.3s ease", padding: "0 0 40px 0" }}>
       {/* 基本スクリプト */}
       <div style={{ marginBottom: 32 }}>
-        <h2 style={{ margin: "0 0 14px", fontSize: 16, fontWeight: 700, color: C.navy }}>基本スクリプト</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.navy }}>基本スクリプト</h2>
+          <button onClick={() => setQaOpen(true)} style={{ padding: '4px 12px', borderRadius: 6, background: C.navy, color: '#fff', border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>💬 想定問答を見る</button>
+        </div>
 
         <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, padding: "16px 20px" }}>
           {isAdmin ? (
@@ -147,6 +171,37 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
           </div>
         )}
       </div>
+
+      {/* 想定問答モーダル */}
+      {qaOpen && (
+        <div onClick={() => setQaOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9400,
+            display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width: '90vw', maxWidth: 640, maxHeight: '80vh', borderRadius: 12,
+              background: '#fff', boxShadow: '0 8px 40px rgba(0,0,0,0.3)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ background: C.navy, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <span style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>💬 想定問答集</span>
+              <button onClick={() => setQaOpen(false)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+            </div>
+            <div style={{ display: 'flex', borderBottom: '1px solid #E5E5E5', flexShrink: 0 }}>
+              {[['reception', '受付対応'], ['president', '社長対応']].map(([k, l]) => (
+                <button key={k} onClick={() => setQaTab(k)} style={{ flex: 1, padding: '10px', border: 'none', background: qaTab === k ? C.navy + '08' : '#fff', fontWeight: qaTab === k ? 700 : 400, fontSize: 12, color: qaTab === k ? C.navy : '#888', borderBottom: qaTab === k ? '2px solid ' + C.navy : '2px solid transparent', cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            <div style={{ overflowY: 'auto', padding: '16px 20px' }}>
+              {QA_DATA[qaTab].map((item, i) => (
+                <div key={i} style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 8, background: '#F9F9FB', borderLeft: '3px solid ' + C.navy }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>Q: {item.q}</div>
+                  <div style={{ fontSize: 12, color: C.navy, lineHeight: 1.7 }}>A: {item.a}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 動画モーダル */}
       {videoOpen && (

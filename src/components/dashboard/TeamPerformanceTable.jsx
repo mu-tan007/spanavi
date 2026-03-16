@@ -28,6 +28,7 @@ export default function TeamPerformanceTable({ records, loading, teamMap }) {
       if (r.status === 'アポ獲得') mm[tn][name].appo++;
     });
     const teamData = Object.entries(tm)
+      .filter(([tn]) => tn !== '営業統括')
       .sort((a, b) => b[1].call - a[1].call)
       .map(([tn, d]) => [tn, { ...d, memberCount: d.members.size }]);
     return { teamData, memberData: mm };

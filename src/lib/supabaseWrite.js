@@ -1338,27 +1338,45 @@ export async function fetchCallListItemByAppo(company, phone) {
 }
 
 export async function fetchCallActivity(fromISO, toISO) {
-  const { data, error } = await supabase
-    .from('call_records')
-    .select('called_at, status, getter_name')
-    .eq('org_id', ORG_ID)
-    .gte('called_at', fromISO)
-    .lte('called_at', toISO)
-    .order('called_at');
-  if (error) console.error('[DB] fetchCallActivity error:', error);
-  return { data: data || [], error };
+  const all = [];
+  let from = 0;
+  const PAGE = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from('call_records')
+      .select('called_at, status, getter_name')
+      .eq('org_id', ORG_ID)
+      .gte('called_at', fromISO)
+      .lte('called_at', toISO)
+      .order('called_at')
+      .range(from, from + PAGE - 1);
+    if (error) { console.error('[DB] fetchCallActivity error:', error); return { data: all, error }; }
+    all.push(...(data || []));
+    if ((data || []).length < PAGE) break;
+    from += PAGE;
+  }
+  return { data: all, error: null };
 }
 
 export async function fetchCallRecordsByRange(fromISO, toISO) {
-  const { data, error } = await supabase
-    .from('call_records')
-    .select('called_at, status, list_id, getter_name')
-    .eq('org_id', ORG_ID)
-    .gte('called_at', fromISO)
-    .lte('called_at', toISO)
-    .order('called_at');
-  if (error) console.error('[DB] fetchCallRecordsByRange error:', error);
-  return { data: data || [], error };
+  const all = [];
+  let from = 0;
+  const PAGE = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from('call_records')
+      .select('called_at, status, list_id, getter_name')
+      .eq('org_id', ORG_ID)
+      .gte('called_at', fromISO)
+      .lte('called_at', toISO)
+      .order('called_at')
+      .range(from, from + PAGE - 1);
+    if (error) { console.error('[DB] fetchCallRecordsByRange error:', error); return { data: all, error }; }
+    all.push(...(data || []));
+    if ((data || []).length < PAGE) break;
+    from += PAGE;
+  }
+  return { data: all, error: null };
 }
 
 export async function fetchCallListsMeta() {

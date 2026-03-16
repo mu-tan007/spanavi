@@ -1,17 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
-import { fetchCallActivity, fetchCallRecordsByRange, fetchCallListsMeta } from '../../lib/supabaseWrite';
+import { fetchCallRecordsByRange, fetchCallListsMeta } from '../../lib/supabaseWrite';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Area, AreaChart, Cell,
   PieChart, Pie,
 } from 'recharts';
-import ActivitySummaryCards from '../dashboard/ActivitySummaryCards';
-import HourlyActivityChart from '../dashboard/HourlyActivityChart';
-import ActivityRankingSection from '../dashboard/ActivityRankingSection';
-import TeamPerformanceTable from '../dashboard/TeamPerformanceTable';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
@@ -51,26 +47,6 @@ function getPrevActivityDateRange(period, todayStr, weekStartStr, monthStr) {
 const _offsetDays = (ds, n) => { const d = new Date(ds + 'T12:00:00Z'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
 export default function StatsView({ callListData, currentUser, appoData, members, now: nowProp }) {
-  // ── セクションA: 活動サマリー ────────────────────────────────────────────
-  const [activityPeriod, setActivityPeriod] = useState('week');
-  const [activityFrom, setActivityFrom] = useState('');
-  const [activityTo, setActivityTo] = useState('');
-  const [activityRecords, setActivityRecords] = useState([]);
-  const [activityPrevRecords, setActivityPrevRecords] = useState([]);
-  const [activityLoading, setActivityLoading] = useState(false);
-
-  // ── セクションB: 時間帯別 ──────────────────────────────────────────────
-  const [hourlyDate, setHourlyDate] = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }));
-  const [hourlyRecords, setHourlyRecords] = useState([]);
-  const [hourlyLoading, setHourlyLoading] = useState(false);
-
-  // ── セクションC+D+E右: ランキング・チーム ─────────────────────────────
-  const [rankActivityPeriod, setRankActivityPeriod] = useState('week');
-  const [rankActivityFrom, setRankActivityFrom] = useState('');
-  const [rankActivityTo, setRankActivityTo] = useState('');
-  const [rankActivityRecords, setRankActivityRecords] = useState([]);
-  const [rankActivityLoading, setRankActivityLoading] = useState(false);
-
   // ── クライアント円グラフ選択 ──────────────────────────────────────────
   const [selectedClientPie, setSelectedClientPie] = useState(null);
 
@@ -138,47 +114,6 @@ export default function StatsView({ callListData, currentUser, appoData, members
 
   const _jstStart = (ds) => new Date(ds + 'T00:00:00+09:00').toISOString();
   const _jstEnd   = (ds) => new Date(ds + 'T23:59:59.999+09:00').toISOString();
-
-  // ── セクションA: 活動サマリー fetch ──────────────────────────────────────
-  useEffect(() => {
-    const range = getActivityDateRange(activityPeriod, activityFrom, activityTo, todayStr, weekStartStr, monthStr);
-    if (!range) return;
-    const prevRange = getPrevActivityDateRange(activityPeriod, todayStr, weekStartStr, monthStr);
-    let cancelled = false;
-    setActivityLoading(true);
-    const p1 = fetchCallActivity(_jstStart(range.from), _jstEnd(range.to));
-    const p2 = prevRange ? fetchCallActivity(_jstStart(prevRange.from), _jstEnd(prevRange.to)) : Promise.resolve({ data: [] });
-    Promise.all([p1, p2])
-      .then(([cur, prev]) => { if (!cancelled) { setActivityRecords(cur.data || []); setActivityPrevRecords(prev.data || []); } })
-      .catch(err => console.error('[StatsView] activityFetch:', err))
-      .finally(() => { if (!cancelled) setActivityLoading(false); });
-    return () => { cancelled = true; };
-  }, [activityPeriod, activityFrom, activityTo, todayStr, weekStartStr, monthStr]);
-
-  // ── セクションB: 時間帯別 fetch ──────────────────────────────────────────
-  useEffect(() => {
-    if (!hourlyDate) return;
-    let cancelled = false;
-    setHourlyLoading(true);
-    fetchCallActivity(_jstStart(hourlyDate), _jstEnd(hourlyDate))
-      .then(({ data }) => { if (!cancelled) setHourlyRecords(data || []); })
-      .catch(err => console.error('[StatsView] hourlyFetch:', err))
-      .finally(() => { if (!cancelled) setHourlyLoading(false); });
-    return () => { cancelled = true; };
-  }, [hourlyDate]);
-
-  // ── セクションC+D+E右: ランキング fetch ───────────────────────────────────
-  useEffect(() => {
-    const range = getActivityDateRange(rankActivityPeriod, rankActivityFrom, rankActivityTo, todayStr, weekStartStr, monthStr);
-    if (!range) return;
-    let cancelled = false;
-    setRankActivityLoading(true);
-    fetchCallActivity(_jstStart(range.from), _jstEnd(range.to))
-      .then(({ data }) => { if (!cancelled) setRankActivityRecords(data || []); })
-      .catch(err => console.error('[StatsView] rankActivityFetch:', err))
-      .finally(() => { if (!cancelled) setRankActivityLoading(false); });
-    return () => { cancelled = true; };
-  }, [rankActivityPeriod, rankActivityFrom, rankActivityTo, todayStr, weekStartStr, monthStr]);
 
   // ── KPI カード: 今週・先週の架電データ ──────────────────────────────────
   useEffect(() => {
@@ -813,7 +748,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
       {(() => {
         const rateColor = (r) => r < 5 ? '#ef4444' : r < 15 ? '#f59e0b' : '#10b981';
         const RateBar = ({ rate }) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
             <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, minWidth: 38, textAlign: 'right' }}>{rate.toFixed(1)}%</span>
             <div style={{ flex: 1, height: 4, borderRadius: 2, background: '#F0F0F0', overflow: 'hidden' }}>
               <div style={{ height: '100%', background: rateColor(rate), width: Math.min(rate * 5, 100) + '%', borderRadius: 2 }} />
@@ -827,7 +762,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
             {label}{listSortKey === sk ? (listSortDir === 'asc' ? ' ▲' : ' ▼') : ''}
           </span>
         );
-        const LGRID = '1.8fr 1fr 0.55fr 0.6fr 1fr 0.55fr 1fr 0.85fr';
+        const LGRID = '0.9fr 1.4fr 0.55fr 0.6fr 1fr 0.55fr 1fr 0.85fr';
         return (
           <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
@@ -846,8 +781,8 @@ export default function StatsView({ callListData, currentUser, appoData, members
             </div>
             <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
               <div style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, borderBottom: '2px solid #E5E5E5' }}>
-                <SortHdr label='リスト名' sk='name' />
                 <SortHdr label='クライアント' sk='clientName' />
+                <SortHdr label='業種' sk='name' />
                 <SortHdr label='架電数' sk='calls' />
                 <SortHdr label='接続数' sk='connect' />
                 <SortHdr label='接続率' sk='connectRate' />
@@ -863,11 +798,11 @@ export default function StatsView({ callListData, currentUser, appoData, members
                 const isTop3 = listTop3Ids.has(row.listId);
                 return (
                   <div key={row.listId} style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '9px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', background: isTop3 ? GOLD + '0F' : idx % 2 === 0 ? 'transparent' : '#FAFAFA', borderLeft: isTop3 ? '3px solid ' + GOLD : '3px solid transparent' }}>
+                    <span style={{ fontSize: 11, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.clientName}</span>
                     <span style={{ fontWeight: 600, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      {row.name}
+                      {row.name.includes(' - ') ? row.name.split(' - ').slice(1).join(' - ') : row.name}
                       {row.isArchived && <span style={{ fontSize: 9, background: '#F3F2F2', borderRadius: 3, padding: '1px 4px', color: C.textLight, flexShrink: 0 }}>📦</span>}
                     </span>
-                    <span style={{ fontSize: 11, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.clientName}</span>
                     <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: isTop3 ? GOLD : NAVY }}>{row.calls}</span>
                     <span style={{ fontFamily: "'JetBrains Mono'" }}>{row.connect}</span>
                     <RateBar rate={row.connectRate} />
@@ -882,48 +817,6 @@ export default function StatsView({ callListData, currentUser, appoData, members
         );
       })()}
 
-      {/* ========== セクションA: 活動サマリー ========== */}
-      <ActivitySummaryCards
-        records={activityRecords}
-        prevRecords={activityPrevRecords}
-        period={activityPeriod}
-        setPeriod={setActivityPeriod}
-        customFrom={activityFrom}
-        setCustomFrom={setActivityFrom}
-        customTo={activityTo}
-        setCustomTo={setActivityTo}
-        loading={activityLoading}
-      />
-
-      {/* ========== セクションB: 時間帯別活動グラフ ========== */}
-      <HourlyActivityChart
-        records={hourlyRecords}
-        selectedDate={hourlyDate}
-        setSelectedDate={setHourlyDate}
-        loading={hourlyLoading}
-      />
-
-      {/* ========== セクションC+D: 活動ランキング・チーム別パフォーマンス ========== */}
-      <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>🏆</span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>活動ランキング・チーム分析</span>
-            {rankActivityLoading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
-          </div>
-          {simplePeriodSelector(rankActivityPeriod, setRankActivityPeriod, rankActivityFrom, setRankActivityFrom, rankActivityTo, setRankActivityTo, NAVY)}
-        </div>
-        <ActivityRankingSection
-          records={rankActivityRecords}
-          loading={rankActivityLoading}
-          currentUser={currentUser}
-        />
-        <TeamPerformanceTable
-          records={rankActivityRecords}
-          loading={rankActivityLoading}
-          teamMap={teamMap}
-        />
-      </div>
 
 
 

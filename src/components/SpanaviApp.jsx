@@ -32,6 +32,8 @@ import RecallListView from './views/RecallListView';
 import ShiftManagementView from './views/ShiftManagementView';
 import RulesView from './views/RulesView';
 import PlaceholderView from './views/PlaceholderView';
+import PerformanceView from './views/PerformanceView';
+import TeleappoTipsView from './views/TeleappoTipsView';
 import InternRulesView from './views/InternRulesView';
 import AIAssistantView from './views/AIAssistantView';
 import AdminView from './views/AdminView';
@@ -465,7 +467,9 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       ...(isAdmin ? [{ id: "reward_master", label: "料金テーブル" }] : []),
     ]},
     { id: "g_education", label: "教育", children: [
+      { id: "edu_performance", label: "パフォーマンス" },
       { id: "edu_script", label: "スクリプト" },
+      { id: "edu_tips", label: "テレアポの極意" },
       { id: "edu_rules", label: "インターン22箇条" },
       { id: "edu_roleplay", label: "ロープレ" },
     ]},
@@ -930,7 +934,9 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView industryRules={industryRules} setIndustryRules={setIndustryRules} ruleEditorOpen={ruleEditorOpen} setRuleEditorOpen={setRuleEditorOpen} editingRule={editingRule} setEditingRule={setEditingRule} isAdmin={isAdmin} />}
         {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} />}
+        {currentTab === "edu_performance" && <PerformanceView members={members} currentUser={currentUser} />}
         {currentTab === "edu_script" && <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} />}
+        {currentTab === "edu_tips" && <TeleappoTipsView />}
         {currentTab === "edu_rules" && <InternRulesView />}
         {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} />}
         {currentTab === "ai" && <AIAssistantView appoData={appoData} members={members} callListData={callListData} industryRules={industryRules} currentUser={currentUser} />}
