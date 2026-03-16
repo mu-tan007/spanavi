@@ -684,7 +684,8 @@ export default function StatsView({ callListData, currentUser, appoData, members
           return (
             <div style={{ background: NAVY, borderRadius: 8, padding: '7px 12px', color: '#fff', fontSize: 11 }}>
               <div style={{ fontWeight: 700 }}>{payload[0].name}</div>
-              <div>{fmt(payload[0].value)} ({totalPie > 0 ? (payload[0].value / totalPie * 100).toFixed(1) : 0}%)</div>
+              <div>{fmtFull(payload[0].value)}</div>
+              <div style={{ color: GOLD_LIGHT }}>{totalPie > 0 ? (payload[0].value / totalPie * 100).toFixed(1) : 0}%</div>
             </div>
           );
         };
@@ -749,7 +750,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
                 {pieData.length === 0 ? (
                   <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
                 ) : (
-                  <ResponsiveContainer width='100%' height={420}>
+                  <ResponsiveContainer width='100%' height={380}>
                     <PieChart>
                       <Pie
                         data={pieData}
@@ -757,15 +758,6 @@ export default function StatsView({ callListData, currentUser, appoData, members
                         outerRadius={180}
                         dataKey='value'
                         onClick={d => setSelectedClientPie(selectedClientPie === d.key ? null : d.key)}
-                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
-                          if (percent < 0.05) return null;
-                          const RADIAN = Math.PI / 180;
-                          const r = innerRadius + (outerRadius - innerRadius) * 1.4;
-                          const x = cx + r * Math.cos(-midAngle * RADIAN);
-                          const y = cy + r * Math.sin(-midAngle * RADIAN);
-                          return <text x={x} y={y} textAnchor={x > cx ? 'start' : 'end'} fill={NAVY} fontSize={9} fontWeight={600}>{name}（{(percent * 100).toFixed(0)}%）</text>;
-                        }}
-                        labelLine={false}
                       >
                         {pieData.map(({ key }, idx) => (
                           <Cell
@@ -780,6 +772,16 @@ export default function StatsView({ callListData, currentUser, appoData, members
                       <Tooltip content={<ClientPieTooltip />} />
                     </PieChart>
                   </ResponsiveContainer>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', marginTop: 8 }}>
+                    {pieData.map(({ key, name, value }, idx) => (
+                      <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, cursor: 'pointer' }}
+                        onClick={() => setSelectedClientPie(selectedClientPie === key ? null : key)}>
+                        <span style={{ width: 10, height: 10, background: CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length], borderRadius: 2, flexShrink: 0, border: selectedClientPie === key ? '2px solid ' + GOLD : '2px solid transparent' }} />
+                        <span style={{ color: NAVY, fontWeight: selectedClientPie === key ? 700 : 400 }}>{name}</span>
+                        <span style={{ color: C.textLight }}>{totalPie > 0 ? (value / totalPie * 100).toFixed(1) : 0}%</span>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
@@ -835,6 +837,10 @@ export default function StatsView({ callListData, currentUser, appoData, members
         hourlyRecords={hourlyRecords}
         rankRecords={rankActivityRecords}
         loading={hourlyLoading || rankActivityLoading}
+        hourlyDate={hourlyDate}
+        rankPeriod={rankActivityPeriod}
+        rankFrom={rankActivityFrom}
+        rankTo={rankActivityTo}
       />
 
 

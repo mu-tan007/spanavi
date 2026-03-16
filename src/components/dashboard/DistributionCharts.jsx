@@ -5,10 +5,21 @@ import {
 import { C } from '../../constants/colors';
 
 const NAVY = '#0D2247';
-const GOLD = '#C8A84B';
 const PALETTE = ['#0D2247', '#1e4080', '#2d5a9e', '#4472c4', '#6693d6', '#8fb4e8', '#C8A84B', '#e0c97a', '#10B981', '#F59E0B'];
 
 const toJSTHour = (utcStr) => parseInt(new Date(utcStr).toLocaleString('en-US', { timeZone: 'Asia/Tokyo', hour: 'numeric', hour12: false }), 10);
+
+function formatPeriodLabel(period, from, to) {
+  if (period === 'day')   return '今日';
+  if (period === 'week')  return '今週';
+  if (period === 'month') return '今月';
+  if (period === 'custom' && from) {
+    const f = from.replace(/-/g, '/');
+    const t = (to || from).replace(/-/g, '/');
+    return f === t ? f : `${f}〜${t}`;
+  }
+  return '';
+}
 
 function CustomTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
@@ -33,10 +44,13 @@ function renderLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent, name
   );
 }
 
-function PieSection({ title, data, emptyMsg }) {
+function PieSection({ title, periodLabel, data, emptyMsg }) {
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: NAVY, marginBottom: 8 }}>{title}</div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: NAVY, marginBottom: 8 }}>
+        {title}
+        {periodLabel && <span style={{ fontSize: 11, fontWeight: 400, color: C.textLight, marginLeft: 4 }}>（{periodLabel}）</span>}
+      </div>
       {data.length === 0 ? (
         <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textLight, fontSize: 12 }}>{emptyMsg}</div>
       ) : (
@@ -53,7 +67,7 @@ function PieSection({ title, data, emptyMsg }) {
   );
 }
 
-export default function DistributionCharts({ hourlyRecords, rankRecords, loading }) {
+export default function DistributionCharts({ hourlyRecords, rankRecords, loading, hourlyDate, rankPeriod, rankFrom, rankTo }) {
   const hourlyAppoData = useMemo(() => {
     const m = {};
     hourlyRecords.forEach(r => {
@@ -80,6 +94,9 @@ export default function DistributionCharts({ hourlyRecords, rankRecords, loading
     return top5;
   }, [rankRecords]);
 
+  const hourlyLabel = hourlyDate ? hourlyDate.replace(/-/g, '/') : '';
+  const rankLabel = formatPeriodLabel(rankPeriod, rankFrom, rankTo);
+
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
@@ -90,11 +107,13 @@ export default function DistributionCharts({ hourlyRecords, rankRecords, loading
       <div style={{ display: 'flex', gap: 32 }}>
         <PieSection
           title='⏰ 時間帯別アポ取得分布'
+          periodLabel={hourlyLabel}
           data={hourlyAppoData}
           emptyMsg='アポ取得データなし'
         />
         <PieSection
           title='📞 メンバー別架電数分布（上位5名）'
+          periodLabel={rankLabel}
           data={memberCallData}
           emptyMsg='データなし'
         />
