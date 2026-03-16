@@ -45,7 +45,6 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
   const [formData, setFormData] = useState(emptyForm);
   const [showRec, setShowRec] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
-  const [generatingInfo, setGeneratingInfo] = useState(false);
 
   // Step1: 足切り（定休日・非推奨帯・timeScore 40以下を除外）
   const callable = filteredLists.filter(l =>
@@ -261,44 +260,6 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
             </div>
 <div style={{ gridColumn: "span 3" }}>
               <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>企業概要</label>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-                <input
-                  type="url"
-                  value={formData.companyUrl || ''}
-                  onChange={e => setFormData(p => ({ ...p, companyUrl: e.target.value }))}
-                  placeholder="ホームページURLを入力して自動生成..."
-                  style={{ ...formInputStyle, flex: 1 }}
-                />
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!formData.companyUrl) return
-                    setGeneratingInfo(true)
-                    try {
-                      const { data, error } = await supabase.functions.invoke('generate-company-info', {
-                        body: { url: formData.companyUrl },
-                      })
-                      if (error) throw error
-                      if (data?.text) setFormData(p => ({ ...p, companyInfo: data.text }))
-                    } catch (e) {
-                      console.error(e)
-                      alert('企業概要の生成に失敗しました: ' + (e?.message || '不明なエラー'))
-                    } finally {
-                      setGeneratingInfo(false)
-                    }
-                  }}
-                  disabled={generatingInfo || !formData.companyUrl}
-                  style={{
-                    padding: '8px 16px', borderRadius: 8, border: 'none',
-                    cursor: generatingInfo ? 'not-allowed' : 'pointer',
-                    background: 'linear-gradient(135deg, #c8a45a, #a8883a)',
-                    color: '#fff', fontSize: 12, fontWeight: 700,
-                    whiteSpace: 'nowrap', opacity: generatingInfo || !formData.companyUrl ? 0.6 : 1
-                  }}
-                >
-                  {generatingInfo ? '生成中...' : '✨ 自動生成'}
-                </button>
-              </div>
               <textarea
                 value={formData.companyInfo}
                 onChange={e => setFormData(p => ({ ...p, companyInfo: e.target.value }))}
