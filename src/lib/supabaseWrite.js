@@ -1348,3 +1348,25 @@ export async function fetchCallActivity(fromISO, toISO) {
   if (error) console.error('[DB] fetchCallActivity error:', error);
   return { data: data || [], error };
 }
+
+export async function fetchCallRecordsByRange(fromISO, toISO) {
+  const { data, error } = await supabase
+    .from('call_records')
+    .select('called_at, status, list_id, getter_name')
+    .eq('org_id', ORG_ID)
+    .gte('called_at', fromISO)
+    .lte('called_at', toISO)
+    .order('called_at');
+  if (error) console.error('[DB] fetchCallRecordsByRange error:', error);
+  return { data: data || [], error };
+}
+
+export async function fetchCallListsMeta() {
+  const { data, error } = await supabase
+    .from('call_lists')
+    .select('id, name, is_archived, client_id, clients(name)')
+    .eq('org_id', ORG_ID)
+    .order('name');
+  if (error) console.error('[DB] fetchCallListsMeta error:', error);
+  return { data: data || [], error };
+}

@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
-import { fetchCallActivity } from '../../lib/supabaseWrite';
+import { fetchCallActivity, fetchCallRecordsByRange, fetchCallListsMeta } from '../../lib/supabaseWrite';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Area, AreaChart, Cell,
-  PieChart, Pie, Legend,
+  PieChart, Pie,
 } from 'recharts';
 import ActivitySummaryCards from '../dashboard/ActivitySummaryCards';
 import HourlyActivityChart from '../dashboard/HourlyActivityChart';
@@ -48,26 +48,7 @@ function getPrevActivityDateRange(period, todayStr, weekStartStr, monthStr) {
   return null;
 }
 
-function getPrevRange(period, selectedMonth, customFrom, customTo, todayStr, weekStartStr) {
-  if (period === 'day') {
-    const d = new Date(todayStr); d.setDate(d.getDate() - 1);
-    const s = d.toISOString().slice(0, 10);
-    return { from: s, to: s };
-  }
-  if (period === 'week') {
-    const ws = new Date(weekStartStr); ws.setDate(ws.getDate() - 7);
-    const we = new Date(ws); we.setDate(we.getDate() + 6);
-    return { from: ws.toISOString().slice(0, 10), to: we.toISOString().slice(0, 10) };
-  }
-  if (period === 'month') {
-    const [y, m] = selectedMonth.split('-').map(Number);
-    const prev = new Date(y, m - 2, 1);
-    const ym = prev.getFullYear() + '-' + String(prev.getMonth() + 1).padStart(2, '0');
-    const last = new Date(prev.getFullYear(), prev.getMonth() + 1, 0).getDate();
-    return { from: ym + '-01', to: ym + '-' + String(last).padStart(2, '0') };
-  }
-  return null;
-}
+const _offsetDays = (ds, n) => { const d = new Date(ds + 'T12:00:00Z'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
 export default function StatsView({ callListData, currentUser, appoData, members, now: nowProp }) {
   // ── セクションA: 活動サマリー ────────────────────────────────────────────
@@ -93,14 +74,24 @@ export default function StatsView({ callListData, currentUser, appoData, members
   // ── クライアント円グラフ選択 ──────────────────────────────────────────
   const [selectedClientPie, setSelectedClientPie] = useState(null);
 
-  // ── サマリーカード用（独立維持） ──────────────────────────────────────────
-  const [salesPeriod, setSalesPeriod] = useState(() => localStorage.getItem('spanavi_stats_salesPeriod') || 'month');
-  const [salesCustomFrom, setSalesCustomFrom] = useState(() => localStorage.getItem('spanavi_stats_salesFrom') || '');
-  const [salesCustomTo, setSalesCustomTo] = useState(() => localStorage.getItem('spanavi_stats_salesTo') || '');
-  const [salesSelectedMonth, setSalesSelectedMonth] = useState(() => {
-    const s = localStorage.getItem('spanavi_stats_salesMonth');
-    return (s && AVAILABLE_MONTHS.some(m => m.yyyymm === s)) ? s : (AVAILABLE_MONTHS[0]?.yyyymm || '2026-03');
-  });
+  // ── KPI カード用（週次架電データ） ─────────────────────────────────────
+  const [kpiCalls, setKpiCalls] = useState([]);
+  const [kpiPrevCalls, setKpiPrevCalls] = useState([]);
+  const [kpiLoading, setKpiLoading] = useState(false);
+
+  // ── クライアント円グラフホバー ─────────────────────────────────────────
+  const [hoveredClientPie, setHoveredClientPie] = useState(null);
+
+  // ── リスト別パフォーマンス ──────────────────────────────────────────────
+  const [listPeriod, setListPeriod] = useState('week');
+  const [listFrom, setListFrom] = useState('');
+  const [listTo, setListTo] = useState('');
+  const [listRecords, setListRecords] = useState([]);
+  const [listMeta, setListMeta] = useState([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [listSortKey, setListSortKey] = useState('calls');
+  const [listSortDir, setListSortDir] = useState('desc');
+  const [listFilter, setListFilter] = useState('all');
 
   // ── ① 売上推移グラフ ─────────────────────────────────────────────────────
   const [chartTab, setChartTab] = useState('monthly');
@@ -125,13 +116,6 @@ export default function StatsView({ callListData, currentUser, appoData, members
 
   const [expandedClient, setExpandedClient] = useState(null);
 
-  useEffect(() => {
-    localStorage.setItem('spanavi_stats_salesPeriod', salesPeriod);
-    localStorage.setItem('spanavi_stats_salesMonth', salesSelectedMonth);
-    localStorage.setItem('spanavi_stats_salesFrom', salesCustomFrom);
-    localStorage.setItem('spanavi_stats_salesTo', salesCustomTo);
-  }, [salesPeriod, salesSelectedMonth, salesCustomFrom, salesCustomTo]);
-
   const now = nowProp ? new Date(nowProp) : new Date();
   const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
   const todayD = new Date(todayStr);
@@ -140,21 +124,6 @@ export default function StatsView({ callListData, currentUser, appoData, members
   const weekStartStr = weekStart.toISOString().slice(0, 10);
   const monthStr = todayStr.slice(0, 7);
 
-  // サマリーカード・旧売上ランキング用 inPeriod
-  const inPeriod = (dateStr, period, customFrom, customTo, selectedMonth = monthStr) => {
-    if (!dateStr) return false;
-    const d = dateStr.slice(0, 10);
-    if (period === 'day') return d === todayStr;
-    if (period === 'week') return d >= weekStartStr && d <= todayStr;
-    if (period === 'month') return d.startsWith(selectedMonth);
-    if (period === 'custom') {
-      const dm = d.slice(0, 7);
-      if (customFrom && dm < customFrom) return false;
-      if (customTo && dm > customTo) return false;
-      return true;
-    }
-    return true;
-  };
 
   // セクション独立フィルタ (日/週/月/期間指定)
   const filterBySimplePeriod = (dateStr, period, from, to) => {
@@ -211,52 +180,79 @@ export default function StatsView({ callListData, currentUser, appoData, members
     return () => { cancelled = true; };
   }, [rankActivityPeriod, rankActivityFrom, rankActivityTo, todayStr, weekStartStr, monthStr]);
 
+  // ── KPI カード: 今週・先週の架電データ ──────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    setKpiLoading(true);
+    const prevWeekStart = _offsetDays(weekStartStr, -7);
+    const prevWeekEnd = _offsetDays(todayStr, -7);
+    Promise.all([
+      fetchCallRecordsByRange(_jstStart(weekStartStr), _jstEnd(todayStr)),
+      fetchCallRecordsByRange(_jstStart(prevWeekStart), _jstEnd(prevWeekEnd)),
+    ])
+      .then(([cur, prev]) => { if (!cancelled) { setKpiCalls(cur.data || []); setKpiPrevCalls(prev.data || []); } })
+      .catch(err => console.error('[StatsView] kpiFetch:', err))
+      .finally(() => { if (!cancelled) setKpiLoading(false); });
+    return () => { cancelled = true; };
+  }, [weekStartStr, todayStr]);
+
+  // ── リスト別パフォーマンス: メタデータ（初回のみ） ───────────────────────
+  useEffect(() => {
+    fetchCallListsMeta()
+      .then(({ data }) => setListMeta(data || []))
+      .catch(err => console.error('[StatsView] listMetaFetch:', err));
+  }, []);
+
+  // ── リスト別パフォーマンス: 架電レコード ────────────────────────────────
+  useEffect(() => {
+    const range = getActivityDateRange(listPeriod, listFrom, listTo, todayStr, weekStartStr, monthStr);
+    if (!range) return;
+    let cancelled = false;
+    setListLoading(true);
+    fetchCallRecordsByRange(_jstStart(range.from), _jstEnd(range.to))
+      .then(({ data }) => { if (!cancelled) setListRecords(data || []); })
+      .catch(err => console.error('[StatsView] listFetch:', err))
+      .finally(() => { if (!cancelled) setListLoading(false); });
+    return () => { cancelled = true; };
+  }, [listPeriod, listFrom, listTo, todayStr, weekStartStr, monthStr]);
+
   const teamMap = useMemo(() => {
     const m = {};
     members.forEach(mb => { m[mb.name] = mb.team ? mb.team + 'チーム' : '営業統括'; });
     return m;
   }, [members]);
 
-  // ── サマリーカード用 (salesPeriod) ────────────────────────────────────────
-  const salesFiltered = useMemo(() => (appoData || []).filter(a => {
+  // ── KPI カード用 ─────────────────────────────────────────────────────────
+  const dayOfMonth = parseInt(todayStr.slice(8), 10);
+  const monthStart = monthStr + '-01';
+  const [_kpiY, _kpiM] = monthStr.split('-').map(Number);
+  const _prevMonthD = new Date(_kpiY, _kpiM - 2, 1);
+  const prevMonthStr = _prevMonthD.getFullYear() + '-' + String(_prevMonthD.getMonth() + 1).padStart(2, '0');
+  const prevMonthMaxDays = new Date(_prevMonthD.getFullYear(), _prevMonthD.getMonth() + 1, 0).getDate();
+  const prevMonthEndStr = prevMonthStr + '-' + String(Math.min(dayOfMonth, prevMonthMaxDays)).padStart(2, '0');
+
+  const monthAppoFiltered = useMemo(() => (appoData || []).filter(a => {
     if (!COUNTABLE.has(a.status)) return false;
-    return inPeriod(a.getDate || '', salesPeriod, salesCustomFrom, salesCustomTo, salesSelectedMonth);
-  }), [appoData, salesPeriod, salesCustomFrom, salesCustomTo, salesSelectedMonth, todayStr, weekStartStr]);
+    const d = (a.getDate || '').slice(0, 10);
+    return d >= monthStart && d <= todayStr;
+  }), [appoData, monthStart, todayStr]);
 
-  const prevSalesFiltered = useMemo(() => {
-    const prev = getPrevRange(salesPeriod, salesSelectedMonth, salesCustomFrom, salesCustomTo, todayStr, weekStartStr);
-    if (!prev) return [];
-    return (appoData || []).filter(a => {
-      if (!COUNTABLE.has(a.status)) return false;
-      const d = (a.getDate || '').slice(0, 10);
-      return d >= prev.from && d <= prev.to;
-    });
-  }, [appoData, salesPeriod, salesSelectedMonth, salesCustomFrom, salesCustomTo, todayStr, weekStartStr]);
+  const prevMonthAppoFiltered = useMemo(() => (appoData || []).filter(a => {
+    if (!COUNTABLE.has(a.status)) return false;
+    const d = (a.getDate || '').slice(0, 10);
+    return d >= prevMonthStr + '-01' && d <= prevMonthEndStr;
+  }), [appoData, prevMonthStr, prevMonthEndStr]);
 
-  const totalSales  = useMemo(() => salesFiltered.reduce((s, a) => s + (a.sales || 0), 0), [salesFiltered]);
-  const totalAppo   = salesFiltered.length;
-  const avgUnit     = totalAppo > 0 ? Math.round(totalSales / totalAppo) : 0;
-  const prevSales   = useMemo(() => prevSalesFiltered.reduce((s, a) => s + (a.sales || 0), 0), [prevSalesFiltered]);
-  const prevAppo    = prevSalesFiltered.length;
-  const prevAvgUnit = prevAppo > 0 ? Math.round(prevSales / prevAppo) : 0;
-  const salesGrowth = prevSales > 0 ? ((totalSales - prevSales) / prevSales * 100) : null;
-  const appoGrowth  = prevAppo > 0 ? ((totalAppo - prevAppo) / prevAppo * 100) : null;
-  const unitGrowth  = prevAvgUnit > 0 ? ((avgUnit - prevAvgUnit) / prevAvgUnit * 100) : null;
-
-  // 今月着地予測 (常に当月データ)
-  const monthForecast = useMemo(() => {
-    const ym = monthStr;
-    const [y, m] = ym.split('-').map(Number);
-    const daysInMonth = new Date(y, m, 0).getDate();
-    const elapsed = Math.min(parseInt(todayStr.slice(8, 10)), daysInMonth);
-    if (!elapsed) return null;
-    const sofar = (appoData || []).filter(a => {
-      if (!COUNTABLE.has(a.status)) return false;
-      const d = a.getDate || '';
-      return d.startsWith(ym) && d.slice(0, 10) <= todayStr;
-    }).reduce((s, a) => s + (a.sales || 0), 0);
-    return Math.round(sofar / elapsed * daysInMonth);
-  }, [appoData, monthStr, todayStr]);
+  const kpiMonthSales = useMemo(() => monthAppoFiltered.reduce((s, a) => s + (a.sales || 0), 0), [monthAppoFiltered]);
+  const kpiPrevMonthSales = useMemo(() => prevMonthAppoFiltered.reduce((s, a) => s + (a.sales || 0), 0), [prevMonthAppoFiltered]);
+  const kpiMonthAppo = monthAppoFiltered.length;
+  const kpiPrevMonthAppo = prevMonthAppoFiltered.length;
+  const kpiWeekCalls = kpiCalls.length;
+  const kpiPrevWeekCalls = kpiPrevCalls.length;
+  const kpiWeekAppo = useMemo(() => kpiCalls.filter(r => r.status === 'アポ獲得').length, [kpiCalls]);
+  const kpiPrevWeekAppo = useMemo(() => kpiPrevCalls.filter(r => r.status === 'アポ獲得').length, [kpiPrevCalls]);
+  const kpiWeekAppoRate = kpiWeekCalls > 0 ? kpiWeekAppo / kpiWeekCalls * 100 : 0;
+  const kpiPrevWeekAppoRate = kpiPrevWeekCalls > 0 ? kpiPrevWeekAppo / kpiPrevWeekCalls * 100 : 0;
 
   // ── ① 売上推移グラフ用データ ──────────────────────────────────────────────
   const dailyChartData = useMemo(() => {
@@ -363,6 +359,56 @@ export default function StatsView({ callListData, currentUser, appoData, members
     return Object.entries(m).sort((a, b) => b[1].total - a[1].total);
   }, [clientFilteredData]);
 
+  // ── リスト別パフォーマンス ───────────────────────────────────────────────
+  const LIST_CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール']);
+
+  const listMetaMap = useMemo(() => {
+    const m = {};
+    listMeta.forEach(l => { m[l.id] = l; });
+    return m;
+  }, [listMeta]);
+
+  const listTableData = useMemo(() => {
+    const m = {};
+    listRecords.forEach(r => {
+      const id = r.list_id;
+      if (!id) return;
+      if (!m[id]) m[id] = { calls: 0, connect: 0, appo: 0, lastDate: '' };
+      m[id].calls++;
+      if (LIST_CEO_CONNECT.has(r.status)) m[id].connect++;
+      if (r.status === 'アポ獲得') m[id].appo++;
+      const jd = new Date(r.called_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
+      if (jd > m[id].lastDate) m[id].lastDate = jd;
+    });
+    return Object.entries(m).map(([listId, d]) => {
+      const meta = listMetaMap[listId] || {};
+      return {
+        listId,
+        name: meta.name || listId,
+        clientName: meta.clients?.name || '不明',
+        isArchived: !!meta.is_archived,
+        ...d,
+        connectRate: d.calls > 0 ? d.connect / d.calls * 100 : 0,
+        appoRate: d.calls > 0 ? d.appo / d.calls * 100 : 0,
+      };
+    });
+  }, [listRecords, listMetaMap]);
+
+  const listFiltered = useMemo(() => {
+    let rows = listTableData;
+    if (listFilter === 'active') rows = rows.filter(r => !r.isArchived);
+    if (listFilter === 'archived') rows = rows.filter(r => r.isArchived);
+    const dir = listSortDir === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      const av = a[listSortKey] ?? 0, bv = b[listSortKey] ?? 0;
+      if (typeof av === 'string') return av.localeCompare(bv, 'ja') * dir;
+      return (av - bv) * dir;
+    });
+  }, [listTableData, listFilter, listSortKey, listSortDir]);
+
+  const listTop3Ids = useMemo(() =>
+    new Set([...listTableData].sort((a, b) => b.calls - a.calls).slice(0, 3).map(r => r.listId))
+  , [listTableData]);
 
   // ── 共通スタイル ──────────────────────────────────────────────────────────
   const tabBtn = (active, color) => ({
@@ -380,33 +426,6 @@ export default function StatsView({ callListData, currentUser, appoData, members
     border: rank <= 3 ? 'none' : '1px solid ' + C.borderLight,
   });
   const cardStyle = { background: C.white, borderRadius: 12, padding: '20px 22px', boxShadow: '0 2px 10px rgba(13,34,71,0.07)', borderTop: '3px solid ' + GOLD };
-
-  // 月セレクタ付き期間セレクタ (salesPeriod / callPeriod 用)
-  const periodSelector = (period, setPeriod, customFrom, setCustomFrom, customTo, setCustomTo, selectedMonth, setSelectedMonth, accent) => (
-    <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
-      {[['week', '週'], ['month', '月'], ['custom', '期間指定']].map(([k, l]) => (
-        <button key={k} onClick={() => setPeriod(k)} style={tabBtn(period === k, accent)}>{l}</button>
-      ))}
-      {period === 'month' && (
-        <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} style={monthSelectStyle}>
-          {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
-        </select>
-      )}
-      {period === 'custom' && (
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          <select value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={monthSelectStyle}>
-            <option value=''>開始月</option>
-            {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
-          </select>
-          <span style={{ fontSize: 10, color: C.textLight }}>〜</span>
-          <select value={customTo} onChange={e => setCustomTo(e.target.value)} style={monthSelectStyle}>
-            <option value=''>終了月</option>
-            {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
-          </select>
-        </div>
-      )}
-    </div>
-  );
 
   // 日付入力付きセクション独立フィルタ (日/週/月/期間指定)
   const simplePeriodSelector = (period, setPeriod, from, setFrom, to, setTo, accent) => (
@@ -459,52 +478,59 @@ export default function StatsView({ callListData, currentUser, appoData, members
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
 
-      {/* ========== セクション1: 売上サマリーカード ========== */}
+      {/* ========== セクション1: KPIサマリーカード ========== */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
+        {/* Card 1: 今月累計売上 */}
         <div style={cardStyle}>
-          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>💰 累計売上</div>
+          <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>今月（{parseInt(monthStr.slice(5))}月1日〜{dayOfMonth}日）</div>
+          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>🔥 今月累計売上</div>
           <div style={{ fontSize: 24, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'", letterSpacing: '-0.5px' }}>
-            {totalSales >= 10000 ? <>{(totalSales / 10000).toFixed(1)}<span style={{ fontSize: 13, fontWeight: 600 }}>万円</span></> : fmtFull(totalSales)}
+            {kpiMonthSales >= 10000 ? <>{(kpiMonthSales / 10000).toFixed(1)}<span style={{ fontSize: 13, fontWeight: 600 }}>万円</span></> : fmtFull(kpiMonthSales)}
           </div>
           <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <GrowthBadge pct={salesGrowth} />
-            {prevSales > 0 && <span style={{ fontSize: 10, color: C.textLight }}>前期: {fmt(prevSales)}</span>}
+            <GrowthBadge pct={kpiPrevMonthSales > 0 ? (kpiMonthSales - kpiPrevMonthSales) / kpiPrevMonthSales * 100 : null} />
+            {kpiPrevMonthSales > 0 && <span style={{ fontSize: 10, color: C.textLight }}>前月同期: {fmt(kpiPrevMonthSales)}</span>}
           </div>
         </div>
+        {/* Card 2: 今月アポ取得数 */}
         <div style={cardStyle}>
-          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>🎯 アポ取得数</div>
+          <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>今月（{parseInt(monthStr.slice(5))}月1日〜{dayOfMonth}日）</div>
+          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>🎯 今月アポ取得数</div>
           <div style={{ fontSize: 24, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'" }}>
-            {totalAppo}<span style={{ fontSize: 13, fontWeight: 600 }}>件</span>
+            {kpiMonthAppo}<span style={{ fontSize: 13, fontWeight: 600 }}>件</span>
           </div>
           <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <GrowthBadge pct={appoGrowth} />
-            {prevAppo > 0 && <span style={{ fontSize: 10, color: C.textLight }}>前期: {prevAppo}件</span>}
+            <GrowthBadge pct={kpiPrevMonthAppo > 0 ? (kpiMonthAppo - kpiPrevMonthAppo) / kpiPrevMonthAppo * 100 : null} />
+            {kpiPrevMonthAppo > 0 && <span style={{ fontSize: 10, color: C.textLight }}>前月同期: {kpiPrevMonthAppo}件</span>}
           </div>
         </div>
+        {/* Card 3: 今週の架電数 */}
         <div style={cardStyle}>
-          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>📊 平均単価</div>
+          <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>今週（{weekStartStr.slice(5).replace('-', '/')}〜{todayStr.slice(5).replace('-', '/')}）</div>
+          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>📞 今週の架電数{kpiLoading && <span style={{ fontSize: 9, color: C.textLight, marginLeft: 4 }}>…</span>}</div>
           <div style={{ fontSize: 24, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'" }}>
-            {avgUnit >= 10000 ? <>{(avgUnit / 10000).toFixed(1)}<span style={{ fontSize: 13, fontWeight: 600 }}>万円</span></> : fmtFull(avgUnit)}
+            {kpiWeekCalls}<span style={{ fontSize: 13, fontWeight: 600 }}>件</span>
           </div>
           <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <GrowthBadge pct={unitGrowth} />
-            {prevAvgUnit > 0 && <span style={{ fontSize: 10, color: C.textLight }}>前期: {fmt(prevAvgUnit)}</span>}
+            <GrowthBadge pct={kpiPrevWeekCalls > 0 ? (kpiWeekCalls - kpiPrevWeekCalls) / kpiPrevWeekCalls * 100 : null} />
+            {kpiPrevWeekCalls > 0 && <span style={{ fontSize: 10, color: C.textLight }}>先週同期: {kpiPrevWeekCalls}件</span>}
           </div>
         </div>
+        {/* Card 4: 今週のアポ率 */}
         <div style={cardStyle}>
-          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>🔭 今月着地予測</div>
-          {monthForecast !== null ? (
-            <>
-              <div style={{ fontSize: 22, fontWeight: 900, color: GOLD, fontFamily: "'JetBrains Mono'" }}>
-                {monthForecast >= 10000 ? <>{(monthForecast / 10000).toFixed(1)}<span style={{ fontSize: 13, fontWeight: 600 }}>万円</span></> : fmtFull(monthForecast)}
-              </div>
-              <div style={{ marginTop: 6, fontSize: 10, color: C.textLight }}>
-                {monthStr} / 当月{parseInt(todayStr.slice(8, 10))}日経過で予測
-              </div>
-            </>
-          ) : (
-            <div style={{ fontSize: 13, color: C.textLight, marginTop: 8 }}>データなし</div>
-          )}
+          <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>今週（{weekStartStr.slice(5).replace('-', '/')}〜{todayStr.slice(5).replace('-', '/')}）</div>
+          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>📊 今週のアポ率{kpiLoading && <span style={{ fontSize: 9, color: C.textLight, marginLeft: 4 }}>…</span>}</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'" }}>
+            {kpiWeekAppoRate.toFixed(1)}<span style={{ fontSize: 13, fontWeight: 600 }}>%</span>
+          </div>
+          <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+            {kpiPrevWeekAppoRate > 0 ? (
+              <span style={{ fontSize: 11, fontWeight: 700, color: kpiWeekAppoRate >= kpiPrevWeekAppoRate ? '#16a34a' : '#dc2626' }}>
+                {kpiWeekAppoRate >= kpiPrevWeekAppoRate ? '▲' : '▼'} {Math.abs(kpiWeekAppoRate - kpiPrevWeekAppoRate).toFixed(1)}pt
+              </span>
+            ) : <span style={{ fontSize: 10, color: C.textLight }}>先週比 —</span>}
+            {kpiPrevWeekAppoRate > 0 && <span style={{ fontSize: 10, color: C.textLight }}>先週: {kpiPrevWeekAppoRate.toFixed(1)}%</span>}
+          </div>
         </div>
       </div>
 
@@ -709,14 +735,16 @@ export default function StatsView({ callListData, currentUser, appoData, members
                 ) : clientData.map(([key, d], idx) => {
                   const isExpanded = expandedClient === key;
                   const isPieSelected = selectedClientPie === key;
+                  const isHovered = hoveredClientPie === key;
+                  const isHighlighted = isPieSelected || isHovered;
                   const avg = d.count > 0 ? Math.round(d.total / d.count) : 0;
                   return (
                     <React.Fragment key={key}>
                       <div
                         onClick={() => { setExpandedClient(isExpanded ? null : key); setSelectedClientPie(isPieSelected ? null : key); }}
-                        style={{ display: 'grid', gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', cursor: 'pointer', background: isPieSelected ? GOLD + '18' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#FAFAFA', transition: 'background 0.15s', borderLeft: isPieSelected ? '3px solid ' + GOLD : '3px solid transparent' }}
-                        onMouseEnter={e => { if (!isExpanded && !isPieSelected) e.currentTarget.style.background = '#EAF4FF'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = isPieSelected ? GOLD + '18' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#FAFAFA'; }}
+                        style={{ display: 'grid', gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', cursor: 'pointer', background: isHighlighted ? GOLD + '18' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#FAFAFA', transition: 'background 0.15s', borderLeft: `4px solid ${CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length]}`, opacity: (selectedClientPie || hoveredClientPie) && !isHighlighted ? 0.55 : 1 }}
+                        onMouseEnter={e => { setHoveredClientPie(key); if (!isHighlighted) e.currentTarget.style.background = '#EAF4FF'; }}
+                        onMouseLeave={e => { setHoveredClientPie(null); e.currentTarget.style.background = isHighlighted ? GOLD + '18' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#FAFAFA'; }}
                       >
                         <span style={{ fontWeight: 600, color: NAVY, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{ fontSize: 9, color: C.textLight, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▶</span>
@@ -749,42 +777,106 @@ export default function StatsView({ callListData, currentUser, appoData, members
                 {pieData.length === 0 ? (
                   <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
                 ) : (
-                  <>
-                    <ResponsiveContainer width='100%' height={380}>
-                      <PieChart>
-                        <Pie
-                          data={pieData}
-                          cx='50%' cy='50%'
-                          outerRadius={180}
-                          dataKey='value'
-                          labelLine={false}
-                          onClick={d => setSelectedClientPie(selectedClientPie === d.key ? null : d.key)}
-                        >
-                          {pieData.map(({ key }, idx) => (
-                            <Cell
-                              key={key}
-                              fill={CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length]}
-                              stroke={selectedClientPie === key ? GOLD : 'none'}
-                              strokeWidth={selectedClientPie === key ? 3 : 0}
-                              opacity={selectedClientPie && selectedClientPie !== key ? 0.45 : 1}
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip content={<ClientPieTooltip />} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', marginTop: 8 }}>
-                      {pieData.map(({ key, name, value }, idx) => (
-                        <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, cursor: 'pointer' }}
-                          onClick={() => setSelectedClientPie(selectedClientPie === key ? null : key)}>
-                          <span style={{ width: 10, height: 10, background: CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length], borderRadius: 2, flexShrink: 0, border: selectedClientPie === key ? '2px solid ' + GOLD : '2px solid transparent' }} />
-                          <span style={{ color: NAVY, fontWeight: selectedClientPie === key ? 700 : 400 }}>{name}（{totalPie > 0 ? (value / totalPie * 100).toFixed(1) : 0}%）</span>
-                        </div>
-                      ))}
-                    </div>
-                  </>
+                  <ResponsiveContainer width='100%' height={380}>
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx='50%' cy='50%'
+                        outerRadius={180}
+                        dataKey='value'
+                        labelLine={false}
+                        onClick={d => setSelectedClientPie(selectedClientPie === d.key ? null : d.key)}
+                      >
+                        {pieData.map(({ key }, idx) => (
+                          <Cell
+                            key={key}
+                            fill={CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length]}
+                            stroke={selectedClientPie === key || hoveredClientPie === key ? GOLD : 'none'}
+                            strokeWidth={selectedClientPie === key || hoveredClientPie === key ? 3 : 0}
+                            opacity={(selectedClientPie || hoveredClientPie) && selectedClientPie !== key && hoveredClientPie !== key ? 0.45 : 1}
+                            onMouseEnter={() => setHoveredClientPie(key)}
+                            onMouseLeave={() => setHoveredClientPie(null)}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ClientPieTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 )}
               </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ========== セクション5: リスト別パフォーマンス ========== */}
+      {(() => {
+        const rateColor = (r) => r < 5 ? '#ef4444' : r < 15 ? '#f59e0b' : '#10b981';
+        const RateBar = ({ rate }) => (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, minWidth: 38, textAlign: 'right' }}>{rate.toFixed(1)}%</span>
+            <div style={{ flex: 1, height: 4, borderRadius: 2, background: '#F0F0F0', overflow: 'hidden' }}>
+              <div style={{ height: '100%', background: rateColor(rate), width: Math.min(rate * 5, 100) + '%', borderRadius: 2 }} />
+            </div>
+          </div>
+        );
+        const SortHdr = ({ label, sk }) => (
+          <span
+            onClick={() => { if (listSortKey === sk) setListSortDir(d => d === 'desc' ? 'asc' : 'desc'); else { setListSortKey(sk); setListSortDir('desc'); } }}
+            style={{ cursor: 'pointer', userSelect: 'none', color: listSortKey === sk ? NAVY : '#706E6B', whiteSpace: 'nowrap' }}>
+            {label}{listSortKey === sk ? (listSortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+          </span>
+        );
+        const LGRID = '1.8fr 1fr 0.55fr 0.6fr 1fr 0.55fr 1fr 0.85fr';
+        return (
+          <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 16 }}>📋</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>リスト別パフォーマンス</span>
+                <span style={{ fontSize: 10, color: C.textLight }}>{listFiltered.length}件のリスト</span>
+                {listLoading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
+              </div>
+              {simplePeriodSelector(listPeriod, setListPeriod, listFrom, setListFrom, listTo, setListTo, NAVY)}
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+              {[['all', '全て表示'], ['active', 'アクティブのみ'], ['archived', 'アーカイブのみ']].map(([k, l]) => (
+                <button key={k} onClick={() => setListFilter(k)} style={tabBtn(listFilter === k, NAVY)}>{l}</button>
+              ))}
+            </div>
+            <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, borderBottom: '2px solid #E5E5E5' }}>
+                <SortHdr label='リスト名' sk='name' />
+                <SortHdr label='クライアント' sk='clientName' />
+                <SortHdr label='架電数' sk='calls' />
+                <SortHdr label='接続数' sk='connect' />
+                <SortHdr label='接続率' sk='connectRate' />
+                <SortHdr label='アポ数' sk='appo' />
+                <SortHdr label='アポ率' sk='appoRate' />
+                <SortHdr label='最終架電日' sk='lastDate' />
+              </div>
+              {listFiltered.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>
+                  {listLoading ? '読込中...' : 'データなし'}
+                </div>
+              ) : listFiltered.map((row, idx) => {
+                const isTop3 = listTop3Ids.has(row.listId);
+                return (
+                  <div key={row.listId} style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '9px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', background: isTop3 ? GOLD + '0F' : idx % 2 === 0 ? 'transparent' : '#FAFAFA', borderLeft: isTop3 ? '3px solid ' + GOLD : '3px solid transparent' }}>
+                    <span style={{ fontWeight: 600, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {row.name}
+                      {row.isArchived && <span style={{ fontSize: 9, background: '#F3F2F2', borderRadius: 3, padding: '1px 4px', color: C.textLight, flexShrink: 0 }}>📦</span>}
+                    </span>
+                    <span style={{ fontSize: 11, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.clientName}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: isTop3 ? GOLD : NAVY }}>{row.calls}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'" }}>{row.connect}</span>
+                    <RateBar rate={row.connectRate} />
+                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: GOLD }}>{row.appo}</span>
+                    <RateBar rate={row.appoRate} />
+                    <span style={{ fontSize: 11, color: C.textMid }}>{row.lastDate || '—'}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         );
