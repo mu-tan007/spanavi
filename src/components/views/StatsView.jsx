@@ -188,15 +188,13 @@ export default function StatsView({ callListData, currentUser, appoData, members
   const appoGrowth   = prevAppo > 0 ? ((totalAppo - prevAppo) / prevAppo * 100) : null;
   const unitGrowth   = prevAvgUnit > 0 ? ((avgUnit - prevAvgUnit) / prevAvgUnit * 100) : null;
 
-  // 今月着地予測（日次進捗から線形予測）
+  // 今月着地予測（日次進捗から線形予測）- 常に当月データで計算
   const monthForecast = useMemo(() => {
-    const ym = salesSelectedMonth || monthStr;
+    const ym = salesPeriod === 'month' ? (salesSelectedMonth || monthStr) : monthStr;
     const [y, m] = ym.split('-').map(Number);
     const daysInMonth = new Date(y, m, 0).getDate();
-    const elapsed = salesPeriod === 'month'
-      ? Math.min(parseInt(todayStr.slice(8, 10)), daysInMonth)
-      : null;
-    if (!elapsed || elapsed === 0) return null;
+    const elapsed = Math.min(parseInt(todayStr.slice(8, 10)), daysInMonth);
+    if (!elapsed) return null;
     const monthData = (appoData || []).filter(a => {
       if (!COUNTABLE.has(a.status)) return false;
       const d = a.meetDate || a.getDate || '';
@@ -276,13 +274,15 @@ export default function StatsView({ callListData, currentUser, appoData, members
   const clientData = useMemo(() => {
     const m = {};
     salesFiltered.forEach(a => {
-      const key = a.clientId || a.client || '不明';
-      const name = clientMap[key] || a.client || key;
+      // a.clientId は appoData に存在しない。a.client はクライアント名文字列（空の場合は a.company にフォールバック）
+      const key = a.client || a.company || '不明';
+      const name = a.client || a.company || key;
       if (!m[key]) m[key] = { name, total: 0, count: 0, lastDate: '', items: {} };
       m[key].total += a.sales || 0; m[key].count++;
       const d = a.meetDate || a.getDate || '';
       if (d > m[key].lastDate) m[key].lastDate = d;
-      const listKey = a.listId || 'その他';
+      // a.listId は appoData に存在しない。月別に内訳表示
+      const listKey = (a.meetDate || a.getDate || '').slice(0, 7) || 'その他';
       if (!m[key].items[listKey]) m[key].items[listKey] = { total: 0, count: 0 };
       m[key].items[listKey].total += a.sales || 0; m[key].items[listKey].count++;
     });
@@ -497,11 +497,11 @@ export default function StatsView({ callListData, currentUser, appoData, members
                 {monthForecast >= 10000 ? <>{(monthForecast / 10000).toFixed(1)}<span style={{ fontSize: 13, fontWeight: 600 }}>万円</span></> : fmtFull(monthForecast)}
               </div>
               <div style={{ marginTop: 6, fontSize: 10, color: C.textLight }}>
-                現在: {fmt(totalSales)} / 予測ベース: {salesSelectedMonth || monthStr}
+                {salesPeriod === 'month' ? salesSelectedMonth : monthStr} / 当月{parseInt(todayStr.slice(8, 10))}日経過で予測
               </div>
             </>
           ) : (
-            <div style={{ fontSize: 13, color: C.textLight, marginTop: 8 }}>月次フィルタ時に表示</div>
+            <div style={{ fontSize: 13, color: C.textLight, marginTop: 8 }}>データなし</div>
           )}
         </div>
       </div>
@@ -675,7 +675,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
                 </div>
                 {isExpanded && (
                   <div style={{ borderBottom: '1px solid #E5E5E5', background: NAVY + '04', padding: '8px 24px 12px' }}>
-                    <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6, fontWeight: 600 }}>リスト別内訳</div>
+                    <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6, fontWeight: 600 }}>月別内訳</div>
                     {Object.entries(d.items).map(([listId, ld]) => (
                       <div key={listId} style={{ display: 'flex', gap: 16, padding: '4px 0', borderBottom: '1px solid #f0f0f0', fontSize: 11 }}>
                         <span style={{ flex: 1, color: C.textDark }}>{listId}</span>
