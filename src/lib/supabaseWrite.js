@@ -1336,3 +1336,15 @@ export async function fetchCallListItemByAppo(company, phone) {
   }
   return { data: null, error: null };
 }
+
+export async function fetchCallActivity(fromISO, toISO) {
+  const { data, error } = await supabase
+    .from('call_records')
+    .select('called_at, status, getter_name')
+    .eq('org_id', ORG_ID)
+    .gte('called_at', fromISO)
+    .lte('called_at', toISO)
+    .order('called_at');
+  if (error) console.error('[DB] fetchCallActivity error:', error);
+  return { data: data || [], error };
+}

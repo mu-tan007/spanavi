@@ -1,12 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
-import { fetchCallRecordsForRanking } from '../../lib/supabaseWrite';
+import { fetchCallActivity } from '../../lib/supabaseWrite';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Area, AreaChart, Cell,
+  PieChart, Pie, Legend,
 } from 'recharts';
+import ActivitySummaryCards from '../dashboard/ActivitySummaryCards';
+import HourlyActivityChart from '../dashboard/HourlyActivityChart';
+import ActivityRankingSection from '../dashboard/ActivityRankingSection';
+import TeamPerformanceTable from '../dashboard/TeamPerformanceTable';
+import DistributionCharts from '../dashboard/DistributionCharts';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
@@ -14,6 +20,34 @@ const GOLD_LIGHT = '#e0c97a';
 const COUNTABLE = new Set(['面談済', '事前確認済', 'アポ取得']);
 const fmt = (n) => n >= 10000 ? (n / 10000).toFixed(1) + '万' : n.toLocaleString();
 const fmtFull = (n) => '¥' + (n || 0).toLocaleString();
+
+function getActivityDateRange(period, customFrom, customTo, todayStr, weekStartStr, monthStr) {
+  if (period === 'day')  return { from: todayStr, to: todayStr };
+  if (period === 'week') return { from: weekStartStr, to: todayStr };
+  if (period === 'month') return { from: monthStr + '-01', to: todayStr };
+  if (period === 'custom' && customFrom) return { from: customFrom, to: customTo || todayStr };
+  return null;
+}
+
+function getPrevActivityDateRange(period, todayStr, weekStartStr, monthStr) {
+  if (period === 'day') {
+    const d = new Date(todayStr); d.setDate(d.getDate() - 1);
+    const s = d.toISOString().slice(0, 10); return { from: s, to: s };
+  }
+  if (period === 'week') {
+    const ws = new Date(weekStartStr); ws.setDate(ws.getDate() - 7);
+    const we = new Date(ws); we.setDate(we.getDate() + 6);
+    return { from: ws.toISOString().slice(0, 10), to: we.toISOString().slice(0, 10) };
+  }
+  if (period === 'month') {
+    const [y, m] = monthStr.split('-').map(Number);
+    const prev = new Date(y, m - 2, 1);
+    const ym = prev.getFullYear() + '-' + String(prev.getMonth() + 1).padStart(2, '0');
+    const last = new Date(prev.getFullYear(), prev.getMonth() + 1, 0).getDate();
+    return { from: ym + '-01', to: ym + '-' + String(last).padStart(2, '0') };
+  }
+  return null;
+}
 
 function getPrevRange(period, selectedMonth, customFrom, customTo, todayStr, weekStartStr) {
   if (period === 'day') {
@@ -37,13 +71,30 @@ function getPrevRange(period, selectedMonth, customFrom, customTo, todayStr, wee
 }
 
 export default function StatsView({ callListData, currentUser, appoData, members, now: nowProp }) {
-  // ── 架電・売上ランキング統合セクション用 ──────────────────────────────────
-  const [callSalesPeriod, setCallSalesPeriod] = useState(() => localStorage.getItem('spanavi_stats_callSalesPeriod') || 'week');
-  const [callSalesCustomFrom, setCallSalesCustomFrom] = useState(() => localStorage.getItem('spanavi_stats_callSalesFrom') || '');
-  const [callSalesCustomTo, setCallSalesCustomTo] = useState(() => localStorage.getItem('spanavi_stats_callSalesTo') || '');
-  const [mainTab, setMainTab] = useState('call');
-  const [callSubTab, setCallSubTab] = useState('team');
-  const [salesSubTab, setSalesSubTab] = useState('team');
+  // ── セクションA: 活動サマリー ────────────────────────────────────────────
+  const [activityPeriod, setActivityPeriod] = useState('week');
+  const [activityFrom, setActivityFrom] = useState('');
+  const [activityTo, setActivityTo] = useState('');
+  const [activityRecords, setActivityRecords] = useState([]);
+  const [activityPrevRecords, setActivityPrevRecords] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+
+  // ── セクションB: 時間帯別 ──────────────────────────────────────────────
+  const [hourlyPeriod, setHourlyPeriod] = useState('day');
+  const [hourlyFrom, setHourlyFrom] = useState('');
+  const [hourlyTo, setHourlyTo] = useState('');
+  const [hourlyRecords, setHourlyRecords] = useState([]);
+  const [hourlyLoading, setHourlyLoading] = useState(false);
+
+  // ── セクションC+D+E右: ランキング・チーム ─────────────────────────────
+  const [rankActivityPeriod, setRankActivityPeriod] = useState('week');
+  const [rankActivityFrom, setRankActivityFrom] = useState('');
+  const [rankActivityTo, setRankActivityTo] = useState('');
+  const [rankActivityRecords, setRankActivityRecords] = useState([]);
+  const [rankActivityLoading, setRankActivityLoading] = useState(false);
+
+  // ── クライアント円グラフ選択 ──────────────────────────────────────────
+  const [selectedClientPie, setSelectedClientPie] = useState(null);
 
   // ── サマリーカード用（独立維持） ──────────────────────────────────────────
   const [salesPeriod, setSalesPeriod] = useState(() => localStorage.getItem('spanavi_stats_salesPeriod') || 'month');
@@ -78,15 +129,11 @@ export default function StatsView({ callListData, currentUser, appoData, members
   const [expandedClient, setExpandedClient] = useState(null);
 
   useEffect(() => {
-    localStorage.setItem('spanavi_stats_callSalesPeriod', callSalesPeriod);
-    localStorage.setItem('spanavi_stats_callSalesFrom', callSalesCustomFrom);
-    localStorage.setItem('spanavi_stats_callSalesTo', callSalesCustomTo);
     localStorage.setItem('spanavi_stats_salesPeriod', salesPeriod);
     localStorage.setItem('spanavi_stats_salesMonth', salesSelectedMonth);
     localStorage.setItem('spanavi_stats_salesFrom', salesCustomFrom);
     localStorage.setItem('spanavi_stats_salesTo', salesCustomTo);
-  }, [callSalesPeriod, callSalesCustomFrom, callSalesCustomTo,
-      salesPeriod, salesSelectedMonth, salesCustomFrom, salesCustomTo]);
+  }, [salesPeriod, salesSelectedMonth, salesCustomFrom, salesCustomTo]);
 
   const now = nowProp ? new Date(nowProp) : new Date();
   const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
@@ -123,31 +170,50 @@ export default function StatsView({ callListData, currentUser, appoData, members
     return false;
   };
 
-  // ── 架電ランキング用 Supabase データ ──────────────────────────────────────
-  const [supaRecords, setSupaRecords] = useState([]);
-  const [rankLoading, setRankLoading] = useState(false);
   const _jstStart = (ds) => new Date(ds + 'T00:00:00+09:00').toISOString();
   const _jstEnd   = (ds) => new Date(ds + 'T23:59:59.999+09:00').toISOString();
 
+  // ── セクションA: 活動サマリー fetch ──────────────────────────────────────
   useEffect(() => {
-    let from, to;
-    if (callSalesPeriod === 'day') { from = _jstStart(todayStr); to = _jstEnd(todayStr); }
-    else if (callSalesPeriod === 'week') { from = _jstStart(weekStartStr); to = _jstEnd(todayStr); }
-    else if (callSalesPeriod === 'month') { from = _jstStart(monthStr + '-01'); to = _jstEnd(todayStr); }
-    else if (callSalesPeriod === 'custom' && callSalesCustomFrom) {
-      const fromDay = callSalesCustomFrom + '-01';
-      const toYM = (callSalesCustomTo || callSalesCustomFrom) + '-01';
-      const d = new Date(toYM); d.setMonth(d.getMonth() + 1); d.setDate(0);
-      from = _jstStart(fromDay); to = _jstEnd(d.toISOString().slice(0, 10));
-    } else return;
+    const range = getActivityDateRange(activityPeriod, activityFrom, activityTo, todayStr, weekStartStr, monthStr);
+    if (!range) return;
+    const prevRange = getPrevActivityDateRange(activityPeriod, todayStr, weekStartStr, monthStr);
     let cancelled = false;
-    setRankLoading(true);
-    fetchCallRecordsForRanking(from, to)
-      .then(({ data }) => { if (!cancelled) setSupaRecords(data || []); })
-      .catch(err => { console.error('[StatsView] fetchCallRecordsForRanking:', err); })
-      .finally(() => { if (!cancelled) setRankLoading(false); });
+    setActivityLoading(true);
+    const p1 = fetchCallActivity(_jstStart(range.from), _jstEnd(range.to));
+    const p2 = prevRange ? fetchCallActivity(_jstStart(prevRange.from), _jstEnd(prevRange.to)) : Promise.resolve({ data: [] });
+    Promise.all([p1, p2])
+      .then(([cur, prev]) => { if (!cancelled) { setActivityRecords(cur.data || []); setActivityPrevRecords(prev.data || []); } })
+      .catch(err => console.error('[StatsView] activityFetch:', err))
+      .finally(() => { if (!cancelled) setActivityLoading(false); });
     return () => { cancelled = true; };
-  }, [callSalesPeriod, callSalesCustomFrom, callSalesCustomTo, todayStr, weekStartStr, monthStr]);
+  }, [activityPeriod, activityFrom, activityTo, todayStr, weekStartStr, monthStr]);
+
+  // ── セクションB: 時間帯別 fetch ──────────────────────────────────────────
+  useEffect(() => {
+    const range = getActivityDateRange(hourlyPeriod, hourlyFrom, hourlyTo, todayStr, weekStartStr, monthStr);
+    if (!range) return;
+    let cancelled = false;
+    setHourlyLoading(true);
+    fetchCallActivity(_jstStart(range.from), _jstEnd(range.to))
+      .then(({ data }) => { if (!cancelled) setHourlyRecords(data || []); })
+      .catch(err => console.error('[StatsView] hourlyFetch:', err))
+      .finally(() => { if (!cancelled) setHourlyLoading(false); });
+    return () => { cancelled = true; };
+  }, [hourlyPeriod, hourlyFrom, hourlyTo, todayStr, weekStartStr, monthStr]);
+
+  // ── セクションC+D+E右: ランキング fetch ───────────────────────────────────
+  useEffect(() => {
+    const range = getActivityDateRange(rankActivityPeriod, rankActivityFrom, rankActivityTo, todayStr, weekStartStr, monthStr);
+    if (!range) return;
+    let cancelled = false;
+    setRankActivityLoading(true);
+    fetchCallActivity(_jstStart(range.from), _jstEnd(range.to))
+      .then(({ data }) => { if (!cancelled) setRankActivityRecords(data || []); })
+      .catch(err => console.error('[StatsView] rankActivityFetch:', err))
+      .finally(() => { if (!cancelled) setRankActivityLoading(false); });
+    return () => { cancelled = true; };
+  }, [rankActivityPeriod, rankActivityFrom, rankActivityTo, todayStr, weekStartStr, monthStr]);
 
   const teamMap = useMemo(() => {
     const m = {};
@@ -301,78 +367,6 @@ export default function StatsView({ callListData, currentUser, appoData, members
     return Object.entries(m).sort((a, b) => b[1].total - a[1].total);
   }, [clientFilteredData]);
 
-  // ── 架電・売上ランキング統合セクション用フィルタ ─────────────────────────
-  const callSalesFiltered = useMemo(() => (appoData || []).filter(a => {
-    if (!COUNTABLE.has(a.status)) return false;
-    const d = (a.getDate || '').slice(0, 10);
-    if (callSalesPeriod === 'day') return d === todayStr;
-    if (callSalesPeriod === 'week') return d >= weekStartStr && d <= todayStr;
-    if (callSalesPeriod === 'month') return d >= monthStr + '-01' && d <= todayStr;
-    if (callSalesPeriod === 'custom') {
-      const dm = d.slice(0, 7);
-      if (callSalesCustomFrom && dm < callSalesCustomFrom) return false;
-      if (callSalesCustomTo && dm > callSalesCustomTo) return false;
-      return true;
-    }
-    return false;
-  }), [appoData, callSalesPeriod, callSalesCustomFrom, callSalesCustomTo, todayStr, weekStartStr, monthStr]);
-
-  // ── 売上ランキング集計 (callSalesFiltered) ────────────────────────────────
-  const salesByIndiv = useMemo(() => {
-    const m = {};
-    callSalesFiltered.forEach(a => {
-      const k = a.getter || '不明';
-      if (!m[k]) m[k] = { total: 0, reward: 0, count: 0 };
-      m[k].total += a.sales || 0; m[k].reward += a.reward || 0; m[k].count++;
-    });
-    return Object.entries(m).sort((a, b) => b[1].total - a[1].total);
-  }, [callSalesFiltered]);
-
-  const salesByTeam = useMemo(() => {
-    const m = {};
-    callSalesFiltered.forEach(a => {
-      const tn = teamMap[a.getter] || 'その他';
-      if (!m[tn]) m[tn] = { total: 0, count: 0, members: new Set() };
-      m[tn].total += a.sales || 0; m[tn].count++;
-      if (a.getter) m[tn].members.add(a.getter);
-    });
-    return Object.entries(m).sort((a, b) => b[1].total - a[1].total).map(([tn, d]) => [tn, { ...d, memberCount: d.members.size }]);
-  }, [callSalesFiltered, teamMap]);
-
-  // ── 架電ランキング集計 ────────────────────────────────────────────────────
-  const callIndivRanked = useMemo(() => {
-    const byCaller = {};
-    supaRecords.forEach(r => {
-      const k = r.getter_name || '不明';
-      if (!byCaller[k]) byCaller[k] = { total: 0, ceoConnect: 0, appo: 0 };
-      byCaller[k].total += Number(r.total) || 0;
-      byCaller[k].ceoConnect += Number(r.ceo_connect) || 0;
-      byCaller[k].appo += Number(r.appo) || 0;
-    });
-    const sorted = Object.entries(byCaller).map(([name, d]) => ({ name, ...d })).sort((a, b) => b.total - a.total);
-    let lastRank = 1;
-    return sorted.map((item, idx) => {
-      const rank = (idx === 0 || item.total !== sorted[idx - 1].total) ? idx + 1 : lastRank;
-      lastRank = rank;
-      return { ...item, rank };
-    });
-  }, [supaRecords]);
-
-  const callTeamRank = useMemo(() => {
-    const byTeam = {};
-    supaRecords.forEach(r => {
-      const tn = teamMap[r.getter_name] || 'その他';
-      if (!byTeam[tn]) byTeam[tn] = { total: 0, ceoConnect: 0, appo: 0 };
-      byTeam[tn].total += Number(r.total) || 0;
-      byTeam[tn].ceoConnect += Number(r.ceo_connect) || 0;
-      byTeam[tn].appo += Number(r.appo) || 0;
-    });
-    return Object.entries(byTeam).sort((a, b) => b[1].total - a[1].total);
-  }, [supaRecords, teamMap]);
-
-  const salesIndivRank = salesByIndiv;
-  const maxIndivSales  = salesIndivRank.length > 0 ? salesIndivRank[0][1].total : 1;
-  const salesTeamRank  = salesByTeam;
 
   // ── 共通スタイル ──────────────────────────────────────────────────────────
   const tabBtn = (active, color) => ({
@@ -684,243 +678,173 @@ export default function StatsView({ callListData, currentUser, appoData, members
       </div>
 
       {/* ========== セクション4: クライアント別売上分析 ========== */}
-      <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>🏛️</span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>クライアント別売上分析</span>
-            <span style={{ fontSize: 10, color: C.textLight }}>({clientData.length}社 / {clientFilteredData.length}件)</span>
-          </div>
-          {simplePeriodSelector(rankClientPeriod, setRankClientPeriod, rankClientFrom, setRankClientFrom, rankClientTo, setRankClientTo, NAVY)}
-        </div>
-        <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1fr', padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', letterSpacing: '0.06em', borderBottom: '2px solid #E5E5E5' }}>
-            <span>クライアント名</span><span>アポ数</span><span>売上合計</span><span>平均単価</span><span>最終アポ日</span>
-          </div>
-          {clientData.length === 0 ? (
-            <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
-          ) : clientData.map(([key, d], idx) => {
-            const isExpanded = expandedClient === key;
-            const avg = d.count > 0 ? Math.round(d.total / d.count) : 0;
-            return (
-              <React.Fragment key={key}>
-                <div
-                  onClick={() => setExpandedClient(isExpanded ? null : key)}
-                  style={{ display: 'grid', gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', cursor: 'pointer', background: isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#FAFAFA', transition: 'background 0.15s' }}
-                  onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.background = '#EAF4FF'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#FAFAFA'; }}
-                >
-                  <span style={{ fontWeight: 600, color: NAVY, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 9, color: C.textLight, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▶</span>
-                    {d.name}
-                  </span>
-                  <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{d.count}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 13, fontWeight: 900, color: GOLD }}>{fmt(d.total)}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textDark }}>{fmt(avg)}</span>
-                  <span style={{ fontSize: 11, color: C.textMid }}>{d.lastDate?.slice(0, 10) || '—'}</span>
+      {(() => {
+        const CLIENT_PIE_COLORS = ['#0D2247','#1e4080','#2d5a9e','#4472c4','#6693d6','#8fb4e8','#b8d4f0','#C8A84B','#e0c97a','#f0e0a0'];
+        const pieData = clientData.map(([key, d]) => ({ name: d.name, value: d.total, key }));
+        const totalPie = pieData.reduce((s, d) => s + d.value, 0);
+        const ClientPieTooltip = ({ active, payload }) => {
+          if (!active || !payload?.length) return null;
+          return (
+            <div style={{ background: NAVY, borderRadius: 8, padding: '7px 12px', color: '#fff', fontSize: 11 }}>
+              <div style={{ fontWeight: 700 }}>{payload[0].name}</div>
+              <div>{fmt(payload[0].value)} ({totalPie > 0 ? (payload[0].value / totalPie * 100).toFixed(1) : 0}%)</div>
+            </div>
+          );
+        };
+        return (
+          <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 16 }}>🏛️</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>クライアント別売上分析</span>
+                <span style={{ fontSize: 10, color: C.textLight }}>({clientData.length}社 / {clientFilteredData.length}件)</span>
+              </div>
+              {simplePeriodSelector(rankClientPeriod, setRankClientPeriod, rankClientFrom, setRankClientFrom, rankClientTo, setRankClientTo, NAVY)}
+            </div>
+            <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+              {/* テーブル */}
+              <div style={{ flex: '1.5', minWidth: 0, borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1fr', padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', letterSpacing: '0.06em', borderBottom: '2px solid #E5E5E5' }}>
+                  <span>クライアント名</span><span>アポ数</span><span>売上合計</span><span>平均単価</span><span>最終アポ日</span>
                 </div>
-                {isExpanded && (
-                  <div style={{ borderBottom: '1px solid #E5E5E5', background: NAVY + '04', padding: '8px 24px 12px' }}>
-                    <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6, fontWeight: 600 }}>月別内訳</div>
-                    {Object.entries(d.items).map(([listId, ld]) => (
-                      <div key={listId} style={{ display: 'flex', gap: 16, padding: '4px 0', borderBottom: '1px solid #f0f0f0', fontSize: 11 }}>
-                        <span style={{ flex: 1, color: C.textDark }}>{listId}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", color: C.textMid }}>{ld.count}件</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: GOLD }}>{fmt(ld.total)}</span>
+                {clientData.length === 0 ? (
+                  <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
+                ) : clientData.map(([key, d], idx) => {
+                  const isExpanded = expandedClient === key;
+                  const isPieSelected = selectedClientPie === key;
+                  const avg = d.count > 0 ? Math.round(d.total / d.count) : 0;
+                  return (
+                    <React.Fragment key={key}>
+                      <div
+                        onClick={() => { setExpandedClient(isExpanded ? null : key); setSelectedClientPie(isPieSelected ? null : key); }}
+                        style={{ display: 'grid', gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', cursor: 'pointer', background: isPieSelected ? GOLD + '18' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#FAFAFA', transition: 'background 0.15s', borderLeft: isPieSelected ? '3px solid ' + GOLD : '3px solid transparent' }}
+                        onMouseEnter={e => { if (!isExpanded && !isPieSelected) e.currentTarget.style.background = '#EAF4FF'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = isPieSelected ? GOLD + '18' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#FAFAFA'; }}
+                      >
+                        <span style={{ fontWeight: 600, color: NAVY, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 9, color: C.textLight, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▶</span>
+                          {d.name}
+                        </span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{d.count}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 13, fontWeight: 900, color: GOLD }}>{fmt(d.total)}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textDark }}>{fmt(avg)}</span>
+                        <span style={{ fontSize: 11, color: C.textMid }}>{d.lastDate?.slice(0, 10) || '—'}</span>
                       </div>
-                    ))}
-                  </div>
+                      {isExpanded && (
+                        <div style={{ borderBottom: '1px solid #E5E5E5', background: NAVY + '04', padding: '8px 24px 12px' }}>
+                          <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6, fontWeight: 600 }}>月別内訳</div>
+                          {Object.entries(d.items).map(([listId, ld]) => (
+                            <div key={listId} style={{ display: 'flex', gap: 16, padding: '4px 0', borderBottom: '1px solid #f0f0f0', fontSize: 11 }}>
+                              <span style={{ flex: 1, color: C.textDark }}>{listId}</span>
+                              <span style={{ fontFamily: "'JetBrains Mono'", color: C.textMid }}>{ld.count}件</span>
+                              <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: GOLD }}>{fmt(ld.total)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+              {/* 円グラフ */}
+              <div style={{ flex: 1, minWidth: 260 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.textMid, marginBottom: 6 }}>売上構成比</div>
+                {pieData.length === 0 ? (
+                  <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
+                ) : (
+                  <ResponsiveContainer width='100%' height={260}>
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx='50%' cy='50%'
+                        outerRadius={90}
+                        dataKey='value'
+                        onClick={d => setSelectedClientPie(selectedClientPie === d.key ? null : d.key)}
+                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
+                          if (percent < 0.05) return null;
+                          const RADIAN = Math.PI / 180;
+                          const r = innerRadius + (outerRadius - innerRadius) * 1.4;
+                          const x = cx + r * Math.cos(-midAngle * RADIAN);
+                          const y = cy + r * Math.sin(-midAngle * RADIAN);
+                          return <text x={x} y={y} textAnchor={x > cx ? 'start' : 'end'} fill={NAVY} fontSize={9} fontWeight={600}>{name}（{(percent * 100).toFixed(0)}%）</text>;
+                        }}
+                        labelLine={false}
+                      >
+                        {pieData.map(({ key }, idx) => (
+                          <Cell
+                            key={key}
+                            fill={CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length]}
+                            stroke={selectedClientPie === key ? GOLD : 'none'}
+                            strokeWidth={selectedClientPie === key ? 3 : 0}
+                            opacity={selectedClientPie && selectedClientPie !== key ? 0.45 : 1}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ClientPieTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 )}
-              </React.Fragment>
-            );
-          })}
-        </div>
-      </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
-      {/* ========== 架電・売上ランキング（統合） ========== */}
+      {/* ========== セクションA: 活動サマリー ========== */}
+      <ActivitySummaryCards
+        records={activityRecords}
+        prevRecords={activityPrevRecords}
+        period={activityPeriod}
+        setPeriod={setActivityPeriod}
+        customFrom={activityFrom}
+        setCustomFrom={setActivityFrom}
+        customTo={activityTo}
+        setCustomTo={setActivityTo}
+        loading={activityLoading}
+      />
+
+      {/* ========== セクションB: 時間帯別活動グラフ ========== */}
+      <HourlyActivityChart
+        records={hourlyRecords}
+        period={hourlyPeriod}
+        setPeriod={setHourlyPeriod}
+        customFrom={hourlyFrom}
+        setCustomFrom={setHourlyFrom}
+        customTo={hourlyTo}
+        setCustomTo={setHourlyTo}
+        loading={hourlyLoading}
+        todayStr={todayStr}
+      />
+
+      {/* ========== セクションC+D: 活動ランキング・チーム別パフォーマンス ========== */}
       <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
-        {/* ヘッダー: タイトル＋期間フィルタ */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>📊</span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>架電・売上ランキング</span>
+            <span style={{ fontSize: 16 }}>🏆</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>活動ランキング・チーム分析</span>
+            {rankActivityLoading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
           </div>
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
-            {[['day', '日'], ['week', '週'], ['month', '月'], ['custom', '期間指定']].map(([k, l]) => (
-              <button key={k} onClick={() => setCallSalesPeriod(k)} style={tabBtn(callSalesPeriod === k, NAVY)}>{l}</button>
-            ))}
-            {callSalesPeriod === 'custom' && (
-              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                <select value={callSalesCustomFrom} onChange={e => setCallSalesCustomFrom(e.target.value)} style={monthSelectStyle}>
-                  <option value=''>開始月</option>
-                  {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
-                </select>
-                <span style={{ fontSize: 10, color: C.textLight }}>〜</span>
-                <select value={callSalesCustomTo} onChange={e => setCallSalesCustomTo(e.target.value)} style={monthSelectStyle}>
-                  <option value=''>終了月</option>
-                  {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
-                </select>
-              </div>
-            )}
-          </div>
+          {simplePeriodSelector(rankActivityPeriod, setRankActivityPeriod, rankActivityFrom, setRankActivityFrom, rankActivityTo, setRankActivityTo, NAVY)}
         </div>
-
-        {/* メインタブ（架電/売上）- ゴールドアンダーライン */}
-        <div style={{ display: 'flex', borderBottom: '2px solid #E5E5E5', marginBottom: 14 }}>
-          {[['call', '📞 架電'], ['sales', '💰 売上']].map(([k, l]) => (
-            <button key={k} onClick={() => setMainTab(k)} style={{ padding: '8px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: 'transparent', border: 'none', fontFamily: "'Noto Sans JP'", color: mainTab === k ? GOLD : C.textMid, borderBottom: mainTab === k ? '3px solid ' + GOLD : '3px solid transparent', marginBottom: -2 }}>{l}</button>
-          ))}
-        </div>
-
-        {/* 架電タブ */}
-        {mainTab === 'call' && (
-          <>
-            <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 12 }}>
-              {['team', 'individual', 'chart'].map(t => (
-                <button key={t} onClick={() => setCallSubTab(t)} style={tabBtn(callSubTab === t, NAVY)}>
-                  {t === 'team' ? 'チーム別' : t === 'individual' ? '個人別' : 'グラフ'}
-                </button>
-              ))}
-              <span style={{ fontSize: 10, color: C.textLight, marginLeft: 8 }}>
-                ({supaRecords.reduce((s, r) => s + Number(r.total), 0)}件)
-              </span>
-            </div>
-            {callSubTab === 'team' && (
-              <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '36px 1.5fr 0.8fr 0.8fr 0.8fr', padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', borderBottom: '2px solid #E5E5E5' }}>
-                  <span>#</span><span>チーム</span><span>架電件数</span><span>社長接続</span><span>アポ取得</span>
-                </div>
-                {callTeamRank.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
-                  : callTeamRank.map(([tn, d], idx) => (
-                    <div key={tn} style={{ display: 'grid', gridTemplateColumns: '36px 1.5fr 0.8fr 0.8fr 0.8fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2' }} onMouseEnter={e => e.currentTarget.style.background = '#EAF4FF'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                      <span style={rankBadge(idx + 1)}>{idx === 0 ? '👑' : idx + 1}</span>
-                      <span style={{ fontWeight: 700, color: NAVY }}>{tn}</span>
-                      <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{d.total}</span>
-                      <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{d.ceoConnect}</span>
-                      <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 800, color: GOLD }}>{d.appo}</span>
-                    </div>
-                  ))}
-              </div>
-            )}
-            {callSubTab === 'individual' && (
-              <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '36px 1.2fr 0.8fr 0.8fr 0.8fr', padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', borderBottom: '2px solid #E5E5E5' }}>
-                  <span>#</span><span>名前</span><span>架電件数</span><span>社長接続</span><span>アポ取得</span>
-                </div>
-                {callIndivRanked.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
-                  : callIndivRanked.map((p, idx) => {
-                    const isMe = p.name === currentUser;
-                    return (
-                      <div key={p.name} style={{ display: 'grid', gridTemplateColumns: '36px 1.2fr 0.8fr 0.8fr 0.8fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', background: isMe ? NAVY + '08' : 'transparent', borderLeft: isMe ? '3px solid ' + NAVY : '3px solid transparent' }}>
-                        <span style={rankBadge(idx + 1)}>{idx === 0 ? '👑' : idx + 1}</span>
-                        <span style={{ fontWeight: isMe ? 700 : 500, color: isMe ? NAVY : C.textDark }}>{p.name}{isMe ? ' ★' : ''}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{p.total}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{p.ceoConnect}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 800, color: GOLD }}>{p.appo}</span>
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
-            {callSubTab === 'chart' && (
-              <div style={{ borderRadius: 8, border: '1px solid ' + C.borderLight, padding: '16px 14px' }}>
-                {callIndivRanked.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
-                  : callIndivRanked.map((p, idx) => {
-                    const maxVal = callIndivRanked[0]?.total || 1;
-                    return (
-                      <div key={p.name} style={{ marginBottom: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontWeight: 700, fontSize: 10, width: 18, textAlign: 'right', color: idx === 0 ? GOLD : C.textLight }}>{idx + 1}</span>
-                          <span style={{ fontSize: 10, fontWeight: 600, color: C.textDark, width: 72, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <div style={{ height: 18, borderRadius: 3, background: 'linear-gradient(90deg,' + NAVY + ',#1a3a6b)', width: Math.max(p.total / maxVal * 100, 2) + '%', transition: 'width 0.4s ease', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 4 }}>
-                              {p.total / maxVal > 0.2 && <span style={{ fontSize: 8, fontWeight: 700, color: '#fff' }}>{p.total}</span>}
-                            </div>
-                            <span style={{ fontSize: 9, color: C.textMid, whiteSpace: 'nowrap' }}>{p.total}件 / 接続{p.ceoConnect} / アポ{p.appo}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* 売上タブ */}
-        {mainTab === 'sales' && (
-          <>
-            <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 12 }}>
-              {['team', 'individual', 'chart'].map(t => (
-                <button key={t} onClick={() => setSalesSubTab(t)} style={tabBtn(salesSubTab === t, GOLD)}>
-                  {t === 'team' ? 'チーム別' : t === 'individual' ? '個人別' : 'グラフ'}
-                </button>
-              ))}
-              <span style={{ fontSize: 10, color: C.textLight, marginLeft: 8 }}>
-                ({callSalesFiltered.length}件)
-              </span>
-            </div>
-            {salesSubTab === 'team' && (
-              <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '36px 1.5fr 0.6fr 1fr', padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', borderBottom: '2px solid #E5E5E5' }}>
-                  <span>#</span><span>チーム</span><span>件数</span><span>売上</span>
-                </div>
-                {salesTeamRank.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
-                  : salesTeamRank.map(([tn, d], idx) => (
-                    <div key={tn} style={{ display: 'grid', gridTemplateColumns: '36px 1.5fr 0.6fr 1fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2' }} onMouseEnter={e => e.currentTarget.style.background = '#EAF4FF'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                      <span style={rankBadge(idx + 1)}>{idx === 0 ? '👑' : idx + 1}</span>
-                      <span style={{ fontWeight: 700, color: NAVY }}>{tn}</span>
-                      <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 600 }}>{d.count}</span>
-                      <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 13, fontWeight: 900, color: GOLD }}>{(d.total / 10000).toFixed(1)}<span style={{ fontSize: 9, fontWeight: 500 }}>万円</span></span>
-                    </div>
-                  ))}
-              </div>
-            )}
-            {salesSubTab === 'individual' && (
-              <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '36px 1.2fr 0.6fr 0.8fr 0.8fr', padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', borderBottom: '2px solid #E5E5E5' }}>
-                  <span>#</span><span>名前</span><span>件数</span><span>売上</span><span>報酬</span>
-                </div>
-                {salesIndivRank.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
-                  : salesIndivRank.map(([name, d], idx) => {
-                    const isMe = name === currentUser;
-                    return (
-                      <div key={name} style={{ display: 'grid', gridTemplateColumns: '36px 1.2fr 0.6fr 0.8fr 0.8fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', background: isMe ? GOLD + '08' : 'transparent', borderLeft: isMe ? '3px solid ' + GOLD : '3px solid transparent' }}>
-                        <span style={rankBadge(idx + 1)}>{idx === 0 ? '👑' : idx + 1}</span>
-                        <span style={{ fontWeight: isMe ? 700 : 500, color: isMe ? NAVY : C.textDark }}>{name}{isMe ? ' ★' : ''}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 600 }}>{d.count}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 12, fontWeight: 900, color: GOLD }}>{(d.total / 10000).toFixed(1)}<span style={{ fontSize: 9, fontWeight: 500 }}>万</span></span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, fontWeight: 600, color: C.green }}>{(d.reward / 10000).toFixed(1)}<span style={{ fontSize: 9, fontWeight: 500 }}>万</span></span>
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
-            {salesSubTab === 'chart' && (
-              <div style={{ borderRadius: 8, border: '1px solid ' + C.borderLight, padding: '16px 14px' }}>
-                {salesIndivRank.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
-                  : salesIndivRank.map(([name, d], idx) => {
-                    const barMax = maxIndivSales > 0 ? maxIndivSales : 1;
-                    return (
-                      <div key={name} style={{ marginBottom: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontWeight: 700, fontSize: 10, width: 18, textAlign: 'right', color: idx === 0 ? GOLD : C.textLight }}>{idx + 1}</span>
-                          <span style={{ fontSize: 10, fontWeight: 600, color: C.textDark, width: 72, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <div style={{ height: 18, borderRadius: 3, background: 'linear-gradient(90deg,' + GOLD + ',' + GOLD_LIGHT + ')', width: Math.max(d.total / barMax * 100, 2) + '%', transition: 'width 0.4s ease', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 4 }}>
-                              {d.total / barMax > 0.2 && <span style={{ fontSize: 8, fontWeight: 700, color: '#fff' }}>{d.count}件</span>}
-                            </div>
-                            <span style={{ fontSize: 9, color: GOLD, fontWeight: 700, whiteSpace: 'nowrap' }}>{(d.total / 10000).toFixed(1)}万</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
-          </>
-        )}
+        <ActivityRankingSection
+          records={rankActivityRecords}
+          loading={rankActivityLoading}
+          currentUser={currentUser}
+        />
+        <TeamPerformanceTable
+          records={rankActivityRecords}
+          loading={rankActivityLoading}
+          teamMap={teamMap}
+        />
       </div>
+
+      {/* ========== セクションE: 分布グラフ ========== */}
+      <DistributionCharts
+        hourlyRecords={hourlyRecords}
+        rankRecords={rankActivityRecords}
+        loading={hourlyLoading || rankActivityLoading}
+      />
+
 
     </div>
   );
