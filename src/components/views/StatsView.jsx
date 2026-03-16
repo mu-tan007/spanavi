@@ -166,6 +166,39 @@ export default function StatsView({ callListData, currentUser, appoData, members
     return inPeriod(d, salesPeriod, salesCustomFrom, salesCustomTo, salesSelectedMonth);
   }), [appoData, salesPeriod, salesCustomFrom, salesCustomTo, salesSelectedMonth, todayStr, weekStartStr]);
 
+  // ── DEBUG: 調査用ログ（確認後削除） ─────────────────────────────────────
+  useEffect(() => {
+    console.log('=== [StatsView DEBUG] ===');
+
+    // 調査1: appoDataの中身
+    console.log('調査1 appoData件数:', appoData?.length);
+    console.log('調査1 appoDataサンプル（先頭3件）:', JSON.stringify(appoData?.slice(0, 3), null, 2));
+    console.log('調査1 salesFiltered件数:', salesFiltered?.length, '/ 合計:', salesFiltered?.reduce((s, a) => s + (a.sales || 0), 0));
+
+    // 調査2: 週次フィルタ
+    console.log('調査2 今日:', todayStr, '/ weekStartStr:', weekStartStr, '/ salesPeriod:', salesPeriod);
+    console.log('調査2 salesFiltered日付一覧:', salesFiltered?.map(a => ({ getter: a.getter, meetDate: a.meetDate, getDate: a.getDate, sales: a.sales })));
+
+    // 調査3: 今月着地予測の計算
+    const ym = salesPeriod === 'month' ? (salesSelectedMonth || monthStr) : monthStr;
+    const [y, m] = ym.split('-').map(Number);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const elapsed = Math.min(parseInt(todayStr.slice(8, 10)), daysInMonth);
+    const monthData = (appoData || []).filter(a => COUNTABLE.has(a.status) && (a.meetDate || a.getDate || '').startsWith(ym));
+    const sofar = monthData.reduce((s, a) => s + (a.sales || 0), 0);
+    console.log('調査3 着地予測 ym:', ym, '/ daysInMonth:', daysInMonth, '/ elapsed:', elapsed, '/ sofar:', sofar, '/ 予測:', Math.round(sofar / elapsed * daysInMonth));
+
+    // 調査4: clientフィールドの分布
+    const clientStats = (appoData || []).reduce((acc, a) => {
+      const c = a.client;
+      if (!c) acc.empty++;
+      else acc.values[c] = (acc.values[c] || 0) + 1;
+      return acc;
+    }, { empty: 0, values: {} });
+    console.log('調査4 client空文字/null件数:', clientStats.empty, '/ クライアント別件数:', JSON.stringify(clientStats.values));
+    console.log('調査4 companyフィールドサンプル:', appoData?.slice(0, 5).map(a => ({ client: a.client, company: a.company, status: a.status })));
+  }, [appoData, salesFiltered, salesPeriod, salesSelectedMonth, todayStr, weekStartStr]);
+
   // ── Previous period sales ─────────────────────────────────────────────────
   const prevSalesFiltered = useMemo(() => {
     const prev = getPrevRange(salesPeriod, salesSelectedMonth, salesCustomFrom, salesCustomTo, todayStr, weekStartStr);
