@@ -1,3 +1,5 @@
+// デバッグ確認用
+console.log('StatsView module loaded');
 import { useState, useEffect, useMemo, useRef } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
@@ -57,6 +59,7 @@ function getPrevRange(period, selectedMonth, customFrom, customTo, todayStr, wee
 }
 
 export default function StatsView({ callListData, currentUser, appoData, members, now: nowProp }) {
+  console.log('StatsView rendering', { appoDataLength: appoData?.length });
   const [callTab, setCallTab] = useState('team');
   const [callPeriod, setCallPeriod] = useState(() => localStorage.getItem('spanavi_stats_callPeriod') || 'week');
   const [callCustomFrom, setCallCustomFrom] = useState(() => localStorage.getItem('spanavi_stats_callFrom') || '');
