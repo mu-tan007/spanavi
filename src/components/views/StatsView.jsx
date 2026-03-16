@@ -140,8 +140,13 @@ export default function StatsView({ callListData, currentUser, appoData, members
       const d = new Date(toYM); d.setMonth(d.getMonth() + 1); d.setDate(0);
       from = _jstStart(fromDay); to = _jstEnd(d.toISOString().slice(0, 10));
     } else return;
+    let cancelled = false;
     setRankLoading(true);
-    fetchCallRecordsForRanking(from, to).then(({ data }) => { setSupaRecords(data); setRankLoading(false); });
+    fetchCallRecordsForRanking(from, to)
+      .then(({ data }) => { if (!cancelled) setSupaRecords(data || []); })
+      .catch(err => { console.error('[StatsView] fetchCallRecordsForRanking:', err); })
+      .finally(() => { if (!cancelled) setRankLoading(false); });
+    return () => { cancelled = true; };
   }, [callSalesPeriod, callSalesCustomFrom, callSalesCustomTo, todayStr, weekStartStr, monthStr]);
 
   const teamMap = useMemo(() => {
@@ -335,29 +340,35 @@ export default function StatsView({ callListData, currentUser, appoData, members
   }, [callSalesFiltered, teamMap]);
 
   // ── 架電ランキング集計 ────────────────────────────────────────────────────
-  const callByCaller = {};
-  supaRecords.forEach(r => {
-    const k = r.getter_name || '不明';
-    if (!callByCaller[k]) callByCaller[k] = { total: 0, ceoConnect: 0, appo: 0 };
-    callByCaller[k].total += Number(r.total) || 0;
-    callByCaller[k].ceoConnect += Number(r.ceo_connect) || 0;
-    callByCaller[k].appo += Number(r.appo) || 0;
-  });
-  const callIndiv = Object.entries(callByCaller).map(([name, d]) => ({ name, ...d })).sort((a, b) => b.total - a.total);
-  const callIndivRanked = callIndiv.map((item, idx) => ({
-    ...item,
-    rank: (idx === 0 || item.total !== callIndiv[idx - 1]?.total) ? idx + 1 : callIndiv[idx - 1]?._rank || idx + 1,
-    _rank: (idx === 0 || item.total !== callIndiv[idx - 1]?.total) ? idx + 1 : callIndiv[idx - 1]?._rank || idx + 1,
-  }));
-  const callByTeam = {};
-  supaRecords.forEach(r => {
-    const tn = teamMap[r.getter_name] || 'その他';
-    if (!callByTeam[tn]) callByTeam[tn] = { total: 0, ceoConnect: 0, appo: 0 };
-    callByTeam[tn].total += Number(r.total) || 0;
-    callByTeam[tn].ceoConnect += Number(r.ceo_connect) || 0;
-    callByTeam[tn].appo += Number(r.appo) || 0;
-  });
-  const callTeamRank = Object.entries(callByTeam).sort((a, b) => b[1].total - a[1].total);
+  const callIndivRanked = useMemo(() => {
+    const byCaller = {};
+    supaRecords.forEach(r => {
+      const k = r.getter_name || '不明';
+      if (!byCaller[k]) byCaller[k] = { total: 0, ceoConnect: 0, appo: 0 };
+      byCaller[k].total += Number(r.total) || 0;
+      byCaller[k].ceoConnect += Number(r.ceo_connect) || 0;
+      byCaller[k].appo += Number(r.appo) || 0;
+    });
+    const sorted = Object.entries(byCaller).map(([name, d]) => ({ name, ...d })).sort((a, b) => b.total - a.total);
+    let lastRank = 1;
+    return sorted.map((item, idx) => {
+      const rank = (idx === 0 || item.total !== sorted[idx - 1].total) ? idx + 1 : lastRank;
+      lastRank = rank;
+      return { ...item, rank };
+    });
+  }, [supaRecords]);
+
+  const callTeamRank = useMemo(() => {
+    const byTeam = {};
+    supaRecords.forEach(r => {
+      const tn = teamMap[r.getter_name] || 'その他';
+      if (!byTeam[tn]) byTeam[tn] = { total: 0, ceoConnect: 0, appo: 0 };
+      byTeam[tn].total += Number(r.total) || 0;
+      byTeam[tn].ceoConnect += Number(r.ceo_connect) || 0;
+      byTeam[tn].appo += Number(r.appo) || 0;
+    });
+    return Object.entries(byTeam).sort((a, b) => b[1].total - a[1].total);
+  }, [supaRecords, teamMap]);
 
   const salesIndivRank = salesByIndiv;
   const maxIndivSales  = salesIndivRank.length > 0 ? salesIndivRank[0][1].total : 1;
