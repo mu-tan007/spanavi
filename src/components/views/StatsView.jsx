@@ -37,18 +37,15 @@ function getPrevRange(period, selectedMonth, customFrom, customTo, todayStr, wee
 }
 
 export default function StatsView({ callListData, currentUser, appoData, members, now: nowProp }) {
-  // ── 架電ランキング用 ──────────────────────────────────────────────────────
-  const [callTab, setCallTab] = useState('team');
-  const [callPeriod, setCallPeriod] = useState(() => localStorage.getItem('spanavi_stats_callPeriod') || 'week');
-  const [callCustomFrom, setCallCustomFrom] = useState(() => localStorage.getItem('spanavi_stats_callFrom') || '');
-  const [callCustomTo, setCallCustomTo] = useState(() => localStorage.getItem('spanavi_stats_callTo') || '');
-  const [callSelectedMonth, setCallSelectedMonth] = useState(() => {
-    const s = localStorage.getItem('spanavi_stats_callMonth');
-    return (s && AVAILABLE_MONTHS.some(m => m.yyyymm === s)) ? s : (AVAILABLE_MONTHS[0]?.yyyymm || '2026-03');
-  });
+  // ── 架電・売上ランキング統合セクション用 ──────────────────────────────────
+  const [callSalesPeriod, setCallSalesPeriod] = useState(() => localStorage.getItem('spanavi_stats_callSalesPeriod') || 'week');
+  const [callSalesCustomFrom, setCallSalesCustomFrom] = useState(() => localStorage.getItem('spanavi_stats_callSalesFrom') || '');
+  const [callSalesCustomTo, setCallSalesCustomTo] = useState(() => localStorage.getItem('spanavi_stats_callSalesTo') || '');
+  const [mainTab, setMainTab] = useState('call');
+  const [callSubTab, setCallSubTab] = useState('team');
+  const [salesSubTab, setSalesSubTab] = useState('team');
 
-  // ── サマリーカード・旧売上ランキング用 ────────────────────────────────────
-  const [salesTab, setSalesTab] = useState('team');
+  // ── サマリーカード用（独立維持） ──────────────────────────────────────────
   const [salesPeriod, setSalesPeriod] = useState(() => localStorage.getItem('spanavi_stats_salesPeriod') || 'month');
   const [salesCustomFrom, setSalesCustomFrom] = useState(() => localStorage.getItem('spanavi_stats_salesFrom') || '');
   const [salesCustomTo, setSalesCustomTo] = useState(() => localStorage.getItem('spanavi_stats_salesTo') || '');
@@ -81,15 +78,14 @@ export default function StatsView({ callListData, currentUser, appoData, members
   const [expandedClient, setExpandedClient] = useState(null);
 
   useEffect(() => {
-    localStorage.setItem('spanavi_stats_callPeriod', callPeriod);
-    localStorage.setItem('spanavi_stats_callMonth', callSelectedMonth);
-    localStorage.setItem('spanavi_stats_callFrom', callCustomFrom);
-    localStorage.setItem('spanavi_stats_callTo', callCustomTo);
+    localStorage.setItem('spanavi_stats_callSalesPeriod', callSalesPeriod);
+    localStorage.setItem('spanavi_stats_callSalesFrom', callSalesCustomFrom);
+    localStorage.setItem('spanavi_stats_callSalesTo', callSalesCustomTo);
     localStorage.setItem('spanavi_stats_salesPeriod', salesPeriod);
     localStorage.setItem('spanavi_stats_salesMonth', salesSelectedMonth);
     localStorage.setItem('spanavi_stats_salesFrom', salesCustomFrom);
     localStorage.setItem('spanavi_stats_salesTo', salesCustomTo);
-  }, [callPeriod, callSelectedMonth, callCustomFrom, callCustomTo,
+  }, [callSalesPeriod, callSalesCustomFrom, callSalesCustomTo,
       salesPeriod, salesSelectedMonth, salesCustomFrom, salesCustomTo]);
 
   const now = nowProp ? new Date(nowProp) : new Date();
@@ -135,21 +131,18 @@ export default function StatsView({ callListData, currentUser, appoData, members
 
   useEffect(() => {
     let from, to;
-    if (callPeriod === 'day') { from = _jstStart(todayStr); to = _jstEnd(todayStr); }
-    else if (callPeriod === 'week') { from = _jstStart(weekStartStr); to = _jstEnd(todayStr); }
-    else if (callPeriod === 'month') {
-      const firstDay = callSelectedMonth + '-01';
-      const d = new Date(firstDay); d.setMonth(d.getMonth() + 1); d.setDate(0);
-      from = _jstStart(firstDay); to = _jstEnd(d.toISOString().slice(0, 10));
-    } else if (callPeriod === 'custom' && callCustomFrom) {
-      const fromDay = callCustomFrom + '-01';
-      const toYM = (callCustomTo || callCustomFrom) + '-01';
+    if (callSalesPeriod === 'day') { from = _jstStart(todayStr); to = _jstEnd(todayStr); }
+    else if (callSalesPeriod === 'week') { from = _jstStart(weekStartStr); to = _jstEnd(todayStr); }
+    else if (callSalesPeriod === 'month') { from = _jstStart(monthStr + '-01'); to = _jstEnd(todayStr); }
+    else if (callSalesPeriod === 'custom' && callSalesCustomFrom) {
+      const fromDay = callSalesCustomFrom + '-01';
+      const toYM = (callSalesCustomTo || callSalesCustomFrom) + '-01';
       const d = new Date(toYM); d.setMonth(d.getMonth() + 1); d.setDate(0);
       from = _jstStart(fromDay); to = _jstEnd(d.toISOString().slice(0, 10));
     } else return;
     setRankLoading(true);
     fetchCallRecordsForRanking(from, to).then(({ data }) => { setSupaRecords(data); setRankLoading(false); });
-  }, [callPeriod, callSelectedMonth, callCustomFrom, callCustomTo, todayStr, weekStartStr]);
+  }, [callSalesPeriod, callSalesCustomFrom, callSalesCustomTo, todayStr, weekStartStr, monthStr]);
 
   const teamMap = useMemo(() => {
     const m = {};
@@ -303,27 +296,43 @@ export default function StatsView({ callListData, currentUser, appoData, members
     return Object.entries(m).sort((a, b) => b[1].total - a[1].total);
   }, [clientFilteredData]);
 
-  // ── 旧売上ランキング (salesPeriod 連動) ───────────────────────────────────
+  // ── 架電・売上ランキング統合セクション用フィルタ ─────────────────────────
+  const callSalesFiltered = useMemo(() => (appoData || []).filter(a => {
+    if (!COUNTABLE.has(a.status)) return false;
+    const d = (a.getDate || '').slice(0, 10);
+    if (callSalesPeriod === 'day') return d === todayStr;
+    if (callSalesPeriod === 'week') return d >= weekStartStr && d <= todayStr;
+    if (callSalesPeriod === 'month') return d >= monthStr + '-01' && d <= todayStr;
+    if (callSalesPeriod === 'custom') {
+      const dm = d.slice(0, 7);
+      if (callSalesCustomFrom && dm < callSalesCustomFrom) return false;
+      if (callSalesCustomTo && dm > callSalesCustomTo) return false;
+      return true;
+    }
+    return false;
+  }), [appoData, callSalesPeriod, callSalesCustomFrom, callSalesCustomTo, todayStr, weekStartStr, monthStr]);
+
+  // ── 売上ランキング集計 (callSalesFiltered) ────────────────────────────────
   const salesByIndiv = useMemo(() => {
     const m = {};
-    salesFiltered.forEach(a => {
+    callSalesFiltered.forEach(a => {
       const k = a.getter || '不明';
       if (!m[k]) m[k] = { total: 0, reward: 0, count: 0 };
       m[k].total += a.sales || 0; m[k].reward += a.reward || 0; m[k].count++;
     });
     return Object.entries(m).sort((a, b) => b[1].total - a[1].total);
-  }, [salesFiltered]);
+  }, [callSalesFiltered]);
 
   const salesByTeam = useMemo(() => {
     const m = {};
-    salesFiltered.forEach(a => {
+    callSalesFiltered.forEach(a => {
       const tn = teamMap[a.getter] || 'その他';
       if (!m[tn]) m[tn] = { total: 0, count: 0, members: new Set() };
       m[tn].total += a.sales || 0; m[tn].count++;
       if (a.getter) m[tn].members.add(a.getter);
     });
     return Object.entries(m).sort((a, b) => b[1].total - a[1].total).map(([tn, d]) => [tn, { ...d, memberCount: d.members.size }]);
-  }, [salesFiltered, teamMap]);
+  }, [callSalesFiltered, teamMap]);
 
   // ── 架電ランキング集計 ────────────────────────────────────────────────────
   const callByCaller = {};
@@ -717,160 +726,188 @@ export default function StatsView({ callListData, currentUser, appoData, members
         </div>
       </div>
 
-      {/* ========== 架電ランキング ========== */}
-      <div style={{ background: C.white, borderRadius: 10, padding: '18px 20px', marginBottom: 20, border: '1px solid ' + C.borderLight, boxShadow: '0 2px 8px rgba(26,58,92,0.04)' }}>
+      {/* ========== 架電・売上ランキング（統合） ========== */}
+      <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
+        {/* ヘッダー: タイトル＋期間フィルタ */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>📞</span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>架電ランキング</span>
-            <span style={{ fontSize: 10, color: C.textLight }}>({supaRecords.reduce((s, r) => s + Number(r.total), 0)}件)</span>
+            <span style={{ fontSize: 16 }}>📊</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>架電・売上ランキング</span>
           </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-            {periodSelector(callPeriod, setCallPeriod, callCustomFrom, setCallCustomFrom, callCustomTo, setCallCustomTo, callSelectedMonth, setCallSelectedMonth, C.navy)}
-            <div style={{ width: 1, height: 18, background: C.border, margin: '0 4px' }} />
-            {['team', 'individual', 'chart'].map(t => (
-              <button key={t} onClick={() => setCallTab(t)} style={tabBtn(callTab === t, C.navy)}>
-                {t === 'team' ? 'チーム別' : t === 'individual' ? '個人別' : 'グラフ'}
-              </button>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+            {[['day', '日'], ['week', '週'], ['month', '月'], ['custom', '期間指定']].map(([k, l]) => (
+              <button key={k} onClick={() => setCallSalesPeriod(k)} style={tabBtn(callSalesPeriod === k, NAVY)}>{l}</button>
             ))}
+            {callSalesPeriod === 'custom' && (
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                <select value={callSalesCustomFrom} onChange={e => setCallSalesCustomFrom(e.target.value)} style={monthSelectStyle}>
+                  <option value=''>開始月</option>
+                  {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
+                </select>
+                <span style={{ fontSize: 10, color: C.textLight }}>〜</span>
+                <select value={callSalesCustomTo} onChange={e => setCallSalesCustomTo(e.target.value)} style={monthSelectStyle}>
+                  <option value=''>終了月</option>
+                  {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
+                </select>
+              </div>
+            )}
           </div>
         </div>
-        {callTab === 'team' && (
-          <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '36px 1.5fr 0.8fr 0.8fr 0.8fr', padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', borderBottom: '2px solid #E5E5E5' }}>
-              <span>#</span><span>チーム</span><span>架電件数</span><span>社長接続</span><span>アポ取得</span>
-            </div>
-            {callTeamRank.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
-              : callTeamRank.map(([tn, d], idx) => (
-                <div key={tn} style={{ display: 'grid', gridTemplateColumns: '36px 1.5fr 0.8fr 0.8fr 0.8fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2' }} onMouseEnter={e => e.currentTarget.style.background = '#EAF4FF'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <span style={rankBadge(idx + 1)}>{idx === 0 ? '👑' : idx + 1}</span>
-                  <span style={{ fontWeight: 700, color: C.navy }}>{tn}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{d.total}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{d.ceoConnect}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 800, color: C.gold }}>{d.appo}</span>
-                </div>
-              ))}
-          </div>
-        )}
-        {callTab === 'individual' && (
-          <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '36px 1.2fr 0.8fr 0.8fr 0.8fr', padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', borderBottom: '2px solid #E5E5E5' }}>
-              <span>#</span><span>名前</span><span>架電件数</span><span>社長接続</span><span>アポ取得</span>
-            </div>
-            {callIndivRanked.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
-              : callIndivRanked.map((p, idx) => {
-                const isMe = p.name === currentUser;
-                return (
-                  <div key={p.name} style={{ display: 'grid', gridTemplateColumns: '36px 1.2fr 0.8fr 0.8fr 0.8fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', background: isMe ? C.navy + '08' : 'transparent', borderLeft: isMe ? '3px solid ' + C.navy : '3px solid transparent' }}>
-                    <span style={rankBadge(idx + 1)}>{idx === 0 ? '👑' : idx + 1}</span>
-                    <span style={{ fontWeight: isMe ? 700 : 500, color: isMe ? C.navy : C.textDark }}>{p.name}{isMe ? ' ★' : ''}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{p.total}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{p.ceoConnect}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 800, color: C.gold }}>{p.appo}</span>
-                  </div>
-                );
-              })}
-          </div>
-        )}
-        {callTab === 'chart' && (
-          <div style={{ borderRadius: 8, border: '1px solid ' + C.borderLight, padding: '16px 14px' }}>
-            {callIndivRanked.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
-              : callIndivRanked.map((p, idx) => {
-                const maxVal = callIndivRanked[0]?.total || 1;
-                return (
-                  <div key={p.name} style={{ marginBottom: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontWeight: 700, fontSize: 10, width: 18, textAlign: 'right', color: idx === 0 ? C.gold : C.textLight }}>{idx + 1}</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: C.textDark, width: 72, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <div style={{ height: 18, borderRadius: 3, background: 'linear-gradient(90deg,' + C.navy + ',' + C.navyLight + ')', width: Math.max(p.total / maxVal * 100, 2) + '%', transition: 'width 0.4s ease', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 4 }}>
-                          {p.total / maxVal > 0.2 && <span style={{ fontSize: 8, fontWeight: 700, color: C.white }}>{p.total}</span>}
-                        </div>
-                        <span style={{ fontSize: 9, color: C.textMid, whiteSpace: 'nowrap' }}>{p.total}件 / 接続{p.ceoConnect} / アポ{p.appo}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        )}
-      </div>
 
-      {/* ========== 売上ランキング ========== */}
-      <div style={{ background: C.white, borderRadius: 10, padding: '18px 20px', marginBottom: 20, border: '1px solid ' + C.borderLight, boxShadow: '0 2px 8px rgba(26,58,92,0.04)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>💰</span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>売上ランキング</span>
-            <span style={{ fontSize: 10, color: C.textLight }}>（有効ステータスのみ / {salesFiltered.length}件）</span>
-          </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-            {periodSelector(salesPeriod, setSalesPeriod, salesCustomFrom, setSalesCustomFrom, salesCustomTo, setSalesCustomTo, salesSelectedMonth, setSalesSelectedMonth, C.gold)}
-            <div style={{ width: 1, height: 18, background: C.border, margin: '0 4px' }} />
-            {['team', 'individual', 'chart'].map(t => (
-              <button key={t} onClick={() => setSalesTab(t)} style={tabBtn(salesTab === t, C.gold)}>
-                {t === 'team' ? 'チーム別' : t === 'individual' ? '個人別' : 'グラフ'}
-              </button>
-            ))}
-          </div>
+        {/* メインタブ（架電/売上）- ゴールドアンダーライン */}
+        <div style={{ display: 'flex', borderBottom: '2px solid #E5E5E5', marginBottom: 14 }}>
+          {[['call', '📞 架電'], ['sales', '💰 売上']].map(([k, l]) => (
+            <button key={k} onClick={() => setMainTab(k)} style={{ padding: '8px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: 'transparent', border: 'none', fontFamily: "'Noto Sans JP'", color: mainTab === k ? GOLD : C.textMid, borderBottom: mainTab === k ? '3px solid ' + GOLD : '3px solid transparent', marginBottom: -2 }}>{l}</button>
+          ))}
         </div>
-        {salesTab === 'team' && (
-          <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '36px 1.5fr 0.6fr 1fr', padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', borderBottom: '2px solid #E5E5E5' }}>
-              <span>#</span><span>チーム</span><span>件数</span><span>売上</span>
-            </div>
-            {salesTeamRank.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
-              : salesTeamRank.map(([tn, d], idx) => (
-                <div key={tn} style={{ display: 'grid', gridTemplateColumns: '36px 1.5fr 0.6fr 1fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2' }} onMouseEnter={e => e.currentTarget.style.background = '#EAF4FF'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <span style={rankBadge(idx + 1)}>{idx === 0 ? '👑' : idx + 1}</span>
-                  <span style={{ fontWeight: 700, color: C.navy }}>{tn}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 600 }}>{d.count}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 13, fontWeight: 900, color: C.gold }}>{(d.total / 10000).toFixed(1)}<span style={{ fontSize: 9, fontWeight: 500 }}>万円</span></span>
-                </div>
+
+        {/* 架電タブ */}
+        {mainTab === 'call' && (
+          <>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 12 }}>
+              {['team', 'individual', 'chart'].map(t => (
+                <button key={t} onClick={() => setCallSubTab(t)} style={tabBtn(callSubTab === t, NAVY)}>
+                  {t === 'team' ? 'チーム別' : t === 'individual' ? '個人別' : 'グラフ'}
+                </button>
               ))}
-          </div>
-        )}
-        {salesTab === 'individual' && (
-          <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '36px 1.2fr 0.6fr 0.8fr 0.8fr', padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', borderBottom: '2px solid #E5E5E5' }}>
-              <span>#</span><span>名前</span><span>件数</span><span>売上</span><span>報酬</span>
+              <span style={{ fontSize: 10, color: C.textLight, marginLeft: 8 }}>
+                ({supaRecords.reduce((s, r) => s + Number(r.total), 0)}件)
+              </span>
             </div>
-            {salesIndivRank.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
-              : salesIndivRank.map(([name, d], idx) => {
-                const isMe = name === currentUser;
-                return (
-                  <div key={name} style={{ display: 'grid', gridTemplateColumns: '36px 1.2fr 0.6fr 0.8fr 0.8fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', background: isMe ? C.gold + '08' : 'transparent', borderLeft: isMe ? '3px solid ' + C.gold : '3px solid transparent' }}>
-                    <span style={rankBadge(idx + 1)}>{idx === 0 ? '👑' : idx + 1}</span>
-                    <span style={{ fontWeight: isMe ? 700 : 500, color: isMe ? C.navy : C.textDark }}>{name}{isMe ? ' ★' : ''}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 600 }}>{d.count}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 12, fontWeight: 900, color: C.gold }}>{(d.total / 10000).toFixed(1)}<span style={{ fontSize: 9, fontWeight: 500 }}>万</span></span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, fontWeight: 600, color: C.green }}>{(d.reward / 10000).toFixed(1)}<span style={{ fontSize: 9, fontWeight: 500 }}>万</span></span>
-                  </div>
-                );
-              })}
-          </div>
-        )}
-        {salesTab === 'chart' && (
-          <div style={{ borderRadius: 8, border: '1px solid ' + C.borderLight, padding: '16px 14px' }}>
-            {salesIndivRank.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
-              : salesIndivRank.map(([name, d], idx) => {
-                const barMax = maxIndivSales > 0 ? maxIndivSales : 1;
-                return (
-                  <div key={name} style={{ marginBottom: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontWeight: 700, fontSize: 10, width: 18, textAlign: 'right', color: idx === 0 ? C.gold : C.textLight }}>{idx + 1}</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: C.textDark, width: 72, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <div style={{ height: 18, borderRadius: 3, background: 'linear-gradient(90deg,' + C.gold + ',' + C.goldLight + ')', width: Math.max(d.total / barMax * 100, 2) + '%', transition: 'width 0.4s ease', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 4 }}>
-                          {d.total / barMax > 0.2 && <span style={{ fontSize: 8, fontWeight: 700, color: C.white }}>{d.count}件</span>}
-                        </div>
-                        <span style={{ fontSize: 9, color: C.gold, fontWeight: 700, whiteSpace: 'nowrap' }}>{(d.total / 10000).toFixed(1)}万</span>
-                      </div>
+            {callSubTab === 'team' && (
+              <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '36px 1.5fr 0.8fr 0.8fr 0.8fr', padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', borderBottom: '2px solid #E5E5E5' }}>
+                  <span>#</span><span>チーム</span><span>架電件数</span><span>社長接続</span><span>アポ取得</span>
+                </div>
+                {callTeamRank.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
+                  : callTeamRank.map(([tn, d], idx) => (
+                    <div key={tn} style={{ display: 'grid', gridTemplateColumns: '36px 1.5fr 0.8fr 0.8fr 0.8fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2' }} onMouseEnter={e => e.currentTarget.style.background = '#EAF4FF'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                      <span style={rankBadge(idx + 1)}>{idx === 0 ? '👑' : idx + 1}</span>
+                      <span style={{ fontWeight: 700, color: NAVY }}>{tn}</span>
+                      <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{d.total}</span>
+                      <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{d.ceoConnect}</span>
+                      <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 800, color: GOLD }}>{d.appo}</span>
                     </div>
-                  </div>
-                );
-              })}
-          </div>
+                  ))}
+              </div>
+            )}
+            {callSubTab === 'individual' && (
+              <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '36px 1.2fr 0.8fr 0.8fr 0.8fr', padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', borderBottom: '2px solid #E5E5E5' }}>
+                  <span>#</span><span>名前</span><span>架電件数</span><span>社長接続</span><span>アポ取得</span>
+                </div>
+                {callIndivRanked.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
+                  : callIndivRanked.map((p, idx) => {
+                    const isMe = p.name === currentUser;
+                    return (
+                      <div key={p.name} style={{ display: 'grid', gridTemplateColumns: '36px 1.2fr 0.8fr 0.8fr 0.8fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', background: isMe ? NAVY + '08' : 'transparent', borderLeft: isMe ? '3px solid ' + NAVY : '3px solid transparent' }}>
+                        <span style={rankBadge(idx + 1)}>{idx === 0 ? '👑' : idx + 1}</span>
+                        <span style={{ fontWeight: isMe ? 700 : 500, color: isMe ? NAVY : C.textDark }}>{p.name}{isMe ? ' ★' : ''}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{p.total}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{p.ceoConnect}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 800, color: GOLD }}>{p.appo}</span>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+            {callSubTab === 'chart' && (
+              <div style={{ borderRadius: 8, border: '1px solid ' + C.borderLight, padding: '16px 14px' }}>
+                {callIndivRanked.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
+                  : callIndivRanked.map((p, idx) => {
+                    const maxVal = callIndivRanked[0]?.total || 1;
+                    return (
+                      <div key={p.name} style={{ marginBottom: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontWeight: 700, fontSize: 10, width: 18, textAlign: 'right', color: idx === 0 ? GOLD : C.textLight }}>{idx + 1}</span>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: C.textDark, width: 72, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <div style={{ height: 18, borderRadius: 3, background: 'linear-gradient(90deg,' + NAVY + ',#1a3a6b)', width: Math.max(p.total / maxVal * 100, 2) + '%', transition: 'width 0.4s ease', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 4 }}>
+                              {p.total / maxVal > 0.2 && <span style={{ fontSize: 8, fontWeight: 700, color: '#fff' }}>{p.total}</span>}
+                            </div>
+                            <span style={{ fontSize: 9, color: C.textMid, whiteSpace: 'nowrap' }}>{p.total}件 / 接続{p.ceoConnect} / アポ{p.appo}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* 売上タブ */}
+        {mainTab === 'sales' && (
+          <>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 12 }}>
+              {['team', 'individual', 'chart'].map(t => (
+                <button key={t} onClick={() => setSalesSubTab(t)} style={tabBtn(salesSubTab === t, GOLD)}>
+                  {t === 'team' ? 'チーム別' : t === 'individual' ? '個人別' : 'グラフ'}
+                </button>
+              ))}
+              <span style={{ fontSize: 10, color: C.textLight, marginLeft: 8 }}>
+                ({callSalesFiltered.length}件)
+              </span>
+            </div>
+            {salesSubTab === 'team' && (
+              <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '36px 1.5fr 0.6fr 1fr', padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', borderBottom: '2px solid #E5E5E5' }}>
+                  <span>#</span><span>チーム</span><span>件数</span><span>売上</span>
+                </div>
+                {salesTeamRank.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
+                  : salesTeamRank.map(([tn, d], idx) => (
+                    <div key={tn} style={{ display: 'grid', gridTemplateColumns: '36px 1.5fr 0.6fr 1fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2' }} onMouseEnter={e => e.currentTarget.style.background = '#EAF4FF'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                      <span style={rankBadge(idx + 1)}>{idx === 0 ? '👑' : idx + 1}</span>
+                      <span style={{ fontWeight: 700, color: NAVY }}>{tn}</span>
+                      <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 600 }}>{d.count}</span>
+                      <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 13, fontWeight: 900, color: GOLD }}>{(d.total / 10000).toFixed(1)}<span style={{ fontSize: 9, fontWeight: 500 }}>万円</span></span>
+                    </div>
+                  ))}
+              </div>
+            )}
+            {salesSubTab === 'individual' && (
+              <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '36px 1.2fr 0.6fr 0.8fr 0.8fr', padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', borderBottom: '2px solid #E5E5E5' }}>
+                  <span>#</span><span>名前</span><span>件数</span><span>売上</span><span>報酬</span>
+                </div>
+                {salesIndivRank.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
+                  : salesIndivRank.map(([name, d], idx) => {
+                    const isMe = name === currentUser;
+                    return (
+                      <div key={name} style={{ display: 'grid', gridTemplateColumns: '36px 1.2fr 0.6fr 0.8fr 0.8fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', background: isMe ? GOLD + '08' : 'transparent', borderLeft: isMe ? '3px solid ' + GOLD : '3px solid transparent' }}>
+                        <span style={rankBadge(idx + 1)}>{idx === 0 ? '👑' : idx + 1}</span>
+                        <span style={{ fontWeight: isMe ? 700 : 500, color: isMe ? NAVY : C.textDark }}>{name}{isMe ? ' ★' : ''}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 600 }}>{d.count}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 12, fontWeight: 900, color: GOLD }}>{(d.total / 10000).toFixed(1)}<span style={{ fontSize: 9, fontWeight: 500 }}>万</span></span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, fontWeight: 600, color: C.green }}>{(d.reward / 10000).toFixed(1)}<span style={{ fontSize: 9, fontWeight: 500 }}>万</span></span>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+            {salesSubTab === 'chart' && (
+              <div style={{ borderRadius: 8, border: '1px solid ' + C.borderLight, padding: '16px 14px' }}>
+                {salesIndivRank.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
+                  : salesIndivRank.map(([name, d], idx) => {
+                    const barMax = maxIndivSales > 0 ? maxIndivSales : 1;
+                    return (
+                      <div key={name} style={{ marginBottom: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontWeight: 700, fontSize: 10, width: 18, textAlign: 'right', color: idx === 0 ? GOLD : C.textLight }}>{idx + 1}</span>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: C.textDark, width: 72, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <div style={{ height: 18, borderRadius: 3, background: 'linear-gradient(90deg,' + GOLD + ',' + GOLD_LIGHT + ')', width: Math.max(d.total / barMax * 100, 2) + '%', transition: 'width 0.4s ease', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 4 }}>
+                              {d.total / barMax > 0.2 && <span style={{ fontSize: 8, fontWeight: 700, color: '#fff' }}>{d.count}件</span>}
+                            </div>
+                            <span style={{ fontSize: 9, color: GOLD, fontWeight: 700, whiteSpace: 'nowrap' }}>{(d.total / 10000).toFixed(1)}万</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </>
         )}
       </div>
 
