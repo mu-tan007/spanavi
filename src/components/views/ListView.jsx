@@ -137,7 +137,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
       {topRecommended.length > 0 && showRec && !(now && (now.getHours() < 7 || now.getHours() >= 20)) && (
         <div style={{
           background: C.white, borderRadius: 10, padding: "16px 20px", marginBottom: 16,
-          border: "1px solid " + C.borderLight, borderLeft: "4px solid " + C.gold,
+          border: "1px solid " + C.borderLight, borderLeft: "2px solid " + C.gold,
           boxShadow: "0 2px 8px rgba(26,58,92,0.06)",
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
@@ -215,7 +215,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
         <div style={{
           background: C.white, border: "1px solid " + C.gold + "40", borderRadius: 12,
           padding: 24, marginBottom: 20, animation: "fadeIn 0.2s ease",
-          borderLeft: "4px solid " + C.gold,
+          borderLeft: "2px solid " + C.gold,
           boxShadow: "0 2px 8px rgba(26,58,92,0.06)",
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>

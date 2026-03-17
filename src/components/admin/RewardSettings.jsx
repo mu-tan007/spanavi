@@ -95,7 +95,7 @@ export default function RewardSettings({ onToast }) {
                   max={item.max}
                   onChange={e => handleChange(item.key, e.target.value)}
                   style={{
-                    width: 90, padding: '6px 10px', borderRadius: 6, border: '1px solid #D1D5DB',
+                    width: 90, padding: '6px 10px', borderRadius: 6, border: '1px solid #E5E5E5',
                     fontSize: 14, textAlign: 'right', fontFamily: "'JetBrains Mono'",
                   }}
                 />
@@ -111,7 +111,7 @@ export default function RewardSettings({ onToast }) {
           onClick={save}
           disabled={saving}
           style={{
-            padding: '9px 28px', borderRadius: 8, fontSize: 13, fontWeight: 700,
+            padding: '9px 28px', borderRadius: 6, fontSize: 13, fontWeight: 700,
             cursor: saving ? 'not-allowed' : 'pointer', border: 'none',
             background: saving ? '#9CA3AF' : NAVY, color: '#fff',
             fontFamily: "'Noto Sans JP'",

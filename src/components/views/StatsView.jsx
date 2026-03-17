@@ -347,9 +347,10 @@ export default function StatsView({ callListData, currentUser, appoData, members
 
   // ── 共通スタイル ──────────────────────────────────────────────────────────
   const tabBtn = (active, color) => ({
-    padding: '5px 12px', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer',
-    fontFamily: "'Noto Sans JP'", border: '1px solid ' + (active ? color : C.border),
-    background: active ? color : C.white, color: active ? C.white : C.textMid,
+    padding: '6px 12px', fontSize: 11, fontWeight: active ? 600 : 400, cursor: 'pointer',
+    background: 'transparent', border: 'none', borderBottom: '2px solid ' + (active ? (color || '#C8A84B') : 'transparent'),
+    color: active ? '#032D60' : '#9CA3AF', borderRadius: 0, fontFamily: "'Noto Sans JP'",
+    transition: 'all 0.15s',
   });
   const monthSelectStyle = { padding: '3px 6px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, color: C.textDark, outline: 'none', fontFamily: "'Noto Sans JP'" };
   const dateInputStyle = { padding: '3px 6px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, color: C.textDark, outline: 'none', fontFamily: "'Noto Sans JP'" };
@@ -364,7 +365,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
 
   // 日付入力付きセクション独立フィルタ (日/週/月/期間指定)
   const simplePeriodSelector = (period, setPeriod, from, setFrom, to, setTo, accent) => (
-    <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid #E5E5E5' }}>
       {[['day', '日'], ['week', '週'], ['month', '月'], ['custom', '期間指定']].map(([k, l]) => (
         <button key={k} onClick={() => setPeriod(k)} style={tabBtn(period === k, accent)}>{l}</button>
       ))}
@@ -475,7 +476,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>売上推移グラフ</span>
           </div>
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid #E5E5E5' }}>
             {[['daily', '日次'], ['weekly', '週次'], ['monthly', '月次'], ['custom', '期間指定']].map(([k, l]) => (
               <button key={k} onClick={() => setChartTab(k)} style={tabBtn(chartTab === k, GOLD)}>{l}</button>
             ))}
@@ -769,7 +770,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
               </div>
               {simplePeriodSelector(listPeriod, setListPeriod, listFrom, setListFrom, listTo, setListTo, NAVY)}
             </div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12, borderBottom: '1px solid #E5E5E5' }}>
               {[['all', '全て表示'], ['active', 'アクティブのみ'], ['archived', 'アーカイブのみ']].map(([k, l]) => (
                 <button key={k} onClick={() => setListFilter(k)} style={tabBtn(listFilter === k, NAVY)}>{l}</button>
               ))}

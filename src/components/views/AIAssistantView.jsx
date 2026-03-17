@@ -105,7 +105,7 @@ ${rulesText}
       {/* Header */}
       <div style={{
         background: C.white, borderRadius: 10, padding: "14px 20px", marginBottom: 12,
-        border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
+        border: "1px solid " + C.borderLight,
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -210,7 +210,6 @@ ${rulesText}
       <div style={{
         display: "flex", gap: 8, marginTop: 12, padding: "12px 16px",
         background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight,
-        boxShadow: "0 -1px 4px rgba(26,58,92,0.04)",
       }}>
         <input
           type="text" value={input}

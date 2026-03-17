@@ -10,7 +10,7 @@ const TIMING_OPTIONS = ['面談実施', '基本合意'];
 const BASIS_OPTIONS  = ['売上高', '当期純利益', '-'];
 const TAX_OPTIONS    = ['税別', '税込'];
 
-const fmt = (n) => Number(n).toLocaleString();
+const fmt = (n) => n != null && n !== '' ? '¥' + Number(n).toLocaleString() : '-';
 
 export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
   const [types, setTypes] = useState(null); // null = 未ロード
@@ -191,7 +191,7 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
                 <thead>
                   <tr style={{ background: C.offWhite }}>
                     {['下限（円）', '上限（円）', '単価（円）', 'メモ', ''].map(h => (
-                      <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontSize: 10, color: C.textMid, fontWeight: 600, borderBottom: '1px solid ' + C.borderLight }}>{h}</th>
+                      <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontSize: 11, color: '#6B7280', fontWeight: 600, borderBottom: '1px solid ' + C.borderLight, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>

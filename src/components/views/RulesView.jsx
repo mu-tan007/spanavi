@@ -31,7 +31,7 @@ export default function RulesView({ industryRules, setIndustryRules, ruleEditorO
       </div>
 
       {ruleEditorOpen && (
-        <div style={{ background: C.white, border: "1px solid " + C.gold + "40", borderRadius: 12, padding: 24, marginBottom: 24, animation: "fadeIn 0.3s ease", borderLeft: "4px solid " + C.gold }}>
+        <div style={{ background: C.white, border: "1px solid " + C.gold + "40", borderRadius: 12, padding: 24, marginBottom: 24, animation: "fadeIn 0.3s ease", borderLeft: "2px solid " + C.gold }}>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16, color: C.navy }}>{editingRule !== null ? "ルールを編集" : "新しいルール"}</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <div>

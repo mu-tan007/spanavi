@@ -109,7 +109,7 @@ export default function MemberManagement({ onToast }) {
     onToast('メンバーを追加しました ✓');
   };
 
-  const th = { padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6B7280', background: '#F9FAFB', borderBottom: '1px solid #E5E5E5' };
+  const th = { padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6B7280', background: '#F9FAFB', borderBottom: '1px solid #E5E5E5', textTransform: 'uppercase', letterSpacing: '0.05em' };
   const td = { padding: '8px 12px', fontSize: 13, color: '#374151', borderBottom: '1px solid #F3F4F6', verticalAlign: 'middle' };
 
   return (
@@ -142,7 +142,7 @@ export default function MemberManagement({ onToast }) {
                     <td style={td}>
                       {isEditing ? (
                         <select value={editForm.position} onChange={e => setEditForm(p => ({ ...p, position: e.target.value }))}
-                          style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #D1D5DB', fontSize: 12 }}>
+                          style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
                           {POSITIONS.map(p => <option key={p}>{p}</option>)}
                         </select>
                       ) : m.position || '—'}
@@ -150,7 +150,7 @@ export default function MemberManagement({ onToast }) {
                     <td style={td}>
                       {isEditing ? (
                         <select value={editForm.rank} onChange={e => setEditForm(p => ({ ...p, rank: e.target.value }))}
-                          style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #D1D5DB', fontSize: 12 }}>
+                          style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
                           {RANKS.map(r => <option key={r}>{r}</option>)}
                         </select>
                       ) : (
@@ -163,19 +163,19 @@ export default function MemberManagement({ onToast }) {
                     <td style={td}>
                       {isEditing ? (
                         <input value={editForm.team} onChange={e => setEditForm(p => ({ ...p, team: e.target.value }))}
-                          style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #D1D5DB', fontSize: 12, width: 100 }} />
+                          style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12, width: 100 }} />
                       ) : m.team || '—'}
                     </td>
                     <td style={td}>
                       {isEditing ? (
                         <input type="date" value={editForm.operation_start_date} onChange={e => setEditForm(p => ({ ...p, operation_start_date: e.target.value }))}
-                          style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #D1D5DB', fontSize: 12 }} />
+                          style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }} />
                       ) : m.operation_start_date || '—'}
                     </td>
                     <td style={td}>
                       {isEditing ? (
                         <select value={editForm.is_active ? 'active' : 'inactive'} onChange={e => setEditForm(p => ({ ...p, is_active: e.target.value === 'active' }))}
-                          style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #D1D5DB', fontSize: 12 }}>
+                          style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
                           <option value="active">稼働中</option>
                           <option value="inactive">停止</option>
                         </select>
@@ -222,7 +222,7 @@ export default function MemberManagement({ onToast }) {
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>{f.label}</label>
                 <input type={f.type} value={addForm[f.key]} placeholder={f.placeholder}
                   onChange={e => setAddForm(p => ({ ...p, [f.key]: e.target.value }))}
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #D1D5DB', fontSize: 13 }} />
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 13 }} />
               </div>
             ))}
             {[
@@ -232,7 +232,7 @@ export default function MemberManagement({ onToast }) {
               <div key={f.key} style={{ marginBottom: 14 }}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>{f.label}</label>
                 <select value={addForm[f.key]} onChange={e => setAddForm(p => ({ ...p, [f.key]: e.target.value }))}
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #D1D5DB', fontSize: 13 }}>
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 13 }}>
                   {f.options.map(o => <option key={o}>{o}</option>)}
                 </select>
               </div>

@@ -313,7 +313,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
         <div style={{ display: "flex", gap: 4, marginLeft: 12 }}>
           {["all", ...teams].map(t => (
             <button key={t} onClick={() => setTeamFilter(t)} style={{
-              padding: "4px 10px", borderRadius: 12, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'",
+              padding: "4px 10px", borderRadius: 6, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'",
               background: teamFilter === t ? C.gold + "15" : C.white,
               color: teamFilter === t ? C.navy : C.textMid,
               border: "1px solid " + (teamFilter === t ? C.gold : C.borderLight),

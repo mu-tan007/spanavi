@@ -217,7 +217,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
         padding: "14px 18px", background: C.white, borderRadius: 10,
-        border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
+        border: "1px solid " + C.borderLight,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>アポ一覧</span>
@@ -861,7 +861,7 @@ export function MembersView({ members, setMembers }) {
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
         padding: "14px 18px", background: C.white, borderRadius: 10,
-        border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
+        border: "1px solid " + C.borderLight,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 16 }}>👥</span>
@@ -915,7 +915,7 @@ export function MembersView({ members, setMembers }) {
         {sortedTeams.map(team => (
           <div key={team} style={{
             background: C.white, borderRadius: 10, overflow: "hidden",
-            border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
+            border: "1px solid " + C.borderLight,
           }}>
             <div style={{
               padding: "10px 16px", background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")",

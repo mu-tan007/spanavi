@@ -267,7 +267,7 @@ export default function LoginPage() {
         padding: '40px 40px 32px',
         width: 380, maxWidth: '100%',
         boxShadow: '0 16px 64px rgba(0,0,0,0.35)', position: 'relative', zIndex: 1,
-        borderTop: '4px solid ' + C.gold,
+        borderTop: '2px solid ' + C.gold,
       }}>
         {/* ロゴ */}
         <div style={{ textAlign: 'center', marginBottom: 28, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>

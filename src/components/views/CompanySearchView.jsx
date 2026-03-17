@@ -794,7 +794,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       {/* Search bar */}
       <div style={{
         background: C.white, borderRadius: 10, padding: "16px 20px", marginBottom: 16,
-        border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
+        border: "1px solid " + C.borderLight,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>企業検索</span>
@@ -834,7 +834,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       </div>
 
       {/* Results table */}
-      <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, overflow: "hidden", boxShadow: "0 1px 4px rgba(26,58,92,0.04)" }}>
+      <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, overflow: "hidden" }}>
         <div style={{
           display: "grid", gridTemplateColumns: "2fr 1fr 1.2fr 1.2fr 1fr 90px 90px",
           padding: "8px 14px", background: C.navyDeep, fontSize: 9, fontWeight: 600, color: C.goldLight, letterSpacing: 0.5,
@@ -1139,7 +1139,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
         {/* 検索フォーム */}
         <div style={{
           background: C.white, borderRadius: 10, padding: "16px 20px", marginBottom: 16,
-          border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
+          border: "1px solid " + C.borderLight,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>リスト検索</span>
@@ -1313,7 +1313,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
             const statusBg = { "受付ブロック": "#fff7ed", "受付再コール": "#ebf8ff", "社長不在": "#fefce8", "社長再コール": "#ebf8ff", "社長お断り": "#faf5ff", "アポ獲得": "#f0fff4", "除外": "#fee2e2" };
             const statusFg = { "受付ブロック": "#dd6b20", "受付再コール": "#3182ce", "社長不在": "#d69e2e", "社長再コール": "#3182ce", "社長お断り": "#805ad5", "アポ獲得": "#38a169", "除外": "#e53e3e" };
             return (
-              <div style={{ background: C.white, borderRadius: 10, overflow: "hidden", border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)" }}>
+              <div style={{ background: C.white, borderRadius: 10, overflow: "hidden", border: "1px solid " + C.borderLight }}>
                 <div style={{ padding: "8px 16px", background: C.offWhite, borderBottom: "1px solid " + C.borderLight, fontSize: 10, color: C.textLight, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span>架電先企業 {lsItemResults.length.toLocaleString()} 件</span>
                   <button
@@ -1356,7 +1356,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
             条件に一致するリストが見つかりませんでした
           </div>
         ) : lsResults !== null && (
-          <div style={{ background: C.white, borderRadius: 10, overflow: "hidden", border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)" }}>
+          <div style={{ background: C.white, borderRadius: 10, overflow: "hidden", border: "1px solid " + C.borderLight }}>
             <div style={{
               display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 80px 80px 110px",
               padding: "10px 16px", background: C.navyDeep, fontSize: 10,

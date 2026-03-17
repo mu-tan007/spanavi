@@ -85,11 +85,11 @@ export default function AdminView({ isAdmin, setCurrentTab }) {
               onClick={() => setActiveTab(tab.id)}
               style={{
                 flex: 1, padding: '13px 16px', border: 'none', cursor: 'pointer',
-                background: active ? '#fff' : '#F9FAFB',
-                color: active ? NAVY : '#6B7280',
-                fontWeight: active ? 700 : 500,
+                background: 'transparent',
+                color: active ? NAVY : '#9CA3AF',
+                fontWeight: active ? 700 : 400,
                 fontSize: 13, fontFamily: "'Noto Sans JP'",
-                borderBottom: active ? `3px solid ${GOLD}` : '3px solid transparent',
+                borderBottom: active ? `2px solid ${GOLD}` : '2px solid transparent',
                 transition: 'all 0.15s',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}

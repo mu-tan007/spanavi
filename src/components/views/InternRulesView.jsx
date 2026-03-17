@@ -130,7 +130,7 @@ function RuleCard({ rule, refCallback }) {
         boxShadow: hovered
           ? '0 4px 16px rgba(13,34,71,0.12)'
           : '0 1px 4px rgba(13,34,71,0.07)',
-        borderLeft: `4px solid ${hovered ? GOLD : 'transparent'}`,
+        borderLeft: `2px solid ${hovered ? GOLD : 'transparent'}`,
         padding: '20px 22px',
         display: 'flex',
         gap: 16,

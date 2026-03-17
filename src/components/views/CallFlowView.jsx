@@ -751,7 +751,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                       const dir = sortState.column === h ? sortState.direction : null;
                       return (
                         <th key={h} onClick={() => handleSort(h)}
-                          style={{ padding: '7px 8px', textAlign: 'left', fontSize: 9, fontWeight: 600, color: C.goldLight, letterSpacing: 0.5, whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none', ...(w ? { width: w } : {}) }}>
+                          style={{ padding: '7px 8px', textAlign: 'left', fontSize: 9, fontWeight: 600, color: C.goldLight, letterSpacing: '0.05em', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none', textTransform: 'uppercase', ...(w ? { width: w } : {}) }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                             {h}
                             <svg width="8" height="7" viewBox="0 0 8 7" style={{ flexShrink: 0 }}>
@@ -1211,7 +1211,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                           const dir = sortState.column === h ? sortState.direction : null;
                           return (
                             <th key={h} onClick={() => handleSort(h)}
-                              style={{ padding: '8px 8px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#706E6B', letterSpacing: '0.04em', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none', borderBottom: '2px solid #E5E5E5', ...(w ? { width: w } : {}) }}>
+                              style={{ padding: '8px 8px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6B7280', letterSpacing: '0.05em', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none', borderBottom: '2px solid #E5E5E5', textTransform: 'uppercase', ...(w ? { width: w } : {}) }}>
                               {h}{dir === 'desc' ? ' ▼' : dir === 'asc' ? ' ▲' : ''}
                             </th>
                           );

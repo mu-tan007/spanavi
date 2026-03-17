@@ -22,7 +22,7 @@ export default function LoginScreen({ onLogin, members }) {
       <div style={{
         background: C.white, borderRadius: 20, padding: "40px 40px 32px", width: 380,
         boxShadow: "0 16px 64px rgba(0,0,0,0.35)", position: "relative", zIndex: 1,
-        borderTop: "4px solid " + C.gold,
+        borderTop: "2px solid " + C.gold,
       }}>
         <div style={{ textAlign: "center", marginBottom: 28, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <svg width="72" height="82" viewBox="0 0 52 60" style={{ marginBottom: 16 }}>

@@ -33,9 +33,10 @@ export default function ActivitySummaryCards({
   const appoRate = cur.total > 0 ? (cur.appo / cur.total * 100).toFixed(1) : '0.0';
 
   const tabBtn = (active) => ({
-    padding: '5px 12px', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer',
-    fontFamily: "'Noto Sans JP'", border: '1px solid ' + (active ? NAVY : C.border),
-    background: active ? NAVY : '#fff', color: active ? '#fff' : C.textMid,
+    padding: '6px 12px', fontSize: 11, fontWeight: active ? 600 : 400, cursor: 'pointer',
+    background: 'transparent', border: 'none', borderBottom: '2px solid ' + (active ? '#C8A84B' : 'transparent'),
+    color: active ? '#032D60' : '#9CA3AF', borderRadius: 0, fontFamily: "'Noto Sans JP'",
+    transition: 'all 0.15s',
   });
   const dateInputStyle = {
     padding: '3px 6px', borderRadius: 4, border: '1px solid ' + C.border,
@@ -43,17 +44,17 @@ export default function ActivitySummaryCards({
   };
   const cardStyle = {
     background: '#fff', borderRadius: 12, padding: '20px 22px',
-    boxShadow: '0 2px 10px rgba(13,34,71,0.07)', borderTop: '3px solid ' + GOLD, flex: 1,
+    borderTop: '2px solid ' + GOLD, flex: 1,
   };
 
   return (
-    <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
+    <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>活動サマリー</span>
           {loading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
         </div>
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid #E5E5E5' }}>
           {[['day', '日'], ['week', '週'], ['month', '月'], ['custom', '期間指定']].map(([k, l]) => (
             <button key={k} onClick={() => setPeriod(k)} style={tabBtn(period === k)}>{l}</button>
           ))}

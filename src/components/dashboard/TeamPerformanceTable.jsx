@@ -37,7 +37,7 @@ export default function TeamPerformanceTable({ records, loading, teamMap }) {
   const hdr = { padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', borderBottom: '2px solid #E5E5E5' };
 
   return (
-    <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 16, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
+    <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
         <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>チーム別パフォーマンス</span>
         {loading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}

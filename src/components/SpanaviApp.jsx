@@ -578,7 +578,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
             }
             return (
               <div key={group.id}>
-                <div style={{ padding: '16px 20px 6px', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ padding: '16px 20px 6px', fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
                   {SbIconComp && <SbIconComp size={12} />}{group.label}
                 </div>
                 {group.children.map(child => {

@@ -159,8 +159,8 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
               <tr style={{ background: C.offWhite, borderBottom: '1px solid ' + C.borderLight }}>
                 {['受信日時', '企業名・リスト', '電話番号', 'ステータス', '対応者', '操作'].map(h => (
                   <th key={h} style={{
-                    padding: '9px 14px', textAlign: 'left', fontWeight: 700,
-                    color: C.textMid, fontSize: 11,
+                    padding: '9px 14px', textAlign: 'left', fontWeight: 600,
+                    color: '#6B7280', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em',
                   }}>{h}</th>
                 ))}
               </tr>

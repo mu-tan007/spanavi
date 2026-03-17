@@ -108,7 +108,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
         padding: "14px 18px", background: C.white, borderRadius: 10,
-        border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
+        border: "1px solid " + C.borderLight,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>顧客管理（CRM）</span>
@@ -237,7 +237,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                     {rm.tiers.map((t, ti) => (
                       <div key={ti} style={{ display: "flex", justifyContent: "space-between", padding: "4px 8px", fontSize: 11, background: ti % 2 === 0 ? C.offWhite : "transparent", borderRadius: 4 }}>
                         <span style={{ color: C.textMid }}>{t.memo}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: C.gold }}>{(t.price / 10000).toFixed(0)}万円</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: C.gold }}>¥{Number(t.price).toLocaleString()}</span>
                       </div>
                     ))}
                   </div>
@@ -465,7 +465,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                 {rm.tiers.map((t, ti) => (
                   <div key={ti} style={{ display: "flex", justifyContent: "space-between", padding: "6px 8px", fontSize: 12, background: ti % 2 === 0 ? C.offWhite : "transparent", borderRadius: 4 }}>
                     <span style={{ color: C.textDark }}>{t.memo}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: C.gold }}>{(t.price / 10000).toFixed(0)}万円</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: C.gold }}>¥{Number(t.price).toLocaleString()}</span>
                   </div>
                 ))}
               </div>
