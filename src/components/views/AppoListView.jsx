@@ -852,7 +852,7 @@ export function MembersView({ members, setMembers }) {
 
   const formatCurrency = (val) => {
     if (!val) return "-";
-    return (val / 10000).toFixed(1) + "万";
+    return "¥" + Math.round(val).toLocaleString('ja-JP');
   };
 
   const colTemplate = setMembers ? "3% 10% 15% 4% 10% 8% 10% 10% 10% 10% 10%" : "3% 11% 17% 4% 11% 9% 11% 11% 12% 11%";

@@ -919,7 +919,15 @@ export async function insertCallSession(data) {
     .insert([data])
     .select()
     .single()
-  if (error) console.error('[DB] insertCallSession error:', error)
+  if (error) {
+    // 23505 = unique_violation: open session already exists for this (caller, list, range)
+    // This happens on rapid reloads when closeOpenCallSessionsForList hasn't propagated yet — skip silently
+    if (error.code === '23505') {
+      console.warn('[DB] insertCallSession: duplicate open session skipped', data.caller_name, data.list_supa_id)
+      return { data: null, error: null }
+    }
+    console.error('[DB] insertCallSession error:', error)
+  }
   return { data: row, error }
 }
 

@@ -31,7 +31,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
   const emptyForm = { company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "" };
   const [formData, setFormData] = useState(emptyForm);
   const [showRec, setShowRec] = useState(true);
-  const [showArchived, setShowArchived] = useState(false);
+  const [displayFilter, setDisplayFilter] = useState('active');
 
   // Step1: 足切り（定休日・非推奨帯・timeScore 40以下を除外）
   const callable = filteredLists.filter(l =>
@@ -169,6 +169,22 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
         </div>
       )}
 
+      {/* Filter Tabs */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        {[['active', 'アクティブのみ'], ['archived', 'アーカイブのみ'], ['all', '全て表示']].map(([val, label]) => (
+          <button key={val} onClick={() => setDisplayFilter(val)} style={{
+            padding: "6px 16px", borderRadius: 20, fontSize: 12, fontWeight: 600,
+            cursor: "pointer", transition: "all 0.15s", fontFamily: "'Noto Sans JP'",
+            ...(displayFilter === val
+              ? { background: "#0D2247", color: "#fff", border: "1px solid #0D2247" }
+              : { background: "#fff", color: "#6B7280", border: "1px solid #E5E7EB" }),
+          }}
+          onMouseEnter={e => { if (displayFilter !== val) e.currentTarget.style.background = "#F9FAFB"; }}
+          onMouseLeave={e => { if (displayFilter !== val) e.currentTarget.style.background = "#fff"; }}
+          >{label}</button>
+        ))}
+      </div>
+
       {/* Filters */}
       <div style={{
         display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center",
@@ -187,7 +203,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
           <option value="date">日付順</option>
           <option value="manager">担当者別</option>
         </select>
-        <span style={{ fontSize: 11, color: C.textLight, fontWeight: 600 }}>{filteredLists.length}件</span>
+        <span style={{ fontSize: 11, color: C.textLight, fontWeight: 600, fontFamily: "'JetBrains Mono'" }}>{displayFilter === 'archived' ? callListData.filter(l => l.is_archived).length : displayFilter === 'all' ? filteredLists.length + callListData.filter(l => l.is_archived).length : filteredLists.length}件</span>
         {isAdmin && <button onClick={handleOpenAdd} style={{
           padding: "8px 18px", borderRadius: 8, marginLeft: "auto",
           background: "#0D2247",
@@ -298,7 +314,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
         }}>
           <span>クライアント</span><span>種別</span><span>業種</span><span>社数</span><span>担当者</span><span>おすすめ度</span><span></span>
         </div>
-        <div style={{ maxHeight: 600, overflowY: "auto" }}>
+        {displayFilter !== 'archived' && <div style={{ maxHeight: 600, overflowY: "auto" }}>
           {(() => {
             const grouped = {};
             filteredLists.forEach(list => {
@@ -364,51 +380,38 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
               </div>
             ));
           })()}
-        </div>
+        </div>}
         {/* アーカイブ済みリスト */}
-        {isAdmin && (() => {
+        {displayFilter !== 'active' && (() => {
           const archivedLists = callListData.filter(l => l.is_archived);
-          if (archivedLists.length === 0) return null;
+          if (archivedLists.length === 0) return <div style={{ padding: "24px 16px", textAlign: "center", fontSize: 12, color: C.textLight }}>— No records —</div>;
           return (
-            <div style={{ marginTop: 16 }}>
-              <div onClick={() => setShowArchived(v => !v)} style={{
-                padding: "8px 16px", background: C.offWhite,
-                border: "1px solid " + C.borderLight, borderRadius: showArchived ? "8px 8px 0 0" : 8,
-                display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
-                userSelect: "none",
-              }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: C.textLight }}>
-                  アーカイブ済み ({archivedLists.length}件)
-                </span>
-                <span style={{ marginLeft: "auto", fontSize: 11, color: C.textLight }}>{showArchived ? "▲" : "▼"}</span>
-              </div>
-              {showArchived && <div style={{ border: "1px solid " + C.borderLight, borderTop: "none", borderRadius: "0 0 8px 8px", overflow: "hidden" }}>
-                {archivedLists.map(list => (
-                  <div key={list.id} style={{
-                    display: "grid", gridTemplateColumns: "2fr 70px 1fr 70px 0.8fr 80px",
-                    padding: "8px 16px", fontSize: 11, alignItems: "center",
-                    borderBottom: "1px solid " + C.borderLight,
-                    opacity: 0.5, background: C.offWhite,
-                  }}>
-                    <span style={{ color: C.textMid, fontWeight: 500 }}>{list.company}</span>
-                    <span style={{ color: C.textLight, fontSize: 10 }}>{list.type}</span>
-                    <span style={{ color: C.textLight }}>{list.industry}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight }}>{list.count.toLocaleString()}</span>
-                    <span style={{ color: C.textLight }}>{list.manager}</span>
-                    <span style={{ textAlign: "right" }}>
-                      <button onClick={async () => {
-                        const error = await restoreCallList(list._supaId);
-                        if (error) { alert('復元に失敗しました: ' + (error.message || '不明なエラー')); return; }
-                        setCallListData(prev => prev.map(l => l.id === list.id ? { ...l, is_archived: false } : l));
-                      }} style={{
-                        padding: "3px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600,
-                        background: C.navy, color: C.white, border: "none", cursor: "pointer",
-                        fontFamily: "'Noto Sans JP'",
-                      }}>復元</button>
-                    </span>
-                  </div>
-                ))}
-              </div>}
+            <div style={{ borderTop: displayFilter === 'all' ? "1px solid #E5E7EB" : "none", overflow: "hidden" }}>
+              {archivedLists.map(list => (
+                <div key={list.id} style={{
+                  display: "grid", gridTemplateColumns: "2fr 70px 1fr 70px 0.8fr 80px",
+                  padding: "8px 16px", fontSize: 11, alignItems: "center",
+                  borderBottom: "1px solid " + C.borderLight,
+                  opacity: 0.5, background: C.offWhite,
+                }}>
+                  <span style={{ color: C.textMid, fontWeight: 500 }}>{list.company}</span>
+                  <span style={{ color: C.textLight, fontSize: 10 }}>{list.type}</span>
+                  <span style={{ color: C.textLight }}>{list.industry}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight }}>{list.count.toLocaleString()}</span>
+                  <span style={{ color: C.textLight }}>{list.manager}</span>
+                  <span style={{ textAlign: "right" }}>
+                    {isAdmin && <button onClick={async () => {
+                      const error = await restoreCallList(list._supaId);
+                      if (error) { alert('復元に失敗しました: ' + (error.message || '不明なエラー')); return; }
+                      setCallListData(prev => prev.map(l => l.id === list.id ? { ...l, is_archived: false } : l));
+                    }} style={{
+                      padding: "3px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600,
+                      background: C.navy, color: C.white, border: "none", cursor: "pointer",
+                      fontFamily: "'Noto Sans JP'",
+                    }}>復元</button>}
+                  </span>
+                </div>
+              ))}
             </div>
           );
         })()}

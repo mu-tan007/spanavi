@@ -322,12 +322,6 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen 
         border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: 10,
-            background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 18, color: C.white,
-          }}>電話</div>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.navy }}>事前確認</div>
             <div style={{ fontSize: 10, color: C.textLight }}>ステータス「アポ取得」で面談が近いアポイント</div>
