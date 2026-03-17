@@ -14,6 +14,40 @@ const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
 const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール']);
 
+const jstHourOf = (iso) => (new Date(iso).getUTCHours() + 9) % 24;
+const jstDateOf = (iso) => new Date(new Date(iso).getTime() + 9 * 3600000).toISOString().slice(0, 10);
+
+// セッション配列から日ベースの稼働時間統計を計算する
+// { jstDate: { minStart, maxEnd, hours, cph } } + totalHours を返す
+// callsPerDay: { jstDate: count } を渡すと各日の件/h も計算する
+function calcDayStats(sessions, callsPerDay = {}) {
+  const days = {};
+  sessions.forEach(s => {
+    const startH = jstHourOf(s.started_at);
+    if (startH < 9 || startH >= 22) return;
+    const endRaw = s.finished_at || s.last_called_at;
+    if (!endRaw) return;
+    if (jstHourOf(endRaw) >= 22) return;
+    const startMs = new Date(s.started_at).getTime();
+    const endMs   = new Date(endRaw).getTime();
+    const date    = jstDateOf(s.started_at);
+    const d = days[date];
+    if (!d) days[date] = { minStart: startMs, maxEnd: endMs };
+    else {
+      if (startMs < d.minStart) d.minStart = startMs;
+      if (endMs   > d.maxEnd)   d.maxEnd   = endMs;
+    }
+  });
+  let totalHours = 0;
+  Object.entries(days).forEach(([date, d]) => {
+    const h = Math.max((d.maxEnd - d.minStart) / 3600000, 0);
+    d.hours = h;
+    d.cph   = h > 0.01 ? ((callsPerDay[date] || 0) / h).toFixed(1) : '-';
+    totalHours += h;
+  });
+  return { days, totalHours };
+}
+
 function PersonDetailModal({ person, callRecords, appoRecords, sessions, members, teamMap, rankDateRange, onClose }) {
   const personCalls = callRecords.filter(r => r.getter_name === person);
   const personAppos = appoRecords.filter(r => r.getter_name === person);
@@ -27,12 +61,9 @@ function PersonDetailModal({ person, callRecords, appoRecords, sessions, members
   const totalConnect = personCalls.filter(r => CEO_CONNECT.has(r.status)).length;
   const totalAppo    = personAppos.length;
 
-  const sessionHours = personSessions.reduce((sum, s) => {
-    const end = s.finished_at || s.last_called_at;
-    if (!end) return sum;
-    const h = (new Date(end) - new Date(s.started_at)) / 3600000;
-    return sum + (h > 0 ? h : 0);
-  }, 0);
+  const callsPerDay = {};
+  personCalls.forEach(r => { const d = jstDateOf(r.called_at); callsPerDay[d] = (callsPerDay[d] || 0) + 1; });
+  const { days: dayStats, totalHours: sessionHours } = calcDayStats(personSessions, callsPerDay);
   const cph = sessionHours > 0.01 ? (totalCalls / sessionHours).toFixed(1) : null;
 
   const hourlyChartData = useMemo(() => {
@@ -49,20 +80,20 @@ function PersonDetailModal({ person, callRecords, appoRecords, sessions, members
   }, [personCalls]);
 
   const sessionRows = personSessions.map(s => {
-    const start = new Date(s.started_at);
+    const start  = new Date(s.started_at);
     const endRaw = s.finished_at || s.last_called_at;
-    const end = endRaw ? new Date(endRaw) : null;
-    const hours = end ? Math.max((end - start) / 3600000, 0) : 0;
+    const end    = endRaw ? new Date(endRaw) : null;
     const sessionCalls = end
       ? personCalls.filter(r => { const t = new Date(r.called_at); return t >= start && t <= end; }).length
       : 0;
+    const dayCph = dayStats[jstDateOf(s.started_at)]?.cph ?? '-';
     return {
       id: s.id,
       startStr: start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }),
       endStr: end ? end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }) : '進行中',
       isLive: !end,
       sessionCalls,
-      cph: hours > 0.01 ? (sessionCalls / hours).toFixed(1) : '-',
+      cph: dayCph,
     };
   });
 
@@ -284,19 +315,22 @@ export default function PerformanceView({ members, currentUser }) {
     return () => { cancelled = true; };
   }, [rankDateRange]);
 
-  // 人ごとの合計稼働時間 { name: hours }（JST 9〜22時開始のセッションのみ）
+  // 人ごとの合計稼働時間 { name: totalHours }
+  // 日ベース: min(started_at)〜max(end) / JST 9:00〜22:00 のセッションのみ
   const sessionMap = useMemo(() => {
-    const m = {};
+    // caller_name ごとにセッションをグループ化
+    const byName = {};
     sessionRecords.forEach(s => {
       if (!s.caller_name) return;
-      const jstHour = (new Date(s.started_at).getUTCHours() + 9) % 24;
-      if (jstHour < 9 || jstHour >= 22) return;
-      const end = s.finished_at || s.last_called_at;
-      if (!end) return;
-      const h = (new Date(end) - new Date(s.started_at)) / 3600000;
-      if (h > 0) m[s.caller_name] = (m[s.caller_name] || 0) + h;
+      if (!byName[s.caller_name]) byName[s.caller_name] = [];
+      byName[s.caller_name].push(s);
     });
-    return m;
+    const result = {};
+    Object.entries(byName).forEach(([name, sessions]) => {
+      const { totalHours } = calcDayStats(sessions);
+      if (totalHours > 0) result[name] = totalHours;
+    });
+    return result;
   }, [sessionRecords]);
 
   // セクション4: 成長トレンド（過去8週間）
