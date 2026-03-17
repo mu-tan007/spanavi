@@ -39,6 +39,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
   const [rangeConfirmed, setRangeConfirmed] = useState(false);
+  const [rangeError, setRangeError] = useState(false);
 
   const rangeStartNum = rangeConfirmed ? parseInt(rangeStart) || 1 : null;
   const rangeEndNum = rangeConfirmed ? parseInt(rangeEnd) || csvData.length : null;
@@ -383,19 +384,24 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                   />
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => { setRangeStart("1"); setRangeEnd(String(csvData.length)); setRangeConfirmed(true); updateLiveStatus(); }} style={{
-                  flex: 1, padding: "10px", borderRadius: 6, border: "1px solid " + C.borderLight,
-                  background: C.offWhite, cursor: "pointer", fontSize: 12, fontWeight: 600,
-                  color: C.textMid, fontFamily: "'Noto Sans JP'",
-                }}>全件かける</button>
-                <button onClick={() => { if (!rangeStart) setRangeStart("1"); if (!rangeEnd) setRangeEnd(String(csvData.length)); setRangeConfirmed(true); updateLiveStatus(); }} style={{
-                  flex: 1, padding: "10px", borderRadius: 6, border: "none",
-                  background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")",
-                  cursor: "pointer", fontSize: 12, fontWeight: 700,
+              {rangeError && (!rangeStart || !rangeEnd) && (
+                <div style={{ fontSize: 11, color: C.red, marginBottom: 10 }}>番号を入力してください</div>
+              )}
+              <button
+                disabled={!rangeStart || !rangeEnd}
+                onClick={() => {
+                  if (!rangeStart || !rangeEnd) { setRangeError(true); return; }
+                  setRangeConfirmed(true);
+                  updateLiveStatus();
+                }}
+                style={{
+                  width: "100%", padding: "10px", borderRadius: 6, border: "none",
+                  background: rangeStart && rangeEnd ? "#0D2247" : C.border,
+                  cursor: rangeStart && rangeEnd ? "pointer" : "not-allowed",
+                  fontSize: 12, fontWeight: 700,
                   color: C.white, fontFamily: "'Noto Sans JP'",
-                }}>この範囲で開始</button>
-              </div>
+                }}
+              >この範囲で開始</button>
             </div>
           </div>
         </div>
