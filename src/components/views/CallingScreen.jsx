@@ -585,7 +585,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
               const statusDef = roundData ? getStatusDef(roundData.status) : null;
 
               return (
-                <div key={row.no} onClick={() => { setSelectedRow(globalIdx); setMemo(csvData[globalIdx]?.memo || ""); setShowScript(false); setEditRound(currentRound); }}
+                <div key={row.no} onClick={() => { setSelectedRow(globalIdx); setMemo(csvData[globalIdx]?.memo || ""); setShowScript(false); }}
                   style={{
                     display: "grid", gridTemplateColumns: "32px 1.4fr 0.6fr 0.6fr 0.7fr 85px 68px repeat(5, 46px)",
                     padding: "6px 10px", fontSize: 11, alignItems: "center", cursor: "pointer",
@@ -729,8 +729,8 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                         );
                       })}
                     </div>
-                    {editRoundData && (
-                      <div style={{ padding: "6px 10px", borderRadius: 6, background: editStatusDef.bg, border: "1px solid " + editStatusDef.color + "20", marginBottom: 8 }}>
+                    {editRoundData ? (
+                      <div style={{ padding: "8px 12px", borderRadius: 6, background: editStatusDef.bg, border: "1px solid " + editStatusDef.color + "20" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                           <div>
                             <div style={{ fontSize: 11, fontWeight: 600, color: editStatusDef.color }}>{editRound}周目: {editStatusDef.label}</div>
@@ -744,48 +744,49 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                           }}>取り消す</button>
                         </div>
                       </div>
-                    )}
-                    <div>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: C.textLight, marginBottom: 6 }}>{editRound}周目 架電結果を記録</div>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-                        {STATUSES.map(s => {
-                          const sc = CS_SHORTCUTS.find(k => k.id === s.id);
-                          return (
-                          <button key={s.id} onClick={() => {
-                            console.log('[test] ステータスボタン押下');
-                            zoomPhone.hangUp();
-                            if (memo) saveMemo(selectedRow, memo);
-                            if (s.id === "appointment") {
-                              setAppoModal({ idx: selectedRow, row: csvData[selectedRow], round: editRound });
-                            } else if (s.id === "reception_recall" || s.id === "ceo_recall") {
-                              setRecallModal({ idx: selectedRow, row: csvData[selectedRow], statusId: s.id, round: editRound });
-                            } else {
-                              setImportedCSVs(prev => {
-                                const updated = [...(prev[listId] || [])];
-                                const row = { ...updated[selectedRow] };
-                                if (!row.rounds) row.rounds = {};
-                                row.rounds = { ...row.rounds, [editRound]: { status: s.id, memo: memo, timestamp: new Date().toISOString(), caller: currentUser || "" } };
-                                row.called = true;
-                                row.result = getStatusDef(s.id).label;
-                                updated[selectedRow] = row;
-                                return { ...prev, [listId]: updated };
-                              });
-                            }
-                          }} style={{
-                            padding: "7px 6px", borderRadius: 6, position: 'relative',
-                            background: s.bg, border: "1px solid " + s.color + "30",
-                            cursor: "pointer", textAlign: "left",
-                            fontFamily: "'Noto Sans JP'",
-                          }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, color: s.color }}>{s.label}</div>
-                            <div style={{ fontSize: 8, color: s.color + "90" }}>{s.desc}</div>
-                            {s.excluded && <div style={{ fontSize: 7, color: "#e53e3e", marginTop: 1 }}>※ 以降架電除外</div>}
-                            {sc && <span style={{ position: 'absolute', bottom: 3, right: 5, fontSize: 8, color: s.color + '70', fontFamily: "'JetBrains Mono'", lineHeight: 1 }}>{sc.key}</span>}
-                          </button>
-                          );
-                        })}
+                    ) : (
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: C.textLight, marginBottom: 6 }}>{editRound}周目 架電結果を記録</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+                          {STATUSES.map(s => {
+                            const sc = CS_SHORTCUTS.find(k => k.id === s.id);
+                            return (
+                            <button key={s.id} onClick={() => {
+                              console.log('[test] ステータスボタン押下');
+                              zoomPhone.hangUp();
+                              if (memo) saveMemo(selectedRow, memo);
+                              if (s.id === "appointment") {
+                                setAppoModal({ idx: selectedRow, row: csvData[selectedRow], round: editRound });
+                              } else if (s.id === "reception_recall" || s.id === "ceo_recall") {
+                                setRecallModal({ idx: selectedRow, row: csvData[selectedRow], statusId: s.id, round: editRound });
+                              } else {
+                                setImportedCSVs(prev => {
+                                  const updated = [...(prev[listId] || [])];
+                                  const row = { ...updated[selectedRow] };
+                                  if (!row.rounds) row.rounds = {};
+                                  row.rounds = { ...row.rounds, [editRound]: { status: s.id, memo: memo, timestamp: new Date().toISOString(), caller: currentUser || "" } };
+                                  row.called = true;
+                                  row.result = getStatusDef(s.id).label;
+                                  updated[selectedRow] = row;
+                                  return { ...prev, [listId]: updated };
+                                });
+                              }
+                            }} style={{
+                              padding: "7px 6px", borderRadius: 6, position: 'relative',
+                              background: s.bg, border: "1px solid " + s.color + "30",
+                              cursor: "pointer", textAlign: "left",
+                              fontFamily: "'Noto Sans JP'",
+                            }}>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: s.color }}>{s.label}</div>
+                              <div style={{ fontSize: 8, color: s.color + "90" }}>{s.desc}</div>
+                              {s.excluded && <div style={{ fontSize: 7, color: "#e53e3e", marginTop: 1 }}>※ 以降架電除外</div>}
+                              {sc && <span style={{ position: 'absolute', bottom: 3, right: 5, fontSize: 8, color: s.color + '70', fontFamily: "'JetBrains Mono'", lineHeight: 1 }}>{sc.key}</span>}
+                            </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 );
               })()}
