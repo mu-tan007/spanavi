@@ -461,8 +461,8 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       { id: "lists", label: "Lists" },
       { id: "search", label: "Search" },
       { id: "recall", label: "Recall" },
-      { id: "rules", label: "Industry Rules" },
       { id: "incoming", label: "Call History" },
+      { id: "rules", label: "Industry Rules" },
     ]},
     { id: "g_appo", label: "PIPELINE", children: [
       { id: "appo", label: "Appointments" },

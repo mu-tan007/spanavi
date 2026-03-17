@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { C } from '../../constants/colors';
-import { fetchCallActivity, fetchAppoActivity } from '../../lib/supabaseWrite';
+import { fetchCallActivity, fetchAppoActivity, fetchCallSessionsForRange } from '../../lib/supabaseWrite';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
 } from 'recharts';
 import ActivitySummaryCards from '../dashboard/ActivitySummaryCards';
@@ -13,6 +13,158 @@ import TeamPerformanceTable from '../dashboard/TeamPerformanceTable';
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
 const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール']);
+
+function PersonDetailModal({ person, callRecords, appoRecords, sessions, members, teamMap, rankDateRange, onClose }) {
+  const personCalls = callRecords.filter(r => r.getter_name === person);
+  const personAppos = appoRecords.filter(r => r.getter_name === person);
+  const personSessions = sessions
+    .filter(s => s.caller_name === person)
+    .sort((a, b) => new Date(a.started_at) - new Date(b.started_at));
+
+  const member = (members || []).find(m => typeof m === 'object' && m.name === person) || {};
+
+  const totalCalls   = personCalls.length;
+  const totalConnect = personCalls.filter(r => CEO_CONNECT.has(r.status)).length;
+  const totalAppo    = personAppos.length;
+
+  const sessionHours = personSessions.reduce((sum, s) => {
+    const end = s.finished_at || s.last_called_at;
+    if (!end) return sum;
+    const h = (new Date(end) - new Date(s.started_at)) / 3600000;
+    return sum + (h > 0 ? h : 0);
+  }, 0);
+  const cph = sessionHours > 0.01 ? (totalCalls / sessionHours).toFixed(1) : null;
+
+  const hourlyChartData = useMemo(() => {
+    const buckets = {};
+    personCalls.forEach(r => {
+      const h = (new Date(r.called_at).getUTCHours() + 9) % 24;
+      if (!buckets[h]) buckets[h] = { hour: h, normal: 0, ceo: 0, appo: 0 };
+      if (r.status === 'アポ獲得') buckets[h].appo++;
+      else if (CEO_CONNECT.has(r.status)) buckets[h].ceo++;
+      else buckets[h].normal++;
+    });
+    return Array.from({ length: 24 }, (_, h) => buckets[h] || { hour: h, normal: 0, ceo: 0, appo: 0 })
+      .filter(d => d.normal + d.ceo + d.appo > 0);
+  }, [personCalls]);
+
+  const sessionRows = personSessions.map(s => {
+    const start = new Date(s.started_at);
+    const endRaw = s.finished_at || s.last_called_at;
+    const end = endRaw ? new Date(endRaw) : null;
+    const hours = end ? Math.max((end - start) / 3600000, 0) : 0;
+    const sessionCalls = end
+      ? personCalls.filter(r => { const t = new Date(r.called_at); return t >= start && t <= end; }).length
+      : 0;
+    return {
+      id: s.id,
+      startStr: start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }),
+      endStr: end ? end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }) : '進行中',
+      isLive: !end,
+      sessionCalls,
+      cph: hours > 0.01 ? (sessionCalls / hours).toFixed(1) : '-',
+    };
+  });
+
+  const dateLabel = rankDateRange
+    ? (rankDateRange.from === rankDateRange.to ? rankDateRange.from : `${rankDateRange.from} 〜 ${rankDateRange.to}`)
+    : '';
+  const meta = [teamMap[person], member.role, member.rank].filter(Boolean).join(' · ');
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+      onClick={onClose}
+    >
+      <div
+        style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 700, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ background: NAVY, borderRadius: '16px 16px 0 0', padding: '20px 24px', color: '#fff', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', background: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: NAVY, flexShrink: 0 }}>
+            {person.charAt(0)}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>{person}</div>
+            {meta && <div style={{ fontSize: 11, color: '#93C5FD', marginTop: 2 }}>{meta}</div>}
+          </div>
+          {dateLabel && (
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <div style={{ fontSize: 10, color: '#93C5FD' }}>集計期間</div>
+              <div style={{ fontSize: 11, fontWeight: 600 }}>{dateLabel}</div>
+            </div>
+          )}
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 13, marginLeft: 8 }}>✕</button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '20px 24px' }}>
+          {/* KPI cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+            {[
+              { label: '架電件数',   value: totalCalls,   sub: null },
+              { label: '件/h',       value: cph ?? '-',   sub: cph ? `${sessionHours.toFixed(1)}h稼働` : null },
+              { label: '社長接続',   value: totalConnect, sub: totalCalls > 0 ? `${(totalConnect / totalCalls * 100).toFixed(1)}%` : null },
+              { label: 'アポ取得',   value: totalAppo,    sub: totalCalls > 0 ? `${(totalAppo / totalCalls * 100).toFixed(1)}%` : null },
+            ].map(({ label, value, sub }) => (
+              <div key={label} style={{ background: '#F8F9FA', borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: NAVY, fontFamily: "'JetBrains Mono'" }}>{value}</div>
+                {sub && <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 2 }}>{sub}</div>}
+              </div>
+            ))}
+          </div>
+
+          {/* Hourly chart */}
+          {hourlyChartData.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: NAVY, marginBottom: 10 }}>時間帯別架電</div>
+              <ResponsiveContainer width='100%' height={170}>
+                <BarChart data={hourlyChartData} margin={{ top: 0, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray='3 3' stroke='#f0f0f0' />
+                  <XAxis dataKey='hour' tick={{ fontSize: 9 }} tickFormatter={h => `${h}時`} />
+                  <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
+                  <Tooltip formatter={(v, name) => [v, { normal: '架電（接続なし）', ceo: '社長接続', appo: 'アポ取得' }[name] || name]} />
+                  <Bar dataKey='normal' stackId='a' fill={NAVY} name='normal' />
+                  <Bar dataKey='ceo'    stackId='a' fill='#3B82F6' name='ceo' />
+                  <Bar dataKey='appo'   stackId='a' fill='#10B981' name='appo' />
+                </BarChart>
+              </ResponsiveContainer>
+              <div style={{ display: 'flex', gap: 16, justifyContent: 'center', fontSize: 10, color: '#6B7280', marginTop: 6 }}>
+                {[['#0D2247','架電（接続なし）'],['#3B82F6','社長接続'],['#10B981','アポ取得']].map(([bg, label]) => (
+                  <span key={label}><span style={{ display: 'inline-block', width: 10, height: 10, background: bg, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />{label}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Session table */}
+          {sessionRows.length > 0 ? (
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: NAVY, marginBottom: 8 }}>セッション一覧</div>
+              <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr 0.7fr', padding: '7px 14px', background: '#F8F9FA', fontSize: 10, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid #E5E5E5' }}>
+                  <span>開始</span><span>終了</span><span>架電数</span><span>件/h</span>
+                </div>
+                {sessionRows.map((row, i) => (
+                  <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr 0.7fr', padding: '7px 14px', fontSize: 11, borderBottom: i < sessionRows.length - 1 ? '1px solid #F3F2F2' : 'none', background: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
+                    <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 12 }}>{row.startStr}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 12, color: row.isLive ? '#10B981' : '#374151' }}>{row.endStr}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 600 }}>{row.sessionCalls}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'", color: '#374151' }}>{row.cph}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: 20, fontSize: 12, color: '#9CA3AF' }}>セッションデータなし</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function getActivityDateRange(period, customFrom, customTo, todayStr, weekStartStr, monthStr) {
   if (period === 'day')  return { from: todayStr, to: todayStr };
@@ -101,27 +253,49 @@ export default function PerformanceView({ members, currentUser }) {
   const [rankTo, setRankTo] = useState('');
   const [rankRecords, setRankRecords] = useState([]);
   const [appoRankRecords, setAppoRankRecords] = useState([]);
+  const [sessionRecords, setSessionRecords] = useState([]);
   const [rankLoading, setRankLoading] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState(null);
+
+  const rankDateRange = useMemo(
+    () => getActivityDateRange(rankPeriod, rankFrom, rankTo, todayStr, weekStartStr, monthStr),
+    [rankPeriod, rankFrom, rankTo, todayStr, weekStartStr, monthStr]
+  );
 
   useEffect(() => {
-    const range = getActivityDateRange(rankPeriod, rankFrom, rankTo, todayStr, weekStartStr, monthStr);
+    const range = rankDateRange;
     if (!range) return;
     let cancelled = false;
     setRankLoading(true);
     Promise.all([
       fetchCallActivity(_jstStart(range.from), _jstEnd(range.to)),
       fetchAppoActivity(_jstStart(range.from), _jstEnd(range.to)),
+      fetchCallSessionsForRange(_jstStart(range.from), _jstEnd(range.to)),
     ])
-      .then(([calls, appos]) => {
+      .then(([calls, appos, sessions]) => {
         if (!cancelled) {
           setRankRecords(calls.data || []);
           setAppoRankRecords(appos.data || []);
+          setSessionRecords(sessions.data || []);
         }
       })
       .catch(err => console.error('[PerformanceView] rankFetch:', err))
       .finally(() => { if (!cancelled) setRankLoading(false); });
     return () => { cancelled = true; };
-  }, [rankPeriod, rankFrom, rankTo, todayStr, weekStartStr, monthStr]);
+  }, [rankDateRange]);
+
+  // 人ごとの合計稼働時間 { name: hours }
+  const sessionMap = useMemo(() => {
+    const m = {};
+    sessionRecords.forEach(s => {
+      if (!s.caller_name) return;
+      const end = s.finished_at || s.last_called_at;
+      if (!end) return;
+      const h = (new Date(end) - new Date(s.started_at)) / 3600000;
+      if (h > 0) m[s.caller_name] = (m[s.caller_name] || 0) + h;
+    });
+    return m;
+  }, [sessionRecords]);
 
   // セクション4: 成長トレンド（過去8週間）
   const [trendRecords, setTrendRecords] = useState([]);
@@ -227,6 +401,18 @@ export default function PerformanceView({ members, currentUser }) {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
+      {selectedPerson && (
+        <PersonDetailModal
+          person={selectedPerson}
+          callRecords={rankRecords}
+          appoRecords={appoRankRecords}
+          sessions={sessionRecords}
+          members={members}
+          teamMap={teamMap}
+          rankDateRange={rankDateRange}
+          onClose={() => setSelectedPerson(null)}
+        />
+      )}
 
       {/* セクション1: 活動サマリー */}
       <ActivitySummaryCards
@@ -298,12 +484,15 @@ export default function PerformanceView({ members, currentUser }) {
           appoRecords={appoRankRecords}
           loading={rankLoading}
           currentUser={currentUser}
+          sessionMap={sessionMap}
+          onSelectPerson={setSelectedPerson}
         />
         <TeamPerformanceTable
           records={rankRecords}
           appoRecords={appoRankRecords}
           loading={rankLoading}
           teamMap={teamMap}
+          sessionMap={sessionMap}
         />
       </div>
 

@@ -5,9 +5,9 @@ const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
 const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール']);
 const GRID = '1.5fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr 0.55fr';
-const GRID_MBR = '1.5fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr';
+const GRID_MBR = '1.5fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr';
 
-export default function TeamPerformanceTable({ records, appoRecords = [], loading, teamMap }) {
+export default function TeamPerformanceTable({ records, appoRecords = [], loading, teamMap, sessionMap = {} }) {
   const [expandedTeam, setExpandedTeam] = useState(null);
 
   const { teamData, memberData } = useMemo(() => {
@@ -97,11 +97,13 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
               {isExpanded && (
                 <div style={{ background: NAVY + '04', borderBottom: '1px solid #E5E5E5', padding: '6px 28px 10px' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: GRID_MBR, fontSize: 10, fontWeight: 600, color: '#6B7280', padding: '4px 0 6px', borderBottom: '1px solid #ebebeb' }}>
-                    <span>メンバー</span><span>架電</span><span>接続</span><span>接続率</span><span>アポ</span><span>アポ率</span>
+                    <span>メンバー</span><span>架電</span><span>接続</span><span>接続率</span><span>アポ</span><span>アポ率</span><span>件/h</span>
                   </div>
                   {members.map(([name, md]) => {
                     const mcr = md.call > 0 ? (md.connect / md.call * 100).toFixed(1) : '0.0';
                     const mar = md.call > 0 ? (md.appo / md.call * 100).toFixed(1) : '0.0';
+                    const mHours = sessionMap[name] || 0;
+                    const mcph = mHours > 0.01 ? (md.call / mHours).toFixed(1) : '-';
                     return (
                       <div key={name} style={{ display: 'grid', gridTemplateColumns: GRID_MBR, fontSize: 11, padding: '5px 0', borderBottom: '1px solid #f5f5f5', color: C.textDark }}>
                         <span style={{ fontWeight: 500 }}>{name}</span>
@@ -110,6 +112,7 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
                         <span style={{ fontFamily: "'JetBrains Mono'", color: '#374151' }}>{mcr}%</span>
                         <span style={{ fontFamily: "'JetBrains Mono'", color: '#374151', fontWeight: 700 }}>{md.appo}</span>
                         <span style={{ fontFamily: "'JetBrains Mono'", color: '#374151' }}>{mar}%</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", color: '#6B7280' }}>{mcph}</span>
                       </div>
                     );
                   })}

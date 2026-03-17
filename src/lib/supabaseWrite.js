@@ -1003,6 +1003,17 @@ export async function fetchCallSessions(sinceISO) {
   return { data: data || [], error }
 }
 
+export async function fetchCallSessionsForRange(fromISO, toISO) {
+  const { data, error } = await supabase
+    .from('call_sessions')
+    .select('id, caller_name, started_at, finished_at, last_called_at, list_name')
+    .gte('started_at', fromISO)
+    .lte('started_at', toISO)
+    .order('started_at', { ascending: false })
+  if (error) console.error('[DB] fetchCallSessionsForRange error:', error)
+  return { data: data || [], error }
+}
+
 export async function fetchAllCallSessionsWithClients() {
   const { data: sessions, error: sErr } = await supabase
     .from('call_sessions')

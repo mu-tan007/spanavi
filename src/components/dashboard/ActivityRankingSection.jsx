@@ -7,7 +7,7 @@ const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コー
 
 const MEDAL = (idx) => idx === 0 ? `linear-gradient(135deg,${GOLD},#e0c97a)` : idx === 1 ? 'linear-gradient(135deg,#b0b0b0,#d8d8d8)' : idx === 2 ? 'linear-gradient(135deg,#cd7f32,#e8a060)' : null;
 
-function RankRow({ item, idx, valueKey, showRate, maxVal, currentUser }) {
+function RankRow({ item, idx, valueKey, showRate, maxVal, currentUser, cph, onSelect }) {
   const value = item[valueKey];
   const rate = showRate && item.call > 0 ? (value / item.call * 100).toFixed(1) : null;
   const pct = Math.max(value / (maxVal || 1) * 100, 2);
@@ -19,8 +19,12 @@ function RankRow({ item, idx, valueKey, showRate, maxVal, currentUser }) {
         <span style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: idx < 3 ? 10 : 8, fontWeight: 700, flexShrink: 0, background: medal || C.offWhite, color: medal ? '#fff' : C.textLight, border: medal ? 'none' : '1px solid ' + C.borderLight }}>
           {idx + 1}
         </span>
-        <span style={{ flex: 1, fontSize: 11, fontWeight: isMe ? 700 : 500, color: isMe ? NAVY : C.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}{isMe ? ' ★' : ''}</span>
+        <span
+          onClick={onSelect ? () => onSelect(item.name) : undefined}
+          style={{ flex: 1, fontSize: 11, fontWeight: isMe ? 700 : 500, color: isMe ? NAVY : C.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: onSelect ? 'pointer' : 'default', textDecoration: onSelect ? 'underline' : 'none', textDecorationColor: '#9CA3AF' }}
+        >{item.name}{isMe ? ' ★' : ''}</span>
         <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 13, fontWeight: 800, color: NAVY }}>{value}</span>
+        {cph != null && <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 9, color: C.textLight, whiteSpace: 'nowrap' }}>({cph}件/h)</span>}
         {rate !== null && <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, whiteSpace: 'nowrap' }}>({rate}%)</span>}
       </div>
       <div style={{ height: 4, borderRadius: 2, background: C.offWhite, overflow: 'hidden' }}>
@@ -30,7 +34,7 @@ function RankRow({ item, idx, valueKey, showRate, maxVal, currentUser }) {
   );
 }
 
-export default function ActivityRankingSection({ records, appoRecords = [], loading, currentUser }) {
+export default function ActivityRankingSection({ records, appoRecords = [], loading, currentUser, sessionMap = {}, onSelectPerson }) {
   const appoMap = useMemo(() => {
     const m = {};
     appoRecords.forEach(r => {
@@ -89,20 +93,24 @@ export default function ActivityRankingSection({ records, appoRecords = [], load
       <div style={{ display: 'flex', gap: 12 }}>
         <div style={colStyle}>
           <ColHeader text='架電件数' />
-          {callRank.slice(0, 8).map((item, idx) => (
-            <RankRow key={item.name} item={item} idx={idx} valueKey='call' maxVal={callRank[0]?.call} currentUser={currentUser} />
-          ))}
+          {callRank.slice(0, 8).map((item, idx) => {
+            const hours = sessionMap[item.name] || 0;
+            const cph = hours > 0.01 ? (item.call / hours).toFixed(1) : null;
+            return (
+              <RankRow key={item.name} item={item} idx={idx} valueKey='call' maxVal={callRank[0]?.call} currentUser={currentUser} cph={cph} onSelect={onSelectPerson} />
+            );
+          })}
         </div>
         <div style={colStyle}>
           <ColHeader text='社長接続数' />
           {connectRank.slice(0, 8).map((item, idx) => (
-            <RankRow key={item.name} item={item} idx={idx} valueKey='connect' showRate maxVal={connectRank[0]?.connect} currentUser={currentUser} />
+            <RankRow key={item.name} item={item} idx={idx} valueKey='connect' showRate maxVal={connectRank[0]?.connect} currentUser={currentUser} onSelect={onSelectPerson} />
           ))}
         </div>
         <div style={colStyle}>
           <ColHeader text='アポ取得数' />
           {appoRank.slice(0, 8).map((item, idx) => (
-            <RankRow key={item.name} item={item} idx={idx} valueKey='appo' showRate maxVal={appoRank[0]?.appo} currentUser={currentUser} />
+            <RankRow key={item.name} item={item} idx={idx} valueKey='appo' showRate maxVal={appoRank[0]?.appo} currentUser={currentUser} onSelect={onSelectPerson} />
           ))}
         </div>
       </div>
