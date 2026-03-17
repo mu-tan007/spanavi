@@ -727,7 +727,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                         console.log('editRound:', editRound);
                         console.log('tabCount will be:', Math.max((activeRow?.rounds ? Math.max(...Object.keys(activeRow.rounds).map(Number)) : 0) + 1, 1, editRound, 10));
                         const activeMaxRound = activeRow?.rounds ? Math.max(...Object.keys(activeRow.rounds).map(Number)) : 0;
-                        const tabCount = Math.max(activeMaxRound + 1, currentRound, editRound, 10);
+                        const tabCount = 10;
                         return Array.from({length: tabCount}, (_, i) => i + 1).map(w => {
                           const wd = getRoundStatus(activeRow, w);
                           const wsd = wd ? getStatusDef(wd.status) : null;
