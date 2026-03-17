@@ -338,14 +338,10 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
   // Filtered list
   // Helper: get last call datetime for a row
   const getLastCallDate = (row) => {
-    let latest = "";
-    for (let w = 5; w >= 1; w--) {
-      const rd = getRoundStatus(row, w);
-      if (rd && rd.timestamp) {
-        if (rd.timestamp > latest) latest = rd.timestamp;
-      }
-    }
-    return latest;
+    if (!row.rounds) return "";
+    return Object.values(row.rounds)
+      .filter(rd => rd && rd.timestamp)
+      .reduce((latest, rd) => rd.timestamp > latest ? rd.timestamp : latest, "");
   };
 
   const prefOptions = [...new Set(csvData.map(r => r.pref).filter(Boolean))].sort();
@@ -394,11 +390,13 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
     return Object.values(r.rounds).some(rd => rd.status === "appointment");
   }).length;
 
-  // Max round used
+  // Max round used across all rows
   const maxRound = csvData.reduce((max, r) => {
     if (!r.rounds) return max;
     return Math.max(max, ...Object.keys(r.rounds).map(Number));
   }, 0);
+  // Number of round columns to display in the table (at least currentRound)
+  const displayRounds = Math.max(maxRound, currentRound);
 
   const activeRow = selectedRow !== null ? csvData[selectedRow] : null;
   const activeRoundData = activeRow ? getRoundStatus(activeRow, currentRound) : null;
@@ -563,7 +561,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
 
           {/* Table header */}
           <div style={{
-            display: "grid", gridTemplateColumns: "32px 1.4fr 0.6fr 0.6fr 0.7fr 85px 68px repeat(5, 46px)",
+            display: "grid", gridTemplateColumns: `32px 1.4fr 0.6fr 0.6fr 0.7fr 85px 68px repeat(${displayRounds}, 46px)`,
             padding: "5px 10px", background: C.navyDeep, flexShrink: 0,
             fontSize: 9, fontWeight: 600, color: C.goldLight, letterSpacing: 0.5,
           }}>
@@ -572,7 +570,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                 {label}{listSortBy === key ? " ▲" : " ▽"}
               </span>
             ))}
-            {[1,2,3,4,5].map(w => <span key={w} style={{ textAlign: "center", color: w === currentRound ? C.gold : C.goldLight + "80" }}>{w}周</span>)}
+            {Array.from({length: displayRounds}, (_, i) => i + 1).map(w => <span key={w} style={{ textAlign: "center", color: w === currentRound ? C.gold : C.goldLight + "80" }}>{w}周</span>)}
           </div>
 
           {/* Table body */}
@@ -587,7 +585,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
               return (
                 <div key={row.no} onClick={() => { setSelectedRow(globalIdx); setMemo(csvData[globalIdx]?.memo || ""); setShowScript(false); }}
                   style={{
-                    display: "grid", gridTemplateColumns: "32px 1.4fr 0.6fr 0.6fr 0.7fr 85px 68px repeat(5, 46px)",
+                    display: "grid", gridTemplateColumns: `32px 1.4fr 0.6fr 0.6fr 0.7fr 85px 68px repeat(${displayRounds}, 46px)`,
                     padding: "6px 10px", fontSize: 11, alignItems: "center", cursor: "pointer",
                     borderBottom: "1px solid " + C.borderLight,
                     background: isSelected ? '#EFF6FF' : excluded ? "#fee2e2" + "40" : roundData ? C.offWhite : C.white,
@@ -616,7 +614,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                   <span style={{ fontSize: 9, color: C.textLight, fontFamily: "'JetBrains Mono'", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {(() => { const lcd = getLastCallDate(row); return lcd ? lcd.replace(/T/, " ").slice(5, 16) : "-"; })()}
                   </span>
-                  {[1,2,3,4,5].map(w => {
+                  {Array.from({length: displayRounds}, (_, i) => i + 1).map(w => {
                     const wd = getRoundStatus(row, w);
                     const wsd = wd ? getStatusDef(wd.status) : null;
                     return (
@@ -713,21 +711,25 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                 return (
                   <div style={{ marginBottom: 12 }}>
                     <div style={{ display: "flex", gap: 2, marginBottom: 6 }}>
-                      {[1,2,3,4,5].map(w => {
-                        const wd = getRoundStatus(activeRow, w);
-                        const wsd = wd ? getStatusDef(wd.status) : null;
-                        return (
-                          <button key={w} onClick={() => setEditRound(w)} style={{
-                            flex: 1, padding: "4px 0", borderRadius: 4, fontSize: 9, fontWeight: 700,
-                            cursor: "pointer", fontFamily: "'Noto Sans JP'", transition: "all 0.15s",
-                            border: editRound === w ? "1px solid " + C.gold : "1px solid " + C.borderLight,
-                            background: editRound === w ? C.gold + "15" : wsd ? wsd.bg : C.white,
-                            color: editRound === w ? C.navy : wsd ? wsd.color : C.textLight,
-                          }}>
-                            {w}周{wsd ? " ✓" : ""}
-                          </button>
-                        );
-                      })}
+                      {(() => {
+                        const activeMaxRound = activeRow?.rounds ? Math.max(...Object.keys(activeRow.rounds).map(Number)) : 0;
+                        const tabCount = Math.max(activeMaxRound + 1, currentRound, editRound);
+                        return Array.from({length: tabCount}, (_, i) => i + 1).map(w => {
+                          const wd = getRoundStatus(activeRow, w);
+                          const wsd = wd ? getStatusDef(wd.status) : null;
+                          return (
+                            <button key={w} onClick={() => setEditRound(w)} style={{
+                              flex: 1, padding: "4px 0", borderRadius: 4, fontSize: 9, fontWeight: 700,
+                              cursor: "pointer", fontFamily: "'Noto Sans JP'", transition: "all 0.15s",
+                              border: editRound === w ? "1px solid " + C.gold : "1px solid " + C.borderLight,
+                              background: editRound === w ? C.gold + "15" : wsd ? wsd.bg : C.white,
+                              color: editRound === w ? C.navy : wsd ? wsd.color : C.textLight,
+                            }}>
+                              {w}周{wsd ? " ✓" : ""}
+                            </button>
+                          );
+                        });
+                      })()}
                     </div>
                     {editRoundData ? (
                       <div style={{ padding: "8px 12px", borderRadius: 6, background: editStatusDef.bg, border: "1px solid " + editStatusDef.color + "20" }}>
