@@ -737,6 +737,8 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                             const sc = CS_SHORTCUTS.find(k => k.id === s.id);
                             return (
                             <button key={s.id} onClick={() => {
+                              console.log('[test] ステータスボタン押下');
+                              zoomPhone.hangUp();
                               if (memo) saveMemo(selectedRow, memo);
                               if (s.id === "appointment") {
                                 setAppoModal({ idx: selectedRow, row: csvData[selectedRow], round: editRound });
