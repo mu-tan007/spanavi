@@ -36,7 +36,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
     const row = (importedCSVs[listId] || [])[selectedRow];
     const keys = row?.rounds ? Object.keys(row.rounds) : [];
     const maxRd = keys.length > 0 ? Math.max(...keys.map(Number)) : 0;
-    setEditRound(Math.max(maxRd + 1, 1));
+    setEditRound(Math.min(Math.max(maxRd + 1, 1), 8));
   }, [selectedRow]); // eslint-disable-line react-hooks/exhaustive-deps
   const [showScript, setShowScript] = useState(false);
   const [prefFilter, setPrefFilter] = useState("");
