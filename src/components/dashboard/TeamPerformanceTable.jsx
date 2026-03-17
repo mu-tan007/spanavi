@@ -37,7 +37,7 @@ export default function TeamPerformanceTable({ records, loading, teamMap }) {
     return { teamData, memberData: mm };
   }, [records, teamMap]);
 
-  const hdr = { padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', borderBottom: '2px solid #E5E5E5' };
+  const hdr = { padding: '8px 16px', background: '#F8F9FA', fontSize: 11, fontWeight: 600, color: '#6B7280', letterSpacing: '0.08em', textTransform: 'uppercase', borderBottom: '1px solid #E5E7EB' };
 
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
@@ -78,7 +78,7 @@ export default function TeamPerformanceTable({ records, loading, teamMap }) {
               </div>
               {isExpanded && (
                 <div style={{ background: NAVY + '04', borderBottom: '1px solid #E5E5E5', padding: '6px 28px 10px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: GRID_MBR, fontSize: 10, fontWeight: 600, color: C.textLight, padding: '4px 0 6px', borderBottom: '1px solid #ebebeb' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: GRID_MBR, fontSize: 10, fontWeight: 600, color: '#6B7280', padding: '4px 0 6px', borderBottom: '1px solid #ebebeb' }}>
                     <span>メンバー</span><span>架電</span><span>接続</span><span>接続率</span><span>アポ</span><span>アポ率</span>
                   </div>
                   {members.map(([name, md]) => {

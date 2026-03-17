@@ -660,7 +660,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
             <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
               {/* テーブル */}
               <div style={{ flex: '1.5', minWidth: 0, borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1fr', padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', letterSpacing: '0.06em', borderBottom: '2px solid #E5E5E5' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1fr', padding: '8px 16px', background: '#F8F9FA', fontSize: 11, fontWeight: 600, color: '#6B7280', letterSpacing: '0.08em', textTransform: 'uppercase', borderBottom: '1px solid #E5E7EB' }}>
                   <span>クライアント名</span><span>アポ数</span><span>売上合計</span><span>平均単価</span><span>最終アポ日</span>
                 </div>
                 {clientData.length === 0 ? (
@@ -771,13 +771,13 @@ export default function StatsView({ callListData, currentUser, appoData, members
               </div>
               {simplePeriodSelector(listPeriod, setListPeriod, listFrom, setListFrom, listTo, setListTo, NAVY)}
             </div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 12, borderBottom: '1px solid #E5E5E5' }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
               {[['all', '全て表示'], ['active', 'アクティブのみ'], ['archived', 'アーカイブのみ']].map(([k, l]) => (
-                <button key={k} onClick={() => setListFilter(k)} style={tabBtn(listFilter === k, NAVY)}>{l}</button>
+                <button key={k} onClick={() => setListFilter(k)} style={listFilter === k ? { background: '#0D2247', color: '#FFFFFF', border: '1px solid #0D2247', borderRadius: 6, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'" } : { background: '#FFFFFF', color: '#6B7280', border: '1px solid #E5E7EB', borderRadius: 6, padding: '5px 12px', fontSize: 11, fontWeight: 400, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>{l}</button>
               ))}
             </div>
             <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5', overflowX: 'auto' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, borderBottom: '2px solid #E5E5E5', minWidth: 1170 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '8px 16px', background: '#F8F9FA', fontSize: 11, fontWeight: 600, color: '#6B7280', letterSpacing: '0.08em', textTransform: 'uppercase', borderBottom: '1px solid #E5E7EB', minWidth: 1170 }}>
                 <SortHdr label='クライアント' sk='clientName' />
                 <SortHdr label='業種' sk='name' />
                 <SortHdr label='架電数' sk='calls' />

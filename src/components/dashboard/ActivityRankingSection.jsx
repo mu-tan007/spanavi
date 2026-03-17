@@ -21,7 +21,7 @@ function RankRow({ item, idx, valueKey, showRate, maxVal, currentUser }) {
         </span>
         <span style={{ flex: 1, fontSize: 11, fontWeight: isMe ? 700 : 500, color: isMe ? NAVY : C.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}{isMe ? ' ★' : ''}</span>
         <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 13, fontWeight: 800, color: NAVY }}>{value}</span>
-        {rate !== null && <span style={{ fontSize: 10, color: C.textLight, whiteSpace: 'nowrap' }}>({rate}%)</span>}
+        {rate !== null && <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, whiteSpace: 'nowrap' }}>({rate}%)</span>}
       </div>
       <div style={{ height: 4, borderRadius: 2, background: C.offWhite, overflow: 'hidden' }}>
         <div style={{ height: '100%', borderRadius: 2, background: idx === 0 ? `linear-gradient(90deg,${NAVY},#1a3a6b)` : 'linear-gradient(90deg,#9CA3AF,#d1d5db)', width: pct + '%', transition: 'width 0.4s ease' }} />

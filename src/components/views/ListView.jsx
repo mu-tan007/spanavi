@@ -190,7 +190,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
         <span style={{ fontSize: 11, color: C.textLight, fontWeight: 600 }}>{filteredLists.length}件</span>
         {isAdmin && <button onClick={handleOpenAdd} style={{
           padding: "8px 18px", borderRadius: 8, marginLeft: "auto",
-          background: "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")",
+          background: "#0D2247",
           border: "none", color: C.white, cursor: "pointer",
           fontSize: 12, fontWeight: 600, fontFamily: "'Noto Sans JP'",
           whiteSpace: "nowrap",
@@ -292,9 +292,9 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
       }}>
         <div style={{
           display: "grid", gridTemplateColumns: "2fr 70px 1fr 70px 0.8fr 120px 60px",
-          padding: "10px 16px", background: "#F3F2F2",
-          fontSize: 11, fontWeight: 700, color: "#706E6B", letterSpacing: "0.06em",
-          textTransform: "uppercase", borderBottom: "2px solid #E5E5E5",
+          padding: "10px 16px", background: "#F8F9FA",
+          fontSize: 11, fontWeight: 600, color: "#6B7280", letterSpacing: "0.08em",
+          textTransform: "uppercase", borderBottom: "1px solid #E5E7EB",
         }}>
           <span>クライアント</span><span>種別</span><span>業種</span><span>社数</span><span>担当者</span><span>おすすめ度</span><span></span>
         </div>

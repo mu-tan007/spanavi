@@ -325,9 +325,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       <div style={{ background: C.white, borderRadius: 8, overflow: "hidden", border: "1px solid #E5E5E5", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
         <div style={{
           display: "grid", gridTemplateColumns: colTemplate,
-          padding: "8px 16px", background: "#F3F2F2",
-          fontSize: 11, fontWeight: 700, color: "#706E6B", letterSpacing: "0.06em",
-          textTransform: "uppercase", borderBottom: "2px solid #E5E5E5",
+          padding: "8px 16px", background: "#F8F9FA",
+          fontSize: 11, fontWeight: 600, color: "#6B7280", letterSpacing: "0.08em",
+          textTransform: "uppercase", borderBottom: "1px solid #E5E7EB",
           alignItems: "center",
         }}>
           {[

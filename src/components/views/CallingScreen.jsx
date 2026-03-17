@@ -547,15 +547,18 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
           {filtered.length > PAGE_SIZE && (
             <div style={{ display: "flex", justifyContent: "center", gap: 8, padding: "5px 0", background: C.white, borderTop: "1px solid " + C.borderLight, flexShrink: 0 }}>
               <button disabled={pageStart === 0} onClick={() => setPageStart(Math.max(0, pageStart - PAGE_SIZE))} style={{
-                padding: "3px 14px", borderRadius: 4, border: "1px solid " + C.border,
-                background: pageStart === 0 ? C.offWhite : C.white, cursor: pageStart === 0 ? "default" : "pointer",
-                fontSize: 11, color: C.textMid,
+                padding: "3px 14px", borderRadius: 4,
+                border: "1px solid " + (pageStart === 0 ? "#E5E7EB" : "#0D2247"),
+                background: pageStart === 0 ? "#F8F9FA" : "white",
+                cursor: pageStart === 0 ? "default" : "pointer",
+                fontSize: 11, color: pageStart === 0 ? "#9CA3AF" : "#0D2247",
               }}>← 前</button>
               <button disabled={pageStart + PAGE_SIZE >= filtered.length} onClick={() => setPageStart(pageStart + PAGE_SIZE)} style={{
-                padding: "3px 14px", borderRadius: 4, border: "1px solid " + C.border,
-                background: pageStart + PAGE_SIZE >= filtered.length ? C.offWhite : C.white,
+                padding: "3px 14px", borderRadius: 4,
+                border: "1px solid " + (pageStart + PAGE_SIZE >= filtered.length ? "#E5E7EB" : "#0D2247"),
+                background: pageStart + PAGE_SIZE >= filtered.length ? "#F8F9FA" : "white",
                 cursor: pageStart + PAGE_SIZE >= filtered.length ? "default" : "pointer",
-                fontSize: 11, color: C.textMid,
+                fontSize: 11, color: pageStart + PAGE_SIZE >= filtered.length ? "#9CA3AF" : "#0D2247",
               }}>次 →</button>
             </div>
           )}

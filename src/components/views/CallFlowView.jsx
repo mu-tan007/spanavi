@@ -701,9 +701,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           <button onClick={toggleAutoDial} style={{
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '5px 10px', borderRadius: 6, cursor: 'pointer', flexShrink: 0,
-            border: '1px solid ' + (autoDial ? C.gold : C.white + '30'),
-            background: autoDial ? C.gold : C.white + '10',
-            color: autoDial ? C.navy : C.white + 'aa',
+            border: '1px solid ' + (autoDial ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.2)'),
+            background: autoDial ? 'rgba(255,255,255,0.85)' : 'transparent',
+            color: autoDial ? '#0D2247' : 'rgba(255,255,255,0.45)',
             fontSize: 10, fontWeight: 700, fontFamily: "'Noto Sans JP'",
           }}>
             <span style={{ fontSize: 12 }}>{autoDial ? '↻' : '▶'}</span>
@@ -712,7 +712,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           <button onClick={handleClose} style={{ width: 32, height: 32, borderRadius: 6, background: C.white + '15', border: '1px solid ' + C.white + '30', color: C.white, cursor: 'pointer', fontSize: 16, flexShrink: 0 }}>✕</button>
         </div>
         <div style={{ height: 4, background: C.white + '20', borderRadius: 2, overflow: 'hidden' }}>
-          <div style={{ width: progress + '%', height: '100%', background: 'linear-gradient(90deg, ' + C.goldLight + ', #6fcf97)', borderRadius: 2, transition: 'width 0.4s ease' }} />
+          <div style={{ width: progress + '%', height: '100%', background: 'linear-gradient(90deg, #0D2247, #1E40AF)', borderRadius: 2, transition: 'width 0.4s ease' }} />
         </div>
         <div style={{ fontSize: 9, color: C.white + '60', marginTop: 3, textAlign: 'right' }}>{progress}% 架電済（{stats.called} / {stats.total}件）</div>
       </div>
@@ -1116,9 +1116,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           <button
             onClick={() => { if (currentIdx > 0) { setSelectedRow(sorted[currentIdx - 1]); setListMode(false); } }}
             disabled={currentIdx <= 0}
-            style={{ padding: '4px 14px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+            style={{ padding: '4px 14px', borderRadius: 6, fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+              border: currentIdx <= 0 ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.5)',
               background: currentIdx <= 0 ? 'transparent' : 'rgba(255,255,255,0.1)',
-              color: currentIdx <= 0 ? 'rgba(255,255,255,0.25)' : '#fff',
+              color: currentIdx <= 0 ? 'rgba(255,255,255,0.3)' : '#ffffff',
               cursor: currentIdx <= 0 ? 'default' : 'pointer' }}>
             ◀ 前へ
           </button>
@@ -1128,9 +1129,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           <button
             onClick={() => { if (currentIdx < sorted.length - 1) { setSelectedRow(sorted[currentIdx + 1]); setListMode(false); } }}
             disabled={currentIdx >= sorted.length - 1}
-            style={{ padding: '4px 14px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+            style={{ padding: '4px 14px', borderRadius: 6, fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+              border: currentIdx >= sorted.length - 1 ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.5)',
               background: currentIdx >= sorted.length - 1 ? 'transparent' : 'rgba(255,255,255,0.1)',
-              color: currentIdx >= sorted.length - 1 ? 'rgba(255,255,255,0.25)' : '#fff',
+              color: currentIdx >= sorted.length - 1 ? 'rgba(255,255,255,0.3)' : '#ffffff',
               cursor: currentIdx >= sorted.length - 1 ? 'default' : 'pointer' }}>
             次へ ▶
           </button>
@@ -1139,9 +1141,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         {/* 右: オートコール + 閉じる */}
         <button onClick={toggleAutoDial}
           style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 6, cursor: 'pointer', flexShrink: 0,
-            border: '1px solid ' + (autoDial ? C.gold : 'rgba(255,255,255,0.2)'),
-            background: autoDial ? C.gold : 'rgba(255,255,255,0.07)',
-            color: autoDial ? C.navy : 'rgba(255,255,255,0.65)',
+            border: '1px solid ' + (autoDial ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.2)'),
+            background: autoDial ? 'rgba(255,255,255,0.85)' : 'transparent',
+            color: autoDial ? '#0D2247' : 'rgba(255,255,255,0.45)',
             fontSize: 10, fontWeight: 700, fontFamily: "'Noto Sans JP'" }}>
           <span>{autoDial ? '↻' : '▶'}</span>
           オートコール {autoDial ? 'ON' : 'OFF'}
@@ -1206,7 +1208,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 ) : (
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                     <thead>
-                      <tr style={{ background: '#F3F2F2', position: 'sticky', top: 0, zIndex: 1 }}>
+                      <tr style={{ background: '#F8F9FA', position: 'sticky', top: 0, zIndex: 1 }}>
                         {[['No', '36px'], ['企業名', null], ['事業内容', null], ['代表者', '90px'], ['電話番号', '112px'], ['売上高', '90px'], ['結果', '80px']].map(([h, w]) => {
                           const dir = sortState.column === h ? sortState.direction : null;
                           return (
@@ -1265,10 +1267,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               {totalPages > 1 && (
                 <div style={{ padding: '8px 12px', borderTop: '1px solid #E5E5E5', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                    style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #E5E5E5', background: '#F3F2F2', cursor: page === 0 ? 'default' : 'pointer', fontSize: 11, color: page === 0 ? '#c0c0c0' : '#032D60', fontFamily: "'Noto Sans JP'" }}>← 前</button>
+                    style={{ padding: '4px 12px', borderRadius: 6, border: page === 0 ? '1px solid #E5E7EB' : '1px solid #0D2247', background: page === 0 ? '#F8F9FA' : 'white', cursor: page === 0 ? 'default' : 'pointer', fontSize: 11, color: page === 0 ? '#9CA3AF' : '#0D2247', fontFamily: "'Noto Sans JP'" }}>← 前</button>
                   <span style={{ fontSize: 11, color: '#706E6B' }}>{page + 1} / {totalPages}（{sorted.length}件）</span>
                   <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}
-                    style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #E5E5E5', background: '#F3F2F2', cursor: page === totalPages - 1 ? 'default' : 'pointer', fontSize: 11, color: page === totalPages - 1 ? '#c0c0c0' : '#032D60', fontFamily: "'Noto Sans JP'" }}>次 →</button>
+                    style={{ padding: '4px 12px', borderRadius: 6, border: page === totalPages - 1 ? '1px solid #E5E7EB' : '1px solid #0D2247', background: page === totalPages - 1 ? '#F8F9FA' : 'white', cursor: page === totalPages - 1 ? 'default' : 'pointer', fontSize: 11, color: page === totalPages - 1 ? '#9CA3AF' : '#0D2247', fontFamily: "'Noto Sans JP'" }}>次 →</button>
                 </div>
               )}
             </div>
