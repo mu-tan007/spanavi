@@ -414,7 +414,6 @@ export default function LoginPage() {
 
         {mode === 'forgotSent' && (
           <div style={{ textAlign: 'center', padding: '10px 0' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>📧</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 12 }}>メールを送信しました</div>
             <div style={{ fontSize: 13, color: C.textLight, lineHeight: 1.8, marginBottom: 24 }}>
               {resetSelected?.name} 宛に<br />パスワード再設定のリンクを送りました。<br />メールをご確認ください。

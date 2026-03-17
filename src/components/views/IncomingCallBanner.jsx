@@ -78,7 +78,7 @@ export default function IncomingCallBanner({ onNavigateToIncoming, onOpenCompany
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <div>
               <div style={{ fontSize: 11, color: C.goldLight, fontWeight: 700, marginBottom: 4 }}>
-                📞 着信
+                着信
               </div>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.white, marginBottom: 2 }}>
                 {b.company_name}

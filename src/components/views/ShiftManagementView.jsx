@@ -139,7 +139,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
     <div>
       {/* 案内バナー */}
       <div style={{ padding: '8px 16px', background: '#fffbeb', borderBottom: '1px solid #fbd38d', display: 'flex', alignItems: 'center', gap: 8 }}>
-<span style={{ fontSize: 12, color: '#744210', fontWeight: 600 }}>
+        <span style={{ fontSize: 12, color: '#744210', fontWeight: 600 }}>
           シフトの登録・編集は「日別表示」から行ってください
         </span>
         <button

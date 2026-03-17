@@ -306,9 +306,9 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen 
   }).sort((a, b) => a.urgency - b.urgency);
 
   const groups = [
-    { key: 0, label: "当日", date: t0, color: "#e53835", bgColor: "#e5383508", borderColor: "#e5383520", icon: "🔴" },
-    { key: 1, label: "1営業日前", date: t1, color: C.gold, bgColor: C.gold + "08", borderColor: C.gold + "20", icon: "🟡" },
-    { key: 2, label: "2営業日前", date: t2, color: C.navy, bgColor: C.navy + "06", borderColor: C.navy + "15", icon: "🟢" },
+    { key: 0, label: "当日", date: t0, color: "#e53835", bgColor: "#e5383508", borderColor: "#e5383520", icon: "●" },
+    { key: 1, label: "1営業日前", date: t1, color: C.gold, bgColor: C.gold + "08", borderColor: C.gold + "20", icon: "●" },
+    { key: 2, label: "2営業日前", date: t2, color: C.navy, bgColor: C.navy + "06", borderColor: C.navy + "15", icon: "●" },
   ];
 
   const totalCount = targets.length;
@@ -338,7 +338,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen 
             const cnt = targets.filter(t => t.urgency === g.key).length;
             return (
               <div key={g.key} style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600 }}>{g.icon} {g.label}</div>
+                <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600 }}><span style={{ color: g.color }}>{g.icon}</span> {g.label}</div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: g.color, fontFamily: "'JetBrains Mono'" }}>{cnt}</div>
               </div>
             );
@@ -359,7 +359,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen 
             border: "1px solid " + C.borderLight, opacity: 0.6,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span>{g.icon}</span>
+              <span style={{ color: g.color }}>{g.icon}</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: g.color }}>{g.label}</span>
               <span style={{ fontSize: 11, color: C.textLight }}>─ 面談日: {dayLabel(g.date)}</span>
               <span style={{ marginLeft: "auto", fontSize: 11, color: C.textLight }}>対象なし</span>
@@ -378,7 +378,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen 
               display: "flex", alignItems: "center", justifyContent: "space-between",
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span>{g.icon}</span>
+                <span style={{ color: g.color }}>{g.icon}</span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: g.color }}>{g.label}</span>
                 <span style={{ fontSize: 11, color: C.textMid }}>─ 面談日: {dayLabel(g.date)}</span>
               </div>
@@ -437,7 +437,6 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen 
           background: C.white, borderRadius: 10, padding: "40px 20px",
           border: "1px solid " + C.borderLight, textAlign: "center",
         }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>✅</div>
           <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 4 }}>事前確認の対象はありません</div>
           <div style={{ fontSize: 11, color: C.textLight }}>直近の面談で「アポ取得」ステータスのものはすべて確認済みです</div>
         </div>

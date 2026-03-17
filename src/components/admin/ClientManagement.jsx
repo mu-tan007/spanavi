@@ -197,7 +197,7 @@ export default function ClientManagement({ onToast }) {
               「{deleteConfirm.item.name}」を削除しますか？
             </p>
             <p style={{ fontSize: 12, color: '#EF4444', background: '#FEF2F2', padding: '8px 12px', borderRadius: 6, marginBottom: 20 }}>
-              ⚠️ このリストに紐づく架電データも全て削除されます。この操作は元に戻せません。
+              ⚠ このリストに紐づく架電データも全て削除されます。この操作は元に戻せません。
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button onClick={() => setDeleteConfirm(null)} style={btn()}>キャンセル</button>

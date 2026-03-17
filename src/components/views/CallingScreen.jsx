@@ -592,7 +592,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                 <div style={{ marginBottom: 12, padding: "8px 12px", borderRadius: 6, background: C.navy + "08", border: "1px solid " + C.navy + "20" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 2 }}>⛔ 架電除外</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 2 }}>架電除外</div>
                       <div style={{ fontSize: 10, color: C.textMid }}>
                         {activeExcludedRound[0]}周目で「{getStatusDef(activeExcludedRound[1].status).label}」のため除外
                         {activeExcludedRound[1].memo && <span>（メモ: {activeExcludedRound[1].memo}）</span>}
@@ -759,7 +759,6 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
             </div>
           ) : (
             <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
-              <span style={{ fontSize: 32 }}>👈</span>
               <span style={{ fontSize: 12, color: C.textLight }}>左のリストから企業を選択してください</span>
             </div>
           )}

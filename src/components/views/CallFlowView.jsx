@@ -706,7 +706,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             color: autoDial ? C.navy : C.white + 'aa',
             fontSize: 10, fontWeight: 700, fontFamily: "'Noto Sans JP'",
           }}>
-            <span style={{ fontSize: 12 }}>{autoDial ? '🔁' : '▶'}</span>
+            <span style={{ fontSize: 12 }}>{autoDial ? '↻' : '▶'}</span>
             オートコール {autoDial ? 'ON' : 'OFF'}
           </button>
           <button onClick={handleClose} style={{ width: 32, height: 32, borderRadius: 6, background: C.white + '15', border: '1px solid ' + C.white + '30', color: C.white, cursor: 'pointer', fontSize: 16, flexShrink: 0 }}>✕</button>
@@ -818,7 +818,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         <div style={{ width: 380, flexShrink: 0, overflow: 'auto', background: C.white }}>
           {!selectedRow ? (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textLight, fontSize: 13, padding: 24, textAlign: 'center' }}>
-              👈 左のリストから企業を選択してください
+              左のリストから企業を選択してください
             </div>
           ) : (
             <div style={{ padding: 16 }}>
@@ -1143,7 +1143,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             background: autoDial ? C.gold : 'rgba(255,255,255,0.07)',
             color: autoDial ? C.navy : 'rgba(255,255,255,0.65)',
             fontSize: 10, fontWeight: 700, fontFamily: "'Noto Sans JP'" }}>
-          <span>{autoDial ? '🔁' : '▶'}</span>
+          <span>{autoDial ? '↻' : '▶'}</span>
           オートコール {autoDial ? 'ON' : 'OFF'}
         </button>
         <button onClick={handleClose}
@@ -1452,7 +1452,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           ) : (
             /* フォーカスモードで企業未選択 */
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#b0b0b0', fontSize: 14, flexDirection: 'column', gap: 8 }}>
-              <span style={{ fontSize: 32 }}>👈</span>
               リストから企業を選択してください
             </div>
           )}

@@ -244,7 +244,6 @@ export default function RoleplayView({ currentUser, userId }) {
         <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight,
           flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300 }}>
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 44, marginBottom: 14 }}>🚧</div>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.navy, marginBottom: 6 }}>工事中</div>
             <div style={{ fontSize: 12, color: C.textLight }}>近日実装予定</div>
           </div>

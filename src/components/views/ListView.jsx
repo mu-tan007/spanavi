@@ -127,7 +127,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
       {/* 時間外メッセージ */}
       {now && (now.getHours() < 7 || now.getHours() >= 20) && (
         <div style={{ background: C.white, borderRadius: 10, padding: "14px 20px", marginBottom: 16, border: "1px solid " + C.borderLight, borderLeft: "4px solid " + C.textLight, display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 13 }}>🌙</span>
+          <span style={{ fontSize: 13 }}>夜</span>
           <span style={{ fontSize: 12, color: C.textMid, fontWeight: 600 }}>この時間帯は架電時間外です</span>
           <span style={{ fontSize: 10, color: C.textLight }}>（7:00〜20:00が架電推奨時間帯）</span>
         </div>

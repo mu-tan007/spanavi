@@ -118,7 +118,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
         marginBottom: 16,
       }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: C.navy }}>📞 着信履歴</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: C.navy }}>着信履歴</div>
           <div style={{ fontSize: 11, color: C.textLight, marginTop: 2 }}>
             Zoom Phoneからの着信ログ
           </div>
