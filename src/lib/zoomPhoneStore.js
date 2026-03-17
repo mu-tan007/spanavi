@@ -1,44 +1,39 @@
-// Singleton store for Zoom Phone Smart Embed state and actions.
+// Singleton store for Zoom Phone Smart Embed actions.
 //
 // Flow:
-//   ZoomPhoneEmbed  → setCallId(id) when call connects, setCallId(null) when ends
-//   ZoomPhoneEmbed  → register(fn)  registers the postMessage hangup fallback
-//   CallingScreen / CallFlowView → hangUp() on status select
-//
-// hangUp() does two things in parallel:
-//   1. Zoom Phone API  DELETE /v2/phone/calls/{callId}  (reliable, server-side)
-//   2. postMessage to iframe  (best-effort fallback)
-import { supabase } from './supabase';
+//   ZoomPhoneEmbed.onLoad  → postMessage zp-init-config
+//   Zoom iframe            → postMessage zp-ready  → zoomPhone.setReady(true)
+//   CallingScreen / CallFlowView / dialPhone → zoomPhone.makeCall(number)
+//   CallingScreen / CallFlowView (status btn) → zoomPhone.hangUp()
 
-const _store = {
-  callId: null,
-  iframeHangUp: null,
-};
+const ZOOM_ORIGIN = 'https://applications.zoom.us';
+const IFRAME_ID   = 'zoom-embeddable-phone-iframe';
+
+let _ready = false;
+
+function postToZoom(msg) {
+  const iframe = document.getElementById(IFRAME_ID);
+  if (!iframe) {
+    console.warn('[zoomPhone] iframe#' + IFRAME_ID + ' が見つかりません');
+    return;
+  }
+  iframe.contentWindow?.postMessage(msg, ZOOM_ORIGIN);
+}
 
 export const zoomPhone = {
-  setCallId(id) {
-    _store.callId = id;
-    console.log('[zoomPhone] callId:', id ?? '(cleared)');
+  setReady(val) {
+    _ready = val;
+    console.log('[zoomPhone] ready:', val);
   },
 
-  register(fn) {
-    _store.iframeHangUp = fn;
+  makeCall(number) {
+    if (!_ready) console.warn('[zoomPhone] makeCall — zp-ready 未受信（発信を試みます）');
+    console.log('[zoomPhone] makeCall:', number);
+    postToZoom({ type: 'zp-make-call', data: { number, autoDial: true } });
   },
 
   hangUp() {
-    // 1. postMessage to iframe (best-effort)
-    _store.iframeHangUp?.();
-
-    // 2. Zoom Phone API DELETE (reliable) — only if we have a callId
-    if (_store.callId) {
-      supabase.functions
-        .invoke('zoom-hangup', { body: { callId: _store.callId } })
-        .then(({ data, error }) => {
-          if (error) console.warn('[zoomPhone] hangup API error:', error);
-          else console.log('[zoomPhone] hangup API result:', data);
-        })
-        .catch(e => console.warn('[zoomPhone] hangup invoke error:', e));
-      _store.callId = null;
-    }
+    console.log('[zoomPhone] hangUp → zp-end-call');
+    postToZoom({ type: 'zp-end-call' });
   },
 };

@@ -2,78 +2,41 @@ import { useEffect, useRef, useState } from 'react';
 import { zoomPhone } from '../lib/zoomPhoneStore';
 
 const ZOOM_EMBED_URL = 'https://applications.zoom.us/integration/phone/embeddablephone/home';
-const ZOOM_ORIGIN = 'https://applications.zoom.us';
-
-// Zoom Smart Embed がiframeから送るイベントのフォーマットは複数パターンあるため
-// callId をすべての既知フィールドパスから抽出する
-function extractCallId(msg) {
-  return (
-    msg.callId ??
-    msg.data?.callId ??
-    msg.payload?.callId ??
-    msg.data?.call_id ??
-    msg.payload?.call_id ??
-    null
-  );
-}
-
-function extractEventType(msg) {
-  return (
-    msg.event ??
-    msg.action ??
-    msg.type ??
-    msg.data?.event ??
-    msg.payload?.action ??
-    ''
-  ).toLowerCase();
-}
+const ZOOM_ORIGIN   = 'https://applications.zoom.us';
+const IFRAME_ID     = 'zoom-embeddable-phone-iframe';
 
 export default function ZoomPhoneEmbed() {
   const iframeRef = useRef(null);
   const [minimized, setMinimized] = useState(false);
+  const [ready, setReady] = useState(false);
 
-  // postMessage hangup fallback（callId不明時のみ有効）
-  useEffect(() => {
-    zoomPhone.register(() => {
-      iframeRef.current?.contentWindow?.postMessage(
-        { type: 'hangup' },
-        ZOOM_ORIGIN,
-      );
-    });
-    return () => zoomPhone.register(null);
-  }, []);
+  // iframeロード時: zp-init-config を送信してソフトフォンを初期化
+  const handleLoad = () => {
+    console.log('[ZoomPhoneEmbed] iframe loaded → zp-init-config 送信');
+    iframeRef.current?.contentWindow?.postMessage({ type: 'zp-init-config' }, ZOOM_ORIGIN);
+  };
 
-  // iframeからのイベントを監視してcallIdを取得する
+  // iframeからのメッセージを監視
   useEffect(() => {
     const handler = (e) => {
-      // ── 全メッセージをログ出力（origin問わず）──────────────────────────
+      // 全メッセージをログ出力（デバッグ用）
       console.log('[Zoom postMessage]', e.origin, e.data);
 
       if (e.origin !== ZOOM_ORIGIN) return;
       const msg = e.data;
       if (!msg || typeof msg !== 'object') return;
 
-      const callId = extractCallId(msg);
-      const ev = extractEventType(msg);
+      const type = msg.type ?? '';
+      console.log('[Zoom postMessage] origin=ZOOM / type:', type, '/ data:', msg);
 
-      console.log('[Zoom postMessage] origin=ZOOM / ev:', ev, '/ callId:', callId ?? '(none)');
-
-      // 通話開始系イベント → callIdを保存
-      if (callId && (
-        ev.includes('connect') ||
-        ev.includes('start') ||
-        ev.includes('incoming') ||
-        ev.includes('answered') ||
-        ev.includes('in_call')
-      )) {
-        console.log('[Zoom postMessage] 🟢 通話開始 callId:', callId);
-        zoomPhone.setCallId(callId);
+      if (type === 'zp-ready') {
+        console.log('[Zoom postMessage] 🟢 zp-ready 受信 — 発信可能');
+        zoomPhone.setReady(true);
+        setReady(true);
       }
 
-      // 通話終了系イベント → callIdをクリア
-      if (ev.includes('end') || ev.includes('disconnect') || ev.includes('hangup')) {
+      if (type === 'zp-end-call' || type === 'zp-call-ended') {
         console.log('[Zoom postMessage] 🔴 通話終了');
-        zoomPhone.setCallId(null);
       }
     };
 
@@ -97,13 +60,17 @@ export default function ZoomPhoneEmbed() {
         padding: '0 10px', height: 40, background: '#0D2247', color: '#fff',
         cursor: 'pointer', userSelect: 'none', flexShrink: 0,
       }} onClick={() => setMinimized(m => !m)}>
-        <span style={{ fontSize: 12, fontWeight: 600 }}>Zoom Phone</span>
+        <span style={{ fontSize: 12, fontWeight: 600 }}>
+          Zoom Phone{ready ? ' ✓' : ''}
+        </span>
         <span style={{ fontSize: 14 }}>{minimized ? '▲' : '▼'}</span>
       </div>
       {!minimized && (
         <iframe
           ref={iframeRef}
+          id={IFRAME_ID}
           src={ZOOM_EMBED_URL}
+          onLoad={handleLoad}
           style={{ width: '100%', height: 'calc(100% - 40px)', border: 'none', display: 'block' }}
           allow="microphone; camera; autoplay"
           title="Zoom Phone"
