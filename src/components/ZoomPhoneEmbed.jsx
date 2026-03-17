@@ -65,17 +65,15 @@ export default function ZoomPhoneEmbed() {
         </span>
         <span style={{ fontSize: 14 }}>{minimized ? '▲' : '▼'}</span>
       </div>
-      {!minimized && (
-        <iframe
-          ref={iframeRef}
-          id={IFRAME_ID}
-          src={ZOOM_EMBED_URL}
-          onLoad={handleLoad}
-          style={{ width: '100%', height: 'calc(100% - 40px)', border: 'none', display: 'block' }}
-          allow="microphone; camera; autoplay"
-          title="Zoom Phone"
-        />
-      )}
+      <iframe
+        ref={iframeRef}
+        id={IFRAME_ID}
+        src={ZOOM_EMBED_URL}
+        onLoad={handleLoad}
+        style={{ width: '100%', height: 'calc(100% - 40px)', border: 'none', display: minimized ? 'none' : 'block' }}
+        allow="microphone; camera; autoplay"
+        title="Zoom Phone"
+      />
     </div>
   );
 }
