@@ -287,7 +287,7 @@ HP：${form.hp}
       <div style={{ background: C.white, borderRadius: 12, width: 560, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
         {/* ヘッダー */}
         <div style={{ padding: '14px 20px', background: 'linear-gradient(135deg, ' + C.navyDeep + ', ' + C.navy + ')', borderRadius: '12px 12px 0 0', color: C.white, flexShrink: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>🎉 アポ取得報告</div>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>アポ取得報告</div>
           <div style={{ fontSize: 10, color: C.goldLight, marginTop: 2 }}>{row.company}</div>
         </div>
         {/* フォーム */}
@@ -333,13 +333,13 @@ HP：${form.hp}
                 <div key={f.key} style={{ gridColumn: f.span === 2 ? '1 / -1' : undefined }}>
                   <label style={{ ...lStyle, display: 'flex', alignItems: 'center' }}>
                     <span>{f.label}</span>
-                    {isRecUrl && isLoading && <span style={{ marginLeft: 6, fontSize: 10, color: C.textLight, fontWeight: 400 }}>🔄 取得中...</span>}
+                    {isRecUrl && isLoading && <span style={{ marginLeft: 6, fontSize: 10, color: C.textLight, fontWeight: 400 }}>取得中...</span>}
                     {isRecUrl && !isLoading && form.recordingUrl && <span style={{ marginLeft: 6, fontSize: 10, color: C.green, fontWeight: 400 }}>✓ 自動取得済み</span>}
                     {isRecUrl && !isLoading && recordingUrlError && <span style={{ marginLeft: 6, fontSize: 10, color: '#c53030', fontWeight: 400 }}>録音の準備中です。数秒後に再度お試しください</span>}
                     {isRecUrl && !isLoading && (
                       <button onClick={handleRefetchRecordingUrl}
                         title="録音URLを再取得"
-                        style={{ marginLeft: 6, fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: C.navy }}>🔄</button>
+                        style={{ marginLeft: 6, fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: C.navy }}>更新</button>
                     )}
                   </label>
                   <input type={f.type || 'text'} value={form[f.key]}
@@ -376,31 +376,31 @@ HP：${form.hp}
             {/* 文字起こし＋AI添削ボタン */}
             <button onClick={handleGenerateReport} disabled={saving || generateStep !== 'idle'}
               style={{ padding: '8px 16px', borderRadius: 6, border: '1px solid ' + C.navy + '40', background: C.navy + '08', cursor: (saving || generateStep !== 'idle') ? 'default' : 'pointer', fontSize: 11, fontWeight: 600, color: C.navy, fontFamily: "'Noto Sans JP'", opacity: (saving || generateStep !== 'idle') ? 0.5 : 1 }}>
-              {generateStep === 'transcribing' && '🎙 文字起こし中...'}
-              {generateStep === 'enhancing'    && '🤖 AI添削中...'}
-              {generateStep === 'done'         && '✅ 添削完了'}
-              {generateStep === 'error'        && '⚠ エラー'}
-              {generateStep === 'idle'         && '🎙 文字起こし＋AI添削'}
+              {generateStep === 'transcribing' && '文字起こし中...'}
+              {generateStep === 'enhancing'    && 'AI添削中...'}
+              {generateStep === 'done'         && '添削完了'}
+              {generateStep === 'error'        && 'エラー'}
+              {generateStep === 'idle'         && '文字起こし＋AI添削'}
             </button>
             {/* コピーボタン */}
             <button onClick={handleCopy} disabled={saving}
               style={{ padding: '8px 16px', borderRadius: 6, border: '1px solid ' + C.navy + '40', background: C.navy + '08', cursor: saving ? 'default' : 'pointer', fontSize: 11, fontWeight: 600, color: C.navy, fontFamily: "'Noto Sans JP'", opacity: saving ? 0.5 : 1 }}>
-              {copied ? '✅ コピー済み' : '📋 コピー'}
+              {copied ? 'コピー済み' : 'コピー'}
             </button>
           </div>
           {/* AI処理ステータス表示 */}
           {aiStatus !== 'idle' && (
             <div style={{ fontFamily: "'Noto Sans JP'" }}>
               <div style={{ fontSize: 11, color: aiStatus === 'error' ? '#c00' : aiStatus.startsWith('done') ? '#0a0' : C.textMid }}>
-                {aiStatus === 'saving'        && '💾 アポ登録中...'}
-                {aiStatus === 'slack'         && '📤 #アポ取得報告 に投稿中...'}
-                {aiStatus === 'ai'            && '🤖 AI処理中（録音取得・レポート強化・Slack投稿）...'}
-                {aiStatus === 'done_slack'    && '✅ 完了！Slackに投稿しました'}
-                {aiStatus === 'done_no_slack' && '✅ AI処理完了（Slack未設定）'}
-                {aiStatus === 'error'         && '⚠ AI処理でエラーが発生しました（アポ登録は完了）'}
+                {aiStatus === 'saving'        && 'アポ登録中...'}
+                {aiStatus === 'slack'         && '#アポ取得報告 に投稿中...'}
+                {aiStatus === 'ai'            && 'AI処理中（録音取得・レポート強化・Slack投稿）...'}
+                {aiStatus === 'done_slack'    && '完了！Slackに投稿しました'}
+                {aiStatus === 'done_no_slack' && 'AI処理完了（Slack未設定）'}
+                {aiStatus === 'error'         && 'AI処理でエラーが発生しました（アポ登録は完了）'}
               </div>
               {slackAppoFailed && aiStatus !== 'slack' && (
-                <div style={{ fontSize: 10, color: '#c00', marginTop: 2 }}>⚠ #アポ取得報告 への投稿に失敗しました</div>
+                <div style={{ fontSize: 10, color: '#c00', marginTop: 2 }}>#アポ取得報告への投稿に失敗しました</div>
               )}
             </div>
           )}

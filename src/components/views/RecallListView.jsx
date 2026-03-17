@@ -112,7 +112,6 @@ export default function RecallListView({ callListData, supaRecalls = [], onRecal
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: C.white, borderRadius: 10, border: '1px solid ' + C.borderLight }}>
         <div style={{ padding: '10px 14px', borderBottom: '1px solid ' + C.borderLight, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 15 }}>📞</span>
             <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>再コール一覧</span>
             <span style={{ fontSize: 10, color: C.textLight }}>{sorted.length}{filterAssignee ? `/${baseRecallItems.length}` : ''}件</span>
           </div>
@@ -240,7 +239,6 @@ export default function RecallListView({ callListData, supaRecalls = [], onRecal
       <div style={{ width: 380, background: C.white, borderRadius: 10, border: '1px solid ' + C.borderLight, display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
         {!selectedItem ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textLight, fontSize: 12, flexDirection: 'column', gap: 8 }}>
-            <span style={{ fontSize: 28 }}>📋</span>
             <span>左のリストから企業を選択</span>
           </div>
         ) : (
@@ -266,7 +264,7 @@ export default function RecallListView({ callListData, supaRecalls = [], onRecal
               )}
               {/* 企業情報 */}
               <div style={{ padding: '10px 12px', background: C.offWhite, borderRadius: 8, border: '1px solid ' + C.borderLight, marginBottom: 14 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, marginBottom: 8 }}>🏢 企業情報</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, marginBottom: 8 }}>企業情報</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                   {selectedItem.representative && (
                     <div style={{ display: 'flex', gap: 8, fontSize: 11 }}>
@@ -284,7 +282,7 @@ export default function RecallListView({ callListData, supaRecalls = [], onRecal
                     <div style={{ display: 'flex', gap: 8, fontSize: 11, alignItems: 'center' }}>
                       <span style={{ color: C.textLight, minWidth: 40, flexShrink: 0 }}>電話</span>
                       <span style={{ color: C.navy, fontWeight: 600, fontFamily: "'JetBrains Mono'", whiteSpace: 'nowrap' }}>{selectedItem.phone}</span>
-                      <button onClick={() => dialPhone(selectedItem.phone)} style={{ padding: '3px 10px', borderRadius: 4, border: 'none', background: C.navy, color: C.white, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", flexShrink: 0 }}>📞 発信</button>
+                      <button onClick={() => dialPhone(selectedItem.phone)} style={{ padding: '3px 10px', borderRadius: 4, border: 'none', background: C.navy, color: C.white, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", flexShrink: 0 }}>発信</button>
                     </div>
                   )}
                 </div>
@@ -308,7 +306,7 @@ export default function RecallListView({ callListData, supaRecalls = [], onRecal
                 );
                 return (
                   <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, marginBottom: 8 }}>📋 架電結果</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, marginBottom: 8 }}>架電結果</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                       {CALL_RESULTS.map(r => {
                         const isAppo = r.id === 'appointment';
@@ -330,7 +328,7 @@ export default function RecallListView({ callListData, supaRecalls = [], onRecal
               {/* 架電履歴 */}
               {itemCallHistory.length > 0 && (
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 6 }}>📋 架電履歴</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 6 }}>架電履歴</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {itemCallHistory.map(rec => {
                       const dt = rec.called_at ? new Date(rec.called_at) : null;
@@ -350,7 +348,7 @@ export default function RecallListView({ callListData, supaRecalls = [], onRecal
                                 onClick={() => setActiveRecordingId(activeRecordingId === rec.id ? null : rec.id)}
                                 title={activeRecordingId === rec.id ? "閉じる" : "録音を再生"}
                                 style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer',
-                                  padding: 0, lineHeight: 1, color: activeRecordingId === rec.id ? C.red : 'inherit' }}>🎙</button>
+                                  padding: 0, lineHeight: 1, color: activeRecordingId === rec.id ? C.red : 'inherit' }}>録音</button>
                             )}
                           </div>
                           {activeRecordingId === rec.id && rec.recording_url && (

@@ -253,7 +253,6 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
         {/* (a) おすすめ度合い・総合スコア */}
         {isOutsideHours ? (
           <div style={{ padding: "12px 16px", borderRadius: 8, background: C.offWhite, border: "1px solid " + C.borderLight, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 14 }}>🌙</span>
             <span style={{ fontSize: 12, color: C.textMid, fontWeight: 600 }}>この時間帯は架電時間外です</span>
             <span style={{ fontSize: 10, color: C.textLight }}>（7:00〜20:00が架電推奨時間帯）</span>
           </div>
@@ -287,7 +286,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
         {/* (b) クライアント情報 | 注意事項 — 横並び */}
         <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
           <div style={{ flex: 1, padding: "12px 16px", borderRadius: 8, background: C.offWhite, border: "1px solid " + C.borderLight }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 10, letterSpacing: 0.5 }}>🏢 クライアント情報</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 10, letterSpacing: 0.5 }}>クライアント情報</div>
             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 12px", fontSize: 11 }}>
               {[
                 ["担当者", list.manager],
@@ -307,7 +306,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             )}
           </div>
           <div style={{ flex: 1, padding: "12px 16px", borderRadius: 8, background: C.offWhite, border: "1px solid " + C.borderLight }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 8, letterSpacing: 0.5 }}>⚠ 注意事項</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 8, letterSpacing: 0.5 }}>注意事項</div>
             {list.cautions
               ? <div style={{ fontSize: 11, color: C.textDark, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{list.cautions}</div>
               : <div style={{ fontSize: 11, color: C.textLight }}>注意事項はありません</div>
@@ -318,7 +317,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
         {/* (c) 業界架電ルール */}
         {rule && (
           <div style={{ padding: "12px 16px", borderRadius: 8, background: C.offWhite, border: "1px solid " + C.borderLight, marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: C.navy, marginBottom: 6 }}>📋 {cat}の架電ルール</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: C.navy, marginBottom: 6 }}>{cat}の架電ルール</div>
             <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 8, color: C.textDark }}>{rule.rule}</div>
             <div style={{ display: "flex", gap: 16, fontSize: 11, marginBottom: 8 }}>
               {rule.goodHours && <div><span style={{ color: C.textLight }}>推奨: </span><span style={{ color: C.navy, fontWeight: 600 }}>{rule.goodHours}</span></div>}
@@ -340,7 +339,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
         {/* (d) スクリプト・備考・CSVリスト */}
         {list.scriptBody && (
           <div style={{ padding: "12px 16px", borderRadius: 8, background: C.navy + "04", border: "1px solid " + C.navy + "12", marginBottom: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 6, letterSpacing: 0.5 }}>📝 スクリプト</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 6, letterSpacing: 0.5 }}>スクリプト</div>
             <div style={{ fontSize: 12, color: C.textDark, lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{list.scriptBody}</div>
           </div>
         )}

@@ -30,7 +30,7 @@ export default function RecallModal({ row, statusId, onSubmit, onCancel, members
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ background: C.white, borderRadius: 12, width: 400, boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
         <div style={{ padding: "14px 20px", background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")", borderRadius: "12px 12px 0 0", color: C.white }}>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>📞 再コール設定</div>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>再コール設定</div>
           <div style={{ fontSize: 11, color: C.goldLight }}>{row.company}　{statusId === "ceo_recall" ? "（社長再コール）" : "（受付再コール）"}</div>
         </div>
         <div style={{ padding: "16px 20px" }}>

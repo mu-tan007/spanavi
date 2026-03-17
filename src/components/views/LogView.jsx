@@ -81,7 +81,7 @@ export default function LogView({ callLogs, logFormOpen, setLogFormOpen, addCall
             });
             if (conflicts.length > 0) return (
               <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 6, background: C.redLight, border: "1px solid " + C.red + "30", fontSize: 12, color: C.red }}>
-                ⚠ 直近2日以内にこの番号範囲で架電記録があります：{conflicts.map(c => c.caller + "（" + c.startNum + "〜" + c.endNum + "番）").join("、")}
+                直近2日以内にこの番号範囲で架電記録があります：{conflicts.map(c => c.caller + "（" + c.startNum + "〜" + c.endNum + "番）").join("、")}
               </div>
             );
             return null;
@@ -129,8 +129,7 @@ export default function LogView({ callLogs, logFormOpen, setLogFormOpen, addCall
 
       {callLogs.length === 0 && !logFormOpen && (
         <div style={{ textAlign: "center", padding: "60px 0", color: C.textLight }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>📝</div>
-          <div style={{ fontSize: 14 }}>まだ架電ログがありません</div>
+<div style={{ fontSize: 14 }}>まだ架電ログがありません</div>
           <div style={{ fontSize: 12, marginTop: 4 }}>「＋ ログを記録」ボタンから始めましょう</div>
         </div>
       )}

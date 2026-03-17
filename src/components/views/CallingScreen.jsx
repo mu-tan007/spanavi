@@ -408,10 +408,9 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
         flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 18 }}>📞</span>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: C.white }}>{list.company}</div>
-            <div style={{ fontSize: 10, color: C.goldLight }}>{list.industry}　担当: {list.manager}{rangeConfirmed && rangeStartNum && rangeEndNum ? "　📋 No." + rangeStartNum + " 〜 " + rangeEndNum : ""}</div>
+            <div style={{ fontSize: 10, color: C.goldLight }}>{list.industry}　担当: {list.manager}{rangeConfirmed && rangeStartNum && rangeEndNum ? "　No." + rangeStartNum + " 〜 " + rangeEndNum : ""}</div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -583,7 +582,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                       color: C.white,
                       fontSize: 13, fontWeight: 700, fontFamily: "'JetBrains Mono'",
                       boxShadow: "0 2px 8px " + C.green + "40",
-                    }}>📞 {activeRow.phone}</span>
+                    }}>{activeRow.phone}</span>
                   </div>
                 )}
               </div>
@@ -739,19 +738,19 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                 <div style={{ borderTop: "1px solid " + C.borderLight, paddingTop: 10 }}>
                   {list.companyInfo && (
                     <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>🏢 企業概要</div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>企業概要</div>
                       <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.6, padding: "6px 10px", background: C.offWhite, borderRadius: 6, whiteSpace: "pre-wrap" }}>{list.companyInfo}</div>
                     </div>
                   )}
                   {list.scriptBody && (
                     <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>📝 スクリプト</div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>スクリプト</div>
                       <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.6, padding: "6px 10px", background: C.gold + "08", borderRadius: 6, border: "1px solid " + C.gold + "20", whiteSpace: "pre-wrap" }}>{list.scriptBody}</div>
                     </div>
                   )}
                   {list.cautions && (
                     <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: C.red, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>⚠ 注意事項</div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.red, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>注意事項</div>
                       <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.6, padding: "6px 10px", background: C.red + "06", borderRadius: 6, border: "1px solid " + C.red + "15", whiteSpace: "pre-wrap" }}>{list.cautions}</div>
                     </div>
                   )}

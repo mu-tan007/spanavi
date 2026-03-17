@@ -827,14 +827,14 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 {selectedRow.company}
               </div>
 
-              {/* 📋 基本情報 */}
+              {/* 基本情報 */}
               {(() => {
                 const recs = getRecordsForItem(selectedRow.id);
                 const latest = recs.length > 0 ? recs.reduce((a, b) => a.round >= b.round ? a : b) : null;
                 const lastResult = latest ? latest.status : '未架電';
                 return (
                   <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid ' + C.borderLight }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 8 }}>📋 基本情報</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 8 }}>基本情報</div>
                     {[
                       { label: '事業内容', value: selectedRow.business },
                       { label: '住所', value: (selectedRow.address || '').replace(/\/\s*$/, '') },
@@ -850,7 +850,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 );
               })()}
 
-              {/* 📊 詳細情報 */}
+              {/* 詳細情報 */}
               {(() => {
                 let parsedMemo = null;
                 if (selectedRow.memo) { try { parsedMemo = JSON.parse(selectedRow.memo); } catch { /* plain text */ } }
@@ -858,7 +858,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 const biko = parsedMemo?.biko ?? (selectedRow.memo && !parsedMemo ? selectedRow.memo : null);
                 return (
                   <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid ' + C.borderLight }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 8 }}>📊 詳細情報</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 8 }}>詳細情報</div>
                     {[
                       { label: '売上', value: selectedRow.revenue != null ? Number(selectedRow.revenue).toLocaleString() + ' 千円' : '-' },
                       { label: '当期純利益', value: netIncome != null ? Number(netIncome).toLocaleString() + ' 千円' : '-' },
@@ -876,7 +876,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               {/* 電話発信ボタン */}
               {selectedRow.phone && (
                 <div onClick={() => { dialPhone(selectedRow.phone); setLastDialedPhone(selectedRow.phone); }} style={{ display: 'block', marginBottom: 12, padding: '12px 16px', borderRadius: 10, background: 'linear-gradient(135deg, ' + C.navyDeep + ', ' + C.navy + ')', textAlign: 'center', boxShadow: '0 2px 8px ' + C.navy + '40', cursor: 'pointer' }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: C.white + 'cc', marginBottom: 3 }}>📞 電話をかける</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: C.white + 'cc', marginBottom: 3 }}>電話をかける</div>
                   <div style={{ fontSize: 18, fontWeight: 900, color: C.white, fontFamily: "'JetBrains Mono'" }}>{selectedRow.phone}</div>
                 </div>
               )}
@@ -895,7 +895,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   onClick={() => { if (!subPhone.trim()) return; dialPhone(subPhone.trim()); setLastDialedPhone(subPhone.trim()); }}
                   disabled={!subPhone.trim()}
                   style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid ' + C.border, background: C.white, cursor: subPhone.trim() ? 'pointer' : 'default', fontSize: 13, opacity: subPhone.trim() ? 1 : 0.4, lineHeight: 1 }}
-                >📞</button>
+                >発信</button>
               </div>
 
               {/* ラウンドボタン */}
@@ -982,7 +982,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 if (recs.length === 0) return null;
                 return (
                   <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 6 }}>📋 架電履歴</div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 6 }}>架電履歴</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       {recs.map(rec => {
                         const sc = callStatusColor(rec.status);
@@ -999,10 +999,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                                     onClick={() => setActiveRecordingId(activeRecordingId === rec.id ? null : rec.id)}
                                     title={activeRecordingId === rec.id ? "閉じる" : "録音を再生"}
                                     style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer',
-                                      padding: 0, lineHeight: 1, color: activeRecordingId === rec.id ? C.red : 'inherit' }}>🎙</button>
+                                      padding: 0, lineHeight: 1, color: activeRecordingId === rec.id ? C.red : 'inherit' }}>録音</button>
                                 : <button onClick={() => handleFetchRecording(rec)}
                                     title="録音URLを手動取得"
-                                    style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>🔄</button>
+                                    style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>更新</button>
                               }
                             </div>
                             {activeRecordingId === rec.id && rec.recording_url && (
@@ -1025,12 +1025,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       <div style={{ flexShrink: 0, background: C.white, borderTop: '2px solid ' + C.gold }}>
         <div onClick={() => setScriptPanelOpen(p => !p)}
           style={{ cursor: 'pointer', padding: '5px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', userSelect: 'none', background: C.gold + '08' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.navy }}>📝 スクリプト</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.navy }}>スクリプト</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {scriptPanelOpen && [
-              { key: 'script',   label: '📝 スクリプト' },
-              { key: 'info',     label: '🏢 企業概要' },
-              { key: 'cautions', label: '⚠ 注意事項' },
+              { key: 'script',   label: 'スクリプト' },
+              { key: 'info',     label: '企業概要' },
+              { key: 'cautions', label: '注意事項' },
             ].map(tab => (
               <button key={tab.key} onClick={e => { e.stopPropagation(); setScriptTab(tab.key); }}
                 style={{ fontSize: 9, padding: '2px 10px', borderRadius: 4, border: scriptTab === tab.key ? '1px solid ' + C.gold : '1px solid ' + C.borderLight, background: scriptTab === tab.key ? C.gold + '20' : C.white, color: scriptTab === tab.key ? C.navy : C.textMid, cursor: 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: scriptTab === tab.key ? 700 : 400 }}>
@@ -1357,7 +1357,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 {selectedRow.phone && (
                   <button onClick={() => { dialPhone(selectedRow.phone); setLastDialedPhone(selectedRow.phone); }}
                     style={{ display: 'block', width: '100%', height: 56, borderRadius: 8, background: '#0176D3', border: 'none', color: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'", letterSpacing: 1 }}>
-                    📞 電話をかける
+                    電話をかける
                   </button>
                 )}
                 {/* サブ電話番号 */}
@@ -1367,7 +1367,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     style={{ flex: 1, padding: '7px 10px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: '#FAFAFA' }} />
                   <button onClick={() => { if (!subPhone.trim()) return; dialPhone(subPhone.trim()); setLastDialedPhone(subPhone.trim()); }}
                     disabled={!subPhone.trim()}
-                    style={{ padding: '7px 12px', borderRadius: 6, border: '1px solid #E5E5E5', background: '#F3F2F2', cursor: subPhone.trim() ? 'pointer' : 'default', fontSize: 13, opacity: subPhone.trim() ? 1 : 0.4 }}>📞</button>
+                    style={{ padding: '7px 12px', borderRadius: 6, border: '1px solid #E5E5E5', background: '#F3F2F2', cursor: subPhone.trim() ? 'pointer' : 'default', fontSize: 13, opacity: subPhone.trim() ? 1 : 0.4 }}>発信</button>
                 </div>
               </div>
 
@@ -1420,7 +1420,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 if (recs.length === 0) return null;
                 return (
                   <div style={{ padding: 16, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #E5E5E5' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#032D60', marginBottom: 8 }}>📋 架電履歴</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#032D60', marginBottom: 8 }}>架電履歴</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                       {recs.map(rec => {
                         const sc = callStatusColor(rec.status);
@@ -1433,9 +1433,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                               <span style={{ color: '#b0b0b0', fontSize: 10 }}>{dtStr}</span>
                               {rec.recording_url
                                 ? <button onClick={() => setActiveRecordingId(activeRecordingId === rec.id ? null : rec.id)}
-                                    style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: activeRecordingId === rec.id ? '#e53e3e' : 'inherit' }}>🎙</button>
+                                    style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: activeRecordingId === rec.id ? '#e53e3e' : 'inherit' }}>録音</button>
                                 : <button onClick={() => handleFetchRecording(rec)}
-                                    style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>🔄</button>
+                                    style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>更新</button>
                               }
                             </div>
                             {activeRecordingId === rec.id && rec.recording_url && (
@@ -1462,7 +1462,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         <div style={{ width: '40%', background: '#fff', borderLeft: '1px solid #E5E5E5', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* タブヘッダー */}
           <div style={{ display: 'flex', borderBottom: '2px solid #E5E5E5', background: '#FAFAFA', flexShrink: 0 }}>
-            {[{ key: 'script', label: '📝 スクリプト' }, { key: 'info', label: '🏢 企業概要' }, { key: 'cautions', label: '⚠ 注意事項' }].map(tab => (
+            {[{ key: 'script', label: 'スクリプト' }, { key: 'info', label: '企業概要' }, { key: 'cautions', label: '注意事項' }].map(tab => (
               <button key={tab.key} onClick={() => setScriptTab(tab.key)}
                 style={{ flex: 1, padding: '11px 4px', border: 'none', borderBottom: scriptTab === tab.key ? '2px solid #0176D3' : '2px solid transparent',
                   background: 'transparent', color: scriptTab === tab.key ? '#0176D3' : '#706E6B',

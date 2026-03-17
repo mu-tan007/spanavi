@@ -232,8 +232,7 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
         borderBottom: expanded ? "none" : undefined,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 14 }}>📞</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: C.navy }}>架電リスト</span>
+<span style={{ fontSize: 12, fontWeight: 700, color: C.navy }}>架電リスト</span>
           {csvData.length > 0 && (
             <span style={{ fontSize: 10, color: C.green, fontWeight: 600 }}>
               {csvData.length}件（架電済: {calledCount}）

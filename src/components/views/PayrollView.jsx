@@ -191,10 +191,10 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
       if (error) throw error;
       const { data: fresh } = await fetchPayrollSnapshots(payMonth);
       setSnapshots(fresh || []);
-      setActionMsg(`✅ ${monthTab}の報酬を確定しました（${rows.length}名）`);
+      setActionMsg(`${monthTab}の報酬を確定しました（${rows.length}名）`);
       setTimeout(() => setActionMsg(''), 6000);
     } catch (e) {
-      setActionMsg('❌ 確定に失敗しました: ' + (e.message || '不明'));
+      setActionMsg('確定に失敗しました: ' + (e.message || '不明'));
     } finally {
       setConfirming(false);
     }
@@ -210,10 +210,10 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
       const { error } = await deletePayrollSnapshots(payMonth);
       if (error) throw error;
       setSnapshots([]);
-      setActionMsg(`✅ ${monthTab}の確定を解除しました`);
+      setActionMsg(`${monthTab}の確定を解除しました`);
       setTimeout(() => setActionMsg(''), 4000);
     } catch (e) {
-      setActionMsg('❌ 解除に失敗しました: ' + (e.message || '不明'));
+      setActionMsg('解除に失敗しました: ' + (e.message || '不明'));
     } finally {
       setUnconfirming(false);
     }
@@ -256,11 +256,11 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
       for (const a of uncounted) {
         if (a._supaId) await updateAppoCounted(a._supaId, true);
       }
-      setSyncMsg(`✅ ${uncounted.length}件のアポを累計に加算しました`);
+      setSyncMsg(`${uncounted.length}件のアポを累計に加算しました`);
       if (onDataRefetch) setTimeout(onDataRefetch, 500);
       setTimeout(() => setSyncMsg(''), 5000);
     } catch (e) {
-      setSyncMsg('❌ 同期に失敗しました: ' + e.message);
+      setSyncMsg('同期に失敗しました: ' + e.message);
     } finally {
       setSyncing(false);
     }
@@ -359,9 +359,9 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
       {/* メッセージ */}
       {(syncMsg || actionMsg) && (
         <div style={{ marginBottom: 10, padding: "8px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-          background: (syncMsg || actionMsg).startsWith('✅') ? "#f0faf4" : "#fff5f5",
-          color: (syncMsg || actionMsg).startsWith('✅') ? C.green : C.red,
-          border: "1px solid " + ((syncMsg || actionMsg).startsWith('✅') ? "#34a853" : C.red) }}>
+          background: (!(syncMsg || actionMsg).includes('失敗') && !(syncMsg || actionMsg).includes('エラー')) ? "#f0faf4" : "#fff5f5",
+          color: (!(syncMsg || actionMsg).includes('失敗') && !(syncMsg || actionMsg).includes('エラー')) ? C.green : C.red,
+          border: "1px solid " + ((!(syncMsg || actionMsg).includes('失敗') && !(syncMsg || actionMsg).includes('エラー')) ? "#34a853" : C.red) }}>
           {syncMsg || actionMsg}
         </div>
       )}

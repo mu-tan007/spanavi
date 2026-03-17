@@ -89,7 +89,7 @@ export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
                     fontSize: 11, color: C.white, background: C.navy,
                     borderRadius: 6, padding: '5px 12px', textDecoration: 'none',
                     fontFamily: "'JetBrains Mono'", fontWeight: 600,
-                  }}>📞 {displayPhone}</a>
+                  }}>{displayPhone}</a>
                 )}
                 {onNavigate && (
                   <button onClick={handleNavigate} disabled={navigating} style={{
@@ -97,7 +97,7 @@ export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
                     borderRadius: 6, border: '1px solid ' + C.navy + '60', background: C.navy + '0a',
                     fontSize: 11, fontWeight: 600, color: C.navy, cursor: navigating ? 'default' : 'pointer',
                     opacity: navigating ? 0.6 : 1, fontFamily: "'Noto Sans JP'",
-                  }}>🔗 {navigating ? '検索中...' : '架電ページへ'}</button>
+                  }}>{navigating ? '検索中...' : '架電ページへ'}</button>
                 )}
               </div>
             </div>
@@ -127,7 +127,7 @@ export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
               </div>
             </div>
             <div style={{ padding: '8px 12px', borderRadius: 6, background: C.gold + '06', border: '1px solid ' + C.gold + '20', borderLeft: '3px solid ' + C.gold, marginTop: 8 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.gold, marginBottom: 6 }}>📋 アポ取得報告</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.gold, marginBottom: 6 }}>アポ取得報告</div>
               {appo.note
                 ? <div style={{ fontSize: 11, color: C.textDark, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{appo.note}</div>
                 : <div style={{ fontSize: 11, color: C.textLight }}>アポ取得報告が登録されていません</div>
@@ -140,12 +140,12 @@ export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
                 <div style={{ marginTop: 8 }}>
                   <div style={{ padding: '5px 8px', borderRadius: 5, background: C.offWhite,
                     display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: C.navy, whiteSpace: 'nowrap' }}>🎙 録音</span>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: C.navy, whiteSpace: 'nowrap' }}>録音</span>
                     {recUrl
                       ? <button onClick={() => setShowRecording(v => !v)}
                           title={showRecording ? "閉じる" : "録音を再生"}
                           style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer',
-                            padding: 0, lineHeight: 1, color: showRecording ? C.red : 'inherit' }}>🎙</button>
+                            padding: 0, lineHeight: 1, color: showRecording ? C.red : 'inherit' }}>録音</button>
                       : <span style={{ fontSize: 11, color: C.textLight }}>録音なし</span>
                     }
                   </div>
@@ -327,7 +327,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen 
             background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 18, color: C.white,
-          }}>☎</div>
+          }}>電話</div>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.navy }}>事前確認</div>
             <div style={{ fontSize: 10, color: C.textLight }}>ステータス「アポ取得」で面談が近いアポイント</div>

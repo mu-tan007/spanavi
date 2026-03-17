@@ -268,7 +268,7 @@ export default function PerformanceView({ members, currentUser }) {
           </div>
           {alerts.map((a, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 12px', borderRadius: 6, marginBottom: 6, background: a.type === 'warn' ? '#FEF3C7' : '#EFF6FF', borderLeft: `3px solid ${a.type === 'warn' ? '#F59E0B' : '#3B82F6'}` }}>
-              <span style={{ fontSize: 11, color: a.type === 'warn' ? '#92400E' : '#1D4ED8', flexShrink: 0 }}>{a.type === 'warn' ? '⚠' : 'ℹ'}</span>
+              <span style={{ fontSize: 11, color: a.type === 'warn' ? '#92400E' : '#1D4ED8', flexShrink: 0 }}>{a.type === 'warn' ? '!' : 'i'}</span>
               <span style={{ fontSize: 11, color: a.type === 'warn' ? '#92400E' : '#1D4ED8' }}>{a.message}</span>
             </div>
           ))}

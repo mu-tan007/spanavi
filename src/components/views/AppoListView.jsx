@@ -600,7 +600,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 {!detailEditing ? (
                   <button onClick={() => { setDetailEditForm({ ...reportDetail, _idx: appoData.findIndex(a => a._supaId === reportDetail._supaId) }); setDetailEditing(true); }}
                     style={{ padding: "4px 12px", borderRadius: 5, border: "1px solid " + C.white + "40", background: "transparent", color: C.white, cursor: "pointer", fontSize: 11, fontFamily: "'Noto Sans JP'" }}>
-                    ✏ 編集
+                    編集
                   </button>
                 ) : (
                   <>
@@ -729,7 +729,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                           if (setAppoData) setAppoData(prev => prev.filter(a => a._supaId !== reportDetail._supaId));
                           setReportDetail(null);
                         }} style={{ padding: "6px 16px", borderRadius: 5, border: "1px solid #e5383530", background: C.white, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#e53835", fontFamily: "'Noto Sans JP'" }}>
-                          🗑 削除
+                          削除
                         </button>
                       </div>
                     )}
@@ -756,7 +756,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               </div>
               {/* ── アポ取得報告 ── */}
               <div style={{ padding: "10px 14px", borderRadius: 8, background: C.gold + "06", border: "1px solid " + C.gold + "20", borderLeft: "3px solid " + C.gold, marginBottom: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.gold, marginBottom: 6 }}>📋 アポ取得報告</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.gold, marginBottom: 6 }}>アポ取得報告</div>
                 {detailEditing ? (
                   <textarea
                     value={detailEditForm.appoReport || ''}
@@ -778,12 +778,12 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                     onClick={handleTranscribeDetail}
                     disabled={transcribeStep !== 'idle'}
                     style={{ marginTop: 8, padding: '7px 14px', borderRadius: 6, border: '1px solid ' + C.navy + '40', background: C.navy + '08', cursor: transcribeStep !== 'idle' ? 'default' : 'pointer', fontSize: 11, fontWeight: 600, color: C.navy, fontFamily: "'Noto Sans JP'", opacity: transcribeStep !== 'idle' ? 0.6 : 1 }}>
-                    {transcribeStep === 'fetching'     && '🔍 録音を検索中...'}
-                    {transcribeStep === 'transcribing' && '🎙 文字起こし中...'}
-                    {transcribeStep === 'enhancing'    && '🤖 AI添削中...'}
-                    {transcribeStep === 'done'         && '✅ 添削完了'}
-                    {transcribeStep === 'error'        && '⚠ 録音データが見つかりませんでした'}
-                    {transcribeStep === 'idle'         && '🎙 文字起こし＋AI添削'}
+                    {transcribeStep === 'fetching'     && '録音を検索中...'}
+                    {transcribeStep === 'transcribing' && '文字起こし中...'}
+                    {transcribeStep === 'enhancing'    && 'AI添削中...'}
+                    {transcribeStep === 'done'         && '添削完了'}
+                    {transcribeStep === 'error'        && '録音データが見つかりませんでした'}
+                    {transcribeStep === 'idle'         && '文字起こし＋AI添削'}
                   </button>
                 )}
               </div>
@@ -795,12 +795,12 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   <div style={{ marginTop: 8 }}>
                     <div style={{ padding: '5px 8px', borderRadius: 5, background: C.offWhite,
                       display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: C.navy, whiteSpace: 'nowrap' }}>🎙 録音</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: C.navy, whiteSpace: 'nowrap' }}>録音</span>
                       {recUrl
                         ? <button onClick={() => setShowRecordingDetail(v => !v)}
                             title={showRecordingDetail ? "閉じる" : "録音を再生"}
                             style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer',
-                              padding: 0, lineHeight: 1, color: showRecordingDetail ? C.red : 'inherit' }}>🎙</button>
+                              padding: 0, lineHeight: 1, color: showRecordingDetail ? C.red : 'inherit' }}>録音</button>
                         : <span style={{ fontSize: 11, color: C.textLight }}>録音なし</span>
                       }
                     </div>
@@ -865,7 +865,6 @@ export function MembersView({ members, setMembers }) {
         border: "1px solid " + C.borderLight,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 16 }}>👥</span>
           <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>従業員名簿</span>
           <span style={{ fontSize: 11, color: C.textLight }}>{members.length}名</span>
         </div>
@@ -907,7 +906,7 @@ export function MembersView({ members, setMembers }) {
               color: C.white, cursor: syncLoading ? "not-allowed" : "pointer",
               fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap",
             }}>
-            {syncLoading ? "同期中..." : "🔄 Zoom ID同期"}
+            {syncLoading ? "同期中..." : "Zoom ID同期"}
           </button>}
         </div>
       </div>
@@ -971,19 +970,19 @@ export function MembersView({ members, setMembers }) {
         >
           <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 12, width: 480, maxHeight: "80vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
             <div style={{ padding: "14px 20px", background: "linear-gradient(135deg, #1a7f5a, #2da57a)", borderRadius: "12px 12px 0 0", color: C.white }}>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>🔄 Zoom ID同期結果</div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Zoom ID同期結果</div>
             </div>
             <div style={{ padding: "20px 24px" }}>
               {syncResult.error ? (
                 <div style={{ color: "#c0392b", fontSize: 13, padding: "12px 16px", background: "#fdf0ef", borderRadius: 8, border: "1px solid #e8b4b0" }}>
-                  ❌ エラー：{syncResult.error}
+                  エラー：{syncResult.error}
                 </div>
               ) : (
                 <>
                   <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
                     <div style={{ padding: "10px 14px", background: "#f0faf5", borderRadius: 8, border: "1px solid #a8dfc5" }}>
                       <span style={{ fontSize: 13, fontWeight: 700, color: "#1a7f5a" }}>
-                        ✅ 更新成功：{syncResult.updated?.length ?? 0}名
+                        更新成功：{syncResult.updated?.length ?? 0}名
                       </span>
                       {syncResult.updated?.length > 0 && (
                         <div style={{ marginTop: 6, fontSize: 11, color: "#2d6a4f", lineHeight: 1.8 }}>
@@ -1013,7 +1012,7 @@ export function MembersView({ members, setMembers }) {
                     {syncResult.errors?.length > 0 && (
                       <div style={{ padding: "10px 14px", background: "#fdf0ef", borderRadius: 8, border: "1px solid #e8b4b0" }}>
                         <span style={{ fontSize: 12, fontWeight: 700, color: "#c0392b" }}>
-                          ❌ 更新エラー：{syncResult.errors.length}名
+                          更新エラー：{syncResult.errors.length}名
                         </span>
                         <div style={{ marginTop: 6, fontSize: 11, color: "#7b241c" }}>{syncResult.errors.join('、')}</div>
                       </div>

@@ -241,7 +241,7 @@ const CLIENT_DATA = [{"no": 1, "status": "支援中", "contract": "済", "compan
 // Helper: trigger phone call via hidden iframe (no page navigation, allows rapid sequential calls)
 // dialPhone はsrc/utils/phone.jsからimport済み
 
-// 🎙 インライン録音プレーヤー（全画面共通）
+// インライン録音プレーヤー（全画面共通）
 function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabaseData, onDataRefetch }) {
   const [callListData, setCallListData] = useState(supabaseData?.callLists ?? []);
   const [importedCSVs, setImportedCSVs] = useState({});

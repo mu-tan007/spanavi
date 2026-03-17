@@ -195,7 +195,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
           </div>
           {/* Zoom Phone番号 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11 }}>
-            <span style={{ color: 'rgba(255,255,255,0.5)' }}>📱 Zoom Phone:</span>
+            <span style={{ color: 'rgba(255,255,255,0.5)' }}>Zoom Phone:</span>
             {zoomPhoneEditing ? (
               <>
                 <input
@@ -258,12 +258,10 @@ export default function MyPageView({ currentUser, userId, callListData, members,
         border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-          <span style={{ fontSize: 14 }}>📚</span>
           <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>研修・ロープレ進捗</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center",
           padding: "24px 0", gap: 10, color: C.textLight }}>
-          <span style={{ fontSize: 22 }}>🚧</span>
           <span style={{ fontSize: 12 }}>工事中 - 近日実装予定</span>
         </div>
       </div>
@@ -275,7 +273,6 @@ export default function MyPageView({ currentUser, userId, callListData, members,
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 14 }}>📈</span>
             <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>実績データ</span>
           </div>
           <div style={{ display: "flex", gap: 2 }}>
@@ -298,16 +295,16 @@ export default function MyPageView({ currentUser, userId, callListData, members,
         {/* Summary cards */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
           {[
-            { label: "架電件数", val: periodTab === "cumulative" ? cumAgg.total : periodTab === "monthly" ? monthAgg.total : periodTab === "weekly" ? weekAgg.total : todayAgg.total, color: C.navy, emoji: "📞" },
-            { label: "社長接続数", val: periodTab === "cumulative" ? cumAgg.ceoConnect : periodTab === "monthly" ? monthAgg.ceoConnect : periodTab === "weekly" ? weekAgg.ceoConnect : todayAgg.ceoConnect, color: C.gold, emoji: "👔" },
-            { label: "アポ取得数", val: periodTab === "cumulative" ? cumAgg.appo : periodTab === "monthly" ? monthAgg.appo : periodTab === "weekly" ? weekAgg.appo : todayAgg.appo, color: C.green, emoji: "🎯" },
-            { label: "売上", val: periodTab === "cumulative" ? cumSalesVal : periodTab === "monthly" ? monthSalesVal : periodTab === "weekly" ? weekSalesVal : todaySalesVal, color: "#d4760a", emoji: "💰", isMoney: true },
+            { label: "架電件数", val: periodTab === "cumulative" ? cumAgg.total : periodTab === "monthly" ? monthAgg.total : periodTab === "weekly" ? weekAgg.total : todayAgg.total, color: C.navy },
+            { label: "社長接続数", val: periodTab === "cumulative" ? cumAgg.ceoConnect : periodTab === "monthly" ? monthAgg.ceoConnect : periodTab === "weekly" ? weekAgg.ceoConnect : todayAgg.ceoConnect, color: C.gold },
+            { label: "アポ取得数", val: periodTab === "cumulative" ? cumAgg.appo : periodTab === "monthly" ? monthAgg.appo : periodTab === "weekly" ? weekAgg.appo : todayAgg.appo, color: C.green },
+            { label: "売上", val: periodTab === "cumulative" ? cumSalesVal : periodTab === "monthly" ? monthSalesVal : periodTab === "weekly" ? weekSalesVal : todaySalesVal, color: "#d4760a", isMoney: true },
           ].map((card, i) => (
             <div key={i} style={{
               padding: "14px 16px", borderRadius: 8, background: card.color + "08",
               border: "1px solid " + card.color + "20", textAlign: "center",
             }}>
-              <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>{card.emoji} {card.label}</div>
+              <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>{card.label}</div>
               <div style={{ fontSize: card.isMoney ? 22 : 28, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: card.color }}>{card.isMoney ? card.val.toFixed(1) + "万" : card.val}</div>
             </div>
           ))}
@@ -381,21 +378,20 @@ export default function MyPageView({ currentUser, userId, callListData, members,
             border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-              <span style={{ fontSize: 14 }}>💰</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>売上データ</span>
               <span style={{ fontSize: 10, color: C.textLight }}>（有効ステータスのアポのみ）</span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
               <div style={{ padding: "14px 16px", borderRadius: 8, background: C.gold + "08", border: "1px solid " + C.gold + "20", textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>📋 アポ件数</div>
+                <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>アポ件数</div>
                 <div style={{ fontSize: 28, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: C.gold }}>{currentSales.count}</div>
               </div>
               <div style={{ padding: "14px 16px", borderRadius: 8, background: C.navy + "08", border: "1px solid " + C.navy + "20", textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>💰 当社売上</div>
+                <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>当社売上</div>
                 <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: C.navy }}>{currentSales.totalSales.toFixed(1)}<span style={{ fontSize: 11, fontWeight: 400 }}>万円</span></div>
               </div>
               <div style={{ padding: "14px 16px", borderRadius: 8, background: C.green + "08", border: "1px solid " + C.green + "20", textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>🎁 インターン報酬</div>
+                <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>インターン報酬</div>
                 <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: C.green }}>{currentSales.totalReward.toFixed(1)}<span style={{ fontSize: 11, fontWeight: 400 }}>万円</span></div>
               </div>
             </div>

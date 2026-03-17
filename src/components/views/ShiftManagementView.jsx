@@ -139,8 +139,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
     <div>
       {/* 案内バナー */}
       <div style={{ padding: '8px 16px', background: '#fffbeb', borderBottom: '1px solid #fbd38d', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 15 }}>📅</span>
-        <span style={{ fontSize: 12, color: '#744210', fontWeight: 600 }}>
+<span style={{ fontSize: 12, color: '#744210', fontWeight: 600 }}>
           シフトの登録・編集は「日別表示」から行ってください
         </span>
         <button
@@ -182,7 +181,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                       <span>{member.name}</span>
                       {isUnder80 && (
                         <span title={`今月の稼働時間: ${monthlyH.toFixed(1)}時間（80時間未達）`}
-                          style={{ color: '#ed8936', fontSize: 13, cursor: 'help', lineHeight: 1 }}>⚠</span>
+                          style={{ color: '#ed8936', fontSize: 13, cursor: 'help', lineHeight: 1 }}>!</span>
                       )}
                     </div>
                   </td>

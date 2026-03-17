@@ -952,12 +952,12 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                 <div style={{ textAlign: 'center', padding: '40px 0', color: C.textLight, fontSize: 13 }}>読み込み中...</div>
               ) : (
                 <>
-                  {/* 📋 基本情報 */}
+                  {/* 基本情報 */}
                   {(() => {
                     const latest = itemRecords.length > 0 ? itemRecords.reduce((a, b) => a.round >= b.round ? a : b) : null;
                     return (
                       <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid ' + C.borderLight }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 8 }}>📋 基本情報</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 8 }}>基本情報</div>
                         {[
                           { label: '事業内容', value: selectedItemFull?.business || selectedItem.business },
                           { label: '住所', value: (selectedItemFull?.address || '').replace(/\/\s*$/, '') },
@@ -973,7 +973,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                     );
                   })()}
 
-                  {/* 📊 詳細情報 */}
+                  {/* 詳細情報 */}
                   {(() => {
                     const full = selectedItemFull;
                     let parsedMemo = null;
@@ -982,7 +982,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                     const biko = parsedMemo?.biko ?? (full?.memo && !parsedMemo ? full.memo : null);
                     return (
                       <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid ' + C.borderLight }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 8 }}>📊 詳細情報</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 8 }}>詳細情報</div>
                         {[
                           { label: '売上', value: full?.revenue != null ? Number(full.revenue).toLocaleString() + ' 千円' : '-' },
                           { label: '当期純利益', value: netIncome != null ? Number(netIncome).toLocaleString() + ' 千円' : '-' },
@@ -1000,7 +1000,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                   {/* 電話発信ボタン */}
                   {selectedItem.phone && (
                     <div onClick={() => dialPhone(selectedItem.phone)} style={{ display: 'block', marginBottom: 10, padding: '10px 16px', borderRadius: 10, background: 'linear-gradient(135deg, ' + C.navyDeep + ', ' + C.navy + ')', textAlign: 'center', boxShadow: '0 2px 8px ' + C.navy + '40', cursor: 'pointer' }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: C.white + 'cc', marginBottom: 2 }}>📞 電話をかける</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: C.white + 'cc', marginBottom: 2 }}>電話をかける</div>
                       <div style={{ fontSize: 18, fontWeight: 900, color: C.white, fontFamily: "'JetBrains Mono'" }}>{selectedItem.phone}</div>
                     </div>
                   )}
@@ -1012,7 +1012,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                       style={{ flex: 1, padding: '6px 8px', borderRadius: 6, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: C.offWhite, color: C.textDark }} />
                     <button onClick={() => { if (!subPhone.trim()) return; dialPhone(subPhone.trim()); }}
                       disabled={!subPhone.trim()}
-                      style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid ' + C.border, background: C.white, cursor: subPhone.trim() ? 'pointer' : 'default', fontSize: 13, opacity: subPhone.trim() ? 1 : 0.4, lineHeight: 1 }}>📞</button>
+                      style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid ' + C.border, background: C.white, cursor: subPhone.trim() ? 'pointer' : 'default', fontSize: 13, opacity: subPhone.trim() ? 1 : 0.4, lineHeight: 1 }}>発信</button>
                   </div>
 
                   {/* ラウンドボタン */}
@@ -1094,7 +1094,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                   {/* 架電履歴 */}
                   {itemRecords.length > 0 && (
                     <div style={{ marginBottom: 8 }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 6 }}>📋 架電履歴</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 6 }}>架電履歴</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         {itemRecords.map(rec => {
                           const sc = detailCallStatusColor(rec.status);
@@ -1113,9 +1113,9 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                                 {rec.recording_url
                                   ? <button onClick={() => setActiveRecordingId(activeRecordingId === rec.id ? null : rec.id)}
                                       title={activeRecordingId === rec.id ? "閉じる" : "録音を再生"}
-                                      style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: activeRecordingId === rec.id ? C.red : 'inherit' }}>🎙</button>
+                                      style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: activeRecordingId === rec.id ? C.red : 'inherit' }}>録音</button>
                                   : <button onClick={() => handleDetailFetchRecording(rec)} title="録音URLを手動取得"
-                                      style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>🔄</button>
+                                      style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>更新</button>
                                 }
                               </div>
                               {activeRecordingId === rec.id && rec.recording_url && (

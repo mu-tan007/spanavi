@@ -2,10 +2,10 @@ import { useAuth } from '../hooks/useAuth'
 import { LOGO_SRC } from '../lib/logo'
 
 const NAV_ITEMS = [
-  { key: 'call', icon: '📞', label: '架電リスト' },
-  { key: 'clients', icon: '🏢', label: 'クライアント' },
-  { key: 'appo', icon: '📋', label: 'アポ管理' },
-  { key: 'admin', icon: '⚙️', label: '管理' },
+  { key: 'call', icon: '', label: '架電リスト' },
+  { key: 'clients', icon: '', label: 'クライアント' },
+  { key: 'appo', icon: '', label: 'アポ管理' },
+  { key: 'admin', icon: '', label: '管理' },
 ]
 
 export default function Layout({ currentView, setCurrentView, children }) {

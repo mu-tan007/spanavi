@@ -272,17 +272,17 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
                     }} />
                   )}
                 </span>
-                {/* ✏️ / 🗑️ ボタン */}
+                {/* 編集 / 削除 ボタン */}
                 {!isEditing && (
                   <>
                     <button onClick={handleEdit} title="範囲を編集" style={{
                       background: 'none', border: 'none', cursor: 'pointer',
                       fontSize: 10, padding: '0 2px', lineHeight: 1,
-                    }}>✏️</button>
+                    }}>編集</button>
                     <button onClick={handleDelete} title="セッションを削除" style={{
                       background: 'none', border: 'none', cursor: 'pointer',
                       fontSize: 10, padding: '0 2px', lineHeight: 1,
-                    }}>🗑️</button>
+                    }}>削除</button>
                   </>
                 )}
                 {/* インライン編集UI */}

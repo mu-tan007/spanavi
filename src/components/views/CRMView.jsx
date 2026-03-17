@@ -98,7 +98,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
     };
     setClientData(prev => [newClient, ...prev]);
     setAddForm(null);
-    setAddToast('✅ 顧客を追加しました');
+    setAddToast('顧客を追加しました');
     setTimeout(() => setAddToast(null), 3000);
   };
 

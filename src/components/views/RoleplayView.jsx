@@ -211,7 +211,7 @@ export default function RoleplayView({ currentUser, userId }) {
       setBookings(prev => [...prev, nb]);
       insertRoleplayBooking(userId, nb);
       await fetchBusy();
-      setBookingSuccessMsg('✅ Googleカレンダーに登録しました');
+      setBookingSuccessMsg('Googleカレンダーに登録しました');
       setTimeout(() => setBookingSuccessMsg(''), 4000);
       setConfirmSlot(null);
     } catch (e) {
