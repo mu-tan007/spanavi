@@ -50,14 +50,15 @@ Deno.serve(async (req) => {
       if (rec.status === 'アポ獲得') stats[name].appo++
     }
 
-    // 上位3件を取得するヘルパー
+    // ランキング取得ヘルパー
     type StatKey = 'calls' | 'ceo' | 'appo'
-    const top3 = (key: StatKey): [string, number][] =>
-      Object.entries(stats)
+    const topN = (key: StatKey, limit: number | null): [string, number][] => {
+      const sorted = Object.entries(stats)
         .filter(([, s]) => s[key] > 0)
         .sort((a, b) => b[1][key] - a[1][key])
-        .slice(0, 3)
-        .map(([name, s]) => [name, s[key]])
+        .map(([name, s]) => [name, s[key]] as [string, number])
+      return limit === null ? sorted : sorted.slice(0, limit)
+    }
 
     const formatSection = (entries: [string, number][], unit = '件'): string => {
       if (entries.length === 0) return '該当なし'
@@ -68,17 +69,18 @@ Deno.serve(async (req) => {
     const jstMin  = jstNow.getUTCMinutes()
     const timeStr = `${String(jstHour).padStart(2, '0')}:${String(jstMin).padStart(2, '0')}`
 
+    const callEntries = topN('calls', null) // 1件以上全員
     const text = [
       `📊 本日の架電ランキング（${timeStr}時点）`,
       '',
-      '🔥 架電件数 TOP3',
-      formatSection(top3('calls')),
+      `🔥 架電件数（全${callEntries.length}名）`,
+      formatSection(callEntries),
       '',
       '📞 社長接続数 TOP3',
-      formatSection(top3('ceo')),
+      formatSection(topN('ceo', 3)),
       '',
       '🎯 アポ取得数 TOP3',
-      formatSection(top3('appo')),
+      formatSection(topN('appo', 3)),
     ].join('\n')
 
     // org_settings から Webhook URL を取得（なければ env var にフォールバック）
