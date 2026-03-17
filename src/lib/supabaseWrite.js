@@ -1388,3 +1388,19 @@ export async function fetchCallListsMeta() {
   if (error) console.error('[DB] fetchCallListsMeta error:', error);
   return { data: data || [], error };
 }
+
+// call_listsテーブルからindustry（業種）のユニーク一覧を取得
+export async function fetchCallListIndustries() {
+  const { data, error } = await supabase
+    .from('call_lists')
+    .select('industry')
+    .eq('org_id', ORG_ID)
+    .not('industry', 'is', null)
+    .neq('industry', '');
+  if (error) {
+    console.error('[DB] fetchCallListIndustries error:', error);
+    return { data: [], error };
+  }
+  const unique = [...new Set((data || []).map(r => r.industry).filter(Boolean))].sort();
+  return { data: unique, error: null };
+}
