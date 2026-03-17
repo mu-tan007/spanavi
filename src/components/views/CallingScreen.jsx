@@ -585,7 +585,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
               const statusDef = roundData ? getStatusDef(roundData.status) : null;
 
               return (
-                <div key={row.no} onClick={() => { setSelectedRow(globalIdx); setMemo(csvData[globalIdx]?.memo || ""); }}
+                <div key={row.no} onClick={() => { setSelectedRow(globalIdx); setMemo(csvData[globalIdx]?.memo || ""); setShowScript(false); }}
                   style={{
                     display: "grid", gridTemplateColumns: "32px 1.4fr 0.6fr 0.6fr 0.7fr 85px 68px repeat(5, 46px)",
                     padding: "6px 10px", fontSize: 11, alignItems: "center", cursor: "pointer",
@@ -599,7 +599,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                   <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.company}</span>
                   <span style={{ color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 10 }}>{row.business}</span>
                   <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.representative}</span>
-                  <span style={{ color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 9 }}>{row.address}</span>
+                  <span style={{ color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 9 }}>{row.address || row.pref || '—'}</span>
                   <span>
                     {row.phone && !excluded ? (
                       <span onClick={e => { e.stopPropagation(); dialPhone(row.phone); setSelectedRow(globalIdx); setMemo(csvData[globalIdx]?.memo || ""); }} style={{
@@ -666,7 +666,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
             <div style={{ flex: 1, overflowY: "auto", padding: 14 }}>
               {/* Selected company info */}
               <div style={{ marginBottom: 12, padding: "10px 12px", background: C.offWhite, borderRadius: 8, border: "1px solid " + C.borderLight }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 4 }}>{activeRow.company}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 4 }}>{activeRow?.company}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, fontSize: 11 }}>
                   <div><span style={{ color: C.textLight }}>代表者: </span><span style={{ fontWeight: 500 }}>{activeRow.representative}</span></div>
                   <div><span style={{ color: C.textLight }}>業種: </span><span>{activeRow.business}</span></div>

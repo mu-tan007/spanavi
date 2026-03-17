@@ -93,6 +93,11 @@ export default function StatsView({ callListData, currentUser, appoData, members
 
   const [expandedClient, setExpandedClient] = useState(null);
 
+  // ── ⑥ クライアント別リスケ率・キャンセル率 ──────────────────────────────────
+  const [clientRescanPeriod, setClientRescanPeriod] = useState('month');
+  const [clientRescanFrom, setClientRescanFrom] = useState('');
+  const [clientRescanTo, setClientRescanTo] = useState('');
+
   const now = nowProp ? new Date(nowProp) : new Date();
   const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
   const todayD = new Date(todayStr);
@@ -306,6 +311,27 @@ export default function StatsView({ callListData, currentUser, appoData, members
     });
     return Object.entries(m).sort((a, b) => b[1].total - a[1].total);
   }, [clientFilteredData]);
+
+  // ── ⑥ クライアント別リスケ率・キャンセル率データ ────────────────────────────
+  const ALL_APPO_STATUSES = new Set([...COUNTABLE, 'リスケ中', 'キャンセル']);
+  const clientReschedData = useMemo(() => {
+    const m = {};
+    (appoData || []).filter(a =>
+      ALL_APPO_STATUSES.has(a.status) && filterBySimplePeriod(a.getDate, clientRescanPeriod, clientRescanFrom, clientRescanTo)
+    ).forEach(a => {
+      const key = a.client || '不明';
+      if (!m[key]) m[key] = { name: key, appo: 0, reschedule: 0, cancel: 0 };
+      if (COUNTABLE.has(a.status)) m[key].appo++;
+      else if (a.status === 'リスケ中') m[key].reschedule++;
+      else if (a.status === 'キャンセル') m[key].cancel++;
+    });
+    return Object.values(m).map(d => ({
+      ...d,
+      total: d.appo + d.reschedule + d.cancel,
+      rescheduleRate: (d.appo + d.reschedule + d.cancel) > 0 ? d.reschedule / (d.appo + d.reschedule + d.cancel) * 100 : 0,
+      cancelRate: (d.appo + d.reschedule + d.cancel) > 0 ? d.cancel / (d.appo + d.reschedule + d.cancel) * 100 : 0,
+    })).filter(d => d.total > 0).sort((a, b) => b.total - a.total);
+  }, [appoData, clientRescanPeriod, clientRescanFrom, clientRescanTo, todayStr, weekStartStr, monthStr]);
 
   // ── リスト別パフォーマンス ───────────────────────────────────────────────
   const LIST_CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール']);
@@ -849,9 +875,46 @@ export default function StatsView({ callListData, currentUser, appoData, members
           </div>
         );
       })()}
-
-
-
+      {/* ========== セクション6: クライアント別リスケ率・キャンセル率 ========== */}
+      <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>クライアント別リスケ率・キャンセル率</span>
+            <span style={{ fontSize: 10, color: C.textLight }}>{clientReschedData.length}社</span>
+          </div>
+          {simplePeriodSelector(clientRescanPeriod, setClientRescanPeriod, clientRescanFrom, setClientRescanFrom, clientRescanTo, setClientRescanTo, NAVY)}
+        </div>
+        <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 120px 80px 120px', padding: '8px 16px', background: '#F8F9FA', fontSize: 11, fontWeight: 600, color: '#6B7280', letterSpacing: '0.06em', borderBottom: '1px solid #E5E7EB' }}>
+            <span>クライアント名</span>
+            <span style={{ textAlign: 'right' }}>アポ数</span>
+            <span style={{ textAlign: 'right' }}>リスケ数</span>
+            <span style={{ textAlign: 'right' }}>リスケ率</span>
+            <span style={{ textAlign: 'right' }}>キャンセル数</span>
+            <span style={{ textAlign: 'right' }}>キャンセル率</span>
+          </div>
+          {clientReschedData.length === 0 ? (
+            <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
+          ) : clientReschedData.map((d, idx) => (
+            <div key={d.name} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 120px 80px 120px', padding: '9px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', background: idx % 2 === 0 ? 'transparent' : '#FAFAFA' }}>
+              <span style={{ fontWeight: 600, color: NAVY }}>{d.name}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", textAlign: 'right' }}>{d.appo}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", textAlign: 'right', color: d.reschedule > 0 ? '#F59E0B' : C.textLight }}>{d.reschedule}</span>
+              <span style={{ textAlign: 'right' }}>
+                <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: d.rescheduleRate >= 20 ? '#DC2626' : d.rescheduleRate >= 10 ? '#F59E0B' : '#374151' }}>
+                  {d.rescheduleRate.toFixed(1)}%
+                </span>
+              </span>
+              <span style={{ fontFamily: "'JetBrains Mono'", textAlign: 'right', color: d.cancel > 0 ? '#EF4444' : C.textLight }}>{d.cancel}</span>
+              <span style={{ textAlign: 'right' }}>
+                <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: d.cancelRate >= 20 ? '#DC2626' : d.cancelRate >= 10 ? '#F59E0B' : '#374151' }}>
+                  {d.cancelRate.toFixed(1)}%
+                </span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
 
     </div>
   );
