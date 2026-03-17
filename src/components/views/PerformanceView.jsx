@@ -284,11 +284,13 @@ export default function PerformanceView({ members, currentUser }) {
     return () => { cancelled = true; };
   }, [rankDateRange]);
 
-  // 人ごとの合計稼働時間 { name: hours }
+  // 人ごとの合計稼働時間 { name: hours }（JST 9〜22時開始のセッションのみ）
   const sessionMap = useMemo(() => {
     const m = {};
     sessionRecords.forEach(s => {
       if (!s.caller_name) return;
+      const jstHour = (new Date(s.started_at).getUTCHours() + 9) % 24;
+      if (jstHour < 9 || jstHour >= 22) return;
       const end = s.finished_at || s.last_called_at;
       if (!end) return;
       const h = (new Date(end) - new Date(s.started_at)) / 3600000;
