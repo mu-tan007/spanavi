@@ -590,7 +590,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
                   </span>
                   <span style={{ flex: 1, fontSize: 12, fontWeight: isMe ? 700 : 500, color: isMe ? NAVY : C.textDark }}>{name}{isMe ? ' ★' : ''}</span>
                   <span style={{ fontSize: 13, fontWeight: 900, fontFamily: "'JetBrains Mono'", color: '#111827' }}>{fmt(d.total)}</span>
-                  <span style={{ fontSize: 10, color: C.textLight }}>{d.count}件</span>
+                  <span style={{ fontSize: 10, color: C.textLight, fontFamily: "'JetBrains Mono'" }}>{d.count}件</span>
                 </div>
                 <div style={{ height: 5, borderRadius: 3, background: C.offWhite, overflow: 'hidden' }}>
                   <div style={{ height: '100%', borderRadius: 3, background: idx === 0 ? 'linear-gradient(90deg,' + NAVY + ',#1a3a6b)' : 'linear-gradient(90deg,#9CA3AF,#d1d5db)', width: barPct + '%', transition: 'width 0.5s ease' }} />
@@ -622,7 +622,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
                   </span>
                   <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: NAVY }}>{tn}</span>
                   <span style={{ fontSize: 13, fontWeight: 900, fontFamily: "'JetBrains Mono'", color: '#111827' }}>{fmt(d.total)}</span>
-                  <span style={{ fontSize: 10, color: C.textLight }}>{d.count}件 / {d.memberCount}人</span>
+                  <span style={{ fontSize: 10, color: C.textLight, fontFamily: "'JetBrains Mono'" }}>{d.count}件 / {d.memberCount}人</span>
                 </div>
                 <div style={{ height: 5, borderRadius: 3, background: C.offWhite, overflow: 'hidden' }}>
                   <div style={{ height: '100%', borderRadius: 3, background: idx === 0 ? 'linear-gradient(90deg,' + NAVY + ',#1a3a6b)' : 'linear-gradient(90deg,#9CA3AF,#d1d5db)', width: barPct + '%', transition: 'width 0.5s ease' }} />

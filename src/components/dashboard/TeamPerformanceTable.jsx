@@ -74,7 +74,7 @@ export default function TeamPerformanceTable({ records, loading, teamMap }) {
                 <span style={{ fontFamily: "'JetBrains Mono'", color: '#374151', fontWeight: 700 }}>{cr}%</span>
                 <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 800, color: '#374151' }}>{d.appo}</span>
                 <span style={{ fontFamily: "'JetBrains Mono'", color: '#374151', fontWeight: 700 }}>{ar}%</span>
-                <span style={{ fontSize: 11 }}>{d.memberCount}人</span>
+                <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono'" }}>{d.memberCount}人</span>
               </div>
               {isExpanded && (
                 <div style={{ background: NAVY + '04', borderBottom: '1px solid #E5E5E5', padding: '6px 28px 10px' }}>

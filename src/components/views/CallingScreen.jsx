@@ -461,7 +461,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                 color: filterMode === m ? '#FFFFFF' : C.textLight, cursor: "pointer",
               }}>{m === "callable" ? "架電可能" : m === "all" ? "全件" : "除外"}</button>
             ))}
-            <span style={{ fontSize: 9, color: C.textLight, whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: 9, color: C.textLight, whiteSpace: "nowrap", fontFamily: "'JetBrains Mono'" }}>
               {filtered.length}件
             </span>
           </div>

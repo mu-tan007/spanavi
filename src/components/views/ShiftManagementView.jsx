@@ -158,7 +158,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                 const { isSun, isSat, name } = getDayMeta(d);
                 return (
                   <th key={d} style={{ width: 72, minWidth: 72, padding: '6px 4px', textAlign: 'center', fontSize: 10, fontWeight: 700, color: isSun ? '#fc8181' : isSat ? '#90cdf4' : C.white, borderRight: '1px solid rgba(255,255,255,0.1)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    <div style={{ fontSize: 12 }}>{d}</div>
+                    <div style={{ fontSize: 12, fontFamily: "'JetBrains Mono'" }}>{d}</div>
                     <div style={{ fontSize: 9, opacity: 0.8 }}>{name}</div>
                   </th>
                 );
@@ -201,6 +201,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                               fontSize: 9, fontWeight: 700,
                               color: isMe ? '#7d5c00' : C.navy,
                               lineHeight: 1.4, textAlign: 'left',
+                              fontFamily: "'JetBrains Mono'",
                             }}>
                               <div>{fmtTime(shift.start_time)}</div>
                               <div>{fmtTime(shift.end_time)}</div>
@@ -309,7 +310,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                 {SLOTS_30.map(slot => {
                   const count = getConcurrentCount(slot, dateStr);
                   return (
-                    <div key={slot} style={{ flex: 1, textAlign: 'center', fontSize: count > 0 ? 10 : 9, fontWeight: 700, color: count > 0 ? C.gold : 'rgba(255,255,255,0.25)', minWidth: 0, paddingTop: 2, paddingBottom: 2 }}>
+                    <div key={slot} style={{ flex: 1, textAlign: 'center', fontSize: count > 0 ? 10 : 9, fontWeight: 700, color: count > 0 ? C.gold : 'rgba(255,255,255,0.25)', minWidth: 0, paddingTop: 2, paddingBottom: 2, fontFamily: "'JetBrains Mono'" }}>
                       {count > 0 ? count : '·'}
                     </div>
                   );
@@ -557,7 +558,7 @@ function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, d
                 zIndex: 1,
               }}
             >
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0, pointerEvents: 'none' }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0, pointerEvents: 'none', fontFamily: "'JetBrains Mono'" }}>
                 {shift.start_time.slice(0, 5)}–{shift.end_time.slice(0, 5)}
               </span>
               {/* リサイズハンドル（右端） */}
@@ -622,6 +623,7 @@ function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, d
             color: previewConflict ? '#fff' : '#7d5c00',
             pointerEvents: 'none', zIndex: 3,
             overflow: 'hidden', whiteSpace: 'nowrap',
+            fontFamily: "'JetBrains Mono'",
           }}>
             {minToStr(preview.s)}–{minToStr(preview.e)}
           </div>

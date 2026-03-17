@@ -212,9 +212,9 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
                         </tr>
                       ) : (
                         <tr key={tier.id} style={{ borderBottom: '1px solid ' + C.borderLight }}>
-                          <td style={{ padding: '8px 10px' }}>{fmt(tier.lo)}</td>
-                          <td style={{ padding: '8px 10px' }}>{tier.hi >= 999999999999 ? '上限なし' : fmt(tier.hi)}</td>
-                          <td style={{ padding: '8px 10px', fontWeight: 600, color: C.navy }}>{fmt(tier.price)}</td>
+                          <td style={{ padding: '8px 10px', fontFamily: "'JetBrains Mono'" }}>{fmt(tier.lo)}</td>
+                          <td style={{ padding: '8px 10px', fontFamily: "'JetBrains Mono'" }}>{tier.hi >= 999999999999 ? '上限なし' : fmt(tier.hi)}</td>
+                          <td style={{ padding: '8px 10px', fontWeight: 600, color: C.navy, fontFamily: "'JetBrains Mono'" }}>{fmt(tier.price)}</td>
                           <td style={{ padding: '8px 10px', color: C.textMid }}>{tier.memo}</td>
                           <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
                             <button onClick={() => { setEditTierId(tier.id); setEditTierForm({ lo: tier.lo, hi: tier.hi, price: tier.price, memo: tier.memo }); }} style={{ ...btnGhost, marginRight: 4 }}>編集</button>
