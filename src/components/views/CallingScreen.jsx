@@ -79,14 +79,14 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
 
   // Status definitions
   const STATUSES = [
-    { id: "normal", label: "不通", desc: "電話がつながらなかった", color: C.navy, bg: C.navy + "08", excluded: false },
+    { id: "normal", label: "不通", desc: "電話がつながらなかった", color: '#6B7280', bg: '#6B728018', excluded: false },
     { id: "excluded", label: "除外", desc: "廃止番号・着信拒否・クレーム等", color: "#e53835", bg: "#e5383510", excluded: true },
-    { id: "absent", label: "社長不在", desc: "社長が外出中", color: C.gold, bg: C.gold + "10", excluded: false },
-    { id: "reception_block", label: "受付ブロック", desc: "受付に断られた", color: C.navy, bg: C.navy + "08", excluded: false },
-    { id: "reception_recall", label: "受付再コール", desc: "時間を置いて再度", color: C.gold, bg: C.gold + "10", excluded: false },
-    { id: "ceo_recall", label: "社長再コール", desc: "社長から再度依頼", color: C.gold, bg: C.gold + "10", excluded: false },
-    { id: "appointment", label: "アポ獲得", desc: "アポイント獲得！", color: C.gold, bg: C.gold + "10", excluded: true },
-    { id: "ceo_decline", label: "社長お断り", desc: "社長本人に断られた", color: C.navy, bg: C.navy + "08", excluded: false },
+    { id: "absent", label: "社長不在", desc: "社長が外出中", color: '#6B7280', bg: '#6B728018', excluded: false },
+    { id: "reception_block", label: "受付ブロック", desc: "受付に断られた", color: '#6B7280', bg: '#6B728018', excluded: false },
+    { id: "reception_recall", label: "受付再コール", desc: "時間を置いて再度", color: '#6B7280', bg: '#6B728018', excluded: false },
+    { id: "ceo_recall", label: "社長再コール", desc: "社長から再度依頼", color: '#6B7280', bg: '#6B728018', excluded: false },
+    { id: "appointment", label: "アポ獲得", desc: "アポイント獲得！", color: '#0D2247', bg: '#0D224710', excluded: true },
+    { id: "ceo_decline", label: "社長お断り", desc: "社長本人に断られた", color: '#6B7280', bg: '#6B728018', excluded: false },
   ];
 
   // Legacy status migration: map old IDs to new
@@ -432,9 +432,9 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
           {/* Progress */}
           <div style={{ width: 100 }}>
             <div style={{ height: 5, background: C.white + "20", borderRadius: 3, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: ((roundDoneCount + excludedCount) / Math.max(totalCount, 1) * 100) + "%", background: "linear-gradient(90deg, " + C.gold + ", " + C.green + ")", borderRadius: 3, transition: "width 0.3s" }} />
+              <div style={{ height: "100%", width: ((roundDoneCount + excludedCount) / Math.max(totalCount, 1) * 100) + "%", background: "linear-gradient(90deg, #0D2247, #1E40AF)", borderRadius: 3, transition: "width 0.3s" }} />
             </div>
-            <div style={{ fontSize: 8, color: C.goldLight, textAlign: "right", marginTop: 1 }}>{Math.round((roundDoneCount + excludedCount) / Math.max(totalCount, 1) * 100)}%</div>
+            <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.75)', textAlign: "right", marginTop: 1 }}>{Math.round((roundDoneCount + excludedCount) / Math.max(totalCount, 1) * 100)}%</div>
           </div>
           <button onClick={handleClose} style={{
             padding: "5px 14px", borderRadius: 6, background: C.white + "15",
@@ -456,9 +456,9 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
             {["callable", "all", "excluded"].map(m => (
               <button key={m} onClick={() => { setFilterMode(m); setPageStart(0); }} style={{
                 padding: "4px 8px", borderRadius: 4, fontSize: 9, fontWeight: 600,
-                border: "1px solid " + (filterMode === m ? C.navy : C.border),
-                background: filterMode === m ? C.navy + "10" : C.white,
-                color: filterMode === m ? C.navy : C.textLight, cursor: "pointer",
+                border: "1px solid " + (filterMode === m ? '#0D2247' : C.border),
+                background: filterMode === m ? '#0D2247' : C.white,
+                color: filterMode === m ? '#FFFFFF' : C.textLight, cursor: "pointer",
               }}>{m === "callable" ? "架電可能" : m === "all" ? "全件" : "除外"}</button>
             ))}
             <span style={{ fontSize: 9, color: C.textLight, whiteSpace: "nowrap" }}>
@@ -495,8 +495,8 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                     display: "grid", gridTemplateColumns: "32px 1.4fr 0.6fr 0.6fr 85px 68px repeat(5, 46px)",
                     padding: "6px 10px", fontSize: 11, alignItems: "center", cursor: "pointer",
                     borderBottom: "1px solid " + C.borderLight,
-                    background: isSelected ? C.gold + "12" : excluded ? "#fee2e2" + "40" : roundData ? C.offWhite : C.white,
-                    borderLeft: isSelected ? "3px solid " + C.gold : "3px solid transparent",
+                    background: isSelected ? '#EFF6FF' : excluded ? "#fee2e2" + "40" : roundData ? C.offWhite : C.white,
+                    borderLeft: isSelected ? "3px solid #0D2247" : "3px solid transparent",
                     opacity: excluded ? 0.5 : 1,
                     transition: "all 0.1s",
                   }}>
@@ -510,8 +510,8 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                         color: C.navy, fontWeight: 600, fontSize: 10,
                         fontFamily: "'JetBrains Mono'",
                         padding: "2px 5px", borderRadius: 4, cursor: "pointer",
-                        background: C.gold + "15",
-                        border: "1px solid " + C.gold + "30",
+                        background: '#0D224715',
+                        border: "1px solid #0D224730",
                       }}>{row.phone}</span>
                     ) : (
                       <span style={{ fontSize: 10, color: C.textLight, fontFamily: "'JetBrains Mono'" }}>{row.phone || "-"}</span>

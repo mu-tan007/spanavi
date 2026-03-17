@@ -41,7 +41,7 @@ const resolveName = (callerName, members) => {
 
 // 担当者ごとの色（Spanaviブランドカラーに合わせた複数色）
 const CALLER_COLORS = [
-  '#C8A84B', // gold
+  '#0D2247', // navy
   '#2E844A', // green
   '#0176D3', // primary blue
   '#FFB75D', // orange

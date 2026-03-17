@@ -15,28 +15,15 @@ const Badge = ({ children, color = C.navy, glow = false, small = false }) => (
   }}>{children}</span>
 );
 
-const ScorePill = ({ score, label, color }) => (
-  <div style={{
-    display: "flex", alignItems: "center", gap: 7,
-    padding: "3px 10px 3px 4px", borderRadius: 20,
-    background: color + "10", border: "1px solid " + color + "25",
-    flexShrink: 0,
-  }}>
-    <div style={{
-      width: 26, height: 26, minWidth: 26, minHeight: 26, borderRadius: "50%",
-      background: "conic-gradient(" + color + " " + (score * 3.6) + "deg, " + C.borderLight + " 0deg)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      flexShrink: 0,
-    }}>
-      <div style={{
-        width: 18, height: 18, minWidth: 18, minHeight: 18, borderRadius: "50%", background: C.white,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 8, fontWeight: 700, color, fontFamily: "'JetBrains Mono', monospace",
-        flexShrink: 0,
-      }}>{score}</div>
-    </div>
-    <span style={{ fontSize: 11, fontWeight: 600, color, whiteSpace: "nowrap" }}>{label}</span>
-  </div>
+const ScorePill = ({ score }) => (
+  <span style={{
+    display: "inline-flex", alignItems: "center",
+    padding: "2px 8px", borderRadius: 4,
+    background: "#EFF6FF", border: "1px solid #1E40AF40",
+    fontSize: 10, fontWeight: 700, color: "#1E40AF",
+    fontFamily: "'JetBrains Mono', monospace",
+    letterSpacing: "0.05em", flexShrink: 0, whiteSpace: "nowrap",
+  }}>SCORE {score}</span>
 );
 
 export default function ListView({ filteredLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [] }) {
@@ -137,7 +124,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
       {topRecommended.length > 0 && showRec && !(now && (now.getHours() < 7 || now.getHours() >= 20)) && (
         <div style={{
           background: C.white, borderRadius: 10, padding: "16px 20px", marginBottom: 16,
-          border: "1px solid " + C.borderLight, borderLeft: "2px solid " + C.gold,
+          border: "1px solid " + C.borderLight, borderLeft: "2px solid #1E40AF",
           boxShadow: "0 2px 8px rgba(26,58,92,0.06)",
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
@@ -147,7 +134,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
               <span style={{ fontSize: 10, color: C.textLight }}>
                 {now ? (DAY_NAMES[now.getDay()] + "曜日 " + now.getHours() + "時台") : ""}
               </span>
-              <span style={{ fontSize: 10, fontWeight: 700, color: C.gold, background: C.gold + "15", padding: "1px 8px", borderRadius: 8 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#1E40AF", background: "#EFF6FF", padding: "1px 8px", borderRadius: 8 }}>
                 {topRecommended.length}件
               </span>
             </div>
@@ -165,12 +152,12 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                 fontFamily: "'Noto Sans JP', sans-serif",
                 transition: "all 0.15s",
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = C.gold + "0c"; e.currentTarget.style.borderColor = C.gold + "50"; }}
+              onMouseEnter={e => { e.currentTarget.style.background = "#EFF6FF"; e.currentTarget.style.borderColor = "#1E40AF50"; }}
               onMouseLeave={e => { e.currentTarget.style.background = C.offWhite; e.currentTarget.style.borderColor = C.borderLight; }}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                   <span style={{ fontSize: 11, fontWeight: 600, flex: 1, minWidth: 0, wordBreak: "break-all" }}>{list.company}</span>
-                  <ScorePill score={list.recommendation.score} label={list.recommendation.label} color={list.recommendation.color} />
+                  <ScorePill score={list.recommendation.score} />
                 </div>
                 <div style={{ display: "flex", gap: 4 }}>
                   <Badge color={C.textLight} small>{list.industry}</Badge>
@@ -213,9 +200,9 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
       {/* Add/Edit Form */}
       {listFormOpen && (
         <div style={{
-          background: C.white, border: "1px solid " + C.gold + "40", borderRadius: 12,
+          background: C.white, border: "1px solid #E5E7EB", borderRadius: 12,
           padding: 24, marginBottom: 20, animation: "fadeIn 0.2s ease",
-          borderLeft: "2px solid " + C.gold,
+          borderLeft: "2px solid #0D2247",
           boxShadow: "0 2px 8px rgba(26,58,92,0.06)",
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
@@ -342,20 +329,21 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                       transition: "background 0.15s",
                       opacity: list.status === "架電停止" ? 0.4 : 1,
                       animation: "fadeIn 0.2s ease " + (i * 0.015) + "s both",
+                      borderLeft: "2px solid transparent",
                     }}
-                    onMouseEnter={e => e.currentTarget.style.background = "#EAF4FF"}
-                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#EAF4FF"; e.currentTarget.style.borderLeft = "2px solid #0D2247"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderLeft = "2px solid transparent"; }}
                     >
                       <span onClick={() => setSelectedList(list.id)} style={{ fontWeight: 500, paddingRight: 8, cursor: "pointer", wordBreak: "break-all" }}>
                         {list.status === "架電停止" && <span style={{ color: C.red, marginRight: 4 }}>■</span>}
                         {list.company}
         
                       </span>
-                      <span><Badge color={list.type === "M&A仲介" ? C.navy : list.type === "IFA" ? C.gold : list.type === "ファンド" ? C.green : C.orange} small>{list.type}</Badge></span>
+                      <span><Badge color={list.type === "M&A仲介" ? C.navy : list.type === "IFA" ? '#6366F1' : list.type === "ファンド" ? C.green : C.orange} small>{list.type}</Badge></span>
                       <span style={{ color: C.textMid }}>{list.industry}</span>
                       <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textMid }}>{list.count.toLocaleString()}</span>
                       <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list.manager}</span>
-                      <span style={{ textAlign: "right" }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} label={list.recommendation.label} color={list.recommendation.color} />}</span>
+                      <span style={{ textAlign: "right" }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
                       <span style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
                         {isAdmin && <>
                           <button onClick={() => handleOpenEdit(list)} title="編集" style={{

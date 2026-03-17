@@ -362,7 +362,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
     color: rank <= 3 ? C.white : C.textLight,
     border: rank <= 3 ? 'none' : '1px solid ' + C.borderLight,
   });
-  const cardStyle = { background: C.white, borderRadius: 12, padding: '16px 18px', borderTop: '3px solid ' + GOLD };
+  const cardStyle = { background: C.white, borderRadius: 12, padding: '16px 18px', borderLeft: '2px solid #0D2247' };
 
   // 日付入力付きセクション独立フィルタ (日/週/月/期間指定)
   const simplePeriodSelector = (period, setPeriod, from, setFrom, to, setTo, accent) => (
@@ -421,7 +421,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
         <div style={cardStyle}>
           <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>今月（{parseInt(monthStr.slice(5))}月1日〜{dayOfMonth}日）</div>
           <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>今月累計売上</div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'", letterSpacing: '-0.5px' }}>
+          <div style={{ fontSize: 24, fontWeight: 900, color: GOLD, fontFamily: "'JetBrains Mono'", letterSpacing: '-0.5px' }}>
             {formatCurrency(kpiMonthSales)}
           </div>
           <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -576,24 +576,24 @@ export default function StatsView({ callListData, currentUser, appoData, members
             {simplePeriodSelector(rankPersonPeriod, setRankPersonPeriod, rankPersonFrom, setRankPersonFrom, rankPersonTo, setRankPersonTo, GOLD)}
           </div>
           {personRankData.length === 0 ? (
-            <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
+            <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
           ) : personRankData.map(([name, d], idx) => {
             const isMe = name === currentUser;
             const maxVal = personRankData[0]?.[1]?.total || 1;
             const barPct = Math.max(d.total / maxVal * 100, 2);
             const medalBg = idx === 0 ? 'linear-gradient(135deg,#C8A84B,#e0c97a)' : idx === 1 ? 'linear-gradient(135deg,#b0b0b0,#d8d8d8)' : idx === 2 ? 'linear-gradient(135deg,#cd7f32,#e8a060)' : C.offWhite;
             return (
-              <div key={name} style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8, background: isMe ? NAVY + '08' : 'transparent', borderLeft: isMe ? '3px solid ' + GOLD : '3px solid transparent' }}>
+              <div key={name} style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8, background: isMe ? NAVY + '08' : 'transparent', borderLeft: isMe ? '3px solid #1E40AF' : '3px solid transparent' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
                   <span style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: idx < 3 ? 11 : 9, fontWeight: 700, background: medalBg, color: idx < 3 ? '#fff' : C.textLight, flexShrink: 0 }}>
                     {idx + 1}
                   </span>
                   <span style={{ flex: 1, fontSize: 12, fontWeight: isMe ? 700 : 500, color: isMe ? NAVY : C.textDark }}>{name}{isMe ? ' ★' : ''}</span>
-                  <span style={{ fontSize: 13, fontWeight: 900, fontFamily: "'JetBrains Mono'", color: idx === 0 ? GOLD : '#111827' }}>{fmt(d.total)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 900, fontFamily: "'JetBrains Mono'", color: '#111827' }}>{fmt(d.total)}</span>
                   <span style={{ fontSize: 10, color: C.textLight }}>{d.count}件</span>
                 </div>
                 <div style={{ height: 5, borderRadius: 3, background: C.offWhite, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: 3, background: idx === 0 ? 'linear-gradient(90deg,' + GOLD + ',' + GOLD_LIGHT + ')' : 'linear-gradient(90deg,' + NAVY + ',#1a3a6b)', width: barPct + '%', transition: 'width 0.5s ease' }} />
+                  <div style={{ height: '100%', borderRadius: 3, background: idx === 0 ? 'linear-gradient(90deg,' + NAVY + ',#1a3a6b)' : 'linear-gradient(90deg,#9CA3AF,#d1d5db)', width: barPct + '%', transition: 'width 0.5s ease' }} />
                 </div>
               </div>
             );
@@ -609,7 +609,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
             {simplePeriodSelector(rankTeamPeriod, setRankTeamPeriod, rankTeamFrom, setRankTeamFrom, rankTeamTo, setRankTeamTo, NAVY)}
           </div>
           {teamRankData.length === 0 ? (
-            <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
+            <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
           ) : teamRankData.map(([tn, d], idx) => {
             const maxVal = teamRankData[0]?.[1]?.total || 1;
             const barPct = Math.max(d.total / maxVal * 100, 2);
@@ -621,11 +621,11 @@ export default function StatsView({ callListData, currentUser, appoData, members
                     {idx + 1}
                   </span>
                   <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: NAVY }}>{tn}</span>
-                  <span style={{ fontSize: 13, fontWeight: 900, fontFamily: "'JetBrains Mono'", color: idx === 0 ? GOLD : '#111827' }}>{fmt(d.total)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 900, fontFamily: "'JetBrains Mono'", color: '#111827' }}>{fmt(d.total)}</span>
                   <span style={{ fontSize: 10, color: C.textLight }}>{d.count}件 / {d.memberCount}人</span>
                 </div>
                 <div style={{ height: 5, borderRadius: 3, background: C.offWhite, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: 3, background: idx === 0 ? 'linear-gradient(90deg,' + GOLD + ',' + GOLD_LIGHT + ')' : 'linear-gradient(90deg,' + NAVY + ',#1a3a6b)', width: barPct + '%', transition: 'width 0.5s ease' }} />
+                  <div style={{ height: '100%', borderRadius: 3, background: idx === 0 ? 'linear-gradient(90deg,' + NAVY + ',#1a3a6b)' : 'linear-gradient(90deg,#9CA3AF,#d1d5db)', width: barPct + '%', transition: 'width 0.5s ease' }} />
                 </div>
               </div>
             );
@@ -635,7 +635,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
 
       {/* ========== セクション4: クライアント別売上分析 ========== */}
       {(() => {
-        const CLIENT_PIE_COLORS = ['#0D2247','#1e4080','#2d5a9e','#4472c4','#6693d6','#8fb4e8','#b8d4f0','#C8A84B','#e0c97a','#f0e0a0'];
+        const CLIENT_PIE_COLORS = ['#0D2247','#1E3A6E','#1E40AF','#2563EB','#3B82F6','#60A5FA','#93C5FD','#BFDBFE','#DBEAFE'];
         const pieData = clientData.map(([key, d]) => ({ name: d.name, value: d.total, key }));
         const totalPie = pieData.reduce((s, d) => s + d.value, 0);
         const ClientPieTooltip = ({ active, payload }) => {
@@ -644,7 +644,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
             <div style={{ background: NAVY, borderRadius: 8, padding: '7px 12px', color: '#fff', fontSize: 11 }}>
               <div style={{ fontWeight: 700 }}>{payload[0].name}</div>
               <div>{fmtFull(payload[0].value)}</div>
-              <div style={{ color: GOLD_LIGHT }}>{totalPie > 0 ? (payload[0].value / totalPie * 100).toFixed(1) : 0}%</div>
+              <div style={{ color: '#93C5FD' }}>{totalPie > 0 ? (payload[0].value / totalPie * 100).toFixed(1) : 0}%</div>
             </div>
           );
         };
@@ -664,7 +664,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
                   <span>クライアント名</span><span>アポ数</span><span>売上合計</span><span>平均単価</span><span>最終アポ日</span>
                 </div>
                 {clientData.length === 0 ? (
-                  <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
+                  <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
                 ) : clientData.map(([key, d], idx) => {
                   const isExpanded = expandedClient === key;
                   const isPieSelected = selectedClientPie === key;
@@ -675,9 +675,9 @@ export default function StatsView({ callListData, currentUser, appoData, members
                     <React.Fragment key={key}>
                       <div
                         onClick={() => { setExpandedClient(isExpanded ? null : key); setSelectedClientPie(isPieSelected ? null : key); }}
-                        style={{ display: 'grid', gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', cursor: 'pointer', background: isHighlighted ? GOLD + '18' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#FAFAFA', transition: 'background 0.15s', borderLeft: `4px solid ${CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length]}`, opacity: (selectedClientPie || hoveredClientPie) && !isHighlighted ? 0.55 : 1 }}
+                        style={{ display: 'grid', gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', cursor: 'pointer', background: isHighlighted ? '#EFF6FF' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#FAFAFA', transition: 'background 0.15s', borderLeft: `4px solid ${CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length]}`, opacity: (selectedClientPie || hoveredClientPie) && !isHighlighted ? 0.55 : 1 }}
                         onMouseEnter={e => { setHoveredClientPie(key); if (!isHighlighted) e.currentTarget.style.background = '#EAF4FF'; }}
-                        onMouseLeave={e => { setHoveredClientPie(null); e.currentTarget.style.background = isHighlighted ? GOLD + '18' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#FAFAFA'; }}
+                        onMouseLeave={e => { setHoveredClientPie(null); e.currentTarget.style.background = isHighlighted ? '#EFF6FF' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#FAFAFA'; }}
                       >
                         <span style={{ fontWeight: 600, color: NAVY, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{ fontSize: 9, color: C.textLight, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▶</span>
@@ -708,7 +708,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
               <div style={{ flex: 1, minWidth: 260 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: C.textMid, marginBottom: 6 }}>売上構成比</div>
                 {pieData.length === 0 ? (
-                  <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
+                  <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
                 ) : (
                   <ResponsiveContainer width='100%' height={380}>
                     <PieChart>
@@ -724,7 +724,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
                           <Cell
                             key={key}
                             fill={CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length]}
-                            stroke={selectedClientPie === key || hoveredClientPie === key ? GOLD : 'none'}
+                            stroke={selectedClientPie === key || hoveredClientPie === key ? '#1E40AF' : 'none'}
                             strokeWidth={selectedClientPie === key || hoveredClientPie === key ? 3 : 0}
                             opacity={(selectedClientPie || hoveredClientPie) && selectedClientPie !== key && hoveredClientPie !== key ? 0.45 : 1}
                             onMouseEnter={() => setHoveredClientPie(key)}
@@ -789,18 +789,18 @@ export default function StatsView({ callListData, currentUser, appoData, members
               </div>
               {listFiltered.length === 0 ? (
                 <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>
-                  {listLoading ? '読込中...' : 'データなし'}
+                  {listLoading ? '読込中...' : '— No records —'}
                 </div>
               ) : listFiltered.map((row, idx) => {
                 const isTop3 = listTop3Ids.has(row.listId);
                 return (
-                  <div key={row.listId} style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '9px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', background: isTop3 ? GOLD + '0F' : idx % 2 === 0 ? 'transparent' : '#FAFAFA', borderLeft: isTop3 ? '3px solid ' + GOLD : '3px solid transparent', minWidth: 1170 }}>
+                  <div key={row.listId} style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '9px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', background: isTop3 ? NAVY + '0F' : idx % 2 === 0 ? 'transparent' : '#FAFAFA', borderLeft: isTop3 ? '3px solid ' + NAVY : '3px solid transparent', minWidth: 1170 }}>
                     <span style={{ fontSize: 11, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.clientName}</span>
                     <span style={{ fontWeight: 600, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
                       {row.name.includes(' - ') ? row.name.split(' - ').slice(1).join(' - ') : row.name}
                       {row.isArchived && <span style={{ fontSize: 9, background: '#F3F2F2', borderRadius: 3, padding: '1px 4px', color: C.textLight, flexShrink: 0 }}>Arc</span>}
                     </span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: isTop3 ? GOLD : NAVY }}>{row.calls}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: NAVY }}>{row.calls}</span>
                     <span style={{ fontFamily: "'JetBrains Mono'" }}>{row.connect}</span>
                     <RateBar rate={row.connectRate} />
                     <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: '#374151' }}>{row.appo}</span>

@@ -22,7 +22,7 @@ function CustomTooltip({ active, payload, label }) {
       <div style={{ fontWeight: 700, marginBottom: 4 }}>{label}</div>
       <div>架電合計: {call + connect + appo}件</div>
       <div style={{ color: '#93C5FD' }}>うち接続: {connect + appo}件</div>
-      <div style={{ color: GOLD }}>うちアポ: {appo}件</div>
+      <div style={{ color: '#10B981' }}>うちアポ: {appo}件</div>
     </div>
   );
 }
@@ -77,7 +77,7 @@ export default function HourlyActivityChart({ records, selectedDate, setSelected
           <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>時間帯別活動グラフ</span>
           {loading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
           {bestAppoSlot && bestAppoSlot.appo > 0 && (
-            <span style={{ fontSize: 11, color: GOLD, fontWeight: 700 }}>
+            <span style={{ fontSize: 11, color: NAVY, fontWeight: 700 }}>
               最もアポが取れた時間帯：{bestAppoSlot.label}（{bestAppoSlot.appo}件）
             </span>
           )}
@@ -103,8 +103,8 @@ export default function HourlyActivityChart({ records, selectedDate, setSelected
 
       {/* 凡例 */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: 11, color: C.textMid }}>
-        <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#3B82F6', marginRight: 4 }} />架電（接続なし）</span>
-        <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#F59E0B', marginRight: 4 }} />社長接続</span>
+        <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#0D2247', marginRight: 4 }} />架電（接続なし）</span>
+        <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#3B82F6', marginRight: 4 }} />社長接続</span>
         <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#10B981', marginRight: 4 }} />アポ取得</span>
       </div>
 
@@ -116,7 +116,7 @@ export default function HourlyActivityChart({ records, selectedDate, setSelected
             const isCurrent = selectedDate === todayStr && item?.hour === nowHour;
             return (
               <text x={x} y={y + 12} textAnchor='middle' fontSize={9}
-                fill={isCurrent ? GOLD : '#374151'}
+                fill={isCurrent ? NAVY : '#374151'}
                 fontWeight={isCurrent ? 700 : 400}>{payload.value}</text>
             );
           }} />
@@ -124,12 +124,12 @@ export default function HourlyActivityChart({ records, selectedDate, setSelected
           <Tooltip content={<CustomTooltip />} />
           <Bar dataKey='callOnly' stackId='a' name='架電'>
             {chartData.map((entry, idx) => (
-              <Cell key={idx} fill='#3B82F6'
-                stroke={selectedDate === todayStr && entry.hour === nowHour ? GOLD : 'none'}
+              <Cell key={idx} fill='#0D2247'
+                stroke={selectedDate === todayStr && entry.hour === nowHour ? '#1E40AF' : 'none'}
                 strokeWidth={selectedDate === todayStr && entry.hour === nowHour ? 2 : 0} />
             ))}
           </Bar>
-          <Bar dataKey='connectOnly' stackId='a' fill='#F59E0B' name='社長接続' />
+          <Bar dataKey='connectOnly' stackId='a' fill='#3B82F6' name='社長接続' />
           <Bar dataKey='appo' stackId='a' fill='#10B981' name='アポ取得' radius={[2, 2, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>

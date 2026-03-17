@@ -416,7 +416,9 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   })();
 
   const timeStr = now.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
-  const dateStr = now.toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+  const _dm = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][now.getMonth()];
+  const _dw = ['SUN','MON','TUE','WED','THU','FRI','SAT'][now.getDay()];
+  const dateStr = `${now.getDate()} ${_dm} ${now.getFullYear()}  ${_dw}`;
 
   const isOverdue = (date, time) => {
     if (!date) return false;
@@ -572,8 +574,8 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
                 <button key={group.id} onClick={() => setCurrentTab(group.id)} style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   width: '100%', padding: '11px 20px',
-                  background: _sbActive ? 'rgba(1,118,211,0.35)' : 'transparent',
-                  border: 'none', borderLeft: _sbActive ? '3px solid #C8A84B' : '3px solid transparent',
+                  background: _sbActive ? '#1E3A6E' : 'transparent',
+                  border: 'none', borderLeft: '3px solid transparent',
                   color: _sbActive ? '#FFFFFF' : 'rgba(255,255,255,0.75)',
                   fontSize: 13, fontWeight: _sbActive ? 600 : 400,
                   fontFamily: "'Noto Sans JP', sans-serif",
@@ -593,8 +595,8 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
                   return (
                     <button key={child.id} onClick={() => setCurrentTab(child.id)} style={{
                       display: 'block', width: '100%', padding: '8px 20px 8px 28px',
-                      background: _sbChildActive ? 'rgba(1,118,211,0.35)' : 'transparent',
-                      border: 'none', borderLeft: _sbChildActive ? '3px solid #C8A84B' : '3px solid transparent',
+                      background: _sbChildActive ? '#1E3A6E' : 'transparent',
+                      border: 'none', borderLeft: '3px solid transparent',
                       color: _sbChildActive ? '#FFFFFF' : 'rgba(255,255,255,0.75)',
                       fontSize: 13, fontWeight: _sbChildActive ? 600 : 400,
                       fontFamily: "'Noto Sans JP', sans-serif",
@@ -623,7 +625,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       {/* ===== NEW HEADER ===== */}
       <header style={{
         position: 'fixed', top: 0, left: 220, right: 0, width: 'calc(100% - 220px)', height: 54, zIndex: 150,
-        background: '#FFFFFF', borderBottom: '2px solid #C8A84B',
+        background: '#FFFFFF', borderBottom: '1px solid #E5E7EB',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 24px', boxSizing: 'border-box',
       }} onClick={() => setShowBellDropdown(false)}>
@@ -639,7 +641,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div style={{ position: "relative" }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowBellDropdown(p => !p)}
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: C.gold, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: C.navy, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
               <Bell size={18} />
             </button>
             {overdueCount > 0 && (
@@ -765,7 +767,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
           {/* ベルマーク */}
           <div style={{ position: "relative" }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowBellDropdown(p => !p)}
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: C.gold, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: C.navy, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
               <Bell size={18} />
             </button>
             {overdueCount > 0 && (

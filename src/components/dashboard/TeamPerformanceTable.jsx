@@ -51,7 +51,7 @@ export default function TeamPerformanceTable({ records, loading, teamMap }) {
           <span>チーム名</span><span>架電数</span><span>社長接続</span><span>接続率</span><span>アポ数</span><span>アポ率</span><span>人数</span>
         </div>
         {teamData.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
+          <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
         ) : teamData.map(([tn, d]) => {
           const cr = d.call > 0 ? (d.connect / d.call * 100).toFixed(1) : '0.0';
           const ar = d.call > 0 ? (d.appo / d.call * 100).toFixed(1) : '0.0';
@@ -61,9 +61,9 @@ export default function TeamPerformanceTable({ records, loading, teamMap }) {
             <React.Fragment key={tn}>
               <div
                 onClick={() => setExpandedTeam(isExpanded ? null : tn)}
-                style={{ display: 'grid', gridTemplateColumns: GRID, padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', cursor: 'pointer', background: isExpanded ? NAVY + '06' : 'transparent', transition: 'background 0.15s' }}
-                onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.background = '#EAF4FF'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = isExpanded ? NAVY + '06' : 'transparent'; }}
+                style={{ display: 'grid', gridTemplateColumns: GRID, padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', cursor: 'pointer', background: isExpanded ? NAVY + '06' : 'transparent', transition: 'background 0.15s', borderLeft: '2px solid transparent' }}
+                onMouseEnter={e => { if (!isExpanded) { e.currentTarget.style.background = '#EAF4FF'; e.currentTarget.style.borderLeft = '2px solid #0D2247'; } }}
+                onMouseLeave={e => { e.currentTarget.style.background = isExpanded ? NAVY + '06' : 'transparent'; e.currentTarget.style.borderLeft = '2px solid transparent'; }}
               >
                 <span style={{ fontWeight: 700, color: NAVY, display: 'flex', alignItems: 'center', gap: 5 }}>
                   <span style={{ fontSize: 8, color: C.textLight, display: 'inline-block', transform: isExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>▶</span>

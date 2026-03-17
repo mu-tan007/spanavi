@@ -14,7 +14,7 @@ function RankRow({ item, idx, valueKey, showRate, maxVal, currentUser }) {
   const isMe = item.name === currentUser;
   const medal = MEDAL(idx);
   return (
-    <div style={{ marginBottom: 9, background: isMe ? NAVY + '06' : 'transparent', borderRadius: 6, padding: '6px 8px', borderLeft: isMe ? '3px solid ' + GOLD : '3px solid transparent' }}>
+    <div style={{ marginBottom: 9, background: isMe ? NAVY + '06' : 'transparent', borderRadius: 6, padding: '6px 8px', borderLeft: isMe ? '3px solid #1E40AF' : '3px solid transparent' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
         <span style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: idx < 3 ? 10 : 8, fontWeight: 700, flexShrink: 0, background: medal || C.offWhite, color: medal ? '#fff' : C.textLight, border: medal ? 'none' : '1px solid ' + C.borderLight }}>
           {idx + 1}
@@ -24,7 +24,7 @@ function RankRow({ item, idx, valueKey, showRate, maxVal, currentUser }) {
         {rate !== null && <span style={{ fontSize: 10, color: C.textLight, whiteSpace: 'nowrap' }}>({rate}%)</span>}
       </div>
       <div style={{ height: 4, borderRadius: 2, background: C.offWhite, overflow: 'hidden' }}>
-        <div style={{ height: '100%', borderRadius: 2, background: idx === 0 ? `linear-gradient(90deg,${GOLD},#e0c97a)` : `linear-gradient(90deg,${NAVY},#1a3a6b)`, width: pct + '%', transition: 'width 0.4s ease' }} />
+        <div style={{ height: '100%', borderRadius: 2, background: idx === 0 ? `linear-gradient(90deg,${NAVY},#1a3a6b)` : 'linear-gradient(90deg,#9CA3AF,#d1d5db)', width: pct + '%', transition: 'width 0.4s ease' }} />
       </div>
     </div>
   );
@@ -49,7 +49,7 @@ export default function ActivityRankingSection({ records, loading, currentUser }
 
   const colStyle = { flex: 1, minWidth: 0, background: '#F8F9FA', borderRadius: 10, padding: '14px 12px' };
   const ColHeader = ({ text }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, paddingBottom: 8, borderBottom: '2px solid ' + GOLD + '40' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid #E5E7EB' }}>
       <span style={{ fontSize: 12, fontWeight: 700, color: NAVY }}>{text}</span>
     </div>
   );
@@ -60,7 +60,7 @@ export default function ActivityRankingSection({ records, loading, currentUser }
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>活動ランキング</span>
         </div>
-        <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</div>
+        <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
       </div>
     );
   }

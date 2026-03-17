@@ -44,7 +44,7 @@ export default function ActivitySummaryCards({
   };
   const cardStyle = {
     background: '#fff', borderRadius: 12, padding: '20px 22px',
-    borderTop: '2px solid ' + GOLD, flex: 1,
+    borderLeft: '2px solid #0D2247', flex: 1,
   };
 
   return (
@@ -85,7 +85,7 @@ export default function ActivitySummaryCards({
           <div style={{ fontSize: 28, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'" }}>
             {cur.ceoConnect}<span style={{ fontSize: 13, fontWeight: 600 }}>件</span>
           </div>
-          <div style={{ fontSize: 13, color: GOLD, fontWeight: 700, marginTop: 4 }}>接続率 {connectRate}%</div>
+          <div style={{ fontSize: 13, color: '#374151', fontWeight: 700, marginTop: 4 }}>接続率 {connectRate}%</div>
           <div style={{ marginTop: 4 }}><GrowthBadge cur={cur.ceoConnect} prev={prev.ceoConnect} /></div>
         </div>
 
@@ -95,7 +95,7 @@ export default function ActivitySummaryCards({
           <div style={{ fontSize: 28, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'" }}>
             {cur.appo}<span style={{ fontSize: 13, fontWeight: 600 }}>件</span>
           </div>
-          <div style={{ fontSize: 13, color: GOLD, fontWeight: 700, marginTop: 4 }}>アポ率 {appoRate}%</div>
+          <div style={{ fontSize: 13, color: '#374151', fontWeight: 700, marginTop: 4 }}>アポ率 {appoRate}%</div>
           <div style={{ marginTop: 4 }}><GrowthBadge cur={cur.appo} prev={prev.appo} /></div>
         </div>
       </div>
