@@ -3,6 +3,7 @@ import MemberManagement from '../admin/MemberManagement';
 import RewardSettings from '../admin/RewardSettings';
 import SlackZoomSettings from '../admin/SlackZoomSettings';
 import ClientManagement from '../admin/ClientManagement';
+import RewardMasterView from './RewardMasterView';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
@@ -37,7 +38,7 @@ function ToastContainer({ toasts }) {
   );
 }
 
-export default function AdminView({ isAdmin, setCurrentTab }) {
+export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRewardMaster }) {
   const [activeTab, setActiveTab] = useState('members');
   const [toasts, setToasts] = useState([]);
 
@@ -104,7 +105,13 @@ export default function AdminView({ isAdmin, setCurrentTab }) {
       {/* タブコンテンツ */}
       <div style={{ background: '#fff', borderRadius: '0 0 10px 10px', border: '1px solid #E5E5E5', borderTop: 'none', padding: '24px 28px', marginBottom: 0 }}>
         {activeTab === 'members' && <MemberManagement onToast={showToast} />}
-        {activeTab === 'reward'  && <RewardSettings   onToast={showToast} />}
+        {activeTab === 'reward'  && (
+          <>
+            <RewardSettings onToast={showToast} />
+            <div style={{ height: 1, background: '#E5E5E5', margin: '28px 0' }} />
+            <RewardMasterView rewardMaster={rewardMaster} setRewardMaster={setRewardMaster} />
+          </>
+        )}
         {activeTab === 'slack'   && <SlackZoomSettings onToast={showToast} />}
         {activeTab === 'clients' && <ClientManagement  onToast={showToast} />}
       </div>
