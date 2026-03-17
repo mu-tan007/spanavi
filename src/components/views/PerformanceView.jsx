@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { C } from '../../constants/colors';
-import { fetchCallActivity } from '../../lib/supabaseWrite';
+import { fetchCallActivity, fetchAppoActivity } from '../../lib/supabaseWrite';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
@@ -100,6 +100,7 @@ export default function PerformanceView({ members, currentUser }) {
   const [rankFrom, setRankFrom] = useState('');
   const [rankTo, setRankTo] = useState('');
   const [rankRecords, setRankRecords] = useState([]);
+  const [appoRankRecords, setAppoRankRecords] = useState([]);
   const [rankLoading, setRankLoading] = useState(false);
 
   useEffect(() => {
@@ -107,8 +108,16 @@ export default function PerformanceView({ members, currentUser }) {
     if (!range) return;
     let cancelled = false;
     setRankLoading(true);
-    fetchCallActivity(_jstStart(range.from), _jstEnd(range.to))
-      .then(({ data }) => { if (!cancelled) setRankRecords(data || []); })
+    Promise.all([
+      fetchCallActivity(_jstStart(range.from), _jstEnd(range.to)),
+      fetchAppoActivity(_jstStart(range.from), _jstEnd(range.to)),
+    ])
+      .then(([calls, appos]) => {
+        if (!cancelled) {
+          setRankRecords(calls.data || []);
+          setAppoRankRecords(appos.data || []);
+        }
+      })
       .catch(err => console.error('[PerformanceView] rankFetch:', err))
       .finally(() => { if (!cancelled) setRankLoading(false); });
     return () => { cancelled = true; };
@@ -286,11 +295,13 @@ export default function PerformanceView({ members, currentUser }) {
         </div>
         <ActivityRankingSection
           records={rankRecords}
+          appoRecords={appoRankRecords}
           loading={rankLoading}
           currentUser={currentUser}
         />
         <TeamPerformanceTable
           records={rankRecords}
+          appoRecords={appoRankRecords}
           loading={rankLoading}
           teamMap={teamMap}
         />

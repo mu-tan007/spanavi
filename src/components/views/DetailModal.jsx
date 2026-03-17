@@ -363,13 +363,15 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             style={{ width: 64, padding: "5px 8px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'JetBrains Mono'", textAlign: "center", outline: "none" }}
           />
           <button
+            disabled={!flowStartNo || !flowEndNo}
             onClick={() => {
               const sf = selectedStatuses.length > 0 ? selectedStatuses : null;
               setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf, revenueMin: revenueMin || null, revenueMax: revenueMax || null });
             }}
             style={{
               padding: "6px 20px", borderRadius: 6,
-              background: C.navy, color: C.white, cursor: "pointer",
+              background: flowStartNo && flowEndNo ? C.navy : C.border,
+              color: C.white, cursor: flowStartNo && flowEndNo ? "pointer" : "not-allowed",
               fontSize: 11, fontWeight: 700, fontFamily: "'Noto Sans JP'",
               border: "none",
             }}

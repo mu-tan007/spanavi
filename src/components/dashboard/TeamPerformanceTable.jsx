@@ -7,12 +7,21 @@ const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コー
 const GRID = '1.5fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr 0.55fr';
 const GRID_MBR = '1.5fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr';
 
-export default function TeamPerformanceTable({ records, loading, teamMap }) {
+export default function TeamPerformanceTable({ records, appoRecords = [], loading, teamMap }) {
   const [expandedTeam, setExpandedTeam] = useState(null);
 
   const { teamData, memberData } = useMemo(() => {
     const EXCLUDED_TEAMS = new Set(['営業統括', 'その他']);
     const isValidName = (n) => n && !/^user_/i.test(n);
+
+    // Build appo count map from appointments table
+    const appoMap = {};
+    appoRecords.forEach(r => {
+      const name = r.getter_name;
+      if (!isValidName(name)) return;
+      appoMap[name] = (appoMap[name] || 0) + 1;
+    });
+
     const tm = {};
     const mm = {};
     records.forEach(r => {
@@ -22,20 +31,29 @@ export default function TeamPerformanceTable({ records, loading, teamMap }) {
       if (!tm[tn]) tm[tn] = { call: 0, connect: 0, appo: 0, members: new Set() };
       tm[tn].call++;
       if (CEO_CONNECT.has(r.status)) tm[tn].connect++;
-      if (r.status === 'アポ獲得') tm[tn].appo++;
       tm[tn].members.add(name);
       if (!mm[tn]) mm[tn] = {};
       if (!mm[tn][name]) mm[tn][name] = { call: 0, connect: 0, appo: 0 };
       mm[tn][name].call++;
       if (CEO_CONNECT.has(r.status)) mm[tn][name].connect++;
-      if (r.status === 'アポ獲得') mm[tn][name].appo++;
+    });
+
+    // Merge appo counts from appointments; include appo-only people in their team
+    Object.entries(appoMap).forEach(([name, count]) => {
+      const tn = teamMap[name] || 'その他';
+      if (!tm[tn]) tm[tn] = { call: 0, connect: 0, appo: 0, members: new Set() };
+      tm[tn].appo += count;
+      tm[tn].members.add(name);
+      if (!mm[tn]) mm[tn] = {};
+      if (!mm[tn][name]) mm[tn][name] = { call: 0, connect: 0, appo: 0 };
+      mm[tn][name].appo = count;
     });
     const teamData = Object.entries(tm)
       .filter(([tn]) => !EXCLUDED_TEAMS.has(tn))
       .sort((a, b) => b[1].call - a[1].call)
       .map(([tn, d]) => [tn, { ...d, memberCount: d.members.size }]);
     return { teamData, memberData: mm };
-  }, [records, teamMap]);
+  }, [records, appoRecords, teamMap]);
 
   const hdr = { padding: '8px 16px', background: '#F8F9FA', fontSize: 11, fontWeight: 600, color: '#6B7280', letterSpacing: '0.08em', textTransform: 'uppercase', borderBottom: '1px solid #E5E7EB' };
 

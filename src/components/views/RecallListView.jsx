@@ -163,7 +163,6 @@ export default function RecallListView({ callListData, supaRecalls = [], members
               </div>
               {sorted.map((item, i) => {
                 const past = isOverdue(item.recallDate, item.recallTime);
-                const isSel = selectedItem && (item._source === 'supabase' ? item._supaRecord?.id === selectedItem._supaRecord?.id : (item.listId === selectedItem.listId && item.rowIdx === selectedItem.rowIdx && item.round === selectedItem.round));
                 return (
                   <div key={i} onClick={() => {
                       if (setCallFlowScreen && item._source === 'supabase') {

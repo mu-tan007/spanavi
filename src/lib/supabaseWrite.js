@@ -1366,6 +1366,17 @@ export async function fetchCallActivity(fromISO, toISO) {
   return { data: all, error: null };
 }
 
+export async function fetchAppoActivity(fromISO, toISO) {
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('created_at, getter_name')
+    .eq('org_id', ORG_ID)
+    .gte('created_at', fromISO)
+    .lte('created_at', toISO);
+  if (error) console.error('[DB] fetchAppoActivity error:', error);
+  return { data: data || [], error };
+}
+
 export async function fetchCallRecordsByRange(fromISO, toISO) {
   const all = [];
   let from = 0;

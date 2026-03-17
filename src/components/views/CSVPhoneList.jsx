@@ -248,12 +248,16 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
               <span style={{ fontSize: 10, color: C.textMid }}>〜</span>
               <input type="number" value={flowEndNo} onChange={e => setFlowEndNo(e.target.value)} placeholder="終了"
                 style={{ width: 52, padding: "3px 5px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 10, fontFamily: "'JetBrains Mono'", textAlign: "center", outline: "none" }} />
-              <button onClick={() => setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null })} style={{
-                padding: "4px 12px", borderRadius: 6,
-                background: C.navy, color: C.white, cursor: "pointer",
-                fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-                border: "none",
-              }}>架電開始</button>
+              <button
+                disabled={!flowStartNo || !flowEndNo}
+                onClick={() => setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null })}
+                style={{
+                  padding: "4px 12px", borderRadius: 6,
+                  background: flowStartNo && flowEndNo ? C.navy : C.border,
+                  color: C.white, cursor: flowStartNo && flowEndNo ? "pointer" : "not-allowed",
+                  fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+                  border: "none",
+                }}>架電開始</button>
             </div>
           )}
           {csvData.length > 0 && (

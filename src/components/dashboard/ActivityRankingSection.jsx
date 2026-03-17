@@ -30,18 +30,33 @@ function RankRow({ item, idx, valueKey, showRate, maxVal, currentUser }) {
   );
 }
 
-export default function ActivityRankingSection({ records, loading, currentUser }) {
+export default function ActivityRankingSection({ records, appoRecords = [], loading, currentUser }) {
+  const appoMap = useMemo(() => {
+    const m = {};
+    appoRecords.forEach(r => {
+      const k = r.getter_name || '不明';
+      m[k] = (m[k] || 0) + 1;
+    });
+    return m;
+  }, [appoRecords]);
+
   const byPerson = useMemo(() => {
     const m = {};
     records.forEach(r => {
       const k = r.getter_name || '不明';
-      if (!m[k]) m[k] = { name: k, call: 0, connect: 0, appo: 0 };
+      if (!m[k]) m[k] = { name: k, call: 0, connect: 0 };
       m[k].call++;
       if (CEO_CONNECT.has(r.status)) m[k].connect++;
-      if (r.status === 'アポ獲得') m[k].appo++;
     });
-    return Object.values(m);
-  }, [records]);
+    // Merge in appo counts from appointments table; include appo-only people too
+    const allNames = new Set([...Object.keys(m), ...Object.keys(appoMap)]);
+    return Array.from(allNames).map(k => ({
+      name: k,
+      call: m[k]?.call || 0,
+      connect: m[k]?.connect || 0,
+      appo: appoMap[k] || 0,
+    }));
+  }, [records, appoMap]);
 
   const callRank    = useMemo(() => [...byPerson].sort((a, b) => b.call - a.call),    [byPerson]);
   const connectRank = useMemo(() => [...byPerson].sort((a, b) => b.connect - a.connect), [byPerson]);
