@@ -1,8 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { fetchCallListItems, insertCallRecord, updateCallListItem, deleteCallRecordByItemRound, invokeGetZoomRecording, updateCallRecordRecordingUrl } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
+
+// キーボードショートカット定義（F1〜F8 → status id）
+const CS_SHORTCUTS = [
+  { key: 'F1', id: 'normal',           label: '不通' },
+  { key: 'F2', id: 'absent',           label: '社長不在' },
+  { key: 'F3', id: 'appointment',      label: 'アポ獲得' },
+  { key: 'F4', id: 'reception_block',  label: '受付ブロック' },
+  { key: 'F5', id: 'reception_recall', label: '受付再コール' },
+  { key: 'F6', id: 'ceo_recall',       label: '社長再コール' },
+  { key: 'F7', id: 'ceo_decline',      label: '社長お断り' },
+  { key: 'F8', id: 'excluded',         label: '除外' },
+];
 
 export default function CallingScreen({ listId, list, importedCSVs, setImportedCSVs, onClose, currentUser, liveStatuses, setLiveStatuses, members = [], clientData = [], rewardMaster = [] }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -18,6 +30,8 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
   const [editRound, setEditRound] = useState(1);
   useEffect(() => { setEditRound(currentRound); }, [currentRound]);
   const [showScript, setShowScript] = useState(false);
+  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
+  const kbRef = useRef({});
   const PAGE_SIZE = 30;
   const [sessionKey] = useState(() => "self_" + (currentUser || "unknown") + "_" + Date.now());
   const csvData = importedCSVs[listId] || [];
@@ -70,6 +84,61 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
   }, [currentUser, listId, list, currentRound, selectedRow, csvData.length, setLiveStatuses, sessionKey, rangeStartNum, rangeEndNum]);
 
   useEffect(() => { updateLiveStatus(); }, [currentRound, selectedRow]);
+
+  // キーボードショートカット — refで最新状態を参照しeventリスナーは一度だけ登録
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      const { sel, sorted, appoM, recallM, helpOpen, scriptOpen, memo, editRound, csvData, listId, currentUser } = kbRef.current;
+
+      if (e.key === 'Escape') {
+        if (appoM)       { e.preventDefault(); setAppoModal(null); return; }
+        if (recallM)     { e.preventDefault(); setRecallModal(null); return; }
+        if (helpOpen)    { e.preventDefault(); setShowShortcutHelp(false); return; }
+        if (scriptOpen)  { e.preventDefault(); setShowScript(false); return; }
+        return;
+      }
+      if (e.key === '?') { e.preventDefault(); setShowShortcutHelp(v => !v); return; }
+      if (appoM || recallM || helpOpen) return;
+
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (sel === null) return;
+        const pos = sorted.findIndex(r => r === csvData[sel]);
+        if (e.key === 'ArrowLeft' && pos > 0) {
+          const idx = csvData.indexOf(sorted[pos - 1]);
+          if (idx >= 0) { setSelectedRow(idx); setMemo(csvData[idx]?.memo || ''); }
+        } else if (e.key === 'ArrowRight' && pos >= 0 && pos < sorted.length - 1) {
+          const idx = csvData.indexOf(sorted[pos + 1]);
+          if (idx >= 0) { setSelectedRow(idx); setMemo(csvData[idx]?.memo || ''); }
+        }
+        return;
+      }
+
+      if (sel === null) return;
+      const sc = CS_SHORTCUTS.find(s => s.key === e.key);
+      if (!sc) return;
+      e.preventDefault();
+      if (sc.id === 'appointment') {
+        setAppoModal({ idx: sel, row: csvData[sel], round: editRound });
+      } else if (sc.id === 'reception_recall' || sc.id === 'ceo_recall') {
+        setRecallModal({ idx: sel, row: csvData[sel], statusId: sc.id, round: editRound });
+      } else {
+        setImportedCSVs(prev => {
+          const updated = [...(prev[listId] || [])];
+          const row = { ...updated[sel] };
+          if (!row.rounds) row.rounds = {};
+          row.rounds = { ...row.rounds, [editRound]: { status: sc.id, memo, timestamp: new Date().toISOString(), caller: currentUser || '' } };
+          row.called = true; row.result = sc.label;
+          updated[sel] = row;
+          return { ...prev, [listId]: updated };
+        });
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClose = () => {
     if (setLiveStatuses) {
@@ -327,6 +396,9 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
   const activeRoundData = activeRow ? getRoundStatus(activeRow, currentRound) : null;
   const activeExcluded = activeRow ? isExcluded(activeRow) : false;
   const activeExcludedRound = activeRow && activeRow.rounds ? Object.entries(activeRow.rounds).find(([_, v]) => EXCLUDED_IDS.includes(v.status)) : null;
+
+  // ref を毎レンダーで最新化（keydownハンドラーが参照する）
+  kbRef.current = { sel: selectedRow, sorted, appoM: appoModal, recallM: recallModal, helpOpen: showShortcutHelp, scriptOpen: showScript, memo, editRound, csvData, listId, currentUser };
 
   return (
     <div style={{
@@ -658,17 +730,16 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                       <div>
                         <div style={{ fontSize: 10, fontWeight: 600, color: C.textLight, marginBottom: 6 }}>{editRound}周目 架電結果を記録</div>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-                          {STATUSES.map(s => (
+                          {STATUSES.map(s => {
+                            const sc = CS_SHORTCUTS.find(k => k.id === s.id);
+                            return (
                             <button key={s.id} onClick={() => {
                               if (memo) saveMemo(selectedRow, memo);
-                              const prevRound = currentRound;
-                              // Temporarily set currentRound for markStatus to use correct round
                               if (s.id === "appointment") {
                                 setAppoModal({ idx: selectedRow, row: csvData[selectedRow], round: editRound });
                               } else if (s.id === "reception_recall" || s.id === "ceo_recall") {
                                 setRecallModal({ idx: selectedRow, row: csvData[selectedRow], statusId: s.id, round: editRound });
                               } else {
-                                // Mark status for specific round
                                 setImportedCSVs(prev => {
                                   const updated = [...(prev[listId] || [])];
                                   const row = { ...updated[selectedRow] };
@@ -681,7 +752,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                                 });
                               }
                             }} style={{
-                              padding: "7px 6px", borderRadius: 6,
+                              padding: "7px 6px", borderRadius: 6, position: 'relative',
                               background: s.bg, border: "1px solid " + s.color + "30",
                               cursor: "pointer", textAlign: "left",
                               fontFamily: "'Noto Sans JP'",
@@ -689,8 +760,10 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                               <div style={{ fontSize: 10, fontWeight: 700, color: s.color }}>{s.label}</div>
                               <div style={{ fontSize: 8, color: s.color + "90" }}>{s.desc}</div>
                               {s.excluded && <div style={{ fontSize: 7, color: "#e53e3e", marginTop: 1 }}>※ 以降架電除外</div>}
+                              {sc && <span style={{ position: 'absolute', bottom: 3, right: 5, fontSize: 8, color: s.color + '70', fontFamily: "'JetBrains Mono'", lineHeight: 1 }}>{sc.key}</span>}
                             </button>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -799,6 +872,63 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
         }}
         onCancel={() => setRecallModal(null)}
       />}
+
+      {/* ショートカットヒントボタン（右下固定） */}
+      <button
+        onClick={() => setShowShortcutHelp(true)}
+        title="キーボードショートカット (?)"
+        style={{
+          position: 'fixed', bottom: 18, right: 18, zIndex: 10002,
+          width: 36, height: 36, borderRadius: '50%',
+          background: C.navy, color: C.white,
+          border: 'none', fontSize: 16, fontWeight: 700,
+          cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: "'JetBrains Mono'",
+        }}
+      >?</button>
+
+      {/* ショートカット一覧モーダル */}
+      {showShortcutHelp && (
+        <div onClick={() => setShowShortcutHelp(false)} style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.45)', zIndex: 10003,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: '#fff', borderRadius: 12, padding: 28, width: 380,
+            boxShadow: '0 20px 50px rgba(0,0,0,0.25)', fontFamily: "'Noto Sans JP'",
+          }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.navy, marginBottom: 16 }}>キーボードショートカット</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <tbody>
+                {[
+                  ['F1', '不通'], ['F2', '社長不在'], ['F3', 'アポ獲得'],
+                  ['F4', '受付ブロック'], ['F5', '受付再コール'], ['F6', '社長再コール'],
+                  ['F7', '社長お断り'], ['F8', '除外'],
+                  ['← →', '前後の企業に移動'], ['Esc', 'モーダルを閉じる'], ['?', 'このヘルプを表示'],
+                ].map(([key, desc]) => (
+                  <tr key={key} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '6px 10px', width: 90 }}>
+                      <kbd style={{
+                        display: 'inline-block', padding: '2px 8px', borderRadius: 4,
+                        background: '#f3f4f6', border: '1px solid #d1d5db',
+                        fontFamily: "'JetBrains Mono'", fontSize: 11, fontWeight: 700, color: '#374151',
+                      }}>{key}</kbd>
+                    </td>
+                    <td style={{ padding: '6px 10px', color: '#374151' }}>{desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <button onClick={() => setShowShortcutHelp(false)} style={{
+              marginTop: 16, width: '100%', padding: '9px 0', borderRadius: 7,
+              border: 'none', background: C.navy, color: '#fff',
+              fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+            }}>閉じる</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

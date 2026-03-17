@@ -1,5 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import React from 'react';
+
+// キーボードショートカット定義（F1〜F8 → ステータスラベル）
+const CFV_SHORTCUTS = [
+  { key: 'F1', label: '不通' },
+  { key: 'F2', label: '社長不在' },
+  { key: 'F3', label: 'アポ獲得' },
+  { key: 'F4', label: '受付ブロック' },
+  { key: 'F5', label: '受付再コール' },
+  { key: 'F6', label: '社長再コール' },
+  { key: 'F7', label: '社長お断り' },
+  { key: 'F8', label: '除外' },
+];
 import { C } from '../../constants/colors';
 import { CALL_RESULTS } from '../../constants/callResults';
 import { dialPhone } from '../../utils/phone';
@@ -38,6 +50,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [revenueMin, setRevenueMin] = useState(initialRevenueMin ? String(initialRevenueMin) : '');  // 千円単位（例: 100000 = 1億円）
   const [revenueMax, setRevenueMax] = useState(initialRevenueMax ? String(initialRevenueMax) : '');  // 空文字 = 上限なし
   const [recallModal, setRecallModal] = useState(null); // { row, statusId, round, label }
+  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
+  const cfvKbRef = useRef({});
   const [subPhone, setSubPhone] = useState('');
   const [lastDialedPhone, setLastDialedPhone] = useState(null);
   const [activeRecordingId, setActiveRecordingId] = useState(null);
@@ -310,6 +324,43 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
   // selectedRow 変更時は録音プレーヤーをリセット
   useEffect(() => { setActiveRecordingId(null); }, [selectedRow]);
+
+  // キーボードショートカット — refで最新状態を参照しeventリスナーは一度だけ登録
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      const { sel, sorted, currentIdx, appoM, recallM, helpOpen, handleResult } = cfvKbRef.current;
+
+      if (e.key === 'Escape') {
+        if (appoM)    { e.preventDefault(); setAppoModal(null); return; }
+        if (recallM)  { e.preventDefault(); setRecallModal(null); return; }
+        if (helpOpen) { e.preventDefault(); setShowShortcutHelp(false); return; }
+        return;
+      }
+      if (e.key === '?') { e.preventDefault(); setShowShortcutHelp(v => !v); return; }
+      if (appoM || recallM || helpOpen) return;
+
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (currentIdx < 0) return;
+        if (e.key === 'ArrowLeft' && currentIdx > 0) {
+          setSelectedRow(sorted[currentIdx - 1]); setListMode(false);
+        } else if (e.key === 'ArrowRight' && currentIdx < sorted.length - 1) {
+          setSelectedRow(sorted[currentIdx + 1]); setListMode(false);
+        }
+        return;
+      }
+
+      if (!sel) return;
+      const sc = CFV_SHORTCUTS.find(s => s.key === e.key);
+      if (!sc) return;
+      e.preventDefault();
+      handleResult(sc.label);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 録音URLを同期取得して返す（insert前に呼び出す）
   // calledAt: 架電日時（insert直前に生成したISO文字列）
@@ -1096,6 +1147,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   ); } // OLD_UI_END
 
   // ── NEW UI: フルスクリーン・1企業集中モード ──────────────────────────
+  // ref を毎レンダーで最新化（keydownハンドラーが参照する）
+  cfvKbRef.current = { sel: selectedRow, sorted, currentIdx, appoM: appoModal, recallM: recallModal, helpOpen: showShortcutHelp, handleResult };
+
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#F3F2F2', zIndex: 10000, display: 'flex', flexDirection: 'column', fontFamily: "'Noto Sans JP'" }}>
 
@@ -1391,24 +1445,34 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     {/* 大ボタン3つ */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
                       <button onClick={() => handleResult('不通')}
-                        style={{ height: 56, borderRadius: 8, border: '1px solid #E5E5E5', background: '#F3F2F2', color: '#706E6B', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                        style={{ height: 56, borderRadius: 8, border: '1px solid #E5E5E5', background: '#F3F2F2', color: '#706E6B', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'", position: 'relative' }}>
                         不通
+                        <span style={{ position: 'absolute', bottom: 4, right: 7, fontSize: 9, opacity: 0.5, fontFamily: "'JetBrains Mono'" }}>F1</span>
                       </button>
                       <button onClick={() => handleResult('社長不在')}
-                        style={{ height: 56, borderRadius: 8, border: '1px solid #C07600', background: '#FFF8ED', color: '#C07600', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                        style={{ height: 56, borderRadius: 8, border: '1px solid #C07600', background: '#FFF8ED', color: '#C07600', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'", position: 'relative' }}>
                         社長不在
+                        <span style={{ position: 'absolute', bottom: 4, right: 7, fontSize: 9, opacity: 0.5, fontFamily: "'JetBrains Mono'", color: '#C07600' }}>F2</span>
                       </button>
                       <button onClick={() => handleResult('アポ獲得')}
-                        style={{ height: 56, borderRadius: 8, border: 'none', background: '#0176D3', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                        style={{ height: 56, borderRadius: 8, border: 'none', background: '#0176D3', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'", position: 'relative' }}>
                         アポ獲得
+                        <span style={{ position: 'absolute', bottom: 4, right: 7, fontSize: 9, opacity: 0.55, fontFamily: "'JetBrains Mono'", color: '#fff' }}>F3</span>
                       </button>
                     </div>
                     {/* 小ボタン */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
-                      {['受付ブロック', '受付再コール', '社長再コール', '社長お断り', '除外'].map(label => (
+                      {[
+                        { label: '受付ブロック', key: 'F4' },
+                        { label: '受付再コール', key: 'F5' },
+                        { label: '社長再コール', key: 'F6' },
+                        { label: '社長お断り',   key: 'F7' },
+                        { label: '除外',         key: 'F8' },
+                      ].map(({ label, key }) => (
                         <button key={label} onClick={() => handleResult(label)}
-                          style={{ height: 40, borderRadius: 6, border: '1px solid #E5E5E5', background: '#F3F2F2', color: '#706E6B', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                          style={{ height: 40, borderRadius: 6, border: '1px solid #E5E5E5', background: '#F3F2F2', color: '#706E6B', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", position: 'relative' }}>
                           {label}
+                          <span style={{ position: 'absolute', bottom: 3, right: 5, fontSize: 8, opacity: 0.45, fontFamily: "'JetBrains Mono'" }}>{key}</span>
                         </button>
                       ))}
                     </div>
@@ -1523,6 +1587,63 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           onCancel={() => setRecallModal(null)}
           members={members}
         />
+      )}
+
+      {/* ショートカットヒントボタン（右下固定） */}
+      <button
+        onClick={() => setShowShortcutHelp(true)}
+        title="キーボードショートカット (?)"
+        style={{
+          position: 'fixed', bottom: 18, right: 18, zIndex: 10002,
+          width: 36, height: 36, borderRadius: '50%',
+          background: '#032D60', color: '#fff',
+          border: 'none', fontSize: 16, fontWeight: 700,
+          cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: "'JetBrains Mono'",
+        }}
+      >?</button>
+
+      {/* ショートカット一覧モーダル */}
+      {showShortcutHelp && (
+        <div onClick={() => setShowShortcutHelp(false)} style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.45)', zIndex: 10003,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: '#fff', borderRadius: 12, padding: 28, width: 380,
+            boxShadow: '0 20px 50px rgba(0,0,0,0.25)', fontFamily: "'Noto Sans JP'",
+          }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#032D60', marginBottom: 16 }}>キーボードショートカット</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <tbody>
+                {[
+                  ['F1', '不通'], ['F2', '社長不在'], ['F3', 'アポ獲得'],
+                  ['F4', '受付ブロック'], ['F5', '受付再コール'], ['F6', '社長再コール'],
+                  ['F7', '社長お断り'], ['F8', '除外'],
+                  ['← →', '前後の企業に移動'], ['Esc', 'モーダルを閉じる'], ['?', 'このヘルプを表示'],
+                ].map(([key, desc]) => (
+                  <tr key={key} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '6px 10px', width: 90 }}>
+                      <kbd style={{
+                        display: 'inline-block', padding: '2px 8px', borderRadius: 4,
+                        background: '#f3f4f6', border: '1px solid #d1d5db',
+                        fontFamily: "'JetBrains Mono'", fontSize: 11, fontWeight: 700, color: '#374151',
+                      }}>{key}</kbd>
+                    </td>
+                    <td style={{ padding: '6px 10px', color: '#374151' }}>{desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <button onClick={() => setShowShortcutHelp(false)} style={{
+              marginTop: 16, width: '100%', padding: '9px 0', borderRadius: 7,
+              border: 'none', background: '#032D60', color: '#fff',
+              fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+            }}>閉じる</button>
+          </div>
+        </div>
       )}
     </div>
   );
