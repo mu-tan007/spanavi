@@ -364,7 +364,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   border: '1px solid #0D2247',
                   background: sortKey === 'status' ? '#0D2247' : 'white',
                   color: sortKey === 'status' ? 'white' : '#0D2247',
-                  fontSize: 10, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                  fontSize: 10, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
                 }}>デフォルト</button>
             </span>
           )}
