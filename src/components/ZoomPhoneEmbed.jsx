@@ -83,7 +83,7 @@ export default function ZoomPhoneEmbed() {
 
   return (
     <div style={{
-      position: 'fixed', bottom: 16, right: 16, zIndex: 9999,
+      position: 'fixed', bottom: 16, right: 16, zIndex: 100000,
       borderRadius: 12, overflow: 'hidden',
       boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
       border: '1px solid #E5E7EB',
