@@ -406,7 +406,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
     return Math.max(max, ...Object.keys(r.rounds).map(Number));
   }, 0);
   // Number of round columns to display in the table (at least currentRound)
-  const displayRounds = Math.max(maxRound, currentRound);
+  const displayRounds = Math.max(maxRound, currentRound, 10);
 
   const activeRow = selectedRow !== null ? csvData[selectedRow] : null;
   const activeRoundData = activeRow ? getRoundStatus(activeRow, currentRound) : null;
@@ -723,7 +723,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                     <div style={{ display: "flex", gap: 2, marginBottom: 6 }}>
                       {(() => {
                         const activeMaxRound = activeRow?.rounds ? Math.max(...Object.keys(activeRow.rounds).map(Number)) : 0;
-                        const tabCount = Math.max(activeMaxRound + 1, currentRound, editRound);
+                        const tabCount = Math.max(activeMaxRound + 1, currentRound, editRound, 10);
                         return Array.from({length: tabCount}, (_, i) => i + 1).map(w => {
                           const wd = getRoundStatus(activeRow, w);
                           const wsd = wd ? getStatusDef(wd.status) : null;
