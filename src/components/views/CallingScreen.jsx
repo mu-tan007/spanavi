@@ -731,64 +731,60 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                         });
                       })()}
                     </div>
-                    {editRoundData ? (
-                      <div style={{ padding: "8px 12px", borderRadius: 6, background: editStatusDef.bg, border: "1px solid " + editStatusDef.color + "20" }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: editStatusDef.color }}>{editRound}周目: {editStatusDef.label}</div>
-                            {editRoundData.caller && <div style={{ fontSize: 9, color: C.textLight, marginTop: 1 }}>架電者: {editRoundData.caller}</div>}
-                            {editRoundData.memo && <div style={{ fontSize: 10, color: C.textMid, marginTop: 2 }}>メモ: {editRoundData.memo}</div>}
-                          </div>
-                          <button onClick={() => undoStatus(selectedRow, editRound)} style={{
-                            padding: "4px 10px", borderRadius: 4, border: "1px solid " + C.navy + "30",
-                            background: C.white, cursor: "pointer", fontSize: 9, fontWeight: 600,
-                            color: C.navy, fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap",
-                          }}>取り消す</button>
+                    {editRoundData && (
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, padding: "4px 8px", borderRadius: 4, background: editStatusDef.bg, border: "1px solid " + editStatusDef.color + "20" }}>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: editStatusDef.color }}>
+                          {editRound}周目の結果: {editStatusDef.label}
+                          {editRoundData.caller && <span style={{ fontSize: 9, fontWeight: 400, color: C.textLight, marginLeft: 6 }}>({editRoundData.caller})</span>}
                         </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <div style={{ fontSize: 10, fontWeight: 600, color: C.textLight, marginBottom: 6 }}>{editRound}周目 架電結果を記録</div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-                          {STATUSES.map(s => {
-                            const sc = CS_SHORTCUTS.find(k => k.id === s.id);
-                            return (
-                            <button key={s.id} onClick={() => {
-                              console.log('[test] ステータスボタン押下');
-                              zoomPhone.hangUp();
-                              if (memo) saveMemo(selectedRow, memo);
-                              if (s.id === "appointment") {
-                                setAppoModal({ idx: selectedRow, row: csvData[selectedRow], round: editRound });
-                              } else if (s.id === "reception_recall" || s.id === "ceo_recall") {
-                                setRecallModal({ idx: selectedRow, row: csvData[selectedRow], statusId: s.id, round: editRound });
-                              } else {
-                                setImportedCSVs(prev => {
-                                  const updated = [...(prev[listId] || [])];
-                                  const row = { ...updated[selectedRow] };
-                                  if (!row.rounds) row.rounds = {};
-                                  row.rounds = { ...row.rounds, [editRound]: { status: s.id, memo: memo, timestamp: new Date().toISOString(), caller: currentUser || "" } };
-                                  row.called = true;
-                                  row.result = getStatusDef(s.id).label;
-                                  updated[selectedRow] = row;
-                                  return { ...prev, [listId]: updated };
-                                });
-                              }
-                            }} style={{
-                              padding: "7px 6px", borderRadius: 6, position: 'relative',
-                              background: s.bg, border: "1px solid " + s.color + "30",
-                              cursor: "pointer", textAlign: "left",
-                              fontFamily: "'Noto Sans JP'",
-                            }}>
-                              <div style={{ fontSize: 10, fontWeight: 700, color: s.color }}>{s.label}</div>
-                              <div style={{ fontSize: 8, color: s.color + "90" }}>{s.desc}</div>
-                              {s.excluded && <div style={{ fontSize: 7, color: "#e53e3e", marginTop: 1 }}>※ 以降架電除外</div>}
-                              {sc && <span style={{ position: 'absolute', bottom: 3, right: 5, fontSize: 8, color: s.color + '70', fontFamily: "'JetBrains Mono'", lineHeight: 1 }}>{sc.key}</span>}
-                            </button>
-                            );
-                          })}
-                        </div>
+                        <button onClick={() => undoStatus(selectedRow, editRound)} style={{
+                          padding: "2px 8px", borderRadius: 4, border: "1px solid " + C.navy + "30",
+                          background: C.white, cursor: "pointer", fontSize: 9, fontWeight: 600,
+                          color: C.navy, fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap", flexShrink: 0,
+                        }}>取り消す</button>
                       </div>
                     )}
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: C.textLight, marginBottom: 6 }}>{editRound}周目 架電結果を記録</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+                        {STATUSES.map(s => {
+                          const sc = CS_SHORTCUTS.find(k => k.id === s.id);
+                          return (
+                          <button key={s.id} onClick={() => {
+                            console.log('[test] ステータスボタン押下');
+                            zoomPhone.hangUp();
+                            if (memo) saveMemo(selectedRow, memo);
+                            if (s.id === "appointment") {
+                              setAppoModal({ idx: selectedRow, row: csvData[selectedRow], round: editRound });
+                            } else if (s.id === "reception_recall" || s.id === "ceo_recall") {
+                              setRecallModal({ idx: selectedRow, row: csvData[selectedRow], statusId: s.id, round: editRound });
+                            } else {
+                              setImportedCSVs(prev => {
+                                const updated = [...(prev[listId] || [])];
+                                const row = { ...updated[selectedRow] };
+                                if (!row.rounds) row.rounds = {};
+                                row.rounds = { ...row.rounds, [editRound]: { status: s.id, memo: memo, timestamp: new Date().toISOString(), caller: currentUser || "" } };
+                                row.called = true;
+                                row.result = getStatusDef(s.id).label;
+                                updated[selectedRow] = row;
+                                return { ...prev, [listId]: updated };
+                              });
+                            }
+                          }} style={{
+                            padding: "7px 6px", borderRadius: 6, position: 'relative',
+                            background: s.bg, border: "1px solid " + s.color + "30",
+                            cursor: "pointer", textAlign: "left",
+                            fontFamily: "'Noto Sans JP'",
+                          }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: s.color }}>{s.label}</div>
+                            <div style={{ fontSize: 8, color: s.color + "90" }}>{s.desc}</div>
+                            {s.excluded && <div style={{ fontSize: 7, color: "#e53e3e", marginTop: 1 }}>※ 以降架電除外</div>}
+                            {sc && <span style={{ position: 'absolute', bottom: 3, right: 5, fontSize: 8, color: s.color + '70', fontFamily: "'JetBrains Mono'", lineHeight: 1 }}>{sc.key}</span>}
+                          </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 );
               })()}
