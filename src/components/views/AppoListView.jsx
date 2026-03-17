@@ -271,10 +271,13 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           {setAppoData && (
             <button onClick={() => setAddAppoForm({ client: "", company: "", getter: "", getDate: "", meetDate: "", status: "アポ取得", sales: 0, reward: 0, note: "" })} style={{
               padding: "8px 18px", borderRadius: 8,
-              background: "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")",
+              background: "#0D2247",
               border: "none", color: C.white, cursor: "pointer", fontSize: 12, fontWeight: 600,
               fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap",
-            }}>＋ アポ追加</button>
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#1E3A6E"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#0D2247"; }}
+            >＋ アポ追加</button>
           )}
         </div>
       </div>
