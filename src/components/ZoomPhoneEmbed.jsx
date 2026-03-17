@@ -46,12 +46,17 @@ export default function ZoomPhoneEmbed() {
   // iframeからのイベントを監視してcallIdを取得する
   useEffect(() => {
     const handler = (e) => {
+      // ── 全メッセージをログ出力（origin問わず）──────────────────────────
+      console.log('[Zoom postMessage]', e.origin, e.data);
+
       if (e.origin !== ZOOM_ORIGIN) return;
       const msg = e.data;
       if (!msg || typeof msg !== 'object') return;
 
       const callId = extractCallId(msg);
       const ev = extractEventType(msg);
+
+      console.log('[Zoom postMessage] origin=ZOOM / ev:', ev, '/ callId:', callId ?? '(none)');
 
       // 通話開始系イベント → callIdを保存
       if (callId && (
@@ -61,11 +66,13 @@ export default function ZoomPhoneEmbed() {
         ev.includes('answered') ||
         ev.includes('in_call')
       )) {
+        console.log('[Zoom postMessage] 🟢 通話開始 callId:', callId);
         zoomPhone.setCallId(callId);
       }
 
       // 通話終了系イベント → callIdをクリア
       if (ev.includes('end') || ev.includes('disconnect') || ev.includes('hangup')) {
+        console.log('[Zoom postMessage] 🔴 通話終了');
         zoomPhone.setCallId(null);
       }
     };

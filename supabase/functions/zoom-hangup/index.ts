@@ -29,11 +29,17 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    const { callId } = await req.json()
+    const body = await req.json()
+    const { callId } = body
+
+    console.log('[zoom-hangup] リクエスト受信 callId:', callId ?? '(未指定)', '/ body:', JSON.stringify(body))
+
     if (!callId) {
-      return new Response(JSON.stringify({ error: 'callId required' }), {
-        status: 400, headers: corsHeaders,
-      })
+      console.error('[zoom-hangup] callIdなし — hangUpは呼ばれましたがcallIdが取得できていません')
+      return new Response(
+        JSON.stringify({ error: 'callId required — iframeからのpostMessageでcallIdが取得できていない可能性があります' }),
+        { status: 400, headers: corsHeaders },
+      )
     }
 
     const accountId    = Deno.env.get('ZOOM_ACCOUNT_ID')
