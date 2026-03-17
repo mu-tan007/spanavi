@@ -131,7 +131,9 @@ export default function PerformanceView({ members, currentUser }) {
 
   const teamMap = useMemo(() => {
     const m = {};
-    (members || []).forEach(mb => { m[mb.name] = mb.team ? mb.team + 'チーム' : '営業統括'; });
+    (members || [])
+      .filter(mb => mb.is_active !== false && mb.name && !/^user_/i.test(mb.name))
+      .forEach(mb => { m[mb.name] = mb.team ? mb.team + 'チーム' : '営業統括'; });
     return m;
   }, [members]);
 
@@ -157,8 +159,11 @@ export default function PerformanceView({ members, currentUser }) {
   const alerts = useMemo(() => {
     const result = [];
     const weekCallers = new Set(rankRecords.map(r => r.getter_name).filter(Boolean));
-    const allMembers = (members || []).map(m => typeof m === 'object' ? m.name : m).filter(Boolean);
-    const zeroCallers = allMembers.filter(n => !weekCallers.has(n) && teamMap[n] !== '営業統括');
+    const allMembers = (members || [])
+      .filter(m => typeof m === 'object' ? m.is_active !== false && m.name && !/^user_/i.test(m.name) : true)
+      .map(m => typeof m === 'object' ? m.name : m)
+      .filter(Boolean);
+    const zeroCallers = allMembers.filter(n => !weekCallers.has(n) && teamMap[n] !== '営業統括' && teamMap[n] !== 'その他');
     if (zeroCallers.length > 0) {
       result.push({ type: 'warn', message: `架電ゼロのメンバー（期間中）: ${zeroCallers.slice(0, 4).join('、')}${zeroCallers.length > 4 ? ` 他${zeroCallers.length - 4}名` : ''}` });
     }

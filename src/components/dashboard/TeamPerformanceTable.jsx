@@ -11,11 +11,14 @@ export default function TeamPerformanceTable({ records, loading, teamMap }) {
   const [expandedTeam, setExpandedTeam] = useState(null);
 
   const { teamData, memberData } = useMemo(() => {
+    const EXCLUDED_TEAMS = new Set(['営業統括', 'その他']);
+    const isValidName = (n) => n && !/^user_/i.test(n);
     const tm = {};
     const mm = {};
     records.forEach(r => {
-      const tn = teamMap[r.getter_name] || 'その他';
-      const name = r.getter_name || '不明';
+      const name = r.getter_name;
+      if (!isValidName(name)) return;
+      const tn = teamMap[name] || 'その他';
       if (!tm[tn]) tm[tn] = { call: 0, connect: 0, appo: 0, members: new Set() };
       tm[tn].call++;
       if (CEO_CONNECT.has(r.status)) tm[tn].connect++;
@@ -28,7 +31,7 @@ export default function TeamPerformanceTable({ records, loading, teamMap }) {
       if (r.status === 'アポ獲得') mm[tn][name].appo++;
     });
     const teamData = Object.entries(tm)
-      .filter(([tn]) => tn !== '営業統括')
+      .filter(([tn]) => !EXCLUDED_TEAMS.has(tn))
       .sort((a, b) => b[1].call - a[1].call)
       .map(([tn, d]) => [tn, { ...d, memberCount: d.members.size }]);
     return { teamData, memberData: mm };
