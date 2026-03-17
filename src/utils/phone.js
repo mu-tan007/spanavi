@@ -1,15 +1,11 @@
 // ============================================================
-// 電話発信ユーティリティ（Zoom Phone）
+// 電話発信ユーティリティ（Zoom Phone Smart Embed）
 // ============================================================
+import { zoomPhone } from '../lib/zoomPhoneStore';
+
 export const dialPhone = (phoneNumber) => {
+  if (!phoneNumber) return;
   const num = phoneNumber.replace(/[-\s]/g, "");
-  const uri = "zoomphonecall://" + num;
-  let iframe = document.getElementById("__dial_iframe");
-  if (!iframe) {
-    iframe = document.createElement("iframe");
-    iframe.id = "__dial_iframe";
-    iframe.style.display = "none";
-    document.body.appendChild(iframe);
-  }
-  iframe.src = uri;
+  console.log('[dialPhone] zp-make-call:', num);
+  zoomPhone.makeCall(num);
 };
