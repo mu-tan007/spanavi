@@ -17,35 +17,21 @@ const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コー
 const jstHourOf = (iso) => (new Date(iso).getUTCHours() + 9) % 24;
 const jstDateOf = (iso) => new Date(new Date(iso).getTime() + 9 * 3600000).toISOString().slice(0, 10);
 
-// セッション配列から日ベースの稼働時間統計を計算する
-// { jstDate: { minStart, maxEnd, hours, cph } } + totalHours を返す
-// callsPerDay: { jstDate: count } を渡すと各日の件/h も計算する
-function calcDayStats(sessions, callsPerDay = {}) {
-  const days = {};
+// セッションごとの稼働時間を合算する（架電数 >= 1 のセッションのみ、JST 9〜22時）
+// sessionCallCounts: { sessionId: count }
+function calcDayStats(sessions, sessionCallCounts = {}) {
+  let totalHours = 0;
   sessions.forEach(s => {
     const startH = jstHourOf(s.started_at);
     if (startH < 9 || startH >= 22) return;
     const endRaw = s.finished_at || s.last_called_at;
     if (!endRaw) return;
     if (jstHourOf(endRaw) >= 22) return;
-    const startMs = new Date(s.started_at).getTime();
-    const endMs   = new Date(endRaw).getTime();
-    const date    = jstDateOf(s.started_at);
-    const d = days[date];
-    if (!d) days[date] = { minStart: startMs, maxEnd: endMs };
-    else {
-      if (startMs < d.minStart) d.minStart = startMs;
-      if (endMs   > d.maxEnd)   d.maxEnd   = endMs;
-    }
-  });
-  let totalHours = 0;
-  Object.entries(days).forEach(([date, d]) => {
-    const h = Math.max((d.maxEnd - d.minStart) / 3600000, 0);
-    d.hours = h;
-    d.cph   = h > 0.01 ? ((callsPerDay[date] || 0) / h).toFixed(1) : '-';
+    if ((sessionCallCounts[s.id] || 0) < 1) return;
+    const h = Math.max((new Date(endRaw) - new Date(s.started_at)) / 3600000, 0);
     totalHours += h;
   });
-  return { days, totalHours };
+  return { totalHours };
 }
 
 function PersonDetailModal({ person, callRecords, appoRecords, sessions, members, teamMap, rankDateRange, onClose }) {
@@ -61,9 +47,16 @@ function PersonDetailModal({ person, callRecords, appoRecords, sessions, members
   const totalConnect = personCalls.filter(r => CEO_CONNECT.has(r.status)).length;
   const totalAppo    = personAppos.length;
 
-  const callsPerDay = {};
-  personCalls.forEach(r => { const d = jstDateOf(r.called_at); callsPerDay[d] = (callsPerDay[d] || 0) + 1; });
-  const { days: dayStats, totalHours: sessionHours } = calcDayStats(personSessions, callsPerDay);
+  const sessionCallCounts = {};
+  personSessions.forEach(s => {
+    const start  = new Date(s.started_at);
+    const endRaw = s.finished_at || s.last_called_at;
+    const end    = endRaw ? new Date(endRaw) : null;
+    sessionCallCounts[s.id] = end
+      ? personCalls.filter(r => { const t = new Date(r.called_at); return t >= start && t <= end; }).length
+      : 0;
+  });
+  const { totalHours: sessionHours } = calcDayStats(personSessions, sessionCallCounts);
   const cph = sessionHours > 0.01 ? (totalCalls / sessionHours).toFixed(1) : null;
 
   const hourlyChartData = useMemo(() => {
@@ -315,9 +308,23 @@ export default function PerformanceView({ members, currentUser }) {
   }, [rankDateRange]);
 
   // 人ごとの合計稼働時間 { name: totalHours }
-  // 日ベース: min(started_at)〜max(end) / JST 9:00〜22:00 のセッションのみ
+  // 架電数 >= 1 のセッションのみ (end - started_at) を合算
   const sessionMap = useMemo(() => {
-    // caller_name ごとにセッションをグループ化
+    // セッションごとの架電数を rankRecords から算出
+    const sessionCallCounts = {};
+    sessionRecords.forEach(s => {
+      const start  = new Date(s.started_at);
+      const endRaw = s.finished_at || s.last_called_at;
+      const end    = endRaw ? new Date(endRaw) : null;
+      sessionCallCounts[s.id] = (end && s.caller_name)
+        ? rankRecords.filter(r => {
+            if (r.getter_name !== s.caller_name) return false;
+            const t = new Date(r.called_at);
+            return t >= start && t <= end;
+          }).length
+        : 0;
+    });
+    // caller_name ごとにグループ化して合算
     const byName = {};
     sessionRecords.forEach(s => {
       if (!s.caller_name) return;
@@ -326,11 +333,11 @@ export default function PerformanceView({ members, currentUser }) {
     });
     const result = {};
     Object.entries(byName).forEach(([name, sessions]) => {
-      const { totalHours } = calcDayStats(sessions);
+      const { totalHours } = calcDayStats(sessions, sessionCallCounts);
       if (totalHours > 0) result[name] = totalHours;
     });
     return result;
-  }, [sessionRecords]);
+  }, [sessionRecords, rankRecords]);
 
   // セクション4: 成長トレンド（過去8週間）
   const [trendRecords, setTrendRecords] = useState([]);
