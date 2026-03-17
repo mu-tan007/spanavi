@@ -76,26 +76,26 @@ function PersonDetailModal({ person, callRecords, appoRecords, sessions, members
       else buckets[h].normal++;
     });
     return Array.from({ length: 24 }, (_, h) => buckets[h] || { hour: h, normal: 0, ceo: 0, appo: 0 })
-      .filter(d => d.normal + d.ceo + d.appo > 0);
+      .filter(d => d.hour >= 8 && d.hour < 20 && d.normal + d.ceo + d.appo > 0);
   }, [personCalls]);
 
-  const sessionRows = personSessions.map(s => {
-    const start  = new Date(s.started_at);
-    const endRaw = s.finished_at || s.last_called_at;
-    const end    = endRaw ? new Date(endRaw) : null;
-    const sessionCalls = end
-      ? personCalls.filter(r => { const t = new Date(r.called_at); return t >= start && t <= end; }).length
-      : 0;
-    const dayCph = dayStats[jstDateOf(s.started_at)]?.cph ?? '-';
-    return {
-      id: s.id,
-      startStr: start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }),
-      endStr: end ? end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }) : '進行中',
-      isLive: !end,
-      sessionCalls,
-      cph: dayCph,
-    };
-  });
+  const sessionRows = personSessions
+    .filter(s => { const h = jstHourOf(s.started_at); return h >= 8 && h < 20; })
+    .map(s => {
+      const start  = new Date(s.started_at);
+      const endRaw = s.finished_at || s.last_called_at;
+      const end    = endRaw ? new Date(endRaw) : null;
+      const sessionCalls = end
+        ? personCalls.filter(r => { const t = new Date(r.called_at); return t >= start && t <= end; }).length
+        : 0;
+      return {
+        id: s.id,
+        startStr: start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }),
+        endStr: end ? end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }) : '進行中',
+        isLive: !end,
+        sessionCalls,
+      };
+    });
 
   const dateLabel = rankDateRange
     ? (rankDateRange.from === rankDateRange.to ? rankDateRange.from : `${rankDateRange.from} 〜 ${rankDateRange.to}`)
@@ -175,15 +175,14 @@ function PersonDetailModal({ person, callRecords, appoRecords, sessions, members
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: NAVY, marginBottom: 8 }}>セッション一覧</div>
               <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr 0.7fr', padding: '7px 14px', background: '#F8F9FA', fontSize: 10, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid #E5E5E5' }}>
-                  <span>開始</span><span>終了</span><span>架電数</span><span>件/h</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr', padding: '7px 14px', background: '#F8F9FA', fontSize: 10, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid #E5E5E5' }}>
+                  <span>開始</span><span>終了</span><span>架電数</span>
                 </div>
                 {sessionRows.map((row, i) => (
-                  <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr 0.7fr', padding: '7px 14px', fontSize: 11, borderBottom: i < sessionRows.length - 1 ? '1px solid #F3F2F2' : 'none', background: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
+                  <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr', padding: '7px 14px', fontSize: 11, borderBottom: i < sessionRows.length - 1 ? '1px solid #F3F2F2' : 'none', background: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
                     <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 12 }}>{row.startStr}</span>
                     <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 12, color: row.isLive ? '#10B981' : '#374151' }}>{row.endStr}</span>
                     <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 600 }}>{row.sessionCalls}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", color: '#374151' }}>{row.cph}</span>
                   </div>
                 ))}
               </div>
