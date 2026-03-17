@@ -481,7 +481,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       { id: "edu_rules", label: "22 Rules" },
       { id: "edu_roleplay", label: "Role Play" },
     ]},
-    ...(isAdmin ? [{ id: "admin", label: "⚙️ 管理者設定", children: null }] : []),
+    ...(isAdmin ? [{ id: "admin", label: "Admin", children: null }] : []),
   ];
 
   const getActiveGroup = () => {
@@ -946,7 +946,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         {currentTab === "recall" && <RecallListView callListData={callListData} supaRecalls={supaRecalls} onRecallComplete={handleSupaRecallComplete} members={memberNames} currentUser={currentUser} isAdmin={isAdmin} onRefresh={fetchSupaRecalls} setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "payroll" && <PayrollView members={members} appoData={appoData} isAdmin={isAdmin} setMembers={setMembers} onDataRefetch={onDataRefetch} currentUser={currentUser} />}
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
-        {currentTab === "rules" && <RulesView industryRules={industryRules} setIndustryRules={setIndustryRules} ruleEditorOpen={ruleEditorOpen} setRuleEditorOpen={setRuleEditorOpen} editingRule={editingRule} setEditingRule={setEditingRule} isAdmin={isAdmin} />}
+        {currentTab === "rules" && <RulesView />}
         {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} />}
         {currentTab === "edu_performance" && <PerformanceView members={members} currentUser={currentUser} />}
         {currentTab === "edu_script" && <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} />}
