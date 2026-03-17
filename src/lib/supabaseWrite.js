@@ -1423,3 +1423,21 @@ export async function fetchCallListIndustries() {
   const unique = [...new Set((data || []).map(r => r.industry).filter(Boolean))].sort();
   return { data: unique, error: null };
 }
+
+// ============================================================
+// Org Settings
+// ============================================================
+
+export async function fetchOrgSettings() {
+  const { data, error } = await supabase
+    .from('org_settings')
+    .select('setting_key, setting_value')
+    .eq('org_id', ORG_ID);
+  if (error) {
+    console.error('[DB] fetchOrgSettings error:', error);
+    return { data: {}, error };
+  }
+  const map = {};
+  (data || []).forEach(r => { map[r.setting_key] = r.setting_value; });
+  return { data: map, error: null };
+}

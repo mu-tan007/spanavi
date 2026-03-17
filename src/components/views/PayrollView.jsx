@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
 import { calcRankAndRate } from '../../utils/calculations';
-import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots } from '../../lib/supabaseWrite';
+import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings } from '../../lib/supabaseWrite';
 
 const PAYROLL_DATA = [];
 
@@ -30,6 +30,11 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
   const [sortKey, setSortKey] = useState("total");
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
+  const [orgSettings, setOrgSettings] = useState({});
+
+  useEffect(() => {
+    fetchOrgSettings().then(({ data }) => setOrgSettings(data || {}));
+  }, []);
 
   // ── スナップショット（報酬確定）────────────────────────────────────
   const [snapshots, setSnapshots] = useState([]);
@@ -101,7 +106,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
     const byGetter = {};
     monthAppos.forEach(a => {
       const mem = memberMap[a.getter] || {};
-      const { rank, rate } = calcRankAndRate(mem.totalSales || 0);
+      const { rank, rate } = calcRankAndRate(mem.totalSales || 0, orgSettings);
       const team = mem.team || '';
       if (!byGetter[a.getter]) {
         byGetter[a.getter] = {
@@ -120,7 +125,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
       if (typeof m !== 'object' || !m.name) return;
       if (!['チームリーダー', '副リーダー'].includes(m.role)) return;
       if (byGetter[m.name]) return;
-      const { rank, rate } = calcRankAndRate(m.totalSales || 0);
+      const { rank, rate } = calcRankAndRate(m.totalSales || 0, orgSettings);
       byGetter[m.name] = {
         name: m.name, team: m.team || '', rank, rate,
         role: m.role || '', totalSales: m.totalSales || 0,
@@ -138,7 +143,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
     });
     Object.values(byGetter).forEach(p => { p.total = p.incentive + p.teamBonus; });
     return Object.values(byGetter);
-  }, [appoData, members, payMonth]);
+  }, [appoData, members, payMonth, orgSettings]);
 
   // 確定済み月はスナップショットから表示、未確定はリアルタイム計算
   const data = React.useMemo(() => {
@@ -243,7 +248,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
         const member = memberMap[getterName];
         if (!member?._supaId || delta === 0) continue;
         const newTotal = Math.max(0, (member.totalSales || 0) + delta);
-        const { rank: newRank, rate: newRate } = calcRankAndRate(newTotal);
+        const { rank: newRank, rate: newRate } = calcRankAndRate(newTotal, orgSettings);
         await updateMemberReward(member._supaId, { cumulativeSales: newTotal, rank: newRank, incentiveRate: newRate });
         if (setMembers) {
           setMembers(prev => prev.map(m =>
