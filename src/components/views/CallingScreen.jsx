@@ -722,6 +722,10 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                   <div style={{ marginBottom: 12 }}>
                     <div style={{ display: "flex", gap: 2, marginBottom: 6 }}>
                       {(() => {
+                        console.log('activeRow.rounds:', activeRow?.rounds);
+                        console.log('activeMaxRound:', activeRow?.rounds ? Math.max(...Object.keys(activeRow.rounds).map(Number)) : 0);
+                        console.log('editRound:', editRound);
+                        console.log('tabCount will be:', Math.max((activeRow?.rounds ? Math.max(...Object.keys(activeRow.rounds).map(Number)) : 0) + 1, 1, editRound, 10));
                         const activeMaxRound = activeRow?.rounds ? Math.max(...Object.keys(activeRow.rounds).map(Number)) : 0;
                         const tabCount = Math.max(activeMaxRound + 1, currentRound, editRound, 10);
                         return Array.from({length: tabCount}, (_, i) => i + 1).map(w => {
