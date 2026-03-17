@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
+import { zoomPhone } from '../../lib/zoomPhoneStore';
 import { fetchCallListItems, insertCallRecord, updateCallListItem, deleteCallRecordByItemRound, invokeGetZoomRecording, updateCallRecordRecordingUrl } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
 
@@ -190,6 +191,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
   };
 
   const markStatus = (idx, statusId, extraData) => {
+    zoomPhone.hangUp();
     const calledAt = new Date().toISOString();
     const statusLabel = getStatusDef(statusId).label;
 

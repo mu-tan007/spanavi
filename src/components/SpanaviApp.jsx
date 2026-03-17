@@ -39,6 +39,8 @@ import AIAssistantView from './views/AIAssistantView';
 import AdminView from './views/AdminView';
 import { Phone, Calendar, BarChart2, Settings, GraduationCap, User, Bot, Bell } from 'lucide-react';
 import DetailModal from './views/DetailModal';
+import ZoomPhoneEmbed from './ZoomPhoneEmbed';
+import { useZoomAuth } from '../hooks/useZoomAuth';
 
 // ============================================================
 // LOGO (base64 embedded)
@@ -271,6 +273,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       }
     } catch(e) {}
   }, [callFlowScreen]);
+  const { token: zoomToken, connect: zoomConnect, disconnect: zoomDisconnect } = useZoomAuth();
   const [currentUser, setCurrentUser] = useState(userName || "管理者");
   const [appoData, setAppoData] = useState(supabaseData?.appoData ?? []);
   const [clientData, setClientData] = useState(supabaseData?.clientData?.length ? supabaseData.clientData : CLIENT_DATA);
@@ -965,6 +968,18 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         onNavigateToIncoming={() => setCurrentTab('incoming')}
         onOpenCompany={(itemId) => setCallFlowScreen({ list: { _supaId: null, id: null, company: '' }, defaultItemId: itemId, defaultListMode: false })}
       />
+      <ZoomPhoneEmbed token={zoomToken} />
+      {!zoomToken && (
+        <button
+          onClick={zoomConnect}
+          style={{
+            position: 'fixed', bottom: 16, right: 16, zIndex: 9998,
+            padding: '8px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
+            background: '#0D2247', color: '#fff', fontSize: 12, fontWeight: 600,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+          }}
+        >Zoom Phone 接続</button>
+      )}
     </div>
   );
 }

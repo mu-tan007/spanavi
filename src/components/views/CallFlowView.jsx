@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import React from 'react';
+import { zoomPhone } from '../../lib/zoomPhoneStore';
 
 // キーボードショートカット定義（F1〜F8 → ステータスラベル）
 const CFV_SHORTCUTS = [
@@ -420,6 +421,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   };
 
   const handleResult = async (result) => {
+    zoomPhone.hangUp();
     if (!selectedRow || selectedRound === null) { console.warn('[handleResult] 早期リターン — selectedRow:', selectedRow, '/ selectedRound:', selectedRound); return; }
     if (result === 'アポ獲得') { setAppoModal(selectedRow); return; }
     if (result === '受付再コール' || result === '社長再コール') {
