@@ -185,7 +185,9 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
   // Check if row is callable: show everything EXCEPT excluded/recall/appointment
   const isCallable = (row) => {
     if (!row.rounds) return true;
-    const latestRound = Math.max(...Object.keys(row.rounds).map(Number));
+    const keys = Object.keys(row.rounds);
+    if (keys.length === 0) return true;
+    const latestRound = Math.max(...keys.map(Number));
     const latestStatus = row.rounds[latestRound]?.status;
     if (latestStatus && HIDDEN_FROM_CALLABLE.includes(latestStatus)) return false;
     return true;
@@ -705,7 +707,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
               )}
 
               {/* Status buttons for current round */}
-              {!activeExcluded && (() => {
+              {(() => {
                 const editRoundData = getRoundStatus(activeRow, editRound);
                 const editStatusDef = editRoundData ? getStatusDef(editRoundData.status) : null;
                 return (
