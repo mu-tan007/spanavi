@@ -93,7 +93,7 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
         // 住所（単体）
         if (base === '住所' || base === '所在地') return 'address';
         // 住所分割列
-        if (base === '都道府県') return 'pref';
+        if (base === '都道府県' || base.toLowerCase() === 'prefecture') return 'pref';
         if (base === '市区町村' || base === '市町村' || base === '区市町村') return 'city';
         if (base === '番地' || base === '番地以降' || base === '番地・号' || base === '丁目番地') return 'ward';
         // 売上高
@@ -178,6 +178,7 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
           company: sanitizeCSV(get('company') || ''),
           business: sanitizeCSV(get('business') || ''),
           address: sanitizeCSV(address),
+          pref: prefVal,
           representative: sanitizeCSV(get('representative') || ''),
           phone: normalizePhone(get('phone') || ''),
           revenue: (() => { const v = get('revenue'); return v ? toSenEn(v, revenueUnit) : null; })(),

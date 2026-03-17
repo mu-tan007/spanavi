@@ -190,6 +190,18 @@ export default function StatsView({ callListData, currentUser, appoData, members
   const kpiWeekAppoRate = kpiWeekCalls > 0 ? kpiWeekAppo / kpiWeekCalls * 100 : 0;
   const kpiPrevWeekAppoRate = kpiPrevWeekCalls > 0 ? kpiPrevWeekAppo / kpiPrevWeekCalls * 100 : 0;
 
+  const kpiMonthReschedule = useMemo(() => (appoData || []).filter(a => {
+    const d = (a.getDate || '').slice(0, 10);
+    return a.status === 'リスケ中' && d >= monthStart && d <= todayStr;
+  }).length, [appoData, monthStart, todayStr]);
+  const kpiMonthCancel = useMemo(() => (appoData || []).filter(a => {
+    const d = (a.getDate || '').slice(0, 10);
+    return a.status === 'キャンセル' && d >= monthStart && d <= todayStr;
+  }).length, [appoData, monthStart, todayStr]);
+  const kpiMonthAppoTotal = kpiMonthAppo + kpiMonthReschedule + kpiMonthCancel;
+  const kpiRescheduleRate = kpiMonthAppoTotal > 0 ? kpiMonthReschedule / kpiMonthAppoTotal * 100 : 0;
+  const kpiCancelRate = kpiMonthAppoTotal > 0 ? kpiMonthCancel / kpiMonthAppoTotal * 100 : 0;
+
   // ── ① 売上推移グラフ用データ ──────────────────────────────────────────────
   const dailyChartData = useMemo(() => {
     const ym = chartMonthStr;
@@ -467,6 +479,30 @@ export default function StatsView({ callListData, currentUser, appoData, members
               </span>
             ) : <span style={{ fontSize: 10, color: C.textLight }}>先週比 —</span>}
             {kpiPrevWeekAppoRate > 0 && <span style={{ fontSize: 10, color: C.textLight }}>先週: {kpiPrevWeekAppoRate.toFixed(1)}%</span>}
+          </div>
+        </div>
+      </div>
+
+      {/* Card 5+6: リスケ率・キャンセル率 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 20 }}>
+        <div style={cardStyle}>
+          <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>今月（{parseInt(monthStr.slice(5))}月1日〜{dayOfMonth}日）</div>
+          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>リスケ率</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#F59E0B', fontFamily: "'JetBrains Mono'" }}>
+            {kpiRescheduleRate.toFixed(1)}<span style={{ fontSize: 13, fontWeight: 600 }}>%</span>
+          </div>
+          <div style={{ marginTop: 6, fontSize: 10, color: C.textLight }}>
+            リスケ {kpiMonthReschedule}件 / アポ合計 {kpiMonthAppoTotal}件
+          </div>
+        </div>
+        <div style={cardStyle}>
+          <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>今月（{parseInt(monthStr.slice(5))}月1日〜{dayOfMonth}日）</div>
+          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>キャンセル率</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#EF4444', fontFamily: "'JetBrains Mono'" }}>
+            {kpiCancelRate.toFixed(1)}<span style={{ fontSize: 13, fontWeight: 600 }}>%</span>
+          </div>
+          <div style={{ marginTop: 6, fontSize: 10, color: C.textLight }}>
+            キャンセル {kpiMonthCancel}件 / アポ合計 {kpiMonthAppoTotal}件
           </div>
         </div>
       </div>
