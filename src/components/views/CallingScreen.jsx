@@ -30,6 +30,14 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
   const [recallModal, setRecallModal] = useState(null); // { idx, row, statusId } when recall selected
   const [editRound, setEditRound] = useState(1);
   useEffect(() => { setEditRound(currentRound); }, [currentRound]);
+  // Reset editRound to next uncalled round when selecting a different company
+  useEffect(() => {
+    if (selectedRow === null) return;
+    const row = (importedCSVs[listId] || [])[selectedRow];
+    const keys = row?.rounds ? Object.keys(row.rounds) : [];
+    const maxRd = keys.length > 0 ? Math.max(...keys.map(Number)) : 0;
+    setEditRound(Math.max(maxRd + 1, 1));
+  }, [selectedRow]); // eslint-disable-line react-hooks/exhaustive-deps
   const [showScript, setShowScript] = useState(false);
   const [prefFilter, setPrefFilter] = useState("");
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
@@ -771,6 +779,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                                 updated[selectedRow] = row;
                                 return { ...prev, [listId]: updated };
                               });
+                              setEditRound(r => r + 1);
                             }
                           }} style={{
                             padding: "7px 6px", borderRadius: 6, position: 'relative',
