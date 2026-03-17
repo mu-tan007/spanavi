@@ -37,7 +37,7 @@ export default function TeamPerformanceTable({ records, loading, teamMap }) {
   const hdr = { padding: '8px 16px', background: '#F3F2F2', fontSize: 11, fontWeight: 700, color: '#706E6B', borderBottom: '2px solid #E5E5E5' };
 
   return (
-    <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 16 }}>
+    <div style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
         <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>チーム別パフォーマンス</span>
         {loading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
@@ -68,9 +68,9 @@ export default function TeamPerformanceTable({ records, loading, teamMap }) {
                 </span>
                 <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{d.call}</span>
                 <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{d.connect}</span>
-                <span style={{ fontFamily: "'JetBrains Mono'", color: GOLD, fontWeight: 700 }}>{cr}%</span>
-                <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 800, color: GOLD }}>{d.appo}</span>
-                <span style={{ fontFamily: "'JetBrains Mono'", color: GOLD, fontWeight: 700 }}>{ar}%</span>
+                <span style={{ fontFamily: "'JetBrains Mono'", color: '#374151', fontWeight: 700 }}>{cr}%</span>
+                <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 800, color: '#374151' }}>{d.appo}</span>
+                <span style={{ fontFamily: "'JetBrains Mono'", color: '#374151', fontWeight: 700 }}>{ar}%</span>
                 <span style={{ fontSize: 11 }}>{d.memberCount}人</span>
               </div>
               {isExpanded && (
@@ -86,9 +86,9 @@ export default function TeamPerformanceTable({ records, loading, teamMap }) {
                         <span style={{ fontWeight: 500 }}>{name}</span>
                         <span style={{ fontFamily: "'JetBrains Mono'" }}>{md.call}</span>
                         <span style={{ fontFamily: "'JetBrains Mono'" }}>{md.connect}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", color: GOLD }}>{mcr}%</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", color: GOLD, fontWeight: 700 }}>{md.appo}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", color: GOLD }}>{mar}%</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", color: '#374151' }}>{mcr}%</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", color: '#374151', fontWeight: 700 }}>{md.appo}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", color: '#374151' }}>{mar}%</span>
                       </div>
                     );
                   })}

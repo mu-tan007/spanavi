@@ -71,7 +71,7 @@ export default function HourlyActivityChart({ records, selectedDate, setSelected
   };
 
   return (
-    <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 20 }}>
+    <div style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>時間帯別活動グラフ</span>

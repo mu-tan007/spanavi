@@ -25,3 +25,9 @@ export function formatNumber(num) {
   if (num == null) return '-'
   return num.toLocaleString()
 }
+
+// 金額表示（円単位）
+export const formatCurrency = (amount) => {
+  if (!amount && amount !== 0) return '—';
+  return `¥${Math.round(amount).toLocaleString('ja-JP')}`;
+};

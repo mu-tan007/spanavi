@@ -56,7 +56,7 @@ export default function ActivityRankingSection({ records, loading, currentUser }
 
   if (records.length === 0 && !loading) {
     return (
-      <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 16 }}>
+      <div style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>活動ランキング</span>
         </div>
@@ -66,7 +66,7 @@ export default function ActivityRankingSection({ records, loading, currentUser }
   }
 
   return (
-    <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 16 }}>
+    <div style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
         <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>活動ランキング</span>
         {loading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}

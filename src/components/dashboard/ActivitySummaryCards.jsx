@@ -48,7 +48,7 @@ export default function ActivitySummaryCards({
   };
 
   return (
-    <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 20 }}>
+    <div style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>活動サマリー</span>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
+import { formatCurrency } from '../../utils/formatters';
 import { fetchCallRecordsByRange, fetchCallListsMeta } from '../../lib/supabaseWrite';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import {
@@ -13,7 +14,7 @@ const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
 const GOLD_LIGHT = '#e0c97a';
 const COUNTABLE = new Set(['面談済', '事前確認済', 'アポ取得']);
-const fmt = (n) => n >= 10000 ? (n / 10000).toFixed(1) + '万' : n.toLocaleString();
+const fmt = (n) => formatCurrency(n);
 const fmtFull = (n) => '¥' + (n || 0).toLocaleString();
 
 function getActivityDateRange(period, customFrom, customTo, todayStr, weekStartStr, monthStr) {
@@ -361,7 +362,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
     color: rank <= 3 ? C.white : C.textLight,
     border: rank <= 3 ? 'none' : '1px solid ' + C.borderLight,
   });
-  const cardStyle = { background: C.white, borderRadius: 12, padding: '20px 22px', boxShadow: '0 2px 10px rgba(13,34,71,0.07)', borderTop: '3px solid ' + GOLD };
+  const cardStyle = { background: C.white, borderRadius: 12, padding: '16px 18px', borderTop: '3px solid ' + GOLD };
 
   // 日付入力付きセクション独立フィルタ (日/週/月/期間指定)
   const simplePeriodSelector = (period, setPeriod, from, setFrom, to, setTo, accent) => (
@@ -421,7 +422,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
           <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>今月（{parseInt(monthStr.slice(5))}月1日〜{dayOfMonth}日）</div>
           <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>今月累計売上</div>
           <div style={{ fontSize: 24, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'", letterSpacing: '-0.5px' }}>
-            {kpiMonthSales >= 10000 ? <>{(kpiMonthSales / 10000).toFixed(1)}<span style={{ fontSize: 13, fontWeight: 600 }}>万円</span></> : fmtFull(kpiMonthSales)}
+            {formatCurrency(kpiMonthSales)}
           </div>
           <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
             <GrowthBadge pct={kpiPrevMonthSales > 0 ? (kpiMonthSales - kpiPrevMonthSales) / kpiPrevMonthSales * 100 : null} />
@@ -588,7 +589,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
                     {idx + 1}
                   </span>
                   <span style={{ flex: 1, fontSize: 12, fontWeight: isMe ? 700 : 500, color: isMe ? NAVY : C.textDark }}>{name}{isMe ? ' ★' : ''}</span>
-                  <span style={{ fontSize: 13, fontWeight: 900, fontFamily: "'JetBrains Mono'", color: GOLD }}>{fmt(d.total)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 900, fontFamily: "'JetBrains Mono'", color: idx === 0 ? GOLD : '#111827' }}>{fmt(d.total)}</span>
                   <span style={{ fontSize: 10, color: C.textLight }}>{d.count}件</span>
                 </div>
                 <div style={{ height: 5, borderRadius: 3, background: C.offWhite, overflow: 'hidden' }}>
@@ -620,7 +621,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
                     {idx + 1}
                   </span>
                   <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: NAVY }}>{tn}</span>
-                  <span style={{ fontSize: 13, fontWeight: 900, fontFamily: "'JetBrains Mono'", color: GOLD }}>{fmt(d.total)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 900, fontFamily: "'JetBrains Mono'", color: idx === 0 ? GOLD : '#111827' }}>{fmt(d.total)}</span>
                   <span style={{ fontSize: 10, color: C.textLight }}>{d.count}件 / {d.memberCount}人</span>
                 </div>
                 <div style={{ height: 5, borderRadius: 3, background: C.offWhite, overflow: 'hidden' }}>
@@ -683,7 +684,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
                           {d.name}
                         </span>
                         <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{d.count}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 13, fontWeight: 900, color: GOLD }}>{fmt(d.total)}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 13, fontWeight: 900, color: '#111827' }}>{fmt(d.total)}</span>
                         <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textDark }}>{fmt(avg)}</span>
                         <span style={{ fontSize: 11, color: C.textMid }}>{d.lastDate?.slice(0, 10) || '—'}</span>
                       </div>
@@ -694,7 +695,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
                             <div key={listId} style={{ display: 'flex', gap: 16, padding: '4px 0', borderBottom: '1px solid #f0f0f0', fontSize: 11 }}>
                               <span style={{ flex: 1, color: C.textDark }}>{listId}</span>
                               <span style={{ fontFamily: "'JetBrains Mono'", color: C.textMid }}>{ld.count}件</span>
-                              <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: GOLD }}>{fmt(ld.total)}</span>
+                              <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: '#111827' }}>{fmt(ld.total)}</span>
                             </div>
                           ))}
                         </div>
@@ -802,7 +803,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
                     <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: isTop3 ? GOLD : NAVY }}>{row.calls}</span>
                     <span style={{ fontFamily: "'JetBrains Mono'" }}>{row.connect}</span>
                     <RateBar rate={row.connectRate} />
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: GOLD }}>{row.appo}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: '#374151' }}>{row.appo}</span>
                     <RateBar rate={row.appoRate} />
                     <span style={{ fontSize: 11, color: C.textMid }}>{row.lastDate || '—'}</span>
                   </div>

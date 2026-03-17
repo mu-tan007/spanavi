@@ -3,6 +3,7 @@ import React from 'react';
 import { C } from '../../constants/colors';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
+import { formatCurrency } from '../../utils/formatters';
 import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording } from '../../lib/supabaseWrite';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 
@@ -288,11 +289,11 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           </div>
           <div style={{ padding: "14px 18px", background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight }}>
             <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>当社売上合計</div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: C.gold, fontFamily: "'JetBrains Mono'" }}>{(totalSales / 10000).toFixed(1)}<span style={{ fontSize: 11, fontWeight: 500 }}>万円</span></div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: C.navy, fontFamily: "'JetBrains Mono'" }}>{formatCurrency(totalSales)}</div>
           </div>
           <div style={{ padding: "14px 18px", background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight }}>
             <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>インターン報酬合計</div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: C.green, fontFamily: "'JetBrains Mono'" }}>{(totalReward / 10000).toFixed(1)}<span style={{ fontSize: 11, fontWeight: 500 }}>万円</span></div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: C.green, fontFamily: "'JetBrains Mono'" }}>{formatCurrency(totalReward)}</div>
           </div>
         </div>
         {/* Monthly breakdown */}
@@ -309,11 +310,11 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 2 }}>
                 <span style={{ color: C.textLight }}>売上</span>
-                <span style={{ fontWeight: 700, color: C.gold, fontFamily: "'JetBrains Mono'" }}>{(ms.sales / 10000).toFixed(1)}万</span>
+                <span style={{ fontWeight: 700, color: C.navy, fontFamily: "'JetBrains Mono'" }}>{formatCurrency(ms.sales)}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10 }}>
                 <span style={{ color: C.textLight }}>報酬</span>
-                <span style={{ fontWeight: 700, color: C.green, fontFamily: "'JetBrains Mono'" }}>{(ms.reward / 10000).toFixed(1)}万</span>
+                <span style={{ fontWeight: 700, color: C.green, fontFamily: "'JetBrains Mono'" }}>{formatCurrency(ms.reward)}</span>
               </div>
             </div>
           ))}
@@ -387,8 +388,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 fontSize: 9, padding: "2px 6px", borderRadius: 3, textAlign: "center", fontWeight: 600,
                 background: sc.bg, color: sc.color,
               }}>{a.status}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: C.navy }}>{a.sales > 0 ? (a.sales / 10000).toFixed(1) + "万" : "-"}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid }}>{a.reward > 0 ? (a.reward / 10000).toFixed(1) + "万" : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: C.navy }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
             </div>
           );
         })}

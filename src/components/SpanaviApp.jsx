@@ -314,6 +314,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
     try { localStorage.setItem("masp_v2_currentTab", currentTab); } catch(e) {}
   }, [currentTab]);
   const [now, setNow] = useState(new Date());
+  const [lastUpdated, setLastUpdated] = useState(() => new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   // call_sessions ベースの「リストごと最終架電日時」マップ { [supaId]: ISO string }
   const [latestSessionMap, setLatestSessionMap] = useState({});
   const [industryRules, setIndustryRules] = useState(DEFAULT_INDUSTRY_RULES);
@@ -334,6 +335,12 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   }, [liveStatuses]);
 
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 60000); return () => clearInterval(t); }, []);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setLastUpdated(new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    }, 60000);
+    return () => clearInterval(id);
+  }, []);
 
   // callListData がロードされたら call_sessions から各リストの最終架電日時を取得
   useEffect(() => {
@@ -447,32 +454,32 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   };
 
   const navGroups = [
-    { id: "g_call", label: "架電", children: [
-      { id: "live", label: "架電状況" },
-      { id: "lists", label: "リスト一覧" },
-      { id: "search", label: "企業・リスト検索" },
-      { id: "recall", label: "再コール一覧" },
-      { id: "rules", label: "業種ルール" },
-      { id: "incoming", label: "着信履歴" },
+    { id: "g_call", label: "CALLING", children: [
+      { id: "live", label: "Live Status" },
+      { id: "lists", label: "Lists" },
+      { id: "search", label: "Search" },
+      { id: "recall", label: "Recall" },
+      { id: "rules", label: "Industry Rules" },
+      { id: "incoming", label: "Call History" },
     ]},
-    { id: "g_appo", label: "アポ管理", children: [
-      { id: "appo", label: "アポ一覧" },
-      { id: "precheck", label: "事前確認" },
+    { id: "g_appo", label: "PIPELINE", children: [
+      { id: "appo", label: "Appointments" },
+      { id: "precheck", label: "Pre-Check" },
     ]},
-    { id: "stats", label: "ダッシュボード", children: null },
-    { id: "g_other", label: "その他", children: [
-      { id: "crm", label: "顧客管理" },
-      { id: "members", label: "従業員名簿" },
-      { id: "payroll", label: "報酬計算" },
-      { id: "shift", label: "シフト管理" },
-      ...(isAdmin ? [{ id: "reward_master", label: "料金テーブル" }] : []),
+    { id: "stats", label: "Analytics", children: null },
+    { id: "g_other", label: "OPERATIONS", children: [
+      { id: "crm", label: "CRM" },
+      { id: "members", label: "Members" },
+      { id: "payroll", label: "Payroll" },
+      { id: "shift", label: "Shifts" },
+      ...(isAdmin ? [{ id: "reward_master", label: "Fee Table" }] : []),
     ]},
-    { id: "g_education", label: "教育", children: [
-      { id: "edu_performance", label: "パフォーマンス" },
-      { id: "edu_script", label: "スクリプト" },
-      { id: "edu_tips", label: "テレアポの極意" },
-      { id: "edu_rules", label: "インターン22箇条" },
-      { id: "edu_roleplay", label: "ロープレ" },
+    { id: "g_education", label: "DEVELOPMENT", children: [
+      { id: "edu_performance", label: "Performance" },
+      { id: "edu_script", label: "Scripts" },
+      { id: "edu_tips", label: "Mastery" },
+      { id: "edu_rules", label: "22 Rules" },
+      { id: "edu_roleplay", label: "Role Play" },
     ]},
     ...(isAdmin ? [{ id: "admin", label: "⚙️ 管理者設定", children: null }] : []),
   ];
@@ -620,7 +627,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 24px', boxSizing: 'border-box',
       }} onClick={() => setShowBellDropdown(false)}>
-        <div style={{ fontSize: 16, fontWeight: 700, color: '#032D60' }}>
+        <div style={{ fontSize: 11, fontWeight: 500, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
           {(() => {
             for (const _hg of navGroups) {
               if (!_hg.children && _hg.id === currentTab) return _hg.label;
@@ -702,9 +709,15 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
               </div>
             )}
           </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: C.navy }}>{timeStr}</div>
-            <div style={{ fontSize: 10, color: C.textLight }}>{dateStr}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 10, color: '#9CA3AF', letterSpacing: '0.05em' }}>最終更新</div>
+              <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: '#6B7280' }}>{lastUpdated}</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: C.navy }}>{timeStr}</div>
+              <div style={{ fontSize: 10, color: C.textLight }}>{dateStr}</div>
+            </div>
           </div>
         </div>
       </header>
