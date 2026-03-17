@@ -421,6 +421,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   };
 
   const handleResult = async (result) => {
+    console.log('[test] ステータスボタン押下');
     zoomPhone.hangUp();
     if (!selectedRow || selectedRound === null) { console.warn('[handleResult] 早期リターン — selectedRow:', selectedRow, '/ selectedRound:', selectedRound); return; }
     if (result === 'アポ獲得') { setAppoModal(selectedRow); return; }

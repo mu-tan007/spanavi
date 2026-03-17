@@ -191,6 +191,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
   };
 
   const markStatus = (idx, statusId, extraData) => {
+    console.log('[test] ステータスボタン押下');
     zoomPhone.hangUp();
     const calledAt = new Date().toISOString();
     const statusLabel = getStatusDef(statusId).label;

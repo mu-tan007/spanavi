@@ -33,6 +33,7 @@ export const zoomPhone = {
   },
 
   hangUp() {
+    console.log('[zoomPhone] hangUp called');
     console.log('[zoomPhone] hangUp → zp-end-call');
     postToZoom({ type: 'zp-end-call' });
   },
