@@ -340,7 +340,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             { label: '取得日', key: 'getDate' },
             { label: '面談日', key: 'meetDate' },
             { label: 'ステータス', key: null, center: true },
-            { label: '当社売上', key: null, padLeft: 14 },
+            { label: '当社売上', key: null, padLeft: 48 },
             { label: 'インターン報酬', key: null },
           ].map(({ label, key, center, padLeft }) => (
             <span key={label}
@@ -393,7 +393,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   background: sc.bg, color: sc.color,
                 }}>{a.status}</span>
               </div>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: C.navy, paddingLeft: 28 }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: C.navy, paddingLeft: 48 }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
             </div>
           );
