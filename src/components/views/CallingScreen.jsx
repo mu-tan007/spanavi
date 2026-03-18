@@ -669,7 +669,6 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
         </div>
 
         {/* Right: Detail panel */}
-        {console.log('[DEBUG] selectedRow:', selectedRow)}
         {selectedRow !== null && (
         <div style={{ width: 400, display: "flex", flexDirection: "column", background: C.white, overflow: "hidden", borderLeft: "1px solid " + C.borderLight }}>
             <div style={{ flex: 1, overflowY: "auto", padding: 14 }}>
