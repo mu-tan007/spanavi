@@ -1419,6 +1419,113 @@ export async function fetchCallListsMeta() {
   return { data: data || [], error };
 }
 
+// ============================================================
+// Training Progress（研修進捗）
+// ============================================================
+
+export async function fetchTrainingProgress(userId) {
+  if (!userId) return { data: [], error: null }
+  const { data, error } = await supabase
+    .from('training_progress')
+    .select('*')
+    .eq('user_id', userId)
+  if (error) console.error('[DB] fetchTrainingProgress error:', error)
+  return { data: data || [], error }
+}
+
+export async function upsertTrainingStage(userId, stageKey, payload) {
+  if (!userId || !stageKey) return { error: 'missing params' }
+  const { error } = await supabase
+    .from('training_progress')
+    .upsert({
+      user_id: userId,
+      stage_key: stageKey,
+      completed: payload.completed ?? true,
+      completed_at: payload.completed ? new Date().toISOString() : null,
+      passed: payload.passed ?? null,
+      completed_by: payload.completed_by ?? null,
+      notes: payload.notes ?? null,
+      org_id: ORG_ID,
+    }, { onConflict: 'user_id,stage_key' })
+  if (error) console.error('[DB] upsertTrainingStage error:', error)
+  return { error }
+}
+
+// ============================================================
+// Roleplay Sessions（ロープレセッション）
+// ============================================================
+
+export async function fetchRoleplaySessions(userId) {
+  if (!userId) return { data: [], error: null }
+  const { data, error } = await supabase
+    .from('roleplay_sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('session_date', { ascending: false })
+  if (error) console.error('[DB] fetchRoleplaySessions error:', error)
+  return { data: data || [], error }
+}
+
+export async function insertRoleplaySession(userId, payload) {
+  if (!userId) return { data: null, error: 'no userId' }
+  const { data, error } = await supabase
+    .from('roleplay_sessions')
+    .insert({
+      user_id: userId,
+      org_id: ORG_ID,
+      partner_name: payload.partner_name || null,
+      session_type: payload.session_type,
+      session_date: payload.session_date || null,
+      passed: payload.passed ?? null,
+      notes: payload.notes || null,
+    })
+    .select()
+    .single()
+  if (error) console.error('[DB] insertRoleplaySession error:', error)
+  return { data, error }
+}
+
+export async function updateRoleplaySession(id, payload) {
+  if (!id) return { error: 'no id' }
+  const { error } = await supabase
+    .from('roleplay_sessions')
+    .update(payload)
+    .eq('id', id)
+  if (error) console.error('[DB] updateRoleplaySession error:', error)
+  return { error }
+}
+
+export async function deleteRoleplaySession(id) {
+  if (!id) return { error: 'no id' }
+  const { error } = await supabase
+    .from('roleplay_sessions')
+    .delete()
+    .eq('id', id)
+  if (error) console.error('[DB] deleteRoleplaySession error:', error)
+  return { error }
+}
+
+export async function uploadRoleplayRecording(userId, sessionId, file) {
+  if (!userId || !sessionId || !file) return { path: null, url: null, error: 'missing params' }
+  const ext = file.name.split('.').pop() || 'mp4'
+  const path = `${userId}/${sessionId}.${ext}`
+  const { error: uploadError } = await supabase.storage
+    .from('roleplay-recordings')
+    .upload(path, file, { contentType: file.type || 'audio/mp4', upsert: true })
+  if (uploadError) {
+    console.error('[DB] uploadRoleplayRecording error:', uploadError)
+    return { path: null, url: null, error: uploadError }
+  }
+  const { data: urlData } = supabase.storage.from('roleplay-recordings').getPublicUrl(path)
+  return { path, url: urlData.publicUrl, error: null }
+}
+
+export async function invokeAnalyzeRoleplay(payload) {
+  const { data, error } = await supabase.functions.invoke('analyze-roleplay', { body: payload })
+  if (error) console.error('[Edge] analyze-roleplay error:', error)
+  return { data, error }
+}
+
 // call_listsテーブルからindustry（業種）のユニーク一覧を取得
 export async function fetchCallListIndustries() {
   const { data, error } = await supabase

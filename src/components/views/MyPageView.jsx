@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
 import { getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl, fetchMyCallRecords, updateMember } from '../../lib/supabaseWrite';
+import TrainingRoleplaySection from './TrainingRoleplaySection';
 
 export default function MyPageView({ currentUser, userId, callListData, members, now, appoData, onDataRefetch, isAdmin = false }) {
   const [periodTab, setPeriodTab] = useState("daily"); // daily, weekly, monthly, cumulative
@@ -267,13 +268,15 @@ export default function MyPageView({ currentUser, userId, callListData, members,
         background: C.white, borderRadius: 10, padding: "16px 20px", marginBottom: 16,
         border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>研修・ロープレ進捗</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center",
-          padding: "24px 0", gap: 10, color: C.textLight }}>
-          <span style={{ fontSize: 12 }}>工事中 - 近日実装予定</span>
-        </div>
+        <TrainingRoleplaySection
+          currentUser={currentUser}
+          userId={userId}
+          members={members}
+          isAdmin={isAdmin}
+        />
       </div>
 
       {/* Performance Data */}
