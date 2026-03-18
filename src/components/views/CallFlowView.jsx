@@ -1170,13 +1170,15 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       {/* ── ヘッダーバー（height:48px） ── */}
       <div style={{ height: 48, background: '#032D60', display: 'flex', alignItems: 'center', padding: '0 14px', gap: 10, flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
 
-        {/* 左: リストに戻る */}
-        <button onClick={() => setListMode(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 6, flexShrink: 0,
-            border: '1px solid rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-            background: listMode ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.07)', color: '#fff' }}>
-          ◀ リストに戻る
-        </button>
+        {/* 左: リストに戻る（集中モード時のみ表示） */}
+        {!listMode && (
+          <button onClick={() => setListMode(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 6, flexShrink: 0,
+              border: '1px solid rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+              background: 'rgba(255,255,255,0.07)', color: '#fff' }}>
+            ◀ リストに戻る
+          </button>
+        )}
 
 
         {/* 中央: 位置表示 + 前へ/次へ */}
