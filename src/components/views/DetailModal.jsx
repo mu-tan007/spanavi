@@ -46,7 +46,8 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
   const [selectedStatuses, setSelectedStatuses] = useState([]); // 空配列=全ステータス
   const [revenueMin, setRevenueMin] = useState('');
   const [revenueMax, setRevenueMax] = useState('');
-  const [prefFilter, setPrefFilter] = useState('');
+  const [prefFilters, setPrefFilters] = useState([]);
+  const [prefDropOpen, setPrefDropOpen] = useState(false);
 
   useEffect(() => {
     if (!list._supaId) {
@@ -366,7 +367,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             disabled={!flowStartNo || !flowEndNo}
             onClick={() => {
               const sf = selectedStatuses.length > 0 ? selectedStatuses : null;
-              setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilter || null });
+              setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null });
             }}
             style={{
               padding: "6px 20px", borderRadius: 6,
@@ -446,13 +447,52 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
         </div>
 
         {/* 都道府県フィルター */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#706E6B', marginBottom: 10 }}>
-          <select value={prefFilter} onChange={e => setPrefFilter(e.target.value)}
-            style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", background: prefFilter ? '#EAF4FF' : C.white, color: C.navy, cursor: 'pointer' }}>
-            <option value="">都道府県（全て）</option>
-            {availablePrefs.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-        </div>
+        {availablePrefs.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#706E6B', marginBottom: 10 }}>
+            <div style={{ position: 'relative' }}>
+              {prefDropOpen && (
+                <div onClick={() => setPrefDropOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 }} />
+              )}
+              <button onClick={() => setPrefDropOpen(v => !v)} style={{
+                padding: '4px 8px', borderRadius: 4,
+                border: '1px solid ' + (prefFilters.length > 0 ? C.navy : C.border),
+                background: prefFilters.length > 0 ? '#EAF4FF' : C.white,
+                fontSize: 11, fontFamily: "'Noto Sans JP'", cursor: 'pointer',
+                color: C.navy, whiteSpace: 'nowrap',
+              }}>
+                {prefFilters.length > 0 ? `都道府県(${prefFilters.length})▼` : '都道府県▼'}
+              </button>
+              {prefDropOpen && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, zIndex: 101,
+                  background: C.white, border: '1px solid ' + C.border,
+                  borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                  minWidth: 130, maxHeight: 220, overflowY: 'auto', padding: '4px 0',
+                }}>
+                  {prefFilters.length > 0 && (
+                    <div onClick={() => setPrefFilters([])} style={{
+                      padding: '4px 10px', fontSize: 10, color: C.navy, cursor: 'pointer',
+                      borderBottom: '1px solid ' + C.borderLight, fontWeight: 600,
+                    }}>クリア</div>
+                  )}
+                  {availablePrefs.map(p => (
+                    <label key={p} style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '4px 10px', cursor: 'pointer', fontSize: 11,
+                      fontFamily: "'Noto Sans JP'", color: C.navy,
+                    }}>
+                      <input type="checkbox" checked={prefFilters.includes(p)}
+                        onChange={() => setPrefFilters(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      {p}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* CSV取込 / リスト削除（管理者のみ） */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4, flexWrap: "wrap" }}>

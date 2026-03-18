@@ -53,7 +53,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [filterMode, setFilterMode] = useState('callable');
   const [revenueMin, setRevenueMin] = useState(initialRevenueMin ? String(initialRevenueMin) : '');  // 千円単位（例: 100000 = 1億円）
   const [revenueMax, setRevenueMax] = useState(initialRevenueMax ? String(initialRevenueMax) : '');  // 空文字 = 上限なし
-  const [prefFilter, setPrefFilter] = useState(initialPrefFilter || '');
+  const [prefFilters, setPrefFilters] = useState(Array.isArray(initialPrefFilter) ? initialPrefFilter : (initialPrefFilter ? [initialPrefFilter] : []));
+  const [prefDropOpen, setPrefDropOpen] = useState(false);
   const [recallModal, setRecallModal] = useState(null); // { row, statusId, round, label }
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const cfvKbRef = useRef({});
@@ -287,8 +288,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       if (revenueMax !== '') {
         if (item.revenue == null || Number(item.revenue) > Number(revenueMax)) return false;
       }
-      if (prefFilter) {
-        if (extractPref(item.address) !== prefFilter) return false;
+      if (prefFilters.length > 0) {
+        if (!prefFilters.includes(extractPref(item.address))) return false;
       }
       return true;
     });
@@ -1265,11 +1266,51 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   ))}
                 </div>
                 {prefOptions.length > 0 && (
-                  <select value={prefFilter} onChange={e => { setPrefFilter(e.target.value); setPage(0); }}
-                    style={{ padding: '3px 4px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 10, fontFamily: "'Noto Sans JP'", background: prefFilter ? '#EAF4FF' : '#fff', color: '#032D60', cursor: 'pointer' }}>
-                    <option value="">都道府県</option>
-                    {prefOptions.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
+                  <div style={{ position: 'relative' }}>
+                    {prefDropOpen && (
+                      <div onClick={() => setPrefDropOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 }} />
+                    )}
+                    <button onClick={() => setPrefDropOpen(v => !v)} style={{
+                      padding: '3px 8px', borderRadius: 4,
+                      border: '1px solid ' + (prefFilters.length > 0 ? '#032D60' : '#E5E5E5'),
+                      background: prefFilters.length > 0 ? '#EAF4FF' : '#fff',
+                      fontSize: 10, fontFamily: "'Noto Sans JP'", cursor: 'pointer',
+                      color: '#032D60', whiteSpace: 'nowrap',
+                    }}>
+                      {prefFilters.length > 0 ? `都道府県(${prefFilters.length})▼` : '都道府県▼'}
+                    </button>
+                    {prefDropOpen && (
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, zIndex: 101,
+                        background: '#fff', border: '1px solid #E5E5E5',
+                        borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                        minWidth: 130, maxHeight: 220, overflowY: 'auto', padding: '4px 0',
+                      }}>
+                        {prefFilters.length > 0 && (
+                          <div onClick={() => { setPrefFilters([]); setPage(0); }} style={{
+                            padding: '4px 10px', fontSize: 10, color: '#032D60', cursor: 'pointer',
+                            borderBottom: '1px solid #E5E5E5', fontWeight: 600,
+                          }}>クリア</div>
+                        )}
+                        {prefOptions.map(p => (
+                          <label key={p} style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '4px 10px', cursor: 'pointer', fontSize: 10,
+                            fontFamily: "'Noto Sans JP'", color: '#032D60',
+                          }}>
+                            <input type="checkbox" checked={prefFilters.includes(p)}
+                              onChange={() => {
+                                setPrefFilters(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
+                                setPage(0);
+                              }}
+                              style={{ cursor: 'pointer' }}
+                            />
+                            {p}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
               {/* テーブル */}
