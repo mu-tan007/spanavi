@@ -39,7 +39,6 @@ import AIAssistantView from './views/AIAssistantView';
 import AdminView from './views/AdminView';
 import { Phone, Calendar, BarChart2, Settings, GraduationCap, User, Bot, Bell } from 'lucide-react';
 import DetailModal from './views/DetailModal';
-import ZoomPhoneEmbed from './ZoomPhoneEmbed';
 
 // ============================================================
 // LOGO (base64 embedded)
@@ -966,7 +965,6 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         onNavigateToIncoming={() => setCurrentTab('incoming')}
         onOpenCompany={(itemId) => setCallFlowScreen({ list: { _supaId: null, id: null, company: '' }, defaultItemId: itemId, defaultListMode: false })}
       />
-      <ZoomPhoneEmbed />
     </div>
   );
 }
