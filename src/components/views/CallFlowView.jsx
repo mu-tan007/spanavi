@@ -811,7 +811,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                 <thead>
                   <tr style={{ background: C.navyDeep, position: 'sticky', top: 0, zIndex: 1 }}>
-                    {[['No', '36px'], ['企業名', null], ['事業内容', null], ['代表者', '90px'], ['電話番号', '112px'], ['結果', '76px']].map(([h, w]) => {
+                    {[['No', '36px'], ['企業名', null], ['事業内容', null], ['住所', '80px'], ['代表者', '90px'], ['電話番号', '112px'], ['結果', '76px']].map(([h, w]) => {
                       const dir = sortState.column === h ? sortState.direction : null;
                       return (
                         <th key={h} onClick={() => handleSort(h)}
@@ -843,6 +843,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                         <td style={{ padding: '6px 8px', fontFamily: "'JetBrains Mono'", fontSize: 9, color: C.textLight }}>{item.no}</td>
                         <td style={{ padding: '6px 8px', fontWeight: 600, color: C.navy, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</td>
                         <td style={{ padding: '6px 8px', color: C.textMid, fontSize: 10, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.business}</td>
+                        <td style={{ padding: '6px 8px', color: C.textMid, fontSize: 9, width: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.address || '—'}</td>
                         <td style={{ padding: '6px 8px', color: C.textMid, fontSize: 10, whiteSpace: 'nowrap' }}>{item.representative}</td>
                         <td style={{ padding: '6px 8px' }}>
                           {item.phone
@@ -1323,7 +1324,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                     <thead>
                       <tr style={{ background: '#F8F9FA', position: 'sticky', top: 0, zIndex: 1 }}>
-                        {[['No', '36px'], ['企業名', null], ['事業内容', null], ['代表者', '90px'], ['電話番号', '112px'], ['売上高', '90px'], ['結果', '80px']].map(([h, w]) => {
+                        {[['No', '36px'], ['企業名', null], ['事業内容', null], ['住所', '90px'], ['代表者', '90px'], ['電話番号', '112px'], ['売上高', '90px'], ['結果', '80px']].map(([h, w]) => {
                           const dir = sortState.column === h ? sortState.direction : null;
                           return (
                             <th key={h} onClick={() => handleSort(h)}
@@ -1347,6 +1348,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                             <td style={{ padding: '7px 8px', fontFamily: "'JetBrains Mono'", fontSize: 9, color: '#706E6B' }}>{item.no}</td>
                             <td style={{ padding: '7px 8px', fontWeight: 600, color: '#032D60', maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</td>
                             <td style={{ padding: '7px 8px', color: '#706E6B', fontSize: 10, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.business}</td>
+                            <td style={{ padding: '7px 8px', color: '#706E6B', fontSize: 9, width: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.address || '—'}</td>
                             <td style={{ padding: '7px 8px', color: '#706E6B', fontSize: 10, whiteSpace: 'nowrap' }}>{item.representative}</td>
                             <td style={{ padding: '7px 8px' }}>
                               {item.phone
