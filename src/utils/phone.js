@@ -4,12 +4,10 @@
 export const dialPhone = (phoneNumber) => {
   const num = phoneNumber.replace(/[-\s]/g, "");
   const uri = "zoomphonecall://" + num;
-  let iframe = document.getElementById("__dial_iframe");
-  if (!iframe) {
-    iframe = document.createElement("iframe");
-    iframe.id = "__dial_iframe";
-    iframe.style.display = "none";
-    document.body.appendChild(iframe);
-  }
-  iframe.src = uri;
+  const a = document.createElement("a");
+  a.href = uri;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 };

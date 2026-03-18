@@ -48,22 +48,32 @@ export default function MyPageView({ currentUser, userId, callListData, members,
     const countable = new Set(["面談済", "事前確認済", "アポ取得"]);
     return (appoData || []).filter(a => a.getter === currentUser && countable.has(a.status)).map(a => ({
       sales: parseFloat(a.sales) || 0,
-      date: a.appoDate || "",
+      date: a.getDate || "",
     }));
   }, [appoData, currentUser]);
 
   const salesAggregate = (salesList) => salesList.reduce((s, r) => s + r.sales, 0);
 
-  // Aggregate by period
+  // アポ取得数：call_records ではなく appointments テーブルの getter で判定
+  const APPO_COUNTABLE = new Set(["面談済", "事前確認済", "アポ取得"]);
+  const myAppoRecords = useMemo(() =>
+    (appoData || []).filter(a => a.getter === currentUser && APPO_COUNTABLE.has(a.status)),
+    [appoData, currentUser]
+  );
+  const appoCount = (dateFrom, dateTo) =>
+    myAppoRecords.filter(a =>
+      (!dateFrom || a.getDate >= dateFrom) && (!dateTo || a.getDate <= dateTo)
+    ).length;
+
+  // Aggregate by period（架電件数・社長接続数のみ call_records を使用）
   const MY_CEO_STATUSES = new Set(['社長再コール', 'アポ獲得', '社長お断り']);
   const aggregate = (records) => {
-    let total = 0, ceoConnect = 0, appo = 0;
+    let total = 0, ceoConnect = 0;
     records.forEach(r => {
       total++;
       if (MY_CEO_STATUSES.has(r.status)) ceoConnect++;
-      if (r.status === 'アポ獲得') appo++;
     });
-    return { total, ceoConnect, appo };
+    return { total, ceoConnect };
   };
 
   // Get week start (Monday)
@@ -191,7 +201,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
             {memberInfo && <span>{memberInfo.team}</span>}
             {memberInfo && <span>{memberInfo.rank}</span>}
             <span>累計架電: {cumAgg.total}件</span>
-            <span>累計アポ: {cumAgg.appo}件</span>
+            <span>累計アポ: {myAppoRecords.length}件</span>
           </div>
           {/* Zoom Phone番号 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11 }}>
@@ -241,7 +251,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
           {[
             { label: "本日", val: todayAgg.total, sub: "件架電" },
             { label: "今週", val: weekAgg.total, sub: "件架電" },
-            { label: "今月", val: monthAgg.appo, sub: "件アポ" },
+            { label: "今月", val: appoCount(monthStart), sub: "件アポ" },
           ].map((s, i) => (
             <div key={i} style={{ textAlign: "center", padding: "8px 14px", borderRadius: 8, background: C.white + "12" }}>
               <div style={{ fontSize: 9, color: C.goldLight, marginBottom: 2 }}>{s.label}</div>
@@ -297,7 +307,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
           {[
             { label: "架電件数", val: periodTab === "cumulative" ? cumAgg.total : periodTab === "monthly" ? monthAgg.total : periodTab === "weekly" ? weekAgg.total : todayAgg.total, color: C.navy },
             { label: "社長接続数", val: periodTab === "cumulative" ? cumAgg.ceoConnect : periodTab === "monthly" ? monthAgg.ceoConnect : periodTab === "weekly" ? weekAgg.ceoConnect : todayAgg.ceoConnect, color: C.gold },
-            { label: "アポ取得数", val: periodTab === "cumulative" ? cumAgg.appo : periodTab === "monthly" ? monthAgg.appo : periodTab === "weekly" ? weekAgg.appo : todayAgg.appo, color: C.green },
+            { label: "アポ取得数", val: periodTab === "cumulative" ? myAppoRecords.length : periodTab === "monthly" ? appoCount(monthStart) : periodTab === "weekly" ? appoCount(thisWeekStart) : appoCount(todayStr2, todayStr2), color: C.green },
             { label: "売上", val: periodTab === "cumulative" ? cumSalesVal : periodTab === "monthly" ? monthSalesVal : periodTab === "weekly" ? weekSalesVal : todaySalesVal, color: "#d4760a", isMoney: true },
           ].map((card, i) => (
             <div key={i} style={{
@@ -366,9 +376,9 @@ export default function MyPageView({ currentUser, userId, callListData, members,
           return { count, totalSales, totalReward };
         };
 
-        const todaySales = getSalesForPeriod(myAppos.filter(a => a.appoDate === todayStr2));
-        const thisWeekSales = getSalesForPeriod(myAppos.filter(a => a.appoDate >= thisWeekStart));
-        const thisMonthSales = getSalesForPeriod(myAppos.filter(a => a.appoDate >= monthStart));
+        const todaySales = getSalesForPeriod(myAppos.filter(a => a.getDate === todayStr2));
+        const thisWeekSales = getSalesForPeriod(myAppos.filter(a => a.getDate >= thisWeekStart));
+        const thisMonthSales = getSalesForPeriod(myAppos.filter(a => a.getDate >= monthStart));
         const cumSales = getSalesForPeriod(myAppos);
         const currentSales = periodTab === "cumulative" ? cumSales : periodTab === "monthly" ? thisMonthSales : periodTab === "weekly" ? thisWeekSales : todaySales;
 
@@ -411,7 +421,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
                   {(() => {
                     const monthMap = {};
                     myAppos.forEach(a => {
-                      const m = (a.appoDate || "").slice(0, 7);
+                      const m = (a.getDate || "").slice(0, 7);
                       if (!m) return;
                       if (!monthMap[m]) monthMap[m] = { count: 0, sales: 0, reward: 0 };
                       monthMap[m].count++;

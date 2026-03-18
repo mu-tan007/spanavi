@@ -339,13 +339,13 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             { label: '取得者', key: 'getter' },
             { label: '取得日', key: 'getDate' },
             { label: '面談日', key: 'meetDate' },
-            { label: 'ステータス', key: null },
+            { label: 'ステータス', key: null, center: true },
             { label: '当社売上', key: null },
             { label: 'インターン報酬', key: null },
-          ].map(({ label, key }) => (
+          ].map(({ label, key, center }) => (
             <span key={label}
               onClick={key ? () => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); } } : undefined}
-              style={key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : {}}>
+              style={key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : center ? { textAlign: 'center' } : {}}>
               {label}
               {key && (
                 <span style={{ marginLeft: 2 }}>
