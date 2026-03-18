@@ -37,9 +37,11 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   const [loading, setLoading]     = useState(true);
 
   // モーダル状態
-  const [addModalOpen, setAddModalOpen]   = useState(false);
-  const [addForm, setAddForm]             = useState({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
-  const [addDay2Type, setAddDay2Type]     = useState('member'); // 'member' | 'final' — Day2追加時に使用
+  const [addModalOpen, setAddModalOpen]       = useState(false);
+  const [addForm, setAddForm]                 = useState({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
+  const [addDay2Type, setAddDay2Type]         = useState('member'); // 'member' | 'final' — Day2追加時に使用
+  const [addRecordingFile, setAddRecordingFile] = useState(null);   // モーダル内で選択した録音ファイル
+  const addFileInputRef = useRef(null);
 
   // 操作中フラグ
   const [savingStage, setSavingStage]     = useState(null);   // stageKey
@@ -123,11 +125,17 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   const handleAddSession = async () => {
     if (!addForm.session_date) return;
     setAddingSess(true);
-    await insertRoleplaySession(userId, addForm);
+    const { data: newSession } = await insertRoleplaySession(userId, addForm);
+    // 録音ファイルが選択されていればアップロード
+    if (newSession?.id && addRecordingFile) {
+      const { path, url } = await uploadRoleplayRecording(userId, newSession.id, addRecordingFile);
+      if (path) await updateRoleplaySession(newSession.id, { recording_path: path, recording_url: url });
+    }
     const { data } = await fetchRoleplaySessions(userId);
     setSessions(data || []);
     setAddModalOpen(false);
     setAddForm({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
+    setAddRecordingFile(null);
     setAddingSess(false);
   };
 
@@ -635,7 +643,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       {/* ── セッション追加モーダル ────────────────────────────────────── */}
       {addModalOpen && (
         <div
-          onClick={() => setAddModalOpen(false)}
+          onClick={() => { setAddModalOpen(false); setAddRecordingFile(null); }}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
             zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -687,6 +695,41 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
               {(members || []).map(m => <option key={m._supaId || m.name} value={m.name} />)}
             </datalist>
 
+            {/* 録音ファイル */}
+            <label style={{ fontSize: 10, fontWeight: 600, color: C.textMid, display: 'block', marginBottom: 4 }}>
+              録音ファイル（任意）
+            </label>
+            <input
+              ref={addFileInputRef}
+              type="file"
+              accept="audio/*,video/*,.mp3,.mp4,.m4a,.wav,.webm,.ogg"
+              onChange={e => setAddRecordingFile(e.target.files?.[0] || null)}
+              style={{ display: 'none' }}
+            />
+            <div
+              onClick={() => addFileInputRef.current?.click()}
+              style={{
+                padding: '8px 12px', borderRadius: 6, marginBottom: 12,
+                border: '1.5px dashed ' + (addRecordingFile ? C.navy + '60' : C.borderLight),
+                background: addRecordingFile ? C.navy + '06' : C.offWhite,
+                cursor: 'pointer', fontSize: 11,
+                color: addRecordingFile ? C.navy : C.textLight,
+                display: 'flex', alignItems: 'center', gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 16 }}>🎵</span>
+              {addRecordingFile
+                ? <span style={{ fontWeight: 600 }}>{addRecordingFile.name}</span>
+                : <span>クリックして録音ファイルを選択</span>
+              }
+              {addRecordingFile && (
+                <button
+                  onClick={e => { e.stopPropagation(); setAddRecordingFile(null); if (addFileInputRef.current) addFileInputRef.current.value = ''; }}
+                  style={{ marginLeft: 'auto', background: 'none', border: 'none', color: C.red, cursor: 'pointer', fontSize: 12 }}
+                >✕</button>
+              )}
+            </div>
+
             {/* メモ */}
             <label style={{ fontSize: 10, fontWeight: 600, color: C.textMid, display: 'block', marginBottom: 4 }}>
               メモ
@@ -719,7 +762,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                 {addingSess ? '追加中...' : '追加する'}
               </button>
               <button
-                onClick={() => setAddModalOpen(false)}
+                onClick={() => { setAddModalOpen(false); setAddRecordingFile(null); }}
                 style={{
                   flex: 1, padding: '9px', borderRadius: 8,
                   border: '1px solid ' + C.borderLight, background: 'transparent',
