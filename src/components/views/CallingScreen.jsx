@@ -39,7 +39,8 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
     setEditRound(Math.min(Math.max(maxRd + 1, 1), 10));
   }, [selectedRow]); // eslint-disable-line react-hooks/exhaustive-deps
   const [showScript, setShowScript] = useState(false);
-  const [prefFilter, setPrefFilter] = useState("");
+  const [prefFilters, setPrefFilters] = useState([]);
+  const [prefDropOpen, setPrefDropOpen] = useState(false);
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const kbRef = useRef({});
   const PAGE_SIZE = 30;
@@ -368,7 +369,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
       r.phone.includes(searchTerm) ||
       String(r.no).includes(searchTerm)
     )) return false;
-    if (prefFilter && r.pref !== prefFilter) return false;
+    if (prefFilters.length > 0 && !prefFilters.includes(r.pref)) return false;
     if (filterMode === "callable") return isCallable(r);
     if (filterMode === "excluded") return isExcluded(r);
     return true;
@@ -556,13 +557,51 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
               }}>{m === "callable" ? "架電可能" : m === "all" ? "全件" : "除外"}</button>
             ))}
             {prefOptions.length > 1 && (
-              <select value={prefFilter} onChange={e => { setPrefFilter(e.target.value); setPageStart(0); }} style={{
-                padding: "4px 6px", borderRadius: 4, border: "1px solid " + C.border,
-                fontSize: 9, fontFamily: "'Noto Sans JP'", outline: "none", color: C.textDark,
-              }}>
-                <option value="">都道府県</option>
-                {prefOptions.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
+              <div style={{ position: "relative" }}>
+                {prefDropOpen && (
+                  <div onClick={() => setPrefDropOpen(false)} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 }} />
+                )}
+                <button onClick={() => setPrefDropOpen(v => !v)} style={{
+                  padding: "4px 8px", borderRadius: 4,
+                  border: "1px solid " + (prefFilters.length > 0 ? C.navy : C.border),
+                  background: prefFilters.length > 0 ? C.navy + "10" : C.white,
+                  fontSize: 9, fontFamily: "'Noto Sans JP'", cursor: "pointer",
+                  color: prefFilters.length > 0 ? C.navy : C.textDark, whiteSpace: "nowrap",
+                }}>
+                  {prefFilters.length > 0 ? `都道府県(${prefFilters.length})▼` : "都道府県▼"}
+                </button>
+                {prefDropOpen && (
+                  <div style={{
+                    position: "absolute", top: "100%", left: 0, zIndex: 10101,
+                    background: C.white, border: "1px solid " + C.border,
+                    borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+                    minWidth: 120, maxHeight: 220, overflowY: "auto", padding: "4px 0",
+                  }}>
+                    {prefFilters.length > 0 && (
+                      <div onClick={() => { setPrefFilters([]); setPageStart(0); }} style={{
+                        padding: "4px 10px", fontSize: 9, color: C.navy, cursor: "pointer",
+                        borderBottom: "1px solid " + C.borderLight, fontWeight: 600,
+                      }}>クリア</div>
+                    )}
+                    {prefOptions.map(p => (
+                      <label key={p} style={{
+                        display: "flex", alignItems: "center", gap: 6,
+                        padding: "4px 10px", cursor: "pointer", fontSize: 9,
+                        fontFamily: "'Noto Sans JP'", color: C.textDark,
+                      }}>
+                        <input type="checkbox" checked={prefFilters.includes(p)}
+                          onChange={() => {
+                            setPrefFilters(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
+                            setPageStart(0);
+                          }}
+                          style={{ cursor: "pointer" }}
+                        />
+                        {p}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
             <span style={{ fontSize: 9, color: C.textLight, whiteSpace: "nowrap", fontFamily: "'JetBrains Mono'" }}>
               {filtered.length}件
