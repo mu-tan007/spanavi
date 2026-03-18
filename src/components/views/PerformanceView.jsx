@@ -356,31 +356,6 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
     return result;
   }, [trendRecords, weekStartStr, todayStr]);
 
-  const alerts = useMemo(() => {
-    const result = [];
-    const weekCallers = new Set(rankRecords.map(r => r.getter_name).filter(Boolean));
-    const allMembers = (members || [])
-      .filter(m => typeof m === 'object' ? m.is_active !== false && m.name && !/^user_/i.test(m.name) : true)
-      .map(m => typeof m === 'object' ? m.name : m)
-      .filter(Boolean);
-    const zeroCallers = allMembers.filter(n => !weekCallers.has(n) && teamMap[n] !== '営業統括' && teamMap[n] !== 'その他');
-    if (zeroCallers.length > 0) {
-      result.push({ type: 'warn', message: `架電ゼロのメンバー（期間中）: ${zeroCallers.slice(0, 4).join('、')}${zeroCallers.length > 4 ? ` 他${zeroCallers.length - 4}名` : ''}` });
-    }
-    const byPerson = {};
-    rankRecords.forEach(r => {
-      const k = r.getter_name || '不明';
-      if (!byPerson[k]) byPerson[k] = { call: 0, appo: 0 };
-      byPerson[k].call++;
-      if (r.status === 'アポ獲得') byPerson[k].appo++;
-    });
-    const lowAppo = Object.entries(byPerson).filter(([, d]) => d.call >= 15 && d.appo === 0);
-    if (lowAppo.length > 0) {
-      result.push({ type: 'info', message: `アポ0件（15架電以上）: ${lowAppo.map(([n]) => n).slice(0, 4).join('、')}${lowAppo.length > 4 ? ` 他${lowAppo.length - 4}名` : ''}` });
-    }
-    return result;
-  }, [rankRecords, members, teamMap]);
-
   // rankDateRangeでフィルタしたアポデータ（リスケ・キャンセル集計用）
   const reschedAppoData = useMemo(() => {
     if (!rankDateRange) return [];
@@ -481,20 +456,6 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
         </ResponsiveContainer>
       </div>
 
-      {/* アラート検知 */}
-      {alerts.length > 0 && (
-        <div style={{ background: '#fff', borderRadius: 12, padding: '14px 20px', marginBottom: 16, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>アラート検知</span>
-          </div>
-          {alerts.map((a, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 12px', borderRadius: 6, marginBottom: 6, background: a.type === 'warn' ? '#FEF3C7' : '#EFF6FF', borderLeft: `3px solid ${a.type === 'warn' ? '#F59E0B' : '#3B82F6'}` }}>
-              <span style={{ fontSize: 11, color: a.type === 'warn' ? '#92400E' : '#1D4ED8', flexShrink: 0 }}>{a.type === 'warn' ? '!' : 'i'}</span>
-              <span style={{ fontSize: 11, color: a.type === 'warn' ? '#92400E' : '#1D4ED8' }}>{a.message}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* セクション3+5: ランキング・チーム分析 */}
       <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
