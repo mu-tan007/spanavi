@@ -16,11 +16,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { storage_path, session_id } = await req.json()
+    const { storage_path, recording_url, session_id } = await req.json()
 
-    if (!storage_path || !session_id) {
+    if (!session_id || (!storage_path && !recording_url)) {
       return new Response(
-        JSON.stringify({ error: 'storage_path and session_id are required' }),
+        JSON.stringify({ error: 'session_id and either storage_path or recording_url are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -31,22 +31,39 @@ Deno.serve(async (req) => {
       .update({ ai_status: 'processing' })
       .eq('id', session_id)
 
-    // ── 2. Supabase Storage から音声ファイルをダウンロード ───────────────
-    const { data: fileData, error: downloadError } = await supabase.storage
-      .from('roleplay-recordings')
-      .download(storage_path)
+    // ── 2. 音声ファイルをダウンロード ─────────────────────────────────────
+    let audioBuffer: ArrayBuffer
+    let ext = 'mp4'
 
-    if (downloadError || !fileData) {
-      await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
-      return new Response(
-        JSON.stringify({ error: `Storage download failed: ${downloadError?.message}` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (storage_path) {
+      // Supabase Storage から取得
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from('roleplay-recordings')
+        .download(storage_path)
+      if (downloadError || !fileData) {
+        await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
+        return new Response(
+          JSON.stringify({ error: `Storage download failed: ${downloadError?.message}` }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      audioBuffer = await fileData.arrayBuffer()
+      ext = storage_path.split('.').pop()?.toLowerCase() || 'mp4'
+    } else {
+      // 外部URL から直接取得（別タブからドラッグされたURLなど）
+      const res = await fetch(recording_url, { headers: { 'User-Agent': 'Spanavi/1.0' } })
+      if (!res.ok) {
+        await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
+        return new Response(
+          JSON.stringify({ error: `URL download failed: ${res.status} ${res.statusText}` }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      audioBuffer = await res.arrayBuffer()
+      const urlPath = new URL(recording_url).pathname
+      ext = urlPath.split('.').pop()?.toLowerCase() || 'mp4'
     }
 
-    const audioBuffer = await fileData.arrayBuffer()
-    // ファイル拡張子から Content-Type を推定
-    const ext = storage_path.split('.').pop()?.toLowerCase() || 'mp4'
     const mimeMap: Record<string, string> = {
       mp3: 'audio/mpeg', mp4: 'audio/mp4', m4a: 'audio/mp4',
       wav: 'audio/wav', webm: 'audio/webm', ogg: 'audio/ogg',

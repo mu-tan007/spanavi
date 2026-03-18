@@ -40,7 +40,8 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   const [addModalOpen, setAddModalOpen]       = useState(false);
   const [addForm, setAddForm]                 = useState({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
   const [addDay2Type, setAddDay2Type]         = useState('member'); // 'member' | 'final' — Day2追加時に使用
-  const [addRecordingFile, setAddRecordingFile] = useState(null);   // モーダル内で選択した録音ファイル
+  const [addRecordingFile, setAddRecordingFile] = useState(null);   // モーダル内で選択したファイル
+  const [addRecordingUrl, setAddRecordingUrl]   = useState('');     // ページからドラッグしたURL
   const [dragOver, setDragOver]               = useState(false);    // ドラッグオーバー中
   const addFileInputRef = useRef(null);
 
@@ -128,21 +129,38 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
     setAddingSess(true);
     const { data: newSession } = await insertRoleplaySession(userId, addForm);
 
-    // 録音ファイルが選択されていればアップロード → AI分析まで自動実行
-    if (newSession?.id && addRecordingFile) {
-      const { path, url } = await uploadRoleplayRecording(userId, newSession.id, addRecordingFile);
-      if (path) {
-        await updateRoleplaySession(newSession.id, { recording_path: path, recording_url: url });
-        // モーダルを閉じてからバックグラウンドでAI分析
+    // 録音ファイル or URL があればアップロード → AI分析まで自動実行
+    const hasRecording = newSession?.id && (addRecordingFile || addRecordingUrl);
+    if (hasRecording) {
+      let storagePath = null;
+      let recordingUrl = addRecordingUrl || null;
+
+      if (addRecordingFile) {
+        // ファイルアップロード
+        const { path, url } = await uploadRoleplayRecording(userId, newSession.id, addRecordingFile);
+        storagePath = path;
+        recordingUrl = url;
+        if (path) await updateRoleplaySession(newSession.id, { recording_path: path, recording_url: url });
+      } else if (addRecordingUrl) {
+        // URLをそのまま保存（storage_pathなし）
+        await updateRoleplaySession(newSession.id, { recording_url: addRecordingUrl });
+      }
+
+      if (storagePath || recordingUrl) {
         const { data } = await fetchRoleplaySessions(userId);
         setSessions(data || []);
         setAddModalOpen(false);
         setAddForm({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
         setAddRecordingFile(null);
+        setAddRecordingUrl('');
         setAddingSess(false);
         setAnalyzingId(newSession.id);
         setExpandedId(newSession.id);
-        const { data: aiData } = await invokeAnalyzeRoleplay({ storage_path: path, session_id: newSession.id });
+        // storage_path があればStorage経由、URLのみならURL経由でEdge Functionを呼ぶ
+        const payload = storagePath
+          ? { storage_path: storagePath, session_id: newSession.id }
+          : { recording_url: recordingUrl, session_id: newSession.id };
+        const { data: aiData } = await invokeAnalyzeRoleplay(payload);
         if (aiData) {
           setSessions(prev => prev.map(s =>
             s.id === newSession.id
@@ -160,6 +178,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
     setAddModalOpen(false);
     setAddForm({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
     setAddRecordingFile(null);
+    setAddRecordingUrl('');
     setAddingSess(false);
   };
 
@@ -667,7 +686,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       {/* ── セッション追加モーダル ────────────────────────────────────── */}
       {addModalOpen && (
         <div
-          onClick={() => { setAddModalOpen(false); setAddRecordingFile(null); }}
+          onClick={() => { setAddModalOpen(false); setAddRecordingFile(null); setAddRecordingUrl(''); }}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
             zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -738,34 +757,42 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
               onDrop={e => {
                 e.preventDefault();
                 setDragOver(false);
+                // ファイル（OSやファイルマネージャーから）
                 const file = e.dataTransfer.files?.[0];
-                if (file) setAddRecordingFile(file);
+                if (file) { setAddRecordingFile(file); setAddRecordingUrl(''); return; }
+                // URL（別タブ・別ページからドラッグ）
+                const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+                if (url && url.startsWith('http')) { setAddRecordingUrl(url.trim()); setAddRecordingFile(null); }
               }}
               style={{
                 padding: '14px 12px', borderRadius: 6, marginBottom: 12,
-                border: '1.5px dashed ' + (dragOver ? C.gold : addRecordingFile ? C.navy + '60' : C.borderLight),
-                background: dragOver ? C.gold + '10' : addRecordingFile ? C.navy + '06' : C.offWhite,
+                border: '1.5px dashed ' + (dragOver ? C.gold : (addRecordingFile || addRecordingUrl) ? C.navy + '60' : C.borderLight),
+                background: dragOver ? C.gold + '10' : (addRecordingFile || addRecordingUrl) ? C.navy + '06' : C.offWhite,
                 cursor: 'pointer', fontSize: 11,
-                color: dragOver ? '#c8860a' : addRecordingFile ? C.navy : C.textLight,
+                color: dragOver ? '#c8860a' : (addRecordingFile || addRecordingUrl) ? C.navy : C.textLight,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
                 transition: 'border-color 0.15s, background 0.15s',
                 textAlign: 'center',
               }}
             >
-              <span style={{ fontSize: 22 }}>{dragOver ? '📂' : addRecordingFile ? '🎵' : '🎙️'}</span>
+              <span style={{ fontSize: 22 }}>{dragOver ? '📂' : (addRecordingFile || addRecordingUrl) ? '🎵' : '🎙️'}</span>
               {addRecordingFile ? (
                 <span style={{ fontWeight: 600, fontSize: 11 }}>{addRecordingFile.name}</span>
+              ) : addRecordingUrl ? (
+                <span style={{ fontWeight: 600, fontSize: 11, wordBreak: 'break-all', maxWidth: '100%' }}>
+                  {addRecordingUrl.length > 60 ? addRecordingUrl.slice(0, 60) + '…' : addRecordingUrl}
+                </span>
               ) : (
                 <>
                   <span style={{ fontWeight: 600, fontSize: 11 }}>
                     {dragOver ? 'ここにドロップ' : 'ドラッグ＆ドロップ、またはクリックして選択'}
                   </span>
-                  <span style={{ fontSize: 10, color: C.textLight }}>MP3 / MP4 / M4A / WAV / WebM 対応</span>
+                  <span style={{ fontSize: 10, color: C.textLight }}>MP3 / MP4 / M4A / WAV / WebM 対応 / 別タブからドラッグも可</span>
                 </>
               )}
-              {addRecordingFile && (
+              {(addRecordingFile || addRecordingUrl) && (
                 <button
-                  onClick={e => { e.stopPropagation(); setAddRecordingFile(null); if (addFileInputRef.current) addFileInputRef.current.value = ''; }}
+                  onClick={e => { e.stopPropagation(); setAddRecordingFile(null); setAddRecordingUrl(''); if (addFileInputRef.current) addFileInputRef.current.value = ''; }}
                   style={{ background: 'none', border: 'none', color: C.red, cursor: 'pointer', fontSize: 11, marginTop: 2 }}
                 >✕ 取り消す</button>
               )}
@@ -806,7 +833,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                 }
               </button>
               <button
-                onClick={() => { setAddModalOpen(false); setAddRecordingFile(null); }}
+                onClick={() => { setAddModalOpen(false); setAddRecordingFile(null); setAddRecordingUrl(''); }}
                 style={{
                   flex: 1, padding: '9px', borderRadius: 8,
                   border: '1px solid ' + C.borderLight, background: 'transparent',
