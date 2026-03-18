@@ -6,8 +6,10 @@ const GOLD = '#C8A84B';
 const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール']);
 const RESCHED_STATUSES = new Set(['リスケ中', 'キャンセル', '面談済', '事前確認済', 'アポ取得']);
 
-// チーム名 + 8指標
+// チーム/メンバー名 + 8指標
 const GRID = '1.6fr 0.6fr 0.6fr 0.6fr 0.6fr 0.6fr 0.6fr 0.65fr 0.65fr';
+
+const COLS = ['架電数', '社長接続', '接続率', 'アポ数', 'アポ率', '件/h', 'リスケ率', 'キャンセル率'];
 
 export default function TeamPerformanceTable({ records, appoRecords = [], loading, teamMap, sessionMap = {}, reschedAppoData = [] }) {
 
@@ -15,7 +17,7 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
     const EXCLUDED_TEAMS = new Set(['営業統括', 'その他']);
     const isValidName = (n) => n && !/^user_/i.test(n);
 
-    // アポ数マップ（appoRecordsから）
+    // アポ数マップ
     const appoMap = {};
     appoRecords.forEach(r => {
       const name = r.getter_name;
@@ -23,7 +25,7 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
       appoMap[name] = (appoMap[name] || 0) + 1;
     });
 
-    // リスケ・キャンセルマップ（reschedAppoDataから）
+    // リスケ・キャンセルマップ
     const reschedMap = {};
     reschedAppoData.forEach(a => {
       if (!RESCHED_STATUSES.has(a.status)) return;
@@ -51,7 +53,6 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
       if (CEO_CONNECT.has(r.status)) mm[tn][name].connect++;
     });
 
-    // アポ数をマージ
     Object.entries(appoMap).forEach(([name, count]) => {
       const tn = teamMap[name] || 'その他';
       if (!tm[tn]) tm[tn] = { call: 0, connect: 0, appo: 0, members: new Set() };
@@ -70,6 +71,8 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
     return { teamData, memberData: mm, reschedMap };
   }, [records, appoRecords, teamMap, reschedAppoData]);
 
+  const mono = { fontFamily: "'JetBrains Mono'" };
+
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
@@ -79,91 +82,85 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
 
       {teamData.length === 0 ? (
         <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
-      ) : teamData.map(([tn, d]) => {
-        const cr = d.call > 0 ? (d.connect / d.call * 100).toFixed(1) : '0.0';
-        const ar = d.call > 0 ? (d.appo / d.call * 100).toFixed(1) : '0.0';
-        const members = memberData[tn]
-          ? Object.entries(memberData[tn]).sort((a, b) => b[1].call - a[1].call)
-          : [];
+      ) : (
+        <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
 
-        // チーム全体の件/h
-        const teamHours = members.reduce((sum, [name]) => sum + (sessionMap[name] || 0), 0);
-        const teamCph = teamHours > 0.01 ? (d.call / teamHours).toFixed(1) : '-';
-
-        // チーム全体のリスケ・キャンセル集計
-        let teamReschedTotal = 0, teamResched = 0, teamCancel = 0;
-        members.forEach(([name]) => {
-          const rd = reschedMap[name];
-          if (rd) { teamReschedTotal += rd.total; teamResched += rd.resched; teamCancel += rd.cancel; }
-        });
-        const teamReschedRate = teamReschedTotal > 0 ? (teamResched / teamReschedTotal * 100).toFixed(1) + '%' : '-';
-        const teamCancelRate  = teamReschedTotal > 0 ? (teamCancel  / teamReschedTotal * 100).toFixed(1) + '%' : '-';
-
-        return (
-          <div key={tn} style={{ marginBottom: 20 }}>
-            {/* チームヘッダー */}
-            <div style={{ background: NAVY, borderRadius: '8px 8px 0 0', padding: '8px 16px', display: 'grid', gridTemplateColumns: GRID, alignItems: 'center' }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
-                {tn}
-                <span style={{ fontSize: 10, color: '#93C5FD', fontWeight: 400, marginLeft: 6 }}>{d.memberCount}人</span>
-              </span>
-              <span style={{ fontFamily: "'JetBrains Mono'", color: '#fff', fontWeight: 700, fontSize: 12 }}>{d.call}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", color: '#fff', fontWeight: 700, fontSize: 12 }}>{d.connect}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", color: GOLD, fontWeight: 700, fontSize: 12 }}>{cr}%</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", color: '#fff', fontWeight: 800, fontSize: 12 }}>{d.appo}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", color: GOLD, fontWeight: 700, fontSize: 12 }}>{ar}%</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", color: '#93C5FD', fontSize: 12 }}>{teamCph}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", color: '#93C5FD', fontSize: 12 }}>{teamReschedRate}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", color: '#93C5FD', fontSize: 12 }}>{teamCancelRate}</span>
-            </div>
-
-            {/* メンバーテーブル */}
-            <div style={{ border: '1px solid #E5E5E5', borderTop: 'none', borderRadius: '0 0 8px 8px', overflow: 'hidden' }}>
-              {/* 列ヘッダー */}
-              <div style={{ display: 'grid', gridTemplateColumns: GRID, padding: '6px 16px', background: '#F8F9FA', fontSize: 10, fontWeight: 600, color: '#6B7280', letterSpacing: '0.06em', borderBottom: '1px solid #E5E7EB' }}>
-                <span>メンバー</span>
-                <span>架電数</span>
-                <span>社長接続</span>
-                <span>接続率</span>
-                <span>アポ数</span>
-                <span>アポ率</span>
-                <span>件/h</span>
-                <span>リスケ率</span>
-                <span>キャンセル率</span>
-              </div>
-
-              {members.map(([name, md], i) => {
-                const mcr = md.call > 0 ? (md.connect / md.call * 100).toFixed(1) : '0.0';
-                const mar = md.call > 0 ? (md.appo / md.call * 100).toFixed(1) : '0.0';
-                const mHours = sessionMap[name] || 0;
-                const mcph = mHours > 0.01 ? (md.call / mHours).toFixed(1) : '-';
-                const rd = reschedMap[name] || { resched: 0, cancel: 0, total: 0 };
-                const mReschedRate = rd.total > 0 ? (rd.resched / rd.total * 100).toFixed(1) + '%' : '-';
-                const mCancelRate  = rd.total > 0 ? (rd.cancel  / rd.total * 100).toFixed(1) + '%' : '-';
-                const reschedColor = rd.total > 0 ? (rd.resched / rd.total >= 0.2 ? '#DC2626' : rd.resched / rd.total >= 0.1 ? '#F59E0B' : '#374151') : '#9CA3AF';
-                const cancelColor  = rd.total > 0 ? (rd.cancel  / rd.total >= 0.2 ? '#DC2626' : rd.cancel  / rd.total >= 0.1 ? '#F59E0B' : '#374151') : '#9CA3AF';
-
-                return (
-                  <div
-                    key={name}
-                    style={{ display: 'grid', gridTemplateColumns: GRID, fontSize: 11, padding: '6px 16px', borderBottom: i < members.length - 1 ? '1px solid #f5f5f5' : 'none', background: i % 2 === 0 ? 'transparent' : '#FAFAFA', color: C.textDark }}
-                  >
-                    <span style={{ fontWeight: 500 }}>{name}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'" }}>{md.call}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'" }}>{md.connect}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", color: '#374151' }}>{mcr}%</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", color: '#374151', fontWeight: 700 }}>{md.appo}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", color: '#374151' }}>{mar}%</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", color: '#6B7280' }}>{mcph}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", color: reschedColor }}>{mReschedRate}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", color: cancelColor  }}>{mCancelRate}</span>
-                  </div>
-                );
-              })}
-            </div>
+          {/* グローバル列ヘッダー（最上部に1つだけ） */}
+          <div style={{ display: 'grid', gridTemplateColumns: GRID, padding: '8px 16px', background: '#F1F5F9', fontSize: 10, fontWeight: 700, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', borderBottom: '2px solid #CBD5E1' }}>
+            <span>チーム / メンバー</span>
+            {COLS.map(c => <span key={c}>{c}</span>)}
           </div>
-        );
-      })}
+
+          {teamData.map(([tn, d], teamIdx) => {
+            const cr = d.call > 0 ? (d.connect / d.call * 100).toFixed(1) : '0.0';
+            const ar = d.call > 0 ? (d.appo / d.call * 100).toFixed(1) : '0.0';
+            const members = memberData[tn]
+              ? Object.entries(memberData[tn]).sort((a, b) => b[1].call - a[1].call)
+              : [];
+
+            const teamHours = members.reduce((sum, [name]) => sum + (sessionMap[name] || 0), 0);
+            const teamCph = teamHours > 0.01 ? (d.call / teamHours).toFixed(1) : '-';
+
+            let teamReschedTotal = 0, teamResched = 0, teamCancel = 0;
+            members.forEach(([name]) => {
+              const rd = reschedMap[name];
+              if (rd) { teamReschedTotal += rd.total; teamResched += rd.resched; teamCancel += rd.cancel; }
+            });
+            const teamReschedRate = teamReschedTotal > 0 ? (teamResched / teamReschedTotal * 100).toFixed(1) + '%' : '-';
+            const teamCancelRate  = teamReschedTotal > 0 ? (teamCancel  / teamReschedTotal * 100).toFixed(1) + '%' : '-';
+
+            return (
+              <div key={tn}>
+                {/* チーム集計行 */}
+                <div style={{ display: 'grid', gridTemplateColumns: GRID, padding: '9px 16px', background: NAVY, alignItems: 'center', borderTop: teamIdx > 0 ? '2px solid #CBD5E1' : 'none' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>
+                    {tn}
+                    <span style={{ fontSize: 10, color: '#93C5FD', fontWeight: 400, marginLeft: 6 }}>{d.memberCount}人</span>
+                  </span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12 }}>{d.call}</span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12 }}>{d.connect}</span>
+                  <span style={{ ...mono, color: GOLD, fontWeight: 700, fontSize: 12 }}>{cr}%</span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 800, fontSize: 12 }}>{d.appo}</span>
+                  <span style={{ ...mono, color: GOLD, fontWeight: 700, fontSize: 12 }}>{ar}%</span>
+                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12 }}>{teamCph}</span>
+                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12 }}>{teamReschedRate}</span>
+                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12 }}>{teamCancelRate}</span>
+                </div>
+
+                {/* メンバー行 */}
+                {members.map(([name, md], i) => {
+                  const mcr = md.call > 0 ? (md.connect / md.call * 100).toFixed(1) : '0.0';
+                  const mar = md.call > 0 ? (md.appo / md.call * 100).toFixed(1) : '0.0';
+                  const mHours = sessionMap[name] || 0;
+                  const mcph = mHours > 0.01 ? (md.call / mHours).toFixed(1) : '-';
+                  const rd = reschedMap[name] || { resched: 0, cancel: 0, total: 0 };
+                  const mReschedRate = rd.total > 0 ? (rd.resched / rd.total * 100).toFixed(1) + '%' : '-';
+                  const mCancelRate  = rd.total > 0 ? (rd.cancel  / rd.total * 100).toFixed(1) + '%' : '-';
+                  const reschedColor = rd.total > 0 ? (rd.resched / rd.total >= 0.2 ? '#DC2626' : rd.resched / rd.total >= 0.1 ? '#F59E0B' : '#374151') : '#9CA3AF';
+                  const cancelColor  = rd.total > 0 ? (rd.cancel  / rd.total >= 0.2 ? '#DC2626' : rd.cancel  / rd.total >= 0.1 ? '#F59E0B' : '#374151') : '#9CA3AF';
+
+                  return (
+                    <div
+                      key={name}
+                      style={{ display: 'grid', gridTemplateColumns: GRID, fontSize: 11, padding: '6px 16px 6px 28px', borderBottom: i < members.length - 1 ? '1px solid #f0f0f0' : 'none', background: i % 2 === 0 ? '#fff' : '#FAFAFA', color: C.textDark }}
+                    >
+                      <span style={{ fontWeight: 500 }}>{name}</span>
+                      <span style={mono}>{md.call}</span>
+                      <span style={mono}>{md.connect}</span>
+                      <span style={{ ...mono, color: '#374151' }}>{mcr}%</span>
+                      <span style={{ ...mono, color: '#374151', fontWeight: 700 }}>{md.appo}</span>
+                      <span style={{ ...mono, color: '#374151' }}>{mar}%</span>
+                      <span style={{ ...mono, color: '#6B7280' }}>{mcph}</span>
+                      <span style={{ ...mono, color: reschedColor }}>{mReschedRate}</span>
+                      <span style={{ ...mono, color: cancelColor }}>{mCancelRate}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
