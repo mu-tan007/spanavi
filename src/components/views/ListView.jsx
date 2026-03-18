@@ -270,10 +270,6 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                 placeholder="クライアントの企業概要を入力..."
               />
             </div>
-            <div style={{ gridColumn: "span 3" }}>
-              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>スクリプト</label>
-              <textarea value={formData.scriptBody} onChange={e => setFormData(p => ({ ...p, scriptBody: e.target.value }))} style={{ ...formInputStyle, minHeight: 80, resize: "vertical" }} placeholder="架電スクリプトを入力..." />
-            </div>
             <div style={{ gridColumn: "span 2" }}>
               <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>注意事項</label>
               <textarea value={formData.cautions} onChange={e => setFormData(p => ({ ...p, cautions: e.target.value }))} style={{ ...formInputStyle, minHeight: 50, resize: "vertical" }} placeholder="架電時の注意事項を入力..." />

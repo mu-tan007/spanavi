@@ -7,6 +7,7 @@ import { dialPhone } from '../../utils/phone';
 export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCSVs, setCallingScreen, setCallFlowScreen }) {
   const [expanded, setExpanded] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [prefFilter, setPrefFilter] = useState("");
   const [pageStart, setPageStart] = useState(0);
   const [flowStartNo, setFlowStartNo] = useState('');
   const [flowEndNo, setFlowEndNo] = useState('');
@@ -211,13 +212,21 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
     });
   };
 
-  const filtered = csvData.filter(r =>
-    !searchTerm ||
-    r.company.includes(searchTerm) ||
-    r.representative.includes(searchTerm) ||
-    r.phone.includes(searchTerm) ||
-    String(r.no).includes(searchTerm)
-  );
+  const prefOptions = [...new Set(csvData.map(r => r.pref || (r.address ? r.address.slice(0, 4).replace(/[市区町村郡].*/, '') : '')).filter(Boolean))].sort();
+
+  const filtered = csvData.filter(r => {
+    if (searchTerm && !(
+      r.company.includes(searchTerm) ||
+      r.representative.includes(searchTerm) ||
+      r.phone.includes(searchTerm) ||
+      String(r.no).includes(searchTerm)
+    )) return false;
+    if (prefFilter) {
+      const rowPref = r.pref || (r.address ? r.address.slice(0, 4).replace(/[市区町村郡].*/, '') : '');
+      if (rowPref !== prefFilter) return false;
+    }
+    return true;
+  });
 
   const paged = filtered.slice(pageStart, pageStart + PAGE_SIZE);
   const calledCount = csvData.filter(r => r.called).length;
@@ -295,6 +304,15 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
             <input type="text" placeholder="番号・企業名・代表者で検索..." value={searchTerm}
               onChange={e => { setSearchTerm(e.target.value); setPageStart(0); }}
               style={{ flex: 1, padding: "6px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none" }} />
+            {prefOptions.length > 0 && (
+              <select value={prefFilter} onChange={e => { setPrefFilter(e.target.value); setPageStart(0); }} style={{
+                padding: "5px 6px", borderRadius: 4, border: "1px solid " + C.border,
+                fontSize: 10, fontFamily: "'Noto Sans JP'", outline: "none", color: C.textDark,
+              }}>
+                <option value="">都道府県</option>
+                {prefOptions.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            )}
             <span style={{ fontSize: 10, color: C.textLight, whiteSpace: "nowrap" }}>
               {pageStart + 1}〜{Math.min(pageStart + PAGE_SIZE, filtered.length)} / {filtered.length}件
             </span>
