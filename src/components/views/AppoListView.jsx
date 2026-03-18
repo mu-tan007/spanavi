@@ -147,8 +147,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   };
 
   const colTemplate = setAppoData
-    ? "0.9fr 0.9fr 0.5fr 0.5fr 0.5fr 60px 1.0fr 0.9fr 32px"
-    : "0.9fr 0.9fr 0.5fr 0.5fr 0.5fr 60px 1.0fr 0.9fr";
+    ? "0.9fr 0.9fr 0.5fr 0.5fr 0.5fr 60px 0.8fr 0.8fr 32px"
+    : "0.9fr 0.9fr 0.5fr 0.5fr 0.5fr 60px 0.8fr 0.8fr";
 
   const handleTranscribeDetail = async () => {
     if (transcribeStep !== 'idle') return;
@@ -340,12 +340,12 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             { label: '取得日', key: 'getDate' },
             { label: '面談日', key: 'meetDate' },
             { label: 'ステータス', key: null, center: true },
-            { label: '当社売上', key: null },
+            { label: '当社売上', key: null, padLeft: 14 },
             { label: 'インターン報酬', key: null },
-          ].map(({ label, key, center }) => (
+          ].map(({ label, key, center, padLeft }) => (
             <span key={label}
               onClick={key ? () => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); } } : undefined}
-              style={key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : center ? { display: 'flex', justifyContent: 'center' } : {}}>
+              style={key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : center ? { display: 'flex', justifyContent: 'center' } : padLeft ? { paddingLeft: padLeft } : {}}>
               {label}
               {key && (
                 <span style={{ marginLeft: 2 }}>
@@ -393,7 +393,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   background: sc.bg, color: sc.color,
                 }}>{a.status}</span>
               </div>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: C.navy }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: C.navy, paddingLeft: 14 }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
             </div>
           );
