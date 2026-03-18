@@ -571,11 +571,11 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
 
           {/* Table header */}
           <div style={{
-            display: "grid", gridTemplateColumns: `32px 1.4fr 0.6fr 0.6fr 0.7fr 85px 68px repeat(${displayRounds}, 46px)`,
+            display: "grid", gridTemplateColumns: `32px 1.4fr 0.6fr 0.7fr 0.6fr 85px 68px repeat(${displayRounds}, 46px)`,
             padding: "5px 10px", background: C.navyDeep, flexShrink: 0,
             fontSize: 9, fontWeight: 600, color: C.goldLight, letterSpacing: 0.5,
           }}>
-            {[["no","No"],["company","企業名"],["business","事業内容"],["representative","代表者"],["address","住所"],["phone","電話番号"],["lastCall","最終発信"]].map(([key, label]) => (
+            {[["no","No"],["company","企業名"],["business","事業内容"],["address","住所"],["representative","代表者"],["phone","電話番号"],["lastCall","最終発信"]].map(([key, label]) => (
               <span key={key} onClick={() => { if (listSortBy === key) { setListSortBy(null); setListSortDir("asc"); } else { setListSortBy(key); setListSortDir("desc"); } setPageStart(0); }} style={{ cursor: "pointer", userSelect: "none" }}>
                 {label}{listSortBy === key ? " ▲" : " ▽"}
               </span>
@@ -595,7 +595,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
               return (
                 <div key={row.no} onClick={() => { setSelectedRow(globalIdx); setMemo(csvData[globalIdx]?.memo || ""); setShowScript(false); }}
                   style={{
-                    display: "grid", gridTemplateColumns: `32px 1.4fr 0.6fr 0.6fr 0.7fr 85px 68px repeat(${displayRounds}, 46px)`,
+                    display: "grid", gridTemplateColumns: `32px 1.4fr 0.6fr 0.7fr 0.6fr 85px 68px repeat(${displayRounds}, 46px)`,
                     padding: "6px 10px", fontSize: 11, alignItems: "center", cursor: "pointer",
                     borderBottom: "1px solid " + C.borderLight,
                     background: isSelected ? '#EFF6FF' : excluded ? "#fee2e2" + "40" : roundData ? C.offWhite : C.white,
@@ -606,8 +606,8 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                   <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight }}>{row.no}</span>
                   <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.company}</span>
                   <span style={{ color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 10 }}>{row.business}</span>
-                  <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.representative}</span>
                   <span style={{ color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 9 }}>{row.address || row.pref || '—'}</span>
+                  <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.representative}</span>
                   <span>
                     {row.phone && !excluded ? (
                       <span onClick={e => { e.stopPropagation(); dialPhone(row.phone); setSelectedRow(globalIdx); setMemo(csvData[globalIdx]?.memo || ""); }} style={{

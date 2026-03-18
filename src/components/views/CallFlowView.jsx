@@ -33,6 +33,9 @@ const _cfSessionCache = new Map(); // `${listId}|${startNo}|${endNo}` → sessio
 // isRealCloseRef（useRef）はStrict Modeで信頼できないため、同じパターンで管理
 const _cfRealCloseSet = new Set(); // sessionId → リアルクローズ時にadd、cleanup後にdelete
 
+const PREFS = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
+const extractPref = (address) => PREFS.find(p => address?.startsWith(p)) || '';
+
 export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -285,15 +288,14 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         if (item.revenue == null || Number(item.revenue) > Number(revenueMax)) return false;
       }
       if (prefFilter) {
-        const rowPref = item.pref || (item.address ? item.address.slice(0, 4).replace(/[市区町村郡].*/, '') : '');
-        if (rowPref !== prefFilter) return false;
+        if (extractPref(item.address) !== prefFilter) return false;
       }
       return true;
     });
     return result;
   })();
 
-  const prefOptions = [...new Set(items.map(r => r.pref || (r.address ? r.address.slice(0, 4).replace(/[市区町村郡].*/, '') : '')).filter(Boolean))].sort();
+  const prefOptions = [...new Set(items.map(r => extractPref(r.address)).filter(Boolean))].sort();
 
   const COL_KEY_MAP = { 'No': 'no', '企業名': 'company', '事業内容': 'business', '代表者': 'representative', '電話番号': 'phone', '結果': 'call_status', '売上高': 'revenue' };
   const NUMERIC_COLS = new Set(['no', 'revenue']);
@@ -1222,7 +1224,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
         {/* 左カラム */}
-        <div style={{ width: listMode ? '100%' : '60%', overflow: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ width: '100%', overflow: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
 
           {listMode ? (
             /* ────────────── リスト表示モード ────────────── */
@@ -1540,41 +1542,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           )}
         </div>
 
-        {/* 右カラム 40% — スクリプト・企業概要・注意事項（常時表示） */}
-        {!listMode && (
-        <div style={{ width: '40%', background: '#fff', borderLeft: '1px solid #E5E5E5', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {/* タブヘッダー */}
-          <div style={{ display: 'flex', borderBottom: '2px solid #E5E5E5', background: '#FAFAFA', flexShrink: 0 }}>
-            {[{ key: 'script', label: 'スクリプト' }, { key: 'info', label: '企業概要' }, { key: 'cautions', label: '注意事項' }].map(tab => (
-              <button key={tab.key} onClick={() => setScriptTab(tab.key)}
-                style={{ flex: 1, padding: '11px 4px', border: 'none', borderBottom: scriptTab === tab.key ? '2px solid #0176D3' : '2px solid transparent',
-                  background: 'transparent', color: scriptTab === tab.key ? '#0176D3' : '#706E6B',
-                  fontSize: 11, fontWeight: scriptTab === tab.key ? 700 : 400, cursor: 'pointer',
-                  fontFamily: "'Noto Sans JP'", marginBottom: -2, transition: 'color 0.15s' }}>
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          {/* タブコンテンツ */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
-            {scriptTab === 'script' && (
-              list.scriptBody
-                ? <pre style={{ fontSize: 12, color: '#032D60', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.scriptBody}</pre>
-                : <div style={{ color: '#b0b0b0', fontSize: 12 }}>スクリプト未設定</div>
-            )}
-            {scriptTab === 'info' && (
-              list.companyInfo
-                ? <pre style={{ fontSize: 12, color: '#4a4a4a', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.companyInfo}</pre>
-                : <div style={{ color: '#b0b0b0', fontSize: 12 }}>企業概要未設定</div>
-            )}
-            {scriptTab === 'cautions' && (
-              list.cautions
-                ? <pre style={{ fontSize: 12, color: '#C07600', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.cautions}</pre>
-                : <div style={{ color: '#b0b0b0', fontSize: 12 }}>注意事項未設定</div>
-            )}
-          </div>
-        </div>
-        )}
       </div>
 
       {/* ─── アポ取得報告モーダル（既存） ─── */}
