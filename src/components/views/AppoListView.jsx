@@ -393,7 +393,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   background: sc.bg, color: sc.color,
                 }}>{a.status}</span>
               </div>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: C.navy, paddingLeft: 14 }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: C.navy, paddingLeft: 28 }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
             </div>
           );
