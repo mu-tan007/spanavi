@@ -321,17 +321,17 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
           {/* Table */}
           <div style={{ overflowX: "auto" }}>
             <div style={{
-              display: "grid", gridTemplateColumns: "40px 1.5fr 1fr 0.8fr 100px 60px",
+              display: "grid", gridTemplateColumns: "40px 1.5fr 1fr 0.7fr 0.8fr 100px 60px",
               padding: "6px 8px", background: C.navyDeep, borderRadius: "4px 4px 0 0",
               fontSize: 9, fontWeight: 600, color: C.goldLight, letterSpacing: 0.5,
             }}>
-              <span>No</span><span>企業名</span><span>事業内容</span><span>代表者</span><span>電話番号</span><span>状態</span>
+              <span>No</span><span>企業名</span><span>事業内容</span><span>住所</span><span>代表者</span><span>電話番号</span><span>状態</span>
             </div>
             {paged.map((row, i) => {
               const globalIdx = csvData.findIndex(r => r.no === row.no);
               return (
                 <div key={row.no} style={{
-                  display: "grid", gridTemplateColumns: "40px 1.5fr 1fr 0.8fr 100px 60px",
+                  display: "grid", gridTemplateColumns: "40px 1.5fr 1fr 0.7fr 0.8fr 100px 60px",
                   padding: "6px 8px", fontSize: 11, alignItems: "center",
                   borderBottom: "1px solid " + C.borderLight,
                   background: row.called ? (row.result === "アポ" ? C.green + "08" : C.offWhite) : C.white,
@@ -340,6 +340,7 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
                   <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight }}>{row.no}</span>
                   <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.company}</span>
                   <span style={{ color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 10 }}>{row.business}</span>
+                  <span style={{ color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 9 }}>{row.address || row.pref || '—'}</span>
                   <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.representative}</span>
                   <span>
                     {row.phone ? (
