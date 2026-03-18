@@ -345,7 +345,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           ].map(({ label, key, center }) => (
             <span key={label}
               onClick={key ? () => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); } } : undefined}
-              style={key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : center ? { textAlign: 'center' } : {}}>
+              style={key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : center ? { display: 'flex', justifyContent: 'center' } : {}}>
               {label}
               {key && (
                 <span style={{ marginLeft: 2 }}>
@@ -387,10 +387,12 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               <span style={{ color: C.textDark }}>{a.getter}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 9, color: C.textLight }}>{a.getDate.slice(5)}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 9, color: C.textLight }}>{a.meetDate.slice(5)}</span>
-              <span style={{
-                fontSize: 9, padding: "2px 6px", borderRadius: 3, textAlign: "center", fontWeight: 600,
-                background: sc.bg, color: sc.color,
-              }}>{a.status}</span>
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <span style={{
+                  fontSize: 9, padding: "2px 6px", borderRadius: 3, fontWeight: 600,
+                  background: sc.bg, color: sc.color,
+                }}>{a.status}</span>
+              </div>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: C.navy }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
             </div>
