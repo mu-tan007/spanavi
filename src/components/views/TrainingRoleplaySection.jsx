@@ -126,11 +126,34 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
     if (!addForm.session_date) return;
     setAddingSess(true);
     const { data: newSession } = await insertRoleplaySession(userId, addForm);
-    // 録音ファイルが選択されていればアップロード
+
+    // 録音ファイルが選択されていればアップロード → AI分析まで自動実行
     if (newSession?.id && addRecordingFile) {
       const { path, url } = await uploadRoleplayRecording(userId, newSession.id, addRecordingFile);
-      if (path) await updateRoleplaySession(newSession.id, { recording_path: path, recording_url: url });
+      if (path) {
+        await updateRoleplaySession(newSession.id, { recording_path: path, recording_url: url });
+        // モーダルを閉じてからバックグラウンドでAI分析
+        const { data } = await fetchRoleplaySessions(userId);
+        setSessions(data || []);
+        setAddModalOpen(false);
+        setAddForm({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
+        setAddRecordingFile(null);
+        setAddingSess(false);
+        setAnalyzingId(newSession.id);
+        setExpandedId(newSession.id);
+        const { data: aiData } = await invokeAnalyzeRoleplay({ storage_path: path, session_id: newSession.id });
+        if (aiData) {
+          setSessions(prev => prev.map(s =>
+            s.id === newSession.id
+              ? { ...s, transcript: aiData.transcript, ai_feedback: aiData.ai_feedback, ai_status: 'done' }
+              : s
+          ));
+        }
+        setAnalyzingId(null);
+        return;
+      }
     }
+
     const { data } = await fetchRoleplaySessions(userId);
     setSessions(data || []);
     setAddModalOpen(false);
@@ -759,7 +782,10 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                   fontFamily: "'Noto Sans JP'",
                 }}
               >
-                {addingSess ? '追加中...' : '追加する'}
+                {addingSess
+                  ? (addRecordingFile ? 'アップロード中...' : '追加中...')
+                  : (addRecordingFile ? '追加してAI分析する' : '追加する')
+                }
               </button>
               <button
                 onClick={() => { setAddModalOpen(false); setAddRecordingFile(null); }}
