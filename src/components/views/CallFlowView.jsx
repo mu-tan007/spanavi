@@ -50,6 +50,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [filterMode, setFilterMode] = useState('callable');
   const [revenueMin, setRevenueMin] = useState(initialRevenueMin ? String(initialRevenueMin) : '');  // 千円単位（例: 100000 = 1億円）
   const [revenueMax, setRevenueMax] = useState(initialRevenueMax ? String(initialRevenueMax) : '');  // 空文字 = 上限なし
+  const [prefFilter, setPrefFilter] = useState('');
   const [recallModal, setRecallModal] = useState(null); // { row, statusId, round, label }
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const cfvKbRef = useRef({});
@@ -283,10 +284,16 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       if (revenueMax !== '') {
         if (item.revenue == null || Number(item.revenue) > Number(revenueMax)) return false;
       }
+      if (prefFilter) {
+        const rowPref = item.pref || (item.address ? item.address.slice(0, 4).replace(/[市区町村郡].*/, '') : '');
+        if (rowPref !== prefFilter) return false;
+      }
       return true;
     });
     return result;
   })();
+
+  const prefOptions = [...new Set(items.map(r => r.pref || (r.address ? r.address.slice(0, 4).replace(/[市区町村郡].*/, '') : '')).filter(Boolean))].sort();
 
   const COL_KEY_MAP = { 'No': 'no', '企業名': 'company', '事業内容': 'business', '代表者': 'representative', '電話番号': 'phone', '結果': 'call_status', '売上高': 'revenue' };
   const NUMERIC_COLS = new Set(['no', 'revenue']);
@@ -1214,8 +1221,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       {/* ── メインエリア（2カラム） ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-        {/* 左カラム 60% */}
-        <div style={{ width: '60%', overflow: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* 左カラム */}
+        <div style={{ width: listMode ? '100%' : '60%', overflow: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
 
           {listMode ? (
             /* ────────────── リスト表示モード ────────────── */
@@ -1255,6 +1262,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     </React.Fragment>
                   ))}
                 </div>
+                {prefOptions.length > 0 && (
+                  <select value={prefFilter} onChange={e => { setPrefFilter(e.target.value); setPage(0); }}
+                    style={{ padding: '3px 4px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 10, fontFamily: "'Noto Sans JP'", background: prefFilter ? '#EAF4FF' : '#fff', color: '#032D60', cursor: 'pointer' }}>
+                    <option value="">都道府県</option>
+                    {prefOptions.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                )}
               </div>
               {/* テーブル */}
               <div style={{ overflow: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
@@ -1527,6 +1541,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         </div>
 
         {/* 右カラム 40% — スクリプト・企業概要・注意事項（常時表示） */}
+        {!listMode && (
         <div style={{ width: '40%', background: '#fff', borderLeft: '1px solid #E5E5E5', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* タブヘッダー */}
           <div style={{ display: 'flex', borderBottom: '2px solid #E5E5E5', background: '#FAFAFA', flexShrink: 0 }}>
@@ -1559,6 +1574,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             )}
           </div>
         </div>
+        )}
       </div>
 
       {/* ─── アポ取得報告モーダル（既存） ─── */}
