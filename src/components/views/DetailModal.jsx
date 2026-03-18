@@ -42,6 +42,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
   const [flowStartNo, setFlowStartNo] = useState('');
   const [flowEndNo, setFlowEndNo] = useState('');
   const [itemCount, setItemCount] = useState(null);
+  const [csvData, setCsvData] = useState([]);
   const [selectedStatuses, setSelectedStatuses] = useState([]); // 空配列=全ステータス
   const [revenueMin, setRevenueMin] = useState('');
   const [revenueMax, setRevenueMax] = useState('');
@@ -52,10 +53,13 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
       return;
     }
     fetchCallListItems(list._supaId).then(({ data }) => {
-      const count = data?.length ?? 0;
-      setItemCount(count);
+      const items = data || [];
+      setItemCount(items.length);
+      setCsvData(items);
     });
   }, [list._supaId]);
+
+  const availablePrefs = [...new Set(csvData.map(r => extractPref(r.address)).filter(Boolean))].sort();
 
   const handleCSVImport = (e) => {
     const file = e.target.files[0];
@@ -446,7 +450,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
           <select value={prefFilter} onChange={e => setPrefFilter(e.target.value)}
             style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", background: prefFilter ? '#EAF4FF' : C.white, color: C.navy, cursor: 'pointer' }}>
             <option value="">都道府県（全て）</option>
-            {PREFS.map(p => <option key={p} value={p}>{p}</option>)}
+            {availablePrefs.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
 
