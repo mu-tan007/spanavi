@@ -11,7 +11,7 @@ const GRID = '1.6fr 0.6fr 0.6fr 0.6fr 0.6fr 0.6fr 0.6fr 0.65fr 0.65fr';
 
 const COLS = ['架電数', '社長接続', '接続率', 'アポ数', 'アポ率', '件/h', 'リスケ率', 'キャンセル率'];
 
-export default function TeamPerformanceTable({ records, appoRecords = [], loading, teamMap, sessionMap = {}, reschedAppoData = [] }) {
+export default function TeamPerformanceTable({ records, appoRecords = [], loading, teamMap, sessionMap = {}, reschedAppoData = [], members = [] }) {
 
   const { teamData, memberData, reschedMap } = useMemo(() => {
     const EXCLUDED_TEAMS = new Set(['営業統括', 'その他']);
@@ -63,13 +63,25 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
       mm[tn][name].appo = count;
     });
 
+    // 名簿の全アクティブメンバーをゼロデータで補完
+    (members || [])
+      .filter(mb => mb.is_active !== false && isValidName(mb.name))
+      .forEach(mb => {
+        const tn = teamMap[mb.name] || 'その他';
+        if (EXCLUDED_TEAMS.has(tn)) return;
+        if (!tm[tn]) tm[tn] = { call: 0, connect: 0, appo: 0, members: new Set() };
+        tm[tn].members.add(mb.name);
+        if (!mm[tn]) mm[tn] = {};
+        if (!mm[tn][mb.name]) mm[tn][mb.name] = { call: 0, connect: 0, appo: 0 };
+      });
+
     const teamData = Object.entries(tm)
       .filter(([tn]) => !EXCLUDED_TEAMS.has(tn))
       .sort((a, b) => b[1].call - a[1].call)
       .map(([tn, d]) => [tn, { ...d, memberCount: d.members.size }]);
 
     return { teamData, memberData: mm, reschedMap };
-  }, [records, appoRecords, teamMap, reschedAppoData]);
+  }, [records, appoRecords, teamMap, reschedAppoData, members]);
 
   const mono = { fontFamily: "'JetBrains Mono'" };
 

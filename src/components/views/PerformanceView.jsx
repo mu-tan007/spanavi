@@ -481,6 +481,7 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
           teamMap={teamMap}
           sessionMap={sessionMap}
           reschedAppoData={reschedAppoData}
+          members={members}
         />
       </div>
 
