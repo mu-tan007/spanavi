@@ -41,6 +41,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   const [addForm, setAddForm]                 = useState({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
   const [addDay2Type, setAddDay2Type]         = useState('member'); // 'member' | 'final' — Day2追加時に使用
   const [addRecordingFile, setAddRecordingFile] = useState(null);   // モーダル内で選択した録音ファイル
+  const [dragOver, setDragOver]               = useState(false);    // ドラッグオーバー中
   const addFileInputRef = useRef(null);
 
   // 操作中フラグ
@@ -731,25 +732,42 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             />
             <div
               onClick={() => addFileInputRef.current?.click()}
+              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+              onDragEnter={e => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={e => {
+                e.preventDefault();
+                setDragOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) setAddRecordingFile(file);
+              }}
               style={{
-                padding: '8px 12px', borderRadius: 6, marginBottom: 12,
-                border: '1.5px dashed ' + (addRecordingFile ? C.navy + '60' : C.borderLight),
-                background: addRecordingFile ? C.navy + '06' : C.offWhite,
+                padding: '14px 12px', borderRadius: 6, marginBottom: 12,
+                border: '1.5px dashed ' + (dragOver ? C.gold : addRecordingFile ? C.navy + '60' : C.borderLight),
+                background: dragOver ? C.gold + '10' : addRecordingFile ? C.navy + '06' : C.offWhite,
                 cursor: 'pointer', fontSize: 11,
-                color: addRecordingFile ? C.navy : C.textLight,
-                display: 'flex', alignItems: 'center', gap: 8,
+                color: dragOver ? '#c8860a' : addRecordingFile ? C.navy : C.textLight,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                transition: 'border-color 0.15s, background 0.15s',
+                textAlign: 'center',
               }}
             >
-              <span style={{ fontSize: 16 }}>🎵</span>
-              {addRecordingFile
-                ? <span style={{ fontWeight: 600 }}>{addRecordingFile.name}</span>
-                : <span>クリックして録音ファイルを選択</span>
-              }
+              <span style={{ fontSize: 22 }}>{dragOver ? '📂' : addRecordingFile ? '🎵' : '🎙️'}</span>
+              {addRecordingFile ? (
+                <span style={{ fontWeight: 600, fontSize: 11 }}>{addRecordingFile.name}</span>
+              ) : (
+                <>
+                  <span style={{ fontWeight: 600, fontSize: 11 }}>
+                    {dragOver ? 'ここにドロップ' : 'ドラッグ＆ドロップ、またはクリックして選択'}
+                  </span>
+                  <span style={{ fontSize: 10, color: C.textLight }}>MP3 / MP4 / M4A / WAV / WebM 対応</span>
+                </>
+              )}
               {addRecordingFile && (
                 <button
                   onClick={e => { e.stopPropagation(); setAddRecordingFile(null); if (addFileInputRef.current) addFileInputRef.current.value = ''; }}
-                  style={{ marginLeft: 'auto', background: 'none', border: 'none', color: C.red, cursor: 'pointer', fontSize: 12 }}
-                >✕</button>
+                  style={{ background: 'none', border: 'none', color: C.red, cursor: 'pointer', fontSize: 11, marginTop: 2 }}
+                >✕ 取り消す</button>
               )}
             </div>
 
