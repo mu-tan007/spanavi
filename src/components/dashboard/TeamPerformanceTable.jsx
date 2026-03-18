@@ -8,7 +8,7 @@ const GRID = '1.5fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr 0.55fr';
 const GRID_MBR = '1.5fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr';
 
 export default function TeamPerformanceTable({ records, appoRecords = [], loading, teamMap, sessionMap = {} }) {
-  const [expandedTeam, setExpandedTeam] = useState(null);
+  const [expandedTeams, setExpandedTeams] = useState(new Set());
 
   const { teamData, memberData } = useMemo(() => {
     const EXCLUDED_TEAMS = new Set(['営業統括', 'その他']);
@@ -73,15 +73,15 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
         ) : teamData.map(([tn, d]) => {
           const cr = d.call > 0 ? (d.connect / d.call * 100).toFixed(1) : '0.0';
           const ar = d.call > 0 ? (d.appo / d.call * 100).toFixed(1) : '0.0';
-          const isExpanded = expandedTeam === tn;
+          const isExpanded = expandedTeams.has(tn);
           const members = memberData[tn] ? Object.entries(memberData[tn]).sort((a, b) => b[1].call - a[1].call) : [];
           return (
             <React.Fragment key={tn}>
               <div
-                onClick={() => setExpandedTeam(isExpanded ? null : tn)}
+                onClick={() => setExpandedTeams(prev => { const next = new Set(prev); isExpanded ? next.delete(tn) : next.add(tn); return next; })}
                 style={{ display: 'grid', gridTemplateColumns: GRID, padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', cursor: 'pointer', background: isExpanded ? NAVY + '06' : 'transparent', transition: 'background 0.15s', borderLeft: '2px solid transparent' }}
                 onMouseEnter={e => { if (!isExpanded) { e.currentTarget.style.background = '#EAF4FF'; e.currentTarget.style.borderLeft = '2px solid #0D2247'; } }}
-                onMouseLeave={e => { e.currentTarget.style.background = isExpanded ? NAVY + '06' : 'transparent'; e.currentTarget.style.borderLeft = '2px solid transparent'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = expandedTeams.has(tn) ? NAVY + '06' : 'transparent'; e.currentTarget.style.borderLeft = '2px solid transparent'; }}
               >
                 <span style={{ fontWeight: 700, color: NAVY, display: 'flex', alignItems: 'center', gap: 5 }}>
                   <span style={{ fontSize: 8, color: C.textLight, display: 'inline-block', transform: isExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>▶</span>
