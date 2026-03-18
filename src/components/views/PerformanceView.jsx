@@ -381,32 +381,14 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
     return result;
   }, [rankRecords, members, teamMap]);
 
-  // インターン別リスケ率・キャンセル率
-  const [internRescanPeriod, setInternRescanPeriod] = useState('month');
-  const INTERN_APPO_ALL = useMemo(() => new Set(['面談済', '事前確認済', 'アポ取得', 'リスケ中', 'キャンセル']), []);
-  const internReschedData = useMemo(() => {
-    const monthStart = monthStr + '-01';
-    const m = {};
-    (appoData || []).filter(a => {
-      if (!INTERN_APPO_ALL.has(a.status)) return false;
+  // rankDateRangeでフィルタしたアポデータ（リスケ・キャンセル集計用）
+  const reschedAppoData = useMemo(() => {
+    if (!rankDateRange) return [];
+    return (appoData || []).filter(a => {
       const d = (a.getDate || '').slice(0, 10);
-      if (internRescanPeriod === 'week') return d >= weekStartStr && d <= todayStr;
-      if (internRescanPeriod === 'month') return d >= monthStart && d <= todayStr;
-      return true; // 'all'
-    }).forEach(a => {
-      const key = a.getter || '不明';
-      if (!m[key]) m[key] = { name: key, appo: 0, reschedule: 0, cancel: 0 };
-      if (a.status === 'リスケ中') m[key].reschedule++;
-      else if (a.status === 'キャンセル') m[key].cancel++;
-      else m[key].appo++;
+      return d >= rankDateRange.from && d <= rankDateRange.to;
     });
-    return Object.values(m).map(d => ({
-      ...d,
-      total: d.appo + d.reschedule + d.cancel,
-      rescheduleRate: (d.appo + d.reschedule + d.cancel) > 0 ? d.reschedule / (d.appo + d.reschedule + d.cancel) * 100 : 0,
-      cancelRate: (d.appo + d.reschedule + d.cancel) > 0 ? d.cancel / (d.appo + d.reschedule + d.cancel) * 100 : 0,
-    })).filter(d => d.total > 0).sort((a, b) => b.total - a.total);
-  }, [appoData, internRescanPeriod, monthStr, weekStartStr, todayStr, INTERN_APPO_ALL]);
+  }, [appoData, rankDateRange]);
 
   const tabBtn = (active, color) => ({
     padding: '6px 12px', fontSize: 11, fontWeight: active ? 600 : 400, cursor: 'pointer',
@@ -537,49 +519,10 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
           loading={rankLoading}
           teamMap={teamMap}
           sessionMap={sessionMap}
+          reschedAppoData={reschedAppoData}
         />
       </div>
 
-      {/* セクション6: インターン生別リスケ率・キャンセル率 */}
-      <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>インターン生別リスケ率・キャンセル率</span>
-            <span style={{ fontSize: 10, color: C.textLight }}>{internReschedData.length}名</span>
-          </div>
-          <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #E5E5E5' }}>
-            {[['week', '週'], ['month', '月'], ['all', '全期間']].map(([k, l]) => (
-              <button key={k} onClick={() => setInternRescanPeriod(k)} style={tabBtn(internRescanPeriod === k, GOLD)}>{l}</button>
-            ))}
-          </div>
-        </div>
-        <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 110px 80px 110px', padding: '8px 16px', background: '#F8F9FA', fontSize: 11, fontWeight: 600, color: '#6B7280', letterSpacing: '0.06em', borderBottom: '1px solid #E5E7EB' }}>
-            <span>名前</span>
-            <span style={{ textAlign: 'right' }}>アポ数</span>
-            <span style={{ textAlign: 'right' }}>リスケ数</span>
-            <span style={{ textAlign: 'right' }}>リスケ率</span>
-            <span style={{ textAlign: 'right' }}>キャンセル数</span>
-            <span style={{ textAlign: 'right' }}>キャンセル率</span>
-          </div>
-          {internReschedData.length === 0 ? (
-            <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
-          ) : internReschedData.map((d, idx) => (
-            <div key={d.name} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 110px 80px 110px', padding: '9px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', background: idx % 2 === 0 ? 'transparent' : '#FAFAFA' }}>
-              <span style={{ fontWeight: 600, color: NAVY }}>{d.name}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", textAlign: 'right' }}>{d.appo}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", textAlign: 'right', color: d.reschedule > 0 ? '#F59E0B' : '#9CA3AF' }}>{d.reschedule}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, textAlign: 'right', color: d.rescheduleRate >= 20 ? '#DC2626' : d.rescheduleRate >= 10 ? '#F59E0B' : '#374151' }}>
-                {d.rescheduleRate.toFixed(1)}%
-              </span>
-              <span style={{ fontFamily: "'JetBrains Mono'", textAlign: 'right', color: d.cancel > 0 ? '#EF4444' : '#9CA3AF' }}>{d.cancel}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, textAlign: 'right', color: d.cancelRate >= 20 ? '#DC2626' : d.cancelRate >= 10 ? '#F59E0B' : '#374151' }}>
-                {d.cancelRate.toFixed(1)}%
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
 
     </div>
   );
