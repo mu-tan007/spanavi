@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
-import { getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl, fetchMyCallRecords, updateMember } from '../../lib/supabaseWrite';
+import { getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl, fetchMyCallRecords, updateMember, fetchMemberPayrollHistory } from '../../lib/supabaseWrite';
 import TrainingRoleplaySection from './TrainingRoleplaySection';
 
 export default function MyPageView({ currentUser, userId, callListData, members, now, appoData, onDataRefetch, isAdmin = false }) {
@@ -148,6 +148,60 @@ export default function MyPageView({ currentUser, userId, callListData, members,
   const [zoomPhoneSaving, setZoomPhoneSaving] = useState(false);
   const [hoveredMonthRow, setHoveredMonthRow] = useState(null);
   const [hoveredCard, setHoveredCard] = useState(null);
+
+  // 確定済み報酬履歴（payroll_snapshots）
+  const [payrollHistory, setPayrollHistory] = useState([]);
+  useEffect(() => {
+    if (!currentUser) return;
+    fetchMemberPayrollHistory(currentUser).then(({ data }) => setPayrollHistory(data || []));
+  }, [currentUser]);
+
+  // PayrollView と同等の月次合計報酬計算
+  // 確定済み月: snapshots.total_payout、未確定月: incentive + teamBonus をリアルタイム計算
+  const PAYROLL_COUNTABLE_SET = useMemo(() => new Set(['アポ取得', '事前確認済', '面談済']), []);
+  const calcPayrollTotal = useCallback((yyyymm) => {
+    const snap = payrollHistory.find(s => s.pay_month === yyyymm);
+    if (snap) return snap.total_payout;
+
+    // リアルタイム計算
+    const monthAppos = (appoData || []).filter(a => {
+      const dk = (a.meetDate || a.getDate || '').slice(0, 7);
+      return dk === yyyymm && PAYROLL_COUNTABLE_SET.has(a.status);
+    });
+    const memberMap = {};
+    (members || []).forEach(m => { if (m?.name) memberMap[m.name] = m; });
+    const teamSales = {};
+    const byGetter = {};
+    monthAppos.forEach(a => {
+      const mem = memberMap[a.getter] || {};
+      const team = mem.team || '';
+      if (!byGetter[a.getter]) byGetter[a.getter] = { team, role: mem.role || '', incentive: 0, teamBonus: 0 };
+      byGetter[a.getter].incentive += a.reward || 0;
+      teamSales[team] = (teamSales[team] || 0) + (a.sales || 0);
+    });
+    (members || []).forEach(m => {
+      if (!m?.name || !['チームリーダー', '副リーダー'].includes(m.role)) return;
+      if (!byGetter[m.name]) byGetter[m.name] = { team: m.team || '', role: m.role, incentive: 0, teamBonus: 0 };
+    });
+    [...new Set(Object.values(byGetter).map(p => p.team))].forEach(team => {
+      const pool = Math.round((teamSales[team] || 0) * 0.03);
+      const tm = Object.values(byGetter).filter(p => p.team === team);
+      const leaders = tm.filter(p => p.role === 'チームリーダー');
+      const subs    = tm.filter(p => p.role === '副リーダー');
+      leaders.forEach(p => { p.teamBonus = leaders.length ? Math.round(pool * 0.6 / leaders.length) : 0; });
+      subs.forEach(p =>    { p.teamBonus = subs.length    ? Math.round(pool * 0.4 / subs.length)    : 0; });
+    });
+    const me = byGetter[currentUser];
+    return me ? me.incentive + me.teamBonus : 0;
+  }, [payrollHistory, appoData, members, currentUser, PAYROLL_COUNTABLE_SET]);
+
+  // 累計報酬: 確定済み全月の合計 + 当月未確定分
+  const cumulativePayroll = useMemo(() => {
+    const confirmedMonths = new Set(payrollHistory.map(s => s.pay_month));
+    const confirmed = payrollHistory.reduce((s, r) => s + r.total_payout, 0);
+    const currentMonthStr = todayStr2.slice(0, 7);
+    return confirmedMonths.has(currentMonthStr) ? confirmed : confirmed + calcPayrollTotal(currentMonthStr);
+  }, [payrollHistory, calcPayrollTotal, todayStr2]);
   useEffect(() => {
     if (memberInfo?.zoomPhoneNumber !== undefined) setZoomPhone(memberInfo.zoomPhoneNumber || '');
   }, [memberInfo?.zoomPhoneNumber]);
@@ -397,11 +451,22 @@ export default function MyPageView({ currentUser, userId, callListData, members,
           return { count, totalSales, totalReward };
         };
 
-        const todaySales = getSalesForPeriod(myAppos.filter(a => a.getDate === todayStr2));
-        const thisWeekSales = getSalesForPeriod(myAppos.filter(a => a.getDate >= thisWeekStart));
+        const todaySales     = getSalesForPeriod(myAppos.filter(a => a.getDate === todayStr2));
+        const thisWeekSales  = getSalesForPeriod(myAppos.filter(a => a.getDate >= thisWeekStart));
         const thisMonthSales = getSalesForPeriod(myAppos.filter(a => a.getDate >= monthStart));
-        const cumSales = getSalesForPeriod(myAppos);
-        const currentSales = periodTab === "cumulative" ? cumSales : periodTab === "monthly" ? thisMonthSales : periodTab === "weekly" ? thisWeekSales : todaySales;
+        const cumSales       = getSalesForPeriod(myAppos);
+
+        // インターン報酬 = PayrollView 合計支給額と一致させる
+        // 今月・累計: snapshot（確定済）or リアルタイム計算（incentive + teamBonus）
+        // 日別・週別: incentive のみ（teamBonus は月次概念のため）
+        const payrollReward =
+          periodTab === "cumulative" ? cumulativePayroll :
+          periodTab === "monthly"    ? calcPayrollTotal(monthStart.slice(0, 7)) :
+          periodTab === "weekly"     ? thisWeekSales.totalReward :
+                                       todaySales.totalReward;
+
+        const baseSales = periodTab === "cumulative" ? cumSales : periodTab === "monthly" ? thisMonthSales : periodTab === "weekly" ? thisWeekSales : todaySales;
+        const currentSales = { ...baseSales, totalReward: payrollReward };
 
         return (
           <div style={{
@@ -459,12 +524,16 @@ export default function MyPageView({ currentUser, userId, callListData, members,
                     myAppos.forEach(a => {
                       const m = (a.getDate || "").slice(0, 7);
                       if (!m) return;
-                      if (!monthMap[m]) monthMap[m] = { count: 0, sales: 0, reward: 0 };
+                      if (!monthMap[m]) monthMap[m] = { count: 0, sales: 0 };
                       monthMap[m].count++;
                       monthMap[m].sales += parseFloat(a.sales) || 0;
-                      monthMap[m].reward += parseFloat(a.reward) || 0;
+                    });
+                    // 確定済みスナップショットがある月も含める
+                    payrollHistory.forEach(s => {
+                      if (!monthMap[s.pay_month]) monthMap[s.pay_month] = { count: 0, sales: 0 };
                     });
                     return Object.entries(monthMap).sort((a, b) => b[0].localeCompare(a[0])).map(([m, d]) => {
+                      const d2 = { ...d, reward: calcPayrollTotal(m) };
                       const isHovered = hoveredMonthRow === m;
                       const rowBg = isHovered ? C.navy + "08" : C.white;
                       const rowBorderLeft = isHovered ? "3px solid " + C.gold : "3px solid transparent";
@@ -480,17 +549,17 @@ export default function MyPageView({ currentUser, userId, callListData, members,
                             onMouseEnter={() => setHoveredMonthRow(m)}
                             onMouseLeave={() => setHoveredMonthRow(null)}
                             style={{ ...cellBase, borderLeft: "none", textAlign: "right", fontFamily: "'JetBrains Mono'" }}
-                          >{d.count}</div>
+                          >{d2.count}</div>
                           <div
                             onMouseEnter={() => setHoveredMonthRow(m)}
                             onMouseLeave={() => setHoveredMonthRow(null)}
                             style={{ ...cellBase, borderLeft: "none", textAlign: "right", fontFamily: "'JetBrains Mono'", color: C.navy, fontWeight: 600 }}
-                          >{Math.round(d.sales).toLocaleString('ja-JP')}円</div>
+                          >{Math.round(d2.sales).toLocaleString('ja-JP')}円</div>
                           <div
                             onMouseEnter={() => setHoveredMonthRow(m)}
                             onMouseLeave={() => setHoveredMonthRow(null)}
                             style={{ ...cellBase, borderLeft: "none", textAlign: "right", fontFamily: "'JetBrains Mono'", color: C.navy, fontWeight: 600 }}
-                          >{Math.round(d.reward).toLocaleString('ja-JP')}円</div>
+                          >{Math.round(d2.reward).toLocaleString('ja-JP')}円</div>
                         </React.Fragment>
                       );
                     });
