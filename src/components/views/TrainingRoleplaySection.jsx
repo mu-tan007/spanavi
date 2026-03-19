@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { C } from '../../constants/colors';
+import { prepareAudioForWhisper, needsConversion } from '../../lib/convertAudio';
 import {
   fetchTrainingProgress,
   upsertTrainingStage,
@@ -51,6 +52,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   const [analyzingId, setAnalyzingId]     = useState(null);   // sessionId
   const [deletingId, setDeletingId]       = useState(null);   // sessionId
   const [addingSess, setAddingSess]       = useState(false);
+  const [convertStatus, setConvertStatus] = useState(''); // 変換中メッセージ
 
   // 展開中の AI フィードバック
   const [expandedId, setExpandedId]       = useState(null);
@@ -146,7 +148,21 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       let recordingUrl = addRecordingUrl || null;
 
       if (addRecordingFile) {
-        const { path, url, error: uploadError } = await uploadRoleplayRecording(userId, newSession.id, addRecordingFile);
+        // 必要なら MP3 に変換してからアップロード
+        let fileToUpload = addRecordingFile;
+        if (needsConversion(addRecordingFile)) {
+          try {
+            fileToUpload = await prepareAudioForWhisper(addRecordingFile, setConvertStatus);
+            setConvertStatus('');
+          } catch (convErr) {
+            console.error('[convert] error:', convErr);
+            setConvertStatus('');
+            setErrorMsg('ファイルの変換に失敗しました。別の形式（MP3・M4A など）で試してください。');
+            setAddingSess(false);
+            return;
+          }
+        }
+        const { path, url, error: uploadError } = await uploadRoleplayRecording(userId, newSession.id, fileToUpload);
         if (uploadError || !path) {
           setErrorMsg('録音ファイルのアップロードに失敗しました。ファイル形式やサイズを確認してください。');
           setAddingSess(false);
@@ -806,7 +822,14 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             >
               <span style={{ fontSize: 22 }}>{dragOver ? '📂' : (addRecordingFile || addRecordingUrl) ? '🎵' : '🎙️'}</span>
               {addRecordingFile ? (
-                <span style={{ fontWeight: 600, fontSize: 11 }}>{addRecordingFile.name}</span>
+                <div style={{ textAlign: 'center' }}>
+                  <span style={{ fontWeight: 600, fontSize: 11 }}>{addRecordingFile.name}</span>
+                  {needsConversion(addRecordingFile) && (
+                    <div style={{ fontSize: 10, color: '#c8860a', marginTop: 3 }}>
+                      🔄 アップロード時に自動でMP3へ変換されます
+                    </div>
+                  )}
+                </div>
               ) : addRecordingUrl ? (
                 <span style={{ fontWeight: 600, fontSize: 11, wordBreak: 'break-all', maxWidth: '100%' }}>
                   {addRecordingUrl.length > 60 ? addRecordingUrl.slice(0, 60) + '…' : addRecordingUrl}
@@ -816,7 +839,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                   <span style={{ fontWeight: 600, fontSize: 11 }}>
                     {dragOver ? 'ここにドロップ' : 'ドラッグ＆ドロップ、またはクリックして選択'}
                   </span>
-                  <span style={{ fontSize: 10, color: C.textLight }}>MP3 / MP4 / M4A / WAV / WebM 対応 / 別タブからドラッグも可</span>
+                  <span style={{ fontSize: 10, color: C.textLight }}>MP3 / MP4 / M4A / WAV / MOV など対応 / 25MB超・MOV は自動でMP3に変換</span>
                 </>
               )}
               {(addRecordingFile || addRecordingUrl) && (
@@ -861,9 +884,13 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                   fontFamily: "'Noto Sans JP'",
                 }}
               >
-                {addingSess
-                  ? (addRecordingFile ? 'アップロード中...' : '追加中...')
-                  : (addRecordingFile ? '追加してAI分析する' : '追加する')
+                {convertStatus
+                  ? convertStatus
+                  : addingSess
+                    ? (addRecordingFile ? 'アップロード中...' : '追加中...')
+                    : (addRecordingFile
+                        ? (needsConversion(addRecordingFile) ? '変換→アップロード→AI分析' : '追加してAI分析する')
+                        : '追加する')
                 }
               </button>
               <button
