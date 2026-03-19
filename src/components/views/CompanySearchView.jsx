@@ -543,14 +543,12 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
 
       // 時間帯集計（JST 9〜19時）
       const hourBuckets = {};
-      for (let h = 9; h <= 19; h++) hourBuckets[h] = { calls: 0, connected: 0 };
       records.forEach(r => {
         if (!r.called_at) return;
         const h = toJST(r.called_at).getHours();
-        if (h >= 9 && h <= 19) {
-          hourBuckets[h].calls++;
-          if (CEO_CONNECT_PDF.has(r.status)) hourBuckets[h].connected++;
-        }
+        if (!hourBuckets[h]) hourBuckets[h] = { calls: 0, connected: 0 };
+        hourBuckets[h].calls++;
+        if (CEO_CONNECT_PDF.has(r.status)) hourBuckets[h].connected++;
       });
       const hourlyStats = Object.keys(hourBuckets)
         .sort((a, b) => +a - +b)
@@ -558,9 +556,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           hour: +h,
           calls: hourBuckets[+h].calls,
           connected: hourBuckets[+h].connected,
-          connRate: hourBuckets[+h].calls > 0
-            ? parseFloat((hourBuckets[+h].connected / hourBuckets[+h].calls * 100).toFixed(1))
-            : 0,
+          connRate: parseFloat((hourBuckets[+h].connected / hourBuckets[+h].calls * 100).toFixed(1)),
         }));
       const bestHour = hourlyStats.every(h => h.calls === 0)
         ? null
