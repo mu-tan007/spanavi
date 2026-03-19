@@ -147,8 +147,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   };
 
   const colTemplate = setAppoData
-    ? "0.9fr 0.9fr 0.5fr 0.5fr 0.5fr 100px 0.6fr 0.6fr 32px"
-    : "0.9fr 0.9fr 0.5fr 0.5fr 0.5fr 100px 0.6fr 0.6fr";
+    ? "1fr 1.2fr 0.7fr 80px 80px 110px 90px 110px 32px"
+    : "1fr 1.2fr 0.7fr 80px 80px 110px 90px 110px";
 
   const handleTranscribeDetail = async () => {
     if (transcribeStep !== 'idle') return;
@@ -346,13 +346,13 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             { label: '取得者', key: 'getter' },
             { label: '取得日', key: 'getDate' },
             { label: '面談日', key: 'meetDate' },
-            { label: 'ステータス', key: null, center: true },
+            { label: 'ステータス', key: null },
             { label: '当社売上', key: null, right: true },
             { label: 'インセンティブ', key: null, right: true },
           ].map(({ label, key, center, right }) => (
             <span key={label}
               onClick={key ? () => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); } } : undefined}
-              style={key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : center ? { display: 'flex', justifyContent: 'center' } : right ? { display: 'block', textAlign: 'right', whiteSpace: 'nowrap' } : { whiteSpace: 'nowrap' }}>
+              style={key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : right ? { display: 'block', textAlign: 'right', whiteSpace: 'nowrap' } : { whiteSpace: 'nowrap' }}>
               {label}
               {key && (
                 <span style={{ marginLeft: 2 }}>
@@ -393,14 +393,13 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               <span style={{ color: C.textMid, fontSize: 10 }}>{a.client}</span>
               <span style={{ fontWeight: 600, color: '#0D2247', cursor: "pointer", textDecoration: "underline dotted", textUnderlineOffset: 2 }} onClick={() => setReportDetail(a)}>{a.company}</span>
               <span style={{ color: C.textDark }}>{a.getter}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 9, color: C.textLight }}>{a.getDate.slice(5)}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 9, color: C.textLight }}>{a.meetDate.slice(5)}</span>
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <span style={{
-                  fontSize: 12, padding: "2px 8px", borderRadius: 4,
-                  background: sc.bg, color: sc.color,
-                }}>{a.status}</span>
-              </div>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: 'right', display: 'block' }}>{a.getDate.slice(5)}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: 'right', display: 'block' }}>{a.meetDate.slice(5)}</span>
+              <span style={{
+                display: 'inline-block', fontSize: 10, padding: "2px 6px",
+                borderLeft: `2px solid ${sc.color}`, color: sc.color,
+                background: sc.bg, borderRadius: 2, whiteSpace: 'nowrap',
+              }}>{a.status}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: '#0D2247', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
             </div>
