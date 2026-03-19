@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { C } from '../../constants/colors';
-import { prepareAudioForWhisper, needsConversion, isVideoFile } from '../../lib/convertAudio';
+import { prepareAudioForWhisper, needsConversion } from '../../lib/convertAudio';
 import {
   fetchTrainingProgress,
   upsertTrainingStage,
@@ -9,10 +9,17 @@ import {
   updateRoleplaySession,
   deleteRoleplaySession,
   uploadRoleplayRecording,
-  uploadRoleplayVideo,
-  createVideoSignedUrl,
   invokeAnalyzeRoleplay,
 } from '../../lib/supabaseWrite';
+
+// Google Drive ファイルIDを抽出
+const extractDriveId = (url) => {
+  if (!url) return null;
+  const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  if (/^[a-zA-Z0-9_-]{25,}$/.test(url.trim())) return url.trim();
+  return null;
+};
 
 // ── 研修ステージ定義 ───────────────────────────────────────────────────────
 const DAY1_STAGES = [
@@ -49,66 +56,31 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   const addFileInputRef = useRef(null);
 
   // 操作中フラグ
-  const [savingStage, setSavingStage]         = useState(null);   // stageKey
-  const [uploadingId, setUploadingId]         = useState(null);   // sessionId（音声）
-  const [uploadingVideoId, setUploadingVideoId] = useState(null); // sessionId（動画）
-  const [analyzingId, setAnalyzingId]         = useState(null);   // sessionId
-  const [deletingId, setDeletingId]           = useState(null);   // sessionId
-  const [addingSess, setAddingSess]           = useState(false);
-  const [convertStatus, setConvertStatus]     = useState(''); // 変換中メッセージ
-  const [videoModal, setVideoModal]           = useState(null); // 再生中のURL
+  const [savingStage, setSavingStage]     = useState(null);
+  const [uploadingId, setUploadingId]     = useState(null);
+  const [analyzingId, setAnalyzingId]     = useState(null);
+  const [deletingId, setDeletingId]       = useState(null);
+  const [addingSess, setAddingSess]       = useState(false);
+  const [convertStatus, setConvertStatus] = useState('');
+  const [videoModal, setVideoModal]       = useState(null); // 再生中の Drive file ID
 
-  // 署名付き動画URL（Map: sessionId → signedUrl）
-  const [signedVideoUrls, setSignedVideoUrls] = useState(new Map());
+  // Google Drive URL 入力（既存セッション用）
+  const [driveInputId, setDriveInputId]   = useState(null);  // 入力中のセッションID
+  const [driveInputVal, setDriveInputVal] = useState('');
+
+  // 追加モーダル用 Drive URL
+  const [addDriveUrl, setAddDriveUrl]     = useState('');
 
   // 展開中のセッション（複数同時展開可）
   const [expandedIds, setExpandedIds] = useState(new Set());
-  const toggleExpanded = (id) => {
-    setExpandedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-        // 展開時に動画の署名付きURLを取得（未取得のみ）
-        if (!signedVideoUrls.has(id)) {
-          const session = sessions.find(s => s.id === id);
-          const videoPath = session?.video_path
-            || (session?.video_url
-                ? session.video_url.split('/object/public/roleplay-recordings/')[1]?.split('?')[0]
-                : null);
-          if (videoPath) {
-            createVideoSignedUrl(videoPath).then(signedUrl => {
-              if (signedUrl) {
-                setSignedVideoUrls(prev2 => new Map(prev2).set(id, signedUrl));
-              }
-            });
-          }
-        }
-      }
-      return next;
-    });
-  };
+  const toggleExpanded = (id) => setExpandedIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
   const setExpandedId = (id) => {
     if (id === null) return;
-    setExpandedIds(prev => {
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
-    // 展開時に動画の署名付きURLも取得
-    if (!signedVideoUrls.has(id)) {
-      const session = sessions.find(s => s.id === id);
-      const videoPath = session?.video_path
-        || (session?.video_url
-            ? session.video_url.split('/object/public/roleplay-recordings/')[1]?.split('?')[0]
-            : null);
-      if (videoPath) {
-        createVideoSignedUrl(videoPath).then(signedUrl => {
-          if (signedUrl) setSignedVideoUrls(prev => new Map(prev).set(id, signedUrl));
-        });
-      }
-    }
+    setExpandedIds(prev => { const next = new Set(prev); next.add(id); return next; });
   };
 
   // エラーメッセージ
@@ -116,8 +88,6 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
   const fileInputRef = useRef(null);
   const fileTargetSessionId = useRef(null);
-  const videoFileInputRef = useRef(null);
-  const videoFileTargetId = useRef(null);
 
   // ── データ取得 ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -197,6 +167,12 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       return;
     }
 
+    // Google Drive URL があれば保存
+    const driveId = extractDriveId(addDriveUrl);
+    if (driveId) {
+      await updateRoleplaySession(newSession.id, { video_url: addDriveUrl.trim() });
+    }
+
     // 録音ファイル or URL があればアップロード → AI分析まで自動実行
     const hasRecording = addRecordingFile || addRecordingUrl;
     if (hasRecording) {
@@ -206,20 +182,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       if (addRecordingFile) {
         const isVideo = isVideoFile(addRecordingFile);
 
-        // 動画ファイルはオリジナルをストレージに保存（サムネイル・再生用）
-        if (isVideo) {
-          setConvertStatus('🎬 動画をアップロード中...');
-          const { url: vUrl, path: vPath, error: vErr } = await uploadRoleplayVideo(userId, newSession.id, addRecordingFile);
-          setConvertStatus('');
-          if (!vErr && vUrl) {
-            await updateRoleplaySession(newSession.id, { video_url: vUrl });
-            if (vPath) updateRoleplaySession(newSession.id, { video_path: vPath });
-          } else if (vErr) {
-            setErrorMsg('動画のアップロードに失敗しました。');
-          }
-        }
-
-        // Whisper 用に変換（動画 or 大きなファイルは MP3 へ）
+        // Whisper 用に変換（大きなファイルは MP3 へ）
         let fileToUpload = addRecordingFile;
         if (needsConversion(addRecordingFile)) {
           try {
@@ -234,7 +197,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             setSessions(refreshed || []);
             setAddModalOpen(false);
             setAddForm({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
-            setAddRecordingFile(null); setAddRecordingUrl('');
+            setAddRecordingFile(null); setAddRecordingUrl(''); setAddDriveUrl('');
             setAddingSess(false);
             return;
           }
@@ -247,7 +210,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
           setSessions(refreshed || []);
           setAddModalOpen(false);
           setAddForm({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
-          setAddRecordingFile(null); setAddRecordingUrl('');
+          setAddRecordingFile(null); setAddRecordingUrl(''); setAddDriveUrl('');
           setAddingSess(false);
           return;
         }
@@ -305,28 +268,17 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
     setDeletingId(null);
   };
 
-  // ── 動画アップロード（既存セッション） ───────────────────────────────
-  const handleVideoFileChange = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file || !videoFileTargetId.current) return;
-    const sessionId = videoFileTargetId.current;
-    setUploadingVideoId(sessionId);
-    const { url: vUrl, path: vPath, error: vErr } = await uploadRoleplayVideo(userId, sessionId, file);
-    if (!vErr && vUrl) {
-      // video_url は必ず保存（カラムは migration 005 で確実に存在）
-      await updateRoleplaySession(sessionId, { video_url: vUrl });
-      // video_path は migration 007 が済んでいれば保存（失敗しても無視）
-      if (vPath) updateRoleplaySession(sessionId, { video_path: vPath });
-      setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, video_url: vUrl, video_path: vPath } : s));
-      // 署名付きURLをすぐに取得して表示
-      const signedUrl = await createVideoSignedUrl(vPath);
-      if (signedUrl) setSignedVideoUrls(prev => new Map(prev).set(sessionId, signedUrl));
-    } else {
-      setErrorMsg('動画のアップロードに失敗しました。');
+  // ── Google Drive URL 保存（既存セッション） ──────────────────────────
+  const handleSaveDriveUrl = async (sessionId) => {
+    const driveId = extractDriveId(driveInputVal);
+    if (!driveId) {
+      setErrorMsg('Google Drive の共有URLを正しく入力してください。');
+      return;
     }
-    setUploadingVideoId(null);
-    videoFileTargetId.current = null;
+    await updateRoleplaySession(sessionId, { video_url: driveInputVal.trim() });
+    setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, video_url: driveInputVal.trim() } : s));
+    setDriveInputId(null);
+    setDriveInputVal('');
   };
 
   // ── 録音アップロード ──────────────────────────────────────────────────
@@ -421,12 +373,12 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   const SessionRow = ({ session }) => {
     const isExpanded = expandedIds.has(session.id);
     const isUploading = uploadingId === session.id;
-    const isUploadingVideo = uploadingVideoId === session.id;
     const isAnalyzing = analyzingId === session.id;
     const isDeleting = deletingId === session.id;
     const fb = session.ai_feedback;
     const hasFeedback = session.ai_status === 'done' && fb;
-    const videoDisplayUrl = signedVideoUrls.get(session.id) || session.video_url;
+    const driveId = extractDriveId(session.video_url);
+    const showDriveInput = driveInputId === session.id;
 
     return (
       <div style={{
@@ -491,18 +443,16 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         {/* ── 展開パネル ── */}
         {isExpanded && (
           <div style={{ borderTop: '1px solid ' + C.borderLight }}>
-            {/* 動画サムネイル */}
-            {videoDisplayUrl && (
+            {/* 動画サムネイル（Google Drive） */}
+            {driveId && (
               <div style={{ padding: '10px 14px 0' }}>
                 <div
-                  onClick={e => { e.stopPropagation(); setVideoModal(videoDisplayUrl); }}
+                  onClick={e => { e.stopPropagation(); setVideoModal(driveId); }}
                   style={{ position: 'relative', display: 'inline-block', cursor: 'pointer' }}
                 >
-                  <video
-                    src={videoDisplayUrl + '#t=0.001'}
-                    preload="auto"
-                    muted
-                    playsInline
+                  <img
+                    src={`https://drive.google.com/thumbnail?id=${driveId}&sz=w400`}
+                    alt="ロープレ動画"
                     style={{
                       display: 'block', width: 200, height: 113,
                       objectFit: 'cover', borderRadius: 6,
@@ -512,8 +462,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                   <div style={{
                     position: 'absolute', inset: 0, display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
-                    borderRadius: 6,
-                    background: 'rgba(0,0,0,0.25)',
+                    borderRadius: 6, background: 'rgba(0,0,0,0.25)',
                   }}>
                     <div style={{
                       width: 36, height: 36, borderRadius: '50%',
@@ -545,23 +494,44 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                 {isUploading ? '...' : session.recording_url ? '🎵 録音済（再UP）' : '録音↑'}
               </button>
 
-              {/* 動画アップロード */}
-              <button
-                onClick={e => { e.stopPropagation(); videoFileTargetId.current = session.id; videoFileInputRef.current?.click(); }}
-                disabled={isUploadingVideo}
-                title={session.video_url ? '動画を再アップロード' : '動画をアップロード'}
-                style={{
-                  padding: '4px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600,
-                  border: '1px solid ' + (session.video_url ? C.navy + '40' : C.borderLight),
-                  background: session.video_url ? C.navy + '08' : C.white,
-                  color: session.video_url ? C.navy : C.textLight,
-                  cursor: isUploadingVideo ? 'default' : 'pointer',
-                  opacity: isUploadingVideo ? 0.6 : 1,
-                  fontFamily: "'Noto Sans JP'",
-                }}
-              >
-                {isUploadingVideo ? '...' : session.video_url ? '🎬 動画済（再UP）' : '🎬 動画↑'}
-              </button>
+              {/* Google Drive URL 入力 */}
+              {showDriveInput ? (
+                <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 4, alignItems: 'center', flex: 1 }}>
+                  <input
+                    autoFocus
+                    value={driveInputVal}
+                    onChange={e => setDriveInputVal(e.target.value)}
+                    placeholder="Google Drive 共有URL"
+                    style={{
+                      flex: 1, padding: '3px 7px', borderRadius: 4, fontSize: 10,
+                      border: '1px solid ' + C.navy + '40', fontFamily: "'Noto Sans JP'",
+                      minWidth: 0,
+                    }}
+                  />
+                  <button
+                    onClick={e => { e.stopPropagation(); handleSaveDriveUrl(session.id); }}
+                    style={{ padding: '3px 8px', borderRadius: 4, fontSize: 10, fontWeight: 600, border: 'none', background: C.navy, color: C.white, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap' }}
+                  >保存</button>
+                  <button
+                    onClick={e => { e.stopPropagation(); setDriveInputId(null); setDriveInputVal(''); }}
+                    style={{ padding: '3px 6px', borderRadius: 4, fontSize: 10, border: '1px solid ' + C.borderLight, background: 'transparent', color: C.textLight, cursor: 'pointer' }}
+                  >✕</button>
+                </div>
+              ) : (
+                <button
+                  onClick={e => { e.stopPropagation(); setDriveInputId(session.id); setDriveInputVal(session.video_url || ''); }}
+                  title={driveId ? 'Drive URLを変更' : 'Google Drive URLを設定'}
+                  style={{
+                    padding: '4px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600,
+                    border: '1px solid ' + (driveId ? C.navy + '40' : C.borderLight),
+                    background: driveId ? C.navy + '08' : C.white,
+                    color: driveId ? C.navy : C.textLight,
+                    cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                  }}
+                >
+                  {driveId ? '🎬 動画済（変更）' : '🎬 Drive URL'}
+                </button>
+              )}
 
               {/* AI 分析 */}
               {session.recording_url && (
@@ -766,13 +736,6 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         type="file"
         accept="audio/*,video/*,.mp3,.mp4,.m4a,.wav,.webm,.ogg"
         onChange={handleFileChange}
-        style={{ display: 'none' }}
-      />
-      <input
-        ref={videoFileInputRef}
-        type="file"
-        accept="video/*,.mp4,.mov,.avi,.webm,.mkv"
-        onChange={handleVideoFileChange}
         style={{ display: 'none' }}
       />
 
@@ -990,7 +953,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       {/* ── セッション追加モーダル ────────────────────────────────────── */}
       {addModalOpen && (
         <div
-          onClick={() => { setAddModalOpen(false); setAddRecordingFile(null); setAddRecordingUrl(''); }}
+          onClick={() => { setAddModalOpen(false); setAddRecordingFile(null); setAddRecordingUrl(''); setAddDriveUrl(''); }}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
             zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1103,11 +1066,27 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
               )}
               {(addRecordingFile || addRecordingUrl) && (
                 <button
-                  onClick={e => { e.stopPropagation(); setAddRecordingFile(null); setAddRecordingUrl(''); if (addFileInputRef.current) addFileInputRef.current.value = ''; }}
+                  onClick={e => { e.stopPropagation(); setAddRecordingFile(null); setAddRecordingUrl(''); setAddDriveUrl(''); if (addFileInputRef.current) addFileInputRef.current.value = ''; }}
                   style={{ background: 'none', border: 'none', color: C.red, cursor: 'pointer', fontSize: 11, marginTop: 2 }}
                 >✕ 取り消す</button>
               )}
             </div>
+
+            {/* Google Drive URL */}
+            <label style={{ fontSize: 10, fontWeight: 600, color: C.textMid, display: 'block', marginBottom: 4 }}>
+              動画（Google Drive 共有URL）（任意）
+            </label>
+            <input
+              type="text"
+              value={addDriveUrl}
+              onChange={e => setAddDriveUrl(e.target.value)}
+              placeholder="https://drive.google.com/file/d/..."
+              style={{
+                width: '100%', padding: '7px 10px', borderRadius: 6,
+                border: '1px solid ' + C.borderLight, fontSize: 12, marginBottom: 12,
+                boxSizing: 'border-box', fontFamily: "'Noto Sans JP'",
+              }}
+            />
 
             {/* メモ */}
             <label style={{ fontSize: 10, fontWeight: 600, color: C.textMid, display: 'block', marginBottom: 4 }}>
@@ -1153,7 +1132,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                 }
               </button>
               <button
-                onClick={() => { setAddModalOpen(false); setAddRecordingFile(null); setAddRecordingUrl(''); }}
+                onClick={() => { setAddModalOpen(false); setAddRecordingFile(null); setAddRecordingUrl(''); setAddDriveUrl(''); }}
                 style={{
                   flex: 1, padding: '9px', borderRadius: 8,
                   border: '1px solid ' + C.borderLight, background: 'transparent',
@@ -1168,7 +1147,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         </div>
       )}
 
-      {/* ── 動画プレーヤーモーダル ── */}
+      {/* ── 動画プレーヤーモーダル（Google Drive iframe） ── */}
       {videoModal && (
         <div
           onClick={() => setVideoModal(null)}
@@ -1177,12 +1156,13 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
-          <div onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
-            <video
-              src={videoModal + '#t=0'}
-              controls
-              autoPlay
-              style={{ maxWidth: '90vw', maxHeight: '85vh', borderRadius: 8, display: 'block' }}
+          <div onClick={e => e.stopPropagation()} style={{ position: 'relative', width: '90vw', maxWidth: 900 }}>
+            <iframe
+              src={`https://drive.google.com/file/d/${videoModal}/preview`}
+              width="100%"
+              height="500"
+              allow="autoplay"
+              style={{ border: 'none', borderRadius: 8, display: 'block' }}
             />
             <button
               onClick={() => setVideoModal(null)}
