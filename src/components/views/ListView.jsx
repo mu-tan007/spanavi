@@ -325,7 +325,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
         <div style={{
           display: "grid", gridTemplateColumns: "2fr 90px 1fr 90px 0.8fr 120px 60px",
           padding: "8px 16px", background: "#0D2247",
-          fontSize: 13, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
+          fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
         }}>
           <span>クライアント</span><span style={{ textAlign: "center" }}>種別</span><span style={{ textAlign: "center" }}>業種</span><span style={{ textAlign: "right" }}>社数</span><span style={{ textAlign: "center" }}>担当者</span><span style={{ textAlign: "center" }}>おすすめ度</span><span></span>
         </div>

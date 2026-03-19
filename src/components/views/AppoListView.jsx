@@ -278,7 +278,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             <button onClick={() => setAddAppoForm({ client: "", company: "", getter: "", getDate: "", meetDate: "", status: "アポ取得", sales: 0, reward: 0, note: "" })} style={{
               padding: "8px 16px", borderRadius: 4,
               background: "#0D2247",
-              border: "none", color: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500,
+              border: "none", color: '#fff', cursor: "pointer", fontSize: 11, fontWeight: 500,
               fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap",
             }}
             onMouseEnter={e => { e.currentTarget.style.background = "#1E3A6E"; }}
@@ -335,7 +335,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         <div style={{
           display: "grid", gridTemplateColumns: colTemplate,
           padding: "8px 16px", columnGap: 8, background: "#0D2247",
-          fontSize: 13, fontWeight: 600, color: "#fff",
+          fontSize: 11, fontWeight: 600, color: "#fff",
           borderBottom: "1px solid #E5E7EB",
           alignItems: "center",
           verticalAlign: "middle",
@@ -507,7 +507,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   }} style={{
                     padding: "8px 16px", borderRadius: 4, border: "none",
                     background: "#0D2247",
-                    cursor: "pointer", fontSize: 13, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
+                    cursor: "pointer", fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
                   }}>保存</button>
                 </div>
               </div>
@@ -583,7 +583,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 }} style={{
                   padding: "8px 16px", borderRadius: 4, border: "none",
                   background: "#0D2247",
-                  cursor: "pointer", fontSize: 13, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
+                  cursor: "pointer", fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
                 }}>保存</button>
               </div>
             </div>

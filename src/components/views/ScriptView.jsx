@@ -68,7 +68,7 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0D2247', borderBottom: '2px solid #0D2247', paddingBottom: 6 }}>基本スクリプト</h2>
-          <button onClick={() => setQaOpen(true)} style={{ background: '#0D2247', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>想定問答を見る</button>
+          <button onClick={() => setQaOpen(true)} style={{ background: '#0D2247', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontSize: 11, fontWeight: 500, cursor: 'pointer' }}>想定問答を見る</button>
         </div>
 
         <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: "16px 20px" }}>
@@ -87,7 +87,7 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
                 <button
                   onClick={handleSaveBasicScript}
                   disabled={saving}
-                  style={{ background: '#0D2247', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+                  style={{ background: '#0D2247', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontSize: 11, fontWeight: 500, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
                   {saving ? "保存中..." : "保存"}
                 </button>
                 {savedOk && <span style={{ fontSize: 12, color: "#27ae60" }}>保存しました</span>}

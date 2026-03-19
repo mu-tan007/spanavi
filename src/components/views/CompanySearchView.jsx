@@ -1520,7 +1520,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
             <div style={{
               display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 80px 80px 150px",
               padding: "8px 16px", background: "#0D2247",
-              fontSize: 13, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
+              fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
             }}>
               <span>リスト名</span>
               <span>クライアント名</span>

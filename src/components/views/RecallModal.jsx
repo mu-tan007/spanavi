@@ -81,7 +81,7 @@ export default function RecallModal({ row, statusId, onSubmit, onCancel, members
           <button onClick={() => onSubmit(form)} style={{
             padding: "8px 16px", borderRadius: 4, border: "none",
             background: '#0D2247',
-            cursor: "pointer", fontSize: 13, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
+            cursor: "pointer", fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
           }}>保存</button>
         </div>
       </div>

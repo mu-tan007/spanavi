@@ -414,7 +414,7 @@ HP：${form.hp}
                 style={{ padding: '8px 16px', borderRadius: 4, border: '1px solid #0D2247', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'" }}>閉じる</button>
             ) : (
               <button onClick={handleSave} disabled={saving}
-                style={{ padding: '8px 16px', borderRadius: 4, border: 'none', background: '#0D2247', cursor: saving ? 'default' : 'pointer', fontSize: 13, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'", opacity: saving ? 0.7 : 1 }}>
+                style={{ padding: '8px 16px', borderRadius: 4, border: 'none', background: '#0D2247', cursor: saving ? 'default' : 'pointer', fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'", opacity: saving ? 0.7 : 1 }}>
                 {saving ? '処理中...' : '保存してアポ登録'}
               </button>
             )}
