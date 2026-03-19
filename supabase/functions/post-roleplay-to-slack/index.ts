@@ -4,12 +4,13 @@ const corsHeaders = {
 }
 
 // チーム名 → Slack Incoming Webhook URL（Supabase Edge Function secrets から取得）
+// DB の team 列は "成尾" / "高橋" のどちらの形式でも対応
 function getTeamWebhooks(): Record<string, string> {
   const result: Record<string, string> = {}
   const nario = Deno.env.get('SLACK_WEBHOOK_NARIO')
   const takahashi = Deno.env.get('SLACK_WEBHOOK_TAKAHASHI')
-  if (nario) result['成尾チーム'] = nario
-  if (takahashi) result['高橋チーム'] = takahashi
+  if (nario) { result['成尾チーム'] = nario; result['成尾'] = nario }
+  if (takahashi) { result['高橋チーム'] = takahashi; result['高橋'] = takahashi }
   return result
 }
 
