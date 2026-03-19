@@ -344,15 +344,15 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             { label: 'クライアント', key: 'client' },
             { label: '企業名', key: null },
             { label: '取得者', key: 'getter' },
-            { label: '取得日', key: 'getDate' },
-            { label: '面談日', key: 'meetDate' },
+            { label: '取得日', key: 'getDate', right: true },
+            { label: '面談日', key: 'meetDate', right: true },
             { label: 'ステータス', key: null },
             { label: '当社売上', key: null, right: true },
             { label: 'インセンティブ', key: null, right: true },
           ].map(({ label, key, center, right }) => (
             <span key={label}
               onClick={key ? () => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); } } : undefined}
-              style={key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : right ? { display: 'block', textAlign: 'right', whiteSpace: 'nowrap' } : { whiteSpace: 'nowrap' }}>
+              style={key && right ? { cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 } : key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : right ? { display: 'block', textAlign: 'right', whiteSpace: 'nowrap' } : { whiteSpace: 'nowrap' }}>
               {label}
               {key && (
                 <span style={{ marginLeft: 2 }}>
