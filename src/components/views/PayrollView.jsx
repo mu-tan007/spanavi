@@ -290,8 +290,8 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
   const COLS = [
     { h: "名前",           sk: null,         align: "left"  },
     { h: "チーム",         sk: null,         align: "left"  },
-    { h: "ランク（参考）", sk: null,         align: "left"  },
-    { h: "率（参考）",     sk: null,         align: "right" },
+    { h: "ランク",         sk: null,         align: "left"  },
+    { h: "率",             sk: null,         align: "right" },
     { h: "今月売上",       sk: "sales",      align: "right" },
     { h: "①インセンティブ",sk: "incentive",  align: "right" },
     { h: "②役職ボーナス", sk: "teamBonus",  align: "right" },
@@ -446,7 +446,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
               onMouseEnter={() => setHoveredRow(i)}
               onMouseLeave={() => setHoveredRow(null)}
               style={{
-                display: "grid", gridTemplateColumns: gridCols,
+                display: "grid", gridTemplateColumns: gridCols, alignItems: "center",
                 borderBottom: `1px solid ${GRAY_200}`,
                 background: rowBg,
                 transition: "background 0.1s",
@@ -497,7 +497,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
         {/* 合計行 */}
         {filtered.length > 0 && (
           <div style={{
-            display: "grid", gridTemplateColumns: gridCols,
+            display: "grid", gridTemplateColumns: gridCols, alignItems: "center",
             borderTop: `2px solid ${TH_BG}`,
             background: "#fff",
           }}>
