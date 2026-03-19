@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
 import { getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl, fetchMyCallRecords, updateMember } from '../../lib/supabaseWrite';
@@ -146,6 +146,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
   const [zoomPhone, setZoomPhone] = useState('');
   const [zoomPhoneEditing, setZoomPhoneEditing] = useState(false);
   const [zoomPhoneSaving, setZoomPhoneSaving] = useState(false);
+  const [hoveredMonthRow, setHoveredMonthRow] = useState(null);
   useEffect(() => {
     if (memberInfo?.zoomPhoneNumber !== undefined) setZoomPhone(memberInfo.zoomPhoneNumber || '');
   }, [memberInfo?.zoomPhoneNumber]);
@@ -239,8 +240,8 @@ export default function MyPageView({ currentUser, userId, callListData, members,
                 {isAdmin && (
                   <button onClick={() => setZoomPhoneEditing(true)} style={{
                     padding: '2px 7px', borderRadius: 4,
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    background: 'transparent', color: 'rgba(255,255,255,0.5)',
+                    border: '1px solid ' + C.gold + '60',
+                    background: 'transparent', color: C.gold,
                     fontSize: 9, cursor: 'pointer',
                   }}>編集</button>
                 )}
@@ -267,6 +268,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
       <div style={{
         background: C.white, borderRadius: 10, padding: "16px 20px", marginBottom: 16,
         border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
+        borderLeft: "3px solid " + C.gold,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>研修・ロープレ進捗</span>
@@ -283,6 +285,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
       <div style={{
         background: C.white, borderRadius: 10, padding: "16px 20px", marginBottom: 16,
         border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
+        borderLeft: "3px solid " + C.gold,
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -296,9 +299,10 @@ export default function MyPageView({ currentUser, userId, callListData, members,
               { id: "cumulative", label: "累計" },
             ].map(t => (
               <button key={t.id} onClick={() => setPeriodTab(t.id)} style={{
-                padding: "5px 14px", borderRadius: 4, border: "1px solid " + C.borderLight,
-                background: periodTab === t.id ? C.navy : C.white,
-                color: periodTab === t.id ? C.white : C.textMid,
+                padding: "5px 14px", borderRadius: 4,
+                border: periodTab === t.id ? "1px solid " + C.navy : "1px solid " + C.borderLight,
+                background: periodTab === t.id ? C.navy : "transparent",
+                color: periodTab === t.id ? C.white : C.navy,
                 fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'",
               }}>{t.label}</button>
             ))}
@@ -389,6 +393,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
           <div style={{
             background: C.white, borderRadius: 10, padding: "16px 20px", marginBottom: 16,
             border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
+            borderLeft: "3px solid " + C.gold,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>売上データ</span>
@@ -431,14 +436,36 @@ export default function MyPageView({ currentUser, userId, callListData, members,
                       monthMap[m].sales += parseFloat(a.sales) || 0;
                       monthMap[m].reward += parseFloat(a.incentive) || 0;
                     });
-                    return Object.entries(monthMap).sort((a, b) => b[0].localeCompare(a[0])).map(([m, d]) => (
-                      <React.Fragment key={m}>
-                        <div style={{ padding: "5px 10px", background: C.white, borderBottom: "1px solid " + C.borderLight + "60", fontWeight: 600, color: C.navy }}>{m.slice(5)}月</div>
-                        <div style={{ padding: "5px 10px", background: C.white, borderBottom: "1px solid " + C.borderLight + "60", textAlign: "right", fontFamily: "'JetBrains Mono'" }}>{d.count}</div>
-                        <div style={{ padding: "5px 10px", background: C.white, borderBottom: "1px solid " + C.borderLight + "60", textAlign: "right", fontFamily: "'JetBrains Mono'", color: C.navy, fontWeight: 600 }}>{Math.round(d.sales).toLocaleString('ja-JP')}円</div>
-                        <div style={{ padding: "5px 10px", background: C.white, borderBottom: "1px solid " + C.borderLight + "60", textAlign: "right", fontFamily: "'JetBrains Mono'", color: C.green, fontWeight: 600 }}>{Math.round(d.reward).toLocaleString('ja-JP')}円</div>
-                      </React.Fragment>
-                    ));
+                    return Object.entries(monthMap).sort((a, b) => b[0].localeCompare(a[0])).map(([m, d]) => {
+                      const isHovered = hoveredMonthRow === m;
+                      const rowBg = isHovered ? C.navy + "08" : C.white;
+                      const rowBorderLeft = isHovered ? "3px solid " + C.gold : "3px solid transparent";
+                      const cellBase = { padding: "5px 10px", background: rowBg, borderBottom: "1px solid " + C.borderLight + "60", borderLeft: rowBorderLeft, transition: "background 0.1s, border-color 0.1s" };
+                      return (
+                        <React.Fragment key={m}>
+                          <div
+                            onMouseEnter={() => setHoveredMonthRow(m)}
+                            onMouseLeave={() => setHoveredMonthRow(null)}
+                            style={{ ...cellBase, fontWeight: 600, color: C.navy }}
+                          >{m.slice(5)}月</div>
+                          <div
+                            onMouseEnter={() => setHoveredMonthRow(m)}
+                            onMouseLeave={() => setHoveredMonthRow(null)}
+                            style={{ ...cellBase, borderLeft: "none", textAlign: "right", fontFamily: "'JetBrains Mono'" }}
+                          >{d.count}</div>
+                          <div
+                            onMouseEnter={() => setHoveredMonthRow(m)}
+                            onMouseLeave={() => setHoveredMonthRow(null)}
+                            style={{ ...cellBase, borderLeft: "none", textAlign: "right", fontFamily: "'JetBrains Mono'", color: C.navy, fontWeight: 600 }}
+                          >{Math.round(d.sales).toLocaleString('ja-JP')}円</div>
+                          <div
+                            onMouseEnter={() => setHoveredMonthRow(m)}
+                            onMouseLeave={() => setHoveredMonthRow(null)}
+                            style={{ ...cellBase, borderLeft: "none", textAlign: "right", fontFamily: "'JetBrains Mono'", color: C.green, fontWeight: 600 }}
+                          >{Math.round(d.reward).toLocaleString('ja-JP')}円</div>
+                        </React.Fragment>
+                      );
+                    });
                   })()}
                 </div>
               </div>
