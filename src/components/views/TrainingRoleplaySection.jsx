@@ -296,7 +296,8 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   };
 
   const SessionRow = ({ session }) => {
-    const isExpanded = expandedId === session.id;
+    // 分析完了セッションはデフォルト展開
+    const isExpanded = expandedId === session.id || (session.ai_status === 'done' && expandedId === null);
     const isUploading = uploadingId === session.id;
     const isAnalyzing = analyzingId === session.id;
     const isDeleting = deletingId === session.id;
@@ -396,6 +397,19 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             )}
           </div>
         </div>
+
+        {/* AI エラー表示 */}
+        {session.ai_status === 'error' && (
+          <div style={{
+            borderTop: '1px solid #fecaca',
+            padding: '10px 16px',
+            background: '#fff5f5',
+            fontSize: 11,
+            color: '#c0392b',
+          }}>
+            ⚠️ AI分析でエラーが発生しました。「再分析」ボタンで再試行できます。ファイルが大きい場合（27MB超）は小さいファイルに変換してください。
+          </div>
+        )}
 
         {/* AI フィードバック展開 */}
         {isExpanded && fb && (

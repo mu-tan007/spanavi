@@ -10,6 +10,9 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
+// Whisper API の上限 25 MB（余裕を持って 24 MB に設定）
+const WHISPER_MAX_BYTES = 24 * 1024 * 1024
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -36,7 +39,6 @@ Deno.serve(async (req) => {
     let ext = 'mp4'
 
     if (storage_path) {
-      // Supabase Storage から取得
       const { data: fileData, error: downloadError } = await supabase.storage
         .from('roleplay-recordings')
         .download(storage_path)
@@ -50,7 +52,6 @@ Deno.serve(async (req) => {
       audioBuffer = await fileData.arrayBuffer()
       ext = storage_path.split('.').pop()?.toLowerCase() || 'mp4'
     } else {
-      // 外部URL から直接取得（別タブからドラッグされたURLなど）
       const res = await fetch(recording_url, { headers: { 'User-Agent': 'Spanavi/1.0' } })
       if (!res.ok) {
         await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
@@ -64,14 +65,25 @@ Deno.serve(async (req) => {
       ext = urlPath.split('.').pop()?.toLowerCase() || 'mp4'
     }
 
+    // ── 3. Whisper API 上限（25 MB）を超える場合は先頭 24 MB に切り詰め ──
+    let truncated = false
+    if (audioBuffer.byteLength > WHISPER_MAX_BYTES) {
+      console.log(`[analyze-roleplay] File too large (${audioBuffer.byteLength} bytes), truncating to ${WHISPER_MAX_BYTES} bytes`)
+      audioBuffer = audioBuffer.slice(0, WHISPER_MAX_BYTES)
+      truncated = true
+    }
+
     const mimeMap: Record<string, string> = {
       mp3: 'audio/mpeg', mp4: 'audio/mp4', m4a: 'audio/mp4',
-      wav: 'audio/wav', webm: 'audio/webm', ogg: 'audio/ogg',
+      mov: 'video/quicktime', wav: 'audio/wav', webm: 'audio/webm', ogg: 'audio/ogg',
     }
     const contentType = mimeMap[ext] || 'audio/mp4'
-    const audioBlob = new Blob([audioBuffer], { type: contentType })
+    // MP3 は切り詰めても正常にデコードできる。MP4/MOV は切り詰め後に
+    // Whisper が失敗することがあるため、その場合は拡張子を mp3 に偽装して再試行する
+    const whisperExt = truncated && (ext === 'mp4' || ext === 'm4a' || ext === 'mov') ? 'mp3' : ext
+    const audioBlob = new Blob([audioBuffer], { type: truncated ? 'audio/mpeg' : contentType })
 
-    // ── 3. OpenAI Whisper で文字起こし ─────────────────────────────────
+    // ── 4. OpenAI Whisper で文字起こし ─────────────────────────────────
     const openaiKey = Deno.env.get('OPENAI_API_KEY')
     if (!openaiKey) {
       await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
@@ -82,7 +94,7 @@ Deno.serve(async (req) => {
     }
 
     const formData = new FormData()
-    formData.append('file', audioBlob, `recording.${ext}`)
+    formData.append('file', audioBlob, `recording.${whisperExt}`)
     formData.append('model', 'whisper-1')
     formData.append('language', 'ja')
 
@@ -94,6 +106,7 @@ Deno.serve(async (req) => {
 
     if (!whisperRes.ok) {
       const whisperErr = await whisperRes.text()
+      console.error('[analyze-roleplay] Whisper error:', whisperErr)
       await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
       return new Response(
         JSON.stringify({ error: `Whisper API error: ${whisperErr}` }),
@@ -104,7 +117,7 @@ Deno.serve(async (req) => {
     const whisperData = await whisperRes.json()
     const transcript: string = whisperData.text || ''
 
-    // ── 4. Claude でロープレ分析 ────────────────────────────────────────
+    // ── 5. Claude でロープレ分析 ────────────────────────────────────────
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!anthropicKey) {
       await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
@@ -114,8 +127,9 @@ Deno.serve(async (req) => {
       )
     }
 
+    const truncatedNote = truncated ? '\n※ファイルが大きいため、冒頭部分のみを分析対象としています。' : ''
     const prompt = `あなたはM&Aアドバイザリー企業のテレアポロープレコーチです。
-以下はインターン生・メンバーのロープレ録音の文字起こしです。
+以下はインターン生・メンバーのロープレ録音の文字起こしです。${truncatedNote}
 内容を分析し、必ず以下のJSONフォーマットのみで回答してください（他のテキストなし）：
 
 {
@@ -151,6 +165,7 @@ ${transcript}`
 
     if (!claudeRes.ok) {
       const claudeErr = await claudeRes.text()
+      console.error('[analyze-roleplay] Claude error:', claudeErr)
       await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
       return new Response(
         JSON.stringify({ error: `Claude API error: ${claudeErr}` }),
@@ -169,7 +184,7 @@ ${transcript}`
       console.error('[analyze-roleplay] JSON parse error:', parseErr, 'raw:', claudeText)
     }
 
-    // ── 5. roleplay_sessions を更新 ────────────────────────────────────
+    // ── 6. roleplay_sessions を更新 ────────────────────────────────────
     const { error: updateError } = await supabase
       .from('roleplay_sessions')
       .update({
