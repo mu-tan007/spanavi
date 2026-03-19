@@ -318,7 +318,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
               border: "1px solid " + card.color + "20", textAlign: "center",
             }}>
               <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>{card.label}</div>
-              <div style={{ fontSize: card.isMoney ? 18 : 28, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: card.color }}>{card.isMoney ? Math.round(card.val * 10000).toLocaleString('ja-JP') + "円" : card.val}</div>
+              <div style={{ fontSize: card.isMoney ? 18 : 28, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: card.color }}>{card.isMoney ? Math.round(card.val).toLocaleString('ja-JP') + "円" : card.val}</div>
             </div>
           ))}
         </div>
@@ -401,11 +401,11 @@ export default function MyPageView({ currentUser, userId, callListData, members,
               </div>
               <div style={{ padding: "14px 16px", borderRadius: 8, background: C.navy + "08", border: "1px solid " + C.navy + "20", textAlign: "center" }}>
                 <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>当社売上</div>
-                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: C.navy }}>{Math.round(currentSales.totalSales * 10000).toLocaleString('ja-JP')}<span style={{ fontSize: 11, fontWeight: 400 }}>円</span></div>
+                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: C.navy }}>{Math.round(currentSales.totalSales).toLocaleString('ja-JP')}<span style={{ fontSize: 11, fontWeight: 400 }}>円</span></div>
               </div>
               <div style={{ padding: "14px 16px", borderRadius: 8, background: C.green + "08", border: "1px solid " + C.green + "20", textAlign: "center" }}>
                 <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>インターン報酬</div>
-                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: C.green }}>{Math.round(currentSales.totalReward * 10000).toLocaleString('ja-JP')}<span style={{ fontSize: 11, fontWeight: 400 }}>円</span></div>
+                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: C.green }}>{Math.round(currentSales.totalReward).toLocaleString('ja-JP')}<span style={{ fontSize: 11, fontWeight: 400 }}>円</span></div>
               </div>
             </div>
 
@@ -435,8 +435,8 @@ export default function MyPageView({ currentUser, userId, callListData, members,
                       <React.Fragment key={m}>
                         <div style={{ padding: "5px 10px", background: C.white, borderBottom: "1px solid " + C.borderLight + "60", fontWeight: 600, color: C.navy }}>{m.slice(5)}月</div>
                         <div style={{ padding: "5px 10px", background: C.white, borderBottom: "1px solid " + C.borderLight + "60", textAlign: "right", fontFamily: "'JetBrains Mono'" }}>{d.count}</div>
-                        <div style={{ padding: "5px 10px", background: C.white, borderBottom: "1px solid " + C.borderLight + "60", textAlign: "right", fontFamily: "'JetBrains Mono'", color: C.navy, fontWeight: 600 }}>{Math.round(d.sales * 10000).toLocaleString('ja-JP')}円</div>
-                        <div style={{ padding: "5px 10px", background: C.white, borderBottom: "1px solid " + C.borderLight + "60", textAlign: "right", fontFamily: "'JetBrains Mono'", color: C.green, fontWeight: 600 }}>{Math.round(d.reward * 10000).toLocaleString('ja-JP')}円</div>
+                        <div style={{ padding: "5px 10px", background: C.white, borderBottom: "1px solid " + C.borderLight + "60", textAlign: "right", fontFamily: "'JetBrains Mono'", color: C.navy, fontWeight: 600 }}>{Math.round(d.sales).toLocaleString('ja-JP')}円</div>
+                        <div style={{ padding: "5px 10px", background: C.white, borderBottom: "1px solid " + C.borderLight + "60", textAlign: "right", fontFamily: "'JetBrains Mono'", color: C.green, fontWeight: 600 }}>{Math.round(d.reward).toLocaleString('ja-JP')}円</div>
                       </React.Fragment>
                     ));
                   })()}
