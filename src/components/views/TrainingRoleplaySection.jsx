@@ -440,13 +440,6 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
               {session.passed === false && (
                 <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, background: C.red + '15', color: C.red, fontWeight: 700 }}>不合格</span>
               )}
-              {/* ステータスバッジ（折り畳み時の一目確認用） */}
-              {session.recording_url && !isExpanded && (
-                <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, background: C.navy + '08', color: C.navy }}>🎵 録音済</span>
-              )}
-              {hasFeedback && !isExpanded && (
-                <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, background: C.gold + '20', color: '#c8860a', fontWeight: 700 }}>✨ AI分析済</span>
-              )}
               {session.ai_status === 'processing' && (
                 <span style={{ fontSize: 9, color: C.textLight }}>分析中...</span>
               )}
@@ -491,25 +484,26 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
             {/* アクションボタン行 */}
             <div style={{ display: 'flex', gap: 6, padding: '8px 14px', alignItems: 'center' }}>
-              {/* 録音アップロード */}
-              <button
-                onClick={e => { e.stopPropagation(); fileTargetSessionId.current = session.id; fileInputRef.current?.click(); }}
-                disabled={isUploading}
-                title={session.recording_url ? '録音を再アップロード' : '録音をアップロード'}
-                style={{
-                  padding: '4px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600,
-                  border: '1px solid ' + (session.recording_url ? C.navy + '40' : C.borderLight),
-                  background: session.recording_url ? C.navy + '08' : C.white,
-                  color: session.recording_url ? C.navy : C.textLight,
-                  cursor: isUploading ? 'default' : 'pointer', opacity: isUploading ? 0.6 : 1,
-                  fontFamily: "'Noto Sans JP'",
-                }}
-              >
-                {isUploading ? '...' : session.recording_url ? '🎵 録音済（再UP）' : '録音↑'}
-              </button>
+              {/* 録音アップロード（未録音時のみ表示） */}
+              {!session.recording_url && (
+                <button
+                  onClick={e => { e.stopPropagation(); fileTargetSessionId.current = session.id; fileInputRef.current?.click(); }}
+                  disabled={isUploading}
+                  title="録音をアップロード"
+                  style={{
+                    padding: '4px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600,
+                    border: '1px solid ' + C.borderLight,
+                    background: C.white, color: C.textLight,
+                    cursor: isUploading ? 'default' : 'pointer', opacity: isUploading ? 0.6 : 1,
+                    fontFamily: "'Noto Sans JP'",
+                  }}
+                >
+                  {isUploading ? '...' : '録音↑'}
+                </button>
+              )}
 
-              {/* Google Drive URL 入力 */}
-              {showDriveInput ? (
+              {/* Google Drive URL 入力（動画未設定時のみ表示） */}
+              {!driveId && showDriveInput ? (
                 <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 4, alignItems: 'center', flex: 1 }}>
                   <input
                     autoFocus
@@ -531,41 +525,37 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                     style={{ padding: '3px 6px', borderRadius: 4, fontSize: 10, border: '1px solid ' + C.borderLight, background: 'transparent', color: C.textLight, cursor: 'pointer' }}
                   >✕</button>
                 </div>
-              ) : (
+              ) : !driveId ? (
                 <button
-                  onClick={e => { e.stopPropagation(); setDriveInputId(session.id); setDriveInputVal(session.video_url || ''); }}
-                  title={driveId ? 'Drive URLを変更' : 'Google Drive URLを設定'}
+                  onClick={e => { e.stopPropagation(); setDriveInputId(session.id); setDriveInputVal(''); }}
+                  title="Google Drive URLを設定"
                   style={{
                     padding: '4px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600,
-                    border: '1px solid ' + (driveId ? C.navy + '40' : C.borderLight),
-                    background: driveId ? C.navy + '08' : C.white,
-                    color: driveId ? C.navy : C.textLight,
+                    border: '1px solid ' + C.borderLight,
+                    background: C.white, color: C.textLight,
                     cursor: 'pointer', fontFamily: "'Noto Sans JP'",
                   }}
                 >
-                  {driveId ? '🎬 動画済（変更）' : '🎬 Drive URL'}
+                  🎬 Drive URL
                 </button>
-              )}
+              ) : null}
 
-              {/* AI 分析 */}
-              {session.recording_url && (
+              {/* AI 分析（分析済み以外のみ表示） */}
+              {session.recording_url && session.ai_status !== 'done' && (
                 <button
                   onClick={e => { e.stopPropagation(); handleAnalyze(session); }}
-                  disabled={isAnalyzing || session.ai_status === 'processing' || session.ai_status === 'done'}
+                  disabled={isAnalyzing || session.ai_status === 'processing'}
                   style={{
                     padding: '4px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600,
-                    border: '1px solid ' + (session.ai_status === 'done' ? C.gold + '60' : C.borderLight),
-                    background: session.ai_status === 'done' ? C.gold + '10' : C.white,
-                    color: session.ai_status === 'done' ? '#c8860a' : C.textMid,
-                    cursor: (isAnalyzing || session.ai_status === 'processing' || session.ai_status === 'done') ? 'default' : 'pointer',
+                    border: '1px solid ' + C.borderLight,
+                    background: C.white, color: C.textMid,
+                    cursor: (isAnalyzing || session.ai_status === 'processing') ? 'default' : 'pointer',
                     opacity: (isAnalyzing || session.ai_status === 'processing') ? 0.6 : 1,
                     fontFamily: "'Noto Sans JP'",
                   }}
                 >
                   {session.ai_status === 'processing' || isAnalyzing
                     ? '分析中...'
-                    : session.ai_status === 'done'
-                    ? '✨ AI分析済'
                     : session.ai_status === 'error'
                     ? '再分析'
                     : '✨ AI分析'}
