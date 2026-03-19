@@ -1522,7 +1522,7 @@ export async function uploadRoleplayRecording(userId, sessionId, file) {
 
 // 動画ファイルをオリジナルのまま保存（サムネイル・再生用）
 export async function uploadRoleplayVideo(userId, sessionId, file) {
-  if (!userId || !sessionId || !file) return { url: null, error: 'missing params' }
+  if (!userId || !sessionId || !file) return { url: null, path: null, error: 'missing params' }
   const ext = file.name.split('.').pop() || 'mp4'
   const path = `${userId}/${sessionId}_video.${ext}`
   const { error: uploadError } = await supabase.storage
@@ -1530,10 +1530,23 @@ export async function uploadRoleplayVideo(userId, sessionId, file) {
     .upload(path, file, { contentType: file.type || 'video/mp4', upsert: true })
   if (uploadError) {
     console.error('[DB] uploadRoleplayVideo error:', uploadError)
-    return { url: null, error: uploadError }
+    return { url: null, path: null, error: uploadError }
   }
   const { data: urlData } = supabase.storage.from('roleplay-recordings').getPublicUrl(path)
-  return { url: urlData.publicUrl, error: null }
+  return { url: urlData.publicUrl, path, error: null }
+}
+
+// 動画パスから署名付きURLを生成（1時間有効）
+export async function createVideoSignedUrl(videoPath) {
+  if (!videoPath) return null
+  const { data, error } = await supabase.storage
+    .from('roleplay-recordings')
+    .createSignedUrl(videoPath, 3600)
+  if (error) {
+    console.error('[DB] createVideoSignedUrl error:', error)
+    return null
+  }
+  return data?.signedUrl || null
 }
 
 export async function invokeAnalyzeRoleplay(payload) {

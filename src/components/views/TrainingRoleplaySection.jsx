@@ -10,6 +10,7 @@ import {
   deleteRoleplaySession,
   uploadRoleplayRecording,
   uploadRoleplayVideo,
+  createVideoSignedUrl,
   invokeAnalyzeRoleplay,
 } from '../../lib/supabaseWrite';
 
@@ -22,7 +23,7 @@ const DAY1_STAGES = [
 // ── タブ ──────────────────────────────────────────────────────────────────
 const TABS = [
   { id: 'training', label: '研修進捗' },
-  { id: 'weekly',   label: '日々のロープレ' },
+  { id: 'weekly',   label: 'ロープレ' },
 ];
 
 // ── セッション種別ラベル ────────────────────────────────────────────────
@@ -33,7 +34,7 @@ const SESSION_TYPE_LABEL = {
 };
 
 export default function TrainingRoleplaySection({ currentUser, userId, members, isAdmin }) {
-  const [activeTab, setActiveTab] = useState('training');
+  const [activeTab, setActiveTab] = useState('weekly');
   const [progress, setProgress]   = useState([]);   // training_progress rows
   const [sessions, setSessions]   = useState([]);   // roleplay_sessions rows
   const [loading, setLoading]     = useState(true);
@@ -48,33 +49,75 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   const addFileInputRef = useRef(null);
 
   // 操作中フラグ
-  const [savingStage, setSavingStage]     = useState(null);   // stageKey
-  const [uploadingId, setUploadingId]     = useState(null);   // sessionId
-  const [analyzingId, setAnalyzingId]     = useState(null);   // sessionId
-  const [deletingId, setDeletingId]       = useState(null);   // sessionId
-  const [addingSess, setAddingSess]       = useState(false);
-  const [convertStatus, setConvertStatus] = useState(''); // 変換中メッセージ
-  const [videoModal, setVideoModal]       = useState(null); // 再生中の video_url
+  const [savingStage, setSavingStage]         = useState(null);   // stageKey
+  const [uploadingId, setUploadingId]         = useState(null);   // sessionId（音声）
+  const [uploadingVideoId, setUploadingVideoId] = useState(null); // sessionId（動画）
+  const [analyzingId, setAnalyzingId]         = useState(null);   // sessionId
+  const [deletingId, setDeletingId]           = useState(null);   // sessionId
+  const [addingSess, setAddingSess]           = useState(false);
+  const [convertStatus, setConvertStatus]     = useState(''); // 変換中メッセージ
+  const [videoModal, setVideoModal]           = useState(null); // 再生中のURL
+
+  // 署名付き動画URL（Map: sessionId → signedUrl）
+  const [signedVideoUrls, setSignedVideoUrls] = useState(new Map());
 
   // 展開中のセッション（複数同時展開可）
   const [expandedIds, setExpandedIds] = useState(new Set());
-  const toggleExpanded = (id) => setExpandedIds(prev => {
-    const next = new Set(prev);
-    next.has(id) ? next.delete(id) : next.add(id);
-    return next;
-  });
-  const setExpandedId = (id) => setExpandedIds(prev => {
-    if (id === null) return prev;
-    const next = new Set(prev);
-    next.add(id);
-    return next;
-  });
+  const toggleExpanded = (id) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+        // 展開時に動画の署名付きURLを取得（未取得のみ）
+        if (!signedVideoUrls.has(id)) {
+          const session = sessions.find(s => s.id === id);
+          const videoPath = session?.video_path
+            || (session?.video_url
+                ? session.video_url.split('/object/public/roleplay-recordings/')[1]?.split('?')[0]
+                : null);
+          if (videoPath) {
+            createVideoSignedUrl(videoPath).then(signedUrl => {
+              if (signedUrl) {
+                setSignedVideoUrls(prev2 => new Map(prev2).set(id, signedUrl));
+              }
+            });
+          }
+        }
+      }
+      return next;
+    });
+  };
+  const setExpandedId = (id) => {
+    if (id === null) return;
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+    // 展開時に動画の署名付きURLも取得
+    if (!signedVideoUrls.has(id)) {
+      const session = sessions.find(s => s.id === id);
+      const videoPath = session?.video_path
+        || (session?.video_url
+            ? session.video_url.split('/object/public/roleplay-recordings/')[1]?.split('?')[0]
+            : null);
+      if (videoPath) {
+        createVideoSignedUrl(videoPath).then(signedUrl => {
+          if (signedUrl) setSignedVideoUrls(prev => new Map(prev).set(id, signedUrl));
+        });
+      }
+    }
+  };
 
   // エラーメッセージ
   const [errorMsg, setErrorMsg]           = useState('');
 
   const fileInputRef = useRef(null);
   const fileTargetSessionId = useRef(null);
+  const videoFileInputRef = useRef(null);
+  const videoFileTargetId = useRef(null);
 
   // ── データ取得 ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -166,11 +209,12 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         // 動画ファイルはオリジナルをストレージに保存（サムネイル・再生用）
         if (isVideo) {
           setConvertStatus('🎬 動画をアップロード中...');
-          const { url: vUrl, error: vErr } = await uploadRoleplayVideo(userId, newSession.id, addRecordingFile);
+          const { url: vUrl, path: vPath, error: vErr } = await uploadRoleplayVideo(userId, newSession.id, addRecordingFile);
           setConvertStatus('');
           if (!vErr && vUrl) {
-            await updateRoleplaySession(newSession.id, { video_url: vUrl });
-            setSessions(prev => prev.map(s => s.id === newSession.id ? { ...s, video_url: vUrl } : s));
+            await updateRoleplaySession(newSession.id, { video_url: vUrl, video_path: vPath });
+          } else if (vErr) {
+            setErrorMsg('動画のアップロードに失敗しました。');
           }
         }
 
@@ -184,6 +228,12 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             console.error('[convert] error:', convErr);
             setConvertStatus('');
             setErrorMsg('ファイルの変換に失敗しました。別の形式（MP3・M4A など）で試してください。');
+            // 変換失敗でもセッションは保存されているのでリフレッシュして閉じる
+            const { data: refreshed } = await fetchRoleplaySessions(userId);
+            setSessions(refreshed || []);
+            setAddModalOpen(false);
+            setAddForm({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
+            setAddRecordingFile(null); setAddRecordingUrl('');
             setAddingSess(false);
             return;
           }
@@ -191,6 +241,12 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         const { path, url, error: uploadError } = await uploadRoleplayRecording(userId, newSession.id, fileToUpload);
         if (uploadError || !path) {
           setErrorMsg('録音ファイルのアップロードに失敗しました。ファイル形式やサイズを確認してください。');
+          // 失敗でもセッションと動画は保存済みなのでリフレッシュ
+          const { data: refreshed } = await fetchRoleplaySessions(userId);
+          setSessions(refreshed || []);
+          setAddModalOpen(false);
+          setAddForm({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
+          setAddRecordingFile(null); setAddRecordingUrl('');
           setAddingSess(false);
           return;
         }
@@ -246,6 +302,27 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
     await deleteRoleplaySession(id);
     setSessions(prev => prev.filter(s => s.id !== id));
     setDeletingId(null);
+  };
+
+  // ── 動画アップロード（既存セッション） ───────────────────────────────
+  const handleVideoFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !videoFileTargetId.current) return;
+    const sessionId = videoFileTargetId.current;
+    setUploadingVideoId(sessionId);
+    const { url: vUrl, path: vPath, error: vErr } = await uploadRoleplayVideo(userId, sessionId, file);
+    if (!vErr && vUrl) {
+      await updateRoleplaySession(sessionId, { video_url: vUrl, video_path: vPath });
+      setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, video_url: vUrl, video_path: vPath } : s));
+      // 署名付きURLをすぐに取得して表示
+      const signedUrl = await createVideoSignedUrl(vPath);
+      if (signedUrl) setSignedVideoUrls(prev => new Map(prev).set(sessionId, signedUrl));
+    } else {
+      setErrorMsg('動画のアップロードに失敗しました。');
+    }
+    setUploadingVideoId(null);
+    videoFileTargetId.current = null;
   };
 
   // ── 録音アップロード ──────────────────────────────────────────────────
@@ -340,10 +417,12 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   const SessionRow = ({ session }) => {
     const isExpanded = expandedIds.has(session.id);
     const isUploading = uploadingId === session.id;
+    const isUploadingVideo = uploadingVideoId === session.id;
     const isAnalyzing = analyzingId === session.id;
     const isDeleting = deletingId === session.id;
     const fb = session.ai_feedback;
     const hasFeedback = session.ai_status === 'done' && fb;
+    const videoDisplayUrl = signedVideoUrls.get(session.id) || session.video_url;
 
     return (
       <div style={{
@@ -409,14 +488,14 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         {isExpanded && (
           <div style={{ borderTop: '1px solid ' + C.borderLight }}>
             {/* 動画サムネイル */}
-            {session.video_url && (
+            {videoDisplayUrl && (
               <div style={{ padding: '10px 14px 0' }}>
                 <div
-                  onClick={e => { e.stopPropagation(); setVideoModal(session.video_url); }}
+                  onClick={e => { e.stopPropagation(); setVideoModal(videoDisplayUrl); }}
                   style={{ position: 'relative', display: 'inline-block', cursor: 'pointer' }}
                 >
                   <video
-                    src={session.video_url + '#t=0.001'}
+                    src={videoDisplayUrl + '#t=0.001'}
                     preload="auto"
                     muted
                     playsInline
@@ -426,7 +505,6 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                       background: '#000',
                     }}
                   />
-                  {/* 再生ボタンオーバーレイ */}
                   <div style={{
                     position: 'absolute', inset: 0, display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
@@ -461,6 +539,24 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                 }}
               >
                 {isUploading ? '...' : session.recording_url ? '🎵 録音済（再UP）' : '録音↑'}
+              </button>
+
+              {/* 動画アップロード */}
+              <button
+                onClick={e => { e.stopPropagation(); videoFileTargetId.current = session.id; videoFileInputRef.current?.click(); }}
+                disabled={isUploadingVideo}
+                title={session.video_url ? '動画を再アップロード' : '動画をアップロード'}
+                style={{
+                  padding: '4px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600,
+                  border: '1px solid ' + (session.video_url ? C.navy + '40' : C.borderLight),
+                  background: session.video_url ? C.navy + '08' : C.white,
+                  color: session.video_url ? C.navy : C.textLight,
+                  cursor: isUploadingVideo ? 'default' : 'pointer',
+                  opacity: isUploadingVideo ? 0.6 : 1,
+                  fontFamily: "'Noto Sans JP'",
+                }}
+              >
+                {isUploadingVideo ? '...' : session.video_url ? '🎬 動画済（再UP）' : '🎬 動画↑'}
               </button>
 
               {/* AI 分析 */}
@@ -603,12 +699,19 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
   return (
     <div>
-      {/* hidden file input */}
+      {/* hidden file inputs */}
       <input
         ref={fileInputRef}
         type="file"
         accept="audio/*,video/*,.mp3,.mp4,.m4a,.wav,.webm,.ogg"
         onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
+      <input
+        ref={videoFileInputRef}
+        type="file"
+        accept="video/*,.mp4,.mov,.avi,.webm,.mkv"
+        onChange={handleVideoFileChange}
         style={{ display: 'none' }}
       />
 
@@ -1015,7 +1118,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         >
           <div onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
             <video
-              src={videoModal}
+              src={videoModal + '#t=0'}
               controls
               autoPlay
               style={{ maxWidth: '90vw', maxHeight: '85vh', borderRadius: 8, display: 'block' }}
