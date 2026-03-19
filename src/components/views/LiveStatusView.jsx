@@ -113,11 +113,8 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
   return (
     <div style={{
       background: C.white,
-      borderRadius: 10,
+      borderRadius: 4,
       border: '1px solid ' + (hasActive ? '#2e8b5766' : C.borderLight),
-      boxShadow: hasActive
-        ? '0 2px 12px rgba(46,139,87,0.12)'
-        : '0 1px 4px rgba(26,58,92,0.06)',
       overflow: 'hidden',
     }}>
       {/* ── カードヘッダー ── */}
@@ -429,14 +426,10 @@ export default function LiveStatusView({ now, members }) {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      {/* ヘッダー */}
-      <div style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, color: C.navy, fontFamily: "'Noto Serif JP', serif" }}>
-          架電状況ボード
-        </h2>
-        <div style={{ fontSize: 11, color: C.textLight, marginTop: 2 }}>
-          直近3営業日・リスト別表示
-        </div>
+      {/* ページヘッダー */}
+      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Live Status</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>リアルタイム架電状況モニター</div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -522,8 +515,8 @@ export default function LiveStatusView({ now, members }) {
                   <div style={{
                     padding: '24px', textAlign: 'center',
                     color: C.textLight, fontSize: 12,
-                    background: C.white, borderRadius: 8,
-                    border: '1px solid ' + C.borderLight,
+                    background: C.white, borderRadius: 4,
+                    border: '1px solid #E5E7EB',
                   }}>
                     この日の架電記録はありません
                   </div>

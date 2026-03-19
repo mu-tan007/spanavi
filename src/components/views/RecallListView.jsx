@@ -67,7 +67,12 @@ export default function RecallListView({ callListData, supaRecalls = [], members
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease", height: 'calc(100vh - 210px)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: C.white, borderRadius: 10, border: '1px solid ' + C.borderLight }}>
+      {/* ページヘッダー */}
+      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Recall</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>コールバック・再架電管理</div>
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: "#fff", borderRadius: 4, border: '1px solid #E5E7EB' }}>
         <div style={{ padding: '10px 14px', borderBottom: '1px solid ' + C.borderLight, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>再コール一覧</span>
@@ -82,9 +87,9 @@ export default function RecallListView({ callListData, supaRecalls = [], members
               }}>
                 {filterAssignee && (
                   <div style={{
-                    background: C.gold, color: C.white, fontSize: 10, fontWeight: 700,
+                    background: '#0D2247', color: '#fff', fontSize: 10, fontWeight: 700,
                     padding: '0 8px', display: 'flex', alignItems: 'center',
-                    whiteSpace: 'nowrap', alignSelf: 'stretch', borderRadius: '5px 0 0 5px',
+                    whiteSpace: 'nowrap', alignSelf: 'stretch', borderRadius: '3px 0 0 3px',
                   }}>
                     {filterAssignee}
                   </div>
@@ -132,10 +137,10 @@ export default function RecallListView({ callListData, supaRecalls = [], members
                       style={{
                         padding: '7px 12px', fontSize: 11, color: C.navy,
                         cursor: 'pointer',
-                        background: m === filterAssignee ? C.gold + '15' : 'transparent',
+                        background: m === filterAssignee ? '#0D224715' : 'transparent',
                       }}
-                      onMouseEnter={e => { e.currentTarget.style.background = C.gold + '20'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = m === filterAssignee ? C.gold + '15' : 'transparent'; }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#0D224720'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = m === filterAssignee ? '#0D224715' : 'transparent'; }}
                     >
                       {m}
                     </div>
@@ -158,7 +163,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
             <div style={{ padding: '40px 0', textAlign: 'center', color: C.textLight, fontSize: 13 }}>再コール予定はありません</div>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '78px 1.4fr 0.7fr 100px 50px 0.65fr 0.65fr 1.5fr', padding: '5px 14px', background: C.offWhite, borderBottom: '1px solid ' + C.borderLight, fontSize: 9, fontWeight: 700, color: C.textLight, letterSpacing: 0.5, flexShrink: 0 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '78px 1.4fr 0.7fr 100px 50px 0.65fr 0.65fr 1.5fr', padding: '8px 14px', background: '#0D2247', borderBottom: '1px solid #E5E7EB', fontSize: 13, fontWeight: 600, color: '#fff', verticalAlign: 'middle', flexShrink: 0 }}>
                 <span>予定日時</span><span>企業名</span><span>代表者</span><span>電話番号</span><span>種別</span><span>担当</span><span>設定者</span><span>メモ</span>
               </div>
               {sorted.map((item, i) => {
@@ -170,7 +175,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
                         if (_list) { setCallFlowScreen({ list: _list, defaultItemId: item._supaRecord.item_id, defaultListMode: false }); return; }
                       }
                     }}
-                    style={{ display: 'grid', gridTemplateColumns: '78px 1.4fr 0.7fr 100px 50px 0.65fr 0.65fr 1.5fr', padding: '8px 14px', fontSize: 11, alignItems: 'center', borderBottom: '1px solid ' + C.borderLight, borderLeft: '3px solid transparent', background: past ? '#fff5f5' : 'transparent', cursor: 'pointer' }}
+                    style={{ display: 'grid', gridTemplateColumns: '78px 1.4fr 0.7fr 100px 50px 0.65fr 0.65fr 1.5fr', padding: '8px 14px', fontSize: 11, alignItems: 'center', borderBottom: '1px solid #E5E7EB', borderLeft: '3px solid transparent', background: past ? '#fff5f5' : i % 2 === 0 ? '#fff' : '#F8F9FA', cursor: 'pointer' }}
                     onMouseEnter={e => { e.currentTarget.style.background = '#EAF4FF'; e.currentTarget.style.borderLeft = '3px solid #0D2247'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = past ? '#fff5f5' : 'transparent'; e.currentTarget.style.borderLeft = '3px solid transparent'; }}
                     >
@@ -181,7 +186,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
                     <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</span>
                     <span style={{ color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 10 }}>{item.representative}</span>
                     <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.navy, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.phone}</span>
-                    <span style={{ fontSize: 9, padding: '2px 5px', borderRadius: 3, background: C.gold + '10', color: C.gold, fontWeight: 600, textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: 9, padding: '2px 5px', borderRadius: 3, background: '#1E40AF1a', color: '#1E40AF', fontWeight: 600, textAlign: 'center', whiteSpace: 'nowrap' }}>
                       {item.status === 'ceo_recall' || item.status === '社長再コール' ? '社長' : '受付'}
                     </span>
                     <span style={{ fontSize: 10, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.assignee || '—'}</span>

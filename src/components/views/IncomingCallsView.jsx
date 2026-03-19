@@ -112,32 +112,31 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      {/* ヘッダー */}
+      {/* ページヘッダー */}
+      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Call History</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>着信・架電履歴</div>
+      </div>
+      {/* フィルター */}
       <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 16,
+        display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+        marginBottom: 16, gap: 8,
       }}>
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: C.navy }}>着信履歴</div>
-          <div style={{ fontSize: 11, color: C.textLight, marginTop: 2 }}>
-            Zoom Phoneからの着信ログ
-          </div>
-        </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {['all', '未対応', '対応済み'].map(s => (
             <button key={s} onClick={() => setStatusFilter(s)} style={{
-              padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+              padding: '5px 12px', borderRadius: 4, fontSize: 11, fontWeight: 600,
               cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-              border: '1px solid ' + (statusFilter === s ? C.navy : C.border),
-              background: statusFilter === s ? C.navy : C.white,
-              color: statusFilter === s ? C.white : C.textMid,
+              border: '1px solid ' + (statusFilter === s ? '#0D2247' : '#E5E7EB'),
+              background: statusFilter === s ? '#0D2247' : '#fff',
+              color: statusFilter === s ? '#fff' : '#6B7280',
             }}>
               {s === 'all' ? 'すべて' : s}
             </button>
           ))}
           <button onClick={load} style={{
-            padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer',
-            border: '1px solid ' + C.border, background: C.white, color: C.textMid,
+            padding: '5px 10px', borderRadius: 4, fontSize: 11, cursor: 'pointer',
+            border: '1px solid #0D2247', background: '#fff', color: '#0D2247',
           }}>
             ↻ 更新
           </button>
@@ -146,8 +145,8 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
 
       {/* テーブル */}
       <div style={{
-        background: C.white, borderRadius: 10, border: '1px solid ' + C.borderLight,
-        overflow: 'hidden', boxShadow: '0 1px 4px rgba(26,58,92,0.06)',
+        background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB',
+        overflow: 'hidden',
       }}>
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: C.textLight, fontSize: 13 }}>読み込み中...</div>
@@ -156,11 +155,11 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
-              <tr style={{ background: C.offWhite, borderBottom: '1px solid ' + C.borderLight }}>
+              <tr style={{ background: '#0D2247' }}>
                 {['受信日時', '企業名・リスト', '電話番号', 'ステータス', '対応者', '操作'].map(h => (
                   <th key={h} style={{
-                    padding: '9px 14px', textAlign: 'left', fontWeight: 600,
-                    color: '#6B7280', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em',
+                    padding: '8px 16px', textAlign: 'left', fontWeight: 600,
+                    color: '#fff', fontSize: 13, verticalAlign: 'middle',
                   }}>{h}</th>
                 ))}
               </tr>
@@ -178,15 +177,15 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
 
                 return (
                   <tr key={r.id} style={{
-                    borderBottom: '1px solid ' + C.borderLight,
-                    background: i % 2 === 0 ? C.white : C.offWhite + '80',
+                    borderBottom: '1px solid #E5E7EB',
+                    background: i % 2 === 0 ? '#fff' : '#F8F9FA',
                   }}>
-                    <td style={{ padding: '8px 14px', color: C.textMid, whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '8px 16px', color: C.textMid, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                       {formatJST(r.received_at)}
                     </td>
 
                     {/* 企業名・リスト列 */}
-                    <td style={{ padding: '8px 14px', minWidth: 160 }}>
+                    <td style={{ padding: '8px 16px', minWidth: 160, verticalAlign: 'middle' }}>
                       {companyName ? (
                         <div>
                           {canNavigate ? (
@@ -230,28 +229,26 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
                       )}
                     </td>
 
-                    <td style={{ padding: '8px 14px', fontFamily: "'JetBrains Mono'", color: C.textMid, whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '8px 16px', fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums', color: C.textMid, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                       {r.caller_number || '-'}
                     </td>
-                    <td style={{ padding: '8px 14px' }}>
+                    <td style={{ padding: '8px 16px', verticalAlign: 'middle' }}>
                       <span style={{
-                        display: 'inline-block', padding: '2px 8px', borderRadius: 10,
-                        fontSize: 10, fontWeight: 700,
-                        background: statusColor(r.status) + '18',
-                        color: statusColor(r.status),
+                        borderLeft: '3px solid ' + statusColor(r.status),
+                        paddingLeft: 8, color: statusColor(r.status), fontSize: 12,
                       }}>
                         {r.status || '-'}
                       </span>
                     </td>
-                    <td style={{ padding: '8px 14px', color: C.textMid }}>
+                    <td style={{ padding: '8px 16px', color: C.textMid, verticalAlign: 'middle' }}>
                       {r.handled_by || '-'}
                     </td>
-                    <td style={{ padding: '8px 14px' }}>
+                    <td style={{ padding: '8px 16px', verticalAlign: 'middle' }}>
                       {r.status !== '対応済み' && (
                         <button onClick={() => markHandled(r.id)} style={{
-                          padding: '3px 10px', borderRadius: 5, fontSize: 10, fontWeight: 600,
-                          cursor: 'pointer', border: '1px solid ' + C.border,
-                          background: C.white, color: C.textMid, fontFamily: "'Noto Sans JP'",
+                          padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 500,
+                          cursor: 'pointer', border: '1px solid #0D2247',
+                          background: '#fff', color: '#0D2247', fontFamily: "'Noto Sans JP'",
                         }}>
                           対応済みにする
                         </button>
@@ -279,28 +276,30 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: C.white, borderRadius: 12, padding: '24px 28px',
+              background: '#fff', borderRadius: 4,
               minWidth: 320, maxWidth: 420,
               boxShadow: '0 16px 48px rgba(10,25,41,0.22)',
-              border: '1px solid ' + C.borderLight,
+              border: '1px solid #E5E7EB',
+              overflow: 'hidden',
             }}
           >
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 16 }}>
+            <div style={{ background: '#0D2247', color: '#fff', padding: '12px 24px', fontWeight: 600, fontSize: 14 }}>
               どのリストから架電しますか？
             </div>
+            <div style={{ padding: '16px 24px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
               {selectModal.map(m => (
                 <button
                   key={m.itemId}
                   onClick={() => navigateTo(m)}
                   style={{
-                    padding: '10px 14px', borderRadius: 8, border: '1px solid ' + C.border,
-                    background: C.offWhite, cursor: 'pointer', textAlign: 'left',
-                    fontFamily: "'Noto Sans JP'", fontSize: 12, color: C.navy,
-                    fontWeight: 600, transition: 'background 0.12s',
+                    padding: '10px 14px', borderRadius: 4, border: '1px solid #E5E7EB',
+                    background: '#F8F9FA', cursor: 'pointer', textAlign: 'left',
+                    fontFamily: "'Noto Sans JP'", fontSize: 12, color: '#0D2247',
+                    fontWeight: 500, transition: 'background 0.12s',
                   }}
                   onMouseEnter={e => { e.currentTarget.style.background = '#EAF4FF'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = C.offWhite; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#F8F9FA'; }}
                 >
                   {listLabel(m)}
                   {m.company && (
@@ -315,13 +314,14 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
               <button
                 onClick={() => setSelectModal(null)}
                 style={{
-                  padding: '6px 20px', borderRadius: 6, border: '1px solid ' + C.border,
-                  background: C.white, color: C.textMid, cursor: 'pointer',
+                  padding: '6px 20px', borderRadius: 4, border: '1px solid #0D2247',
+                  background: '#fff', color: '#0D2247', cursor: 'pointer',
                   fontSize: 12, fontFamily: "'Noto Sans JP'",
                 }}
               >
                 キャンセル
               </button>
+            </div>
             </div>
           </div>
         </div>

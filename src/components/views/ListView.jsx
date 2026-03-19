@@ -120,9 +120,14 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
+      {/* ページヘッダー */}
+      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Lists</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>架電リスト管理</div>
+      </div>
       {/* 時間外メッセージ */}
       {now && (now.getHours() < 7 || now.getHours() >= 20) && (
-        <div style={{ background: C.white, borderRadius: 10, padding: "14px 20px", marginBottom: 16, border: "1px solid " + C.borderLight, borderLeft: "4px solid " + C.textLight, display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ background: "#fff", borderRadius: 4, padding: "14px 20px", marginBottom: 16, border: "1px solid #E5E7EB", borderLeft: "4px solid " + C.textLight, display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 13 }}>夜</span>
           <span style={{ fontSize: 12, color: C.textMid, fontWeight: 600 }}>この時間帯は架電時間外です</span>
           <span style={{ fontSize: 10, color: C.textLight }}>（7:00〜20:00が架電推奨時間帯）</span>
@@ -132,13 +137,12 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
       {/* Recommendation Banner */}
       {topRecommended.length > 0 && showRec && !(now && (now.getHours() < 7 || now.getHours() >= 20)) && (
         <div style={{
-          background: C.white, borderRadius: 10, padding: "16px 20px", marginBottom: 16,
-          border: "1px solid " + C.borderLight, borderLeft: "2px solid #1E40AF",
-          boxShadow: "0 2px 8px rgba(26,58,92,0.06)",
+          background: "#fff", borderRadius: 4, padding: "16px 20px", marginBottom: 16,
+          border: "1px solid #E5E7EB", borderLeft: "2px solid #1E40AF",
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.green, animation: "pulse 2s infinite", boxShadow: "0 0 8px " + C.green + "60" }} />
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.green, animation: "pulse 2s infinite" }} />
               <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>現在のおすすめリスト</span>
               <span style={{ fontSize: 10, color: C.textLight }}>
                 {now ? (DAY_NAMES[now.getDay()] + "曜日 " + now.getHours() + "時台") : ""}
@@ -155,8 +159,8 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 8 }}>
             {topRecommended.slice(0, 8).map((list, i) => (
               <button key={list.id} onClick={() => setSelectedList(list.id)} style={{
-                background: C.offWhite, border: "1px solid " + C.borderLight,
-                borderRadius: 8, padding: "10px 14px", cursor: "pointer",
+                background: "#F8F9FA", border: "1px solid #E5E7EB",
+                borderRadius: 4, padding: "10px 14px", cursor: "pointer",
                 textAlign: "left", color: C.textDark,
                 fontFamily: "'Noto Sans JP', sans-serif",
                 transition: "all 0.15s",
@@ -182,7 +186,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         {[['active', 'アクティブのみ'], ['archived', 'アーカイブのみ'], ['all', '全て表示']].map(([val, label]) => (
           <button key={val} onClick={() => setDisplayFilter(val)} style={{
-            padding: "6px 16px", borderRadius: 20, fontSize: 12, fontWeight: 600,
+            padding: "6px 16px", borderRadius: 4, fontSize: 12, fontWeight: 600,
             cursor: "pointer", transition: "all 0.15s", fontFamily: "'Noto Sans JP'",
             ...(displayFilter === val
               ? { background: "#0D2247", color: "#fff", border: "1px solid #0D2247" }
@@ -197,8 +201,8 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
       {/* Filters */}
       <div style={{
         display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center",
-        padding: "14px 18px", background: C.white, borderRadius: 10,
-        border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
+        padding: "14px 18px", background: "#fff", borderRadius: 4,
+        border: "1px solid #E5E7EB",
       }}>
         <input type="text" placeholder="企業名・業種・担当者で検索..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ ...inputStyle, flex: "1 1 200px", minWidth: 180 }} />
         <select value={filterType} onChange={e => setFilterType(e.target.value)} style={inputStyle}>
@@ -214,9 +218,9 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
         </select>
         <span style={{ fontSize: 11, color: C.textLight, fontWeight: 600, fontFamily: "'JetBrains Mono'" }}>{displayFilter === 'archived' ? callListData.filter(l => l.is_archived).length : displayFilter === 'all' ? filteredLists.length + callListData.filter(l => l.is_archived).length : filteredLists.length}件</span>
         {isAdmin && <button onClick={handleOpenAdd} style={{
-          padding: "8px 18px", borderRadius: 8, marginLeft: "auto",
+          padding: "8px 18px", borderRadius: 4, marginLeft: "auto",
           background: "#0D2247",
-          border: "none", color: C.white, cursor: "pointer",
+          border: "none", color: "#fff", cursor: "pointer",
           fontSize: 12, fontWeight: 600, fontFamily: "'Noto Sans JP'",
           whiteSpace: "nowrap",
         }}>＋ リスト追加</button>}
@@ -225,10 +229,9 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
       {/* Add/Edit Form */}
       {listFormOpen && (
         <div style={{
-          background: C.white, border: "1px solid #E5E7EB", borderRadius: 12,
+          background: "#fff", border: "1px solid #E5E7EB", borderRadius: 4,
           padding: 24, marginBottom: 20, animation: "fadeIn 0.2s ease",
           borderLeft: "2px solid #0D2247",
-          boxShadow: "0 2px 8px rgba(26,58,92,0.06)",
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{editingListId !== null ? "リストを編集" : "新しいリストを追加"}</div>
@@ -299,16 +302,16 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
           </div>
           <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
             <button onClick={handleSave} disabled={!formData.company || !formData.industry || !formData.count} style={{
-              padding: "10px 28px", borderRadius: 8,
-              background: formData.company && formData.industry && formData.count ? C.navy : C.border,
-              border: "none", color: C.white,
+              padding: "10px 28px", borderRadius: 4,
+              background: formData.company && formData.industry && formData.count ? '#0D2247' : C.border,
+              border: "none", color: "#fff",
               cursor: formData.company && formData.industry && formData.count ? "pointer" : "not-allowed",
               fontSize: 13, fontWeight: 600, fontFamily: "'Noto Sans JP'",
             }}>{editingListId !== null ? "更新する" : "追加する"}</button>
             <button onClick={() => { setListFormOpen(false); setEditingListId(null); }} style={{
-              padding: "10px 20px", borderRadius: 8,
-              background: C.offWhite, border: "1px solid " + C.border,
-              color: C.textMid, cursor: "pointer", fontSize: 13, fontFamily: "'Noto Sans JP'",
+              padding: "10px 20px", borderRadius: 4,
+              background: "#fff", border: "1px solid #0D2247",
+              color: "#0D2247", cursor: "pointer", fontSize: 13, fontFamily: "'Noto Sans JP'",
             }}>キャンセル</button>
           </div>
         </div>
@@ -316,15 +319,13 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
 
       {/* Table */}
       <div style={{
-        background: C.white, border: "1px solid #E5E5E5",
-        borderRadius: 8, overflow: "hidden",
-        boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+        background: "#fff", border: "1px solid #E5E7EB",
+        borderRadius: 4, overflow: "hidden",
       }}>
         <div style={{
           display: "grid", gridTemplateColumns: "2fr 90px 1fr 90px 0.8fr 120px 60px",
-          padding: "10px 16px", background: "#F8F9FA",
-          fontSize: 11, fontWeight: 600, color: "#6B7280", letterSpacing: "0.08em",
-          textTransform: "uppercase", borderBottom: "1px solid #E5E7EB",
+          padding: "8px 16px", background: "#0D2247",
+          fontSize: 13, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
         }}>
           <span>クライアント</span><span style={{ textAlign: "center" }}>種別</span><span style={{ textAlign: "center" }}>業種</span><span style={{ textAlign: "right" }}>社数</span><span style={{ textAlign: "center" }}>担当者</span><span style={{ textAlign: "center" }}>おすすめ度</span><span></span>
         </div>
@@ -419,8 +420,8 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                       if (error) { alert('復元に失敗しました: ' + (error.message || '不明なエラー')); return; }
                       setCallListData(prev => prev.map(l => l.id === list.id ? { ...l, is_archived: false } : l));
                     }} style={{
-                      padding: "3px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600,
-                      background: C.navy, color: C.white, border: "none", cursor: "pointer",
+                      padding: "4px 10px", borderRadius: 4, fontSize: 11, fontWeight: 500,
+                      background: "#fff", color: "#0D2247", border: "1px solid #0D2247", cursor: "pointer",
                       fontFamily: "'Noto Sans JP'",
                     }}>復元</button>}
                   </span>

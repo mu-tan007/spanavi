@@ -58,7 +58,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
     ceo_recall: "社長再コール", appointment: "アポ獲得", ceo_decline: "社長お断り",
   };
   const JP_STATUS_COLOR = {
-    "不通": C.navy, "除外": "#e53835", "社長不在": C.gold,
+    "不通": C.navy, "除外": "#e53835", "社長不在": "#d69e2e",
     "受付ブロック": C.navy, "受付再コール": "#d69e2e",
     "社長再コール": "#d69e2e", "アポ獲得": "#38a169", "社長お断り": "#805ad5",
   };
@@ -228,7 +228,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   ];
 
   const statusColor = (sid) => {
-    const map = { normal: C.navy, excluded: "#e53835", absent: C.gold, reception_block: C.navy, reception_recall: C.gold, ceo_recall: C.gold, appointment: C.gold, ceo_decline: C.navy };
+    const map = { normal: C.navy, excluded: "#e53835", absent: "#d69e2e", reception_block: C.navy, reception_recall: "#d69e2e", ceo_recall: "#d69e2e", appointment: "#38a169", ceo_decline: C.navy };
     return map[sid] || C.textLight;
   };
 
@@ -927,6 +927,11 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
+      {/* ページヘッダー */}
+      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Search</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>企業・連絡先検索</div>
+      </div>
       {/* Sub tabs */}
       <div style={{ display: "flex", gap: 0, marginBottom: 16 }}>
         {[
@@ -935,11 +940,11 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
         ].map(tab => (
           <button key={tab.id} onClick={() => setSubTab(tab.id)} style={{
             padding: "10px 24px", fontSize: 12, fontWeight: 700, cursor: "pointer",
-            fontFamily: "'Noto Sans JP'", border: "1px solid " + C.borderLight,
-            borderBottom: subTab === tab.id ? "2px solid " + C.gold : "1px solid " + C.borderLight,
-            background: subTab === tab.id ? C.white : C.offWhite,
-            color: subTab === tab.id ? C.navy : C.textLight,
-            borderRadius: "8px 8px 0 0", marginRight: -1,
+            fontFamily: "'Noto Sans JP'", border: "1px solid #E5E7EB",
+            borderBottom: subTab === tab.id ? "2px solid #0D2247" : "2px solid transparent",
+            background: subTab === tab.id ? "#fff" : "#F8F9FA",
+            color: subTab === tab.id ? "#0D2247" : "#9CA3AF",
+            borderRadius: "4px 4px 0 0", marginRight: -1,
           }}>{tab.label}</button>
         ))}
       </div>
@@ -947,8 +952,8 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       {subTab === "company" && (<div>
       {/* Search bar */}
       <div style={{
-        background: C.white, borderRadius: 10, padding: "16px 20px", marginBottom: 16,
-        border: "1px solid " + C.borderLight,
+        background: "#fff", borderRadius: 4, padding: "16px 20px", marginBottom: 16,
+        border: "1px solid #E5E7EB",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>企業検索</span>
@@ -971,11 +976,11 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
         <div style={{ display: "flex", gap: 4, marginTop: 10, flexWrap: "wrap" }}>
           {statusOptions.map(s => (
             <button key={s.id} onClick={() => setStatusFilter(s.id)} style={{
-              padding: "4px 10px", borderRadius: 12, fontSize: 10, fontWeight: 600,
+              padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600,
               cursor: "pointer", fontFamily: "'Noto Sans JP'", transition: "all 0.15s",
-              border: statusFilter === s.id ? "1px solid " + C.gold : "1px solid " + C.borderLight,
-              background: statusFilter === s.id ? C.gold + "15" : C.white,
-              color: statusFilter === s.id ? C.navy : C.textMid,
+              border: statusFilter === s.id ? "1px solid #0D2247" : "1px solid #E5E7EB",
+              background: statusFilter === s.id ? "#0D224715" : "#fff",
+              color: statusFilter === s.id ? "#0D2247" : C.textMid,
             }}>{s.label}</button>
           ))}
         </div>
@@ -988,10 +993,10 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       </div>
 
       {/* Results table */}
-      <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, overflow: "hidden" }}>
+      <div style={{ background: "#fff", borderRadius: 4, border: "1px solid #E5E7EB", overflow: "hidden" }}>
         <div style={{
           display: "grid", gridTemplateColumns: "2fr 1fr 1.2fr 1.2fr 1fr 90px 90px",
-          padding: "8px 14px", background: C.navyDeep, fontSize: 9, fontWeight: 600, color: C.goldLight, letterSpacing: 0.5,
+          padding: "8px 16px", background: "#0D2247", fontSize: 13, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
         }}>
           {[["company","企業名"],["representative","代表者"],["phone","電話番号"],["list","クライアント名"],["industry","業種"],["lastCall","最終発信日"],["status","最終ステータス"]].map(([key, label]) => (
             <span key={key} onClick={() => { if (clientSortBy === key) { setClientSortBy(null); setClientSortDir("asc"); } else { setClientSortBy(key); setClientSortDir("desc"); } }} style={{ cursor: "pointer", userSelect: "none" }}>
@@ -1013,9 +1018,9 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           return (
             <div key={c.id} onClick={() => setSelectedItem(c)} style={{
               display: "grid", gridTemplateColumns: "2fr 1fr 1.2fr 1.2fr 1fr 90px 90px",
-              padding: "6px 14px", fontSize: 11, alignItems: "center",
-              borderBottom: "1px solid " + C.borderLight,
-              background: i % 2 === 0 ? C.white : C.offWhite + "80",
+              padding: "8px 16px", fontSize: 11, alignItems: "center",
+              borderBottom: "1px solid #E5E7EB",
+              background: i % 2 === 0 ? "#fff" : "#F8F9FA",
               cursor: "pointer",
             }}>
               <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.company}</span>
@@ -1062,15 +1067,16 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: C.cream, borderRadius: 12, width: "min(480px, 96vw)",
+            background: "#fff", borderRadius: 4, width: "min(480px, 96vw)",
             maxHeight: "92vh", overflow: "hidden", display: "flex", flexDirection: "column",
             boxShadow: "0 8px 40px rgba(26,58,92,0.22)",
+            border: "1px solid #E5E7EB",
           }}>
             {/* ヘッダー */}
             <div style={{
-              padding: "12px 16px", borderBottom: "1px solid " + C.borderLight,
+              padding: "12px 24px", borderBottom: "1px solid #E5E7EB",
               display: "flex", alignItems: "center", justifyContent: "space-between",
-              background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")",
+              background: "#0D2247",
               flexShrink: 0,
             }}>
               <div style={{ minWidth: 0 }}>
@@ -1078,7 +1084,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                   {selectedItem.company}
                 </div>
                 {(() => { const l = callListData.find(li => li._supaId === selectedItem.list_id); return l ? (
-                  <div style={{ fontSize: 10, color: C.goldLight, marginTop: 2 }}>{l.company} / {l.industry || ''}</div>
+                  <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 2 }}>{l.company} / {l.industry || ''}</div>
                 ) : null; })()}
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, marginLeft: 12 }}>
@@ -1090,7 +1096,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                     if (setCallFlowScreen) setCallFlowScreen({ list: l, defaultItemId: selectedItem.id, defaultListMode: false });
                     else setCallingScreen({ listId: l.id, list: l });
                   }}
-                  style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid ' + C.goldLight, background: C.gold, color: C.navy, fontSize: 10, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: "'Noto Sans JP'" }}>
+                  style={{ padding: '5px 10px', borderRadius: 4, border: '1px solid #fff', background: 'transparent', color: '#fff', fontSize: 10, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: "'Noto Sans JP'" }}>
                   架電フローへ
                 </button>
                 <button onClick={() => setSelectedItem(null)} style={{
@@ -1153,7 +1159,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
 
                   {/* 電話発信ボタン */}
                   {selectedItem.phone && (
-                    <div onClick={() => dialPhone(selectedItem.phone)} style={{ display: 'block', marginBottom: 10, padding: '10px 16px', borderRadius: 10, background: 'linear-gradient(135deg, ' + C.navyDeep + ', ' + C.navy + ')', textAlign: 'center', boxShadow: '0 2px 8px ' + C.navy + '40', cursor: 'pointer' }}>
+                    <div onClick={() => dialPhone(selectedItem.phone)} style={{ display: 'block', marginBottom: 10, padding: '10px 16px', borderRadius: 4, background: '#0D2247', textAlign: 'center', cursor: 'pointer' }}>
                       <div style={{ fontSize: 11, fontWeight: 600, color: C.white + 'cc', marginBottom: 2 }}>電話をかける</div>
                       <div style={{ fontSize: 18, fontWeight: 900, color: C.white, fontFamily: "'JetBrains Mono'" }}>{selectedItem.phone}</div>
                     </div>
@@ -1180,13 +1186,13 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                         const isCurrent = r === nextRound && !isCompleted;
                         const isFuture = r > nextRound;
                         const isSelected = r === selectedRound;
-                        const bg = isCompleted ? C.border : isCurrent ? C.gold : 'transparent';
-                        const color = isCompleted ? C.textLight : isCurrent ? C.navy : C.textLight;
+                        const bg = isCompleted ? C.border : isCurrent ? '#1E40AF' : 'transparent';
+                        const color = isCompleted ? C.textLight : isCurrent ? '#fff' : C.textLight;
                         const border = isSelected
                           ? '2px solid ' + C.navy
                           : isFuture ? '1px solid ' + C.borderLight
                           : isCompleted ? '1px solid ' + C.border
-                          : '1px solid ' + C.gold;
+                          : '1px solid #1E40AF';
                         return (
                           <button key={r} disabled={isFuture} onClick={() => !isFuture && setSelectedRound(r)}
                             style={{ width: 34, height: 34, borderRadius: 6, fontSize: 12, fontWeight: 700,
@@ -1204,7 +1210,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                     const roundRec = itemRecords.find(r => r.round === selectedRound);
                     const sc = roundRec ? detailCallStatusColor(roundRec.status) : null;
                     return roundRec ? (
-                      <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8,
+                      <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 4,
                         background: sc.bg, border: '1.5px solid ' + sc.color + '40',
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: 11, fontWeight: 700, color: sc.color }}>
@@ -1220,9 +1226,9 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                         {CALL_RESULTS.map(r => {
                           const isAppo = r.id === 'appointment';
                           const isExcl = r.id === 'excluded';
-                          const btnBg    = isAppo ? C.gold    : isExcl ? C.red + '10' : C.navy + '08';
-                          const btnColor = isAppo ? C.white   : isExcl ? C.red        : C.navy;
-                          const btnBdr   = isAppo ? '1.5px solid ' + C.gold : isExcl ? '1.5px solid ' + C.red + '40' : '1px solid ' + C.navy + '25';
+                          const btnBg    = isAppo ? '#38a169'  : isExcl ? C.red + '10' : C.navy + '08';
+                          const btnColor = isAppo ? '#fff'     : isExcl ? C.red        : C.navy;
+                          const btnBdr   = isAppo ? '1.5px solid #38a169' : isExcl ? '1.5px solid ' + C.red + '40' : '1px solid ' + C.navy + '25';
                           return (
                             <button key={r.id} onClick={() => handleDetailResult(r.label)}
                               style={{ padding: '9px 6px', borderRadius: 7, border: btnBdr, background: btnBg, color: btnColor, cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: "'Noto Sans JP'", lineHeight: 1.2 }}>
@@ -1292,8 +1298,8 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       {subTab === "listSearch" && (<div>
         {/* 検索フォーム */}
         <div style={{
-          background: C.white, borderRadius: 10, padding: "16px 20px", marginBottom: 16,
-          border: "1px solid " + C.borderLight,
+          background: "#fff", borderRadius: 4, padding: "16px 20px", marginBottom: 16,
+          border: "1px solid #E5E7EB",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>リスト検索</span>
@@ -1437,14 +1443,14 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
               setLsStatus([]); setLsCallCountMin(""); setLsCallCountMax("");
               setLsResults(null); setLsItemResults(null); setLsCalledCounts({});
             }} style={{
-              padding: "8px 16px", borderRadius: 6, border: "1px solid " + C.borderLight,
-              background: C.offWhite, cursor: "pointer", fontSize: 11, fontWeight: 600,
-              color: C.textMid, fontFamily: "'Noto Sans JP'",
+              padding: "8px 16px", borderRadius: 4, border: "1px solid #0D2247",
+              background: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 500,
+              color: "#0D2247", fontFamily: "'Noto Sans JP'",
             }}>条件クリア</button>
             <button onClick={handleListSearch} disabled={lsSearching} style={{
-              padding: "8px 22px", borderRadius: 6, border: "none",
-              background: lsSearching ? C.textLight : C.navy, color: C.white,
-              cursor: lsSearching ? "default" : "pointer", fontSize: 12, fontWeight: 700,
+              padding: "8px 22px", borderRadius: 4, border: "none",
+              background: lsSearching ? C.textLight : '#0D2247', color: "#fff",
+              cursor: lsSearching ? "default" : "pointer", fontSize: 13, fontWeight: 500,
               fontFamily: "'Noto Sans JP'",
             }}>{lsSearching ? "検索中..." : "検索"}</button>
           </div>
@@ -1467,32 +1473,32 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
             const statusBg = { "受付ブロック": "#fff7ed", "受付再コール": "#ebf8ff", "社長不在": "#fefce8", "社長再コール": "#ebf8ff", "社長お断り": "#faf5ff", "アポ獲得": "#f0fff4", "除外": "#fee2e2" };
             const statusFg = { "受付ブロック": "#dd6b20", "受付再コール": "#3182ce", "社長不在": "#d69e2e", "社長再コール": "#3182ce", "社長お断り": "#805ad5", "アポ獲得": "#38a169", "除外": "#e53e3e" };
             return (
-              <div style={{ background: C.white, borderRadius: 10, overflow: "hidden", border: "1px solid " + C.borderLight }}>
-                <div style={{ padding: "8px 16px", background: C.offWhite, borderBottom: "1px solid " + C.borderLight, fontSize: 10, color: C.textLight, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ background: "#fff", borderRadius: 4, overflow: "hidden", border: "1px solid #E5E7EB" }}>
+                <div style={{ padding: "8px 16px", background: "#F8F9FA", borderBottom: "1px solid #E5E7EB", fontSize: 12, color: C.textLight, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span>架電先企業 {lsItemResults.length.toLocaleString()} 件</span>
                   <button
                     onClick={handleExportItems}
                     disabled={lsExporting === '__items__'}
                     style={{
-                      padding: "5px 14px", borderRadius: 5, border: "none",
-                      background: lsExporting === '__items__' ? C.textLight : C.navy,
-                      color: C.white, cursor: lsExporting === '__items__' ? "default" : "pointer",
-                      fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+                      padding: "5px 14px", borderRadius: 4, border: "none",
+                      background: lsExporting === '__items__' ? C.textLight : '#0D2247',
+                      color: "#fff", cursor: lsExporting === '__items__' ? "default" : "pointer",
+                      fontSize: 13, fontWeight: 500, fontFamily: "'Noto Sans JP'",
                     }}
                   >{lsExporting === '__items__' ? "処理中..." : "エクスポート"}</button>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1.2fr 1fr 1.5fr", padding: "10px 16px", background: C.navyDeep, fontSize: 10, fontWeight: 600, color: C.goldLight, letterSpacing: 0.5 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1.2fr 1fr 1.5fr", padding: "8px 16px", background: "#0D2247", fontSize: 13, fontWeight: 600, color: "#fff", verticalAlign: 'middle' }}>
                   <span>企業名</span><span>代表者名</span><span>電話番号</span><span>最新ステータス</span><span>リスト名</span>
                 </div>
                 {lsItemResults.map((item, i) => {
                   const list = itemListMap[item.list_id];
                   return (
-                    <div key={item.id || i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1.2fr 1fr 1.5fr", padding: "8px 16px", fontSize: 11, alignItems: "center", borderBottom: "1px solid " + C.borderLight, background: i % 2 === 0 ? C.white : C.offWhite }}>
+                    <div key={item.id || i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1.2fr 1fr 1.5fr", padding: "8px 16px", fontSize: 11, alignItems: "center", borderBottom: "1px solid #E5E7EB", background: i % 2 === 0 ? "#fff" : "#F8F9FA" }}>
                       <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.company || "-"}</span>
                       <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.representative || "-"}</span>
                       <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.navy }}>{item.phone || "-"}</span>
                       <span>
-                        <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: statusBg[item.call_status] || C.offWhite, color: statusFg[item.call_status] || C.textLight, fontWeight: 600 }}>
+                        <span style={{ fontSize: 10, borderLeft: '3px solid ' + (statusFg[item.call_status] || '#9CA3AF'), paddingLeft: 8, color: statusFg[item.call_status] || '#9CA3AF' }}>
                           {item.call_status || "-"}
                         </span>
                       </span>
@@ -1510,11 +1516,11 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
             条件に一致するリストが見つかりませんでした
           </div>
         ) : lsResults !== null && (
-          <div style={{ background: C.white, borderRadius: 10, overflow: "hidden", border: "1px solid " + C.borderLight }}>
+          <div style={{ background: "#fff", borderRadius: 4, overflow: "hidden", border: "1px solid #E5E7EB" }}>
             <div style={{
               display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 80px 80px 150px",
-              padding: "10px 16px", background: C.navyDeep, fontSize: 10,
-              fontWeight: 600, color: C.goldLight, letterSpacing: 0.5,
+              padding: "8px 16px", background: "#0D2247",
+              fontSize: 13, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
             }}>
               <span>リスト名</span>
               <span>クライアント名</span>
@@ -1526,9 +1532,9 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
             {lsResults.map((list, i) => (
               <div key={list._supaId || i} style={{
                 display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 80px 80px 150px",
-                padding: "10px 16px", fontSize: 11, alignItems: "center",
-                borderBottom: "1px solid " + C.borderLight,
-                background: i % 2 === 0 ? C.white : C.offWhite,
+                padding: "8px 16px", fontSize: 11, alignItems: "center",
+                borderBottom: "1px solid #E5E7EB",
+                background: i % 2 === 0 ? "#fff" : "#F8F9FA",
               }}>
                 <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {list.company}{list.industry ? ` - ${list.industry}` : ""}
@@ -1544,20 +1550,20 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                     onClick={() => handleExport(list)}
                     disabled={lsExporting === list._supaId}
                     style={{
-                      padding: "4px 10px", borderRadius: 5, border: "none", width: 126,
-                      background: lsExporting === list._supaId ? C.textLight : C.navy,
-                      color: C.white, cursor: lsExporting === list._supaId ? "default" : "pointer",
-                      fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+                      padding: "5px 10px", borderRadius: 4, border: "none", width: 126,
+                      background: lsExporting === list._supaId ? C.textLight : '#0D2247',
+                      color: "#fff", cursor: lsExporting === list._supaId ? "default" : "pointer",
+                      fontSize: 11, fontWeight: 500, fontFamily: "'Noto Sans JP'",
                     }}
                   >{lsExporting === list._supaId ? "処理中..." : "Excelエクスポート"}</button>
                   <button
                     onClick={() => handlePdfExport(list)}
                     disabled={lsPdfExporting === list._supaId}
                     style={{
-                      padding: "4px 10px", borderRadius: 5, border: "none", width: 126,
-                      background: lsPdfExporting === list._supaId ? C.textLight : C.green,
-                      color: C.white, cursor: lsPdfExporting === list._supaId ? "default" : "pointer",
-                      fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+                      padding: "5px 10px", borderRadius: 4, border: "1px solid #0D2247", width: 126,
+                      background: lsPdfExporting === list._supaId ? C.textLight : '#fff',
+                      color: lsPdfExporting === list._supaId ? '#fff' : '#0D2247', cursor: lsPdfExporting === list._supaId ? "default" : "pointer",
+                      fontSize: 11, fontWeight: 500, fontFamily: "'Noto Sans JP'",
                     }}
                   >{lsPdfExporting === list._supaId ? "処理中..." : "PDFレポート"}</button>
                 </div>
