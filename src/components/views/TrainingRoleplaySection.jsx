@@ -638,8 +638,8 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       {/* ── Tab 2: 日々のロープレ ─────────────────────────────────── */}
       {activeTab === 'weekly' && (
         <div>
-          {/* 今週の状況バナー */}
-          <div style={{
+          {/* 今週の状況バナー（役職がメンバーの人のみ表示） */}
+          {memberInfo?.position === 'メンバー' && <div style={{
             padding: '12px 16px', borderRadius: 8, marginBottom: 16,
             background: thisWeekDone ? C.green + '0a' : C.gold + '0a',
             border: '1px solid ' + (thisWeekDone ? C.green + '30' : C.gold + '40'),
@@ -663,7 +663,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                   : '毎週1回、篠宮とのロープレが必要です'}
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* セッション一覧 */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
