@@ -147,6 +147,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
   const [zoomPhoneEditing, setZoomPhoneEditing] = useState(false);
   const [zoomPhoneSaving, setZoomPhoneSaving] = useState(false);
   const [hoveredMonthRow, setHoveredMonthRow] = useState(null);
+  const [hoveredCard, setHoveredCard] = useState(null);
   useEffect(() => {
     if (memberInfo?.zoomPhoneNumber !== undefined) setZoomPhone(memberInfo.zoomPhoneNumber || '');
   }, [memberInfo?.zoomPhoneNumber]);
@@ -312,19 +313,32 @@ export default function MyPageView({ currentUser, userId, callListData, members,
         {/* Summary cards */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
           {[
-            { label: "架電件数", val: periodTab === "cumulative" ? cumAgg.total : periodTab === "monthly" ? monthAgg.total : periodTab === "weekly" ? weekAgg.total : todayAgg.total, color: C.navy },
-            { label: "社長接続数", val: periodTab === "cumulative" ? cumAgg.ceoConnect : periodTab === "monthly" ? monthAgg.ceoConnect : periodTab === "weekly" ? weekAgg.ceoConnect : todayAgg.ceoConnect, color: C.gold },
-            { label: "アポ取得数", val: periodTab === "cumulative" ? myAppoRecords.length : periodTab === "monthly" ? appoCount(monthStart) : periodTab === "weekly" ? appoCount(thisWeekStart) : appoCount(todayStr2, todayStr2), color: C.green },
-            { label: "売上", val: periodTab === "cumulative" ? cumSalesVal : periodTab === "monthly" ? monthSalesVal : periodTab === "weekly" ? weekSalesVal : todaySalesVal, color: "#d4760a", isMoney: true },
-          ].map((card, i) => (
-            <div key={i} style={{
-              padding: "14px 16px", borderRadius: 8, background: card.color + "08",
-              border: "1px solid " + card.color + "20", textAlign: "center",
-            }}>
-              <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>{card.label}</div>
-              <div style={{ fontSize: card.isMoney ? 18 : 28, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: card.color }}>{card.isMoney ? Math.round(card.val).toLocaleString('ja-JP') + "円" : card.val}</div>
-            </div>
-          ))}
+            { label: "架電件数",  val: periodTab === "cumulative" ? cumAgg.total       : periodTab === "monthly" ? monthAgg.total       : periodTab === "weekly" ? weekAgg.total       : todayAgg.total },
+            { label: "社長接続数", val: periodTab === "cumulative" ? cumAgg.ceoConnect  : periodTab === "monthly" ? monthAgg.ceoConnect  : periodTab === "weekly" ? weekAgg.ceoConnect  : todayAgg.ceoConnect },
+            { label: "アポ取得数", val: periodTab === "cumulative" ? myAppoRecords.length : periodTab === "monthly" ? appoCount(monthStart) : periodTab === "weekly" ? appoCount(thisWeekStart) : appoCount(todayStr2, todayStr2) },
+            { label: "売上",      val: periodTab === "cumulative" ? cumSalesVal         : periodTab === "monthly" ? monthSalesVal         : periodTab === "weekly" ? weekSalesVal         : todaySalesVal, isMoney: true },
+          ].map((card, i) => {
+            const key = "perf-" + i;
+            const isHovered = hoveredCard === key;
+            return (
+              <div key={i}
+                onMouseEnter={() => setHoveredCard(key)}
+                onMouseLeave={() => setHoveredCard(null)}
+                style={{
+                  padding: "14px 16px", borderRadius: 8, textAlign: "center",
+                  background: "#F8F9FA",
+                  border: "1px solid #0D224715",
+                  borderLeft: isHovered ? "3px solid " + C.gold : "1px solid #0D224715",
+                  transition: "border 0.12s",
+                }}
+              >
+                <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>{card.label}</div>
+                <div style={{ fontSize: card.isMoney ? 18 : 28, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: C.navy }}>
+                  {card.isMoney ? Math.round(card.val).toLocaleString('ja-JP') + "円" : card.val}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Bar chart */}
@@ -400,18 +414,32 @@ export default function MyPageView({ currentUser, userId, callListData, members,
               <span style={{ fontSize: 10, color: C.textLight }}>（有効ステータスのアポのみ）</span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
-              <div style={{ padding: "14px 16px", borderRadius: 8, background: C.gold + "08", border: "1px solid " + C.gold + "20", textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>アポ件数</div>
-                <div style={{ fontSize: 28, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: C.gold }}>{currentSales.count}</div>
-              </div>
-              <div style={{ padding: "14px 16px", borderRadius: 8, background: C.navy + "08", border: "1px solid " + C.navy + "20", textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>当社売上</div>
-                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: C.navy }}>{Math.round(currentSales.totalSales).toLocaleString('ja-JP')}<span style={{ fontSize: 11, fontWeight: 400 }}>円</span></div>
-              </div>
-              <div style={{ padding: "14px 16px", borderRadius: 8, background: C.green + "08", border: "1px solid " + C.green + "20", textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>インターン報酬</div>
-                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: C.green }}>{Math.round(currentSales.totalReward).toLocaleString('ja-JP')}<span style={{ fontSize: 11, fontWeight: 400 }}>円</span></div>
-              </div>
+              {[
+                { label: "アポ件数", val: currentSales.count, isCount: true },
+                { label: "当社売上", val: Math.round(currentSales.totalSales).toLocaleString('ja-JP') + "円", isCount: false },
+                { label: "インターン報酬", val: Math.round(currentSales.totalReward).toLocaleString('ja-JP') + "円", isCount: false },
+              ].map((card, i) => {
+                const key = "sales-" + i;
+                const isHovered = hoveredCard === key;
+                return (
+                  <div key={i}
+                    onMouseEnter={() => setHoveredCard(key)}
+                    onMouseLeave={() => setHoveredCard(null)}
+                    style={{
+                      padding: "14px 16px", borderRadius: 8, textAlign: "center",
+                      background: "#F8F9FA",
+                      border: "1px solid #0D224715",
+                      borderLeft: isHovered ? "3px solid " + C.gold : "1px solid #0D224715",
+                      transition: "border 0.12s",
+                    }}
+                  >
+                    <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>{card.label}</div>
+                    <div style={{ fontSize: card.isCount ? 28 : 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: C.navy }}>
+                      {card.val}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Monthly breakdown table */}
@@ -461,7 +489,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
                           <div
                             onMouseEnter={() => setHoveredMonthRow(m)}
                             onMouseLeave={() => setHoveredMonthRow(null)}
-                            style={{ ...cellBase, borderLeft: "none", textAlign: "right", fontFamily: "'JetBrains Mono'", color: C.green, fontWeight: 600 }}
+                            style={{ ...cellBase, borderLeft: "none", textAlign: "right", fontFamily: "'JetBrains Mono'", color: C.navy, fontWeight: 600 }}
                           >{Math.round(d.reward).toLocaleString('ja-JP')}円</div>
                         </React.Fragment>
                       );
