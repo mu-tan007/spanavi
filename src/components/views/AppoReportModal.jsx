@@ -259,7 +259,7 @@ HP：${form.hp}
   };
 
   const iStyle = { width: '100%', padding: '6px 10px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: C.offWhite, boxSizing: 'border-box' };
-  const lStyle = { fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 2, display: 'block' };
+  const lStyle = { fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 2, display: 'block' };
 
   const FIELDS = [
     { key: 'contactName',    label: '担当者名',       span: 1 },
@@ -284,11 +284,11 @@ HP：${form.hp}
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 20000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: C.white, borderRadius: 12, width: 560, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+      <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 560, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
         {/* ヘッダー */}
-        <div style={{ padding: '14px 20px', background: 'linear-gradient(135deg, ' + C.navyDeep + ', ' + C.navy + ')', borderRadius: '12px 12px 0 0', color: C.white, flexShrink: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>アポ取得報告</div>
-          <div style={{ fontSize: 10, color: C.goldLight, marginTop: 2 }}>{row.company}</div>
+        <div style={{ padding: '12px 24px', background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15, flexShrink: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>アポ取得報告</div>
+          <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>{row.company}</div>
         </div>
         {/* フォーム */}
         <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1 }}>
@@ -339,7 +339,7 @@ HP：${form.hp}
                     {isRecUrl && !isLoading && (
                       <button onClick={handleRefetchRecordingUrl}
                         title="録音URLを再取得"
-                        style={{ marginLeft: 6, fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: C.navy }}>更新</button>
+                        style={{ marginLeft: 6, fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: '#0D2247' }}>更新</button>
                     )}
                   </label>
                   <input type={f.type || 'text'} value={form[f.key]}
@@ -366,16 +366,16 @@ HP：${form.hp}
           </div>
           {/* 報告プレビュー */}
           <div style={{ marginTop: 14 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 4 }}>報告プレビュー</div>
-            <pre style={{ background: C.offWhite, border: '1px solid ' + C.border, borderRadius: 6, padding: 10, fontSize: 10, whiteSpace: 'pre-wrap', fontFamily: "'JetBrains Mono'", lineHeight: 1.6, color: C.textDark, margin: 0 }}>{generateReport()}</pre>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#0D2247', paddingBottom: 6, marginBottom: 10 }}>報告プレビュー</div>
+            <pre style={{ background: '#F8F9FA', border: '1px solid #E5E7EB', borderRadius: 4, padding: 10, fontSize: 10, whiteSpace: 'pre-wrap', fontFamily: "'JetBrains Mono'", lineHeight: 1.6, color: C.textDark, margin: 0 }}>{generateReport()}</pre>
           </div>
         </div>
         {/* フッター */}
-        <div style={{ padding: '10px 20px', borderTop: '1px solid ' + C.borderLight, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ padding: '10px 20px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', gap: 6 }}>
             {/* 文字起こし＋AI添削ボタン */}
             <button onClick={handleGenerateReport} disabled={saving || generateStep !== 'idle'}
-              style={{ padding: '8px 16px', borderRadius: 6, border: '1px solid ' + C.navy + '40', background: C.navy + '08', cursor: (saving || generateStep !== 'idle') ? 'default' : 'pointer', fontSize: 11, fontWeight: 600, color: C.navy, fontFamily: "'Noto Sans JP'", opacity: (saving || generateStep !== 'idle') ? 0.5 : 1 }}>
+              style={{ padding: '8px 16px', borderRadius: 4, border: '1px solid #0D2247', background: '#fff', cursor: (saving || generateStep !== 'idle') ? 'default' : 'pointer', fontSize: 13, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'", opacity: (saving || generateStep !== 'idle') ? 0.5 : 1 }}>
               {generateStep === 'transcribing' && '文字起こし中...'}
               {generateStep === 'enhancing'    && 'AI添削中...'}
               {generateStep === 'done'         && '添削完了'}
@@ -384,7 +384,7 @@ HP：${form.hp}
             </button>
             {/* コピーボタン */}
             <button onClick={handleCopy} disabled={saving}
-              style={{ padding: '8px 16px', borderRadius: 6, border: '1px solid ' + C.navy + '40', background: C.navy + '08', cursor: saving ? 'default' : 'pointer', fontSize: 11, fontWeight: 600, color: C.navy, fontFamily: "'Noto Sans JP'", opacity: saving ? 0.5 : 1 }}>
+              style={{ padding: '8px 16px', borderRadius: 4, border: '1px solid #0D2247', background: '#fff', cursor: saving ? 'default' : 'pointer', fontSize: 13, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'", opacity: saving ? 0.5 : 1 }}>
               {copied ? 'コピー済み' : 'コピー'}
             </button>
           </div>
@@ -407,14 +407,14 @@ HP：${form.hp}
           <div style={{ display: 'flex', gap: 8 }}>
             {aiStatus === 'idle' && (
               <button onClick={onClose}
-                style={{ padding: '8px 20px', borderRadius: 6, border: '1px solid ' + C.border, background: C.white, cursor: 'pointer', fontSize: 11, fontWeight: 600, color: C.textMid, fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
+                style={{ padding: '8px 16px', borderRadius: 4, border: '1px solid #0D2247', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
             )}
             {aiStatus.startsWith('done') || aiStatus === 'error' ? (
               <button onClick={onDone || onClose}
-                style={{ padding: '8px 20px', borderRadius: 6, border: '1px solid ' + C.border, background: C.white, cursor: 'pointer', fontSize: 11, fontWeight: 600, color: C.textMid, fontFamily: "'Noto Sans JP'" }}>閉じる</button>
+                style={{ padding: '8px 16px', borderRadius: 4, border: '1px solid #0D2247', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'" }}>閉じる</button>
             ) : (
               <button onClick={handleSave} disabled={saving}
-                style={{ padding: '8px 24px', borderRadius: 6, border: 'none', background: 'linear-gradient(135deg, ' + C.navyDeep + ', ' + C.navy + ')', cursor: saving ? 'default' : 'pointer', fontSize: 11, fontWeight: 700, color: C.white, fontFamily: "'Noto Sans JP'", opacity: saving ? 0.7 : 1 }}>
+                style={{ padding: '8px 16px', borderRadius: 4, border: 'none', background: '#0D2247', cursor: saving ? 'default' : 'pointer', fontSize: 13, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'", opacity: saving ? 0.7 : 1 }}>
                 {saving ? '処理中...' : '保存してアポ登録'}
               </button>
             )}

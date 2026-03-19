@@ -139,8 +139,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
   const statusColor = (st) => {
     if (st === "面談済") return { bg: C.green + "12", color: C.green };
-    if (st === "事前確認済") return { bg: C.navy + "10", color: C.navy };
-    if (st === "アポ取得") return { bg: C.gold + "15", color: C.gold };
+    if (st === "事前確認済") return { bg: '#1E40AF1a', color: '#1E40AF' };
+    if (st === "アポ取得") return { bg: '#C8A84B1a', color: '#C8A84B' };
     if (st === "リスケ中") return { bg: "#ff980012", color: "#ff9800" };
     if (st === "キャンセル" || st.includes("キャンセル")) return { bg: "#e5383512", color: "#e53835" };
     return { bg: C.textLight + "10", color: C.textLight };
@@ -214,14 +214,20 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
+      {/* Page Header */}
+      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Appointments</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>アポイントメント・パイプライン管理</div>
+      </div>
+
       {/* Header */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
-        padding: "14px 18px", background: C.white, borderRadius: 10,
-        border: "1px solid " + C.borderLight,
+        padding: "14px 18px", background: '#fff', borderRadius: 4,
+        border: "1px solid #E5E7EB",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>アポ一覧</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#0D2247' }}>アポ一覧</span>
           <span style={{ fontSize: 11, color: C.textLight }}>{filtered.length}件</span>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -231,11 +237,11 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
             {[["all", "全月"], ["month", "月"], ["custom", "期間指定"]].map(([k, l]) => (
               <button key={k} onClick={() => setApPeriod(k)} style={{
-                padding: "5px 10px", borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: "pointer",
+                padding: "5px 10px", borderRadius: 4, fontSize: 10, fontWeight: 500, cursor: "pointer",
                 fontFamily: "'Noto Sans JP'",
-                background: apPeriod === k ? C.navy : C.white,
-                color: apPeriod === k ? C.white : C.textMid,
-                border: "1px solid " + (apPeriod === k ? C.navy : C.border),
+                background: apPeriod === k ? '#0D2247' : '#fff',
+                color: apPeriod === k ? '#fff' : C.textMid,
+                border: "1px solid " + (apPeriod === k ? '#0D2247' : C.border),
               }}>{l}</button>
             ))}
             {apPeriod === "month" && (
@@ -270,9 +276,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           </select>
           {setAppoData && (
             <button onClick={() => setAddAppoForm({ client: "", company: "", getter: "", getDate: "", meetDate: "", status: "アポ取得", sales: 0, reward: 0, note: "" })} style={{
-              padding: "8px 18px", borderRadius: 8,
+              padding: "8px 16px", borderRadius: 4,
               background: "#0D2247",
-              border: "none", color: C.white, cursor: "pointer", fontSize: 12, fontWeight: 600,
+              border: "none", color: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500,
               fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap",
             }}
             onMouseEnter={e => { e.currentTarget.style.background = "#1E3A6E"; }}
@@ -286,38 +292,38 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       <div style={{ marginBottom: 16 }}>
         {/* Total row */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 10 }}>
-          <div style={{ padding: "14px 18px", background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight }}>
+          <div style={{ padding: "14px 18px", background: '#fff', borderRadius: 4, border: "1px solid #E5E7EB" }}>
             <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>アポ件数 <span style={{ fontSize: 9, color: C.textLight + "90" }}>（有効）</span></div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: C.navy, fontFamily: "'JetBrains Mono'" }}>{countable.length}<span style={{ fontSize: 11, fontWeight: 500, color: C.textLight, marginLeft: 4 }}>/ {filtered.length}件</span></div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#0D2247', fontFamily: "'JetBrains Mono'" }}>{countable.length}<span style={{ fontSize: 11, fontWeight: 500, color: C.textLight, marginLeft: 4 }}>/ {filtered.length}件</span></div>
           </div>
-          <div style={{ padding: "14px 18px", background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight }}>
+          <div style={{ padding: "14px 18px", background: '#fff', borderRadius: 4, border: "1px solid #E5E7EB" }}>
             <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>当社売上合計</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: C.navy, fontFamily: "'JetBrains Mono'" }}>{formatCurrency(totalSales)}</div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: '#0D2247', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(totalSales)}</div>
           </div>
-          <div style={{ padding: "14px 18px", background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight }}>
+          <div style={{ padding: "14px 18px", background: '#fff', borderRadius: 4, border: "1px solid #E5E7EB" }}>
             <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>インターン報酬合計</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: C.green, fontFamily: "'JetBrains Mono'" }}>{formatCurrency(totalReward)}</div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: '#1E40AF', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(totalReward)}</div>
           </div>
         </div>
         {/* Monthly breakdown */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(" + AVAILABLE_MONTHS.length + ", 1fr)", gap: 10 }}>
           {monthStats.map(ms => (
             <div key={ms.month} style={{
-              padding: "10px 14px", background: C.white, borderRadius: 8,
-              border: "1px solid " + C.borderLight,
+              padding: "10px 14px", background: '#fff', borderRadius: 4,
+              border: "1px solid #E5E7EB",
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 6, borderBottom: "1px solid " + C.borderLight, paddingBottom: 4 }}>{ms.month}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#0D2247', marginBottom: 6, borderBottom: "1px solid #E5E7EB", paddingBottom: 4 }}>{ms.month}</div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 2 }}>
                 <span style={{ color: C.textLight }}>有効アポ</span>
-                <span style={{ fontWeight: 700, color: C.navy, fontFamily: "'JetBrains Mono'" }}>{ms.count}件</span>
+                <span style={{ fontWeight: 700, color: '#0D2247', fontFamily: "'JetBrains Mono'" }}>{ms.count}件</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 2 }}>
                 <span style={{ color: C.textLight }}>売上</span>
-                <span style={{ fontWeight: 700, color: C.navy, fontFamily: "'JetBrains Mono'" }}>{formatCurrency(ms.sales)}</span>
+                <span style={{ fontWeight: 700, color: '#0D2247', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(ms.sales)}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10 }}>
                 <span style={{ color: C.textLight }}>報酬</span>
-                <span style={{ fontWeight: 700, color: C.green, fontFamily: "'JetBrains Mono'" }}>{formatCurrency(ms.reward)}</span>
+                <span style={{ fontWeight: 700, color: '#1E40AF', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(ms.reward)}</span>
               </div>
             </div>
           ))}
@@ -325,13 +331,14 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       </div>
 
       {/* Table */}
-      <div style={{ background: C.white, borderRadius: 8, overflow: "hidden", border: "1px solid #E5E5E5", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+      <div style={{ background: '#fff', borderRadius: 4, overflow: "hidden", border: "1px solid #E5E7EB" }}>
         <div style={{
           display: "grid", gridTemplateColumns: colTemplate,
-          padding: "8px 16px", background: "#F8F9FA",
-          fontSize: 11, fontWeight: 600, color: "#6B7280", letterSpacing: "0.08em",
-          textTransform: "uppercase", borderBottom: "1px solid #E5E7EB",
+          padding: "8px 16px", background: "#0D2247",
+          fontSize: 13, fontWeight: 600, color: "#fff",
+          borderBottom: "1px solid #E5E7EB",
           alignItems: "center",
+          verticalAlign: "middle",
         }}>
           {[
             { label: 'クライアント', key: 'client' },
@@ -349,8 +356,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               {label}
               {key && (
                 <span style={{ marginLeft: 2 }}>
-                  <span style={{ color: sortKey === key && sortDir === 'asc' ? '#0D2247' : '#ccc' }}>▲</span>
-                  <span style={{ color: sortKey === key && sortDir === 'desc' ? '#0D2247' : '#ccc' }}>▼</span>
+                  <span style={{ color: sortKey === key && sortDir === 'asc' ? '#fff' : 'rgba(255,255,255,0.4)' }}>▲</span>
+                  <span style={{ color: sortKey === key && sortDir === 'desc' ? '#fff' : 'rgba(255,255,255,0.4)' }}>▼</span>
                 </span>
               )}
             </span>
@@ -360,10 +367,10 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               <button
                 onClick={() => { setSortKey('status'); setSortDir('asc'); }}
                 style={{
-                  padding: '3px 10px', borderRadius: 6,
-                  border: '1px solid #0D2247',
-                  background: sortKey === 'status' ? '#0D2247' : 'white',
-                  color: sortKey === 'status' ? 'white' : '#0D2247',
+                  padding: '3px 10px', borderRadius: 4,
+                  border: '1px solid #fff',
+                  background: sortKey === 'status' ? '#fff' : 'transparent',
+                  color: sortKey === 'status' ? '#0D2247' : '#fff',
                   fontSize: 10, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
                 }}>デフォルト</button>
             </span>
@@ -377,23 +384,24 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             <div key={i} style={{
               display: "grid", gridTemplateColumns: colTemplate,
               padding: "8px 16px", fontSize: 11, alignItems: "center",
-              borderBottom: "1px solid #F3F2F2",
+              borderBottom: "1px solid #E5E7EB",
+              background: i % 2 === 0 ? '#fff' : '#F8F9FA',
               transition: "background 0.15s",
             }}
             onMouseEnter={e => e.currentTarget.style.background = "#EAF4FF"}
-            onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+            onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#F8F9FA'}>
               <span style={{ color: C.textMid, fontSize: 10 }}>{a.client}</span>
-              <span style={{ fontWeight: 600, color: C.navy, cursor: "pointer", textDecoration: "underline dotted", textUnderlineOffset: 2 }} onClick={() => setReportDetail(a)}>{a.company}</span>
+              <span style={{ fontWeight: 600, color: '#0D2247', cursor: "pointer", textDecoration: "underline dotted", textUnderlineOffset: 2 }} onClick={() => setReportDetail(a)}>{a.company}</span>
               <span style={{ color: C.textDark }}>{a.getter}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 9, color: C.textLight }}>{a.getDate.slice(5)}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 9, color: C.textLight }}>{a.meetDate.slice(5)}</span>
               <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <span style={{
-                  fontSize: 9, padding: "2px 6px", borderRadius: 3, fontWeight: 600,
+                  fontSize: 12, padding: "2px 8px", borderRadius: 4,
                   background: sc.bg, color: sc.color,
                 }}>{a.status}</span>
               </div>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: C.navy, paddingLeft: 72 }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: '#0D2247', paddingLeft: 72, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
             </div>
           );
@@ -403,14 +411,14 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       {/* Edit Modal */}
       {editForm && setAppoData && (() => {
         const inputStyle = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", background: C.offWhite };
-        const labelStyle = { fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 2, display: "block" };
+        const labelStyle = { fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 2, display: "block" };
         const u = (k, v) => setEditForm(p => ({ ...p, [k]: v }));
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: C.white, borderRadius: 12, width: 520, maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
-              <div style={{ padding: "14px 20px", background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")", borderRadius: "12px 12px 0 0", color: C.white }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>アポ情報を編集</div>
-                <div style={{ fontSize: 10, color: C.goldLight, marginTop: 2 }}>{editForm.company}</div>
+            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 520, maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+              <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15 }}>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>アポ情報を編集</div>
+                <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>{editForm.company}</div>
               </div>
               <div style={{ padding: "16px 20px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -443,7 +451,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>備考</label><input value={editForm.note} onChange={e => u("note", e.target.value)} style={inputStyle} /></div>
                 </div>
               </div>
-              <div style={{ padding: "10px 20px", borderTop: "1px solid " + C.borderLight, display: "flex", justifyContent: "space-between" }}>
+              <div style={{ padding: "10px 20px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between" }}>
                 <button onClick={async () => {
                   if (editForm._supaId) {
                     const error = await deleteAppointment(editForm._supaId);
@@ -451,9 +459,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   }
                   setAppoData(prev => prev.filter((_, i) => i !== editForm._idx));
                   setEditForm(null);
-                }} style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #e5383530", background: C.white, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#e53835", fontFamily: "'Noto Sans JP'" }}>削除</button>
+                }} style={{ padding: "8px 16px", borderRadius: 4, border: "1px solid #DC2626", background: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500, color: "#DC2626", fontFamily: "'Noto Sans JP'" }}>削除</button>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => setEditForm(null)} style={{ padding: "8px 20px", borderRadius: 6, border: "1px solid " + C.border, background: C.white, cursor: "pointer", fontSize: 11, fontWeight: 600, color: C.textMid, fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
+                  <button onClick={() => setEditForm(null)} style={{ padding: "8px 16px", borderRadius: 4, border: "1px solid #0D2247", background: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
                   <button onClick={async () => {
                     const idx = editForm._idx;
                     const original = appoData[idx];
@@ -497,9 +505,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                     setAppoData(prev => prev.map((a, i) => i === idx ? updated : a));
                     setEditForm(null);
                   }} style={{
-                    padding: "8px 24px", borderRadius: 6, border: "none",
-                    background: "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")",
-                    cursor: "pointer", fontSize: 11, fontWeight: 700, color: C.white, fontFamily: "'Noto Sans JP'",
+                    padding: "8px 16px", borderRadius: 4, border: "none",
+                    background: "#0D2247",
+                    cursor: "pointer", fontSize: 13, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
                   }}>保存</button>
                 </div>
               </div>
@@ -511,14 +519,14 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       {/* Add Appo Modal */}
       {addAppoForm && setAppoData && (() => {
         const inputStyle = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", background: C.offWhite };
-        const labelStyle = { fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 2, display: "block" };
+        const labelStyle = { fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 2, display: "block" };
         const u = (k, v) => setAddAppoForm(p => ({ ...p, [k]: v }));
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: C.white, borderRadius: 12, width: 520, maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
-              <div style={{ padding: "14px 20px", background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")", borderRadius: "12px 12px 0 0", color: C.white }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>アポを追加</div>
-                <div style={{ fontSize: 10, color: C.goldLight, marginTop: 2 }}>新規アポイント登録</div>
+            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 520, maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+              <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15 }}>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>アポを追加</div>
+                <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>新規アポイント登録</div>
               </div>
               <div style={{ padding: "16px 20px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -551,8 +559,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>備考</label><input value={addAppoForm.note} onChange={e => u("note", e.target.value)} style={inputStyle} /></div>
                 </div>
               </div>
-              <div style={{ padding: "10px 20px", borderTop: "1px solid " + C.borderLight, display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button onClick={() => setAddAppoForm(null)} style={{ padding: "8px 20px", borderRadius: 6, border: "1px solid " + C.border, background: C.white, cursor: "pointer", fontSize: 11, fontWeight: 600, color: C.textMid, fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
+              <div style={{ padding: "10px 20px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <button onClick={() => setAddAppoForm(null)} style={{ padding: "8px 16px", borderRadius: 4, border: "1px solid #0D2247", background: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
                 <button onClick={async () => {
                   if (!addAppoForm.company.trim()) return;
                   const newAppo = {
@@ -573,9 +581,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   setAppoData(prev => [...prev, newAppo]);
                   setAddAppoForm(null);
                 }} style={{
-                  padding: "8px 24px", borderRadius: 6, border: "none",
-                  background: "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")",
-                  cursor: "pointer", fontSize: 11, fontWeight: 700, color: C.white, fontFamily: "'Noto Sans JP'",
+                  padding: "8px 16px", borderRadius: 4, border: "none",
+                  background: "#0D2247",
+                  cursor: "pointer", fontSize: 13, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
                 }}>保存</button>
               </div>
             </div>
@@ -592,25 +600,25 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           zIndex: 200, animation: "fadeIn 0.2s ease",
         }}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: C.white, borderRadius: 12, width: 520, maxHeight: "80vh", overflow: "auto",
+            background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 520, maxHeight: "80vh", overflow: "auto",
             boxShadow: "0 20px 60px rgba(10,25,41,0.3)",
           }}>
             <div style={{
-              background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")",
-              padding: "16px 20px", borderRadius: "12px 12px 0 0",
+              background: '#0D2247',
+              padding: "12px 24px", borderRadius: "4px 4px 0 0",
               display: "flex", alignItems: "center", justifyContent: "space-between",
             }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: C.white }}>アポイント詳細</span>
+              <span style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>アポイント詳細</span>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 {!detailEditing ? (
                   <button onClick={() => { setDetailEditForm({ ...reportDetail, _idx: appoData.findIndex(a => a._supaId === reportDetail._supaId) }); setDetailEditing(true); }}
-                    style={{ padding: "4px 12px", borderRadius: 5, border: "1px solid " + C.white + "40", background: "transparent", color: C.white, cursor: "pointer", fontSize: 11, fontFamily: "'Noto Sans JP'" }}>
+                    style={{ padding: "4px 12px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.4)", background: "transparent", color: '#fff', cursor: "pointer", fontSize: 11, fontFamily: "'Noto Sans JP'" }}>
                     編集
                   </button>
                 ) : (
                   <>
                     <button onClick={() => { setDetailEditing(false); setDetailEditForm(null); }}
-                      style={{ padding: "4px 12px", borderRadius: 5, border: "1px solid " + C.white + "40", background: "transparent", color: C.white + "cc", cursor: "pointer", fontSize: 11, fontFamily: "'Noto Sans JP'" }}>
+                      style={{ padding: "4px 12px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.4)", background: "transparent", color: 'rgba(255,255,255,0.8)', cursor: "pointer", fontSize: 11, fontFamily: "'Noto Sans JP'" }}>
                       キャンセル
                     </button>
                     <button disabled={detailSaving} onClick={async () => {
@@ -642,12 +650,12 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                       setAppoData(prev => prev.map((a, i) => i === idx ? updated : a));
                       setReportDetail(updated);
                       setDetailEditing(false); setDetailEditForm(null);
-                    }} style={{ padding: "4px 14px", borderRadius: 5, border: "none", background: detailSaving ? C.border : C.gold, color: C.white, cursor: detailSaving ? "default" : "pointer", fontSize: 11, fontWeight: 700, fontFamily: "'Noto Sans JP'" }}>
+                    }} style={{ padding: "4px 14px", borderRadius: 4, border: "none", background: detailSaving ? C.border : '#1E40AF', color: '#fff', cursor: detailSaving ? "default" : "pointer", fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'" }}>
                       {detailSaving ? '保存中…' : '保存'}
                     </button>
                   </>
                 )}
-                <button onClick={() => setReportDetail(null)} style={{ width: 28, height: 28, borderRadius: 6, background: C.white + "15", border: "none", color: C.white, cursor: "pointer", fontSize: 14 }}>✕</button>
+                <button onClick={() => setReportDetail(null)} style={{ width: 28, height: 28, borderRadius: 4, background: 'rgba(255,255,255,0.15)', border: "none", color: '#fff', cursor: "pointer", fontSize: 14 }}>✕</button>
               </div>
             </div>
             <div style={{ padding: 20 }}>
@@ -659,69 +667,69 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   <>
                     {detailEditing
                       ? <input value={ef.company} onChange={e => u("company", e.target.value)} style={{ ...iS, fontSize: 16, fontWeight: 700, marginBottom: 12, padding: "6px 10px" }} />
-                      : <div style={{ fontSize: 18, fontWeight: 800, color: C.navy, marginBottom: 12 }}>{reportDetail.company}</div>
+                      : <div style={{ fontSize: 18, fontWeight: 800, color: '#0D2247', marginBottom: 12 }}>{reportDetail.company}</div>
                     }
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
                       {/* クライアント */}
-                      <div style={{ padding: "8px 12px", borderRadius: 6, background: C.offWhite, border: "1px solid " + C.borderLight }}>
+                      <div style={{ padding: "8px 12px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
                         <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>クライアント</div>
                         {detailEditing
                           ? <select value={ef.client} onChange={e => { const name = e.target.value; const cl = clientOptions.find(c => c.company === name); const rr = cl?.rewardType ? rewardMaster.find(r => r.id === cl.rewardType) : null; u("client", name); if (name && rr) u("sales", rr.price); }} style={iS}>
                               <option value="">選択...</option>
                               {clientOptions.map(c => <option key={c._supaId || c.company} value={c.company}>{c.company}{c.status === "停止中" ? "（停止中）" : ""}</option>)}
                             </select>
-                          : <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>{reportDetail.client}</div>}
+                          : <div style={{ fontSize: 12, fontWeight: 600, color: '#0D2247' }}>{reportDetail.client}</div>}
                       </div>
                       {/* 取得者 */}
-                      <div style={{ padding: "8px 12px", borderRadius: 6, background: C.offWhite, border: "1px solid " + C.borderLight }}>
+                      <div style={{ padding: "8px 12px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
                         <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>取得者</div>
                         {detailEditing
                           ? <MemberSuggestInput value={ef.getter} onChange={v => u("getter", v)} members={members} style={iS} />
-                          : <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>{reportDetail.getter}</div>}
+                          : <div style={{ fontSize: 12, fontWeight: 600, color: '#0D2247' }}>{reportDetail.getter}</div>}
                       </div>
                       {/* 取得日 */}
-                      <div style={{ padding: "8px 12px", borderRadius: 6, background: C.offWhite, border: "1px solid " + C.borderLight }}>
+                      <div style={{ padding: "8px 12px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
                         <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>取得日</div>
                         {detailEditing
                           ? <input type="date" value={ef.getDate} onChange={e => u("getDate", e.target.value)} style={iS} />
-                          : <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>{reportDetail.getDate}</div>}
+                          : <div style={{ fontSize: 12, fontWeight: 600, color: '#0D2247' }}>{reportDetail.getDate}</div>}
                       </div>
                       {/* 面談日 */}
-                      <div style={{ padding: "8px 12px", borderRadius: 6, background: C.offWhite, border: "1px solid " + C.borderLight }}>
+                      <div style={{ padding: "8px 12px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
                         <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>面談日</div>
                         {detailEditing
                           ? <input type="date" value={ef.meetDate} onChange={e => u("meetDate", e.target.value)} style={iS} />
-                          : <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>{reportDetail.meetDate}</div>}
+                          : <div style={{ fontSize: 12, fontWeight: 600, color: '#0D2247' }}>{reportDetail.meetDate}</div>}
                       </div>
                       {/* ステータス */}
-                      <div style={{ padding: "8px 12px", borderRadius: 6, background: C.offWhite, border: "1px solid " + C.borderLight }}>
+                      <div style={{ padding: "8px 12px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
                         <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>ステータス</div>
                         {detailEditing
                           ? <select value={ef.status} onChange={e => u("status", e.target.value)} style={iS}>
                               <option value="面談済">面談済</option><option value="事前確認済">事前確認済</option><option value="アポ取得">アポ取得</option><option value="リスケ中">リスケ中</option><option value="キャンセル">キャンセル</option>
                             </select>
-                          : <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>{reportDetail.status}</div>}
+                          : <div style={{ fontSize: 12, fontWeight: 600, color: '#0D2247' }}>{reportDetail.status}</div>}
                       </div>
                       {/* 月（読み取り専用） */}
-                      <div style={{ padding: "8px 12px", borderRadius: 6, background: C.offWhite, border: "1px solid " + C.borderLight }}>
+                      <div style={{ padding: "8px 12px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
                         <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>月</div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#0D2247' }}>
                           {(detailEditing ? ef.meetDate : reportDetail.meetDate) ? (parseInt((detailEditing ? ef.meetDate : reportDetail.meetDate).slice(5, 7), 10) + "月") : null}
                         </div>
                       </div>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
-                      <div style={{ padding: "10px 14px", borderRadius: 8, background: C.navy + "08", border: "1px solid " + C.navy + "15" }}>
+                      <div style={{ padding: "10px 14px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
                         <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>当社売上</div>
                         {detailEditing
                           ? <input type="number" value={ef.sales} onChange={e => u("sales", Number(e.target.value))} style={iS} />
-                          : <div style={{ fontSize: 20, fontWeight: 900, color: C.navy, fontFamily: "'JetBrains Mono'" }}>{reportDetail.sales > 0 ? "¥" + reportDetail.sales.toLocaleString() : "-"}</div>}
+                          : <div style={{ fontSize: 20, fontWeight: 900, color: '#0D2247', fontFamily: "'JetBrains Mono'" }}>{reportDetail.sales > 0 ? "¥" + reportDetail.sales.toLocaleString() : "-"}</div>}
                       </div>
-                      <div style={{ padding: "10px 14px", borderRadius: 8, background: C.gold + "08", border: "1px solid " + C.gold + "15" }}>
+                      <div style={{ padding: "10px 14px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
                         <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>インターン報酬</div>
                         {detailEditing
                           ? <input type="number" value={ef.reward} onChange={e => u("reward", Number(e.target.value))} style={iS} />
-                          : <div style={{ fontSize: 20, fontWeight: 900, color: C.gold, fontFamily: "'JetBrains Mono'" }}>{reportDetail.reward > 0 ? "¥" + reportDetail.reward.toLocaleString() : "-"}</div>}
+                          : <div style={{ fontSize: 20, fontWeight: 900, color: '#1E40AF', fontFamily: "'JetBrains Mono'" }}>{reportDetail.reward > 0 ? "¥" + reportDetail.reward.toLocaleString() : "-"}</div>}
                       </div>
                     </div>
                     {detailEditing && (
@@ -733,7 +741,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                           if (error) { alert('削除に失敗しました: ' + (error.message || '不明なエラー')); return; }
                           if (setAppoData) setAppoData(prev => prev.filter(a => a._supaId !== reportDetail._supaId));
                           setReportDetail(null);
-                        }} style={{ padding: "6px 16px", borderRadius: 5, border: "1px solid #e5383530", background: C.white, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#e53835", fontFamily: "'Noto Sans JP'" }}>
+                        }} style={{ padding: "6px 16px", borderRadius: 4, border: "1px solid #DC2626", background: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500, color: "#DC2626", fontFamily: "'Noto Sans JP'" }}>
                           削除
                         </button>
                       </div>
@@ -742,7 +750,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 );
               })()}
               {/* ── 備考 ── */}
-              <div style={{ padding: "10px 14px", borderRadius: 8, background: C.offWhite, border: "1px solid " + C.borderLight, marginBottom: 12 }}>
+              <div style={{ padding: "10px 14px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB", marginBottom: 12 }}>
                 <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>備考</div>
                 {detailEditing ? (
                   <textarea
@@ -760,8 +768,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 )}
               </div>
               {/* ── アポ取得報告 ── */}
-              <div style={{ padding: "10px 14px", borderRadius: 8, background: C.gold + "06", border: "1px solid " + C.gold + "20", borderLeft: "3px solid " + C.gold, marginBottom: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.gold, marginBottom: 6 }}>アポ取得報告</div>
+              <div style={{ padding: "10px 14px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB", borderLeft: "3px solid #0D2247", marginBottom: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#0D2247', marginBottom: 6 }}>アポ取得報告</div>
                 {detailEditing ? (
                   <textarea
                     value={detailEditForm.appoReport || ''}
@@ -782,7 +790,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   <button
                     onClick={handleTranscribeDetail}
                     disabled={transcribeStep !== 'idle'}
-                    style={{ marginTop: 8, padding: '7px 14px', borderRadius: 6, border: '1px solid ' + C.navy + '40', background: C.navy + '08', cursor: transcribeStep !== 'idle' ? 'default' : 'pointer', fontSize: 11, fontWeight: 600, color: C.navy, fontFamily: "'Noto Sans JP'", opacity: transcribeStep !== 'idle' ? 0.6 : 1 }}>
+                    style={{ marginTop: 8, padding: '7px 14px', borderRadius: 4, border: '1px solid #0D2247', background: '#fff', cursor: transcribeStep !== 'idle' ? 'default' : 'pointer', fontSize: 13, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'", opacity: transcribeStep !== 'idle' ? 0.6 : 1 }}>
                     {transcribeStep === 'fetching'     && '録音を検索中...'}
                     {transcribeStep === 'transcribing' && '文字起こし中...'}
                     {transcribeStep === 'enhancing'    && 'AI添削中...'}
@@ -798,9 +806,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 const recUrl = m?.[1]?.trim() || '';
                 return (
                   <div style={{ marginTop: 8 }}>
-                    <div style={{ padding: '5px 8px', borderRadius: 5, background: C.offWhite,
+                    <div style={{ padding: '5px 8px', borderRadius: 4, background: '#F8F9FA',
                       display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: C.navy, whiteSpace: 'nowrap' }}>録音</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', whiteSpace: 'nowrap' }}>録音</span>
                       {recUrl
                         ? <button onClick={() => setShowRecordingDetail(v => !v)}
                             title={showRecordingDetail ? "閉じる" : "録音を再生"}

@@ -17,7 +17,7 @@ export default function RecallModal({ row, statusId, onSubmit, onCancel, members
     width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid " + C.border,
     fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", background: C.offWhite,
   };
-  const labelStyle = { fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 2, display: "block" };
+  const labelStyle = { fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 2, display: "block" };
 
   const handleAssigneeChange = (v) => {
     u("assignee", v);
@@ -28,10 +28,10 @@ export default function RecallModal({ row, statusId, onSubmit, onCancel, members
 
   return (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ background: C.white, borderRadius: 12, width: 400, boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
-        <div style={{ padding: "14px 20px", background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")", borderRadius: "12px 12px 0 0", color: C.white }}>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>再コール設定</div>
-          <div style={{ fontSize: 11, color: C.goldLight }}>{row.company}　{statusId === "ceo_recall" ? "（社長再コール）" : "（受付再コール）"}</div>
+      <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 400, boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+        <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15 }}>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>再コール設定</div>
+          <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>{row.company}　{statusId === "ceo_recall" ? "（社長再コール）" : "（受付再コール）"}</div>
         </div>
         <div style={{ padding: "16px 20px" }}>
           <div style={{ display: "grid", gap: 10 }}>
@@ -73,15 +73,15 @@ export default function RecallModal({ row, statusId, onSubmit, onCancel, members
             </div>
           </div>
         </div>
-        <div style={{ padding: "10px 20px", borderTop: "1px solid " + C.borderLight, display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <div style={{ padding: "10px 20px", borderTop: "1px solid #E5E7EB", display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button onClick={onCancel} style={{
-            padding: "8px 20px", borderRadius: 6, border: "1px solid " + C.border,
-            background: C.white, cursor: "pointer", fontSize: 11, fontWeight: 600, color: C.textMid, fontFamily: "'Noto Sans JP'",
+            padding: "8px 16px", borderRadius: 4, border: "1px solid #0D2247",
+            background: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'",
           }}>キャンセル</button>
           <button onClick={() => onSubmit(form)} style={{
-            padding: "8px 24px", borderRadius: 6, border: "none",
-            background: "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")",
-            cursor: "pointer", fontSize: 11, fontWeight: 700, color: C.white, fontFamily: "'Noto Sans JP'",
+            padding: "8px 16px", borderRadius: 4, border: "none",
+            background: '#0D2247',
+            cursor: "pointer", fontSize: 13, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
           }}>保存</button>
         </div>
       </div>

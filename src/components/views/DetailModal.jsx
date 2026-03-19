@@ -240,8 +240,8 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
       zIndex: 200, animation: "fadeIn 0.2s ease",
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: C.white, border: "1px solid " + C.borderLight,
-        borderRadius: 14, width: "90%", maxWidth: 820, maxHeight: "85vh",
+        background: '#fff', border: "1px solid #E5E7EB",
+        borderRadius: 4, width: "90%", maxWidth: 820, maxHeight: "85vh",
         overflowY: "auto", padding: 28,
         boxShadow: "0 20px 60px rgba(10,25,41,0.25)",
       }}>
@@ -249,53 +249,53 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
         {/* ── タイトル行 ── */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: C.navy, marginBottom: 6, fontFamily: "'Noto Serif JP', serif" }}>{list.company}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#0D2247', marginBottom: 6, fontFamily: "'Noto Serif JP', serif" }}>{list.company}</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <Badge color={C.navy} glow>{list.type}</Badge>
-              <Badge color={list.status === "架電可能" ? C.gold : C.red} glow>{list.status}</Badge>
-              <Badge color={C.goldDim} glow>{list.industry}</Badge>
+              <Badge color={'#0D2247'} glow>{list.type}</Badge>
+              <Badge color={list.status === "架電可能" ? '#1E40AF' : C.red} glow>{list.status}</Badge>
+              <Badge color={'#1E40AF'} glow>{list.industry}</Badge>
             </div>
           </div>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 6, background: C.offWhite, border: "1px solid " + C.border, color: C.textMid, cursor: "pointer", fontSize: 16, flexShrink: 0 }}>✕</button>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB", color: '#6B7280', cursor: "pointer", fontSize: 16, flexShrink: 0 }}>✕</button>
         </div>
 
         {/* (a) おすすめ度合い・総合スコア */}
         {isOutsideHours ? (
-          <div style={{ padding: "12px 16px", borderRadius: 8, background: C.offWhite, border: "1px solid " + C.borderLight, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ padding: "12px 16px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 12, color: C.textMid, fontWeight: 600 }}>この時間帯は架電時間外です</span>
             <span style={{ fontSize: 10, color: C.textLight }}>（7:00〜20:00が架電推奨時間帯）</span>
           </div>
         ) : (
           <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-            <div style={{ flex: 1.2, padding: "14px 18px", borderRadius: 8, background: C.navy + "06", border: "1px solid " + C.navy + "15" }}>
+            <div style={{ flex: 1.2, padding: "14px 18px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
               <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6, fontWeight: 600 }}>総合スコア</div>
               <ScorePill score={list.recommendation.score} label={list.recommendation.label} color={list.recommendation.color} />
             </div>
-            <div style={{ flex: 1, padding: "14px 18px", borderRadius: 8, background: C.offWhite, border: "1px solid " + C.borderLight }}>
+            <div style={{ flex: 1, padding: "14px 18px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
               <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6, fontWeight: 600 }}>時間帯スコア（30%）</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                <span style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: C.navy }}>{list.recommendation.timeScore}</span>
+                <span style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: '#0D2247' }}>{list.recommendation.timeScore}</span>
                 <span style={{ fontSize: 11, color: C.textLight }}>{list.recommendation.timeLabel}</span>
               </div>
             </div>
-            <div style={{ flex: 1, padding: "14px 18px", borderRadius: 8, background: C.offWhite, border: "1px solid " + C.borderLight }}>
+            <div style={{ flex: 1, padding: "14px 18px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
               <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6, fontWeight: 600 }}>架電頻度スコア（70%）</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                <span style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: C.navy }}>{list.recommendation.recencyScore}</span>
+                <span style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: '#0D2247' }}>{list.recommendation.recencyScore}</span>
                 <span style={{ fontSize: 11, color: C.textLight }}>{list.recommendation.recencyLabel || "未架電"}</span>
               </div>
             </div>
-            <div style={{ flex: 0.7, padding: "14px 18px", borderRadius: 8, background: C.offWhite, border: "1px solid " + C.borderLight }}>
+            <div style={{ flex: 0.7, padding: "14px 18px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
               <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6, fontWeight: 600 }}>リスト企業数</div>
-              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: C.navy }}>{list.count.toLocaleString()}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: '#0D2247' }}>{list.count.toLocaleString()}</div>
             </div>
           </div>
         )}
 
         {/* (b) クライアント情報 | 注意事項 — 横並び */}
         <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-          <div style={{ flex: 1, padding: "12px 16px", borderRadius: 8, background: C.offWhite, border: "1px solid " + C.borderLight }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 10, letterSpacing: 0.5 }}>クライアント情報</div>
+          <div style={{ flex: 1, padding: "12px 16px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#0D2247', marginBottom: 10 }}>クライアント情報</div>
             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 12px", fontSize: 11 }}>
               {[
                 ["担当者", list.manager],
@@ -308,14 +308,14 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
               ] : null)}
             </div>
             {list.companyInfo && (
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid " + C.borderLight }}>
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #E5E7EB" }}>
                 <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>企業概要</div>
                 <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{list.companyInfo}</div>
               </div>
             )}
           </div>
-          <div style={{ flex: 1, padding: "12px 16px", borderRadius: 8, background: C.offWhite, border: "1px solid " + C.borderLight }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 8, letterSpacing: 0.5 }}>注意事項</div>
+          <div style={{ flex: 1, padding: "12px 16px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#0D2247', marginBottom: 8 }}>注意事項</div>
             {list.cautions
               ? <div style={{ fontSize: 11, color: C.textDark, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{list.cautions}</div>
               : <div style={{ fontSize: 11, color: C.textLight }}>注意事項はありません</div>
@@ -325,20 +325,20 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
 
         {/* (c) 業界架電ルール */}
         {rule && (
-          <div style={{ padding: "12px 16px", borderRadius: 8, background: C.offWhite, border: "1px solid " + C.borderLight, marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: C.navy, marginBottom: 6 }}>{cat}の架電ルール</div>
+          <div style={{ padding: "12px 16px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB", marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2247', marginBottom: 6 }}>{cat}の架電ルール</div>
             <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 8, color: C.textDark }}>{rule.rule}</div>
             <div style={{ display: "flex", gap: 16, fontSize: 11, marginBottom: 8 }}>
-              {rule.goodHours && <div><span style={{ color: C.textLight }}>推奨: </span><span style={{ color: C.navy, fontWeight: 600 }}>{rule.goodHours}</span></div>}
+              {rule.goodHours && <div><span style={{ color: C.textLight }}>推奨: </span><span style={{ color: '#0D2247', fontWeight: 600 }}>{rule.goodHours}</span></div>}
               {rule.badHours && <div><span style={{ color: C.textLight }}>非推奨: </span><span style={{ color: C.red }}>{rule.badHours}</span></div>}
             </div>
             <div style={{ display: "flex", gap: 3 }}>
               {DAY_NAMES.map((d, i) => (
                 <span key={i} style={{
                   padding: "2px 8px", borderRadius: 3, fontSize: 10, fontWeight: 600,
-                  background: rule.badDays.includes(i) ? C.red + "15" : rule.goodDays.includes(i) ? C.gold + "20" : C.offWhite,
-                  color: rule.badDays.includes(i) ? C.red : rule.goodDays.includes(i) ? C.navy : C.textLight,
-                  border: "1px solid " + (rule.badDays.includes(i) ? C.red + "30" : rule.goodDays.includes(i) ? C.gold + "50" : C.border),
+                  background: rule.badDays.includes(i) ? C.red + "15" : rule.goodDays.includes(i) ? '#1E40AF1a' : '#F8F9FA',
+                  color: rule.badDays.includes(i) ? C.red : rule.goodDays.includes(i) ? '#0D2247' : C.textLight,
+                  border: "1px solid " + (rule.badDays.includes(i) ? C.red + "30" : rule.goodDays.includes(i) ? '#1E40AF40' : C.border),
                 }}>{d}</span>
               ))}
             </div>
@@ -346,8 +346,8 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
         )}
 
         {list.notes && (
-          <div style={{ padding: "10px 14px", borderRadius: 6, background: C.offWhite, border: "1px solid " + C.borderLight, fontSize: 12, color: C.textMid, marginBottom: 12 }}>
-            <span style={{ fontWeight: 600, color: C.navy }}>備考: </span>{list.notes}
+          <div style={{ padding: "10px 14px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB", fontSize: 12, color: C.textMid, marginBottom: 12 }}>
+            <span style={{ fontWeight: 600, color: '#0D2247' }}>備考: </span>{list.notes}
           </div>
         )}
 
@@ -371,7 +371,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             }}
             style={{
               padding: "6px 20px", borderRadius: 6,
-              background: flowStartNo && flowEndNo ? C.navy : C.border,
+              background: flowStartNo && flowEndNo ? '#0D2247' : C.border,
               color: C.white, cursor: flowStartNo && flowEndNo ? "pointer" : "not-allowed",
               fontSize: 11, fontWeight: 700, fontFamily: "'Noto Sans JP'",
               border: "none",
@@ -411,9 +411,9 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
                     style={{
                       padding: '3px 9px', borderRadius: 4, cursor: 'pointer',
                       fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-                      background: isActive ? C.navy : C.offWhite,
-                      color: isActive ? C.white : C.textMid,
-                      border: '1px solid ' + (isActive ? C.navy : C.border),
+                      background: isActive ? '#0D2247' : '#F8F9FA',
+                      color: isActive ? '#fff' : C.textMid,
+                      border: '1px solid ' + (isActive ? '#0D2247' : C.border),
                       transition: 'all 0.12s',
                     }}
                   >{label}</button>
@@ -433,7 +433,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             <React.Fragment key={idx}>
               {idx === 1 && <span>〜</span>}
               <select value={value} onChange={e => setter(e.target.value)}
-                style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", background: value ? '#EAF4FF' : C.white, color: C.navy, cursor: 'pointer' }}>
+                style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", background: value ? '#EAF4FF' : '#fff', color: '#0D2247', cursor: 'pointer' }}>
                 <option value="">指定なし</option>
                 {[['1億円',100000],['2億円',200000],['3億円',300000],['4億円',400000],['5億円',500000],
                   ['6億円',600000],['7億円',700000],['8億円',800000],['9億円',900000],['10億円',1000000],
@@ -453,10 +453,10 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
               )}
               <button onClick={() => setPrefDropOpen(v => !v)} style={{
                 padding: '4px 8px', borderRadius: 4,
-                border: '1px solid ' + (prefFilters.length > 0 ? C.navy : C.border),
-                background: prefFilters.length > 0 ? '#EAF4FF' : C.white,
+                border: '1px solid ' + (prefFilters.length > 0 ? '#0D2247' : C.border),
+                background: prefFilters.length > 0 ? '#EAF4FF' : '#fff',
                 fontSize: 11, fontFamily: "'Noto Sans JP'", cursor: 'pointer',
-                color: C.navy, whiteSpace: 'nowrap',
+                color: '#0D2247', whiteSpace: 'nowrap',
               }}>
                 {prefFilters.length > 0 ? `都道府県(${prefFilters.length})▼` : '都道府県▼'}
               </button>
@@ -469,15 +469,15 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
                 }}>
                   {prefFilters.length > 0 && (
                     <div onClick={() => setPrefFilters([])} style={{
-                      padding: '4px 10px', fontSize: 10, color: C.navy, cursor: 'pointer',
-                      borderBottom: '1px solid ' + C.borderLight, fontWeight: 600,
+                      padding: '4px 10px', fontSize: 10, color: '#0D2247', cursor: 'pointer',
+                      borderBottom: '1px solid #E5E7EB', fontWeight: 600,
                     }}>クリア</div>
                   )}
                   {availablePrefs.map(p => (
                     <label key={p} style={{
                       display: 'flex', alignItems: 'center', gap: 6,
                       padding: '4px 10px', cursor: 'pointer', fontSize: 11,
-                      fontFamily: "'Noto Sans JP'", color: C.navy,
+                      fontFamily: "'Noto Sans JP'", color: '#0D2247',
                     }}>
                       <input type="checkbox" checked={prefFilters.includes(p)}
                         onChange={() => setPrefFilters(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])}
@@ -498,7 +498,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             <label style={{
               display: "inline-block",
               padding: "6px 16px", borderRadius: 6,
-              background: C.offWhite, color: C.navy, cursor: "pointer",
+              background: '#F8F9FA', color: '#0D2247', cursor: "pointer",
               fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
               border: "1px solid " + C.border,
               opacity: csvImporting ? 0.6 : 1,
