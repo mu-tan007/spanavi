@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import ReactDOM from 'react-dom/client';
 import { C } from '../../constants/colors';
 import { CALL_RESULTS } from '../../constants/callResults';
 import { dialPhone } from '../../utils/phone';
@@ -48,6 +49,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   const [lsCalledCounts, setLsCalledCounts] = useState({});
   const [lsSearching, setLsSearching] = useState(false);
   const [lsExporting, setLsExporting] = useState(null); // エクスポート中の _supaId
+  const [lsPdfExporting, setLsPdfExporting] = useState(null); // PDFエクスポート中の _supaId
 
   // Supabase-based company search
   const STATUS_ID_TO_JP = {
@@ -479,6 +481,161 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       alert("エクスポートに失敗しました: " + e.message);
     }
     setLsExporting(null);
+  };
+
+  // ─── PDF サマリーレポート出力 ───────────────────────────────────
+  const CEO_CONNECT_PDF = new Set(['社長不在', '社長再コール', '社長お断り', 'アポ獲得']);
+  const toJST = (utcStr) => new Date(new Date(utcStr).getTime() + 9 * 3600 * 1000);
+
+  const handlePdfExport = async (list) => {
+    if (!list._supaId) { alert("このリストはSupabase未連携のためPDF出力できません"); return; }
+    setLsPdfExporting(list._supaId);
+    try {
+      const [itemsRes, recordsRes] = await Promise.all([
+        fetchCallListItems(list._supaId),
+        fetchCallRecords(list._supaId),
+      ]);
+      const items = itemsRes.data || [];
+      const records = recordsRes.data || [];
+
+      // 日次集計
+      const dayMap = {};
+      records.forEach(r => {
+        if (!r.called_at) return;
+        const day = toJST(r.called_at).toISOString().slice(0, 10);
+        if (!dayMap[day]) dayMap[day] = { calls: 0, connected: 0, appo: 0 };
+        dayMap[day].calls++;
+        if (CEO_CONNECT_PDF.has(r.status)) dayMap[day].connected++;
+        if (r.status === 'アポ獲得') dayMap[day].appo++;
+      });
+      const dailyStats = Object.keys(dayMap).sort().map(day => {
+        const { calls, connected, appo } = dayMap[day];
+        return {
+          date: day.replace(/-/g, '/'), calls, connected,
+          connRate: calls > 0 ? parseFloat((connected / calls * 100).toFixed(1)) : 0,
+          appo,
+          appoRate: calls > 0 ? parseFloat((appo / calls * 100).toFixed(1)) : 0,
+        };
+      });
+
+      // 週次集計
+      const weekMap = {};
+      records.forEach(r => {
+        if (!r.called_at) return;
+        const d = toJST(r.called_at);
+        const dow = (d.getDay() + 6) % 7;
+        const mon = new Date(d); mon.setDate(d.getDate() - dow);
+        const wk = mon.toISOString().slice(0, 10);
+        if (!weekMap[wk]) weekMap[wk] = { calls: 0, connected: 0, appo: 0 };
+        weekMap[wk].calls++;
+        if (CEO_CONNECT_PDF.has(r.status)) weekMap[wk].connected++;
+        if (r.status === 'アポ獲得') weekMap[wk].appo++;
+      });
+      const weeklyStats = Object.keys(weekMap).sort().map(wk => {
+        const { calls, connected, appo } = weekMap[wk];
+        return {
+          week: wk.replace(/-/g, '/') + '〜', calls, connected,
+          connRate: calls > 0 ? parseFloat((connected / calls * 100).toFixed(1)) : 0,
+          appo,
+          appoRate: calls > 0 ? parseFloat((appo / calls * 100).toFixed(1)) : 0,
+        };
+      });
+
+      // 時間帯集計（JST 9〜19時）
+      const hourBuckets = {};
+      for (let h = 9; h <= 19; h++) hourBuckets[h] = { calls: 0, connected: 0 };
+      records.forEach(r => {
+        if (!r.called_at) return;
+        const h = toJST(r.called_at).getHours();
+        if (h >= 9 && h <= 19) {
+          hourBuckets[h].calls++;
+          if (CEO_CONNECT_PDF.has(r.status)) hourBuckets[h].connected++;
+        }
+      });
+      const hourlyStats = Object.keys(hourBuckets)
+        .sort((a, b) => +a - +b)
+        .map(h => ({
+          hour: +h,
+          calls: hourBuckets[+h].calls,
+          connected: hourBuckets[+h].connected,
+          connRate: hourBuckets[+h].calls > 0
+            ? parseFloat((hourBuckets[+h].connected / hourBuckets[+h].calls * 100).toFixed(1))
+            : 0,
+        }));
+      const bestHour = hourlyStats.every(h => h.calls === 0)
+        ? null
+        : hourlyStats.reduce((b, c) => c.connRate > b.connRate ? c : b).hour;
+
+      // アポ一覧
+      const appoList = items
+        .filter(item => item.call_status === 'アポ獲得')
+        .map(item => {
+          const rec = records
+            .filter(r => r.item_id === item.id && r.status === 'アポ獲得')
+            .sort((a, b) => new Date(b.called_at) - new Date(a.called_at))[0];
+          return {
+            company: item.company,
+            date: rec ? toJST(rec.called_at).toISOString().slice(0, 10).replace(/-/g, '/') : '—',
+            status: 'アポ獲得',
+          };
+        });
+
+      // サマリー指標
+      const totalCalls = records.length;
+      const totalConnected = records.filter(r => CEO_CONNECT_PDF.has(r.status)).length;
+      const totalAppo = records.filter(r => r.status === 'アポ獲得').length;
+      const sortedDates = records.map(r => r.called_at).filter(Boolean).sort();
+      const dateRange = sortedDates.length
+        ? `${toJST(sortedDates[0]).toISOString().slice(0, 10).replace(/-/g, '/')} 〜 ${toJST(sortedDates.at(-1)).toISOString().slice(0, 10).replace(/-/g, '/')}`
+        : '—';
+
+      // コンポーネント描画 → html2canvas → jspdf
+      const { default: ClientReportPDF } = await import('./ClientReportPDF');
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const root = ReactDOM.createRoot(container);
+      root.render(
+        <ClientReportPDF
+          clientName={list.company || 'クライアント'}
+          listName={`${list.company || ''}${list.industry ? ' - ' + list.industry : ''}`}
+          dateRange={dateRange}
+          totalCalls={totalCalls}
+          ceoConnectRate={totalCalls > 0 ? parseFloat((totalConnected / totalCalls * 100).toFixed(1)) : 0}
+          appoRate={totalCalls > 0 ? parseFloat((totalAppo / totalCalls * 100).toFixed(1)) : 0}
+          appoList={appoList}
+          dailyStats={dailyStats}
+          weeklyStats={weeklyStats}
+          hourlyStats={hourlyStats}
+          bestHour={bestHour}
+        />
+      );
+
+      // recharts の描画完了を待機
+      await new Promise(resolve => setTimeout(resolve, 1200));
+
+      const { default: html2canvas } = await import('html2canvas');
+      const { jsPDF } = await import('jspdf');
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+      for (let i = 1; i <= 4; i++) {
+        const el = document.getElementById(`pdf-page-${i}`);
+        const canvas = await html2canvas(el, {
+          scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff',
+        });
+        if (i > 1) pdf.addPage();
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 297, 210);
+      }
+
+      const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      pdf.save(`${list.company || 'report'}_サマリーレポート_${today}.pdf`);
+
+      root.unmount();
+      document.body.removeChild(container);
+    } catch (e) {
+      console.error('[PDF Export]', e);
+      alert('PDF出力に失敗しました: ' + e.message);
+    }
+    setLsPdfExporting(null);
   };
 
   const handleExportItems = async () => {
@@ -1358,7 +1515,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
         ) : lsResults !== null && (
           <div style={{ background: C.white, borderRadius: 10, overflow: "hidden", border: "1px solid " + C.borderLight }}>
             <div style={{
-              display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 80px 80px 110px",
+              display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 80px 80px 150px",
               padding: "10px 16px", background: C.navyDeep, fontSize: 10,
               fontWeight: 600, color: C.goldLight, letterSpacing: 0.5,
             }}>
@@ -1371,7 +1528,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
             </div>
             {lsResults.map((list, i) => (
               <div key={list._supaId || i} style={{
-                display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 80px 80px 110px",
+                display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 80px 80px 150px",
                 padding: "10px 16px", fontSize: 11, alignItems: "center",
                 borderBottom: "1px solid " + C.borderLight,
                 background: i % 2 === 0 ? C.white : C.offWhite,
@@ -1385,17 +1542,27 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                 <span style={{ textAlign: "center", fontFamily: "'JetBrains Mono'", color: C.textMid }}>
                   {lsCalledCounts[list._supaId] != null ? lsCalledCounts[list._supaId].toLocaleString() : "-"}
                 </span>
-                <div style={{ textAlign: "center" }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
                   <button
                     onClick={() => handleExport(list)}
                     disabled={lsExporting === list._supaId}
                     style={{
-                      padding: "5px 12px", borderRadius: 5, border: "none",
+                      padding: "4px 10px", borderRadius: 5, border: "none", width: 126,
                       background: lsExporting === list._supaId ? C.textLight : C.navy,
                       color: C.white, cursor: lsExporting === list._supaId ? "default" : "pointer",
-                      fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+                      fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'",
                     }}
-                  >{lsExporting === list._supaId ? "処理中..." : "エクスポート"}</button>
+                  >{lsExporting === list._supaId ? "処理中..." : "Excelエクスポート"}</button>
+                  <button
+                    onClick={() => handlePdfExport(list)}
+                    disabled={lsPdfExporting === list._supaId}
+                    style={{
+                      padding: "4px 10px", borderRadius: 5, border: "none", width: 126,
+                      background: lsPdfExporting === list._supaId ? C.textLight : C.green,
+                      color: C.white, cursor: lsPdfExporting === list._supaId ? "default" : "pointer",
+                      fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+                    }}
+                  >{lsPdfExporting === list._supaId ? "処理中..." : "PDFレポート"}</button>
                 </div>
               </div>
             ))}
