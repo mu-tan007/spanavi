@@ -485,7 +485,8 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
 
   // ─── PDF サマリーレポート出力 ───────────────────────────────────
   const CEO_CONNECT_PDF = new Set(['社長再コール', '社長お断り', 'アポ獲得']);
-  const toJST = (utcStr) => new Date(new Date(utcStr).getTime() + 9 * 3600 * 1000);
+  const toJSTDate = (utcStr) => new Date(utcStr).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
+  const toJSTHour = (utcStr) => parseInt(new Date(utcStr).toLocaleString('en-US', { timeZone: 'Asia/Tokyo', hour: 'numeric', hour12: false }), 10);
 
   const handlePdfExport = async (list) => {
     if (!list._supaId) { alert("このリストはSupabase未連携のためPDF出力できません"); return; }
@@ -502,7 +503,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       const dayMap = {};
       records.forEach(r => {
         if (!r.called_at) return;
-        const day = toJST(r.called_at).toISOString().slice(0, 10);
+        const day = toJSTDate(r.called_at);
         if (!dayMap[day]) dayMap[day] = { calls: 0, connected: 0, appo: 0 };
         dayMap[day].calls++;
         if (CEO_CONNECT_PDF.has(r.status)) dayMap[day].connected++;
@@ -522,7 +523,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       const weekMap = {};
       records.forEach(r => {
         if (!r.called_at) return;
-        const d = toJST(r.called_at);
+        const d = new Date(toJSTDate(r.called_at) + 'T12:00:00Z');
         const dow = (d.getDay() + 6) % 7;
         const mon = new Date(d); mon.setDate(d.getDate() - dow);
         const wk = mon.toISOString().slice(0, 10);
@@ -545,7 +546,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       const hourBuckets = {};
       records.forEach(r => {
         if (!r.called_at) return;
-        const h = toJST(r.called_at).getHours();
+        const h = toJSTHour(r.called_at);
         if (!hourBuckets[h]) hourBuckets[h] = { calls: 0, connected: 0 };
         hourBuckets[h].calls++;
         if (CEO_CONNECT_PDF.has(r.status)) hourBuckets[h].connected++;
@@ -571,7 +572,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
             .sort((a, b) => new Date(b.called_at) - new Date(a.called_at))[0];
           return {
             company: item.company,
-            date: rec ? toJST(rec.called_at).toISOString().slice(0, 10).replace(/-/g, '/') : '—',
+            date: rec ? toJSTDate(rec.called_at).replace(/-/g, '/') : '—',
             status: 'アポ獲得',
           };
         });
@@ -582,7 +583,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       const totalAppo = records.filter(r => r.status === 'アポ獲得').length;
       const sortedDates = records.map(r => r.called_at).filter(Boolean).sort();
       const dateRange = sortedDates.length
-        ? `${toJST(sortedDates[0]).toISOString().slice(0, 10).replace(/-/g, '/')} 〜 ${toJST(sortedDates.at(-1)).toISOString().slice(0, 10).replace(/-/g, '/')}`
+        ? `${toJSTDate(sortedDates[0]).replace(/-/g, '/')} 〜 ${toJSTDate(sortedDates.at(-1)).replace(/-/g, '/')}`
         : '—';
 
       // コンポーネント描画 → html2canvas → jspdf
