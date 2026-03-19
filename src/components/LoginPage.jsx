@@ -3,14 +3,15 @@ import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 
 const C = {
-  navy: '#032D60',
-  navyDeep: '#021B40',
-  navyLight: '#0176D3',
-  gold: '#C8A84B',
+  navy: '#0D2247',
+  blue: '#1E40AF',
+  gray200: '#E5E7EB',
   white: '#ffffff',
-  border: '#E5E5E5',
-  borderLight: '#F0F0F0',
-  textLight: '#706E6B',
+  textMuted: '#6B7280',
+  textDark: '#111827',
+  labelColor: '#374151',
+  errorRed: '#DC2626',
+  navyHover: '#1a3366',
 }
 
 function ShieldLogo() {
@@ -75,8 +76,8 @@ function MemberNameSelect({ members, selected, onSelect }) {
 
   return (
     <div style={{ marginBottom: 14, position: 'relative' }} ref={wrapperRef}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: C.navy, marginBottom: 5, letterSpacing: 1 }}>
-        氏名<span style={{ color: '#e74c3c', marginLeft: 2 }}>*</span>
+      <div style={{ fontSize: 12, fontWeight: 600, color: C.labelColor, marginBottom: 4 }}>
+        氏名<span style={{ color: C.errorRed, marginLeft: 2 }}>*</span>
       </div>
       <input
         type="text"
@@ -85,10 +86,12 @@ function MemberNameSelect({ members, selected, onSelect }) {
         placeholder="名前を入力して選択..."
         autoComplete="off"
         style={{
-          width: '100%', padding: '10px 12px', borderRadius: 8,
-          border: `2px solid ${focused ? C.gold : C.border}`, fontSize: 13,
+          width: '100%', padding: '10px 14px', borderRadius: 4,
+          border: `1px solid ${focused ? C.navy : C.gray200}`,
+          boxShadow: focused ? '0 0 0 2px rgba(13,34,71,0.1)' : 'none',
+          fontSize: 14, color: C.textDark,
           fontFamily: "'Noto Sans JP'", outline: 'none',
-          transition: 'border-color 0.2s', boxSizing: 'border-box',
+          transition: 'border-color 0.2s, box-shadow 0.2s', boxSizing: 'border-box',
           background: C.white,
         }}
         onFocus={() => { setFocused(true); setShowList(true) }}
@@ -97,18 +100,18 @@ function MemberNameSelect({ members, selected, onSelect }) {
       {showList && filtered.length > 0 && (
         <div style={{
           position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-          background: C.white, border: '2px solid ' + C.gold, borderRadius: 8,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.15)', maxHeight: 220, overflowY: 'auto',
+          background: C.white, border: '1px solid ' + C.gray200, borderRadius: 4,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.10)', maxHeight: 220, overflowY: 'auto',
         }}>
           {filtered.map(m => (
             <div
               key={m.name}
               onMouseDown={() => handleSelect(m)}
               style={{
-                padding: '10px 12px', fontSize: 13, color: C.navy,
-                cursor: 'pointer', borderBottom: '1px solid ' + C.borderLight,
+                padding: '10px 14px', fontSize: 14, color: C.textDark,
+                cursor: 'pointer', borderBottom: '1px solid ' + C.gray200,
               }}
-              onMouseEnter={e => e.currentTarget.style.background = '#f5f0e8'}
+              onMouseEnter={e => e.currentTarget.style.background = '#F3F4F6'}
               onMouseLeave={e => e.currentTarget.style.background = C.white}
             >
               {m.name}
@@ -230,44 +233,44 @@ export default function LoginPage() {
   }
 
   const inputStyle = {
-    width: '100%', padding: '10px 12px', borderRadius: 8,
-    border: '2px solid ' + C.border, fontSize: 13,
+    width: '100%', padding: '10px 14px', borderRadius: 4,
+    border: '1px solid ' + C.gray200, fontSize: 14, color: C.textDark,
     fontFamily: "'Noto Sans JP'", outline: 'none',
-    transition: 'border-color 0.2s', marginBottom: 0,
+    transition: 'border-color 0.2s, box-shadow 0.2s', marginBottom: 0,
     boxSizing: 'border-box', background: C.white,
   }
 
   const btnStyle = {
-    width: '100%', padding: '12px', borderRadius: 8, border: 'none',
+    width: '100%', padding: '10px 16px', borderRadius: 4, border: 'none',
     cursor: loading ? 'not-allowed' : 'pointer',
-    background: `linear-gradient(135deg, ${C.gold}, #a8883a)`,
-    color: C.white, fontSize: 14, fontWeight: 700, fontFamily: "'Noto Sans JP'",
-    letterSpacing: 1, opacity: loading ? 0.6 : 1,
+    background: C.navy,
+    color: C.white, fontSize: 14, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+    opacity: loading ? 0.6 : 1,
   }
 
   const errBlock = error && (
-    <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: 12, background: '#fff0f0', border: '1px solid #ffcccc', fontSize: 12, color: '#c0392b' }}>
+    <div style={{ marginBottom: 12, fontSize: 12, color: C.errorRed }}>
       {error}
     </div>
   )
 
-  const labelStyle = { fontSize: 11, fontWeight: 600, color: C.navy, marginBottom: 5, letterSpacing: 1 }
+  const labelStyle = { fontSize: 12, fontWeight: 600, color: C.labelColor, marginBottom: 4 }
 
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: `linear-gradient(160deg, ${C.navyDeep} 0%, ${C.navy} 35%, #0553A1 60%, ${C.navyLight} 100%)`,
-      fontFamily: "'Noto Sans JP', sans-serif", position: 'relative', overflow: 'hidden', padding: '20px',
+      background: '#F8F9FA',
+      fontFamily: "'Noto Sans JP', sans-serif", padding: '20px',
     }}>
-      <div style={{ position: 'fixed', top: -80, right: -80, width: 300, height: 300, borderRadius: '50%', background: C.gold + '12' }} />
-      <div style={{ position: 'fixed', bottom: -60, left: -60, width: 200, height: 200, borderRadius: '50%', background: C.gold + '08' }} />
-
       <div style={{
-        background: C.white, borderRadius: 20,
-        padding: '40px 40px 32px',
-        width: 380, maxWidth: '100%',
-        boxShadow: '0 16px 64px rgba(0,0,0,0.35)', position: 'relative', zIndex: 1,
-        borderTop: '2px solid ' + C.gold,
+        background: C.white,
+        border: '1px solid ' + C.gray200,
+        borderRadius: 4,
+        padding: '40px',
+        width: '100%',
+        maxWidth: 400,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+        position: 'relative',
       }}>
         {/* ロゴ */}
         <div style={{ textAlign: 'center', marginBottom: 28, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -290,7 +293,7 @@ export default function LoginPage() {
             {/* パスワード */}
             <div style={{ marginBottom: 4 }}>
               <div style={labelStyle}>
-                パスワード<span style={{ color: '#e74c3c', marginLeft: 2 }}>*</span>
+                パスワード<span style={{ color: C.errorRed, marginLeft: 2 }}>*</span>
               </div>
               <input
                 type="password"
@@ -300,29 +303,35 @@ export default function LoginPage() {
                 required
                 autoComplete="off"
                 style={inputStyle}
-                onFocus={e => e.target.style.borderColor = C.gold}
-                onBlur={e => e.target.style.borderColor = C.border}
+                onFocus={e => { e.target.style.borderColor = C.navy; e.target.style.boxShadow = '0 0 0 2px rgba(13,34,71,0.1)' }}
+                onBlur={e => { e.target.style.borderColor = C.gray200; e.target.style.boxShadow = 'none' }}
               />
             </div>
 
             <div style={{ textAlign: 'right', marginBottom: 16, marginTop: 6 }}>
               <span
                 onClick={() => { setMode('forgot'); setError('') }}
-                style={{ fontSize: 11, color: C.gold, cursor: 'pointer', textDecoration: 'underline' }}
+                style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
               >
                 パスワードを忘れた方はこちら
               </span>
             </div>
 
             {errBlock}
-            <button type="submit" disabled={loading} style={btnStyle}>
+            <button
+              type="submit"
+              disabled={loading}
+              style={btnStyle}
+              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = C.navyHover }}
+              onMouseLeave={e => { e.currentTarget.style.background = C.navy }}
+            >
               {loading ? 'ログイン中...' : 'ログイン'}
             </button>
 
             <div style={{ textAlign: 'center', marginTop: 20 }}>
               <span
                 onClick={() => { setMode('admin'); setError('') }}
-                style={{ fontSize: 10, color: C.textLight, cursor: 'pointer', textDecoration: 'underline', letterSpacing: 0.5 }}
+                style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
               >
                 管理者の方はこちら
               </span>
@@ -333,13 +342,16 @@ export default function LoginPage() {
         {/* ── 管理者ログイン ── */}
         {mode === 'admin' && (
           <form onSubmit={handleAdminLogin} autoComplete="off">
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 20, textAlign: 'center', letterSpacing: 1 }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: C.navy, marginBottom: 4, textAlign: 'center' }}>
               管理者ログイン
+            </div>
+            <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 20, textAlign: 'center' }}>
+              管理者アカウントでサインインしてください
             </div>
 
             <div style={{ marginBottom: 14 }}>
               <div style={labelStyle}>
-                メールアドレス<span style={{ color: '#e74c3c', marginLeft: 2 }}>*</span>
+                メールアドレス<span style={{ color: C.errorRed, marginLeft: 2 }}>*</span>
               </div>
               <input
                 type="email"
@@ -349,14 +361,14 @@ export default function LoginPage() {
                 required
                 autoComplete="off"
                 style={inputStyle}
-                onFocus={e => e.target.style.borderColor = C.gold}
-                onBlur={e => e.target.style.borderColor = C.border}
+                onFocus={e => { e.target.style.borderColor = C.navy; e.target.style.boxShadow = '0 0 0 2px rgba(13,34,71,0.1)' }}
+                onBlur={e => { e.target.style.borderColor = C.gray200; e.target.style.boxShadow = 'none' }}
               />
             </div>
 
             <div style={{ marginBottom: 16 }}>
               <div style={labelStyle}>
-                パスワード<span style={{ color: '#e74c3c', marginLeft: 2 }}>*</span>
+                パスワード<span style={{ color: C.errorRed, marginLeft: 2 }}>*</span>
               </div>
               <input
                 type="password"
@@ -366,19 +378,25 @@ export default function LoginPage() {
                 required
                 autoComplete="off"
                 style={inputStyle}
-                onFocus={e => e.target.style.borderColor = C.gold}
-                onBlur={e => e.target.style.borderColor = C.border}
+                onFocus={e => { e.target.style.borderColor = C.navy; e.target.style.boxShadow = '0 0 0 2px rgba(13,34,71,0.1)' }}
+                onBlur={e => { e.target.style.borderColor = C.gray200; e.target.style.boxShadow = 'none' }}
               />
             </div>
 
             {errBlock}
-            <button type="submit" disabled={loading} style={btnStyle}>
+            <button
+              type="submit"
+              disabled={loading}
+              style={btnStyle}
+              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = C.navyHover }}
+              onMouseLeave={e => { e.currentTarget.style.background = C.navy }}
+            >
               {loading ? 'ログイン中...' : 'ログイン'}
             </button>
             <div style={{ textAlign: 'center', marginTop: 16 }}>
               <span
                 onClick={() => { setMode('login'); setError(''); setAdminEmail(''); setAdminPassword('') }}
-                style={{ fontSize: 12, color: C.gold, cursor: 'pointer', textDecoration: 'underline' }}
+                style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
               >
                 ← 戻る
               </span>
@@ -389,7 +407,7 @@ export default function LoginPage() {
         {/* ── パスワードリセット ── */}
         {mode === 'forgot' && (
           <form onSubmit={handleForgotPassword}>
-            <div style={{ fontSize: 13, color: C.textLight, marginBottom: 20, lineHeight: 1.8 }}>
+            <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 20, lineHeight: 1.8 }}>
               氏名を選択してください。<br />パスワード再設定のリンクをお送りします。
             </div>
             <MemberNameSelect
@@ -398,13 +416,19 @@ export default function LoginPage() {
               onSelect={(m) => { setResetSelected(m); setError('') }}
             />
             {errBlock}
-            <button type="submit" disabled={loading} style={btnStyle}>
+            <button
+              type="submit"
+              disabled={loading}
+              style={btnStyle}
+              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = C.navyHover }}
+              onMouseLeave={e => { e.currentTarget.style.background = C.navy }}
+            >
               {loading ? '送信中...' : '再設定メールを送る'}
             </button>
             <div style={{ textAlign: 'center', marginTop: 16 }}>
               <span
                 onClick={() => { setMode('login'); setError('') }}
-                style={{ fontSize: 12, color: C.gold, cursor: 'pointer', textDecoration: 'underline' }}
+                style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
               >
                 ログインに戻る
               </span>
@@ -414,20 +438,20 @@ export default function LoginPage() {
 
         {mode === 'forgotSent' && (
           <div style={{ textAlign: 'center', padding: '10px 0' }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 12 }}>メールを送信しました</div>
-            <div style={{ fontSize: 13, color: C.textLight, lineHeight: 1.8, marginBottom: 24 }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: C.navy, marginBottom: 12 }}>メールを送信しました</div>
+            <div style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.8, marginBottom: 24 }}>
               {resetSelected?.name} 宛に<br />パスワード再設定のリンクを送りました。<br />メールをご確認ください。
             </div>
             <span
               onClick={() => { setMode('login'); setError('') }}
-              style={{ fontSize: 12, color: C.gold, cursor: 'pointer', textDecoration: 'underline' }}
+              style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
             >
               ログインに戻る
             </span>
           </div>
         )}
 
-        <div style={{ marginTop: 20, textAlign: 'center', fontSize: 9, color: C.textLight, letterSpacing: 1 }}>
+        <div style={{ marginTop: 20, textAlign: 'center', fontSize: 9, color: C.textMuted, letterSpacing: 1 }}>
           © 2026 M&A Sourcing Partners Co., Ltd.
         </div>
       </div>
