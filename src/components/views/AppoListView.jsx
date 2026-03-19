@@ -147,8 +147,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   };
 
   const colTemplate = setAppoData
-    ? "0.9fr 0.9fr 0.5fr 0.5fr 0.5fr 60px 0.8fr 0.8fr 32px"
-    : "0.9fr 0.9fr 0.5fr 0.5fr 0.5fr 60px 0.8fr 0.8fr";
+    ? "0.9fr 0.9fr 0.5fr 0.5fr 0.5fr 60px 0.6fr 0.6fr 32px"
+    : "0.9fr 0.9fr 0.5fr 0.5fr 0.5fr 60px 0.6fr 0.6fr";
 
   const handleTranscribeDetail = async () => {
     if (transcribeStep !== 'idle') return;
