@@ -312,12 +312,12 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
         boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
       }}>
         <div style={{
-          display: "grid", gridTemplateColumns: "2fr 70px 1fr 70px 0.8fr 120px 60px",
+          display: "grid", gridTemplateColumns: "2fr 90px 1fr 90px 0.8fr 120px 60px",
           padding: "10px 16px", background: "#F8F9FA",
           fontSize: 11, fontWeight: 600, color: "#6B7280", letterSpacing: "0.08em",
           textTransform: "uppercase", borderBottom: "1px solid #E5E7EB",
         }}>
-          <span>クライアント</span><span>種別</span><span>業種</span><span>社数</span><span>担当者</span><span>おすすめ度</span><span></span>
+          <span>クライアント</span><span style={{ textAlign: "center" }}>種別</span><span style={{ textAlign: "center" }}>業種</span><span style={{ textAlign: "right" }}>社数</span><span style={{ textAlign: "center" }}>担当者</span><span style={{ textAlign: "center" }}>おすすめ度</span><span></span>
         </div>
         {displayFilter !== 'archived' && <div style={{ maxHeight: 600, overflowY: "auto" }}>
           {(() => {
@@ -343,7 +343,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                   const i = idx++;
                   return (
                     <div key={list.id} style={{
-                      display: "grid", gridTemplateColumns: "2fr 70px 1fr 70px 0.8fr 120px 60px",
+                      display: "grid", gridTemplateColumns: "2fr 90px 1fr 90px 0.8fr 120px 60px",
                       padding: "10px 16px",
                       borderBottom: "1px solid #F3F2F2",
                       fontSize: 12, alignItems: "center",
@@ -360,11 +360,11 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                         {list.company}
         
                       </span>
-                      <span><Badge color={list.type === "M&A仲介" ? C.navy : list.type === "IFA" ? '#6366F1' : list.type === "ファンド" ? C.green : C.orange} small>{list.type}</Badge></span>
-                      <span style={{ color: C.textMid }}>{list.industry}</span>
-                      <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textMid }}>{list.count.toLocaleString()}</span>
-                      <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list.manager}</span>
-                      <span>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
+                      <span style={{ display: "flex", justifyContent: "center" }}><Badge color={list.type === "M&A仲介" ? C.navy : list.type === "IFA" ? '#6366F1' : list.type === "ファンド" ? C.green : C.orange} small>{list.type}</Badge></span>
+                      <span style={{ color: C.textMid, textAlign: "center" }}>{list.industry}</span>
+                      <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textMid, textAlign: "right" }}>{list.count.toLocaleString()}</span>
+                      <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }}>{list.manager}</span>
+                      <span style={{ display: "flex", justifyContent: "center" }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
                       <span style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
                         {isAdmin && <>
                           <button onClick={() => handleOpenEdit(list)} title="編集" style={{
