@@ -1165,10 +1165,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   cfvKbRef.current = { sel: selectedRow, sorted, currentIdx, appoM: appoModal, recallM: recallModal, helpOpen: showShortcutHelp, handleResult };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#F3F2F2', zIndex: 10000, display: 'flex', flexDirection: 'column', fontFamily: "'Noto Sans JP'" }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#F8F9FA', zIndex: 10000, display: 'flex', flexDirection: 'column', fontFamily: "'Noto Sans JP'" }}>
 
       {/* ── ヘッダーバー（height:48px） ── */}
-      <div style={{ height: 48, background: '#032D60', display: 'flex', alignItems: 'center', padding: '0 14px', gap: 10, flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+      <div style={{ height: 48, background: '#0D2247', display: 'flex', alignItems: 'center', padding: '0 14px', gap: 10, flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
 
         {/* 左: リストに戻る（集中モード時のみ表示） */}
         {!listMode && (
@@ -1232,17 +1232,17 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
           {listMode ? (
             /* ────────────── リスト表示モード ────────────── */
-            <div style={{ background: '#fff', borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+            <div style={{ background: '#fff', borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
               {/* 検索バー */}
-              <div style={{ padding: '8px 12px', borderBottom: '1px solid #E5E5E5', display: 'flex', gap: 6, alignItems: 'center', background: '#FAFAFA', flexWrap: 'wrap' }}>
+              <div style={{ padding: '8px 12px', borderBottom: '1px solid #E5E7EB', display: 'flex', gap: 6, alignItems: 'center', background: '#F8F9FA', flexWrap: 'wrap' }}>
                 <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} placeholder="企業名・代表者・電話番号で検索..."
-                  style={{ flex: 1, minWidth: 160, padding: '6px 12px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', boxSizing: 'border-box' }} />
+                  style={{ flex: 1, minWidth: 160, padding: '6px 12px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', boxSizing: 'border-box' }} />
                 {[['callable','架電可能'],['all','全件'],['excluded','除外']].map(([mode, label]) => (
                   <button key={mode} onClick={() => { setFilterMode(mode); setPage(0); }}
-                    style={{ padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
-                      background: filterMode === mode ? '#032D60' : 'transparent',
-                      color: filterMode === mode ? '#fff' : '#706E6B',
-                      border: '1px solid ' + (filterMode === mode ? '#032D60' : '#E5E5E5') }}>
+                    style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
+                      background: filterMode === mode ? '#0D2247' : 'transparent',
+                      color: filterMode === mode ? '#fff' : '#9CA3AF',
+                      border: '1px solid ' + (filterMode === mode ? '#0D2247' : '#E5E7EB') }}>
                     {label}
                   </button>
                 ))}
@@ -1256,7 +1256,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     <React.Fragment key={idx}>
                       {idx === 1 && <span>〜</span>}
                       <select value={value} onChange={e => setter(e.target.value)}
-                        style={{ padding: '3px 4px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 10, fontFamily: "'Noto Sans JP'", background: value ? '#EAF4FF' : '#fff', color: '#032D60', cursor: 'pointer' }}>
+                        style={{ padding: '3px 4px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 10, fontFamily: "'Noto Sans JP'", background: value ? '#EFF6FF' : '#fff', color: '#0D2247', cursor: 'pointer' }}>
                         <option value="">指定なし</option>
                         {[['1億円',100000],['2億円',200000],['3億円',300000],['4億円',400000],['5億円',500000],
                           ['6億円',600000],['7億円',700000],['8億円',800000],['9億円',900000],['10億円',1000000],
@@ -1275,31 +1275,31 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     )}
                     <button onClick={() => setPrefDropOpen(v => !v)} style={{
                       padding: '3px 8px', borderRadius: 4,
-                      border: '1px solid ' + (prefFilters.length > 0 ? '#032D60' : '#E5E5E5'),
-                      background: prefFilters.length > 0 ? '#EAF4FF' : '#fff',
+                      border: '1px solid ' + (prefFilters.length > 0 ? '#0D2247' : '#E5E7EB'),
+                      background: prefFilters.length > 0 ? '#EFF6FF' : '#fff',
                       fontSize: 10, fontFamily: "'Noto Sans JP'", cursor: 'pointer',
-                      color: '#032D60', whiteSpace: 'nowrap',
+                      color: '#0D2247', whiteSpace: 'nowrap',
                     }}>
                       {prefFilters.length > 0 ? `都道府県(${prefFilters.length})▼` : '都道府県▼'}
                     </button>
                     {prefDropOpen && (
                       <div style={{
                         position: 'absolute', top: '100%', left: 0, zIndex: 101,
-                        background: '#fff', border: '1px solid #E5E5E5',
-                        borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                        background: '#fff', border: '1px solid #E5E7EB',
+                        borderRadius: 4, boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
                         minWidth: 130, maxHeight: 220, overflowY: 'auto', padding: '4px 0',
                       }}>
                         {prefFilters.length > 0 && (
                           <div onClick={() => { setPrefFilters([]); setPage(0); }} style={{
-                            padding: '4px 10px', fontSize: 10, color: '#032D60', cursor: 'pointer',
-                            borderBottom: '1px solid #E5E5E5', fontWeight: 600,
+                            padding: '4px 10px', fontSize: 10, color: '#0D2247', cursor: 'pointer',
+                            borderBottom: '1px solid #E5E7EB', fontWeight: 600,
                           }}>クリア</div>
                         )}
                         {prefOptions.map(p => (
                           <label key={p} style={{
                             display: 'flex', alignItems: 'center', gap: 6,
                             padding: '4px 10px', cursor: 'pointer', fontSize: 10,
-                            fontFamily: "'Noto Sans JP'", color: '#032D60',
+                            fontFamily: "'Noto Sans JP'", color: '#0D2247',
                           }}>
                             <input type="checkbox" checked={prefFilters.includes(p)}
                               onChange={() => {
@@ -1325,12 +1325,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 ) : (
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                     <thead>
-                      <tr style={{ background: '#F8F9FA', position: 'sticky', top: 0, zIndex: 1 }}>
+                      <tr style={{ background: '#0D2247', position: 'sticky', top: 0, zIndex: 1 }}>
                         {[['No', '36px'], ['企業名', null], ['事業内容', null], ['住所', '90px'], ['代表者', '90px'], ['電話番号', '112px'], ['売上高', '90px'], ['結果', '80px']].map(([h, w]) => {
                           const dir = sortState.column === h ? sortState.direction : null;
                           return (
                             <th key={h} onClick={() => handleSort(h)}
-                              style={{ padding: '8px 8px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6B7280', letterSpacing: '0.05em', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none', borderBottom: '2px solid #E5E5E5', textTransform: 'uppercase', ...(w ? { width: w } : {}) }}>
+                              style={{ padding: '8px 8px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#fff', letterSpacing: '0.05em', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none', ...(w ? { width: w } : {}) }}>
                               {h}{dir === 'desc' ? ' ▼' : dir === 'asc' ? ' ▲' : ''}
                             </th>
                           );
@@ -1344,27 +1344,27 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                         return (
                           <tr key={item.id}
                             onClick={() => { setSelectedRow(item); setListMode(false); }}
-                            style={{ cursor: 'pointer', background: isSelected ? '#EAF4FF' : 'transparent', borderBottom: '1px solid #F3F2F2', transition: 'background 0.12s', borderLeft: isSelected ? '3px solid #0176D3' : '3px solid transparent' }}
-                            onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#EAF4FF'; }}
-                            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}>
-                            <td style={{ padding: '7px 8px', fontFamily: "'JetBrains Mono'", fontSize: 9, color: '#706E6B' }}>{item.no}</td>
-                            <td style={{ padding: '7px 8px', fontWeight: 600, color: '#032D60', maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</td>
-                            <td style={{ padding: '7px 8px', color: '#706E6B', fontSize: 10, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.business}</td>
-                            <td style={{ padding: '7px 8px', color: '#706E6B', fontSize: 9, width: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.address || '—'}</td>
-                            <td style={{ padding: '7px 8px', color: '#706E6B', fontSize: 10, whiteSpace: 'nowrap' }}>{item.representative}</td>
+                            style={{ cursor: 'pointer', background: isSelected ? '#EFF6FF' : i % 2 === 0 ? '#fff' : '#F8F9FA', borderBottom: '1px solid #E5E7EB', transition: 'background 0.12s', borderLeft: isSelected ? '3px solid #0D2247' : '3px solid transparent' }}
+                            onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#EFF6FF'; }}
+                            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#F8F9FA'; }}>
+                            <td style={{ padding: '7px 8px', fontFamily: "'JetBrains Mono'", fontSize: 9, color: '#6B7280', textAlign: 'right' }}>{item.no}</td>
+                            <td style={{ padding: '7px 8px', fontWeight: 600, color: '#0D2247', maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</td>
+                            <td style={{ padding: '7px 8px', color: '#6B7280', fontSize: 10, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.business}</td>
+                            <td style={{ padding: '7px 8px', color: '#6B7280', fontSize: 9, width: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.address || '—'}</td>
+                            <td style={{ padding: '7px 8px', color: '#6B7280', fontSize: 10, whiteSpace: 'nowrap' }}>{item.representative}</td>
                             <td style={{ padding: '7px 8px' }}>
                               {item.phone
                                 ? <span onClick={e => { e.stopPropagation(); dialPhone(item.phone); setSelectedRow(item); setListMode(false); setLastDialedPhone(item.phone); }}
-                                    style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: '#0176D3', fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: '#EAF4FF', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                                    style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: '#0D2247', fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: '#0D224715', border: '1px solid #0D224730', whiteSpace: 'nowrap', cursor: 'pointer' }}>
                                     {item.phone}
                                   </span>
-                                : <span style={{ color: '#c0c0c0', fontSize: 10 }}>-</span>}
+                                : <span style={{ color: '#9CA3AF', fontSize: 10 }}>-</span>}
                             </td>
-                            <td style={{ padding: '7px 8px', fontFamily: "'JetBrains Mono'", fontSize: 9, color: '#706E6B', whiteSpace: 'nowrap', textAlign: 'right' }}>
-                              {item.revenue != null ? `${Number(item.revenue).toLocaleString()}千円` : <span style={{ color: '#c0c0c0' }}>-</span>}
+                            <td style={{ padding: '7px 8px', fontFamily: "'JetBrains Mono'", fontSize: 9, color: '#6B7280', whiteSpace: 'nowrap', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                              {item.revenue != null ? `${Number(item.revenue).toLocaleString()}千円` : <span style={{ color: '#9CA3AF' }}>-</span>}
                             </td>
                             <td style={{ padding: '7px 8px' }}>
-                              <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 10, fontWeight: 600, background: sc.bg, color: sc.color, whiteSpace: 'nowrap' }}>
+                              <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, fontWeight: 600, background: sc.bg, color: sc.color, whiteSpace: 'nowrap' }}>
                                 {getRecordsForItem(item.id).length > 0
                                   ? (() => {
                                       const recs = getRecordsForItem(item.id);
@@ -1383,12 +1383,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               </div>
               {/* ページネーション */}
               {totalPages > 1 && (
-                <div style={{ padding: '8px 12px', borderTop: '1px solid #E5E5E5', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ padding: '8px 12px', borderTop: '1px solid #E5E7EB', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                    style={{ padding: '4px 12px', borderRadius: 6, border: page === 0 ? '1px solid #E5E7EB' : '1px solid #0D2247', background: page === 0 ? '#F8F9FA' : 'white', cursor: page === 0 ? 'default' : 'pointer', fontSize: 11, color: page === 0 ? '#9CA3AF' : '#0D2247', fontFamily: "'Noto Sans JP'" }}>← 前</button>
-                  <span style={{ fontSize: 11, color: '#706E6B' }}>{page + 1} / {totalPages}（{sorted.length}件）</span>
+                    style={{ padding: '4px 12px', borderRadius: 4, border: page === 0 ? '1px solid #E5E7EB' : '1px solid #0D2247', background: page === 0 ? '#F8F9FA' : 'white', cursor: page === 0 ? 'default' : 'pointer', fontSize: 11, color: page === 0 ? '#9CA3AF' : '#0D2247', fontFamily: "'Noto Sans JP'" }}>← 前</button>
+                  <span style={{ fontSize: 11, color: '#6B7280' }}>{page + 1} / {totalPages}（{sorted.length}件）</span>
                   <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}
-                    style={{ padding: '4px 12px', borderRadius: 6, border: page === totalPages - 1 ? '1px solid #E5E7EB' : '1px solid #0D2247', background: page === totalPages - 1 ? '#F8F9FA' : 'white', cursor: page === totalPages - 1 ? 'default' : 'pointer', fontSize: 11, color: page === totalPages - 1 ? '#9CA3AF' : '#0D2247', fontFamily: "'Noto Sans JP'" }}>次 →</button>
+                    style={{ padding: '4px 12px', borderRadius: 4, border: page === totalPages - 1 ? '1px solid #E5E7EB' : '1px solid #0D2247', background: page === totalPages - 1 ? '#F8F9FA' : 'white', cursor: page === totalPages - 1 ? 'default' : 'pointer', fontSize: 11, color: page === totalPages - 1 ? '#9CA3AF' : '#0D2247', fontFamily: "'Noto Sans JP'" }}>次 →</button>
                 </div>
               )}
             </div>
@@ -1412,10 +1412,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 let parsedMemo = null;
                 if (selectedRow.memo) { try { parsedMemo = JSON.parse(selectedRow.memo); } catch {} }
                 return (
-                  <div style={{ padding: 20, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #E5E5E5' }}>
+                  <div style={{ padding: 20, background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, gap: 12 }}>
-                      <div style={{ fontSize: 22, fontWeight: 700, color: '#032D60', flex: 1, lineHeight: 1.3 }}>{selectedRow.company}</div>
-                      <span style={{ fontSize: 13, padding: '4px 14px', borderRadius: 20, fontWeight: 700, background: prevBadgeStyle.bg, color: prevBadgeStyle.color, flexShrink: 0 }}>
+                      <div style={{ fontSize: 22, fontWeight: 700, color: '#0D2247', flex: 1, lineHeight: 1.3 }}>{selectedRow.company}</div>
+                      <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 3, fontWeight: 600, background: prevBadgeStyle.bg, color: prevBadgeStyle.color, flexShrink: 0 }}>
                         {lastResult}
                       </span>
                     </div>
@@ -1428,7 +1428,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                       ].filter(x => x.value).map(({ label, value }) => (
                         <div key={label} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                           <span style={{ fontSize: 10, color: '#a0a0a0', flexShrink: 0, paddingTop: 2, minWidth: 56 }}>{label}</span>
-                          <span style={{ fontSize: 12, color: '#032D60', fontWeight: 500, wordBreak: 'break-all' }}>{value}</span>
+                          <span style={{ fontSize: 12, color: '#0D2247', fontWeight: 500, wordBreak: 'break-all' }}>{value}</span>
                         </div>
                       ))}
                     </div>
@@ -1438,17 +1438,17 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                       </div>
                       <textarea value={localMemo} onChange={e => setLocalMemo(e.target.value)} onBlur={handleMemoBlur}
                         placeholder="架電メモ（フォーカスを外すと自動保存）"
-                        style={{ width: '100%', minHeight: 52, padding: '7px 10px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', resize: 'vertical', boxSizing: 'border-box', background: '#FAFAFA' }} />
+                        style={{ width: '100%', minHeight: 52, padding: '7px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', resize: 'vertical', boxSizing: 'border-box', background: '#F8F9FA' }} />
                     </div>
                   </div>
                 );
               })()}
 
               {/* ② 架電エリア */}
-              <div style={{ padding: 16, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #E5E5E5' }}>
+              <div style={{ padding: 16, background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB' }}>
                 {/* 電話番号 */}
                 <div style={{ textAlign: 'center', marginBottom: 12 }}>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: '#032D60', fontFamily: "'JetBrains Mono'", letterSpacing: 2 }}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: '#0D2247', fontFamily: "'JetBrains Mono'", letterSpacing: 2, fontVariantNumeric: 'tabular-nums' }}>
                     {selectedRow.phone || '電話番号なし'}
                   </div>
                 </div>
@@ -1463,10 +1463,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     const isSelectedR = r === selectedRound;
                     return (
                       <button key={r} disabled={isFuture} onClick={() => !isFuture && setSelectedRound(r)}
-                        style={{ width: 36, height: 36, borderRadius: 8, fontSize: 13, fontWeight: 700, fontFamily: "'JetBrains Mono'",
+                        style={{ width: 36, height: 36, borderRadius: 4, fontSize: 13, fontWeight: 700, fontFamily: "'JetBrains Mono'",
                           background: isCompleted ? '#e8e8e8' : isCurrent ? '#C07600' : 'transparent',
                           color: isCompleted ? '#999' : isCurrent ? '#fff' : '#b0b0b0',
-                          border: isSelectedR ? '2px solid #0176D3' : isCompleted ? '1px solid #d0d0d0' : isFuture ? '1px dashed #e0e0e0' : '1px solid #C07600',
+                          border: isSelectedR ? '2px solid #0D2247' : isCompleted ? '1px solid #d0d0d0' : isFuture ? '1px dashed #e0e0e0' : '1px solid #C07600',
                           cursor: isFuture ? 'default' : 'pointer', opacity: isFuture ? 0.3 : 1 }}>
                         {r}
                       </button>
@@ -1476,7 +1476,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 {/* 電話ボタン */}
                 {selectedRow.phone && (
                   <button onClick={() => { dialPhone(selectedRow.phone); setLastDialedPhone(selectedRow.phone); }}
-                    style={{ display: 'block', width: '100%', height: 56, borderRadius: 8, background: '#0176D3', border: 'none', color: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'", letterSpacing: 1 }}>
+                    style={{ display: 'block', width: '100%', height: 56, borderRadius: 4, background: '#0D2247', border: 'none', color: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'", letterSpacing: 1 }}>
                     電話をかける
                   </button>
                 )}
@@ -1484,10 +1484,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 <div style={{ display: 'flex', gap: 6, marginTop: 10, alignItems: 'center' }}>
                   <input type="tel" value={subPhone} onChange={e => setSubPhone(e.target.value)} onBlur={handleSubPhoneBlur}
                     placeholder="別番号に架電"
-                    style={{ flex: 1, padding: '7px 10px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: '#FAFAFA' }} />
+                    style={{ flex: 1, padding: '7px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: '#F8F9FA' }} />
                   <button onClick={() => { if (!subPhone.trim()) return; dialPhone(subPhone.trim()); setLastDialedPhone(subPhone.trim()); }}
                     disabled={!subPhone.trim()}
-                    style={{ padding: '7px 12px', borderRadius: 6, border: '1px solid #E5E5E5', background: '#F3F2F2', cursor: subPhone.trim() ? 'pointer' : 'default', fontSize: 13, opacity: subPhone.trim() ? 1 : 0.4 }}>発信</button>
+                    style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #E5E7EB', background: '#fff', cursor: subPhone.trim() ? 'pointer' : 'default', fontSize: 12, fontWeight: 500, opacity: subPhone.trim() ? 1 : 0.4 }}>発信</button>
                 </div>
               </div>
 
@@ -1497,29 +1497,29 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 const sc = roundRec ? callStatusColor(roundRec.status) : null;
                 if (roundRec) {
                   return (
-                    <div style={{ padding: 16, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #E5E5E5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ padding: 16, background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: 14, fontWeight: 700, color: sc.color }}>{selectedRound}回目の結果：{roundRec.status}</span>
                       <button onClick={() => handleDeleteRecord(roundRec)}
-                        style={{ fontSize: 11, padding: '5px 14px', borderRadius: 6, border: '1px solid #E5E5E5', background: '#F3F2F2', cursor: 'pointer', color: '#706E6B', fontFamily: "'Noto Sans JP'" }}>取消</button>
+                        style={{ fontSize: 11, padding: '6px 12px', borderRadius: 4, border: '1px solid #E5E7EB', background: '#fff', cursor: 'pointer', color: '#6B7280', fontFamily: "'Noto Sans JP'", fontWeight: 500 }}>取消</button>
                     </div>
                   );
                 }
                 return (
-                  <div style={{ padding: 16, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #E5E5E5' }}>
+                  <div style={{ padding: 16, background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB' }}>
                     {/* 大ボタン3つ */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
                       <button onClick={() => handleResult('不通')}
-                        style={{ height: 56, borderRadius: 8, border: '1px solid #E5E5E5', background: '#F3F2F2', color: '#706E6B', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'", position: 'relative' }}>
+                        style={{ height: 56, borderRadius: 4, border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'", position: 'relative' }}>
                         不通
                         <span style={{ position: 'absolute', bottom: 4, right: 7, fontSize: 9, opacity: 0.5, fontFamily: "'JetBrains Mono'" }}>F1</span>
                       </button>
                       <button onClick={() => handleResult('社長不在')}
-                        style={{ height: 56, borderRadius: 8, border: '1px solid #C07600', background: '#FFF8ED', color: '#C07600', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'", position: 'relative' }}>
+                        style={{ height: 56, borderRadius: 4, border: '1px solid #E5E7EB', background: '#F8F9FA', color: '#6B7280', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'", position: 'relative' }}>
                         社長不在
-                        <span style={{ position: 'absolute', bottom: 4, right: 7, fontSize: 9, opacity: 0.5, fontFamily: "'JetBrains Mono'", color: '#C07600' }}>F2</span>
+                        <span style={{ position: 'absolute', bottom: 4, right: 7, fontSize: 9, opacity: 0.5, fontFamily: "'JetBrains Mono'" }}>F2</span>
                       </button>
                       <button onClick={() => handleResult('アポ獲得')}
-                        style={{ height: 56, borderRadius: 8, border: 'none', background: '#0176D3', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'", position: 'relative' }}>
+                        style={{ height: 56, borderRadius: 4, border: 'none', background: '#0D2247', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'", position: 'relative' }}>
                         アポ獲得
                         <span style={{ position: 'absolute', bottom: 4, right: 7, fontSize: 9, opacity: 0.55, fontFamily: "'JetBrains Mono'", color: '#fff' }}>F3</span>
                       </button>
@@ -1534,7 +1534,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                         { label: '除外',         key: 'F8' },
                       ].map(({ label, key }) => (
                         <button key={label} onClick={() => handleResult(label)}
-                          style={{ height: 40, borderRadius: 6, border: '1px solid #E5E5E5', background: '#F3F2F2', color: '#706E6B', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", position: 'relative' }}>
+                          style={{ height: 40, borderRadius: 4, border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", position: 'relative' }}>
                           {label}
                           <span style={{ position: 'absolute', bottom: 3, right: 5, fontSize: 8, opacity: 0.45, fontFamily: "'JetBrains Mono'" }}>{key}</span>
                         </button>
@@ -1549,16 +1549,16 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 const recs = getRecordsForItem(selectedRow.id).slice().sort((a, b) => a.round - b.round);
                 if (recs.length === 0) return null;
                 return (
-                  <div style={{ padding: 16, background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #E5E5E5' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#032D60', marginBottom: 8 }}>架電履歴</div>
+                  <div style={{ padding: 16, background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#0D2247', marginBottom: 8 }}>架電履歴</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                       {recs.map(rec => {
                         const sc = callStatusColor(rec.status);
                         const dtStr = formatJST(rec.called_at);
                         return (
                           <div key={rec.id}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 6, background: '#FAFAFA', fontSize: 11, border: '1px solid #F0F0F0' }}>
-                              <span style={{ fontWeight: 700, color: '#032D60', minWidth: 40, fontFamily: "'JetBrains Mono'", fontSize: 10 }}>{rec.round}回目</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 4, background: '#F8F9FA', fontSize: 11, border: '1px solid #E5E7EB' }}>
+                              <span style={{ fontWeight: 700, color: '#0D2247', minWidth: 40, fontFamily: "'JetBrains Mono'", fontSize: 10 }}>{rec.round}回目</span>
                               <span style={{ flex: 1, color: sc.color, fontWeight: 600 }}>{rec.status}</span>
                               <span style={{ color: '#b0b0b0', fontSize: 10 }}>{dtStr}</span>
                               {rec.recording_url
@@ -1589,14 +1589,14 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
         {/* 右カラム 40% — スクリプト・企業概要・注意事項 */}
         {!listMode && (
-        <div style={{ width: '40%', background: '#fff', borderLeft: '1px solid #E5E5E5', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ width: '40%', background: '#fff', borderLeft: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* タブヘッダー */}
-          <div style={{ display: 'flex', borderBottom: '2px solid #E5E5E5', background: '#FAFAFA', flexShrink: 0 }}>
+          <div style={{ display: 'flex', borderBottom: '2px solid #E5E7EB', background: '#F8F9FA', flexShrink: 0 }}>
             {[{ key: 'script', label: 'スクリプト' }, { key: 'info', label: '企業概要' }, { key: 'cautions', label: '注意事項' }].map(tab => (
               <button key={tab.key} onClick={() => setScriptTab(tab.key)}
-                style={{ flex: 1, padding: '11px 4px', border: 'none', borderBottom: scriptTab === tab.key ? '2px solid #0176D3' : '2px solid transparent',
-                  background: 'transparent', color: scriptTab === tab.key ? '#0176D3' : '#706E6B',
-                  fontSize: 11, fontWeight: scriptTab === tab.key ? 700 : 400, cursor: 'pointer',
+                style={{ flex: 1, padding: '11px 4px', border: 'none', borderBottom: scriptTab === tab.key ? '2px solid #0D2247' : '2px solid transparent',
+                  background: 'transparent', color: scriptTab === tab.key ? '#0D2247' : '#9CA3AF',
+                  fontSize: 11, fontWeight: scriptTab === tab.key ? 600 : 400, cursor: 'pointer',
                   fontFamily: "'Noto Sans JP'", marginBottom: -2, transition: 'color 0.15s' }}>
                 {tab.label}
               </button>
@@ -1606,8 +1606,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
             {scriptTab === 'script' && (
               list.scriptBody
-                ? <pre style={{ fontSize: 12, color: '#032D60', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.scriptBody}</pre>
-                : <div style={{ color: '#b0b0b0', fontSize: 12 }}>スクリプト未設定</div>
+                ? <pre style={{ fontSize: 12, color: '#0D2247', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.scriptBody}</pre>
+                : <div style={{ color: '#9CA3AF', fontSize: 12 }}>スクリプト未設定</div>
             )}
             {scriptTab === 'info' && (
               list.companyInfo
@@ -1663,7 +1663,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         style={{
           position: 'fixed', bottom: 18, right: 18, zIndex: 10002,
           width: 36, height: 36, borderRadius: '50%',
-          background: '#032D60', color: '#fff',
+          background: '#0D2247', color: '#fff',
           border: 'none', fontSize: 16, fontWeight: 700,
           cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1679,10 +1679,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: '#fff', borderRadius: 12, padding: 28, width: 380,
-            boxShadow: '0 20px 50px rgba(0,0,0,0.25)', fontFamily: "'Noto Sans JP'",
+            background: '#fff', borderRadius: 4, padding: 28, width: 380,
+            border: '1px solid #E5E7EB', fontFamily: "'Noto Sans JP'",
           }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#032D60', marginBottom: 16 }}>キーボードショートカット</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#0D2247', marginBottom: 16 }}>キーボードショートカット</div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <tbody>
                 {[
@@ -1705,9 +1705,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               </tbody>
             </table>
             <button onClick={() => setShowShortcutHelp(false)} style={{
-              marginTop: 16, width: '100%', padding: '9px 0', borderRadius: 7,
-              border: 'none', background: '#032D60', color: '#fff',
-              fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+              marginTop: 16, width: '100%', padding: '6px 12px', borderRadius: 4,
+              border: 'none', background: '#0D2247', color: '#fff',
+              fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
             }}>閉じる</button>
           </div>
         </div>

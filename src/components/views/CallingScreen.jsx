@@ -432,15 +432,15 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <div style={{
-            background: C.white, borderRadius: 12, width: 400, overflow: "hidden",
-            boxShadow: "0 20px 40px rgba(26,58,92,0.3)",
+            background: C.white, borderRadius: 4, width: 400, overflow: "hidden",
+            border: "1px solid #E5E7EB",
           }}>
             <div style={{
-              background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")",
+              background: '#0D2247',
               padding: "16px 20px", color: C.white,
             }}>
               <div style={{ fontSize: 15, fontWeight: 700 }}>架電範囲の指定</div>
-              <div style={{ fontSize: 11, color: C.goldLight, marginTop: 2 }}>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
                 {list?.company || ""} ─ {list?.industry || ""} （全{csvData.length}件）
               </div>
             </div>
@@ -484,10 +484,10 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                   updateLiveStatus();
                 }}
                 style={{
-                  width: "100%", padding: "10px", borderRadius: 6, border: "none",
+                  width: "100%", padding: "6px 12px", borderRadius: 4, border: "none",
                   background: rangeStart && rangeEnd ? "#0D2247" : C.border,
                   cursor: rangeStart && rangeEnd ? "pointer" : "not-allowed",
-                  fontSize: 12, fontWeight: 700,
+                  fontSize: 12, fontWeight: 500,
                   color: C.white, fontFamily: "'Noto Sans JP'",
                 }}
               >この範囲で開始</button>
@@ -498,14 +498,14 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
 
       {/* Header */}
       <div style={{
-        background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")",
+        background: '#0D2247',
         padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "space-between",
         flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: C.white }}>{list.company}</div>
-            <div style={{ fontSize: 10, color: C.goldLight }}>{list.industry}　担当: {list.manager}{rangeConfirmed && rangeStartNum && rangeEndNum ? "　No." + rangeStartNum + " 〜 " + rangeEndNum : ""}</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>{list.industry}　担当: {list.manager}{rangeConfirmed && rangeStartNum && rangeEndNum ? "　No." + rangeStartNum + " 〜 " + rangeEndNum : ""}</div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -513,21 +513,21 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
           <div style={{ display: "flex", gap: 10 }}>
             {[
               { label: "総数", val: totalCount, color: C.white },
-              { label: "架電可能", val: callableCount, color: C.goldLight },
+              { label: "架電可能", val: callableCount, color: 'rgba(255,255,255,0.85)' },
               { label: currentRound + "周目済", val: roundDoneCount, color: "#90EE90" },
               { label: "除外", val: excludedCount, color: "#ff9999" },
               { label: "アポ", val: appoCount, color: C.green },
             ].map((s, i) => (
               <div key={i} style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 8, color: C.goldLight + "90", letterSpacing: 0.3 }}>{s.label}</div>
+                <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.55)', letterSpacing: 0.3 }}>{s.label}</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: s.color, fontFamily: "'JetBrains Mono'" }}>{s.val}</div>
               </div>
             ))}
           </div>
           {/* Progress */}
           <div style={{ width: 100 }}>
-            <div style={{ height: 5, background: C.white + "20", borderRadius: 3, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: ((roundDoneCount + excludedCount) / Math.max(totalCount, 1) * 100) + "%", background: "linear-gradient(90deg, #0D2247, #1E40AF)", borderRadius: 3, transition: "width 0.3s" }} />
+            <div style={{ height: 5, background: 'rgba(255,255,255,0.2)', borderRadius: 3, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: ((roundDoneCount + excludedCount) / Math.max(totalCount, 1) * 100) + "%", background: "#1E40AF", borderRadius: 3, transition: "width 0.3s" }} />
             </div>
             <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.75)', textAlign: "right", marginTop: 1 }}>{Math.round((roundDoneCount + excludedCount) / Math.max(totalCount, 1) * 100)}%</div>
           </div>
@@ -542,9 +542,9 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
       {/* Main Content */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         {/* Left: List */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", borderRight: "1px solid " + C.borderLight }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", borderRight: "1px solid #E5E7EB" }}>
           {/* Search + filter */}
-          <div style={{ padding: "6px 12px", background: C.white, borderBottom: "1px solid " + C.borderLight, display: "flex", gap: 6, alignItems: "center" }}>
+          <div style={{ padding: "6px 12px", background: '#fff', borderBottom: "1px solid #E5E7EB", display: "flex", gap: 6, alignItems: "center" }}>
             <input type="text" placeholder="番号・企業名・代表者で検索..." value={searchTerm}
               onChange={e => { setSearchTerm(e.target.value); setPageStart(0); }}
               style={{ flex: 1, padding: "5px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none" }} />
@@ -611,15 +611,15 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
           {/* Table header */}
           <div style={{
             display: "grid", gridTemplateColumns: `32px 1.4fr 0.6fr 0.7fr 0.6fr 85px 68px repeat(${displayRounds}, 46px)`,
-            padding: "5px 10px", background: C.navyDeep, flexShrink: 0,
-            fontSize: 9, fontWeight: 600, color: C.goldLight, letterSpacing: 0.5,
+            padding: "5px 10px", background: '#0D2247', flexShrink: 0,
+            fontSize: 9, fontWeight: 600, color: '#fff', letterSpacing: 0.5,
           }}>
             {[["no","No"],["company","企業名"],["business","事業内容"],["address","住所"],["representative","代表者"],["phone","電話番号"],["lastCall","最終発信"]].map(([key, label]) => (
               <span key={key} onClick={() => { if (listSortBy === key) { setListSortBy(null); setListSortDir("asc"); } else { setListSortBy(key); setListSortDir("desc"); } setPageStart(0); }} style={{ cursor: "pointer", userSelect: "none" }}>
                 {label}{listSortBy === key ? " ▲" : " ▽"}
               </span>
             ))}
-            {Array.from({length: displayRounds}, (_, i) => i + 1).map(w => <span key={w} style={{ textAlign: "center", color: w === currentRound ? C.gold : C.goldLight + "80" }}>{w}周</span>)}
+            {Array.from({length: displayRounds}, (_, i) => i + 1).map(w => <span key={w} style={{ textAlign: "center", color: w === currentRound ? '#C8A84B' : 'rgba(255,255,255,0.55)' }}>{w}周</span>)}
           </div>
 
           {/* Table body */}
@@ -636,8 +636,8 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                   style={{
                     display: "grid", gridTemplateColumns: `32px 1.4fr 0.6fr 0.7fr 0.6fr 85px 68px repeat(${displayRounds}, 46px)`,
                     padding: "6px 10px", fontSize: 11, alignItems: "center", cursor: "pointer",
-                    borderBottom: "1px solid " + C.borderLight,
-                    background: isSelected ? '#EFF6FF' : excluded ? "#fee2e2" + "40" : roundData ? C.offWhite : C.white,
+                    borderBottom: "1px solid #E5E7EB",
+                    background: isSelected ? '#EFF6FF' : excluded ? "#fee2e240" : roundData ? '#F8F9FA' : '#fff',
                     borderLeft: isSelected ? "3px solid #0D2247" : "3px solid transparent",
                     opacity: excluded ? 0.5 : 1,
                     transition: "all 0.1s",
@@ -688,7 +688,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
 
           {/* Pagination */}
           {filtered.length > PAGE_SIZE && (
-            <div style={{ display: "flex", justifyContent: "center", gap: 8, padding: "5px 0", background: C.white, borderTop: "1px solid " + C.borderLight, flexShrink: 0 }}>
+            <div style={{ display: "flex", justifyContent: "center", gap: 8, padding: "5px 0", background: '#fff', borderTop: "1px solid #E5E7EB", flexShrink: 0 }}>
               <button disabled={pageStart === 0} onClick={() => setPageStart(Math.max(0, pageStart - PAGE_SIZE))} style={{
                 padding: "3px 14px", borderRadius: 4,
                 border: "1px solid " + (pageStart === 0 ? "#E5E7EB" : "#0D2247"),
@@ -758,10 +758,10 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: '#fff', borderRadius: 12, padding: 28, width: 380,
-            boxShadow: '0 20px 50px rgba(0,0,0,0.25)', fontFamily: "'Noto Sans JP'",
+            background: '#fff', borderRadius: 4, padding: 28, width: 380,
+            border: '1px solid #E5E7EB', fontFamily: "'Noto Sans JP'",
           }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: C.navy, marginBottom: 16 }}>キーボードショートカット</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#0D2247', marginBottom: 16 }}>キーボードショートカット</div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <tbody>
                 {[
@@ -784,9 +784,9 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
               </tbody>
             </table>
             <button onClick={() => setShowShortcutHelp(false)} style={{
-              marginTop: 16, width: '100%', padding: '9px 0', borderRadius: 7,
-              border: 'none', background: C.navy, color: '#fff',
-              fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+              marginTop: 16, width: '100%', padding: '6px 12px', borderRadius: 4,
+              border: 'none', background: '#0D2247', color: '#fff',
+              fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
             }}>閉じる</button>
           </div>
         </div>

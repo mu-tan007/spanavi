@@ -237,9 +237,9 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
       <div onClick={() => csvData.length > 0 && setExpanded(!expanded)} style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         cursor: csvData.length > 0 ? "pointer" : "default",
-        padding: "10px 14px", borderRadius: expanded ? "8px 8px 0 0" : 8,
-        background: csvData.length > 0 ? (expanded ? "#f0f7f0" : C.offWhite) : C.offWhite,
-        border: "1px solid " + (csvData.length > 0 ? C.green + "30" : C.borderLight),
+        padding: "10px 14px", borderRadius: expanded ? "4px 4px 0 0" : 4,
+        background: '#fff',
+        border: "1px solid #E5E7EB",
         borderBottom: expanded ? "none" : undefined,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -255,35 +255,35 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
             <div style={{ display: "flex", alignItems: "center", gap: 4 }} onClick={e => e.stopPropagation()}>
               <span style={{ fontSize: 10, color: C.textMid, whiteSpace: "nowrap" }}>No.</span>
               <input type="number" value={flowStartNo} onChange={e => setFlowStartNo(e.target.value)} placeholder="開始"
-                style={{ width: 52, padding: "3px 5px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 10, fontFamily: "'JetBrains Mono'", textAlign: "center", outline: "none" }} />
+                style={{ width: 52, padding: "3px 5px", borderRadius: 4, border: "1px solid #E5E7EB", fontSize: 10, fontFamily: "'JetBrains Mono'", textAlign: "center", outline: "none" }} />
               <span style={{ fontSize: 10, color: C.textMid }}>〜</span>
               <input type="number" value={flowEndNo} onChange={e => setFlowEndNo(e.target.value)} placeholder="終了"
-                style={{ width: 52, padding: "3px 5px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 10, fontFamily: "'JetBrains Mono'", textAlign: "center", outline: "none" }} />
+                style={{ width: 52, padding: "3px 5px", borderRadius: 4, border: "1px solid #E5E7EB", fontSize: 10, fontFamily: "'JetBrains Mono'", textAlign: "center", outline: "none" }} />
               <button
                 disabled={!flowStartNo || !flowEndNo}
                 onClick={() => setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null })}
                 style={{
-                  padding: "4px 12px", borderRadius: 6,
-                  background: flowStartNo && flowEndNo ? C.navy : C.border,
-                  color: C.white, cursor: flowStartNo && flowEndNo ? "pointer" : "not-allowed",
-                  fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+                  padding: "6px 12px", borderRadius: 4,
+                  background: flowStartNo && flowEndNo ? '#0D2247' : C.border,
+                  color: '#fff', cursor: flowStartNo && flowEndNo ? "pointer" : "not-allowed",
+                  fontSize: 12, fontWeight: 500, fontFamily: "'Noto Sans JP'",
                   border: "none",
                 }}>架電開始</button>
             </div>
           )}
           {csvData.length > 0 && (
             <button onClick={() => setCallingScreen({ listId, list })} style={{
-              padding: "4px 12px", borderRadius: 6,
-              background: C.navy + 'cc', color: C.white, cursor: "pointer",
-              fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+              padding: "6px 12px", borderRadius: 4,
+              background: '#0D2247', color: '#fff', cursor: "pointer",
+              fontSize: 12, fontWeight: 500, fontFamily: "'Noto Sans JP'",
               border: "none",
             }}>CSV架電</button>
           )}
           <label style={{
-            padding: "4px 12px", borderRadius: 6,
-            background: C.offWhite, color: C.navy, cursor: "pointer",
-            fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-            border: "1px solid " + C.border,
+            padding: "6px 12px", borderRadius: 4,
+            background: '#fff', color: '#0D2247', cursor: "pointer",
+            fontSize: 12, fontWeight: 500, fontFamily: "'Noto Sans JP'",
+            border: "1px solid #0D2247",
           }}>
             CSV取込
             <input type="file" accept=".csv" onChange={handleCSVImport} style={{ display: "none" }} />
@@ -296,8 +296,8 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
 
       {expanded && csvData.length > 0 && (
         <div style={{
-          background: C.white, border: "1px solid " + C.green + "30",
-          borderTop: "none", borderRadius: "0 0 8px 8px",
+          background: '#fff', border: "1px solid #E5E7EB",
+          borderTop: "none", borderRadius: "0 0 4px 4px",
           padding: "10px 14px", animation: "fadeIn 0.2s ease",
         }}>
           {/* Search + pagination */}
@@ -322,8 +322,8 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
                 {prefDropOpen && (
                   <div style={{
                     position: "absolute", top: "100%", left: 0, zIndex: 101,
-                    background: C.white, border: "1px solid " + C.border,
-                    borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+                    background: '#fff', border: "1px solid #E5E7EB",
+                    borderRadius: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
                     minWidth: 120, maxHeight: 220, overflowY: "auto", padding: "4px 0",
                   }}>
                     {prefFilters.length > 0 && (
@@ -361,8 +361,8 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
           <div style={{ overflowX: "auto" }}>
             <div style={{
               display: "grid", gridTemplateColumns: "40px 1.5fr 1fr 0.7fr 0.8fr 100px 60px",
-              padding: "6px 8px", background: C.navyDeep, borderRadius: "4px 4px 0 0",
-              fontSize: 9, fontWeight: 600, color: C.goldLight, letterSpacing: 0.5,
+              padding: "6px 8px", background: '#0D2247', borderRadius: "4px 4px 0 0",
+              fontSize: 9, fontWeight: 600, color: '#fff', letterSpacing: 0.5,
             }}>
               <span>No</span><span>企業名</span><span>事業内容</span><span>住所</span><span>代表者</span><span>電話番号</span><span>状態</span>
             </div>
@@ -372,8 +372,8 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
                 <div key={row.no} style={{
                   display: "grid", gridTemplateColumns: "40px 1.5fr 1fr 0.7fr 0.8fr 100px 60px",
                   padding: "6px 8px", fontSize: 11, alignItems: "center",
-                  borderBottom: "1px solid " + C.borderLight,
-                  background: row.called ? (row.result === "アポ" ? C.green + "08" : C.offWhite) : C.white,
+                  borderBottom: "1px solid #E5E7EB",
+                  background: row.called ? (row.result === "アポ" ? C.green + "08" : '#F8F9FA') : (i % 2 === 0 ? '#fff' : '#F8F9FA'),
                   opacity: row.called ? 0.6 : 1,
                 }}>
                   <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight }}>{row.no}</span>
@@ -384,11 +384,11 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
                   <span>
                     {row.phone ? (
                       <span onClick={() => dialPhone(row.phone)} style={{
-                        color: C.navy, fontWeight: 600, fontSize: 11,
+                        color: '#0D2247', fontWeight: 600, fontSize: 11,
                         fontFamily: "'JetBrains Mono'", cursor: "pointer",
                         padding: "2px 6px", borderRadius: 4,
-                        background: C.gold + "15",
-                        border: "1px solid " + C.gold + "30",
+                        background: '#0D224715',
+                        border: "1px solid #0D224730",
                       }}>{row.phone}</span>
                     ) : "-"}
                   </span>
@@ -426,15 +426,18 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
           {filtered.length > PAGE_SIZE && (
             <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 8 }}>
               <button disabled={pageStart === 0} onClick={() => setPageStart(Math.max(0, pageStart - PAGE_SIZE))} style={{
-                padding: "4px 12px", borderRadius: 4, border: "1px solid " + C.border,
-                background: pageStart === 0 ? C.offWhite : C.white, cursor: pageStart === 0 ? "default" : "pointer",
-                fontSize: 11, color: C.textMid, fontFamily: "'Noto Sans JP'",
+                padding: "4px 12px", borderRadius: 4,
+                border: "1px solid " + (pageStart === 0 ? "#E5E7EB" : "#0D2247"),
+                background: pageStart === 0 ? '#F8F9FA' : '#fff',
+                cursor: pageStart === 0 ? "default" : "pointer",
+                fontSize: 11, color: pageStart === 0 ? "#9CA3AF" : "#0D2247", fontFamily: "'Noto Sans JP'",
               }}>← 前</button>
               <button disabled={pageStart + PAGE_SIZE >= filtered.length} onClick={() => setPageStart(pageStart + PAGE_SIZE)} style={{
-                padding: "4px 12px", borderRadius: 4, border: "1px solid " + C.border,
-                background: pageStart + PAGE_SIZE >= filtered.length ? C.offWhite : C.white,
+                padding: "4px 12px", borderRadius: 4,
+                border: "1px solid " + (pageStart + PAGE_SIZE >= filtered.length ? "#E5E7EB" : "#0D2247"),
+                background: pageStart + PAGE_SIZE >= filtered.length ? '#F8F9FA' : '#fff',
                 cursor: pageStart + PAGE_SIZE >= filtered.length ? "default" : "pointer",
-                fontSize: 11, color: C.textMid, fontFamily: "'Noto Sans JP'",
+                fontSize: 11, color: pageStart + PAGE_SIZE >= filtered.length ? "#9CA3AF" : "#0D2247", fontFamily: "'Noto Sans JP'",
               }}>次 →</button>
             </div>
           )}
