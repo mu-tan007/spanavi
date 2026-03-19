@@ -41,7 +41,13 @@ function ToastContainer({ toasts }) {
 }
 
 export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRewardMaster, members = [], appoData = [], now }) {
-  const [activeTab, setActiveTab] = useState('members');
+  const [activeTab, setActiveTab] = useState(() => {
+    try { return localStorage.getItem('admin_activeTab') || 'members'; } catch { return 'members'; }
+  });
+  const _setActiveTab = (tab) => {
+    setActiveTab(tab);
+    try { localStorage.setItem('admin_activeTab', tab); } catch {}
+  };
   const [selectedMember, setSelectedMember] = useState(null);
   const [toasts, setToasts] = useState([]);
 
@@ -86,7 +92,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => _setActiveTab(tab.id)}
               style={{
                 flex: 1, padding: '13px 16px', border: 'none', cursor: 'pointer',
                 background: 'transparent',
