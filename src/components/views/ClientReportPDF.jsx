@@ -144,6 +144,7 @@ function StatsTable({ rows, columns, labels }) {
           {columns.map((col, j) => (
             <span key={j} style={{
               textAlign: j > 0 ? 'center' : 'left',
+              color: C.textDark,
               fontFamily: j > 0 ? "'JetBrains Mono', monospace" : 'inherit',
             }}>
               {row[col]}
@@ -259,7 +260,7 @@ export default function ClientReportPDF({
                   borderBottom: `1px solid ${C.borderLight}`,
                   alignItems: 'center',
                 }}>
-                  <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontWeight: 500, color: C.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {a.company}
                   </span>
                   <span style={{ textAlign: 'center', color: C.textMid, fontFamily: "'JetBrains Mono', monospace" }}>
