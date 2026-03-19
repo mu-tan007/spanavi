@@ -484,7 +484,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   };
 
   // ─── PDF サマリーレポート出力 ───────────────────────────────────
-  const CEO_CONNECT_PDF = new Set(['社長不在', '社長再コール', '社長お断り', 'アポ獲得']);
+  const CEO_CONNECT_PDF = new Set(['社長再コール', '社長お断り', 'アポ獲得']);
   const toJST = (utcStr) => new Date(new Date(utcStr).getTime() + 9 * 3600 * 1000);
 
   const handlePdfExport = async (list) => {

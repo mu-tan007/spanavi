@@ -219,7 +219,7 @@ export default function ClientReportPDF({
             <KpiCard
               label="社長接続率"
               value={`${ceoConnectRate.toFixed(1)}%`}
-              sub="社長不在・再コール・お断り・アポ獲得の合計"
+              sub="社長再コール・お断り・アポ獲得の合計"
               borderColor={C.navyLight}
             />
             <KpiCard
