@@ -306,7 +306,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
-  const _VALID_TABS = ["live","incoming","lists","appo","precheck","crm","members","search","stats","recall","payroll","shift","rules","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","admin","manager_admin"];
+  const _VALID_TABS = ["live","incoming","lists","appo","precheck","crm","members","search","stats","recall","payroll","shift","rules","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin"];
   const [currentTab, setCurrentTab] = useState(() => {
     try {
       const saved = localStorage.getItem("masp_v2_currentTab");
@@ -485,8 +485,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       { id: "edu_rules", label: "22 Rules" },
       { id: "edu_roleplay", label: "Role Play" },
     ]},
-    ...(isAdmin ? [{ id: "admin", label: "Admin", children: null }] :
-        isManagerRole ? [{ id: "manager_admin", label: "Admin", children: null }] : []),
+    ...(isManagerRole ? [{ id: "manager_admin", label: "Admin", children: null }] : []),
   ];
 
   const getActiveGroup = () => {
@@ -960,7 +959,6 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         {currentTab === "edu_rules" && <InternRulesView />}
         {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} />}
         {currentTab === "ai" && <AIAssistantView appoData={appoData} members={members} callListData={callListData} industryRules={industryRules} currentUser={currentUser} />}
-        {currentTab === "admin" && isAdmin && <AdminView isAdmin={isAdmin} setCurrentTab={setCurrentTab} rewardMaster={rewardMaster} setRewardMaster={setRewardMaster} members={members} appoData={appoData} now={now} />}
         {currentTab === "manager_admin" && isManagerRole && <ManagerAdminView currentUser={currentUser} members={members} appoData={appoData} now={now} />}
       </main>
 

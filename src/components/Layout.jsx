@@ -5,16 +5,12 @@ const NAV_ITEMS = [
   { key: 'call', icon: '', label: '架電リスト' },
   { key: 'clients', icon: '', label: 'クライアント' },
   { key: 'appo', icon: '', label: 'アポ管理' },
-  { key: 'admin', icon: '', label: '管理' },
 ]
 
 export default function Layout({ currentView, setCurrentView, children }) {
   const { profile, signOut, isAdmin, isManager } = useAuth()
 
-  const visibleNav = NAV_ITEMS.filter(item => {
-    if (item.key === 'admin') return isAdmin || isManager
-    return true
-  })
+  const visibleNav = NAV_ITEMS
 
   return (
     <div className="h-screen flex flex-col bg-[#F3F2F2]">
