@@ -147,8 +147,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   };
 
   const colTemplate = setAppoData
-    ? "0.9fr 0.9fr 0.5fr 0.5fr 0.5fr 60px 0.6fr 0.6fr 32px"
-    : "0.9fr 0.9fr 0.5fr 0.5fr 0.5fr 60px 0.6fr 0.6fr";
+    ? "0.9fr 0.9fr 0.5fr 0.5fr 0.5fr 100px 0.6fr 0.6fr 32px"
+    : "0.9fr 0.9fr 0.5fr 0.5fr 0.5fr 100px 0.6fr 0.6fr";
 
   const handleTranscribeDetail = async () => {
     if (transcribeStep !== 'idle') return;
@@ -334,7 +334,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       <div style={{ background: '#fff', borderRadius: 4, overflow: "hidden", border: "1px solid #E5E7EB" }}>
         <div style={{
           display: "grid", gridTemplateColumns: colTemplate,
-          padding: "8px 16px", background: "#0D2247",
+          padding: "8px 16px", columnGap: 8, background: "#0D2247",
           fontSize: 13, fontWeight: 600, color: "#fff",
           borderBottom: "1px solid #E5E7EB",
           alignItems: "center",
@@ -347,12 +347,12 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             { label: '取得日', key: 'getDate' },
             { label: '面談日', key: 'meetDate' },
             { label: 'ステータス', key: null, center: true },
-            { label: '当社売上', key: null, padLeft: 72 },
-            { label: 'インセンティブ', key: null },
-          ].map(({ label, key, center, padLeft }) => (
+            { label: '当社売上', key: null, right: true },
+            { label: 'インセンティブ', key: null, right: true },
+          ].map(({ label, key, center, right }) => (
             <span key={label}
               onClick={key ? () => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); } } : undefined}
-              style={key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : center ? { display: 'flex', justifyContent: 'center' } : padLeft ? { paddingLeft: padLeft } : {}}>
+              style={key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : center ? { display: 'flex', justifyContent: 'center' } : right ? { display: 'block', textAlign: 'right', whiteSpace: 'nowrap' } : { whiteSpace: 'nowrap' }}>
               {label}
               {key && (
                 <span style={{ marginLeft: 2 }}>
@@ -383,7 +383,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           return (
             <div key={i} style={{
               display: "grid", gridTemplateColumns: colTemplate,
-              padding: "8px 16px", fontSize: 11, alignItems: "center",
+              padding: "8px 16px", columnGap: 8, fontSize: 11, alignItems: "center",
               borderBottom: "1px solid #E5E7EB",
               background: i % 2 === 0 ? '#fff' : '#F8F9FA',
               transition: "background 0.15s",
@@ -401,8 +401,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   background: sc.bg, color: sc.color,
                 }}>{a.status}</span>
               </div>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: '#0D2247', paddingLeft: 72, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: '#0D2247', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
             </div>
           );
         })}
