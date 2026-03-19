@@ -378,7 +378,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
           appos.forEach(a => {
             count++;
             totalSales += parseFloat(a.sales) || 0;
-            totalReward += parseFloat(a.incentive) || 0;
+            totalReward += parseFloat(a.reward) || 0;
           });
           return { count, totalSales, totalReward };
         };
@@ -434,7 +434,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
                       if (!monthMap[m]) monthMap[m] = { count: 0, sales: 0, reward: 0 };
                       monthMap[m].count++;
                       monthMap[m].sales += parseFloat(a.sales) || 0;
-                      monthMap[m].reward += parseFloat(a.incentive) || 0;
+                      monthMap[m].reward += parseFloat(a.reward) || 0;
                     });
                     return Object.entries(monthMap).sort((a, b) => b[0].localeCompare(a[0])).map(([m, d]) => {
                       const isHovered = hoveredMonthRow === m;

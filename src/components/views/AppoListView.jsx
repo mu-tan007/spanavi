@@ -341,7 +341,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             { label: '面談日', key: 'meetDate' },
             { label: 'ステータス', key: null, center: true },
             { label: '当社売上', key: null, padLeft: 72 },
-            { label: 'インターン報酬', key: null },
+            { label: 'インセンティブ', key: null },
           ].map(({ label, key, center, padLeft }) => (
             <span key={label}
               onClick={key ? () => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); } } : undefined}
