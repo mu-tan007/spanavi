@@ -22,7 +22,7 @@ const DAY1_STAGES = [
 
 // ── タブ ──────────────────────────────────────────────────────────────────
 const TABS = [
-  { id: 'training', label: '研修進捗' },
+  { id: 'training', label: '研修' },
   { id: 'weekly',   label: 'ロープレ' },
 ];
 
@@ -212,7 +212,8 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
           const { url: vUrl, path: vPath, error: vErr } = await uploadRoleplayVideo(userId, newSession.id, addRecordingFile);
           setConvertStatus('');
           if (!vErr && vUrl) {
-            await updateRoleplaySession(newSession.id, { video_url: vUrl, video_path: vPath });
+            await updateRoleplaySession(newSession.id, { video_url: vUrl });
+            if (vPath) updateRoleplaySession(newSession.id, { video_path: vPath });
           } else if (vErr) {
             setErrorMsg('動画のアップロードに失敗しました。');
           }
@@ -313,7 +314,10 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
     setUploadingVideoId(sessionId);
     const { url: vUrl, path: vPath, error: vErr } = await uploadRoleplayVideo(userId, sessionId, file);
     if (!vErr && vUrl) {
-      await updateRoleplaySession(sessionId, { video_url: vUrl, video_path: vPath });
+      // video_url は必ず保存（カラムは migration 005 で確実に存在）
+      await updateRoleplaySession(sessionId, { video_url: vUrl });
+      // video_path は migration 007 が済んでいれば保存（失敗しても無視）
+      if (vPath) updateRoleplaySession(sessionId, { video_path: vPath });
       setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, video_url: vUrl, video_path: vPath } : s));
       // 署名付きURLをすぐに取得して表示
       const signedUrl = await createVideoSignedUrl(vPath);
@@ -616,53 +620,113 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
           </div>
         )}
 
-        {/* AI フィードバック */}
+        {/* AI フィードバック — Investment Banking Style */}
         {isExpanded && fb && (
           <div style={{
-            borderTop: '1px solid ' + C.borderLight,
-            padding: '14px 16px',
-            background: C.offWhite,
+            borderTop: '2px solid #C8A84B',
+            background: '#0B1829',
+            padding: '18px 20px',
           }}>
+            {/* ヘッダー */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              paddingBottom: 12, marginBottom: 16,
+              borderBottom: '1px solid rgba(200,168,75,0.25)',
+            }}>
+              <div style={{ width: 3, height: 13, background: '#C8A84B', borderRadius: 1, flexShrink: 0 }} />
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', color: '#C8A84B', textTransform: 'uppercase' }}>
+                AI Analysis Report
+              </span>
+              {session.session_date && (
+                <span style={{ marginLeft: 'auto', fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>
+                  {session.session_date}
+                </span>
+              )}
+            </div>
+
+            {/* 総評 */}
             {fb.overall && (
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 4 }}>総評</div>
-                <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{fb.overall}</div>
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontSize: 8, letterSpacing: '0.13em', color: '#C8A84B', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>
+                  Executive Summary
+                </div>
+                <div style={{
+                  fontSize: 11, color: 'rgba(255,255,255,0.82)', lineHeight: 1.85,
+                  borderLeft: '2px solid rgba(200,168,75,0.4)', paddingLeft: 10,
+                  whiteSpace: 'pre-wrap',
+                }}>
+                  {fb.overall}
+                </div>
               </div>
             )}
+
+            {/* 課題点 */}
             {fb.issues?.length > 0 && (
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.red, marginBottom: 4 }}>課題点</div>
-                <ul style={{ margin: 0, paddingLeft: 16 }}>
-                  {fb.issues.map((item, i) => (
-                    <li key={i} style={{ fontSize: 11, color: C.textMid, lineHeight: 1.7, marginBottom: 2 }}>{item}</li>
-                  ))}
-                </ul>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 8, letterSpacing: '0.13em', color: '#f87171', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>
+                  Key Issues
+                </div>
+                {fb.issues.map((item, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 7, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 9, color: '#f87171', fontFamily: 'monospace', fontWeight: 700, minWidth: 22, flexShrink: 0, marginTop: 2 }}>
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75 }}>{item}</span>
+                  </div>
+                ))}
               </div>
             )}
+
+            {/* 解決策 */}
             {fb.solutions?.length > 0 && (
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#0070f3', marginBottom: 4 }}>解決策</div>
-                <ul style={{ margin: 0, paddingLeft: 16 }}>
-                  {fb.solutions.map((item, i) => (
-                    <li key={i} style={{ fontSize: 11, color: C.textMid, lineHeight: 1.7, marginBottom: 2 }}>{item}</li>
-                  ))}
-                </ul>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 8, letterSpacing: '0.13em', color: '#34d399', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>
+                  Recommendations
+                </div>
+                {fb.solutions.map((item, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 7, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 9, color: '#34d399', fontFamily: 'monospace', fontWeight: 700, minWidth: 22, flexShrink: 0, marginTop: 2 }}>
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75 }}>{item}</span>
+                  </div>
+                ))}
               </div>
             )}
+
+            {/* 練習方法 */}
             {fb.practice?.length > 0 && (
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.green, marginBottom: 4 }}>練習方法</div>
-                <ul style={{ margin: 0, paddingLeft: 16 }}>
-                  {fb.practice.map((item, i) => (
-                    <li key={i} style={{ fontSize: 11, color: C.textMid, lineHeight: 1.7, marginBottom: 2 }}>{item}</li>
-                  ))}
-                </ul>
+              <div style={{ marginBottom: 4 }}>
+                <div style={{ fontSize: 8, letterSpacing: '0.13em', color: '#60a5fa', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>
+                  Training Protocol
+                </div>
+                {fb.practice.map((item, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 7, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 9, color: '#60a5fa', fontFamily: 'monospace', fontWeight: 700, minWidth: 22, flexShrink: 0, marginTop: 2 }}>
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75 }}>{item}</span>
+                  </div>
+                ))}
               </div>
             )}
+
+            {/* 文字起こし */}
             {session.transcript && (
-              <details style={{ marginTop: 12 }}>
-                <summary style={{ fontSize: 10, color: C.textLight, cursor: 'pointer' }}>文字起こしを表示</summary>
-                <div style={{ fontSize: 10, color: C.textLight, lineHeight: 1.6, marginTop: 6, whiteSpace: 'pre-wrap', maxHeight: 200, overflowY: 'auto' }}>
+              <details style={{ marginTop: 14 }}>
+                <summary style={{
+                  fontSize: 8, color: 'rgba(255,255,255,0.3)', cursor: 'pointer',
+                  letterSpacing: '0.1em', textTransform: 'uppercase', userSelect: 'none',
+                }}>
+                  Transcript ▾
+                </summary>
+                <div style={{
+                  fontSize: 10, color: 'rgba(255,255,255,0.45)', lineHeight: 1.75,
+                  marginTop: 8, whiteSpace: 'pre-wrap',
+                  maxHeight: 200, overflowY: 'auto',
+                  fontFamily: 'monospace',
+                  background: 'rgba(0,0,0,0.35)', padding: '10px 12px', borderRadius: 4,
+                }}>
                   {session.transcript}
                 </div>
               </details>
