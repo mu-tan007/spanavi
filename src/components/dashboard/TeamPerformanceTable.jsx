@@ -83,24 +83,24 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
     return { teamData, memberData: mm, reschedMap };
   }, [records, appoRecords, teamMap, reschedAppoData, members]);
 
-  const mono = { fontFamily: "'JetBrains Mono'" };
+  const mono = { fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums' };
 
   return (
-    <div style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
+    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: '14px 16px', marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>チーム別パフォーマンス</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid ' + NAVY, paddingBottom: 8, marginBottom: 12 }}>チーム別パフォーマンス</span>
         {loading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
       </div>
 
       {teamData.length === 0 ? (
         <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
       ) : (
-        <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
+        <div style={{ border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
 
           {/* グローバル列ヘッダー（最上部に1つだけ） */}
-          <div style={{ display: 'grid', gridTemplateColumns: GRID, padding: '8px 16px', background: '#F1F5F9', fontSize: 10, fontWeight: 700, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', borderBottom: '2px solid #CBD5E1' }}>
-            <span>チーム / メンバー</span>
-            {COLS.map(c => <span key={c}>{c}</span>)}
+          <div style={{ display: 'grid', gridTemplateColumns: GRID, padding: '8px 16px', background: '#0D2247', fontSize: 13, fontWeight: 600, color: '#fff', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' }}>
+            <span style={{ padding: '0', verticalAlign: 'middle' }}>チーム / メンバー</span>
+            {COLS.map(c => <span key={c} style={{ padding: '0', verticalAlign: 'middle' }}>{c}</span>)}
           </div>
 
           {teamData.map(([tn, d], teamIdx) => {
@@ -124,19 +124,19 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
             return (
               <div key={tn}>
                 {/* チーム集計行 */}
-                <div style={{ display: 'grid', gridTemplateColumns: GRID, padding: '9px 16px', background: NAVY, alignItems: 'center', borderTop: teamIdx > 0 ? '2px solid #CBD5E1' : 'none' }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: GRID, padding: '8px 16px', background: NAVY, alignItems: 'center', borderTop: teamIdx > 0 ? '2px solid #E5E7EB' : 'none' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', verticalAlign: 'middle' }}>
                     {tn}
                     <span style={{ fontSize: 10, color: '#93C5FD', fontWeight: 400, marginLeft: 6 }}>{d.memberCount}人</span>
                   </span>
-                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12 }}>{d.call}</span>
-                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12 }}>{d.connect}</span>
-                  <span style={{ ...mono, color: GOLD, fontWeight: 700, fontSize: 12 }}>{cr}%</span>
-                  <span style={{ ...mono, color: '#fff', fontWeight: 800, fontSize: 12 }}>{d.appo}</span>
-                  <span style={{ ...mono, color: GOLD, fontWeight: 700, fontSize: 12 }}>{ar}%</span>
-                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12 }}>{teamCph}</span>
-                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12 }}>{teamReschedRate}</span>
-                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12 }}>{teamCancelRate}</span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: 'right' }}>{d.call}</span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: 'right' }}>{d.connect}</span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: 'right' }}>{cr}%</span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 800, fontSize: 12, textAlign: 'right' }}>{d.appo}</span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: 'right' }}>{ar}%</span>
+                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: 'right' }}>{teamCph}</span>
+                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: 'right' }}>{teamReschedRate}</span>
+                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: 'right' }}>{teamCancelRate}</span>
                 </div>
 
                 {/* メンバー行 */}
@@ -154,17 +154,17 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
                   return (
                     <div
                       key={name}
-                      style={{ display: 'grid', gridTemplateColumns: GRID, fontSize: 11, padding: '6px 16px 6px 28px', borderBottom: i < members.length - 1 ? '1px solid #f0f0f0' : 'none', background: i % 2 === 0 ? '#fff' : '#FAFAFA', color: C.textDark }}
+                      style={{ display: 'grid', gridTemplateColumns: GRID, fontSize: 11, padding: '8px 16px 8px 28px', borderBottom: '1px solid #E5E7EB', background: i % 2 === 0 ? '#fff' : '#F8F9FA', color: C.textDark, verticalAlign: 'middle', alignItems: 'center' }}
                     >
-                      <span style={{ fontWeight: 500 }}>{name}</span>
-                      <span style={mono}>{md.call}</span>
-                      <span style={mono}>{md.connect}</span>
-                      <span style={{ ...mono, color: '#374151' }}>{mcr}%</span>
-                      <span style={{ ...mono, color: '#374151', fontWeight: 700 }}>{md.appo}</span>
-                      <span style={{ ...mono, color: '#374151' }}>{mar}%</span>
-                      <span style={{ ...mono, color: '#6B7280' }}>{mcph}</span>
-                      <span style={{ ...mono, color: reschedColor }}>{mReschedRate}</span>
-                      <span style={{ ...mono, color: cancelColor }}>{mCancelRate}</span>
+                      <span style={{ fontWeight: 500, textAlign: 'left' }}>{name}</span>
+                      <span style={{ ...mono, textAlign: 'right' }}>{md.call}</span>
+                      <span style={{ ...mono, textAlign: 'right' }}>{md.connect}</span>
+                      <span style={{ ...mono, color: '#374151', textAlign: 'right' }}>{mcr}%</span>
+                      <span style={{ ...mono, color: '#374151', fontWeight: 700, textAlign: 'right' }}>{md.appo}</span>
+                      <span style={{ ...mono, color: '#374151', textAlign: 'right' }}>{mar}%</span>
+                      <span style={{ ...mono, color: '#6B7280', textAlign: 'right' }}>{mcph}</span>
+                      <span style={{ ...mono, color: reschedColor, textAlign: 'right' }}>{mReschedRate}</span>
+                      <span style={{ ...mono, color: cancelColor, textAlign: 'right' }}>{mCancelRate}</span>
                     </div>
                   );
                 })}

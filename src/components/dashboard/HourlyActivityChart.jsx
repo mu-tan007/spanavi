@@ -18,7 +18,7 @@ function CustomTooltip({ active, payload, label }) {
   const connect = payload.find(p => p.dataKey === 'connectOnly')?.value || 0;
   const appo = payload.find(p => p.dataKey === 'appo')?.value || 0;
   return (
-    <div style={{ background: NAVY, borderRadius: 8, padding: '8px 12px', color: '#fff', fontSize: 11 }}>
+    <div style={{ background: NAVY, borderRadius: 4, padding: '8px 12px', color: '#fff', fontSize: 11 }}>
       <div style={{ fontWeight: 700, marginBottom: 4 }}>{label}</div>
       <div>架電合計: {call + connect + appo}件</div>
       <div style={{ color: '#93C5FD' }}>うち接続: {connect + appo}件</div>
@@ -60,21 +60,21 @@ export default function HourlyActivityChart({ records, selectedDate, setSelected
   const bestAppoSlot = chartData.reduce((best, d) => d.appo > (best?.appo ?? -1) ? d : best, chartData[0]);
 
   const navBtnStyle = {
-    padding: '5px 10px', borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-    fontFamily: "'Noto Sans JP'", border: '1px solid ' + C.border,
+    padding: '8px 16px', borderRadius: 4, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+    fontFamily: "'Noto Sans JP'", border: '1px solid #0D2247',
     background: '#fff', color: NAVY,
   };
   const dateInputStyle = {
-    padding: '4px 8px', borderRadius: 5, border: '1px solid ' + C.border,
+    padding: '4px 8px', borderRadius: 4, border: '1px solid #E5E7EB',
     fontSize: 12, color: NAVY, outline: 'none', fontFamily: "'Noto Sans JP'",
     fontWeight: 600, cursor: 'pointer',
   };
 
   return (
-    <div style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
+    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: '14px 16px', marginBottom: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>時間帯別活動グラフ</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid ' + NAVY, paddingBottom: 8, marginBottom: 12 }}>時間帯別活動グラフ</span>
           {loading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
           {bestAppoSlot && bestAppoSlot.appo > 0 && (
             <span style={{ fontSize: 11, color: NAVY, fontWeight: 700 }}>
@@ -104,8 +104,8 @@ export default function HourlyActivityChart({ records, selectedDate, setSelected
       {/* 凡例 */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: 11, color: C.textMid }}>
         <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#0D2247', marginRight: 4 }} />架電（接続なし）</span>
-        <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#3B82F6', marginRight: 4 }} />社長接続</span>
-        <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#10B981', marginRight: 4 }} />アポ取得</span>
+        <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#1E40AF', marginRight: 4 }} />社長接続</span>
+        <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#6B7280', marginRight: 4 }} />アポ取得</span>
       </div>
 
       <ResponsiveContainer width='100%' height={220}>
@@ -129,8 +129,8 @@ export default function HourlyActivityChart({ records, selectedDate, setSelected
                 strokeWidth={selectedDate === todayStr && entry.hour === nowHour ? 2 : 0} />
             ))}
           </Bar>
-          <Bar dataKey='connectOnly' stackId='a' fill='#3B82F6' name='社長接続' />
-          <Bar dataKey='appo' stackId='a' fill='#10B981' name='アポ取得' radius={[2, 2, 0, 0]} />
+          <Bar dataKey='connectOnly' stackId='a' fill='#1E40AF' name='社長接続' />
+          <Bar dataKey='appo' stackId='a' fill='#6B7280' name='アポ取得' radius={[2, 2, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

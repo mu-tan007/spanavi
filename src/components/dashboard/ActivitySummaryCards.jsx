@@ -34,8 +34,9 @@ export default function ActivitySummaryCards({
 
   const tabBtn = (active) => ({
     padding: '6px 12px', fontSize: 11, fontWeight: active ? 600 : 400, cursor: 'pointer',
-    background: 'transparent', border: 'none', borderBottom: '2px solid ' + (active ? '#C8A84B' : 'transparent'),
-    color: active ? '#032D60' : '#9CA3AF', borderRadius: 0, fontFamily: "'Noto Sans JP'",
+    background: 'transparent', border: 'none',
+    borderBottom: '2px solid ' + (active ? NAVY : 'transparent'),
+    color: active ? NAVY : '#9CA3AF', borderRadius: 0, fontFamily: "'Noto Sans JP'",
     transition: 'all 0.15s',
   });
   const dateInputStyle = {
@@ -43,18 +44,18 @@ export default function ActivitySummaryCards({
     fontSize: 11, color: C.textDark, outline: 'none', fontFamily: "'Noto Sans JP'",
   };
   const cardStyle = {
-    background: '#fff', borderRadius: 12, padding: '20px 22px',
+    background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: '20px 22px',
     borderLeft: '2px solid #0D2247', flex: 1,
   };
 
   return (
-    <div style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
+    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: '14px 16px', marginBottom: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>活動サマリー</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid ' + NAVY, paddingBottom: 8, marginBottom: 12 }}>活動サマリー</span>
           {loading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
         </div>
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid #E5E5E5' }}>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid #E5E7EB' }}>
           {[['day', '日'], ['week', '週'], ['month', '月'], ['custom', '期間指定']].map(([k, l]) => (
             <button key={k} onClick={() => setPeriod(k)} style={tabBtn(period === k)}>{l}</button>
           ))}
@@ -71,8 +72,8 @@ export default function ActivitySummaryCards({
       <div style={{ display: 'flex', gap: 14 }}>
         {/* 総架電数 */}
         <div style={cardStyle}>
-          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 8 }}>総架電数</div>
-          <div style={{ fontSize: 28, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'" }}>
+          <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 8 }}>総架電数</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums' }}>
             {cur.total}<span style={{ fontSize: 13, fontWeight: 600 }}>件</span>
           </div>
           <div style={{ marginTop: 6 }}><GrowthBadge cur={cur.total} prev={prev.total} /></div>
@@ -81,8 +82,8 @@ export default function ActivitySummaryCards({
 
         {/* 社長接続数＋接続率 */}
         <div style={cardStyle}>
-          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 8 }}>社長接続数</div>
-          <div style={{ fontSize: 28, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'" }}>
+          <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 8 }}>社長接続数</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums' }}>
             {cur.ceoConnect}<span style={{ fontSize: 13, fontWeight: 600 }}>件</span>
           </div>
           <div style={{ fontSize: 13, color: '#374151', fontWeight: 700, marginTop: 4 }}>接続率 <span style={{ fontFamily: "'JetBrains Mono'" }}>{connectRate}%</span></div>
@@ -91,8 +92,8 @@ export default function ActivitySummaryCards({
 
         {/* アポ取得数＋アポ率 */}
         <div style={cardStyle}>
-          <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 8 }}>アポ取得数</div>
-          <div style={{ fontSize: 28, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'" }}>
+          <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 8 }}>アポ取得数</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums' }}>
             {cur.appo}<span style={{ fontSize: 13, fontWeight: 600 }}>件</span>
           </div>
           <div style={{ fontSize: 13, color: '#374151', fontWeight: 700, marginTop: 4 }}>アポ率 <span style={{ fontFamily: "'JetBrains Mono'" }}>{appoRate}%</span></div>
