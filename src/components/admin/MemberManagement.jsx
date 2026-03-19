@@ -117,9 +117,9 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
     });
     const map = new Map();
     for (const m of sorted) {
-      const team = m.team || '（チーム未設定）';
-      if (!map.has(team)) map.set(team, []);
-      map.get(team).push(m);
+      if (!m.team) continue; // チーム未設定は非表示
+      if (!map.has(m.team)) map.set(m.team, []);
+      map.get(m.team).push(m);
     }
     // チーム名でソート（「未設定」は末尾）
     return [...map.entries()].sort(([a], [b]) => {

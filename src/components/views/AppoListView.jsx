@@ -846,7 +846,8 @@ export function MembersView({ members, setMembers }) {
   const teamOrder = ["代表取締役", "営業統括", "成尾", "高橋", "クライアント開拓"];
   const grouped = {};
   filtered.forEach(m => {
-    const t = m.team || (m.role === "営業統括" ? "営業統括" : "その他");
+    const t = m.team || (m.role === "営業統括" ? "営業統括" : null);
+    if (!t) return; // チーム未設定は非表示
     if (!grouped[t]) grouped[t] = [];
     grouped[t].push(m);
   });
