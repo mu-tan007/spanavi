@@ -81,3 +81,11 @@ export function needsConversion(file) {
   const ext = (file.name.split('.').pop() || '').toLowerCase()
   return !WHISPER_NATIVE.has(ext) || file.size > WHISPER_MAX_BYTES
 }
+
+const VIDEO_EXTS = new Set(['mp4', 'mov', 'avi', 'webm', 'mkv', '3gp', 'flv', 'wmv', 'm4v'])
+
+/** 動画ファイルかどうか判定 */
+export function isVideoFile(file) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase()
+  return VIDEO_EXTS.has(ext) || (file.type || '').startsWith('video/')
+}

@@ -1520,6 +1520,22 @@ export async function uploadRoleplayRecording(userId, sessionId, file) {
   return { path, url: urlData.publicUrl, error: null }
 }
 
+// 動画ファイルをオリジナルのまま保存（サムネイル・再生用）
+export async function uploadRoleplayVideo(userId, sessionId, file) {
+  if (!userId || !sessionId || !file) return { url: null, error: 'missing params' }
+  const ext = file.name.split('.').pop() || 'mp4'
+  const path = `${userId}/${sessionId}_video.${ext}`
+  const { error: uploadError } = await supabase.storage
+    .from('roleplay-recordings')
+    .upload(path, file, { contentType: file.type || 'video/mp4', upsert: true })
+  if (uploadError) {
+    console.error('[DB] uploadRoleplayVideo error:', uploadError)
+    return { url: null, error: uploadError }
+  }
+  const { data: urlData } = supabase.storage.from('roleplay-recordings').getPublicUrl(path)
+  return { url: urlData.publicUrl, error: null }
+}
+
 export async function invokeAnalyzeRoleplay(payload) {
   const { data, error } = await supabase.functions.invoke('analyze-roleplay', { body: payload })
   if (error) console.error('[Edge] analyze-roleplay error:', error)

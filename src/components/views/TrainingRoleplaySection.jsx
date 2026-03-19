@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { C } from '../../constants/colors';
-import { prepareAudioForWhisper, needsConversion } from '../../lib/convertAudio';
+import { prepareAudioForWhisper, needsConversion, isVideoFile } from '../../lib/convertAudio';
 import {
   fetchTrainingProgress,
   upsertTrainingStage,
@@ -9,6 +9,7 @@ import {
   updateRoleplaySession,
   deleteRoleplaySession,
   uploadRoleplayRecording,
+  uploadRoleplayVideo,
   invokeAnalyzeRoleplay,
 } from '../../lib/supabaseWrite';
 
@@ -53,6 +54,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   const [deletingId, setDeletingId]       = useState(null);   // sessionId
   const [addingSess, setAddingSess]       = useState(false);
   const [convertStatus, setConvertStatus] = useState(''); // 変換中メッセージ
+  const [videoModal, setVideoModal]       = useState(null); // 再生中の video_url
 
   // 展開中のセッション（複数同時展開可）
   const [expandedIds, setExpandedIds] = useState(new Set());
@@ -159,7 +161,20 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       let recordingUrl = addRecordingUrl || null;
 
       if (addRecordingFile) {
-        // 必要なら MP3 に変換してからアップロード
+        const isVideo = isVideoFile(addRecordingFile);
+
+        // 動画ファイルはオリジナルをストレージに保存（サムネイル・再生用）
+        if (isVideo) {
+          setConvertStatus('🎬 動画をアップロード中...');
+          const { url: vUrl, error: vErr } = await uploadRoleplayVideo(userId, newSession.id, addRecordingFile);
+          setConvertStatus('');
+          if (!vErr && vUrl) {
+            await updateRoleplaySession(newSession.id, { video_url: vUrl });
+            setSessions(prev => prev.map(s => s.id === newSession.id ? { ...s, video_url: vUrl } : s));
+          }
+        }
+
+        // Whisper 用に変換（動画 or 大きなファイルは MP3 へ）
         let fileToUpload = addRecordingFile;
         if (needsConversion(addRecordingFile)) {
           try {
@@ -393,6 +408,40 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         {/* ── 展開パネル ── */}
         {isExpanded && (
           <div style={{ borderTop: '1px solid ' + C.borderLight }}>
+            {/* 動画サムネイル */}
+            {session.video_url && (
+              <div style={{ padding: '10px 14px 0' }}>
+                <div
+                  onClick={e => { e.stopPropagation(); setVideoModal(session.video_url); }}
+                  style={{ position: 'relative', display: 'inline-block', cursor: 'pointer' }}
+                >
+                  <video
+                    src={session.video_url}
+                    preload="metadata"
+                    style={{
+                      display: 'block', width: 200, height: 113,
+                      objectFit: 'cover', borderRadius: 6,
+                      background: '#000',
+                    }}
+                  />
+                  {/* 再生ボタンオーバーレイ */}
+                  <div style={{
+                    position: 'absolute', inset: 0, display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    borderRadius: 6,
+                    background: 'rgba(0,0,0,0.25)',
+                  }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: '50%',
+                      background: 'rgba(255,255,255,0.9)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 16,
+                    }}>▶</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* アクションボタン行 */}
             <div style={{ display: 'flex', gap: 6, padding: '8px 14px', alignItems: 'center' }}>
               {/* 録音アップロード */}
@@ -949,6 +998,37 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                 キャンセル
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 動画プレーヤーモーダル ── */}
+      {videoModal && (
+        <div
+          onClick={() => setVideoModal(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+            zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+            <video
+              src={videoModal}
+              controls
+              autoPlay
+              style={{ maxWidth: '90vw', maxHeight: '85vh', borderRadius: 8, display: 'block' }}
+            />
+            <button
+              onClick={() => setVideoModal(null)}
+              style={{
+                position: 'absolute', top: -14, right: -14,
+                width: 30, height: 30, borderRadius: '50%',
+                background: '#fff', border: 'none', cursor: 'pointer',
+                fontSize: 16, fontWeight: 700, color: '#333',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              }}
+            >✕</button>
           </div>
         </div>
       )}
