@@ -55,6 +55,9 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   // 展開中の AI フィードバック
   const [expandedId, setExpandedId]       = useState(null);
 
+  // エラーメッセージ
+  const [errorMsg, setErrorMsg]           = useState('');
+
   const fileInputRef = useRef(null);
   const fileTargetSessionId = useRef(null);
 
@@ -127,50 +130,62 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   const handleAddSession = async () => {
     if (!addForm.session_date) return;
     setAddingSess(true);
-    const { data: newSession } = await insertRoleplaySession(userId, addForm);
+    setErrorMsg('');
+
+    const { data: newSession, error: insertError } = await insertRoleplaySession(userId, addForm);
+    if (insertError || !newSession?.id) {
+      setErrorMsg('セッションの作成に失敗しました。再度お試しください。');
+      setAddingSess(false);
+      return;
+    }
 
     // 録音ファイル or URL があればアップロード → AI分析まで自動実行
-    const hasRecording = newSession?.id && (addRecordingFile || addRecordingUrl);
+    const hasRecording = addRecordingFile || addRecordingUrl;
     if (hasRecording) {
       let storagePath = null;
       let recordingUrl = addRecordingUrl || null;
 
       if (addRecordingFile) {
-        // ファイルアップロード
-        const { path, url } = await uploadRoleplayRecording(userId, newSession.id, addRecordingFile);
+        const { path, url, error: uploadError } = await uploadRoleplayRecording(userId, newSession.id, addRecordingFile);
+        if (uploadError || !path) {
+          setErrorMsg('録音ファイルのアップロードに失敗しました。ファイル形式やサイズを確認してください。');
+          setAddingSess(false);
+          return;
+        }
         storagePath = path;
         recordingUrl = url;
-        if (path) await updateRoleplaySession(newSession.id, { recording_path: path, recording_url: url });
+        await updateRoleplaySession(newSession.id, { recording_path: path, recording_url: url });
       } else if (addRecordingUrl) {
-        // URLをそのまま保存（storage_pathなし）
         await updateRoleplaySession(newSession.id, { recording_url: addRecordingUrl });
       }
 
-      if (storagePath || recordingUrl) {
-        const { data } = await fetchRoleplaySessions(userId);
-        setSessions(data || []);
-        setAddModalOpen(false);
-        setAddForm({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
-        setAddRecordingFile(null);
-        setAddRecordingUrl('');
-        setAddingSess(false);
-        setAnalyzingId(newSession.id);
-        setExpandedId(newSession.id);
-        // storage_path があればStorage経由、URLのみならURL経由でEdge Functionを呼ぶ
-        const payload = storagePath
-          ? { storage_path: storagePath, session_id: newSession.id }
-          : { recording_url: recordingUrl, session_id: newSession.id };
-        const { data: aiData } = await invokeAnalyzeRoleplay(payload);
-        if (aiData) {
-          setSessions(prev => prev.map(s =>
-            s.id === newSession.id
-              ? { ...s, transcript: aiData.transcript, ai_feedback: aiData.ai_feedback, ai_status: 'done' }
-              : s
-          ));
-        }
-        setAnalyzingId(null);
-        return;
+      const { data } = await fetchRoleplaySessions(userId);
+      setSessions(data || []);
+      setAddModalOpen(false);
+      setAddForm({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
+      setAddRecordingFile(null);
+      setAddRecordingUrl('');
+      setAddingSess(false);
+      setAnalyzingId(newSession.id);
+      setExpandedId(newSession.id);
+
+      const payload = storagePath
+        ? { storage_path: storagePath, session_id: newSession.id }
+        : { recording_url: recordingUrl, session_id: newSession.id };
+      const { data: aiData, error: aiError } = await invokeAnalyzeRoleplay(payload);
+      if (aiData) {
+        setSessions(prev => prev.map(s =>
+          s.id === newSession.id
+            ? { ...s, transcript: aiData.transcript, ai_feedback: aiData.ai_feedback, ai_status: 'done' }
+            : s
+        ));
+      } else {
+        setSessions(prev => prev.map(s =>
+          s.id === newSession.id ? { ...s, ai_status: 'error' } : s
+        ));
       }
+      setAnalyzingId(null);
+      return;
     }
 
     const { data } = await fetchRoleplaySessions(userId);
@@ -209,14 +224,14 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
   // ── AI 分析実行 ───────────────────────────────────────────────────────
   const handleAnalyze = async (session) => {
-    if (!session.recording_path) return;
+    if (!session.recording_path && !session.recording_url) return;
     setAnalyzingId(session.id);
     await updateRoleplaySession(session.id, { ai_status: 'processing' });
     setSessions(prev => prev.map(s => s.id === session.id ? { ...s, ai_status: 'processing' } : s));
-    const { data, error } = await invokeAnalyzeRoleplay({
-      storage_path: session.recording_path,
-      session_id: session.id,
-    });
+    const payload = session.recording_path
+      ? { storage_path: session.recording_path, session_id: session.id }
+      : { recording_url: session.recording_url, session_id: session.id };
+    const { data, error } = await invokeAnalyzeRoleplay(payload);
     if (!error && data) {
       setSessions(prev => prev.map(s =>
         s.id === session.id
@@ -814,6 +829,11 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
               }}
             />
 
+            {errorMsg && (
+              <div style={{ marginBottom: 12, padding: '8px 10px', borderRadius: 6, background: '#fff0f0', border: '1px solid #f5c6c6', fontSize: 11, color: '#c0392b' }}>
+                {errorMsg}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={handleAddSession}
