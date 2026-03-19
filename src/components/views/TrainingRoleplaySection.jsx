@@ -416,8 +416,10 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                   style={{ position: 'relative', display: 'inline-block', cursor: 'pointer' }}
                 >
                   <video
-                    src={session.video_url}
-                    preload="metadata"
+                    src={session.video_url + '#t=0.001'}
+                    preload="auto"
+                    muted
+                    playsInline
                     style={{
                       display: 'block', width: 200, height: 113,
                       objectFit: 'cover', borderRadius: 6,

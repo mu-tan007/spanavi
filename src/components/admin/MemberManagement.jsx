@@ -38,8 +38,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
     const { data, error } = await supabase
       .from('members')
       .select('id, name, team, position, rank, operation_start_date, is_active, zoom_user_id')
-      .eq('org_id', ORG_ID)
-      .order('name');
+      .eq('org_id', ORG_ID);
     if (error) { onToast('メンバーの取得に失敗しました', 'error'); }
     else { setMembers(data || []); }
     setLoading(false);
@@ -109,8 +108,30 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
     onToast('メンバーを追加しました ✓');
   };
 
+  // チーム別グループ化（入社日順にソート）
+  const grouped = (() => {
+    const sorted = [...members].sort((a, b) => {
+      const da = a.operation_start_date || '';
+      const db = b.operation_start_date || '';
+      return da < db ? -1 : da > db ? 1 : 0;
+    });
+    const map = new Map();
+    for (const m of sorted) {
+      const team = m.team || '（チーム未設定）';
+      if (!map.has(team)) map.set(team, []);
+      map.get(team).push(m);
+    }
+    // チーム名でソート（「未設定」は末尾）
+    return [...map.entries()].sort(([a], [b]) => {
+      if (a === '（チーム未設定）') return 1;
+      if (b === '（チーム未設定）') return -1;
+      return a < b ? -1 : a > b ? 1 : 0;
+    });
+  })();
+
   const th = { padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6B7280', background: '#F9FAFB', borderBottom: '1px solid #E5E5E5', textTransform: 'uppercase', letterSpacing: '0.05em' };
   const td = { padding: '8px 12px', fontSize: 13, color: '#374151', borderBottom: '1px solid #F3F4F6', verticalAlign: 'middle' };
+  const COLS = ['氏名', '役職', 'ランク', '入社日', 'ステータス', 'マイページ', '操作'];
 
   return (
     <div>
@@ -124,97 +145,109 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>読み込み中...</div>
       ) : (
-        <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #E5E5E5', overflow: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr>
-                {['氏名', '役職', 'ランク', 'チーム', '稼働開始日', 'ステータス', 'マイページ', '操作'].map(h => (
-                  <th key={h} style={th}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {members.map(m => {
-                const isEditing = editId === m.id;
-                return (
-                  <tr key={m.id} style={{ background: isEditing ? '#F0F7FF' : 'transparent' }}>
-                    <td style={td}><span style={{ fontWeight: 600 }}>{m.name}</span></td>
-                    <td style={td}>
-                      {isEditing ? (
-                        <select value={editForm.position} onChange={e => setEditForm(p => ({ ...p, position: e.target.value }))}
-                          style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
-                          {POSITIONS.map(p => <option key={p}>{p}</option>)}
-                        </select>
-                      ) : m.position || '—'}
-                    </td>
-                    <td style={td}>
-                      {isEditing ? (
-                        <select value={editForm.rank} onChange={e => setEditForm(p => ({ ...p, rank: e.target.value }))}
-                          style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
-                          {RANKS.map(r => <option key={r}>{r}</option>)}
-                        </select>
-                      ) : (
-                        <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
-                          background: m.rank === 'スーパースパルタン' ? GOLD + '22' : m.rank === 'スパルタン' ? '#EDE9FE' : m.rank === 'プレイヤー' ? '#DBEAFE' : '#F3F4F6',
-                          color: m.rank === 'スーパースパルタン' ? '#92400E' : m.rank === 'スパルタン' ? '#5B21B6' : m.rank === 'プレイヤー' ? '#1E40AF' : '#374151',
-                        }}>{m.rank || 'トレーニー'}</span>
-                      )}
-                    </td>
-                    <td style={td}>
-                      {isEditing ? (
-                        <input value={editForm.team} onChange={e => setEditForm(p => ({ ...p, team: e.target.value }))}
-                          style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12, width: 100 }} />
-                      ) : m.team || '—'}
-                    </td>
-                    <td style={td}>
-                      {isEditing ? (
-                        <input type="date" value={editForm.operation_start_date} onChange={e => setEditForm(p => ({ ...p, operation_start_date: e.target.value }))}
-                          style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }} />
-                      ) : m.operation_start_date || '—'}
-                    </td>
-                    <td style={td}>
-                      {isEditing ? (
-                        <select value={editForm.is_active ? 'active' : 'inactive'} onChange={e => setEditForm(p => ({ ...p, is_active: e.target.value === 'active' }))}
-                          style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
-                          <option value="active">稼働中</option>
-                          <option value="inactive">停止</option>
-                        </select>
-                      ) : (
-                        <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
-                          background: m.is_active !== false ? '#D1FAE5' : '#FEE2E2',
-                          color: m.is_active !== false ? '#065F46' : '#DC2626' }}>
-                          {m.is_active !== false ? '稼働中' : '停止'}
-                        </span>
-                      )}
-                    </td>
-                    <td style={td}>
-                      {onViewMyPage && (
-                        <button
-                          onClick={() => onViewMyPage(m.name)}
-                          style={btn('default', { fontSize: 11, padding: '3px 10px', color: NAVY, borderColor: NAVY + '40' })}
-                        >
-                          表示 →
-                        </button>
-                      )}
-                    </td>
-                    <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                      {isEditing ? (
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button onClick={() => saveEdit(m.id)} disabled={saving} style={btn('primary')}>保存</button>
-                          <button onClick={() => setEditId(null)} style={btn()}>✕</button>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button onClick={() => startEdit(m)} style={btn()}>編集</button>
-                          <button onClick={() => setDeleteConfirm(m)} style={btn('danger')}>削除</button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {grouped.map(([team, teamMembers]) => (
+            <div key={team} style={{ background: '#fff', borderRadius: 10, border: '1px solid #E5E5E5', overflow: 'hidden' }}>
+              {/* チームヘッダー */}
+              <div style={{
+                padding: '10px 16px',
+                background: NAVY,
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}>
+                {team}
+                <span style={{ fontSize: 11, fontWeight: 400, opacity: 0.8 }}>({teamMembers.length}名)</span>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr>
+                      {COLS.map(h => <th key={h} style={th}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {teamMembers.map(m => {
+                      const isEditing = editId === m.id;
+                      return (
+                        <tr key={m.id} style={{ background: isEditing ? '#F0F7FF' : 'transparent' }}>
+                          <td style={td}><span style={{ fontWeight: 600 }}>{m.name}</span></td>
+                          <td style={td}>
+                            {isEditing ? (
+                              <select value={editForm.position} onChange={e => setEditForm(p => ({ ...p, position: e.target.value }))}
+                                style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
+                                {POSITIONS.map(p => <option key={p}>{p}</option>)}
+                              </select>
+                            ) : m.position || '—'}
+                          </td>
+                          <td style={td}>
+                            {isEditing ? (
+                              <select value={editForm.rank} onChange={e => setEditForm(p => ({ ...p, rank: e.target.value }))}
+                                style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
+                                {RANKS.map(r => <option key={r}>{r}</option>)}
+                              </select>
+                            ) : (
+                              <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
+                                background: m.rank === 'スーパースパルタン' ? GOLD + '22' : m.rank === 'スパルタン' ? '#EDE9FE' : m.rank === 'プレイヤー' ? '#DBEAFE' : '#F3F4F6',
+                                color: m.rank === 'スーパースパルタン' ? '#92400E' : m.rank === 'スパルタン' ? '#5B21B6' : m.rank === 'プレイヤー' ? '#1E40AF' : '#374151',
+                              }}>{m.rank || 'トレーニー'}</span>
+                            )}
+                          </td>
+                          <td style={td}>
+                            {isEditing ? (
+                              <input type="date" value={editForm.operation_start_date} onChange={e => setEditForm(p => ({ ...p, operation_start_date: e.target.value }))}
+                                style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }} />
+                            ) : m.operation_start_date || '—'}
+                          </td>
+                          <td style={td}>
+                            {isEditing ? (
+                              <select value={editForm.is_active ? 'active' : 'inactive'} onChange={e => setEditForm(p => ({ ...p, is_active: e.target.value === 'active' }))}
+                                style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
+                                <option value="active">稼働中</option>
+                                <option value="inactive">停止</option>
+                              </select>
+                            ) : (
+                              <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
+                                background: m.is_active !== false ? '#D1FAE5' : '#FEE2E2',
+                                color: m.is_active !== false ? '#065F46' : '#DC2626' }}>
+                                {m.is_active !== false ? '稼働中' : '停止'}
+                              </span>
+                            )}
+                          </td>
+                          <td style={td}>
+                            {onViewMyPage && (
+                              <button
+                                onClick={() => onViewMyPage(m.name)}
+                                style={btn('default', { fontSize: 11, padding: '3px 10px', color: NAVY, borderColor: NAVY + '40' })}
+                              >
+                                表示 →
+                              </button>
+                            )}
+                          </td>
+                          <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                            {isEditing ? (
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button onClick={() => saveEdit(m.id)} disabled={saving} style={btn('primary')}>保存</button>
+                                <button onClick={() => setEditId(null)} style={btn()}>✕</button>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button onClick={() => startEdit(m)} style={btn()}>編集</button>
+                                <button onClick={() => setDeleteConfirm(m)} style={btn('danger')}>削除</button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -226,7 +259,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
             {[
               { label: '氏名', key: 'name', type: 'text', placeholder: '例：山田太郎' },
               { label: 'チーム', key: 'team', type: 'text', placeholder: '例：Aチーム' },
-              { label: '稼働開始日', key: 'operation_start_date', type: 'date' },
+              { label: '入社日', key: 'operation_start_date', type: 'date' },
             ].map(f => (
               <div key={f.key} style={{ marginBottom: 14 }}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>{f.label}</label>
