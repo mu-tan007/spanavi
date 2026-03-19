@@ -10,6 +10,7 @@ import {
   deleteRoleplaySession,
   uploadRoleplayRecording,
   invokeAnalyzeRoleplay,
+  postRoleplayToSlack,
 } from '../../lib/supabaseWrite';
 
 // Google Drive ファイルIDを抽出
@@ -41,6 +42,8 @@ const SESSION_TYPE_LABEL = {
 };
 
 export default function TrainingRoleplaySection({ currentUser, userId, members, isAdmin }) {
+  // メンバーのチーム（Slack投稿先特定用）
+  const memberTeam = members?.find(m => m.name === currentUser)?.team || null;
   const [activeTab, setActiveTab] = useState('weekly');
   const [progress, setProgress]   = useState([]);   // training_progress rows
   const [sessions, setSessions]   = useState([]);   // roleplay_sessions rows
@@ -241,6 +244,17 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             ? { ...s, transcript: aiData.transcript, ai_feedback: aiData.ai_feedback, ai_status: 'done' }
             : s
         ));
+        // Slack通知（チームが判明している場合のみ）
+        if (memberTeam) {
+          postRoleplayToSlack({
+            memberName: currentUser,
+            memberTeam,
+            partnerName: addForm.partner_name,
+            sessionDate: addForm.session_date,
+            aiFeedback: aiData.ai_feedback,
+            videoUrl: extractDriveId(addDriveUrl) ? addDriveUrl.trim() : null,
+          }).catch(e => console.error('[Slack] post error:', e));
+        }
       } else {
         setSessions(prev => prev.map(s =>
           s.id === newSession.id ? { ...s, ai_status: 'error' } : s
