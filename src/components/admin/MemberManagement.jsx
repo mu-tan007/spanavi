@@ -23,7 +23,7 @@ const btn = (variant = 'default', extra = {}) => ({
   ...extra,
 });
 
-export default function MemberManagement({ onToast }) {
+export default function MemberManagement({ onToast, onViewMyPage }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editId, setEditId] = useState(null);
@@ -128,7 +128,7 @@ export default function MemberManagement({ onToast }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr>
-                {['氏名', '役職', 'ランク', 'チーム', '稼働開始日', 'ステータス', '操作'].map(h => (
+                {['氏名', '役職', 'ランク', 'チーム', '稼働開始日', 'ステータス', 'マイページ', '操作'].map(h => (
                   <th key={h} style={th}>{h}</th>
                 ))}
               </tr>
@@ -185,6 +185,16 @@ export default function MemberManagement({ onToast }) {
                           color: m.is_active !== false ? '#065F46' : '#DC2626' }}>
                           {m.is_active !== false ? '稼働中' : '停止'}
                         </span>
+                      )}
+                    </td>
+                    <td style={td}>
+                      {onViewMyPage && (
+                        <button
+                          onClick={() => onViewMyPage(m.name)}
+                          style={btn('default', { fontSize: 11, padding: '3px 10px', color: NAVY, borderColor: NAVY + '40' })}
+                        >
+                          表示 →
+                        </button>
                       )}
                     </td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>

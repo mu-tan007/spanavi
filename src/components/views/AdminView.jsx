@@ -14,7 +14,6 @@ const TABS = [
   { id: 'reward',   label: '報酬・給与設定',         icon: '' },
   { id: 'slack',    label: 'Slack / Zoom設定',       icon: '' },
   { id: 'clients',  label: 'クライアント・リスト管理', icon: '' },
-  { id: 'mypage_viewer', label: 'メンバーMyPage',   icon: '' },
 ];
 
 // ────────────────────────────────────────────────
@@ -48,7 +47,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
     setActiveTab(tab);
     try { localStorage.setItem('admin_activeTab', tab); } catch {}
   };
-  const [selectedMember, setSelectedMember] = useState(null);
+  const [viewingMember, setViewingMember] = useState(null); // マイページモーダル用
   const [toasts, setToasts] = useState([]);
 
   // isAdmin でなければ リスト一覧 にリダイレクト
@@ -71,6 +70,10 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
       </div>
     );
   }
+
+  const viewingMemberData = viewingMember
+    ? members.find(m => m.name === viewingMember)
+    : null;
 
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', paddingBottom: 48 }}>
@@ -104,7 +107,6 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
             >
-              <span style={{ display: 'none', ['@media (min-width: 600px)']: { display: 'inline' } }}>{tab.label}</span>
               <span>{tab.label}</span>
             </button>
           );
@@ -113,7 +115,12 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
 
       {/* タブコンテンツ */}
       <div style={{ background: '#fff', borderRadius: '0 0 10px 10px', border: '1px solid #E5E5E5', borderTop: 'none', padding: '24px 28px', marginBottom: 0 }}>
-        {activeTab === 'members' && <MemberManagement onToast={showToast} />}
+        {activeTab === 'members' && (
+          <MemberManagement
+            onToast={showToast}
+            onViewMyPage={(name) => setViewingMember(name)}
+          />
+        )}
         {activeTab === 'reward'  && (
           <>
             <RewardSettings onToast={showToast} />
@@ -123,48 +130,56 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
         )}
         {activeTab === 'slack'   && <SlackZoomSettings onToast={showToast} />}
         {activeTab === 'clients' && <ClientManagement  onToast={showToast} />}
-        {activeTab === 'mypage_viewer' && (
-          <div style={{ display: 'flex', gap: 0, minHeight: 500 }}>
-            {/* Member picker */}
-            <div style={{ width: 200, flexShrink: 0, borderRight: '1px solid #E5E5E5', marginRight: 24 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: NAVY, marginBottom: 8, paddingBottom: 6, borderBottom: '1px solid #E5E5E5' }}>
-                メンバー一覧 ({members.filter(m => m.name).length}名)
+      </div>
+
+      {/* メンバーマイページ モーダル */}
+      {viewingMember && (
+        <div
+          onClick={() => setViewingMember(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            zIndex: 8000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+            overflowY: 'auto', padding: '24px 16px',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#F9FAFB', borderRadius: 14, width: '100%', maxWidth: 900,
+              boxShadow: '0 16px 64px rgba(0,0,0,0.25)', position: 'relative',
+            }}
+          >
+            {/* モーダルヘッダー */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '16px 24px', borderBottom: '1px solid #E5E5E5',
+              background: '#fff', borderRadius: '14px 14px 0 0',
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>
+                {viewingMember} のマイページ
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {members.filter(m => m.name && m.is_active !== false).map(m => (
-                  <button key={m.name} onClick={() => setSelectedMember(m.name)} style={{
-                    display: 'block', width: '100%', padding: '8px 10px',
-                    border: 'none', borderRadius: 4,
-                    background: selectedMember === m.name ? NAVY + '10' : 'transparent',
-                    borderLeft: selectedMember === m.name ? `3px solid ${GOLD}` : '3px solid transparent',
-                    textAlign: 'left', cursor: 'pointer', transition: 'all 0.1s',
-                  }}>
-                    <div style={{ fontSize: 12, fontWeight: selectedMember === m.name ? 700 : 400, color: NAVY }}>{m.name}</div>
-                    <div style={{ fontSize: 9, color: '#9CA3AF' }}>{m.team ? m.team + 'チーム' : ''}</div>
-                  </button>
-                ))}
-              </div>
+              <button
+                onClick={() => setViewingMember(null)}
+                style={{
+                  background: 'none', border: 'none', fontSize: 20, cursor: 'pointer',
+                  color: '#9CA3AF', lineHeight: 1, padding: '0 4px',
+                }}
+              >✕</button>
             </div>
-            {/* MyPage view */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              {selectedMember ? (
-                <MyPageView
-                  currentUser={selectedMember}
-                  userId={members.find(m => m.name === selectedMember)?._supaId || selectedMember}
-                  members={members}
-                  now={now || new Date()}
-                  appoData={appoData}
-                  isAdmin={true}
-                />
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, color: '#9CA3AF', fontSize: 13 }}>
-                  左のリストからメンバーを選択してください
-                </div>
-              )}
+            {/* マイページ本体 */}
+            <div style={{ padding: '0 0 24px' }}>
+              <MyPageView
+                currentUser={viewingMember}
+                userId={viewingMemberData?._supaId || viewingMember}
+                members={members}
+                now={now || new Date()}
+                appoData={appoData}
+                isAdmin={true}
+              />
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <ToastContainer toasts={toasts} />
     </div>
