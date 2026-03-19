@@ -54,8 +54,19 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   const [addingSess, setAddingSess]       = useState(false);
   const [convertStatus, setConvertStatus] = useState(''); // 変換中メッセージ
 
-  // 展開中の AI フィードバック
-  const [expandedId, setExpandedId]       = useState(null);
+  // 展開中のセッション（複数同時展開可）
+  const [expandedIds, setExpandedIds] = useState(new Set());
+  const toggleExpanded = (id) => setExpandedIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const setExpandedId = (id) => setExpandedIds(prev => {
+    if (id === null) return prev;
+    const next = new Set(prev);
+    next.add(id);
+    return next;
+  });
 
   // エラーメッセージ
   const [errorMsg, setErrorMsg]           = useState('');
@@ -312,21 +323,37 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   };
 
   const SessionRow = ({ session }) => {
-    // 分析完了セッションはデフォルト展開
-    const isExpanded = expandedId === session.id || (session.ai_status === 'done' && expandedId === null);
+    const isExpanded = expandedIds.has(session.id);
     const isUploading = uploadingId === session.id;
     const isAnalyzing = analyzingId === session.id;
     const isDeleting = deletingId === session.id;
     const fb = session.ai_feedback;
+    const hasFeedback = session.ai_status === 'done' && fb;
 
     return (
       <div style={{
-        border: '1px solid ' + C.borderLight, borderRadius: 8,
-        marginBottom: 8, overflow: 'hidden',
-        background: session.ai_status === 'done' ? C.navy + '04' : C.white,
+        border: '1px solid ' + (isExpanded ? C.navy + '30' : C.borderLight),
+        borderRadius: 8, marginBottom: 8, overflow: 'hidden',
+        background: hasFeedback ? C.navy + '04' : C.white,
+        transition: 'border-color 0.15s',
       }}>
-        {/* セッション行 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
+        {/* ── クリックで開閉するヘッダー行 ── */}
+        <div
+          onClick={() => toggleExpanded(session.id)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '10px 14px', cursor: 'pointer',
+            userSelect: 'none',
+          }}
+        >
+          {/* 開閉シェブロン */}
+          <span style={{
+            fontSize: 10, color: C.textLight, flexShrink: 0,
+            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s',
+            display: 'inline-block',
+          }}>▼</span>
+
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: C.navy }}>
@@ -349,73 +376,88 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
               {session.passed === false && (
                 <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, background: C.red + '15', color: C.red, fontWeight: 700 }}>不合格</span>
               )}
+              {/* ステータスバッジ（折り畳み時の一目確認用） */}
+              {session.recording_url && !isExpanded && (
+                <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, background: C.navy + '08', color: C.navy }}>🎵 録音済</span>
+              )}
+              {hasFeedback && !isExpanded && (
+                <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, background: C.gold + '20', color: '#c8860a', fontWeight: 700 }}>✨ AI分析済</span>
+              )}
+              {session.ai_status === 'processing' && (
+                <span style={{ fontSize: 9, color: C.textLight }}>分析中...</span>
+              )}
             </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
-            {/* 録音アップロード */}
-            <button
-              onClick={() => { fileTargetSessionId.current = session.id; fileInputRef.current?.click(); }}
-              disabled={isUploading}
-              title={session.recording_url ? '録音を再アップロード' : '録音をアップロード'}
-              style={{
-                padding: '4px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600,
-                border: '1px solid ' + (session.recording_url ? C.navy + '40' : C.borderLight),
-                background: session.recording_url ? C.navy + '08' : C.white,
-                color: session.recording_url ? C.navy : C.textLight,
-                cursor: isUploading ? 'default' : 'pointer', opacity: isUploading ? 0.6 : 1,
-                fontFamily: "'Noto Sans JP'",
-              }}
-            >
-              {isUploading ? '...' : session.recording_url ? '🎵 録音済' : '録音↑'}
-            </button>
-
-            {/* AI 分析 */}
-            {session.recording_url && (
-              <button
-                onClick={() => session.ai_status === 'done' ? setExpandedId(isExpanded ? null : session.id) : handleAnalyze(session)}
-                disabled={isAnalyzing || session.ai_status === 'processing'}
-                style={{
-                  padding: '4px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600,
-                  border: '1px solid ' + (session.ai_status === 'done' ? C.gold + '60' : C.borderLight),
-                  background: session.ai_status === 'done' ? C.gold + '10' : C.white,
-                  color: session.ai_status === 'done' ? '#c8860a' : C.textMid,
-                  cursor: (isAnalyzing || session.ai_status === 'processing') ? 'default' : 'pointer',
-                  opacity: (isAnalyzing || session.ai_status === 'processing') ? 0.6 : 1,
-                  fontFamily: "'Noto Sans JP'",
-                }}
-              >
-                {session.ai_status === 'processing' || isAnalyzing
-                  ? '分析中...'
-                  : session.ai_status === 'done'
-                  ? (isExpanded ? '▲ AI分析' : '▼ AI分析')
-                  : session.ai_status === 'error'
-                  ? '再分析'
-                  : '✨ AI分析'}
-              </button>
-            )}
-
-            {/* 削除（管理者のみ） */}
-            {isAdmin && (
-              <button
-                onClick={() => handleDeleteSession(session.id)}
-                disabled={isDeleting}
-                style={{
-                  padding: '4px 8px', borderRadius: 5, fontSize: 10,
-                  border: '1px solid ' + C.borderLight,
-                  background: 'transparent', color: C.red,
-                  cursor: isDeleting ? 'default' : 'pointer', opacity: isDeleting ? 0.6 : 1,
-                  fontFamily: "'Noto Sans JP'",
-                }}
-              >
-                削除
-              </button>
-            )}
           </div>
         </div>
 
+        {/* ── 展開パネル ── */}
+        {isExpanded && (
+          <div style={{ borderTop: '1px solid ' + C.borderLight }}>
+            {/* アクションボタン行 */}
+            <div style={{ display: 'flex', gap: 6, padding: '8px 14px', alignItems: 'center' }}>
+              {/* 録音アップロード */}
+              <button
+                onClick={e => { e.stopPropagation(); fileTargetSessionId.current = session.id; fileInputRef.current?.click(); }}
+                disabled={isUploading}
+                title={session.recording_url ? '録音を再アップロード' : '録音をアップロード'}
+                style={{
+                  padding: '4px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600,
+                  border: '1px solid ' + (session.recording_url ? C.navy + '40' : C.borderLight),
+                  background: session.recording_url ? C.navy + '08' : C.white,
+                  color: session.recording_url ? C.navy : C.textLight,
+                  cursor: isUploading ? 'default' : 'pointer', opacity: isUploading ? 0.6 : 1,
+                  fontFamily: "'Noto Sans JP'",
+                }}
+              >
+                {isUploading ? '...' : session.recording_url ? '🎵 録音済（再UP）' : '録音↑'}
+              </button>
+
+              {/* AI 分析 */}
+              {session.recording_url && (
+                <button
+                  onClick={e => { e.stopPropagation(); handleAnalyze(session); }}
+                  disabled={isAnalyzing || session.ai_status === 'processing' || session.ai_status === 'done'}
+                  style={{
+                    padding: '4px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600,
+                    border: '1px solid ' + (session.ai_status === 'done' ? C.gold + '60' : C.borderLight),
+                    background: session.ai_status === 'done' ? C.gold + '10' : C.white,
+                    color: session.ai_status === 'done' ? '#c8860a' : C.textMid,
+                    cursor: (isAnalyzing || session.ai_status === 'processing' || session.ai_status === 'done') ? 'default' : 'pointer',
+                    opacity: (isAnalyzing || session.ai_status === 'processing') ? 0.6 : 1,
+                    fontFamily: "'Noto Sans JP'",
+                  }}
+                >
+                  {session.ai_status === 'processing' || isAnalyzing
+                    ? '分析中...'
+                    : session.ai_status === 'done'
+                    ? '✨ AI分析済'
+                    : session.ai_status === 'error'
+                    ? '再分析'
+                    : '✨ AI分析'}
+                </button>
+              )}
+
+              {/* 削除（管理者のみ） */}
+              {isAdmin && (
+                <button
+                  onClick={e => { e.stopPropagation(); handleDeleteSession(session.id); }}
+                  disabled={isDeleting}
+                  style={{
+                    padding: '4px 8px', borderRadius: 5, fontSize: 10,
+                    border: '1px solid ' + C.borderLight,
+                    background: 'transparent', color: C.red,
+                    cursor: isDeleting ? 'default' : 'pointer', opacity: isDeleting ? 0.6 : 1,
+                    fontFamily: "'Noto Sans JP'",
+                    marginLeft: 'auto',
+                  }}
+                >
+                  削除
+                </button>
+              )}
+            </div>
+
         {/* AI エラー表示 */}
-        {session.ai_status === 'error' && (
+        {isExpanded && session.ai_status === 'error' && (
           <div style={{
             borderTop: '1px solid #fecaca',
             padding: '10px 16px',
@@ -423,11 +465,11 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             fontSize: 11,
             color: '#c0392b',
           }}>
-            ⚠️ AI分析でエラーが発生しました。「再分析」ボタンで再試行できます。ファイルが大きい場合（27MB超）は小さいファイルに変換してください。
+            ⚠️ AI分析でエラーが発生しました。「再分析」ボタンで再試行できます。
           </div>
         )}
 
-        {/* AI フィードバック展開 */}
+        {/* AI フィードバック */}
         {isExpanded && fb && (
           <div style={{
             borderTop: '1px solid ' + C.borderLight,
@@ -478,6 +520,8 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                 </div>
               </details>
             )}
+          </div>
+        )}
           </div>
         )}
       </div>
