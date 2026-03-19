@@ -385,10 +385,10 @@ export default function StatsView({ callListData, currentUser, appoData, members
   , [listTableData]);
 
   // ── 共通スタイル ──────────────────────────────────────────────────────────
-  const tabBtn = (active, color) => ({
+  const tabBtn = (active) => ({
     padding: '6px 12px', fontSize: 11, fontWeight: active ? 600 : 400, cursor: 'pointer',
-    background: 'transparent', border: 'none', borderBottom: '2px solid ' + (active ? (color || '#C8A84B') : 'transparent'),
-    color: active ? '#032D60' : '#9CA3AF', borderRadius: 0, fontFamily: "'Noto Sans JP'",
+    background: 'transparent', border: 'none', borderBottom: '2px solid ' + (active ? NAVY : 'transparent'),
+    color: active ? NAVY : '#9CA3AF', borderRadius: 0, fontFamily: "'Noto Sans JP'",
     transition: 'all 0.15s',
   });
   const monthSelectStyle = { padding: '3px 6px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, color: C.textDark, outline: 'none', fontFamily: "'Noto Sans JP'" };
@@ -400,7 +400,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
     color: rank <= 3 ? C.white : C.textLight,
     border: rank <= 3 ? 'none' : '1px solid ' + C.borderLight,
   });
-  const cardStyle = { background: C.white, borderRadius: 12, padding: '16px 18px', borderLeft: '2px solid #0D2247' };
+  const cardStyle = { background: C.white, borderRadius: 4, padding: '16px 18px', border: '1px solid #E5E7EB' };
 
   // 日付入力付きセクション独立フィルタ (日/週/月/期間指定)
   const simplePeriodSelector = (period, setPeriod, from, setFrom, to, setTo, accent) => (
@@ -431,7 +431,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
   const CustomBarTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     return (
-      <div style={{ background: NAVY, borderRadius: 8, padding: '8px 12px', color: '#fff', fontSize: 11 }}>
+      <div style={{ background: NAVY, borderRadius: 4, padding: '8px 12px', color: '#fff', fontSize: 11 }}>
         <div style={{ fontWeight: 700, marginBottom: 4 }}>{label}</div>
         <div>売上: {fmtFull(payload[0]?.value)}</div>
         {payload[0]?.payload?.count != null && <div>アポ数: {payload[0].payload.count}件</div>}
@@ -442,7 +442,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
   const CustomLineTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     return (
-      <div style={{ background: NAVY, borderRadius: 8, padding: '8px 12px', color: '#fff', fontSize: 11 }}>
+      <div style={{ background: NAVY, borderRadius: 4, padding: '8px 12px', color: '#fff', fontSize: 11 }}>
         <div style={{ fontWeight: 700, marginBottom: 4 }}>{label}</div>
         <div>売上: {fmtFull(payload[0]?.value)}</div>
         {payload[0]?.payload?.count != null && <div>アポ数: {payload[0].payload.count}件</div>}
@@ -453,13 +453,19 @@ export default function StatsView({ callListData, currentUser, appoData, members
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
 
+      {/* ページヘッダー */}
+      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: `1px solid ${NAVY}` }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: NAVY, letterSpacing: '-0.3px' }}>Analytics</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>売上・架電・ランキングの統合分析ダッシュボード</div>
+      </div>
+
       {/* ========== セクション1: KPIサマリーカード ========== */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
         {/* Card 1: 今月累計売上 */}
         <div style={cardStyle}>
           <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>今月（{parseInt(monthStr.slice(5))}月1日〜{dayOfMonth}日）</div>
           <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>今月累計売上</div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: GOLD, fontFamily: "'JetBrains Mono'", letterSpacing: '-0.5px' }}>
+          <div style={{ fontSize: 24, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'", letterSpacing: '-0.5px' }}>
             {formatCurrency(kpiMonthSales)}
           </div>
           <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -514,7 +520,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
         <div style={cardStyle}>
           <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>今月（{parseInt(monthStr.slice(5))}月1日〜{dayOfMonth}日）</div>
           <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>リスケ率</div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: '#F59E0B', fontFamily: "'JetBrains Mono'" }}>
+          <div style={{ fontSize: 24, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'" }}>
             {kpiRescheduleRate.toFixed(1)}<span style={{ fontSize: 13, fontWeight: 600 }}>%</span>
           </div>
           <div style={{ marginTop: 6, fontSize: 10, color: C.textLight }}>
@@ -534,14 +540,14 @@ export default function StatsView({ callListData, currentUser, appoData, members
       </div>
 
       {/* ========== セクション2: 売上推移グラフ ========== */}
-      <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
+      <div style={{ background: C.white, borderRadius: 4, padding: '18px 20px', marginBottom: 20, border: '1px solid #E5E7EB' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>売上推移グラフ</span>
           </div>
           <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid #E5E5E5' }}>
             {[['daily', '日次'], ['weekly', '週次'], ['monthly', '月次'], ['custom', '期間指定']].map(([k, l]) => (
-              <button key={k} onClick={() => setChartTab(k)} style={tabBtn(chartTab === k, GOLD)}>{l}</button>
+              <button key={k} onClick={() => setChartTab(k)} style={tabBtn(chartTab === k)}>{l}</button>
             ))}
             {chartTab === 'daily' && (
               <select value={chartMonthStr} onChange={e => setChartMonthStr(e.target.value)} style={{ ...monthSelectStyle, marginLeft: 8 }}>
@@ -567,7 +573,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
               <Tooltip content={<CustomBarTooltip />} />
               <Bar dataKey='sales' radius={[3, 3, 0, 0]} label={{ position: 'top', fontSize: 8, fill: '#888', formatter: (v, _, props) => props?.count > 0 ? props.count + '件' : '' }}>
                 {dailyChartData.map((entry, i) => (
-                  <Cell key={i} fill={entry.isToday ? GOLD : NAVY} />
+                  <Cell key={i} fill={entry.isToday ? '#1E40AF' : NAVY} />
                 ))}
               </Bar>
             </BarChart>
@@ -587,7 +593,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
               <XAxis dataKey='label' tick={{ fontSize: 9, fill: '#888' }} />
               <YAxis tickFormatter={v => v >= 10000 ? (v / 10000).toFixed(0) + '万' : v} tick={{ fontSize: 9, fill: '#888' }} />
               <Tooltip content={<CustomLineTooltip />} />
-              <Area type='monotone' dataKey='sales' stroke={NAVY} strokeWidth={2} fill='url(#weekGrad)' dot={{ r: 4, fill: NAVY }} activeDot={{ r: 6, fill: GOLD }} />
+              <Area type='monotone' dataKey='sales' stroke={NAVY} strokeWidth={2} fill='url(#weekGrad)' dot={{ r: 4, fill: NAVY }} activeDot={{ r: 6, fill: '#1E40AF' }} />
             </AreaChart>
           </ResponsiveContainer>
         )}
@@ -618,7 +624,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
                 <Tooltip content={<CustomBarTooltip />} />
                 <Bar dataKey='sales' radius={[3, 3, 0, 0]} label={{ position: 'top', fontSize: 8, fill: '#888', formatter: (v, _, props) => props?.count > 0 ? props.count + '件' : '' }}>
                   {customChartData.map((entry, i) => (
-                    <Cell key={i} fill={entry.isToday ? GOLD : NAVY} />
+                    <Cell key={i} fill={entry.isToday ? '#1E40AF' : NAVY} />
                   ))}
                 </Bar>
               </BarChart>
@@ -630,12 +636,12 @@ export default function StatsView({ callListData, currentUser, appoData, members
       {/* ========== セクション3: 個人・チーム別ランキング ========== */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
         {/* ② 個人売上ランキング */}
-        <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
+        <div style={{ background: C.white, borderRadius: 4, padding: '18px 20px', border: '1px solid #E5E7EB' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>個人売上ランキング</span>
             </div>
-            {simplePeriodSelector(rankPersonPeriod, setRankPersonPeriod, rankPersonFrom, setRankPersonFrom, rankPersonTo, setRankPersonTo, GOLD)}
+            {simplePeriodSelector(rankPersonPeriod, setRankPersonPeriod, rankPersonFrom, setRankPersonFrom, rankPersonTo, setRankPersonTo)}
           </div>
           {personRankData.length === 0 ? (
             <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
@@ -663,7 +669,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
         </div>
 
         {/* ③ チーム別売上ランキング */}
-        <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
+        <div style={{ background: C.white, borderRadius: 4, padding: '18px 20px', border: '1px solid #E5E7EB' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>チーム別売上ランキング</span>
@@ -703,7 +709,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
         const ClientPieTooltip = ({ active, payload }) => {
           if (!active || !payload?.length) return null;
           return (
-            <div style={{ background: NAVY, borderRadius: 8, padding: '7px 12px', color: '#fff', fontSize: 11 }}>
+            <div style={{ background: NAVY, borderRadius: 4, padding: '7px 12px', color: '#fff', fontSize: 11 }}>
               <div style={{ fontWeight: 700 }}>{payload[0].name}</div>
               <div>{fmtFull(payload[0].value)}</div>
               <div style={{ color: '#93C5FD' }}>{totalPie > 0 ? (payload[0].value / totalPie * 100).toFixed(1) : 0}%</div>
@@ -711,7 +717,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
           );
         };
         return (
-          <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
+          <div style={{ background: C.white, borderRadius: 4, padding: '18px 20px', marginBottom: 20, border: '1px solid #E5E7EB' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>クライアント別売上分析</span>
@@ -721,8 +727,8 @@ export default function StatsView({ callListData, currentUser, appoData, members
             </div>
             <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
               {/* テーブル */}
-              <div style={{ flex: '1.5', minWidth: 0, borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1fr', padding: '8px 16px', background: '#F8F9FA', fontSize: 11, fontWeight: 600, color: '#6B7280', letterSpacing: '0.08em', textTransform: 'uppercase', borderBottom: '1px solid #E5E7EB' }}>
+              <div style={{ flex: '1.5', minWidth: 0, borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1fr', padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247' }}>
                   <span>クライアント名</span><span>アポ数</span><span>売上合計</span><span>平均単価</span><span>最終アポ日</span>
                 </div>
                 {clientData.length === 0 ? (
@@ -737,9 +743,9 @@ export default function StatsView({ callListData, currentUser, appoData, members
                     <React.Fragment key={key}>
                       <div
                         onClick={() => { setExpandedClient(isExpanded ? null : key); setSelectedClientPie(isPieSelected ? null : key); }}
-                        style={{ display: 'grid', gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1fr', padding: '10px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', cursor: 'pointer', background: isHighlighted ? '#EFF6FF' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#FAFAFA', transition: 'background 0.15s', borderLeft: `4px solid ${CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length]}`, opacity: (selectedClientPie || hoveredClientPie) && !isHighlighted ? 0.55 : 1 }}
+                        style={{ display: 'grid', gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1fr', padding: '8px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #E5E7EB', cursor: 'pointer', background: isHighlighted ? '#EFF6FF' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#F8F9FA', transition: 'background 0.15s', borderLeft: `4px solid ${CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length]}`, opacity: (selectedClientPie || hoveredClientPie) && !isHighlighted ? 0.55 : 1 }}
                         onMouseEnter={e => { setHoveredClientPie(key); if (!isHighlighted) e.currentTarget.style.background = '#EAF4FF'; }}
-                        onMouseLeave={e => { setHoveredClientPie(null); e.currentTarget.style.background = isHighlighted ? '#EFF6FF' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#FAFAFA'; }}
+                        onMouseLeave={e => { setHoveredClientPie(null); e.currentTarget.style.background = isHighlighted ? '#EFF6FF' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#F8F9FA'; }}
                       >
                         <span style={{ fontWeight: 600, color: NAVY, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{ fontSize: 9, color: C.textLight, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▶</span>
@@ -818,13 +824,13 @@ export default function StatsView({ callListData, currentUser, appoData, members
         const SortHdr = ({ label, sk }) => (
           <span
             onClick={() => { if (listSortKey === sk) setListSortDir(d => d === 'desc' ? 'asc' : 'desc'); else { setListSortKey(sk); setListSortDir('desc'); } }}
-            style={{ cursor: 'pointer', userSelect: 'none', color: listSortKey === sk ? NAVY : '#706E6B', whiteSpace: 'nowrap' }}>
+            style={{ cursor: 'pointer', userSelect: 'none', color: listSortKey === sk ? '#ffffff' : 'rgba(255,255,255,0.65)', whiteSpace: 'nowrap' }}>
             {label}{listSortKey === sk ? (listSortDir === 'asc' ? ' ▲' : ' ▼') : ''}
           </span>
         );
         const LGRID = 'minmax(180px,2fr) minmax(120px,1.5fr) 100px 100px 220px 100px 220px 130px';
         return (
-          <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
+          <div style={{ background: C.white, borderRadius: 4, padding: '18px 20px', marginBottom: 20, border: '1px solid #E5E7EB' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>リスト別パフォーマンス</span>
@@ -835,11 +841,11 @@ export default function StatsView({ callListData, currentUser, appoData, members
             </div>
             <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
               {[['all', '全て表示'], ['active', 'アクティブのみ'], ['archived', 'アーカイブのみ']].map(([k, l]) => (
-                <button key={k} onClick={() => setListFilter(k)} style={listFilter === k ? { background: '#0D2247', color: '#FFFFFF', border: '1px solid #0D2247', borderRadius: 6, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'" } : { background: '#FFFFFF', color: '#6B7280', border: '1px solid #E5E7EB', borderRadius: 6, padding: '5px 12px', fontSize: 11, fontWeight: 400, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>{l}</button>
+                <button key={k} onClick={() => setListFilter(k)} style={listFilter === k ? { background: '#0D2247', color: '#FFFFFF', border: '1px solid #0D2247', borderRadius: 4, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'" } : { background: '#FFFFFF', color: '#6B7280', border: '1px solid #E5E7EB', borderRadius: 4, padding: '5px 12px', fontSize: 11, fontWeight: 400, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>{l}</button>
               ))}
             </div>
-            <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5', overflowX: 'auto' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '8px 16px', background: '#F8F9FA', fontSize: 11, fontWeight: 600, color: '#6B7280', letterSpacing: '0.08em', textTransform: 'uppercase', borderBottom: '1px solid #E5E7EB', minWidth: 1170 }}>
+            <div style={{ borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB', overflowX: 'auto' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247', minWidth: 1170 }}>
                 <SortHdr label='クライアント' sk='clientName' />
                 <SortHdr label='業種' sk='name' />
                 <SortHdr label='架電数' sk='calls' />
@@ -856,7 +862,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
               ) : listFiltered.map((row, idx) => {
                 const isTop3 = listTop3Ids.has(row.listId);
                 return (
-                  <div key={row.listId} style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '9px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', background: isTop3 ? NAVY + '0F' : idx % 2 === 0 ? 'transparent' : '#FAFAFA', borderLeft: isTop3 ? '3px solid ' + NAVY : '3px solid transparent', minWidth: 1170 }}>
+                  <div key={row.listId} style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '8px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #E5E7EB', background: isTop3 ? NAVY + '0F' : idx % 2 === 0 ? 'transparent' : '#F8F9FA', borderLeft: isTop3 ? '3px solid ' + NAVY : '3px solid transparent', minWidth: 1170 }}>
                     <span style={{ fontSize: 11, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.clientName}</span>
                     <span style={{ fontWeight: 600, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
                       {row.name.includes(' - ') ? row.name.split(' - ').slice(1).join(' - ') : row.name}
@@ -876,7 +882,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
         );
       })()}
       {/* ========== セクション6: クライアント別リスケ率・キャンセル率 ========== */}
-      <div style={{ background: C.white, borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
+      <div style={{ background: C.white, borderRadius: 4, padding: '18px 20px', marginBottom: 20, border: '1px solid #E5E7EB' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>クライアント別リスケ率・キャンセル率</span>
@@ -884,8 +890,8 @@ export default function StatsView({ callListData, currentUser, appoData, members
           </div>
           {simplePeriodSelector(clientRescanPeriod, setClientRescanPeriod, clientRescanFrom, setClientRescanFrom, clientRescanTo, setClientRescanTo, NAVY)}
         </div>
-        <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 120px 80px 120px', padding: '8px 16px', background: '#F8F9FA', fontSize: 11, fontWeight: 600, color: '#6B7280', letterSpacing: '0.06em', borderBottom: '1px solid #E5E7EB' }}>
+        <div style={{ borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 120px 80px 120px', padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247' }}>
             <span>クライアント名</span>
             <span style={{ textAlign: 'right' }}>アポ数</span>
             <span style={{ textAlign: 'right' }}>リスケ数</span>
@@ -896,7 +902,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
           {clientReschedData.length === 0 ? (
             <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
           ) : clientReschedData.map((d, idx) => (
-            <div key={d.name} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 120px 80px 120px', padding: '9px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #F3F2F2', background: idx % 2 === 0 ? 'transparent' : '#FAFAFA' }}>
+            <div key={d.name} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 120px 80px 120px', padding: '8px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #E5E7EB', background: idx % 2 === 0 ? 'transparent' : '#F8F9FA' }}>
               <span style={{ fontWeight: 600, color: NAVY }}>{d.name}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", textAlign: 'right' }}>{d.appo}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", textAlign: 'right', color: d.reschedule > 0 ? '#F59E0B' : C.textLight }}>{d.reschedule}</span>
