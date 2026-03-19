@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 
 const NAVY = '#0D2247';
@@ -11,14 +11,16 @@ const POSITIONS = ['代表', 'リーダー', 'サブリーダー', 'メンバー
 const btn = (variant = 'default', extra = {}) => ({
   padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
   cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-  border: variant === 'danger' ? '1px solid #fca5a5'
+  border: variant === 'danger'  ? '1px solid #dc2626'
         : variant === 'primary' ? 'none'
+        : variant === 'ghost'   ? `1px solid ${NAVY}40`
         : '1px solid #E5E5E5',
-  background: variant === 'danger' ? '#fee2e2'
+  background: variant === 'danger'  ? 'transparent'
             : variant === 'primary' ? NAVY
-            : '#fff',
-  color: variant === 'danger' ? '#dc2626'
+            : 'transparent',
+  color: variant === 'danger'  ? '#dc2626'
        : variant === 'primary' ? '#fff'
+       : variant === 'ghost'   ? NAVY
        : '#374151',
   ...extra,
 });
@@ -32,6 +34,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
   const [addForm, setAddForm] = useState({ name: '', team: '', position: 'メンバー', rank: 'トレーニー', operation_start_date: '' });
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [hoveredRow, setHoveredRow] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -152,6 +155,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
               <div style={{
                 padding: '10px 16px',
                 background: NAVY,
+                borderLeft: `3px solid ${GOLD}`,
                 color: '#fff',
                 fontSize: 13,
                 fontWeight: 700,
@@ -173,7 +177,16 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                     {teamMembers.map(m => {
                       const isEditing = editId === m.id;
                       return (
-                        <tr key={m.id} style={{ background: isEditing ? '#F0F7FF' : 'transparent' }}>
+                        <tr
+                          key={m.id}
+                          onMouseEnter={() => setHoveredRow(m.id)}
+                          onMouseLeave={() => setHoveredRow(null)}
+                          style={{
+                            background: isEditing ? NAVY + '06' : hoveredRow === m.id ? NAVY + '08' : 'transparent',
+                            borderLeft: hoveredRow === m.id && !isEditing ? `3px solid ${GOLD}` : '3px solid transparent',
+                            transition: 'background 0.12s, border-color 0.12s',
+                          }}
+                        >
                           <td style={td}><span style={{ fontWeight: 600 }}>{m.name}</span></td>
                           <td style={td}>
                             {isEditing ? (
@@ -211,8 +224,9 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                               </select>
                             ) : (
                               <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
-                                background: m.is_active !== false ? '#D1FAE5' : '#FEE2E2',
-                                color: m.is_active !== false ? '#065F46' : '#DC2626' }}>
+                                background: m.is_active !== false ? GOLD + '1A' : '#FEE2E2',
+                                border: `1px solid ${m.is_active !== false ? GOLD : '#fca5a5'}`,
+                                color: m.is_active !== false ? GOLD : '#DC2626' }}>
                                 {m.is_active !== false ? '稼働中' : '停止'}
                               </span>
                             )}
@@ -235,7 +249,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                               </div>
                             ) : (
                               <div style={{ display: 'flex', gap: 6 }}>
-                                <button onClick={() => startEdit(m)} style={btn()}>編集</button>
+                                <button onClick={() => startEdit(m)} style={btn('ghost')}>編集</button>
                                 <button onClick={() => setDeleteConfirm(m)} style={btn('danger')}>削除</button>
                               </div>
                             )}
