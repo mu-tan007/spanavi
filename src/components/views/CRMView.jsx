@@ -166,7 +166,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
         <div style={{
           display: "grid", gridTemplateColumns: colTemplate,
           padding: "8px 16px", background: NAVY,
-          fontSize: 13, fontWeight: 600, color: '#fff',
+          fontSize: 11, fontWeight: 600, color: '#fff',
           verticalAlign: 'middle',
         }}>
           <span style={{ verticalAlign: 'middle' }}>ステータス</span><span style={{ verticalAlign: 'middle' }}>企業名</span><span style={{ verticalAlign: 'middle' }}>業界</span><span style={{ verticalAlign: 'middle' }}>目標</span><span style={{ verticalAlign: 'middle' }}>報酬体系</span><span style={{ verticalAlign: 'middle' }}>リスト</span><span style={{ verticalAlign: 'middle' }}>カレンダー</span><span style={{ verticalAlign: 'middle' }}>連絡</span>{setClientData && <span></span>}

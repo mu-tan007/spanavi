@@ -421,7 +421,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
             <span key={i}
               onClick={() => { if (col.sk) setSortKey(col.sk); }}
               style={{
-                padding: cellPad, fontSize: 13, fontWeight: 600, color: "#fff",
+                padding: cellPad, fontSize: 11, fontWeight: 600, color: "#fff",
                 textAlign: col.align,
                 cursor: col.sk ? "pointer" : "default",
                 userSelect: "none",

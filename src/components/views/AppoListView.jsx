@@ -875,22 +875,22 @@ export function MembersView({ members, setMembers }) {
     <div style={{ animation: "fadeIn 0.3s ease" }}>
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
-        padding: "14px 18px", background: C.white, borderRadius: 10,
-        border: "1px solid " + C.borderLight,
+        padding: "14px 18px", background: '#fff', borderRadius: 4,
+        border: "1px solid #E5E7EB",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>従業員名簿</span>
-          <span style={{ fontSize: 11, color: C.textLight }}>{members.length}名</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#0D2247' }}>従業員名簿</span>
+          <span style={{ fontSize: 11, color: '#9CA3AF' }}>{members.length}名</span>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="名前・大学で検索..."
-            style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", width: 180 }} />
+            style={{ padding: "6px 12px", borderRadius: 4, border: "1px solid #E5E7EB", fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", width: 180 }} />
           {setMembers && <button
             onClick={() => setAddForm({ name: "", university: "", year: 1, team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, referrerName: "" })}
             style={{
-              padding: "6px 12px", borderRadius: 6, border: "none", fontSize: 11, fontWeight: 600,
-              background: "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")",
-              color: C.white, cursor: "pointer", fontFamily: "'Noto Sans JP'",
+              padding: "6px 12px", borderRadius: 4, border: "none", fontSize: 11, fontWeight: 600,
+              background: "#0D2247",
+              color: '#fff', cursor: "pointer", fontFamily: "'Noto Sans JP'",
             }}>+ 追加</button>}
           {setMembers && <button
             disabled={syncLoading}
@@ -913,11 +913,9 @@ export function MembersView({ members, setMembers }) {
               }
             }}
             style={{
-              padding: "6px 12px", borderRadius: 6, border: "none", fontSize: 11, fontWeight: 600,
-              background: syncLoading
-                ? "linear-gradient(135deg, #aaa, #ccc)"
-                : "linear-gradient(135deg, #1a7f5a, #2da57a)",
-              color: C.white, cursor: syncLoading ? "not-allowed" : "pointer",
+              padding: "6px 12px", borderRadius: 4, border: "none", fontSize: 11, fontWeight: 600,
+              background: syncLoading ? "#9CA3AF" : "#1a7f5a",
+              color: '#fff', cursor: syncLoading ? "not-allowed" : "pointer",
               fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap",
             }}>
             {syncLoading ? "同期中..." : "Zoom ID同期"}
@@ -928,22 +926,22 @@ export function MembersView({ members, setMembers }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {sortedTeams.map(team => (
           <div key={team} style={{
-            background: C.white, borderRadius: 10, overflow: "hidden",
-            border: "1px solid " + C.borderLight,
+            background: '#fff', borderRadius: 4, overflow: "hidden",
+            border: "1px solid #E5E7EB",
           }}>
             <div style={{
-              padding: "10px 16px", background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")",
+              padding: "10px 16px", background: "#0D2247",
               display: "flex", alignItems: "center", gap: 8,
             }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: C.white }}>{(team === "営業統括" || team === "代表取締役") ? team : team + "チーム"}</span>
-              <span style={{ fontSize: 10, color: C.goldLight }}>{grouped[team].length}名</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{(team === "営業統括" || team === "代表取締役") ? team : team + "チーム"}</span>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)' }}>{grouped[team].length}名</span>
             </div>
             <div style={{
               display: "grid", gridTemplateColumns: colTemplate,
-              padding: "6px 16px", background: C.offWhite, borderBottom: "1px solid " + C.borderLight,
-              fontSize: 9, fontWeight: 600, color: C.textLight, letterSpacing: 0.5,
+              padding: "8px 16px", background: "#0D2247", borderBottom: "1px solid #0D2247",
+              fontSize: 11, fontWeight: 600, color: '#fff',
             }}>
-              <span style={{ textAlign: "center" }}>No</span><span>氏名</span><span>大学名</span><span style={{ textAlign: "center" }}>学年</span><span style={{ textAlign: "center" }}>役職</span><span style={{ textAlign: "center" }}>ランク</span><span style={{ textAlign: "right" }}>累計売上</span><span style={{ textAlign: "center" }}>インセンティブ率</span><span style={{ textAlign: "center" }}>入社日</span><span style={{ textAlign: "center" }}>稼働開始日</span>{setMembers && <span></span>}
+              <span style={{ textAlign: "center" }}>No</span><span>氏名</span><span>大学名</span><span style={{ textAlign: "center" }}>学年</span><span style={{ textAlign: "center" }}>役職</span><span style={{ textAlign: "center" }}>ランク</span><span style={{ textAlign: "right" }}>累計売上</span><span style={{ textAlign: "right" }}>インセンティブ率</span><span style={{ textAlign: "center" }}>入社日</span><span style={{ textAlign: "center" }}>稼働開始日</span>{setMembers && <span></span>}
             </div>
             {grouped[team].sort((a, b) => {
               const order = { "チームリーダー": 0, "副リーダー": 1, "営業統括": 2, "メンバー": 3, "": 4 };
@@ -952,21 +950,22 @@ export function MembersView({ members, setMembers }) {
               <div key={m.id} style={{
                 display: "grid", gridTemplateColumns: colTemplate,
                 padding: "8px 16px", fontSize: 11, alignItems: "center",
-                borderBottom: "1px solid " + C.borderLight,
+                borderBottom: "1px solid #E5E7EB",
+                background: idx % 2 === 0 ? '#fff' : '#F8F9FA',
               }}>
-                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: "center" }}>{idx + 1}</span>
-                <span style={{ fontWeight: 600, color: C.navy }}>{m.name}</span>
-                <span style={{ color: C.textMid, fontSize: 10 }}>{m.university}</span>
-                <span style={{ fontFamily: "'JetBrains Mono'", color: C.textLight, textAlign: "center" }}>{m.year}</span>
+                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: '#9CA3AF', textAlign: "center" }}>{idx + 1}</span>
+                <span style={{ fontWeight: 600, color: '#0D2247' }}>{m.name}</span>
+                <span style={{ color: '#6B7280', fontSize: 10 }}>{m.university}</span>
+                <span style={{ fontFamily: "'JetBrains Mono'", color: '#9CA3AF', textAlign: "center" }}>{m.year}</span>
                 <span style={{
                   fontSize: 9, padding: "1px 5px", borderRadius: 3, textAlign: "center",
-                  background: m.role === "チームリーダー" ? C.gold + "15" : m.role === "副リーダー" ? C.navy + "10" : m.role === "営業統括" ? C.green + "10" : "transparent",
-                  color: m.role === "チームリーダー" ? C.gold : m.role === "副リーダー" ? C.navy : m.role === "営業統括" ? C.green : C.textLight,
+                  background: m.role === "チームリーダー" ? '#0D224715' : m.role === "副リーダー" ? '#1E40AF15' : m.role === "営業統括" ? '#05966915' : 'transparent',
+                  color: m.role === "チームリーダー" ? '#0D2247' : m.role === "副リーダー" ? '#1E40AF' : m.role === "営業統括" ? '#059669' : '#9CA3AF',
                   fontWeight: 600,
                 }}>{m.role || "メンバー"}</span>
-                <span style={{ fontSize: 10, textAlign: "center", color: m.rank === "プレイヤー" ? C.gold : C.textLight }}>{m.rank || "-"}</span>
-                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 500, textAlign: "right", color: m.totalSales > 0 ? C.navy : C.textLight }}>{formatCurrency(m.totalSales)}</span>
-                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, textAlign: "center", color: m.rate > 0 ? C.green : C.textLight }}>{m.rate > 0 ? (m.rate * 100).toFixed(0) + "%" : "-"}</span>
+                <span style={{ fontSize: 10, textAlign: "center", color: '#6B7280' }}>{m.rank || "-"}</span>
+                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 500, textAlign: "right", fontVariantNumeric: 'tabular-nums', color: m.totalSales > 0 ? '#0D2247' : '#9CA3AF' }}>{formatCurrency(m.totalSales)}</span>
+                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, textAlign: "right", fontVariantNumeric: 'tabular-nums', color: m.rate > 0 ? '#059669' : '#9CA3AF' }}>{m.rate > 0 ? (m.rate * 100).toFixed(0) + "%" : "-"}</span>
                 <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 9, textAlign: "center", color: C.textLight }}>{(m.joinDate || '').slice(2)}</span>
                 <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 9, textAlign: "center", color: C.textLight }}>{m.operationStartDate ? m.operationStartDate.slice(2) : '-'}</span>
                 {setMembers && <span style={{ textAlign: "center" }}><button onClick={() => setEditForm({ ...m })} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, padding: 2 }}>&#9998;</button></span>}
