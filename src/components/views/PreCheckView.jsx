@@ -390,7 +390,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen 
             {/* Table header */}
             <div style={{
               display: "grid", gridTemplateColumns: "2fr 1.5fr 0.8fr 0.8fr 1fr",
-              padding: "8px 20px", background: '#0D2247', fontSize: 13, fontWeight: 600, color: '#fff',
+              padding: "8px 20px", background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#fff',
               borderBottom: "1px solid #E5E7EB",
             }}>
               <span>企業名</span>

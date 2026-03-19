@@ -996,7 +996,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       <div style={{ background: "#fff", borderRadius: 4, border: "1px solid #E5E7EB", overflow: "hidden" }}>
         <div style={{
           display: "grid", gridTemplateColumns: "2fr 1fr 1.2fr 1.2fr 1fr 90px 90px",
-          padding: "8px 16px", background: "#0D2247", fontSize: 13, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
+          padding: "8px 16px", background: "#0D2247", fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
         }}>
           {[["company","企業名"],["representative","代表者"],["phone","電話番号"],["list","クライアント名"],["industry","業種"],["lastCall","最終発信日"],["status","最終ステータス"]].map(([key, label]) => (
             <span key={key} onClick={() => { if (clientSortBy === key) { setClientSortBy(null); setClientSortDir("asc"); } else { setClientSortBy(key); setClientSortDir("desc"); } }} style={{ cursor: "pointer", userSelect: "none" }}>
@@ -1487,7 +1487,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                     }}
                   >{lsExporting === '__items__' ? "処理中..." : "エクスポート"}</button>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1.2fr 1fr 1.5fr", padding: "8px 16px", background: "#0D2247", fontSize: 13, fontWeight: 600, color: "#fff", verticalAlign: 'middle' }}>
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1.2fr 1fr 1.5fr", padding: "8px 16px", background: "#0D2247", fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle' }}>
                   <span>企業名</span><span>代表者名</span><span>電話番号</span><span>最新ステータス</span><span>リスト名</span>
                 </div>
                 {lsItemResults.map((item, i) => {

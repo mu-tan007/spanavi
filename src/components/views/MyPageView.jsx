@@ -512,10 +512,10 @@ export default function MyPageView({ currentUser, userId, callListData, members,
                   display: "grid", gridTemplateColumns: "60px repeat(3, 1fr)", gap: 0,
                   border: "1px solid #E5E7EB", borderRadius: 4, overflow: "hidden", fontSize: 10,
                 }}>
-                  <div style={{ padding: "8px 16px", fontWeight: 600, fontSize: 13, color: "#fff", background: "#0D2247", borderBottom: "2px solid #0D2247" }}>月</div>
-                  <div style={{ padding: "8px 16px", fontWeight: 600, fontSize: 13, color: "#fff", background: "#0D2247", textAlign: "right", borderBottom: "2px solid #0D2247" }}>件数</div>
-                  <div style={{ padding: "8px 16px", fontWeight: 600, fontSize: 13, color: "#fff", background: "#0D2247", textAlign: "right", borderBottom: "2px solid #0D2247" }}>売上</div>
-                  <div style={{ padding: "8px 16px", fontWeight: 600, fontSize: 13, color: "#fff", background: "#0D2247", textAlign: "right", borderBottom: "2px solid #0D2247" }}>報酬</div>
+                  <div style={{ padding: "8px 16px", fontWeight: 600, fontSize: 11, color: "#fff", background: "#0D2247", borderBottom: "2px solid #0D2247" }}>月</div>
+                  <div style={{ padding: "8px 16px", fontWeight: 600, fontSize: 11, color: "#fff", background: "#0D2247", textAlign: "right", borderBottom: "2px solid #0D2247" }}>件数</div>
+                  <div style={{ padding: "8px 16px", fontWeight: 600, fontSize: 11, color: "#fff", background: "#0D2247", textAlign: "right", borderBottom: "2px solid #0D2247" }}>売上</div>
+                  <div style={{ padding: "8px 16px", fontWeight: 600, fontSize: 11, color: "#fff", background: "#0D2247", textAlign: "right", borderBottom: "2px solid #0D2247" }}>報酬</div>
                   {(() => {
                     const monthMap = {};
                     myAppos.forEach(a => {

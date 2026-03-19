@@ -163,7 +163,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
             <div style={{ padding: '40px 0', textAlign: 'center', color: C.textLight, fontSize: 13 }}>再コール予定はありません</div>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '78px 1.4fr 0.7fr 100px 50px 0.65fr 0.65fr 1.5fr', padding: '8px 14px', background: '#0D2247', borderBottom: '1px solid #E5E7EB', fontSize: 13, fontWeight: 600, color: '#fff', verticalAlign: 'middle', flexShrink: 0 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '78px 1.4fr 0.7fr 100px 50px 0.65fr 0.65fr 1.5fr', padding: '8px 14px', background: '#0D2247', borderBottom: '1px solid #E5E7EB', fontSize: 11, fontWeight: 600, color: '#fff', verticalAlign: 'middle', flexShrink: 0 }}>
                 <span>予定日時</span><span>企業名</span><span>代表者</span><span>電話番号</span><span>種別</span><span>担当</span><span>設定者</span><span>メモ</span>
               </div>
               {sorted.map((item, i) => {

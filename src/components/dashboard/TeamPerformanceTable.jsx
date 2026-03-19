@@ -98,7 +98,7 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
         <div style={{ border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
 
           {/* グローバル列ヘッダー（最上部に1つだけ） */}
-          <div style={{ display: 'grid', gridTemplateColumns: GRID, padding: '8px 16px', background: '#0D2247', fontSize: 13, fontWeight: 600, color: '#fff', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: GRID, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#fff', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' }}>
             <span style={{ padding: '0', verticalAlign: 'middle' }}>チーム / メンバー</span>
             {COLS.map(c => <span key={c} style={{ padding: '0', verticalAlign: 'middle' }}>{c}</span>)}
           </div>

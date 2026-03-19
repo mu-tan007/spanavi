@@ -132,7 +132,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
     });
   })();
 
-  const th = { padding: '8px 16px', textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#ffffff', background: '#0D2247', borderBottom: '2px solid #0D2247' };
+  const th = { padding: '8px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#ffffff', background: '#0D2247', borderBottom: '2px solid #0D2247' };
   const td = { padding: '8px 16px', fontSize: 13, color: '#374151', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' };
   const COLS = ['氏名', '役職', 'ランク', '入社日', 'ステータス', 'マイページ', '操作'];
 

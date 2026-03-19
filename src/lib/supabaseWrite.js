@@ -964,6 +964,18 @@ export async function deleteCallSessionsByIds(ids) {
 }
 
 // ── 報酬確定スナップショット ─────────────────────────────────────────
+// 特定メンバーの全確定月スナップショットを取得
+export async function fetchMemberPayrollHistory(memberName) {
+  const { data, error } = await supabase
+    .from('payroll_snapshots')
+    .select('pay_month, total_payout, incentive_amt, team_bonus, referral_bonus')
+    .eq('org_id', ORG_ID)
+    .eq('member_name', memberName)
+    .order('pay_month', { ascending: false })
+  if (error) console.error('[DB] fetchMemberPayrollHistory error:', error)
+  return { data: data || [], error }
+}
+
 export async function fetchPayrollSnapshots(payMonth) {
   const { data, error } = await supabase
     .from('payroll_snapshots')

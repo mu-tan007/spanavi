@@ -163,7 +163,7 @@ function PersonDetailModal({ person, callRecords, appoRecords, sessions, members
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid #0D2247', paddingBottom: 6, marginBottom: 12 }}>セッション一覧</div>
               <div style={{ border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr', background: '#0D2247', color: '#fff', fontSize: 13, fontWeight: 600, padding: '8px 16px', verticalAlign: 'middle' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr', background: '#0D2247', color: '#fff', fontSize: 11, fontWeight: 600, padding: '8px 16px', verticalAlign: 'middle' }}>
                   <span>開始</span><span>終了</span><span>架電数</span>
                 </div>
                 {sessionRows.map((row, i) => (
