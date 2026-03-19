@@ -54,7 +54,7 @@ function MaskedInput({ value, onSave, placeholder }) {
 
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1 }}>
-      <div style={{ flex: 1, padding: '6px 10px', background: '#F9FAFB', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 12, fontFamily: "'JetBrains Mono'", color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <div style={{ flex: 1, padding: '6px 10px', background: '#FFFFFF', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12, fontFamily: "'JetBrains Mono'", color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {value ? maskValue(value) : <span style={{ color: '#D1D5DB' }}>未設定</span>}
       </div>
       <button onClick={startEdit} style={sBtnStyle()}>編集</button>
@@ -69,7 +69,7 @@ function maskValue(v) {
 }
 
 const sBtnStyle = (variant = 'default') => ({
-  padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+  padding: '5px 12px', borderRadius: 4, fontSize: 11, fontWeight: 600,
   cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
   border: variant === 'primary' ? 'none' : '1px solid #E5E5E5',
   background: variant === 'primary' ? NAVY : '#fff',
@@ -113,13 +113,13 @@ export default function SlackZoomSettings({ onToast }) {
 
   return (
     <div style={{ maxWidth: 640 }}>
-      <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: '#92400E' }}>
+      <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 4, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: '#92400E' }}>
         ⚠ Webhook URLやAPIキーは機密情報です。取り扱いにご注意ください。変更後はEdge Functionが次回呼び出し時に新しい値を使用します。
       </div>
 
       {SETTING_GROUPS.map(group => (
-        <div key={group.title} style={{ background: '#fff', borderRadius: 10, border: '1px solid #E5E5E5', padding: '20px 24px', marginBottom: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 16, paddingBottom: 10, borderBottom: `2px solid ${GOLD}`, display: 'inline-block' }}>
+        <div key={group.title} style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', padding: '20px 24px', marginBottom: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 16, paddingBottom: 10, borderBottom: `2px solid ${NAVY}`, display: 'inline-block' }}>
             {group.title}
           </div>
           {group.items.map(item => (

@@ -25,11 +25,10 @@ function ToastContainer({ toasts }) {
     <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8 }}>
       {toasts.map(t => (
         <div key={t.id} style={{
-          padding: '12px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+          padding: '12px 20px', borderRadius: 4, fontSize: 13, fontWeight: 600,
           background: t.type === 'error' ? '#FEF2F2' : '#ECFDF5',
           color: t.type === 'error' ? '#DC2626' : '#065F46',
           border: `1px solid ${t.type === 'error' ? '#FECACA' : '#A7F3D0'}`,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
           animation: 'fadeIn 0.2s ease',
         }}>
           {t.message}
@@ -76,10 +75,9 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
     : null;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9FAFB', paddingBottom: 48 }}>
+    <div style={{ minHeight: '100vh', background: '#FFFFFF', paddingBottom: 48 }}>
       {/* ヘッダー */}
       <div style={{ background: NAVY, borderRadius: 12, padding: '24px 32px', marginBottom: 24 }}>
-        <div style={{ width: 40, height: 3, background: GOLD, borderRadius: 2, marginBottom: 12 }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div>
             <h1 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0 }}>管理者設定</h1>
@@ -89,7 +87,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
       </div>
 
       {/* タブバー */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #E5E5E5', background: '#fff', borderRadius: '10px 10px 0 0', overflow: 'hidden', marginBottom: 0 }}>
+      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #E5E5E5', background: '#fff', borderRadius: '4px 4px 0 0', overflow: 'hidden', marginBottom: 0 }}>
         {TABS.map(tab => {
           const active = activeTab === tab.id;
           return (
@@ -102,7 +100,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
                 color: active ? NAVY : '#9CA3AF',
                 fontWeight: active ? 700 : 400,
                 fontSize: 13, fontFamily: "'Noto Sans JP'",
-                borderBottom: active ? `2px solid ${GOLD}` : '2px solid transparent',
+                borderBottom: active ? `2px solid ${NAVY}` : '2px solid transparent',
                 transition: 'all 0.15s',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
@@ -114,7 +112,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
       </div>
 
       {/* タブコンテンツ */}
-      <div style={{ background: '#fff', borderRadius: '0 0 10px 10px', border: '1px solid #E5E5E5', borderTop: 'none', padding: '24px 28px', marginBottom: 0 }}>
+      <div style={{ background: '#fff', borderRadius: '0 0 4px 4px', border: '1px solid #E5E5E5', borderTop: 'none', padding: '24px 28px', marginBottom: 0 }}>
         {activeTab === 'members' && (
           <MemberManagement
             onToast={showToast}
@@ -145,15 +143,15 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: '#F9FAFB', borderRadius: 14, width: '100%', maxWidth: 900,
-              boxShadow: '0 16px 64px rgba(0,0,0,0.25)', position: 'relative',
+              background: '#ffffff', borderRadius: 4, width: '100%', maxWidth: 900,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)', position: 'relative',
             }}
           >
             {/* モーダルヘッダー */}
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '16px 24px', borderBottom: '1px solid #E5E5E5',
-              background: '#fff', borderRadius: '14px 14px 0 0',
+              background: '#fff', borderRadius: '4px 4px 0 0',
             }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>
                 {viewingMember} のマイページ

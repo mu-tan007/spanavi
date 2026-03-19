@@ -321,9 +321,8 @@ export default function MyPageView({ currentUser, userId, callListData, members,
 
       {/* Training Progress */}
       <div style={{
-        background: C.white, borderRadius: 10, padding: "16px 20px", marginBottom: 16,
-        border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
-        borderLeft: "3px solid " + C.gold,
+        background: C.white, borderRadius: 4, padding: "16px 20px", marginBottom: 16,
+        border: "1px solid #E5E7EB",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>研修・ロープレ進捗</span>
@@ -338,9 +337,8 @@ export default function MyPageView({ currentUser, userId, callListData, members,
 
       {/* Performance Data */}
       <div style={{
-        background: C.white, borderRadius: 10, padding: "16px 20px", marginBottom: 16,
-        border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
-        borderLeft: "3px solid " + C.gold,
+        background: C.white, borderRadius: 4, padding: "16px 20px", marginBottom: 16,
+        border: "1px solid #E5E7EB",
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -382,12 +380,12 @@ export default function MyPageView({ currentUser, userId, callListData, members,
                   padding: "14px 16px", borderRadius: 8, textAlign: "center",
                   background: "#F8F9FA",
                   border: "1px solid #0D224715",
-                  borderLeft: isHovered ? "3px solid " + C.gold : "1px solid #0D224715",
+                  borderLeft: isHovered ? "3px solid #0D2247" : "1px solid #E5E7EB",
                   transition: "border 0.12s",
                 }}
               >
                 <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>{card.label}</div>
-                <div style={{ fontSize: card.isMoney ? 18 : 28, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: C.navy }}>
+                <div style={{ fontSize: card.isMoney ? 18 : 28, fontWeight: 800, fontFamily: "'JetBrains Mono'", fontVariantNumeric: "tabular-nums", color: C.navy }}>
                   {card.isMoney ? Math.round(card.val).toLocaleString('ja-JP') + "円" : card.val}
                 </div>
               </div>
@@ -470,9 +468,8 @@ export default function MyPageView({ currentUser, userId, callListData, members,
 
         return (
           <div style={{
-            background: C.white, borderRadius: 10, padding: "16px 20px", marginBottom: 16,
-            border: "1px solid " + C.borderLight, boxShadow: "0 1px 4px rgba(26,58,92,0.04)",
-            borderLeft: "3px solid " + C.gold,
+            background: C.white, borderRadius: 4, padding: "16px 20px", marginBottom: 16,
+            border: "1px solid #E5E7EB",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>売上データ</span>
@@ -491,15 +488,15 @@ export default function MyPageView({ currentUser, userId, callListData, members,
                     onMouseEnter={() => setHoveredCard(key)}
                     onMouseLeave={() => setHoveredCard(null)}
                     style={{
-                      padding: "14px 16px", borderRadius: 8, textAlign: "center",
+                      padding: "14px 16px", borderRadius: 4, textAlign: "center",
                       background: "#F8F9FA",
-                      border: "1px solid #0D224715",
-                      borderLeft: isHovered ? "3px solid " + C.gold : "1px solid #0D224715",
+                      border: "1px solid #E5E7EB",
+                      borderLeft: isHovered ? "3px solid #0D2247" : "1px solid #E5E7EB",
                       transition: "border 0.12s",
                     }}
                   >
                     <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>{card.label}</div>
-                    <div style={{ fontSize: card.isCount ? 28 : 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: C.navy }}>
+                    <div style={{ fontSize: card.isCount ? 28 : 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", fontVariantNumeric: "tabular-nums", color: C.navy }}>
                       {card.val}
                     </div>
                   </div>
@@ -513,12 +510,12 @@ export default function MyPageView({ currentUser, userId, callListData, members,
                 <div style={{ fontSize: 10, fontWeight: 600, color: C.textLight, marginBottom: 6 }}>月別推移</div>
                 <div style={{
                   display: "grid", gridTemplateColumns: "60px repeat(3, 1fr)", gap: 0,
-                  background: C.navy + "08", borderRadius: 6, overflow: "hidden", fontSize: 10,
+                  border: "1px solid #E5E7EB", borderRadius: 4, overflow: "hidden", fontSize: 10,
                 }}>
-                  <div style={{ padding: "6px 10px", fontWeight: 700, color: C.navy, borderBottom: "1px solid " + C.borderLight }}>月</div>
-                  <div style={{ padding: "6px 10px", fontWeight: 700, color: C.navy, textAlign: "right", borderBottom: "1px solid " + C.borderLight }}>件数</div>
-                  <div style={{ padding: "6px 10px", fontWeight: 700, color: C.navy, textAlign: "right", borderBottom: "1px solid " + C.borderLight }}>売上</div>
-                  <div style={{ padding: "6px 10px", fontWeight: 700, color: C.navy, textAlign: "right", borderBottom: "1px solid " + C.borderLight }}>報酬</div>
+                  <div style={{ padding: "8px 16px", fontWeight: 600, fontSize: 13, color: "#fff", background: "#0D2247", borderBottom: "2px solid #0D2247" }}>月</div>
+                  <div style={{ padding: "8px 16px", fontWeight: 600, fontSize: 13, color: "#fff", background: "#0D2247", textAlign: "right", borderBottom: "2px solid #0D2247" }}>件数</div>
+                  <div style={{ padding: "8px 16px", fontWeight: 600, fontSize: 13, color: "#fff", background: "#0D2247", textAlign: "right", borderBottom: "2px solid #0D2247" }}>売上</div>
+                  <div style={{ padding: "8px 16px", fontWeight: 600, fontSize: 13, color: "#fff", background: "#0D2247", textAlign: "right", borderBottom: "2px solid #0D2247" }}>報酬</div>
                   {(() => {
                     const monthMap = {};
                     myAppos.forEach(a => {
@@ -532,12 +529,11 @@ export default function MyPageView({ currentUser, userId, callListData, members,
                     payrollHistory.forEach(s => {
                       if (!monthMap[s.pay_month]) monthMap[s.pay_month] = { count: 0, sales: 0 };
                     });
-                    return Object.entries(monthMap).sort((a, b) => b[0].localeCompare(a[0])).map(([m, d]) => {
+                    return Object.entries(monthMap).sort((a, b) => b[0].localeCompare(a[0])).map(([m, d], idx) => {
                       const d2 = { ...d, reward: calcPayrollTotal(m) };
                       const isHovered = hoveredMonthRow === m;
-                      const rowBg = isHovered ? C.navy + "08" : C.white;
-                      const rowBorderLeft = isHovered ? "3px solid " + C.gold : "3px solid transparent";
-                      const cellBase = { padding: "5px 10px", background: rowBg, borderBottom: "1px solid " + C.borderLight + "60", borderLeft: rowBorderLeft, transition: "background 0.1s, border-color 0.1s" };
+                      const rowBg = isHovered ? "#F3F4F6" : (idx % 2 === 0 ? "#fff" : "#F8F9FA");
+                      const cellBase = { padding: "8px 16px", background: rowBg, borderBottom: "1px solid #E5E7EB", transition: "background 0.1s", verticalAlign: "middle" };
                       return (
                         <React.Fragment key={m}>
                           <div
@@ -548,17 +544,17 @@ export default function MyPageView({ currentUser, userId, callListData, members,
                           <div
                             onMouseEnter={() => setHoveredMonthRow(m)}
                             onMouseLeave={() => setHoveredMonthRow(null)}
-                            style={{ ...cellBase, borderLeft: "none", textAlign: "right", fontFamily: "'JetBrains Mono'" }}
+                            style={{ ...cellBase, textAlign: "right", fontFamily: "'JetBrains Mono'", fontVariantNumeric: "tabular-nums" }}
                           >{d2.count}</div>
                           <div
                             onMouseEnter={() => setHoveredMonthRow(m)}
                             onMouseLeave={() => setHoveredMonthRow(null)}
-                            style={{ ...cellBase, borderLeft: "none", textAlign: "right", fontFamily: "'JetBrains Mono'", color: C.navy, fontWeight: 600 }}
+                            style={{ ...cellBase, textAlign: "right", fontFamily: "'JetBrains Mono'", fontVariantNumeric: "tabular-nums", color: C.navy, fontWeight: 600 }}
                           >{Math.round(d2.sales).toLocaleString('ja-JP')}円</div>
                           <div
                             onMouseEnter={() => setHoveredMonthRow(m)}
                             onMouseLeave={() => setHoveredMonthRow(null)}
-                            style={{ ...cellBase, borderLeft: "none", textAlign: "right", fontFamily: "'JetBrains Mono'", color: C.navy, fontWeight: 600 }}
+                            style={{ ...cellBase, textAlign: "right", fontFamily: "'JetBrains Mono'", fontVariantNumeric: "tabular-nums", color: C.navy, fontWeight: 600 }}
                           >{Math.round(d2.reward).toLocaleString('ja-JP')}円</div>
                         </React.Fragment>
                       );

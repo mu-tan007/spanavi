@@ -132,8 +132,8 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
     });
   })();
 
-  const th = { padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6B7280', background: '#F9FAFB', borderBottom: '1px solid #E5E5E5', textTransform: 'uppercase', letterSpacing: '0.05em' };
-  const td = { padding: '8px 12px', fontSize: 13, color: '#374151', borderBottom: '1px solid #F3F4F6', verticalAlign: 'middle' };
+  const th = { padding: '8px 16px', textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#ffffff', background: '#0D2247', borderBottom: '2px solid #0D2247' };
+  const td = { padding: '8px 16px', fontSize: 13, color: '#374151', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' };
   const COLS = ['氏名', '役職', 'ランク', '入社日', 'ステータス', 'マイページ', '操作'];
 
   return (
@@ -150,12 +150,12 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {grouped.map(([team, teamMembers]) => (
-            <div key={team} style={{ background: '#fff', borderRadius: 10, border: '1px solid #E5E5E5', overflow: 'hidden' }}>
+            <div key={team} style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', overflow: 'hidden' }}>
               {/* チームヘッダー */}
               <div style={{
                 padding: '10px 16px',
                 background: NAVY,
-                borderLeft: `3px solid ${GOLD}`,
+                borderLeft: '3px solid rgba(255,255,255,0.3)',
                 color: '#fff',
                 fontSize: 13,
                 fontWeight: 700,
@@ -183,7 +183,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                           onMouseLeave={() => setHoveredRow(null)}
                           style={{
                             background: isEditing ? NAVY + '06' : hoveredRow === m.id ? NAVY + '08' : 'transparent',
-                            borderLeft: hoveredRow === m.id && !isEditing ? `3px solid ${GOLD}` : '3px solid transparent',
+                            borderLeft: hoveredRow === m.id && !isEditing ? `3px solid ${NAVY}` : '3px solid transparent',
                             transition: 'background 0.12s, border-color 0.12s',
                           }}
                         >
@@ -203,9 +203,9 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                                 {RANKS.map(r => <option key={r}>{r}</option>)}
                               </select>
                             ) : (
-                              <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
-                                background: m.rank === 'スーパースパルタン' ? GOLD + '22' : m.rank === 'スパルタン' ? '#EDE9FE' : m.rank === 'プレイヤー' ? '#DBEAFE' : '#F3F4F6',
-                                color: m.rank === 'スーパースパルタン' ? '#92400E' : m.rank === 'スパルタン' ? '#5B21B6' : m.rank === 'プレイヤー' ? '#1E40AF' : '#374151',
+                              <span style={{ fontSize: 11, fontWeight: 600,
+                                borderLeft: `3px solid ${m.rank === 'スーパースパルタン' ? '#b7791f' : m.rank === 'スパルタン' ? '#2E844A' : m.rank === 'プレイヤー' ? '#0176D3' : '#A0A0A0'}`, paddingLeft: 8,
+                                color: m.rank === 'スーパースパルタン' ? '#b7791f' : m.rank === 'スパルタン' ? '#2E844A' : m.rank === 'プレイヤー' ? '#0176D3' : '#374151', background: 'transparent',
                               }}>{m.rank || 'トレーニー'}</span>
                             )}
                           </td>
@@ -223,10 +223,9 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                                 <option value="inactive">停止</option>
                               </select>
                             ) : (
-                              <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
-                                background: m.is_active !== false ? GOLD + '1A' : '#FEE2E2',
-                                border: `1px solid ${m.is_active !== false ? GOLD : '#fca5a5'}`,
-                                color: m.is_active !== false ? GOLD : '#DC2626' }}>
+                              <span style={{ fontSize: 11, fontWeight: 600,
+                                borderLeft: `3px solid ${m.is_active !== false ? '#2E844A' : '#DC2626'}`, paddingLeft: 8,
+                                color: m.is_active !== false ? '#2E844A' : '#DC2626', background: 'transparent', border: 'none' }}>
                                 {m.is_active !== false ? '稼働中' : '停止'}
                               </span>
                             )}
@@ -268,7 +267,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
       {/* 新規追加モーダル */}
       {addModal && (
         <div onClick={() => setAddModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: '28px 32px', width: 400, boxShadow: '0 16px 48px rgba(0,0,0,0.2)' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, padding: '28px 32px', width: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 20 }}>新規メンバー追加</div>
             {[
               { label: '氏名', key: 'name', type: 'text', placeholder: '例：山田太郎' },
@@ -305,7 +304,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
       {/* 削除確認モーダル */}
       {deleteConfirm && (
         <div onClick={() => setDeleteConfirm(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: '28px 32px', width: 360, boxShadow: '0 16px 48px rgba(0,0,0,0.2)' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, padding: '28px 32px', width: 360, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: '#DC2626', marginBottom: 12 }}>メンバー削除の確認</div>
             <p style={{ fontSize: 13, color: '#374151', marginBottom: 20 }}>
               「{deleteConfirm.name}」を削除しますか？この操作は元に戻せません。

@@ -9,7 +9,7 @@ const btn = (variant = 'default', extra = {}) => ({
   padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
   cursor: 'pointer', fontFamily: "'Noto Sans JP'",
   border: variant === 'danger' ? '1px solid #fca5a5' : '1px solid #E5E5E5',
-  background: variant === 'danger' ? '#fee2e2' : variant === 'primary' ? NAVY : '#fff',
+  background: variant === 'danger' ? 'transparent' : variant === 'primary' ? NAVY : '#fff',
   color: variant === 'danger' ? '#dc2626' : variant === 'primary' ? '#fff' : '#374151',
   ...extra,
 });
@@ -116,7 +116,7 @@ export default function ClientManagement({ onToast }) {
           const expanded = expandedIds.has(client.id);
           const isEditingName = editClientId === client.id;
           return (
-            <div key={client.id} style={{ background: '#fff', borderRadius: 10, border: '1px solid #E5E5E5', overflow: 'hidden' }}>
+            <div key={client.id} style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', overflow: 'hidden' }}>
               {/* クライアント行 */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer' }}
                 onClick={() => !isEditingName && toggleExpand(client.id)}>
@@ -159,7 +159,7 @@ export default function ClientManagement({ onToast }) {
 
               {/* リスト展開 */}
               {expanded && (
-                <div style={{ borderTop: '1px solid #F3F4F6', background: '#FAFAFA' }}>
+                <div style={{ borderTop: '1px solid #F3F4F6', background: '#F8F9FA' }}>
                   {client.lists.length === 0 ? (
                     <div style={{ padding: '12px 44px', fontSize: 12, color: '#9CA3AF' }}>リストなし</div>
                   ) : (
@@ -189,14 +189,14 @@ export default function ClientManagement({ onToast }) {
       {/* 削除確認モーダル */}
       {deleteConfirm && (
         <div onClick={() => setDeleteConfirm(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: '28px 32px', width: 400, boxShadow: '0 16px 48px rgba(0,0,0,0.2)' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, padding: '28px 32px', width: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: '#DC2626', marginBottom: 12 }}>
               {deleteConfirm.type === 'list' ? 'リスト削除の確認' : 'クライアント削除の確認'}
             </div>
             <p style={{ fontSize: 13, color: '#374151', marginBottom: 8 }}>
               「{deleteConfirm.item.name}」を削除しますか？
             </p>
-            <p style={{ fontSize: 12, color: '#EF4444', background: '#FEF2F2', padding: '8px 12px', borderRadius: 6, marginBottom: 20 }}>
+            <p style={{ fontSize: 12, color: '#EF4444', background: '#FEF2F2', padding: '8px 12px', borderRadius: 4, marginBottom: 20 }}>
               ⚠ このリストに紐づく架電データも全て削除されます。この操作は元に戻せません。
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>

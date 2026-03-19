@@ -343,8 +343,8 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '10px 14px', borderRadius: 8,
-        background: completed ? C.green + '0a' : C.offWhite,
-        border: '1px solid ' + (completed ? C.green + '30' : C.borderLight),
+        background: completed ? C.green + '0a' : '#F8F9FA',
+        border: '1px solid ' + (completed ? C.green + '30' : '#E5E7EB'),
         marginBottom: 8,
       }}>
         <div style={{
@@ -598,7 +598,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         {isExpanded && fb && (
           <div style={{
             borderTop: '1px solid ' + C.borderLight,
-            background: C.offWhite,
+            background: '#fff',
             padding: '16px 18px',
           }}>
             {/* ヘッダー */}
@@ -788,9 +788,9 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
               display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10,
             }}>
               <div style={{
-                width: 28, height: 28, borderRadius: 6, background: C.gold,
+                width: 28, height: 28, borderRadius: 4, background: C.navy,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, fontWeight: 800, color: C.navyDeep, flexShrink: 0,
+                fontSize: 11, fontWeight: 800, color: C.white, flexShrink: 0,
               }}>D2</div>
               <span style={{ fontSize: 12, fontWeight: 700, color: C.navy }}>Day 2 — ロープレ実施</span>
             </div>
@@ -897,20 +897,20 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
           {/* 今週の状況バナー（役職がメンバーの人のみ表示） */}
           {memberInfo?.position === 'メンバー' && <div style={{
             padding: '12px 16px', borderRadius: 8, marginBottom: 16,
-            background: thisWeekDone ? C.green + '0a' : C.gold + '0a',
-            border: '1px solid ' + (thisWeekDone ? C.green + '30' : C.gold + '40'),
+            background: thisWeekDone ? C.green + '0a' : '#FFF7ED',
+            border: '1px solid ' + (thisWeekDone ? C.green + '30' : '#FED7AA'),
             display: 'flex', alignItems: 'center', gap: 10,
           }}>
             <div style={{
               width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-              background: thisWeekDone ? C.green : C.gold,
+              background: thisWeekDone ? C.green : '#F59E0B',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 16, color: C.white,
             }}>
               {thisWeekDone ? '✓' : '!'}
             </div>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: thisWeekDone ? C.green : '#c8860a' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: thisWeekDone ? C.green : '#92400E' }}>
                 今週のロープレ: {thisWeekDone ? '実施済み' : '未実施'}
               </div>
               <div style={{ fontSize: 10, color: C.textLight }}>
@@ -966,8 +966,8 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: C.white, borderRadius: 14, padding: '24px 28px',
-              width: 360, boxShadow: '0 8px 40px rgba(0,0,0,0.2)',
+              background: C.white, borderRadius: 4, padding: '24px 28px',
+              width: 360, boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
             }}
           >
             <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 16 }}>

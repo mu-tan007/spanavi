@@ -80,8 +80,8 @@ export default function RewardSettings({ onToast }) {
   return (
     <div style={{ maxWidth: 600 }}>
       {FIELDS.map(section => (
-        <div key={section.section} style={{ background: '#fff', borderRadius: 10, border: '1px solid #E5E5E5', padding: '20px 24px', marginBottom: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 16, paddingBottom: 10, borderBottom: `2px solid ${GOLD}`, display: 'inline-block' }}>
+        <div key={section.section} style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', padding: '20px 24px', marginBottom: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 16, paddingBottom: 10, borderBottom: `2px solid ${NAVY}`, display: 'inline-block' }}>
             {section.section}
           </div>
           {section.items.map(item => (
@@ -111,7 +111,7 @@ export default function RewardSettings({ onToast }) {
           onClick={save}
           disabled={saving}
           style={{
-            padding: '9px 28px', borderRadius: 6, fontSize: 13, fontWeight: 700,
+            padding: '9px 28px', borderRadius: 4, fontSize: 13, fontWeight: 700,
             cursor: saving ? 'not-allowed' : 'pointer', border: 'none',
             background: saving ? '#9CA3AF' : NAVY, color: '#fff',
             fontFamily: "'Noto Sans JP'",

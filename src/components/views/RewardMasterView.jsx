@@ -124,8 +124,8 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
   };
 
   const inputStyle = { padding: '5px 8px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', width: '100%' };
-  const btnPrimary = { padding: '5px 14px', borderRadius: 5, background: C.navy, color: C.white, border: 'none', cursor: 'pointer', fontSize: 11, fontFamily: "'Noto Sans JP'" };
-  const btnDanger  = { padding: '3px 10px', borderRadius: 4, background: '#e74c3c', color: C.white, border: 'none', cursor: 'pointer', fontSize: 10, fontFamily: "'Noto Sans JP'" };
+  const btnPrimary = { padding: '5px 14px', borderRadius: 4, background: C.navy, color: C.white, border: 'none', cursor: 'pointer', fontSize: 11, fontFamily: "'Noto Sans JP'" };
+  const btnDanger  = { padding: '3px 10px', borderRadius: 4, background: 'transparent', color: '#DC2626', border: '1px solid #DC2626', cursor: 'pointer', fontSize: 10, fontFamily: "'Noto Sans JP'" };
   const btnGhost   = { padding: '3px 10px', borderRadius: 4, background: 'transparent', color: C.navy, border: '1px solid ' + C.border, cursor: 'pointer', fontSize: 10, fontFamily: "'Noto Sans JP'" };
 
   return (
@@ -150,7 +150,7 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
             <div key={t.type_id}
               onClick={() => setSelectedTypeId(t.type_id)}
               style={{
-                padding: '10px 14px', marginBottom: 6, borderRadius: 8, cursor: 'pointer',
+                padding: '10px 14px', marginBottom: 6, borderRadius: 4, cursor: 'pointer',
                 border: '1px solid ' + (selectedTypeId === t.type_id ? C.navy : C.borderLight),
                 background: selectedTypeId === t.type_id ? C.navy + '0f' : C.white,
               }}>
@@ -189,9 +189,9 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
 
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
-                  <tr style={{ background: C.offWhite }}>
+                  <tr style={{ background: '#0D2247' }}>
                     {['下限（円）', '上限（円）', '単価（円）', 'メモ', ''].map(h => (
-                      <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontSize: 11, color: '#6B7280', fontWeight: 600, borderBottom: '1px solid ' + C.borderLight, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                      <th key={h} style={{ padding: '8px 16px', textAlign: 'left', fontSize: 11, color: '#ffffff', fontWeight: 600, borderBottom: '2px solid #0D2247' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -200,23 +200,23 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
                     .sort((a, b) => a.sort_order - b.sort_order || a.lo - b.lo)
                     .map(tier => (
                       editTierId === tier.id ? (
-                        <tr key={tier.id} style={{ background: '#fffbe6' }}>
-                          <td style={{ padding: '6px 6px' }}><input type="number" value={editTierForm.lo} onChange={e => setEditTierForm(p => ({ ...p, lo: e.target.value }))} style={{ ...inputStyle, width: 120 }} /></td>
-                          <td style={{ padding: '6px 6px' }}><input type="number" value={editTierForm.hi} onChange={e => setEditTierForm(p => ({ ...p, hi: e.target.value }))} style={{ ...inputStyle, width: 120 }} /></td>
-                          <td style={{ padding: '6px 6px' }}><input type="number" value={editTierForm.price} onChange={e => setEditTierForm(p => ({ ...p, price: e.target.value }))} style={{ ...inputStyle, width: 100 }} /></td>
-                          <td style={{ padding: '6px 6px' }}><input type="text" value={editTierForm.memo} onChange={e => setEditTierForm(p => ({ ...p, memo: e.target.value }))} style={{ ...inputStyle, width: '100%' }} /></td>
-                          <td style={{ padding: '6px 6px', whiteSpace: 'nowrap' }}>
+                        <tr key={tier.id} style={{ background: '#F8F9FA' }}>
+                          <td style={{ padding: '8px 8px' }}><input type="number" value={editTierForm.lo} onChange={e => setEditTierForm(p => ({ ...p, lo: e.target.value }))} style={{ ...inputStyle, width: 120 }} /></td>
+                          <td style={{ padding: '8px 8px' }}><input type="number" value={editTierForm.hi} onChange={e => setEditTierForm(p => ({ ...p, hi: e.target.value }))} style={{ ...inputStyle, width: 120 }} /></td>
+                          <td style={{ padding: '8px 8px' }}><input type="number" value={editTierForm.price} onChange={e => setEditTierForm(p => ({ ...p, price: e.target.value }))} style={{ ...inputStyle, width: 100 }} /></td>
+                          <td style={{ padding: '8px 8px' }}><input type="text" value={editTierForm.memo} onChange={e => setEditTierForm(p => ({ ...p, memo: e.target.value }))} style={{ ...inputStyle, width: '100%' }} /></td>
+                          <td style={{ padding: '8px 8px', whiteSpace: 'nowrap' }}>
                             <button onClick={handleUpdateTier} style={{ ...btnPrimary, marginRight: 4 }}>保存</button>
                             <button onClick={() => { setEditTierId(null); setEditTierForm(null); }} style={btnGhost}>キャンセル</button>
                           </td>
                         </tr>
                       ) : (
-                        <tr key={tier.id} style={{ borderBottom: '1px solid ' + C.borderLight }}>
-                          <td style={{ padding: '8px 10px', fontFamily: "'JetBrains Mono'" }}>{fmt(tier.lo)}</td>
-                          <td style={{ padding: '8px 10px', fontFamily: "'JetBrains Mono'" }}>{tier.hi >= 999999999999 ? '上限なし' : fmt(tier.hi)}</td>
-                          <td style={{ padding: '8px 10px', fontWeight: 600, color: C.navy, fontFamily: "'JetBrains Mono'" }}>{fmt(tier.price)}</td>
-                          <td style={{ padding: '8px 10px', color: C.textMid }}>{tier.memo}</td>
-                          <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
+                        <tr key={tier.id} style={{ borderBottom: '1px solid #E5E7EB' }}>
+                          <td style={{ padding: '8px 16px', fontFamily: "'JetBrains Mono'" }}>{fmt(tier.lo)}</td>
+                          <td style={{ padding: '8px 16px', fontFamily: "'JetBrains Mono'" }}>{tier.hi >= 999999999999 ? '上限なし' : fmt(tier.hi)}</td>
+                          <td style={{ padding: '8px 16px', fontWeight: 600, color: C.navy, fontFamily: "'JetBrains Mono'" }}>{fmt(tier.price)}</td>
+                          <td style={{ padding: '8px 16px', color: C.textMid }}>{tier.memo}</td>
+                          <td style={{ padding: '8px 16px', whiteSpace: 'nowrap' }}>
                             <button onClick={() => { setEditTierId(tier.id); setEditTierForm({ lo: tier.lo, hi: tier.hi, price: tier.price, memo: tier.memo }); }} style={{ ...btnGhost, marginRight: 4 }}>編集</button>
                             <button onClick={() => handleDeleteTier(tier.id)} style={btnDanger}>削除</button>
                           </td>
@@ -228,7 +228,7 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
 
               {/* 段階追加フォーム */}
               {addTierForm && (
-                <div style={{ marginTop: 12, padding: '12px 14px', background: '#f0f7ff', borderRadius: 8, border: '1px solid ' + C.border }}>
+                <div style={{ marginTop: 12, padding: '12px 14px', background: '#F8F9FA', borderRadius: 4, border: '1px solid #E5E7EB' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 8 }}>新しい段階を追加</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: 8, marginBottom: 8 }}>
                     <div><label style={{ fontSize: 10, color: C.textMid, display: 'block', marginBottom: 2 }}>下限（円）</label><input type="number" placeholder="0" value={addTierForm.lo} onChange={e => setAddTierForm(p => ({ ...p, lo: e.target.value }))} style={inputStyle} /></div>
@@ -250,7 +250,7 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
       {/* タイプ追加モーダル */}
       {addTypeForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: C.white, borderRadius: 12, width: 420, padding: 24, boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+          <div style={{ background: C.white, borderRadius: 4, width: 420, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 16 }}>新規タイプ追加</div>
             <div style={{ display: 'grid', gap: 10 }}>
               <div><label style={{ fontSize: 10, color: C.textMid, display: 'block', marginBottom: 2 }}>タイプID（英大文字1〜3文字）</label><input type="text" maxLength={3} placeholder="例: O" value={addTypeForm.type_id} onChange={e => setAddTypeForm(p => ({ ...p, type_id: e.target.value }))} style={inputStyle} /></div>
@@ -284,7 +284,7 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
       {/* タイプ編集モーダル */}
       {editTypeForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: C.white, borderRadius: 12, width: 420, padding: 24, boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+          <div style={{ background: C.white, borderRadius: 4, width: 420, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 4 }}>タイプ編集 — {editTypeForm.type_id}</div>
             <div style={{ fontSize: 11, color: C.textLight, marginBottom: 16 }}>※ タイプIDは変更できません</div>
             <div style={{ display: 'grid', gap: 10 }}>
