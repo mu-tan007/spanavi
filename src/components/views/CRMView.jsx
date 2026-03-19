@@ -2,6 +2,11 @@ import { useState } from 'react';
 import { C } from '../../constants/colors';
 import { updateClient, insertClient, deleteClient } from '../../lib/supabaseWrite';
 
+const NAVY = '#0D2247';
+const BLUE = '#1E40AF';
+const GRAY_200 = '#E5E7EB';
+const GRAY_50 = '#F8F9FA';
+
 export default function CRMView({ isAdmin, clientData, setClientData, rewardMaster = [] }) {
   const [statusFilter, setStatusFilter] = useState("支援中");
   const [search, setSearch] = useState("");
@@ -18,7 +23,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
     if (st === "準備中") return { bg: C.gold + "15", color: C.gold, dot: C.gold };
     if (st === "停止中") return { bg: "#e5383515", color: "#e53835", dot: "#e53835" };
     if (st === "保留") return { bg: C.textLight + "15", color: C.textLight, dot: C.textLight };
-    if (st === "中期フォロー") return { bg: C.navy + "10", color: C.navy, dot: C.navy };
+    if (st === "中期フォロー") return { bg: NAVY + "10", color: NAVY, dot: NAVY };
     if (st === "面談予定") return { bg: "#7c3aed15", color: "#7c3aed", dot: "#7c3aed" };
     return { bg: C.textLight + "10", color: C.textLight, dot: C.textLight };
   };
@@ -104,22 +109,28 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
+      {/* Page Header */}
+      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>CRM</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>顧客関係管理・商談パイプライン</div>
+      </div>
+
       {/* Header */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
-        padding: "14px 18px", background: C.white, borderRadius: 10,
-        border: "1px solid " + C.borderLight,
+        padding: "14px 18px", background: '#fff', borderRadius: 4,
+        border: "1px solid " + GRAY_200,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>顧客管理（CRM）</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>顧客管理（CRM）</span>
           <span style={{ fontSize: 11, color: C.textLight }}>{filtered.length}社</span>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="企業名・業界..."
-            style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", width: 180 }} />
+            style={{ padding: "6px 12px", borderRadius: 4, border: "1px solid " + GRAY_200, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", width: 180 }} />
           {setClientData && (
             <button onClick={() => setAddForm({ status: '準備中', contract: '未', company: '', industry: '', target: 0, rewardType: '', paySite: '', payNote: '', listSrc: '', calendar: '', contact: '', noteFirst: '' })}
-              style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")", color: C.white, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap" }}>
+              style={{ padding: "8px 16px", borderRadius: 4, border: "none", background: NAVY, color: '#fff', fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap" }}>
               ＋ 新規顧客追加
             </button>
           )}
@@ -129,18 +140,18 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
       {/* Status tabs */}
       <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
         <button onClick={() => setStatusFilter("all")} style={{
-          padding: "6px 14px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'",
-          border: "1px solid " + (statusFilter === "all" ? C.navy : C.border),
-          background: statusFilter === "all" ? C.navy : C.white, color: statusFilter === "all" ? C.white : C.textMid,
+          padding: "6px 14px", borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'",
+          border: "1px solid " + (statusFilter === "all" ? NAVY : GRAY_200),
+          background: statusFilter === "all" ? NAVY : '#fff', color: statusFilter === "all" ? '#fff' : C.textMid,
         }}>全て <span style={{ fontSize: 10, opacity: 0.7 }}>{clientData.length}</span></button>
         {statusList.map(st => {
           const sc = statusStyle(st);
           const active = statusFilter === st;
           return (
             <button key={st} onClick={() => setStatusFilter(st)} style={{
-              padding: "6px 14px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'",
-              border: "1px solid " + (active ? sc.color : C.border),
-              background: active ? sc.bg : C.white, color: active ? sc.color : C.textMid,
+              padding: "6px 14px", borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'",
+              border: "1px solid " + (active ? sc.color : GRAY_200),
+              background: active ? sc.bg : '#fff', color: active ? sc.color : C.textMid,
               display: "flex", alignItems: "center", gap: 4,
             }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: sc.dot }}></span>
@@ -151,14 +162,14 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
       </div>
 
       {/* Table */}
-      <div style={{ background: C.white, borderRadius: 8, overflow: "hidden", border: "1px solid #E5E5E5", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+      <div style={{ border: '1px solid ' + GRAY_200, borderRadius: 4, overflow: "hidden" }}>
         <div style={{
           display: "grid", gridTemplateColumns: colTemplate,
-          padding: "8px 16px", background: "#F3F2F2",
-          fontSize: 11, fontWeight: 700, color: "#706E6B", letterSpacing: "0.06em",
-          textTransform: "uppercase", borderBottom: "2px solid #E5E5E5",
+          padding: "8px 16px", background: NAVY,
+          fontSize: 13, fontWeight: 600, color: '#fff',
+          verticalAlign: 'middle',
         }}>
-          <span>ステータス</span><span>企業名</span><span>業界</span><span>目標</span><span>報酬体系</span><span>リスト</span><span>カレンダー</span><span>連絡</span>{setClientData && <span></span>}
+          <span style={{ verticalAlign: 'middle' }}>ステータス</span><span style={{ verticalAlign: 'middle' }}>企業名</span><span style={{ verticalAlign: 'middle' }}>業界</span><span style={{ verticalAlign: 'middle' }}>目標</span><span style={{ verticalAlign: 'middle' }}>報酬体系</span><span style={{ verticalAlign: 'middle' }}>リスト</span><span style={{ verticalAlign: 'middle' }}>カレンダー</span><span style={{ verticalAlign: 'middle' }}>連絡</span>{setClientData && <span></span>}
         </div>
         {filtered.length === 0 ? (
           <div style={{ padding: "30px 0", textAlign: "center", color: C.textLight, fontSize: 12 }}>データがありません</div>
@@ -168,24 +179,25 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
           return (
             <div key={i} style={{
               display: "grid", gridTemplateColumns: colTemplate,
-              padding: "9px 16px", fontSize: 11, alignItems: "center",
-              borderBottom: "1px solid #F3F2F2",
+              padding: "8px 16px", fontSize: 11, alignItems: "center",
+              borderBottom: '1px solid ' + GRAY_200,
+              background: i % 2 === 0 ? '#fff' : GRAY_50,
               cursor: "pointer", transition: "background 0.15s",
             }} onClick={() => setSelectedClient(c)}
               onMouseEnter={e => e.currentTarget.style.background = "#EAF4FF"}
-              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+              onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? '#fff' : GRAY_50}>
               <span style={{
-                fontSize: 9, padding: "2px 6px", borderRadius: 3, textAlign: "center", fontWeight: 600,
-                background: sc.bg, color: sc.color, display: "inline-block", width: "fit-content",
+                borderLeft: '3px solid ' + sc.color, paddingLeft: 8, color: sc.color, fontSize: 12,
+                display: "inline-block", width: "fit-content",
               }}>{c.status}</span>
-              <span style={{ fontWeight: 600, color: C.navy }}>{c.company}</span>
-              <span style={{ color: C.textMid, fontSize: 10 }}>{c.industry}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, fontWeight: 700, color: c.target > 0 ? C.navy : C.textLight }}>{c.target > 0 ? c.target + "件" : "-"}</span>
+              <span style={{ fontWeight: 600, color: NAVY }}>{c.company}</span>
+              <span style={{ color: C.textMid, fontSize: 10, textAlign: 'left' }}>{c.industry}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, fontWeight: 700, color: c.target > 0 ? NAVY : C.textLight, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{c.target > 0 ? c.target + "件" : "-"}</span>
               <span onClick={e => { e.stopPropagation(); setShowRewardDetail(c.rewardType); }} style={{
-                fontSize: 10, fontWeight: 600, color: C.gold, cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted",
+                fontSize: 10, fontWeight: 600, color: NAVY, cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted",
               }}>{c.rewardType ? c.rewardType + " " + getRewardSummary(c.rewardType).slice(0, 10) : "-"}</span>
-              <span style={{ fontSize: 10, color: C.textMid }}>{c.listSrc || "-"}</span>
-              <span style={{ fontSize: 10, color: C.textMid }}>{c.calendar || "-"}</span>
+              <span style={{ fontSize: 10, color: C.textMid, textAlign: 'left' }}>{c.listSrc || "-"}</span>
+              <span style={{ fontSize: 10, color: C.textMid, textAlign: 'left' }}>{c.calendar || "-"}</span>
               <span style={{ fontSize: 12 }}>{contactIcon(c.contact)}</span>
               {setClientData && <span style={{ textAlign: "center" }}><button onClick={e => { e.stopPropagation(); setEditForm({ ...c, _idx: globalIdx }); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, padding: 2 }}>&#9998;</button></span>}
             </div>
@@ -202,15 +214,15 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}
             onClick={() => setSelectedClient(null)}>
-            <div style={{ background: C.white, borderRadius: 12, width: 600, maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}
+            <div style={{ background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4, width: 600, maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}
               onClick={e => e.stopPropagation()}>
-              <div style={{ padding: "16px 20px", background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")", borderRadius: "12px 12px 0 0", color: C.white }}>
+              <div style={{ padding: "12px 24px", background: NAVY, borderRadius: "4px 4px 0 0", color: '#fff', fontWeight: 600, fontSize: 15 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 9, padding: "2px 8px", borderRadius: 3, background: sc.bg, color: sc.color, fontWeight: 700 }}>{c.status}</span>
-                  <span style={{ fontSize: 9, padding: "2px 8px", borderRadius: 3, background: "rgba(255,255,255,0.15)", color: C.goldLight }}>{c.contract === "済" ? "契約済" : c.contract}</span>
+                  <span style={{ borderLeft: '3px solid ' + sc.color, paddingLeft: 8, color: sc.color, fontSize: 12 }}>{c.status}</span>
+                  <span style={{ fontSize: 9, padding: "2px 8px", borderRadius: 3, background: "rgba(255,255,255,0.15)", color: '#fff' }}>{c.contract === "済" ? "契約済" : c.contract}</span>
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 700, marginTop: 6 }}>{c.company}</div>
-                <div style={{ fontSize: 10, color: C.goldLight, marginTop: 2 }}>{c.industry}{c.target > 0 ? " ・ 月間目標 " + c.target + "件" : ""}</div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)', marginTop: 2 }}>{c.industry}{c.target > 0 ? " ・ 月間目標 " + c.target + "件" : ""}</div>
               </div>
               <div style={{ padding: "16px 20px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
@@ -232,43 +244,43 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                 </div>
                 {rm && (
                   <div style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, marginBottom: 6, borderBottom: "1px solid " + C.borderLight, paddingBottom: 4 }}>報酬体系詳細（{c.rewardType}）</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid ' + NAVY, paddingBottom: 6, marginBottom: 12 }}>報酬体系詳細（{c.rewardType}）</div>
                     <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6 }}>{rm.timing} ・ {rm.basis} ・ {rm.tax}</div>
                     {rm.tiers.map((t, ti) => (
-                      <div key={ti} style={{ display: "flex", justifyContent: "space-between", padding: "4px 8px", fontSize: 11, background: ti % 2 === 0 ? C.offWhite : "transparent", borderRadius: 4 }}>
+                      <div key={ti} style={{ display: "flex", justifyContent: "space-between", padding: "8px 16px", fontSize: 11, background: ti % 2 === 0 ? '#fff' : GRAY_50, borderBottom: '1px solid ' + GRAY_200, verticalAlign: 'middle' }}>
                         <span style={{ color: C.textMid }}>{t.memo}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: C.gold }}>¥{Number(t.price).toLocaleString()}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: NAVY, fontVariantNumeric: 'tabular-nums' }}>¥{Number(t.price).toLocaleString()}</span>
                       </div>
                     ))}
                   </div>
                 )}
                 {(c.noteFirst || c.noteKickoff || c.noteRegular) && (
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, marginBottom: 6, borderBottom: "1px solid " + C.borderLight, paddingBottom: 4 }}>備考</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid ' + NAVY, paddingBottom: 6, marginBottom: 12 }}>備考</div>
                     {[
                       { label: "初回面談時", val: c.noteFirst },
                       { label: "キックオフミーティング時", val: c.noteKickoff },
                       { label: "定期ミーティング時", val: c.noteRegular },
                     ].filter(n => n.val).map((n, ni) => (
                       <div key={ni} style={{ marginBottom: 10 }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, color: C.gold, marginBottom: 2, display: "flex", alignItems: "center", gap: 4 }}>
-                          <span style={{ width: 4, height: 4, borderRadius: "50%", background: C.gold, display: "inline-block" }}></span>{n.label}
+                        <div style={{ fontSize: 9, fontWeight: 700, color: NAVY, marginBottom: 2, display: "flex", alignItems: "center", gap: 4 }}>
+                          <span style={{ width: 4, height: 4, borderRadius: "50%", background: NAVY, display: "inline-block" }}></span>{n.label}
                         </div>
-                        <div style={{ fontSize: 11, color: C.textMid, whiteSpace: "pre-wrap", lineHeight: 1.6, padding: "4px 0 4px 8px", borderLeft: "2px solid " + C.borderLight, maxHeight: 150, overflow: "auto" }}>{n.val.replace(/\\n/g, "\n")}</div>
+                        <div style={{ fontSize: 11, color: C.textMid, whiteSpace: "pre-wrap", lineHeight: 1.6, padding: "4px 0 4px 8px", borderLeft: "2px solid " + GRAY_200, maxHeight: 150, overflow: "auto" }}>{n.val.replace(/\\n/g, "\n")}</div>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
-              <div style={{ padding: "10px 20px", borderTop: "1px solid " + C.borderLight, display: "flex", justifyContent: "space-between" }}>
+              <div style={{ padding: "10px 20px", borderTop: "1px solid " + GRAY_200, display: "flex", justifyContent: "space-between" }}>
                 {setClientData ? <button onClick={() => { setSelectedClient(null); setEditForm({ ...c, _idx: globalIdx }); }} style={{
-                  padding: "8px 18px", borderRadius: 6, border: "1px solid " + C.gold + "40", background: C.white,
-                  cursor: "pointer", fontSize: 11, fontWeight: 600, color: C.gold, fontFamily: "'Noto Sans JP'",
+                  padding: "8px 16px", borderRadius: 4, border: '1px solid ' + NAVY, background: '#fff',
+                  cursor: "pointer", fontSize: 13, fontWeight: 500, color: NAVY, fontFamily: "'Noto Sans JP'",
                 }}>&#9998; 編集</button> : <div></div>}
                 <button onClick={() => setSelectedClient(null)} style={{
-                  padding: "8px 24px", borderRadius: 6, border: "none",
-                  background: "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")",
-                  cursor: "pointer", fontSize: 11, fontWeight: 700, color: C.white, fontFamily: "'Noto Sans JP'",
+                  padding: "8px 16px", borderRadius: 4, border: "none",
+                  background: NAVY,
+                  cursor: "pointer", fontSize: 13, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
                 }}>閉じる</button>
               </div>
             </div>
@@ -278,23 +290,22 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
 
       {/* Toast */}
       {addToast && (
-        <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: C.navy, color: C.white, padding: "10px 20px", borderRadius: 8, fontSize: 12, fontWeight: 600, zIndex: 30000, boxShadow: "0 4px 16px rgba(0,0,0,0.2)", fontFamily: "'Noto Sans JP'" }}>
+        <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: NAVY, color: '#fff', padding: "10px 20px", borderRadius: 4, fontSize: 12, fontWeight: 600, zIndex: 30000, boxShadow: "0 4px 16px rgba(0,0,0,0.2)", fontFamily: "'Noto Sans JP'" }}>
           {addToast}
         </div>
       )}
 
       {/* Add Modal */}
       {addForm && setClientData && (() => {
-        const inputStyle = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", background: C.offWhite };
-        const labelStyle = { fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 2, display: "block" };
+        const inputStyle = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid " + GRAY_200, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", background: GRAY_50 };
+        const labelStyle = { fontSize: 10, fontWeight: 600, color: NAVY, marginBottom: 2, display: "block" };
         const u = (k, v) => setAddForm(p => ({ ...p, [k]: v }));
         const rewardIds = [...new Set(rewardMaster.map(r => r.id))].sort();
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20001, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: C.white, borderRadius: 12, width: 580, maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
-              <div style={{ padding: "14px 20px", background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")", borderRadius: "12px 12px 0 0", color: C.white }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>新規顧客を追加</div>
-                <div style={{ fontSize: 10, color: C.goldLight, marginTop: 2 }}>顧客情報を入力してください</div>
+            <div style={{ background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4, width: 580, maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+              <div style={{ padding: "12px 24px", background: NAVY, borderRadius: "4px 4px 0 0", color: '#fff', fontWeight: 600, fontSize: 15 }}>
+                新規顧客を追加
               </div>
               <div style={{ padding: "16px 20px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -338,15 +349,15 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                     </select>
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
-                    <label style={{ ...labelStyle, color: C.gold }}>初回面談メモ</label>
+                    <label style={labelStyle}>初回面談メモ</label>
                     <textarea value={addForm.noteFirst} onChange={e => u("noteFirst", e.target.value)} rows={4}
                       style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
                   </div>
                 </div>
               </div>
-              <div style={{ padding: "10px 20px", borderTop: "1px solid " + C.borderLight, display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button onClick={() => setAddForm(null)} style={{ padding: "8px 20px", borderRadius: 6, border: "1px solid " + C.border, background: C.white, cursor: "pointer", fontSize: 11, fontWeight: 600, color: C.textMid, fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
-                <button onClick={handleSaveAdd} disabled={addSaving} style={{ padding: "8px 24px", borderRadius: 6, border: "none", background: addSaving ? C.textLight : "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")", cursor: addSaving ? "not-allowed" : "pointer", fontSize: 11, fontWeight: 700, color: C.white, fontFamily: "'Noto Sans JP'" }}>
+              <div style={{ padding: "10px 20px", borderTop: "1px solid " + GRAY_200, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <button onClick={() => setAddForm(null)} style={{ padding: "8px 16px", borderRadius: 4, border: '1px solid ' + NAVY, background: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500, color: NAVY, fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
+                <button onClick={handleSaveAdd} disabled={addSaving} style={{ padding: "8px 16px", borderRadius: 4, border: "none", background: addSaving ? C.textLight : NAVY, cursor: addSaving ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'" }}>
                   {addSaving ? '保存中...' : '保存'}
                 </button>
               </div>
@@ -357,16 +368,15 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
 
       {/* Edit Modal */}
       {editForm && setClientData && (() => {
-        const inputStyle = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", background: C.offWhite };
-        const labelStyle = { fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 2, display: "block" };
+        const inputStyle = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid " + GRAY_200, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", background: GRAY_50 };
+        const labelStyle = { fontSize: 10, fontWeight: 600, color: NAVY, marginBottom: 2, display: "block" };
         const u = (k, v) => setEditForm(p => ({ ...p, [k]: v }));
         const rewardIds = [...new Set(rewardMaster.map(r => r.id))].sort();
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20001, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: C.white, borderRadius: 12, width: 580, maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
-              <div style={{ padding: "14px 20px", background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")", borderRadius: "12px 12px 0 0", color: C.white }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>顧客情報を編集</div>
-                <div style={{ fontSize: 10, color: C.goldLight, marginTop: 2 }}>{editForm.company}</div>
+            <div style={{ background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4, width: 580, maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+              <div style={{ padding: "12px 24px", background: NAVY, borderRadius: "4px 4px 0 0", color: '#fff', fontWeight: 600, fontSize: 15 }}>
+                顧客情報を編集 — {editForm.company}
               </div>
               <div style={{ padding: "16px 20px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -407,26 +417,26 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                     </select>
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, marginBottom: 6, marginTop: 4, borderBottom: "1px solid " + C.borderLight, paddingBottom: 4 }}>備考</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid ' + NAVY, paddingBottom: 6, marginBottom: 12, marginTop: 4 }}>備考</div>
                     <div style={{ marginBottom: 8 }}>
-                      <label style={{ ...labelStyle, color: C.gold }}>初回面談時</label>
+                      <label style={labelStyle}>初回面談時</label>
                       <textarea value={(editForm.noteFirst || "").replace(/\\n/g, "\n")} onChange={e => u("noteFirst", e.target.value)} rows={4}
                         style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
                     </div>
                     <div style={{ marginBottom: 8 }}>
-                      <label style={{ ...labelStyle, color: C.gold }}>キックオフミーティング時</label>
+                      <label style={labelStyle}>キックオフミーティング時</label>
                       <textarea value={(editForm.noteKickoff || "").replace(/\\n/g, "\n")} onChange={e => u("noteKickoff", e.target.value)} rows={4}
                         style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
                     </div>
                     <div>
-                      <label style={{ ...labelStyle, color: C.gold }}>定期ミーティング時</label>
+                      <label style={labelStyle}>定期ミーティング時</label>
                       <textarea value={(editForm.noteRegular || "").replace(/\\n/g, "\n")} onChange={e => u("noteRegular", e.target.value)} rows={4}
                         style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
                     </div>
                   </div>
                 </div>
               </div>
-              <div style={{ padding: "10px 20px", borderTop: "1px solid " + C.borderLight, display: "flex", justifyContent: "space-between" }}>
+              <div style={{ padding: "10px 20px", borderTop: "1px solid " + GRAY_200, display: "flex", justifyContent: "space-between" }}>
                 <button onClick={async () => {
                   if (editForm._supaId) {
                     const error = await deleteClient(editForm._supaId);
@@ -434,13 +444,13 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                   }
                   setClientData(prev => prev.filter((_, i) => i !== editForm._idx));
                   setEditForm(null); setSelectedClient(null);
-                }} style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #e5383530", background: C.white, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#e53835", fontFamily: "'Noto Sans JP'" }}>削除</button>
+                }} style={{ padding: "8px 16px", borderRadius: 4, border: "1px solid #DC2626", background: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500, color: "#DC2626", fontFamily: "'Noto Sans JP'" }}>削除</button>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => setEditForm(null)} style={{ padding: "8px 20px", borderRadius: 6, border: "1px solid " + C.border, background: C.white, cursor: "pointer", fontSize: 11, fontWeight: 600, color: C.textMid, fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
+                  <button onClick={() => setEditForm(null)} style={{ padding: "8px 16px", borderRadius: 4, border: '1px solid ' + NAVY, background: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500, color: NAVY, fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
                   <button onClick={handleSaveEdit} style={{
-                    padding: "8px 24px", borderRadius: 6, border: "none",
-                    background: "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")",
-                    cursor: "pointer", fontSize: 11, fontWeight: 700, color: C.white, fontFamily: "'Noto Sans JP'",
+                    padding: "8px 16px", borderRadius: 4, border: "none",
+                    background: NAVY,
+                    cursor: "pointer", fontSize: 13, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
                   }}>保存</button>
                 </div>
               </div>
@@ -455,24 +465,24 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", zIndex: 20002, display: "flex", alignItems: "center", justifyContent: "center" }}
             onClick={() => setShowRewardDetail(null)}>
-            <div style={{ background: C.white, borderRadius: 10, width: 440, boxShadow: "0 8px 32px rgba(0,0,0,0.3)", overflow: "hidden" }}
+            <div style={{ background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4, width: 440, boxShadow: "0 8px 32px rgba(0,0,0,0.3)", overflow: "hidden" }}
               onClick={e => e.stopPropagation()}>
-              <div style={{ padding: "12px 18px", background: C.navyDeep, color: C.white }}>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>報酬体系 {showRewardDetail}: {rm.name}</div>
-                <div style={{ fontSize: 10, color: C.goldLight, marginTop: 2 }}>{rm.timing} ・ {rm.basis} ・ {rm.tax}</div>
+              <div style={{ padding: "12px 24px", background: NAVY, color: '#fff', fontWeight: 600, fontSize: 15 }}>
+                報酬体系 {showRewardDetail}: {rm.name}
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)', marginTop: 2, fontWeight: 400 }}>{rm.timing} ・ {rm.basis} ・ {rm.tax}</div>
               </div>
               <div style={{ padding: "12px 18px" }}>
                 {rm.tiers.map((t, ti) => (
-                  <div key={ti} style={{ display: "flex", justifyContent: "space-between", padding: "6px 8px", fontSize: 12, background: ti % 2 === 0 ? C.offWhite : "transparent", borderRadius: 4 }}>
+                  <div key={ti} style={{ display: "flex", justifyContent: "space-between", padding: "8px 16px", fontSize: 12, background: ti % 2 === 0 ? '#fff' : GRAY_50, borderBottom: '1px solid ' + GRAY_200, verticalAlign: 'middle' }}>
                     <span style={{ color: C.textDark }}>{t.memo}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: C.gold }}>¥{Number(t.price).toLocaleString()}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: NAVY, fontVariantNumeric: 'tabular-nums' }}>¥{Number(t.price).toLocaleString()}</span>
                   </div>
                 ))}
               </div>
-              <div style={{ padding: "8px 18px", borderTop: "1px solid " + C.borderLight, textAlign: "right" }}>
+              <div style={{ padding: "8px 18px", borderTop: "1px solid " + GRAY_200, textAlign: "right" }}>
                 <button onClick={() => setShowRewardDetail(null)} style={{
-                  padding: "6px 18px", borderRadius: 5, border: "none", background: C.navy,
-                  cursor: "pointer", fontSize: 11, fontWeight: 600, color: C.white, fontFamily: "'Noto Sans JP'",
+                  padding: "8px 16px", borderRadius: 4, border: "none", background: NAVY,
+                  cursor: "pointer", fontSize: 13, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
                 }}>閉じる</button>
               </div>
             </div>

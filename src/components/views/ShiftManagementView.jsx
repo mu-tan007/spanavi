@@ -2,6 +2,10 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { C } from '../../constants/colors';
 import { fetchShifts, insertShift, updateShift, deleteShift } from '../../lib/supabaseWrite';
 
+const NAVY = '#0D2247';
+const GRAY_200 = '#E5E7EB';
+const GRAY_50 = '#F8F9FA';
+
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
 // ── タイムライン定数 ──────────────────────────────────────────
@@ -131,8 +135,8 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   };
 
   const fmtTime = (t) => t ? t.slice(0, 5) : '';
-  const navBtn = { border: '1px solid ' + C.border, cursor: 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: 600, borderRadius: 5, padding: '5px 10px', background: C.offWhite, color: C.navy, fontSize: 12 };
-  const modeBtn = (active) => ({ border: '1px solid ' + C.border, cursor: 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: 600, borderRadius: 5, padding: '5px 12px', background: active ? C.navy : C.white, color: active ? C.white : C.navy, fontSize: 11 });
+  const navBtn = { border: '1px solid ' + GRAY_200, cursor: 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: 600, borderRadius: 4, padding: '5px 10px', background: GRAY_50, color: NAVY, fontSize: 12 };
+  const modeBtn = (active) => ({ border: '1px solid ' + (active ? NAVY : GRAY_200), cursor: 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: 600, borderRadius: 4, padding: '5px 12px', background: active ? NAVY : '#fff', color: active ? '#fff' : NAVY, fontSize: 11, borderBottom: active ? '2px solid ' + NAVY : '2px solid transparent' });
 
   // ── 月間・週間表示（閲覧専用） ─────────────────────────────
   const renderGridView = (displayDays, isMonthView) => (
@@ -144,7 +148,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
         </span>
         <button
           onClick={() => setViewMode('day')}
-          style={{ marginLeft: 8, border: 'none', background: '#c8a84b', color: '#fff', fontWeight: 700, fontSize: 11, borderRadius: 5, padding: '4px 12px', cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}
+          style={{ marginLeft: 8, border: 'none', background: NAVY, color: '#fff', fontWeight: 500, fontSize: 13, borderRadius: 4, padding: '8px 16px', cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}
         >
           日別表示へ →
         </button>
@@ -152,31 +156,31 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
       <div style={{ overflowX: 'auto' }}>
         <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: 140 + displayDays.length * 72 + 76 }}>
           <thead>
-            <tr style={{ background: C.navy }}>
-              <th style={{ position: 'sticky', left: 0, width: 130, minWidth: 130, padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.white, borderRight: '2px solid rgba(255,255,255,0.2)', background: C.navy, zIndex: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>メンバー</th>
+            <tr>
+              <th style={{ position: 'sticky', left: 0, width: 130, minWidth: 130, padding: '8px 12px', textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#fff', borderRight: '2px solid rgba(255,255,255,0.2)', background: NAVY, zIndex: 3, verticalAlign: 'middle' }}>メンバー</th>
               {displayDays.map(d => {
                 const { isSun, isSat, name } = getDayMeta(d);
                 return (
-                  <th key={d} style={{ width: 72, minWidth: 72, padding: '6px 4px', textAlign: 'center', fontSize: 10, fontWeight: 700, color: isSun ? '#fc8181' : isSat ? '#90cdf4' : C.white, borderRight: '1px solid rgba(255,255,255,0.1)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    <div style={{ fontSize: 12, fontFamily: "'JetBrains Mono'" }}>{d}</div>
+                  <th key={d} style={{ width: 72, minWidth: 72, padding: '8px 4px', textAlign: 'center', fontSize: 13, fontWeight: 600, color: isSun ? '#fc8181' : isSat ? '#90cdf4' : '#fff', borderRight: '1px solid rgba(255,255,255,0.1)', background: NAVY, verticalAlign: 'middle' }}>
+                    <div style={{ fontSize: 12, fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums' }}>{d}</div>
                     <div style={{ fontSize: 9, opacity: 0.8 }}>{name}</div>
                   </th>
                 );
               })}
-              <th style={{ position: 'sticky', right: 0, width: 76, minWidth: 76, padding: '6px 8px', textAlign: 'center', fontSize: 10, fontWeight: 700, color: C.navy, background: C.offWhite, borderLeft: '2px solid ' + C.gold, zIndex: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>合計</th>
+              <th style={{ position: 'sticky', right: 0, width: 76, minWidth: 76, padding: '8px 8px', textAlign: 'center', fontSize: 13, fontWeight: 600, color: NAVY, background: GRAY_50, borderLeft: '2px solid ' + GRAY_200, zIndex: 3, verticalAlign: 'middle' }}>合計</th>
             </tr>
           </thead>
           <tbody>
             {sortedMembers.map((member, mi) => {
               const memId = member._supaId || member.id;
               const isMe = member.name === currentUser;
-              const rowBg = isMe ? C.gold + '18' : mi % 2 === 0 ? C.white : C.cream;
+              const rowBg = isMe ? NAVY + '08' : mi % 2 === 0 ? '#fff' : GRAY_50;
               const totalH = getMemberHours(memId, displayDays);
               const monthlyH = isMonthView ? totalH : getMemberHours(memId, days);
               const isUnder80 = isMonthView && monthlyH < 80;
               return (
-                <tr key={memId || mi} style={{ borderBottom: '1px solid ' + C.borderLight }}>
-                  <td style={{ position: 'sticky', left: 0, padding: '6px 12px', fontWeight: isMe ? 700 : 500, fontSize: 11, color: isMe ? C.navy : C.textDark, background: rowBg, borderRight: '2px solid ' + C.border, whiteSpace: 'nowrap', zIndex: 1 }}>
+                <tr key={memId || mi} style={{ borderBottom: '1px solid ' + GRAY_200 }}>
+                  <td style={{ position: 'sticky', left: 0, padding: '8px 12px', fontWeight: isMe ? 700 : 500, fontSize: 11, color: isMe ? NAVY : C.textDark, background: rowBg, borderRight: '2px solid ' + GRAY_200, whiteSpace: 'nowrap', zIndex: 1, verticalAlign: 'middle' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <span>{member.name}</span>
                       {isUnder80 && (
@@ -190,16 +194,16 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                     const dayShifts = getShifts(memId, d);
                     const cellBg = dayShifts.length > 0 ? 'transparent' : isSun ? '#fff5f5' : isSat ? '#ebf8ff' : rowBg;
                     return (
-                      <td key={d} style={{ padding: '3px 4px', textAlign: 'center', background: cellBg, borderRight: '1px solid ' + C.borderLight, verticalAlign: 'top' }}>
+                      <td key={d} style={{ padding: '3px 4px', textAlign: 'center', background: cellBg, borderRight: '1px solid ' + GRAY_200, verticalAlign: 'top' }}>
                         {/* 登録済みシフト（閲覧のみ） */}
                         {dayShifts.map(shift => (
                           <div key={shift.id} style={{ marginBottom: 2 }}>
                             <div style={{
-                              background: isMe ? C.gold : C.navy + '18',
-                              border: '1px solid ' + (isMe ? C.gold + '80' : C.navy + '30'),
+                              background: isMe ? NAVY + '18' : NAVY + '18',
+                              border: '1px solid ' + (isMe ? NAVY + '60' : NAVY + '30'),
                               borderRadius: 4, padding: '2px 4px',
                               fontSize: 9, fontWeight: 700,
-                              color: isMe ? '#7d5c00' : C.navy,
+                              color: NAVY,
                               lineHeight: 1.4, textAlign: 'left',
                               fontFamily: "'JetBrains Mono'",
                             }}>
@@ -213,8 +217,8 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                     );
                   })}
                   {/* 合計時間列 */}
-                  <td style={{ position: 'sticky', right: 0, padding: '6px 8px', textAlign: 'center', background: C.offWhite, borderLeft: '2px solid ' + C.gold, whiteSpace: 'nowrap', zIndex: 1, verticalAlign: 'middle' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: isUnder80 ? '#e53e3e' : C.navy }}>
+                  <td style={{ position: 'sticky', right: 0, padding: '8px 8px', textAlign: 'center', background: GRAY_50, borderLeft: '2px solid ' + GRAY_200, whiteSpace: 'nowrap', zIndex: 1, verticalAlign: 'middle' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", fontVariantNumeric: 'tabular-nums', color: isUnder80 ? '#e53e3e' : NAVY }}>
                       {totalH > 0 ? totalH.toFixed(1) + 'h' : '-'}
                     </span>
                   </td>
@@ -238,14 +242,14 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
     return (
       <div>
         {/* 日付ピッカー */}
-        <div style={{ padding: '12px 16px', background: C.white, borderBottom: '1px solid ' + C.borderLight, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        <div style={{ padding: '12px 16px', background: '#fff', borderBottom: '1px solid ' + GRAY_200, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
           {days.map(d => {
             const { isSun: s, isSat: sat } = getDayMeta(d);
             return (
               <button key={d} onClick={() => setSelectedDay(d)}
-                style={{ width: 30, height: 30, borderRadius: 5, border: '1px solid ' + C.border, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-                  background: selectedDay === d ? C.navy : s ? '#fff5f5' : sat ? '#ebf8ff' : C.offWhite,
-                  color: selectedDay === d ? C.white : s ? '#c53030' : sat ? '#2b6cb0' : C.navy }}>
+                style={{ width: 30, height: 30, borderRadius: 4, border: '1px solid ' + GRAY_200, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                  background: selectedDay === d ? NAVY : s ? '#fff5f5' : sat ? '#ebf8ff' : GRAY_50,
+                  color: selectedDay === d ? '#fff' : s ? '#c53030' : sat ? '#2b6cb0' : NAVY }}>
                 {d}
               </button>
             );
@@ -253,8 +257,8 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
         </div>
 
         {/* タイムラインカード */}
-        <div style={{ margin: '16px 20px 0', background: C.white, borderRadius: 10, border: '1px solid ' + C.borderLight, overflow: 'hidden' }}>
-          <div style={{ padding: '10px 16px', background: isSun ? '#c53030' : isSat ? '#2b6cb0' : C.navy, color: C.white, fontSize: 13, fontWeight: 700 }}>
+        <div style={{ margin: '16px 20px 0', background: '#fff', borderRadius: 4, border: '1px solid ' + GRAY_200, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 24px', background: isSun ? '#c53030' : isSat ? '#2b6cb0' : NAVY, color: '#fff', fontSize: 15, fontWeight: 600 }}>
             {year}年{month}月{selectedDay}日（{getDayMeta(selectedDay).name}）のシフト
             <span style={{ marginLeft: 12, fontSize: 10, fontWeight: 400, opacity: 0.75 }}>
               クリック→30分登録 ／ ドラッグ→任意登録 ／ ブロックドラッグ→移動・右端→リサイズ
@@ -265,7 +269,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
               {/* 時間軸ヘッダー */}
               <div style={{ display: 'flex', marginBottom: 8, paddingLeft: NAME_W, paddingRight: TOTAL_W + 8 }}>
                 {HOURS.map(h => (
-                  <div key={h} style={{ flex: 1, fontSize: 9, color: C.textLight, borderLeft: '1px solid ' + C.borderLight, paddingLeft: 2 }}>{h}:00</div>
+                  <div key={h} style={{ flex: 1, fontSize: 9, color: C.textLight, borderLeft: '1px solid ' + GRAY_200, paddingLeft: 2 }}>{h}:00</div>
                 ))}
               </div>
               {/* メンバー行（ドラッグ対応） */}
@@ -302,15 +306,15 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
         </div>
 
         {/* 同時稼働数フッター */}
-        <div style={{ position: 'sticky', bottom: 0, background: C.navy, borderTop: '2px solid ' + C.gold, zIndex: 5, marginTop: 4 }}>
+        <div style={{ position: 'sticky', bottom: 0, background: NAVY, borderTop: '2px solid ' + GRAY_200, zIndex: 5, marginTop: 4 }}>
           <div style={{ overflowX: 'auto' }}>
             <div style={{ minWidth: 700, display: 'flex', alignItems: 'center', padding: '6px 16px' }}>
-              <div style={{ width: NAME_W, flexShrink: 0, fontSize: 10, fontWeight: 700, color: C.white, paddingRight: 8 }}>同時稼働数</div>
+              <div style={{ width: NAME_W, flexShrink: 0, fontSize: 10, fontWeight: 700, color: '#fff', paddingRight: 8 }}>同時稼働数</div>
               <div style={{ flex: 1, display: 'flex' }}>
                 {SLOTS_30.map(slot => {
                   const count = getConcurrentCount(slot, dateStr);
                   return (
-                    <div key={slot} style={{ flex: 1, textAlign: 'center', fontSize: count > 0 ? 10 : 9, fontWeight: 700, color: count > 0 ? C.gold : 'rgba(255,255,255,0.25)', minWidth: 0, paddingTop: 2, paddingBottom: 2, fontFamily: "'JetBrains Mono'" }}>
+                    <div key={slot} style={{ flex: 1, textAlign: 'center', fontSize: count > 0 ? 10 : 9, fontWeight: 700, color: count > 0 ? '#fff' : 'rgba(255,255,255,0.25)', minWidth: 0, paddingTop: 2, paddingBottom: 2, fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums' }}>
                       {count > 0 ? count : '·'}
                     </div>
                   );
@@ -327,12 +331,17 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* Page Header */}
+      <div style={{ marginBottom: 0, paddingBottom: 14, borderBottom: '1px solid #0D2247', flexShrink: 0, padding: '14px 24px 14px' }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Shifts</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>シフト・勤怠管理</div>
+      </div>
+
       {/* ヘッダー */}
-      <div style={{ padding: '14px 24px', background: C.white, borderBottom: '1px solid ' + C.borderLight, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 16, fontWeight: 800, color: C.navy }}>シフト管理</div>
+      <div style={{ padding: '14px 24px', background: '#fff', borderBottom: '1px solid ' + GRAY_200, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button onClick={prevMonth} style={navBtn}>◀</button>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, minWidth: 88, textAlign: 'center' }}>{year}年{month}月</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: NAVY, minWidth: 88, textAlign: 'center', fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums' }}>{year}年{month}月</div>
           <button onClick={nextMonth} style={navBtn}>▶</button>
         </div>
         {viewMode === 'week' && (
@@ -376,7 +385,6 @@ function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, d
   const commitRef         = useRef(null);
   const trackRef          = useRef(null);
 
-  const NAVY = '#0D2247';
   const GOLD = '#C8A84B';
   const ROW_H = 52;
 
@@ -517,8 +525,8 @@ function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, d
         onMouseDown={handleTrackDown}
         onTouchStart={(e) => { if (e.cancelable) e.preventDefault(); handleTrackDown(e); }}
         style={{
-          flex: 1, height: ROW_H, background: C.cream, borderRadius: 5, position: 'relative',
-          border: '1px solid ' + C.borderLight,
+          flex: 1, height: ROW_H, background: GRAY_50, borderRadius: 4, position: 'relative',
+          border: '1px solid ' + GRAY_200,
           cursor: isEditable ? 'crosshair' : 'default',
           userSelect: 'none',
         }}
@@ -528,7 +536,7 @@ function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, d
           <div key={h} style={{
             position: 'absolute', top: 0, bottom: 0,
             left: ((i + 1) / (HOURS.length - 1)) * 100 + '%',
-            width: 1, background: C.borderLight, pointerEvents: 'none',
+            width: 1, background: GRAY_200, pointerEvents: 'none',
           }} />
         ))}
 
@@ -547,18 +555,18 @@ function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, d
               style={{
                 position: 'absolute', top: 4, bottom: 4,
                 left: minToPct(s) + '%', width: w + '%',
-                background: isMe ? GOLD : NAVY + '25',
-                border: '1px solid ' + (isMe ? GOLD + '80' : NAVY + '40'),
+                background: isMe ? NAVY + '30' : NAVY + '25',
+                border: '1px solid ' + (isMe ? NAVY + '80' : NAVY + '40'),
                 borderRadius: 4,
                 display: 'flex', alignItems: 'center',
                 paddingLeft: 5, paddingRight: 18,
-                fontSize: 9, fontWeight: 700, color: isMe ? '#7d5c00' : NAVY,
+                fontSize: 9, fontWeight: 700, color: NAVY,
                 overflow: 'hidden', whiteSpace: 'nowrap',
                 cursor: isEditable ? 'grab' : 'default',
                 zIndex: 1,
               }}
             >
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0, pointerEvents: 'none', fontFamily: "'JetBrains Mono'" }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0, pointerEvents: 'none', fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums' }}>
                 {shift.start_time.slice(0, 5)}–{shift.end_time.slice(0, 5)}
               </span>
               {/* リサイズハンドル（右端） */}
@@ -615,15 +623,16 @@ function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, d
             position: 'absolute', top: 2, bottom: 2,
             left: minToPct(preview.s) + '%',
             width: Math.max(minToPct(preview.e) - minToPct(preview.s), 0.1) + '%',
-            background: previewConflict ? 'rgba(229,62,62,0.8)' : GOLD + 'CC',
-            border: '2px solid ' + (previewConflict ? '#c53030' : GOLD),
+            background: previewConflict ? 'rgba(229,62,62,0.8)' : NAVY + 'CC',
+            border: '2px solid ' + (previewConflict ? '#c53030' : NAVY),
             borderRadius: 4,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 9, fontWeight: 700,
-            color: previewConflict ? '#fff' : '#7d5c00',
+            color: previewConflict ? '#fff' : '#fff',
             pointerEvents: 'none', zIndex: 3,
             overflow: 'hidden', whiteSpace: 'nowrap',
             fontFamily: "'JetBrains Mono'",
+            fontVariantNumeric: 'tabular-nums',
           }}>
             {minToStr(preview.s)}–{minToStr(preview.e)}
           </div>
@@ -633,11 +642,11 @@ function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, d
       {/* 日別合計 */}
       <div style={{
         width: TOTAL_W, flexShrink: 0, marginLeft: 8, textAlign: 'center',
-        background: C.offWhite, borderLeft: '2px solid ' + GOLD,
+        background: GRAY_50, borderLeft: '2px solid ' + GRAY_200,
         height: ROW_H, display: 'flex', alignItems: 'center', justifyContent: 'center',
         borderRadius: '0 4px 4px 0',
       }}>
-        <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: NAVY }}>
+        <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", fontVariantNumeric: 'tabular-nums', color: NAVY }}>
           {dayH > 0 ? dayH.toFixed(1) + 'h' : '-'}
         </span>
       </div>
@@ -699,25 +708,27 @@ export function ShiftInputModal({ modal, onClose, onSaved, year, month }) {
     onSaved(data || []);
   };
 
-  const btnStyle = (bg, color) => ({ border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: 700, borderRadius: 6, padding: '9px 18px', fontSize: 12, background: bg, color, opacity: saving ? 0.65 : 1 });
-  const selStyle = { width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid ' + C.border, fontSize: 13, fontFamily: "'Noto Sans JP'", background: C.white, color: C.navy, outline: 'none', cursor: 'pointer' };
+  const btnStyle = (bg, color, borderColor) => ({ border: borderColor ? '1px solid ' + borderColor : 'none', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: 500, borderRadius: 4, padding: '8px 16px', fontSize: 13, background: bg, color, opacity: saving ? 0.65 : 1 });
+  const selStyle = { width: '100%', padding: '8px 10px', borderRadius: 4, border: '1px solid ' + GRAY_200, fontSize: 13, fontFamily: "'Noto Sans JP'", background: '#fff', color: NAVY, outline: 'none', cursor: 'pointer' };
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }} onClick={onClose}>
-      <div style={{ background: C.white, borderRadius: 14, padding: 28, width: 360, boxShadow: '0 8px 36px rgba(0,0,0,0.22)' }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: C.navy, marginBottom: 20 }}>シフト{editingShift ? '編集' : '追加'}</div>
+      <div style={{ background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4, padding: 28, width: 360, boxShadow: '0 8px 36px rgba(0,0,0,0.22)' }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '12px 24px', background: NAVY, borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15, margin: '-28px -28px 20px' }}>
+          シフト{editingShift ? '編集' : '追加'}
+        </div>
         {[{ label: 'メンバー', value: member.name }, { label: '日付', value: dateStr }].map(({ label, value }) => (
           <div key={label} style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4, letterSpacing: 0.5 }}>{label}</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: C.navy, padding: '8px 12px', background: C.cream, borderRadius: 6, border: '1px solid ' + C.borderLight }}>{value}</div>
+            <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>{label}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: NAVY, padding: '8px 12px', background: GRAY_50, borderRadius: 4, border: '1px solid ' + GRAY_200 }}>{value}</div>
           </div>
         ))}
         {existingShifts.filter(s => !editingShift || s.id !== editingShift.id).length > 0 && (
           <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 6, letterSpacing: 0.5 }}>登録済みシフト</div>
+            <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>登録済みシフト</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
               {existingShifts.filter(s => !editingShift || s.id !== editingShift.id).map(s => (
-                <span key={s.id} style={{ fontSize: 11, padding: '3px 8px', background: C.navy + '12', border: '1px solid ' + C.navy + '25', borderRadius: 10, color: C.navy, fontWeight: 600 }}>
+                <span key={s.id} style={{ fontSize: 11, padding: '3px 8px', background: NAVY + '12', border: '1px solid ' + NAVY + '25', borderRadius: 4, color: NAVY, fontWeight: 600, fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums' }}>
                   {s.start_time.slice(0, 5)}〜{s.end_time.slice(0, 5)}
                 </span>
               ))}
@@ -726,25 +737,25 @@ export function ShiftInputModal({ modal, onClose, onSaved, year, month }) {
         )}
         <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4, letterSpacing: 0.5 }}>開始時間</div>
+            <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>開始時間</div>
             <select value={startTime} onChange={e => setStartTime(e.target.value)} style={selStyle}>
               {timeOptions.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4, letterSpacing: 0.5 }}>終了時間</div>
+            <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>終了時間</div>
             <select value={endTime} onChange={e => setEndTime(e.target.value)} style={selStyle}>
               {timeOptions.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
         </div>
         {errMsg && (
-          <div style={{ fontSize: 11, color: '#c53030', marginBottom: 12, padding: '6px 10px', background: '#fff5f5', borderRadius: 5, border: '1px solid #fed7d7' }}>{errMsg}</div>
+          <div style={{ fontSize: 11, color: '#DC2626', marginBottom: 12, padding: '6px 10px', background: '#fff5f5', borderRadius: 4, border: '1px solid #DC262640' }}>{errMsg}</div>
         )}
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={handleSave} disabled={saving} style={btnStyle(C.navy, C.white)}>{saving ? '保存中...' : '保存'}</button>
-          {editingShift && <button onClick={handleDelete} disabled={saving} style={btnStyle('#fed7d7', '#c53030')}>削除</button>}
-          <button onClick={onClose} style={{ ...btnStyle(C.offWhite, C.textMid), marginLeft: 'auto' }}>キャンセル</button>
+          <button onClick={handleSave} disabled={saving} style={btnStyle(NAVY, '#fff', null)}>{saving ? '保存中...' : '保存'}</button>
+          {editingShift && <button onClick={handleDelete} disabled={saving} style={btnStyle('#fff', '#DC2626', '#DC2626')}>削除</button>}
+          <button onClick={onClose} style={{ ...btnStyle('#fff', NAVY, NAVY), marginLeft: 'auto' }}>キャンセル</button>
         </div>
       </div>
     </div>
