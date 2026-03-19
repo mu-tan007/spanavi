@@ -15,16 +15,25 @@ const Badge = ({ children, color = C.navy, glow = false, small = false }) => (
   }}>{children}</span>
 );
 
-const ScorePill = ({ score }) => (
-  <span style={{
-    display: "inline-flex", alignItems: "center",
-    padding: "2px 8px", borderRadius: 4,
-    background: "#EFF6FF", border: "1px solid #1E40AF40",
-    fontSize: 10, fontWeight: 700, color: "#1E40AF",
-    fontFamily: "'JetBrains Mono', monospace",
-    letterSpacing: "0.05em", flexShrink: 0, whiteSpace: "nowrap",
-  }}>SCORE {score}</span>
-);
+const getScoreStyle = (score) => {
+  if (score >= 80) return { color: "#92670A", background: "#FFFBEB", border: "1px solid #D4A017AA" };
+  if (score >= 40) return { color: "#1E40AF", background: "#EFF6FF", border: "1px solid #1E40AF40" };
+  return { color: "#6B7280", background: "#F3F4F6", border: "1px solid #6B728040" };
+};
+
+const ScorePill = ({ score }) => {
+  const s = getScoreStyle(score);
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center",
+      padding: "2px 8px", borderRadius: 4,
+      background: s.background, border: s.border,
+      fontSize: 10, fontWeight: 700, color: s.color,
+      fontFamily: "'JetBrains Mono', monospace",
+      letterSpacing: "0.05em", flexShrink: 0, whiteSpace: "nowrap",
+    }}>SCORE {score}</span>
+  );
+};
 
 export default function ListView({ filteredLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [] }) {
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
@@ -355,7 +364,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                       <span style={{ color: C.textMid }}>{list.industry}</span>
                       <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textMid }}>{list.count.toLocaleString()}</span>
                       <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list.manager}</span>
-                      <span style={{ textAlign: "right" }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
+                      <span>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
                       <span style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
                         {isAdmin && <>
                           <button onClick={() => handleOpenEdit(list)} title="編集" style={{
