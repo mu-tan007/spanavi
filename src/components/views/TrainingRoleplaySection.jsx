@@ -620,25 +620,25 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
           </div>
         )}
 
-        {/* AI フィードバック — Investment Banking Style */}
+        {/* AI フィードバック */}
         {isExpanded && fb && (
           <div style={{
-            borderTop: '2px solid #C8A84B',
-            background: '#0B1829',
-            padding: '18px 20px',
+            borderTop: '1px solid ' + C.borderLight,
+            background: C.offWhite,
+            padding: '16px 18px',
           }}>
             {/* ヘッダー */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
-              paddingBottom: 12, marginBottom: 16,
-              borderBottom: '1px solid rgba(200,168,75,0.25)',
+              paddingBottom: 10, marginBottom: 14,
+              borderBottom: '1px solid ' + C.border,
             }}>
-              <div style={{ width: 3, height: 13, background: '#C8A84B', borderRadius: 1, flexShrink: 0 }} />
-              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', color: '#C8A84B', textTransform: 'uppercase' }}>
+              <div style={{ width: 3, height: 13, background: C.navy, borderRadius: 1, flexShrink: 0 }} />
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: C.navy, textTransform: 'uppercase' }}>
                 AI Analysis Report
               </span>
               {session.session_date && (
-                <span style={{ marginLeft: 'auto', fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>
+                <span style={{ marginLeft: 'auto', fontSize: 9, color: C.textLight, fontFamily: 'monospace' }}>
                   {session.session_date}
                 </span>
               )}
@@ -646,13 +646,13 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
             {/* 総評 */}
             {fb.overall && (
-              <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 8, letterSpacing: '0.13em', color: '#C8A84B', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 9, letterSpacing: '0.1em', color: C.navy, fontWeight: 700, textTransform: 'uppercase', marginBottom: 7 }}>
                   Executive Summary
                 </div>
                 <div style={{
-                  fontSize: 11, color: 'rgba(255,255,255,0.82)', lineHeight: 1.85,
-                  borderLeft: '2px solid rgba(200,168,75,0.4)', paddingLeft: 10,
+                  fontSize: 11, color: C.textMid, lineHeight: 1.85,
+                  borderLeft: '2px solid ' + C.navy + '30', paddingLeft: 10,
                   whiteSpace: 'pre-wrap',
                 }}>
                   {fb.overall}
@@ -662,16 +662,16 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
             {/* 課題点 */}
             {fb.issues?.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 8, letterSpacing: '0.13em', color: '#f87171', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 9, letterSpacing: '0.1em', color: C.navy, fontWeight: 700, textTransform: 'uppercase', marginBottom: 7 }}>
                   Key Issues
                 </div>
                 {fb.issues.map((item, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 7, alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: 9, color: '#f87171', fontFamily: 'monospace', fontWeight: 700, minWidth: 22, flexShrink: 0, marginTop: 2 }}>
+                  <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 6, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 9, color: C.navy, fontFamily: 'monospace', fontWeight: 700, minWidth: 22, flexShrink: 0, marginTop: 2, opacity: 0.6 }}>
                       {String(i + 1).padStart(2, '0')}
                     </span>
-                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75 }}>{item}</span>
+                    <span style={{ fontSize: 11, color: C.textMid, lineHeight: 1.75 }}>{item}</span>
                   </div>
                 ))}
               </div>
@@ -679,16 +679,16 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
             {/* 解決策 */}
             {fb.solutions?.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 8, letterSpacing: '0.13em', color: '#34d399', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 9, letterSpacing: '0.1em', color: C.navy, fontWeight: 700, textTransform: 'uppercase', marginBottom: 7 }}>
                   Recommendations
                 </div>
                 {fb.solutions.map((item, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 7, alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: 9, color: '#34d399', fontFamily: 'monospace', fontWeight: 700, minWidth: 22, flexShrink: 0, marginTop: 2 }}>
+                  <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 6, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 9, color: C.navy, fontFamily: 'monospace', fontWeight: 700, minWidth: 22, flexShrink: 0, marginTop: 2, opacity: 0.6 }}>
                       {String(i + 1).padStart(2, '0')}
                     </span>
-                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75 }}>{item}</span>
+                    <span style={{ fontSize: 11, color: C.textMid, lineHeight: 1.75 }}>{item}</span>
                   </div>
                 ))}
               </div>
@@ -697,15 +697,15 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             {/* 練習方法 */}
             {fb.practice?.length > 0 && (
               <div style={{ marginBottom: 4 }}>
-                <div style={{ fontSize: 8, letterSpacing: '0.13em', color: '#60a5fa', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>
+                <div style={{ fontSize: 9, letterSpacing: '0.1em', color: C.navy, fontWeight: 700, textTransform: 'uppercase', marginBottom: 7 }}>
                   Training Protocol
                 </div>
                 {fb.practice.map((item, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 7, alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: 9, color: '#60a5fa', fontFamily: 'monospace', fontWeight: 700, minWidth: 22, flexShrink: 0, marginTop: 2 }}>
+                  <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 6, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 9, color: C.navy, fontFamily: 'monospace', fontWeight: 700, minWidth: 22, flexShrink: 0, marginTop: 2, opacity: 0.6 }}>
                       {String(i + 1).padStart(2, '0')}
                     </span>
-                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75 }}>{item}</span>
+                    <span style={{ fontSize: 11, color: C.textMid, lineHeight: 1.75 }}>{item}</span>
                   </div>
                 ))}
               </div>
@@ -713,19 +713,16 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
             {/* 文字起こし */}
             {session.transcript && (
-              <details style={{ marginTop: 14 }}>
-                <summary style={{
-                  fontSize: 8, color: 'rgba(255,255,255,0.3)', cursor: 'pointer',
-                  letterSpacing: '0.1em', textTransform: 'uppercase', userSelect: 'none',
-                }}>
+              <details style={{ marginTop: 12 }}>
+                <summary style={{ fontSize: 9, color: C.textLight, cursor: 'pointer', letterSpacing: '0.08em', textTransform: 'uppercase', userSelect: 'none' }}>
                   Transcript ▾
                 </summary>
                 <div style={{
-                  fontSize: 10, color: 'rgba(255,255,255,0.45)', lineHeight: 1.75,
+                  fontSize: 10, color: C.textLight, lineHeight: 1.75,
                   marginTop: 8, whiteSpace: 'pre-wrap',
                   maxHeight: 200, overflowY: 'auto',
-                  fontFamily: 'monospace',
-                  background: 'rgba(0,0,0,0.35)', padding: '10px 12px', borderRadius: 4,
+                  background: C.cream, padding: '10px 12px', borderRadius: 4,
+                  border: '1px solid ' + C.borderLight,
                 }}>
                   {session.transcript}
                 </div>
