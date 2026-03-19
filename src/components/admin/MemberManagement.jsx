@@ -37,7 +37,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
     setLoading(true);
     const { data, error } = await supabase
       .from('members')
-      .select('id, name, team, position, rank, operation_start_date, is_active, zoom_user_id')
+      .select('id, name, team, position, rank, operation_start_date, start_date, is_active, zoom_user_id')
       .eq('org_id', ORG_ID);
     if (error) { onToast('メンバーの取得に失敗しました', 'error'); }
     else { setMembers(data || []); }
@@ -111,8 +111,8 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
   // チーム別グループ化（入社日順にソート）
   const grouped = (() => {
     const sorted = [...members].sort((a, b) => {
-      const da = a.operation_start_date || '';
-      const db = b.operation_start_date || '';
+      const da = a.operation_start_date || a.start_date || '';
+      const db = b.operation_start_date || b.start_date || '';
       return da < db ? -1 : da > db ? 1 : 0;
     });
     const map = new Map();
@@ -200,7 +200,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                             {isEditing ? (
                               <input type="date" value={editForm.operation_start_date} onChange={e => setEditForm(p => ({ ...p, operation_start_date: e.target.value }))}
                                 style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }} />
-                            ) : m.operation_start_date || '—'}
+                            ) : (m.operation_start_date || m.start_date || '—')}
                           </td>
                           <td style={td}>
                             {isEditing ? (
