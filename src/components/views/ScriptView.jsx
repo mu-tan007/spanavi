@@ -58,14 +58,20 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease", padding: "0 0 40px 0" }}>
+      {/* Page Header */}
+      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Scripts</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>架電スクリプトライブラリ</div>
+      </div>
+
       {/* 基本スクリプト */}
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.navy }}>基本スクリプト</h2>
-          <button onClick={() => setQaOpen(true)} style={{ padding: '4px 12px', borderRadius: 6, background: C.navy, color: '#fff', border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>想定問答を見る</button>
+          <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0D2247', borderBottom: '2px solid #0D2247', paddingBottom: 6 }}>基本スクリプト</h2>
+          <button onClick={() => setQaOpen(true)} style={{ background: '#0D2247', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>想定問答を見る</button>
         </div>
 
-        <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, padding: "16px 20px" }}>
+        <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: "16px 20px" }}>
           {isAdmin ? (
             <>
               <textarea
@@ -81,9 +87,7 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
                 <button
                   onClick={handleSaveBasicScript}
                   disabled={saving}
-                  style={{ padding: "6px 18px", borderRadius: 6, background: C.navy, color: C.white,
-                    border: "none", cursor: saving ? "not-allowed" : "pointer", fontSize: 12,
-                    fontFamily: "'Noto Sans JP', sans-serif", opacity: saving ? 0.6 : 1 }}>
+                  style={{ background: '#0D2247', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
                   {saving ? "保存中..." : "保存"}
                 </button>
                 {savedOk && <span style={{ fontSize: 12, color: "#27ae60" }}>保存しました</span>}
@@ -100,9 +104,9 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
         <div style={{ marginTop: 14 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: C.textMid, marginBottom: 6 }}>参考動画</div>
           <div onClick={() => setVideoOpen(true)}
-            style={{ position: "relative", width: 200, height: 120, borderRadius: 8,
+            style={{ position: "relative", width: 200, height: 120, borderRadius: 4,
               overflow: "hidden", cursor: "pointer",
-              boxShadow: "0 2px 10px rgba(0,0,0,0.18)", display: "inline-block" }}>
+              border: '1px solid #E5E7EB', display: "inline-block" }}>
             <img
               src={`https://drive.google.com/thumbnail?id=${VIDEO_ID}&sz=w400`}
               alt="参考動画サムネイル"
@@ -123,7 +127,7 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
 
       {/* クライアント別スクリプト */}
       <div>
-        <h2 style={{ margin: "0 0 14px", fontSize: 16, fontWeight: 700, color: C.navy }}>クライアント別スクリプト</h2>
+        <h2 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: '#0D2247', borderBottom: '2px solid #0D2247', paddingBottom: 6 }}>クライアント別スクリプト</h2>
         {activeClients.length === 0 ? (
           <div style={{ color: C.textLight, fontSize: 13, padding: "20px 0" }}>支援中のクライアントがありません</div>
         ) : (
@@ -135,21 +139,21 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
               const activeList = clientLists.find(l => l.industry === allIndustries[activeTab]) ?? clientLists[0];
               return (
                 <div key={client._supaId || cIdx}
-                  style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, overflow: "hidden" }}>
-                  <div style={{ background: C.navy, padding: "10px 16px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.white, wordBreak: "break-all" }}>{client.company}</div>
-                    <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>{client.industry || ''}</div>
+                  style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ background: '#0D2247', padding: "10px 16px" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', wordBreak: "break-all" }}>{client.company}</div>
+                    <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 2 }}>{client.industry || ''}</div>
                   </div>
                   {allIndustries.length > 1 && (
-                    <div style={{ display: "flex", overflowX: "auto", borderBottom: "1px solid " + C.borderLight, background: C.offWhite }}>
+                    <div style={{ display: "flex", overflowX: "auto", borderBottom: "1px solid #E5E7EB", background: '#F8F9FA' }}>
                       {allIndustries.map((ind, iIdx) => (
                         <button key={iIdx}
                           onClick={() => setClientTabs(prev => ({ ...prev, [cIdx]: iIdx }))}
                           style={{ padding: "5px 12px", border: "none", cursor: "pointer",
                             fontSize: 10, fontWeight: activeTab === iIdx ? 700 : 400,
                             background: "transparent",
-                            color: activeTab === iIdx ? C.navy : C.textLight,
-                            borderBottom: "2px solid " + (activeTab === iIdx ? C.gold : "transparent"),
+                            color: activeTab === iIdx ? '#0D2247' : '#9CA3AF',
+                            borderBottom: "2px solid " + (activeTab === iIdx ? '#0D2247' : "transparent"),
                             whiteSpace: "nowrap", fontFamily: "'Noto Sans JP'" }}>
                           {ind}
                         </button>
@@ -178,24 +182,24 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9400,
             display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ width: '90vw', maxWidth: 640, maxHeight: '80vh', borderRadius: 12,
-              background: '#fff', boxShadow: '0 8px 40px rgba(0,0,0,0.3)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ background: C.navy, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-              <span style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>想定問答集</span>
+            style={{ width: '90vw', maxWidth: 640, maxHeight: '80vh', borderRadius: 4,
+              background: '#fff', border: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ background: '#0D2247', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, fontWeight: 600, fontSize: 15, color: '#fff' }}>
+              <span>想定問答集</span>
               <button onClick={() => setQaOpen(false)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>✕</button>
             </div>
-            <div style={{ display: 'flex', borderBottom: '1px solid #E5E5E5', flexShrink: 0 }}>
+            <div style={{ display: 'flex', borderBottom: '1px solid #E5E7EB', flexShrink: 0 }}>
               {[['reception', '受付対応'], ['president', '社長対応']].map(([k, l]) => (
-                <button key={k} onClick={() => setQaTab(k)} style={{ flex: 1, padding: '10px', border: 'none', background: qaTab === k ? C.navy + '08' : '#fff', fontWeight: qaTab === k ? 700 : 400, fontSize: 12, color: qaTab === k ? C.navy : '#888', borderBottom: qaTab === k ? '2px solid ' + C.navy : '2px solid transparent', cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                <button key={k} onClick={() => setQaTab(k)} style={{ flex: 1, padding: '10px', border: 'none', background: 'transparent', fontWeight: qaTab === k ? 600 : 400, fontSize: 12, color: qaTab === k ? '#0D2247' : '#9CA3AF', borderBottom: qaTab === k ? '2px solid #0D2247' : '2px solid transparent', cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
                   {l}
                 </button>
               ))}
             </div>
             <div style={{ overflowY: 'auto', padding: '16px 20px' }}>
               {QA_DATA[qaTab].map((item, i) => (
-                <div key={i} style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 8, background: '#F9F9FB', borderLeft: '3px solid ' + C.navy }}>
+                <div key={i} style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 4, background: '#F8F9FA', borderLeft: '3px solid #0D2247' }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>Q: {item.q}</div>
-                  <div style={{ fontSize: 12, color: C.navy, lineHeight: 1.7 }}>A: {item.a}</div>
+                  <div style={{ fontSize: 12, color: '#0D2247', lineHeight: 1.7 }}>A: {item.a}</div>
                 </div>
               ))}
             </div>
@@ -209,8 +213,8 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 9500,
             display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ position: "relative", width: "80vw", maxWidth: 800, borderRadius: 8,
-              overflow: "hidden", boxShadow: "0 8px 40px rgba(0,0,0,0.4)" }}>
+            style={{ position: "relative", width: "80vw", maxWidth: 800, borderRadius: 4,
+              overflow: "hidden", border: '1px solid #E5E7EB' }}>
             <button onClick={() => setVideoOpen(false)}
               style={{ position: "absolute", top: 8, right: 8, zIndex: 1,
                 width: 32, height: 32, borderRadius: "50%",

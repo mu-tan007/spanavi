@@ -94,41 +94,40 @@ function IndustryCard({ name, rule, highlight }) {
   return (
     <div style={{
       background: '#fff',
-      borderRadius: 10,
-      border: '1px solid ' + (highlight ? GOLD : C.borderLight),
-      borderLeft: '3px solid ' + (highlight ? GOLD : C.borderLight),
+      borderRadius: 4,
+      border: '1px solid ' + (highlight ? NAVY : '#E5E7EB'),
+      borderLeft: '3px solid ' + (highlight ? NAVY : '#E5E7EB'),
       padding: '16px 20px',
       animation: 'fadeIn 0.3s ease',
-      boxShadow: highlight ? '0 0 0 2px ' + GOLD + '20' : 'none',
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <span style={{ fontSize: 15, fontWeight: 700, color: NAVY }}>{name}</span>
-          <span style={{ fontSize: 10, fontWeight: 600, color: C.textLight, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{rule.label}</span>
+          <span style={{ fontSize: 10, fontWeight: 600, color: '#6B7280' }}>{rule.label}</span>
         </div>
         {highlight && (
-          <span style={{ fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.1em', textTransform: 'uppercase', border: '1px solid ' + GOLD + '60', borderRadius: 3, padding: '2px 6px' }}>
+          <span style={{ borderLeft: '3px solid ' + NAVY, paddingLeft: 8, color: NAVY, fontSize: 12 }}>
             現在のリスト
           </span>
         )}
       </div>
 
       {/* Success Rate */}
-      <div style={{ fontSize: 11, color: '#374151', background: '#F8F9FA', borderRadius: 4, padding: '5px 10px', marginBottom: 12, fontWeight: 500 }}>
+      <div style={{ fontSize: 11, color: '#374151', background: '#F8F9FA', border: '1px solid #E5E7EB', borderRadius: 4, padding: '5px 10px', marginBottom: 12, fontWeight: 500 }}>
         {rule.successRate}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
         {/* Golden Time */}
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: C.green, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid #0D2247', paddingBottom: 6, marginBottom: 12 }}>
             Golden Time
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {rule.goldenTime.map((t, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 5 }}>
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.green, flexShrink: 0, marginTop: 5 }} />
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#1E40AF', flexShrink: 0, marginTop: 5 }} />
                 <span style={{ fontSize: 11, color: C.textDark, lineHeight: 1.5 }}>{t}</span>
               </div>
             ))}
@@ -137,7 +136,7 @@ function IndustryCard({ name, rule, highlight }) {
 
         {/* President Pattern */}
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: NAVY, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid #0D2247', paddingBottom: 6, marginBottom: 12 }}>
             President Pattern
           </div>
           <p style={{ fontSize: 11, color: C.textMid, lineHeight: 1.6, margin: 0 }}>{rule.presidentPattern}</p>
@@ -145,13 +144,13 @@ function IndustryCard({ name, rule, highlight }) {
 
         {/* Pain Points */}
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: C.orange, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid #0D2247', paddingBottom: 6, marginBottom: 12 }}>
             Pain Points
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {rule.painPoints.map((p, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 5 }}>
-                <span style={{ width: 5, height: 5, borderRadius: 1, background: C.orange, flexShrink: 0, marginTop: 5 }} />
+                <span style={{ width: 5, height: 5, borderRadius: 1, background: '#6B7280', flexShrink: 0, marginTop: 5 }} />
                 <span style={{ fontSize: 11, color: C.textDark, lineHeight: 1.5 }}>{p}</span>
               </div>
             ))}
@@ -167,16 +166,19 @@ export default function RulesView({ currentIndustry }) {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      {/* Header */}
+      {/* Page Header */}
+      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Industry Rules</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>業種別対応ルール・注意事項</div>
+      </div>
+
+      {/* Active category notice */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 500, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>
-          Industry Rules
-        </div>
         <div style={{ fontSize: 13, color: C.textMid }}>
           業種別の架電ゴールデンタイム・社長の行動パターン・刺さる痛点
         </div>
         {activeCategory && (
-          <div style={{ marginTop: 8, fontSize: 11, color: GOLD, fontWeight: 600 }}>
+          <div style={{ marginTop: 8, fontSize: 11, color: NAVY, fontWeight: 600, borderLeft: '3px solid ' + NAVY, paddingLeft: 8 }}>
             現在のリスト業種「{currentIndustry}」→ {activeCategory} カテゴリを強調表示中
           </div>
         )}

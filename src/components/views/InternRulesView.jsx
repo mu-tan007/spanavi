@@ -126,15 +126,13 @@ function RuleCard({ rule, refCallback }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         background: '#ffffff',
-        borderRadius: 12,
-        boxShadow: hovered
-          ? '0 4px 16px rgba(13,34,71,0.12)'
-          : '0 1px 4px rgba(13,34,71,0.07)',
-        borderLeft: `2px solid ${hovered ? GOLD : 'transparent'}`,
+        borderRadius: 4,
+        border: '1px solid #E5E7EB',
+        borderLeft: `3px solid ${hovered ? NAVY : '#E5E7EB'}`,
         padding: '20px 22px',
         display: 'flex',
         gap: 16,
-        transition: 'box-shadow 200ms ease, border-color 200ms ease',
+        transition: 'border-color 200ms ease',
         cursor: 'default',
       }}
     >
@@ -145,16 +143,13 @@ function RuleCard({ rule, refCallback }) {
         minWidth: 40,
         borderRadius: '50%',
         background: NAVY,
-        color: GOLD,
+        color: rule.no === 1 ? GOLD : '#fff',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontWeight: 700,
         fontSize: 13,
         flexShrink: 0,
-        outline: hovered ? `2px solid ${GOLD}` : 'none',
-        outlineOffset: 2,
-        transition: 'outline 200ms ease',
       }}>
         {rule.no}
       </div>
@@ -237,18 +232,24 @@ export default function InternRulesView() {
   }, []);
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9FAFB', paddingBottom: 64 }}>
+    <div style={{ minHeight: '100vh', background: '#F8F9FA', paddingBottom: 64 }}>
+
+      {/* Page Header */}
+      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>22 Rules</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>インターン22か条</div>
+      </div>
 
       {/* ヘッダーエリア */}
       <div
         ref={headerRef}
-        style={{ background: NAVY, borderRadius: 12, padding: '36px 40px', marginBottom: 32 }}
+        style={{ background: NAVY, border: '1px solid #E5E7EB', borderRadius: 4, padding: '36px 40px', marginBottom: 32 }}
       >
-        <div style={{ width: 48, height: 4, background: GOLD, borderRadius: 2, marginBottom: 16 }} />
+        <div style={{ width: 48, height: 4, background: '#1E40AF', borderRadius: 2, marginBottom: 16 }} />
         <h1 style={{ fontSize: 28, fontWeight: 700, color: '#ffffff', marginBottom: 8, letterSpacing: '0.02em' }}>
           インターン22箇条
         </h1>
-        <p style={{ color: GOLD, fontSize: 13, fontWeight: 500 }}>
+        <p style={{ color: '#9CA3AF', fontSize: 13, fontWeight: 500 }}>
           M&amp;A Sourcing Partners, Inc.
         </p>
       </div>
@@ -273,7 +274,7 @@ export default function InternRulesView() {
         ref={footerRef}
         style={{ marginTop: 64, textAlign: 'center', padding: '0 16px' }}
       >
-        <p style={{ color: GOLD, fontSize: 22, fontWeight: 700, marginBottom: 12, letterSpacing: '0.04em' }}>
+        <p style={{ color: '#0D2247', fontSize: 22, fontWeight: 700, marginBottom: 12, letterSpacing: '0.04em' }}>
           以上、22箇条。
         </p>
         <p style={{ color: '#4B5563', fontSize: 15, marginBottom: 8 }}>

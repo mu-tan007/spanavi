@@ -91,16 +91,16 @@ function PersonDetailModal({ person, callRecords, appoRecords, sessions, members
       onClick={onClose}
     >
       <div
-        style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 700, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
+        style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: '100%', maxWidth: 700, maxHeight: '90vh', overflowY: 'auto' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ background: NAVY, borderRadius: '16px 16px 0 0', padding: '20px 24px', color: '#fff', display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ width: 48, height: 48, borderRadius: '50%', background: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: NAVY, flexShrink: 0 }}>
+        <div style={{ background: NAVY, borderRadius: '4px 4px 0 0', padding: '12px 24px', color: '#fff', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#1E40AF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
             {person.charAt(0)}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{person}</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>{person}</div>
             {meta && <div style={{ fontSize: 11, color: '#93C5FD', marginTop: 2 }}>{meta}</div>}
           </div>
           {dateLabel && (
@@ -109,7 +109,7 @@ function PersonDetailModal({ person, callRecords, appoRecords, sessions, members
               <div style={{ fontSize: 11, fontWeight: 600 }}>{dateLabel}</div>
             </div>
           )}
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 13, marginLeft: 8 }}>✕</button>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 13, marginLeft: 8 }}>✕</button>
         </div>
 
         {/* Body */}
@@ -122,9 +122,9 @@ function PersonDetailModal({ person, callRecords, appoRecords, sessions, members
               { label: '社長接続',   value: totalConnect, sub: totalCalls > 0 ? `${(totalConnect / totalCalls * 100).toFixed(1)}%` : null },
               { label: 'アポ取得',   value: totalAppo,    sub: totalCalls > 0 ? `${(totalAppo / totalCalls * 100).toFixed(1)}%` : null },
             ].map(({ label, value, sub }) => (
-              <div key={label} style={{ background: '#F8F9FA', borderRadius: 10, padding: '14px 16px' }}>
-                <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: NAVY, fontFamily: "'JetBrains Mono'" }}>{value}</div>
+              <div key={label} style={{ background: '#F8F9FA', border: '1px solid #E5E7EB', borderRadius: 4, padding: '14px 16px' }}>
+                <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, marginBottom: 6 }}>{label}</div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums' }}>{value}</div>
                 {sub && <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 2 }}>{sub}</div>}
               </div>
             ))}
@@ -133,20 +133,25 @@ function PersonDetailModal({ person, callRecords, appoRecords, sessions, members
           {/* Hourly chart */}
           {hourlyChartData.length > 0 && (
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: NAVY, marginBottom: 10 }}>時間帯別架電</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid #0D2247', paddingBottom: 6, marginBottom: 12 }}>時間帯別架電</div>
               <ResponsiveContainer width='100%' height={170}>
                 <BarChart data={hourlyChartData} margin={{ top: 0, right: 8, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray='3 3' stroke='#f0f0f0' />
                   <XAxis dataKey='hour' tick={{ fontSize: 9 }} tickFormatter={h => `${h}時`} />
                   <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
-                  <Tooltip formatter={(v, name) => [v, { normal: '架電（接続なし）', ceo: '社長接続', appo: 'アポ取得' }[name] || name]} />
+                  <Tooltip
+                    formatter={(v, name) => [v, { normal: '架電（接続なし）', ceo: '社長接続', appo: 'アポ取得' }[name] || name]}
+                    contentStyle={{ background: '#0D2247', borderRadius: 4, color: '#fff', padding: '8px 12px', fontSize: 11, border: 'none' }}
+                    labelStyle={{ color: '#fff' }}
+                    itemStyle={{ color: '#fff' }}
+                  />
                   <Bar dataKey='normal' stackId='a' fill={NAVY} name='normal' />
-                  <Bar dataKey='ceo'    stackId='a' fill='#3B82F6' name='ceo' />
-                  <Bar dataKey='appo'   stackId='a' fill='#10B981' name='appo' />
+                  <Bar dataKey='ceo'    stackId='a' fill='#1E40AF' name='ceo' />
+                  <Bar dataKey='appo'   stackId='a' fill='#6B7280' name='appo' />
                 </BarChart>
               </ResponsiveContainer>
               <div style={{ display: 'flex', gap: 16, justifyContent: 'center', fontSize: 10, color: '#6B7280', marginTop: 6 }}>
-                {[['#0D2247','架電（接続なし）'],['#3B82F6','社長接続'],['#10B981','アポ取得']].map(([bg, label]) => (
+                {[['#0D2247','架電（接続なし）'],['#1E40AF','社長接続'],['#6B7280','アポ取得']].map(([bg, label]) => (
                   <span key={label}><span style={{ display: 'inline-block', width: 10, height: 10, background: bg, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />{label}</span>
                 ))}
               </div>
@@ -156,16 +161,16 @@ function PersonDetailModal({ person, callRecords, appoRecords, sessions, members
           {/* Session table */}
           {sessionRows.length > 0 ? (
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: NAVY, marginBottom: 8 }}>セッション一覧</div>
-              <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E5E5' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr', padding: '7px 14px', background: '#F8F9FA', fontSize: 10, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid #E5E5E5' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid #0D2247', paddingBottom: 6, marginBottom: 12 }}>セッション一覧</div>
+              <div style={{ border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr', background: '#0D2247', color: '#fff', fontSize: 13, fontWeight: 600, padding: '8px 16px', verticalAlign: 'middle' }}>
                   <span>開始</span><span>終了</span><span>架電数</span>
                 </div>
                 {sessionRows.map((row, i) => (
-                  <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr', padding: '7px 14px', fontSize: 11, borderBottom: i < sessionRows.length - 1 ? '1px solid #F3F2F2' : 'none', background: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 12 }}>{row.startStr}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 12, color: row.isLive ? '#10B981' : '#374151' }}>{row.endStr}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 600 }}>{row.sessionCalls}</span>
+                  <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr', padding: '8px 16px', fontSize: 11, borderBottom: i < sessionRows.length - 1 ? '1px solid #E5E7EB' : 'none', background: i % 2 === 0 ? '#fff' : '#F8F9FA' }}>
+                    <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{row.startStr}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 12, fontVariantNumeric: 'tabular-nums', color: row.isLive ? '#10B981' : '#374151' }}>{row.endStr}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{row.sessionCalls}</span>
                   </div>
                 ))}
               </div>
@@ -365,18 +370,19 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
     });
   }, [appoData, rankDateRange]);
 
-  const tabBtn = (active, color) => ({
+  const tabBtn = (active) => ({
     padding: '6px 12px', fontSize: 11, fontWeight: active ? 600 : 400, cursor: 'pointer',
-    background: 'transparent', border: 'none', borderBottom: '2px solid ' + (active ? (color || '#C8A84B') : 'transparent'),
-    color: active ? '#032D60' : '#9CA3AF', borderRadius: 0, fontFamily: "'Noto Sans JP'",
+    background: 'transparent', border: 'none',
+    borderBottom: '2px solid ' + (active ? '#0D2247' : 'transparent'),
+    color: active ? '#0D2247' : '#9CA3AF', borderRadius: 0, fontFamily: "'Noto Sans JP'",
     transition: 'all 0.15s',
   });
   const dateInputStyle = { padding: '3px 6px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, color: C.textDark, outline: 'none', fontFamily: "'Noto Sans JP'" };
 
-  const simplePeriodSelector = (period, setPeriod, from, setFrom, to, setTo, accent) => (
-    <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid #E5E5E5' }}>
+  const simplePeriodSelector = (period, setPeriod, from, setFrom, to, setTo) => (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid #E5E7EB' }}>
       {[['day', '日'], ['week', '週'], ['month', '月'], ['custom', '期間指定']].map(([k, l]) => (
-        <button key={k} onClick={() => setPeriod(k)} style={tabBtn(period === k, accent)}>{l}</button>
+        <button key={k} onClick={() => setPeriod(k)} style={tabBtn(period === k)}>{l}</button>
       ))}
       {period === 'custom' && (
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -391,17 +397,23 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
   const TrendTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     return (
-      <div style={{ background: NAVY, borderRadius: 8, padding: '8px 12px', color: '#fff', fontSize: 11 }}>
+      <div style={{ background: '#0D2247', borderRadius: 4, padding: '8px 12px', color: '#fff', fontSize: 11 }}>
         <div style={{ fontWeight: 700, marginBottom: 4 }}>{label}週</div>
         <div>架電: {payload.find(p => p.dataKey === 'calls')?.value || 0}件</div>
         <div style={{ color: '#93C5FD' }}>接続: {payload.find(p => p.dataKey === 'connect')?.value || 0}件</div>
-        <div style={{ color: GOLD }}>アポ: {payload.find(p => p.dataKey === 'appo')?.value || 0}件</div>
+        <div style={{ color: '#9CA3AF' }}>アポ: {payload.find(p => p.dataKey === 'appo')?.value || 0}件</div>
       </div>
     );
   };
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
+      {/* Page Header */}
+      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Performance</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>個人・チーム パフォーマンス分析</div>
+      </div>
+
       {selectedPerson && (
         <PersonDetailModal
           person={selectedPerson}
@@ -437,9 +449,9 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
       />
 
       {/* セクション4: 成長トレンド */}
-      <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 16, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
+      <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: '18px 20px', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>成長トレンド（週次推移）</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid #0D2247', paddingBottom: 6 }}>成長トレンド（週次推移）</span>
           {trendLoading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
         </div>
         <ResponsiveContainer width='100%' height={200}>
@@ -449,22 +461,22 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
             <YAxis tick={{ fontSize: 9, fill: '#888' }} width={28} />
             <Tooltip content={<TrendTooltip />} />
             <Legend wrapperStyle={{ fontSize: 10 }} />
-            <Line type='monotone' dataKey='calls' stroke={NAVY} strokeWidth={2} dot={{ r: 3 }} name='架電数' />
-            <Line type='monotone' dataKey='connect' stroke='#3B82F6' strokeWidth={2} dot={{ r: 3 }} name='社長接続' />
-            <Line type='monotone' dataKey='appo' stroke={GOLD} strokeWidth={2} dot={{ r: 3 }} name='アポ' />
+            <Line type='monotone' dataKey='calls' stroke='#0D2247' strokeWidth={2} dot={{ r: 3 }} name='架電数' />
+            <Line type='monotone' dataKey='connect' stroke='#1E40AF' strokeWidth={2} dot={{ r: 3 }} name='社長接続' />
+            <Line type='monotone' dataKey='appo' stroke='#6B7280' strokeWidth={2} dot={{ r: 3 }} name='アポ' />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
 
       {/* セクション3+5: ランキング・チーム分析 */}
-      <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', marginBottom: 20, boxShadow: '0 2px 10px rgba(13,34,71,0.07)' }}>
+      <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: '18px 20px', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>活動ランキング・チーム分析</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>活動ランキング・チーム分析</span>
             {rankLoading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
           </div>
-          {simplePeriodSelector(rankPeriod, setRankPeriod, rankFrom, setRankFrom, rankTo, setRankTo, NAVY)}
+          {simplePeriodSelector(rankPeriod, setRankPeriod, rankFrom, setRankFrom, rankTo, setRankTo)}
         </div>
         <ActivityRankingSection
           records={rankRecords}

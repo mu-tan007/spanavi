@@ -236,207 +236,203 @@ export default function RoleplayView({ currentUser, userId }) {
   const currentDaySlots = getSlots(days[selectedDay]?.dateStr || '');
 
   return (
-    <div style={{ animation: "fadeIn 0.3s ease", display: "flex", gap: 20, minHeight: 520, position: "relative" }}>
-
-      {/* 左: AIロープレ */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.navy }}>AIロープレ</h2>
-        <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight,
-          flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300 }}>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: C.navy, marginBottom: 6 }}>工事中</div>
-            <div style={{ fontSize: 12, color: C.textLight }}>近日実装予定</div>
-          </div>
-        </div>
+    <div style={{ animation: "fadeIn 0.3s ease", display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* Page Header */}
+      <div style={{ marginBottom: 8, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Role Play</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>ロープレトレーニング管理</div>
       </div>
 
-      {/* 右: 代表とのロープレ予約 */}
-      <div style={{ width: 380, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14 }}>
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.navy }}>代表とのロープレ予約</h2>
+      <div style={{ display: "flex", gap: 20, minHeight: 520, position: "relative" }}>
 
-        {gcalError && (
-          <div style={{ fontSize: 11, color: C.red, background: C.redLight,
-            padding: "6px 10px", borderRadius: 6 }}>
-            {gcalError}
-          </div>
-        )}
-
-        {/* 日付タブ */}
-        <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: C.offWhite, borderBottom: "1px solid " + C.borderLight, gap: 8 }}>
-            <button onClick={() => { setWeekOffset(w => w - 1); setSelectedDay(0); }}
-              disabled={weekOffset === 0}
-              style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #C8A84B',
-                background: 'white', color: '#C8A84B',
-                fontWeight: 600, fontSize: 11, cursor: weekOffset === 0 ? 'default' : 'pointer',
-                flexShrink: 0, fontFamily: "'Noto Sans JP'",
-                opacity: weekOffset === 0 ? 0.4 : 1 }}>
-              ← 前の週
-            </button>
-            <div style={{ display: "flex", overflowX: "auto", flex: 1 }}>
-              {days.map((day, i) => (
-                <button key={i} onClick={() => setSelectedDay(i)}
-                  style={{ padding: "7px 10px", border: "none", cursor: "pointer", whiteSpace: "nowrap",
-                    background: "transparent",
-                    color: selectedDay === i ? C.navy : (day.isWeekend ? C.red : C.textMid),
-                    fontSize: 10, fontWeight: selectedDay === i ? 700 : 400,
-                    borderBottom: "2px solid " + (selectedDay === i ? C.gold : "transparent"),
-                    fontFamily: "'Noto Sans JP'" }}>
-                  {day.label}
-                </button>
-              ))}
-            </div>
-            <button onClick={() => { setWeekOffset(w => w + 1); setSelectedDay(0); }}
-              disabled={weekOffset >= 3}
-              style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #C8A84B',
-                background: 'white', color: '#C8A84B',
-                fontWeight: 600, fontSize: 11, cursor: weekOffset >= 3 ? 'default' : 'pointer',
-                flexShrink: 0, fontFamily: "'Noto Sans JP'",
-                opacity: weekOffset >= 3 ? 0.4 : 1 }}>
-              次の週 →
-            </button>
-          </div>
-
-          {/* スロット一覧 */}
-          <div style={{ padding: 12, maxHeight: 280, overflowY: "auto" }}>
-            {loadingBusy ? (
-              <div style={{ textAlign: "center", padding: 20, color: C.textLight, fontSize: 12 }}>読み込み中...</div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 5 }}>
-                {currentDaySlots.map((slot, si) => {
-                  const busy = isBusy(slot.startISO, slot.endISO);
-                  const booked = isBooked(slot.startISO);
-                  const past = isPast(slot.startISO);
-                  const disabled = busy || past;
-                  return (
-                    <button key={si}
-                      onClick={() => !disabled && !booked && setConfirmSlot({ ...slot, dayLabel: days[selectedDay].label })}
-                      disabled={disabled || booked}
-                      style={{ padding: "5px 0", borderRadius: 5, fontSize: 10, fontWeight: 600, textAlign: "center",
-                        cursor: disabled || booked ? "default" : "pointer",
-                        border: booked ? "1.5px solid " + C.navy : (disabled ? "1px solid " + C.borderLight : "1.5px solid " + C.gold),
-                        background: booked ? C.navy : (disabled ? C.offWhite : C.goldGlow),
-                        color: booked ? C.white : (disabled ? C.textLight : C.navy),
-                        fontFamily: "'JetBrains Mono', monospace" }}>
-                      {slot.startLabel}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            <div style={{ marginTop: 10, display: "flex", gap: 12, fontSize: 9, color: C.textLight, alignItems: "center" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ width: 10, height: 10, borderRadius: 2, background: C.goldGlow, border: "1.5px solid " + C.gold, display: "inline-block" }} />空き
-              </span>
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ width: 10, height: 10, borderRadius: 2, background: C.offWhite, border: "1px solid " + C.borderLight, display: "inline-block" }} />予定あり
-              </span>
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ width: 10, height: 10, borderRadius: 2, background: C.navy, display: "inline-block" }} />予約済
-              </span>
-              <span style={{ marginLeft: "auto" }}>
-                <button onClick={() => fetchBusy()} disabled={loadingBusy}
-                  style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, border: "1px solid " + C.borderLight,
-                    background: "transparent", color: C.textMid, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
-                  {loadingBusy ? '読込中...' : '更新'}
-                </button>
-              </span>
+        {/* 左: AIロープレ */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
+          <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0D2247', borderBottom: '2px solid #0D2247', paddingBottom: 6 }}>AIロープレ</h2>
+          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4,
+            flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300 }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#0D2247', marginBottom: 6 }}>工事中</div>
+              <div style={{ fontSize: 12, color: C.textLight }}>近日実装予定</div>
             </div>
           </div>
         </div>
 
-        {/* 予約完了メッセージ */}
-        {bookingSuccessMsg && (
-          <div style={{ background: "#f0faf4", border: "1px solid #34a853", borderRadius: 8,
-            padding: "10px 14px", fontSize: 12, fontWeight: 600, color: C.green }}>
-            {bookingSuccessMsg}
-          </div>
-        )}
+        {/* 右: 代表とのロープレ予約 */}
+        <div style={{ width: 380, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+          <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0D2247', borderBottom: '2px solid #0D2247', paddingBottom: 6 }}>代表とのロープレ予約</h2>
 
-        {/* 予約済み一覧 */}
-        <div style={{ background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight, overflow: "hidden" }}>
-          <div style={{ background: C.navy, padding: "8px 14px", fontSize: 11, fontWeight: 700, color: C.white }}>
-            予約済み一覧 {bookings.length > 0 && <span style={{ opacity: 0.7, fontSize: 10 }}>({bookings.length}件)</span>}
-          </div>
-          {bookings.length === 0 ? (
-            <div style={{ padding: "16px 14px", textAlign: "center", color: C.textLight, fontSize: 12 }}>予約はありません</div>
-          ) : (
-            <div style={{ maxHeight: 200, overflowY: "auto" }}>
-              {bookings.map(b => (
-                <div key={b.id} style={{ padding: "8px 14px", borderBottom: "1px solid " + C.borderLight,
-                  display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: C.navy }}>{b.dayLabel}</div>
-                    <div style={{ fontSize: 10, color: C.textMid, fontFamily: "'JetBrains Mono', monospace" }}>
-                      {b.startLabel} – {b.endLabel}
-                    </div>
-                    <div style={{ fontSize: 9, color: C.textLight, marginTop: 1 }}>{b.title}</div>
-                  </div>
-                  <button onClick={() => handleCancel(b)}
-                    style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5,
-                      border: "1px solid " + C.borderLight, background: "transparent",
-                      color: C.red, cursor: "pointer", fontFamily: "'Noto Sans JP'", flexShrink: 0 }}>
-                    キャンセル
-                  </button>
-                </div>
-              ))}
+          {gcalError && (
+            <div style={{ fontSize: 11, color: '#DC2626', background: '#DC26261a',
+              padding: "6px 10px", borderRadius: 4 }}>
+              {gcalError}
             </div>
           )}
-        </div>
-      </div>
 
-      {/* 予約確認モーダル */}
-      {confirmSlot && (
-        <div onClick={() => setConfirmSlot(null)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 9000,
-            display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ background: C.white, borderRadius: 14, padding: "28px 32px", width: 340,
-              boxShadow: "0 8px 40px rgba(0,0,0,0.25)" }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 6 }}>ロープレを予約する</div>
-            <div style={{ fontSize: 13, color: C.textMid, marginBottom: 16, lineHeight: 1.7 }}>
-              <strong style={{ color: C.navy }}>{confirmSlot.dayLabel}</strong>
-              {'　'}
-              <strong style={{ color: C.navy, fontFamily: "'JetBrains Mono', monospace" }}>
-                {confirmSlot.startLabel} – {confirmSlot.endLabel}
-              </strong>
+          {/* 日付タブ */}
+          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: '#F8F9FA', borderBottom: "1px solid #E5E7EB", gap: 8 }}>
+              <button onClick={() => { setWeekOffset(w => w - 1); setSelectedDay(0); }}
+                disabled={weekOffset === 0}
+                style={{ background: '#fff', color: '#0D2247', border: '1px solid #0D2247', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: weekOffset === 0 ? 'default' : 'pointer',
+                  flexShrink: 0, fontFamily: "'Noto Sans JP'",
+                  opacity: weekOffset === 0 ? 0.4 : 1 }}>
+                ← 前の週
+              </button>
+              <div style={{ display: "flex", overflowX: "auto", flex: 1 }}>
+                {days.map((day, i) => (
+                  <button key={i} onClick={() => setSelectedDay(i)}
+                    style={{ padding: "7px 10px", border: "none", cursor: "pointer", whiteSpace: "nowrap",
+                      background: "transparent",
+                      color: selectedDay === i ? '#0D2247' : (day.isWeekend ? C.red : C.textMid),
+                      fontSize: 10, fontWeight: selectedDay === i ? 700 : 400,
+                      borderBottom: "2px solid " + (selectedDay === i ? '#0D2247' : "transparent"),
+                      fontFamily: "'Noto Sans JP'" }}>
+                    {day.label}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => { setWeekOffset(w => w + 1); setSelectedDay(0); }}
+                disabled={weekOffset >= 3}
+                style={{ background: '#fff', color: '#0D2247', border: '1px solid #0D2247', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: weekOffset >= 3 ? 'default' : 'pointer',
+                  flexShrink: 0, fontFamily: "'Noto Sans JP'",
+                  opacity: weekOffset >= 3 ? 0.4 : 1 }}>
+                次の週 →
+              </button>
             </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 10, fontWeight: 600, color: C.textMid, display: "block", marginBottom: 5 }}>
-                メールアドレス（通知送付先）
-              </label>
-              <input
-                type="email"
-                value={modalEmail}
-                onChange={e => setModalEmail(e.target.value)}
-                placeholder="your@email.com"
-                style={{ width: "100%", padding: "7px 10px", borderRadius: 6,
-                  border: "1px solid " + C.borderLight, fontSize: 12, outline: "none",
-                  fontFamily: "'Noto Sans JP'", boxSizing: "border-box" }}
-              />
-              <div style={{ fontSize: 9, color: C.textLight, marginTop: 4 }}>
-                予約30分前にメール・10分前にポップアップ通知が届きます
+
+            {/* スロット一覧 */}
+            <div style={{ padding: 12, maxHeight: 280, overflowY: "auto" }}>
+              {loadingBusy ? (
+                <div style={{ textAlign: "center", padding: 20, color: C.textLight, fontSize: 12 }}>読み込み中...</div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 5 }}>
+                  {currentDaySlots.map((slot, si) => {
+                    const busy = isBusy(slot.startISO, slot.endISO);
+                    const booked = isBooked(slot.startISO);
+                    const past = isPast(slot.startISO);
+                    const disabled = busy || past;
+                    return (
+                      <button key={si}
+                        onClick={() => !disabled && !booked && setConfirmSlot({ ...slot, dayLabel: days[selectedDay].label })}
+                        disabled={disabled || booked}
+                        style={{ padding: "5px 0", borderRadius: 4, fontSize: 10, fontWeight: 600, textAlign: "center",
+                          cursor: disabled || booked ? "default" : "pointer",
+                          border: booked ? "1.5px solid #0D2247" : (disabled ? "1px solid #E5E7EB" : "1.5px solid #1E40AF"),
+                          background: booked ? '#0D2247' : (disabled ? '#F8F9FA' : '#1E40AF1a'),
+                          color: booked ? '#fff' : (disabled ? '#9CA3AF' : '#0D2247'),
+                          fontFamily: "'JetBrains Mono', monospace" }}>
+                        {slot.startLabel}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <div style={{ marginTop: 10, display: "flex", gap: 12, fontSize: 9, color: C.textLight, alignItems: "center" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: '#1E40AF1a', border: "1.5px solid #1E40AF", display: "inline-block" }} />空き
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: '#F8F9FA', border: "1px solid #E5E7EB", display: "inline-block" }} />予定あり
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: '#0D2247', display: "inline-block" }} />予約済
+                </span>
+                <span style={{ marginLeft: "auto" }}>
+                  <button onClick={() => fetchBusy()} disabled={loadingBusy}
+                    style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, border: "1px solid #E5E7EB",
+                      background: "transparent", color: C.textMid, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
+                    {loadingBusy ? '読込中...' : '更新'}
+                  </button>
+                </span>
               </div>
             </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={handleBook} disabled={bookingLoading}
-                style={{ flex: 1, padding: "9px", borderRadius: 8, border: "none",
-                  background: bookingLoading ? C.borderLight : C.navy,
-                  color: bookingLoading ? C.textLight : C.white,
-                  fontSize: 12, fontWeight: 700, cursor: bookingLoading ? "default" : "pointer",
-                  fontFamily: "'Noto Sans JP'" }}>
-                {bookingLoading ? '予約中...' : '予約する'}
-              </button>
-              <button onClick={() => setConfirmSlot(null)}
-                style={{ flex: 1, padding: "9px", borderRadius: 8,
-                  border: "1px solid " + C.borderLight, background: "transparent",
-                  color: C.textMid, fontSize: 12, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
-                キャンセル
-              </button>
+          </div>
+
+          {/* 予約完了メッセージ */}
+          {bookingSuccessMsg && (
+            <div style={{ background: "#f0faf4", border: "1px solid #34a853", borderRadius: 4,
+              padding: "10px 14px", fontSize: 12, fontWeight: 600, color: C.green }}>
+              {bookingSuccessMsg}
             </div>
+          )}
+
+          {/* 予約済み一覧 */}
+          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ background: '#0D2247', padding: "8px 14px", fontSize: 11, fontWeight: 700, color: '#fff' }}>
+              予約済み一覧 {bookings.length > 0 && <span style={{ opacity: 0.7, fontSize: 10 }}>({bookings.length}件)</span>}
+            </div>
+            {bookings.length === 0 ? (
+              <div style={{ padding: "16px 14px", textAlign: "center", color: C.textLight, fontSize: 12 }}>予約はありません</div>
+            ) : (
+              <div style={{ maxHeight: 200, overflowY: "auto" }}>
+                {bookings.map(b => (
+                  <div key={b.id} style={{ padding: "8px 14px", borderBottom: "1px solid #E5E7EB",
+                    display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2247' }}>{b.dayLabel}</div>
+                      <div style={{ fontSize: 10, color: C.textMid, fontFamily: "'JetBrains Mono', monospace" }}>
+                        {b.startLabel} – {b.endLabel}
+                      </div>
+                      <div style={{ fontSize: 9, color: C.textLight, marginTop: 1 }}>{b.title}</div>
+                    </div>
+                    <button onClick={() => handleCancel(b)}
+                      style={{ background: '#fff', color: '#DC2626', border: '1px solid #DC2626', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "'Noto Sans JP'", flexShrink: 0 }}>
+                      キャンセル
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      )}
+
+        {/* 予約確認モーダル */}
+        {confirmSlot && (
+          <div onClick={() => setConfirmSlot(null)}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 9000,
+              display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: "28px 32px", width: 340 }}>
+              <div style={{ background: '#0D2247', color: '#fff', padding: '12px 24px', fontWeight: 600, fontSize: 15, borderRadius: '4px 4px 0 0', margin: '-28px -32px 20px -32px' }}>ロープレを予約する</div>
+              <div style={{ fontSize: 13, color: C.textMid, marginBottom: 16, lineHeight: 1.7 }}>
+                <strong style={{ color: '#0D2247' }}>{confirmSlot.dayLabel}</strong>
+                {'　'}
+                <strong style={{ color: '#0D2247', fontFamily: "'JetBrains Mono', monospace" }}>
+                  {confirmSlot.startLabel} – {confirmSlot.endLabel}
+                </strong>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 10, fontWeight: 600, color: C.textMid, display: "block", marginBottom: 5 }}>
+                  メールアドレス（通知送付先）
+                </label>
+                <input
+                  type="email"
+                  value={modalEmail}
+                  onChange={e => setModalEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  style={{ width: "100%", padding: "7px 10px", borderRadius: 4,
+                    border: "1px solid #E5E7EB", fontSize: 12, outline: "none",
+                    fontFamily: "'Noto Sans JP'", boxSizing: "border-box" }}
+                />
+                <div style={{ fontSize: 9, color: C.textLight, marginTop: 4 }}>
+                  予約30分前にメール・10分前にポップアップ通知が届きます
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={handleBook} disabled={bookingLoading}
+                  style={{ flex: 1, background: bookingLoading ? '#E5E7EB' : '#0D2247', color: bookingLoading ? '#9CA3AF' : '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: bookingLoading ? "default" : "pointer",
+                    fontFamily: "'Noto Sans JP'" }}>
+                  {bookingLoading ? '予約中...' : '予約する'}
+                </button>
+                <button onClick={() => setConfirmSlot(null)}
+                  style={{ flex: 1, background: '#fff', color: '#0D2247', border: '1px solid #0D2247', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
+                  キャンセル
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
