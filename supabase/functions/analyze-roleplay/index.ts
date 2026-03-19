@@ -10,8 +10,35 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
-// Whisper API の上限 25 MB（余裕を持って 24 MB に設定）
-const WHISPER_MAX_BYTES = 24 * 1024 * 1024
+// Whisper の上限: 25 MB
+const WHISPER_MAX_BYTES = 25 * 1024 * 1024
+
+// 拡張子 → Whisper 送信時の拡張子（非対応形式を最も近い対応形式にマッピング）
+// Whisper 対応: mp3, mp4, mpeg, mpga, m4a, wav, webm, flac, ogg
+const EXT_ALIAS: Record<string, string> = {
+  mov: 'mp4',   // QuickTime ≒ MP4 コンテナ
+  aac: 'm4a',   // AAC 生ストリーム → M4A として送信
+  wma: 'mp3',
+  aiff: 'wav',
+  avi: 'mp4',
+  '3gp': 'mp4',
+}
+
+// MIME タイプマップ
+const MIME_MAP: Record<string, string> = {
+  mp3: 'audio/mpeg',
+  mp4: 'audio/mp4',
+  m4a: 'audio/mp4',
+  wav: 'audio/wav',
+  webm: 'audio/webm',
+  ogg: 'audio/ogg',
+  flac: 'audio/flac',
+  mpeg: 'audio/mpeg',
+  mpga: 'audio/mpeg',
+}
+
+// ストリーム形式（バイト切り詰めが安全な形式）
+const STREAM_FORMATS = new Set(['mp3', 'mpeg', 'mpga', 'wav', 'flac'])
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -36,7 +63,7 @@ Deno.serve(async (req) => {
 
     // ── 2. 音声ファイルをダウンロード ─────────────────────────────────────
     let audioBuffer: ArrayBuffer
-    let ext = 'mp4'
+    let rawExt = 'mp4'
 
     if (storage_path) {
       const { data: fileData, error: downloadError } = await supabase.storage
@@ -50,7 +77,7 @@ Deno.serve(async (req) => {
         )
       }
       audioBuffer = await fileData.arrayBuffer()
-      ext = storage_path.split('.').pop()?.toLowerCase() || 'mp4'
+      rawExt = storage_path.split('.').pop()?.toLowerCase() || 'mp4'
     } else {
       const res = await fetch(recording_url, { headers: { 'User-Agent': 'Spanavi/1.0' } })
       if (!res.ok) {
@@ -62,28 +89,34 @@ Deno.serve(async (req) => {
       }
       audioBuffer = await res.arrayBuffer()
       const urlPath = new URL(recording_url).pathname
-      ext = urlPath.split('.').pop()?.toLowerCase() || 'mp4'
+      rawExt = urlPath.split('.').pop()?.toLowerCase() || 'mp4'
     }
 
-    // ── 3. Whisper API 上限（25 MB）を超える場合は先頭 24 MB に切り詰め ──
-    let truncated = false
+    // ── 3. 形式を Whisper 対応形式に正規化 ───────────────────────────────
+    const whisperExt = EXT_ALIAS[rawExt] ?? rawExt
+    const contentType = MIME_MAP[whisperExt] ?? 'audio/mp4'
+
+    // ── 4. サイズ処理 ─────────────────────────────────────────────────────
+    // MP3 / WAV / FLAC はストリーム形式なのでバイト切り詰めが安全
+    // MP4 / M4A / MOV などコンテナ形式はヘッダー破損を防ぐため切り詰めない
+    let finalBuffer = audioBuffer
+    let sizeNote = ''
+
     if (audioBuffer.byteLength > WHISPER_MAX_BYTES) {
-      console.log(`[analyze-roleplay] File too large (${audioBuffer.byteLength} bytes), truncating to ${WHISPER_MAX_BYTES} bytes`)
-      audioBuffer = audioBuffer.slice(0, WHISPER_MAX_BYTES)
-      truncated = true
+      if (STREAM_FORMATS.has(whisperExt)) {
+        finalBuffer = audioBuffer.slice(0, WHISPER_MAX_BYTES - 512 * 1024) // 24.5 MB
+        sizeNote = '（ファイルが大きいため冒頭部分のみ分析）'
+        console.log(`[analyze-roleplay] Truncated stream file (${rawExt}) to ${finalBuffer.byteLength} bytes`)
+      } else {
+        // コンテナ形式: そのまま送って Whisper に判断させる
+        // 25 MB 超でも Whisper が受け入れる場合があるため試みる
+        console.log(`[analyze-roleplay] Container format (${rawExt}) is ${audioBuffer.byteLength} bytes, sending as-is`)
+      }
     }
 
-    const mimeMap: Record<string, string> = {
-      mp3: 'audio/mpeg', mp4: 'audio/mp4', m4a: 'audio/mp4',
-      mov: 'video/quicktime', wav: 'audio/wav', webm: 'audio/webm', ogg: 'audio/ogg',
-    }
-    const contentType = mimeMap[ext] || 'audio/mp4'
-    // MP3 は切り詰めても正常にデコードできる。MP4/MOV は切り詰め後に
-    // Whisper が失敗することがあるため、その場合は拡張子を mp3 に偽装して再試行する
-    const whisperExt = truncated && (ext === 'mp4' || ext === 'm4a' || ext === 'mov') ? 'mp3' : ext
-    const audioBlob = new Blob([audioBuffer], { type: truncated ? 'audio/mpeg' : contentType })
+    const audioBlob = new Blob([finalBuffer], { type: contentType })
 
-    // ── 4. OpenAI Whisper で文字起こし ─────────────────────────────────
+    // ── 5. OpenAI Whisper で文字起こし ─────────────────────────────────
     const openaiKey = Deno.env.get('OPENAI_API_KEY')
     if (!openaiKey) {
       await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
@@ -97,6 +130,8 @@ Deno.serve(async (req) => {
     formData.append('file', audioBlob, `recording.${whisperExt}`)
     formData.append('model', 'whisper-1')
     formData.append('language', 'ja')
+
+    console.log(`[analyze-roleplay] Sending to Whisper: ext=${whisperExt}, size=${finalBuffer.byteLength} bytes`)
 
     const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
@@ -117,7 +152,7 @@ Deno.serve(async (req) => {
     const whisperData = await whisperRes.json()
     const transcript: string = whisperData.text || ''
 
-    // ── 5. Claude でロープレ分析 ────────────────────────────────────────
+    // ── 6. Claude でロープレ分析 ────────────────────────────────────────
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!anthropicKey) {
       await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
@@ -127,9 +162,8 @@ Deno.serve(async (req) => {
       )
     }
 
-    const truncatedNote = truncated ? '\n※ファイルが大きいため、冒頭部分のみを分析対象としています。' : ''
     const prompt = `あなたはM&Aアドバイザリー企業のテレアポロープレコーチです。
-以下はインターン生・メンバーのロープレ録音の文字起こしです。${truncatedNote}
+以下はインターン生・メンバーのロープレ録音の文字起こしです。${sizeNote}
 内容を分析し、必ず以下のJSONフォーマットのみで回答してください（他のテキストなし）：
 
 {
@@ -184,7 +218,7 @@ ${transcript}`
       console.error('[analyze-roleplay] JSON parse error:', parseErr, 'raw:', claudeText)
     }
 
-    // ── 6. roleplay_sessions を更新 ────────────────────────────────────
+    // ── 7. roleplay_sessions を更新 ────────────────────────────────────
     const { error: updateError } = await supabase
       .from('roleplay_sessions')
       .update({
