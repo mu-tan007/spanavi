@@ -423,7 +423,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
           );
         })()}
 
-        {/* 売上高フィルター */}
+        {/* 売上高フィルター + 都道府県フィルター（同一行） */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#706E6B', marginBottom: 10, flexWrap: 'wrap' }}>
           <span style={{ whiteSpace: 'nowrap' }}>売上高</span>
           {[
@@ -444,12 +444,10 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
               </select>
             </React.Fragment>
           ))}
-        </div>
 
-        {/* 都道府県フィルター */}
-        {availablePrefs.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#706E6B', marginBottom: 10 }}>
-            <div style={{ position: 'relative' }}>
+          {/* 都道府県フィルター（売上高の右隣） */}
+          {availablePrefs.length > 0 && (
+            <div style={{ position: 'relative', marginLeft: 12 }}>
               {prefDropOpen && (
                 <div onClick={() => setPrefDropOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 }} />
               )}
@@ -491,8 +489,8 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* CSV取込 / リスト削除（管理者のみ） */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
