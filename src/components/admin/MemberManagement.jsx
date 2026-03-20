@@ -134,6 +134,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
 
   const th = { padding: '8px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#ffffff', background: '#0D2247', borderBottom: '2px solid #0D2247' };
   const thAlign = { '入社日': 'right', 'ステータス': 'center', 'マイページ': 'center', '操作': 'center' };
+  const thWidth = { 'ランク': 128 };
   const td = { padding: '8px 16px', fontSize: 13, color: '#374151', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' };
   const COLS = ['氏名', '役職', 'ランク', '入社日', 'ステータス', 'マイページ', '操作'];
 
@@ -171,7 +172,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr>
-                      {COLS.map(h => <th key={h} style={{ ...th, textAlign: thAlign[h] || 'left' }}>{h}</th>)}
+                      {COLS.map(h => <th key={h} style={{ ...th, textAlign: thAlign[h] || 'left', ...(thWidth[h] ? { width: thWidth[h], maxWidth: thWidth[h] } : {}) }}>{h}</th>)}
                     </tr>
                   </thead>
                   <tbody>
@@ -243,12 +244,12 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                           </td>
                           <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap' }}>
                             {isEditing ? (
-                              <div style={{ display: 'flex', gap: 6 }}>
+                              <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
                                 <button onClick={() => saveEdit(m.id)} disabled={saving} style={btn('primary')}>保存</button>
                                 <button onClick={() => setEditId(null)} style={btn()}>✕</button>
                               </div>
                             ) : (
-                              <div style={{ display: 'flex', gap: 6 }}>
+                              <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
                                 <button onClick={() => startEdit(m)} style={btn('ghost')}>編集</button>
                                 <button onClick={() => setDeleteConfirm(m)} style={btn('danger')}>削除</button>
                               </div>
