@@ -93,13 +93,14 @@ Deno.serve(async (req) => {
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
-      // ファイルサイズ事前チェック（Content-Lengthがある場合）
+      // ファイルサイズ事前チェック（Content-Lengthがある場合 かつ 100MB超のみ早期エラー）
+      // 25MB はWhisperの上限だが、サーバー側でトリミング処理するため100MB超のみここで弾く
       const contentLength = res.headers.get('content-length')
-      if (contentLength && parseInt(contentLength) > WHISPER_MAX_BYTES) {
+      if (contentLength && parseInt(contentLength) > 100 * 1024 * 1024) {
         const sizeMB = Math.round(parseInt(contentLength) / 1024 / 1024)
         await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
         return new Response(
-          JSON.stringify({ error: `ファイルが大きすぎます（${sizeMB}MB）。AI分析はMP3/M4A形式で25MB以下のファイルが必要です。動画から音声を抽出してアップロードしてください。` }),
+          JSON.stringify({ error: `ファイルが大きすぎます（${sizeMB}MB）。100MB以下のファイルをご利用ください。` }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
