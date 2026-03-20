@@ -323,11 +323,11 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
         borderRadius: 4, overflow: "hidden",
       }}>
         <div style={{
-          display: "grid", gridTemplateColumns: "0.4fr 200px 90px 30px 0.3fr 120px 60px",
+          display: "grid", gridTemplateColumns: "0.4fr 200px 90px 30px 0.3fr 120px",
           padding: "8px 16px", background: "#0D2247",
           fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
         }}>
-          <span style={{ minWidth: 0 }}>クライアント</span><span style={{ textAlign: "center" }}>種別</span><span style={{ minWidth: 0 }}>業種</span><span style={{ textAlign: "right" }}>社数</span><span style={{ textAlign: "center", minWidth: 0 }}>担当者</span><span style={{ textAlign: "center" }}>おすすめ度</span><span></span>
+          <span style={{ minWidth: 0 }}>クライアント</span><span style={{ textAlign: "center" }}>種別</span><span style={{ minWidth: 0 }}>業種</span><span style={{ textAlign: "right" }}>社数</span><span style={{ textAlign: "center", minWidth: 0 }}>担当者</span><span style={{ textAlign: "center" }}>おすすめ度</span>
         </div>
         {displayFilter !== 'archived' && <div style={{ maxHeight: 600, overflowY: "auto" }}>
           {(() => {
@@ -353,7 +353,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                   const i = idx++;
                   return (
                     <div key={list.id} style={{
-                      display: "grid", gridTemplateColumns: "0.4fr 200px 90px 30px 0.3fr 120px 60px",
+                      display: "grid", gridTemplateColumns: "0.4fr 200px 90px 30px 0.3fr 120px",
                       padding: "10px 16px",
                       borderBottom: "1px solid #F3F2F2",
                       fontSize: 12, alignItems: "center",
@@ -361,6 +361,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                       opacity: list.status === "架電停止" ? 0.4 : 1,
                       animation: "fadeIn 0.2s ease " + (i * 0.015) + "s both",
                       borderLeft: "2px solid transparent",
+                      position: "relative",
                     }}
                     onMouseEnter={e => { e.currentTarget.style.background = "#EAF4FF"; e.currentTarget.style.borderLeft = "2px solid #0D2247"; }}
                     onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderLeft = "2px solid transparent"; }}
@@ -374,8 +375,8 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                       <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textMid, textAlign: "right" }}>{list.count.toLocaleString()}</span>
                       <span style={{ color: C.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }}>{list.manager}</span>
                       <span style={{ display: "flex", justifyContent: "center" }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
-                      <span style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
-                        {isAdmin && <>
+                      {isAdmin && (
+                        <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 4 }}>
                           <button onClick={() => handleOpenEdit(list)} title="編集" style={{
                             width: 26, height: 26, borderRadius: 4, background: C.offWhite,
                             border: "1px solid " + C.border, color: C.textMid, cursor: "pointer",
@@ -386,8 +387,8 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                             border: "1px solid " + C.red + "20", color: C.red, cursor: "pointer",
                             fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center",
                           }}>✕</button>
-                        </>}
-                      </span>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
