@@ -591,7 +591,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
                   ? <img src={_avatarUrl} alt={currentUser} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : (currentUser || '?')[0]}
               </div>
-              <span style={{ fontSize: 12, color: currentTab === 'mypage' ? '#FFFFFF' : 'rgba(255,255,255,0.85)', fontWeight: currentTab === 'mypage' ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser}</span>
+              <span style={{ fontSize: 13, color: currentTab === 'mypage' ? '#FFFFFF' : 'rgba(255,255,255,0.75)', fontWeight: currentTab === 'mypage' ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser}</span>
             </div>
           );
         })()}
