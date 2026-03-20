@@ -136,7 +136,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
 
   const th = { padding: '8px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#ffffff', background: '#0D2247', borderBottom: '2px solid #0D2247' };
   const thAlign = { '入社日': 'right', 'ステータス': 'center', 'マイページ': 'center', '操作': 'center' };
-  const thWidth = { '氏名': 125, '役職': 127, 'ランク': 65, '入社日': 100, 'ステータス': 120, 'マイページ': 110, '操作': 150 };
+  const thWidth = { '氏名': 115, '役職': 115, 'ランク': 65, '入社日': 100, 'ステータス': 120, 'マイページ': 110, '操作': 150 };
   const thPad  = { 'ランク': '8px 2px 8px 6px', '入社日': '8px 6px 8px 2px' };
   const td = { padding: '8px 16px', fontSize: 11, color: '#374151', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' };
   const COLS = ['氏名', '役職', 'ランク', '入社日', 'ステータス', 'マイページ', '操作'];
