@@ -944,14 +944,14 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         {currentTab === "precheck" && <PreCheckView appoData={appoData} setAppoData={isAdmin ? setAppoData : null} setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "crm" && <CRMView isAdmin={isAdmin} clientData={clientData} setClientData={isAdmin ? setClientData : null} rewardMaster={rewardMaster} />}
 
-        {currentTab === "members" && <MembersView members={members} setMembers={isAdmin ? setMembers : null} />}
+        {currentTab === "members" && <MembersView members={members} setMembers={isAdmin ? setMembers : null} onDataRefetch={onDataRefetch} />}
         {currentTab === "search" && <CompanySearchView importedCSVs={importedCSVs} callListData={callListData} setCallingScreen={setCallingScreen} setImportedCSVs={setImportedCSVs} clientData={clientData} currentUser={currentUser} members={members} setCallFlowScreen={setCallFlowScreen} rewardMaster={rewardMaster} />}
         {currentTab === "stats" && <StatsView callListData={callListData} currentUser={currentUser} appoData={appoData} members={members} now={now} />}
         {currentTab === "recall" && <RecallListView callListData={callListData} supaRecalls={supaRecalls} onRecallComplete={handleSupaRecallComplete} members={memberNames} currentUser={currentUser} isAdmin={isAdmin} onRefresh={fetchSupaRecalls} setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "payroll" && <PayrollView members={members} appoData={appoData} isAdmin={isAdmin} setMembers={setMembers} onDataRefetch={onDataRefetch} currentUser={currentUser} />}
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView />}
-        {currentTab === "mypage" && isAdmin && <AdminView isAdmin={isAdmin} setCurrentTab={setCurrentTab} rewardMaster={rewardMaster} setRewardMaster={setRewardMaster} members={members} appoData={appoData} now={now} />}
+        {currentTab === "mypage" && isAdmin && <AdminView isAdmin={isAdmin} setCurrentTab={setCurrentTab} rewardMaster={rewardMaster} setRewardMaster={setRewardMaster} members={members} appoData={appoData} now={now} onDataRefetch={onDataRefetch} />}
         {currentTab === "mypage" && !isAdmin && <MyPageView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} />}
         {currentTab === "edu_performance" && <PerformanceView members={members} currentUser={currentUser} appoData={appoData} />}
         {currentTab === "edu_script" && <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} />}

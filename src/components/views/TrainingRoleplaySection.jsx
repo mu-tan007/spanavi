@@ -332,6 +332,17 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       ));
       setAnalyzeErrors(prev => { const n = { ...prev }; delete n[session.id]; return n; });
       setExpandedId(session.id);
+      // Slack通知
+      if (memberTeam) {
+        postRoleplayToSlack({
+          memberName: currentUser,
+          memberTeam,
+          partnerName: session.partner_name,
+          sessionDate: session.session_date,
+          aiFeedback: data.ai_feedback,
+          videoUrl: session.video_url || null,
+        }).catch(e => console.error('[Slack] post error:', e));
+      }
     } else {
       const msg = data?.error || error?.message || 'AI分析でエラーが発生しました。';
       setSessions(prev => prev.map(s => s.id === session.id ? { ...s, ai_status: 'error' } : s));

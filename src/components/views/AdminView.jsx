@@ -38,7 +38,7 @@ function ToastContainer({ toasts }) {
   );
 }
 
-export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRewardMaster, members = [], appoData = [], now }) {
+export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRewardMaster, members = [], appoData = [], now, onDataRefetch }) {
   const [activeTab, setActiveTab] = useState(() => {
     try { return localStorage.getItem('admin_activeTab') || 'members'; } catch { return 'members'; }
   });
@@ -113,6 +113,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
           <MemberManagement
             onToast={showToast}
             onViewMyPage={(name) => setViewingMember(name)}
+            onDataRefetch={onDataRefetch}
           />
         )}
         {activeTab === 'reward'  && (

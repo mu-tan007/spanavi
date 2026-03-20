@@ -25,7 +25,7 @@ const btn = (variant = 'default', extra = {}) => ({
   ...extra,
 });
 
-export default function MemberManagement({ onToast, onViewMyPage }) {
+export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editId, setEditId] = useState(null);
@@ -85,6 +85,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
     setMembers(prev => prev.filter(m => m.id !== id));
     setDeleteConfirm(null);
     onToast('削除しました ✓');
+    if (onDataRefetch) onDataRefetch();
   };
 
   const addMember = async () => {
@@ -109,6 +110,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
     setAddModal(false);
     setAddForm({ name: '', team: '', position: 'メンバー', rank: 'トレーニー', operation_start_date: '' });
     onToast('メンバーを追加しました ✓');
+    if (onDataRefetch) onDataRefetch();
   };
 
   // チーム別グループ化（入社日順にソート）
