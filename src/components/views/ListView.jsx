@@ -323,11 +323,11 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
         borderRadius: 4, overflow: "hidden",
       }}>
         <div style={{
-          display: "grid", gridTemplateColumns: "0.4fr 200px 90px 30px 0.3fr 120px",
+          display: "grid", gridTemplateColumns: "0.37fr 215px 110px 60px 0.3fr 120px 60px",
           padding: "8px 16px", background: "#0D2247",
           fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
         }}>
-          <span style={{ minWidth: 0 }}>クライアント</span><span style={{ textAlign: "center" }}>種別</span><span style={{ minWidth: 0 }}>業種</span><span style={{ textAlign: "right" }}>社数</span><span style={{ textAlign: "center", minWidth: 0 }}>担当者</span><span style={{ textAlign: "center" }}>おすすめ度</span>
+          <span style={{ minWidth: 0 }}>クライアント</span><span style={{ textAlign: "center" }}>種別</span><span style={{ minWidth: 0 }}>業種</span><span style={{ textAlign: "right" }}>社数</span><span style={{ textAlign: "center", minWidth: 0 }}>担当者</span><span style={{ textAlign: "center" }}>おすすめ度</span><span></span>
         </div>
         {displayFilter !== 'archived' && <div style={{ maxHeight: 600, overflowY: "auto" }}>
           {(() => {
@@ -353,7 +353,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                   const i = idx++;
                   return (
                     <div key={list.id} style={{
-                      display: "grid", gridTemplateColumns: "0.4fr 200px 90px 30px 0.3fr 120px",
+                      display: "grid", gridTemplateColumns: "0.37fr 215px 110px 60px 0.3fr 120px 60px",
                       padding: "10px 16px",
                       borderBottom: "1px solid #F3F2F2",
                       fontSize: 12, alignItems: "center",
