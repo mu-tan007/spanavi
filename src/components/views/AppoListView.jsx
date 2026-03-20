@@ -391,7 +391,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: 'right', display: 'block' }}>{a.meetDate.slice(5)}</span>
               <span style={{
                 display: 'block', textAlign: 'center', fontSize: 10, padding: "2px 6px",
-                borderLeft: `2px solid ${sc.color}`, color: sc.color,
+                color: sc.color,
                 whiteSpace: 'nowrap',
               }}>{a.status}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: '#0D2247', textAlign: 'right', fontVariantNumeric: 'tabular-nums', paddingRight: 20 }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
