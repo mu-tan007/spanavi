@@ -346,12 +346,12 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             { label: '取得日', key: 'getDate', right: true },
             { label: '面談日', key: 'meetDate', right: true },
             { label: 'ステータス', key: null },
-            { label: '当社売上', key: null, right: true },
+            { label: '当社売上', key: null, right: true, pr: 20 },
             { label: 'インセンティブ', key: null, right: true, pl: 36 },
-          ].map(({ label, key, center, right, pl }) => (
+          ].map(({ label, key, center, right, pl, pr }) => (
             <span key={label}
               onClick={key ? () => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); } } : undefined}
-              style={key && right ? { cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, ...(pl ? { paddingLeft: pl } : {}) } : key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : right ? { display: 'block', textAlign: 'right', whiteSpace: 'nowrap', ...(pl ? { paddingLeft: pl } : {}) } : { whiteSpace: 'nowrap' }}>
+              style={key && right ? { cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, ...(pl ? { paddingLeft: pl } : {}), ...(pr ? { paddingRight: pr } : {}) } : key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : right ? { display: 'block', textAlign: 'right', whiteSpace: 'nowrap', ...(pl ? { paddingLeft: pl } : {}), ...(pr ? { paddingRight: pr } : {}) } : { whiteSpace: 'nowrap' }}>
               {label}
               {key && (
                 <span style={{ marginLeft: 2 }}>
@@ -398,7 +398,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 borderLeft: `2px solid ${sc.color}`, color: sc.color,
                 whiteSpace: 'nowrap',
               }}>{a.status}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: '#0D2247', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: '#0D2247', textAlign: 'right', fontVariantNumeric: 'tabular-nums', paddingRight: 20 }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums', paddingLeft: 36 }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
             </div>
           );
