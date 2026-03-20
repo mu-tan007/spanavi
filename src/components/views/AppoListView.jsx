@@ -146,7 +146,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     return { bg: C.textLight + "10", color: C.textLight };
   };
 
-  const colTemplate = "minmax(60px,0.35fr) minmax(80px,0.35fr) minmax(40px,0.12fr) 72px 75px 100px 88px 92px";
+  const colTemplate = "minmax(60px,0.35fr) minmax(80px,0.3fr) minmax(40px,0.12fr) 100px 100px 100px 100px 100px";
 
   const handleTranscribeDetail = async () => {
     if (transcribeStep !== 'idle') return;
