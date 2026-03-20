@@ -146,7 +146,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     return { bg: C.textLight + "10", color: C.textLight };
   };
 
-  const colTemplate = "0.35fr 0.3fr 0.12fr 70px 80px 110px 90px 110px";
+  const colTemplate = "minmax(60px,1fr) minmax(100px,1.5fr) 80px 72px 75px 100px 88px 92px";
 
   const handleTranscribeDetail = async () => {
     if (transcribeStep !== 'idle') return;
@@ -273,6 +273,15 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             {statuses.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           {setAppoData && (
+            <button onClick={() => { setSortKey('status'); setSortDir('asc'); }} style={{
+              padding: "6px 12px", borderRadius: 4,
+              background: sortKey === 'status' ? '#0D2247' : '#fff',
+              border: "1px solid " + (sortKey === 'status' ? '#0D2247' : C.border),
+              color: sortKey === 'status' ? '#fff' : C.textMid,
+              fontSize: 11, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
+            }}>デフォルト</button>
+          )}
+          {setAppoData && (
             <button onClick={() => setAddAppoForm({ client: "", company: "", getter: "", getDate: "", meetDate: "", status: "アポ取得", sales: 0, reward: 0, note: "" })} style={{
               padding: "8px 16px", borderRadius: 4,
               background: "#0D2247",
@@ -337,7 +346,6 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           borderBottom: "1px solid #E5E7EB",
           alignItems: "center",
           verticalAlign: "middle",
-          position: "relative",
         }}>
           {[
             { label: 'クライアント', key: 'client' },
@@ -361,18 +369,6 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               )}
             </span>
           ))}
-          {setAppoData && (
-            <button
-              onClick={() => { setSortKey('status'); setSortDir('asc'); }}
-              style={{
-                position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
-                padding: '3px 10px', borderRadius: 4,
-                border: '1px solid #fff',
-                background: sortKey === 'status' ? '#fff' : 'transparent',
-                color: sortKey === 'status' ? '#0D2247' : '#fff',
-                fontSize: 10, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
-              }}>デフォルト</button>
-          )}
         </div>
         {filtered.length === 0 ? (
           <div style={{ padding: "30px 0", textAlign: "center", color: C.textLight, fontSize: 12 }}>データがありません</div>
