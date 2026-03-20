@@ -1565,11 +1565,13 @@ export async function invokeAnalyzeRoleplay(payload) {
   const { data, error } = await supabase.functions.invoke('analyze-roleplay', { body: payload })
   if (error) {
     console.error('[Edge] analyze-roleplay error:', error)
-    // non-2xx の場合、レスポンスボディに実際のエラーメッセージがある
+    // non-2xx の場合、レスポンスボディから実際のエラーメッセージを取得
+    // 自前エラー: { error: "..." }  Supabaseインフラエラー: { code: "WORKER_LIMIT", message: "..." }
     if (error.context) {
       try {
         const body = await error.context.json()
-        if (body?.error) return { data: body, error: null }
+        const msg = body?.error || body?.message || null
+        if (msg) return { data: { error: msg }, error: null }
       } catch {}
     }
   }
