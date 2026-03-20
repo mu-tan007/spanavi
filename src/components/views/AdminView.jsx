@@ -75,15 +75,11 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
     : null;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#FFFFFF', paddingBottom: 48 }}>
-      {/* ヘッダー */}
-      <div style={{ background: NAVY, borderRadius: 12, padding: '24px 32px', marginBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0 }}>管理者設定</h1>
-            <p style={{ fontSize: 12, color: GOLD, margin: '2px 0 0' }}>代表のみアクセス可能</p>
-          </div>
-        </div>
+    <div style={{ paddingBottom: 48, animation: 'fadeIn 0.3s ease' }}>
+      {/* Page Header */}
+      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Admin Settings</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>管理者設定 — 代表のみアクセス可能</div>
       </div>
 
       {/* タブバー */}
