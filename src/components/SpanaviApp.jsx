@@ -498,6 +498,35 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   const [hoveredGroup, setHoveredGroup] = useState(null);
   const hoverTimeout = React.useRef(null);
 
+  // Keyboard shortcuts: Ctrl+↑↓ for main menu, Ctrl+←→ for sub-tabs
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!e.ctrlKey) return;
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        const flatTabs = [];
+        for (const g of navGroups) {
+          if (g.children) g.children.forEach(c => flatTabs.push(c.id));
+          else flatTabs.push(g.id);
+        }
+        flatTabs.push('mypage');
+        const idx = flatTabs.indexOf(currentTab);
+        if (idx === -1) return;
+        e.preventDefault();
+        setCurrentTab(flatTabs[e.key === 'ArrowUp'
+          ? (idx - 1 + flatTabs.length) % flatTabs.length
+          : (idx + 1) % flatTabs.length
+        ]);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('spanavi-subtab-cycle', {
+          detail: { direction: e.key === 'ArrowLeft' ? -1 : 1 }
+        }));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentTab, navGroups]);
+
   // Login screen
   // Login is handled by App.jsx via Supabase auth
   // if (!currentUser) { return <LoginScreen ... />; }
@@ -553,15 +582,16 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
           const _currentMember = Array.isArray(members) ? members.find(m => (typeof m === 'object' ? m.name : m) === currentUser) : null;
           const _avatarUrl = typeof _currentMember === 'object' ? _currentMember?.avatarUrl : null;
           return (
-            <div onClick={() => setCurrentTab('mypage')} style={{ padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#0176D3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
+            <div onClick={() => setCurrentTab('mypage')}
+              onMouseEnter={() => setHoveredGroup('mypage')}
+              onMouseLeave={() => setHoveredGroup(null)}
+              style={{ padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: currentTab === 'mypage' ? '#1E3A6E' : hoveredGroup === 'mypage' ? 'rgba(255,255,255,0.05)' : 'transparent', borderLeft: currentTab === 'mypage' ? '3px solid #C8A84B' : '3px solid transparent', boxSizing: 'border-box' }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: currentTab === 'mypage' ? '#C8A84B' : '#0176D3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
                 {_avatarUrl
                   ? <img src={_avatarUrl} alt={currentUser} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : (currentUser || '?')[0]}
               </div>
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser}</span>
+              <span style={{ fontSize: 12, color: currentTab === 'mypage' ? '#FFFFFF' : 'rgba(255,255,255,0.85)', fontWeight: currentTab === 'mypage' ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser}</span>
             </div>
           );
         })()}
