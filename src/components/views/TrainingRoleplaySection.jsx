@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { C } from '../../constants/colors';
-import { prepareAudioForWhisper, needsConversion } from '../../lib/convertAudio';
+import { prepareAudioForWhisper, needsConversion, isVideoFile } from '../../lib/convertAudio';
 import {
   fetchTrainingProgress,
   upsertTrainingStage,
