@@ -332,7 +332,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       <div style={{ background: '#fff', borderRadius: 4, overflow: "hidden", border: "1px solid #E5E7EB" }}>
         <div style={{
           display: "grid", gridTemplateColumns: colTemplate,
-          padding: "8px 16px", columnGap: 2, background: "#0D2247",
+          padding: "8px 6px 8px 16px", columnGap: 2, background: "#0D2247",
           fontSize: 11, fontWeight: 600, color: "#fff",
           borderBottom: "1px solid #E5E7EB",
           alignItems: "center",
@@ -365,7 +365,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             <button
               onClick={() => { setSortKey('status'); setSortDir('asc'); }}
               style={{
-                position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)',
+                position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
                 padding: '3px 10px', borderRadius: 4,
                 border: '1px solid #fff',
                 background: sortKey === 'status' ? '#fff' : 'transparent',
@@ -381,7 +381,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           return (
             <div key={i} style={{
               display: "grid", gridTemplateColumns: colTemplate,
-              padding: "8px 16px", columnGap: 2, fontSize: 11, alignItems: "center",
+              padding: "8px 6px 8px 16px", columnGap: 2, fontSize: 11, alignItems: "center",
               borderBottom: "1px solid #E5E7EB",
               background: i % 2 === 0 ? '#fff' : '#F8F9FA',
               transition: "background 0.15s",
