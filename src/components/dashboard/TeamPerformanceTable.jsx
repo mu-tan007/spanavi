@@ -7,7 +7,7 @@ const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コー
 const RESCHED_STATUSES = new Set(['リスケ中', 'キャンセル', '面談済', '事前確認済', 'アポ取得']);
 
 // チーム/メンバー名 + 8指標
-const GRID = '0.4fr 0.1fr 0.2fr 0.2fr 0.2fr 0.2fr 0.2fr 0.2fr 0.2fr';
+const GRID = '0.4fr 0.05fr 0.05fr 0.05fr 0.05fr 0.05fr 0.05fr 0.05fr 0.05fr';
 
 const COLS = ['架電数', '社長接続', '接続率', 'アポ数', 'アポ率', '件/h', 'リスケ率', 'キャンセル率'];
 
