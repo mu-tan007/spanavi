@@ -347,11 +347,11 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             { label: '面談日', key: 'meetDate', right: true },
             { label: 'ステータス', key: null },
             { label: '当社売上', key: null, right: true },
-            { label: 'インセンティブ', key: null, right: true },
-          ].map(({ label, key, center, right }) => (
+            { label: 'インセンティブ', key: null, right: true, pl: 16 },
+          ].map(({ label, key, center, right, pl }) => (
             <span key={label}
               onClick={key ? () => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); } } : undefined}
-              style={key && right ? { cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 } : key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : right ? { display: 'block', textAlign: 'right', whiteSpace: 'nowrap' } : { whiteSpace: 'nowrap' }}>
+              style={key && right ? { cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, ...(pl ? { paddingLeft: pl } : {}) } : key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : right ? { display: 'block', textAlign: 'right', whiteSpace: 'nowrap', ...(pl ? { paddingLeft: pl } : {}) } : { whiteSpace: 'nowrap' }}>
               {label}
               {key && (
                 <span style={{ marginLeft: 2 }}>
@@ -399,7 +399,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 whiteSpace: 'nowrap',
               }}>{a.status}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: '#0D2247', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums', paddingLeft: 16 }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
             </div>
           );
         })}
