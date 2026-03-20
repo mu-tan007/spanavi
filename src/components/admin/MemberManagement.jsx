@@ -136,7 +136,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
   const thAlign = { '入社日': 'right', 'ステータス': 'center', 'マイページ': 'center', '操作': 'center' };
   const thWidth = { '氏名': 160, '役職': 140, 'ランク': 100, '入社日': 100, 'ステータス': 100, 'マイページ': 120, '操作': 160 };
   const thPad  = { 'ランク': '8px 2px 8px 6px', '入社日': '8px 6px 8px 2px' };
-  const td = { padding: '8px 16px', fontSize: 13, color: '#374151', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' };
+  const td = { padding: '8px 16px', fontSize: 11, color: '#374151', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' };
   const COLS = ['氏名', '役職', 'ランク', '入社日', 'ステータス', 'マイページ', '操作'];
 
   return (
@@ -177,7 +177,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {teamMembers.map(m => {
+                    {teamMembers.map((m, idx) => {
                       const isEditing = editId === m.id;
                       return (
                         <tr
@@ -185,7 +185,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                           onMouseEnter={() => setHoveredRow(m.id)}
                           onMouseLeave={() => setHoveredRow(null)}
                           style={{
-                            background: isEditing ? NAVY + '06' : hoveredRow === m.id ? NAVY + '08' : 'transparent',
+                            background: isEditing ? NAVY + '06' : hoveredRow === m.id ? '#EAF4FF' : idx % 2 === 0 ? '#fff' : '#F8F9FA',
                             borderLeft: hoveredRow === m.id && !isEditing ? `3px solid ${NAVY}` : '3px solid transparent',
                             transition: 'background 0.12s, border-color 0.12s',
                           }}

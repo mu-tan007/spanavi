@@ -309,10 +309,9 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
     <div style={{ animation: "fadeIn 0.3s ease" }}>
 
       {/* ── ページヘッダー ────────────────────────────────────────── */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: TH_BG, margin: 0, lineHeight: 1.2 }}>報酬計算</h1>
-        <p style={{ fontSize: 14, color: C.textLight, margin: "4px 0 12px" }}>月次インセンティブ・支給額の管理</p>
-        <div style={{ borderBottom: `1px solid ${TH_BG}` }} />
+      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: `1px solid ${TH_BG}` }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: TH_BG, letterSpacing: '-0.3px' }}>報酬計算</div>
+        <div style={{ fontSize: 13, color: C.textLight, marginTop: 4 }}>月次インセンティブ・支給額の管理</div>
       </div>
 
       {/* ── Summary cards ────────────────────────────────────────── */}

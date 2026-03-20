@@ -232,7 +232,7 @@ export default function InternRulesView() {
   }, []);
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F8F9FA', paddingBottom: 64 }}>
+    <div style={{ paddingBottom: 64 }}>
 
       {/* Page Header */}
       <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>

@@ -332,7 +332,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Page Header */}
-      <div style={{ marginBottom: 0, paddingBottom: 14, borderBottom: '1px solid #0D2247', flexShrink: 0, padding: '14px 24px 14px' }}>
+      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247', flexShrink: 0 }}>
         <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Shifts</div>
         <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>シフト・勤怠管理</div>
       </div>

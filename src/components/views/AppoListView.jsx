@@ -872,13 +872,18 @@ export function MembersView({ members, setMembers }) {
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
+      {/* Page Header */}
+      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Employee Roster</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>従業員名簿</div>
+      </div>
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
         padding: "14px 18px", background: '#fff', borderRadius: 4,
         border: "1px solid #E5E7EB",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: '#0D2247' }}>従業員名簿</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#0D2247' }}>メンバー一覧</span>
           <span style={{ fontSize: 11, color: '#9CA3AF' }}>{members.length}名</span>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
