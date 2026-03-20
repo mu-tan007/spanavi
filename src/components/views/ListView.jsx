@@ -327,7 +327,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
           padding: "8px 16px", background: "#0D2247",
           fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
         }}>
-          <span>クライアント</span><span style={{ textAlign: "center" }}>種別</span><span style={{ textAlign: "center" }}>業種</span><span style={{ textAlign: "right" }}>社数</span><span style={{ textAlign: "center" }}>担当者</span><span style={{ textAlign: "center" }}>おすすめ度</span><span></span>
+          <span>クライアント</span><span style={{ textAlign: "center" }}>種別</span><span>業種</span><span style={{ textAlign: "right" }}>社数</span><span style={{ textAlign: "center" }}>担当者</span><span style={{ textAlign: "center" }}>おすすめ度</span><span></span>
         </div>
         {displayFilter !== 'archived' && <div style={{ maxHeight: 600, overflowY: "auto" }}>
           {(() => {
@@ -371,7 +371,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
         
                       </span>
                       <span style={{ display: "flex", justifyContent: "center" }}><Badge color={list.type === "M&A仲介" ? C.navy : list.type === "IFA" ? '#6366F1' : list.type === "ファンド" ? C.green : C.orange} small>{list.type}</Badge></span>
-                      <span style={{ color: C.textMid, textAlign: "center" }}>{list.industry}</span>
+                      <span style={{ color: C.textMid }}>{list.industry}</span>
                       <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textMid, textAlign: "right" }}>{list.count.toLocaleString()}</span>
                       <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }}>{list.manager}</span>
                       <span style={{ display: "flex", justifyContent: "center" }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>

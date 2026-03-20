@@ -133,6 +133,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
   })();
 
   const th = { padding: '8px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#ffffff', background: '#0D2247', borderBottom: '2px solid #0D2247' };
+  const thAlign = { '入社日': 'right', 'ステータス': 'center', 'マイページ': 'center', '操作': 'center' };
   const td = { padding: '8px 16px', fontSize: 13, color: '#374151', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' };
   const COLS = ['氏名', '役職', 'ランク', '入社日', 'ステータス', 'マイページ', '操作'];
 
@@ -170,7 +171,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr>
-                      {COLS.map(h => <th key={h} style={th}>{h}</th>)}
+                      {COLS.map(h => <th key={h} style={{ ...th, textAlign: thAlign[h] || 'left' }}>{h}</th>)}
                     </tr>
                   </thead>
                   <tbody>
@@ -209,13 +210,13 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                               }}>{m.rank || 'トレーニー'}</span>
                             )}
                           </td>
-                          <td style={td}>
+                          <td style={{ ...td, textAlign: 'right' }}>
                             {isEditing ? (
                               <input type="date" value={editForm.operation_start_date} onChange={e => setEditForm(p => ({ ...p, operation_start_date: e.target.value }))}
                                 style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }} />
                             ) : (m.operation_start_date || m.start_date || '—')}
                           </td>
-                          <td style={td}>
+                          <td style={{ ...td, textAlign: 'center' }}>
                             {isEditing ? (
                               <select value={editForm.is_active ? 'active' : 'inactive'} onChange={e => setEditForm(p => ({ ...p, is_active: e.target.value === 'active' }))}
                                 style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
@@ -230,7 +231,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                               </span>
                             )}
                           </td>
-                          <td style={td}>
+                          <td style={{ ...td, textAlign: 'center' }}>
                             {onViewMyPage && (
                               <button
                                 onClick={() => onViewMyPage(m.name)}
@@ -240,7 +241,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                               </button>
                             )}
                           </td>
-                          <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                          <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap' }}>
                             {isEditing ? (
                               <div style={{ display: 'flex', gap: 6 }}>
                                 <button onClick={() => saveEdit(m.id)} disabled={saving} style={btn('primary')}>保存</button>
