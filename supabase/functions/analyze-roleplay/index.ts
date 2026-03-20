@@ -93,6 +93,16 @@ Deno.serve(async (req) => {
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
+      // ファイルサイズ事前チェック（Content-Lengthがある場合）
+      const contentLength = res.headers.get('content-length')
+      if (contentLength && parseInt(contentLength) > WHISPER_MAX_BYTES) {
+        const sizeMB = Math.round(parseInt(contentLength) / 1024 / 1024)
+        await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
+        return new Response(
+          JSON.stringify({ error: `ファイルが大きすぎます（${sizeMB}MB）。AI分析はMP3/M4A形式で25MB以下のファイルが必要です。動画から音声を抽出してアップロードしてください。` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
       audioBuffer = await res.arrayBuffer()
       const contentDisposition = res.headers.get('content-disposition') || ''
       const cdMatch = contentDisposition.match(/filename="?([^";\s]+)"?/)

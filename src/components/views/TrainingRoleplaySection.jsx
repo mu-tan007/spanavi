@@ -62,6 +62,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   const [savingStage, setSavingStage]     = useState(null);
   const [uploadingId, setUploadingId]     = useState(null);
   const [analyzingId, setAnalyzingId]     = useState(null);
+  const [analyzeErrors, setAnalyzeErrors] = useState({});  // { [sessionId]: errorMsg }
   const [deletingId, setDeletingId]       = useState(null);
   const [addingSess, setAddingSess]       = useState(false);
   const [convertStatus, setConvertStatus] = useState('');
@@ -323,15 +324,18 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       ? { storage_path: session.recording_path, session_id: session.id }
       : { recording_url: session.recording_url, session_id: session.id };
     const { data, error } = await invokeAnalyzeRoleplay(payload);
-    if (!error && data) {
+    if (!error && data && !data.error) {
       setSessions(prev => prev.map(s =>
         s.id === session.id
           ? { ...s, transcript: data.transcript, ai_feedback: data.ai_feedback, ai_status: 'done' }
           : s
       ));
+      setAnalyzeErrors(prev => { const n = { ...prev }; delete n[session.id]; return n; });
       setExpandedId(session.id);
     } else {
+      const msg = data?.error || error?.message || 'AI分析でエラーが発生しました。';
       setSessions(prev => prev.map(s => s.id === session.id ? { ...s, ai_status: 'error' } : s));
+      setAnalyzeErrors(prev => ({ ...prev, [session.id]: msg }));
     }
     setAnalyzingId(null);
   };
@@ -592,7 +596,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             fontSize: 11,
             color: '#c0392b',
           }}>
-            ⚠️ AI分析でエラーが発生しました。「再分析」ボタンで再試行できます。
+            ⚠️ {analyzeErrors[session.id] || 'AI分析でエラーが発生しました。'}
           </div>
         )}
 
