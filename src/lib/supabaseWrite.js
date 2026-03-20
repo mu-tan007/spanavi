@@ -1563,7 +1563,16 @@ export async function createVideoSignedUrl(videoPath) {
 
 export async function invokeAnalyzeRoleplay(payload) {
   const { data, error } = await supabase.functions.invoke('analyze-roleplay', { body: payload })
-  if (error) console.error('[Edge] analyze-roleplay error:', error)
+  if (error) {
+    console.error('[Edge] analyze-roleplay error:', error)
+    // non-2xx の場合、レスポンスボディに実際のエラーメッセージがある
+    if (error.context) {
+      try {
+        const body = await error.context.json()
+        if (body?.error) return { data: body, error: null }
+      } catch {}
+    }
+  }
   return { data, error }
 }
 
