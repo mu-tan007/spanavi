@@ -7,7 +7,7 @@ const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コー
 const RESCHED_STATUSES = new Set(['リスケ中', 'キャンセル', '面談済', '事前確認済', 'アポ取得']);
 
 // チーム/メンバー名 + 8指標
-const GRID = '1.6fr 0.6fr 0.6fr 0.6fr 0.6fr 0.6fr 0.6fr 0.65fr 0.65fr';
+const GRID = '1.2fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr';
 
 const COLS = ['架電数', '社長接続', '接続率', 'アポ数', 'アポ率', '件/h', 'リスケ率', 'キャンセル率'];
 
@@ -100,7 +100,7 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
           {/* グローバル列ヘッダー（最上部に1つだけ） */}
           <div style={{ display: 'grid', gridTemplateColumns: GRID, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#fff', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' }}>
             <span style={{ padding: '0', verticalAlign: 'middle' }}>チーム / メンバー</span>
-            {COLS.map(c => <span key={c} style={{ padding: '0', verticalAlign: 'middle' }}>{c}</span>)}
+            {COLS.map(c => <span key={c} style={{ padding: '0', verticalAlign: 'middle', textAlign: 'right', display: 'block' }}>{c}</span>)}
           </div>
 
           {teamData.map(([tn, d], teamIdx) => {
@@ -129,14 +129,14 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
                     {tn}
                     <span style={{ fontSize: 10, color: '#93C5FD', fontWeight: 400, marginLeft: 6 }}>{d.memberCount}人</span>
                   </span>
-                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: 'right' }}>{d.call}</span>
-                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: 'right' }}>{d.connect}</span>
-                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: 'right' }}>{cr}%</span>
-                  <span style={{ ...mono, color: '#fff', fontWeight: 800, fontSize: 12, textAlign: 'right' }}>{d.appo}</span>
-                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: 'right' }}>{ar}%</span>
-                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: 'right' }}>{teamCph}</span>
-                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: 'right' }}>{teamReschedRate}</span>
-                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: 'right' }}>{teamCancelRate}</span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: 'right', display: 'block' }}>{d.call}</span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: 'right', display: 'block' }}>{d.connect}</span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: 'right', display: 'block' }}>{cr}%</span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 800, fontSize: 12, textAlign: 'right', display: 'block' }}>{d.appo}</span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: 'right', display: 'block' }}>{ar}%</span>
+                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: 'right', display: 'block' }}>{teamCph}</span>
+                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: 'right', display: 'block' }}>{teamReschedRate}</span>
+                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: 'right', display: 'block' }}>{teamCancelRate}</span>
                 </div>
 
                 {/* メンバー行 */}
@@ -154,17 +154,17 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
                   return (
                     <div
                       key={name}
-                      style={{ display: 'grid', gridTemplateColumns: GRID, fontSize: 11, padding: '8px 16px 8px 28px', borderBottom: '1px solid #E5E7EB', background: i % 2 === 0 ? '#fff' : '#F8F9FA', color: C.textDark, verticalAlign: 'middle', alignItems: 'center' }}
+                      style={{ display: 'grid', gridTemplateColumns: GRID, fontSize: 11, padding: '8px 16px', borderBottom: '1px solid #E5E7EB', background: i % 2 === 0 ? '#fff' : '#F8F9FA', color: C.textDark, verticalAlign: 'middle', alignItems: 'center' }}
                     >
-                      <span style={{ fontWeight: 500, textAlign: 'left' }}>{name}</span>
-                      <span style={{ ...mono, textAlign: 'right' }}>{md.call}</span>
-                      <span style={{ ...mono, textAlign: 'right' }}>{md.connect}</span>
-                      <span style={{ ...mono, color: '#374151', textAlign: 'right' }}>{mcr}%</span>
-                      <span style={{ ...mono, color: '#374151', fontWeight: 700, textAlign: 'right' }}>{md.appo}</span>
-                      <span style={{ ...mono, color: '#374151', textAlign: 'right' }}>{mar}%</span>
-                      <span style={{ ...mono, color: '#6B7280', textAlign: 'right' }}>{mcph}</span>
-                      <span style={{ ...mono, color: reschedColor, textAlign: 'right' }}>{mReschedRate}</span>
-                      <span style={{ ...mono, color: cancelColor, textAlign: 'right' }}>{mCancelRate}</span>
+                      <span style={{ fontWeight: 500, textAlign: 'left', paddingLeft: 12 }}>{name}</span>
+                      <span style={{ ...mono, textAlign: 'right', display: 'block' }}>{md.call}</span>
+                      <span style={{ ...mono, textAlign: 'right', display: 'block' }}>{md.connect}</span>
+                      <span style={{ ...mono, color: '#374151', textAlign: 'right', display: 'block' }}>{mcr}%</span>
+                      <span style={{ ...mono, color: '#374151', fontWeight: 700, textAlign: 'right', display: 'block' }}>{md.appo}</span>
+                      <span style={{ ...mono, color: '#374151', textAlign: 'right', display: 'block' }}>{mar}%</span>
+                      <span style={{ ...mono, color: '#6B7280', textAlign: 'right', display: 'block' }}>{mcph}</span>
+                      <span style={{ ...mono, color: reschedColor, textAlign: 'right', display: 'block' }}>{mReschedRate}</span>
+                      <span style={{ ...mono, color: cancelColor, textAlign: 'right', display: 'block' }}>{mCancelRate}</span>
                     </div>
                   );
                 })}
