@@ -176,11 +176,11 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       await updateRoleplaySession(newSession.id, { video_url: addDriveUrl.trim() });
     }
 
-    // 録音ファイル or URL があればアップロード → AI分析まで自動実行
-    const hasRecording = addRecordingFile || addRecordingUrl;
+    // 録音ファイル or URL（Drive含む）があればアップロード → AI分析まで自動実行
+    const hasRecording = addRecordingFile || addRecordingUrl || addDriveUrl;
     if (hasRecording) {
       let storagePath = null;
-      let recordingUrl = addRecordingUrl || null;
+      let recordingUrl = addRecordingUrl || addDriveUrl || null;
 
       if (addRecordingFile) {
         const isVideo = isVideoFile(addRecordingFile);
@@ -1134,7 +1134,9 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                     ? (addRecordingFile ? 'アップロード中...' : '追加中...')
                     : (addRecordingFile
                         ? (needsConversion(addRecordingFile) ? '変換→アップロード→AI分析' : '追加してAI分析する')
-                        : '追加する')
+                        : addDriveUrl
+                          ? '追加してAI分析する'
+                          : '追加する')
                 }
               </button>
               <button
