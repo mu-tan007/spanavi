@@ -347,7 +347,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             { label: '面談日', key: 'meetDate', right: true },
             { label: 'ステータス', key: null },
             { label: '当社売上', key: null, right: true },
-            { label: 'インセンティブ', key: null, right: true, pl: 16 },
+            { label: 'インセンティブ', key: null, right: true, pl: 36 },
           ].map(({ label, key, center, right, pl }) => (
             <span key={label}
               onClick={key ? () => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); } } : undefined}
@@ -399,7 +399,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 whiteSpace: 'nowrap',
               }}>{a.status}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: '#0D2247', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums', paddingLeft: 16 }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums', paddingLeft: 36 }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
             </div>
           );
         })}
