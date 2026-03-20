@@ -259,7 +259,7 @@ export default function LoginPage() {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: '#F8F9FA',
+      background: C.navy,
       fontFamily: "'Noto Sans JP', sans-serif", padding: '20px',
     }}>
       <div style={{

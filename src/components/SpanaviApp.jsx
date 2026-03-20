@@ -585,8 +585,8 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
             <div onClick={() => setCurrentTab('mypage')}
               onMouseEnter={() => setHoveredGroup('mypage')}
               onMouseLeave={() => setHoveredGroup(null)}
-              style={{ padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: currentTab === 'mypage' ? '#1E3A6E' : hoveredGroup === 'mypage' ? 'rgba(255,255,255,0.05)' : 'transparent', borderLeft: currentTab === 'mypage' ? '3px solid #C8A84B' : '3px solid transparent', boxSizing: 'border-box' }}>
-              <div style={{ width: 28, height: 28, borderRadius: '50%', background: currentTab === 'mypage' ? '#C8A84B' : '#0176D3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
+              style={{ padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: currentTab === 'mypage' ? '#1E3A6E' : hoveredGroup === 'mypage' ? 'rgba(255,255,255,0.07)' : 'transparent', borderLeft: '3px solid transparent', boxSizing: 'border-box' }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#0176D3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
                 {_avatarUrl
                   ? <img src={_avatarUrl} alt={currentUser} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : (currentUser || '?')[0]}
