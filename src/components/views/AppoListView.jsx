@@ -146,7 +146,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     return { bg: C.textLight + "10", color: C.textLight };
   };
 
-  const colTemplate = "minmax(60px,1fr) minmax(80px,0.9fr) minmax(40px,0.12fr) 72px 75px 100px 88px 92px";
+  const colTemplate = "minmax(60px,0.5fr) minmax(80px,0.45fr) minmax(40px,0.12fr) 72px 75px 100px 88px 92px";
 
   const handleTranscribeDetail = async () => {
     if (transcribeStep !== 'idle') return;
@@ -827,7 +827,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 // ============================================================
 // Members View (Employee Directory)
 // ============================================================
-export function MembersView({ members, setMembers }) {
+export function MembersView({ members, setMembers, onDataRefetch }) {
   const [search, setSearch] = useState("");
   const [addForm, setAddForm] = useState(null);
   const [addSaving, setAddSaving] = useState(false);
@@ -1101,6 +1101,7 @@ export function MembersView({ members, setMembers }) {
                   setMembers(prev => prev.filter(x => x.id !== editForm.id));
                   setEditForm(null);
                   setDeleteError(null);
+                  if (onDataRefetch) onDataRefetch();
                 }} disabled={deleteSaving} style={{
                   padding: "8px 16px", borderRadius: 6, border: "1px solid #e5383530",
                   background: C.white, cursor: deleteSaving ? "default" : "pointer", fontSize: 11, fontWeight: 600, color: "#e53835", fontFamily: "'Noto Sans JP'",
@@ -1196,6 +1197,7 @@ export function MembersView({ members, setMembers }) {
                     }]);
                     setAddForm(null);
                     setAddError(null);
+                    if (onDataRefetch) onDataRefetch();
                   }} disabled={!addForm.name.trim() || addSaving} style={{
                     padding: "8px 24px", borderRadius: 6, border: "none",
                     background: addForm.name.trim() && !addSaving ? "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")" : C.border,
