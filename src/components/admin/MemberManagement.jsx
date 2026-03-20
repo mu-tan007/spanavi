@@ -135,6 +135,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
   const th = { padding: '8px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#ffffff', background: '#0D2247', borderBottom: '2px solid #0D2247' };
   const thAlign = { '入社日': 'right', 'ステータス': 'center', 'マイページ': 'center', '操作': 'center' };
   const thWidth = { '氏名': 160, '役職': 140, 'ランク': 100, '入社日': 100, 'ステータス': 100, 'マイページ': 120, '操作': 160 };
+  const thPad  = { 'ランク': '8px 6px', '入社日': '8px 6px' };
   const td = { padding: '8px 16px', fontSize: 13, color: '#374151', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' };
   const COLS = ['氏名', '役職', 'ランク', '入社日', 'ステータス', 'マイページ', '操作'];
 
@@ -172,7 +173,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                 <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr>
-                      {COLS.map(h => <th key={h} style={{ ...th, textAlign: thAlign[h] || 'left', ...(thWidth[h] ? { width: thWidth[h], maxWidth: thWidth[h] } : {}) }}>{h}</th>)}
+                      {COLS.map(h => <th key={h} style={{ ...th, textAlign: thAlign[h] || 'left', ...(thWidth[h] ? { width: thWidth[h], maxWidth: thWidth[h] } : {}), ...(thPad[h] ? { padding: thPad[h] } : {}) }}>{h}</th>)}
                     </tr>
                   </thead>
                   <tbody>
@@ -198,7 +199,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                               </select>
                             ) : m.position || '—'}
                           </td>
-                          <td style={td}>
+                          <td style={{ ...td, padding: '8px 6px' }}>
                             {isEditing ? (
                               <select value={editForm.rank} onChange={e => setEditForm(p => ({ ...p, rank: e.target.value }))}
                                 style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
@@ -211,7 +212,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                               }}>{m.rank || 'トレーニー'}</span>
                             )}
                           </td>
-                          <td style={{ ...td, textAlign: 'right' }}>
+                          <td style={{ ...td, padding: '8px 6px', textAlign: 'right' }}>
                             {isEditing ? (
                               <input type="date" value={editForm.operation_start_date} onChange={e => setEditForm(p => ({ ...p, operation_start_date: e.target.value }))}
                                 style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }} />
