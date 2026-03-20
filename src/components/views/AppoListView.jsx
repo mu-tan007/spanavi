@@ -147,8 +147,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   };
 
   const colTemplate = setAppoData
-    ? "0.5fr 0.5fr 0.35fr 70px 80px 110px 90px 110px 32px"
-    : "0.5fr 0.5fr 0.35fr 70px 80px 110px 90px 110px";
+    ? "160px 130px 80px 64px 72px 110px 90px 110px 32px"
+    : "160px 130px 80px 64px 72px 110px 90px 110px";
 
   const handleTranscribeDetail = async () => {
     if (transcribeStep !== 'idle') return;
@@ -390,8 +390,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             }}
             onMouseEnter={e => e.currentTarget.style.background = "#EAF4FF"}
             onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#F8F9FA'}>
-              <span style={{ color: C.textMid, fontSize: 10 }}>{a.client}</span>
-              <span style={{ fontWeight: 600, color: '#0D2247', cursor: "pointer", textDecoration: "underline dotted", textUnderlineOffset: 2 }} onClick={() => setReportDetail(a)}>{a.company}</span>
+              <span style={{ color: C.textMid, fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{a.client}</span>
+              <span style={{ fontWeight: 600, color: '#0D2247', cursor: "pointer", textDecoration: "underline dotted", textUnderlineOffset: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }} onClick={() => setReportDetail(a)}>{a.company}</span>
               <span style={{ color: C.textDark }}>{a.getter}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: 'right', display: 'block' }}>{a.getDate.slice(5)}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: 'right', display: 'block' }}>{a.meetDate.slice(5)}</span>
