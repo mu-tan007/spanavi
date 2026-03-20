@@ -231,6 +231,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       setAddForm({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
       setAddRecordingFile(null);
       setAddRecordingUrl('');
+      setAddDriveUrl('');
       setAddingSess(false);
       setAnalyzingId(newSession.id);
       setExpandedId(newSession.id);
@@ -239,7 +240,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         ? { storage_path: storagePath, session_id: newSession.id }
         : { recording_url: recordingUrl, session_id: newSession.id };
       const { data: aiData, error: aiError } = await invokeAnalyzeRoleplay(payload);
-      if (aiData) {
+      if (!aiError && aiData && !aiData.error) {
         setSessions(prev => prev.map(s =>
           s.id === newSession.id
             ? { ...s, transcript: aiData.transcript, ai_feedback: aiData.ai_feedback, ai_status: 'done' }
@@ -257,9 +258,12 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
           }).catch(e => console.error('[Slack] post error:', e));
         }
       } else {
+        const errMsg = aiData?.error || aiError?.message || 'AI分析でエラーが発生しました。';
+        await updateRoleplaySession(newSession.id, { ai_status: 'error' });
         setSessions(prev => prev.map(s =>
           s.id === newSession.id ? { ...s, ai_status: 'error' } : s
         ));
+        setAnalyzeErrors(prev => ({ ...prev, [newSession.id]: errMsg }));
       }
       setAnalyzingId(null);
       return;
@@ -345,6 +349,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       }
     } else {
       const msg = data?.error || error?.message || 'AI分析でエラーが発生しました。';
+      await updateRoleplaySession(session.id, { ai_status: 'error' });
       setSessions(prev => prev.map(s => s.id === session.id ? { ...s, ai_status: 'error' } : s));
       setAnalyzeErrors(prev => ({ ...prev, [session.id]: msg }));
     }

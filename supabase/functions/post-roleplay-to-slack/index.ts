@@ -1,17 +1,44 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// チーム名 → Slack Incoming Webhook URL（Supabase Edge Function secrets から取得）
-// DB の team 列は "成尾" / "高橋" のどちらの形式でも対応
-function getTeamWebhooks(): Record<string, string> {
-  const result: Record<string, string> = {}
-  const nario = Deno.env.get('SLACK_WEBHOOK_NARIO')
-  const takahashi = Deno.env.get('SLACK_WEBHOOK_TAKAHASHI')
-  if (nario) { result['成尾チーム'] = nario; result['成尾'] = nario }
-  if (takahashi) { result['高橋チーム'] = takahashi; result['高橋'] = takahashi }
-  return result
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+)
+
+// org_settings から webhook URL を取得（env var にフォールバック）
+async function getWebhookUrl(team: string): Promise<string | null> {
+  const keyMap: Record<string, string> = {
+    '高橋':   'slack_webhook_takahashi',
+    '高橋チーム': 'slack_webhook_takahashi',
+    '成尾':   'slack_webhook_nario',
+    '成尾チーム': 'slack_webhook_nario',
+  }
+  const envMap: Record<string, string> = {
+    '高橋':   'SLACK_WEBHOOK_TAKAHASHI',
+    '高橋チーム': 'SLACK_WEBHOOK_TAKAHASHI',
+    '成尾':   'SLACK_WEBHOOK_NARIO',
+    '成尾チーム': 'SLACK_WEBHOOK_NARIO',
+  }
+
+  const settingKey = keyMap[team]
+  if (settingKey) {
+    const { data } = await supabase
+      .from('org_settings')
+      .select('setting_value')
+      .eq('org_id', 'a0000000-0000-0000-0000-000000000001')
+      .eq('setting_key', settingKey)
+      .single()
+    if (data?.setting_value?.startsWith('http')) return data.setting_value
+  }
+
+  // DB になければ env var にフォールバック
+  const envKey = envMap[team]
+  return envKey ? (Deno.env.get(envKey) || null) : null
 }
 
 Deno.serve(async (req: Request) => {
@@ -29,19 +56,17 @@ Deno.serve(async (req: Request) => {
       videoUrl,
     } = await req.json()
 
-    const webhookUrl = getTeamWebhooks()[memberTeam]
+    const webhookUrl = await getWebhookUrl(memberTeam)
     if (!webhookUrl) {
       return new Response(
-        JSON.stringify({ error: `Unknown team: ${memberTeam}` }),
+        JSON.stringify({ error: `Slack webhook not configured for team: ${memberTeam}` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // フォーマット: 日付・参加者
     const dateStr = sessionDate || '日付不明'
     const partner = partnerName || '不明'
 
-    // AIフィードバック整形
     const fb = aiFeedback || {}
     const overall = fb.overall || ''
     const issues: string[] = fb.issues || []
@@ -52,9 +77,7 @@ Deno.serve(async (req: Request) => {
     const solutionsText = solutions.map((v: string, i: number) => `${i + 1}. ${v}`).join('\n')
     const practiceText = practice.map((v: string, i: number) => `${i + 1}. ${v}`).join('\n')
 
-    const videoSection = videoUrl
-      ? `\n\n*動画*\n${videoUrl}`
-      : ''
+    const videoSection = videoUrl ? `\n\n*動画*\n${videoUrl}` : ''
 
     const text = `
 :microphone: *ロープレレポート*

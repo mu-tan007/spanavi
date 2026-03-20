@@ -10,9 +10,11 @@ const SETTING_GROUPS = [
     title: 'Slack Webhook URL',
     icon: '',
     items: [
-      { key: 'slack_webhook_ranking',  label: 'ランキング通知（#ランキング）', placeholder: 'https://hooks.slack.com/services/...' },
-      { key: 'slack_webhook_precheck', label: '事前確認通知（#事前確認）',      placeholder: 'https://hooks.slack.com/services/...' },
-      { key: 'slack_webhook_keiden',   label: '架電報告（#架電報告）',           placeholder: 'https://hooks.slack.com/services/...' },
+      { key: 'slack_webhook_ranking',    label: 'ランキング通知（#ランキング）',       placeholder: 'https://hooks.slack.com/services/...' },
+      { key: 'slack_webhook_precheck',   label: '事前確認通知（#事前確認）',            placeholder: 'https://hooks.slack.com/services/...' },
+      { key: 'slack_webhook_keiden',     label: '架電報告（#架電報告）',                placeholder: 'https://hooks.slack.com/services/...' },
+      { key: 'slack_webhook_nario',      label: 'ロープレ分析通知 成尾チーム',          placeholder: 'https://hooks.slack.com/services/...' },
+      { key: 'slack_webhook_takahashi',  label: 'ロープレ分析通知 高橋チーム',          placeholder: 'https://hooks.slack.com/services/...' },
     ],
   },
   {
