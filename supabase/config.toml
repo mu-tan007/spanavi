@@ -2,3 +2,9 @@ project_id = "baiiznjzvzhxwwqzsozn"
 
 [functions.get-zoom-recording]
 verify_jwt = false
+
+[functions.analyze-roleplay]
+verify_jwt = false
+
+[functions.post-roleplay-to-slack]
+verify_jwt = false
