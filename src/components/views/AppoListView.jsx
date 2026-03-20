@@ -146,9 +146,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     return { bg: C.textLight + "10", color: C.textLight };
   };
 
-  const colTemplate = setAppoData
-    ? "0.35fr 0.3fr 0.12fr 70px 80px 110px 90px 110px 32px"
-    : "0.35fr 0.3fr 0.12fr 70px 80px 110px 90px 110px";
+  const colTemplate = "0.35fr 0.3fr 0.12fr 70px 80px 110px 90px 110px";
 
   const handleTranscribeDetail = async () => {
     if (transcribeStep !== 'idle') return;
@@ -339,6 +337,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           borderBottom: "1px solid #E5E7EB",
           alignItems: "center",
           verticalAlign: "middle",
+          position: "relative",
         }}>
           {[
             { label: 'クライアント', key: 'client' },
@@ -363,17 +362,16 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             </span>
           ))}
           {setAppoData && (
-            <span style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => { setSortKey('status'); setSortDir('asc'); }}
-                style={{
-                  padding: '3px 10px', borderRadius: 4,
-                  border: '1px solid #fff',
-                  background: sortKey === 'status' ? '#fff' : 'transparent',
-                  color: sortKey === 'status' ? '#0D2247' : '#fff',
-                  fontSize: 10, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
-                }}>デフォルト</button>
-            </span>
+            <button
+              onClick={() => { setSortKey('status'); setSortDir('asc'); }}
+              style={{
+                position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)',
+                padding: '3px 10px', borderRadius: 4,
+                border: '1px solid #fff',
+                background: sortKey === 'status' ? '#fff' : 'transparent',
+                color: sortKey === 'status' ? '#0D2247' : '#fff',
+                fontSize: 10, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
+              }}>デフォルト</button>
           )}
         </div>
         {filtered.length === 0 ? (
