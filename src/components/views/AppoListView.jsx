@@ -147,8 +147,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   };
 
   const colTemplate = setAppoData
-    ? "0.7fr 0.65fr 0.45fr 80px 80px 110px 90px 110px 32px"
-    : "0.7fr 0.65fr 0.45fr 80px 80px 110px 90px 110px";
+    ? "0.5fr 0.5fr 0.35fr 70px 80px 110px 90px 110px 32px"
+    : "0.5fr 0.5fr 0.35fr 70px 80px 110px 90px 110px";
 
   const handleTranscribeDetail = async () => {
     if (transcribeStep !== 'idle') return;
@@ -334,7 +334,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       <div style={{ background: '#fff', borderRadius: 4, overflow: "hidden", border: "1px solid #E5E7EB" }}>
         <div style={{
           display: "grid", gridTemplateColumns: colTemplate,
-          padding: "8px 16px", columnGap: 8, background: "#0D2247",
+          padding: "8px 16px", columnGap: 2, background: "#0D2247",
           fontSize: 11, fontWeight: 600, color: "#fff",
           borderBottom: "1px solid #E5E7EB",
           alignItems: "center",
@@ -383,7 +383,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           return (
             <div key={i} style={{
               display: "grid", gridTemplateColumns: colTemplate,
-              padding: "8px 16px", columnGap: 8, fontSize: 11, alignItems: "center",
+              padding: "8px 16px", columnGap: 2, fontSize: 11, alignItems: "center",
               borderBottom: "1px solid #E5E7EB",
               background: i % 2 === 0 ? '#fff' : '#F8F9FA',
               transition: "background 0.15s",
