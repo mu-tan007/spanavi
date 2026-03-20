@@ -79,11 +79,11 @@ Deno.serve(async (req) => {
       audioBuffer = await fileData.arrayBuffer()
       rawExt = storage_path.split('.').pop()?.toLowerCase() || 'mp4'
     } else {
-      // Google Drive 共有URLを直接ダウンロードURLに変換
+      // Google Drive 共有URLを直接ダウンロードURLに変換（confirm=t で大容量確認ページを回避）
       let fetchUrl = recording_url
       const driveMatch = recording_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)
       if (driveMatch) {
-        fetchUrl = `https://drive.google.com/uc?id=${driveMatch[1]}&export=download`
+        fetchUrl = `https://drive.usercontent.google.com/download?id=${driveMatch[1]}&export=download&confirm=t`
       }
       const res = await fetch(fetchUrl, { headers: { 'User-Agent': 'Spanavi/1.0' } })
       if (!res.ok) {
