@@ -353,13 +353,13 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             { label: '取得者', key: 'getter' },
             { label: '取得日', key: 'getDate', right: true },
             { label: '面談日', key: 'meetDate', right: true },
-            { label: 'ステータス', key: null },
+            { label: 'ステータス', key: null, center: true },
             { label: '当社売上', key: null, right: true, pr: 20 },
             { label: 'インセンティブ', key: null, right: true, pl: 36 },
           ].map(({ label, key, center, right, pl, pr }) => (
             <span key={label}
               onClick={key ? () => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); } } : undefined}
-              style={key && right ? { cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, ...(pl ? { paddingLeft: pl } : {}), ...(pr ? { paddingRight: pr } : {}) } : key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : right ? { display: 'block', textAlign: 'right', whiteSpace: 'nowrap', ...(pl ? { paddingLeft: pl } : {}), ...(pr ? { paddingRight: pr } : {}) } : { whiteSpace: 'nowrap' }}>
+              style={key && right ? { cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, ...(pl ? { paddingLeft: pl } : {}), ...(pr ? { paddingRight: pr } : {}) } : key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : right ? { display: 'block', textAlign: 'right', whiteSpace: 'nowrap', ...(pl ? { paddingLeft: pl } : {}), ...(pr ? { paddingRight: pr } : {}) } : center ? { display: 'block', textAlign: 'center', whiteSpace: 'nowrap' } : { whiteSpace: 'nowrap' }}>
               {label}
               {key && (
                 <span style={{ marginLeft: 2 }}>
@@ -390,7 +390,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: 'right', display: 'block' }}>{a.getDate.slice(5)}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: 'right', display: 'block' }}>{a.meetDate.slice(5)}</span>
               <span style={{
-                display: 'inline-block', fontSize: 10, padding: "2px 6px",
+                display: 'block', textAlign: 'center', fontSize: 10, padding: "2px 6px",
                 borderLeft: `2px solid ${sc.color}`, color: sc.color,
                 whiteSpace: 'nowrap',
               }}>{a.status}</span>
