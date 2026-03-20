@@ -327,7 +327,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
           padding: "8px 16px", background: "#0D2247",
           fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
         }}>
-          <span>クライアント</span><span style={{ textAlign: "center" }}>種別</span><span>業種</span><span style={{ textAlign: "right" }}>社数</span><span style={{ textAlign: "center" }}>担当者</span><span style={{ textAlign: "center" }}>おすすめ度</span><span></span>
+          <span style={{ minWidth: 0 }}>クライアント</span><span style={{ textAlign: "center" }}>種別</span><span style={{ minWidth: 0 }}>業種</span><span style={{ textAlign: "right" }}>社数</span><span style={{ textAlign: "center", minWidth: 0 }}>担当者</span><span style={{ textAlign: "center" }}>おすすめ度</span><span></span>
         </div>
         {displayFilter !== 'archived' && <div style={{ maxHeight: 600, overflowY: "auto" }}>
           {(() => {
@@ -365,15 +365,14 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                     onMouseEnter={e => { e.currentTarget.style.background = "#EAF4FF"; e.currentTarget.style.borderLeft = "2px solid #0D2247"; }}
                     onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderLeft = "2px solid transparent"; }}
                     >
-                      <span onClick={() => setSelectedList(list.id)} style={{ fontWeight: 500, paddingRight: 8, cursor: "pointer", wordBreak: "break-all" }}>
+                      <span onClick={() => setSelectedList(list.id)} style={{ fontWeight: 500, paddingRight: 8, cursor: "pointer", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {list.status === "架電停止" && <span style={{ color: C.red, marginRight: 4 }}>■</span>}
                         {list.company}
-        
                       </span>
                       <span style={{ display: "flex", justifyContent: "center" }}><Badge color={list.type === "M&A仲介" ? C.navy : list.type === "IFA" ? '#6366F1' : list.type === "ファンド" ? C.green : C.orange} small>{list.type}</Badge></span>
-                      <span style={{ color: C.textMid }}>{list.industry}</span>
+                      <span style={{ color: C.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list.industry}</span>
                       <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textMid, textAlign: "right" }}>{list.count.toLocaleString()}</span>
-                      <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }}>{list.manager}</span>
+                      <span style={{ color: C.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }}>{list.manager}</span>
                       <span style={{ display: "flex", justifyContent: "center" }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
                       <span style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
                         {isAdmin && <>
