@@ -236,17 +236,6 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       setAnalyzingId(newSession.id);
       setExpandedId(newSession.id);
 
-      // Drive URL が動画ファイルの場合は AI 分析不可（Whisper は音声のみ対応）
-      const videoExts = new Set(['mp4', 'mov', 'avi', 'mkv', '3gp', 'flv', 'wmv', 'm4v']);
-      const urlExt = (recordingUrl || '').split(/[?#]/)[0].split('.').pop()?.toLowerCase();
-      if (!storagePath && videoExts.has(urlExt)) {
-        await updateRoleplaySession(newSession.id, { ai_status: 'error' });
-        setSessions(prev => prev.map(s => s.id === newSession.id ? { ...s, ai_status: 'error' } : s));
-        setAnalyzeErrors(prev => ({ ...prev, [newSession.id]: '動画ファイルはAI分析できません。MP3・M4A形式の音声ファイルをご利用ください。' }));
-        setAnalyzingId(null);
-        return;
-      }
-
       const payload = storagePath
         ? { storage_path: storagePath, session_id: newSession.id }
         : { recording_url: recordingUrl, session_id: newSession.id };
@@ -332,13 +321,6 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   // ── AI 分析実行 ───────────────────────────────────────────────────────
   const handleAnalyze = async (session) => {
     if (!session.recording_path && !session.recording_url) return;
-    // Drive URL が動画ファイルの場合は早期エラー
-    const videoExts = new Set(['mp4', 'mov', 'avi', 'mkv', '3gp', 'flv', 'wmv', 'm4v']);
-    const urlExt = (session.recording_url || '').split(/[?#]/)[0].split('.').pop()?.toLowerCase();
-    if (!session.recording_path && videoExts.has(urlExt)) {
-      setAnalyzeErrors(prev => ({ ...prev, [session.id]: '動画ファイルはAI分析できません。MP3・M4A形式の音声ファイルをご利用ください。' }));
-      return;
-    }
     setAnalyzingId(session.id);
     await updateRoleplaySession(session.id, { ai_status: 'processing' });
     setSessions(prev => prev.map(s => s.id === session.id ? { ...s, ai_status: 'processing' } : s));
