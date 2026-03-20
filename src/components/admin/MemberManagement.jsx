@@ -209,7 +209,6 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                               </select>
                             ) : (
                               <span style={{ fontSize: 11, fontWeight: 600,
-                                borderLeft: `3px solid ${m.rank === 'スーパースパルタン' ? '#b7791f' : m.rank === 'スパルタン' ? '#2E844A' : m.rank === 'プレイヤー' ? '#0176D3' : '#A0A0A0'}`, paddingLeft: 8,
                                 color: m.rank === 'スーパースパルタン' ? '#b7791f' : m.rank === 'スパルタン' ? '#2E844A' : m.rank === 'プレイヤー' ? '#0176D3' : '#374151', background: 'transparent',
                               }}>{m.rank || 'トレーニー'}</span>
                             )}
