@@ -306,6 +306,8 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
     if (!error && path) {
       await updateRoleplaySession(sessionId, { recording_path: path, recording_url: url });
       setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, recording_path: path, recording_url: url } : s));
+    } else {
+      alert('録音ファイルのアップロードに失敗しました。\nエラー: ' + (error?.message || JSON.stringify(error)));
     }
     setUploadingId(null);
     fileTargetSessionId.current = null;
@@ -541,7 +543,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
               ) : null}
 
               {/* AI 分析（分析済み以外のみ表示） */}
-              {session.recording_url && session.ai_status !== 'done' && (
+              {(session.recording_url || session.recording_path) && session.ai_status !== 'done' && (
                 <button
                   onClick={e => { e.stopPropagation(); handleAnalyze(session); }}
                   disabled={isAnalyzing || session.ai_status === 'processing'}
