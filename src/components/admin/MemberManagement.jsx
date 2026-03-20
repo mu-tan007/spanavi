@@ -134,7 +134,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
 
   const th = { padding: '8px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#ffffff', background: '#0D2247', borderBottom: '2px solid #0D2247' };
   const thAlign = { '入社日': 'right', 'ステータス': 'center', 'マイページ': 'center', '操作': 'center' };
-  const thWidth = { 'ランク': 128 };
+  const thWidth = { '氏名': 160, '役職': 140, 'ランク': 120, '入社日': 120, 'ステータス': 100, 'マイページ': 120, '操作': 160 };
   const td = { padding: '8px 16px', fontSize: 13, color: '#374151', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' };
   const COLS = ['氏名', '役職', 'ランク', '入社日', 'ステータス', 'マイページ', '操作'];
 
@@ -169,7 +169,7 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                 <span style={{ fontSize: 11, fontWeight: 400, opacity: 0.8 }}>({teamMembers.length}名)</span>
               </div>
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr>
                       {COLS.map(h => <th key={h} style={{ ...th, textAlign: thAlign[h] || 'left', ...(thWidth[h] ? { width: thWidth[h], maxWidth: thWidth[h] } : {}) }}>{h}</th>)}
@@ -189,8 +189,8 @@ export default function MemberManagement({ onToast, onViewMyPage }) {
                             transition: 'background 0.12s, border-color 0.12s',
                           }}
                         >
-                          <td style={td}><span style={{ fontWeight: 600 }}>{m.name}</span></td>
-                          <td style={td}>
+                          <td style={{ ...td, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><span style={{ fontWeight: 600 }}>{m.name}</span></td>
+                          <td style={{ ...td, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {isEditing ? (
                               <select value={editForm.position} onChange={e => setEditForm(p => ({ ...p, position: e.target.value }))}
                                 style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
