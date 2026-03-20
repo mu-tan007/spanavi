@@ -79,7 +79,13 @@ Deno.serve(async (req) => {
       audioBuffer = await fileData.arrayBuffer()
       rawExt = storage_path.split('.').pop()?.toLowerCase() || 'mp4'
     } else {
-      const res = await fetch(recording_url, { headers: { 'User-Agent': 'Spanavi/1.0' } })
+      // Google Drive 共有URLを直接ダウンロードURLに変換
+      let fetchUrl = recording_url
+      const driveMatch = recording_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)
+      if (driveMatch) {
+        fetchUrl = `https://drive.google.com/uc?id=${driveMatch[1]}&export=download`
+      }
+      const res = await fetch(fetchUrl, { headers: { 'User-Agent': 'Spanavi/1.0' } })
       if (!res.ok) {
         await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
         return new Response(
@@ -88,7 +94,9 @@ Deno.serve(async (req) => {
         )
       }
       audioBuffer = await res.arrayBuffer()
-      const urlPath = new URL(recording_url).pathname
+      const contentDisposition = res.headers.get('content-disposition') || ''
+      const cdMatch = contentDisposition.match(/filename="?([^";\s]+)"?/)
+      const urlPath = cdMatch ? cdMatch[1] : new URL(fetchUrl).pathname
       rawExt = urlPath.split('.').pop()?.toLowerCase() || 'mp4'
     }
 

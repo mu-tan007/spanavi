@@ -170,10 +170,10 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       return;
     }
 
-    // Google Drive URL があれば保存
+    // Google Drive URL があれば保存（video_url + recording_urlの両方に保存して再分析も可能に）
     const driveId = extractDriveId(addDriveUrl);
     if (driveId) {
-      await updateRoleplaySession(newSession.id, { video_url: addDriveUrl.trim() });
+      await updateRoleplaySession(newSession.id, { video_url: addDriveUrl.trim(), recording_url: addDriveUrl.trim() });
     }
 
     // 録音ファイル or URL（Drive含む）があればアップロード → AI分析まで自動実行
