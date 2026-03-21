@@ -250,9 +250,41 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         recordingUrl = url;
         await updateRoleplaySession(newSession.id, { recording_path: path, recording_url: url });
       } else if (addDriveUrl && extractDriveId(addDriveUrl)) {
-        // Drive URL: サーバー側で直接ダウンロード・分析するのでブラウザ側変換は不要
-        // recording_url にDrive URLを保存済み（L205）なので、そのままEdge Functionに渡す
-        recordingUrl = addDriveUrl.trim();
+        // Drive URL: プロキシ経由でDL → ffmpegで音声抽出(MP3) → Storage upload
+        try {
+          setConvertStatus('動画をダウンロード中...');
+          const driveFileId = extractDriveId(addDriveUrl);
+          const videoFile = await downloadDriveFileViaProxy(driveFileId, setConvertStatus);
+          setConvertStatus('音声を抽出中...');
+          const mp3File = await prepareAudioForWhisper(videoFile, setConvertStatus);
+          setConvertStatus('アップロード中...');
+          const { path, url, error: uploadError } = await uploadRoleplayRecording(userId, newSession.id, mp3File);
+          setConvertStatus('');
+          if (uploadError || !path) {
+            setErrorMsg('音声ファイルのアップロードに失敗しました。');
+            const { data: refreshed } = await fetchRoleplaySessions(userId);
+            setSessions(refreshed || []);
+            setAddModalOpen(false);
+            setAddForm({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
+            setAddRecordingFile(null); setAddRecordingUrl(''); setAddDriveUrl('');
+            setAddingSess(false);
+            return;
+          }
+          storagePath = path;
+          recordingUrl = url;
+          await updateRoleplaySession(newSession.id, { recording_path: path, recording_url: url });
+        } catch (convErr) {
+          console.error('[Drive convert] error:', convErr);
+          setConvertStatus('');
+          setErrorMsg(`動画の変換に失敗しました: ${convErr.message}`);
+          const { data: refreshed } = await fetchRoleplaySessions(userId);
+          setSessions(refreshed || []);
+          setAddModalOpen(false);
+          setAddForm({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
+          setAddRecordingFile(null); setAddRecordingUrl(''); setAddDriveUrl('');
+          setAddingSess(false);
+          return;
+        }
       } else if (addRecordingUrl) {
         await updateRoleplaySession(newSession.id, { recording_url: addRecordingUrl });
       }
@@ -395,10 +427,45 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
     await updateRoleplaySession(session.id, { ai_status: 'processing' });
     setSessions(prev => prev.map(s => s.id === session.id ? { ...s, ai_status: 'processing' } : s));
 
-    // storage_path があればStorage経由、なければ recording_url をEdge Functionに直接渡す
-    const payload = session.recording_path
-      ? { storage_path: session.recording_path, session_id: session.id }
-      : { recording_url: session.recording_url, session_id: session.id };
+    // storage_path がなく recording_url が Drive URL の場合はブラウザ側で音声抽出
+    let payload;
+    const driveIdForAnalyze = !session.recording_path && session.recording_url
+      ? extractDriveId(session.recording_url)
+      : null;
+
+    if (driveIdForAnalyze) {
+      try {
+        setConvertStatus('動画をダウンロード中...');
+        const videoFile = await downloadDriveFileViaProxy(driveIdForAnalyze, setConvertStatus);
+        setConvertStatus('音声を抽出中...');
+        const mp3File = await prepareAudioForWhisper(videoFile, setConvertStatus);
+        setConvertStatus('アップロード中...');
+        const { path, url, error: uploadError } = await uploadRoleplayRecording(userId, session.id, mp3File);
+        setConvertStatus('');
+        if (uploadError || !path) {
+          await updateRoleplaySession(session.id, { ai_status: 'error' });
+          setSessions(prev => prev.map(s => s.id === session.id ? { ...s, ai_status: 'error' } : s));
+          setAnalyzeErrors(prev => ({ ...prev, [session.id]: 'MP3のアップロードに失敗しました。' }));
+          setAnalyzingId(null);
+          return;
+        }
+        await updateRoleplaySession(session.id, { recording_path: path, recording_url: url });
+        setSessions(prev => prev.map(s => s.id === session.id ? { ...s, recording_path: path, recording_url: url } : s));
+        payload = { storage_path: path, session_id: session.id };
+      } catch (err) {
+        console.error('[handleAnalyze convert] error:', err);
+        setConvertStatus('');
+        await updateRoleplaySession(session.id, { ai_status: 'error' });
+        setSessions(prev => prev.map(s => s.id === session.id ? { ...s, ai_status: 'error' } : s));
+        setAnalyzeErrors(prev => ({ ...prev, [session.id]: `動画の変換に失敗しました: ${err.message}` }));
+        setAnalyzingId(null);
+        return;
+      }
+    } else {
+      payload = session.recording_path
+        ? { storage_path: session.recording_path, session_id: session.id }
+        : { recording_url: session.recording_url, session_id: session.id };
+    }
 
     const slackInfo = memberTeam ? {
       memberName: currentUser,

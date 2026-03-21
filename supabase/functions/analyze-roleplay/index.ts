@@ -82,12 +82,13 @@ async function processInBackground(
           .eq('id', session_id)
         return
       }
-      // ファイルサイズ事前チェック（Content-Lengthがある場合 かつ 50MB超のみ早期エラー）
+      // ファイルサイズ事前チェック（Content-Lengthがある場合 かつ 25MB超のみ早期エラー）
+      // 通常はブラウザ側でMP3変換済みのためここには到達しない（フォールバック用）
       const contentLength = res.headers.get('content-length')
-      if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) {
+      if (contentLength && parseInt(contentLength) > WHISPER_MAX_BYTES) {
         const sizeMB = Math.round(parseInt(contentLength) / 1024 / 1024)
         await supabase.from('roleplay_sessions')
-          .update({ ai_status: 'error', ai_feedback: { error: `ファイルが大きすぎます（${sizeMB}MB）。50MB以下のファイルをご利用ください。` } })
+          .update({ ai_status: 'error', ai_feedback: { error: `ファイルが大きすぎます（${sizeMB}MB）。ブラウザからの音声変換をお試しください。` } })
           .eq('id', session_id)
         return
       }
