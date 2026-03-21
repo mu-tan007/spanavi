@@ -247,6 +247,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
         color: C.white, display: "flex", alignItems: "center", gap: 20,
       }}>
         <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>{currentUser}</div>
           <div style={{ display: "flex", gap: 12, fontSize: 11, color: C.goldLight, marginBottom: 6 }}>
             {memberInfo && <span>{memberInfo.team}</span>}
             {memberInfo && <span>{memberInfo.rank}</span>}
