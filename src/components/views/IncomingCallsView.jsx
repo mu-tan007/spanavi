@@ -156,11 +156,18 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: '#0D2247' }}>
-                {['受信日時', '企業名・リスト', '電話番号', 'ステータス', '対応者', '操作'].map(h => (
-                  <th key={h} style={{
-                    padding: '8px 16px', textAlign: 'left', fontWeight: 600,
+                {[
+                  { label: '受信日時', align: 'right' },
+                  { label: '企業名・リスト', align: 'left' },
+                  { label: '電話番号', align: 'left' },
+                  { label: 'ステータス', align: 'center' },
+                  { label: '対応者', align: 'left' },
+                  { label: '操作', align: 'center' },
+                ].map(h => (
+                  <th key={h.label} style={{
+                    padding: '8px 16px', textAlign: h.align, fontWeight: 600,
                     color: '#fff', fontSize: 11, verticalAlign: 'middle',
-                  }}>{h}</th>
+                  }}>{h.label}</th>
                 ))}
               </tr>
             </thead>
@@ -180,7 +187,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
                     borderBottom: '1px solid #E5E7EB',
                     background: i % 2 === 0 ? '#fff' : '#F8F9FA',
                   }}>
-                    <td style={{ padding: '8px 16px', color: C.textMid, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+                    <td style={{ padding: '8px 16px', textAlign: 'right', color: C.textMid, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                       {formatJST(r.received_at)}
                     </td>
 
@@ -232,10 +239,9 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
                     <td style={{ padding: '8px 16px', fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums', color: C.textMid, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                       {r.caller_number || '-'}
                     </td>
-                    <td style={{ padding: '8px 16px', verticalAlign: 'middle' }}>
+                    <td style={{ padding: '8px 16px', textAlign: 'center', verticalAlign: 'middle' }}>
                       <span style={{
-                        borderLeft: '3px solid ' + statusColor(r.status),
-                        paddingLeft: 8, color: statusColor(r.status), fontSize: 12,
+                        color: statusColor(r.status), fontSize: 12,
                       }}>
                         {r.status || '-'}
                       </span>
@@ -243,7 +249,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
                     <td style={{ padding: '8px 16px', color: C.textMid, verticalAlign: 'middle' }}>
                       {r.handled_by || '-'}
                     </td>
-                    <td style={{ padding: '8px 16px', verticalAlign: 'middle' }}>
+                    <td style={{ padding: '8px 16px', textAlign: 'center', verticalAlign: 'middle' }}>
                       {r.status !== '対応済み' && (
                         <button onClick={() => markHandled(r.id)} style={{
                           padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 500,
