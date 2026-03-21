@@ -999,7 +999,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           padding: "8px 16px", background: "#0D2247", fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
         }}>
           {[["company","企業名"],["representative","代表者"],["phone","電話番号"],["list","クライアント名"],["industry","業種"],["lastCall","最終発信日"],["status","最終ステータス"]].map(([key, label]) => (
-            <span key={key} onClick={() => { if (clientSortBy === key) { setClientSortBy(null); setClientSortDir("asc"); } else { setClientSortBy(key); setClientSortDir("desc"); } }} style={{ cursor: "pointer", userSelect: "none" }}>
+            <span key={key} onClick={() => { if (clientSortBy === key) { setClientSortBy(null); setClientSortDir("asc"); } else { setClientSortBy(key); setClientSortDir("desc"); } }} style={{ cursor: "pointer", userSelect: "none", textAlign: key === "lastCall" ? "right" : key === "status" ? "center" : undefined }}>
               {label}{clientSortBy === key ? " ▲" : " ▽"}
             </span>
           ))}
@@ -1032,10 +1032,10 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
               <span style={{ fontSize: 10, color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {listInfo?.industry || "-"}
               </span>
-              <span style={{ fontSize: 9, color: C.textLight, fontFamily: "'JetBrains Mono'" }}>
+              <span style={{ fontSize: 9, color: C.textLight, fontFamily: "'JetBrains Mono'", textAlign: 'right' }}>
                 {latestCalled ? new Date(new Date(latestCalled).getTime() + 9*60*60*1000).toISOString().slice(0,10).replace(/-/g, '/') : "-"}
               </span>
-              <span>
+              <span style={{ textAlign: 'center' }}>
                 {c.call_status ? (
                   <span style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: stColor + "18", color: stColor, fontWeight: 600, whiteSpace: "nowrap" }}>
                     {c.call_status}
