@@ -163,7 +163,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
             <div style={{ padding: '40px 0', textAlign: 'center', color: C.textLight, fontSize: 13 }}>再コール予定はありません</div>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '78px 260px 130px 90px 130px 130px 130px 1fr', padding: '8px 14px', background: '#0D2247', borderBottom: '1px solid #E5E7EB', borderLeft: '3px solid transparent', fontSize: 11, fontWeight: 600, color: '#fff', verticalAlign: 'middle', flexShrink: 0 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '78px 260px 130px 80px 150px 130px 130px 1fr', padding: '8px 14px', background: '#0D2247', borderBottom: '1px solid #E5E7EB', borderLeft: '3px solid transparent', fontSize: 11, fontWeight: 600, color: '#fff', verticalAlign: 'middle', flexShrink: 0 }}>
                 <span>予定日時</span><span>企業名</span><span>代表者</span><span>電話番号</span><span style={{ textAlign: 'center' }}>種別</span><span>担当</span><span>設定者</span><span>メモ</span>
               </div>
               {sorted.map((item, i) => {
@@ -175,7 +175,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
                         if (_list) { setCallFlowScreen({ list: _list, defaultItemId: item._supaRecord.item_id, defaultListMode: false }); return; }
                       }
                     }}
-                    style={{ display: 'grid', gridTemplateColumns: '78px 260px 130px 90px 130px 130px 130px 1fr', padding: '8px 14px', fontSize: 11, alignItems: 'center', borderBottom: '1px solid #E5E7EB', borderLeft: '3px solid transparent', background: past ? '#fff5f5' : i % 2 === 0 ? '#fff' : '#F8F9FA', cursor: 'pointer' }}
+                    style={{ display: 'grid', gridTemplateColumns: '78px 260px 130px 80px 150px 130px 130px 1fr', padding: '8px 14px', fontSize: 11, alignItems: 'center', borderBottom: '1px solid #E5E7EB', borderLeft: '3px solid transparent', background: past ? '#fff5f5' : i % 2 === 0 ? '#fff' : '#F8F9FA', cursor: 'pointer' }}
                     onMouseEnter={e => { e.currentTarget.style.background = '#EAF4FF'; e.currentTarget.style.borderLeft = '3px solid #0D2247'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = past ? '#fff5f5' : 'transparent'; e.currentTarget.style.borderLeft = '3px solid transparent'; }}
                     >
