@@ -153,20 +153,21 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
         ) : filtered.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: C.textLight, fontSize: 13 }}>着信履歴がありません</div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: '#0D2247' }}>
                 {[
-                  { label: '受信日時', align: 'right' },
-                  { label: '企業名・リスト', align: 'left' },
-                  { label: '電話番号', align: 'left' },
-                  { label: 'ステータス', align: 'center' },
-                  { label: '対応者', align: 'left' },
-                  { label: '操作', align: 'center' },
+                  { label: '受信日時', align: 'right', width: 80, pad: '8px 6px' },
+                  { label: '企業名・リスト', align: 'left', width: 210 },
+                  { label: '電話番号', align: 'left', width: 120 },
+                  { label: 'ステータス', align: 'center', width: 100 },
+                  { label: '対応者', align: 'left', width: 120 },
+                  { label: '操作', align: 'center', width: 130 },
                 ].map(h => (
                   <th key={h.label} style={{
-                    padding: '8px 16px', textAlign: h.align, fontWeight: 600,
+                    padding: h.pad || '8px 16px', textAlign: h.align, fontWeight: 600,
                     color: '#fff', fontSize: 11, verticalAlign: 'middle',
+                    width: h.width,
                   }}>{h.label}</th>
                 ))}
               </tr>
@@ -187,12 +188,12 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
                     borderBottom: '1px solid #E5E7EB',
                     background: i % 2 === 0 ? '#fff' : '#F8F9FA',
                   }}>
-                    <td style={{ padding: '8px 16px', textAlign: 'right', color: C.textMid, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+                    <td style={{ padding: '8px 6px 8px 6px', textAlign: 'right', color: C.textMid, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                       {formatJST(r.received_at)}
                     </td>
 
                     {/* 企業名・リスト列 */}
-                    <td style={{ padding: '8px 16px', minWidth: 160, verticalAlign: 'middle' }}>
+                    <td style={{ padding: '8px 16px', verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {companyName ? (
                         <div>
                           {canNavigate ? (
