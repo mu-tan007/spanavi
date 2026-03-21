@@ -246,27 +246,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
         background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")", borderRadius: 12, padding: "24px 28px", marginBottom: 16,
         color: C.white, display: "flex", alignItems: "center", gap: 20,
       }}>
-        <div
-          onClick={() => !profileUploading && fileInputRef.current?.click()}
-          title={profileUploading ? "アップロード中..." : "クリックして画像を変更"}
-          style={{
-            width: 56, height: 56, borderRadius: "50%", background: C.gold,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 24, fontWeight: 800, color: C.navyDeep, flexShrink: 0,
-            cursor: profileUploading ? "default" : "pointer", overflow: "hidden",
-            opacity: profileUploading ? 0.6 : 1,
-          }}
-        >
-          {profileUploading
-            ? <span style={{ fontSize: 10, color: C.navyDeep }}>...</span>
-            : profileImage
-              ? <img src={profileImage} alt="profile" onError={() => setProfileImage(null)} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%", display: "block" }} />
-              : (currentUser || "?").charAt(0)
-          }
-        </div>
-        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} style={{ display: "none" }} />
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>{currentUser}</div>
           <div style={{ display: "flex", gap: 12, fontSize: 11, color: C.goldLight, marginBottom: 6 }}>
             {memberInfo && <span>{memberInfo.team}</span>}
             {memberInfo && <span>{memberInfo.rank}</span>}
