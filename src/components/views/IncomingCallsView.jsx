@@ -157,9 +157,9 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
             <thead>
               <tr style={{ background: '#0D2247' }}>
                 {[
-                  { label: '受信日時', align: 'right', width: 60, pad: '8px 6px' },
+                  { label: '受信日時', align: 'right', width: 40, pad: '8px 6px' },
                   { label: '企業名・リスト', align: 'left', width: 210 },
-                  { label: '電話番号', align: 'left', width: 120 },
+                  { label: '電話番号', align: 'left', width: 100 },
                   { label: 'ステータス', align: 'center', width: 100 },
                   { label: '対応者', align: 'left', width: 120 },
                   { label: '操作', align: 'center', width: 130 },
