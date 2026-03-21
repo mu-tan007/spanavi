@@ -71,7 +71,10 @@ async function processInBackground(
       if (driveMatch) {
         fetchUrl = `https://drive.usercontent.google.com/download?id=${driveMatch[1]}&export=download&confirm=t`
       }
-      const res = await fetch(fetchUrl, { headers: { 'User-Agent': 'Spanavi/1.0' } })
+      const res = await fetch(fetchUrl, {
+        headers: { 'User-Agent': 'Spanavi/1.0' },
+        signal: AbortSignal.timeout(30_000), // 30秒でタイムアウト
+      })
       if (!res.ok) {
         console.error('[analyze-roleplay] URL download failed:', res.status, res.statusText)
         await supabase.from('roleplay_sessions')
@@ -79,12 +82,12 @@ async function processInBackground(
           .eq('id', session_id)
         return
       }
-      // ファイルサイズ事前チェック（Content-Lengthがある場合 かつ 100MB超のみ早期エラー）
+      // ファイルサイズ事前チェック（Content-Lengthがある場合 かつ 50MB超のみ早期エラー）
       const contentLength = res.headers.get('content-length')
-      if (contentLength && parseInt(contentLength) > 100 * 1024 * 1024) {
+      if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) {
         const sizeMB = Math.round(parseInt(contentLength) / 1024 / 1024)
         await supabase.from('roleplay_sessions')
-          .update({ ai_status: 'error', ai_feedback: { error: `ファイルが大きすぎます（${sizeMB}MB）。100MB以下のファイルをご利用ください。` } })
+          .update({ ai_status: 'error', ai_feedback: { error: `ファイルが大きすぎます（${sizeMB}MB）。50MB以下のファイルをご利用ください。` } })
           .eq('id', session_id)
         return
       }
@@ -99,18 +102,14 @@ async function processInBackground(
     const whisperExt = EXT_ALIAS[rawExt] ?? rawExt
     const contentType = MIME_MAP[whisperExt] ?? 'audio/mp4'
 
-    // ── 4. サイズ処理 ─────────────────────────────────────────────────────
+    // ── 4. サイズ処理（全形式で25MB以下にトランケート）──────────────────
     let finalBuffer = audioBuffer
     let sizeNote = ''
 
     if (audioBuffer.byteLength > WHISPER_MAX_BYTES) {
-      if (STREAM_FORMATS.has(whisperExt)) {
-        finalBuffer = audioBuffer.slice(0, WHISPER_MAX_BYTES - 512 * 1024) // 24.5 MB
-        sizeNote = '（ファイルが大きいため冒頭部分のみ分析）'
-        console.log(`[analyze-roleplay] Truncated stream file (${rawExt}) to ${finalBuffer.byteLength} bytes`)
-      } else {
-        console.log(`[analyze-roleplay] Container format (${rawExt}) is ${audioBuffer.byteLength} bytes, sending as-is`)
-      }
+      finalBuffer = audioBuffer.slice(0, WHISPER_MAX_BYTES - 512 * 1024) // 24.5 MB
+      sizeNote = '（ファイルが大きいため冒頭部分のみ分析）'
+      console.log(`[analyze-roleplay] Truncated ${rawExt} (${audioBuffer.byteLength} bytes) to ${finalBuffer.byteLength} bytes`)
     }
 
     const audioBlob = new Blob([finalBuffer], { type: contentType })
@@ -135,6 +134,7 @@ async function processInBackground(
       method: 'POST',
       headers: { 'Authorization': `Bearer ${openaiKey}` },
       body: formData,
+      signal: AbortSignal.timeout(90_000), // 90秒でタイムアウト
     })
 
     if (!whisperRes.ok) {
@@ -191,6 +191,7 @@ ${transcript}`
         max_tokens: 2048,
         messages: [{ role: 'user', content: prompt }],
       }),
+      signal: AbortSignal.timeout(30_000), // 30秒でタイムアウト
     })
 
     if (!claudeRes.ok) {
