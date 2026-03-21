@@ -728,8 +728,8 @@ export default function StatsView({ callListData, currentUser, appoData, members
             <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
               {/* テーブル */}
               <div style={{ flex: '1.5', minWidth: 0, borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '280px 80px 150px 130px 120px', padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247' }}>
-                  <span>クライアント名</span><span style={{ textAlign: 'right' }}>アポ数</span><span style={{ textAlign: 'right' }}>売上合計</span><span style={{ textAlign: 'right' }}>平均単価</span><span style={{ textAlign: 'right' }}>最終アポ日</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '280px 80px 150px 130px', padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247' }}>
+                  <span>クライアント名</span><span style={{ textAlign: 'right' }}>アポ数</span><span style={{ textAlign: 'right' }}>売上合計</span><span style={{ textAlign: 'right' }}>平均単価</span>
                 </div>
                 {clientData.length === 0 ? (
                   <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
@@ -743,7 +743,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
                     <React.Fragment key={key}>
                       <div
                         onClick={() => { setExpandedClient(isExpanded ? null : key); setSelectedClientPie(isPieSelected ? null : key); }}
-                        style={{ display: 'grid', gridTemplateColumns: '280px 80px 150px 130px 120px', padding: '8px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #E5E7EB', cursor: 'pointer', background: isHighlighted ? '#EFF6FF' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#F8F9FA', transition: 'background 0.15s', borderLeft: `4px solid ${CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length]}`, opacity: (selectedClientPie || hoveredClientPie) && !isHighlighted ? 0.55 : 1 }}
+                        style={{ display: 'grid', gridTemplateColumns: '280px 80px 150px 130px', padding: '8px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #E5E7EB', cursor: 'pointer', background: isHighlighted ? '#EFF6FF' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#F8F9FA', transition: 'background 0.15s', borderLeft: `4px solid ${CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length]}`, opacity: (selectedClientPie || hoveredClientPie) && !isHighlighted ? 0.55 : 1 }}
                         onMouseEnter={e => { setHoveredClientPie(key); if (!isHighlighted) e.currentTarget.style.background = '#EAF4FF'; }}
                         onMouseLeave={e => { setHoveredClientPie(null); e.currentTarget.style.background = isHighlighted ? '#EFF6FF' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#F8F9FA'; }}
                       >
@@ -754,7 +754,6 @@ export default function StatsView({ callListData, currentUser, appoData, members
                         <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, textAlign: 'right' }}>{d.count}</span>
                         <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 13, fontWeight: 900, color: '#111827', textAlign: 'right' }}>{fmt(d.total)}</span>
                         <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textDark, textAlign: 'right' }}>{fmt(avg)}</span>
-                        <span style={{ fontSize: 11, color: C.textMid, textAlign: 'right' }}>{d.lastDate?.slice(0, 10) || '—'}</span>
                       </div>
                       {isExpanded && (
                         <div style={{ borderBottom: '1px solid #E5E5E5', background: NAVY + '04', padding: '8px 24px 12px' }}>
