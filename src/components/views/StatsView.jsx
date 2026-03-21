@@ -820,7 +820,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
             </div>
           </div>
         );
-        const RIGHT_COLS = new Set(['calls', 'connect', 'connectRate', 'appo', 'appoRate', 'lastDate']);
+        const RIGHT_COLS = new Set(['calls', 'connect', 'appo', 'lastDate']);
         const SortHdr = ({ label, sk }) => (
           <span
             onClick={() => { if (listSortKey === sk) setListSortDir(d => d === 'desc' ? 'asc' : 'desc'); else { setListSortKey(sk); setListSortDir('desc'); } }}
