@@ -40,27 +40,13 @@ const MIME_MAP: Record<string, string> = {
 // ストリーム形式（バイト切り詰めが安全な形式）
 const STREAM_FORMATS = new Set(['mp3', 'mpeg', 'mpga', 'wav', 'flac'])
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
-
+// ── バックグラウンド処理: ダウンロード → Whisper → Claude → DB更新 ────────
+async function processInBackground(
+  session_id: string,
+  storage_path?: string,
+  recording_url?: string,
+) {
   try {
-    const { storage_path, recording_url, session_id } = await req.json()
-
-    if (!session_id || (!storage_path && !recording_url)) {
-      return new Response(
-        JSON.stringify({ error: 'session_id and either storage_path or recording_url are required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // ── 1. ai_status を 'processing' に更新 ──────────────────────────────
-    await supabase
-      .from('roleplay_sessions')
-      .update({ ai_status: 'processing' })
-      .eq('id', session_id)
-
     // ── 2. 音声ファイルをダウンロード ─────────────────────────────────────
     let audioBuffer: ArrayBuffer
     let rawExt = 'mp4'
@@ -70,39 +56,37 @@ Deno.serve(async (req) => {
         .from('roleplay-recordings')
         .download(storage_path)
       if (downloadError || !fileData) {
-        await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
-        return new Response(
-          JSON.stringify({ error: `Storage download failed: ${downloadError?.message}` }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+        console.error('[analyze-roleplay] Storage download failed:', downloadError?.message)
+        await supabase.from('roleplay_sessions')
+          .update({ ai_status: 'error', ai_feedback: { error: `ストレージからのダウンロードに失敗しました: ${downloadError?.message}` } })
+          .eq('id', session_id)
+        return
       }
       audioBuffer = await fileData.arrayBuffer()
       rawExt = storage_path.split('.').pop()?.toLowerCase() || 'mp4'
     } else {
       // Google Drive 共有URLを直接ダウンロードURLに変換（confirm=t で大容量確認ページを回避）
-      let fetchUrl = recording_url
-      const driveMatch = recording_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)
+      let fetchUrl = recording_url!
+      const driveMatch = recording_url!.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)
       if (driveMatch) {
         fetchUrl = `https://drive.usercontent.google.com/download?id=${driveMatch[1]}&export=download&confirm=t`
       }
       const res = await fetch(fetchUrl, { headers: { 'User-Agent': 'Spanavi/1.0' } })
       if (!res.ok) {
-        await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
-        return new Response(
-          JSON.stringify({ error: `URL download failed: ${res.status} ${res.statusText}` }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+        console.error('[analyze-roleplay] URL download failed:', res.status, res.statusText)
+        await supabase.from('roleplay_sessions')
+          .update({ ai_status: 'error', ai_feedback: { error: `URLからのダウンロードに失敗しました: ${res.status} ${res.statusText}` } })
+          .eq('id', session_id)
+        return
       }
       // ファイルサイズ事前チェック（Content-Lengthがある場合 かつ 100MB超のみ早期エラー）
-      // 25MB はWhisperの上限だが、サーバー側でトリミング処理するため100MB超のみここで弾く
       const contentLength = res.headers.get('content-length')
       if (contentLength && parseInt(contentLength) > 100 * 1024 * 1024) {
         const sizeMB = Math.round(parseInt(contentLength) / 1024 / 1024)
-        await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
-        return new Response(
-          JSON.stringify({ error: `ファイルが大きすぎます（${sizeMB}MB）。100MB以下のファイルをご利用ください。` }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+        await supabase.from('roleplay_sessions')
+          .update({ ai_status: 'error', ai_feedback: { error: `ファイルが大きすぎます（${sizeMB}MB）。100MB以下のファイルをご利用ください。` } })
+          .eq('id', session_id)
+        return
       }
       audioBuffer = await res.arrayBuffer()
       const contentDisposition = res.headers.get('content-disposition') || ''
@@ -116,8 +100,6 @@ Deno.serve(async (req) => {
     const contentType = MIME_MAP[whisperExt] ?? 'audio/mp4'
 
     // ── 4. サイズ処理 ─────────────────────────────────────────────────────
-    // MP3 / WAV / FLAC はストリーム形式なのでバイト切り詰めが安全
-    // MP4 / M4A / MOV などコンテナ形式はヘッダー破損を防ぐため切り詰めない
     let finalBuffer = audioBuffer
     let sizeNote = ''
 
@@ -127,8 +109,6 @@ Deno.serve(async (req) => {
         sizeNote = '（ファイルが大きいため冒頭部分のみ分析）'
         console.log(`[analyze-roleplay] Truncated stream file (${rawExt}) to ${finalBuffer.byteLength} bytes`)
       } else {
-        // コンテナ形式: そのまま送って Whisper に判断させる
-        // 25 MB 超でも Whisper が受け入れる場合があるため試みる
         console.log(`[analyze-roleplay] Container format (${rawExt}) is ${audioBuffer.byteLength} bytes, sending as-is`)
       }
     }
@@ -138,11 +118,10 @@ Deno.serve(async (req) => {
     // ── 5. OpenAI Whisper で文字起こし ─────────────────────────────────
     const openaiKey = Deno.env.get('OPENAI_API_KEY')
     if (!openaiKey) {
-      await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
-      return new Response(
-        JSON.stringify({ error: 'OPENAI_API_KEY not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      await supabase.from('roleplay_sessions')
+        .update({ ai_status: 'error', ai_feedback: { error: 'OPENAI_API_KEY が設定されていません' } })
+        .eq('id', session_id)
+      return
     }
 
     const formData = new FormData()
@@ -161,11 +140,10 @@ Deno.serve(async (req) => {
     if (!whisperRes.ok) {
       const whisperErr = await whisperRes.text()
       console.error('[analyze-roleplay] Whisper error:', whisperErr)
-      await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
-      return new Response(
-        JSON.stringify({ error: `Whisper API error: ${whisperErr}` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      await supabase.from('roleplay_sessions')
+        .update({ ai_status: 'error', ai_feedback: { error: `文字起こしに失敗しました（Whisper API）` } })
+        .eq('id', session_id)
+      return
     }
 
     const whisperData = await whisperRes.json()
@@ -174,11 +152,10 @@ Deno.serve(async (req) => {
     // ── 6. Claude でロープレ分析 ────────────────────────────────────────
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!anthropicKey) {
-      await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
-      return new Response(
-        JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      await supabase.from('roleplay_sessions')
+        .update({ ai_status: 'error', ai_feedback: { error: 'ANTHROPIC_API_KEY が設定されていません' } })
+        .eq('id', session_id)
+      return
     }
 
     const prompt = `あなたはM&Aアドバイザリー企業のテレアポロープレコーチです。
@@ -219,11 +196,10 @@ ${transcript}`
     if (!claudeRes.ok) {
       const claudeErr = await claudeRes.text()
       console.error('[analyze-roleplay] Claude error:', claudeErr)
-      await supabase.from('roleplay_sessions').update({ ai_status: 'error' }).eq('id', session_id)
-      return new Response(
-        JSON.stringify({ error: `Claude API error: ${claudeErr}` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      await supabase.from('roleplay_sessions')
+        .update({ ai_status: 'error', ai_feedback: { error: `AI分析に失敗しました（Claude API）` } })
+        .eq('id', session_id)
+      return
     }
 
     const claudeData = await claudeRes.json()
@@ -251,9 +227,75 @@ ${transcript}`
       console.error('[analyze-roleplay] DB update error:', updateError)
     }
 
+    console.log(`[analyze-roleplay] Background processing completed for session ${session_id}`)
+
+  } catch (err) {
+    console.error('[analyze-roleplay] Background unhandled error:', err)
+    await supabase
+      .from('roleplay_sessions')
+      .update({ ai_status: 'error', ai_feedback: { error: (err as Error).message || 'AI分析中に予期しないエラーが発生しました' } })
+      .eq('id', session_id)
+  }
+}
+
+// ── メインハンドラ ─────────────────────────────────────────────────────
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  try {
+    const { storage_path, recording_url, session_id } = await req.json()
+
+    if (!session_id || (!storage_path && !recording_url)) {
+      return new Response(
+        JSON.stringify({ error: 'session_id and either storage_path or recording_url are required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // ── 1. ai_status を 'processing' に更新 ──────────────────────────────
+    await supabase
+      .from('roleplay_sessions')
+      .update({ ai_status: 'processing' })
+      .eq('id', session_id)
+
+    // ── バックグラウンドで重い処理を実行 ──────────────────────────────────
+    // EdgeRuntime.waitUntil() でレスポンス送信後もワーカーを維持
+    const bgPromise = processInBackground(session_id, storage_path, recording_url)
+
+    // deno-lint-ignore no-explicit-any
+    if (typeof (globalThis as any).EdgeRuntime !== 'undefined') {
+      // deno-lint-ignore no-explicit-any
+      ;(globalThis as any).EdgeRuntime.waitUntil(bgPromise)
+
+      // 即座にレスポンスを返す（タイムアウト回避）
+      return new Response(
+        JSON.stringify({ status: 'processing', session_id }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // EdgeRuntime が無い環境（ローカルテスト等）: 同期的に処理を完了
+    await bgPromise
+
+    // 完了後にDBから最新データを取得して返す
+    const { data: session } = await supabase
+      .from('roleplay_sessions')
+      .select('transcript, ai_feedback, ai_status')
+      .eq('id', session_id)
+      .single()
+
+    if (session?.ai_status === 'done') {
+      return new Response(
+        JSON.stringify({ transcript: session.transcript, ai_feedback: session.ai_feedback }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     return new Response(
-      JSON.stringify({ transcript, ai_feedback: aiFeedback }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: session?.ai_feedback?.error || 'AI分析に失敗しました' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
   } catch (err) {

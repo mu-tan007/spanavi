@@ -3,6 +3,48 @@ import { supabase } from '../lib/supabase'
 const ORG_ID = 'a0000000-0000-0000-0000-000000000001'
 
 // ============================================================
+// Drive CORS Proxy
+// ============================================================
+
+/**
+ * Google Drive ファイルをCORSプロキシ経由でダウンロードして File オブジェクトを返す
+ * @param {string} driveId - Google Drive ファイルID
+ * @param {(msg: string) => void} [onProgress] - 進捗コールバック
+ * @returns {Promise<File>}
+ */
+export async function downloadDriveFileViaProxy(driveId, onProgress) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+  onProgress?.('📥 動画をダウンロード中...')
+
+  const res = await fetch(
+    `${supabaseUrl}/functions/v1/proxy-drive-download?id=${driveId}`,
+    {
+      headers: {
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+      },
+    },
+  )
+
+  if (!res.ok) {
+    let msg = `ダウンロード失敗: ${res.status}`
+    try { const b = await res.json(); msg = b.error || msg } catch { /* noop */ }
+    throw new Error(msg)
+  }
+
+  const cd = res.headers.get('content-disposition') || ''
+  const cdMatch = cd.match(/filename="?([^";\\s]+)"?/)
+  const filename = cdMatch ? cdMatch[1] : 'recording.mp4'
+  const contentType = res.headers.get('content-type') || 'video/mp4'
+
+  onProgress?.('📦 データを処理中...')
+  const blob = await res.blob()
+  return new File([blob], filename, { type: contentType })
+}
+
+// ============================================================
 // Call Lists (架電リスト)
 // ============================================================
 
@@ -1576,6 +1618,56 @@ export async function invokeAnalyzeRoleplay(payload) {
     }
   }
   return { data, error }
+}
+
+export async function pollRoleplayAnalysis(sessionId, { intervalMs = 5000, timeoutMs = 300000, signal } = {}) {
+  return new Promise((resolve) => {
+    const startTime = Date.now()
+
+    const poll = async () => {
+      if (signal?.aborted) {
+        clearInterval(intervalId)
+        resolve({ ai_status: 'error', error: '分析がキャンセルされました。' })
+        return
+      }
+      try {
+        const { data, error } = await supabase
+          .from('roleplay_sessions')
+          .select('ai_status, transcript, ai_feedback')
+          .eq('id', sessionId)
+          .single()
+
+        if (error) {
+          console.error('[Poll] error:', error)
+          return // transient error, keep polling
+        }
+
+        if (data.ai_status === 'done') {
+          clearInterval(intervalId)
+          resolve({ transcript: data.transcript, ai_feedback: data.ai_feedback, ai_status: 'done' })
+          return
+        }
+
+        if (data.ai_status === 'error') {
+          clearInterval(intervalId)
+          const errorMsg = data.ai_feedback?.error || 'AI分析でエラーが発生しました。'
+          resolve({ ai_status: 'error', error: errorMsg })
+          return
+        }
+
+        if (Date.now() - startTime > timeoutMs) {
+          clearInterval(intervalId)
+          resolve({ ai_status: 'error', error: '分析がタイムアウトしました。しばらく待ってから再度お試しください。' })
+          return
+        }
+      } catch (e) {
+        console.error('[Poll] unexpected error:', e)
+      }
+    }
+
+    const intervalId = setInterval(poll, intervalMs)
+    poll() // poll immediately
+  })
 }
 
 export async function postRoleplayToSlack(payload) {
