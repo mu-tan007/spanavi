@@ -729,7 +729,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
               {/* テーブル */}
               <div style={{ flex: '1.5', minWidth: 0, borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 0.7fr 1.2fr 1fr 1fr', padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247' }}>
-                  <span>クライアント名</span><span>アポ数</span><span>売上合計</span><span>平均単価</span><span>最終アポ日</span>
+                  <span>クライアント名</span><span style={{ textAlign: 'right' }}>アポ数</span><span style={{ textAlign: 'right' }}>売上合計</span><span style={{ textAlign: 'right' }}>平均単価</span><span style={{ textAlign: 'right' }}>最終アポ日</span>
                 </div>
                 {clientData.length === 0 ? (
                   <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
@@ -751,10 +751,10 @@ export default function StatsView({ callListData, currentUser, appoData, members
                           <span style={{ fontSize: 9, color: C.textLight, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▶</span>
                           {d.name}
                         </span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700 }}>{d.count}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 13, fontWeight: 900, color: '#111827' }}>{fmt(d.total)}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textDark }}>{fmt(avg)}</span>
-                        <span style={{ fontSize: 11, color: C.textMid }}>{d.lastDate?.slice(0, 10) || '—'}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, textAlign: 'right' }}>{d.count}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 13, fontWeight: 900, color: '#111827', textAlign: 'right' }}>{fmt(d.total)}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textDark, textAlign: 'right' }}>{fmt(avg)}</span>
+                        <span style={{ fontSize: 11, color: C.textMid, textAlign: 'right' }}>{d.lastDate?.slice(0, 10) || '—'}</span>
                       </div>
                       {isExpanded && (
                         <div style={{ borderBottom: '1px solid #E5E5E5', background: NAVY + '04', padding: '8px 24px 12px' }}>
