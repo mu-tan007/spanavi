@@ -389,7 +389,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen 
             </div>
             {/* Table header */}
             <div style={{
-              display: "grid", gridTemplateColumns: "2fr 1.5fr 0.8fr 0.8fr 1fr",
+              display: "grid", gridTemplateColumns: "280px 220px 100px 100px 140px",
               padding: "8px 20px", background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#fff',
               borderBottom: "1px solid #E5E7EB",
             }}>
@@ -409,7 +409,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen 
                   onMouseEnter={e => { e.currentTarget.style.background = '#F8F9FA'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#F8F9FA'; }}
                   style={{
-                    display: "grid", gridTemplateColumns: "2fr 1.5fr 0.8fr 0.8fr 1fr",
+                    display: "grid", gridTemplateColumns: "280px 220px 100px 100px 140px",
                     padding: "8px 20px", fontSize: 12, alignItems: "center",
                     borderBottom: "1px solid #E5E7EB",
                     borderLeft: "3px solid " + g.color,
