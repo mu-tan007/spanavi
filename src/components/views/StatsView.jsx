@@ -820,10 +820,11 @@ export default function StatsView({ callListData, currentUser, appoData, members
             </div>
           </div>
         );
+        const RIGHT_COLS = new Set(['calls', 'connect', 'connectRate', 'appo', 'appoRate', 'lastDate']);
         const SortHdr = ({ label, sk }) => (
           <span
             onClick={() => { if (listSortKey === sk) setListSortDir(d => d === 'desc' ? 'asc' : 'desc'); else { setListSortKey(sk); setListSortDir('desc'); } }}
-            style={{ cursor: 'pointer', userSelect: 'none', color: listSortKey === sk ? '#ffffff' : 'rgba(255,255,255,0.65)', whiteSpace: 'nowrap' }}>
+            style={{ cursor: 'pointer', userSelect: 'none', color: listSortKey === sk ? '#ffffff' : 'rgba(255,255,255,0.65)', whiteSpace: 'nowrap', textAlign: RIGHT_COLS.has(sk) ? 'right' : 'left' }}>
             {label}{listSortKey === sk ? (listSortDir === 'asc' ? ' ▲' : ' ▼') : ''}
           </span>
         );
@@ -867,12 +868,12 @@ export default function StatsView({ callListData, currentUser, appoData, members
                       {row.name.includes(' - ') ? row.name.split(' - ').slice(1).join(' - ') : row.name}
                       {row.isArchived && <span style={{ fontSize: 9, background: '#F3F2F2', borderRadius: 3, padding: '1px 4px', color: C.textLight, flexShrink: 0 }}>Arc</span>}
                     </span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: NAVY }}>{row.calls}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'" }}>{row.connect}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: NAVY, textAlign: 'right' }}>{row.calls}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'", textAlign: 'right' }}>{row.connect}</span>
                     <RateBar rate={row.connectRate} />
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: '#374151' }}>{row.appo}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: '#374151', textAlign: 'right' }}>{row.appo}</span>
                     <RateBar rate={row.appoRate} />
-                    <span style={{ fontSize: 11, color: C.textMid }}>{row.lastDate || '—'}</span>
+                    <span style={{ fontSize: 11, color: C.textMid, textAlign: 'right' }}>{row.lastDate || '—'}</span>
                   </div>
                 );
               })}
