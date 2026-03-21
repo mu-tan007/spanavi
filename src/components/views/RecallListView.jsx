@@ -66,7 +66,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
   const inputStyle = { padding: "6px 10px", borderRadius: 6, background: C.white, border: "1px solid " + C.border, color: C.textDark, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none" };
 
   return (
-    <div style={{ animation: "fadeIn 0.3s ease", height: 'calc(100vh - 210px)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ animation: "fadeIn 0.3s ease", height: 'calc(100vh - 130px)', display: 'flex', flexDirection: 'column' }}>
       {/* ページヘッダー */}
       <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
         <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Recall</div>
