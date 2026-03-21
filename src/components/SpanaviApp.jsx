@@ -516,11 +516,6 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
           ? (idx - 1 + flatTabs.length) % flatTabs.length
           : (idx + 1) % flatTabs.length
         ]);
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        e.preventDefault();
-        window.dispatchEvent(new CustomEvent('spanavi-subtab-cycle', {
-          detail: { direction: e.key === 'ArrowLeft' ? -1 : 1 }
-        }));
       }
     };
     window.addEventListener('keydown', handleKeyDown);
