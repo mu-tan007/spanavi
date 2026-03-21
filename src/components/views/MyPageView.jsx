@@ -6,6 +6,19 @@ import TrainingRoleplaySection from './TrainingRoleplaySection';
 
 export default function MyPageView({ currentUser, userId, callListData, members, now, appoData, onDataRefetch, isAdmin = false }) {
   const [periodTab, setPeriodTab] = useState("daily"); // daily, weekly, monthly, cumulative
+  const PERIOD_IDS = ["daily", "weekly", "monthly", "cumulative"];
+  // Ctrl+←/→ でサブタブを切り替え
+  useEffect(() => {
+    const handleSubtabCycle = (e) => {
+      setPeriodTab(prev => {
+        const idx = PERIOD_IDS.indexOf(prev);
+        if (idx === -1) return prev;
+        return PERIOD_IDS[(idx + e.detail.direction + PERIOD_IDS.length) % PERIOD_IDS.length];
+      });
+    };
+    window.addEventListener('spanavi-subtab-cycle', handleSubtabCycle);
+    return () => window.removeEventListener('spanavi-subtab-cycle', handleSubtabCycle);
+  }, []);
   const [trainingExpanded, setTrainingExpanded] = useState(true);
   const [profileImage, setProfileImage] = useState(() => getProfileImageUrl(userId));
   const [profileUploading, setProfileUploading] = useState(false);
