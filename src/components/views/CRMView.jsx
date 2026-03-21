@@ -169,7 +169,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
           fontSize: 11, fontWeight: 600, color: '#fff',
           verticalAlign: 'middle',
         }}>
-          <span style={{ verticalAlign: 'middle' }}>ステータス</span><span style={{ verticalAlign: 'middle' }}>企業名</span><span style={{ verticalAlign: 'middle' }}>業界</span><span style={{ verticalAlign: 'middle' }}>目標</span><span style={{ verticalAlign: 'middle' }}>報酬体系</span><span style={{ verticalAlign: 'middle' }}>リスト</span><span style={{ verticalAlign: 'middle' }}>カレンダー</span><span style={{ verticalAlign: 'middle' }}>連絡</span>{setClientData && <span></span>}
+          <span style={{ verticalAlign: 'middle' }}>ステータス</span><span style={{ verticalAlign: 'middle' }}>企業名</span><span style={{ verticalAlign: 'middle' }}>業界</span><span style={{ verticalAlign: 'middle', textAlign: 'right' }}>目標</span><span style={{ verticalAlign: 'middle' }}>報酬体系</span><span style={{ verticalAlign: 'middle' }}>リスト</span><span style={{ verticalAlign: 'middle' }}>カレンダー</span><span style={{ verticalAlign: 'middle' }}>連絡</span>{setClientData && <span></span>}
         </div>
         {filtered.length === 0 ? (
           <div style={{ padding: "30px 0", textAlign: "center", color: C.textLight, fontSize: 12 }}>データがありません</div>
