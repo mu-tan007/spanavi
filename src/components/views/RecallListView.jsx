@@ -163,8 +163,8 @@ export default function RecallListView({ callListData, supaRecalls = [], members
             <div style={{ padding: '40px 0', textAlign: 'center', color: C.textLight, fontSize: 13 }}>再コール予定はありません</div>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '78px 1.4fr 0.7fr 100px 50px 0.65fr 0.65fr 1.5fr', padding: '8px 14px', background: '#0D2247', borderBottom: '1px solid #E5E7EB', fontSize: 11, fontWeight: 600, color: '#fff', verticalAlign: 'middle', flexShrink: 0 }}>
-                <span>予定日時</span><span>企業名</span><span>代表者</span><span>電話番号</span><span>種別</span><span>担当</span><span>設定者</span><span>メモ</span>
+              <div style={{ display: 'grid', gridTemplateColumns: '78px 180px 90px 110px 60px 90px 90px 1fr', padding: '8px 14px', background: '#0D2247', borderBottom: '1px solid #E5E7EB', borderLeft: '3px solid transparent', fontSize: 11, fontWeight: 600, color: '#fff', verticalAlign: 'middle', flexShrink: 0 }}>
+                <span>予定日時</span><span>企業名</span><span>代表者</span><span>電話番号</span><span style={{ textAlign: 'center' }}>種別</span><span>担当</span><span>設定者</span><span>メモ</span>
               </div>
               {sorted.map((item, i) => {
                 const past = isOverdue(item.recallDate, item.recallTime);
@@ -175,7 +175,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
                         if (_list) { setCallFlowScreen({ list: _list, defaultItemId: item._supaRecord.item_id, defaultListMode: false }); return; }
                       }
                     }}
-                    style={{ display: 'grid', gridTemplateColumns: '78px 1.4fr 0.7fr 100px 50px 0.65fr 0.65fr 1.5fr', padding: '8px 14px', fontSize: 11, alignItems: 'center', borderBottom: '1px solid #E5E7EB', borderLeft: '3px solid transparent', background: past ? '#fff5f5' : i % 2 === 0 ? '#fff' : '#F8F9FA', cursor: 'pointer' }}
+                    style={{ display: 'grid', gridTemplateColumns: '78px 180px 90px 110px 60px 90px 90px 1fr', padding: '8px 14px', fontSize: 11, alignItems: 'center', borderBottom: '1px solid #E5E7EB', borderLeft: '3px solid transparent', background: past ? '#fff5f5' : i % 2 === 0 ? '#fff' : '#F8F9FA', cursor: 'pointer' }}
                     onMouseEnter={e => { e.currentTarget.style.background = '#EAF4FF'; e.currentTarget.style.borderLeft = '3px solid #0D2247'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = past ? '#fff5f5' : 'transparent'; e.currentTarget.style.borderLeft = '3px solid transparent'; }}
                     >
@@ -186,9 +186,11 @@ export default function RecallListView({ callListData, supaRecalls = [], members
                     <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</span>
                     <span style={{ color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 10 }}>{item.representative}</span>
                     <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.navy, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.phone}</span>
-                    <span style={{ fontSize: 9, padding: '2px 5px', borderRadius: 3, background: '#1E40AF1a', color: '#1E40AF', fontWeight: 600, textAlign: 'center', whiteSpace: 'nowrap' }}>
-                      {item.status === 'ceo_recall' || item.status === '社長再コール' ? '社長' : '受付'}
-                    </span>
+                    <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+                      <span style={{ fontSize: 9, padding: '2px 5px', borderRadius: 3, background: '#1E40AF1a', color: '#1E40AF', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        {item.status === 'ceo_recall' || item.status === '社長再コール' ? '社長' : '受付'}
+                      </span>
+                    </div>
                     <span style={{ fontSize: 10, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.assignee || '—'}</span>
                     <span style={{ fontSize: 10, color: C.textLight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.setter || '—'}</span>
                     <span title={item.note || ''} style={{ fontSize: 10, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: item.note ? 'normal' : 'italic' }}>{item.note || '—'}</span>
