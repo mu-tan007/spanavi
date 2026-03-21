@@ -323,7 +323,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
         borderRadius: 4, overflow: "hidden",
       }}>
         <div style={{
-          display: "grid", gridTemplateColumns: "260px 250px 125px 72px 150px 125px 65px",
+          display: "grid", gridTemplateColumns: "300px 250px 125px 72px 150px 125px 65px",
           padding: "8px 16px", background: "#0D2247",
           fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
         }}>
@@ -353,7 +353,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                   const i = idx++;
                   return (
                     <div key={list.id} style={{
-                      display: "grid", gridTemplateColumns: "260px 250px 125px 72px 150px 125px 65px",
+                      display: "grid", gridTemplateColumns: "300px 250px 125px 72px 150px 125px 65px",
                       padding: "10px 16px",
                       borderBottom: "1px solid #F3F2F2",
                       fontSize: 12, alignItems: "center",
