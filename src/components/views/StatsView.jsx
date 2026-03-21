@@ -828,7 +828,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
             {label}{listSortKey === sk ? (listSortDir === 'asc' ? ' ▲' : ' ▼') : ''}
           </span>
         );
-        const LGRID = 'minmax(180px,2fr) minmax(120px,1.5fr) 100px 100px 220px 100px 220px 130px';
+        const LGRID = '250px 200px 100px 100px 220px 100px 220px 130px';
         return (
           <div style={{ background: C.white, borderRadius: 4, padding: '18px 20px', marginBottom: 20, border: '1px solid #E5E7EB' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
