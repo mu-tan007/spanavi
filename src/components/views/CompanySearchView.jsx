@@ -995,7 +995,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       {/* Results table */}
       <div style={{ background: "#fff", borderRadius: 4, border: "1px solid #E5E7EB", overflow: "hidden" }}>
         <div style={{
-          display: "grid", gridTemplateColumns: "360px 145px 145px 260px 80px 120px 180px",
+          display: "grid", gridTemplateColumns: "350px 140px 140px 250px 80px 120px 180px",
           padding: "8px 16px", background: "#0D2247", fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
         }}>
           {[["company","企業名"],["representative","代表者"],["phone","電話番号"],["list","クライアント名"],["industry","業種"],["lastCall","最終発信日"],["status","最終ステータス"]].map(([key, label]) => (
@@ -1017,7 +1017,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           const stColor = JP_STATUS_COLOR[c.call_status] || C.textLight;
           return (
             <div key={c.id} onClick={() => setSelectedItem(c)} style={{
-              display: "grid", gridTemplateColumns: "360px 145px 145px 260px 80px 120px 180px",
+              display: "grid", gridTemplateColumns: "350px 140px 140px 250px 80px 120px 180px",
               padding: "8px 16px", fontSize: 11, alignItems: "center",
               borderBottom: "1px solid #E5E7EB",
               background: i % 2 === 0 ? "#fff" : "#F8F9FA",
