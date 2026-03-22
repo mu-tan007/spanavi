@@ -115,10 +115,6 @@ export default function SlackZoomSettings({ onToast }) {
 
   return (
     <div style={{ maxWidth: 640 }}>
-      <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 4, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: '#92400E' }}>
-        ⚠ Webhook URLやAPIキーは機密情報です。取り扱いにご注意ください。変更後はEdge Functionが次回呼び出し時に新しい値を使用します。
-      </div>
-
       {SETTING_GROUPS.map(group => (
         <div key={group.title} style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', padding: '20px 24px', marginBottom: 20 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 16, paddingBottom: 10, borderBottom: `2px solid ${NAVY}`, display: 'inline-block' }}>
