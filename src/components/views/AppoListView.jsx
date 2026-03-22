@@ -887,7 +887,20 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
     return "¥" + Math.round(val).toLocaleString('ja-JP');
   };
 
-  const colTemplate = setMembers ? "3% 10% 15% 4% 10% 8% 10% 10% 10% 10% 10%" : "3% 11% 17% 4% 11% 9% 11% 11% 12% 11%";
+  const MEMBER_COLS_BASE = [
+    { key: 'no', width: 36, align: 'center' },
+    { key: 'name', width: 120, align: 'left' },
+    { key: 'university', width: 180, align: 'left' },
+    { key: 'year', width: 45, align: 'center' },
+    { key: 'role', width: 100, align: 'center' },
+    { key: 'rank', width: 80, align: 'center' },
+    { key: 'sales', width: 110, align: 'right' },
+    { key: 'rate', width: 110, align: 'right' },
+    { key: 'joinDate', width: 100, align: 'center' },
+    { key: 'opStart', width: 100, align: 'center' },
+  ];
+  const MEMBER_COLS_EDIT = [...MEMBER_COLS_BASE, { key: 'edit', width: 50, align: 'center' }];
+  const { columns: memCols, gridTemplateColumns: memGrid, onResizeStart: memResize, onHeaderContextMenu: memCtxMenu, contextMenu: memCtx, setAlign: memSetAlign, resetAll: memReset, closeMenu: memClose } = useColumnConfig(setMembers ? 'membersEdit' : 'members', setMembers ? MEMBER_COLS_EDIT : MEMBER_COLS_BASE);
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
@@ -960,43 +973,58 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
               <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)' }}>{grouped[team].length}名</span>
             </div>
             <div style={{
-              display: "grid", gridTemplateColumns: colTemplate,
+              display: "grid", gridTemplateColumns: memGrid,
               padding: "8px 16px", background: "#0D2247", borderBottom: "1px solid #0D2247",
               fontSize: 11, fontWeight: 600, color: '#fff',
             }}>
-              <span style={{ textAlign: "center" }}>No</span><span>氏名</span><span>大学名</span><span style={{ textAlign: "center" }}>学年</span><span style={{ textAlign: "center" }}>役職</span><span style={{ textAlign: "center" }}>ランク</span><span style={{ textAlign: "right" }}>累計売上</span><span style={{ textAlign: "right" }}>インセンティブ率</span><span style={{ textAlign: "center" }}>入社日</span><span style={{ textAlign: "center" }}>稼働開始日</span>{setMembers && <span></span>}
+              {['No', '氏名', '大学名', '学年', '役職', 'ランク', '累計売上', 'インセンティブ率', '入社日', '稼働開始日', ...(setMembers ? [''] : [])].map((label, i) => (
+                <span key={i} onContextMenu={e => memCtxMenu(e, i)} style={{ textAlign: memCols[i]?.align || 'left', position: 'relative', userSelect: 'none' }}>
+                  {label}
+                  <ColumnResizeHandle colIndex={i} onResizeStart={memResize} />
+                </span>
+              ))}
             </div>
             {grouped[team].sort((a, b) => {
               const order = { "チームリーダー": 0, "副リーダー": 1, "営業統括": 2, "メンバー": 3, "": 4 };
               return (order[a.role] ?? 4) - (order[b.role] ?? 4);
             }).map((m, idx) => (
               <div key={m.id} style={{
-                display: "grid", gridTemplateColumns: colTemplate,
+                display: "grid", gridTemplateColumns: memGrid,
                 padding: "8px 16px", fontSize: 11, alignItems: "center",
                 borderBottom: "1px solid #E5E7EB",
                 background: idx % 2 === 0 ? '#fff' : '#F8F9FA',
               }}>
-                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: '#9CA3AF', textAlign: "center" }}>{idx + 1}</span>
-                <span style={{ fontWeight: 600, color: '#0D2247' }}>{m.name}</span>
-                <span style={{ color: '#6B7280', fontSize: 10 }}>{m.university}</span>
-                <span style={{ fontFamily: "'JetBrains Mono'", color: '#9CA3AF', textAlign: "center" }}>{m.year}</span>
+                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: '#9CA3AF', textAlign: memCols[0]?.align }}>{idx + 1}</span>
+                <span style={{ fontWeight: 600, color: '#0D2247', textAlign: memCols[1]?.align }}>{m.name}</span>
+                <span style={{ color: '#6B7280', fontSize: 10, textAlign: memCols[2]?.align }}>{m.university}</span>
+                <span style={{ fontFamily: "'JetBrains Mono'", color: '#9CA3AF', textAlign: memCols[3]?.align }}>{m.year}</span>
                 <span style={{
-                  fontSize: 9, padding: "1px 5px", borderRadius: 3, textAlign: "center",
+                  fontSize: 9, padding: "1px 5px", borderRadius: 3, textAlign: memCols[4]?.align,
                   background: m.role === "チームリーダー" ? '#0D224715' : m.role === "副リーダー" ? '#1E40AF15' : m.role === "営業統括" ? '#05966915' : 'transparent',
                   color: m.role === "チームリーダー" ? '#0D2247' : m.role === "副リーダー" ? '#1E40AF' : m.role === "営業統括" ? '#059669' : '#9CA3AF',
                   fontWeight: 600,
                 }}>{m.role || "メンバー"}</span>
-                <span style={{ fontSize: 10, textAlign: "center", color: '#6B7280' }}>{m.rank || "-"}</span>
-                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 500, textAlign: "right", fontVariantNumeric: 'tabular-nums', color: m.totalSales > 0 ? '#0D2247' : '#9CA3AF' }}>{formatCurrency(m.totalSales)}</span>
-                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, textAlign: "right", fontVariantNumeric: 'tabular-nums', color: m.rate > 0 ? '#059669' : '#9CA3AF' }}>{m.rate > 0 ? (m.rate * 100).toFixed(0) + "%" : "-"}</span>
-                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 9, textAlign: "center", color: C.textLight }}>{(m.joinDate || '').slice(2)}</span>
-                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 9, textAlign: "center", color: C.textLight }}>{m.operationStartDate ? m.operationStartDate.slice(2) : '-'}</span>
-                {setMembers && <span style={{ textAlign: "center" }}><button onClick={() => setEditForm({ ...m })} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, padding: 2 }}>&#9998;</button></span>}
+                <span style={{ fontSize: 10, textAlign: memCols[5]?.align, color: '#6B7280' }}>{m.rank || "-"}</span>
+                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 500, textAlign: memCols[6]?.align, fontVariantNumeric: 'tabular-nums', color: m.totalSales > 0 ? '#0D2247' : '#9CA3AF' }}>{formatCurrency(m.totalSales)}</span>
+                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, textAlign: memCols[7]?.align, fontVariantNumeric: 'tabular-nums', color: m.rate > 0 ? '#059669' : '#9CA3AF' }}>{m.rate > 0 ? (m.rate * 100).toFixed(0) + "%" : "-"}</span>
+                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 9, textAlign: memCols[8]?.align, color: C.textLight }}>{(m.joinDate || '').slice(2)}</span>
+                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 9, textAlign: memCols[9]?.align, color: C.textLight }}>{m.operationStartDate ? m.operationStartDate.slice(2) : '-'}</span>
+                {setMembers && <span style={{ textAlign: memCols[10]?.align }}><button onClick={() => setEditForm({ ...m })} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, padding: 2 }}>&#9998;</button></span>}
               </div>
             ))}
           </div>
         ))}
       </div>
+
+      {memCtx.visible && (
+        <AlignmentContextMenu
+          x={memCtx.x} y={memCtx.y}
+          currentAlign={memCols[memCtx.colIndex]?.align || 'left'}
+          onSelect={align => memSetAlign(memCtx.colIndex, align)}
+          onReset={memReset}
+          onClose={memClose}
+        />
+      )}
 
       {/* Zoom ID Sync Result Modal */}
       {syncResult && (
