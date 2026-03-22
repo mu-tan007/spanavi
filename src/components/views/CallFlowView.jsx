@@ -2,16 +2,17 @@ import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import { zoomPhone } from '../../lib/zoomPhoneStore';
 
-// キーボードショートカット定義（F1〜F8 → ステータスラベル）
+// キーボードショートカット定義（Mac: 1〜8 / Windows: F1〜F8 → ステータスラベル）
+const IS_MAC = /Mac/.test(navigator.platform);
 const CFV_SHORTCUTS = [
-  { key: 'F1', label: '不通' },
-  { key: 'F2', label: '社長不在' },
-  { key: 'F3', label: 'アポ獲得' },
-  { key: 'F4', label: '受付ブロック' },
-  { key: 'F5', label: '受付再コール' },
-  { key: 'F6', label: '社長再コール' },
-  { key: 'F7', label: '社長お断り' },
-  { key: 'F8', label: '除外' },
+  { key: IS_MAC ? '1' : 'F1', label: '不通' },
+  { key: IS_MAC ? '2' : 'F2', label: '社長不在' },
+  { key: IS_MAC ? '3' : 'F3', label: 'アポ獲得' },
+  { key: IS_MAC ? '4' : 'F4', label: '受付ブロック' },
+  { key: IS_MAC ? '5' : 'F5', label: '受付再コール' },
+  { key: IS_MAC ? '6' : 'F6', label: '社長再コール' },
+  { key: IS_MAC ? '7' : 'F7', label: '社長お断り' },
+  { key: IS_MAC ? '8' : 'F8', label: '除外' },
 ];
 import { C } from '../../constants/colors';
 import { CALL_RESULTS } from '../../constants/callResults';
@@ -1686,9 +1687,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <tbody>
                 {[
-                  ['F1', '不通'], ['F2', '社長不在'], ['F3', 'アポ獲得'],
-                  ['F4', '受付ブロック'], ['F5', '受付再コール'], ['F6', '社長再コール'],
-                  ['F7', '社長お断り'], ['F8', '除外'],
+                  ...(IS_MAC
+                    ? [['1', '不通'], ['2', '社長不在'], ['3', 'アポ獲得'],
+                       ['4', '受付ブロック'], ['5', '受付再コール'], ['6', '社長再コール'],
+                       ['7', '社長お断り'], ['8', '除外']]
+                    : [['F1', '不通'], ['F2', '社長不在'], ['F3', 'アポ獲得'],
+                       ['F4', '受付ブロック'], ['F5', '受付再コール'], ['F6', '社長再コール'],
+                       ['F7', '社長お断り'], ['F8', '除外']]),
                   ['← →', '前後の企業に移動'], ['Esc', 'モーダルを閉じる'], ['?', 'このヘルプを表示'],
                 ].map(([key, desc]) => (
                   <tr key={key} style={{ borderBottom: '1px solid #f0f0f0' }}>
