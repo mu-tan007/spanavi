@@ -6,6 +6,20 @@ import { calcRankAndRate } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/formatters';
 import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording } from '../../lib/supabaseWrite';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
+import useColumnConfig from '../../hooks/useColumnConfig';
+import ColumnResizeHandle from '../common/ColumnResizeHandle';
+import AlignmentContextMenu from '../common/AlignmentContextMenu';
+
+const APPO_COLS = [
+  { key: 'client', width: 240, align: 'left' },
+  { key: 'company', width: 230, align: 'left' },
+  { key: 'getter', width: 60, align: 'left' },
+  { key: 'getDate', width: 105, align: 'right' },
+  { key: 'meetDate', width: 110, align: 'right' },
+  { key: 'status', width: 200, align: 'center' },
+  { key: 'revenue', width: 90, align: 'right' },
+  { key: 'incentive', width: 110, align: 'right' },
+];
 
 export function MemberSuggestInput({ value, onChange, members = [], style, placeholder = '名前を入力して絞り込み' }) {
   const [suggs, setSuggs] = React.useState([]);
@@ -146,7 +160,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     return { bg: C.textLight + "10", color: C.textLight };
   };
 
-  const colTemplate = "240px 230px 60px 105px 110px 200px 90px 110px";
+  const { columns: appoCols, gridTemplateColumns: appoGrid, onResizeStart: appoResize, onHeaderContextMenu: appoCtxMenu, contextMenu: appoCtx, setAlign: appoSetAlign, resetAll: appoReset, closeMenu: appoClose } = useColumnConfig('appoList', APPO_COLS);
 
   const handleTranscribeDetail = async () => {
     if (transcribeStep !== 'idle') return;
@@ -340,7 +354,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       {/* Table */}
       <div style={{ background: '#fff', borderRadius: 4, overflow: "hidden", border: "1px solid #E5E7EB" }}>
         <div style={{
-          display: "grid", gridTemplateColumns: colTemplate,
+          display: "grid", gridTemplateColumns: appoGrid,
           padding: "8px 6px 8px 16px", columnGap: 2, background: "#0D2247",
           fontSize: 11, fontWeight: 600, color: "#fff",
           borderBottom: "1px solid #E5E7EB",
@@ -351,15 +365,16 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             { label: 'クライアント', key: 'client' },
             { label: '企業名', key: null },
             { label: '取得者', key: 'getter' },
-            { label: '取得日', key: 'getDate', right: true },
-            { label: '面談日', key: 'meetDate', right: true },
-            { label: 'ステータス', key: null, center: true },
-            { label: '当社売上', key: null, right: true, pr: 20 },
-            { label: 'インセンティブ', key: null, right: true, pl: 36 },
-          ].map(({ label, key, center, right, pl, pr }) => (
+            { label: '取得日', key: 'getDate' },
+            { label: '面談日', key: 'meetDate' },
+            { label: 'ステータス', key: null },
+            { label: '当社売上', key: null },
+            { label: 'インセンティブ', key: null },
+          ].map(({ label, key }, i) => (
             <span key={label}
               onClick={key ? () => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); } } : undefined}
-              style={key && right ? { cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, ...(pl ? { paddingLeft: pl } : {}), ...(pr ? { paddingRight: pr } : {}) } : key ? { cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 } : right ? { display: 'block', textAlign: 'right', whiteSpace: 'nowrap', ...(pl ? { paddingLeft: pl } : {}), ...(pr ? { paddingRight: pr } : {}) } : center ? { display: 'block', textAlign: 'center', whiteSpace: 'nowrap' } : { whiteSpace: 'nowrap' }}>
+              onContextMenu={e => appoCtxMenu(e, i)}
+              style={{ position: 'relative', textAlign: appoCols[i]?.align || 'left', whiteSpace: 'nowrap', cursor: key ? 'pointer' : 'default', userSelect: 'none', minWidth: 0 }}>
               {label}
               {key && (
                 <span style={{ marginLeft: 2 }}>
@@ -367,6 +382,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   <span style={{ color: sortKey === key && sortDir === 'desc' ? '#fff' : 'rgba(255,255,255,0.4)' }}>▼</span>
                 </span>
               )}
+              {i < 7 && <ColumnResizeHandle colIndex={i} onResizeStart={appoResize} />}
             </span>
           ))}
         </div>
@@ -376,7 +392,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           const sc = statusColor(a.status);
           return (
             <div key={i} style={{
-              display: "grid", gridTemplateColumns: colTemplate,
+              display: "grid", gridTemplateColumns: appoGrid,
               padding: "8px 6px 8px 16px", columnGap: 2, fontSize: 11, alignItems: "center",
               borderBottom: "1px solid #E5E7EB",
               background: i % 2 === 0 ? '#fff' : '#F8F9FA',
@@ -384,18 +400,18 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             }}
             onMouseEnter={e => e.currentTarget.style.background = "#EAF4FF"}
             onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#F8F9FA'}>
-              <span style={{ color: C.textMid, fontSize: 10 }}>{a.client}</span>
-              <span style={{ fontWeight: 600, color: '#0D2247', cursor: "pointer", textDecoration: "underline dotted", textUnderlineOffset: 2 }} onClick={() => setReportDetail(a)}>{a.company}</span>
-              <span style={{ color: C.textDark }}>{a.getter}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: 'right', display: 'block' }}>{a.getDate.slice(5)}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: 'right', display: 'block' }}>{a.meetDate.slice(5)}</span>
+              <span style={{ color: C.textMid, fontSize: 10, textAlign: appoCols[0]?.align || 'left' }}>{a.client}</span>
+              <span style={{ fontWeight: 600, color: '#0D2247', cursor: "pointer", textDecoration: "underline dotted", textUnderlineOffset: 2, textAlign: appoCols[1]?.align || 'left' }} onClick={() => setReportDetail(a)}>{a.company}</span>
+              <span style={{ color: C.textDark, textAlign: appoCols[2]?.align || 'left' }}>{a.getter}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: appoCols[3]?.align || 'right', display: 'block' }}>{a.getDate.slice(5)}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: appoCols[4]?.align || 'right', display: 'block' }}>{a.meetDate.slice(5)}</span>
               <span style={{
-                display: 'block', textAlign: 'center', fontSize: 10, padding: "2px 6px",
+                display: 'block', textAlign: appoCols[5]?.align || 'center', fontSize: 10, padding: "2px 6px",
                 color: sc.color,
                 whiteSpace: 'nowrap',
               }}>{a.status}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: '#0D2247', textAlign: 'right', fontVariantNumeric: 'tabular-nums', paddingRight: 20 }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums', paddingLeft: 36 }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: '#0D2247', textAlign: appoCols[6]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid, textAlign: appoCols[7]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
             </div>
           );
         })}
@@ -819,6 +835,15 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             </div>
           </div>
         </div>
+      )}
+      {appoCtx.visible && (
+        <AlignmentContextMenu
+          x={appoCtx.x} y={appoCtx.y}
+          currentAlign={appoCols[appoCtx.colIndex]?.align || 'left'}
+          onSelect={align => appoSetAlign(appoCtx.colIndex, align)}
+          onReset={appoReset}
+          onClose={appoClose}
+        />
       )}
     </div>
   );

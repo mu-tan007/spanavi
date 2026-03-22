@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
+import useColumnConfig from '../../hooks/useColumnConfig';
+import ColumnResizeHandle from '../common/ColumnResizeHandle';
+import AlignmentContextMenu from '../common/AlignmentContextMenu';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
@@ -7,6 +10,16 @@ const ORG_ID = 'a0000000-0000-0000-0000-000000000001';
 
 const RANKS = ['トレーニー', 'プレイヤー', 'スパルタン', 'スーパースパルタン'];
 const POSITIONS = ['代表', 'リーダー', 'サブリーダー', 'メンバー', 'インターン'];
+
+const MEMBER_COLS = [
+  { key: 'name', width: 100, align: 'left' },
+  { key: 'role', width: 105, align: 'left' },
+  { key: 'rank', width: 50, align: 'left' },
+  { key: 'joinDate', width: 100, align: 'right' },
+  { key: 'status', width: 140, align: 'center' },
+  { key: 'mypage', width: 70, align: 'center' },
+  { key: 'actions', width: 150, align: 'center' },
+];
 
 const btn = (variant = 'default', extra = {}) => ({
   padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
@@ -35,6 +48,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [hoveredRow, setHoveredRow] = useState(null);
+  const { columns: memCols, onResizeStart: memResize, onHeaderContextMenu: memCtxMenu, contextMenu: memCtx, setAlign: memSetAlign, resetAll: memReset, closeMenu: memClose } = useColumnConfig('memberMgmt', MEMBER_COLS);
 
   const load = async () => {
     setLoading(true);
@@ -135,8 +149,6 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
   })();
 
   const th = { padding: '8px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#ffffff', background: '#0D2247', borderBottom: '2px solid #0D2247' };
-  const thAlign = { '入社日': 'right', 'ステータス': 'center', 'マイページ': 'center', '操作': 'center' };
-  const thWidth = { '氏名': 100, '役職': 105, 'ランク': 50, '入社日': 100, 'ステータス': 140, 'マイページ': 70, '操作': 150 };
   const thPad  = { 'ランク': '8px 2px 8px 6px', '入社日': '8px 6px 8px 2px' };
   const td = { padding: '8px 16px', fontSize: 11, color: '#374151', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' };
   const COLS = ['氏名', '役職', 'ランク', '入社日', 'ステータス', 'マイページ', '操作'];
@@ -175,7 +187,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                 <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr>
-                      {COLS.map(h => <th key={h} style={{ ...th, textAlign: thAlign[h] || 'left', ...(thWidth[h] ? { width: thWidth[h], maxWidth: thWidth[h] } : {}), ...(thPad[h] ? { padding: thPad[h] } : {}) }}>{h}</th>)}
+                      {COLS.map((h, i) => <th key={h} onContextMenu={e => memCtxMenu(e, i)} style={{ ...th, textAlign: memCols[i].align, width: memCols[i].width, maxWidth: memCols[i].width, ...(thPad[h] ? { padding: thPad[h] } : {}), position: 'relative' }}>{h}<ColumnResizeHandle colIndex={i} onResizeStart={memResize} /></th>)}
                     </tr>
                   </thead>
                   <tbody>
@@ -192,8 +204,8 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                             transition: 'background 0.12s, border-color 0.12s',
                           }}
                         >
-                          <td style={{ ...td, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><span style={{ fontWeight: 600 }}>{m.name}</span></td>
-                          <td style={{ ...td, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <td style={{ ...td, textAlign: memCols[0].align, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><span style={{ fontWeight: 600 }}>{m.name}</span></td>
+                          <td style={{ ...td, textAlign: memCols[1].align, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {isEditing ? (
                               <select value={editForm.position} onChange={e => setEditForm(p => ({ ...p, position: e.target.value }))}
                                 style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
@@ -201,7 +213,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                               </select>
                             ) : m.position || '—'}
                           </td>
-                          <td style={{ ...td, padding: '8px 2px 8px 6px' }}>
+                          <td style={{ ...td, textAlign: memCols[2].align, padding: '8px 2px 8px 6px' }}>
                             {isEditing ? (
                               <select value={editForm.rank} onChange={e => setEditForm(p => ({ ...p, rank: e.target.value }))}
                                 style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
@@ -213,13 +225,13 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                               }}>{m.rank || 'トレーニー'}</span>
                             )}
                           </td>
-                          <td style={{ ...td, padding: '8px 6px 8px 2px', textAlign: 'right' }}>
+                          <td style={{ ...td, padding: '8px 6px 8px 2px', textAlign: memCols[3].align }}>
                             {isEditing ? (
                               <input type="date" value={editForm.operation_start_date} onChange={e => setEditForm(p => ({ ...p, operation_start_date: e.target.value }))}
                                 style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }} />
                             ) : (m.operation_start_date || m.start_date || '—')}
                           </td>
-                          <td style={{ ...td, textAlign: 'center' }}>
+                          <td style={{ ...td, textAlign: memCols[4].align }}>
                             {isEditing ? (
                               <select value={editForm.is_active ? 'active' : 'inactive'} onChange={e => setEditForm(p => ({ ...p, is_active: e.target.value === 'active' }))}
                                 style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
@@ -234,7 +246,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                               </span>
                             )}
                           </td>
-                          <td style={{ ...td, textAlign: 'center' }}>
+                          <td style={{ ...td, textAlign: memCols[5].align }}>
                             {onViewMyPage && (
                               <button
                                 onClick={() => onViewMyPage(m.name)}
@@ -244,7 +256,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                               </button>
                             )}
                           </td>
-                          <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          <td style={{ ...td, textAlign: memCols[6].align, whiteSpace: 'nowrap' }}>
                             {isEditing ? (
                               <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
                                 <button onClick={() => saveEdit(m.id)} disabled={saving} style={btn('primary')}>保存</button>
@@ -320,6 +332,13 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
           </div>
         </div>
       )}
+
+      <AlignmentContextMenu
+        contextMenu={memCtx}
+        onAlign={memSetAlign}
+        onReset={memReset}
+        onClose={memClose}
+      />
     </div>
   );
 }

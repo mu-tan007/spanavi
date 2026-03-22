@@ -3,6 +3,9 @@ import React from 'react';
 import { C } from '../../constants/colors';
 import { calcRankAndRate } from '../../utils/calculations';
 import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings } from '../../lib/supabaseWrite';
+import useColumnConfig from '../../hooks/useColumnConfig';
+import ColumnResizeHandle from '../common/ColumnResizeHandle';
+import AlignmentContextMenu from '../common/AlignmentContextMenu';
 
 const PAYROLL_DATA = [];
 
@@ -22,6 +25,18 @@ const RANK_COLORS = {
   'プレイヤー':          { color: C.navyLight },
   'トレーニー':          { color: C.textLight },
 };
+
+const PAYROLL_COLS = [
+  { key: 'name', width: 180, align: 'left' },
+  { key: 'team', width: 80, align: 'left' },
+  { key: 'rank', width: 120, align: 'left' },
+  { key: 'rate', width: 70, align: 'right' },
+  { key: 'sales', width: 110, align: 'right' },
+  { key: 'incentive', width: 120, align: 'right' },
+  { key: 'roleBonus', width: 110, align: 'right' },
+  { key: 'referral', width: 80, align: 'right' },
+  { key: 'total', width: 120, align: 'right' },
+];
 
 export default function PayrollView({ members, appoData, isAdmin, setMembers, onDataRefetch, currentUser = '' }) {
   const payrollMonths = (() => {
@@ -46,6 +61,11 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
   const [syncMsg, setSyncMsg] = useState('');
   const [orgSettings, setOrgSettings] = useState({});
   const [hoveredRow, setHoveredRow] = useState(null);
+
+  const {
+    columns: colCfg, gridTemplateColumns: colGridTemplate,
+    onResizeStart, onHeaderContextMenu, contextMenu, setAlign, resetAll, closeMenu,
+  } = useColumnConfig('payroll', PAYROLL_COLS);
 
   useEffect(() => {
     fetchOrgSettings().then(({ data }) => setOrgSettings(data || {}));
@@ -298,7 +318,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
     { h: "③紹介",         sk: null,         align: "right" },
     { h: "合計支給額",     sk: "total",      align: "right" },
   ];
-  const gridCols = "1.4fr 0.6fr 0.9fr 0.5fr 0.8fr 0.9fr 0.8fr 0.6fr 0.9fr";
+  const gridCols = colGridTemplate;
   const cellPad = "8px 16px";
 
   // ボタンスタイル
@@ -419,13 +439,16 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
           {COLS.map((col, i) => (
             <span key={i}
               onClick={() => { if (col.sk) setSortKey(col.sk); }}
+              onContextMenu={(e) => onHeaderContextMenu(e, i)}
               style={{
                 padding: cellPad, fontSize: 11, fontWeight: 600, color: "#fff",
-                textAlign: col.align,
+                textAlign: colCfg[i]?.align || col.align,
                 cursor: col.sk ? "pointer" : "default",
                 userSelect: "none",
+                position: "relative",
               }}>
               {col.h}{sortKey === col.sk ? " ▼" : ""}
+              <ColumnResizeHandle colIndex={i} onResizeStart={onResizeStart} />
             </span>
           ))}
         </div>
@@ -451,14 +474,14 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
                 transition: "background 0.1s",
               }}>
               {/* 名前 */}
-              <div style={{ padding: cellPad, textAlign: "left" }}>
+              <div style={{ padding: cellPad, textAlign: colCfg[0]?.align || "left" }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: TH_BG }}>{p.name}</div>
                 {p.role && <div style={{ fontSize: 10, color: C.textLight }}>{p.role}</div>}
               </div>
               {/* チーム */}
-              <div style={{ padding: cellPad, fontSize: 11, color: C.textMid, textAlign: "left" }}>{p.team}</div>
+              <div style={{ padding: cellPad, fontSize: 11, color: C.textMid, textAlign: colCfg[1]?.align || "left" }}>{p.team}</div>
               {/* ランク */}
-              <div style={{ padding: cellPad, textAlign: "left" }}>
+              <div style={{ padding: cellPad, textAlign: colCfg[2]?.align || "left" }}>
                 <span style={{
                   fontSize: 10, fontWeight: 600,
                   borderLeft: `3px solid ${rankStyle.color}`,
@@ -466,27 +489,27 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
                 }}>{p.rank || "-"}</span>
               </div>
               {/* 率 */}
-              <div style={{ padding: cellPad, fontSize: 11, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: C.textMid, textAlign: "right" }}>
+              <div style={{ padding: cellPad, fontSize: 11, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: C.textMid, textAlign: colCfg[3]?.align || "right" }}>
                 {p.rate ? (p.rate * 100).toFixed(0) + "%" : "-"}
               </div>
               {/* 今月売上 */}
-              <div style={{ padding: cellPad, fontSize: 11, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 600, color: TH_BG, textAlign: "right" }}>
+              <div style={{ padding: cellPad, fontSize: 11, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 600, color: TH_BG, textAlign: colCfg[4]?.align || "right" }}>
                 {fmt(p.sales)}
               </div>
               {/* ①インセンティブ */}
-              <div style={{ padding: cellPad, fontSize: 11, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: C.green, textAlign: "right" }}>
+              <div style={{ padding: cellPad, fontSize: 11, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: C.green, textAlign: colCfg[5]?.align || "right" }}>
                 {fmt(p.incentive)}
               </div>
               {/* ②役職ボーナス */}
-              <div style={{ padding: cellPad, fontSize: 11, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: p.teamBonus > 0 ? TH_BG : C.textMid, textAlign: "right" }}>
+              <div style={{ padding: cellPad, fontSize: 11, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: p.teamBonus > 0 ? TH_BG : C.textMid, textAlign: colCfg[6]?.align || "right" }}>
                 {fmt(p.teamBonus)}
               </div>
               {/* ③紹介 */}
-              <div style={{ padding: cellPad, fontSize: 11, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: refBonus > 0 ? C.green : C.textMid, textAlign: "right" }}>
+              <div style={{ padding: cellPad, fontSize: 11, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: refBonus > 0 ? C.green : C.textMid, textAlign: colCfg[7]?.align || "right" }}>
                 {fmt(refBonus)}
               </div>
               {/* 合計支給額 */}
-              <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 800, color: TH_BG, textAlign: "right" }}>
+              <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 800, color: TH_BG, textAlign: colCfg[8]?.align || "right" }}>
                 {fmt(p.total + refBonus)}
               </div>
             </div>
@@ -500,28 +523,40 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
             borderTop: `2px solid ${TH_BG}`,
             background: "#fff",
           }}>
-            <div style={{ padding: cellPad, fontSize: 12, fontWeight: 700, color: TH_BG, textAlign: "left" }}>合計</div>
+            <div style={{ padding: cellPad, fontSize: 12, fontWeight: 700, color: TH_BG, textAlign: colCfg[0]?.align || "left" }}>合計</div>
             <div style={{ padding: cellPad }} />
             <div style={{ padding: cellPad }} />
             <div style={{ padding: cellPad }} />
-            <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: TH_BG, textAlign: "right" }}>
+            <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: TH_BG, textAlign: colCfg[4]?.align || "right" }}>
               {grandSales > 0 ? "¥" + filtered.reduce((s, p) => s + p.sales, 0).toLocaleString() : "-"}
             </div>
-            <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.green, textAlign: "right" }}>
+            <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.green, textAlign: colCfg[5]?.align || "right" }}>
               {filtered.reduce((s, p) => s + p.incentive, 0) > 0 ? "¥" + filtered.reduce((s, p) => s + p.incentive, 0).toLocaleString() : "-"}
             </div>
-            <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: TH_BG, textAlign: "right" }}>
+            <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: TH_BG, textAlign: colCfg[6]?.align || "right" }}>
               {filtered.reduce((s, p) => s + p.teamBonus, 0) > 0 ? "¥" + filtered.reduce((s, p) => s + p.teamBonus, 0).toLocaleString() : "-"}
             </div>
-            <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.green, textAlign: "right" }}>
+            <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.green, textAlign: colCfg[7]?.align || "right" }}>
               {filtered.reduce((s, p) => s + (activeReferralMap[p.name] || 0), 0) > 0 ? "¥" + filtered.reduce((s, p) => s + (activeReferralMap[p.name] || 0), 0).toLocaleString() : "-"}
             </div>
-            <div style={{ padding: cellPad, fontSize: 13, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 900, color: TH_BG, textAlign: "right" }}>
+            <div style={{ padding: cellPad, fontSize: 13, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 900, color: TH_BG, textAlign: colCfg[8]?.align || "right" }}>
               {"¥" + filtered.reduce((s, p) => s + p.total + (activeReferralMap[p.name] || 0), 0).toLocaleString()}
             </div>
           </div>
         )}
       </div>
+
+      {/* 揃え変更コンテキストメニュー */}
+      {contextMenu.visible && (
+        <AlignmentContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          currentAlign={colCfg[contextMenu.colIndex]?.align || 'left'}
+          onSelect={(align) => setAlign(contextMenu.colIndex, align)}
+          onReset={resetAll}
+          onClose={closeMenu}
+        />
+      )}
     </div>
   );
 }

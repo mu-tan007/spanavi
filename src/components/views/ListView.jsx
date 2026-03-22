@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { C } from '../../constants/colors';
 import { updateCallList, insertCallList, archiveCallList, restoreCallList } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
+import useColumnConfig from '../../hooks/useColumnConfig';
+import ColumnResizeHandle from '../common/ColumnResizeHandle';
+import AlignmentContextMenu from '../common/AlignmentContextMenu';
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -35,7 +38,28 @@ const ScorePill = ({ score }) => {
   );
 };
 
+const LISTVIEW_COLS = [
+  { key: 'client', width: 320, align: 'left' },
+  { key: 'type', width: 250, align: 'center' },
+  { key: 'industry', width: 100, align: 'left' },
+  { key: 'count', width: 72, align: 'right' },
+  { key: 'manager', width: 180, align: 'center' },
+  { key: 'score', width: 125, align: 'center' },
+  { key: 'actions', width: 65, align: 'left' },
+];
+
+const LISTVIEW_ARCHIVE_COLS = [
+  { key: 'client', width: 280, align: 'left' },
+  { key: 'type', width: 70, align: 'left' },
+  { key: 'industry', width: 140, align: 'left' },
+  { key: 'count', width: 70, align: 'left' },
+  { key: 'manager', width: 112, align: 'left' },
+  { key: 'actions', width: 80, align: 'right' },
+];
+
 export default function ListView({ filteredLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [] }) {
+  const { columns: lvCols, gridTemplateColumns: lvGrid, onResizeStart: lvResize, onHeaderContextMenu: lvCtxMenu, contextMenu: lvCtx, setAlign: lvSetAlign, resetAll: lvReset, closeMenu: lvClose } = useColumnConfig('listView', LISTVIEW_COLS);
+  const { columns: arCols, gridTemplateColumns: arGrid, onResizeStart: arResize, onHeaderContextMenu: arCtxMenu, contextMenu: arCtx, setAlign: arSetAlign, resetAll: arReset, closeMenu: arClose } = useColumnConfig('listViewArchive', LISTVIEW_ARCHIVE_COLS);
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
   const emptyForm = { company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "" };
   const [formData, setFormData] = useState(emptyForm);
@@ -323,11 +347,16 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
         borderRadius: 4, overflow: "hidden",
       }}>
         <div style={{
-          display: "grid", gridTemplateColumns: "320px 250px 100px 72px 180px 125px 65px",
+          display: "grid", gridTemplateColumns: lvGrid,
           padding: "8px 16px", background: "#0D2247",
           fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
         }}>
-          <span style={{ minWidth: 0 }}>クライアント</span><span style={{ textAlign: "center" }}>種別</span><span style={{ minWidth: 0 }}>業種</span><span style={{ textAlign: "right" }}>社数</span><span style={{ textAlign: "center", minWidth: 0 }}>担当者</span><span style={{ textAlign: "center" }}>おすすめ度</span><span></span>
+          {['クライアント', '種別', '業種', '社数', '担当者', 'おすすめ度', ''].map((label, i) => (
+            <span key={i} onContextMenu={e => lvCtxMenu(e, i)} style={{ position: 'relative', textAlign: lvCols[i]?.align || 'left', minWidth: 0, cursor: 'default', userSelect: 'none' }}>
+              {label}
+              {i < 6 && <ColumnResizeHandle colIndex={i} onResizeStart={lvResize} />}
+            </span>
+          ))}
         </div>
         {displayFilter !== 'archived' && <div style={{ maxHeight: 600, overflowY: "auto" }}>
           {(() => {
@@ -353,7 +382,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                   const i = idx++;
                   return (
                     <div key={list.id} style={{
-                      display: "grid", gridTemplateColumns: "320px 250px 100px 72px 180px 125px 65px",
+                      display: "grid", gridTemplateColumns: lvGrid,
                       padding: "10px 16px",
                       borderBottom: "1px solid #F3F2F2",
                       fontSize: 12, alignItems: "center",
@@ -366,15 +395,15 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                     onMouseEnter={e => { e.currentTarget.style.background = "#EAF4FF"; e.currentTarget.style.borderLeft = "2px solid #0D2247"; }}
                     onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderLeft = "2px solid transparent"; }}
                     >
-                      <span onClick={() => setSelectedList(list.id)} style={{ fontWeight: 500, paddingRight: 8, cursor: "pointer", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span onClick={() => setSelectedList(list.id)} style={{ fontWeight: 500, paddingRight: 8, cursor: "pointer", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[0]?.align || 'left' }}>
                         {list.status === "架電停止" && <span style={{ color: C.red, marginRight: 4 }}>■</span>}
                         {list.company}
                       </span>
-                      <span style={{ display: "flex", justifyContent: "center" }}><Badge color={list.type === "M&A仲介" ? C.navy : list.type === "IFA" ? '#6366F1' : list.type === "ファンド" ? C.green : C.orange} small>{list.type}</Badge></span>
-                      <span style={{ color: C.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list.industry}</span>
-                      <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textMid, textAlign: "right" }}>{list.count.toLocaleString()}</span>
-                      <span style={{ color: C.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }}>{list.manager}</span>
-                      <span style={{ display: "flex", justifyContent: "center" }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
+                      <span style={{ display: "flex", justifyContent: lvCols[1]?.align === 'right' ? 'flex-end' : lvCols[1]?.align === 'center' ? 'center' : 'flex-start' }}><Badge color={list.type === "M&A仲介" ? C.navy : list.type === "IFA" ? '#6366F1' : list.type === "ファンド" ? C.green : C.orange} small>{list.type}</Badge></span>
+                      <span style={{ color: C.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[2]?.align || 'left' }}>{list.industry}</span>
+                      <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textMid, textAlign: lvCols[3]?.align || 'right' }}>{list.count.toLocaleString()}</span>
+                      <span style={{ color: C.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[4]?.align || 'center' }}>{list.manager}</span>
+                      <span style={{ display: "flex", justifyContent: lvCols[5]?.align === 'right' ? 'flex-end' : lvCols[5]?.align === 'center' ? 'center' : 'flex-start' }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
                       {isAdmin && (
                         <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 4 }}>
                           <button onClick={() => handleOpenEdit(list)} title="編集" style={{
@@ -404,17 +433,17 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
             <div style={{ borderTop: displayFilter === 'all' ? "1px solid #E5E7EB" : "none", overflow: "hidden" }}>
               {archivedLists.map(list => (
                 <div key={list.id} style={{
-                  display: "grid", gridTemplateColumns: "2fr 70px 1fr 70px 0.8fr 80px",
+                  display: "grid", gridTemplateColumns: arGrid,
                   padding: "8px 16px", fontSize: 11, alignItems: "center",
                   borderBottom: "1px solid " + C.borderLight,
                   opacity: 0.5, background: C.offWhite,
                 }}>
-                  <span style={{ color: C.textMid, fontWeight: 500 }}>{list.company}</span>
-                  <span style={{ color: C.textLight, fontSize: 10 }}>{list.type}</span>
-                  <span style={{ color: C.textLight }}>{list.industry}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight }}>{list.count.toLocaleString()}</span>
-                  <span style={{ color: C.textLight }}>{list.manager}</span>
-                  <span style={{ textAlign: "right" }}>
+                  <span style={{ color: C.textMid, fontWeight: 500, textAlign: arCols[0]?.align || 'left' }}>{list.company}</span>
+                  <span style={{ color: C.textLight, fontSize: 10, textAlign: arCols[1]?.align || 'left' }}>{list.type}</span>
+                  <span style={{ color: C.textLight, textAlign: arCols[2]?.align || 'left' }}>{list.industry}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: arCols[3]?.align || 'left' }}>{list.count.toLocaleString()}</span>
+                  <span style={{ color: C.textLight, textAlign: arCols[4]?.align || 'left' }}>{list.manager}</span>
+                  <span style={{ textAlign: arCols[5]?.align || 'right' }}>
                     {isAdmin && <button onClick={async () => {
                       const error = await restoreCallList(list._supaId);
                       if (error) { alert('復元に失敗しました: ' + (error.message || '不明なエラー')); return; }
@@ -431,6 +460,24 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
           );
         })()}
       </div>
+      {lvCtx.visible && (
+        <AlignmentContextMenu
+          x={lvCtx.x} y={lvCtx.y}
+          currentAlign={lvCols[lvCtx.colIndex]?.align || 'left'}
+          onSelect={align => lvSetAlign(lvCtx.colIndex, align)}
+          onReset={lvReset}
+          onClose={lvClose}
+        />
+      )}
+      {arCtx.visible && (
+        <AlignmentContextMenu
+          x={arCtx.x} y={arCtx.y}
+          currentAlign={arCols[arCtx.colIndex]?.align || 'left'}
+          onSelect={align => arSetAlign(arCtx.colIndex, align)}
+          onReset={arReset}
+          onClose={arClose}
+        />
+      )}
     </div>
   );
 }

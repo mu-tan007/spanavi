@@ -4,6 +4,9 @@ import { CALL_RESULTS } from '../../constants/callResults';
 import { updatePreCheckResult, fetchCallListItemByAppo } from '../../lib/supabaseWrite';
 import { Badge } from '../common/Badge';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
+import useColumnConfig from '../../hooks/useColumnConfig';
+import ColumnResizeHandle from '../common/ColumnResizeHandle';
+import AlignmentContextMenu from '../common/AlignmentContextMenu';
 
 export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
   const PRE_CHECK_OPTIONS = ['確認完了', '確認中', 'リスケ', 'キャンセル'];
@@ -208,8 +211,17 @@ export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
 
 const PRECHECK_SLACK_WEBHOOK = 'https://hooks.slack.com/services/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';
 
+const PRECHECK_COLS = [
+  { key: 'company', width: 280, align: 'left' },
+  { key: 'client', width: 310, align: 'left' },
+  { key: 'getter', width: 140, align: 'left' },
+  { key: 'meetDate', width: 140, align: 'left' },
+  { key: 'status', width: 130, align: 'left' },
+];
+
 export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen }) {
   const [selectedAppo, setSelectedAppo] = useState(null);
+  const { columns, gridTemplateColumns, onResizeStart, onHeaderContextMenu, contextMenu, setAlign, resetAll, closeMenu } = useColumnConfig('preCheck', PRECHECK_COLS);
 
   const handlePreCheckNavigate = ({ listId, itemId }) => {
     setSelectedAppo(null);
@@ -389,15 +401,16 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen 
             </div>
             {/* Table header */}
             <div style={{
-              display: "grid", gridTemplateColumns: "280px 310px 140px 140px 130px",
+              display: "grid", gridTemplateColumns,
               padding: "8px 20px", background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#fff',
               borderBottom: "1px solid #E5E7EB",
             }}>
-              <span>企業名</span>
-              <span>クライアント</span>
-              <span>取得者</span>
-              <span>面談日</span>
-              <span>確認状況</span>
+              {['企業名', 'クライアント', '取得者', '面談日', '確認状況'].map((label, i) => (
+                <span key={label} onContextMenu={e => onHeaderContextMenu(e, i)} style={{ position: 'relative', textAlign: columns[i].align, userSelect: 'none' }}>
+                  {label}
+                  <ColumnResizeHandle colIndex={i} onResizeStart={onResizeStart} />
+                </span>
+              ))}
             </div>
             {/* Rows */}
             {items.map((a, i) => {
@@ -409,18 +422,18 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen 
                   onMouseEnter={e => { e.currentTarget.style.background = '#F8F9FA'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#F8F9FA'; }}
                   style={{
-                    display: "grid", gridTemplateColumns: "280px 310px 140px 140px 130px",
+                    display: "grid", gridTemplateColumns,
                     padding: "8px 20px", fontSize: 12, alignItems: "center",
                     borderBottom: "1px solid #E5E7EB",
                     borderLeft: "3px solid " + g.color,
                     background: i % 2 === 0 ? '#fff' : '#F8F9FA',
                     cursor: "pointer",
                   }}>
-                  <span style={{ fontWeight: 600, color: '#0D2247' }}>{a.company}</span>
-                  <span style={{ color: C.textMid, fontSize: 11 }}>{a.client}</span>
-                  <span style={{ fontWeight: 600, color: C.textDark }}>{a.getter}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight }}>{a.meetDate.slice(5)}</span>
-                  <span>
+                  <span style={{ fontWeight: 600, color: '#0D2247', textAlign: columns[0].align }}>{a.company}</span>
+                  <span style={{ color: C.textMid, fontSize: 11, textAlign: columns[1].align }}>{a.client}</span>
+                  <span style={{ fontWeight: 600, color: C.textDark, textAlign: columns[2].align }}>{a.getter}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: columns[3].align }}>{a.meetDate.slice(5)}</span>
+                  <span style={{ textAlign: columns[4].align }}>
                     {badgeColor
                       ? <span style={{ fontSize: 12, color: badgeColor, background: badgeColor + '1a', borderRadius: 4, padding: '2px 8px' }}>{pcs}</span>
                       : <span style={{ fontSize: 12, color: C.textLight }}>未入力 →</span>
@@ -448,6 +461,15 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen 
           onSave={handlePreCheckSave}
           onCancel={() => setSelectedAppo(null)}
           onNavigate={setCallFlowScreen ? handlePreCheckNavigate : undefined}
+        />
+      )}
+      {contextMenu.visible && (
+        <AlignmentContextMenu
+          x={contextMenu.x} y={contextMenu.y}
+          currentAlign={columns[contextMenu.colIndex]?.align || 'left'}
+          onSelect={align => setAlign(contextMenu.colIndex, align)}
+          onReset={resetAll}
+          onClose={closeMenu}
         />
       )}
     </div>

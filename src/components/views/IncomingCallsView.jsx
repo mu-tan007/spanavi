@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { C } from '../../constants/colors';
+import useColumnConfig from '../../hooks/useColumnConfig';
+import ColumnResizeHandle from '../common/ColumnResizeHandle';
+import AlignmentContextMenu from '../common/AlignmentContextMenu';
 
 const ORG_ID = 'a0000000-0000-0000-0000-000000000001';
 
@@ -27,7 +30,17 @@ const normalizePhone = (n) => {
   return digits;
 };
 
+const INCOMING_COLS = [
+  { key: 'receivedAt', width: 50, align: 'right' },
+  { key: 'company', width: 210, align: 'left' },
+  { key: 'phone', width: 70, align: 'left' },
+  { key: 'status', width: 100, align: 'center' },
+  { key: 'handler', width: 120, align: 'left' },
+  { key: 'action', width: 130, align: 'center' },
+];
+
 export default function IncomingCallsView({ setCallFlowScreen }) {
+  const { columns, onResizeStart, onHeaderContextMenu, contextMenu, setAlign, resetAll, closeMenu } = useColumnConfig('incomingCalls', INCOMING_COLS);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -156,19 +169,16 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
           <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: '#0D2247' }}>
-                {[
-                  { label: '受信日時', align: 'right', width: 50, pad: '8px 6px' },
-                  { label: '企業名・リスト', align: 'left', width: 210 },
-                  { label: '電話番号', align: 'left', width: 70 },
-                  { label: 'ステータス', align: 'center', width: 100 },
-                  { label: '対応者', align: 'left', width: 120 },
-                  { label: '操作', align: 'center', width: 130 },
-                ].map(h => (
-                  <th key={h.label} style={{
-                    padding: h.pad || '8px 16px', textAlign: h.align, fontWeight: 600,
+                {['受信日時', '企業名・リスト', '電話番号', 'ステータス', '対応者', '操作'].map((label, i) => (
+                  <th key={label} onContextMenu={e => onHeaderContextMenu(e, i)} style={{
+                    padding: i === 0 ? '8px 6px' : '8px 16px',
+                    textAlign: columns[i].align, fontWeight: 600,
                     color: '#fff', fontSize: 11, verticalAlign: 'middle',
-                    width: h.width,
-                  }}>{h.label}</th>
+                    width: columns[i].width, position: 'relative',
+                  }}>
+                    {label}
+                    <ColumnResizeHandle colIndex={i} onResizeStart={onResizeStart} />
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -188,12 +198,12 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
                     borderBottom: '1px solid #E5E7EB',
                     background: i % 2 === 0 ? '#fff' : '#F8F9FA',
                   }}>
-                    <td style={{ padding: '8px 6px 8px 6px', textAlign: 'right', color: C.textMid, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+                    <td style={{ padding: '8px 6px 8px 6px', textAlign: columns[0].align, color: C.textMid, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                       {formatJST(r.received_at)}
                     </td>
 
                     {/* 企業名・リスト列 */}
-                    <td style={{ padding: '8px 16px', verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <td style={{ padding: '8px 16px', textAlign: columns[1].align, verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {companyName ? (
                         <div>
                           {canNavigate ? (
@@ -237,20 +247,20 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
                       )}
                     </td>
 
-                    <td style={{ padding: '8px 16px', fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums', color: C.textMid, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+                    <td style={{ padding: '8px 16px', textAlign: columns[2].align, fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums', color: C.textMid, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                       {r.caller_number || '-'}
                     </td>
-                    <td style={{ padding: '8px 16px', textAlign: 'center', verticalAlign: 'middle' }}>
+                    <td style={{ padding: '8px 16px', textAlign: columns[3].align, verticalAlign: 'middle' }}>
                       <span style={{
                         color: statusColor(r.status), fontSize: 12,
                       }}>
                         {r.status || '-'}
                       </span>
                     </td>
-                    <td style={{ padding: '8px 16px', color: C.textMid, verticalAlign: 'middle' }}>
+                    <td style={{ padding: '8px 16px', textAlign: columns[4].align, color: C.textMid, verticalAlign: 'middle' }}>
                       {r.handled_by || '-'}
                     </td>
-                    <td style={{ padding: '8px 16px', textAlign: 'center', verticalAlign: 'middle' }}>
+                    <td style={{ padding: '8px 16px', textAlign: columns[5].align, verticalAlign: 'middle' }}>
                       {r.status !== '対応済み' && (
                         <button onClick={() => markHandled(r.id)} style={{
                           padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 500,
@@ -268,6 +278,13 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
           </table>
         )}
       </div>
+
+      <AlignmentContextMenu
+        contextMenu={contextMenu}
+        setAlign={setAlign}
+        resetAll={resetAll}
+        closeMenu={closeMenu}
+      />
 
       {/* リスト選択モーダル */}
       {selectModal && (

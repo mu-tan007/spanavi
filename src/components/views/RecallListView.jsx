@@ -1,12 +1,37 @@
 import { useState } from "react";
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
+import useColumnConfig from '../../hooks/useColumnConfig';
+import ColumnResizeHandle from '../common/ColumnResizeHandle';
+import AlignmentContextMenu from '../common/AlignmentContextMenu';
+
+const RECALL_COLS = [
+  { key: 'datetime', width: 78, align: 'left' },
+  { key: 'company', width: 260, align: 'left' },
+  { key: 'rep', width: 130, align: 'left' },
+  { key: 'phone', width: 80, align: 'left' },
+  { key: 'type', width: 150, align: 'center' },
+  { key: 'assignee', width: 130, align: 'left' },
+  { key: 'setter', width: 130, align: 'left' },
+  { key: 'memo', width: 200, align: 'left' },
+];
 
 export default function RecallListView({ callListData, supaRecalls = [], members = [], currentUser = '', isAdmin = false, setCallFlowScreen }) {
   const [sortBy, setSortBy] = useState("date");
   const [filterAssignee, setFilterAssignee] = useState('');
   const [assigneeQuery, setAssigneeQuery] = useState('');
   const [showAssigneeSugg, setShowAssigneeSugg] = useState(false);
+
+  const {
+    columns,
+    gridTemplateColumns,
+    onResizeStart,
+    onHeaderContextMenu,
+    contextMenu,
+    setAlign,
+    resetAll,
+    closeMenu,
+  } = useColumnConfig('recall', RECALL_COLS);
 
   const assigneeSuggestions = members.filter(m =>
     !assigneeQuery || m.toLowerCase().includes(assigneeQuery.toLowerCase())
@@ -64,6 +89,8 @@ export default function RecallListView({ callListData, supaRecalls = [], members
   const isOverdue = (date, time) => { if (!date) return false; return new Date(`${date}T${time || '00:00'}:00`) <= nowDt; };
 
   const inputStyle = { padding: "6px 10px", borderRadius: 6, background: C.white, border: "1px solid " + C.border, color: C.textDark, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none" };
+
+  const headerLabels = ['予定日時', '企業名', '代表者', '電話番号', '種別', '担当', '設定者', 'メモ'];
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease", height: 'calc(100vh - 130px)', display: 'flex', flexDirection: 'column' }}>
@@ -163,8 +190,17 @@ export default function RecallListView({ callListData, supaRecalls = [], members
             <div style={{ padding: '40px 0', textAlign: 'center', color: C.textLight, fontSize: 13 }}>再コール予定はありません</div>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '78px 260px 130px 80px 150px 130px 130px 1fr', padding: '8px 14px', background: '#0D2247', borderBottom: '1px solid #E5E7EB', borderLeft: '3px solid transparent', fontSize: 11, fontWeight: 600, color: '#fff', verticalAlign: 'middle', flexShrink: 0 }}>
-                <span>予定日時</span><span>企業名</span><span>代表者</span><span>電話番号</span><span style={{ textAlign: 'center' }}>種別</span><span>担当</span><span>設定者</span><span>メモ</span>
+              <div style={{ display: 'grid', gridTemplateColumns, padding: '8px 14px', background: '#0D2247', borderBottom: '1px solid #E5E7EB', borderLeft: '3px solid transparent', fontSize: 11, fontWeight: 600, color: '#fff', verticalAlign: 'middle', flexShrink: 0 }}>
+                {headerLabels.map((label, idx) => (
+                  <span
+                    key={columns[idx].key}
+                    onContextMenu={e => onHeaderContextMenu(e, idx)}
+                    style={{ position: 'relative', textAlign: columns[idx].align, paddingRight: 6 }}
+                  >
+                    {label}
+                    <ColumnResizeHandle colIndex={idx} onResizeStart={onResizeStart} />
+                  </span>
+                ))}
               </div>
               {sorted.map((item, i) => {
                 const past = isOverdue(item.recallDate, item.recallTime);
@@ -175,25 +211,25 @@ export default function RecallListView({ callListData, supaRecalls = [], members
                         if (_list) { setCallFlowScreen({ list: _list, defaultItemId: item._supaRecord.item_id, defaultListMode: false }); return; }
                       }
                     }}
-                    style={{ display: 'grid', gridTemplateColumns: '78px 260px 130px 80px 150px 130px 130px 1fr', padding: '8px 14px', fontSize: 11, alignItems: 'center', borderBottom: '1px solid #E5E7EB', borderLeft: '3px solid transparent', background: past ? '#fff5f5' : i % 2 === 0 ? '#fff' : '#F8F9FA', cursor: 'pointer' }}
+                    style={{ display: 'grid', gridTemplateColumns, padding: '8px 14px', fontSize: 11, alignItems: 'center', borderBottom: '1px solid #E5E7EB', borderLeft: '3px solid transparent', background: past ? '#fff5f5' : i % 2 === 0 ? '#fff' : '#F8F9FA', cursor: 'pointer' }}
                     onMouseEnter={e => { e.currentTarget.style.background = '#EAF4FF'; e.currentTarget.style.borderLeft = '3px solid #0D2247'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = past ? '#fff5f5' : 'transparent'; e.currentTarget.style.borderLeft = '3px solid transparent'; }}
                     >
-                    <div>
+                    <div style={{ textAlign: columns[0].align }}>
                       <div style={{ fontWeight: 700, color: past ? '#e53e3e' : C.navy, fontFamily: "'JetBrains Mono'", fontSize: 11 }}>{item.recallTime || '--:--'}</div>
                       <div style={{ fontSize: 9, color: C.textLight }}>{item.recallDate ? item.recallDate.slice(5).replace('-', '/') : '日時未設定'}</div>
                     </div>
-                    <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</span>
-                    <span style={{ color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 10 }}>{item.representative}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.navy, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.phone}</span>
-                    <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+                    <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: columns[1].align }}>{item.company}</span>
+                    <span style={{ color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 10, textAlign: columns[2].align }}>{item.representative}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.navy, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: columns[3].align }}>{item.phone}</span>
+                    <div style={{ display: 'flex', justifyContent: columns[4].align === 'left' ? 'flex-start' : columns[4].align === 'right' ? 'flex-end' : 'center', width: '100%' }}>
                       <span style={{ fontSize: 9, padding: '2px 5px', borderRadius: 3, background: '#1E40AF1a', color: '#1E40AF', fontWeight: 600, whiteSpace: 'nowrap' }}>
                         {item.status === 'ceo_recall' || item.status === '社長再コール' ? '社長' : '受付'}
                       </span>
                     </div>
-                    <span style={{ fontSize: 10, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.assignee || '—'}</span>
-                    <span style={{ fontSize: 10, color: C.textLight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.setter || '—'}</span>
-                    <span title={item.note || ''} style={{ fontSize: 10, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: item.note ? 'normal' : 'italic' }}>{item.note || '—'}</span>
+                    <span style={{ fontSize: 10, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: columns[5].align }}>{item.assignee || '—'}</span>
+                    <span style={{ fontSize: 10, color: C.textLight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: columns[6].align }}>{item.setter || '—'}</span>
+                    <span title={item.note || ''} style={{ fontSize: 10, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: item.note ? 'normal' : 'italic', textAlign: columns[7].align }}>{item.note || '—'}</span>
                   </div>
                 );
               })}
@@ -201,6 +237,16 @@ export default function RecallListView({ callListData, supaRecalls = [], members
           )}
         </div>
       </div>
+      {contextMenu.visible && (
+        <AlignmentContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          currentAlign={columns[contextMenu.colIndex]?.align || 'left'}
+          onSelect={align => setAlign(contextMenu.colIndex, align)}
+          onReset={resetAll}
+          onClose={closeMenu}
+        />
+      )}
     </div>
   );
 }

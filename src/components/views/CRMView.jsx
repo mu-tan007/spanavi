@@ -1,11 +1,26 @@
 import { useState } from 'react';
 import { C } from '../../constants/colors';
 import { updateClient, insertClient, deleteClient } from '../../lib/supabaseWrite';
+import useColumnConfig from '../../hooks/useColumnConfig';
+import ColumnResizeHandle from '../common/ColumnResizeHandle';
+import AlignmentContextMenu from '../common/AlignmentContextMenu';
 
 const NAVY = '#0D2247';
 const BLUE = '#1E40AF';
 const GRAY_200 = '#E5E7EB';
 const GRAY_50 = '#F8F9FA';
+
+const CRM_COLS_BASE = [
+  { key: 'status', width: 100, align: 'left' },
+  { key: 'company', width: 250, align: 'left' },
+  { key: 'industry', width: 80, align: 'left' },
+  { key: 'target', width: 70, align: 'center' },
+  { key: 'reward', width: 100, align: 'left' },
+  { key: 'list', width: 80, align: 'left' },
+  { key: 'calendar', width: 80, align: 'left' },
+  { key: 'contact', width: 70, align: 'left' },
+];
+const CRM_COLS_EDIT = [...CRM_COLS_BASE, { key: 'edit', width: 32, align: 'center' }];
 
 export default function CRMView({ isAdmin, clientData, setClientData, rewardMaster = [] }) {
   const [statusFilter, setStatusFilter] = useState("支援中");
@@ -58,9 +73,8 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
     return "\u{1F4DE}";
   };
 
-  const colTemplate = setClientData
-    ? "0.8fr 2fr 0.6fr 0.5fr 0.7fr 0.6fr 0.6fr 0.5fr 32px"
-    : "0.8fr 2fr 0.6fr 0.5fr 0.7fr 0.6fr 0.6fr 0.5fr";
+  const crmDefaultCols = setClientData ? CRM_COLS_EDIT : CRM_COLS_BASE;
+  const { columns: crmCols, gridTemplateColumns: crmGrid, onResizeStart: crmResize, onHeaderContextMenu: crmCtxMenu, contextMenu: crmCtx, setAlign: crmSetAlign, resetAll: crmReset, closeMenu: crmClose } = useColumnConfig(setClientData ? 'crmViewEdit' : 'crmView', crmDefaultCols);
 
   const handleSaveEdit = async () => {
     if (!editForm || !setClientData) return;
@@ -164,12 +178,18 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
       {/* Table */}
       <div style={{ border: '1px solid ' + GRAY_200, borderRadius: 4, overflow: "hidden" }}>
         <div style={{
-          display: "grid", gridTemplateColumns: colTemplate,
+          display: "grid", gridTemplateColumns: crmGrid,
           padding: "8px 16px", background: NAVY,
           fontSize: 11, fontWeight: 600, color: '#fff',
           verticalAlign: 'middle',
         }}>
-          <span style={{ verticalAlign: 'middle' }}>ステータス</span><span style={{ verticalAlign: 'middle' }}>企業名</span><span style={{ verticalAlign: 'middle' }}>業界</span><span style={{ verticalAlign: 'middle', textAlign: 'right' }}>目標</span><span style={{ verticalAlign: 'middle' }}>報酬体系</span><span style={{ verticalAlign: 'middle' }}>リスト</span><span style={{ verticalAlign: 'middle' }}>カレンダー</span><span style={{ verticalAlign: 'middle' }}>連絡</span>{setClientData && <span></span>}
+          {['ステータス','企業名','業界','目標','報酬体系','リスト','カレンダー','連絡'].map((label, idx) => (
+            <span key={label} style={{ position: 'relative', verticalAlign: 'middle', textAlign: crmCols[idx]?.align || 'left', paddingRight: 6 }} onContextMenu={e => crmCtxMenu(e, idx)}>
+              {label}
+              <ColumnResizeHandle colIndex={idx} onResizeStart={crmResize} />
+            </span>
+          ))}
+          {setClientData && <span></span>}
         </div>
         {filtered.length === 0 ? (
           <div style={{ padding: "30px 0", textAlign: "center", color: C.textLight, fontSize: 12 }}>データがありません</div>
@@ -178,7 +198,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
           const globalIdx = clientData.indexOf(c);
           return (
             <div key={i} style={{
-              display: "grid", gridTemplateColumns: colTemplate,
+              display: "grid", gridTemplateColumns: crmGrid,
               padding: "8px 16px", fontSize: 11, alignItems: "center",
               borderBottom: '1px solid ' + GRAY_200,
               background: i % 2 === 0 ? '#fff' : GRAY_50,
@@ -188,17 +208,17 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
               onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? '#fff' : GRAY_50}>
               <span style={{
                 borderLeft: '3px solid ' + sc.color, paddingLeft: 8, color: sc.color, fontSize: 12,
-                display: "inline-block", width: "fit-content",
+                display: "inline-block", width: "fit-content", textAlign: crmCols[0]?.align,
               }}>{c.status}</span>
-              <span style={{ fontWeight: 600, color: NAVY }}>{c.company}</span>
-              <span style={{ color: C.textMid, fontSize: 10, textAlign: 'left' }}>{c.industry}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, fontWeight: 700, color: c.target > 0 ? NAVY : C.textLight, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{c.target > 0 ? c.target + "件" : "-"}</span>
+              <span style={{ fontWeight: 600, color: NAVY, textAlign: crmCols[1]?.align }}>{c.company}</span>
+              <span style={{ color: C.textMid, fontSize: 10, textAlign: crmCols[2]?.align }}>{c.industry}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, fontWeight: 700, color: c.target > 0 ? NAVY : C.textLight, textAlign: crmCols[3]?.align, fontVariantNumeric: 'tabular-nums' }}>{c.target > 0 ? c.target + "件" : "-"}</span>
               <span onClick={e => { e.stopPropagation(); setShowRewardDetail(c.rewardType); }} style={{
-                fontSize: 10, fontWeight: 600, color: NAVY, cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted",
+                fontSize: 10, fontWeight: 600, color: NAVY, cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textAlign: crmCols[4]?.align,
               }}>{c.rewardType ? c.rewardType + " " + getRewardSummary(c.rewardType).slice(0, 10) : "-"}</span>
-              <span style={{ fontSize: 10, color: C.textMid, textAlign: 'left' }}>{c.listSrc || "-"}</span>
-              <span style={{ fontSize: 10, color: C.textMid, textAlign: 'left' }}>{c.calendar || "-"}</span>
-              <span style={{ fontSize: 12 }}>{contactIcon(c.contact)}</span>
+              <span style={{ fontSize: 10, color: C.textMid, textAlign: crmCols[5]?.align }}>{c.listSrc || "-"}</span>
+              <span style={{ fontSize: 10, color: C.textMid, textAlign: crmCols[6]?.align }}>{c.calendar || "-"}</span>
+              <span style={{ fontSize: 12, textAlign: crmCols[7]?.align }}>{contactIcon(c.contact)}</span>
               {setClientData && <span style={{ textAlign: "center" }}><button onClick={e => { e.stopPropagation(); setEditForm({ ...c, _idx: globalIdx }); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, padding: 2 }}>&#9998;</button></span>}
             </div>
           );
@@ -489,6 +509,17 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
           </div>
         );
       })()}
+
+      {crmCtx.visible && (
+        <AlignmentContextMenu
+          x={crmCtx.x}
+          y={crmCtx.y}
+          currentAlign={crmCols[crmCtx.colIndex]?.align || 'left'}
+          onSelect={align => crmSetAlign(crmCtx.colIndex, align)}
+          onReset={crmReset}
+          onClose={crmClose}
+        />
+      )}
     </div>
   );
 }

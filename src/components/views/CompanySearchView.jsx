@@ -22,6 +22,36 @@ import {
   updateCallRecordRecordingUrl,
 } from '../../lib/supabaseWrite';
 import AppoReportModal from './AppoReportModal';
+import useColumnConfig from '../../hooks/useColumnConfig';
+import ColumnResizeHandle from '../common/ColumnResizeHandle';
+import AlignmentContextMenu from '../common/AlignmentContextMenu';
+
+const SEARCH_COMPANY_COLS = [
+  { key: 'company', width: 350, align: 'left' },
+  { key: 'rep', width: 140, align: 'left' },
+  { key: 'phone', width: 140, align: 'left' },
+  { key: 'client', width: 250, align: 'left' },
+  { key: 'industry', width: 80, align: 'left' },
+  { key: 'lastCallDate', width: 120, align: 'right' },
+  { key: 'lastStatus', width: 180, align: 'center' },
+];
+
+const SEARCH_LIST_ITEMS_COLS = [
+  { key: 'company', width: 280, align: 'left' },
+  { key: 'rep', width: 140, align: 'left' },
+  { key: 'phone', width: 160, align: 'left' },
+  { key: 'status', width: 140, align: 'left' },
+  { key: 'listName', width: 210, align: 'left' },
+];
+
+const SEARCH_LISTS_COLS = [
+  { key: 'listName', width: 280, align: 'left' },
+  { key: 'client', width: 170, align: 'left' },
+  { key: 'industry', width: 140, align: 'left' },
+  { key: 'companyCount', width: 80, align: 'right' },
+  { key: 'calledCount', width: 80, align: 'right' },
+  { key: 'actions', width: 150, align: 'center' },
+];
 
 export default function CompanySearchView({ importedCSVs, callListData, setCallingScreen, setImportedCSVs, clientData = [], currentUser, members = [], setCallFlowScreen, rewardMaster = [] }) {
   const [subTab, setSubTab] = useState("company");
@@ -30,6 +60,11 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   const [statusFilter, setStatusFilter] = useState("all");
   const [clientSortBy, setClientSortBy] = useState(null);
   const [clientSortDir, setClientSortDir] = useState("asc");
+
+  // Column resize/alignment hooks
+  const { columns: scCols, gridTemplateColumns: scGrid, onResizeStart: scResize, onHeaderContextMenu: scCtxMenu, contextMenu: scCtx, setAlign: scSetAlign, resetAll: scReset, closeMenu: scClose } = useColumnConfig('searchCompany', SEARCH_COMPANY_COLS);
+  const { columns: sliCols, gridTemplateColumns: sliGrid, onResizeStart: sliResize, onHeaderContextMenu: sliCtxMenu, contextMenu: sliCtx, setAlign: sliSetAlign, resetAll: sliReset, closeMenu: sliClose } = useColumnConfig('searchListItems', SEARCH_LIST_ITEMS_COLS);
+  const { columns: slCols, gridTemplateColumns: slGrid, onResizeStart: slResize, onHeaderContextMenu: slCtxMenu, contextMenu: slCtx, setAlign: slSetAlign, resetAll: slReset, closeMenu: slClose } = useColumnConfig('searchLists', SEARCH_LISTS_COLS);
 
   // List search state（リスト検索）
   const [lsClientInput, setLsClientInput] = useState("");
@@ -995,12 +1030,16 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       {/* Results table */}
       <div style={{ background: "#fff", borderRadius: 4, border: "1px solid #E5E7EB", overflow: "hidden" }}>
         <div style={{
-          display: "grid", gridTemplateColumns: "350px 140px 140px 250px 80px 120px 180px",
+          display: "grid", gridTemplateColumns: scGrid,
           padding: "8px 16px", background: "#0D2247", fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
         }}>
-          {[["company","企業名"],["representative","代表者"],["phone","電話番号"],["list","クライアント名"],["industry","業種"],["lastCall","最終発信日"],["status","最終ステータス"]].map(([key, label]) => (
-            <span key={key} onClick={() => { if (clientSortBy === key) { setClientSortBy(null); setClientSortDir("asc"); } else { setClientSortBy(key); setClientSortDir("desc"); } }} style={{ cursor: "pointer", userSelect: "none", textAlign: key === "lastCall" ? "right" : key === "status" ? "center" : undefined }}>
+          {[["company","企業名"],["representative","代表者"],["phone","電話番号"],["list","クライアント名"],["industry","業種"],["lastCall","最終発信日"],["status","最終ステータス"]].map(([key, label], i) => (
+            <span key={key}
+              onClick={() => { if (clientSortBy === key) { setClientSortBy(null); setClientSortDir("asc"); } else { setClientSortBy(key); setClientSortDir("desc"); } }}
+              onContextMenu={e => scCtxMenu(e, i)}
+              style={{ position: 'relative', cursor: "pointer", userSelect: "none", textAlign: scCols[i]?.align || 'left', whiteSpace: 'nowrap', minWidth: 0 }}>
               {label}{clientSortBy === key ? " ▲" : " ▽"}
+              {i < 6 && <ColumnResizeHandle colIndex={i} onResizeStart={scResize} />}
             </span>
           ))}
         </div>
@@ -1017,25 +1056,25 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           const stColor = JP_STATUS_COLOR[c.call_status] || C.textLight;
           return (
             <div key={c.id} onClick={() => setSelectedItem(c)} style={{
-              display: "grid", gridTemplateColumns: "350px 140px 140px 250px 80px 120px 180px",
+              display: "grid", gridTemplateColumns: scGrid,
               padding: "8px 16px", fontSize: 11, alignItems: "center",
               borderBottom: "1px solid #E5E7EB",
               background: i % 2 === 0 ? "#fff" : "#F8F9FA",
               cursor: "pointer",
             }}>
-              <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.company}</span>
-              <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.representative || "-"}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.navy }}>{c.phone || "-"}</span>
-              <span style={{ fontSize: 10, color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[0]?.align || 'left' }}>{c.company}</span>
+              <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[1]?.align || 'left' }}>{c.representative || "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.navy, textAlign: scCols[2]?.align || 'left' }}>{c.phone || "-"}</span>
+              <span style={{ fontSize: 10, color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[3]?.align || 'left' }}>
                 {listInfo ? listInfo.company : "-"}
               </span>
-              <span style={{ fontSize: 10, color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 10, color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[4]?.align || 'left' }}>
                 {listInfo?.industry || "-"}
               </span>
-              <span style={{ fontSize: 9, color: C.textLight, fontFamily: "'JetBrains Mono'", textAlign: 'right' }}>
+              <span style={{ fontSize: 9, color: C.textLight, fontFamily: "'JetBrains Mono'", textAlign: scCols[5]?.align || 'right' }}>
                 {latestCalled ? new Date(new Date(latestCalled).getTime() + 9*60*60*1000).toISOString().slice(0,10).replace(/-/g, '/') : "-"}
               </span>
-              <span style={{ textAlign: 'center' }}>
+              <span style={{ textAlign: scCols[6]?.align || 'center' }}>
                 {c.call_status ? (
                   <span style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: stColor + "18", color: stColor, fontWeight: 600, whiteSpace: "nowrap" }}>
                     {c.call_status}
@@ -1487,22 +1526,27 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                     }}
                   >{lsExporting === '__items__' ? "処理中..." : "エクスポート"}</button>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1.2fr 1fr 1.5fr", padding: "8px 16px", background: "#0D2247", fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle' }}>
-                  <span>企業名</span><span>代表者名</span><span>電話番号</span><span>最新ステータス</span><span>リスト名</span>
+                <div style={{ display: "grid", gridTemplateColumns: sliGrid, padding: "8px 16px", background: "#0D2247", fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle' }}>
+                  {['企業名','代表者名','電話番号','最新ステータス','リスト名'].map((label, i) => (
+                    <span key={label} onContextMenu={e => sliCtxMenu(e, i)} style={{ position: 'relative', textAlign: sliCols[i]?.align || 'left', whiteSpace: 'nowrap', minWidth: 0 }}>
+                      {label}
+                      {i < 4 && <ColumnResizeHandle colIndex={i} onResizeStart={sliResize} />}
+                    </span>
+                  ))}
                 </div>
                 {lsItemResults.map((item, i) => {
                   const list = itemListMap[item.list_id];
                   return (
-                    <div key={item.id || i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1.2fr 1fr 1.5fr", padding: "8px 16px", fontSize: 11, alignItems: "center", borderBottom: "1px solid #E5E7EB", background: i % 2 === 0 ? "#fff" : "#F8F9FA" }}>
-                      <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.company || "-"}</span>
-                      <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.representative || "-"}</span>
-                      <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.navy }}>{item.phone || "-"}</span>
-                      <span>
+                    <div key={item.id || i} style={{ display: "grid", gridTemplateColumns: sliGrid, padding: "8px 16px", fontSize: 11, alignItems: "center", borderBottom: "1px solid #E5E7EB", background: i % 2 === 0 ? "#fff" : "#F8F9FA" }}>
+                      <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: sliCols[0]?.align || 'left' }}>{item.company || "-"}</span>
+                      <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: sliCols[1]?.align || 'left' }}>{item.representative || "-"}</span>
+                      <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.navy, textAlign: sliCols[2]?.align || 'left' }}>{item.phone || "-"}</span>
+                      <span style={{ textAlign: sliCols[3]?.align || 'left' }}>
                         <span style={{ fontSize: 10, borderLeft: '3px solid ' + (statusFg[item.call_status] || '#9CA3AF'), paddingLeft: 8, color: statusFg[item.call_status] || '#9CA3AF' }}>
                           {item.call_status || "-"}
                         </span>
                       </span>
-                      <span style={{ color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 10 }}>
+                      <span style={{ color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 10, textAlign: sliCols[4]?.align || 'left' }}>
                         {list ? `${list.company}${list.industry ? ` - ${list.industry}` : ""}` : "-"}
                       </span>
                     </div>
@@ -1518,31 +1562,31 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
         ) : lsResults !== null && (
           <div style={{ background: "#fff", borderRadius: 4, overflow: "hidden", border: "1px solid #E5E7EB" }}>
             <div style={{
-              display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 80px 80px 150px",
+              display: "grid", gridTemplateColumns: slGrid,
               padding: "8px 16px", background: "#0D2247",
               fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
             }}>
-              <span>リスト名</span>
-              <span>クライアント名</span>
-              <span>業種</span>
-              <span style={{ textAlign: "center" }}>企業数</span>
-              <span style={{ textAlign: "center" }}>架電済み</span>
-              <span style={{ textAlign: "center" }}>操作</span>
+              {['リスト名','クライアント名','業種','企業数','架電済み','操作'].map((label, i) => (
+                <span key={label} onContextMenu={e => slCtxMenu(e, i)} style={{ position: 'relative', textAlign: slCols[i]?.align || 'left', whiteSpace: 'nowrap', minWidth: 0 }}>
+                  {label}
+                  {i < 5 && <ColumnResizeHandle colIndex={i} onResizeStart={slResize} />}
+                </span>
+              ))}
             </div>
             {lsResults.map((list, i) => (
               <div key={list._supaId || i} style={{
-                display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 80px 80px 150px",
+                display: "grid", gridTemplateColumns: slGrid,
                 padding: "8px 16px", fontSize: 11, alignItems: "center",
                 borderBottom: "1px solid #E5E7EB",
                 background: i % 2 === 0 ? "#fff" : "#F8F9FA",
               }}>
-                <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: slCols[0]?.align || 'left' }}>
                   {list.company}{list.industry ? ` - ${list.industry}` : ""}
                 </span>
-                <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list.company}</span>
-                <span style={{ color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list.industry || "-"}</span>
-                <span style={{ textAlign: "center", fontFamily: "'JetBrains Mono'", fontWeight: 700, color: C.navy }}>{(list.count || 0).toLocaleString()}</span>
-                <span style={{ textAlign: "center", fontFamily: "'JetBrains Mono'", color: C.textMid }}>
+                <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: slCols[1]?.align || 'left' }}>{list.company}</span>
+                <span style={{ color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: slCols[2]?.align || 'left' }}>{list.industry || "-"}</span>
+                <span style={{ textAlign: slCols[3]?.align || 'right', fontFamily: "'JetBrains Mono'", fontWeight: 700, color: C.navy }}>{(list.count || 0).toLocaleString()}</span>
+                <span style={{ textAlign: slCols[4]?.align || 'right', fontFamily: "'JetBrains Mono'", color: C.textMid }}>
                   {lsCalledCounts[list._supaId] != null ? lsCalledCounts[list._supaId].toLocaleString() : "-"}
                 </span>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
@@ -1584,6 +1628,33 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           onClose={() => setAppoModal(null)}
           onSave={handleAppoSave}
           onDone={() => setAppoModal(null)}
+        />
+      )}
+      {scCtx.visible && (
+        <AlignmentContextMenu
+          x={scCtx.x} y={scCtx.y}
+          currentAlign={scCols[scCtx.colIndex]?.align || 'left'}
+          onSelect={align => scSetAlign(scCtx.colIndex, align)}
+          onReset={scReset}
+          onClose={scClose}
+        />
+      )}
+      {sliCtx.visible && (
+        <AlignmentContextMenu
+          x={sliCtx.x} y={sliCtx.y}
+          currentAlign={sliCols[sliCtx.colIndex]?.align || 'left'}
+          onSelect={align => sliSetAlign(sliCtx.colIndex, align)}
+          onReset={sliReset}
+          onClose={sliClose}
+        />
+      )}
+      {slCtx.visible && (
+        <AlignmentContextMenu
+          x={slCtx.x} y={slCtx.y}
+          currentAlign={slCols[slCtx.colIndex]?.align || 'left'}
+          onSelect={align => slSetAlign(slCtx.colIndex, align)}
+          onReset={slReset}
+          onClose={slClose}
         />
       )}
     </div>

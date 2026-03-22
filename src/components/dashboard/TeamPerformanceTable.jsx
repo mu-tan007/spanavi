@@ -1,17 +1,31 @@
 import { useMemo } from 'react';
 import { C } from '../../constants/colors';
+import useColumnConfig from '../../hooks/useColumnConfig';
+import ColumnResizeHandle from '../common/ColumnResizeHandle';
+import AlignmentContextMenu from '../common/AlignmentContextMenu';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
 const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール']);
 const RESCHED_STATUSES = new Set(['リスケ中', 'キャンセル', '面談済', '事前確認済', 'アポ取得']);
 
-// チーム/メンバー名 + 8指標
-const GRID = '0.3fr 0.1fr 0.2fr 0.2fr 0.2fr 0.2fr 0.2fr 0.2fr 0.2fr';
-
 const COLS = ['架電数', '社長接続', '接続率', 'アポ数', 'アポ率', '件/h', 'リスケ率', 'キャンセル率'];
 
+const TEAM_PERF_COLS = [
+  { key: 'name', width: 180, align: 'left' },
+  { key: 'calls', width: 70, align: 'right' },
+  { key: 'ceoConnect', width: 100, align: 'right' },
+  { key: 'connectRate', width: 100, align: 'right' },
+  { key: 'appo', width: 80, align: 'right' },
+  { key: 'appoRate', width: 100, align: 'right' },
+  { key: 'callsPerHour', width: 80, align: 'right' },
+  { key: 'reschedRate', width: 100, align: 'right' },
+  { key: 'cancelRate', width: 100, align: 'right' },
+];
+
 export default function TeamPerformanceTable({ records, appoRecords = [], loading, teamMap, sessionMap = {}, reschedAppoData = [], members = [] }) {
+
+  const { columns: perfCols, gridTemplateColumns: perfGrid, onResizeStart: perfResize, onHeaderContextMenu: perfCtxMenu, contextMenu: perfCtx, setAlign: perfSetAlign, resetAll: perfReset, closeMenu: perfClose } = useColumnConfig('teamPerf', TEAM_PERF_COLS);
 
   const { teamData, memberData, reschedMap } = useMemo(() => {
     const EXCLUDED_TEAMS = new Set(['営業統括', 'その他']);
@@ -98,9 +112,24 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
         <div style={{ border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
 
           {/* グローバル列ヘッダー（最上部に1つだけ） */}
-          <div style={{ display: 'grid', gridTemplateColumns: GRID, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#fff', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' }}>
-            <span style={{ padding: '0', verticalAlign: 'middle' }}>チーム / メンバー</span>
-            {COLS.map(c => <span key={c} style={{ padding: '0', verticalAlign: 'middle', textAlign: 'right', display: 'block' }}>{c}</span>)}
+          <div style={{ display: 'grid', gridTemplateColumns: perfGrid, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#fff', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' }}>
+            <span
+              style={{ padding: '0', verticalAlign: 'middle', textAlign: perfCols[0].align, position: 'relative' }}
+              onContextMenu={(e) => perfCtxMenu(e, 0)}
+            >
+              チーム / メンバー
+              <ColumnResizeHandle colIndex={0} onResizeStart={perfResize} />
+            </span>
+            {COLS.map((c, i) => (
+              <span
+                key={c}
+                style={{ padding: '0', verticalAlign: 'middle', textAlign: perfCols[i + 1].align, display: 'block', position: 'relative' }}
+                onContextMenu={(e) => perfCtxMenu(e, i + 1)}
+              >
+                {c}
+                <ColumnResizeHandle colIndex={i + 1} onResizeStart={perfResize} />
+              </span>
+            ))}
           </div>
 
           {teamData.map(([tn, d], teamIdx) => {
@@ -124,19 +153,19 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
             return (
               <div key={tn}>
                 {/* チーム集計行 */}
-                <div style={{ display: 'grid', gridTemplateColumns: GRID, padding: '8px 16px', background: NAVY, alignItems: 'center', borderTop: teamIdx > 0 ? '2px solid #E5E7EB' : 'none' }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', verticalAlign: 'middle' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: perfGrid, padding: '8px 16px', background: NAVY, alignItems: 'center', borderTop: teamIdx > 0 ? '2px solid #E5E7EB' : 'none' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', verticalAlign: 'middle', textAlign: perfCols[0].align }}>
                     {tn}
                     <span style={{ fontSize: 10, color: '#93C5FD', fontWeight: 400, marginLeft: 6 }}>{d.memberCount}人</span>
                   </span>
-                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: 'right', display: 'block' }}>{d.call}</span>
-                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: 'right', display: 'block' }}>{d.connect}</span>
-                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: 'right', display: 'block' }}>{cr}%</span>
-                  <span style={{ ...mono, color: '#fff', fontWeight: 800, fontSize: 12, textAlign: 'right', display: 'block' }}>{d.appo}</span>
-                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: 'right', display: 'block' }}>{ar}%</span>
-                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: 'right', display: 'block' }}>{teamCph}</span>
-                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: 'right', display: 'block' }}>{teamReschedRate}</span>
-                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: 'right', display: 'block' }}>{teamCancelRate}</span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: perfCols[1].align, display: 'block' }}>{d.call}</span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: perfCols[2].align, display: 'block' }}>{d.connect}</span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: perfCols[3].align, display: 'block' }}>{cr}%</span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 800, fontSize: 12, textAlign: perfCols[4].align, display: 'block' }}>{d.appo}</span>
+                  <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: perfCols[5].align, display: 'block' }}>{ar}%</span>
+                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: perfCols[6].align, display: 'block' }}>{teamCph}</span>
+                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: perfCols[7].align, display: 'block' }}>{teamReschedRate}</span>
+                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: perfCols[8].align, display: 'block' }}>{teamCancelRate}</span>
                 </div>
 
                 {/* メンバー行 */}
@@ -154,17 +183,17 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
                   return (
                     <div
                       key={name}
-                      style={{ display: 'grid', gridTemplateColumns: GRID, fontSize: 11, padding: '8px 16px', borderBottom: '1px solid #E5E7EB', background: i % 2 === 0 ? '#fff' : '#F8F9FA', color: C.textDark, verticalAlign: 'middle', alignItems: 'center' }}
+                      style={{ display: 'grid', gridTemplateColumns: perfGrid, fontSize: 11, padding: '8px 16px', borderBottom: '1px solid #E5E7EB', background: i % 2 === 0 ? '#fff' : '#F8F9FA', color: C.textDark, verticalAlign: 'middle', alignItems: 'center' }}
                     >
-                      <span style={{ fontWeight: 500, textAlign: 'left', paddingLeft: 12 }}>{name}</span>
-                      <span style={{ ...mono, textAlign: 'right', display: 'block' }}>{md.call}</span>
-                      <span style={{ ...mono, textAlign: 'right', display: 'block' }}>{md.connect}</span>
-                      <span style={{ ...mono, color: '#374151', textAlign: 'right', display: 'block' }}>{mcr}%</span>
-                      <span style={{ ...mono, color: '#374151', fontWeight: 700, textAlign: 'right', display: 'block' }}>{md.appo}</span>
-                      <span style={{ ...mono, color: '#374151', textAlign: 'right', display: 'block' }}>{mar}%</span>
-                      <span style={{ ...mono, color: '#6B7280', textAlign: 'right', display: 'block' }}>{mcph}</span>
-                      <span style={{ ...mono, color: reschedColor, textAlign: 'right', display: 'block' }}>{mReschedRate}</span>
-                      <span style={{ ...mono, color: cancelColor, textAlign: 'right', display: 'block' }}>{mCancelRate}</span>
+                      <span style={{ fontWeight: 500, textAlign: perfCols[0].align, paddingLeft: 12 }}>{name}</span>
+                      <span style={{ ...mono, textAlign: perfCols[1].align, display: 'block' }}>{md.call}</span>
+                      <span style={{ ...mono, textAlign: perfCols[2].align, display: 'block' }}>{md.connect}</span>
+                      <span style={{ ...mono, color: '#374151', textAlign: perfCols[3].align, display: 'block' }}>{mcr}%</span>
+                      <span style={{ ...mono, color: '#374151', fontWeight: 700, textAlign: perfCols[4].align, display: 'block' }}>{md.appo}</span>
+                      <span style={{ ...mono, color: '#374151', textAlign: perfCols[5].align, display: 'block' }}>{mar}%</span>
+                      <span style={{ ...mono, color: '#6B7280', textAlign: perfCols[6].align, display: 'block' }}>{mcph}</span>
+                      <span style={{ ...mono, color: reschedColor, textAlign: perfCols[7].align, display: 'block' }}>{mReschedRate}</span>
+                      <span style={{ ...mono, color: cancelColor, textAlign: perfCols[8].align, display: 'block' }}>{mCancelRate}</span>
                     </div>
                   );
                 })}
@@ -172,6 +201,17 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
             );
           })}
         </div>
+      )}
+
+      {perfCtx.visible && (
+        <AlignmentContextMenu
+          x={perfCtx.x}
+          y={perfCtx.y}
+          currentAlign={perfCols[perfCtx.colIndex]?.align || 'left'}
+          onSelect={(align) => perfSetAlign(perfCtx.colIndex, align)}
+          onReset={perfReset}
+          onClose={perfClose}
+        />
       )}
     </div>
   );

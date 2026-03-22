@@ -9,6 +9,9 @@ import {
   ResponsiveContainer, Area, AreaChart, Cell,
   PieChart, Pie,
 } from 'recharts';
+import useColumnConfig from '../../hooks/useColumnConfig';
+import ColumnResizeHandle from '../common/ColumnResizeHandle';
+import AlignmentContextMenu from '../common/AlignmentContextMenu';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
@@ -16,6 +19,33 @@ const GOLD_LIGHT = '#e0c97a';
 const COUNTABLE = new Set(['面談済', '事前確認済', 'アポ取得']);
 const fmt = (n) => formatCurrency(n);
 const fmtFull = (n) => '¥' + (n || 0).toLocaleString();
+
+const STATS_CLIENT_COLS = [
+  { key: 'clientName', width: 280, align: 'left' },
+  { key: 'count', width: 80, align: 'right' },
+  { key: 'total', width: 150, align: 'right' },
+  { key: 'avg', width: 130, align: 'right' },
+];
+
+const STATS_LIST_COLS = [
+  { key: 'clientName', width: 260, align: 'left' },
+  { key: 'name', width: 80, align: 'left' },
+  { key: 'calls', width: 100, align: 'right' },
+  { key: 'connect', width: 80, align: 'right' },
+  { key: 'connectRate', width: 180, align: 'left' },
+  { key: 'appo', width: 80, align: 'right' },
+  { key: 'appoRate', width: 180, align: 'left' },
+  { key: 'lastDate', width: 80, align: 'right' },
+];
+
+const STATS_RESCHED_COLS = [
+  { key: 'name', width: 250, align: 'left' },
+  { key: 'appoCount', width: 80, align: 'right' },
+  { key: 'reschedCount', width: 80, align: 'right' },
+  { key: 'reschedRate', width: 120, align: 'right' },
+  { key: 'cancelCount', width: 80, align: 'right' },
+  { key: 'cancelRate', width: 120, align: 'right' },
+];
 
 function getActivityDateRange(period, customFrom, customTo, todayStr, weekStartStr, monthStr) {
   if (period === 'day')  return { from: todayStr, to: todayStr };
@@ -97,6 +127,11 @@ export default function StatsView({ callListData, currentUser, appoData, members
   const [clientRescanPeriod, setClientRescanPeriod] = useState('month');
   const [clientRescanFrom, setClientRescanFrom] = useState('');
   const [clientRescanTo, setClientRescanTo] = useState('');
+
+  // ── カラムリサイズ・揃え ─────────────────────────────────────────────
+  const clientCol = useColumnConfig('stats_client', STATS_CLIENT_COLS);
+  const listCol = useColumnConfig('stats_list', STATS_LIST_COLS);
+  const reschedCol = useColumnConfig('stats_resched', STATS_RESCHED_COLS);
 
   const now = nowProp ? new Date(nowProp) : new Date();
   const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
@@ -728,8 +763,13 @@ export default function StatsView({ callListData, currentUser, appoData, members
             <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
               {/* テーブル */}
               <div style={{ flex: '1.5', minWidth: 0, borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '280px 80px 150px 130px', padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247' }}>
-                  <span>クライアント名</span><span style={{ textAlign: 'right' }}>アポ数</span><span style={{ textAlign: 'right' }}>売上合計</span><span style={{ textAlign: 'right' }}>平均単価</span>
+                <div style={{ display: 'grid', gridTemplateColumns: clientCol.gridTemplateColumns, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247' }}>
+                  {[['クライアント名',0],['アポ数',1],['売上合計',2],['平均単価',3]].map(([label, ci]) => (
+                    <span key={ci} style={{ position: 'relative', textAlign: clientCol.columns[ci].align }} onContextMenu={e => clientCol.onHeaderContextMenu(e, ci)}>
+                      {label}
+                      <ColumnResizeHandle colIndex={ci} onResizeStart={clientCol.onResizeStart} />
+                    </span>
+                  ))}
                 </div>
                 {clientData.length === 0 ? (
                   <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
@@ -743,17 +783,17 @@ export default function StatsView({ callListData, currentUser, appoData, members
                     <React.Fragment key={key}>
                       <div
                         onClick={() => { setExpandedClient(isExpanded ? null : key); setSelectedClientPie(isPieSelected ? null : key); }}
-                        style={{ display: 'grid', gridTemplateColumns: '280px 80px 150px 130px', padding: '8px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #E5E7EB', cursor: 'pointer', background: isHighlighted ? '#EFF6FF' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#F8F9FA', transition: 'background 0.15s', borderLeft: `4px solid ${CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length]}`, opacity: (selectedClientPie || hoveredClientPie) && !isHighlighted ? 0.55 : 1 }}
+                        style={{ display: 'grid', gridTemplateColumns: clientCol.gridTemplateColumns, padding: '8px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #E5E7EB', cursor: 'pointer', background: isHighlighted ? '#EFF6FF' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#F8F9FA', transition: 'background 0.15s', borderLeft: `4px solid ${CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length]}`, opacity: (selectedClientPie || hoveredClientPie) && !isHighlighted ? 0.55 : 1 }}
                         onMouseEnter={e => { setHoveredClientPie(key); if (!isHighlighted) e.currentTarget.style.background = '#EAF4FF'; }}
                         onMouseLeave={e => { setHoveredClientPie(null); e.currentTarget.style.background = isHighlighted ? '#EFF6FF' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#F8F9FA'; }}
                       >
-                        <span style={{ fontWeight: 600, color: NAVY, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontWeight: 600, color: NAVY, display: 'flex', alignItems: 'center', gap: 6, textAlign: clientCol.columns[0].align }}>
                           <span style={{ fontSize: 9, color: C.textLight, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▶</span>
                           {d.name}
                         </span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, textAlign: 'right' }}>{d.count}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 13, fontWeight: 900, color: '#111827', textAlign: 'right' }}>{fmt(d.total)}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textDark, textAlign: 'right' }}>{fmt(avg)}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, textAlign: clientCol.columns[1].align }}>{d.count}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 13, fontWeight: 900, color: '#111827', textAlign: clientCol.columns[2].align }}>{fmt(d.total)}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textDark, textAlign: clientCol.columns[3].align }}>{fmt(avg)}</span>
                       </div>
                       {isExpanded && (
                         <div style={{ borderBottom: '1px solid #E5E5E5', background: NAVY + '04', padding: '8px 24px 12px' }}>
@@ -820,15 +860,15 @@ export default function StatsView({ callListData, currentUser, appoData, members
             </div>
           </div>
         );
-        const RIGHT_COLS = new Set(['calls', 'connect', 'appo', 'lastDate']);
-        const SortHdr = ({ label, sk }) => (
+        const SortHdr = ({ label, sk, colIndex }) => (
           <span
             onClick={() => { if (listSortKey === sk) setListSortDir(d => d === 'desc' ? 'asc' : 'desc'); else { setListSortKey(sk); setListSortDir('desc'); } }}
-            style={{ cursor: 'pointer', userSelect: 'none', color: listSortKey === sk ? '#ffffff' : 'rgba(255,255,255,0.65)', whiteSpace: 'nowrap', textAlign: RIGHT_COLS.has(sk) ? 'right' : 'left' }}>
+            onContextMenu={e => listCol.onHeaderContextMenu(e, colIndex)}
+            style={{ position: 'relative', cursor: 'pointer', userSelect: 'none', color: listSortKey === sk ? '#ffffff' : 'rgba(255,255,255,0.65)', whiteSpace: 'nowrap', textAlign: listCol.columns[colIndex].align }}>
             {label}{listSortKey === sk ? (listSortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+            <ColumnResizeHandle colIndex={colIndex} onResizeStart={listCol.onResizeStart} />
           </span>
         );
-        const LGRID = '260px 80px 100px 80px 180px 80px 180px 80px';
         return (
           <div style={{ background: C.white, borderRadius: 4, padding: '18px 20px', marginBottom: 20, border: '1px solid #E5E7EB' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
@@ -845,15 +885,15 @@ export default function StatsView({ callListData, currentUser, appoData, members
               ))}
             </div>
             <div style={{ borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB', overflowX: 'auto' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247', minWidth: 1170 }}>
-                <SortHdr label='クライアント' sk='clientName' />
-                <SortHdr label='業種' sk='name' />
-                <SortHdr label='架電数' sk='calls' />
-                <SortHdr label='接続数' sk='connect' />
-                <SortHdr label='接続率' sk='connectRate' />
-                <SortHdr label='アポ数' sk='appo' />
-                <SortHdr label='アポ率' sk='appoRate' />
-                <SortHdr label='最終架電日' sk='lastDate' />
+              <div style={{ display: 'grid', gridTemplateColumns: listCol.gridTemplateColumns, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247', minWidth: 1170 }}>
+                <SortHdr label='クライアント' sk='clientName' colIndex={0} />
+                <SortHdr label='業種' sk='name' colIndex={1} />
+                <SortHdr label='架電数' sk='calls' colIndex={2} />
+                <SortHdr label='接続数' sk='connect' colIndex={3} />
+                <SortHdr label='接続率' sk='connectRate' colIndex={4} />
+                <SortHdr label='アポ数' sk='appo' colIndex={5} />
+                <SortHdr label='アポ率' sk='appoRate' colIndex={6} />
+                <SortHdr label='最終架電日' sk='lastDate' colIndex={7} />
               </div>
               {listFiltered.length === 0 ? (
                 <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>
@@ -862,18 +902,18 @@ export default function StatsView({ callListData, currentUser, appoData, members
               ) : listFiltered.map((row, idx) => {
                 const isTop3 = listTop3Ids.has(row.listId);
                 return (
-                  <div key={row.listId} style={{ display: 'grid', gridTemplateColumns: LGRID, padding: '8px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #E5E7EB', background: isTop3 ? NAVY + '0F' : idx % 2 === 0 ? 'transparent' : '#F8F9FA', borderLeft: isTop3 ? '3px solid ' + NAVY : '3px solid transparent', minWidth: 1170 }}>
-                    <span style={{ fontSize: 11, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.clientName}</span>
-                    <span style={{ fontWeight: 600, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <div key={row.listId} style={{ display: 'grid', gridTemplateColumns: listCol.gridTemplateColumns, padding: '8px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #E5E7EB', background: isTop3 ? NAVY + '0F' : idx % 2 === 0 ? 'transparent' : '#F8F9FA', borderLeft: isTop3 ? '3px solid ' + NAVY : '3px solid transparent', minWidth: 1170 }}>
+                    <span style={{ fontSize: 11, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: listCol.columns[0].align }}>{row.clientName}</span>
+                    <span style={{ fontWeight: 600, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5, textAlign: listCol.columns[1].align }}>
                       {row.name.includes(' - ') ? row.name.split(' - ').slice(1).join(' - ') : row.name}
                       {row.isArchived && <span style={{ fontSize: 9, background: '#F3F2F2', borderRadius: 3, padding: '1px 4px', color: C.textLight, flexShrink: 0 }}>Arc</span>}
                     </span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: NAVY, textAlign: 'right' }}>{row.calls}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", textAlign: 'right' }}>{row.connect}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: NAVY, textAlign: listCol.columns[2].align }}>{row.calls}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'", textAlign: listCol.columns[3].align }}>{row.connect}</span>
                     <RateBar rate={row.connectRate} />
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: '#374151', textAlign: 'right' }}>{row.appo}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: '#374151', textAlign: listCol.columns[5].align }}>{row.appo}</span>
                     <RateBar rate={row.appoRate} />
-                    <span style={{ fontSize: 11, color: C.textMid, textAlign: 'right' }}>{row.lastDate || '—'}</span>
+                    <span style={{ fontSize: 11, color: C.textMid, textAlign: listCol.columns[7].align }}>{row.lastDate || '—'}</span>
                   </div>
                 );
               })}
@@ -891,28 +931,28 @@ export default function StatsView({ callListData, currentUser, appoData, members
           {simplePeriodSelector(clientRescanPeriod, setClientRescanPeriod, clientRescanFrom, setClientRescanFrom, clientRescanTo, setClientRescanTo, NAVY)}
         </div>
         <div style={{ borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 120px 80px 120px', padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247' }}>
-            <span>クライアント名</span>
-            <span style={{ textAlign: 'right' }}>アポ数</span>
-            <span style={{ textAlign: 'right' }}>リスケ数</span>
-            <span style={{ textAlign: 'right' }}>リスケ率</span>
-            <span style={{ textAlign: 'right' }}>キャンセル数</span>
-            <span style={{ textAlign: 'right' }}>キャンセル率</span>
+          <div style={{ display: 'grid', gridTemplateColumns: reschedCol.gridTemplateColumns, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247' }}>
+            {[['クライアント名',0],['アポ数',1],['リスケ数',2],['リスケ率',3],['キャンセル数',4],['キャンセル率',5]].map(([label, ci]) => (
+              <span key={ci} style={{ position: 'relative', textAlign: reschedCol.columns[ci].align }} onContextMenu={e => reschedCol.onHeaderContextMenu(e, ci)}>
+                {label}
+                <ColumnResizeHandle colIndex={ci} onResizeStart={reschedCol.onResizeStart} />
+              </span>
+            ))}
           </div>
           {clientReschedData.length === 0 ? (
             <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
           ) : clientReschedData.map((d, idx) => (
-            <div key={d.name} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 120px 80px 120px', padding: '8px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #E5E7EB', background: idx % 2 === 0 ? 'transparent' : '#F8F9FA' }}>
-              <span style={{ fontWeight: 600, color: NAVY }}>{d.name}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", textAlign: 'right' }}>{d.appo}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", textAlign: 'right', color: d.reschedule > 0 ? '#F59E0B' : C.textLight }}>{d.reschedule}</span>
-              <span style={{ textAlign: 'right' }}>
+            <div key={d.name} style={{ display: 'grid', gridTemplateColumns: reschedCol.gridTemplateColumns, padding: '8px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #E5E7EB', background: idx % 2 === 0 ? 'transparent' : '#F8F9FA' }}>
+              <span style={{ fontWeight: 600, color: NAVY, textAlign: reschedCol.columns[0].align }}>{d.name}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", textAlign: reschedCol.columns[1].align }}>{d.appo}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", textAlign: reschedCol.columns[2].align, color: d.reschedule > 0 ? '#F59E0B' : C.textLight }}>{d.reschedule}</span>
+              <span style={{ textAlign: reschedCol.columns[3].align }}>
                 <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: d.rescheduleRate >= 20 ? '#DC2626' : d.rescheduleRate >= 10 ? '#F59E0B' : '#374151' }}>
                   {d.rescheduleRate.toFixed(1)}%
                 </span>
               </span>
-              <span style={{ fontFamily: "'JetBrains Mono'", textAlign: 'right', color: d.cancel > 0 ? '#EF4444' : C.textLight }}>{d.cancel}</span>
-              <span style={{ textAlign: 'right' }}>
+              <span style={{ fontFamily: "'JetBrains Mono'", textAlign: reschedCol.columns[4].align, color: d.cancel > 0 ? '#EF4444' : C.textLight }}>{d.cancel}</span>
+              <span style={{ textAlign: reschedCol.columns[5].align }}>
                 <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: d.cancelRate >= 20 ? '#DC2626' : d.cancelRate >= 10 ? '#F59E0B' : '#374151' }}>
                   {d.cancelRate.toFixed(1)}%
                 </span>
@@ -921,6 +961,35 @@ export default function StatsView({ callListData, currentUser, appoData, members
           ))}
         </div>
       </div>
+
+      {/* AlignmentContextMenu for all 3 tables */}
+      {clientCol.contextMenu.visible && (
+        <AlignmentContextMenu
+          x={clientCol.contextMenu.x} y={clientCol.contextMenu.y}
+          currentAlign={clientCol.columns[clientCol.contextMenu.colIndex]?.align}
+          onSelect={align => clientCol.setAlign(clientCol.contextMenu.colIndex, align)}
+          onReset={clientCol.resetAll}
+          onClose={clientCol.closeMenu}
+        />
+      )}
+      {listCol.contextMenu.visible && (
+        <AlignmentContextMenu
+          x={listCol.contextMenu.x} y={listCol.contextMenu.y}
+          currentAlign={listCol.columns[listCol.contextMenu.colIndex]?.align}
+          onSelect={align => listCol.setAlign(listCol.contextMenu.colIndex, align)}
+          onReset={listCol.resetAll}
+          onClose={listCol.closeMenu}
+        />
+      )}
+      {reschedCol.contextMenu.visible && (
+        <AlignmentContextMenu
+          x={reschedCol.contextMenu.x} y={reschedCol.contextMenu.y}
+          currentAlign={reschedCol.columns[reschedCol.contextMenu.colIndex]?.align}
+          onSelect={align => reschedCol.setAlign(reschedCol.contextMenu.colIndex, align)}
+          onReset={reschedCol.resetAll}
+          onClose={reschedCol.closeMenu}
+        />
+      )}
 
     </div>
   );
