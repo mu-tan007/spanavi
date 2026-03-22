@@ -73,7 +73,7 @@ async function processInBackground(
       }
       const res = await fetch(fetchUrl, {
         headers: { 'User-Agent': 'Spanavi/1.0' },
-        signal: AbortSignal.timeout(30_000), // 30秒でタイムアウト
+        signal: AbortSignal.timeout(120_000), // 120秒でタイムアウト
       })
       if (!res.ok) {
         console.error('[analyze-roleplay] URL download failed:', res.status, res.statusText)
@@ -135,7 +135,7 @@ async function processInBackground(
       method: 'POST',
       headers: { 'Authorization': `Bearer ${openaiKey}` },
       body: formData,
-      signal: AbortSignal.timeout(90_000), // 90秒でタイムアウト
+      signal: AbortSignal.timeout(180_000), // 180秒でタイムアウト
     })
 
     if (!whisperRes.ok) {
@@ -192,7 +192,7 @@ ${transcript}`
         max_tokens: 2048,
         messages: [{ role: 'user', content: prompt }],
       }),
-      signal: AbortSignal.timeout(30_000), // 30秒でタイムアウト
+      signal: AbortSignal.timeout(60_000), // 60秒でタイムアウト
     })
 
     if (!claudeRes.ok) {
