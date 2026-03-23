@@ -487,7 +487,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   <span style={{ color: sortKey === key && sortDir === 'desc' ? '#fff' : 'rgba(255,255,255,0.4)' }}>▼</span>
                 </span>
               )}
-              {i < 8 && <ColumnResizeHandle colIndex={i} onResizeStart={appoResize} />}
+              <ColumnResizeHandle colIndex={i} onResizeStart={appoResize} />
             </span>
           ))}
         </div>
