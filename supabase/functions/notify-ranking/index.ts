@@ -29,16 +29,25 @@ Deno.serve(async (req) => {
     const todayStartUtc = new Date(jstDateStr + 'T00:00:00+09:00').toISOString()
     const todayEndUtc   = new Date(jstDateStr + 'T23:59:59+09:00').toISOString()
 
-    // 当日の架電レコードを取得
-    const { data: records, error } = await supabase
-      .from('call_records')
-      .select('getter_name, status, called_at')
-      .gte('called_at', todayStartUtc)
-      .lte('called_at', todayEndUtc)
-      .not('getter_name', 'is', null)
-
-    if (error) throw new Error(`DB fetch error: ${error.message}`)
-
+    // 当日の架電レコードを取得（デフォルト1000件制限を回避するためページネーション）
+    let records: { getter_name: string; status: string; called_at: string }[] = []
+    let from = 0
+    const PAGE_SIZE = 1000
+    while (true) {
+      const { data, error: fetchError } = await supabase
+        .from('call_records')
+        .select('getter_name, status, called_at')
+        .gte('called_at', todayStartUtc)
+        .lte('called_at', todayEndUtc)
+        .not('getter_name', 'is', null)
+        .order('called_at', { ascending: true })
+        .range(from, from + PAGE_SIZE - 1)
+      if (fetchError) throw new Error(`DB fetch error: ${fetchError.message}`)
+      if (!data || data.length === 0) break
+      records = records.concat(data)
+      if (data.length < PAGE_SIZE) break
+      from += PAGE_SIZE
+    }
     // getter_name ごとに集計
     const stats: Record<string, { calls: number; ceo: number; appo: number }> = {}
     for (const rec of (records || [])) {
