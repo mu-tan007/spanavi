@@ -151,6 +151,9 @@ export async function insertClient(data) {
       calendar_type: data.calendar || '',
       contact_method: data.contact || '',
       notes: data.noteFirst || '',
+      google_calendar_id: data.googleCalendarId || null,
+      client_email: data.clientEmail || null,
+      scheduling_url: data.schedulingUrl || null,
     })
     .select()
     .single()
@@ -177,6 +180,9 @@ export async function updateClient(supaId, data) {
       notes: data.noteFirst,
       note_kickoff: data.noteKickoff || null,
       note_regular: data.noteRegular || null,
+      google_calendar_id: data.googleCalendarId ?? undefined,
+      client_email: data.clientEmail ?? undefined,
+      scheduling_url: data.schedulingUrl ?? undefined,
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateClient error:', error)
@@ -242,6 +248,7 @@ export async function insertAppointment(data) {
       notes: data.note || null,
       appo_report: data.appoReport || null,
       appo_month: appoMonth,
+      email_status: data.emailStatus || 'pending',
     })
     .select()
     .single()
@@ -273,6 +280,32 @@ export async function deleteAppointment(supaId) {
     .eq('id', supaId)
   if (error) console.error('[DB] deleteAppointment error:', error)
   return error
+}
+
+export async function updateEmailStatus(supaId, emailStatus, extra = {}) {
+  if (!supaId) { console.warn('[DB] updateEmailStatus: no supaId'); return null }
+  const updates = { email_status: emailStatus, ...extra }
+  if (emailStatus === 'approved') updates.email_approved_at = new Date().toISOString()
+  if (emailStatus === 'sent') updates.email_sent_at = new Date().toISOString()
+  const { error } = await supabase
+    .from('appointments')
+    .update(updates)
+    .eq('id', supaId)
+  if (error) console.error('[DB] updateEmailStatus error:', error)
+  return error
+}
+
+export async function invokeSendEmail({ to, subject, body, cc, bcc }) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': anonKey, 'Authorization': `Bearer ${anonKey}` },
+    body: JSON.stringify({ to, subject, body, cc, bcc }),
+  })
+  const data = await res.json()
+  if (!res.ok) return { data: null, error: data.error || `送信失敗: ${res.status}` }
+  return { data, error: null }
 }
 
 // ============================================================

@@ -4,7 +4,7 @@ import { C } from '../../constants/colors';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/formatters';
-import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording } from '../../lib/supabaseWrite';
+import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail } from '../../lib/supabaseWrite';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -17,9 +17,16 @@ const APPO_COLS = [
   { key: 'getDate', width: 105, align: 'right' },
   { key: 'meetDate', width: 110, align: 'right' },
   { key: 'status', width: 200, align: 'center' },
+  { key: 'email', width: 80, align: 'center' },
   { key: 'revenue', width: 90, align: 'right' },
   { key: 'incentive', width: 110, align: 'right' },
 ];
+
+const EMAIL_STATUS_LABELS = {
+  pending: { label: '未送信', color: '#F59E0B', bg: '#FEF3C7' },
+  sent: { label: '送信済', color: '#10B981', bg: '#D1FAE5' },
+  failed: { label: '失敗', color: '#EF4444', bg: '#FEE2E2' },
+};
 
 export function MemberSuggestInput({ value, onChange, members = [], style, placeholder = '名前を入力して絞り込み' }) {
   const [suggs, setSuggs] = React.useState([]);
@@ -60,6 +67,103 @@ export function MemberSuggestInput({ value, onChange, members = [], style, place
               onMouseLeave={e => e.currentTarget.style.background = C.white}
             >{name}</div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmailApprovalSection({ appo, clientData = [], onStatusUpdate }) {
+  const [emailStep, setEmailStep] = React.useState('idle'); // 'idle' | 'compose' | 'sending' | 'sent' | 'error'
+  const [emailTo, setEmailTo] = React.useState('');
+  const [emailSubject, setEmailSubject] = React.useState('');
+  const [emailBody, setEmailBody] = React.useState('');
+  const [sendError, setSendError] = React.useState('');
+
+  const cl = (clientData || []).find(c => c.company === appo.client);
+  const es = EMAIL_STATUS_LABELS[appo.emailStatus] || EMAIL_STATUS_LABELS.pending;
+
+  const initCompose = () => {
+    setEmailTo(cl?.clientEmail || '');
+    setEmailSubject(`【面談日程のご連絡】${appo.company}`);
+    setEmailBody(
+      `お世話になっております。\n` +
+      `MA-SPの篠宮です。\n\n` +
+      `下記の通り面談の日程をご連絡いたします。\n\n` +
+      `企業名：${appo.company}\n` +
+      `面談日：${appo.meetDate || '（未定）'}\n\n` +
+      `何卒よろしくお願いいたします。\n\n` +
+      `篠宮`
+    );
+    setSendError('');
+    setEmailStep('compose');
+  };
+
+  const handleSend = async () => {
+    if (!emailTo) { setSendError('宛先メールアドレスを入力してください'); return; }
+    setEmailStep('sending');
+    setSendError('');
+    const { error } = await invokeSendEmail({ to: emailTo, subject: emailSubject, body: emailBody });
+    if (error) {
+      setSendError(typeof error === 'string' ? error : error.message || '送信に失敗しました');
+      setEmailStep('compose');
+      return;
+    }
+    if (appo._supaId) await updateEmailStatus(appo._supaId, 'sent');
+    onStatusUpdate?.('sent');
+    setEmailStep('sent');
+  };
+
+  const iStyle = { width: '100%', padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: '#fff', boxSizing: 'border-box' };
+
+  return (
+    <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 4, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#92400E' }}>メール送信</div>
+        <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 3, background: es.bg, color: es.color, fontWeight: 600 }}>{es.label}</span>
+      </div>
+
+      {appo.emailStatus === 'sent' && appo.emailSentAt && (
+        <div style={{ fontSize: 10, color: '#6B7280' }}>送信日時: {new Date(appo.emailSentAt).toLocaleString('ja-JP')}</div>
+      )}
+
+      {emailStep === 'idle' && appo.emailStatus !== 'sent' && (
+        <button onClick={initCompose}
+          style={{ padding: '7px 16px', borderRadius: 4, border: 'none', background: '#0D2247', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: "'Noto Sans JP'" }}>
+          メール内容を確認・送信
+        </button>
+      )}
+
+      {emailStep === 'sent' && (
+        <div style={{ fontSize: 12, color: '#10B981', fontWeight: 600 }}>メールを送信しました</div>
+      )}
+
+      {(emailStep === 'compose' || emailStep === 'sending') && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ marginBottom: 6 }}>
+            <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>宛先</label>
+            <input value={emailTo} onChange={e => setEmailTo(e.target.value)} placeholder="client@example.com" style={iStyle} />
+          </div>
+          <div style={{ marginBottom: 6 }}>
+            <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>件名</label>
+            <input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} style={iStyle} />
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>本文</label>
+            <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={8}
+              style={{ ...iStyle, resize: 'vertical', lineHeight: 1.6 }} />
+          </div>
+          {sendError && <div style={{ fontSize: 10, color: '#DC2626', marginBottom: 6 }}>{sendError}</div>}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button onClick={() => setEmailStep('idle')}
+              style={{ padding: '6px 14px', borderRadius: 4, border: '1px solid #0D2247', background: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'" }}>
+              キャンセル
+            </button>
+            <button onClick={handleSend} disabled={emailStep === 'sending'}
+              style={{ padding: '6px 14px', borderRadius: 4, border: 'none', background: emailStep === 'sending' ? '#9CA3AF' : '#0D2247', color: '#fff', cursor: emailStep === 'sending' ? 'default' : 'pointer', fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'" }}>
+              {emailStep === 'sending' ? '送信中...' : '承認してメール送信'}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -368,6 +472,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             { label: '取得日', key: 'getDate' },
             { label: '面談日', key: 'meetDate' },
             { label: 'ステータス', key: null },
+            { label: 'メール', key: null },
             { label: '当社売上', key: null },
             { label: 'インセンティブ', key: null },
           ].map(({ label, key }, i) => (
@@ -382,7 +487,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   <span style={{ color: sortKey === key && sortDir === 'desc' ? '#fff' : 'rgba(255,255,255,0.4)' }}>▼</span>
                 </span>
               )}
-              {i < 7 && <ColumnResizeHandle colIndex={i} onResizeStart={appoResize} />}
+              {i < 8 && <ColumnResizeHandle colIndex={i} onResizeStart={appoResize} />}
             </span>
           ))}
         </div>
@@ -410,8 +515,14 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 color: sc.color,
                 whiteSpace: 'nowrap',
               }}>{a.status}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: '#0D2247', textAlign: appoCols[6]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid, textAlign: appoCols[7]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
+              {(() => {
+                const es = EMAIL_STATUS_LABELS[a.emailStatus] || EMAIL_STATUS_LABELS.pending;
+                return <span style={{ textAlign: appoCols[6]?.align || 'center', display: 'flex', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 3, background: es.bg, color: es.color, fontWeight: 600, whiteSpace: 'nowrap' }}>{es.label}</span>
+                </span>;
+              })()}
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: '#0D2247', textAlign: appoCols[7]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid, textAlign: appoCols[8]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
             </div>
           );
         })}
@@ -832,6 +943,16 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   </div>
                 );
               })()}
+              {/* ── メール承認・送信 ── */}
+              <EmailApprovalSection
+                appo={reportDetail}
+                clientData={clientData}
+                onStatusUpdate={(newStatus) => {
+                  const updated = { ...reportDetail, emailStatus: newStatus };
+                  setReportDetail(updated);
+                  if (setAppoData) setAppoData(prev => prev.map(a => a._supaId === updated._supaId ? { ...a, emailStatus: newStatus } : a));
+                }}
+              />
             </div>
           </div>
         </div>

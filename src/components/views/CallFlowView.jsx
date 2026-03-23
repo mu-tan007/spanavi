@@ -23,6 +23,7 @@ import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
 import AppoReportModal from './AppoReportModal';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
+import ClientCalendarPanel from '../common/ClientCalendarPanel';
 
 // ============================================================
 // Call Flow View (架電フロー) — 左右分割レイアウト
@@ -1097,6 +1098,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               { key: 'script',   label: 'スクリプト' },
               { key: 'info',     label: '企業概要' },
               { key: 'cautions', label: '注意事項' },
+              { key: 'calendar', label: 'カレンダー' },
             ].map(tab => (
               <button key={tab.key} onClick={e => { e.stopPropagation(); setScriptTab(tab.key); }}
                 style={{ fontSize: 9, padding: '2px 10px', borderRadius: 4, border: scriptTab === tab.key ? '1px solid ' + C.gold : '1px solid ' + C.borderLight, background: scriptTab === tab.key ? C.gold + '20' : C.white, color: scriptTab === tab.key ? C.navy : C.textMid, cursor: 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: scriptTab === tab.key ? 700 : 400 }}>
@@ -1123,6 +1125,14 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 ? <pre style={{ fontSize: 11, color: C.orange, whiteSpace: 'pre-wrap', lineHeight: 1.7, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.cautions}</pre>
                 : <div style={{ color: C.textLight, fontSize: 11 }}>注意事項未設定</div>
             )}
+            {scriptTab === 'calendar' && (() => {
+              const cl = (clientData || []).find(c => c.company === list.company);
+              return <ClientCalendarPanel
+                clientCalendarId={cl?.googleCalendarId || ''}
+                schedulingUrl={cl?.schedulingUrl || ''}
+                compact
+              />;
+            })()}
           </div>
         )}
       </div>
@@ -1593,7 +1603,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         <div style={{ width: '40%', background: '#fff', borderLeft: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* タブヘッダー */}
           <div style={{ display: 'flex', borderBottom: '2px solid #E5E7EB', background: '#F8F9FA', flexShrink: 0 }}>
-            {[{ key: 'script', label: 'スクリプト' }, { key: 'info', label: '企業概要' }, { key: 'cautions', label: '注意事項' }].map(tab => (
+            {[{ key: 'script', label: 'スクリプト' }, { key: 'info', label: '企業概要' }, { key: 'cautions', label: '注意事項' }, { key: 'calendar', label: 'カレンダー' }].map(tab => (
               <button key={tab.key} onClick={() => setScriptTab(tab.key)}
                 style={{ flex: 1, padding: '11px 4px', border: 'none', borderBottom: scriptTab === tab.key ? '2px solid #0D2247' : '2px solid transparent',
                   background: 'transparent', color: scriptTab === tab.key ? '#0D2247' : '#9CA3AF',
@@ -1620,6 +1630,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 ? <pre style={{ fontSize: 12, color: '#C07600', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.cautions}</pre>
                 : <div style={{ color: '#b0b0b0', fontSize: 12 }}>注意事項未設定</div>
             )}
+            {scriptTab === 'calendar' && (() => {
+              const cl = (clientData || []).find(c => c.company === list.company);
+              return <ClientCalendarPanel
+                clientCalendarId={cl?.googleCalendarId || ''}
+                schedulingUrl={cl?.schedulingUrl || ''}
+              />;
+            })()}
           </div>
         </div>
         )}

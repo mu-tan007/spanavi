@@ -54,15 +54,30 @@ Deno.serve(async (req) => {
       const timeMax = url.searchParams.get('timeMax')
       if (!timeMin || !timeMax) return json({ error: 'timeMin and timeMax required' }, 400)
 
+      // 複数カレンダー対応: calendarIds=primary,client@example.com
+      const calendarIdsParam = url.searchParams.get('calendarIds')
+      const items = calendarIdsParam
+        ? calendarIdsParam.split(',').map(id => ({ id: id.trim() }))
+        : [{ id: calendarId }]
+
       const res = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timeMin, timeMax, items: [{ id: calendarId }] }),
+        body: JSON.stringify({ timeMin, timeMax, items }),
       })
       const data = await res.json()
       if (!res.ok) return json({ error: data.error?.message || 'freeBusy failed' }, res.status)
 
-      // 'primary' → 実際のカレンダーIDに解決されるため、全カレンダーをflatMap
+      // 複数カレンダーの場合: カレンダーIDごとにbusy配列を返す
+      if (calendarIdsParam) {
+        const calendars: Record<string, any[]> = {}
+        for (const [id, cal] of Object.entries(data.calendars || {})) {
+          calendars[id] = (cal as any).busy || []
+        }
+        return json({ calendars })
+      }
+
+      // 後方互換: 単一カレンダーの場合は既存フォーマット
       const busy = Object.values(data.calendars || {}).flatMap((cal: any) => cal.busy || [])
       return json({ busy })
     }

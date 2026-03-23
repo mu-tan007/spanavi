@@ -100,6 +100,9 @@ export function useSpanaviData() {
         noteFirst: (c.notes || '').replace(/\\n/g, '\n'),
         noteKickoff: (c.note_kickoff || '').replace(/\\n/g, '\n'),
         noteRegular: (c.note_regular || '').replace(/\\n/g, '\n'),
+        googleCalendarId: c.google_calendar_id || '',
+        clientEmail: c.client_email || '',
+        schedulingUrl: c.scheduling_url || '',
       }))
 
       // members → 既存DEFAULT_MEMBERSフォーマット（名前のリスト）
@@ -147,6 +150,10 @@ export function useSpanaviData() {
         phone: a.phone || '',
         appoReport: (a.appo_report || '').replace(/\\n/g, '\n'),
         isCounted: a.is_counted_in_cumulative || false,
+        emailStatus: a.email_status || 'pending',
+        emailApprovedAt: a.email_approved_at || null,
+        emailSentAt: a.email_sent_at || null,
+        gcalEventId: a.gcal_event_id || null,
       }))
 
       setData({

@@ -114,6 +114,9 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
       noteFirst: (result.notes || addForm.noteFirst || '').replace(/\\n/g, '\n'),
       noteKickoff: (result.note_kickoff || '').replace(/\\n/g, '\n'),
       noteRegular: (result.note_regular || '').replace(/\\n/g, '\n'),
+      googleCalendarId: result.google_calendar_id || addForm.googleCalendarId || '',
+      clientEmail: result.client_email || addForm.clientEmail || '',
+      schedulingUrl: result.scheduling_url || addForm.schedulingUrl || '',
     };
     setClientData(prev => [newClient, ...prev]);
     setAddForm(null);
@@ -143,7 +146,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="企業名・業界..."
             style={{ padding: "6px 12px", borderRadius: 4, border: "1px solid " + GRAY_200, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", width: 180 }} />
           {setClientData && (
-            <button onClick={() => setAddForm({ status: '準備中', contract: '未', company: '', industry: '', target: 0, rewardType: '', paySite: '', payNote: '', listSrc: '', calendar: '', contact: '', noteFirst: '' })}
+            <button onClick={() => setAddForm({ status: '準備中', contract: '未', company: '', industry: '', target: 0, rewardType: '', paySite: '', payNote: '', listSrc: '', calendar: '', contact: '', noteFirst: '', googleCalendarId: '', clientEmail: '', schedulingUrl: '' })}
               style={{ padding: "8px 16px", borderRadius: 4, border: "none", background: NAVY, color: '#fff', fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap" }}>
               ＋ 新規顧客追加
             </button>
@@ -255,6 +258,9 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                     { label: "カレンダー", val: c.calendar || "-" },
                     { label: "連絡手段", val: c.contact || "-" },
                     { label: "供給目標", val: c.target > 0 ? c.target + "件/月" : "-" },
+                    { label: "メールアドレス", val: c.clientEmail || "-" },
+                    { label: "Google Calendar ID", val: c.googleCalendarId || "-" },
+                    { label: "日程調整URL", val: c.schedulingUrl ? c.schedulingUrl : "-" },
                   ].map((item, idx) => (
                     <div key={idx}>
                       <div style={{ fontSize: 9, fontWeight: 600, color: C.textLight, marginBottom: 2 }}>{item.label}</div>
@@ -368,6 +374,13 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                       <option value="">-</option><option value="LINE">LINE</option><option value="Slack">Slack</option><option value="Chatwork">Chatwork</option><option value="メール">メール</option>
                     </select>
                   </div>
+                  <div><label style={labelStyle}>メールアドレス</label><input value={addForm.clientEmail} onChange={e => u("clientEmail", e.target.value)} placeholder="client@example.com" style={inputStyle} /></div>
+                  {(addForm.calendar === 'Google' || addForm.calendar === 'Google(入力)') && (
+                    <div><label style={labelStyle}>Google Calendar ID</label><input value={addForm.googleCalendarId} onChange={e => u("googleCalendarId", e.target.value)} placeholder="クライアントのGoogleメールアドレス" style={inputStyle} /></div>
+                  )}
+                  {(addForm.calendar === 'Spir' || addForm.calendar === '調整アポ') && (
+                    <div><label style={labelStyle}>日程調整URL</label><input value={addForm.schedulingUrl} onChange={e => u("schedulingUrl", e.target.value)} placeholder="https://app.spir.com/..." style={inputStyle} /></div>
+                  )}
                   <div style={{ gridColumn: "1 / -1" }}>
                     <label style={labelStyle}>初回面談メモ</label>
                     <textarea value={addForm.noteFirst} onChange={e => u("noteFirst", e.target.value)} rows={4}
@@ -436,6 +449,13 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                       <option value="LINE">LINE</option><option value="Slack">Slack</option><option value="Chatwork">Chatwork</option><option value="メール">メール</option><option value="">-</option>
                     </select>
                   </div>
+                  <div><label style={labelStyle}>メールアドレス</label><input value={editForm.clientEmail || ''} onChange={e => u("clientEmail", e.target.value)} placeholder="client@example.com" style={inputStyle} /></div>
+                  {(editForm.calendar === 'Google' || editForm.calendar === 'Google(入力)') && (
+                    <div><label style={labelStyle}>Google Calendar ID</label><input value={editForm.googleCalendarId || ''} onChange={e => u("googleCalendarId", e.target.value)} placeholder="クライアントのGoogleメールアドレス" style={inputStyle} /></div>
+                  )}
+                  {(editForm.calendar === 'Spir' || editForm.calendar === '調整アポ') && (
+                    <div><label style={labelStyle}>日程調整URL</label><input value={editForm.schedulingUrl || ''} onChange={e => u("schedulingUrl", e.target.value)} placeholder="https://app.spir.com/..." style={inputStyle} /></div>
+                  )}
                   <div style={{ gridColumn: "1 / -1" }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid ' + NAVY, paddingBottom: 6, marginBottom: 12, marginTop: 4 }}>備考</div>
                     <div style={{ marginBottom: 8 }}>

@@ -5,7 +5,7 @@ const fs = require('fs');
 
 const CLIENT_ID = '570031099308-ni4qokds1jc1m5s0p080t6g2gb3vu8md.apps.googleusercontent.com';
 const REDIRECT_URI = 'http://localhost:3456';
-const SCOPE = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar';
+const SCOPE = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/gmail.send';
 
 const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?client_id=' + CLIENT_ID
   + '&redirect_uri=' + encodeURIComponent(REDIRECT_URI)
