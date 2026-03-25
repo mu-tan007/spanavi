@@ -1,5 +1,6 @@
 import { useAuth } from '../hooks/useAuth'
 import { LOGO_SRC } from '../lib/logo'
+import { useBranding } from '../hooks/useBranding'
 
 const NAV_ITEMS = [
   { key: 'call', icon: '', label: '架電リスト' },
@@ -9,17 +10,22 @@ const NAV_ITEMS = [
 
 export default function Layout({ currentView, setCurrentView, children }) {
   const { profile, signOut, isAdmin, isManager } = useAuth()
+  const branding = useBranding()
 
   const visibleNav = NAV_ITEMS
 
   return (
-    <div className="h-screen flex flex-col bg-[#F3F2F2]">
+    <div className="h-screen flex flex-col" style={{ background: '#F3F2F2' }}>
       {/* Header */}
-      <header className="flex items-center justify-between h-12 px-4 bg-[#032D60] border-b border-[#1A4E8A] flex-shrink-0">
+      <header className="flex items-center justify-between h-12 px-4 flex-shrink-0" style={{ background: branding.primaryColor, borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
         <div className="flex items-center gap-3">
-          <img src={LOGO_SRC} alt="Spanavi" className="w-7 h-7 object-contain" />
+          {branding.logoUrl ? (
+            <img src={branding.logoUrl} alt={branding.orgName} className="w-7 h-7 object-contain" />
+          ) : (
+            <img src={LOGO_SRC} alt={branding.orgName} className="w-7 h-7 object-contain" />
+          )}
           <h1 className="text-base font-bold text-white tracking-tight">
-            Spa<span className="text-[#c8a45a]">navi</span>
+            {branding.orgName}
           </h1>
         </div>
 
@@ -28,11 +34,11 @@ export default function Layout({ currentView, setCurrentView, children }) {
             <button
               key={item.key}
               onClick={() => setCurrentView(item.key)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                currentView === item.key
-                  ? 'bg-[#C8A84B]/15 text-[#C8A84B] border border-[#C8A84B]/30'
-                  : 'text-white/70 hover:text-white hover:bg-[#0176D3]'
-              }`}
+              className="px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
+              style={currentView === item.key
+                ? { background: branding.highlightColor + '26', color: branding.highlightColor, border: `1px solid ${branding.highlightColor}4D` }
+                : { color: 'rgba(255,255,255,0.7)', border: '1px solid transparent' }
+              }
             >
               <span className="mr-1.5">{item.icon}</span>
               {item.label}
@@ -43,11 +49,12 @@ export default function Layout({ currentView, setCurrentView, children }) {
         <div className="flex items-center gap-3">
           <div className="text-right">
             <div className="text-xs font-medium text-white">{profile?.name}</div>
-            <div className="text-[10px] text-white/50">{profile?.organizations?.name}</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>{branding.orgName}</div>
           </div>
           <button
             onClick={signOut}
-            className="px-2.5 py-1 rounded-md text-xs text-white/50 hover:text-[#EA001E] hover:bg-[#EA001E]/10 transition-colors"
+            className="px-2.5 py-1 rounded-md text-xs transition-colors"
+            style={{ color: 'rgba(255,255,255,0.5)' }}
           >
             ログアウト
           </button>

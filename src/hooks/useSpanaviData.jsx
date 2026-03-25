@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { getOrgId } from '../lib/orgContext'
 
 /**
  * Supabaseから全データを取得してSpanaviAppに渡す形式に変換するフック
@@ -32,6 +33,7 @@ export function useSpanaviData() {
       setError(null)
 
       // 並列で全テーブル取得
+      const orgId = getOrgId()
       const [
         clientsRes,
         callListsRes,
@@ -39,10 +41,10 @@ export function useSpanaviData() {
         appointmentsRes,
         rewardTypesRes,
       ] = await Promise.all([
-        supabase.from('clients').select('*').order('sort_order'),
-        supabase.from('call_lists').select('*').order('sort_order'),
-        supabase.from('members').select('*').order('sort_order'),
-        supabase.from('appointments').select('*').order('appointment_date', { ascending: false }),
+        supabase.from('clients').select('*').eq('org_id', orgId).order('sort_order'),
+        supabase.from('call_lists').select('*').eq('org_id', orgId).order('sort_order'),
+        supabase.from('members').select('*').eq('org_id', orgId).order('sort_order'),
+        supabase.from('appointments').select('*').eq('org_id', orgId).order('appointment_date', { ascending: false }),
         supabase.from('reward_types').select('*').order('type_id'),
       ])
 

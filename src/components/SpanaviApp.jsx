@@ -39,6 +39,9 @@ import AIAssistantView from './views/AIAssistantView';
 import AdminView from './views/AdminView';
 import ManagerAdminView from './views/ManagerAdminView';
 import { Phone, Calendar, BarChart2, Settings, GraduationCap, User, Bot, Bell } from 'lucide-react';
+import { useBranding } from '../hooks/useBranding';
+import { supabase } from '../lib/supabase';
+import { getOrgId } from '../lib/orgContext';
 import DetailModal from './views/DetailModal';
 
 // ============================================================
@@ -244,6 +247,7 @@ const CLIENT_DATA = [{"no": 1, "status": "支援中", "contract": "済", "compan
 
 // インライン録音プレーヤー（全画面共通）
 function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabaseData, onDataRefetch }) {
+  const branding = useBranding();
   const [callListData, setCallListData] = useState(supabaseData?.callLists ?? []);
   const [importedCSVs, setImportedCSVs] = useState({});
   const [callingScreen, setCallingScreen] = useState(null); // { listId, list } - when set, shows full calling screen
@@ -321,6 +325,20 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   // call_sessions ベースの「リストごと最終架電日時」マップ { [supaId]: ISO string }
   const [latestSessionMap, setLatestSessionMap] = useState({});
   const [industryRules, setIndustryRules] = useState(DEFAULT_INDUSTRY_RULES);
+  const [orgSettingsMap, setOrgSettingsMap] = useState({});
+  // org_settings から業種ルール + スコア/ランク設定を一括取得
+  useEffect(() => {
+    supabase.from('org_settings').select('setting_key, setting_value').eq('org_id', getOrgId())
+      .then(({ data }) => {
+        if (!data) return;
+        const map = {};
+        data.forEach(r => { map[r.setting_key] = r.setting_value; });
+        setOrgSettingsMap(map);
+        if (map.industry_rules) {
+          try { setIndustryRules(JSON.parse(map.industry_rules)); } catch { /* use defaults */ }
+        }
+      });
+  }, []);
   const [filterStatus, setFilterStatus] = useState("架電可能");
   const [filterType, setFilterType] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -392,9 +410,9 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
 
   const enrichedLists = useMemo(() => callListData.map(list => {
     const latestCallAt = latestSessionMap[list._supaId] || null;
-    const rec = getCurrentRecommendation(industryRules, list.industry, now, latestCallAt, list.created_at || null);
+    const rec = getCurrentRecommendation(industryRules, list.industry, now, latestCallAt, list.created_at || null, orgSettingsMap);
     return { ...list, recommendation: rec };
-  }), [now, latestSessionMap, industryRules, callListData]);
+  }), [now, latestSessionMap, industryRules, callListData, orgSettingsMap]);
 
   const filteredLists = useMemo(() => {
     let lists = enrichedLists;
@@ -541,35 +559,39 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       `}</style>
 
       {/* ===== SIDEBAR ===== */}
-      <div style={{ width: 220, position: 'fixed', left: 0, top: 0, height: '100vh', background: '#032D60', overflowY: 'auto', zIndex: 200, boxShadow: '2px 0 8px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ width: 220, position: 'fixed', left: 0, top: 0, height: '100vh', background: branding.primaryColor, overflowY: 'auto', zIndex: 200, boxShadow: '2px 0 8px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column' }}>
         {/* Logo */}
         <div onClick={() => setCurrentTab('live')} style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <svg width="28" height="32" viewBox="0 0 52 60">
-            <defs>
-              <linearGradient id="spShieldSidebar" x1="0" y1="0" x2="0.3" y2="1">
-                <stop offset="0%" stopColor="#0176D3"/>
-                <stop offset="100%" stopColor="#032D60"/>
-              </linearGradient>
-              <clipPath id="shieldClipSB"><path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z"/></clipPath>
-            </defs>
-            <path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z" fill="url(#spShieldSidebar)"/>
-            <g clipPath="url(#shieldClipSB)" stroke="white" fill="none">
-              <g opacity="0.45" strokeWidth="1.2">
-                <line x1="26" y1="30" x2="26" y2="-5"/><line x1="26" y1="30" x2="55" y2="30"/>
-                <line x1="26" y1="30" x2="26" y2="65"/><line x1="26" y1="30" x2="-3" y2="30"/>
-                <line x1="26" y1="30" x2="47" y2="5"/><line x1="26" y1="30" x2="47" y2="55"/>
-                <line x1="26" y1="30" x2="5" y2="55"/><line x1="26" y1="30" x2="5" y2="5"/>
+          {branding.logoUrl ? (
+            <img src={branding.logoUrl} alt={branding.orgName} style={{ width: 28, height: 32, objectFit: 'contain' }} />
+          ) : (
+            <svg width="28" height="32" viewBox="0 0 52 60">
+              <defs>
+                <linearGradient id="spShieldSidebar" x1="0" y1="0" x2="0.3" y2="1">
+                  <stop offset="0%" stopColor={branding.accentColor}/>
+                  <stop offset="100%" stopColor={branding.primaryColor}/>
+                </linearGradient>
+                <clipPath id="shieldClipSB"><path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z"/></clipPath>
+              </defs>
+              <path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z" fill="url(#spShieldSidebar)"/>
+              <g clipPath="url(#shieldClipSB)" stroke="white" fill="none">
+                <g opacity="0.45" strokeWidth="1.2">
+                  <line x1="26" y1="30" x2="26" y2="-5"/><line x1="26" y1="30" x2="55" y2="30"/>
+                  <line x1="26" y1="30" x2="26" y2="65"/><line x1="26" y1="30" x2="-3" y2="30"/>
+                  <line x1="26" y1="30" x2="47" y2="5"/><line x1="26" y1="30" x2="47" y2="55"/>
+                  <line x1="26" y1="30" x2="5" y2="55"/><line x1="26" y1="30" x2="5" y2="5"/>
+                </g>
+                <g opacity="0.30" strokeWidth="0.8">
+                  <line x1="26" y1="30" x2="37" y2="-2"/><line x1="26" y1="30" x2="53" y2="16"/>
+                  <line x1="26" y1="30" x2="53" y2="44"/><line x1="26" y1="30" x2="37" y2="62"/>
+                  <line x1="26" y1="30" x2="15" y2="62"/><line x1="26" y1="30" x2="-1" y2="44"/>
+                  <line x1="26" y1="30" x2="-1" y2="16"/><line x1="26" y1="30" x2="15" y2="-2"/>
+                </g>
               </g>
-              <g opacity="0.30" strokeWidth="0.8">
-                <line x1="26" y1="30" x2="37" y2="-2"/><line x1="26" y1="30" x2="53" y2="16"/>
-                <line x1="26" y1="30" x2="53" y2="44"/><line x1="26" y1="30" x2="37" y2="62"/>
-                <line x1="26" y1="30" x2="15" y2="62"/><line x1="26" y1="30" x2="-1" y2="44"/>
-                <line x1="26" y1="30" x2="-1" y2="16"/><line x1="26" y1="30" x2="15" y2="-2"/>
-              </g>
-            </g>
-          </svg>
+            </svg>
+          )}
           <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 800, letterSpacing: 2, lineHeight: 1 }}>
-            <span style={{ color: '#0176D3' }}>Spa</span><span style={{ color: '#C8A84B' }}>navi</span>
+            <span style={{ color: branding.accentColor }}>{branding.orgName.slice(0, Math.ceil(branding.orgName.length / 2))}</span><span style={{ color: branding.highlightColor }}>{branding.orgName.slice(Math.ceil(branding.orgName.length / 2))}</span>
           </div>
         </div>
         {/* User area — クリックでマイページへ */}
@@ -580,7 +602,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
             <div onClick={() => setCurrentTab('mypage')}
               onMouseEnter={() => setHoveredGroup('mypage')}
               onMouseLeave={() => setHoveredGroup(null)}
-              style={{ padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: currentTab === 'mypage' ? '#1E3A6E' : hoveredGroup === 'mypage' ? 'rgba(255,255,255,0.07)' : 'transparent', borderLeft: '3px solid transparent', boxSizing: 'border-box' }}>
+              style={{ padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: currentTab === 'mypage' ? 'rgba(255,255,255,0.12)' : hoveredGroup === 'mypage' ? 'rgba(255,255,255,0.07)' : 'transparent', borderLeft: '3px solid transparent', boxSizing: 'border-box' }}>
               <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#0176D3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
                 {_avatarUrl
                   ? <img src={_avatarUrl} alt={currentUser} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -601,7 +623,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
                 <button key={group.id} onClick={() => setCurrentTab(group.id)} style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   width: '100%', padding: '11px 20px',
-                  background: _sbActive ? '#1E3A6E' : 'transparent',
+                  background: _sbActive ? 'rgba(255,255,255,0.12)' : 'transparent',
                   border: 'none', borderLeft: '3px solid transparent',
                   color: _sbActive ? '#FFFFFF' : 'rgba(255,255,255,0.75)',
                   fontSize: 13, fontWeight: _sbActive ? 600 : 400,
@@ -622,7 +644,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
                   return (
                     <button key={child.id} onClick={() => setCurrentTab(child.id)} style={{
                       display: 'block', width: '100%', padding: '8px 20px 8px 28px',
-                      background: _sbChildActive ? '#1E3A6E' : 'transparent',
+                      background: _sbChildActive ? 'rgba(255,255,255,0.12)' : 'transparent',
                       border: 'none', borderLeft: '3px solid transparent',
                       color: _sbChildActive ? '#FFFFFF' : 'rgba(255,255,255,0.75)',
                       fontSize: 13, fontWeight: _sbChildActive ? 600 : 400,

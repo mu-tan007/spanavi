@@ -3,6 +3,9 @@ import MemberManagement from '../admin/MemberManagement';
 import RewardSettings from '../admin/RewardSettings';
 import SlackZoomSettings from '../admin/SlackZoomSettings';
 import ClientManagement from '../admin/ClientManagement';
+import BrandingSettings from '../admin/BrandingSettings';
+import IndustryRuleSettings from '../admin/IndustryRuleSettings';
+import CallStatusSettings from '../admin/CallStatusSettings';
 import RewardMasterView from './RewardMasterView';
 import MyPageView from './MyPageView';
 
@@ -12,8 +15,10 @@ const GOLD = '#C8A84B';
 const TABS = [
   { id: 'members',  label: 'メンバー管理',          icon: '' },
   { id: 'reward',   label: '報酬・給与設定',         icon: '' },
+  { id: 'calling',  label: '架電設定',              icon: '' },
   { id: 'slack',    label: 'Slack / Zoom設定',       icon: '' },
   { id: 'clients',  label: 'クライアント・リスト管理', icon: '' },
+  { id: 'branding', label: 'ブランド設定',           icon: '' },
 ];
 
 // ────────────────────────────────────────────────
@@ -149,8 +154,16 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
             <RewardMasterView rewardMaster={rewardMaster} setRewardMaster={setRewardMaster} />
           </>
         )}
+        {activeTab === 'calling' && (
+          <>
+            <IndustryRuleSettings onToast={showToast} />
+            <div style={{ height: 1, background: '#E5E5E5', margin: '28px 0' }} />
+            <CallStatusSettings onToast={showToast} />
+          </>
+        )}
         {activeTab === 'slack'   && <SlackZoomSettings onToast={showToast} />}
         {activeTab === 'clients' && <ClientManagement  onToast={showToast} />}
+        {activeTab === 'branding' && <BrandingSettings onToast={showToast} />}
       </div>
 
       {/* メンバーマイページ モーダル */}

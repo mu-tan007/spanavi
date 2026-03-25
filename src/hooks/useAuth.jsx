@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext, createContext } from 'react'
 import { supabase } from '../lib/supabase'
+import { setOrgId, clearOrgId } from '../lib/orgContext'
 
 const AuthContext = createContext(null)
 
@@ -52,18 +53,27 @@ export function AuthProvider({ children }) {
           const memberId = match[1]
           const { data: member } = await supabase
             .from('members')
-            .select('id, name, email, role')
+            .select('id, name, email, role, org_id')
             .eq('id', memberId)
             .single()
           if (member) {
-            setProfile({ id: userId, name: member.name, email: member.email, role: member.role || 'caller' })
+            if (member.org_id) setOrgId(member.org_id)
+            setProfile({ id: userId, name: member.name, email: member.email, role: member.role || 'caller', org_id: member.org_id })
             return
           }
         }
         console.warn('Profile fetch failed (RLS or missing row):', error?.message)
         setProfile(null)
       } else {
-        setProfile(data)
+        // users テーブルから取得成功 → members テーブルから org_id を補完
+        const { data: memberRow } = await supabase
+          .from('members')
+          .select('org_id')
+          .eq('name', data.name)
+          .single()
+        const orgId = memberRow?.org_id || null
+        if (orgId) setOrgId(orgId)
+        setProfile({ ...data, org_id: orgId })
       }
     } catch (err) {
       console.error('Profile fetch error:', err)
@@ -85,6 +95,7 @@ export function AuthProvider({ children }) {
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
+    clearOrgId()
     setSession(null)
     setProfile(null)
   }
@@ -97,6 +108,7 @@ export function AuthProvider({ children }) {
     signOut,
     isAdmin: profile?.role === 'admin',
     isManager: profile?.role === 'admin' || profile?.role === 'manager',
+    orgId: profile?.org_id || null,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

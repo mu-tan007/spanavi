@@ -1,6 +1,5 @@
 import { supabase } from '../lib/supabase'
-
-const ORG_ID = 'a0000000-0000-0000-0000-000000000001'
+import { getOrgId } from './orgContext'
 
 // ============================================================
 // Drive CORS Proxy
@@ -80,7 +79,7 @@ export async function insertCallList(data) {
   const { data: result, error } = await supabase
     .from('call_lists')
     .insert({
-      org_id: ORG_ID,
+      org_id: getOrgId(),
       client_id: clientId,
       name: `${data.company} - ${data.industry}`,
       industry: data.industry,
@@ -138,7 +137,7 @@ export async function insertClient(data) {
   const { data: result, error } = await supabase
     .from('clients')
     .insert({
-      org_id: ORG_ID,
+      org_id: getOrgId(),
       name: data.company,
       status: data.status || '準備中',
       contract_status: data.contract || '未',
@@ -236,7 +235,7 @@ export async function insertAppointment(data) {
   const { data: result, error } = await supabase
     .from('appointments')
     .insert({
-      org_id: ORG_ID,
+      org_id: getOrgId(),
       client_id: clientId,
       company_name: data.company,
       status: data.status || 'アポ取得',
@@ -351,7 +350,7 @@ export async function insertCallListItems(listId, rows) {
   for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
     const chunk = rows.slice(i, i + CHUNK_SIZE)
     const items = chunk.map(r => ({
-      org_id: ORG_ID,
+      org_id: getOrgId(),
       list_id: listId,
       no: r.no,
       company: r.company || '',
@@ -408,7 +407,7 @@ export async function insertMember(data) {
   const { data: result, error } = await supabase
     .from('members')
     .insert({
-      org_id: ORG_ID,
+      org_id: getOrgId(),
       name: data.name,
       university: data.university || '',
       grade: parseInt(data.year) || 0,
@@ -492,7 +491,7 @@ export async function insertCallRecord(data) {
   const { data: result, error } = await supabase
     .from('call_records')
     .insert({
-      org_id: ORG_ID,
+      org_id: getOrgId(),
       item_id: data.item_id,
       list_id: data.list_id,
       round: data.round,
@@ -673,7 +672,7 @@ export async function insertShift(data) {
     if (!memberId) console.warn('[DB] insertShift: could not resolve member_id for name:', data.member_name)
   }
   const insertPayload = {
-    org_id: ORG_ID,
+    org_id: getOrgId(),
     member_id: memberId,
     member_name: data.member_name,
     shift_date: data.shift_date,
@@ -1044,7 +1043,7 @@ export async function fetchMemberPayrollHistory(memberName) {
   const { data, error } = await supabase
     .from('payroll_snapshots')
     .select('pay_month, total_payout, incentive_amt, team_bonus, referral_bonus')
-    .eq('org_id', ORG_ID)
+    .eq('org_id', getOrgId())
     .eq('member_name', memberName)
     .order('pay_month', { ascending: false })
   if (error) console.error('[DB] fetchMemberPayrollHistory error:', error)
@@ -1055,7 +1054,7 @@ export async function fetchPayrollSnapshots(payMonth) {
   const { data, error } = await supabase
     .from('payroll_snapshots')
     .select('*')
-    .eq('org_id', ORG_ID)
+    .eq('org_id', getOrgId())
     .eq('pay_month', payMonth)
     .order('total_payout', { ascending: false })
   if (error) console.error('[DB] fetchPayrollSnapshots error:', error)
@@ -1074,7 +1073,7 @@ export async function deletePayrollSnapshots(payMonth) {
   const { error } = await supabase
     .from('payroll_snapshots')
     .delete()
-    .eq('org_id', ORG_ID)
+    .eq('org_id', getOrgId())
     .eq('pay_month', payMonth)
   if (error) console.error('[DB] deletePayrollSnapshots error:', error)
   return { error }
@@ -1200,13 +1199,13 @@ export function getProfileImageUrl(userId) {
   if (!userId) return null
   const { data } = supabase.storage
     .from(PROFILE_BUCKET)
-    .getPublicUrl(`${ORG_ID}/${userId}`)
+    .getPublicUrl(`${getOrgId()}/${userId}`)
   return data.publicUrl
 }
 
 export async function uploadProfileImage(userId, file) {
   if (!userId || !file) return { url: null, error: new Error('invalid args') }
-  const path = `${ORG_ID}/${userId}`
+  const path = `${getOrgId()}/${userId}`
 
   // まず upload を試みる。409（既存ファイル）なら update にフォールバック
   let finalError = null
@@ -1470,7 +1469,7 @@ export async function fetchCallActivity(fromISO, toISO) {
     const { data, error } = await supabase
       .from('call_records')
       .select('called_at, status, getter_name')
-      .eq('org_id', ORG_ID)
+      .eq('org_id', getOrgId())
       .gte('called_at', fromISO)
       .lte('called_at', toISO)
       .order('called_at')
@@ -1487,7 +1486,7 @@ export async function fetchAppoActivity(fromISO, toISO) {
   const { data, error } = await supabase
     .from('appointments')
     .select('created_at, getter_name')
-    .eq('org_id', ORG_ID)
+    .eq('org_id', getOrgId())
     .gte('created_at', fromISO)
     .lte('created_at', toISO);
   if (error) console.error('[DB] fetchAppoActivity error:', error);
@@ -1502,7 +1501,7 @@ export async function fetchCallRecordsByRange(fromISO, toISO) {
     const { data, error } = await supabase
       .from('call_records')
       .select('called_at, status, list_id, getter_name')
-      .eq('org_id', ORG_ID)
+      .eq('org_id', getOrgId())
       .gte('called_at', fromISO)
       .lte('called_at', toISO)
       .order('called_at')
@@ -1519,7 +1518,7 @@ export async function fetchCallListsMeta() {
   const { data, error } = await supabase
     .from('call_lists')
     .select('id, name, is_archived, client_id, clients(name)')
-    .eq('org_id', ORG_ID)
+    .eq('org_id', getOrgId())
     .order('name');
   if (error) console.error('[DB] fetchCallListsMeta error:', error);
   return { data: data || [], error };
@@ -1551,7 +1550,7 @@ export async function upsertTrainingStage(userId, stageKey, payload) {
       passed: payload.passed ?? null,
       completed_by: payload.completed_by ?? null,
       notes: payload.notes ?? null,
-      org_id: ORG_ID,
+      org_id: getOrgId(),
     }, { onConflict: 'user_id,stage_key' })
   if (error) console.error('[DB] upsertTrainingStage error:', error)
   return { error }
@@ -1578,7 +1577,7 @@ export async function insertRoleplaySession(userId, payload) {
     .from('roleplay_sessions')
     .insert({
       user_id: userId,
-      org_id: ORG_ID,
+      org_id: getOrgId(),
       partner_name: payload.partner_name || null,
       session_type: payload.session_type,
       session_date: payload.session_date || null,
@@ -1733,7 +1732,7 @@ export async function fetchCallListIndustries() {
   const { data, error } = await supabase
     .from('call_lists')
     .select('industry')
-    .eq('org_id', ORG_ID)
+    .eq('org_id', getOrgId())
     .not('industry', 'is', null)
     .neq('industry', '');
   if (error) {
@@ -1752,7 +1751,7 @@ export async function fetchOrgSettings() {
   const { data, error } = await supabase
     .from('org_settings')
     .select('setting_key, setting_value')
-    .eq('org_id', ORG_ID);
+    .eq('org_id', getOrgId());
   if (error) {
     console.error('[DB] fetchOrgSettings error:', error);
     return { data: {}, error };

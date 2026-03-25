@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { C } from '../../constants/colors';
 
-const ORG_ID = 'a0000000-0000-0000-0000-000000000001';
+import { getOrgId } from '../../lib/orgContext';
 
 export default function IncomingCallBanner({ onNavigateToIncoming, onOpenCompany }) {
   const [banners, setBanners] = useState([]); // [{ id, company_name, caller_number, recordId, item_id }]
@@ -36,7 +36,7 @@ export default function IncomingCallBanner({ onNavigateToIncoming, onOpenCompany
         event: 'INSERT',
         schema: 'public',
         table: 'incoming_calls',
-        filter: `org_id=eq.${ORG_ID}`,
+        filter: `org_id=eq.${getOrgId()}`,
       }, (payload) => {
         const rec = payload.new;
         const bannerId = rec.id;

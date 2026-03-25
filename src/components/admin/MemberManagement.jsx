@@ -4,9 +4,10 @@ import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
 
+import { getOrgId } from '../../lib/orgContext';
+
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
-const ORG_ID = 'a0000000-0000-0000-0000-000000000001';
 
 const RANKS = ['トレーニー', 'プレイヤー', 'スパルタン', 'スーパースパルタン'];
 const POSITIONS = ['代表', 'リーダー', 'サブリーダー', 'メンバー', 'インターン'];
@@ -55,7 +56,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
     const { data, error } = await supabase
       .from('members')
       .select('id, name, team, position, rank, operation_start_date, start_date, is_active, zoom_user_id')
-      .eq('org_id', ORG_ID);
+      .eq('org_id', getOrgId());
     if (error) { onToast('メンバーの取得に失敗しました', 'error'); }
     else { setMembers(data || []); }
     setLoading(false);
@@ -108,7 +109,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
     const { data, error } = await supabase
       .from('members')
       .insert({
-        org_id: ORG_ID,
+        org_id: getOrgId(),
         name: addForm.name.trim(),
         team: addForm.team || null,
         position: addForm.position,

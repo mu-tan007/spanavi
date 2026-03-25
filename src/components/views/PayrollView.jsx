@@ -3,6 +3,7 @@ import React from 'react';
 import { C } from '../../constants/colors';
 import { calcRankAndRate } from '../../utils/calculations';
 import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings } from '../../lib/supabaseWrite';
+import { getOrgId } from '../../lib/orgContext';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
@@ -204,7 +205,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
     setActionMsg('');
     try {
       const rows = calcData.map(p => ({
-        org_id: 'a0000000-0000-0000-0000-000000000001',
+        org_id: getOrgId(),
         pay_month: payMonth,
         member_name: p.name,
         team_name: p.team,

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 
+import { getOrgId } from '../../lib/orgContext';
+
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
-const ORG_ID = 'a0000000-0000-0000-0000-000000000001';
 
 const SETTING_GROUPS = [
   {
@@ -89,7 +90,7 @@ export default function SlackZoomSettings({ onToast }) {
     const { data, error } = await supabase
       .from('org_settings')
       .select('setting_key, setting_value')
-      .eq('org_id', ORG_ID)
+      .eq('org_id', getOrgId())
       .in('setting_key', allKeys);
     if (error) { onToast('設定の取得に失敗しました', 'error'); }
     else {
@@ -105,7 +106,7 @@ export default function SlackZoomSettings({ onToast }) {
   const saveField = async (key, val) => {
     const { error } = await supabase
       .from('org_settings')
-      .upsert({ org_id: ORG_ID, setting_key: key, setting_value: val, updated_at: new Date().toISOString() }, { onConflict: 'org_id,setting_key' });
+      .upsert({ org_id: getOrgId(), setting_key: key, setting_value: val, updated_at: new Date().toISOString() }, { onConflict: 'org_id,setting_key' });
     if (error) { onToast('保存に失敗しました', 'error'); return; }
     setValues(prev => ({ ...prev, [key]: val }));
     onToast('保存しました ✓');

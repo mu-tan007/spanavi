@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 
+import { getOrgId } from '../../lib/orgContext';
+
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
-const ORG_ID = 'a0000000-0000-0000-0000-000000000001';
 
 const btn = (variant = 'default', extra = {}) => ({
   padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
@@ -27,14 +28,14 @@ export default function ClientManagement({ onToast }) {
     const { data: clientData, error } = await supabase
       .from('clients')
       .select('id, name, created_at')
-      .eq('org_id', ORG_ID)
+      .eq('org_id', getOrgId())
       .order('name');
     if (error) { onToast('クライアントの取得に失敗しました', 'error'); setLoading(false); return; }
 
     const { data: listData } = await supabase
       .from('call_lists')
       .select('id, name, client_id, created_at')
-      .eq('org_id', ORG_ID)
+      .eq('org_id', getOrgId())
       .order('name');
 
     // アイテム数を取得

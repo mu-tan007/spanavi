@@ -5,7 +5,7 @@ import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
 
-const ORG_ID = 'a0000000-0000-0000-0000-000000000001';
+import { getOrgId } from '../../lib/orgContext';
 
 const formatJST = (iso) => {
   if (!iso) return '-';
@@ -54,7 +54,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
     const { data } = await supabase
       .from('incoming_calls')
       .select('*')
-      .eq('org_id', ORG_ID)
+      .eq('org_id', getOrgId())
       .order('received_at', { ascending: false })
       .limit(200);
     const rows = data || [];

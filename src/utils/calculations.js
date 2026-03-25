@@ -4,31 +4,67 @@
 import { C } from '../constants/colors';
 import { getIndustryCategory, parseTimeRange } from './industry';
 
+// デフォルトのランク定義
+const DEFAULT_RANKS = [
+  { name: 'スーパースパルタン', threshold: 10000000 },
+  { name: 'スパルタン',         threshold: 5000000 },
+  { name: 'プレイヤー',          threshold: 2000000 },
+  { name: 'トレーニー',          threshold: 0 },
+];
+
 // ランクとインセンティブ率の自動計算（累計売上から判定）
 // orgSettings: org_settingsテーブルから取得した { setting_key: setting_value } マップ（省略時はデフォルト値）
 export const calcRankAndRate = (totalSales, orgSettings = null) => {
   const s = orgSettings || {};
-  const superRate   = s.reward_rate_super_spartan != null ? Number(s.reward_rate_super_spartan) / 100 : 0.28;
-  const spartanRate = s.reward_rate_spartan       != null ? Number(s.reward_rate_spartan)       / 100 : 0.27;
-  const playerRate  = s.reward_rate_player        != null ? Number(s.reward_rate_player)        / 100 : 0.25;
-  const traineeRate = s.reward_rate_trainee       != null ? Number(s.reward_rate_trainee)       / 100 : 0.22;
-  if (totalSales >= 10000000) return { rank: 'スーパースパルタン', rate: superRate };
-  if (totalSales >= 5000000)  return { rank: 'スパルタン',         rate: spartanRate };
-  if (totalSales >= 2000000)  return { rank: 'プレイヤー',          rate: playerRate };
-  return { rank: 'トレーニー', rate: traineeRate };
+
+  // org_settingsからランク定義を取得（未設定時はデフォルト）
+  let ranks = DEFAULT_RANKS;
+  if (s.rank_definitions) {
+    try {
+      const parsed = JSON.parse(s.rank_definitions);
+      if (Array.isArray(parsed) && parsed.length > 0) ranks = parsed;
+    } catch { /* use defaults */ }
+  }
+
+  // 閾値降順でソートしてマッチ
+  const sorted = [...ranks].sort((a, b) => b.threshold - a.threshold);
+
+  // デフォルトのインセンティブ率マップ
+  const defaultRates = { 'スーパースパルタン': 0.28, 'スパルタン': 0.27, 'プレイヤー': 0.25, 'トレーニー': 0.22 };
+  // インデックスベースのフォールバック率
+  const fallbackRates = [0.28, 0.27, 0.25, 0.22];
+
+  for (let i = 0; i < sorted.length; i++) {
+    if (totalSales >= sorted[i].threshold) {
+      // 既存のreward_rate_*キーまたはデフォルト率を使用
+      const legacyKey = 'reward_rate_' + sorted[i].name.toLowerCase().replace(/\s+/g, '_');
+      const rate = s[legacyKey] != null ? Number(s[legacyKey]) / 100
+        : defaultRates[sorted[i].name] ?? fallbackRates[i] ?? 0.22;
+      return { rank: sorted[i].name, rate };
+    }
+  }
+
+  // 全閾値未満 → 最下位ランク
+  const last = sorted[sorted.length - 1];
+  return { rank: last.name, rate: defaultRates[last.name] ?? 0.22 };
 };
 
 // 架電おすすめスコア計算
 // latestCallAt: そのリストの最終架電セッション started_at (ISO string | null)
 // createdAt:    call_lists.created_at (ISO string | null)
-export const getCurrentRecommendation = (rules, industry, now, latestCallAt, createdAt) => {
+// orgSettings:  org_settingsテーブルから取得した { setting_key: setting_value } マップ（省略時はデフォルト値）
+export const getCurrentRecommendation = (rules, industry, now, latestCallAt, createdAt, orgSettings = null) => {
+  const s = orgSettings || {};
   const dayOfWeek = now.getDay();
   const hour = now.getHours();
   const minutes = now.getMinutes();
   const currentTime = hour + minutes / 60;
 
-  // 架電時間外チェック（7時以前・20時以降）
-  if (hour < 7 || hour >= 20) {
+  // 架電時間帯（org_settingsから取得、デフォルト7〜20時）
+  const hourStart = s.calling_hour_start != null ? Number(s.calling_hour_start) : 7;
+  const hourEnd = s.calling_hour_end != null ? Number(s.calling_hour_end) : 20;
+
+  if (hour < hourStart || hour >= hourEnd) {
     return { score: 0, label: "架電時間外", color: C.textLight, timeScore: 0, timeLabel: "架電時間外", recencyScore: 0, recencyLabel: "", isOutsideHours: true };
   }
 
@@ -82,8 +118,11 @@ export const getCurrentRecommendation = (rules, industry, now, latestCallAt, cre
     else                            { importScore = 10; }
   }
 
-  // --- Combined score: 50% time, 30% import, 20% recency ---
-  const combined = Math.round(timeScore * 0.50 + importScore * 0.30 + recencyScore * 0.20);
+  // --- Combined score: configurable weights (default 50/30/20) ---
+  const wTime = (s.score_weight_time != null ? Number(s.score_weight_time) : 50) / 100;
+  const wImport = (s.score_weight_import != null ? Number(s.score_weight_import) : 30) / 100;
+  const wRecency = (s.score_weight_recency != null ? Number(s.score_weight_recency) : 20) / 100;
+  const combined = Math.round(timeScore * wTime + importScore * wImport + recencyScore * wRecency);
 
   // --- Determine label and color ---
   let label, color;
