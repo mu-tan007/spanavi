@@ -4,6 +4,7 @@ import { C } from '../../constants/colors';
 import { supabase } from '../../lib/supabase';
 import {
   fetchRoleplayBookings,
+  fetchAllRoleplayBookings,
   insertRoleplayBooking,
   deleteRoleplayBooking,
 } from '../../lib/supabaseWrite';
@@ -47,6 +48,7 @@ export default function RoleplayView({ currentUser, userId }) {
   const [gcalError, setGcalError] = useState(null);
   const [confirmSlot, setConfirmSlot] = useState(null);
   const [bookings, setBookings] = useState([]);
+  const [allBookings, setAllBookings] = useState([]);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccessMsg, setBookingSuccessMsg] = useState('');
   const [userEmail, setUserEmail] = useState('');
@@ -68,10 +70,14 @@ export default function RoleplayView({ currentUser, userId }) {
 
   // ロープレ予約を Supabase から取得
   useEffect(() => {
-    if (!userId) return;
-    fetchRoleplayBookings(userId).then(({ data }) => {
-      setBookings(data || []);
-    });
+    if (userId) {
+      fetchRoleplayBookings(userId).then(({ data }) => {
+        setBookings(data || []);
+      }).catch(() => {});
+    }
+    fetchAllRoleplayBookings().then(({ data }) => {
+      setAllBookings(data || []);
+    }).catch(() => {});
   }, [userId]);
 
   // gcal-proxy Edge Function 呼び出しヘルパー
@@ -200,6 +206,8 @@ export default function RoleplayView({ currentUser, userId }) {
       }
       const nb = {
         id: data.eventId,
+        userId,
+        userName: currentUser || 'インターン生',
         title,
         startISO: confirmSlot.startISO,
         endISO: confirmSlot.endISO,
@@ -209,6 +217,7 @@ export default function RoleplayView({ currentUser, userId }) {
         attendeeEmail: modalEmail,
       };
       setBookings(prev => [...prev, nb]);
+      setAllBookings(prev => [...prev, nb].sort((a, b) => a.startISO.localeCompare(b.startISO)));
       insertRoleplayBooking(userId, nb);
       await fetchBusy();
       setBookingSuccessMsg('Googleカレンダーに登録しました');
@@ -230,6 +239,7 @@ export default function RoleplayView({ currentUser, userId }) {
       } catch (e) { /* ローカルからは削除する */ }
     }
     setBookings(prev => prev.filter(b => b.id !== booking.id));
+    setAllBookings(prev => prev.filter(b => b.id !== booking.id));
     deleteRoleplayBooking(booking.id, userId);
   };
 
@@ -356,31 +366,41 @@ export default function RoleplayView({ currentUser, userId }) {
             </div>
           )}
 
-          {/* 予約済み一覧 */}
+          {/* 予約済み一覧（全メンバー・本日以降） */}
           <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, overflow: "hidden" }}>
             <div style={{ background: '#0D2247', padding: "8px 14px", fontSize: 11, fontWeight: 700, color: '#fff' }}>
-              予約済み一覧 {bookings.length > 0 && <span style={{ opacity: 0.7, fontSize: 10 }}>({bookings.length}件)</span>}
+              予約済み一覧 {allBookings.length > 0 && <span style={{ opacity: 0.7, fontSize: 10 }}>({allBookings.length}件)</span>}
             </div>
-            {bookings.length === 0 ? (
+            {allBookings.length === 0 ? (
               <div style={{ padding: "16px 14px", textAlign: "center", color: C.textLight, fontSize: 12 }}>予約はありません</div>
             ) : (
-              <div style={{ maxHeight: 200, overflowY: "auto" }}>
-                {bookings.map(b => (
-                  <div key={b.id} style={{ padding: "8px 14px", borderBottom: "1px solid #E5E7EB",
-                    display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2247' }}>{b.dayLabel}</div>
-                      <div style={{ fontSize: 10, color: C.textMid, fontFamily: "'JetBrains Mono', monospace" }}>
-                        {b.startLabel} – {b.endLabel}
+              <div style={{ maxHeight: 240, overflowY: "auto" }}>
+                {allBookings.map(b => {
+                  const isOwn = b.userId === userId;
+                  return (
+                    <div key={b.id} style={{ padding: "8px 14px", borderBottom: "1px solid #E5E7EB",
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      background: isOwn ? '#F0F4FF' : 'transparent' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: '#0D2247' }}>{b.dayLabel}</span>
+                          <span style={{ fontSize: 10, color: C.textMid, fontFamily: "'JetBrains Mono', monospace" }}>
+                            {b.startLabel} – {b.endLabel}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 10, color: isOwn ? '#1E40AF' : '#6B7280', fontWeight: isOwn ? 600 : 400, marginTop: 2 }}>
+                          {b.userName || '不明'}{isOwn ? '（自分）' : ''}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 9, color: C.textLight, marginTop: 1 }}>{b.title}</div>
+                      {isOwn && (
+                        <button onClick={() => handleCancel(b)}
+                          style={{ background: '#fff', color: '#DC2626', border: '1px solid #DC2626', borderRadius: 4, padding: '4px 10px', fontSize: 10, fontWeight: 500, cursor: "pointer", fontFamily: "'Noto Sans JP'", flexShrink: 0 }}>
+                          キャンセル
+                        </button>
+                      )}
                     </div>
-                    <button onClick={() => handleCancel(b)}
-                      style={{ background: '#fff', color: '#DC2626', border: '1px solid #DC2626', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "'Noto Sans JP'", flexShrink: 0 }}>
-                      キャンセル
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

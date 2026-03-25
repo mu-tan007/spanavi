@@ -1273,6 +1273,25 @@ export async function fetchRoleplayBookings(userId) {
   if (error) console.error('[DB] fetchRoleplayBookings error:', error)
   return { data: (data || []).map(r => ({
     id: r.gcal_event_id,
+    userId: r.user_id,
+    userName: r.user_name || '',
+    title: r.user_name ? `ロープレ - ${r.user_name}` : 'ロープレ',
+    startISO: r.start_iso,
+    endISO: r.end_iso,
+    dayLabel: r.day_label,
+    startLabel: r.start_label,
+    endLabel: r.end_label,
+    attendeeEmail: r.attendee_email,
+  })), error }
+}
+
+export async function fetchAllRoleplayBookings() {
+  const { data, error } = await supabase.rpc('get_active_roleplay_bookings')
+  if (error) console.error('[DB] fetchAllRoleplayBookings error:', error)
+  return { data: (data || []).map(r => ({
+    id: r.gcal_event_id,
+    userId: r.user_id,
+    userName: r.user_name || '',
     title: r.user_name ? `ロープレ - ${r.user_name}` : 'ロープレ',
     startISO: r.start_iso,
     endISO: r.end_iso,
