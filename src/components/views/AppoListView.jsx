@@ -1029,7 +1029,8 @@ function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
       clients: g.clients,
       client: g.clients.join(', '),
       getter: g.getters.join(', '),
-      getDate: g.getDates.length > 0 ? g.getDates.sort().reverse()[0] : '',
+      getDates: [...new Set(g.getDates)].sort().reverse(),
+      getDate: [...new Set(g.getDates)].sort().reverse().join(', '),
     }));
   }, [appoData]);
 
@@ -1160,7 +1161,7 @@ function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
               <span style={{ fontWeight: 600, color: '#0D2247', textAlign: pastCols[0]?.align || 'left' }}>{p.company}</span>
               <span style={{ fontSize: 10, color: '#6B7280', textAlign: pastCols[1]?.align || 'left' }}>{p.client || '-'}</span>
               <span style={{ fontSize: 10, color: '#6B7280', textAlign: pastCols[2]?.align || 'center' }}>{p.getter || '-'}</span>
-              <span style={{ fontSize: 10, color: '#6B7280', fontFamily: "'JetBrains Mono'", textAlign: pastCols[3]?.align || 'right' }}>{p.getDate ? p.getDate.slice(5) : '-'}</span>
+              <span style={{ fontSize: 10, color: '#6B7280', fontFamily: "'JetBrains Mono'", textAlign: pastCols[3]?.align || 'right' }}>{p.getDates.length > 0 ? p.getDates.map(d => d.slice(5)).join(', ') : '-'}</span>
               <span style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: pastCols[4]?.align === 'right' ? 'flex-end' : pastCols[4]?.align === 'center' ? 'center' : 'flex-start' }}>
                 {otherMatches.length > 0 ? otherMatches.map((m, mi) => {
                   const list = callListData.find(l => l._supaId === m.listId);
