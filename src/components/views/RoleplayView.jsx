@@ -283,10 +283,10 @@ export default function RoleplayView({ currentUser, userId }) {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: '#F8F9FA', borderBottom: "1px solid #E5E7EB", gap: 8 }}>
               <button onClick={() => { setWeekOffset(w => w - 1); setSelectedDay(0); }}
                 disabled={weekOffset === 0}
-                style={{ background: '#fff', color: '#0D2247', border: '1px solid #0D2247', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: weekOffset === 0 ? 'default' : 'pointer',
+                style={{ background: '#fff', color: '#0D2247', border: '1px solid #D1D5DB', borderRadius: 3, padding: '3px 6px', fontSize: 9, fontWeight: 500, cursor: weekOffset === 0 ? 'default' : 'pointer',
                   flexShrink: 0, fontFamily: "'Noto Sans JP'",
                   opacity: weekOffset === 0 ? 0.4 : 1 }}>
-                ← 前の週
+                ← 前週
               </button>
               <div style={{ display: "flex", overflowX: "auto", flex: 1 }}>
                 {days.map((day, i) => (
@@ -303,10 +303,10 @@ export default function RoleplayView({ currentUser, userId }) {
               </div>
               <button onClick={() => { setWeekOffset(w => w + 1); setSelectedDay(0); }}
                 disabled={weekOffset >= 3}
-                style={{ background: '#fff', color: '#0D2247', border: '1px solid #0D2247', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: weekOffset >= 3 ? 'default' : 'pointer',
+                style={{ background: '#fff', color: '#0D2247', border: '1px solid #D1D5DB', borderRadius: 3, padding: '3px 6px', fontSize: 9, fontWeight: 500, cursor: weekOffset >= 3 ? 'default' : 'pointer',
                   flexShrink: 0, fontFamily: "'Noto Sans JP'",
                   opacity: weekOffset >= 3 ? 0.4 : 1 }}>
-                次の週 →
+                次週 →
               </button>
             </div>
 
