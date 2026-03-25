@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.post-roleplay-to-slack]
 verify_jwt = false
+
+[functions.notify-ranking]
+verify_jwt = false
+
+[functions.proxy-drive-download]
+verify_jwt = false

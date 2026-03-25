@@ -4,7 +4,7 @@ import { C } from '../../constants/colors';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/formatters';
-import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, fetchMatchingListItemsByCompanyNames } from '../../lib/supabaseWrite';
+import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo } from '../../lib/supabaseWrite';
 import { PAST_APPOINTMENT_COMPANIES } from '../../constants/pastAppointmentCompanies';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
@@ -199,6 +199,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [detailEditing, setDetailEditing] = useState(false);
   const [detailEditForm, setDetailEditForm] = useState(null);
   const [detailSaving, setDetailSaving] = useState(false);
+  const [detailNavigating, setDetailNavigating] = useState(false);
   // 'idle' | 'fetching' | 'transcribing' | 'enhancing' | 'done' | 'error'
   const [transcribeStep, setTranscribeStep] = React.useState('idle');
   useEffect(() => {
@@ -746,6 +747,25 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             }}>
               <span style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>アポイント詳細</span>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {!detailEditing && setCallFlowScreen && (
+                  <button disabled={detailNavigating} onClick={async () => {
+                    setDetailNavigating(true);
+                    try {
+                      const phone = (reportDetail?.phone || '').replace(/[^\d]/g, '');
+                      const { data } = await fetchCallListItemByAppo(reportDetail.company, phone);
+                      if (!data?.list_id) { alert('架電リストが見つかりませんでした'); return; }
+                      const list = callListData.find(l => l._supaId === data.list_id);
+                      setCallFlowScreen({ list: list || { _supaId: data.list_id, id: data.list_id, company: '' }, defaultItemId: data.id, defaultListMode: false });
+                      setReportDetail(null);
+                    } catch (e) {
+                      console.error('[detailNavigate]', e);
+                      alert('遷移に失敗しました');
+                    } finally { setDetailNavigating(false); }
+                  }}
+                    style={{ padding: "4px 12px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.4)", background: "transparent", color: '#fff', cursor: detailNavigating ? "default" : "pointer", opacity: detailNavigating ? 0.6 : 1, fontSize: 11, fontFamily: "'Noto Sans JP'" }}>
+                    {detailNavigating ? '検索中...' : '架電ページへ'}
+                  </button>
+                )}
                 {!detailEditing ? (
                   <button onClick={() => { setDetailEditForm({ ...reportDetail, _idx: appoData.findIndex(a => a._supaId === reportDetail._supaId) }); setDetailEditing(true); }}
                     style={{ padding: "4px 12px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.4)", background: "transparent", color: '#fff', cursor: "pointer", fontSize: 11, fontFamily: "'Noto Sans JP'" }}>
