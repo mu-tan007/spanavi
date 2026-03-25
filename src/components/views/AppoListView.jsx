@@ -4,7 +4,8 @@ import { C } from '../../constants/colors';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/formatters';
-import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail } from '../../lib/supabaseWrite';
+import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, fetchMatchingListItemsByCompanyNames } from '../../lib/supabaseWrite';
+import { PAST_APPOINTMENT_COMPANIES } from '../../constants/pastAppointmentCompanies';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -170,8 +171,9 @@ function EmailApprovalSection({ appo, clientData = [], onStatusUpdate }) {
   );
 }
 
-export default function AppoListView({ appoData, setAppoData, members = [], setMembers, clientData = [], rewardMaster = [] }) {
+export default function AppoListView({ appoData, setAppoData, members = [], setMembers, clientData = [], rewardMaster = [], setCallFlowScreen, callListData = [] }) {
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
+  const [activeTab, setActiveTab] = useState('current'); // 'current' | 'past'
   // ── ランク・レート自動計算 ──────────────────────────────────────
   const [apPeriod, setApPeriod] = useState(() =>
     localStorage.getItem('spanavi_appo_period') || "all"
@@ -331,11 +333,23 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
       {/* Page Header */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
+      <div style={{ marginBottom: 24, paddingBottom: 0, borderBottom: '1px solid #0D2247' }}>
         <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Appointments</div>
         <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>アポイントメント・パイプライン管理</div>
+        <div style={{ display: 'flex', gap: 0, marginTop: 14 }}>
+          {[['current', 'アポ一覧'], ['past', '過去アポイント一覧']].map(([key, label]) => (
+            <button key={key} onClick={() => setActiveTab(key)}
+              style={{
+                padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                fontFamily: "'Noto Sans JP'", border: 'none', borderBottom: activeTab === key ? '3px solid #0D2247' : '3px solid transparent',
+                background: 'transparent', color: activeTab === key ? '#0D2247' : '#9CA3AF',
+                transition: 'all 0.15s',
+              }}>{label}</button>
+          ))}
+        </div>
       </div>
 
+      {activeTab === 'current' && (<>
       {/* Header */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
@@ -966,7 +980,170 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           onClose={appoClose}
         />
       )}
+      </>)}
+
+      {activeTab === 'past' && (
+        <PastAppoTab appoData={appoData} callListData={callListData} setCallFlowScreen={setCallFlowScreen} />
+      )}
     </div>
+  );
+}
+
+// ============================================================
+// Past Appointments Tab (過去アポイント一覧)
+// ============================================================
+function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
+  const [pastSearch, setPastSearch] = useState('');
+  const [matchMap, setMatchMap] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState('all'); // 'all' | 'spanavi' | 'excel'
+
+  // 全過去アポ企業名を統合（重複除去）
+  const pastItems = React.useMemo(() => {
+    const spanaviCompanies = appoData.map(a => ({
+      company: a.company,
+      source: 'spanavi',
+      client: a.client || '',
+      getter: a.getter || '',
+      getDate: a.getDate || '',
+      status: a.status || '',
+    }));
+    const spanaviNameSet = new Set(spanaviCompanies.map(c => c.company));
+    const excelOnly = PAST_APPOINTMENT_COMPANIES
+      .filter(name => !spanaviNameSet.has(name))
+      .map(name => ({
+        company: name,
+        source: 'excel',
+        client: '',
+        getter: '',
+        getDate: '',
+        status: '',
+      }));
+    return [...spanaviCompanies, ...excelOnly];
+  }, [appoData]);
+
+  // 架電可能リストのIDリスト
+  const activeListIds = React.useMemo(
+    () => callListData.filter(l => l.status === '架電可能').map(l => l._supaId).filter(Boolean),
+    [callListData]
+  );
+
+  // マウント時＋activeListIds変更時にマッチ検索
+  useEffect(() => {
+    if (!activeListIds.length) { setMatchMap({}); return; }
+    const allNames = [...new Set(pastItems.map(p => p.company))];
+    setLoading(true);
+    fetchMatchingListItemsByCompanyNames(allNames, activeListIds)
+      .then(({ data }) => setMatchMap(data || {}))
+      .catch(() => setMatchMap({}))
+      .finally(() => setLoading(false));
+  }, [activeListIds, pastItems]);
+
+  const filtered = pastItems.filter(p => {
+    if (sourceFilter === 'spanavi' && p.source !== 'spanavi') return false;
+    if (sourceFilter === 'excel' && p.source !== 'excel') return false;
+    if (pastSearch && !p.company.includes(pastSearch) && !p.client.includes(pastSearch)) return false;
+    return true;
+  });
+
+  const matchCount = filtered.filter(p => matchMap[p.company]?.length > 0).length;
+
+  const handleNavigate = (companyName, listId, itemId) => {
+    const list = callListData.find(l => l._supaId === listId);
+    if (!list || !setCallFlowScreen) return;
+    setCallFlowScreen({ list, defaultItemId: itemId, defaultListMode: false });
+  };
+
+  return (
+    <>
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16,
+        padding: '14px 18px', background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#0D2247' }}>過去アポイント一覧</span>
+          <span style={{ fontSize: 11, color: '#9CA3AF' }}>{filtered.length}件</span>
+          {matchCount > 0 && (
+            <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 3, background: '#DBEAFE', color: '#1E40AF', fontWeight: 600 }}>
+              {matchCount}件がリストに存在
+            </span>
+          )}
+          {loading && <span style={{ fontSize: 10, color: '#9CA3AF' }}>照合中...</span>}
+        </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <input value={pastSearch} onChange={e => setPastSearch(e.target.value)} placeholder="企業名で検索..."
+            style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #E5E7EB', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', width: 200 }} />
+          {[['all', '全て'], ['spanavi', 'Spanavi'], ['excel', '過去データ']].map(([k, l]) => (
+            <button key={k} onClick={() => setSourceFilter(k)} style={{
+              padding: '5px 10px', borderRadius: 4, fontSize: 10, fontWeight: 500, cursor: 'pointer',
+              fontFamily: "'Noto Sans JP'",
+              background: sourceFilter === k ? '#0D2247' : '#fff',
+              color: sourceFilter === k ? '#fff' : '#6B7280',
+              border: '1px solid ' + (sourceFilter === k ? '#0D2247' : '#E5E7EB'),
+            }}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div style={{ background: '#fff', borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1.2fr 160px 80px 100px 1.5fr',
+          padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#fff',
+          borderBottom: '1px solid #E5E7EB',
+        }}>
+          <span>企業名</span>
+          <span style={{ textAlign: 'center' }}>アポ供給先クライアント</span>
+          <span style={{ textAlign: 'center' }}>担当者</span>
+          <span style={{ textAlign: 'center' }}>取得日</span>
+          <span>収録先の別リスト（架電可能分）</span>
+        </div>
+        {filtered.length === 0 ? (
+          <div style={{ padding: '30px 0', textAlign: 'center', color: '#9CA3AF', fontSize: 12 }}>データがありません</div>
+        ) : filtered.map((p, i) => {
+          const matches = matchMap[p.company] || [];
+          return (
+            <div key={p.company + '-' + p.source + '-' + i} style={{
+              display: 'grid', gridTemplateColumns: '1.2fr 160px 80px 100px 1.5fr',
+              padding: '8px 16px', fontSize: 11, alignItems: 'center',
+              borderBottom: '1px solid #E5E7EB',
+              background: matches.length > 0 ? '#F0F7FF' : (i % 2 === 0 ? '#fff' : '#F8F9FA'),
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = '#EAF4FF'}
+            onMouseLeave={e => e.currentTarget.style.background = matches.length > 0 ? '#F0F7FF' : (i % 2 === 0 ? '#fff' : '#F8F9FA')}>
+              <span style={{ fontWeight: 600, color: '#0D2247' }}>{p.company}</span>
+              <span style={{ textAlign: 'center', fontSize: 10, color: '#6B7280' }}>{p.client || '-'}</span>
+              <span style={{ textAlign: 'center', fontSize: 10, color: '#6B7280' }}>{p.getter || '-'}</span>
+              <span style={{ textAlign: 'center', fontSize: 10, color: '#6B7280', fontFamily: "'JetBrains Mono'" }}>{p.getDate ? p.getDate.slice(5) : '-'}</span>
+              <span style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {matches.length > 0 ? matches.map((m, mi) => {
+                  const list = callListData.find(l => l._supaId === m.listId);
+                  if (!list) return null;
+                  return (
+                    <button key={mi} onClick={() => handleNavigate(p.company, m.listId, m.itemId)}
+                      title={`${list.company} / ${list.type}${list.industry ? ' / ' + list.industry : ''} → 集中ページへ`}
+                      style={{
+                        padding: '2px 8px', borderRadius: 3, fontSize: 9, fontWeight: 600, cursor: 'pointer',
+                        background: '#1E40AF', color: '#fff', border: 'none',
+                        fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#1E3A6E'}
+                      onMouseLeave={e => e.currentTarget.style.background = '#1E40AF'}>
+                      {list.company?.replace(/^株式会社/, '(株)').slice(0, 8)} / {list.industry || list.type}
+                    </button>
+                  );
+                }) : (
+                  <span style={{ fontSize: 10, color: '#D1D5DB' }}>-</span>
+                )}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
 

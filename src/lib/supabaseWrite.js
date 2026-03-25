@@ -1742,3 +1742,33 @@ export async function fetchOrgSettings() {
   (data || []).forEach(r => { map[r.setting_key] = r.setting_value; });
   return { data: map, error: null };
 }
+
+// ============================================================
+// Past Appointment Matching (過去アポ × 架電リスト照合)
+// ============================================================
+
+export async function fetchMatchingListItemsByCompanyNames(companyNames, activeListIds) {
+  if (!companyNames?.length || !activeListIds?.length) return { data: {}, error: null }
+  const CHUNK = 200
+  const allRows = []
+  for (let i = 0; i < companyNames.length; i += CHUNK) {
+    const chunk = companyNames.slice(i, i + CHUNK)
+    const { data, error } = await supabase
+      .from('call_list_items')
+      .select('id, list_id, company')
+      .in('list_id', activeListIds)
+      .in('company', chunk)
+    if (error) {
+      console.error('[DB] fetchMatchingListItemsByCompanyNames error:', error)
+      return { data: {}, error }
+    }
+    allRows.push(...(data || []))
+  }
+  // company → [{ itemId, listId }]
+  const map = {}
+  allRows.forEach(r => {
+    if (!map[r.company]) map[r.company] = []
+    map[r.company].push({ itemId: r.id, listId: r.list_id })
+  })
+  return { data: map, error: null }
+}
