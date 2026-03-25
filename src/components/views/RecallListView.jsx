@@ -32,7 +32,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
     setAlign,
     resetAll,
     closeMenu,
-  } = useColumnConfig('recall', RECALL_COLS);
+  } = useColumnConfig('recall', RECALL_COLS, { padding: 28 });
 
   const assigneeSuggestions = members.filter(m =>
     !assigneeQuery || m.toLowerCase().includes(assigneeQuery.toLowerCase())

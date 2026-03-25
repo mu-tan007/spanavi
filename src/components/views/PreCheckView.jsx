@@ -221,7 +221,7 @@ const PRECHECK_COLS = [
 
 export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen }) {
   const [selectedAppo, setSelectedAppo] = useState(null);
-  const { columns, gridTemplateColumns, contentMinWidth, onResizeStart, onHeaderContextMenu, contextMenu, setAlign, resetAll, closeMenu } = useColumnConfig('preCheck', PRECHECK_COLS);
+  const { columns, gridTemplateColumns, contentMinWidth, onResizeStart, onHeaderContextMenu, contextMenu, setAlign, resetAll, closeMenu } = useColumnConfig('preCheck', PRECHECK_COLS, { padding: 40 });
 
   const handlePreCheckNavigate = ({ listId, itemId }) => {
     setSelectedAppo(null);

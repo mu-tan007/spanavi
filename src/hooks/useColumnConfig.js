@@ -7,7 +7,8 @@ const MIN_WIDTH = 40;
  * @param {string} tableId - localStorage保存用キー
  * @param {Array<{key: string, width: number, align: string}>} defaultColumns
  */
-export default function useColumnConfig(tableId, defaultColumns) {
+export default function useColumnConfig(tableId, defaultColumns, options = {}) {
+  const { padding = 32, gap = 0 } = options;
   const storageKey = `spanavi_colcfg_${tableId}`;
 
   // localStorage からオーバーライドをマージ
@@ -54,8 +55,8 @@ export default function useColumnConfig(tableId, defaultColumns) {
   // CSS Grid用文字列
   const gridTemplateColumns = columns.map(c => c.width + 'px').join(' ');
 
-  // 横スクロール用: カラム幅合計（コンテナ内のminWidthに使用）
-  const contentMinWidth = columns.reduce((sum, c) => sum + c.width, 0);
+  // 横スクロール用: カラム幅合計 + padding + gap（コンテナ内のminWidthに使用）
+  const contentMinWidth = columns.reduce((sum, c) => sum + c.width, 0) + padding + (columns.length - 1) * gap;
 
   // リサイズ開始
   const onResizeStart = useCallback((colIndex, startX) => {

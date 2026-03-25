@@ -266,7 +266,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     return { bg: C.textLight + "10", color: C.textLight };
   };
 
-  const { columns: appoCols, gridTemplateColumns: appoGrid, contentMinWidth: appoMinW, onResizeStart: appoResize, onHeaderContextMenu: appoCtxMenu, contextMenu: appoCtx, setAlign: appoSetAlign, resetAll: appoReset, closeMenu: appoClose } = useColumnConfig('appoList', APPO_COLS);
+  const { columns: appoCols, gridTemplateColumns: appoGrid, contentMinWidth: appoMinW, onResizeStart: appoResize, onHeaderContextMenu: appoCtxMenu, contextMenu: appoCtx, setAlign: appoSetAlign, resetAll: appoReset, closeMenu: appoClose } = useColumnConfig('appoList', APPO_COLS, { padding: 22, gap: 2 });
 
   const handleTranscribeDetail = async () => {
     if (transcribeStep !== 'idle') return;
@@ -1009,7 +1009,7 @@ function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
   const [sourceFilter, setSourceFilter] = useState('all'); // 'all' | 'spanavi' | 'excel'
   const [listFilter, setListFilter] = useState('all'); // 'all' | 'matched' | 'unmatched'
 
-  const { columns: pastCols, gridTemplateColumns: pastGrid, contentMinWidth: pastMinW, onResizeStart: pastResize, onHeaderContextMenu: pastCtxMenu, contextMenu: pastCtx, setAlign: pastSetAlign, resetAll: pastReset, closeMenu: pastClose } = useColumnConfig('pastAppoList', PAST_APPO_COLS);
+  const { columns: pastCols, gridTemplateColumns: pastGrid, contentMinWidth: pastMinW, onResizeStart: pastResize, onHeaderContextMenu: pastCtxMenu, contextMenu: pastCtx, setAlign: pastSetAlign, resetAll: pastReset, closeMenu: pastClose } = useColumnConfig('pastAppoList', PAST_APPO_COLS, { padding: 22, gap: 2 });
 
   // 全過去アポ企業名を統合（企業名単位で1行に統合）
   const pastItems = React.useMemo(() => {
