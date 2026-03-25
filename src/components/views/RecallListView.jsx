@@ -25,6 +25,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
   const {
     columns,
     gridTemplateColumns,
+    contentMinWidth,
     onResizeStart,
     onHeaderContextMenu,
     contextMenu,
@@ -99,7 +100,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
         <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Recall</div>
         <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>コールバック・再架電管理</div>
       </div>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: "#fff", borderRadius: 4, border: '1px solid #E5E7EB' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowX: 'auto', overflowY: 'hidden', background: "#fff", borderRadius: 4, border: '1px solid #E5E7EB' }}>
         <div style={{ padding: '10px 14px', borderBottom: '1px solid ' + C.borderLight, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>再コール一覧</span>
@@ -186,6 +187,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
           </div>
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={{ minWidth: contentMinWidth }}>
           {sorted.length === 0 ? (
             <div style={{ padding: '40px 0', textAlign: 'center', color: C.textLight, fontSize: 13 }}>再コール予定はありません</div>
           ) : (
@@ -235,6 +237,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
               })}
             </>
           )}
+          </div>
         </div>
       </div>
       {contextMenu.visible && (

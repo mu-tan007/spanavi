@@ -58,8 +58,8 @@ const LISTVIEW_ARCHIVE_COLS = [
 ];
 
 export default function ListView({ filteredLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [] }) {
-  const { columns: lvCols, gridTemplateColumns: lvGrid, onResizeStart: lvResize, onHeaderContextMenu: lvCtxMenu, contextMenu: lvCtx, setAlign: lvSetAlign, resetAll: lvReset, closeMenu: lvClose } = useColumnConfig('listView', LISTVIEW_COLS);
-  const { columns: arCols, gridTemplateColumns: arGrid, onResizeStart: arResize, onHeaderContextMenu: arCtxMenu, contextMenu: arCtx, setAlign: arSetAlign, resetAll: arReset, closeMenu: arClose } = useColumnConfig('listViewArchive', LISTVIEW_ARCHIVE_COLS);
+  const { columns: lvCols, gridTemplateColumns: lvGrid, contentMinWidth: lvMinW, onResizeStart: lvResize, onHeaderContextMenu: lvCtxMenu, contextMenu: lvCtx, setAlign: lvSetAlign, resetAll: lvReset, closeMenu: lvClose } = useColumnConfig('listView', LISTVIEW_COLS);
+  const { columns: arCols, gridTemplateColumns: arGrid, contentMinWidth: arMinW, onResizeStart: arResize, onHeaderContextMenu: arCtxMenu, contextMenu: arCtx, setAlign: arSetAlign, resetAll: arReset, closeMenu: arClose } = useColumnConfig('listViewArchive', LISTVIEW_ARCHIVE_COLS);
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
   const emptyForm = { company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "" };
   const [formData, setFormData] = useState(emptyForm);
@@ -344,8 +344,9 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
       {/* Table */}
       <div style={{
         background: "#fff", border: "1px solid #E5E7EB",
-        borderRadius: 4, overflow: "hidden",
+        borderRadius: 4, overflowX: "auto", overflowY: "hidden",
       }}>
+        <div style={{ minWidth: lvMinW }}>
         <div style={{
           display: "grid", gridTemplateColumns: lvGrid,
           padding: "8px 16px", background: "#0D2247",
@@ -430,7 +431,8 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
           const archivedLists = callListData.filter(l => l.is_archived);
           if (archivedLists.length === 0) return <div style={{ padding: "24px 16px", textAlign: "center", fontSize: 12, color: C.textLight }}>— No records —</div>;
           return (
-            <div style={{ borderTop: displayFilter === 'all' ? "1px solid #E5E7EB" : "none", overflow: "hidden" }}>
+            <div style={{ borderTop: displayFilter === 'all' ? "1px solid #E5E7EB" : "none", overflowX: "auto", overflowY: "hidden" }}>
+              <div style={{ minWidth: arMinW }}>
               {archivedLists.map(list => (
                 <div key={list.id} style={{
                   display: "grid", gridTemplateColumns: arGrid,
@@ -456,9 +458,11 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                   </span>
                 </div>
               ))}
+              </div>
             </div>
           );
         })()}
+        </div>
       </div>
       {lvCtx.visible && (
         <AlignmentContextMenu

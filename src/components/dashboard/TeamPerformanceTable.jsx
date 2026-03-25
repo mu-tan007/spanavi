@@ -25,7 +25,7 @@ const TEAM_PERF_COLS = [
 
 export default function TeamPerformanceTable({ records, appoRecords = [], loading, teamMap, sessionMap = {}, reschedAppoData = [], members = [] }) {
 
-  const { columns: perfCols, gridTemplateColumns: perfGrid, onResizeStart: perfResize, onHeaderContextMenu: perfCtxMenu, contextMenu: perfCtx, setAlign: perfSetAlign, resetAll: perfReset, closeMenu: perfClose } = useColumnConfig('teamPerf', TEAM_PERF_COLS);
+  const { columns: perfCols, gridTemplateColumns: perfGrid, contentMinWidth: perfMinW, onResizeStart: perfResize, onHeaderContextMenu: perfCtxMenu, contextMenu: perfCtx, setAlign: perfSetAlign, resetAll: perfReset, closeMenu: perfClose } = useColumnConfig('teamPerf', TEAM_PERF_COLS);
 
   const { teamData, memberData, reschedMap } = useMemo(() => {
     const EXCLUDED_TEAMS = new Set(['営業統括', 'その他']);
@@ -109,7 +109,8 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
       {teamData.length === 0 ? (
         <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
       ) : (
-        <div style={{ border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
+        <div style={{ border: '1px solid #E5E7EB', borderRadius: 4, overflowX: 'auto', overflowY: 'hidden' }}>
+          <div style={{ minWidth: perfMinW }}>
 
           {/* グローバル列ヘッダー（最上部に1つだけ） */}
           <div style={{ display: 'grid', gridTemplateColumns: perfGrid, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#fff', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' }}>
@@ -200,6 +201,7 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
               </div>
             );
           })}
+          </div>
         </div>
       )}
 

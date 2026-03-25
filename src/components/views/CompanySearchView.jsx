@@ -62,9 +62,9 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   const [clientSortDir, setClientSortDir] = useState("asc");
 
   // Column resize/alignment hooks
-  const { columns: scCols, gridTemplateColumns: scGrid, onResizeStart: scResize, onHeaderContextMenu: scCtxMenu, contextMenu: scCtx, setAlign: scSetAlign, resetAll: scReset, closeMenu: scClose } = useColumnConfig('searchCompany', SEARCH_COMPANY_COLS);
-  const { columns: sliCols, gridTemplateColumns: sliGrid, onResizeStart: sliResize, onHeaderContextMenu: sliCtxMenu, contextMenu: sliCtx, setAlign: sliSetAlign, resetAll: sliReset, closeMenu: sliClose } = useColumnConfig('searchListItems', SEARCH_LIST_ITEMS_COLS);
-  const { columns: slCols, gridTemplateColumns: slGrid, onResizeStart: slResize, onHeaderContextMenu: slCtxMenu, contextMenu: slCtx, setAlign: slSetAlign, resetAll: slReset, closeMenu: slClose } = useColumnConfig('searchLists', SEARCH_LISTS_COLS);
+  const { columns: scCols, gridTemplateColumns: scGrid, contentMinWidth: scMinW, onResizeStart: scResize, onHeaderContextMenu: scCtxMenu, contextMenu: scCtx, setAlign: scSetAlign, resetAll: scReset, closeMenu: scClose } = useColumnConfig('searchCompany', SEARCH_COMPANY_COLS);
+  const { columns: sliCols, gridTemplateColumns: sliGrid, contentMinWidth: sliMinW, onResizeStart: sliResize, onHeaderContextMenu: sliCtxMenu, contextMenu: sliCtx, setAlign: sliSetAlign, resetAll: sliReset, closeMenu: sliClose } = useColumnConfig('searchListItems', SEARCH_LIST_ITEMS_COLS);
+  const { columns: slCols, gridTemplateColumns: slGrid, contentMinWidth: slMinW, onResizeStart: slResize, onHeaderContextMenu: slCtxMenu, contextMenu: slCtx, setAlign: slSetAlign, resetAll: slReset, closeMenu: slClose } = useColumnConfig('searchLists', SEARCH_LISTS_COLS);
 
   // List search state（リスト検索）
   const [lsClientInput, setLsClientInput] = useState("");
@@ -1028,7 +1028,8 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       </div>
 
       {/* Results table */}
-      <div style={{ background: "#fff", borderRadius: 4, border: "1px solid #E5E7EB", overflow: "hidden" }}>
+      <div style={{ background: "#fff", borderRadius: 4, border: "1px solid #E5E7EB", overflowX: "auto", overflowY: "hidden" }}>
+        <div style={{ minWidth: scMinW }}>
         <div style={{
           display: "grid", gridTemplateColumns: scGrid,
           padding: "8px 16px", background: "#0D2247", fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
@@ -1086,6 +1087,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* 無限スクロール sentinel */}
@@ -1512,7 +1514,8 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
             const statusBg = { "受付ブロック": "#fff7ed", "受付再コール": "#ebf8ff", "社長不在": "#fefce8", "社長再コール": "#ebf8ff", "社長お断り": "#faf5ff", "アポ獲得": "#f0fff4", "除外": "#fee2e2" };
             const statusFg = { "受付ブロック": "#dd6b20", "受付再コール": "#3182ce", "社長不在": "#d69e2e", "社長再コール": "#3182ce", "社長お断り": "#805ad5", "アポ獲得": "#38a169", "除外": "#e53e3e" };
             return (
-              <div style={{ background: "#fff", borderRadius: 4, overflow: "hidden", border: "1px solid #E5E7EB" }}>
+              <div style={{ background: "#fff", borderRadius: 4, overflowX: "auto", overflowY: "hidden", border: "1px solid #E5E7EB" }}>
+                <div style={{ minWidth: sliMinW }}>
                 <div style={{ padding: "8px 16px", background: "#F8F9FA", borderBottom: "1px solid #E5E7EB", fontSize: 12, color: C.textLight, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span>架電先企業 {lsItemResults.length.toLocaleString()} 件</span>
                   <button
@@ -1552,6 +1555,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                     </div>
                   );
                 })}
+                </div>
               </div>
             );
           })()
@@ -1560,7 +1564,8 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
             条件に一致するリストが見つかりませんでした
           </div>
         ) : lsResults !== null && (
-          <div style={{ background: "#fff", borderRadius: 4, overflow: "hidden", border: "1px solid #E5E7EB" }}>
+          <div style={{ background: "#fff", borderRadius: 4, overflowX: "auto", overflowY: "hidden", border: "1px solid #E5E7EB" }}>
+            <div style={{ minWidth: slMinW }}>
             <div style={{
               display: "grid", gridTemplateColumns: slGrid,
               padding: "8px 16px", background: "#0D2247",
@@ -1613,6 +1618,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                 </div>
               </div>
             ))}
+            </div>
           </div>
         )}
       </div>)}

@@ -40,7 +40,7 @@ const INCOMING_COLS = [
 ];
 
 export default function IncomingCallsView({ setCallFlowScreen }) {
-  const { columns, onResizeStart, onHeaderContextMenu, contextMenu, setAlign, resetAll, closeMenu } = useColumnConfig('incomingCalls', INCOMING_COLS);
+  const { columns, contentMinWidth, onResizeStart, onHeaderContextMenu, contextMenu, setAlign, resetAll, closeMenu } = useColumnConfig('incomingCalls', INCOMING_COLS);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -159,8 +159,9 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
       {/* テーブル */}
       <div style={{
         background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB',
-        overflow: 'hidden',
+        overflowX: 'auto', overflowY: 'hidden',
       }}>
+        <div style={{ minWidth: contentMinWidth }}>
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: C.textLight, fontSize: 13 }}>読み込み中...</div>
         ) : filtered.length === 0 ? (
@@ -277,6 +278,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
             </tbody>
           </table>
         )}
+        </div>
       </div>
 
       <AlignmentContextMenu

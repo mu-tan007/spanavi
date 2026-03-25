@@ -48,7 +48,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [hoveredRow, setHoveredRow] = useState(null);
-  const { columns: memCols, onResizeStart: memResize, onHeaderContextMenu: memCtxMenu, contextMenu: memCtx, setAlign: memSetAlign, resetAll: memReset, closeMenu: memClose } = useColumnConfig('memberMgmt', MEMBER_COLS);
+  const { columns: memCols, contentMinWidth: memMinW, onResizeStart: memResize, onHeaderContextMenu: memCtxMenu, contextMenu: memCtx, setAlign: memSetAlign, resetAll: memReset, closeMenu: memClose } = useColumnConfig('memberMgmt', MEMBER_COLS);
 
   const load = async () => {
     setLoading(true);
@@ -167,7 +167,8 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {grouped.map(([team, teamMembers]) => (
-            <div key={team} style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', overflow: 'hidden' }}>
+            <div key={team} style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', overflowX: 'auto', overflowY: 'hidden' }}>
+              <div style={{ minWidth: memMinW }}>
               {/* チームヘッダー */}
               <div style={{
                 padding: '10px 16px',
@@ -274,6 +275,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                     })}
                   </tbody>
                 </table>
+              </div>
               </div>
             </div>
           ))}

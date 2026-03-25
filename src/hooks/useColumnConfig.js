@@ -54,6 +54,9 @@ export default function useColumnConfig(tableId, defaultColumns) {
   // CSS Grid用文字列
   const gridTemplateColumns = columns.map(c => c.width + 'px').join(' ');
 
+  // 横スクロール用: カラム幅合計（コンテナ内のminWidthに使用）
+  const contentMinWidth = columns.reduce((sum, c) => sum + c.width, 0);
+
   // リサイズ開始
   const onResizeStart = useCallback((colIndex, startX) => {
     const startWidth = columns[colIndex].width;
@@ -119,6 +122,7 @@ export default function useColumnConfig(tableId, defaultColumns) {
   return {
     columns,
     gridTemplateColumns,
+    contentMinWidth,
     onResizeStart,
     onHeaderContextMenu,
     contextMenu,

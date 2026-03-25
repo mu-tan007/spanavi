@@ -63,7 +63,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
   const [hoveredRow, setHoveredRow] = useState(null);
 
   const {
-    columns: colCfg, gridTemplateColumns: colGridTemplate,
+    columns: colCfg, gridTemplateColumns: colGridTemplate, contentMinWidth,
     onResizeStart, onHeaderContextMenu, contextMenu, setAlign, resetAll, closeMenu,
   } = useColumnConfig('payroll', PAYROLL_COLS);
 
@@ -429,7 +429,8 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
       )}
 
       {/* ── Table ────────────────────────────────────────────────── */}
-      <div style={{ background: "#fff", borderRadius: 4, border: `1px solid ${GRAY_200}`, overflow: "hidden" }}>
+      <div style={{ background: "#fff", borderRadius: 4, border: `1px solid ${GRAY_200}`, overflowX: "auto", overflowY: "hidden" }}>
+        <div style={{ minWidth: contentMinWidth }}>
 
         {/* ヘッダー行 */}
         <div style={{
@@ -544,6 +545,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* 揃え変更コンテキストメニュー */}

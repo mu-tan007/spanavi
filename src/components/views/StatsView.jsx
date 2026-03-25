@@ -762,7 +762,8 @@ export default function StatsView({ callListData, currentUser, appoData, members
             </div>
             <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
               {/* テーブル */}
-              <div style={{ flex: '1.5', minWidth: 0, borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
+              <div style={{ flex: '1.5', minWidth: 0, borderRadius: 4, overflowX: 'auto', overflowY: 'hidden', border: '1px solid #E5E7EB' }}>
+                <div style={{ minWidth: clientCol.contentMinWidth }}>
                 <div style={{ display: 'grid', gridTemplateColumns: clientCol.gridTemplateColumns, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247' }}>
                   {[['クライアント名',0],['アポ数',1],['売上合計',2],['平均単価',3]].map(([label, ci]) => (
                     <span key={ci} style={{ position: 'relative', textAlign: clientCol.columns[ci].align }} onContextMenu={e => clientCol.onHeaderContextMenu(e, ci)}>
@@ -810,6 +811,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
                     </React.Fragment>
                   );
                 })}
+                </div>
               </div>
               {/* 円グラフ */}
               <div style={{ flex: 1, minWidth: 260 }}>
@@ -884,7 +886,8 @@ export default function StatsView({ callListData, currentUser, appoData, members
                 <button key={k} onClick={() => setListFilter(k)} style={listFilter === k ? { background: '#0D2247', color: '#FFFFFF', border: '1px solid #0D2247', borderRadius: 4, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'" } : { background: '#FFFFFF', color: '#6B7280', border: '1px solid #E5E7EB', borderRadius: 4, padding: '5px 12px', fontSize: 11, fontWeight: 400, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>{l}</button>
               ))}
             </div>
-            <div style={{ borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB', overflowX: 'auto' }}>
+            <div style={{ borderRadius: 4, border: '1px solid #E5E7EB', overflowX: 'auto', overflowY: 'hidden' }}>
+              <div style={{ minWidth: listCol.contentMinWidth }}>
               <div style={{ display: 'grid', gridTemplateColumns: listCol.gridTemplateColumns, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247', minWidth: 1170 }}>
                 <SortHdr label='クライアント' sk='clientName' colIndex={0} />
                 <SortHdr label='業種' sk='name' colIndex={1} />
@@ -917,6 +920,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
                   </div>
                 );
               })}
+              </div>
             </div>
           </div>
         );
@@ -930,7 +934,8 @@ export default function StatsView({ callListData, currentUser, appoData, members
           </div>
           {simplePeriodSelector(clientRescanPeriod, setClientRescanPeriod, clientRescanFrom, setClientRescanFrom, clientRescanTo, setClientRescanTo, NAVY)}
         </div>
-        <div style={{ borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
+        <div style={{ borderRadius: 4, overflowX: 'auto', overflowY: 'hidden', border: '1px solid #E5E7EB' }}>
+          <div style={{ minWidth: reschedCol.contentMinWidth }}>
           <div style={{ display: 'grid', gridTemplateColumns: reschedCol.gridTemplateColumns, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247' }}>
             {[['クライアント名',0],['アポ数',1],['リスケ数',2],['リスケ率',3],['キャンセル数',4],['キャンセル率',5]].map(([label, ci]) => (
               <span key={ci} style={{ position: 'relative', textAlign: reschedCol.columns[ci].align }} onContextMenu={e => reschedCol.onHeaderContextMenu(e, ci)}>
@@ -959,6 +964,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
               </span>
             </div>
           ))}
+          </div>
         </div>
       </div>
 

@@ -74,7 +74,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
   };
 
   const crmDefaultCols = setClientData ? CRM_COLS_EDIT : CRM_COLS_BASE;
-  const { columns: crmCols, gridTemplateColumns: crmGrid, onResizeStart: crmResize, onHeaderContextMenu: crmCtxMenu, contextMenu: crmCtx, setAlign: crmSetAlign, resetAll: crmReset, closeMenu: crmClose } = useColumnConfig(setClientData ? 'crmViewEdit' : 'crmView', crmDefaultCols);
+  const { columns: crmCols, gridTemplateColumns: crmGrid, contentMinWidth: crmMinW, onResizeStart: crmResize, onHeaderContextMenu: crmCtxMenu, contextMenu: crmCtx, setAlign: crmSetAlign, resetAll: crmReset, closeMenu: crmClose } = useColumnConfig(setClientData ? 'crmViewEdit' : 'crmView', crmDefaultCols);
 
   const handleSaveEdit = async () => {
     if (!editForm || !setClientData) return;
@@ -179,7 +179,8 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
       </div>
 
       {/* Table */}
-      <div style={{ border: '1px solid ' + GRAY_200, borderRadius: 4, overflow: "hidden" }}>
+      <div style={{ border: '1px solid ' + GRAY_200, borderRadius: 4, overflowX: "auto", overflowY: "hidden" }}>
+        <div style={{ minWidth: crmMinW }}>
         <div style={{
           display: "grid", gridTemplateColumns: crmGrid,
           padding: "8px 16px", background: NAVY,
@@ -226,6 +227,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* Client Detail Modal */}

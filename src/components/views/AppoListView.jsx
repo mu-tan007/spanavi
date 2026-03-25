@@ -266,7 +266,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     return { bg: C.textLight + "10", color: C.textLight };
   };
 
-  const { columns: appoCols, gridTemplateColumns: appoGrid, onResizeStart: appoResize, onHeaderContextMenu: appoCtxMenu, contextMenu: appoCtx, setAlign: appoSetAlign, resetAll: appoReset, closeMenu: appoClose } = useColumnConfig('appoList', APPO_COLS);
+  const { columns: appoCols, gridTemplateColumns: appoGrid, contentMinWidth: appoMinW, onResizeStart: appoResize, onHeaderContextMenu: appoCtxMenu, contextMenu: appoCtx, setAlign: appoSetAlign, resetAll: appoReset, closeMenu: appoClose } = useColumnConfig('appoList', APPO_COLS);
 
   const handleTranscribeDetail = async () => {
     if (transcribeStep !== 'idle') return;
@@ -470,7 +470,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       </div>
 
       {/* Table */}
-      <div style={{ background: '#fff', borderRadius: 4, overflow: "hidden", border: "1px solid #E5E7EB" }}>
+      <div style={{ background: '#fff', borderRadius: 4, overflowX: "auto", overflowY: "hidden", border: "1px solid #E5E7EB" }}>
+        <div style={{ minWidth: appoMinW }}>
         <div style={{
           display: "grid", gridTemplateColumns: appoGrid,
           padding: "8px 6px 8px 16px", columnGap: 2, background: "#0D2247",
@@ -540,6 +541,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* Edit Modal */}
@@ -1007,7 +1009,7 @@ function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
   const [sourceFilter, setSourceFilter] = useState('all'); // 'all' | 'spanavi' | 'excel'
   const [listFilter, setListFilter] = useState('all'); // 'all' | 'matched' | 'unmatched'
 
-  const { columns: pastCols, gridTemplateColumns: pastGrid, onResizeStart: pastResize, onHeaderContextMenu: pastCtxMenu, contextMenu: pastCtx, setAlign: pastSetAlign, resetAll: pastReset, closeMenu: pastClose } = useColumnConfig('pastAppoList', PAST_APPO_COLS);
+  const { columns: pastCols, gridTemplateColumns: pastGrid, contentMinWidth: pastMinW, onResizeStart: pastResize, onHeaderContextMenu: pastCtxMenu, contextMenu: pastCtx, setAlign: pastSetAlign, resetAll: pastReset, closeMenu: pastClose } = useColumnConfig('pastAppoList', PAST_APPO_COLS);
 
   // 全過去アポ企業名を統合（企業名単位で1行に統合）
   const pastItems = React.useMemo(() => {
@@ -1123,7 +1125,8 @@ function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
       </div>
 
       {/* Table */}
-      <div style={{ background: '#fff', borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
+      <div style={{ background: '#fff', borderRadius: 4, overflowX: 'auto', overflowY: 'hidden', border: '1px solid #E5E7EB' }}>
+        <div style={{ minWidth: pastMinW }}>
         <div style={{
           display: 'grid', gridTemplateColumns: pastGrid,
           padding: '8px 6px 8px 16px', columnGap: 2, background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#fff',
@@ -1187,6 +1190,7 @@ function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
             </div>
           );
         })}
+        </div>
       </div>
       {pastCtx.visible && (
         <AlignmentContextMenu
@@ -1251,7 +1255,7 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
     { key: 'joinDate', width: 100, align: 'center' },
   ];
   const MEMBER_COLS_EDIT = [...MEMBER_COLS_BASE, { key: 'edit', width: 50, align: 'center' }];
-  const { columns: memCols, gridTemplateColumns: memGrid, onResizeStart: memResize, onHeaderContextMenu: memCtxMenu, contextMenu: memCtx, setAlign: memSetAlign, resetAll: memReset, closeMenu: memClose } = useColumnConfig(setMembers ? 'membersEdit' : 'members', setMembers ? MEMBER_COLS_EDIT : MEMBER_COLS_BASE);
+  const { columns: memCols, gridTemplateColumns: memGrid, contentMinWidth: memMinW, onResizeStart: memResize, onHeaderContextMenu: memCtxMenu, contextMenu: memCtx, setAlign: memSetAlign, resetAll: memReset, closeMenu: memClose } = useColumnConfig(setMembers ? 'membersEdit' : 'members', setMembers ? MEMBER_COLS_EDIT : MEMBER_COLS_BASE);
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
@@ -1313,9 +1317,10 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {sortedTeams.map(team => (
           <div key={team} style={{
-            background: '#fff', borderRadius: 4, overflow: "hidden",
+            background: '#fff', borderRadius: 4, overflowX: "auto", overflowY: "hidden",
             border: "1px solid #E5E7EB",
           }}>
+            <div style={{ minWidth: memMinW }}>
             <div style={{
               padding: "10px 16px", background: "#0D2247",
               display: "flex", alignItems: "center", gap: 8,
@@ -1362,6 +1367,7 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
                 {setMembers && <span style={{ textAlign: memCols[9]?.align }}><button onClick={() => setEditForm({ ...m })} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, padding: 2 }}>&#9998;</button></span>}
               </div>
             ))}
+            </div>
           </div>
         ))}
       </div>

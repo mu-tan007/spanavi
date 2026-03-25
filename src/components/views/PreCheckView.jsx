@@ -221,7 +221,7 @@ const PRECHECK_COLS = [
 
 export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen }) {
   const [selectedAppo, setSelectedAppo] = useState(null);
-  const { columns, gridTemplateColumns, onResizeStart, onHeaderContextMenu, contextMenu, setAlign, resetAll, closeMenu } = useColumnConfig('preCheck', PRECHECK_COLS);
+  const { columns, gridTemplateColumns, contentMinWidth, onResizeStart, onHeaderContextMenu, contextMenu, setAlign, resetAll, closeMenu } = useColumnConfig('preCheck', PRECHECK_COLS);
 
   const handlePreCheckNavigate = ({ listId, itemId }) => {
     setSelectedAppo(null);
@@ -381,8 +381,9 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen 
         return (
           <div key={g.key} style={{
             background: '#fff', borderRadius: 4, marginBottom: 12,
-            border: "1px solid #E5E7EB", overflow: "hidden",
+            border: "1px solid #E5E7EB", overflowX: "auto", overflowY: "hidden",
           }}>
+            <div style={{ minWidth: contentMinWidth }}>
             {/* Group header */}
             <div style={{
               padding: "12px 20px", background: g.bgColor,
@@ -442,6 +443,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen 
                 </div>
               );
             })}
+            </div>
           </div>
         );
       })}
