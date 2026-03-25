@@ -1046,7 +1046,13 @@ function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
     return true;
   });
 
-  const matchCount = filtered.filter(p => matchMap[p.company]?.length > 0).length;
+  const matchCount = filtered.filter(p => {
+    const matches = matchMap[p.company] || [];
+    return matches.some(m => {
+      const list = callListData.find(l => l._supaId === m.listId);
+      return list && list.company !== p.client;
+    });
+  }).length;
 
   const handleNavigate = (companyName, listId, itemId) => {
     const list = callListData.find(l => l._supaId === listId);
@@ -1118,7 +1124,10 @@ function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
               <span style={{ textAlign: 'center', fontSize: 10, color: '#6B7280' }}>{p.getter || '-'}</span>
               <span style={{ textAlign: 'center', fontSize: 10, color: '#6B7280', fontFamily: "'JetBrains Mono'" }}>{p.getDate ? p.getDate.slice(5) : '-'}</span>
               <span style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                {matches.length > 0 ? matches.map((m, mi) => {
+                {matches.length > 0 ? matches.filter(m => {
+                  const list = callListData.find(l => l._supaId === m.listId);
+                  return list && list.company !== p.client;
+                }).map((m, mi) => {
                   const list = callListData.find(l => l._supaId === m.listId);
                   if (!list) return null;
                   return (
