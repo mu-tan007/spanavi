@@ -337,7 +337,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Appointments</div>
         <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>アポイントメント・パイプライン管理</div>
         <div style={{ display: 'flex', gap: 0, marginTop: 14 }}>
-          {[['current', 'アポ一覧'], ['past', '過去アポイント一覧']].map(([key, label]) => (
+          {[['current', 'アポ一覧'], ['past', '過去アポ一覧']].map(([key, label]) => (
             <button key={key} onClick={() => setActiveTab(key)}
               style={{
                 padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
@@ -990,7 +990,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 }
 
 // ============================================================
-// Past Appointments Tab (過去アポイント一覧)
+// Past Appointments Tab (過去アポ一覧)
 // ============================================================
 const PAST_APPO_COLS = [
   { key: 'company', width: 240, align: 'left' },
@@ -1088,7 +1088,7 @@ function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
         padding: '14px 18px', background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#0D2247' }}>過去アポイント一覧</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#0D2247' }}>過去アポ一覧</span>
           <span style={{ fontSize: 11, color: '#9CA3AF' }}>{filtered.length}件</span>
           {matchCount > 0 && (
             <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 3, background: '#DBEAFE', color: '#1E40AF', fontWeight: 600 }}>
