@@ -333,7 +333,7 @@ export default function LoginPage() {
                 onClick={() => { setMode('admin'); setError('') }}
                 style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
               >
-                管理者の方はこちら
+                メールアドレスでログイン
               </span>
             </div>
           </form>
@@ -343,10 +343,10 @@ export default function LoginPage() {
         {mode === 'admin' && (
           <form onSubmit={handleAdminLogin} autoComplete="off">
             <div style={{ fontSize: 20, fontWeight: 700, color: C.navy, marginBottom: 4, textAlign: 'center' }}>
-              管理者ログイン
+              メールアドレスでログイン
             </div>
             <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 20, textAlign: 'center' }}>
-              管理者アカウントでサインインしてください
+              登録済みのメールアドレスでサインインしてください
             </div>
 
             <div style={{ marginBottom: 14 }}>

@@ -1813,3 +1813,47 @@ export async function fetchMatchingListItemsByCompanyNames(companyNames, activeL
   })
   return { data: map, error: null }
 }
+
+// ============================================================
+// テナント管理（スーパー管理者用）
+// ============================================================
+
+/**
+ * 新規テナント（組織）を作成する
+ * @param {string} name - 組織名
+ * @param {string} slug - URL識別子（英数字）
+ * @returns {{ data: { id: string }, error: object|null }}
+ */
+export async function createOrganization(name, slug) {
+  const { data, error } = await supabase
+    .from('organizations')
+    .insert({ name, slug })
+    .select('id')
+    .single()
+  return { data, error }
+}
+
+/**
+ * 新規テナントの管理者メンバーを作成する
+ * @param {string} orgId - 組織ID
+ * @param {string} name - 管理者名
+ * @param {string} email - 実メールアドレス
+ * @returns {{ data: object, error: object|null }}
+ */
+export async function createTenantAdmin(orgId, name, email) {
+  const { data, error } = await supabase
+    .from('members')
+    .insert({
+      org_id: orgId,
+      name,
+      email,
+      role: 'admin',
+      rank: 'トレーニー',
+      position: '代表',
+      is_active: true,
+      start_date: new Date().toISOString().slice(0, 10),
+    })
+    .select('id')
+    .single()
+  return { data, error }
+}

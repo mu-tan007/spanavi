@@ -62,6 +62,18 @@ export function AuthProvider({ children }) {
             return
           }
         }
+        // フォールバック2: 実メールアドレスでmembersテーブルを検索（外部テナント用）
+        const { data: memberByEmail } = await supabase
+          .from('members')
+          .select('id, name, email, role, org_id')
+          .eq('email', email)
+          .single()
+        if (memberByEmail) {
+          if (memberByEmail.org_id) setOrgId(memberByEmail.org_id)
+          setProfile({ id: userId, name: memberByEmail.name, email: memberByEmail.email, role: memberByEmail.role || 'caller', org_id: memberByEmail.org_id })
+          return
+        }
+
         console.warn('Profile fetch failed (RLS or missing row):', error?.message)
         setProfile(null)
       } else {
