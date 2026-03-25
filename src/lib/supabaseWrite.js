@@ -1460,13 +1460,26 @@ export async function fetchCallListItemByAppo(company, phone) {
     if (data?.length) return { data: data[0], error: null };
   }
   if (company) {
-    const { data, error } = await supabase
+    // 1) 完全一致
+    const { data } = await supabase
       .from('call_list_items')
       .select('id, list_id')
       .eq('company', company)
       .in('list_id', activeListIds)
       .limit(1);
-    return { data: data?.[0] || null, error };
+    if (data?.length) return { data: data[0], error: null };
+
+    // 2) 「株式会社」「有限会社」等の位置違いに対応（法人格を除いた社名で部分一致）
+    const coreName = company.replace(/^(株式会社|有限会社|合同会社|合資会社|合名会社)|(株式会社|有限会社|合同会社|合資会社|合名会社)$/g, '').trim()
+    if (coreName && coreName !== company) {
+      const { data: fuzzy, error } = await supabase
+        .from('call_list_items')
+        .select('id, list_id')
+        .ilike('company', `%${coreName}%`)
+        .in('list_id', activeListIds)
+        .limit(1);
+      return { data: fuzzy?.[0] || null, error };
+    }
   }
   return { data: null, error: null };
 }
