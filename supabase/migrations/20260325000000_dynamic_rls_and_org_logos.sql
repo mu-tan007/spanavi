@@ -13,7 +13,7 @@ as $$
   select org_id from public.members
   where id = (
     -- メールからmember_idを抽出: user_{memberId}@masp-internal.com
-    select substring(email from 'user_(.+)@masp-internal\.com')
+    select substring(email from 'user_(.+)@masp-internal\.com')::uuid
     from auth.users where id = auth.uid()
   )
   limit 1;
