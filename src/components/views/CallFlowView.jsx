@@ -560,26 +560,27 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
   // アポ報告フォーム用録音URL取得（callRecords state → Supabase DB → Zoom API の順に検索）
   const handleAppoFetchRecording = async (itemId, phone) => {
-    // Step 1: callRecords state に既にある場合
-    const stateRec = callRecords
-      .filter(r => r.item_id === itemId && r.recording_url)
+    // Step 1: callRecords state の最新レコードを確認
+    const latestState = callRecords
+      .filter(r => r.item_id === itemId)
       .sort((a, b) => (b.called_at || '').localeCompare(a.called_at || ''))[0];
-    if (stateRec?.recording_url) return stateRec.recording_url;
+    if (latestState?.recording_url) return latestState.recording_url;
 
-    // Step 2: Supabase の call_records を直接確認（state が古い・まだ保存されていない可能性）
+    // Step 2: Supabase の call_records を直接確認（最新レコードのみ）
     const { data: freshRecs } = await fetchCallRecords(list._supaId);
     if (freshRecs?.length) {
-      const freshRec = freshRecs
-        .filter(r => r.item_id === itemId && r.recording_url)
+      setCallRecords(freshRecs);
+      const latestFresh = freshRecs
+        .filter(r => r.item_id === itemId)
         .sort((a, b) => (b.called_at || '').localeCompare(a.called_at || ''))[0];
-      if (freshRec?.recording_url) {
-        setCallRecords(freshRecs);
-        return freshRec.recording_url;
-      }
+      if (latestFresh?.recording_url) return latestFresh.recording_url;
     }
 
-    // Step 3: Zoom API から取得（called_at = 現在時刻で直近の通話を対象にする）
-    return await fetchRecordingUrl(phone, new Date().toISOString(), null);
+    // Step 3: Zoom API から取得（最新レコードの時間を基準にする）
+    const prevRec = callRecords
+      .filter(r => r.item_id === itemId)
+      .sort((a, b) => (b.called_at || '').localeCompare(a.called_at || ''))[1];
+    return await fetchRecordingUrl(phone, new Date().toISOString(), prevRec?.called_at || null);
   };
 
   const handleAppoSave = async (formData) => {
