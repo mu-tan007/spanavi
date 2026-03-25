@@ -992,39 +992,50 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 // ============================================================
 // Past Appointments Tab (過去アポイント一覧)
 // ============================================================
+const PAST_APPO_COLS = [
+  { key: 'company', width: 240, align: 'left' },
+  { key: 'client', width: 200, align: 'left' },
+  { key: 'getter', width: 80, align: 'center' },
+  { key: 'getDate', width: 100, align: 'right' },
+  { key: 'listMatch', width: 400, align: 'left' },
+];
+
 function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
   const [pastSearch, setPastSearch] = useState('');
   const [matchMap, setMatchMap] = useState({});
   const [loading, setLoading] = useState(false);
   const [sourceFilter, setSourceFilter] = useState('all'); // 'all' | 'spanavi' | 'excel'
+  const [listFilter, setListFilter] = useState('all'); // 'all' | 'matched' | 'unmatched'
 
-  // 全過去アポ企業名を統合（重複除去）
+  const { columns: pastCols, gridTemplateColumns: pastGrid, onResizeStart: pastResize, onHeaderContextMenu: pastCtxMenu, contextMenu: pastCtx, setAlign: pastSetAlign, resetAll: pastReset, closeMenu: pastClose } = useColumnConfig('pastAppoList', PAST_APPO_COLS);
+
+  // 全過去アポ企業名を統合（企業名単位で1行に統合）
   const pastItems = React.useMemo(() => {
-    const spanaviCompanies = appoData.map(a => ({
-      company: a.company,
-      source: 'spanavi',
-      client: a.client || '',
-      getter: a.getter || '',
-      getDate: a.getDate || '',
-      status: a.status || '',
+    const map = {};
+    // Spanaviデータを企業名でグループ化
+    appoData.forEach(a => {
+      const name = a.company;
+      if (!map[name]) map[name] = { company: name, clients: [], getters: [], getDates: [] };
+      if (a.client && !map[name].clients.includes(a.client)) map[name].clients.push(a.client);
+      if (a.getter && !map[name].getters.includes(a.getter)) map[name].getters.push(a.getter);
+      if (a.getDate) map[name].getDates.push(a.getDate);
+    });
+    // Excelデータで未登録の企業を追加
+    PAST_APPOINTMENT_COMPANIES.forEach(name => {
+      if (!map[name]) map[name] = { company: name, clients: [], getters: [], getDates: [] };
+    });
+    return Object.values(map).map(g => ({
+      company: g.company,
+      clients: g.clients,
+      client: g.clients.join(', '),
+      getter: g.getters.join(', '),
+      getDate: g.getDates.length > 0 ? g.getDates.sort().reverse()[0] : '',
     }));
-    const spanaviNameSet = new Set(spanaviCompanies.map(c => c.company));
-    const excelOnly = PAST_APPOINTMENT_COMPANIES
-      .filter(name => !spanaviNameSet.has(name))
-      .map(name => ({
-        company: name,
-        source: 'excel',
-        client: '',
-        getter: '',
-        getDate: '',
-        status: '',
-      }));
-    return [...spanaviCompanies, ...excelOnly];
   }, [appoData]);
 
   // 架電可能リストのIDリスト
   const activeListIds = React.useMemo(
-    () => callListData.filter(l => l.status === '架電可能').map(l => l._supaId).filter(Boolean),
+    () => callListData.filter(l => l.status === '架電可能' && !l.is_archived).map(l => l._supaId).filter(Boolean),
     [callListData]
   );
 
@@ -1039,20 +1050,28 @@ function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
       .finally(() => setLoading(false));
   }, [activeListIds, pastItems]);
 
+  // 該当企業のクライアント群に含まれないリストのみを返すヘルパー
+  const getOtherListMatches = (p) => {
+    const matches = matchMap[p.company] || [];
+    return matches.filter(m => {
+      const list = callListData.find(l => l._supaId === m.listId);
+      return list && !list.is_archived && !p.clients.includes(list.company);
+    });
+  };
+
   const filtered = pastItems.filter(p => {
-    if (sourceFilter === 'spanavi' && p.source !== 'spanavi') return false;
-    if (sourceFilter === 'excel' && p.source !== 'excel') return false;
+    if (sourceFilter === 'spanavi' && p.clients.length === 0) return false;
+    if (sourceFilter === 'excel' && p.clients.length > 0) return false;
     if (pastSearch && !p.company.includes(pastSearch) && !p.client.includes(pastSearch)) return false;
+    if (listFilter !== 'all') {
+      const hasOther = getOtherListMatches(p).length > 0;
+      if (listFilter === 'matched' && !hasOther) return false;
+      if (listFilter === 'unmatched' && hasOther) return false;
+    }
     return true;
   });
 
-  const matchCount = filtered.filter(p => {
-    const matches = matchMap[p.company] || [];
-    return matches.some(m => {
-      const list = callListData.find(l => l._supaId === m.listId);
-      return list && list.company !== p.client;
-    });
-  }).length;
+  const matchCount = filtered.filter(p => getOtherListMatches(p).length > 0).length;
 
   const handleNavigate = (companyName, listId, itemId) => {
     const list = callListData.find(l => l._supaId === listId);
@@ -1089,45 +1108,61 @@ function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
               border: '1px solid ' + (sourceFilter === k ? '#0D2247' : '#E5E7EB'),
             }}>{l}</button>
           ))}
+          <span style={{ width: 1, height: 16, background: '#E5E7EB' }} />
+          {[['all', '全リスト'], ['matched', 'リスト有'], ['unmatched', 'リスト無']].map(([k, l]) => (
+            <button key={k} onClick={() => setListFilter(k)} style={{
+              padding: '5px 10px', borderRadius: 4, fontSize: 10, fontWeight: 500, cursor: 'pointer',
+              fontFamily: "'Noto Sans JP'",
+              background: listFilter === k ? '#1E40AF' : '#fff',
+              color: listFilter === k ? '#fff' : '#6B7280',
+              border: '1px solid ' + (listFilter === k ? '#1E40AF' : '#E5E7EB'),
+            }}>{l}</button>
+          ))}
         </div>
       </div>
 
       {/* Table */}
       <div style={{ background: '#fff', borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
         <div style={{
-          display: 'grid', gridTemplateColumns: '1.2fr 160px 80px 100px 1.5fr',
-          padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#fff',
-          borderBottom: '1px solid #E5E7EB',
+          display: 'grid', gridTemplateColumns: pastGrid,
+          padding: '8px 6px 8px 16px', columnGap: 2, background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#fff',
+          borderBottom: '1px solid #E5E7EB', alignItems: 'center',
         }}>
-          <span>企業名</span>
-          <span style={{ textAlign: 'center' }}>アポ供給先クライアント</span>
-          <span style={{ textAlign: 'center' }}>担当者</span>
-          <span style={{ textAlign: 'center' }}>取得日</span>
-          <span>収録先の別リスト（架電可能分）</span>
+          {[
+            { label: '企業名' },
+            { label: 'アポ供給先クライアント' },
+            { label: '担当者' },
+            { label: '取得日' },
+            { label: '収録先の別リスト（架電可能分）' },
+          ].map(({ label }, i) => (
+            <span key={label}
+              onContextMenu={e => pastCtxMenu(e, i)}
+              style={{ position: 'relative', textAlign: pastCols[i]?.align || 'left', whiteSpace: 'nowrap', userSelect: 'none', minWidth: 0 }}>
+              {label}
+              <ColumnResizeHandle colIndex={i} onResizeStart={pastResize} />
+            </span>
+          ))}
         </div>
         {filtered.length === 0 ? (
           <div style={{ padding: '30px 0', textAlign: 'center', color: '#9CA3AF', fontSize: 12 }}>データがありません</div>
         ) : filtered.map((p, i) => {
-          const matches = matchMap[p.company] || [];
+          const otherMatches = getOtherListMatches(p);
           return (
-            <div key={p.company + '-' + p.source + '-' + i} style={{
-              display: 'grid', gridTemplateColumns: '1.2fr 160px 80px 100px 1.5fr',
-              padding: '8px 16px', fontSize: 11, alignItems: 'center',
+            <div key={p.company + '-' + i} style={{
+              display: 'grid', gridTemplateColumns: pastGrid,
+              padding: '8px 6px 8px 16px', columnGap: 2, fontSize: 11, alignItems: 'center',
               borderBottom: '1px solid #E5E7EB',
-              background: matches.length > 0 ? '#F0F7FF' : (i % 2 === 0 ? '#fff' : '#F8F9FA'),
+              background: otherMatches.length > 0 ? '#F0F7FF' : (i % 2 === 0 ? '#fff' : '#F8F9FA'),
               transition: 'background 0.15s',
             }}
             onMouseEnter={e => e.currentTarget.style.background = '#EAF4FF'}
-            onMouseLeave={e => e.currentTarget.style.background = matches.length > 0 ? '#F0F7FF' : (i % 2 === 0 ? '#fff' : '#F8F9FA')}>
-              <span style={{ fontWeight: 600, color: '#0D2247' }}>{p.company}</span>
-              <span style={{ textAlign: 'center', fontSize: 10, color: '#6B7280' }}>{p.client || '-'}</span>
-              <span style={{ textAlign: 'center', fontSize: 10, color: '#6B7280' }}>{p.getter || '-'}</span>
-              <span style={{ textAlign: 'center', fontSize: 10, color: '#6B7280', fontFamily: "'JetBrains Mono'" }}>{p.getDate ? p.getDate.slice(5) : '-'}</span>
-              <span style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                {matches.length > 0 ? matches.filter(m => {
-                  const list = callListData.find(l => l._supaId === m.listId);
-                  return list && list.company !== p.client;
-                }).map((m, mi) => {
+            onMouseLeave={e => e.currentTarget.style.background = otherMatches.length > 0 ? '#F0F7FF' : (i % 2 === 0 ? '#fff' : '#F8F9FA')}>
+              <span style={{ fontWeight: 600, color: '#0D2247', textAlign: pastCols[0]?.align || 'left' }}>{p.company}</span>
+              <span style={{ fontSize: 10, color: '#6B7280', textAlign: pastCols[1]?.align || 'left' }}>{p.client || '-'}</span>
+              <span style={{ fontSize: 10, color: '#6B7280', textAlign: pastCols[2]?.align || 'center' }}>{p.getter || '-'}</span>
+              <span style={{ fontSize: 10, color: '#6B7280', fontFamily: "'JetBrains Mono'", textAlign: pastCols[3]?.align || 'right' }}>{p.getDate ? p.getDate.slice(5) : '-'}</span>
+              <span style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: pastCols[4]?.align === 'right' ? 'flex-end' : pastCols[4]?.align === 'center' ? 'center' : 'flex-start' }}>
+                {otherMatches.length > 0 ? otherMatches.map((m, mi) => {
                   const list = callListData.find(l => l._supaId === m.listId);
                   if (!list) return null;
                   return (
@@ -1152,6 +1187,15 @@ function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
           );
         })}
       </div>
+      {pastCtx.visible && (
+        <AlignmentContextMenu
+          x={pastCtx.x} y={pastCtx.y}
+          currentAlign={pastCols[pastCtx.colIndex]?.align || 'left'}
+          onSelect={align => pastSetAlign(pastCtx.colIndex, align)}
+          onReset={pastReset}
+          onClose={pastClose}
+        />
+      )}
     </>
   );
 }
