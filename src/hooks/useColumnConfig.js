@@ -52,11 +52,11 @@ export default function useColumnConfig(tableId, defaultColumns, options = {}) {
     }
   }, [storageKey, defaultColumns]);
 
-  // CSS Grid用文字列
-  const gridTemplateColumns = columns.map(c => c.width + 'px').join(' ');
+  // CSS Grid用文字列（比例方式: 画面幅に応じて自動伸縮、最小幅保証）
+  const gridTemplateColumns = columns.map(c => `minmax(${MIN_WIDTH}px, ${c.width}fr)`).join(' ');
 
-  // 横スクロール用: カラム幅合計 + padding + gap（コンテナ内のminWidthに使用）
-  const contentMinWidth = columns.reduce((sum, c) => sum + c.width, 0) + padding + (columns.length - 1) * gap;
+  // 横スクロール用: 最小幅合計（全カラムが最小幅になった場合のフォールバック）
+  const contentMinWidth = columns.length * MIN_WIDTH + padding + (columns.length - 1) * gap;
 
   // リサイズ開始
   const onResizeStart = useCallback((colIndex, startX) => {
