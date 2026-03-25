@@ -9,12 +9,13 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
   const [savedOk, setSavedOk] = useState(false);
   const [saving, setSaving] = useState(false);
   const [clientTabs, setClientTabs] = useState({});
-  const [videoOpen, setVideoOpen] = useState(false);
   const [qaOpen, setQaOpen] = useState(false);
   const [qaTab, setQaTab] = useState('reception');
-  const VIDEO_ID = '1j465Gq-MIEqzcL3LreZmNRaC1zhWtHdt';
+  const [qaEditing, setQaEditing] = useState(false);
+  const [qaSaving, setQaSaving] = useState(false);
 
-  const QA_DATA = {
+
+  const DEFAULT_QA_DATA = {
     reception: [
       { q: 'ご用件は何でしょうか？', a: 'M＆Aに関するご案内でご連絡しております。社長様はいらっしゃいますか？' },
       { q: 'どちらの会社の方ですか？', a: '○○株式会社の○○と申します。' },
@@ -33,11 +34,23 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
     ],
   };
 
+  const [qaData, setQaData] = useState(DEFAULT_QA_DATA);
+  const [qaEditData, setQaEditData] = useState(DEFAULT_QA_DATA);
+
   useEffect(() => {
     fetchSetting('basic_script').then(({ value }) => {
       const text = value || DEFAULT_BASIC_SCRIPT;
       setBasicScript(text);
       setBasicScriptEdit(text);
+    });
+    fetchSetting('qa_data').then(({ value }) => {
+      if (value) {
+        try {
+          const parsed = JSON.parse(value);
+          setQaData(parsed);
+          setQaEditData(parsed);
+        } catch { /* use defaults */ }
+      }
     });
   }, []);
 
@@ -49,6 +62,38 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
     setBasicScript(basicScriptEdit);
     setSavedOk(true);
     setTimeout(() => setSavedOk(false), 2000);
+  };
+
+  const handleSaveQA = async () => {
+    setQaSaving(true);
+    const err = await saveSetting('qa_data', JSON.stringify(qaEditData));
+    setQaSaving(false);
+    if (err) { alert('Q&Aの保存に失敗しました'); return; }
+    setQaData(qaEditData);
+    setQaEditing(false);
+  };
+
+  const updateQAItem = (tab, index, field, value) => {
+    setQaEditData(prev => {
+      const updated = { ...prev };
+      updated[tab] = [...prev[tab]];
+      updated[tab][index] = { ...updated[tab][index], [field]: value };
+      return updated;
+    });
+  };
+
+  const addQAItem = (tab) => {
+    setQaEditData(prev => ({
+      ...prev,
+      [tab]: [...prev[tab], { q: '', a: '' }],
+    }));
+  };
+
+  const removeQAItem = (tab, index) => {
+    setQaEditData(prev => ({
+      ...prev,
+      [tab]: prev[tab].filter((_, i) => i !== index),
+    }));
   };
 
   const activeClients = (clientData || []).filter(c =>
@@ -100,29 +145,6 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
           )}
         </div>
 
-        {/* 参考動画サムネイル */}
-        <div style={{ marginTop: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: C.textMid, marginBottom: 6 }}>参考動画</div>
-          <div onClick={() => setVideoOpen(true)}
-            style={{ position: "relative", width: 200, height: 120, borderRadius: 4,
-              overflow: "hidden", cursor: "pointer",
-              border: '1px solid #E5E7EB', display: "inline-block" }}>
-            <img
-              src={`https://drive.google.com/thumbnail?id=${VIDEO_ID}&sz=w400`}
-              alt="参考動画サムネイル"
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-            />
-            <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.28)",
-              display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <div style={{ width: 42, height: 42, borderRadius: "50%",
-                background: "rgba(255,255,255,0.88)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 17, paddingLeft: 3 }}>
-                ▶
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* クライアント別スクリプト */}
@@ -196,45 +218,45 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
               ))}
             </div>
             <div style={{ overflowY: 'auto', padding: '16px 20px' }}>
-              {QA_DATA[qaTab].map((item, i) => (
-                <div key={i} style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 4, background: '#F8F9FA', borderLeft: '3px solid #0D2247' }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>Q: {item.q}</div>
-                  <div style={{ fontSize: 12, color: '#0D2247', lineHeight: 1.7 }}>A: {item.a}</div>
-                </div>
-              ))}
+              {qaEditing ? (
+                <>
+                  {qaEditData[qaTab].map((item, i) => (
+                    <div key={i} style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 4, background: '#F8F9FA', borderLeft: '3px solid #0D2247' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#374151' }}>Q:</span>
+                        <input type="text" value={item.q} onChange={e => updateQAItem(qaTab, i, 'q', e.target.value)} style={{ flex: 1, padding: '4px 8px', border: '1px solid #E5E5E5', borderRadius: 4, fontSize: 12 }} />
+                        <button onClick={() => removeQAItem(qaTab, i)} style={{ border: '1px solid #fca5a5', background: 'transparent', color: '#dc2626', borderRadius: 4, padding: '2px 8px', fontSize: 11, cursor: 'pointer' }}>削除</button>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#0D2247', marginTop: 4 }}>A:</span>
+                        <textarea value={item.a} onChange={e => updateQAItem(qaTab, i, 'a', e.target.value)} rows={2} style={{ flex: 1, padding: '4px 8px', border: '1px solid #E5E5E5', borderRadius: 4, fontSize: 12, resize: 'vertical', lineHeight: 1.6 }} />
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={() => addQAItem(qaTab)} style={{ padding: '6px 14px', border: '1px dashed #9CA3AF', background: 'transparent', borderRadius: 4, fontSize: 11, color: '#6B7280', cursor: 'pointer', width: '100%' }}>+ 項目を追加</button>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+                    <button onClick={() => { setQaEditData(qaData); setQaEditing(false); }} style={{ padding: '6px 16px', border: '1px solid #E5E5E5', background: '#fff', borderRadius: 4, fontSize: 11, cursor: 'pointer' }}>キャンセル</button>
+                    <button onClick={handleSaveQA} disabled={qaSaving} style={{ padding: '6px 16px', border: 'none', background: '#0D2247', color: '#fff', borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: qaSaving ? 'not-allowed' : 'pointer' }}>{qaSaving ? '保存中...' : '保存'}</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {qaData[qaTab].map((item, i) => (
+                    <div key={i} style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 4, background: '#F8F9FA', borderLeft: '3px solid #0D2247' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>Q: {item.q}</div>
+                      <div style={{ fontSize: 12, color: '#0D2247', lineHeight: 1.7 }}>A: {item.a}</div>
+                    </div>
+                  ))}
+                  {isAdmin && (
+                    <button onClick={() => { setQaEditData(qaData); setQaEditing(true); }} style={{ padding: '6px 16px', border: '1px solid #0D2247', background: 'transparent', color: '#0D2247', borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}>編集する</button>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* 動画モーダル */}
-      {videoOpen && (
-        <div onClick={() => setVideoOpen(false)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 9500,
-            display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ position: "relative", width: "80vw", maxWidth: 800, borderRadius: 4,
-              overflow: "hidden", border: '1px solid #E5E7EB' }}>
-            <button onClick={() => setVideoOpen(false)}
-              style={{ position: "absolute", top: 8, right: 8, zIndex: 1,
-                width: 32, height: 32, borderRadius: "50%",
-                background: "rgba(0,0,0,0.55)", border: "none",
-                color: "white", fontSize: 15, cursor: "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                lineHeight: 1 }}>
-              ✕
-            </button>
-            <iframe
-              src={`https://drive.google.com/file/d/${VIDEO_ID}/preview`}
-              width="100%"
-              height="450"
-              allow="autoplay"
-              allowFullScreen
-              style={{ display: "block", border: "none" }}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
