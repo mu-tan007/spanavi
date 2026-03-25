@@ -129,7 +129,7 @@ const generateEmail = (id) =>
 
 export default function LoginPage() {
   const { signIn } = useAuth()
-  // mode: 'login' | 'admin' | 'forgot' | 'forgotSent'
+  // mode: 'login' | 'admin' | 'forgot' | 'forgotSent' | 'forgotEmail' | 'forgotEmailSent'
   const [mode, setMode] = useState('login')
 
   // 通常ログイン用メンバー一覧（adminを除外）
@@ -143,6 +143,7 @@ export default function LoginPage() {
 
   // パスワードリセット用
   const [resetSelected, setResetSelected] = useState(null)
+  const [resetEmail, setResetEmail] = useState('')
   const [error, setError]   = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -225,6 +226,22 @@ export default function LoginPage() {
       const { error: err } = await supabase.auth.resetPasswordForEmail(email)
       if (err) throw err
       setMode('forgotSent')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleForgotEmail = async (e) => {
+    e.preventDefault()
+    setError('')
+    if (!resetEmail) { setError('メールアドレスを入力してください'); return }
+    setLoading(true)
+    try {
+      const { error: err } = await supabase.auth.resetPasswordForEmail(resetEmail)
+      if (err) throw err
+      setMode('forgotEmailSent')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -383,6 +400,15 @@ export default function LoginPage() {
               />
             </div>
 
+            <div style={{ textAlign: 'right', marginBottom: 16, marginTop: -10 }}>
+              <span
+                onClick={() => { setMode('forgotEmail'); setError(''); setResetEmail('') }}
+                style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
+              >
+                パスワードを忘れた方はこちら
+              </span>
+            </div>
+
             {errBlock}
             <button
               type="submit"
@@ -444,6 +470,67 @@ export default function LoginPage() {
             </div>
             <span
               onClick={() => { setMode('login'); setError('') }}
+              style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
+            >
+              ログインに戻る
+            </span>
+          </div>
+        )}
+
+        {/* ── メールアドレスでパスワードリセット ── */}
+        {mode === 'forgotEmail' && (
+          <form onSubmit={handleForgotEmail}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: C.navy, marginBottom: 4, textAlign: 'center' }}>
+              パスワード再設定
+            </div>
+            <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 20, textAlign: 'center', lineHeight: 1.8 }}>
+              登録済みのメールアドレスを入力してください。<br />パスワード再設定のリンクをお送りします。
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={labelStyle}>
+                メールアドレス<span style={{ color: C.errorRed, marginLeft: 2 }}>*</span>
+              </div>
+              <input
+                type="email"
+                value={resetEmail}
+                onChange={e => setResetEmail(e.target.value)}
+                placeholder="email@example.com"
+                required
+                autoComplete="off"
+                style={inputStyle}
+                onFocus={e => { e.target.style.borderColor = C.navy; e.target.style.boxShadow = '0 0 0 2px rgba(13,34,71,0.1)' }}
+                onBlur={e => { e.target.style.borderColor = C.gray200; e.target.style.boxShadow = 'none' }}
+              />
+            </div>
+            {errBlock}
+            <button
+              type="submit"
+              disabled={loading}
+              style={btnStyle}
+              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = C.navyHover }}
+              onMouseLeave={e => { e.currentTarget.style.background = C.navy }}
+            >
+              {loading ? '送信中...' : '再設定メールを送る'}
+            </button>
+            <div style={{ textAlign: 'center', marginTop: 16 }}>
+              <span
+                onClick={() => { setMode('admin'); setError('') }}
+                style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
+              >
+                ← ログインに戻る
+              </span>
+            </div>
+          </form>
+        )}
+
+        {mode === 'forgotEmailSent' && (
+          <div style={{ textAlign: 'center', padding: '10px 0' }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: C.navy, marginBottom: 12 }}>メールを送信しました</div>
+            <div style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.8, marginBottom: 24 }}>
+              {resetEmail} 宛に<br />パスワード再設定のリンクを送りました。<br />メールをご確認ください。
+            </div>
+            <span
+              onClick={() => { setMode('admin'); setError('') }}
               style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
             >
               ログインに戻る

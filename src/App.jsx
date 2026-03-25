@@ -1,11 +1,12 @@
 import { useAuth } from './hooks/useAuth'
 import { useSpanaviData } from './hooks/useSpanaviData'
 import LoginPage from './components/LoginPage'
+import ResetPasswordPage from './components/ResetPasswordPage'
 import SpanaviApp from './components/SpanaviApp'
 import { useEffect, useRef } from 'react'
 
 export default function App() {
-  const { session, profile, loading, signOut, isAdmin } = useAuth()
+  const { session, profile, loading, signOut, isAdmin, recoveryMode, clearRecoveryMode } = useAuth()
   const { data: supabaseData, loading: dataLoading, error: dataError, refetch: onDataRefetch } = useSpanaviData()
 
   // session が null→有効 に変わった時だけデータを再フェッチ（ログイン直後の1回のみ）
@@ -59,6 +60,11 @@ export default function App() {
         </div>
       </div>
     )
+  }
+
+  // パスワードリカバリーモード
+  if (recoveryMode && session) {
+    return <ResetPasswordPage onComplete={clearRecoveryMode} />
   }
 
   // 未ログイン

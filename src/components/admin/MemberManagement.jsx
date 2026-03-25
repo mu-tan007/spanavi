@@ -45,7 +45,8 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [addModal, setAddModal] = useState(false);
-  const [addForm, setAddForm] = useState({ name: '', team: '', position: 'メンバー', rank: 'トレーニー', operation_start_date: '' });
+  const [addForm, setAddForm] = useState({ name: '', team: '', position: 'メンバー', rank: 'トレーニー', operation_start_date: '', email: '' });
+  const [sendInvite, setSendInvite] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [hoveredRow, setHoveredRow] = useState(null);
@@ -105,26 +106,64 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
 
   const addMember = async () => {
     if (!addForm.name.trim()) { onToast('氏名を入力してください', 'error'); return; }
+    if (sendInvite && !addForm.email.trim()) { onToast('招待メール送信にはメールアドレスが必要です', 'error'); return; }
     setSaving(true);
-    const { data, error } = await supabase
-      .from('members')
-      .insert({
-        org_id: getOrgId(),
-        name: addForm.name.trim(),
-        team: addForm.team || null,
-        position: addForm.position,
-        rank: addForm.rank,
-        operation_start_date: addForm.operation_start_date || null,
-        is_active: true,
-      })
-      .select()
-      .single();
+
+    if (sendInvite && addForm.email.trim()) {
+      // Edge Function経由でメンバー追加 + 招待メール送信
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-member`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              email: addForm.email.trim(),
+              name: addForm.name.trim(),
+              orgId: getOrgId(),
+              role: 'caller',
+              rank: addForm.rank,
+              position: addForm.position,
+            }),
+          }
+        );
+        const result = await res.json();
+        if (!res.ok) { onToast(result.error || '招待に失敗しました', 'error'); setSaving(false); return; }
+        onToast(`${addForm.email.trim()} に招待メールを送信しました ✓`);
+      } catch (err) {
+        onToast('招待に失敗しました: ' + err.message, 'error');
+        setSaving(false);
+        return;
+      }
+    } else {
+      // 従来の直接INSERT（メール招待なし）
+      const { data, error } = await supabase
+        .from('members')
+        .insert({
+          org_id: getOrgId(),
+          name: addForm.name.trim(),
+          team: addForm.team || null,
+          email: addForm.email.trim() || null,
+          position: addForm.position,
+          rank: addForm.rank,
+          operation_start_date: addForm.operation_start_date || null,
+          is_active: true,
+        })
+        .select()
+        .single();
+      if (error) { onToast('追加に失敗しました', 'error'); setSaving(false); return; }
+      onToast('メンバーを追加しました ✓');
+    }
+
     setSaving(false);
-    if (error) { onToast('追加に失敗しました', 'error'); return; }
-    setMembers(prev => [...prev, data]);
     setAddModal(false);
-    setAddForm({ name: '', team: '', position: 'メンバー', rank: 'トレーニー', operation_start_date: '' });
-    onToast('メンバーを追加しました ✓');
+    setAddForm({ name: '', team: '', position: 'メンバー', rank: 'トレーニー', operation_start_date: '', email: '' });
+    setSendInvite(true);
+    load();
     if (onDataRefetch) onDataRefetch();
   };
 
@@ -290,6 +329,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
             <div style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 20 }}>新規メンバー追加</div>
             {[
               { label: '氏名', key: 'name', type: 'text', placeholder: '例：山田太郎' },
+              { label: 'メールアドレス', key: 'email', type: 'email', placeholder: '例：user@example.com' },
               { label: 'チーム', key: 'team', type: 'text', placeholder: '例：Aチーム' },
               { label: '入社日', key: 'operation_start_date', type: 'date' },
             ].map(f => (
@@ -312,9 +352,25 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                 </select>
               </div>
             ))}
+            {addForm.email.trim() && (
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={sendInvite}
+                    onChange={e => setSendInvite(e.target.checked)}
+                    style={{ width: 16, height: 16, cursor: 'pointer' }}
+                  />
+                  招待メールを送信する
+                </label>
+                <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4, marginLeft: 24 }}>
+                  パスワード設定用のリンクがメールで届きます
+                </div>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button onClick={() => setAddModal(false)} style={btn()}>キャンセル</button>
-              <button onClick={addMember} disabled={saving} style={btn('primary', { padding: '7px 20px' })}>追加する</button>
+              <button onClick={addMember} disabled={saving} style={btn('primary', { padding: '7px 20px' })}>{saving ? '処理中...' : sendInvite && addForm.email.trim() ? '招待する' : '追加する'}</button>
             </div>
           </div>
         </div>

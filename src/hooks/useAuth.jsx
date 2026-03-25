@@ -8,6 +8,7 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [recoveryMode, setRecoveryMode] = useState(false)
 
   useEffect(() => {
     // 現在のセッションを取得
@@ -22,8 +23,11 @@ export function AuthProvider({ children }) {
 
     // 認証状態の変更を監視
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         setSession(session)
+        if (event === 'PASSWORD_RECOVERY') {
+          setRecoveryMode(true)
+        }
         if (session?.user) {
           fetchProfile(session.user.id)
         } else {
@@ -112,6 +116,8 @@ export function AuthProvider({ children }) {
     setProfile(null)
   }
 
+  const clearRecoveryMode = () => setRecoveryMode(false)
+
   const value = {
     session,
     profile,
@@ -121,6 +127,8 @@ export function AuthProvider({ children }) {
     isAdmin: profile?.role === 'admin',
     isManager: profile?.role === 'admin' || profile?.role === 'manager',
     orgId: profile?.org_id || null,
+    recoveryMode,
+    clearRecoveryMode,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
