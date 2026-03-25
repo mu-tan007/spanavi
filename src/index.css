@@ -35,6 +35,12 @@ body {
   background: rgba(200, 164, 90, 0.3);
 }
 
+/* データテーブルのセル間スペーシング */
+[style*="grid-template-columns"] > span {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
 /* 長いURL・文字列の折り返し */
 p, span, div, li, td, th, pre, blockquote {
   word-break: break-all;
