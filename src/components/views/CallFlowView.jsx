@@ -558,29 +558,18 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setCallRecords(prev => prev.map(r => r.id === rec.id ? { ...r, recording_url: url } : r));
   };
 
-  // アポ報告フォーム用録音URL取得（callRecords state → Supabase DB → Zoom API の順に検索）
-  const handleAppoFetchRecording = async (itemId, phone) => {
-    // Step 1: callRecords state の最新レコードを確認
-    const latestState = callRecords
-      .filter(r => r.item_id === itemId)
-      .sort((a, b) => (b.called_at || '').localeCompare(a.called_at || ''))[0];
-    if (latestState?.recording_url) return latestState.recording_url;
-
-    // Step 2: Supabase の call_records を直接確認（最新レコードのみ）
-    const { data: freshRecs } = await fetchCallRecords(list._supaId);
-    if (freshRecs?.length) {
-      setCallRecords(freshRecs);
-      const latestFresh = freshRecs
-        .filter(r => r.item_id === itemId)
-        .sort((a, b) => (b.called_at || '').localeCompare(a.called_at || ''))[0];
-      if (latestFresh?.recording_url) return latestFresh.recording_url;
+  // アポ報告フォーム用録音URL取得（Zoom APIからリトライ付きで今回の通話録音のみ取得）
+  const handleAppoFetchRecording = async (_itemId, phone) => {
+    const calledAt = new Date().toISOString();
+    // 最大30秒（5秒×6回）リトライしてZoom録音を取得
+    for (let i = 0; i < 6; i++) {
+      if (i > 0) await new Promise(r => setTimeout(r, 5000));
+      try {
+        const url = await fetchRecordingUrl(phone, calledAt, null);
+        if (url) return url;
+      } catch (e) { console.warn('[handleAppoFetchRecording] リトライ', i + 1, e); }
     }
-
-    // Step 3: Zoom API から取得（最新レコードの時間を基準にする）
-    const prevRec = callRecords
-      .filter(r => r.item_id === itemId)
-      .sort((a, b) => (b.called_at || '').localeCompare(a.called_at || ''))[1];
-    return await fetchRecordingUrl(phone, new Date().toISOString(), prevRec?.called_at || null);
+    return null;
   };
 
   const handleAppoSave = async (formData) => {

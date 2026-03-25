@@ -82,9 +82,9 @@ export default function AppoReportModal({ row, list, currentUser = '', members =
     }
   };
 
-  // モーダルを開いた直後に Zoom 録音 URL を自動取得（既存 URL がない場合のみ）
+  // モーダルを開いた直後に今回の通話録音を Zoom API から取得（常に実行）
   React.useEffect(() => {
-    if (!initialRecordingUrl) handleRefetchRecordingUrl();
+    handleRefetchRecordingUrl();
   }, []);
 
   // 日本語金額テキスト（"5.0億円"、"3000万円"等）を円に変換
@@ -374,13 +374,14 @@ HP：${form.hp}
         <div style={{ padding: '10px 20px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', gap: 6 }}>
             {/* 文字起こし＋AI添削ボタン */}
-            <button onClick={handleGenerateReport} disabled={saving || generateStep !== 'idle'}
-              style={{ padding: '8px 16px', borderRadius: 4, border: '1px solid #0D2247', background: '#fff', cursor: (saving || generateStep !== 'idle') ? 'default' : 'pointer', fontSize: 13, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'", opacity: (saving || generateStep !== 'idle') ? 0.5 : 1 }}>
-              {generateStep === 'transcribing' && '文字起こし中...'}
-              {generateStep === 'enhancing'    && 'AI添削中...'}
-              {generateStep === 'done'         && '添削完了'}
-              {generateStep === 'error'        && 'エラー'}
-              {generateStep === 'idle'         && '文字起こし＋AI添削'}
+            <button onClick={handleGenerateReport} disabled={saving || generateStep !== 'idle' || recordingUrlLoading}
+              style={{ padding: '8px 16px', borderRadius: 4, border: '1px solid #0D2247', background: '#fff', cursor: (saving || generateStep !== 'idle' || recordingUrlLoading) ? 'default' : 'pointer', fontSize: 13, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'", opacity: (saving || generateStep !== 'idle' || recordingUrlLoading) ? 0.5 : 1 }}>
+              {recordingUrlLoading               && '録音を取得中...'}
+              {!recordingUrlLoading && generateStep === 'transcribing' && '文字起こし中...'}
+              {!recordingUrlLoading && generateStep === 'enhancing'    && 'AI添削中...'}
+              {!recordingUrlLoading && generateStep === 'done'         && '添削完了'}
+              {!recordingUrlLoading && generateStep === 'error'        && 'エラー'}
+              {!recordingUrlLoading && generateStep === 'idle'         && '文字起こし＋AI添削'}
             </button>
             {/* コピーボタン */}
             <button onClick={handleCopy} disabled={saving}
