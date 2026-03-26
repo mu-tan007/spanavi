@@ -47,14 +47,14 @@ p, span, div, li, td, th, pre, blockquote {
   overflow-wrap: break-word;
 }
 
-/* ログイン画面のinput文字色 */
-input[type="email"],
-input[type="password"],
-input[type="text"],
-input[type="number"] {
-  color: #181818 !important;
-  background: #ffffff !important;
+/* 全inputの文字色を強制 */
+input, textarea, select {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+  -webkit-text-fill-color: #000000 !important;
+  opacity: 1 !important;
 }
-input::placeholder {
+input::placeholder, textarea::placeholder {
   color: #A0A0A0 !important;
+  -webkit-text-fill-color: #A0A0A0 !important;
 }
