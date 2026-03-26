@@ -133,8 +133,8 @@ Deno.serve(async (req) => {
           direction: 'outbound',
           started_at: new Date().toISOString(),
         }, { onConflict: 'zoom_call_id' })
-        if (error) console.error('[receive-zoom-webhook] active_calls upsert error:', error.message)
-        console.log('[receive-zoom-webhook] 📞 ringing:', resolvedCallerName, '→', resolvedCalleeName || calleeNumber)
+        if (error) console.error('[receive-zoom-webhook] active_calls upsert error:', error.message, error.details, error.hint)
+        console.log('[receive-zoom-webhook] 📞 ringing:', resolvedCallerName, '→', resolvedCalleeName || calleeNumber, '| orgId:', orgId, '| error:', error?.message ?? 'none')
       }
 
       if (eventType === 'phone.caller_connected' || eventType === 'phone.callee_connected' || eventType === 'phone.callee_answered') {
@@ -158,7 +158,7 @@ Deno.serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ ok: true, event: eventType, callId }),
+        JSON.stringify({ ok: true, event: eventType, callId, orgId, callerName: resolvedCallerName, calleeName: resolvedCalleeName }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
