@@ -340,7 +340,7 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
 }
 
 // ─── メインコンポーネント ────────────────────────────────────────
-export default function LiveStatusView({ now, members, isAdmin = false, isManagerRole = false }) {
+export default function LiveStatusView({ now, members, isAdmin = false, isTeamLeader = false }) {
   const [sessions, setSessions]             = useState([]);
   const [calledCounts, setCalledCounts]     = useState({});
   // 過去日セクションはデフォルト折りたたみ（today = key 0 はデフォルト展開）
@@ -434,7 +434,7 @@ export default function LiveStatusView({ now, members, isAdmin = false, isManage
       </div>
 
       {/* 通話モニターパネル */}
-      {(isAdmin || isManagerRole) && <CallMonitorPanel />}
+      {(isAdmin || isTeamLeader) && <CallMonitorPanel />}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         {dayGroups.map(({ key, label, date, cards }) => {
