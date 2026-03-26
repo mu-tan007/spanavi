@@ -57,24 +57,24 @@ export function AuthProvider({ children }) {
           const memberId = match[1]
           const { data: member } = await supabase
             .from('members')
-            .select('id, name, email, role, org_id')
+            .select('id, name, email, rank, org_id')
             .eq('id', memberId)
             .single()
           if (member) {
             if (member.org_id) setOrgId(member.org_id)
-            setProfile({ id: userId, name: member.name, email: member.email, role: member.role || 'caller', org_id: member.org_id })
+            setProfile({ id: userId, name: member.name, email: member.email, role: member.rank || 'caller', org_id: member.org_id })
             return
           }
         }
         // フォールバック2: 実メールアドレスでmembersテーブルを検索（外部テナント用）
         const { data: memberByEmail } = await supabase
           .from('members')
-          .select('id, name, email, role, org_id')
+          .select('id, name, email, rank, org_id')
           .eq('email', email)
           .single()
         if (memberByEmail) {
           if (memberByEmail.org_id) setOrgId(memberByEmail.org_id)
-          setProfile({ id: userId, name: memberByEmail.name, email: memberByEmail.email, role: memberByEmail.role || 'caller', org_id: memberByEmail.org_id })
+          setProfile({ id: userId, name: memberByEmail.name, email: memberByEmail.email, role: memberByEmail.rank || 'caller', org_id: memberByEmail.org_id })
           return
         }
 
