@@ -124,8 +124,9 @@ function MemberNameSelect({ members, selected, onSelect }) {
 }
 
 // user IDからSupabase auth用メールアドレスを自動生成
+const ORG_DOMAIN = 'a0000000-0000-0000-0000-000000000001.spanavi.internal'
 const generateEmail = (id) =>
-  `user_${id}@masp-internal.com`
+  `user_${id}@${ORG_DOMAIN}`
 
 export default function LoginPage() {
   const { signIn } = useAuth()

@@ -52,7 +52,7 @@ export function AuthProvider({ children }) {
         // フォールバック：auth.usersのemailからmember_idを抽出してmembersから名前取得
         const { data: authUser } = await supabase.auth.getUser()
         const email = authUser?.user?.email || ''
-        const match = email.match(/^user_(.+)@masp-internal\.com$/)
+        const match = email.match(/^user_(.+)@(?:masp-internal\.com|[a-f0-9-]+\.spanavi\.internal)$/)
         if (match) {
           const memberId = match[1]
           const { data: member } = await supabase

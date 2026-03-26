@@ -140,7 +140,8 @@ Deno.serve(async (req) => {
         continue
       }
 
-      if (member.zoom_user_id === zu.id && member.email) {
+      const hasRealEmail = member.email && !member.email.includes('@masp-internal.com')
+      if (member.zoom_user_id === zu.id && hasRealEmail) {
         skipped.push(member.name)
         continue
       }
