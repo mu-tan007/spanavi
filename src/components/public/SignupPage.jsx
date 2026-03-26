@@ -67,9 +67,9 @@ export default function SignupPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            org_name: orgName.trim(),
-            admin_email: email.trim(),
-            quantity: seats,
+            orgName: orgName.trim(),
+            email: email.trim(),
+            seatCount: seats,
           }),
         }
       )
