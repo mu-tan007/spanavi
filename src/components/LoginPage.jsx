@@ -130,8 +130,9 @@ const generateEmail = (id) =>
 
 export default function LoginPage() {
   const { signIn } = useAuth()
-  // mode: 'login' | 'admin' | 'forgot' | 'forgotSent' | 'forgotEmail' | 'forgotEmailSent'
-  const [mode, setMode] = useState('login')
+  // mode: 'admin' | 'login' | 'forgot' | 'forgotSent' | 'forgotEmail' | 'forgotEmailSent'
+  // デフォルトをメールアドレスログイン（admin）に変更
+  const [mode, setMode] = useState('admin')
 
   // 通常ログイン用メンバー一覧（adminを除外）
   const [members, setMembers] = useState([])
@@ -351,7 +352,7 @@ export default function LoginPage() {
                 onClick={() => { setMode('admin'); setError('') }}
                 style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
               >
-                メールアドレスでログイン
+                ← メールアドレスでログイン
               </span>
             </div>
           </form>
@@ -360,11 +361,8 @@ export default function LoginPage() {
         {/* ── 管理者ログイン ── */}
         {mode === 'admin' && (
           <form onSubmit={handleAdminLogin} autoComplete="off">
-            <div style={{ fontSize: 20, fontWeight: 700, color: C.navy, marginBottom: 4, textAlign: 'center' }}>
-              メールアドレスでログイン
-            </div>
             <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 20, textAlign: 'center' }}>
-              登録済みのメールアドレスでサインインしてください
+              メールアドレスとパスワードでサインイン
             </div>
 
             <div style={{ marginBottom: 14 }}>
@@ -423,9 +421,9 @@ export default function LoginPage() {
             <div style={{ textAlign: 'center', marginTop: 16 }}>
               <span
                 onClick={() => { setMode('login'); setError(''); setAdminEmail(''); setAdminPassword('') }}
-                style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
+                style={{ fontSize: 12, color: C.textMuted, cursor: 'pointer', textDecoration: 'none' }}
               >
-                ← 戻る
+                MASP社員の方はこちら
               </span>
             </div>
           </form>
