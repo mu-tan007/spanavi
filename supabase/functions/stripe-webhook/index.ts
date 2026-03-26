@@ -30,7 +30,9 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
     const stripe = new Stripe(stripeSecretKey, { apiVersion: '2024-12-18.acacia' })
-    const supabase = createClient(supabaseUrl, serviceRoleKey)
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
 
     // Webhook署名検証
     const body = await req.text()

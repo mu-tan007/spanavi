@@ -7,6 +7,27 @@ import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import { getOrgId } from '../../lib/orgContext';
 
 const NAVY = '#0D2247';
+
+// Stripe席数同期（メンバー追加/削除後に呼ぶ）
+async function syncSeatCount(newCount) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-update-seats`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ newSeatCount: newCount }),
+      }
+    );
+  } catch (e) {
+    console.warn('Stripe seat sync failed:', e.message);
+  }
+}
 const GOLD = '#C8A84B';
 
 const RANKS = ['トレーニー', 'プレイヤー', 'スパルタン', 'スーパースパルタン'];
@@ -98,9 +119,11 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
   const deleteMember = async (id) => {
     const { error } = await supabase.from('members').delete().eq('id', id);
     if (error) { onToast('削除に失敗しました', 'error'); return; }
-    setMembers(prev => prev.filter(m => m.id !== id));
+    const newMembers = members.filter(m => m.id !== id);
+    setMembers(newMembers);
     setDeleteConfirm(null);
     onToast('削除しました ✓');
+    syncSeatCount(newMembers.length);
     if (onDataRefetch) onDataRefetch();
   };
 
@@ -163,7 +186,8 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
     setAddModal(false);
     setAddForm({ name: '', team: '', position: 'メンバー', rank: 'トレーニー', operation_start_date: '', email: '' });
     setSendInvite(true);
-    load();
+    await load();
+    syncSeatCount(members.length + 1);
     if (onDataRefetch) onDataRefetch();
   };
 

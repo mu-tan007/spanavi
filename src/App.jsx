@@ -6,6 +6,7 @@ import SpanaviApp from './components/SpanaviApp'
 import SignupPage from './components/public/SignupPage'
 import SignupCompletePage from './components/public/SignupCompletePage'
 import SignupCanceledPage from './components/public/SignupCanceledPage'
+import SubscriptionGuard from './components/common/SubscriptionGuard'
 import { useEffect, useRef } from 'react'
 import { Routes, Route } from 'react-router-dom'
 
@@ -102,14 +103,16 @@ function MainApp() {
   }
 
   return (
-    <SpanaviApp
-      userName={profile?.name || session.user.user_metadata?.name || '不明'}
-      userId={session.user.id}
-      isAdmin={isAdmin}
-      onLogout={handleLogout}
-      supabaseData={supabaseData}
-      onDataRefetch={onDataRefetch}
-    />
+    <SubscriptionGuard>
+      <SpanaviApp
+        userName={profile?.name || session.user.user_metadata?.name || '不明'}
+        userId={session.user.id}
+        isAdmin={isAdmin}
+        onLogout={handleLogout}
+        supabaseData={supabaseData}
+        onDataRefetch={onDataRefetch}
+      />
+    </SubscriptionGuard>
   )
 }
 
