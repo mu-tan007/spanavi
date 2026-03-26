@@ -112,7 +112,7 @@ export default function LoginScreen({ onLogin, members }) {
         </div>
 
         <div style={{ marginTop: 24, textAlign: "center", fontSize: 9, color: DS.textMuted, letterSpacing: 1 }}>
-          © 2026 M&A Sourcing Partners Co., Ltd.
+          © {new Date().getFullYear()} Spanavi
         </div>
       </div>
     </div>

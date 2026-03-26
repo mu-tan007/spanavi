@@ -539,7 +539,7 @@ export default function LoginPage() {
         )}
 
         <div style={{ marginTop: 20, textAlign: 'center', fontSize: 9, color: C.textMuted, letterSpacing: 1 }}>
-          © 2026 M&A Sourcing Partners Co., Ltd.
+          © {new Date().getFullYear()} Spanavi
         </div>
       </div>
     </div>
