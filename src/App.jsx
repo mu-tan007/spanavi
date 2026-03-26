@@ -3,9 +3,13 @@ import { useSpanaviData } from './hooks/useSpanaviData'
 import LoginPage from './components/LoginPage'
 import ResetPasswordPage from './components/ResetPasswordPage'
 import SpanaviApp from './components/SpanaviApp'
+import SignupPage from './components/public/SignupPage'
+import SignupCompletePage from './components/public/SignupCompletePage'
+import SignupCanceledPage from './components/public/SignupCanceledPage'
 import { useEffect, useRef } from 'react'
+import { Routes, Route } from 'react-router-dom'
 
-export default function App() {
+function MainApp() {
   const { session, profile, loading, signOut, isAdmin, recoveryMode, clearRecoveryMode } = useAuth()
   const { data: supabaseData, loading: dataLoading, error: dataError, refetch: onDataRefetch } = useSpanaviData()
 
@@ -106,5 +110,16 @@ export default function App() {
       supabaseData={supabaseData}
       onDataRefetch={onDataRefetch}
     />
+  )
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/signup" element={<SignupPage />} />
+      <Route path="/signup/complete" element={<SignupCompletePage />} />
+      <Route path="/signup/canceled" element={<SignupCanceledPage />} />
+      <Route path="/*" element={<MainApp />} />
+    </Routes>
   )
 }
