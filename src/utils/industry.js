@@ -2,16 +2,29 @@
 // 業種カテゴリ判定・時間帯パースユーティリティ
 // ============================================================
 
-export const getIndustryCategory = (industry) => {
-  if (industry.includes("建設") || industry.includes("土木") || industry.includes("サブコン") || industry.includes("管工事") || industry.includes("電気工事") || industry.includes("リフォーム") || industry.includes("建築") || industry.includes("建物") || industry === "建設コンサルタント") return "建設";
-  if (industry.includes("製造") || industry.includes("溶接") || industry.includes("表面処理") || industry.includes("ニッチ製造") || industry.includes("食品製造") || industry.includes("食料品製造") || industry.includes("食品") || industry.includes("食肉") || industry.includes("食料") || industry === "給食") return "製造";
-  if (industry.includes("不動産")) return "不動産";
-  if (industry === "介護" || industry === "福祉用具") return "介護";
-  if (industry === "調剤薬局") return "調剤薬局";
-  if (industry === "医療法人") return "医療法人";
-  if (industry.includes("IT") || industry.includes("情報通信") || industry.includes("受託開発") || industry.includes("人材")) return "IT";
-  if (industry.includes("物流") || industry.includes("倉庫") || industry === "タクシー") return "物流";
-  if (industry === "飲食業" || industry.includes("飲食")) return "製造";
+// デフォルトのカテゴリマッピング（org_settings未設定時のフォールバック）
+const DEFAULT_CATEGORY_MAP = {
+  "建設": ["建設", "土木", "サブコン", "管工事", "電気工事", "リフォーム", "建築", "建物", "建設コンサルタント"],
+  "製造": ["製造", "溶接", "表面処理", "ニッチ製造", "食品製造", "食料品製造", "食品", "食肉", "食料", "給食", "飲食業", "飲食"],
+  "不動産": ["不動産"],
+  "介護": ["介護", "福祉用具"],
+  "調剤薬局": ["調剤薬局"],
+  "医療法人": ["医療法人"],
+  "IT": ["IT", "情報通信", "受託開発", "人材"],
+  "物流": ["物流", "倉庫", "タクシー"],
+};
+
+/**
+ * 業種名からカテゴリを判定
+ * @param {string} industry - 業種名
+ * @param {Object} [categoryMap] - オプショナル。org_settingsから取得したカテゴリマッピング
+ * @returns {string} カテゴリ名
+ */
+export const getIndustryCategory = (industry, categoryMap = null) => {
+  const map = categoryMap || DEFAULT_CATEGORY_MAP;
+  for (const [category, keywords] of Object.entries(map)) {
+    if (keywords.some(kw => industry === kw || industry.includes(kw))) return category;
+  }
   if (industry.includes("全業種")) return "その他（平日一般）";
   return "その他（平日一般）";
 };

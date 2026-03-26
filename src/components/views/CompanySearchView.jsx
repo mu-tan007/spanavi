@@ -23,6 +23,7 @@ import {
 } from '../../lib/supabaseWrite';
 import AppoReportModal from './AppoReportModal';
 import useColumnConfig from '../../hooks/useColumnConfig';
+import { useCallStatuses } from '../../hooks/useCallStatuses';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
 
@@ -65,6 +66,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   const { columns: scCols, gridTemplateColumns: scGrid, contentMinWidth: scMinW, onResizeStart: scResize, onHeaderContextMenu: scCtxMenu, contextMenu: scCtx, setAlign: scSetAlign, resetAll: scReset, closeMenu: scClose } = useColumnConfig('searchCompany', SEARCH_COMPANY_COLS);
   const { columns: sliCols, gridTemplateColumns: sliGrid, contentMinWidth: sliMinW, onResizeStart: sliResize, onHeaderContextMenu: sliCtxMenu, contextMenu: sliCtx, setAlign: sliSetAlign, resetAll: sliReset, closeMenu: sliClose } = useColumnConfig('searchListItems', SEARCH_LIST_ITEMS_COLS);
   const { columns: slCols, gridTemplateColumns: slGrid, contentMinWidth: slMinW, onResizeStart: slResize, onHeaderContextMenu: slCtxMenu, contextMenu: slCtx, setAlign: slSetAlign, resetAll: slReset, closeMenu: slClose } = useColumnConfig('searchLists', SEARCH_LISTS_COLS);
+  const { statuses, ceoConnectLabels, getStatusColor, labelMap } = useCallStatuses();
 
   // List search state（リスト検索）
   const [lsClientInput, setLsClientInput] = useState("");
@@ -87,21 +89,6 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   const [lsPdfExporting, setLsPdfExporting] = useState(null); // PDFエクスポート中の _supaId
 
   // Supabase-based company search
-  const STATUS_ID_TO_JP = {
-    normal: "不通", excluded: "除外", absent: "社長不在",
-    reception_block: "受付ブロック", reception_recall: "受付再コール",
-    ceo_recall: "社長再コール", appointment: "アポ獲得", ceo_decline: "社長お断り",
-  };
-  const JP_STATUS_COLOR = {
-    "不通": C.navy, "除外": "#e53835", "社長不在": "#d69e2e",
-    "受付ブロック": C.navy, "受付再コール": "#d69e2e",
-    "社長再コール": "#d69e2e", "アポ獲得": "#38a169", "社長お断り": "#805ad5",
-  };
-  const JP_STATUS_ABBR = {
-    "不通": "不通", "除外": "除外", "社長不在": "不在",
-    "受付ブロック": "受ブ", "受付再コール": "受再",
-    "社長再コール": "社再", "アポ獲得": "アポ", "社長お断り": "社断",
-  };
 
   const [searchResults, setSearchResults] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -250,10 +237,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
 
   const statusOptions = [
     { id: "all", label: "すべて" }, { id: "uncalled", label: "未架電" },
-    { id: "normal", label: "不通" }, { id: "excluded", label: "除外" },
-    { id: "absent", label: "社長不在" }, { id: "reception_block", label: "受付ブロック" },
-    { id: "reception_recall", label: "受付再コール" }, { id: "ceo_recall", label: "社長再コール" },
-    { id: "appointment", label: "アポ獲得" }, { id: "ceo_decline", label: "社長お断り" },
+    ...statuses.map(s => ({ id: s.id, label: s.label })),
   ];
 
   const fieldOptions = [
@@ -262,10 +246,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
     { id: "status", label: "ステータス" },
   ];
 
-  const statusColor = (sid) => {
-    const map = { normal: C.navy, excluded: "#e53835", absent: "#d69e2e", reception_block: C.navy, reception_recall: "#d69e2e", ceo_recall: "#d69e2e", appointment: "#38a169", ceo_decline: C.navy };
-    return map[sid] || C.textLight;
-  };
+  const statusColor = (sid) => getStatusColor(sid).color;
 
   // === List search computed values ===
   const clientCandidates = useMemo(() => {
@@ -519,7 +500,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   };
 
   // ─── PDF サマリーレポート出力 ───────────────────────────────────
-  const CEO_CONNECT_PDF = new Set(['社長再コール', '社長お断り', 'アポ獲得']);
+  const CEO_CONNECT_PDF = ceoConnectLabels;
   const toJSTDate = (utcStr) => new Date(utcStr).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
   const toJSTHour = (utcStr) => parseInt(new Date(utcStr).toLocaleString('en-US', { timeZone: 'Asia/Tokyo', hour: 'numeric', hour12: false }), 10);
 
@@ -834,17 +815,8 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
 
   // ── 詳細パネル用ヘルパー ──
   const detailCallStatusColor = (st) => {
-    const s = st || '未架電';
-    if (s === '未架電')       return { bg: 'transparent', color: C.textLight };
-    if (s === '不通')         return { bg: '#f0f0f0',     color: '#999' };
-    if (s === '社長不在')     return { bg: '#fefce8',     color: '#d69e2e' };
-    if (s === '受付ブロック') return { bg: '#fff7ed',     color: '#dd6b20' };
-    if (s === '受付再コール') return { bg: '#ebf8ff',     color: '#3182ce' };
-    if (s === '社長再コール') return { bg: '#ebf8ff',     color: '#3182ce' };
-    if (s === 'アポ獲得')     return { bg: '#f0fff4',     color: '#38a169' };
-    if (s === '社長お断り')   return { bg: '#faf5ff',     color: '#805ad5' };
-    if (s === '除外')         return { bg: '#fee2e2',     color: '#e53e3e' };
-    return { bg: C.offWhite, color: C.textLight };
+    if (!st || st === '未架電') return { bg: 'transparent', color: C.textLight };
+    return getStatusColor(st);
   };
 
   const handleDetailResult = async (label) => {
@@ -1054,7 +1026,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           const listInfo = callListData.find(l => l._supaId === c.list_id);
           const rounds = pageRecords[c.id] || {};
           const latestCalled = (() => { let latest = ""; Object.values(rounds).forEach(r => { if (r.called_at && r.called_at > latest) latest = r.called_at; }); return latest; })();
-          const stColor = JP_STATUS_COLOR[c.call_status] || C.textLight;
+          const stColor = getStatusColor(c.call_status).color;
           return (
             <div key={c.id} onClick={() => setSelectedItem(c)} style={{
               display: "grid", gridTemplateColumns: scGrid,
@@ -1423,7 +1395,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
               </label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", padding: "6px 8px",
                 border: "1px solid " + C.border, borderRadius: 5, background: C.white, boxSizing: "border-box", width: "100%" }}>
-                {["受付ブロック","受付再コール","社長不在","社長再コール","社長お断り","アポ獲得","除外"].map(s => (
+                {statuses.map(s => s.label).map(s => (
                   <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, cursor: "pointer", whiteSpace: "nowrap", color: C.textMid }}>
                     <input type="checkbox" checked={lsStatus.includes(s)}
                       onChange={e => setLsStatus(prev => e.target.checked ? [...prev, s] : prev.filter(x => x !== s))}

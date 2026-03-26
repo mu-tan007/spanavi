@@ -1,24 +1,20 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { zoomPhone } from '../../lib/zoomPhoneStore';
 import { fetchCallListItems, insertCallRecord, updateCallListItem, deleteCallRecordByItemRound, invokeGetZoomRecording, updateCallRecordRecordingUrl } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
-
-// キーボードショートカット定義（Mac: 1〜8 / Windows: F1〜F8 → status id）
-const IS_MAC = /Mac/.test(navigator.platform);
-const CS_SHORTCUTS = [
-  { key: IS_MAC ? '1' : 'F1', id: 'normal',           label: '不通' },
-  { key: IS_MAC ? '2' : 'F2', id: 'absent',           label: '社長不在' },
-  { key: IS_MAC ? '3' : 'F3', id: 'appointment',      label: 'アポ獲得' },
-  { key: IS_MAC ? '4' : 'F4', id: 'reception_block',  label: '受付ブロック' },
-  { key: IS_MAC ? '5' : 'F5', id: 'reception_recall', label: '受付再コール' },
-  { key: IS_MAC ? '6' : 'F6', id: 'ceo_recall',       label: '社長再コール' },
-  { key: IS_MAC ? '7' : 'F7', id: 'ceo_decline',      label: '社長お断り' },
-  { key: IS_MAC ? '8' : 'F8', id: 'excluded',         label: '除外' },
-];
+import { useCallStatuses } from '../../hooks/useCallStatuses';
 
 export default function CallingScreen({ listId, list, importedCSVs, setImportedCSVs, onClose, currentUser, liveStatuses, setLiveStatuses, members = [], clientData = [], rewardMaster = [] }) {
+  const { statuses, shortcuts: CS_SHORTCUTS, loading: statusLoading } = useCallStatuses();
+  const STATUSES = statuses;
+  const EXCLUDED_IDS = useMemo(() => statuses.filter(s => s.excluded).map(s => s.id), [statuses]);
+  const HIDDEN_FROM_CALLABLE = useMemo(() =>
+    statuses.filter(s => s.excluded || ['reception_recall', 'ceo_recall'].includes(s.id)).map(s => s.id),
+    [statuses]
+  );
+
   const [searchTerm, setSearchTerm] = useState("");
   const [pageStart, setPageStart] = useState(0);
   const [selectedRow, setSelectedRow] = useState(null);
@@ -159,24 +155,8 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
     onClose();
   };
 
-  // Status definitions
-  const STATUSES = [
-    { id: "normal", label: "不通", desc: "電話がつながらなかった", color: '#6B7280', bg: '#6B728018', excluded: false },
-    { id: "excluded", label: "除外", desc: "廃止番号・着信拒否・クレーム等", color: "#e53835", bg: "#e5383510", excluded: true },
-    { id: "absent", label: "社長不在", desc: "社長が外出中", color: '#6B7280', bg: '#6B728018', excluded: false },
-    { id: "reception_block", label: "受付ブロック", desc: "受付に断られた", color: '#6B7280', bg: '#6B728018', excluded: false },
-    { id: "reception_recall", label: "受付再コール", desc: "時間を置いて再度", color: '#6B7280', bg: '#6B728018', excluded: false },
-    { id: "ceo_recall", label: "社長再コール", desc: "社長から再度依頼", color: '#6B7280', bg: '#6B728018', excluded: false },
-    { id: "appointment", label: "アポ獲得", desc: "アポイント獲得！", color: '#0D2247', bg: '#0D224710', excluded: true },
-    { id: "ceo_decline", label: "社長お断り", desc: "社長本人に断られた", color: '#6B7280', bg: '#6B728018', excluded: false },
-  ];
-
   // Legacy status migration: map old IDs to new
   const LEGACY_MAP = { rejected: "excluded", discontinued: "excluded", reception_claim: "excluded", ceo_claim: "excluded" };
-
-  const EXCLUDED_IDS = STATUSES.filter(s => s.excluded).map(s => s.id);
-  // IDs hidden from callable view
-  const HIDDEN_FROM_CALLABLE = ["excluded", "reception_recall", "ceo_recall", "appointment"];
 
   const getStatusDef = (id) => STATUSES.find(s => s.id === (LEGACY_MAP[id] || id)) || STATUSES[0];
 

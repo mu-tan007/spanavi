@@ -21,17 +21,8 @@ export const C = {
   borderLight: '#2A6CC4', // 暗背景上の明ボーダー
 }
 
-// 架電結果ステータス
-export const CALL_STATUSES = [
-  { key: '不通', label: '不通', color: C.textMid, description: '電話がつながらなかった' },
-  { key: '除外', label: '除外', color: C.red, description: '対象外・架電不要' },
-  { key: '社長不在', label: '社長不在', color: C.orange, description: '社長がいなかった' },
-  { key: '受付ブロック', label: '受付ブロック', color: C.orange, description: '受付で断られた' },
-  { key: '受付再コール', label: '受付再コール', color: C.blue, description: '後日電話してほしいと言われた' },
-  { key: '社長再コール', label: '社長再コール', color: C.blue, description: '社長から再度電話の指示' },
-  { key: 'アポ獲得', label: 'アポ獲得', color: C.green, description: 'アポイント取得成功' },
-  { key: '社長お断り', label: '社長お断り', color: C.redLight, description: '社長本人から断られた' },
-]
+// 架電結果ステータス（callResults.js が唯一の定義元）
+export { CALL_RESULTS as CALL_STATUSES } from '../constants/callResults'
 
 // ユーザーロール
 export const USER_ROLES = {

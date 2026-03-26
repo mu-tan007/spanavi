@@ -1,19 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
+import { CALL_RESULTS } from '../../constants/callResults';
 
 const NAVY = '#0D2247';
 
-const DEFAULT_STATUSES = [
-  { id: 'missed',           label: '不通',         excluded: false },
-  { id: 'absent',           label: '社長不在',     excluded: false },
-  { id: 'reception_block',  label: '受付ブロック', excluded: false },
-  { id: 'reception_recall', label: '受付再コール', excluded: false },
-  { id: 'ceo_recall',       label: '社長再コール', excluded: false },
-  { id: 'appointment',      label: 'アポ獲得',     excluded: true  },
-  { id: 'ceo_decline',      label: '社長お断り',   excluded: false },
-  { id: 'excluded',         label: '除外',         excluded: true  },
-];
+const DEFAULT_STATUSES = CALL_RESULTS;
 
 export default function CallStatusSettings({ onToast }) {
   const [statuses, setStatuses] = useState(DEFAULT_STATUSES);

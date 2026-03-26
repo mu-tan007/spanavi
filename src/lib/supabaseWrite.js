@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { getOrgId } from './orgContext'
+import { statusIdToLabel } from '../hooks/useCallStatuses'
 
 // ============================================================
 // Drive CORS Proxy
@@ -858,12 +859,6 @@ export async function fetchAllCallListItemsBasic() {
   return { data: allData, error: null }
 }
 
-const _STATUS_ID_TO_JP = {
-  normal: '不通', excluded: '除外', absent: '社長不在',
-  reception_block: '受付ブロック', reception_recall: '受付再コール',
-  ceo_recall: '社長再コール', appointment: 'アポ獲得', ceo_decline: '社長お断り',
-};
-
 export async function searchCallListItemsServerSide({
   keyword = '', searchField = 'all', statusFilter = 'all', page = 0, pageSize = 50
 } = {}) {
@@ -874,7 +869,7 @@ export async function searchCallListItemsServerSide({
   if (statusFilter === 'uncalled') {
     query = query.is('call_status', null);
   } else if (statusFilter !== 'all') {
-    const jp = _STATUS_ID_TO_JP[statusFilter];
+    const jp = statusIdToLabel(statusFilter);
     if (jp) query = query.eq('call_status', jp);
   }
 
