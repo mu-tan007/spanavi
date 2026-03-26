@@ -23,13 +23,11 @@ function MainApp() {
     prevSessionRef.current = session
   }, [session])
 
-  // orgId が変わったら（fetchProfile完了後）データを再取得
-  const prevOrgIdRef = useRef(undefined)
+  // 外部テナント: fetchProfile完了後にorgIdがMASPデフォルトから切り替わったら再取得
   useEffect(() => {
-    if (orgId && prevOrgIdRef.current && orgId !== prevOrgIdRef.current) {
+    if (orgId && orgId !== 'a0000000-0000-0000-0000-000000000001') {
       onDataRefetch()
     }
-    prevOrgIdRef.current = orgId
   }, [orgId])
 
   // ローディング中（auth + Supabase fetch 両方が完了するまで待つ）
