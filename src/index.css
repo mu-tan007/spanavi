@@ -50,8 +50,10 @@ p, span, div, li, td, th, pre, blockquote {
 /* ログイン画面のinput文字色 */
 input[type="email"],
 input[type="password"],
-input[type="text"] {
+input[type="text"],
+input[type="number"] {
   color: #181818 !important;
+  background: #ffffff !important;
 }
 input::placeholder {
   color: #A0A0A0 !important;
