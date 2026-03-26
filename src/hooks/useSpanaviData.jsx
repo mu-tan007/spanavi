@@ -11,14 +11,26 @@ export function useSpanaviData(authOrgId) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const fetchedOrgIdRef = useRef(null)
+  const initialFetchDone = useRef(false)
 
+  // 初回: セッションがあればフォールバックorgIdでフェッチ開始
   useEffect(() => {
-    // authOrgIdが未確定（null）の間はフェッチしない
-    if (!authOrgId) return
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        initialFetchDone.current = true
+        fetchAllData()
+      } else {
+        setLoading(false)
+      }
+    }
+    init()
+  }, [])
 
-    // 同じorgIdで既にフェッチ済みならスキップ
+  // authOrgIdが確定したら: フォールバックと異なる場合は再フェッチ
+  useEffect(() => {
+    if (!authOrgId || !initialFetchDone.current) return
     if (fetchedOrgIdRef.current === authOrgId) return
-
     fetchAllData()
   }, [authOrgId])
 
