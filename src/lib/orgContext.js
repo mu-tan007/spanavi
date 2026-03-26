@@ -7,8 +7,7 @@ let _orgId = null
 export function setOrgId(id) { _orgId = id }
 
 export function getOrgId() {
-  // _orgIdが未設定の場合はMASPのデフォルトを返す（fetchProfile完了前の初期ロード対応）
-  return _orgId || 'a0000000-0000-0000-0000-000000000001'
+  return _orgId
 }
 
 export function clearOrgId() { _orgId = null }

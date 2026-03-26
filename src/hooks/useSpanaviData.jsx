@@ -6,34 +6,30 @@ import { getOrgId } from '../lib/orgContext'
  * Supabaseから全データを取得してSpanaviAppに渡す形式に変換するフック
  * 既存のハードコードデータと同じ形式に変換することで、SpanaviApp内の変更を最小限にする
  */
-export function useSpanaviData() {
+export function useSpanaviData(authOrgId) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  // init()がfetchAllDataを呼んだことをApp.jsxのrefetch呼び出しに伝えるフラグ
-  // ページリロード時の二重フェッチを防ぎつつ、新規ログイン時のrefetchは通す
-  const _initCalledRef = useRef(false)
+  const fetchedOrgIdRef = useRef(null)
 
   useEffect(() => {
-    const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        _initCalledRef.current = true
-        fetchAllData()
-      } else {
-        setLoading(false) // 未ログイン時はスピナーを止める
-      }
-    }
-    init()
-  }, [])
+    // authOrgIdが未確定（null）の間はフェッチしない
+    if (!authOrgId) return
+
+    // 同じorgIdで既にフェッチ済みならスキップ
+    if (fetchedOrgIdRef.current === authOrgId) return
+
+    fetchAllData()
+  }, [authOrgId])
 
   const fetchAllData = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      // 並列で全テーブル取得
-      const orgId = getOrgId()
+      // 並列で全テーブル取得（authOrgIdを優先、なければorgContextから）
+      const orgId = authOrgId || getOrgId()
+      fetchedOrgIdRef.current = orgId
       const [
         clientsRes,
         callListsRes,
@@ -176,8 +172,5 @@ export function useSpanaviData() {
     }
   }
 
-  return { data, loading, error, refetch: () => {
-    if (_initCalledRef.current) { _initCalledRef.current = false; return; }
-    fetchAllData()
-  }}
+  return { data, loading, error, refetch: fetchAllData }
 }

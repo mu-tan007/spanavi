@@ -12,23 +12,7 @@ import { Routes, Route } from 'react-router-dom'
 
 function MainApp() {
   const { session, profile, loading, signOut, isAdmin, recoveryMode, clearRecoveryMode, orgId } = useAuth()
-  const { data: supabaseData, loading: dataLoading, error: dataError, refetch: onDataRefetch } = useSpanaviData()
-
-  // session が null→有効 に変わった時だけデータを再フェッチ（ログイン直後の1回のみ）
-  const prevSessionRef = useRef(undefined)
-  useEffect(() => {
-    if (session && !prevSessionRef.current) {
-      onDataRefetch()
-    }
-    prevSessionRef.current = session
-  }, [session])
-
-  // 外部テナント: fetchProfile完了後にorgIdがMASPデフォルトから切り替わったら再取得
-  useEffect(() => {
-    if (orgId && orgId !== 'a0000000-0000-0000-0000-000000000001') {
-      onDataRefetch()
-    }
-  }, [orgId])
+  const { data: supabaseData, loading: dataLoading, error: dataError, refetch: onDataRefetch } = useSpanaviData(orgId)
 
   // ローディング中（auth + Supabase fetch 両方が完了するまで待つ）
   if (loading || dataLoading) {
