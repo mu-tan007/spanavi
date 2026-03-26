@@ -418,14 +418,17 @@ export default function LoginPage() {
             >
               {loading ? 'ログイン中...' : 'ログイン'}
             </button>
-            <div style={{ textAlign: 'center', marginTop: 16 }}>
-              <span
-                onClick={() => { setMode('login'); setError(''); setAdminEmail(''); setAdminPassword('') }}
-                style={{ fontSize: 12, color: C.textMuted, cursor: 'pointer', textDecoration: 'none' }}
-              >
-                MASP社員の方はこちら
-              </span>
-            </div>
+            {/* 名前選択ログインは ?staff=1 パラメータ付きでのみ表示 */}
+            {new URLSearchParams(window.location.search).has('staff') && (
+              <div style={{ textAlign: 'center', marginTop: 16 }}>
+                <span
+                  onClick={() => { setMode('login'); setError(''); setAdminEmail(''); setAdminPassword('') }}
+                  style={{ fontSize: 12, color: C.textMuted, cursor: 'pointer', textDecoration: 'none' }}
+                >
+                  名前でログイン
+                </span>
+              </div>
+            )}
           </form>
         )}
 
