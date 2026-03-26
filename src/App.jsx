@@ -11,7 +11,7 @@ import { useEffect, useRef } from 'react'
 import { Routes, Route } from 'react-router-dom'
 
 function MainApp() {
-  const { session, profile, loading, signOut, isAdmin, recoveryMode, clearRecoveryMode } = useAuth()
+  const { session, profile, loading, signOut, isAdmin, recoveryMode, clearRecoveryMode, orgId } = useAuth()
   const { data: supabaseData, loading: dataLoading, error: dataError, refetch: onDataRefetch } = useSpanaviData()
 
   // session が null→有効 に変わった時だけデータを再フェッチ（ログイン直後の1回のみ）
@@ -22,6 +22,15 @@ function MainApp() {
     }
     prevSessionRef.current = session
   }, [session])
+
+  // orgId が変わったら（fetchProfile完了後）データを再取得
+  const prevOrgIdRef = useRef(undefined)
+  useEffect(() => {
+    if (orgId && prevOrgIdRef.current && orgId !== prevOrgIdRef.current) {
+      onDataRefetch()
+    }
+    prevOrgIdRef.current = orgId
+  }, [orgId])
 
   // ローディング中（auth + Supabase fetch 両方が完了するまで待つ）
   if (loading || dataLoading) {
