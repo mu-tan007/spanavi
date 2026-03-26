@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { C } from '../../constants/colors';
+import { useCallStatuses } from '../../hooks/useCallStatuses';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
-const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール']);
 
 const MEDAL = (idx) => idx === 0 ? GOLD : null;
 
@@ -41,6 +41,7 @@ function RankRow({ item, idx, valueKey, showRate, maxVal, currentUser, cph, onSe
 }
 
 export default function ActivityRankingSection({ records, appoRecords = [], loading, currentUser, sessionMap = {}, onSelectPerson }) {
+  const { ceoConnectLabels } = useCallStatuses();
   const appoMap = useMemo(() => {
     const m = {};
     appoRecords.forEach(r => {
@@ -56,7 +57,7 @@ export default function ActivityRankingSection({ records, appoRecords = [], load
       const k = r.getter_name || '不明';
       if (!m[k]) m[k] = { name: k, call: 0, connect: 0 };
       m[k].call++;
-      if (CEO_CONNECT.has(r.status)) m[k].connect++;
+      if (ceoConnectLabels.has(r.status)) m[k].connect++;
     });
     // Merge in appo counts from appointments table; include appo-only people too
     const allNames = new Set([...Object.keys(m), ...Object.keys(appoMap)]);
@@ -66,7 +67,7 @@ export default function ActivityRankingSection({ records, appoRecords = [], load
       connect: m[k]?.connect || 0,
       appo: appoMap[k] || 0,
     }));
-  }, [records, appoMap]);
+  }, [records, appoMap, ceoConnectLabels]);
 
   const callRank    = useMemo(() => [...byPerson].sort((a, b) => b.call - a.call),    [byPerson]);
   const connectRank = useMemo(() => [...byPerson].sort((a, b) => b.connect - a.connect), [byPerson]);
