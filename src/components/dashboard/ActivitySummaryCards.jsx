@@ -1,15 +1,8 @@
 import { C } from '../../constants/colors';
+import { useCallStatuses } from '../../hooks/useCallStatuses';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
-const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール']);
-
-function aggregate(records) {
-  const total = records.length;
-  const ceoConnect = records.filter(r => CEO_CONNECT.has(r.status)).length;
-  const appo = records.filter(r => r.status === 'アポ獲得').length;
-  return { total, ceoConnect, appo };
-}
 
 function GrowthBadge({ cur, prev }) {
   if (!prev) return <span style={{ fontSize: 10, color: C.textLight }}>前期比 —</span>;
@@ -27,6 +20,15 @@ export default function ActivitySummaryCards({
   period, setPeriod, customFrom, setCustomFrom, customTo, setCustomTo,
   loading,
 }) {
+  const { ceoConnectLabels } = useCallStatuses();
+
+  const aggregate = (recs) => {
+    const total = recs.length;
+    const ceoConnect = recs.filter(r => ceoConnectLabels.has(r.status)).length;
+    const appo = recs.filter(r => r.status === 'アポ獲得').length;
+    return { total, ceoConnect, appo };
+  };
+
   const cur = aggregate(records);
   const prev = aggregate(prevRecords);
   const connectRate = cur.total > 0 ? (cur.ceoConnect / cur.total * 100).toFixed(1) : '0.0';

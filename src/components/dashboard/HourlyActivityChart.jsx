@@ -4,10 +4,10 @@ import {
   ResponsiveContainer, Cell,
 } from 'recharts';
 import { C } from '../../constants/colors';
+import { useCallStatuses } from '../../hooks/useCallStatuses';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
-const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール']);
 
 const toJSTHour = (utcStr) => parseInt(new Date(utcStr).toLocaleString('en-US', { timeZone: 'Asia/Tokyo', hour: 'numeric', hour12: false }), 10);
 const toJSTDate = (utcStr) => new Date(utcStr).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
@@ -39,6 +39,7 @@ function formatJP(dateStr) {
 }
 
 export default function HourlyActivityChart({ records, selectedDate, setSelectedDate, loading }) {
+  const { ceoConnectLabels } = useCallStatuses();
   const nowHour = parseInt(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo', hour: 'numeric', hour12: false }), 10);
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
 
@@ -47,7 +48,7 @@ export default function HourlyActivityChart({ records, selectedDate, setSelected
       const h = i + 9;
       const recs = records.filter(r => toJSTDate(r.called_at) === selectedDate && toJSTHour(r.called_at) === h);
       const appo = recs.filter(r => r.status === 'アポ獲得').length;
-      const connect = recs.filter(r => CEO_CONNECT.has(r.status)).length;
+      const connect = recs.filter(r => ceoConnectLabels.has(r.status)).length;
       return {
         label: h + '時', hour: h,
         callOnly: recs.length - connect,
@@ -55,7 +56,7 @@ export default function HourlyActivityChart({ records, selectedDate, setSelected
         appo,
       };
     });
-  }, [records, selectedDate]);
+  }, [records, selectedDate, ceoConnectLabels]);
 
   const bestAppoSlot = chartData.reduce((best, d) => d.appo > (best?.appo ?? -1) ? d : best, chartData[0]);
 

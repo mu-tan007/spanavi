@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { C } from '../../constants/colors';
+import { useCallStatuses } from '../../hooks/useCallStatuses';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
-const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール']);
 const RESCHED_STATUSES = new Set(['リスケ中', 'キャンセル', '面談済', '事前確認済', 'アポ取得']);
 
 const COLS = ['架電数', '社長接続', '接続率', 'アポ数', 'アポ率', '件/h', 'リスケ率', 'キャンセル率'];
@@ -24,6 +24,7 @@ const TEAM_PERF_COLS = [
 ];
 
 export default function TeamPerformanceTable({ records, appoRecords = [], loading, teamMap, sessionMap = {}, reschedAppoData = [], members = [] }) {
+  const { ceoConnectLabels } = useCallStatuses();
 
   const { columns: perfCols, gridTemplateColumns: perfGrid, contentMinWidth: perfMinW, onResizeStart: perfResize, onHeaderContextMenu: perfCtxMenu, contextMenu: perfCtx, setAlign: perfSetAlign, resetAll: perfReset, closeMenu: perfClose } = useColumnConfig('teamPerf', TEAM_PERF_COLS);
 
@@ -59,12 +60,12 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
       const tn = teamMap[name] || 'その他';
       if (!tm[tn]) tm[tn] = { call: 0, connect: 0, appo: 0, members: new Set() };
       tm[tn].call++;
-      if (CEO_CONNECT.has(r.status)) tm[tn].connect++;
+      if (ceoConnectLabels.has(r.status)) tm[tn].connect++;
       tm[tn].members.add(name);
       if (!mm[tn]) mm[tn] = {};
       if (!mm[tn][name]) mm[tn][name] = { call: 0, connect: 0, appo: 0 };
       mm[tn][name].call++;
-      if (CEO_CONNECT.has(r.status)) mm[tn][name].connect++;
+      if (ceoConnectLabels.has(r.status)) mm[tn][name].connect++;
     });
 
     Object.entries(appoMap).forEach(([name, count]) => {
@@ -95,7 +96,7 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
       .map(([tn, d]) => [tn, { ...d, memberCount: d.members.size }]);
 
     return { teamData, memberData: mm, reschedMap };
-  }, [records, appoRecords, teamMap, reschedAppoData, members]);
+  }, [records, appoRecords, teamMap, reschedAppoData, members, ceoConnectLabels]);
 
   const mono = { fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums' };
 

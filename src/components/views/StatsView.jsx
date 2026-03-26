@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
+import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { formatCurrency } from '../../utils/formatters';
 import { fetchCallRecordsByRange, fetchCallListsMeta } from '../../lib/supabaseWrite';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
@@ -78,6 +79,8 @@ function getPrevActivityDateRange(period, todayStr, weekStartStr, monthStr) {
 const _offsetDays = (ds, n) => { const d = new Date(ds + 'T12:00:00Z'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
 export default function StatsView({ callListData, currentUser, appoData, members, now: nowProp }) {
+  const { ceoConnectLabels } = useCallStatuses();
+
   // ── クライアント円グラフ選択 ──────────────────────────────────────────
   const [selectedClientPie, setSelectedClientPie] = useState(null);
 
@@ -369,8 +372,6 @@ export default function StatsView({ callListData, currentUser, appoData, members
   }, [appoData, clientRescanPeriod, clientRescanFrom, clientRescanTo, todayStr, weekStartStr, monthStr]);
 
   // ── リスト別パフォーマンス ───────────────────────────────────────────────
-  const LIST_CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール']);
-
   const listMetaMap = useMemo(() => {
     const m = {};
     listMeta.forEach(l => { m[l.id] = l; });
@@ -384,7 +385,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
       if (!id) return;
       if (!m[id]) m[id] = { calls: 0, connect: 0, appo: 0, lastDate: '' };
       m[id].calls++;
-      if (LIST_CEO_CONNECT.has(r.status)) m[id].connect++;
+      if (ceoConnectLabels.has(r.status)) m[id].connect++;
       if (r.status === 'アポ獲得') m[id].appo++;
       const jd = new Date(r.called_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
       if (jd > m[id].lastDate) m[id].lastDate = jd;
@@ -401,7 +402,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
         appoRate: d.calls > 0 ? d.appo / d.calls * 100 : 0,
       };
     });
-  }, [listRecords, listMetaMap]);
+  }, [listRecords, listMetaMap, ceoConnectLabels]);
 
   const listFiltered = useMemo(() => {
     let rows = listTableData;

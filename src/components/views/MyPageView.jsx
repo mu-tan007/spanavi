@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
+import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl, fetchMyCallRecords, updateMember, fetchMemberPayrollHistory } from '../../lib/supabaseWrite';
 import TrainingRoleplaySection from './TrainingRoleplaySection';
 
 export default function MyPageView({ currentUser, userId, callListData, members, now, appoData, onDataRefetch, isAdmin = false }) {
+  const { ceoConnectLabels } = useCallStatuses();
   const [periodTab, setPeriodTab] = useState("daily"); // daily, weekly, monthly, cumulative
   const PERIOD_IDS = ["daily", "weekly", "monthly", "cumulative"];
   // Ctrl+←/→ でサブタブを切り替え
@@ -80,12 +82,11 @@ export default function MyPageView({ currentUser, userId, callListData, members,
     ).length;
 
   // Aggregate by period（架電件数・社長接続数のみ call_records を使用）
-  const MY_CEO_STATUSES = new Set(['社長再コール', 'アポ獲得', '社長お断り']);
   const aggregate = (records) => {
     let total = 0, ceoConnect = 0;
     records.forEach(r => {
       total++;
-      if (MY_CEO_STATUSES.has(r.status)) ceoConnect++;
+      if (ceoConnectLabels.has(r.status)) ceoConnect++;
     });
     return { total, ceoConnect };
   };

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { C } from '../../constants/colors';
+import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { fetchCallActivity, fetchAppoActivity, fetchCallSessionsForRange } from '../../lib/supabaseWrite';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -12,7 +13,6 @@ import TeamPerformanceTable from '../dashboard/TeamPerformanceTable';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
-const CEO_CONNECT = new Set(['アポ獲得', '社長お断り', '社長再コール']);
 
 const jstHourOf = (iso) => (new Date(iso).getUTCHours() + 9) % 24;
 const jstDateOf = (iso) => new Date(new Date(iso).getTime() + 9 * 3600000).toISOString().slice(0, 10);
@@ -34,6 +34,7 @@ function calcWorkHours(calls) {
 }
 
 function PersonDetailModal({ person, callRecords, appoRecords, sessions, members, teamMap, rankDateRange, onClose }) {
+  const { ceoConnectLabels } = useCallStatuses();
   const personCalls = callRecords.filter(r => r.getter_name === person);
   const personAppos = appoRecords.filter(r => r.getter_name === person);
   const personSessions = sessions
@@ -43,7 +44,7 @@ function PersonDetailModal({ person, callRecords, appoRecords, sessions, members
   const member = (members || []).find(m => typeof m === 'object' && m.name === person) || {};
 
   const totalCalls   = personCalls.length;
-  const totalConnect = personCalls.filter(r => CEO_CONNECT.has(r.status)).length;
+  const totalConnect = personCalls.filter(r => ceoConnectLabels.has(r.status)).length;
   const totalAppo    = personAppos.length;
 
   const sessionHours = calcWorkHours(personCalls);
@@ -55,12 +56,12 @@ function PersonDetailModal({ person, callRecords, appoRecords, sessions, members
       const h = (new Date(r.called_at).getUTCHours() + 9) % 24;
       if (!buckets[h]) buckets[h] = { hour: h, normal: 0, ceo: 0, appo: 0 };
       if (r.status === 'アポ獲得') buckets[h].appo++;
-      else if (CEO_CONNECT.has(r.status)) buckets[h].ceo++;
+      else if (ceoConnectLabels.has(r.status)) buckets[h].ceo++;
       else buckets[h].normal++;
     });
     return Array.from({ length: 24 }, (_, h) => buckets[h] || { hour: h, normal: 0, ceo: 0, appo: 0 })
       .filter(d => d.hour >= 8 && d.hour < 20 && d.normal + d.ceo + d.appo > 0);
-  }, [personCalls]);
+  }, [personCalls, ceoConnectLabels]);
 
   const sessionRows = personSessions
     .filter(s => { const h = jstHourOf(s.started_at); return h >= 8 && h < 20; })
@@ -215,6 +216,7 @@ function getPrevActivityDateRange(period, todayStr, weekStartStr, monthStr) {
 const _offsetDays = (ds, n) => { const d = new Date(ds + 'T12:00:00Z'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
 export default function PerformanceView({ members, currentUser, appoData = [] }) {
+  const { ceoConnectLabels } = useCallStatuses();
   const now = new Date();
   const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
   const todayD = new Date(todayStr);
@@ -354,12 +356,12 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
       result.push({
         label: ws.slice(5).replace('-', '/'),
         calls: recs.length,
-        connect: recs.filter(r => CEO_CONNECT.has(r.status)).length,
+        connect: recs.filter(r => ceoConnectLabels.has(r.status)).length,
         appo: recs.filter(r => r.status === 'アポ獲得').length,
       });
     }
     return result;
-  }, [trendRecords, weekStartStr, todayStr]);
+  }, [trendRecords, weekStartStr, todayStr, ceoConnectLabels]);
 
   // rankDateRangeでフィルタしたアポデータ（リスケ・キャンセル集計用）
   const reschedAppoData = useMemo(() => {
