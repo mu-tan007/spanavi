@@ -149,8 +149,8 @@ export default function SignupPage() {
                 fontFamily: "'Noto Sans JP', sans-serif",
                 boxSizing: 'border-box',
                 outline: 'none',
-                color: C.textDark,
-                background: C.white,
+                color: '#000000',
+                background: '#ffffff',
               }}
             />
           </div>
@@ -174,8 +174,8 @@ export default function SignupPage() {
                 fontFamily: "'Noto Sans JP', sans-serif",
                 boxSizing: 'border-box',
                 outline: 'none',
-                color: C.textDark,
-                background: C.white,
+                color: '#000000',
+                background: '#ffffff',
               }}
             />
           </div>
