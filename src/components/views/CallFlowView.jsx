@@ -469,8 +469,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       const ni = newItems[j];
       const niRecs = newRecords.filter(r => r.item_id === ni.id);
       const niExcl = niRecs.some(r => EXCLUDED_STATUSES.has(r.status));
+      const niLatest = niRecs.length > 0 ? niRecs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b) : null;
+      const niRecall = niLatest && RECALL_STATUSES.has(niLatest.status);
       const niNext = niRecs.length === 0 ? 1 : Math.min(Math.max(...niRecs.map(r => r.round)) + 1, 8);
-      if (!niExcl && niNext <= 8) { next = ni; break; }
+      if (!niExcl && !niRecall && niNext <= 8) { next = ni; break; }
     }
     setSelectedRow(next || updatedItem);
     if (autoDial && next?.phone) dialPhone(next.phone);
@@ -682,8 +684,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       const ni = newItems[j];
       const niRecs = newRecords.filter(r => r.item_id === ni.id);
       const niExcl = niRecs.some(r => EXCLUDED_STATUSES.has(r.status));
+      const niLatest = niRecs.length > 0 ? niRecs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b) : null;
+      const niRecall = niLatest && RECALL_STATUSES.has(niLatest.status);
       const niNext = niRecs.length === 0 ? 1 : Math.min(Math.max(...niRecs.map(r => r.round)) + 1, 8);
-      if (!niExcl && niNext <= 8) { next = ni; break; }
+      if (!niExcl && !niRecall && niNext <= 8) { next = ni; break; }
     }
     setSelectedRow(next || updatedItem);
     if (autoDial && next?.phone) dialPhone(next.phone);
