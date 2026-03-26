@@ -27,6 +27,7 @@ import LoginScreen from './views/LoginScreen';
 import LiveStatusView from './views/LiveStatusView';
 import PreCheckView from './views/PreCheckView';
 import IncomingCallBanner from './views/IncomingCallBanner';
+import ZoomPhoneEmbed from './ZoomPhoneEmbed';
 import IncomingCallsView from './views/IncomingCallsView';
 import RecallListView from './views/RecallListView';
 import ShiftManagementView from './views/ShiftManagementView';
@@ -1016,6 +1017,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         onNavigateToIncoming={() => setCurrentTab('incoming')}
         onOpenCompany={(itemId) => setCallFlowScreen({ list: { _supaId: null, id: null, company: '' }, defaultItemId: itemId, defaultListMode: false })}
       />
+      <ZoomPhoneEmbed currentUser={currentUser} />
     </div>
   );
 }

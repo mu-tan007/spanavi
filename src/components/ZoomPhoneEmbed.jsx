@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { zoomPhone } from '../lib/zoomPhoneStore';
+import { supabase } from '../lib/supabase';
+import { getOrgId } from '../lib/orgContext';
 
 const ZOOM_EMBED_URL = 'https://applications.zoom.us/integration/phone/embeddablephone/home';
 const ZOOM_ORIGIN   = 'https://applications.zoom.us';
 const IFRAME_ID     = 'zoom-embeddable-phone-iframe';
 
-export default function ZoomPhoneEmbed() {
+export default function ZoomPhoneEmbed({ currentUser = '' }) {
   const iframeRef = useRef(null);
   const [minimized, setMinimized] = useState(false);
   const [ready, setReady] = useState(false);
@@ -16,33 +18,98 @@ export default function ZoomPhoneEmbed() {
     iframeRef.current?.contentWindow?.postMessage({ type: 'zp-init-config' }, ZOOM_ORIGIN);
   };
 
+  // active_callsテーブルにINSERT/UPDATE
+  const upsertActiveCall = async (callData, status) => {
+    const orgId = getOrgId();
+    if (!orgId) return;
+
+    const callId = callData.callId || callData.call_id;
+    if (!callId) return;
+
+    const calleeNumber = callData.callee?.phone_number || callData.callee?.phoneNumber || '';
+    const calleeName = callData.callee?.display_name || callData.callee?.name || '';
+    const callerName = currentUser || callData.caller?.display_name || callData.caller?.name || '';
+
+    if (status === 'ringing' || status === 'connected') {
+      // 既存レコードを探す
+      const { data: existing } = await supabase
+        .from('active_calls')
+        .select('id')
+        .eq('zoom_call_id', callId)
+        .limit(1);
+
+      if (existing?.length > 0) {
+        // UPDATE
+        const update = { call_status: status };
+        if (status === 'connected') update.connected_at = new Date().toISOString();
+        await supabase.from('active_calls').update(update).eq('zoom_call_id', callId);
+      } else {
+        // INSERT
+        await supabase.from('active_calls').insert({
+          org_id: orgId,
+          zoom_call_id: callId,
+          caller_name: callerName,
+          callee_number: calleeNumber,
+          callee_name: calleeName,
+          call_status: status,
+          direction: callData.direction || 'outbound',
+          started_at: new Date().toISOString(),
+          connected_at: status === 'connected' ? new Date().toISOString() : null,
+        });
+      }
+    } else if (status === 'ended') {
+      await supabase
+        .from('active_calls')
+        .update({ call_status: 'ended', ended_at: new Date().toISOString() })
+        .eq('zoom_call_id', callId);
+    }
+  };
+
   // iframeからのメッセージを監視
   useEffect(() => {
     const handler = (e) => {
-      // 全メッセージをログ出力（デバッグ用）
-      console.log('[Zoom postMessage]', e.origin, e.data);
-
       if (e.origin !== ZOOM_ORIGIN) return;
       const msg = e.data;
       if (!msg || typeof msg !== 'object') return;
 
       const type = msg.type ?? '';
-      console.log('[Zoom postMessage] origin=ZOOM / type:', type, '/ data:', msg);
 
       if (type === 'zp-ready') {
-        console.log('[Zoom postMessage] 🟢 zp-ready 受信 — 発信可能');
+        console.log('[ZoomPhoneEmbed] 🟢 zp-ready 受信 — 発信可能');
         zoomPhone.setReady(true);
         setReady(true);
       }
 
-      if (type === 'zp-end-call' || type === 'zp-call-ended') {
-        console.log('[Zoom postMessage] 🔴 通話終了');
+      if (type === 'zp-call-ringing-event') {
+        console.log('[ZoomPhoneEmbed] 📞 ringing event:', msg.data);
+        zoomPhone.onCallRinging(msg.data || msg);
+        upsertActiveCall(msg.data || msg, 'ringing');
+      }
+
+      if (type === 'zp-call-connected-event') {
+        console.log('[ZoomPhoneEmbed] 🟢 connected event:', msg.data);
+        zoomPhone.onCallConnected(msg.data || msg);
+        upsertActiveCall(msg.data || msg, 'connected');
+      }
+
+      if (type === 'zp-call-ended-event' || type === 'zp-end-call' || type === 'zp-call-ended') {
+        console.log('[ZoomPhoneEmbed] 🔴 ended event:', msg.data);
+        const callData = msg.data || msg;
+        zoomPhone.onCallEnded(callData);
+        // call_idがある場合のみDB更新（zp-end-callはcallIdなしの場合がある）
+        if (callData.callId || callData.call_id) {
+          upsertActiveCall(callData, 'ended');
+        }
+      }
+
+      if (type === 'zp-call-log-completed-event') {
+        console.log('[ZoomPhoneEmbed] 📋 call log completed:', msg.data);
       }
     };
 
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, []);
+  }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div style={{
