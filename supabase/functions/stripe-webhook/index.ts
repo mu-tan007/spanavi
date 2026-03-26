@@ -32,15 +32,27 @@ Deno.serve(async (req) => {
     const stripe = new Stripe(stripeSecretKey, { apiVersion: '2024-12-18.acacia' })
     const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-    // Webhook署名検証（STRIPE_WEBHOOK_SECRET未設定時はスキップ）
+    // Webhook署名検証
     const body = await req.text()
     let event: Stripe.Event
 
     if (webhookSecret) {
-      const sig = req.headers.get('stripe-signature')!
-      event = stripe.webhooks.constructEvent(body, sig, webhookSecret)
+      const sig = req.headers.get('stripe-signature')
+      if (!sig) {
+        return new Response(JSON.stringify({ error: 'Missing stripe-signature header' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      try {
+        event = await stripe.webhooks.constructEventAsync(body, sig, webhookSecret)
+      } catch (err) {
+        console.error('Webhook signature verification failed:', err.message)
+        return new Response(JSON.stringify({ error: `Webhook signature failed: ${err.message}` }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
     } else {
-      console.warn('STRIPE_WEBHOOK_SECRET未設定: 署名検証をスキップします（開発モード）')
+      console.warn('STRIPE_WEBHOOK_SECRET未設定: 署名検証をスキップします')
       event = JSON.parse(body)
     }
 
@@ -50,9 +62,25 @@ Deno.serve(async (req) => {
       // ─── 新規テナント作成 ───────────────────────────
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
-        const pendingSignupId = session.metadata?.pending_signup_id
+
+        // metadataはsession自体 or subscription に入る可能性があるため両方チェック
+        let pendingSignupId = session.metadata?.pending_signup_id
+        if (!pendingSignupId && session.subscription) {
+          const sub = await stripe.subscriptions.retrieve(session.subscription as string)
+          pendingSignupId = sub.metadata?.pending_signup_id
+        }
+        // それでも取得できない場合、checkout_session_idからpending_signupsを検索
         if (!pendingSignupId) {
-          console.log('pending_signup_id がないセッション、スキップ')
+          const { data: signupBySession } = await supabase
+            .from('pending_signups')
+            .select('id')
+            .eq('stripe_checkout_session_id', session.id)
+            .eq('status', 'pending')
+            .single()
+          if (signupBySession) pendingSignupId = signupBySession.id
+        }
+        if (!pendingSignupId) {
+          console.log('pending_signup_id が取得できないセッション、スキップ')
           break
         }
 

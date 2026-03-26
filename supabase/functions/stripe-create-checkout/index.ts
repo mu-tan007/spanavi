@@ -45,7 +45,6 @@ Deno.serve(async (req) => {
         email,
         org_name: orgName,
         seat_count: seatCount,
-        stripe_customer_id: customer.id,
         status: 'pending',
       })
       .select('id')
@@ -60,6 +59,14 @@ Deno.serve(async (req) => {
     }
 
     // 3. Stripe Checkout Session を作成
+    // 初期費用をCustomerの保留インボイスアイテムとして追加
+    // サブスクリプション作成時の最初のインボイスに自動的に含まれる
+    await stripe.invoiceItems.create({
+      customer: customer.id,
+      price: Deno.env.get('STRIPE_PRICE_SETUP_FEE')!,
+      quantity: 1,
+    })
+
     const session = await stripe.checkout.sessions.create({
       customer: customer.id,
       mode: 'subscription',
@@ -70,13 +77,6 @@ Deno.serve(async (req) => {
         },
       ],
       subscription_data: {
-        // 初期費用を初回インボイスに追加
-        add_invoice_items: [
-          {
-            price: Deno.env.get('STRIPE_PRICE_SETUP_FEE')!,
-            quantity: 1,
-          },
-        ],
         metadata: {
           pending_signup_id: signupRecord.id,
           org_name: orgName,
