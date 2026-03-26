@@ -992,20 +992,31 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                         cursor: 'pointer', color: C.textMid, fontFamily: "'Noto Sans JP'" }}>取消</button>
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 14 }}>
-                    {callStatuses.map(r => {
-                      const isAppo = r.id === 'appointment';
-                      const isExcl = r.id === 'excluded';
-                      const btnBg    = isAppo ? C.gold    : isExcl ? C.red + '10' : C.navy + '08';
-                      const btnColor = isAppo ? C.white   : isExcl ? C.red        : C.navy;
-                      const btnBdr   = isAppo ? '1.5px solid ' + C.gold : isExcl ? '1.5px solid ' + C.red + '40' : '1px solid ' + C.navy + '25';
-                      return (
-                        <button key={r.id} onClick={() => handleResult(r.label)}
-                          style={{ padding: '9px 6px', borderRadius: 7, border: btnBdr, background: btnBg, color: btnColor, cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: "'Noto Sans JP'", lineHeight: 1.2 }}>
-                          {r.label}
-                        </button>
-                      );
-                    })}
+                  <div>
+                    {/* 大ボタン3つ: 不通・社長不在・アポ獲得 */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 6 }}>
+                      {callStatuses.filter(r => ['missed', 'absent', 'appointment'].includes(r.id)).map(r => {
+                        const isAppo = r.id === 'appointment';
+                        return (
+                          <button key={r.id} onClick={() => handleResult(r.label)}
+                            style={{ height: 48, borderRadius: 7, border: isAppo ? '1.5px solid ' + C.gold : '1px solid ' + C.navy + '25', background: isAppo ? C.gold : C.navy + '08', color: isAppo ? C.white : C.navy, cursor: 'pointer', fontSize: 13, fontWeight: 700, fontFamily: "'Noto Sans JP'" }}>
+                            {r.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* 小ボタン: 残りのステータス */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 5, marginBottom: 14 }}>
+                      {callStatuses.filter(r => !['missed', 'absent', 'appointment'].includes(r.id)).map(r => {
+                        const isExcl = r.id === 'excluded';
+                        return (
+                          <button key={r.id} onClick={() => handleResult(r.label)}
+                            style={{ height: 34, borderRadius: 6, border: isExcl ? '1.5px solid ' + C.red + '40' : '1px solid ' + C.navy + '25', background: isExcl ? C.red + '10' : C.navy + '08', color: isExcl ? C.red : C.navy, cursor: 'pointer', fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'" }}>
+                            {r.label}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })()}
