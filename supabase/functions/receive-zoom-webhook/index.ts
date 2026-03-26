@@ -8,11 +8,12 @@ const corsHeaders = {
 // 処理対象のWebhookイベント
 const INCOMING_EVENT = 'phone.callee_ringing'
 const OUTBOUND_EVENTS = new Set([
-  'phone.caller_call_ringing',
-  'phone.caller_call_connected',
-  'phone.caller_call_ended',
-  'phone.callee_call_connected',
-  'phone.callee_call_ended',
+  'phone.caller_ringing',
+  'phone.caller_connected',
+  'phone.caller_ended',
+  'phone.callee_connected',
+  'phone.callee_ended',
+  'phone.callee_answered',
 ])
 
 Deno.serve(async (req) => {
@@ -119,7 +120,7 @@ Deno.serve(async (req) => {
       }
 
       // イベントタイプに応じた処理
-      if (eventType === 'phone.caller_call_ringing') {
+      if (eventType === 'phone.caller_ringing') {
         // 発信開始 → INSERT
         const { error } = await supabase.from('active_calls').upsert({
           zoom_call_id: callId,
@@ -136,7 +137,7 @@ Deno.serve(async (req) => {
         console.log('[receive-zoom-webhook] 📞 ringing:', resolvedCallerName, '→', resolvedCalleeName || calleeNumber)
       }
 
-      if (eventType === 'phone.caller_call_connected' || eventType === 'phone.callee_call_connected') {
+      if (eventType === 'phone.caller_connected' || eventType === 'phone.callee_connected' || eventType === 'phone.callee_answered') {
         // 通話接続 → UPDATE
         const { error } = await supabase
           .from('active_calls')
@@ -146,7 +147,7 @@ Deno.serve(async (req) => {
         console.log('[receive-zoom-webhook] 🟢 connected:', callId)
       }
 
-      if (eventType === 'phone.caller_call_ended' || eventType === 'phone.callee_call_ended') {
+      if (eventType === 'phone.caller_ended' || eventType === 'phone.callee_ended') {
         // 通話終了 → UPDATE
         const { error } = await supabase
           .from('active_calls')
