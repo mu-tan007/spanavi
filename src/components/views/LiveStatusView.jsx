@@ -340,7 +340,7 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
 }
 
 // ─── メインコンポーネント ────────────────────────────────────────
-export default function LiveStatusView({ now, members, isAdmin = false, isTeamLeader = false }) {
+export default function LiveStatusView({ now, members, isAdmin = false, isTeamLeader = false, orgId }) {
   const [sessions, setSessions]             = useState([]);
   const [calledCounts, setCalledCounts]     = useState({});
   // 過去日セクションはデフォルト折りたたみ（today = key 0 はデフォルト展開）
@@ -357,7 +357,7 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
     ]);
 
     const load = async () => {
-      const { data: raw } = await fetchAllCallSessionsWithClients();
+      const { data: raw } = await fetchAllCallSessionsWithClients(orgId);
       if (!raw) return;
       setSessions(raw);
 

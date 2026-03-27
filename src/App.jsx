@@ -102,6 +102,7 @@ function MainApp() {
         onLogout={handleLogout}
         supabaseData={supabaseData}
         onDataRefetch={onDataRefetch}
+        orgId={orgId}
       />
     </SubscriptionGuard>
   )

@@ -248,7 +248,7 @@ const CLIENT_DATA = [{"no": 1, "status": "支援中", "contract": "済", "compan
 // dialPhone はsrc/utils/phone.jsからimport済み
 
 // インライン録音プレーヤー（全画面共通）
-function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabaseData, onDataRefetch }) {
+function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabaseData, onDataRefetch, orgId }) {
   const branding = useBranding();
   const [callListData, setCallListData] = useState(supabaseData?.callLists ?? []);
   const [importedCSVs, setImportedCSVs] = useState({});
@@ -986,7 +986,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
 
       {/* ===== CONTENT ===== */}
       <main style={{ marginLeft: 220, paddingTop: 54, paddingLeft: 28, paddingRight: 28, paddingBottom: 24, minHeight: '100vh', width: 'calc(100% - 220px)', boxSizing: 'border-box' }}>
-        {currentTab === "live" && <LiveStatusView now={now} callListData={callListData} members={members} isAdmin={isAdmin} isTeamLeader={!isAdmin && currentMemberDetail?.role === 'チームリーダー'} />}
+        {currentTab === "live" && <LiveStatusView now={now} callListData={callListData} members={members} isAdmin={isAdmin} isTeamLeader={!isAdmin && currentMemberDetail?.role === 'チームリーダー'} orgId={orgId} />}
         {currentTab === "incoming" && <IncomingCallsView setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "lists" && <ListView filteredLists={filteredLists} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterType={filterType} setFilterType={setFilterType} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy} setSelectedList={setSelectedList} callListData={callListData} setCallListData={setCallListData} listFormOpen={listFormOpen} setListFormOpen={setListFormOpen} editingListId={editingListId} setEditingListId={setEditingListId} now={now} isAdmin={isAdmin} clientData={clientData} />}
         {currentTab === "appo" && <AppoListView appoData={appoData} setAppoData={isAdmin ? setAppoData : null} members={members} setMembers={isAdmin ? setMembers : null} clientData={clientData} rewardMaster={rewardMaster} setCallFlowScreen={setCallFlowScreen} callListData={callListData} />}
