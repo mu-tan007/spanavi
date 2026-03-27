@@ -45,6 +45,9 @@ import { useBranding } from '../hooks/useBranding';
 import { supabase } from '../lib/supabase';
 import { getOrgId } from '../lib/orgContext';
 import DetailModal from './views/DetailModal';
+import { useIsMobile } from '../hooks/useIsMobile';
+import MobileBottomNav from './mobile/MobileBottomNav';
+import MobileSidebarOverlay from './mobile/MobileSidebarOverlay';
 
 // ============================================================
 // LOGO (base64 embedded)
@@ -250,6 +253,8 @@ const CLIENT_DATA = [{"no": 1, "status": "支援中", "contract": "済", "compan
 // インライン録音プレーヤー（全画面共通）
 function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabaseData, onDataRefetch, orgId }) {
   const branding = useBranding();
+  const isMobile = useIsMobile();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [callListData, setCallListData] = useState(supabaseData?.callLists ?? []);
   const [importedCSVs, setImportedCSVs] = useState({});
   const [callingScreen, setCallingScreen] = useState(null); // { listId, list } - when set, shows full calling screen
@@ -560,8 +565,20 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
       `}</style>
 
-      {/* ===== SIDEBAR ===== */}
-      <div style={{ width: 220, position: 'fixed', left: 0, top: 0, height: '100vh', background: branding.primaryColor, overflowY: 'auto', zIndex: 200, boxShadow: '2px 0 8px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column' }}>
+      {/* ===== SIDEBAR (desktop only) ===== */}
+      {isMobile && mobileMenuOpen && (
+        <MobileSidebarOverlay
+          navGroups={navGroups.map(g => ({
+            label: g.label,
+            items: g.children ? g.children : [{ id: g.id, label: g.label }],
+          }))}
+          currentTab={currentTab}
+          setCurrentTab={setCurrentTab}
+          onClose={() => setMobileMenuOpen(false)}
+          userName={currentUser}
+        />
+      )}
+      <div style={{ width: 220, position: 'fixed', left: 0, top: 0, height: '100vh', background: branding.primaryColor, overflowY: 'auto', zIndex: 200, boxShadow: '2px 0 8px rgba(0,0,0,0.15)', display: isMobile ? 'none' : 'flex', flexDirection: 'column' }}>
         {/* Logo */}
         <div onClick={() => setCurrentTab('live')} style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 10 }}>
           {branding.logoUrl ? (
@@ -675,11 +692,18 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
 
       {/* ===== NEW HEADER ===== */}
       <header style={{
-        position: 'fixed', top: 0, left: 220, right: 0, width: 'calc(100% - 220px)', height: 54, zIndex: 150,
+        position: 'fixed', top: 0, left: isMobile ? 0 : 220, right: 0, width: isMobile ? '100%' : 'calc(100% - 220px)', height: isMobile ? 48 : 54, zIndex: 150,
         background: '#FFFFFF', borderBottom: '1px solid #E5E7EB',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 24px', boxSizing: 'border-box',
+        padding: isMobile ? '0 12px' : '0 24px', boxSizing: 'border-box',
       }} onClick={() => setShowBellDropdown(false)}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {isMobile && (
+            <button onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(true); }} style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 6,
+              fontSize: 20, color: C.navy, lineHeight: 1,
+            }}>☰</button>
+          )}
         <div style={{ fontSize: 11, fontWeight: 500, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
           {(() => {
             for (const _hg of navGroups) {
@@ -689,7 +713,8 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
             return '';
           })()}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 16 }}>
           <div style={{ position: "relative" }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowBellDropdown(p => !p)}
               style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: C.navy, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
@@ -985,7 +1010,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       {/* OLD_HEADER_END */}
 
       {/* ===== CONTENT ===== */}
-      <main style={{ marginLeft: 220, paddingTop: 54, paddingLeft: 28, paddingRight: 28, paddingBottom: 24, minHeight: '100vh', width: 'calc(100% - 220px)', boxSizing: 'border-box' }}>
+      <main style={{ marginLeft: isMobile ? 0 : 220, paddingTop: isMobile ? 48 : 54, paddingLeft: isMobile ? 12 : 28, paddingRight: isMobile ? 12 : 28, paddingBottom: isMobile ? 72 : 24, minHeight: '100vh', width: isMobile ? '100%' : 'calc(100% - 220px)', boxSizing: 'border-box' }}>
         {currentTab === "live" && <LiveStatusView now={now} callListData={callListData} members={members} isAdmin={isAdmin} isTeamLeader={!isAdmin && currentMemberDetail?.role === 'チームリーダー'} orgId={orgId} />}
         {currentTab === "incoming" && <IncomingCallsView setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "lists" && <ListView filteredLists={filteredLists} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterType={filterType} setFilterType={setFilterType} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy} setSelectedList={setSelectedList} callListData={callListData} setCallListData={setCallListData} listFormOpen={listFormOpen} setListFormOpen={setListFormOpen} editingListId={editingListId} setEditingListId={setEditingListId} now={now} isAdmin={isAdmin} clientData={clientData} />}
@@ -1018,6 +1043,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         onNavigateToIncoming={() => setCurrentTab('incoming')}
         onOpenCompany={(itemId) => setCallFlowScreen({ list: { _supaId: null, id: null, company: '' }, defaultItemId: itemId, defaultListMode: false })}
       />
+      {isMobile && <MobileBottomNav currentTab={currentTab} setCurrentTab={setCurrentTab} onMorePress={() => setMobileMenuOpen(true)} />}
     </div>
   );
 }
