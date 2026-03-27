@@ -1232,6 +1232,7 @@ function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
 // Members View (Employee Directory)
 // ============================================================
 export function MembersView({ members, setMembers, onDataRefetch }) {
+  const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
   const [addForm, setAddForm] = useState(null);
   const [addSaving, setAddSaving] = useState(false);
