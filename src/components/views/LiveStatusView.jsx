@@ -357,7 +357,7 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
     ]);
 
     const load = async () => {
-      const { data: raw } = await fetchAllCallSessionsWithClients(orgId);
+      const { data: raw } = await fetchAllCallSessionsWithClients();
       if (!raw) return;
       setSessions(raw);
 

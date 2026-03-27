@@ -1095,11 +1095,12 @@ export async function fetchCallSessionsForRange(fromISO, toISO) {
   return { data: data || [], error }
 }
 
-export async function fetchAllCallSessionsWithClients(orgId) {
-  const filter = orgId
-    ? supabase.from('call_sessions').select('*').eq('org_id', orgId).order('started_at', { ascending: false })
-    : supabase.from('call_sessions').select('*').order('started_at', { ascending: false })
-  const { data: sessions, error: sErr } = await filter
+export async function fetchAllCallSessionsWithClients() {
+  // call_sessionsにはorg_idカラムがないため、RLSでテナント分離する
+  const { data: sessions, error: sErr } = await supabase
+    .from('call_sessions')
+    .select('*')
+    .order('started_at', { ascending: false })
   if (sErr) console.error('[DB] fetchAllCallSessionsWithClients error:', sErr)
   if (!sessions?.length) return { data: [], error: sErr }
 
