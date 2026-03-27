@@ -1,8 +1,9 @@
 import { C } from '../../constants/colors';
 import { useBranding } from '../../hooks/useBranding';
 
-export default function MobileSidebarOverlay({ navGroups, currentTab, setCurrentTab, onClose, userName }) {
-  const branding = useBranding();
+export default function MobileSidebarOverlay({ navGroups = [], currentTab, setCurrentTab, onClose, userName }) {
+  let branding = {};
+  try { branding = useBranding() || {}; } catch { branding = {}; }
 
   return (
     <div style={{
@@ -49,7 +50,7 @@ export default function MobileSidebarOverlay({ navGroups, currentTab, setCurrent
 
         {/* ナビゲーション */}
         <div style={{ padding: '8px 0' }}>
-          {navGroups.map((group, gi) => (
+          {(navGroups || []).map((group, gi) => (
             <div key={gi} style={{ marginBottom: 8 }}>
               {group.label && (
                 <div style={{
@@ -57,7 +58,7 @@ export default function MobileSidebarOverlay({ navGroups, currentTab, setCurrent
                   color: 'rgba(255,255,255,0.4)', letterSpacing: 1.5, textTransform: 'uppercase',
                 }}>{group.label}</div>
               )}
-              {group.items.map(item => {
+              {(group.items || []).map(item => {
                 const isActive = currentTab === item.id;
                 return (
                   <button
