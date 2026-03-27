@@ -1437,21 +1437,13 @@ export async function deleteSession(sessionId) {
 }
 
 export async function fetchCallListItemByAppo(company, phone) {
-  // アーカイブされていないリストのIDを取得
-  const { data: activeLists } = await supabase
-    .from('call_lists')
-    .select('id')
-    .eq('is_archived', false)
-  const activeListIds = (activeLists || []).map(l => l.id)
-  if (!activeListIds.length) return { data: null, error: null }
-
+  // 全リスト（アーカイブ含む）から検索 — 事前確認ページから架電ページへの遷移に必要
   const normalizedPhone = phone ? phone.replace(/[^\d]/g, '') : '';
   if (normalizedPhone) {
     const { data } = await supabase
       .from('call_list_items')
       .select('id, list_id')
       .eq('phone', normalizedPhone)
-      .in('list_id', activeListIds)
       .limit(1);
     if (data?.length) return { data: data[0], error: null };
   }
@@ -1461,7 +1453,6 @@ export async function fetchCallListItemByAppo(company, phone) {
       .from('call_list_items')
       .select('id, list_id')
       .eq('company', company)
-      .in('list_id', activeListIds)
       .limit(1);
     if (data?.length) return { data: data[0], error: null };
 
@@ -1472,7 +1463,6 @@ export async function fetchCallListItemByAppo(company, phone) {
         .from('call_list_items')
         .select('id, list_id')
         .ilike('company', `%${coreName}%`)
-        .in('list_id', activeListIds)
         .limit(1);
       return { data: fuzzy?.[0] || null, error };
     }

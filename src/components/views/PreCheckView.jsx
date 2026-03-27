@@ -219,14 +219,15 @@ const PRECHECK_COLS = [
   { key: 'status', width: 130, align: 'left' },
 ];
 
-export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen }) {
+export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen, callListData = [] }) {
   const [selectedAppo, setSelectedAppo] = useState(null);
   const { columns, gridTemplateColumns, contentMinWidth, onResizeStart, onHeaderContextMenu, contextMenu, setAlign, resetAll, closeMenu } = useColumnConfig('preCheck', PRECHECK_COLS, { padding: 40 });
 
   const handlePreCheckNavigate = ({ listId, itemId }) => {
     setSelectedAppo(null);
     if (setCallFlowScreen) {
-      setCallFlowScreen({ list: { _supaId: listId, id: listId }, defaultItemId: itemId, defaultListMode: false });
+      const list = callListData.find(l => l._supaId === listId);
+      setCallFlowScreen({ list: list || { _supaId: listId, id: listId }, defaultItemId: itemId, defaultListMode: false });
     }
   };
 
