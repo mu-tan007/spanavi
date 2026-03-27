@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -58,6 +59,7 @@ const LISTVIEW_ARCHIVE_COLS = [
 ];
 
 export default function ListView({ filteredLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [] }) {
+  const isMobile = useIsMobile();
   const { columns: lvCols, gridTemplateColumns: lvGrid, contentMinWidth: lvMinW, onResizeStart: lvResize, onHeaderContextMenu: lvCtxMenu, contextMenu: lvCtx, setAlign: lvSetAlign, resetAll: lvReset, closeMenu: lvClose } = useColumnConfig('listView', LISTVIEW_COLS);
   const { columns: arCols, gridTemplateColumns: arGrid, contentMinWidth: arMinW, onResizeStart: arResize, onHeaderContextMenu: arCtxMenu, contextMenu: arCtx, setAlign: arSetAlign, resetAll: arReset, closeMenu: arClose } = useColumnConfig('listViewArchive', LISTVIEW_ARCHIVE_COLS);
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
@@ -161,7 +163,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
       {/* Recommendation Banner */}
       {topRecommended.length > 0 && showRec && !(now && (now.getHours() < 7 || now.getHours() >= 20)) && (
         <div style={{
-          background: "#fff", borderRadius: 4, padding: "16px 20px", marginBottom: 16,
+          background: "#fff", borderRadius: 4, padding: isMobile ? "10px 12px" : "16px 20px", marginBottom: 16,
           border: "1px solid #E5E7EB", borderLeft: "2px solid #1E40AF",
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
@@ -225,7 +227,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
       {/* Filters */}
       <div style={{
         display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center",
-        padding: "14px 18px", background: "#fff", borderRadius: 4,
+        padding: isMobile ? "10px 12px" : "14px 18px", background: "#fff", borderRadius: 4,
         border: "1px solid #E5E7EB",
       }}>
         <input type="text" placeholder="企業名・業種・担当者で検索..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ ...inputStyle, flex: "1 1 200px", minWidth: 180 }} />
@@ -254,7 +256,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
       {listFormOpen && (
         <div style={{
           background: "#fff", border: "1px solid #E5E7EB", borderRadius: 4,
-          padding: 24, marginBottom: 20, animation: "fadeIn 0.2s ease",
+          padding: isMobile ? 14 : 24, marginBottom: 20, animation: "fadeIn 0.2s ease",
           borderLeft: "2px solid #0D2247",
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
@@ -264,7 +266,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
               border: "1px solid " + C.border, color: C.textMid, cursor: "pointer", fontSize: 14,
             }}>✕</button>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 14 }}>
             <div style={{ gridColumn: "span 2" }}>
               <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>クライアント企業名 *</label>
               <select value={formData.company} onChange={e => setFormData(p => ({ ...p, company: e.target.value }))} style={formInputStyle}>
@@ -349,8 +351,8 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
         <div style={{ minWidth: lvMinW }}>
         <div style={{
           display: "grid", gridTemplateColumns: lvGrid,
-          padding: "8px 16px", background: "#0D2247",
-          fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
+          padding: isMobile ? "6px 10px" : "8px 16px", background: "#0D2247",
+          fontSize: isMobile ? 10 : 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
         }}>
           {['クライアント', '種別', '業種', '社数', '担当者', 'おすすめ度', ''].map((label, i) => (
             <span key={i} onContextMenu={e => lvCtxMenu(e, i)} style={{ position: 'relative', textAlign: lvCols[i]?.align || 'left', minWidth: 0, cursor: 'default', userSelect: 'none' }}>

@@ -4,6 +4,7 @@ import { dialPhone } from '../../utils/phone';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 const RECALL_COLS = [
   { key: 'datetime', width: 78, align: 'left' },
@@ -17,6 +18,7 @@ const RECALL_COLS = [
 ];
 
 export default function RecallListView({ callListData, supaRecalls = [], members = [], currentUser = '', isAdmin = false, setCallFlowScreen }) {
+  const isMobile = useIsMobile();
   const [sortBy, setSortBy] = useState("date");
   const [filterAssignee, setFilterAssignee] = useState('');
   const [assigneeQuery, setAssigneeQuery] = useState('');
@@ -101,7 +103,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
         <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>コールバック・再架電管理</div>
       </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowX: 'auto', overflowY: 'hidden', background: "#fff", borderRadius: 4, border: '1px solid #E5E7EB' }}>
-        <div style={{ padding: '10px 14px', borderBottom: '1px solid ' + C.borderLight, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, gap: 8 }}>
+        <div style={{ padding: isMobile ? '8px 10px' : '10px 14px', borderBottom: '1px solid ' + C.borderLight, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>再コール一覧</span>
             <span style={{ fontSize: 10, color: C.textLight }}>{sorted.length}{filterAssignee ? `/${baseRecallItems.length}` : ''}件</span>
@@ -192,7 +194,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
             <div style={{ padding: '40px 0', textAlign: 'center', color: C.textLight, fontSize: 13 }}>再コール予定はありません</div>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns, padding: '8px 14px', background: '#0D2247', borderBottom: '1px solid #E5E7EB', borderLeft: '3px solid transparent', fontSize: 11, fontWeight: 600, color: '#fff', verticalAlign: 'middle', flexShrink: 0 }}>
+              <div style={{ display: 'grid', gridTemplateColumns, padding: isMobile ? '6px 10px' : '8px 14px', background: '#0D2247', borderBottom: '1px solid #E5E7EB', borderLeft: '3px solid transparent', fontSize: isMobile ? 10 : 11, fontWeight: 600, color: '#fff', verticalAlign: 'middle', flexShrink: 0 }}>
                 {headerLabels.map((label, idx) => (
                   <span
                     key={columns[idx].key}
@@ -213,7 +215,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
                         if (_list) { setCallFlowScreen({ list: _list, defaultItemId: item._supaRecord.item_id, defaultListMode: false }); return; }
                       }
                     }}
-                    style={{ display: 'grid', gridTemplateColumns, padding: '8px 14px', fontSize: 11, alignItems: 'center', borderBottom: '1px solid #E5E7EB', borderLeft: '3px solid transparent', background: past ? '#fff5f5' : i % 2 === 0 ? '#fff' : '#F8F9FA', cursor: 'pointer' }}
+                    style={{ display: 'grid', gridTemplateColumns, padding: isMobile ? '6px 10px' : '8px 14px', fontSize: isMobile ? 10 : 11, alignItems: 'center', borderBottom: '1px solid #E5E7EB', borderLeft: '3px solid transparent', background: past ? '#fff5f5' : i % 2 === 0 ? '#fff' : '#F8F9FA', cursor: 'pointer' }}
                     onMouseEnter={e => { e.currentTarget.style.background = '#EAF4FF'; e.currentTarget.style.borderLeft = '3px solid #0D2247'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = past ? '#fff5f5' : 'transparent'; e.currentTarget.style.borderLeft = '3px solid transparent'; }}
                     >

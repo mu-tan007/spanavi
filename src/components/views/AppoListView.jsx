@@ -10,6 +10,7 @@ import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 const APPO_COLS = [
   { key: 'client', width: 240, align: 'left' },
@@ -172,6 +173,7 @@ function EmailApprovalSection({ appo, clientData = [], onStatusUpdate }) {
 }
 
 export default function AppoListView({ appoData, setAppoData, members = [], setMembers, clientData = [], rewardMaster = [], setCallFlowScreen, callListData = [] }) {
+  const isMobile = useIsMobile();
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
   const [activeTab, setActiveTab] = useState('current'); // 'current' | 'past'
   // ── ランク・レート自動計算 ──────────────────────────────────────
@@ -354,7 +356,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       {/* Header */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
-        padding: "14px 18px", background: '#fff', borderRadius: 4,
+        padding: isMobile ? "10px 12px" : "14px 18px", background: '#fff', borderRadius: 4,
         border: "1px solid #E5E7EB",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -431,22 +433,22 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       {/* Summary */}
       <div style={{ marginBottom: 16 }}>
         {/* Total row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 10 }}>
-          <div style={{ padding: "14px 18px", background: '#fff', borderRadius: 4, border: "1px solid #E5E7EB" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: isMobile ? 8 : 12, marginBottom: 10 }}>
+          <div style={{ padding: isMobile ? "10px 12px" : "14px 18px", background: '#fff', borderRadius: 4, border: "1px solid #E5E7EB" }}>
             <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>アポ件数 <span style={{ fontSize: 9, color: C.textLight + "90" }}>（有効）</span></div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: '#0D2247', fontFamily: "'JetBrains Mono'" }}>{countable.length}<span style={{ fontSize: 11, fontWeight: 500, color: C.textLight, marginLeft: 4 }}>/ {filtered.length}件</span></div>
+            <div style={{ fontSize: isMobile ? 18 : 24, fontWeight: 900, color: '#0D2247', fontFamily: "'JetBrains Mono'" }}>{countable.length}<span style={{ fontSize: 11, fontWeight: 500, color: C.textLight, marginLeft: 4 }}>/ {filtered.length}件</span></div>
           </div>
-          <div style={{ padding: "14px 18px", background: '#fff', borderRadius: 4, border: "1px solid #E5E7EB" }}>
+          <div style={{ padding: isMobile ? "10px 12px" : "14px 18px", background: '#fff', borderRadius: 4, border: "1px solid #E5E7EB" }}>
             <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>当社売上合計</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: '#0D2247', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(totalSales)}</div>
+            <div style={{ fontSize: isMobile ? 16 : 22, fontWeight: 900, color: '#0D2247', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(totalSales)}</div>
           </div>
-          <div style={{ padding: "14px 18px", background: '#fff', borderRadius: 4, border: "1px solid #E5E7EB" }}>
+          <div style={{ padding: isMobile ? "10px 12px" : "14px 18px", background: '#fff', borderRadius: 4, border: "1px solid #E5E7EB" }}>
             <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>インターン報酬合計</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: '#1E40AF', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(totalReward)}</div>
+            <div style={{ fontSize: isMobile ? 16 : 22, fontWeight: 900, color: '#1E40AF', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(totalReward)}</div>
           </div>
         </div>
         {/* Monthly breakdown */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(" + AVAILABLE_MONTHS.length + ", 1fr)", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(" + AVAILABLE_MONTHS.length + ", 1fr)", gap: isMobile ? 6 : 10, overflowX: isMobile ? 'auto' : 'visible' }}>
           {monthStats.map(ms => (
             <div key={ms.month} style={{
               padding: "10px 14px", background: '#fff', borderRadius: 4,
@@ -475,8 +477,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         <div style={{ minWidth: appoMinW }}>
         <div style={{
           display: "grid", gridTemplateColumns: appoGrid,
-          padding: "8px 6px 8px 16px", columnGap: 2, background: "#0D2247",
-          fontSize: 11, fontWeight: 600, color: "#fff",
+          padding: isMobile ? "6px 4px 6px 10px" : "8px 6px 8px 16px", columnGap: 2, background: "#0D2247",
+          fontSize: isMobile ? 10 : 11, fontWeight: 600, color: "#fff",
           borderBottom: "1px solid #E5E7EB",
           alignItems: "center",
           verticalAlign: "middle",
@@ -552,7 +554,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         const u = (k, v) => setEditForm(p => ({ ...p, [k]: v }));
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 520, maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 520, maxWidth: '95vw', maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
               <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15 }}>
                 <div style={{ fontSize: 15, fontWeight: 600 }}>アポ情報を編集</div>
                 <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>{editForm.company}</div>
@@ -660,7 +662,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         const u = (k, v) => setAddAppoForm(p => ({ ...p, [k]: v }));
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 520, maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 520, maxWidth: '95vw', maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
               <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15 }}>
                 <div style={{ fontSize: 15, fontWeight: 600 }}>アポを追加</div>
                 <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>新規アポイント登録</div>
@@ -737,7 +739,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           zIndex: 200, animation: "fadeIn 0.2s ease",
         }}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 520, maxHeight: "80vh", overflow: "auto",
+            background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 520, maxWidth: '95vw', maxHeight: "80vh", overflow: "auto",
             boxShadow: "0 20px 60px rgba(10,25,41,0.3)",
           }}>
             <div style={{
@@ -1023,6 +1025,7 @@ const PAST_APPO_COLS = [
 ];
 
 function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
+  const isMobile = useIsMobile();
   const [pastSearch, setPastSearch] = useState('');
   const [matchMap, setMatchMap] = useState({});
   const [loading, setLoading] = useState(false);
@@ -1107,7 +1110,7 @@ function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16,
-        padding: '14px 18px', background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB',
+        padding: isMobile ? '10px 12px' : '14px 18px', background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: '#0D2247' }}>過去アポ一覧</span>
@@ -1149,7 +1152,7 @@ function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
         <div style={{ minWidth: pastMinW }}>
         <div style={{
           display: 'grid', gridTemplateColumns: pastGrid,
-          padding: '8px 6px 8px 16px', columnGap: 2, background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#fff',
+          padding: isMobile ? '6px 4px 6px 10px' : '8px 6px 8px 16px', columnGap: 2, background: '#0D2247', fontSize: isMobile ? 10 : 11, fontWeight: 600, color: '#fff',
           borderBottom: '1px solid #E5E7EB', alignItems: 'center',
         }}>
           {[
@@ -1286,7 +1289,7 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
       </div>
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
-        padding: "14px 18px", background: '#fff', borderRadius: 4,
+        padding: isMobile ? "10px 12px" : "14px 18px", background: '#fff', borderRadius: 4,
         border: "1px solid #E5E7EB",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1408,7 +1411,7 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
           onClick={() => setSyncResult(null)}
           style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}
         >
-          <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 12, width: 480, maxHeight: "80vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 12, width: 480, maxWidth: '95vw', maxHeight: "80vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
             <div style={{ padding: "14px 20px", background: "linear-gradient(135deg, #1a7f5a, #2da57a)", borderRadius: "12px 12px 0 0", color: C.white }}>
               <div style={{ fontSize: 14, fontWeight: 700 }}>Zoom ID同期結果</div>
             </div>

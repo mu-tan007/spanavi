@@ -7,6 +7,7 @@ import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
   const PRE_CHECK_OPTIONS = ['確認完了', '確認中', 'リスケ', 'キャンセル'];
@@ -71,7 +72,7 @@ export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 560, maxWidth: '92vw', maxHeight: '90vh', boxShadow: '0 8px 40px rgba(26,58,92,0.18)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 560, maxWidth: '95vw', maxHeight: '90vh', boxShadow: '0 8px 40px rgba(26,58,92,0.18)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {/* ── ヘッダー ── */}
         <div style={{ background: '#0D2247', padding: '12px 24px', color: '#fff', fontWeight: 600, fontSize: 15, flexShrink: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 600 }}>事前確認入力</div>
@@ -220,6 +221,7 @@ const PRECHECK_COLS = [
 ];
 
 export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen, callListData = [] }) {
+  const isMobile = useIsMobile();
   const [selectedAppo, setSelectedAppo] = useState(null);
   const { columns, gridTemplateColumns, contentMinWidth, onResizeStart, onHeaderContextMenu, contextMenu, setAlign, resetAll, closeMenu } = useColumnConfig('preCheck', PRECHECK_COLS, { padding: 40 });
 
@@ -337,7 +339,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
       {/* Summary */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        background: '#fff', borderRadius: 4, padding: "14px 20px", marginBottom: 16,
+        background: '#fff', borderRadius: 4, padding: isMobile ? "10px 12px" : "14px 20px", marginBottom: 16,
         border: "1px solid #E5E7EB",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -387,7 +389,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
             <div style={{ minWidth: contentMinWidth }}>
             {/* Group header */}
             <div style={{
-              padding: "12px 20px", background: g.bgColor,
+              padding: isMobile ? "8px 12px" : "12px 20px", background: g.bgColor,
               borderBottom: "1px solid " + g.borderColor,
               display: "flex", alignItems: "center", justifyContent: "space-between",
             }}>
@@ -404,7 +406,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
             {/* Table header */}
             <div style={{
               display: "grid", gridTemplateColumns,
-              padding: "8px 20px", background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#fff',
+              padding: isMobile ? "6px 12px" : "8px 20px", background: '#0D2247', fontSize: isMobile ? 10 : 11, fontWeight: 600, color: '#fff',
               borderBottom: "1px solid #E5E7EB",
             }}>
               {['企業名', 'クライアント', '取得者', '面談日', '確認状況'].map((label, i) => (
@@ -425,7 +427,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
                   onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#F8F9FA'; }}
                   style={{
                     display: "grid", gridTemplateColumns,
-                    padding: "8px 20px", fontSize: 12, alignItems: "center",
+                    padding: isMobile ? "6px 12px" : "8px 20px", fontSize: isMobile ? 11 : 12, alignItems: "center",
                     borderBottom: "1px solid #E5E7EB",
                     borderLeft: "3px solid " + g.color,
                     background: i % 2 === 0 ? '#fff' : '#F8F9FA',
