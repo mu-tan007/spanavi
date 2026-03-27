@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { invokeAppoAiReport, invokeTranscribeRecording, fetchZoomUserId, insertAppointment } from '../../lib/supabaseWrite';
 import { MemberSuggestInput } from './AppoListView';
 
 export default function AppoReportModal({ row, list, currentUser = '', members = [], onClose, onSave, onDone, initialRecordingUrl = '', onFetchRecordingUrl, clientData = [], rewardMaster = [] }) {
+  const isMobile = useIsMobile();
   const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
   // クライアントの報酬タイプを特定
@@ -287,7 +289,7 @@ HP：${form.hp}
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 20000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 560, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+      <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: isMobile ? 0 : 4, width: isMobile ? '100vw' : 560, height: isMobile ? '100vh' : 'auto', maxHeight: isMobile ? '100vh' : '90vh', maxWidth: isMobile ? 'none' : undefined, display: 'flex', flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
         {/* ヘッダー */}
         <div style={{ padding: '12px 24px', background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15, flexShrink: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 600 }}>アポ取得報告</div>

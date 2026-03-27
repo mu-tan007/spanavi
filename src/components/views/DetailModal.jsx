@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { C } from '../../constants/colors';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { CALL_RESULTS } from '../../constants/callResults';
 import { getIndustryCategory } from '../../utils/industry';
 import { deleteCallRecordsByListId, deleteCallListItemsByListId, updateCallListCount, fetchCallListItems, insertCallListItems } from '../../lib/supabaseWrite';
@@ -12,6 +13,7 @@ const PREFS = ['北海道','青森県','岩手県','宮城県','秋田県','山�
 const extractPref = (address) => PREFS.find(p => address?.startsWith(p)) || '';
 
 export default function DetailModal({ list, onClose, industryRules, now, callListData, setCallListData, setCallFlowScreen, isAdmin, onDelete }) {
+  const isMobile = useIsMobile();
   if (!list) return null;
   const cat = getIndustryCategory(list.industry);
   const rule = industryRules.find(r => r.industry === cat);
@@ -241,8 +243,8 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
     }}>
       <div onClick={e => e.stopPropagation()} style={{
         background: '#fff', border: "1px solid #E5E7EB",
-        borderRadius: 4, width: "90%", maxWidth: 820, maxHeight: "85vh",
-        overflowY: "auto", padding: 28,
+        borderRadius: isMobile ? 0 : 4, width: isMobile ? '100vw' : "90%", maxWidth: isMobile ? 'none' : 820, height: isMobile ? '100vh' : undefined, maxHeight: isMobile ? '100vh' : "85vh",
+        overflowY: "auto", padding: isMobile ? 16 : 28,
         boxShadow: "0 20px 60px rgba(10,25,41,0.25)",
       }}>
 

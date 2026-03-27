@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { C } from '../../constants/colors';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 export default function RecallModal({ row, statusId, onSubmit, onCancel, members = [] }) {
+  const isMobile = useIsMobile();
   // membersは文字列配列またはオブジェクト配列のどちらでも受け付ける
   const memberNames = members.map(m => typeof m === 'string' ? m : (m?.name || ''));
   const [form, setForm] = useState({
@@ -28,7 +30,7 @@ export default function RecallModal({ row, statusId, onSubmit, onCancel, members
 
   return (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 400, boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+      <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: isMobile ? '95vw' : 400, maxHeight: isMobile ? '90vh' : undefined, boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
         <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15 }}>
           <div style={{ fontSize: 15, fontWeight: 600 }}>再コール設定</div>
           <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>{row.company}　{statusId === "ceo_recall" ? "（社長再コール）" : "（受付再コール）"}</div>
