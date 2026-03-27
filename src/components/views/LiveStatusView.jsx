@@ -380,10 +380,11 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
       setCalledCounts(map);
     };
 
+    if (!orgId) return;
     load();
-    const id = setInterval(load, 30000); // 5秒→30秒（過剰なポーリングを抑制）
+    const id = setInterval(load, 30000);
     return () => clearInterval(id);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [orgId]); // orgId確定後にフェッチ開始
 
   // 日付セクション構築
   const dayGroups = useMemo(() => {
