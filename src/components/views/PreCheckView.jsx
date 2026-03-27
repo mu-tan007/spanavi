@@ -25,7 +25,7 @@ export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
     if (navigating || !onNavigate) return;
     setNavigating(true);
     try {
-      const { data } = await fetchCallListItemByAppo(appo.company, displayPhone);
+      const { data } = await fetchCallListItemByAppo(appo.company, displayPhone, appo.list_id, appo.item_id);
       if (!data?.list_id) { alert('架電リストが見つかりませんでした'); return; }
       onNavigate({ listId: data.list_id, itemId: data.id });
     } catch (e) {

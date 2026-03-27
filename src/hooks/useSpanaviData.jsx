@@ -149,6 +149,8 @@ export function useSpanaviData(authOrgId) {
         emailApprovedAt: a.email_approved_at || null,
         emailSentAt: a.email_sent_at || null,
         gcalEventId: a.gcal_event_id || null,
+        list_id: a.list_id || null,
+        item_id: a.item_id || null,
       }))
 
       setData({

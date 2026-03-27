@@ -752,7 +752,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                     setDetailNavigating(true);
                     try {
                       const phone = (reportDetail?.phone || '').replace(/[^\d]/g, '');
-                      const { data } = await fetchCallListItemByAppo(reportDetail.company, phone);
+                      const { data } = await fetchCallListItemByAppo(reportDetail.company, phone, reportDetail.list_id, reportDetail.item_id);
                       if (!data?.list_id) { alert('架電リストが見つかりませんでした'); return; }
                       const list = callListData.find(l => l._supaId === data.list_id);
                       setCallFlowScreen({ list: list || { _supaId: data.list_id, id: data.list_id, company: '' }, defaultItemId: data.id, defaultListMode: false });

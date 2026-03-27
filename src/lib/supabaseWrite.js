@@ -1436,8 +1436,40 @@ export async function deleteSession(sessionId) {
   if (error) throw error
 }
 
-export async function fetchCallListItemByAppo(company, phone) {
-  // 全リスト（アーカイブ含む）から検索 — 事前確認ページから架電ページへの遷移に必要
+export async function fetchCallListItemByAppo(company, phone, hintListId = null, hintItemId = null) {
+  // ヒント（アポデータに保存されたlist_id/item_id）があればそれを優先
+  if (hintItemId && hintListId) {
+    const { data } = await supabase
+      .from('call_list_items')
+      .select('id, list_id')
+      .eq('id', hintItemId)
+      .limit(1);
+    if (data?.length) return { data: data[0], error: null };
+  }
+  if (hintListId) {
+    // ヒントのリスト内で企業名検索
+    const normalizedPhone = phone ? phone.replace(/[^\d]/g, '') : '';
+    if (normalizedPhone) {
+      const { data } = await supabase
+        .from('call_list_items')
+        .select('id, list_id')
+        .eq('phone', normalizedPhone)
+        .eq('list_id', hintListId)
+        .limit(1);
+      if (data?.length) return { data: data[0], error: null };
+    }
+    if (company) {
+      const { data } = await supabase
+        .from('call_list_items')
+        .select('id, list_id')
+        .eq('company', company)
+        .eq('list_id', hintListId)
+        .limit(1);
+      if (data?.length) return { data: data[0], error: null };
+    }
+  }
+
+  // フォールバック: 全リストから検索
   const normalizedPhone = phone ? phone.replace(/[^\d]/g, '') : '';
   if (normalizedPhone) {
     const { data } = await supabase
