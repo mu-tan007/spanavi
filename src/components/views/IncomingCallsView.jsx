@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../lib/supabase';
 import { C } from '../../constants/colors';
 import useColumnConfig from '../../hooks/useColumnConfig';
@@ -40,6 +41,7 @@ const INCOMING_COLS = [
 ];
 
 export default function IncomingCallsView({ setCallFlowScreen }) {
+  const isMobile = useIsMobile();
   const { columns, contentMinWidth, onResizeStart, onHeaderContextMenu, contextMenu, setAlign, resetAll, closeMenu } = useColumnConfig('incomingCalls', INCOMING_COLS);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -126,8 +128,8 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       {/* ページヘッダー */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Call History</div>
+      <div style={{ marginBottom: isMobile ? 16 : 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
+        <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Call History</div>
         <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>着信・架電履歴</div>
       </div>
       {/* フィルター */}
@@ -167,7 +169,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
         ) : filtered.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: C.textLight, fontSize: 13 }}>着信履歴がありません</div>
         ) : (
-          <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 12 }}>
+          <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: isMobile ? 11 : 12 }}>
             <thead>
               <tr style={{ background: '#0D2247' }}>
                 {['受信日時', '企業名・リスト', '電話番号', 'ステータス', '対応者', '操作'].map((label, i) => (

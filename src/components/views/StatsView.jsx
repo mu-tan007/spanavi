@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { formatCurrency } from '../../utils/formatters';
@@ -79,6 +80,7 @@ function getPrevActivityDateRange(period, todayStr, weekStartStr, monthStr) {
 const _offsetDays = (ds, n) => { const d = new Date(ds + 'T12:00:00Z'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
 export default function StatsView({ callListData, currentUser, appoData, members, now: nowProp }) {
+  const isMobile = useIsMobile();
   const { ceoConnectLabels } = useCallStatuses();
 
   // ── クライアント円グラフ選択 ──────────────────────────────────────────
@@ -490,13 +492,13 @@ export default function StatsView({ callListData, currentUser, appoData, members
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
 
       {/* ページヘッダー */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: `1px solid ${NAVY}` }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: NAVY, letterSpacing: '-0.3px' }}>Analytics</div>
+      <div style={{ marginBottom: isMobile ? 16 : 24, paddingBottom: 14, borderBottom: `1px solid ${NAVY}` }}>
+        <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: NAVY, letterSpacing: '-0.3px' }}>Analytics</div>
         <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>売上・架電・ランキングの統合分析ダッシュボード</div>
       </div>
 
       {/* ========== セクション1: KPIサマリーカード ========== */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 8 : 14, marginBottom: 20 }}>
         {/* Card 1: 今月累計売上 */}
         <div style={cardStyle}>
           <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>今月（{parseInt(monthStr.slice(5))}月1日〜{dayOfMonth}日）</div>
@@ -552,7 +554,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
       </div>
 
       {/* Card 5+6: リスケ率・キャンセル率 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: isMobile ? 8 : 14, marginBottom: 20 }}>
         <div style={cardStyle}>
           <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>今月（{parseInt(monthStr.slice(5))}月1日〜{dayOfMonth}日）</div>
           <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, marginBottom: 6 }}>リスケ率</div>
@@ -576,7 +578,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
       </div>
 
       {/* ========== セクション2: 売上推移グラフ ========== */}
-      <div style={{ background: C.white, borderRadius: 4, padding: '18px 20px', marginBottom: 20, border: '1px solid #E5E7EB' }}>
+      <div style={{ background: C.white, borderRadius: 4, padding: isMobile ? '12px 10px' : '18px 20px', marginBottom: 20, border: '1px solid #E5E7EB', overflowX: isMobile ? 'auto' : 'visible' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>売上推移グラフ</span>
@@ -670,7 +672,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
       </div>
 
       {/* ========== セクション3: 個人・チーム別ランキング ========== */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 8 : 14, marginBottom: 20 }}>
         {/* ② 個人売上ランキング */}
         <div style={{ background: C.white, borderRadius: 4, padding: '18px 20px', border: '1px solid #E5E7EB' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 6 }}>
@@ -927,7 +929,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
         );
       })()}
       {/* ========== セクション6: クライアント別リスケ率・キャンセル率 ========== */}
-      <div style={{ background: C.white, borderRadius: 4, padding: '18px 20px', marginBottom: 20, border: '1px solid #E5E7EB' }}>
+      <div style={{ background: C.white, borderRadius: 4, padding: isMobile ? '12px 10px' : '18px 20px', marginBottom: 20, border: '1px solid #E5E7EB', overflowX: isMobile ? 'auto' : 'visible' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>クライアント別リスケ率・キャンセル率</span>

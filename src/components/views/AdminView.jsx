@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import MemberManagement from '../admin/MemberManagement';
 import RewardSettings from '../admin/RewardSettings';
 import SlackZoomSettings from '../admin/SlackZoomSettings';
@@ -46,6 +47,7 @@ function ToastContainer({ toasts }) {
 }
 
 export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRewardMaster, members = [], appoData = [], now, onDataRefetch }) {
+  const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState(() => {
     try { return localStorage.getItem('admin_activeTab') || 'members'; } catch { return 'members'; }
   });
@@ -116,7 +118,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
       </div>
 
       {/* タブバー */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #E5E5E5', background: '#fff', borderRadius: '4px 4px 0 0', overflow: 'hidden', marginBottom: 0 }}>
+      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #E5E5E5', background: '#fff', borderRadius: '4px 4px 0 0', overflow: isMobile ? 'auto' : 'hidden', marginBottom: 0 }}>
         {TABS.map(tab => {
           const active = activeTab === tab.id;
           return (
@@ -124,7 +126,8 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
               key={tab.id}
               onClick={() => _setActiveTab(tab.id)}
               style={{
-                flex: 1, padding: '13px 16px', border: 'none', cursor: 'pointer',
+                flex: isMobile ? 'none' : 1, padding: isMobile ? '10px 10px' : '13px 16px', border: 'none', cursor: 'pointer',
+                whiteSpace: 'nowrap',
                 background: 'transparent',
                 color: active ? NAVY : '#9CA3AF',
                 fontWeight: active ? 700 : 400,
@@ -141,7 +144,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
       </div>
 
       {/* タブコンテンツ */}
-      <div style={{ background: '#fff', borderRadius: '0 0 4px 4px', border: '1px solid #E5E5E5', borderTop: 'none', padding: '24px 28px', marginBottom: 0 }}>
+      <div style={{ background: '#fff', borderRadius: '0 0 4px 4px', border: '1px solid #E5E5E5', borderTop: 'none', padding: isMobile ? '16px 12px' : '24px 28px', marginBottom: 0 }}>
         {activeTab === 'members' && (
           <MemberManagement
             onToast={showToast}

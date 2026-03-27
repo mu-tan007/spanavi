@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import React from 'react';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl, fetchMyCallRecords, updateMember, fetchMemberPayrollHistory } from '../../lib/supabaseWrite';
 import TrainingRoleplaySection from './TrainingRoleplaySection';
 
 export default function MyPageView({ currentUser, userId, callListData, members, now, appoData, onDataRefetch, isAdmin = false }) {
+  const isMobile = useIsMobile();
   const { ceoConnectLabels } = useCallStatuses();
   const [periodTab, setPeriodTab] = useState("daily"); // daily, weekly, monthly, cumulative
   const PERIOD_IDS = ["daily", "weekly", "monthly", "cumulative"];
@@ -244,8 +246,8 @@ export default function MyPageView({ currentUser, userId, callListData, members,
     <div style={{ animation: "fadeIn 0.3s ease" }}>
       {/* Profile Header */}
       <div style={{
-        background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")", borderRadius: 12, padding: "24px 28px", marginBottom: 16,
-        color: C.white, display: "flex", alignItems: "center", gap: 20,
+        background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")", borderRadius: 12, padding: isMobile ? "16px 14px" : "24px 28px", marginBottom: 16,
+        color: C.white, display: "flex", alignItems: isMobile ? "flex-start" : "center", gap: isMobile ? 12 : 20, flexDirection: isMobile ? "column" : "row",
       }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>{currentUser}</div>
@@ -358,7 +360,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
         </div>
 
         {/* Summary cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: isMobile ? 8 : 12, marginBottom: 16 }}>
           {[
             { label: "架電件数",  val: periodTab === "cumulative" ? cumAgg.total       : periodTab === "monthly" ? monthAgg.total       : periodTab === "weekly" ? weekAgg.total       : todayAgg.total },
             { label: "社長接続数", val: periodTab === "cumulative" ? cumAgg.ceoConnect  : periodTab === "monthly" ? monthAgg.ceoConnect  : periodTab === "weekly" ? weekAgg.ceoConnect  : todayAgg.ceoConnect },
@@ -470,7 +472,7 @@ export default function MyPageView({ currentUser, userId, callListData, members,
               <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>売上データ</span>
               <span style={{ fontSize: 10, color: C.textLight }}>（有効ステータスのアポのみ）</span>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: isMobile ? 8 : 12, marginBottom: 14 }}>
               {[
                 { label: "アポ件数", val: currentSales.count, isCount: true },
                 { label: "当社売上", val: Math.round(currentSales.totalSales).toLocaleString('ja-JP') + "円", isCount: false },

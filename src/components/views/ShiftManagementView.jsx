@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { fetchShifts, insertShift, updateShift, deleteShift } from '../../lib/supabaseWrite';
 
@@ -50,6 +51,7 @@ const tlGetPreview = (d) => {
 // ─────────────────────────────────────────────────────────────
 
 export default function ShiftManagementView({ members, currentUser, isAdmin }) {
+  const isMobile = useIsMobile();
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
@@ -332,13 +334,13 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Page Header */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247', flexShrink: 0 }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Shifts</div>
+      <div style={{ marginBottom: isMobile ? 16 : 24, paddingBottom: 14, borderBottom: '1px solid #0D2247', flexShrink: 0 }}>
+        <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Shifts</div>
         <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>シフト・勤怠管理</div>
       </div>
 
       {/* ヘッダー */}
-      <div style={{ padding: '14px 24px', background: '#fff', borderBottom: '1px solid ' + GRAY_200, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, flexWrap: 'wrap' }}>
+      <div style={{ padding: isMobile ? '10px 12px' : '14px 24px', background: '#fff', borderBottom: '1px solid ' + GRAY_200, display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12, flexShrink: 0, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button onClick={prevMonth} style={navBtn}>◀</button>
           <div style={{ fontSize: 14, fontWeight: 700, color: NAVY, minWidth: 88, textAlign: 'center', fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums' }}>{year}年{month}月</div>

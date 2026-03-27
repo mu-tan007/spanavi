@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { fetchAllCallSessionsWithClients, fetchCalledCountForSession, updateSessionRange, deleteSession } from '../../lib/supabaseWrite';
 import CallMonitorPanel from './CallMonitorPanel';
@@ -341,6 +342,7 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
 
 // ─── メインコンポーネント ────────────────────────────────────────
 export default function LiveStatusView({ now, members, isAdmin = false, isTeamLeader = false, orgId }) {
+  const isMobile = useIsMobile();
   const [sessions, setSessions]             = useState([]);
   const [calledCounts, setCalledCounts]     = useState({});
   // 過去日セクションはデフォルト折りたたみ（today = key 0 はデフォルト展開）
@@ -429,8 +431,8 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       {/* ページヘッダー */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Live Status</div>
+      <div style={{ marginBottom: isMobile ? 16 : 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
+        <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Live Status</div>
         <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>リアルタイム架電状況モニター</div>
       </div>
 
@@ -497,7 +499,7 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
               {/* カード一覧 */}
               {!isCollapsed && (
                 cards.length > 0 ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
                     {cards.map((cardSessions, i) => (
                       <ListCard
                         key={cardSessions[0].list_supa_id || cardSessions[0].list_id || i}
