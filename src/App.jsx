@@ -14,8 +14,8 @@ function MainApp() {
   const { session, profile, loading, signOut, isAdmin, recoveryMode, clearRecoveryMode, orgId } = useAuth()
   const { data: supabaseData, loading: dataLoading, error: dataError, refetch: onDataRefetch } = useSpanaviData(orgId)
 
-  // ローディング中（auth + Supabase fetch 両方が完了するまで待つ）
-  if (loading || dataLoading) {
+  // ローディング中（auth完了 + orgId確定 + データ取得完了 まで待つ）
+  if (loading || (session && !orgId) || dataLoading) {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
