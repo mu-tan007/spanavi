@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import React from 'react';
 import { zoomPhone } from '../../lib/zoomPhoneStore';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
@@ -40,6 +41,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     () => new Set(callStatuses.filter(s => s.id.includes('recall')).map(s => s.label)),
     [callStatuses]
   );
+
+  const isMobile = useIsMobile();
+  const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1182,7 +1186,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 6, flexShrink: 0,
               border: '1px solid rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
               background: 'rgba(255,255,255,0.07)', color: '#fff' }}>
-            ◀ リストに戻る
+            {isMobile ? '◀' : '◀ リストに戻る'}
           </button>
         )}
 
@@ -1230,11 +1234,11 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         </button>
       </div>
 
-      {/* ── メインエリア（2カラム） ── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      {/* ── メインエリア（2カラム / モバイルは縦並び） ── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden' }}>
 
-        {/* 左カラム */}
-        <div style={{ width: listMode ? '100%' : '60%', overflow: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* 左カラム（モバイル時は全幅） */}
+        <div style={{ width: listMode ? '100%' : isMobile ? '100%' : '60%', overflow: 'auto', padding: isMobile ? 10 : 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
 
           {listMode ? (
             /* ────────────── リスト表示モード ────────────── */
@@ -1587,15 +1591,27 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         </div>
 
         {/* 右カラム 40% — スクリプト・企業概要・注意事項 */}
+        {/* モバイル: 折りたたみ式ボトムシート / デスクトップ: 40%サイドパネル */}
         {!listMode && (
-        <div style={{ width: '40%', background: '#fff', borderLeft: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={isMobile ? {
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+          height: mobileScriptOpen ? '60vh' : 44,
+          background: '#fff', borderTop: '1px solid #E5E7EB',
+          display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          transition: 'height 0.25s ease', zIndex: 10,
+          boxShadow: mobileScriptOpen ? '0 -4px 20px rgba(0,0,0,0.15)' : 'none',
+        } : {
+          width: '40%', background: '#fff', borderLeft: '1px solid #E5E7EB',
+          display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        }}>
           {/* タブヘッダー */}
-          <div style={{ display: 'flex', borderBottom: '2px solid #E5E7EB', background: '#F8F9FA', flexShrink: 0 }}>
+          <div onClick={() => isMobile && setMobileScriptOpen(o => !o)} style={{ display: 'flex', borderBottom: '2px solid #E5E7EB', background: '#F8F9FA', flexShrink: 0, cursor: isMobile ? 'pointer' : 'default' }}>
+            {isMobile && <span style={{ display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: 14, color: '#9CA3AF' }}>{mobileScriptOpen ? '▼' : '▲'}</span>}
             {[{ key: 'script', label: 'スクリプト' }, { key: 'info', label: '企業概要' }, { key: 'cautions', label: '注意事項' }, { key: 'calendar', label: 'カレンダー' }].map(tab => (
-              <button key={tab.key} onClick={() => setScriptTab(tab.key)}
-                style={{ flex: 1, padding: '11px 4px', border: 'none', borderBottom: scriptTab === tab.key ? '2px solid #0D2247' : '2px solid transparent',
+              <button key={tab.key} onClick={(e) => { e.stopPropagation(); setScriptTab(tab.key); if (isMobile) setMobileScriptOpen(true); }}
+                style={{ flex: 1, padding: isMobile ? '12px 4px' : '11px 4px', border: 'none', borderBottom: scriptTab === tab.key ? '2px solid #0D2247' : '2px solid transparent',
                   background: 'transparent', color: scriptTab === tab.key ? '#0D2247' : '#9CA3AF',
-                  fontSize: 11, fontWeight: scriptTab === tab.key ? 600 : 400, cursor: 'pointer',
+                  fontSize: isMobile ? 12 : 11, fontWeight: scriptTab === tab.key ? 600 : 400, cursor: 'pointer',
                   fontFamily: "'Noto Sans JP'", marginBottom: -2, transition: 'color 0.15s' }}>
                 {tab.label}
               </button>
