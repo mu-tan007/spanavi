@@ -7,6 +7,7 @@ export default defineConfig(({ command }) => ({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      selfDestroying: false,
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'spanavi-shield.svg'],
       manifest: {
         name: 'Spanavi',
@@ -48,6 +49,8 @@ export default defineConfig(({ command }) => ({
         ],
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         // 静的アセットをプリキャッシュ
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,woff,woff2}'],
         // APIコール（Supabase）はネットワークファースト
