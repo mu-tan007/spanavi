@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { supabase } from '../../lib/supabase';
 import MemberManagement from '../admin/MemberManagement';
 import RewardSettings from '../admin/RewardSettings';
 import SlackZoomSettings from '../admin/SlackZoomSettings';
@@ -109,6 +110,15 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
     ? members.find(m => m.name === viewingMember)
     : null;
 
+  // メンバーのemailからauth UIDを取得（ロープレ等のuser_id検索用）
+  const [viewingAuthUid, setViewingAuthUid] = useState(null);
+  useEffect(() => {
+    if (!viewingMemberData?.email) { setViewingAuthUid(null); return; }
+    supabase.rpc('get_auth_uid_by_email', { lookup_email: viewingMemberData.email })
+      .then(({ data }) => setViewingAuthUid(data))
+      .catch(() => setViewingAuthUid(null));
+  }, [viewingMemberData?.email]);
+
   return (
     <div style={{ paddingBottom: 48, animation: 'fadeIn 0.3s ease' }}>
       {/* Page Header */}
@@ -210,7 +220,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
             <div style={{ padding: '0 0 24px' }}>
               <MyPageView
                 currentUser={viewingMember}
-                userId={viewingMemberData?._supaId || viewingMember}
+                userId={viewingAuthUid || viewingMember}
                 members={members}
                 now={now || new Date()}
                 appoData={appoData}
