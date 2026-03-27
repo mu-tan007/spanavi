@@ -107,6 +107,7 @@ export function useSpanaviData(authOrgId) {
       const membersDetailed = members.map(m => ({
         _supaId: m.id,
         id: m.id,
+        user_id: m.user_id || null,
         no: m.sort_order || 0,
         name: m.name || '',
         university: m.university || '',
