@@ -358,6 +358,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
         padding: isMobile ? "10px 12px" : "14px 18px", background: '#fff', borderRadius: 4,
         border: "1px solid #E5E7EB",
+        overflowX: isMobile ? 'auto' : undefined, WebkitOverflowScrolling: 'touch',
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: '#0D2247' }}>アポ一覧</span>
@@ -1292,6 +1293,7 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
         display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
         padding: isMobile ? "10px 12px" : "14px 18px", background: '#fff', borderRadius: 4,
         border: "1px solid #E5E7EB",
+        overflowX: isMobile ? 'auto' : undefined, WebkitOverflowScrolling: 'touch',
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: '#0D2247' }}>メンバー一覧</span>

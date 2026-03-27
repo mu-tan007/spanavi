@@ -1010,7 +1010,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       {/* OLD_HEADER_END */}
 
       {/* ===== CONTENT ===== */}
-      <main style={{ marginLeft: isMobile ? 0 : 220, paddingTop: isMobile ? 48 : 54, paddingLeft: isMobile ? 12 : 28, paddingRight: isMobile ? 12 : 28, paddingBottom: 24, minHeight: '100vh', width: isMobile ? '100%' : 'calc(100% - 220px)', boxSizing: 'border-box', overflowX: isMobile ? 'hidden' : undefined }}>
+      <main style={{ marginLeft: isMobile ? 0 : 220, paddingTop: isMobile ? 48 : 54, paddingLeft: isMobile ? 12 : 28, paddingRight: isMobile ? 12 : 28, paddingBottom: 24, minHeight: '100vh', width: isMobile ? '100%' : 'calc(100% - 220px)', boxSizing: 'border-box', overflowX: 'hidden' }}>
         {currentTab === "live" && <LiveStatusView now={now} callListData={callListData} members={members} isAdmin={isAdmin} isTeamLeader={!isAdmin && currentMemberDetail?.role === 'チームリーダー'} orgId={orgId} />}
         {currentTab === "incoming" && <IncomingCallsView setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "lists" && <ListView filteredLists={filteredLists} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterType={filterType} setFilterType={setFilterType} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy} setSelectedList={setSelectedList} callListData={callListData} setCallListData={setCallListData} listFormOpen={listFormOpen} setListFormOpen={setListFormOpen} editingListId={editingListId} setEditingListId={setEditingListId} now={now} isAdmin={isAdmin} clientData={clientData} />}
