@@ -249,6 +249,9 @@ export async function insertAppointment(data) {
       appo_report: data.appoReport || null,
       appo_month: appoMonth,
       email_status: data.emailStatus || 'pending',
+      list_id: data.list_id || null,
+      item_id: data.item_id || null,
+      phone: data.phone || null,
     })
     .select()
     .single()

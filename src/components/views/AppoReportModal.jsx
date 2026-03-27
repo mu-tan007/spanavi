@@ -201,6 +201,9 @@ HP：${form.hp}
       status:     'アポ取得',
       sales:      salesVal,
       reward:     rewardVal,
+      list_id:    list._supaId || null,
+      item_id:    row.id || null,
+      phone:      row.phone || null,
     });
     await onSave({
       company:    row.company,
