@@ -988,7 +988,7 @@ export async function fetchMyCallRecords(userName) {
 export async function insertCallSession(data) {
   const { data: row, error } = await supabase
     .from('call_sessions')
-    .insert([data])
+    .insert([{ ...data, org_id: data.org_id || getOrgId() }])
     .select()
     .single()
   if (error) {
@@ -1099,7 +1099,7 @@ export async function fetchCallSessionsForRange(fromISO, toISO) {
 }
 
 export async function fetchAllCallSessionsWithClients() {
-  // call_sessionsにはorg_idカラムがないため、RLSでテナント分離する
+  // org_idベースのRLSでテナント分離
   const { data: sessions, error: sErr } = await supabase
     .from('call_sessions')
     .select('*')
