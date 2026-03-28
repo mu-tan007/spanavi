@@ -227,6 +227,25 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                 </tr>
               );
             })}
+            {/* 各日の合計稼働人数 */}
+            <tr style={{ borderTop: '2px solid ' + NAVY }}>
+              <td style={{ position: 'sticky', left: 0, padding: '8px 12px', fontWeight: 700, fontSize: 11, color: NAVY, background: GRAY_50, borderRight: '2px solid ' + GRAY_200, whiteSpace: 'nowrap', zIndex: 1, verticalAlign: 'middle' }}>
+                稼働人数
+              </td>
+              {displayDays.map(d => {
+                const count = sortedMembers.filter(member => {
+                  const memId = member._supaId || member.id;
+                  return getShifts(memId, d).length > 0;
+                }).length;
+                const { isSun, isSat } = getDayMeta(d);
+                return (
+                  <td key={d} style={{ padding: '8px 4px', textAlign: 'center', fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", fontVariantNumeric: 'tabular-nums', color: count === 0 ? '#a0aec0' : NAVY, background: isSun ? '#fff5f5' : isSat ? '#ebf8ff' : GRAY_50, borderRight: '1px solid ' + GRAY_200, verticalAlign: 'middle' }}>
+                    {count > 0 ? count : '-'}
+                  </td>
+                );
+              })}
+              <td style={{ position: 'sticky', right: 0, padding: '8px 8px', textAlign: 'center', background: GRAY_50, borderLeft: '2px solid ' + GRAY_200, zIndex: 1, verticalAlign: 'middle' }} />
+            </tr>
           </tbody>
         </table>
       </div>
