@@ -74,10 +74,17 @@ export const getCurrentRecommendation = (rules, industry, now, latestCallAt, cre
   let timeScore = 50;
   let timeLabel = "通常";
 
+  // 昼休みゴールデンタイム: 平日13:00-14:00は全業種で社長在席率が高い
+  const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+  const isLunchGolden = isWeekday && currentTime >= 13 && currentTime < 14;
+
   if (rule) {
     if (rule.badDays.includes(dayOfWeek)) {
       timeScore = 5;
       timeLabel = "定休日";
+    } else if (isLunchGolden) {
+      timeScore = 95;
+      timeLabel = "ゴールデン";
     } else {
       const goodRanges = parseTimeRange(rule.goodHours);
       const badRanges = parseTimeRange(rule.badHours);
@@ -89,6 +96,9 @@ export const getCurrentRecommendation = (rules, industry, now, latestCallAt, cre
       else if (rule.goodDays.includes(dayOfWeek)) { timeScore = 60; timeLabel = "良好"; }
       else { timeScore = 40; }
     }
+  } else if (isLunchGolden) {
+    timeScore = 95;
+    timeLabel = "ゴールデン";
   }
 
   // --- Recency score (0-100): higher = longer since last called = more fresh ---
