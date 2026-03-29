@@ -16,6 +16,8 @@ const SETTING_GROUPS = [
       { key: 'slack_webhook_keiden',     label: '架電報告（#架電報告）',                placeholder: 'https://hooks.slack.com/services/...' },
       { key: 'slack_webhook_nario',      label: 'ロープレ分析通知 成尾チーム',          placeholder: 'https://hooks.slack.com/services/...' },
       { key: 'slack_webhook_takahashi',  label: 'ロープレ分析通知 高橋チーム',          placeholder: 'https://hooks.slack.com/services/...' },
+      { key: 'slack_webhook_report_nario',     label: 'チームレポート 成尾チーム',      placeholder: 'https://hooks.slack.com/services/...' },
+      { key: 'slack_webhook_report_takahashi', label: 'チームレポート 高橋チーム',      placeholder: 'https://hooks.slack.com/services/...' },
     ],
   },
   {

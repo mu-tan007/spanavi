@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.receive-zoom-webhook]
 verify_jwt = false
+
+[functions.notify-team-report]
+verify_jwt = false
