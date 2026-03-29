@@ -7,7 +7,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo } from '../../lib/supabaseWrite';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
 import AppoReportModal from './AppoReportModal';
@@ -53,6 +53,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [localMemo, setLocalMemo] = useState('');
   const [savingMemo, setSavingMemo] = useState(false);
   const [appoModal, setAppoModal] = useState(null); // holds selectedRow when アポ獲得 is clicked
+  const [aiGenerating, setAiGenerating] = useState(false);
   const [scriptPanelOpen, setScriptPanelOpen] = useState(true);
   const [scriptTab, setScriptTab] = useState('script');
   const [sortState, setSortState] = useState({ column: null, direction: null });
@@ -1027,6 +1028,61 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                         );
                       })}
                     </div>
+                  </div>
+                );
+              })()}
+
+              {/* AI企業分析 */}
+              {(() => {
+                const hasAi = selectedRow.ai_overview || selectedRow.ai_strengths;
+                const genAt = selectedRow.ai_generated_at ? new Date(selectedRow.ai_generated_at) : null;
+                const genLabel = genAt ? `${genAt.getMonth() + 1}/${genAt.getDate()} ${genAt.getHours()}:${String(genAt.getMinutes()).padStart(2, '0')}` : '';
+                return (
+                  <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 8, border: '1px solid ' + (hasAi ? '#3B82F620' : C.border), background: hasAi ? '#EFF6FF' : C.offWhite }}>
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: hasAi ? 8 : 0 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: C.navy }}>AI企業分析</span>
+                      {hasAi && genLabel && <span style={{ fontSize: 9, color: C.textLight, marginLeft: 6 }}>{genLabel}生成</span>}
+                      <span style={{ marginLeft: 'auto' }}>
+                        {aiGenerating ? (
+                          <span style={{ fontSize: 9, color: '#3B82F6', fontWeight: 600 }}>生成中...</span>
+                        ) : (
+                          <button onClick={async () => {
+                            setAiGenerating(true);
+                            try {
+                              const { data } = await invokeGenerateCompanyInfo({ itemId: selectedRow.id, company: selectedRow.company, representative: selectedRow.representative });
+                              if (data?.overview || data?.strengths) {
+                                const updated = { ...selectedRow, ai_overview: data.overview, ai_strengths: data.strengths, ai_generated_at: new Date().toISOString() };
+                                setItems(prev => prev.map(it => it.id === selectedRow.id ? updated : it));
+                                setSelectedRow(updated);
+                              }
+                            } catch (e) { console.error('[AI企業分析] error:', e); }
+                            setAiGenerating(false);
+                          }}
+                            style={{ fontSize: 9, fontWeight: 600, color: '#3B82F6', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: "'Noto Sans JP'" }}>
+                            {hasAi ? '再生成' : '生成する'}
+                          </button>
+                        )}
+                      </span>
+                    </div>
+                    {!hasAi && !aiGenerating && (
+                      <div style={{ fontSize: 10, color: C.textLight, marginTop: 4 }}>企業HPをもとに概要・特徴を自動生成します</div>
+                    )}
+                    {hasAi && (
+                      <div style={{ fontSize: 11, color: '#1E293B', lineHeight: 1.7, fontFamily: "'Noto Sans JP'" }}>
+                        {selectedRow.ai_overview && (
+                          <>
+                            <div style={{ fontWeight: 700, fontSize: 10, color: C.navy, marginBottom: 2 }}>企業概要</div>
+                            <div style={{ marginBottom: 8 }}>{selectedRow.ai_overview}</div>
+                          </>
+                        )}
+                        {selectedRow.ai_strengths && (
+                          <>
+                            <div style={{ fontWeight: 700, fontSize: 10, color: C.navy, marginBottom: 2 }}>特徴・強み</div>
+                            <div style={{ whiteSpace: 'pre-line' }}>{selectedRow.ai_strengths}</div>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })()}

@@ -772,6 +772,14 @@ export async function fetchZoomUserId(name) {
   return data?.[0]?.zoom_user_id || null
 }
 
+export async function invokeGenerateCompanyInfo({ itemId, company, representative }) {
+  const { data, error } = await supabase.functions.invoke('generate-company-info', {
+    body: { item_id: itemId, company, representative },
+  })
+  if (error) console.error('[Edge] generate-company-info error:', error)
+  return { data, error }
+}
+
 export async function invokeAppoAiReport(payload) {
   const { data, error } = await supabase.functions.invoke('appo-ai-report', {
     body: payload,
