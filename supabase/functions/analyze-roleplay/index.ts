@@ -52,17 +52,28 @@ async function processInBackground(
     let rawExt = 'mp4'
 
     if (storage_path) {
-      const { data: fileData, error: downloadError } = await supabase.storage
+      // 署名付きURLを生成してfetchする（supabase.storage.download()より高速）
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('roleplay-recordings')
-        .download(storage_path)
-      if (downloadError || !fileData) {
-        console.error('[analyze-roleplay] Storage download failed:', downloadError?.message)
+        .createSignedUrl(storage_path, 300) // 5分有効
+      if (signedUrlError || !signedUrlData?.signedUrl) {
+        console.error('[analyze-roleplay] Signed URL failed:', signedUrlError?.message)
         await supabase.from('roleplay_sessions')
-          .update({ ai_status: 'error', ai_feedback: { error: `ストレージからのダウンロードに失敗しました: ${downloadError?.message}` } })
+          .update({ ai_status: 'error', ai_feedback: { error: `署名付きURL生成に失敗しました: ${signedUrlError?.message}` } })
           .eq('id', session_id)
         return
       }
-      audioBuffer = await fileData.arrayBuffer()
+      const storageRes = await fetch(signedUrlData.signedUrl, {
+        signal: AbortSignal.timeout(60_000),
+      })
+      if (!storageRes.ok) {
+        console.error('[analyze-roleplay] Storage fetch failed:', storageRes.status)
+        await supabase.from('roleplay_sessions')
+          .update({ ai_status: 'error', ai_feedback: { error: `ストレージからのダウンロードに失敗しました: ${storageRes.status}` } })
+          .eq('id', session_id)
+        return
+      }
+      audioBuffer = await storageRes.arrayBuffer()
       rawExt = storage_path.split('.').pop()?.toLowerCase() || 'mp4'
     } else {
       // Google Drive 共有URLを直接ダウンロードURLに変換（confirm=t で大容量確認ページを回避）
@@ -107,8 +118,11 @@ async function processInBackground(
     let finalBuffer = audioBuffer
     let sizeNote = ''
 
-    if (audioBuffer.byteLength > WHISPER_MAX_BYTES) {
-      finalBuffer = audioBuffer.slice(0, WHISPER_MAX_BYTES - 512 * 1024) // 24.5 MB
+    // 15MB超のファイルはWhisper処理時間が長くEdge Functionのwall time limitに
+    // 引っかかるため、積極的にトランケートする（15MBのMP3 ≒ 約30分相当）
+    const SAFE_LIMIT = 15 * 1024 * 1024 // 15 MB
+    if (audioBuffer.byteLength > SAFE_LIMIT) {
+      finalBuffer = audioBuffer.slice(0, SAFE_LIMIT)
       sizeNote = '（ファイルが大きいため冒頭部分のみ分析）'
       console.log(`[analyze-roleplay] Truncated ${rawExt} (${audioBuffer.byteLength} bytes) to ${finalBuffer.byteLength} bytes`)
     }
