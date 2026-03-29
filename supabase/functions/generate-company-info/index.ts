@@ -76,8 +76,10 @@ ${representative ? `代表者: ${representative}` : ''}
       parsed = { overview: text, strengths: '' }
     }
 
-    const overview = parsed.overview || ''
-    const strengths = parsed.strengths || ''
+    // Web Searchの引用タグを除去
+    const stripCite = (s: string) => s.replace(/<\/?cite[^>]*>/g, '')
+    const overview = stripCite(parsed.overview || '')
+    const strengths = stripCite(parsed.strengths || '')
 
     // item_idが提供されていればDBに保存
     if (item_id) {
