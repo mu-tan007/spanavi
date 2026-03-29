@@ -1603,6 +1603,61 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 );
               })()}
 
+              {/* AI企業分析 */}
+              {(() => {
+                const hasAi = selectedRow.ai_overview || selectedRow.ai_strengths;
+                const genAt = selectedRow.ai_generated_at ? new Date(selectedRow.ai_generated_at) : null;
+                const genLabel = genAt ? `${genAt.getMonth() + 1}/${genAt.getDate()} ${genAt.getHours()}:${String(genAt.getMinutes()).padStart(2, '0')}` : '';
+                return (
+                  <div style={{ padding: '12px 14px', borderRadius: 4, border: '1px solid ' + (hasAi ? '#3B82F620' : '#E5E7EB'), background: hasAi ? '#EFF6FF' : '#fff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: hasAi ? 8 : 0 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#0D2247' }}>AI企業分析</span>
+                      {hasAi && genLabel && <span style={{ fontSize: 9, color: '#9CA3AF', marginLeft: 6 }}>{genLabel}生成</span>}
+                      <span style={{ marginLeft: 'auto' }}>
+                        {aiGenerating ? (
+                          <span style={{ fontSize: 10, color: '#3B82F6', fontWeight: 600 }}>生成中...</span>
+                        ) : (
+                          <button onClick={async () => {
+                            setAiGenerating(true);
+                            try {
+                              const { data } = await invokeGenerateCompanyInfo({ itemId: selectedRow.id, company: selectedRow.company, representative: selectedRow.representative });
+                              if (data?.overview || data?.strengths) {
+                                const updated = { ...selectedRow, ai_overview: data.overview, ai_strengths: data.strengths, ai_generated_at: new Date().toISOString() };
+                                setItems(prev => prev.map(it => it.id === selectedRow.id ? updated : it));
+                                setSelectedRow(updated);
+                              }
+                            } catch (e) { console.error('[AI企業分析] error:', e); }
+                            setAiGenerating(false);
+                          }}
+                            style={{ fontSize: 10, fontWeight: 600, color: '#3B82F6', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: "'Noto Sans JP'" }}>
+                            {hasAi ? '再生成' : '生成する'}
+                          </button>
+                        )}
+                      </span>
+                    </div>
+                    {!hasAi && !aiGenerating && (
+                      <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 4 }}>企業HPをもとに概要・特徴を自動生成します</div>
+                    )}
+                    {hasAi && (
+                      <div style={{ fontSize: 11, color: '#1E293B', lineHeight: 1.7, fontFamily: "'Noto Sans JP'" }}>
+                        {selectedRow.ai_overview && (
+                          <>
+                            <div style={{ fontWeight: 700, fontSize: 10, color: '#0D2247', marginBottom: 2 }}>企業概要</div>
+                            <div style={{ marginBottom: 8 }}>{selectedRow.ai_overview}</div>
+                          </>
+                        )}
+                        {selectedRow.ai_strengths && (
+                          <>
+                            <div style={{ fontWeight: 700, fontSize: 10, color: '#0D2247', marginBottom: 2 }}>特徴・強み</div>
+                            <div style={{ whiteSpace: 'pre-line' }}>{selectedRow.ai_strengths}</div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* 架電履歴 */}
               {(() => {
                 const recs = getRecordsForItem(selectedRow.id).slice().sort((a, b) => a.round - b.round);
