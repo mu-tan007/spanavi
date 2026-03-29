@@ -7,9 +7,10 @@ import AlignmentContextMenu from '../common/AlignmentContextMenu';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
+const fmtHours = (h) => h > 0.01 ? `${Math.floor(h)}h${String(Math.round((h % 1) * 60)).padStart(2, '0')}m` : '-';
 const RESCHED_STATUSES = new Set(['リスケ中', 'キャンセル', '面談済', '事前確認済', 'アポ取得']);
 
-const COLS = ['架電数', '社長接続', '接続率', 'アポ数', 'アポ率', '件/h', 'リスケ率', 'キャンセル率'];
+const COLS = ['架電数', '社長接続', '接続率', 'アポ数', 'アポ率', '件/h', '稼働時間', 'リスケ率', 'キャンセル率'];
 
 const TEAM_PERF_COLS = [
   { key: 'name', width: 180, align: 'left' },
@@ -19,6 +20,7 @@ const TEAM_PERF_COLS = [
   { key: 'appo', width: 80, align: 'right' },
   { key: 'appoRate', width: 100, align: 'right' },
   { key: 'callsPerHour', width: 80, align: 'right' },
+  { key: 'workHours', width: 90, align: 'right' },
   { key: 'reschedRate', width: 100, align: 'right' },
   { key: 'cancelRate', width: 100, align: 'right' },
 ];
@@ -166,8 +168,9 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
                   <span style={{ ...mono, color: '#fff', fontWeight: 800, fontSize: 12, textAlign: perfCols[4].align, display: 'block' }}>{d.appo}</span>
                   <span style={{ ...mono, color: '#fff', fontWeight: 700, fontSize: 12, textAlign: perfCols[5].align, display: 'block' }}>{ar}%</span>
                   <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: perfCols[6].align, display: 'block' }}>{teamCph}</span>
-                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: perfCols[7].align, display: 'block' }}>{teamReschedRate}</span>
-                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: perfCols[8].align, display: 'block' }}>{teamCancelRate}</span>
+                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: perfCols[7].align, display: 'block' }}>{fmtHours(teamHours)}</span>
+                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: perfCols[8].align, display: 'block' }}>{teamReschedRate}</span>
+                  <span style={{ ...mono, color: '#93C5FD', fontSize: 12, textAlign: perfCols[9].align, display: 'block' }}>{teamCancelRate}</span>
                 </div>
 
                 {/* メンバー行 */}
@@ -194,8 +197,9 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
                       <span style={{ ...mono, color: '#374151', fontWeight: 700, textAlign: perfCols[4].align, display: 'block' }}>{md.appo}</span>
                       <span style={{ ...mono, color: '#374151', textAlign: perfCols[5].align, display: 'block' }}>{mar}%</span>
                       <span style={{ ...mono, color: '#6B7280', textAlign: perfCols[6].align, display: 'block' }}>{mcph}</span>
-                      <span style={{ ...mono, color: reschedColor, textAlign: perfCols[7].align, display: 'block' }}>{mReschedRate}</span>
-                      <span style={{ ...mono, color: cancelColor, textAlign: perfCols[8].align, display: 'block' }}>{mCancelRate}</span>
+                      <span style={{ ...mono, color: '#6B7280', textAlign: perfCols[7].align, display: 'block' }}>{fmtHours(mHours)}</span>
+                      <span style={{ ...mono, color: reschedColor, textAlign: perfCols[8].align, display: 'block' }}>{mReschedRate}</span>
+                      <span style={{ ...mono, color: cancelColor, textAlign: perfCols[9].align, display: 'block' }}>{mCancelRate}</span>
                     </div>
                   );
                 })}
