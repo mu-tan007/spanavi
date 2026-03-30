@@ -462,7 +462,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     const newRecords = [...callRecords, newRec];
     const itemRecs = newRecords.filter(r => r.item_id === selectedRow.id);
     const newIsExcl = itemRecs.some(r => EXCLUDED_STATUSES.has(r.status));
-    await updateCallListItem(selectedRow.id, { call_status: result, is_excluded: newIsExcl });
+    // DB更新はバックグラウンドで実行（タイムアウトでUI更新がブロックされるのを防止）
+    updateCallListItem(selectedRow.id, { call_status: result, is_excluded: newIsExcl })
+      .catch(e => console.warn('[handleResult] updateCallListItem error:', e));
     const updatedItem = { ...selectedRow, call_status: result, is_excluded: newIsExcl };
     const newItems = items.map(i => i.id === selectedRow.id ? updatedItem : i);
     setItems(newItems);
@@ -515,7 +517,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     const lastRec = [...itemRecs].sort((a, b) => b.round - a.round)[0];
     const newStatus = lastRec?.status || '未架電';
     const newIsExcl = itemRecs.some(r => EXCLUDED_STATUSES.has(r.status));
-    await updateCallListItem(selectedRow.id, { call_status: newStatus, is_excluded: newIsExcl });
+    updateCallListItem(selectedRow.id, { call_status: newStatus, is_excluded: newIsExcl })
+      .catch(e => console.warn('[handleDeleteRecord] updateCallListItem error:', e));
     setItems(prev => prev.map(i => i.id === selectedRow.id ? { ...i, call_status: newStatus, is_excluded: newIsExcl } : i));
     setSelectedRow(prev => prev ? { ...prev, call_status: newStatus, is_excluded: newIsExcl } : prev);
     setSelectedRound(record.round);
@@ -588,7 +591,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setCallRecords(newRecords);
 
     const itemRecs = newRecords.filter(r => r.item_id === appoModal.id);
-    await updateCallListItem(appoModal.id, { call_status: 'アポ獲得', is_excluded: true });
+    updateCallListItem(appoModal.id, { call_status: 'アポ獲得', is_excluded: true })
+      .catch(e => console.warn('[handleAppoSave] updateCallListItem error:', e));
     const updatedItem = { ...appoModal, call_status: 'アポ獲得', is_excluded: true };
     const newItems = items.map(i => i.id === appoModal.id ? updatedItem : i);
     setItems(newItems);
@@ -679,7 +683,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setCallRecords(newRecords);
     const itemRecs = newRecords.filter(r => r.item_id === row.id);
     const newIsExcl = itemRecs.some(r => EXCLUDED_STATUSES.has(r.status));
-    await updateCallListItem(row.id, { call_status: label, is_excluded: newIsExcl });
+    updateCallListItem(row.id, { call_status: label, is_excluded: newIsExcl })
+      .catch(e => console.warn('[handleRecallSave] updateCallListItem error:', e));
     const updatedItem = { ...row, call_status: label, is_excluded: newIsExcl };
     const newItems = items.map(i => i.id === row.id ? updatedItem : i);
     setItems(newItems);
