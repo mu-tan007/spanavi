@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 
@@ -129,10 +130,16 @@ const generateEmail = (id) =>
   `user_${id}@${ORG_DOMAIN}`
 
 export default function LoginPage() {
-  const { signIn } = useAuth()
+  const { signIn, session } = useAuth()
+  const navigate = useNavigate()
   // mode: 'admin' | 'login' | 'forgot' | 'forgotSent' | 'forgotEmail' | 'forgotEmailSent'
   // デフォルトをメールアドレスログイン（admin）に変更
   const [mode, setMode] = useState('admin')
+
+  // ログイン済みならアプリへリダイレクト
+  useEffect(() => {
+    if (session) navigate('/dashboard', { replace: true })
+  }, [session, navigate])
 
   // 通常ログイン用メンバー一覧（adminを除外）
   const [members, setMembers] = useState([])

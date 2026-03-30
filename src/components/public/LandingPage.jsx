@@ -14,9 +14,7 @@ const C = {
   cardBorder: 'rgba(255,255,255,0.10)',
 }
 
-// 正式ロゴ: シールド + Spanavi テキスト（白+ゴールド、ダーク背景用）
-const LOGO_FULL_WHITE = '/spanavi-logo-full-white.svg'
-// 正式ロゴ: シールド + Spanavi テキスト（ネイビー+ゴールド、ライト背景用）
+// 正式ロゴ: シールド + Spanavi テキスト（本体と同一）
 const LOGO_FULL = '/spanavi-logo-full.svg'
 
 const features = [
@@ -83,7 +81,7 @@ export default function LandingPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64,
         }}>
           <div style={{ cursor: 'pointer' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <img src={LOGO_FULL_WHITE} alt="Spanavi" style={{ height: 36 }} />
+            <img src={LOGO_FULL} alt="Spanavi" style={{ height: 36 }} />
           </div>
           <div style={{ display: 'flex', gap: 12 }}>
             <button className="lp-btn" onClick={() => navigate('/login')} style={{
@@ -117,7 +115,7 @@ export default function LandingPage() {
         }} />
         <div style={{ position: 'relative', zIndex: 1, maxWidth: 800, margin: '0 auto', padding: '0 24px' }}>
           <div style={{ marginBottom: 24 }}>
-            <img src={LOGO_FULL_WHITE} alt="Spanavi" style={{ height: 56 }} />
+            <img src={LOGO_FULL} alt="Spanavi" style={{ height: 56 }} />
           </div>
           <h1 className="lp-hero-title" style={{
             fontSize: 40, fontWeight: 800, lineHeight: 1.4, marginBottom: 20,
@@ -268,7 +266,7 @@ export default function LandingPage() {
         padding: '32px 32px', textAlign: 'center',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-          <img src={LOGO_FULL_WHITE} alt="Spanavi" style={{ height: 28 }} />
+          <img src={LOGO_FULL} alt="Spanavi" style={{ height: 28 }} />
         </div>
         <p style={{ fontSize: 11, color: C.textMuted }}>
           © {new Date().getFullYear()} Spanavi. All rights reserved.
