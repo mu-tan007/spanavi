@@ -204,17 +204,20 @@ Deno.serve(async (req) => {
     // 全録音のowner・callee_numberを出力（デバッグ用）
     console.log('[get-zoom-recording] 全録音一覧:')
     allRecordings.forEach((r, i) => {
-      console.log(`  [${i + 1}] owner.id=${r.owner?.id ?? '—'} / callee_number=${r.callee_number ?? '—'} / callee_number(正規)=${normalizePhone(r.callee_number || '')} / date_time=${r.date_time ?? '—'}`)
+      console.log(`  [${i + 1}] owner.id=${r.owner?.id ?? '—'} / callee=${r.callee_number ?? '—'} / caller=${(r as any).caller_number ?? '—'} / direction=${(r as any).direction ?? '—'} / date_time=${r.date_time ?? '—'}`)
     })
 
     // owner.id でフィルタ（APIレスポンスは owner.id のネスト構造）
     const myRecordings = allRecordings.filter(r => r.owner?.id === zoom_user_id)
     console.log(`[get-zoom-recording] owner.id="${zoom_user_id}" フィルタ後: ${myRecordings.length} 件`)
 
-    // callee_phone でさらに絞り込む
+    // callee_phone でさらに絞り込む（outbound: callee_number, inbound: caller_number の両方をチェック）
     const calleePhoneNorm = normalizePhone(callee_phone || '')
     const phoneFiltered = calleePhoneNorm
-      ? myRecordings.filter(r => normalizePhone(r.callee_number || '') === calleePhoneNorm)
+      ? myRecordings.filter(r =>
+          normalizePhone(r.callee_number || '') === calleePhoneNorm ||
+          normalizePhone((r as any).caller_number || '') === calleePhoneNorm
+        )
       : myRecordings
     console.log(`[get-zoom-recording] callee_phone="${calleePhoneNorm}" フィルタ後: ${phoneFiltered.length} 件`)
 
