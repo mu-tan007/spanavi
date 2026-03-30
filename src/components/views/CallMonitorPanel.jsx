@@ -171,11 +171,15 @@ export default function CallMonitorPanel() {
     return () => { if (tickRef.current) clearInterval(tickRef.current); };
   }, [activeCalls.length]);
 
-  // 古いendedレコードのクリーンアップ（1時間以上前）
+  // 古いレコードのクリーンアップ
   useEffect(() => {
     const cleanup = async () => {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      // ended: 1時間後に削除
       await supabase.from('active_calls').delete().eq('call_status', 'ended').lt('ended_at', oneHourAgo);
+      // ringing/connected: 30分以上経過はゾンビなので削除
+      await supabase.from('active_calls').delete().in('call_status', ['ringing', 'connected']).lt('started_at', thirtyMinAgo);
     };
     cleanup();
   }, []);
