@@ -53,8 +53,7 @@ function MainApp() {
               </g>
             </g>
           </svg>
-          <img src="/spanavi-logo-full.svg" alt="Spanavi" style={{ width: 160, marginTop: 16, animation: 'fadeInText 1.5s ease-out' }} />
-          <p style={{ color: '#8896a6', fontSize: 12, letterSpacing: 2, marginTop: 12, animation: 'fadeInText 1.5s ease-out' }}>読み込み中...</p>
+          <p style={{ color: '#8896a6', fontSize: 12, letterSpacing: 2, animation: 'fadeInText 1.5s ease-out' }}>読み込み中...</p>
         </div>
       </div>
     )
