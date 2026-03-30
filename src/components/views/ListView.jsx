@@ -410,12 +410,12 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                       {isAdmin && (
                         <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 4 }}>
                           <button onClick={() => handleOpenEdit(list)} title="編集" style={{
-                            width: 26, height: 26, borderRadius: 4, background: C.offWhite,
+                            width: isMobile ? 36 : 26, height: isMobile ? 36 : 26, borderRadius: 4, background: C.offWhite,
                             border: "1px solid " + C.border, color: C.textMid, cursor: "pointer",
                             fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center",
                           }}>✎</button>
                           <button onClick={() => { handleDelete(list.id); }} title="削除" style={{
-                            width: 26, height: 26, borderRadius: 4, background: C.redLight,
+                            width: isMobile ? 36 : 26, height: isMobile ? 36 : 26, borderRadius: 4, background: C.redLight,
                             border: "1px solid " + C.red + "20", color: C.red, cursor: "pointer",
                             fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center",
                           }}>✕</button>
@@ -453,7 +453,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                       if (error) { alert('復元に失敗しました: ' + (error.message || '不明なエラー')); return; }
                       setCallListData(prev => prev.map(l => l.id === list.id ? { ...l, is_archived: false } : l));
                     }} style={{
-                      padding: "4px 10px", borderRadius: 4, fontSize: 11, fontWeight: 500,
+                      padding: isMobile ? "8px 12px" : "4px 10px", borderRadius: 4, fontSize: isMobile ? 12 : 11, fontWeight: 500,
                       background: "#fff", color: "#0D2247", border: "1px solid #0D2247", cursor: "pointer",
                       fontFamily: "'Noto Sans JP'",
                     }}>復元</button>}

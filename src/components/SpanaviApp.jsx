@@ -701,7 +701,8 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
           {isMobile && (
             <button onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(true); }} style={{
               background: 'none', border: 'none', cursor: 'pointer', padding: 6,
-              fontSize: 20, color: C.navy, lineHeight: 1,
+              fontSize: 20, color: C.navy, lineHeight: 1, minWidth: 44, minHeight: 44,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>☰</button>
           )}
         <div style={{ fontSize: 11, fontWeight: 500, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
@@ -1010,7 +1011,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       {/* OLD_HEADER_END */}
 
       {/* ===== CONTENT ===== */}
-      <main style={{ marginLeft: isMobile ? 0 : 220, paddingTop: isMobile ? 48 : 54, paddingLeft: isMobile ? 12 : 28, paddingRight: isMobile ? 12 : 28, paddingBottom: 24, minHeight: '100vh', width: isMobile ? '100%' : 'calc(100% - 220px)', boxSizing: 'border-box', overflowX: 'hidden' }}>
+      <main style={{ marginLeft: isMobile ? 0 : 220, paddingTop: isMobile ? 48 : 54, paddingLeft: isMobile ? 12 : 28, paddingRight: isMobile ? 12 : 28, paddingBottom: isMobile ? 72 : 24, minHeight: '100vh', width: isMobile ? '100%' : 'calc(100% - 220px)', boxSizing: 'border-box', overflowX: 'hidden' }}>
         {currentTab === "live" && <LiveStatusView now={now} callListData={callListData} members={members} isAdmin={isAdmin} isTeamLeader={!isAdmin && currentMemberDetail?.role === 'チームリーダー'} orgId={orgId} />}
         {currentTab === "incoming" && <IncomingCallsView setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "lists" && <ListView filteredLists={filteredLists} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterType={filterType} setFilterType={setFilterType} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy} setSelectedList={setSelectedList} callListData={callListData} setCallListData={setCallListData} listFormOpen={listFormOpen} setListFormOpen={setListFormOpen} editingListId={editingListId} setEditingListId={setEditingListId} now={now} isAdmin={isAdmin} clientData={clientData} />}
@@ -1035,6 +1036,14 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         {currentTab === "ai" && <AIAssistantView appoData={appoData} members={members} callListData={callListData} industryRules={industryRules} currentUser={currentUser} />}
         {currentTab === "manager_admin" && isManagerRole && <ManagerAdminView currentUser={currentUser} members={members} appoData={appoData} now={now} />}
       </main>
+
+      {isMobile && (
+        <MobileBottomNav
+          currentTab={currentTab}
+          setCurrentTab={setCurrentTab}
+          onMorePress={() => setMobileMenuOpen(true)}
+        />
+      )}
 
       {callingScreen && <CallingScreen listId={callingScreen.listId} list={callingScreen.list} importedCSVs={importedCSVs} setImportedCSVs={setImportedCSVs} onClose={() => setCallingScreen(null)} currentUser={currentUser} liveStatuses={liveStatuses} setLiveStatuses={setLiveStatuses} members={members} clientData={clientData} rewardMaster={rewardMaster} />}
       {selectedList && <DetailModal list={enrichedLists.find(l => l.id === selectedList)} onClose={() => setSelectedList(null)} industryRules={industryRules} now={now} callListData={callListData} setCallListData={setCallListData} setCallFlowScreen={setCallFlowScreen} isAdmin={isAdmin} onDelete={(id) => { setCallListData(prev => prev.filter(l => l.id !== id)); setSelectedList(null); }} />}

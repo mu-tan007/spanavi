@@ -62,3 +62,17 @@ input::placeholder, textarea::placeholder {
   color: #A0A0A0 !important;
   -webkit-text-fill-color: #A0A0A0 !important;
 }
+
+/* Mobile optimizations */
+@media (max-width: 767px) {
+  /* Ensure minimum touch targets */
+  button:not(.no-min-height),
+  [role="button"]:not(.no-min-height) {
+    min-height: 40px;
+  }
+
+  /* Safe area padding for notched devices */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
