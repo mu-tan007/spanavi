@@ -540,8 +540,16 @@ export default function LoginPage() {
           </div>
         )}
 
-        <div style={{ marginTop: 20, textAlign: 'center', fontSize: 9, color: C.textMuted, letterSpacing: 1 }}>
-          © {new Date().getFullYear()} Spanavi
+        <div style={{ marginTop: 20, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <a href="/signup" style={{ fontSize: 12, color: C.blue, textDecoration: 'none' }}>
+            アカウントをお持ちでない方はこちら
+          </a>
+          <a href="/" style={{ fontSize: 11, color: C.textMuted, textDecoration: 'none' }}>
+            ← トップページに戻る
+          </a>
+          <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: 1, marginTop: 4 }}>
+            © {new Date().getFullYear()} Spanavi
+          </div>
         </div>
       </div>
     </div>

@@ -3,12 +3,13 @@ import { useSpanaviData } from './hooks/useSpanaviData'
 import LoginPage from './components/LoginPage'
 import ResetPasswordPage from './components/ResetPasswordPage'
 import SpanaviApp from './components/SpanaviApp'
+import LandingPage from './components/public/LandingPage'
 import SignupPage from './components/public/SignupPage'
 import SignupCompletePage from './components/public/SignupCompletePage'
 import SignupCanceledPage from './components/public/SignupCanceledPage'
 import SubscriptionGuard from './components/common/SubscriptionGuard'
 import { useEffect, useRef } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 
 function MainApp() {
   const { session, profile, loading, signOut, isAdmin, recoveryMode, clearRecoveryMode, orgId } = useAuth()
@@ -52,7 +53,8 @@ function MainApp() {
               </g>
             </g>
           </svg>
-          <p style={{ color: '#8896a6', fontSize: 12, letterSpacing: 2, animation: 'fadeInText 1.5s ease-out' }}>読み込み中...</p>
+          <img src="/spanavi-logo-full.svg" alt="Spanavi" style={{ width: 160, marginTop: 16, animation: 'fadeInText 1.5s ease-out' }} />
+          <p style={{ color: '#8896a6', fontSize: 12, letterSpacing: 2, marginTop: 12, animation: 'fadeInText 1.5s ease-out' }}>読み込み中...</p>
         </div>
       </div>
     )
@@ -63,9 +65,9 @@ function MainApp() {
     return <ResetPasswordPage onComplete={clearRecoveryMode} />
   }
 
-  // 未ログイン
+  // 未ログイン → ログインページへリダイレクト
   if (!session) {
-    return <LoginPage />
+    return <Navigate to="/login" replace />
   }
 
   // Supabase fetch 失敗
@@ -111,6 +113,8 @@ function MainApp() {
 export default function App() {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/signup/complete" element={<SignupCompletePage />} />
       <Route path="/signup/canceled" element={<SignupCanceledPage />} />
