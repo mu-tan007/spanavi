@@ -1605,6 +1605,37 @@ export async function fetchCallRecordsByRange(fromISO, toISO) {
   return { data: all, error: null };
 }
 
+// ============================================================
+// Performance RPC (サーバーサイド集計)
+// ============================================================
+
+export async function rpcPerfActivitySummary(fromISO, toISO, prevFromISO, prevToISO) {
+  const { data, error } = await supabase.rpc('perf_activity_summary', {
+    p_from: fromISO, p_to: toISO,
+    p_prev_from: prevFromISO || null, p_prev_to: prevToISO || null,
+  })
+  if (error) console.error('[RPC] perf_activity_summary error:', error)
+  return { data: data || { current: { total: 0, ceo_connect: 0, appo: 0 }, previous: { total: 0, ceo_connect: 0, appo: 0 } }, error }
+}
+
+export async function rpcPerfHourlyChart(dateStr) {
+  const { data, error } = await supabase.rpc('perf_hourly_chart', { p_date: dateStr })
+  if (error) console.error('[RPC] perf_hourly_chart error:', error)
+  return { data: data || [], error }
+}
+
+export async function rpcPerfRanking(fromISO, toISO) {
+  const { data, error } = await supabase.rpc('perf_ranking', { p_from: fromISO, p_to: toISO })
+  if (error) console.error('[RPC] perf_ranking error:', error)
+  return { data: data || [], error }
+}
+
+export async function rpcPerfWeeklyTrend(weekStartStr, weeks = 8) {
+  const { data, error } = await supabase.rpc('perf_weekly_trend', { p_week_start: weekStartStr, p_weeks: weeks })
+  if (error) console.error('[RPC] perf_weekly_trend error:', error)
+  return { data: data || [], error }
+}
+
 export async function fetchCallListsMeta() {
   const { data, error } = await supabase
     .from('call_lists')

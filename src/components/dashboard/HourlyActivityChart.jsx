@@ -1,16 +1,10 @@
-import { useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from 'recharts';
 import { C } from '../../constants/colors';
-import { useCallStatuses } from '../../hooks/useCallStatuses';
 
 const NAVY = '#0D2247';
-const GOLD = '#C8A84B';
-
-const toJSTHour = (utcStr) => parseInt(new Date(utcStr).toLocaleString('en-US', { timeZone: 'Asia/Tokyo', hour: 'numeric', hour12: false }), 10);
-const toJSTDate = (utcStr) => new Date(utcStr).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
 
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
@@ -38,25 +32,11 @@ function formatJP(dateStr) {
   return `${y}/${m}/${day}`;
 }
 
-export default function HourlyActivityChart({ records, selectedDate, setSelectedDate, loading }) {
-  const { ceoConnectLabels } = useCallStatuses();
+export default function HourlyActivityChart({ chartData: chartDataProp, selectedDate, setSelectedDate, loading }) {
   const nowHour = parseInt(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo', hour: 'numeric', hour12: false }), 10);
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
 
-  const chartData = useMemo(() => {
-    return Array.from({ length: 10 }, (_, i) => {
-      const h = i + 9;
-      const recs = records.filter(r => toJSTDate(r.called_at) === selectedDate && toJSTHour(r.called_at) === h);
-      const appo = recs.filter(r => r.status === 'アポ獲得').length;
-      const connect = recs.filter(r => ceoConnectLabels.has(r.status)).length;
-      return {
-        label: h + '時', hour: h,
-        callOnly: recs.length - connect,
-        connectOnly: connect - appo,
-        appo,
-      };
-    });
-  }, [records, selectedDate, ceoConnectLabels]);
+  const chartData = chartDataProp || [];
 
   const bestAppoSlot = chartData.reduce((best, d) => d.appo > (best?.appo ?? -1) ? d : best, chartData[0]);
 

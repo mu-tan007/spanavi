@@ -1,5 +1,4 @@
 import { C } from '../../constants/colors';
-import { useCallStatuses } from '../../hooks/useCallStatuses';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
@@ -16,21 +15,12 @@ function GrowthBadge({ cur, prev }) {
 }
 
 export default function ActivitySummaryCards({
-  records, prevRecords,
+  aggregated,
   period, setPeriod, customFrom, setCustomFrom, customTo, setCustomTo,
   loading,
 }) {
-  const { ceoConnectLabels } = useCallStatuses();
-
-  const aggregate = (recs) => {
-    const total = recs.length;
-    const ceoConnect = recs.filter(r => ceoConnectLabels.has(r.status)).length;
-    const appo = recs.filter(r => r.status === 'アポ獲得').length;
-    return { total, ceoConnect, appo };
-  };
-
-  const cur = aggregate(records);
-  const prev = aggregate(prevRecords);
+  const cur = { total: aggregated?.current?.total || 0, ceoConnect: aggregated?.current?.ceo_connect || 0, appo: aggregated?.current?.appo || 0 };
+  const prev = { total: aggregated?.previous?.total || 0, ceoConnect: aggregated?.previous?.ceo_connect || 0, appo: aggregated?.previous?.appo || 0 };
   const connectRate = cur.total > 0 ? (cur.ceoConnect / cur.total * 100).toFixed(1) : '0.0';
   const appoRate = cur.total > 0 ? (cur.appo / cur.total * 100).toFixed(1) : '0.0';
 

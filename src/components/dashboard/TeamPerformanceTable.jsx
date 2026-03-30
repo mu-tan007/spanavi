@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { C } from '../../constants/colors';
-import { useCallStatuses } from '../../hooks/useCallStatuses';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
@@ -25,22 +24,12 @@ const TEAM_PERF_COLS = [
   { key: 'cancelRate', width: 100, align: 'right' },
 ];
 
-export default function TeamPerformanceTable({ records, appoRecords = [], loading, teamMap, sessionMap = {}, reschedAppoData = [], members = [] }) {
-  const { ceoConnectLabels } = useCallStatuses();
-
+export default function TeamPerformanceTable({ byPerson: byPersonProp = [], loading, teamMap, sessionMap = {}, reschedAppoData = [], members = [] }) {
   const { columns: perfCols, gridTemplateColumns: perfGrid, contentMinWidth: perfMinW, onResizeStart: perfResize, onHeaderContextMenu: perfCtxMenu, contextMenu: perfCtx, setAlign: perfSetAlign, resetAll: perfReset, closeMenu: perfClose } = useColumnConfig('teamPerf', TEAM_PERF_COLS);
 
   const { teamData, memberData, reschedMap } = useMemo(() => {
     const EXCLUDED_TEAMS = new Set(['営業統括', 'その他']);
     const isValidName = (n) => n && !/^user_/i.test(n);
-
-    // アポ数マップ
-    const appoMap = {};
-    appoRecords.forEach(r => {
-      const name = r.getter_name;
-      if (!isValidName(name)) return;
-      appoMap[name] = (appoMap[name] || 0) + 1;
-    });
 
     // リスケ・キャンセルマップ
     const reschedMap = {};
@@ -56,28 +45,19 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
 
     const tm = {};
     const mm = {};
-    records.forEach(r => {
-      const name = r.getter_name;
+
+    // byPerson (RPC集計済み) からチーム別・メンバー別に振り分け
+    byPersonProp.forEach(p => {
+      const name = p.name;
       if (!isValidName(name)) return;
       const tn = teamMap[name] || 'その他';
       if (!tm[tn]) tm[tn] = { call: 0, connect: 0, appo: 0, members: new Set() };
-      tm[tn].call++;
-      if (ceoConnectLabels.has(r.status)) tm[tn].connect++;
+      tm[tn].call += p.call;
+      tm[tn].connect += p.connect;
+      tm[tn].appo += p.appo;
       tm[tn].members.add(name);
       if (!mm[tn]) mm[tn] = {};
-      if (!mm[tn][name]) mm[tn][name] = { call: 0, connect: 0, appo: 0 };
-      mm[tn][name].call++;
-      if (ceoConnectLabels.has(r.status)) mm[tn][name].connect++;
-    });
-
-    Object.entries(appoMap).forEach(([name, count]) => {
-      const tn = teamMap[name] || 'その他';
-      if (!tm[tn]) tm[tn] = { call: 0, connect: 0, appo: 0, members: new Set() };
-      tm[tn].appo += count;
-      tm[tn].members.add(name);
-      if (!mm[tn]) mm[tn] = {};
-      if (!mm[tn][name]) mm[tn][name] = { call: 0, connect: 0, appo: 0 };
-      mm[tn][name].appo = count;
+      mm[tn][name] = { call: p.call, connect: p.connect, appo: p.appo };
     });
 
     // 名簿の全アクティブメンバーをゼロデータで補完
@@ -89,7 +69,7 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
         if (!tm[tn]) tm[tn] = { call: 0, connect: 0, appo: 0, members: new Set() };
         tm[tn].members.add(mb.name);
         if (!mm[tn]) mm[tn] = {};
-        if (!mm[tn][mb.name]) mm[tn][mb.name] = { call: 0, connect: 0, appo: 0 };
+        if (!mm[tn][mb.name]) mm[tn][mb.name] = mm[tn][mb.name] || { call: 0, connect: 0, appo: 0 };
       });
 
     const teamData = Object.entries(tm)
@@ -98,7 +78,7 @@ export default function TeamPerformanceTable({ records, appoRecords = [], loadin
       .map(([tn, d]) => [tn, { ...d, memberCount: d.members.size }]);
 
     return { teamData, memberData: mm, reschedMap };
-  }, [records, appoRecords, teamMap, reschedAppoData, members, ceoConnectLabels]);
+  }, [byPersonProp, teamMap, reschedAppoData, members]);
 
   const mono = { fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums' };
 

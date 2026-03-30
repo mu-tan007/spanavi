@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { C } from '../../constants/colors';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
-import { fetchCallActivity, fetchAppoActivity, fetchCallSessionsForRange } from '../../lib/supabaseWrite';
+import { fetchCallActivity, fetchAppoActivity, fetchCallSessionsForRange, rpcPerfActivitySummary, rpcPerfHourlyChart, rpcPerfRanking, rpcPerfWeeklyTrend } from '../../lib/supabaseWrite';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
@@ -232,8 +232,7 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
   const [activityPeriod, setActivityPeriod] = useState('week');
   const [activityFrom, setActivityFrom] = useState('');
   const [activityTo, setActivityTo] = useState('');
-  const [activityRecords, setActivityRecords] = useState([]);
-  const [activityPrevRecords, setActivityPrevRecords] = useState([]);
+  const [activitySummary, setActivitySummary] = useState({ current: { total: 0, ceo_connect: 0, appo: 0 }, previous: { total: 0, ceo_connect: 0, appo: 0 } });
   const [activityLoading, setActivityLoading] = useState(false);
 
   useEffect(() => {
@@ -242,10 +241,12 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
     const prevRange = getPrevActivityDateRange(activityPeriod, todayStr, weekStartStr, monthStr);
     let cancelled = false;
     setActivityLoading(true);
-    const p1 = fetchCallActivity(_jstStart(range.from), _jstEnd(range.to));
-    const p2 = prevRange ? fetchCallActivity(_jstStart(prevRange.from), _jstEnd(prevRange.to)) : Promise.resolve({ data: [] });
-    Promise.all([p1, p2])
-      .then(([cur, prev]) => { if (!cancelled) { setActivityRecords(cur.data || []); setActivityPrevRecords(prev.data || []); } })
+    rpcPerfActivitySummary(
+      _jstStart(range.from), _jstEnd(range.to),
+      prevRange ? _jstStart(prevRange.from) : null,
+      prevRange ? _jstEnd(prevRange.to) : null,
+    )
+      .then(({ data }) => { if (!cancelled) setActivitySummary(data); })
       .catch(err => console.error('[PerformanceView] activityFetch:', err))
       .finally(() => { if (!cancelled) setActivityLoading(false); });
     return () => { cancelled = true; };
@@ -253,15 +254,26 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
 
   // セクション2: 時間帯別
   const [hourlyDate, setHourlyDate] = useState(todayStr);
-  const [hourlyRecords, setHourlyRecords] = useState([]);
+  const [hourlyChartData, setHourlyChartData] = useState([]);
   const [hourlyLoading, setHourlyLoading] = useState(false);
 
   useEffect(() => {
     if (!hourlyDate) return;
     let cancelled = false;
     setHourlyLoading(true);
-    fetchCallActivity(_jstStart(hourlyDate), _jstEnd(hourlyDate))
-      .then(({ data }) => { if (!cancelled) setHourlyRecords(data || []); })
+    rpcPerfHourlyChart(hourlyDate)
+      .then(({ data }) => {
+        if (cancelled) return;
+        // RPCは実データのある時間のみ返すので、9-18時の全スロットを埋める
+        const map = {};
+        (data || []).forEach(r => { map[r.hour] = r; });
+        const full = Array.from({ length: 10 }, (_, i) => {
+          const h = i + 9;
+          const d = map[h] || { call_only: 0, connect_only: 0, appo: 0 };
+          return { label: h + '時', hour: h, callOnly: d.call_only, connectOnly: d.connect_only, appo: d.appo };
+        });
+        setHourlyChartData(full);
+      })
       .catch(err => console.error('[PerformanceView] hourlyFetch:', err))
       .finally(() => { if (!cancelled) setHourlyLoading(false); });
     return () => { cancelled = true; };
@@ -271,11 +283,13 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
   const [rankPeriod, setRankPeriod] = useState('week');
   const [rankFrom, setRankFrom] = useState('');
   const [rankTo, setRankTo] = useState('');
+  const [rankData, setRankData] = useState([]); // RPC集計済み: [{getter_name, calls, ceo_connect, appo, work_hours}]
+  const [rankLoading, setRankLoading] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState(null);
+  // PersonDetailModal用に生データも保持（モーダル表示時のみ使用）
   const [rankRecords, setRankRecords] = useState([]);
   const [appoRankRecords, setAppoRankRecords] = useState([]);
   const [sessionRecords, setSessionRecords] = useState([]);
-  const [rankLoading, setRankLoading] = useState(false);
-  const [selectedPerson, setSelectedPerson] = useState(null);
 
   const rankDateRange = useMemo(
     () => getActivityDateRange(rankPeriod, rankFrom, rankTo, todayStr, weekStartStr, monthStr),
@@ -287,54 +301,65 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
     if (!range) return;
     let cancelled = false;
     setRankLoading(true);
-    Promise.all([
-      fetchCallActivity(_jstStart(range.from), _jstEnd(range.to)),
-      fetchAppoActivity(_jstStart(range.from), _jstEnd(range.to)),
-      fetchCallSessionsForRange(_jstStart(range.from), _jstEnd(range.to)),
-    ])
-      .then(([calls, appos, sessions]) => {
-        if (!cancelled) {
-          setRankRecords(calls.data || []);
-          setAppoRankRecords(appos.data || []);
-          setSessionRecords(sessions.data || []);
-        }
-      })
+    rpcPerfRanking(_jstStart(range.from), _jstEnd(range.to))
+      .then(({ data }) => { if (!cancelled) setRankData(data || []); })
       .catch(err => console.error('[PerformanceView] rankFetch:', err))
       .finally(() => { if (!cancelled) setRankLoading(false); });
     return () => { cancelled = true; };
   }, [rankDateRange]);
 
-  // 人ごとの合計稼働時間 { name: totalHours }
-  // call_records の min(called_at)〜max(called_at) を日ごとに集計
+  // RPC集計結果からsessionMap互換形式を生成
   const sessionMap = useMemo(() => {
-    const byName = {};
-    rankRecords.forEach(r => {
-      if (!r.getter_name) return;
-      if (!byName[r.getter_name]) byName[r.getter_name] = [];
-      byName[r.getter_name].push(r);
-    });
     const result = {};
-    Object.entries(byName).forEach(([name, calls]) => {
-      const h = calcWorkHours(calls);
-      if (h > 0) result[name] = h;
+    rankData.forEach(r => {
+      if (r.work_hours > 0) result[r.getter_name] = Number(r.work_hours);
     });
     return result;
-  }, [rankRecords]);
+  }, [rankData]);
+
+  // RPC集計結果からbyPerson配列を生成（ActivityRankingSection/TeamPerformanceTable用）
+  const rankByPerson = useMemo(() =>
+    rankData.map(r => ({ name: r.getter_name, call: r.calls, connect: r.ceo_connect, appo: r.appo })),
+    [rankData]
+  );
+
+  // PersonDetailModal用: 選択時のみ生データをフェッチ
+  useEffect(() => {
+    if (!selectedPerson || !rankDateRange) { setRankRecords([]); setAppoRankRecords([]); setSessionRecords([]); return; }
+    const range = rankDateRange;
+    Promise.all([
+      fetchCallActivity(_jstStart(range.from), _jstEnd(range.to)),
+      fetchAppoActivity(_jstStart(range.from), _jstEnd(range.to)),
+      fetchCallSessionsForRange(_jstStart(range.from), _jstEnd(range.to)),
+    ]).then(([calls, appos, sessions]) => {
+      setRankRecords(calls.data || []);
+      setAppoRankRecords(appos.data || []);
+      setSessionRecords(sessions.data || []);
+    }).catch(err => console.error('[PerformanceView] personDetailFetch:', err));
+  }, [selectedPerson, rankDateRange]);
 
   // セクション4: 成長トレンド（過去8週間）
-  const [trendRecords, setTrendRecords] = useState([]);
+  const [trendData, setTrendData] = useState([]);
   const [trendLoading, setTrendLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setTrendLoading(true);
-    const from8w = _offsetDays(weekStartStr, -7 * 7);
-    fetchCallActivity(_jstStart(from8w), _jstEnd(todayStr))
-      .then(({ data }) => { if (!cancelled) setTrendRecords(data || []); })
+    rpcPerfWeeklyTrend(weekStartStr, 8)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const formatted = (data || []).map(r => ({
+          label: r.week_start.slice(5).replace('-', '/'),
+          calls: r.calls,
+          connect: r.ceo_connect,
+          appo: r.appo,
+        }));
+        setTrendData(formatted);
+      })
       .catch(err => console.error('[PerformanceView] trendFetch:', err))
       .finally(() => { if (!cancelled) setTrendLoading(false); });
     return () => { cancelled = true; };
-  }, [weekStartStr, todayStr]);
+  }, [weekStartStr]);
 
   const teamMap = useMemo(() => {
     const m = {};
@@ -343,25 +368,6 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
       .forEach(mb => { m[mb.name] = mb.team ? mb.team + 'チーム' : '営業統括'; });
     return m;
   }, [members]);
-
-  const trendData = useMemo(() => {
-    const result = [];
-    for (let w = 7; w >= 0; w--) {
-      const ws = _offsetDays(weekStartStr, -w * 7);
-      const we = w === 0 ? todayStr : _offsetDays(ws, 6);
-      const recs = trendRecords.filter(r => {
-        const d = new Date(r.called_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
-        return d >= ws && d <= we;
-      });
-      result.push({
-        label: ws.slice(5).replace('-', '/'),
-        calls: recs.length,
-        connect: recs.filter(r => ceoConnectLabels.has(r.status)).length,
-        appo: recs.filter(r => r.status === 'アポ獲得').length,
-      });
-    }
-    return result;
-  }, [trendRecords, weekStartStr, todayStr, ceoConnectLabels]);
 
   // rankDateRangeでフィルタしたアポデータ（リスケ・キャンセル集計用）
   const reschedAppoData = useMemo(() => {
@@ -431,8 +437,7 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
 
       {/* セクション1: 活動サマリー */}
       <ActivitySummaryCards
-        records={activityRecords}
-        prevRecords={activityPrevRecords}
+        aggregated={activitySummary}
         period={activityPeriod}
         setPeriod={setActivityPeriod}
         customFrom={activityFrom}
@@ -444,7 +449,7 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
 
       {/* セクション2: 時間帯別 */}
       <HourlyActivityChart
-        records={hourlyRecords}
+        chartData={hourlyChartData}
         selectedDate={hourlyDate}
         setSelectedDate={setHourlyDate}
         loading={hourlyLoading}
@@ -481,16 +486,14 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
           {simplePeriodSelector(rankPeriod, setRankPeriod, rankFrom, setRankFrom, rankTo, setRankTo)}
         </div>
         <ActivityRankingSection
-          records={rankRecords}
-          appoRecords={appoRankRecords}
+          byPerson={rankByPerson}
           loading={rankLoading}
           currentUser={currentUser}
           sessionMap={sessionMap}
           onSelectPerson={setSelectedPerson}
         />
         <TeamPerformanceTable
-          records={rankRecords}
-          appoRecords={appoRankRecords}
+          byPerson={rankByPerson}
           loading={rankLoading}
           teamMap={teamMap}
           sessionMap={sessionMap}

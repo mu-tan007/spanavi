@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { C } from '../../constants/colors';
-import { useCallStatuses } from '../../hooks/useCallStatuses';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
@@ -40,34 +39,8 @@ function RankRow({ item, idx, valueKey, showRate, maxVal, currentUser, cph, onSe
   );
 }
 
-export default function ActivityRankingSection({ records, appoRecords = [], loading, currentUser, sessionMap = {}, onSelectPerson }) {
-  const { ceoConnectLabels } = useCallStatuses();
-  const appoMap = useMemo(() => {
-    const m = {};
-    appoRecords.forEach(r => {
-      const k = r.getter_name || '不明';
-      m[k] = (m[k] || 0) + 1;
-    });
-    return m;
-  }, [appoRecords]);
-
-  const byPerson = useMemo(() => {
-    const m = {};
-    records.forEach(r => {
-      const k = r.getter_name || '不明';
-      if (!m[k]) m[k] = { name: k, call: 0, connect: 0 };
-      m[k].call++;
-      if (ceoConnectLabels.has(r.status)) m[k].connect++;
-    });
-    // Merge in appo counts from appointments table; include appo-only people too
-    const allNames = new Set([...Object.keys(m), ...Object.keys(appoMap)]);
-    return Array.from(allNames).map(k => ({
-      name: k,
-      call: m[k]?.call || 0,
-      connect: m[k]?.connect || 0,
-      appo: appoMap[k] || 0,
-    }));
-  }, [records, appoMap, ceoConnectLabels]);
+export default function ActivityRankingSection({ byPerson: byPersonProp = [], loading, currentUser, sessionMap = {}, onSelectPerson }) {
+  const byPerson = byPersonProp;
 
   const callRank    = useMemo(() => [...byPerson].sort((a, b) => b.call - a.call),    [byPerson]);
   const connectRank = useMemo(() => [...byPerson].sort((a, b) => b.connect - a.connect), [byPerson]);
@@ -80,7 +53,7 @@ export default function ActivityRankingSection({ records, appoRecords = [], load
     </div>
   );
 
-  if (records.length === 0 && !loading) {
+  if (byPerson.length === 0 && !loading) {
     return (
       <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: '14px 16px', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
