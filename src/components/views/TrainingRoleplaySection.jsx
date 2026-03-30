@@ -305,23 +305,23 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         ? { storage_path: storagePath, session_id: newSession.id }
         : { recording_url: recordingUrl, session_id: newSession.id };
 
-      // Google Driveへ自動アップロード（非ブロッキング）
+      // Google Driveへ自動アップロード（Slack投稿前に完了を待つ）
       let driveUrl = extractDriveId(addDriveUrl) ? addDriveUrl.trim() : null;
       if (storagePath && !driveUrl) {
-        // ローカルファイルアップロード時: StorageからDriveへ自動転送
         const origName = (addRecordingFile?.name || `roleplay_${newSession.id}.mp4`);
         const dateStr = addForm.session_date || new Date().toISOString().slice(0, 10);
         const driveName = `${currentUser}_${addForm.partner_name || 'RP'}_${dateStr}_${origName}`;
-        invokeUploadToGdrive({ storage_path: storagePath, filename: driveName })
-          .then(({ data }) => {
-            if (data?.drive_url) {
-              updateRoleplaySession(newSession.id, { video_url: data.drive_url });
-              setSessions(prev => prev.map(s => s.id === newSession.id ? { ...s, video_url: data.drive_url } : s));
-              driveUrl = data.drive_url;
-              console.log('[auto-gdrive] Drive URL保存完了:', data.drive_url);
-            }
-          })
-          .catch(e => console.warn('[auto-gdrive] Drive upload failed (non-blocking):', e));
+        try {
+          const { data } = await invokeUploadToGdrive({ storage_path: storagePath, filename: driveName });
+          if (data?.drive_url) {
+            await updateRoleplaySession(newSession.id, { video_url: data.drive_url });
+            setSessions(prev => prev.map(s => s.id === newSession.id ? { ...s, video_url: data.drive_url } : s));
+            driveUrl = data.drive_url;
+            console.log('[auto-gdrive] Drive URL保存完了:', data.drive_url);
+          }
+        } catch (e) {
+          console.warn('[auto-gdrive] Drive upload failed:', e);
+        }
       }
 
       const slackInfo = memberTeam ? {
