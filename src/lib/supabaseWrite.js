@@ -1247,19 +1247,25 @@ export async function uploadProfileImage(userId, file) {
 // ============================================================
 
 export async function fetchSetting(key) {
+  const ORG_ID = 'a0000000-0000-0000-0000-000000000001'
   const { data, error } = await supabase
-    .from('settings')
-    .select('value')
-    .eq('key', key)
+    .from('org_settings')
+    .select('setting_value')
+    .eq('org_id', ORG_ID)
+    .eq('setting_key', key)
     .maybeSingle()
   if (error) console.error('[DB] fetchSetting error:', error)
-  return { value: data?.value ?? null, error }
+  return { value: data?.setting_value ?? null, error }
 }
 
 export async function saveSetting(key, value) {
+  const ORG_ID = 'a0000000-0000-0000-0000-000000000001'
   const { data, error } = await supabase
-    .from('settings')
-    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
+    .from('org_settings')
+    .upsert(
+      { org_id: ORG_ID, setting_key: key, setting_value: value, updated_at: new Date().toISOString() },
+      { onConflict: 'org_id,setting_key' }
+    )
     .select()
   if (error) console.error('[DB] saveSetting error — message:', error.message, '/ code:', error.code, '/ details:', error)
   return error
