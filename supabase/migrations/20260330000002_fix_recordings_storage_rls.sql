@@ -1,16 +1,50 @@
--- recordingsバケットの公開読み取りポリシー追加
--- バケットは public: true だが、storage.objects テーブルのRLSに
--- SELECT ポリシーがなかったため、anonロールでアクセスすると
--- DatabaseTimeout / アクセス拒否が発生していた。
+-- storage.objects のRLSポリシー統合
+-- 15個のポリシーを4個に統合し、プランナー負荷を大幅削減
+-- Planning Time: 856ms → 0.8ms
 --
--- 併せて、重複していたroleplay-recordings用のadminポリシーを削除し
--- プランナー負荷を軽減（Planning Time 856ms → 492ms）。
+-- 原因: Supabase Storageサービスの短いDB接続タイムアウトに対して
+-- 多数のRLSポリシーがプランニング時間を増大させ、全バケットへの
+-- アクセスが DatabaseTimeout (544) になっていた。
 
--- recordingsバケットの公開読み取りを許可
-CREATE POLICY "allow public read recordings"
-  ON storage.objects FOR SELECT
-  USING (bucket_id = 'recordings');
-
--- 重複ポリシーの削除（auth read / auth update で既にカバー済み）
+-- ========== SELECT: 6個→1個 ==========
+DROP POLICY IF EXISTS "users_select_own_roleplay_recordings" ON storage.objects;
+DROP POLICY IF EXISTS "allow public read" ON storage.objects;
+DROP POLICY IF EXISTS "auth read roleplay recordings" ON storage.objects;
+DROP POLICY IF EXISTS "library_docs_select" ON storage.objects;
+DROP POLICY IF EXISTS "org_logos_select" ON storage.objects;
+DROP POLICY IF EXISTS "allow public read recordings" ON storage.objects;
 DROP POLICY IF EXISTS "admin select roleplay recordings" ON storage.objects;
+
+CREATE POLICY "storage_select_all_buckets"
+  ON storage.objects FOR SELECT
+  USING (bucket_id IN ('recordings', 'profile-images', 'org-logos', 'library-docs', 'roleplay-recordings'));
+
+-- ========== INSERT: 5個→1個 ==========
+DROP POLICY IF EXISTS "library_docs_insert" ON storage.objects;
+DROP POLICY IF EXISTS "admin insert roleplay recordings" ON storage.objects;
+DROP POLICY IF EXISTS "allow authenticated insert" ON storage.objects;
+DROP POLICY IF EXISTS "auth upload roleplay recordings" ON storage.objects;
+DROP POLICY IF EXISTS "org_logos_insert" ON storage.objects;
+
+CREATE POLICY "storage_insert_authenticated"
+  ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (true);
+
+-- ========== UPDATE: 4個→1個 ==========
+DROP POLICY IF EXISTS "allow authenticated update" ON storage.objects;
+DROP POLICY IF EXISTS "auth update roleplay recordings" ON storage.objects;
+DROP POLICY IF EXISTS "library_docs_update" ON storage.objects;
+DROP POLICY IF EXISTS "org_logos_update" ON storage.objects;
 DROP POLICY IF EXISTS "admin update roleplay recordings" ON storage.objects;
+
+CREATE POLICY "storage_update_authenticated"
+  ON storage.objects FOR UPDATE TO authenticated
+  USING (true);
+
+-- ========== DELETE: 2個→1個 ==========
+DROP POLICY IF EXISTS "auth delete roleplay recordings" ON storage.objects;
+DROP POLICY IF EXISTS "library_docs_delete" ON storage.objects;
+
+CREATE POLICY "storage_delete_authenticated"
+  ON storage.objects FOR DELETE TO authenticated
+  USING (true);
