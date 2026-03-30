@@ -15,7 +15,34 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body class="bg-navy-dark text-white font-sans">
-    <div id="root"></div>
+    <div id="root">
+      <style>
+        @keyframes splashShieldGlow{0%,100%{filter:drop-shadow(0 0 6px rgba(200,164,90,.2))}50%{filter:drop-shadow(0 0 18px rgba(200,164,90,.5))}}
+        @keyframes splashFadeIn{0%,40%{opacity:0}100%{opacity:1}}
+        .splash-root{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f0e8;font-family:'Noto Sans JP',sans-serif}
+        .splash-center{text-align:center}
+        .splash-shield{margin-bottom:20px;animation:splashShieldGlow 2s ease-in-out infinite}
+        .splash-brand{margin:0 0 12px;font-size:22px;font-weight:700;letter-spacing:1px;animation:splashFadeIn 1.5s ease-out}
+        .splash-brand-spa{color:#1a3a5c}
+        .splash-brand-navi{color:#c6a358}
+        .splash-loading{color:#8896a6;font-size:12px;letter-spacing:2px;margin:0;animation:splashFadeIn 1.5s ease-out}
+      </style>
+      <div class="splash-root">
+        <div class="splash-center">
+          <svg class="splash-shield" width="72" height="82" viewBox="0 0 52 60">
+            <defs>
+              <linearGradient id="spSplash" x1="0" y1="0" x2="0.3" y2="1">
+                <stop offset="0%" stop-color="#0176D3"/>
+                <stop offset="100%" stop-color="#032D60"/>
+              </linearGradient>
+            </defs>
+            <path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z" fill="url(#spSplash)"/>
+          </svg>
+          <p class="splash-brand"><span class="splash-brand-spa">Spa</span><span class="splash-brand-navi">navi</span></p>
+          <p class="splash-loading">読み込み中...</p>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
