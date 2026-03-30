@@ -1762,6 +1762,15 @@ export async function invokeAnalyzeRoleplay(payload) {
   return { data, error }
 }
 
+// ロープレ録画をGoogle Driveにアップロードし、共有リンクを返す
+export async function invokeUploadToGdrive({ storage_path, filename }) {
+  const { data, error } = await supabase.functions.invoke('upload-to-gdrive', {
+    body: { storage_path, filename },
+  })
+  if (error) console.error('[Edge] upload-to-gdrive error:', error)
+  return { data, error }
+}
+
 export async function pollRoleplayAnalysis(sessionId, { intervalMs = 5000, timeoutMs = 300000, signal } = {}) {
   return new Promise((resolve) => {
     const startTime = Date.now()

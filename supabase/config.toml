@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.notify-team-report]
 verify_jwt = false
+
+[functions.upload-to-gdrive]
+verify_jwt = false
