@@ -7,7 +7,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo } from '../../lib/supabaseWrite';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
 import AppoReportModal from './AppoReportModal';
@@ -572,19 +572,32 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       return;
     }
 
-    // 録音URL未取得の場合、90秒後に自動リトライ（Zoomの録音処理遅延対策）
+    // 録音URL未取得の場合、自動リトライ（Zoomの録音処理遅延対策）
+    // appoIdを保持してappo_reportも更新する
+    const _appoItemId = appoModal.id;
+    const _appoPhone = appoModal.phone;
     if (!recordingUrlAppo && newRec?.id) {
-      setTimeout(async () => {
+      const retryFetchRecording = async (delaySec) => {
+        await new Promise(r => setTimeout(r, delaySec * 1000));
         try {
-          const url = await fetchRecordingUrl(appoModal.phone, calledAtAppo, _prevCalledAtAppo);
+          const url = await fetchRecordingUrl(_appoPhone, calledAtAppo, _prevCalledAtAppo);
           if (url) {
             await updateCallRecordRecordingUrl(newRec.id, url);
             setCallRecords(prev => prev.map(r => r.id === newRec.id ? { ...r, recording_url: url } : r));
-            console.log('[handleAppoSave] 録音URL自動取得成功:', newRec.id);
+            console.log(`[handleAppoSave] 録音URL自動取得成功 (${delaySec}s後):`, newRec.id);
             uploadRecordingToStorage(newRec.id, url);
+            // appo_reportの録音URLも更新
+            if (formData.supaId) {
+              await updateAppoReportRecordingUrl(formData.supaId, url);
+              console.log('[handleAppoSave] appo_report録音URL更新完了');
+            }
+            return true;
           }
-        } catch (e) { console.warn('[handleAppoSave] 録音URL再試行エラー:', e); }
-      }, 90_000);
+        } catch (e) { console.warn(`[handleAppoSave] 録音URL再試行エラー (${delaySec}s後):`, e); }
+        return false;
+      };
+      // 120秒後に1回目、失敗なら240秒後に2回目
+      retryFetchRecording(120).then(ok => { if (!ok) retryFetchRecording(240); });
     }
 
     const newRecords = [...callRecords, newRec];
@@ -1209,11 +1222,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           rewardMaster={rewardMaster}
           onClose={() => setAppoModal(null)}
           onSave={handleAppoSave}
-          initialRecordingUrl={
-            callRecords
-              .filter(r => r.item_id === appoModal.id && r.recording_url)
-              .sort((a, b) => (b.called_at || '').localeCompare(a.called_at || ''))[0]?.recording_url || ''
-          }
+          initialRecordingUrl={''}
           onFetchRecordingUrl={() => handleAppoFetchRecording(appoModal.id, appoModal.phone)}
         />
       )}
@@ -1774,11 +1783,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           rewardMaster={rewardMaster}
           onClose={() => setAppoModal(null)}
           onSave={handleAppoSave}
-          initialRecordingUrl={
-            callRecords
-              .filter(r => r.item_id === appoModal.id && r.recording_url)
-              .sort((a, b) => (b.called_at || '').localeCompare(a.called_at || ''))[0]?.recording_url || ''
-          }
+          initialRecordingUrl={''}
           onFetchRecordingUrl={() => handleAppoFetchRecording(appoModal.id, appoModal.phone)}
         />
       )}

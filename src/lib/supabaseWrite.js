@@ -834,6 +834,31 @@ export async function updateCallRecordRecordingUrl(id, recordingUrl) {
   return error
 }
 
+// アポイントのappo_report内の録音URLを更新
+export async function updateAppoReportRecordingUrl(appoId, newUrl) {
+  if (!appoId || !newUrl) return null
+  const { data, error: fetchErr } = await supabase
+    .from('appointments')
+    .select('appo_report')
+    .eq('id', appoId)
+    .single()
+  if (fetchErr || !data?.appo_report) return fetchErr
+  // 既存の録音URL行を新URLに置換、なければ末尾に追加
+  let report = data.appo_report
+  const urlPattern = /・録音URL：.*/
+  if (urlPattern.test(report)) {
+    report = report.replace(urlPattern, `・録音URL：${newUrl}`)
+  } else {
+    report = report.replace(/・アポ取得者→/, `・録音URL：${newUrl}\n　・アポ取得者→`)
+  }
+  const { error } = await supabase
+    .from('appointments')
+    .update({ appo_report: report })
+    .eq('id', appoId)
+  if (error) console.error('[DB] updateAppoReportRecordingUrl error:', error)
+  return error
+}
+
 export async function fetchCallRecordsByItemId(itemId) {
   const { data, error } = await supabase
     .from('call_records')
