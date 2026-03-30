@@ -1026,7 +1026,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         {currentTab === "payroll" && <PayrollView members={members} appoData={appoData} isAdmin={isAdmin} setMembers={setMembers} onDataRefetch={onDataRefetch} currentUser={currentUser} />}
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView />}
-        {currentTab === "mypage" && isAdmin && <AdminView isAdmin={isAdmin} setCurrentTab={setCurrentTab} rewardMaster={rewardMaster} setRewardMaster={setRewardMaster} members={members} appoData={appoData} now={now} onDataRefetch={onDataRefetch} />}
+        {currentTab === "mypage" && isAdmin && <AdminView isAdmin={isAdmin} setCurrentTab={setCurrentTab} rewardMaster={rewardMaster} setRewardMaster={setRewardMaster} members={members} appoData={appoData} now={now} onDataRefetch={onDataRefetch} userId={userId} orgId={orgId} />}
         {currentTab === "mypage" && !isAdmin && <MyPageView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} />}
         {currentTab === "edu_performance" && <PerformanceView members={members} currentUser={currentUser} appoData={appoData} />}
         {currentTab === "edu_script" && <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} />}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../lib/supabase';
+import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from '../../lib/pushNotification';
 import MemberManagement from '../admin/MemberManagement';
 import RewardSettings from '../admin/RewardSettings';
 import SlackZoomSettings from '../admin/SlackZoomSettings';
@@ -47,7 +48,7 @@ function ToastContainer({ toasts }) {
   );
 }
 
-export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRewardMaster, members = [], appoData = [], now, onDataRefetch }) {
+export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRewardMaster, members = [], appoData = [], now, onDataRefetch, userId, orgId }) {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState(() => {
     try { return localStorage.getItem('admin_activeTab') || 'members'; } catch { return 'members'; }
@@ -58,6 +59,29 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
   };
   const [viewingMember, setViewingMember] = useState(null); // マイページモーダル用
   const [toasts, setToasts] = useState([]);
+
+  // Push notification state
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  useEffect(() => { isPushSubscribed().then(setPushEnabled); }, []);
+  const handleTogglePush = async () => {
+    setPushLoading(true);
+    try {
+      if (pushEnabled) {
+        await unsubscribeFromPush(userId);
+        setPushEnabled(false);
+      } else {
+        await subscribeToPush(userId, orgId);
+        setPushEnabled(true);
+      }
+    } catch (err) {
+      alert(err.message === 'Notification permission denied'
+        ? '通知の許可が必要です。ブラウザの設定から通知を許可してください。'
+        : 'プッシュ通知の設定に失敗しました');
+    } finally {
+      setPushLoading(false);
+    }
+  };
 
   // Ctrl+←/→ でサブタブを切り替え（カスタムイベント + 直接キーボード両対応）
   useEffect(() => {
@@ -114,9 +138,27 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
   return (
     <div style={{ paddingBottom: 48, animation: 'fadeIn 0.3s ease' }}>
       {/* Page Header */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Admin Settings</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>管理者設定 — 代表のみアクセス可能</div>
+      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247', display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Admin Settings</div>
+          <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>管理者設定 — 代表のみアクセス可能</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 12, color: '#6B7280' }}>プッシュ通知</span>
+          <button
+            onClick={handleTogglePush}
+            disabled={pushLoading}
+            style={{
+              padding: '5px 14px', borderRadius: 14, border: 'none',
+              background: pushEnabled ? GOLD : '#E5E5E5',
+              color: pushEnabled ? '#fff' : '#9CA3AF',
+              fontSize: 11, fontWeight: 700, cursor: pushLoading ? 'wait' : 'pointer',
+              transition: 'background 0.2s',
+            }}
+          >
+            {pushLoading ? '処理中...' : pushEnabled ? 'ON' : 'OFF'}
+          </button>
+        </div>
       </div>
 
       {/* タブバー */}
