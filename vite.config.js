@@ -14,7 +14,7 @@ export default defineConfig(({ command }) => ({
         short_name: 'Spanavi',
         description: '架電管理SaaS — 架電・アポ管理・録音・スクリプトを一元管理',
         theme_color: '#032D60',
-        background_color: '#F3F2F2',
+        background_color: '#f5f0e8',
         display: 'standalone',
         orientation: 'any',
         start_url: '/',
@@ -51,6 +51,8 @@ export default defineConfig(({ command }) => ({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
+        // Push notification handler (loaded alongside generated SW)
+        importScripts: ['sw-push.js'],
         // 静的アセットをプリキャッシュ
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,woff,woff2}'],
         // APIコール（Supabase）はネットワークファースト

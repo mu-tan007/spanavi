@@ -14,35 +14,10 @@ const C = {
   cardBorder: 'rgba(255,255,255,0.10)',
 }
 
-function ShieldLogo({ size = 44 }) {
-  const h = Math.round(size * 60 / 52)
-  return (
-    <svg width={size} height={h} viewBox="0 0 52 60">
-      <defs>
-        <linearGradient id="spShieldLP" x1="0" y1="0" x2="0.3" y2="1">
-          <stop offset="0%" stopColor="#0176D3"/>
-          <stop offset="100%" stopColor="#032D60"/>
-        </linearGradient>
-        <clipPath id="shieldClipLP"><path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z"/></clipPath>
-      </defs>
-      <path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z" fill="url(#spShieldLP)"/>
-      <g clipPath="url(#shieldClipLP)" stroke="white" fill="none">
-        <g opacity="0.45" strokeWidth="1.2">
-          <line x1="26" y1="30" x2="26" y2="-5"/><line x1="26" y1="30" x2="55" y2="30"/>
-          <line x1="26" y1="30" x2="26" y2="65"/><line x1="26" y1="30" x2="-3" y2="30"/>
-          <line x1="26" y1="30" x2="47" y2="5"/><line x1="26" y1="30" x2="47" y2="55"/>
-          <line x1="26" y1="30" x2="5" y2="55"/><line x1="26" y1="30" x2="5" y2="5"/>
-        </g>
-        <g opacity="0.30" strokeWidth="0.8">
-          <line x1="26" y1="30" x2="37" y2="-2"/><line x1="26" y1="30" x2="53" y2="16"/>
-          <line x1="26" y1="30" x2="53" y2="44"/><line x1="26" y1="30" x2="37" y2="62"/>
-          <line x1="26" y1="30" x2="15" y2="62"/><line x1="26" y1="30" x2="-1" y2="44"/>
-          <line x1="26" y1="30" x2="-1" y2="16"/><line x1="26" y1="30" x2="15" y2="-2"/>
-        </g>
-      </g>
-    </svg>
-  )
-}
+// 正式ロゴ: シールド + Spanavi テキスト（白+ゴールド、ダーク背景用）
+const LOGO_FULL_WHITE = '/spanavi-logo-full-white.svg'
+// 正式ロゴ: シールド + Spanavi テキスト（ネイビー+ゴールド、ライト背景用）
+const LOGO_FULL = '/spanavi-logo-full.svg'
 
 const features = [
   {
@@ -107,9 +82,8 @@ export default function LandingPage() {
           maxWidth: 1100, margin: '0 auto', padding: '0 32px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <ShieldLogo size={30} />
-            <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: 1.5 }}>SPANAVI</span>
+          <div style={{ cursor: 'pointer' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <img src={LOGO_FULL_WHITE} alt="Spanavi" style={{ height: 36 }} />
           </div>
           <div style={{ display: 'flex', gap: 12 }}>
             <button className="lp-btn" onClick={() => navigate('/login')} style={{
@@ -143,7 +117,7 @@ export default function LandingPage() {
         }} />
         <div style={{ position: 'relative', zIndex: 1, maxWidth: 800, margin: '0 auto', padding: '0 24px' }}>
           <div style={{ marginBottom: 24 }}>
-            <ShieldLogo size={64} />
+            <img src={LOGO_FULL_WHITE} alt="Spanavi" style={{ height: 56 }} />
           </div>
           <h1 className="lp-hero-title" style={{
             fontSize: 40, fontWeight: 800, lineHeight: 1.4, marginBottom: 20,
@@ -293,9 +267,8 @@ export default function LandingPage() {
         background: C.navy, borderTop: '1px solid rgba(255,255,255,0.06)',
         padding: '32px 32px', textAlign: 'center',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
-          <ShieldLogo size={20} />
-          <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: 1 }}>SPANAVI</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+          <img src={LOGO_FULL_WHITE} alt="Spanavi" style={{ height: 28 }} />
         </div>
         <p style={{ fontSize: 11, color: C.textMuted }}>
           © {new Date().getFullYear()} Spanavi. All rights reserved.

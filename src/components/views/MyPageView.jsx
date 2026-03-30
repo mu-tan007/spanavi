@@ -4,6 +4,8 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl, fetchMyCallRecords, updateMember, fetchMemberPayrollHistory } from '../../lib/supabaseWrite';
+import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from '../../lib/pushNotification';
+import { getOrgId } from '../../lib/orgContext';
 import TrainingRoleplaySection from './TrainingRoleplaySection';
 
 export default function MyPageView({ currentUser, userId, callListData, members, now, appoData, onDataRefetch, isAdmin = false }) {
@@ -165,6 +167,30 @@ export default function MyPageView({ currentUser, userId, callListData, members,
   const [hoveredMonthRow, setHoveredMonthRow] = useState(null);
   const [hoveredCard, setHoveredCard] = useState(null);
 
+  // Push notification state
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  useEffect(() => { isPushSubscribed().then(setPushEnabled); }, []);
+  const handleTogglePush = async () => {
+    setPushLoading(true);
+    try {
+      if (pushEnabled) {
+        await unsubscribeFromPush(userId);
+        setPushEnabled(false);
+      } else {
+        await subscribeToPush(userId, getOrgId());
+        setPushEnabled(true);
+      }
+    } catch (err) {
+      console.error('[Push] Toggle error:', err);
+      alert(err.message === 'Notification permission denied'
+        ? '通知の許可が必要です。ブラウザの設定から通知を許可してください。'
+        : 'プッシュ通知の設定に失敗しました');
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
   // 確定済み報酬履歴（payroll_snapshots）
   const [payrollHistory, setPayrollHistory] = useState([]);
   useEffect(() => {
@@ -299,6 +325,23 @@ export default function MyPageView({ currentUser, userId, callListData, members,
                 )}
               </>
             )}
+          </div>
+          {/* Push通知トグル */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, marginTop: 6 }}>
+            <span style={{ color: 'rgba(255,255,255,0.5)' }}>プッシュ通知:</span>
+            <button
+              onClick={handleTogglePush}
+              disabled={pushLoading}
+              style={{
+                padding: '3px 10px', borderRadius: 12, border: 'none',
+                background: pushEnabled ? C.gold : 'rgba(255,255,255,0.15)',
+                color: pushEnabled ? C.navyDeep : 'rgba(255,255,255,0.6)',
+                fontSize: 10, fontWeight: 700, cursor: pushLoading ? 'wait' : 'pointer',
+                transition: 'background 0.2s',
+              }}
+            >
+              {pushLoading ? '処理中...' : pushEnabled ? 'ON' : 'OFF'}
+            </button>
           </div>
         </div>
         <div style={{ display: "flex", gap: 12 }}>

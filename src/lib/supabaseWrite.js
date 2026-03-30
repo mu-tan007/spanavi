@@ -256,6 +256,14 @@ export async function insertAppointment(data) {
     .select()
     .single()
   if (error) console.error('[DB] insertAppointment error:', error)
+
+  // Fire push notification for new appointment (best-effort, don't block)
+  if (result && !error) {
+    sendAppointmentPushNotification(data, getOrgId()).catch(e =>
+      console.warn('[Push] Failed to send appointment notification:', e)
+    )
+  }
+
   return { result, error }
 }
 
@@ -1891,4 +1899,30 @@ export async function createTenantAdmin(orgId, name, email) {
     .select('id')
     .single()
   return { data, error }
+}
+
+// ============================================================
+// Push Notification Helper
+// ============================================================
+
+async function sendAppointmentPushNotification(appoData, orgId) {
+  if (!orgId) return
+  // Notify all members in the org who have push subscriptions
+  const { data: adminMembers } = await supabase
+    .from('members')
+    .select('user_id')
+    .eq('org_id', orgId)
+    .not('user_id', 'is', null)
+  const userIds = (adminMembers || []).map(m => m.user_id).filter(Boolean)
+  if (userIds.length === 0) return
+
+  await supabase.functions.invoke('send-push', {
+    body: {
+      type: 'appointment',
+      title: '新しいアポ',
+      body: `${appoData.getter || ''}が${appoData.company || ''}のアポを獲得しました`,
+      user_ids: userIds,
+      org_id: orgId,
+    },
+  })
 }
