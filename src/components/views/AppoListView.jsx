@@ -218,6 +218,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [invoiceModal, setInvoiceModal] = useState(false);
   const [invoiceMonth, setInvoiceMonth] = useState(AVAILABLE_MONTHS[0]?.yyyymm || '');
   const [invoiceClient, setInvoiceClient] = useState('');
+  const [invoiceItems, setInvoiceItems] = useState([]);   // [{ company, quantity, unitPrice, amount }]
   const [invoiceExporting, setInvoiceExporting] = useState(false);
   const [droppedFileName, setDroppedFileName] = useState('');
   useEffect(() => {
@@ -363,18 +364,24 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   };
 
   // ── 請求書PDF生成 ──────────────────────────────────────
+  // クライアント選択時に明細行を自動生成
+  const initInvoiceItems = (clientName, month) => {
+    const appos = appoData.filter(a =>
+      a.status === '面談済' && a.client === clientName && a.meetDate && a.meetDate.slice(0, 7) === month
+    );
+    setInvoiceItems(appos.map(a => ({
+      company: a.company,
+      quantity: 1,
+      unitPrice: a.sales || 0,
+      amount: a.sales || 0,
+    })));
+  };
+
   const handleInvoiceExport = async () => {
     if (!invoiceMonth || !invoiceClient || invoiceExporting) return;
     const client = clientData.find(c => c.company === invoiceClient);
     if (!client) { alert('クライアントが見つかりません'); return; }
-
-    // 対象アポ: 指定月 + 指定クライアント + 面談済
-    const targetAppos = appoData.filter(a =>
-      a.status === '面談済' &&
-      a.client === invoiceClient &&
-      a.meetDate && a.meetDate.slice(0, 7) === invoiceMonth
-    );
-    if (targetAppos.length === 0) { alert('対象の面談済アポがありません'); return; }
+    if (invoiceItems.length === 0) { alert('明細行がありません'); return; }
 
     setInvoiceExporting(true);
     try {
@@ -382,13 +389,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       const rm = rewardMaster.find(r => r.id === client.rewardType);
       const taxType = rm?.tax || '税別';
 
-      // 明細行
-      const items = targetAppos.map(a => ({
-        company: a.company,
-        quantity: 1,
-        unitPrice: a.sales || 0,
-        amount: a.sales || 0,
-      }));
+      // 明細行はinvoiceItems stateから（編集済みの値を使用）
+      const items = invoiceItems;
       const subtotal = items.reduce((s, it) => s + it.amount, 0);
       const tax = taxType === '税別'
         ? Math.floor(subtotal * 0.1)
@@ -946,36 +948,34 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
       {/* Invoice Modal */}
       {invoiceModal && setAppoData && (() => {
-        // 対象アポのプレビュー計算
-        const previewAppos = appoData.filter(a =>
-          a.status === '面談済' && a.client === invoiceClient && a.meetDate && a.meetDate.slice(0, 7) === invoiceMonth
-        );
-        const previewTotal = previewAppos.reduce((s, a) => s + (a.sales || 0), 0);
+        const invoiceClients = [...new Set(appoData.filter(a => a.status === '面談済' && a.meetDate && a.meetDate.slice(0, 7) === invoiceMonth).map(a => a.client))].filter(Boolean);
         const previewClient = clientData.find(c => c.company === invoiceClient);
         const previewRm = previewClient ? rewardMaster.find(r => r.id === previewClient.rewardType) : null;
         const previewTaxType = previewRm?.tax || '税別';
-        const previewTax = previewTaxType === '税別' ? Math.floor(previewTotal * 0.1) : Math.floor(previewTotal - previewTotal / 1.1);
-        const previewGrandTotal = previewTaxType === '税別' ? previewTotal + previewTax : previewTotal;
-        const invoiceClients = [...new Set(appoData.filter(a => a.status === '面談済' && a.meetDate && a.meetDate.slice(0, 7) === invoiceMonth).map(a => a.client))].filter(Boolean);
+        const previewSubtotal = invoiceItems.reduce((s, it) => s + it.amount, 0);
+        const previewTax = previewTaxType === '税別' ? Math.floor(previewSubtotal * 0.1) : Math.floor(previewSubtotal - previewSubtotal / 1.1);
+        const previewGrandTotal = previewTaxType === '税別' ? previewSubtotal + previewTax : previewSubtotal;
+        const invInputStyle = { padding: '4px 8px', borderRadius: 3, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: '#fff' };
 
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 480, maxWidth: '95vw', boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
-              <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15 }}>
+            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 640, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+              <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15, flexShrink: 0 }}>
                 請求書作成
               </div>
-              <div style={{ padding: "20px 24px" }}>
+              <div style={{ padding: "20px 24px", overflowY: 'auto', flex: 1 }}>
+                {/* 月 + クライアント選択 */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                   <div>
                     <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>対象月</label>
-                    <select value={invoiceMonth} onChange={e => setInvoiceMonth(e.target.value)}
+                    <select value={invoiceMonth} onChange={e => { setInvoiceMonth(e.target.value); setInvoiceClient(''); setInvoiceItems([]); }}
                       style={{ width: '100%', padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none" }}>
                       {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
                     </select>
                   </div>
                   <div>
                     <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>クライアント</label>
-                    <select value={invoiceClient} onChange={e => setInvoiceClient(e.target.value)}
+                    <select value={invoiceClient} onChange={e => { setInvoiceClient(e.target.value); if (e.target.value) initInvoiceItems(e.target.value, invoiceMonth); else setInvoiceItems([]); }}
                       style={{ width: '100%', padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none" }}>
                       <option value="">選択してください</option>
                       {invoiceClients.map(name => <option key={name} value={name}>{name}</option>)}
@@ -983,44 +983,75 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   </div>
                 </div>
 
-                {/* プレビュー */}
+                {/* 編集可能な明細テーブル */}
                 {invoiceClient && (
-                  <div style={{ marginTop: 18, padding: 14, background: '#F8F9FA', borderRadius: 4, border: '1px solid #E5E7EB' }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2247', marginBottom: 8 }}>プレビュー</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11 }}>
-                      <span style={{ color: C.textLight }}>面談済アポ数</span>
-                      <span style={{ fontWeight: 600, color: '#0D2247', textAlign: 'right' }}>{previewAppos.length}件</span>
-                      <span style={{ color: C.textLight }}>小計</span>
-                      <span style={{ fontWeight: 600, color: '#0D2247', textAlign: 'right', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(previewTotal)}</span>
-                      {previewTaxType === '税別' && <>
-                        <span style={{ color: C.textLight }}>消費税 (10%)</span>
-                        <span style={{ fontWeight: 600, color: '#0D2247', textAlign: 'right', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(previewTax)}</span>
-                      </>}
-                      <span style={{ color: C.textLight, fontWeight: 600 }}>ご請求金額</span>
-                      <span style={{ fontWeight: 700, color: '#0D2247', textAlign: 'right', fontSize: 14, fontFamily: "'JetBrains Mono'" }}>{formatCurrency(previewGrandTotal)}</span>
-                      {previewTaxType === '税込' && (
-                        <>
-                          <span></span>
-                          <span style={{ fontSize: 9, color: '#6B7280', textAlign: 'right' }}>（内消費税 {formatCurrency(previewTax)}）</span>
-                        </>
+                  <div style={{ marginTop: 18 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#0D2247' }}>明細（{invoiceItems.length}件）</span>
+                      <button onClick={() => setInvoiceItems(prev => [...prev, { company: '', quantity: 1, unitPrice: 0, amount: 0 }])}
+                        style={{ padding: '3px 10px', borderRadius: 3, border: '1px solid #0D2247', background: '#fff', color: '#0D2247', fontSize: 10, fontWeight: 500, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                        ＋ 行を追加
+                      </button>
+                    </div>
+                    <div style={{ border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
+                      {/* テーブルヘッダー */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px 100px 32px', gap: 0, background: '#F3F4F6', padding: '6px 10px', fontSize: 10, fontWeight: 600, color: '#374151' }}>
+                        <span>品名</span><span style={{ textAlign: 'center' }}>数量</span><span style={{ textAlign: 'right' }}>単価</span><span style={{ textAlign: 'right' }}>金額</span><span></span>
+                      </div>
+                      {/* 明細行 */}
+                      {invoiceItems.map((item, idx) => (
+                        <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px 100px 32px', gap: 4, padding: '5px 10px', borderTop: '1px solid #E5E7EB', alignItems: 'center' }}>
+                          <input value={item.company} onChange={e => setInvoiceItems(prev => prev.map((it, i) => i === idx ? { ...it, company: e.target.value } : it))}
+                            style={{ ...invInputStyle, width: '100%' }} />
+                          <input type="number" value={item.quantity} onChange={e => { const q = Number(e.target.value) || 0; setInvoiceItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: q, amount: q * it.unitPrice } : it)); }}
+                            style={{ ...invInputStyle, width: '100%', textAlign: 'center' }} />
+                          <input type="number" value={item.unitPrice} onChange={e => { const p = Number(e.target.value) || 0; setInvoiceItems(prev => prev.map((it, i) => i === idx ? { ...it, unitPrice: p, amount: it.quantity * p } : it)); }}
+                            style={{ ...invInputStyle, width: '100%', textAlign: 'right' }} />
+                          <span style={{ textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#0D2247', fontFamily: "'JetBrains Mono'", paddingRight: 4 }}>{formatCurrency(item.amount)}</span>
+                          <button onClick={() => setInvoiceItems(prev => prev.filter((_, i) => i !== idx))}
+                            style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 14, padding: 0, lineHeight: 1 }} title="削除">×</button>
+                        </div>
+                      ))}
+                      {invoiceItems.length === 0 && (
+                        <div style={{ padding: '16px 10px', textAlign: 'center', fontSize: 11, color: C.textLight }}>明細行がありません</div>
                       )}
                     </div>
-                    <div style={{ marginTop: 8, fontSize: 10, color: '#6B7280' }}>
-                      税区分: {previewTaxType}　/　支払サイト: {previewClient?.paySite || '未設定'}
+
+                    {/* 合計セクション */}
+                    <div style={{ marginTop: 12, padding: 14, background: '#F8F9FA', borderRadius: 4, border: '1px solid #E5E7EB' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11 }}>
+                        <span style={{ color: C.textLight }}>小計</span>
+                        <span style={{ fontWeight: 600, color: '#0D2247', textAlign: 'right', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(previewSubtotal)}</span>
+                        {previewTaxType === '税別' && <>
+                          <span style={{ color: C.textLight }}>消費税 (10%)</span>
+                          <span style={{ fontWeight: 600, color: '#0D2247', textAlign: 'right', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(previewTax)}</span>
+                        </>}
+                        <span style={{ color: C.textLight, fontWeight: 600 }}>ご請求金額</span>
+                        <span style={{ fontWeight: 700, color: '#0D2247', textAlign: 'right', fontSize: 14, fontFamily: "'JetBrains Mono'" }}>{formatCurrency(previewGrandTotal)}</span>
+                        {previewTaxType === '税込' && (
+                          <>
+                            <span></span>
+                            <span style={{ fontSize: 9, color: '#6B7280', textAlign: 'right' }}>（内消費税 {formatCurrency(previewTax)}）</span>
+                          </>
+                        )}
+                      </div>
+                      <div style={{ marginTop: 8, fontSize: 10, color: '#6B7280' }}>
+                        税区分: {previewTaxType}　/　支払サイト: {previewClient?.paySite || '未設定'}
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
-              <div style={{ padding: "12px 24px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button onClick={() => setInvoiceModal(false)}
+              <div style={{ padding: "12px 24px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "flex-end", gap: 8, flexShrink: 0 }}>
+                <button onClick={() => { setInvoiceModal(false); setInvoiceItems([]); }}
                   style={{ padding: "8px 16px", borderRadius: 4, border: "1px solid #0D2247", background: '#fff', cursor: "pointer", fontSize: 11, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'" }}>
                   キャンセル
                 </button>
-                <button onClick={handleInvoiceExport} disabled={!invoiceClient || previewAppos.length === 0 || invoiceExporting}
+                <button onClick={handleInvoiceExport} disabled={!invoiceClient || invoiceItems.length === 0 || invoiceExporting}
                   style={{
                     padding: "8px 16px", borderRadius: 4, border: "none",
-                    background: (!invoiceClient || previewAppos.length === 0 || invoiceExporting) ? '#9CA3AF' : '#0D2247',
-                    cursor: (!invoiceClient || previewAppos.length === 0 || invoiceExporting) ? 'default' : 'pointer',
+                    background: (!invoiceClient || invoiceItems.length === 0 || invoiceExporting) ? '#9CA3AF' : '#0D2247',
+                    cursor: (!invoiceClient || invoiceItems.length === 0 || invoiceExporting) ? 'default' : 'pointer',
                     fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
                   }}>
                   {invoiceExporting ? 'PDF生成中...' : 'PDFダウンロード'}

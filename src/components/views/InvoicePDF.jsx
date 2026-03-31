@@ -86,11 +86,11 @@ export default function InvoicePDF({
       <div style={{ marginTop: 28 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
           <thead>
-            <tr style={{ background: '#f5f5f5', borderTop: '1px solid #222', borderBottom: '1px solid #222' }}>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, width: '50%' }}>品番・品名</th>
-              <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, width: '12%' }}>数量</th>
-              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, width: '19%' }}>単価</th>
-              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, width: '19%' }}>金額</th>
+            <tr style={{ backgroundColor: '#f0f0f0', borderTop: '2px solid #222', borderBottom: '2px solid #222' }}>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, width: '50%', color: '#111' }}>品番・品名</th>
+              <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, width: '12%', color: '#111' }}>数量</th>
+              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, width: '19%', color: '#111' }}>単価</th>
+              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, width: '19%', color: '#111' }}>金額</th>
             </tr>
           </thead>
           <tbody>
@@ -121,23 +121,23 @@ export default function InvoicePDF({
               {taxType === '税別' ? (
                 <>
                   <tr style={{ borderBottom: '1px solid #e0e0e0' }}>
-                    <td style={{ padding: '8px 12px', fontWeight: 600 }}>小計</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: "'JetBrains Mono', monospace" }}>{fmt(subtotal)}</td>
+                    <td style={{ padding: '8px 12px', fontWeight: 600, color: '#111' }}>小計</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', color: '#111', fontFamily: "'JetBrains Mono', monospace" }}>{fmt(subtotal)}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #e0e0e0' }}>
-                    <td style={{ padding: '8px 12px', fontWeight: 600 }}>消費税 (10%)</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: "'JetBrains Mono', monospace" }}>{fmt(tax)}</td>
+                    <td style={{ padding: '8px 12px', fontWeight: 600, color: '#111' }}>消費税 (10%)</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', color: '#111', fontFamily: "'JetBrains Mono', monospace" }}>{fmt(tax)}</td>
                   </tr>
                   <tr style={{ borderBottom: '2px solid #222' }}>
-                    <td style={{ padding: '8px 12px', fontWeight: 700 }}>合計</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(total)}</td>
+                    <td style={{ padding: '8px 12px', fontWeight: 700, color: '#111' }}>合計</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#111', fontFamily: "'JetBrains Mono', monospace" }}>{fmt(total)}</td>
                   </tr>
                 </>
               ) : (
                 <>
                   <tr style={{ borderBottom: '2px solid #222' }}>
-                    <td style={{ padding: '8px 12px', fontWeight: 700 }}>合計（税込）</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(total)}</td>
+                    <td style={{ padding: '8px 12px', fontWeight: 700, color: '#111' }}>合計（税込）</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#111', fontFamily: "'JetBrains Mono', monospace" }}>{fmt(total)}</td>
                   </tr>
                   <tr>
                     <td colSpan={2} style={{ padding: '6px 12px', fontSize: 10, color: '#666', textAlign: 'right' }}>
