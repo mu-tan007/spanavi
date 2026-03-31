@@ -27,7 +27,7 @@ const _cfRealCloseSet = new Set(); // sessionId → リアルクローズ時にa
 const PREFS = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 const extractPref = (address) => PREFS.find(p => address?.startsWith(p)) || '';
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, ceoConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -233,6 +233,11 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     onClose();
   };
 
+  // PiP: closeRef/summaryRefを親に公開
+  useEffect(() => {
+    if (closeRef) closeRef.current = handleClose;
+  });
+
   const getRecordsForItem = (itemId) => callRecords.filter(r => r.item_id === itemId);
   const getNextRound = (itemId) => {
     const recs = getRecordsForItem(itemId);
@@ -343,9 +348,14 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   // selectedRow 変更時は録音プレーヤーをリセット
   useEffect(() => { setActiveRecordingId(null); }, [selectedRow]);
 
+  // PiP: isMinimizedをrefで追跡
+  const isMinimizedRef = useRef(false);
+  useEffect(() => { isMinimizedRef.current = !!isMinimized; }, [isMinimized]);
+
   // キーボードショートカット — refで最新状態を参照しeventリスナーは一度だけ登録
   useEffect(() => {
     const onKeyDown = (e) => {
+      if (isMinimizedRef.current) return;
       const tag = document.activeElement?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       const { sel, sorted, currentIdx, appoM, recallM, helpOpen, handleResult } = cfvKbRef.current;
@@ -1244,6 +1254,17 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   // ref を毎レンダーで最新化（keydownハンドラーが参照する）
   cfvKbRef.current = { sel: selectedRow, sorted, currentIdx, appoM: appoModal, recallM: recallModal, helpOpen: showShortcutHelp, handleResult };
 
+  // PiP: summaryRefを更新
+  useEffect(() => {
+    if (summaryRef) {
+      summaryRef.current = {
+        company: selectedRow?.company || list.company || '',
+        position: currentIdx >= 0 ? `${currentIdx + 1} / ${sorted.length}件` : `- / ${sorted.length}件`,
+        total: sorted.length,
+      };
+    }
+  });
+
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#F8F9FA', zIndex: 10000, display: 'flex', flexDirection: 'column', fontFamily: "'Noto Sans JP'" }}>
 
@@ -1298,6 +1319,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           <span>{autoDial ? '↻' : '▶'}</span>
           オートコール {autoDial ? 'ON' : 'OFF'}
         </button>
+        {onMinimize && (
+          <button onClick={onMinimize} title="最小化"
+            style={{ width: 32, height: 32, borderRadius: 6, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>
+            ⊟
+          </button>
+        )}
         <button onClick={handleClose}
           style={{ width: 32, height: 32, borderRadius: 6, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer', fontSize: 16, flexShrink: 0 }}>
           ✕

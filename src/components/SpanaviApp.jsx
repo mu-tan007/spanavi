@@ -11,6 +11,7 @@ import RoleplayView from './views/RoleplayView';
 import CompanySearchView from './views/CompanySearchView';
 import StatsView from './views/StatsView';
 import CallingScreen from './views/CallingScreen';
+import PiPWidget from './common/PiPWidget';
 import RecallModal from './views/RecallModal';
 import AppoReportModal from './views/AppoReportModal';
 import CallFlowView from './views/CallFlowView';
@@ -259,6 +260,12 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   const [importedCSVs, setImportedCSVs] = useState({});
   const [callingScreen, setCallingScreen] = useState(null); // { listId, list } - when set, shows full calling screen
   const [callFlowScreen, setCallFlowScreen] = useState(null); // { list } - when set, shows call flow screen
+  const [callingMinimized, setCallingMinimized] = useState(false);
+  const [callFlowMinimized, setCallFlowMinimized] = useState(false);
+  const callingSummaryRef = useRef({});
+  const callFlowSummaryRef = useRef({});
+  const callingCloseRef = useRef(null);
+  const callFlowCloseRef = useRef(null);
   const callFlowRestoredRef = useRef(false);
   // コンポーネント初期化時（effectsより前）に localStorage を読む。
   // callFlowScreen の useEffect が null 時にキーを削除してしまうため、
@@ -1045,9 +1052,37 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         />
       )}
 
-      {callingScreen && <CallingScreen listId={callingScreen.listId} list={callingScreen.list} importedCSVs={importedCSVs} setImportedCSVs={setImportedCSVs} onClose={() => setCallingScreen(null)} currentUser={currentUser} liveStatuses={liveStatuses} setLiveStatuses={setLiveStatuses} members={members} clientData={clientData} rewardMaster={rewardMaster} />}
+      {callingScreen && (
+        <>
+          <div style={{ display: callingMinimized ? 'none' : 'contents' }}>
+            <CallingScreen listId={callingScreen.listId} list={callingScreen.list} importedCSVs={importedCSVs} setImportedCSVs={setImportedCSVs} onClose={() => { setCallingMinimized(false); setCallingScreen(null); }} onMinimize={isMobile ? undefined : () => setCallingMinimized(true)} isMinimized={callingMinimized} summaryRef={callingSummaryRef} closeRef={callingCloseRef} currentUser={currentUser} liveStatuses={liveStatuses} setLiveStatuses={setLiveStatuses} members={members} clientData={clientData} rewardMaster={rewardMaster} />
+          </div>
+          {callingMinimized && (
+            <PiPWidget
+              title={`${callingSummaryRef.current.company || ''}　${callingSummaryRef.current.round || 1}周目 ${callingSummaryRef.current.progress || 0}%`}
+              subtitle={`${callingSummaryRef.current.industry || ''} / 担当: ${callingSummaryRef.current.manager || ''}　全${callingSummaryRef.current.total || 0}件`}
+              onMaximize={() => setCallingMinimized(false)}
+              onClose={() => { if (callingCloseRef.current) callingCloseRef.current(); else { setCallingMinimized(false); setCallingScreen(null); } }}
+            />
+          )}
+        </>
+      )}
       {selectedList && <DetailModal list={enrichedLists.find(l => l.id === selectedList)} onClose={() => setSelectedList(null)} industryRules={industryRules} now={now} callListData={callListData} setCallListData={setCallListData} setCallFlowScreen={setCallFlowScreen} isAdmin={isAdmin} onDelete={(id) => { setCallListData(prev => prev.filter(l => l.id !== id)); setSelectedList(null); }} />}
-      {callFlowScreen && <CallFlowView list={callFlowScreen.list} startNo={callFlowScreen.startNo} endNo={callFlowScreen.endNo} statusFilter={callFlowScreen.statusFilter ?? null} onClose={() => setCallFlowScreen(null)} setAppoData={isAdmin ? setAppoData : null} members={members} currentUser={currentUser} defaultItemId={callFlowScreen.defaultItemId ?? null} defaultListMode={callFlowScreen.defaultListMode ?? null} clientData={clientData} rewardMaster={rewardMaster} initialRevenueMin={callFlowScreen.revenueMin ?? null} initialRevenueMax={callFlowScreen.revenueMax ?? null} initialPrefFilter={callFlowScreen.prefFilter ?? null} />}
+      {callFlowScreen && (
+        <>
+          <div style={{ display: callFlowMinimized ? 'none' : 'contents' }}>
+            <CallFlowView list={callFlowScreen.list} startNo={callFlowScreen.startNo} endNo={callFlowScreen.endNo} statusFilter={callFlowScreen.statusFilter ?? null} onClose={() => { setCallFlowMinimized(false); setCallFlowScreen(null); }} onMinimize={isMobile ? undefined : () => setCallFlowMinimized(true)} isMinimized={callFlowMinimized} summaryRef={callFlowSummaryRef} closeRef={callFlowCloseRef} setAppoData={isAdmin ? setAppoData : null} members={members} currentUser={currentUser} defaultItemId={callFlowScreen.defaultItemId ?? null} defaultListMode={callFlowScreen.defaultListMode ?? null} clientData={clientData} rewardMaster={rewardMaster} initialRevenueMin={callFlowScreen.revenueMin ?? null} initialRevenueMax={callFlowScreen.revenueMax ?? null} initialPrefFilter={callFlowScreen.prefFilter ?? null} />
+          </div>
+          {callFlowMinimized && (
+            <PiPWidget
+              title={callFlowSummaryRef.current.company || '架電中'}
+              subtitle={callFlowSummaryRef.current.position || ''}
+              onMaximize={() => setCallFlowMinimized(false)}
+              onClose={() => { if (callFlowCloseRef.current) callFlowCloseRef.current(); else { setCallFlowMinimized(false); setCallFlowScreen(null); } }}
+            />
+          )}
+        </>
+      )}
       <IncomingCallBanner
         onNavigateToIncoming={() => setCurrentTab('incoming')}
         onOpenCompany={(itemId) => setCallFlowScreen({ list: { _supaId: null, id: null, company: '' }, defaultItemId: itemId, defaultListMode: false })}

@@ -6,7 +6,7 @@ import { fetchCallListItems, insertCallRecord, updateCallListItem, deleteCallRec
 import { supabase } from '../../lib/supabase';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 
-export default function CallingScreen({ listId, list, importedCSVs, setImportedCSVs, onClose, currentUser, liveStatuses, setLiveStatuses, members = [], clientData = [], rewardMaster = [] }) {
+export default function CallingScreen({ listId, list, importedCSVs, setImportedCSVs, onClose, onMinimize, isMinimized, summaryRef, closeRef, currentUser, liveStatuses, setLiveStatuses, members = [], clientData = [], rewardMaster = [] }) {
   const { statuses, shortcuts: CS_SHORTCUTS, loading: statusLoading } = useCallStatuses();
   const STATUSES = statuses;
   const EXCLUDED_IDS = useMemo(() => statuses.filter(s => s.excluded).map(s => s.id), [statuses]);
@@ -40,6 +40,9 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
   const [prefDropOpen, setPrefDropOpen] = useState(false);
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const kbRef = useRef({});
+  const isMinimizedRef = useRef(false);
+  useEffect(() => { isMinimizedRef.current = !!isMinimized; }, [isMinimized]);
+
   const PAGE_SIZE = 30;
   const [sessionKey] = useState(() => "self_" + (currentUser || "unknown") + "_" + Date.now());
   const csvData = importedCSVs[listId] || [];
@@ -96,6 +99,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
   // キーボードショートカット — refで最新状態を参照しeventリスナーは一度だけ登録
   useEffect(() => {
     const onKeyDown = (e) => {
+      if (isMinimizedRef.current) return;
       const tag = document.activeElement?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       const { sel, sorted, appoM, recallM, helpOpen, scriptOpen, memo, editRound, csvData, listId, currentUser } = kbRef.current;
@@ -154,6 +158,11 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
     }
     onClose();
   };
+
+  // PiP: summaryRef/closeRefを親に公開
+  useEffect(() => {
+    if (closeRef) closeRef.current = handleClose;
+  });
 
   // Legacy status migration: map old IDs to new
   const LEGACY_MAP = { rejected: "excluded", discontinued: "excluded", reception_claim: "excluded", ceo_claim: "excluded" };
@@ -382,6 +391,20 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
     return Object.values(r.rounds).some(rd => rd.status === "appointment");
   }).length;
 
+  // PiP: summaryRefを更新
+  useEffect(() => {
+    if (summaryRef) {
+      summaryRef.current = {
+        company: list.company,
+        industry: list.industry,
+        manager: list.manager,
+        round: currentRound,
+        progress: Math.round((roundDoneCount + excludedCount) / Math.max(totalCount, 1) * 100),
+        total: totalCount,
+      };
+    }
+  });
+
   // Max round used across all rows
   const maxRound = csvData.reduce((max, r) => {
     if (!r.rounds) return max;
@@ -512,6 +535,13 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
             </div>
             <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.75)', textAlign: "right", marginTop: 1 }}>{Math.round((roundDoneCount + excludedCount) / Math.max(totalCount, 1) * 100)}%</div>
           </div>
+          {onMinimize && (
+            <button onClick={onMinimize} style={{
+              padding: "5px 14px", borderRadius: 6, background: C.white + "15",
+              border: "1px solid " + C.white + "30", color: C.white, cursor: "pointer",
+              fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+            }}>⊟ 最小化</button>
+          )}
           <button onClick={handleClose} style={{
             padding: "5px 14px", borderRadius: 6, background: C.white + "15",
             border: "1px solid " + C.white + "30", color: C.white, cursor: "pointer",
