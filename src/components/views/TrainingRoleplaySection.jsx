@@ -4,6 +4,7 @@ import { prepareAudioForWhisper, needsConversion, isVideoFile } from '../../lib/
 import {
   fetchTrainingProgress,
   upsertTrainingStage,
+  uploadRoleplayVideo,
   fetchRoleplaySessions,
   insertRoleplaySession,
   updateRoleplaySession,
@@ -307,20 +308,35 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
       // Google Driveへ自動アップロード（Slack投稿前に完了を待つ）
       let driveUrl = extractDriveId(addDriveUrl) ? addDriveUrl.trim() : null;
-      if (storagePath && !driveUrl) {
+      if (addRecordingFile && !driveUrl) {
+        const isVideo = isVideoFile(addRecordingFile);
         const origName = (addRecordingFile?.name || `roleplay_${newSession.id}.mp4`);
         const dateStr = addForm.session_date || new Date().toISOString().slice(0, 10);
         const driveName = `${currentUser}_${addForm.partner_name || 'RP'}_${dateStr}_${origName}`;
         try {
-          const { data } = await invokeUploadToGdrive({ storage_path: storagePath, filename: driveName });
-          if (data?.drive_url) {
-            await updateRoleplaySession(newSession.id, { video_url: data.drive_url });
-            setSessions(prev => prev.map(s => s.id === newSession.id ? { ...s, video_url: data.drive_url } : s));
-            driveUrl = data.drive_url;
-            console.log('[auto-gdrive] Drive URL保存完了:', data.drive_url);
+          // 動画ファイルの場合は元の動画をStorageにアップロードしてからDriveへ
+          let driveStoragePath = storagePath;
+          if (isVideo) {
+            setConvertStatus('動画をアップロード中...');
+            const { path: videoPath } = await uploadRoleplayVideo(userId, newSession.id, addRecordingFile);
+            setConvertStatus('');
+            if (videoPath) {
+              driveStoragePath = videoPath;
+              await updateRoleplaySession(newSession.id, { video_path: videoPath });
+            }
+          }
+          if (driveStoragePath) {
+            const { data } = await invokeUploadToGdrive({ storage_path: driveStoragePath, filename: driveName });
+            if (data?.drive_url) {
+              await updateRoleplaySession(newSession.id, { video_url: data.drive_url });
+              setSessions(prev => prev.map(s => s.id === newSession.id ? { ...s, video_url: data.drive_url } : s));
+              driveUrl = data.drive_url;
+              console.log('[auto-gdrive] Drive URL保存完了:', data.drive_url);
+            }
           }
         } catch (e) {
           console.warn('[auto-gdrive] Drive upload failed:', e);
+          setConvertStatus('');
         }
       }
 
