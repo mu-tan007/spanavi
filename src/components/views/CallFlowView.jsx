@@ -480,10 +480,11 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setItems(newItems);
     setCallRecords(newRecords);
     _updateSessionProgress();
-    const idx = newItems.findIndex(i => i.id === selectedRow.id);
+    // sorted（フィルタ済みリスト）の順序で次の架電可能な企業を探す
+    const sortedIdx = sorted.findIndex(i => i.id === selectedRow.id);
     let next = null;
-    for (let j = idx + 1; j < newItems.length; j++) {
-      const ni = newItems[j];
+    for (let j = sortedIdx + 1; j < sorted.length; j++) {
+      const ni = sorted[j];
       const niRecs = newRecords.filter(r => r.item_id === ni.id);
       const niExcl = niRecs.some(r => EXCLUDED_STATUSES.has(r.status));
       const niLatest = niRecs.length > 0 ? niRecs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b) : null;
