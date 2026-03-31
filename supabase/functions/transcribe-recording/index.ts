@@ -57,10 +57,12 @@ Deno.serve(async (req) => {
       )
     }
 
-    // ── 2. 音声バイナリをダウンロード（Bearer token で認証）───────────────
-    const audioRes = await fetch(recording_url, {
-      headers: { 'Authorization': `Bearer ${zoomToken}` },
-    })
+    // ── 2. 音声バイナリをダウンロード ─────────────────────────────────────
+    // Zoom URL の場合のみ Bearer token で認証、それ以外は直接 fetch
+    const isZoomUrl = /zoom\.us/i.test(recording_url)
+    const audioRes = isZoomUrl
+      ? await fetch(recording_url, { headers: { 'Authorization': `Bearer ${zoomToken}` } })
+      : await fetch(recording_url)
 
     if (!audioRes.ok) {
       return new Response(

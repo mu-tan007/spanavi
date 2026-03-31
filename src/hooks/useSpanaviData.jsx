@@ -144,6 +144,7 @@ export function useSpanaviData(authOrgId) {
         rescheduledAt: a.rescheduled_at ? a.rescheduled_at.slice(0, 16).replace(' ', 'T') : '',
         cancelReason: a.cancel_reason || '',
         phone: a.phone || '',
+        recordingUrl: a.recording_url || '',
         appoReport: (a.appo_report || '').replace(/\\n/g, '\n'),
         isCounted: a.is_counted_in_cumulative || false,
         emailStatus: a.email_status || 'pending',

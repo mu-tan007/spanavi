@@ -204,9 +204,15 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [detailNavigating, setDetailNavigating] = useState(false);
   // 'idle' | 'fetching' | 'transcribing' | 'enhancing' | 'done' | 'error'
   const [transcribeStep, setTranscribeStep] = React.useState('idle');
+  // 録音URL差し替え用
+  const [showReplaceUrl, setShowReplaceUrl] = useState(false);
+  const [replaceUrl, setReplaceUrl] = useState('');
+  // 'idle' | 'saving' | 'transcribing' | 'enhancing' | 'done' | 'error'
+  const [replaceStep, setReplaceStep] = useState('idle');
   useEffect(() => {
     setShowRecordingDetail(false);
     setDetailEditing(false); setDetailEditForm(null);
+    setShowReplaceUrl(false); setReplaceUrl(''); setReplaceStep('idle');
   }, [reportDetail]);
 
   useEffect(() => {
@@ -330,6 +336,76 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       console.error('[handleTranscribeDetail]', e);
       setTranscribeStep('error');
       setTimeout(() => setTranscribeStep('idle'), 4000);
+    }
+  };
+
+  // 録音URL差し替え＋AI再分析
+  const handleReplaceRecordingUrl = async () => {
+    if (!replaceUrl || replaceStep !== 'idle') return;
+    const supaId = reportDetail?._supaId;
+    if (!supaId) return;
+
+    // Step 1: recording_url を DB 更新
+    setReplaceStep('saving');
+    const updateErr = await updateAppointment(supaId, {
+      ...reportDetail,
+      recording_url: replaceUrl,
+    });
+    if (updateErr) {
+      alert('録音URL保存に失敗しました: ' + (updateErr.message || ''));
+      setReplaceStep('idle');
+      return;
+    }
+
+    // appo_report 内の録音URLも差し替え
+    let report = reportDetail.appoReport || '';
+    const urlPattern = /^　・録音URL[：:]\s*.*$/m;
+    if (urlPattern.test(report)) {
+      report = report.replace(urlPattern, `　・録音URL：${replaceUrl}`);
+    }
+
+    // Step 2: transcribe-recording で AI 再分析
+    setReplaceStep('transcribing');
+    try {
+      const { data, error } = await invokeTranscribeRecording({
+        recording_url: replaceUrl,
+        item_id: reportDetail.item_id || '',
+        temperature: '', meetingExp: '', futureConsider: '', other: '',
+      });
+      if (error || data?.error) throw new Error(error?.message || data?.error);
+      setReplaceStep('enhancing');
+
+      // appo_report の4項目を更新
+      const replaceField = (text, pattern, value) =>
+        pattern.test(text) ? text.replace(pattern, value) : text;
+      if (data.temperature)    report = replaceField(report, /^　・先方の温度感→.*$/m, `　・先方の温度感→${data.temperature}`);
+      if (data.meetingExp)     report = replaceField(report, /^　・面談経験の有無→.*$/m, `　・面談経験の有無→${data.meetingExp}`);
+      if (data.futureConsider) report = replaceField(report, /^　・将来的な検討可否→.*$/m, `　・将来的な検討可否→${data.futureConsider}`);
+      if (data.other)          report = replaceField(report, /^　・その他→.*$/m, `　・その他→${data.other}`);
+      if (data.publicRecordingUrl) report = replaceField(report, /^　・録音URL[：:].*$/m, `　・録音URL：${data.publicRecordingUrl}`);
+
+      // 更新された appo_report を DB 保存
+      await updateAppointment(supaId, {
+        ...reportDetail,
+        appoReport: report,
+        recording_url: data.publicRecordingUrl || replaceUrl,
+      });
+
+      // ローカル state 更新
+      const updated = { ...reportDetail, appoReport: report, recordingUrl: data.publicRecordingUrl || replaceUrl };
+      setReportDetail(updated);
+      if (setAppoData) setAppoData(prev => prev.map(a => a._supaId === supaId ? { ...a, appoReport: report, recordingUrl: data.publicRecordingUrl || replaceUrl } : a));
+
+      setReplaceStep('done');
+      setTimeout(() => { setReplaceStep('idle'); setShowReplaceUrl(false); }, 3000);
+    } catch (e) {
+      console.error('[handleReplaceRecordingUrl]', e);
+      // URL保存は成功しているので state は更新
+      const updated = { ...reportDetail, appoReport: report, recordingUrl: replaceUrl };
+      setReportDetail(updated);
+      if (setAppoData) setAppoData(prev => prev.map(a => a._supaId === supaId ? { ...a, appoReport: report, recordingUrl: replaceUrl } : a));
+      setReplaceStep('error');
+      setTimeout(() => setReplaceStep('idle'), 4000);
     }
   };
 
@@ -962,7 +1038,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               {(() => {
                 const src = reportDetail.appoReport || reportDetail.note || '';
                 const m = src.match(/録音URL[：:]\s*(https?:\/\/\S+)/);
-                const recUrl = m?.[1]?.trim() || '';
+                const recUrl = reportDetail.recordingUrl || m?.[1]?.trim() || '';
                 return (
                   <div style={{ marginTop: 8 }}>
                     <div style={{ padding: '5px 8px', borderRadius: 4, background: '#F8F9FA',
@@ -975,9 +1051,46 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                               padding: 0, lineHeight: 1, color: showRecordingDetail ? C.red : 'inherit' }}>録音</button>
                         : <span style={{ fontSize: 11, color: C.textLight }}>録音なし</span>
                       }
+                      {!detailEditing && (
+                        <button onClick={() => { setShowReplaceUrl(v => !v); setReplaceUrl(''); setReplaceStep('idle'); }}
+                          style={{ marginLeft: 'auto', fontSize: 11, padding: '2px 10px', borderRadius: 4,
+                            border: '1px solid #0D2247', background: showReplaceUrl ? '#0D2247' : '#fff',
+                            color: showReplaceUrl ? '#fff' : '#0D2247', cursor: 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: 500 }}>
+                          {showReplaceUrl ? '閉じる' : '差し替え'}
+                        </button>
+                      )}
                     </div>
                     {showRecordingDetail && recUrl && (
                       <InlineAudioPlayer url={recUrl} onClose={() => setShowRecordingDetail(false)} />
+                    )}
+                    {showReplaceUrl && !detailEditing && (
+                      <div style={{ marginTop: 6, padding: '8px 10px', borderRadius: 4, background: '#F0F4FF', border: '1px solid #CBD5E1' }}>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4 }}>新しい録音URLを貼り付けてください</div>
+                        <input
+                          type="text"
+                          value={replaceUrl}
+                          onChange={e => setReplaceUrl(e.target.value)}
+                          placeholder="https://..."
+                          disabled={replaceStep !== 'idle'}
+                          style={{ width: '100%', padding: '5px 8px', borderRadius: 4, border: '1px solid ' + C.border,
+                            fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: replaceStep !== 'idle' ? '#f0f0f0' : '#fff',
+                            boxSizing: 'border-box' }}
+                        />
+                        <button
+                          onClick={handleReplaceRecordingUrl}
+                          disabled={!replaceUrl || replaceStep !== 'idle'}
+                          style={{ marginTop: 6, padding: '6px 14px', borderRadius: 4, border: 'none',
+                            background: (!replaceUrl || replaceStep !== 'idle') ? C.border : '#0D2247',
+                            color: '#fff', cursor: (!replaceUrl || replaceStep !== 'idle') ? 'default' : 'pointer',
+                            fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'" }}>
+                          {replaceStep === 'saving'       && '保存中...'}
+                          {replaceStep === 'transcribing'  && '文字起こし中...'}
+                          {replaceStep === 'enhancing'     && 'AI添削中...'}
+                          {replaceStep === 'done'          && '完了'}
+                          {replaceStep === 'error'         && 'AI分析エラー（URL保存済み）'}
+                          {replaceStep === 'idle'          && '保存＋AI再分析'}
+                        </button>
+                      </div>
                     )}
                   </div>
                 );

@@ -217,6 +217,7 @@ export async function updateAppointment(supaId, data) {
       intern_reward: parseInt(data.reward) || 0,
       notes: data.note || null,
       appo_report: data.appoReport ?? undefined,
+      recording_url: data.recording_url ?? undefined,
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateAppointment error:', error)
@@ -252,6 +253,7 @@ export async function insertAppointment(data) {
       list_id: data.list_id || null,
       item_id: data.item_id || null,
       phone: data.phone || null,
+      recording_url: data.recording_url || null,
     })
     .select()
     .single()

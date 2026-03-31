@@ -206,6 +206,7 @@ HP：${form.hp}
       list_id:    list._supaId || null,
       item_id:    row.id || null,
       phone:      row.phone || null,
+      recording_url: form.recordingUrl || null,
     });
     await onSave({
       company:    row.company,
