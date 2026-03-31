@@ -308,6 +308,14 @@ export default function LandingPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
           <SpanaviLogo shieldSize={20} fontSize={14} />
         </div>
+        <div style={{ marginBottom: 12 }}>
+          <span onClick={() => navigate('/tokushoho')} style={{
+            fontSize: 11, color: C.textMuted, cursor: 'pointer', textDecoration: 'underline',
+            textUnderlineOffset: 2,
+          }}>
+            特定商取引法に基づく表記
+          </span>
+        </div>
         <p style={{ fontSize: 11, color: C.textMuted }}>
           © {new Date().getFullYear()} Spanavi. All rights reserved.
         </p>

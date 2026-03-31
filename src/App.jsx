@@ -7,6 +7,7 @@ import LandingPage from './components/public/LandingPage'
 import SignupPage from './components/public/SignupPage'
 import SignupCompletePage from './components/public/SignupCompletePage'
 import SignupCanceledPage from './components/public/SignupCanceledPage'
+import TokushohoPage from './components/public/TokushohoPage'
 import SubscriptionGuard from './components/common/SubscriptionGuard'
 import { useEffect, useRef } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
@@ -117,6 +118,7 @@ export default function App() {
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/signup/complete" element={<SignupCompletePage />} />
       <Route path="/signup/canceled" element={<SignupCanceledPage />} />
+      <Route path="/tokushoho" element={<TokushohoPage />} />
       <Route path="/*" element={<MainApp />} />
     </Routes>
   )
