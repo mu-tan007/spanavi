@@ -365,16 +365,19 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
   // ── 請求書PDF生成 ──────────────────────────────────────
   // クライアント選択時に明細行を自動生成
+  // appoData.sales は消費税込みの金額 → 税別クライアントは税抜単価に変換
   const initInvoiceItems = (clientName, month) => {
+    const client = clientData.find(c => c.company === clientName);
+    const rm = client ? rewardMaster.find(r => r.id === client.rewardType) : null;
+    const isTaxExcl = (rm?.tax || '税別') === '税別';
     const appos = appoData.filter(a =>
       a.status === '面談済' && a.client === clientName && a.meetDate && a.meetDate.slice(0, 7) === month
     );
-    setInvoiceItems(appos.map(a => ({
-      company: a.company,
-      quantity: 1,
-      unitPrice: a.sales || 0,
-      amount: a.sales || 0,
-    })));
+    setInvoiceItems(appos.map(a => {
+      const raw = a.sales || 0;
+      const unitPrice = isTaxExcl ? Math.floor(raw / 1.1) : raw;
+      return { company: a.company, quantity: 1, unitPrice, amount: unitPrice, note: '' };
+    }));
   };
 
   const handleInvoiceExport = async () => {
@@ -988,19 +991,19 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   <div style={{ marginTop: 18 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                       <span style={{ fontSize: 11, fontWeight: 600, color: '#0D2247' }}>明細（{invoiceItems.length}件）</span>
-                      <button onClick={() => setInvoiceItems(prev => [...prev, { company: '', quantity: 1, unitPrice: 0, amount: 0 }])}
+                      <button onClick={() => setInvoiceItems(prev => [...prev, { company: '', quantity: 1, unitPrice: 0, amount: 0, note: '' }])}
                         style={{ padding: '3px 10px', borderRadius: 3, border: '1px solid #0D2247', background: '#fff', color: '#0D2247', fontSize: 10, fontWeight: 500, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
                         ＋ 行を追加
                       </button>
                     </div>
                     <div style={{ border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
                       {/* テーブルヘッダー */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px 100px 32px', gap: 0, background: '#F3F4F6', padding: '6px 10px', fontSize: 10, fontWeight: 600, color: '#374151' }}>
-                        <span>品名</span><span style={{ textAlign: 'center' }}>数量</span><span style={{ textAlign: 'right' }}>単価</span><span style={{ textAlign: 'right' }}>金額</span><span></span>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 50px 90px 90px 120px 28px', gap: 0, background: '#F3F4F6', padding: '6px 10px', fontSize: 10, fontWeight: 600, color: '#374151' }}>
+                        <span>品名</span><span style={{ textAlign: 'center' }}>数量</span><span style={{ textAlign: 'right' }}>単価</span><span style={{ textAlign: 'right' }}>金額</span><span style={{ paddingLeft: 6 }}>備考</span><span></span>
                       </div>
                       {/* 明細行 */}
                       {invoiceItems.map((item, idx) => (
-                        <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px 100px 32px', gap: 4, padding: '5px 10px', borderTop: '1px solid #E5E7EB', alignItems: 'center' }}>
+                        <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 50px 90px 90px 120px 28px', gap: 4, padding: '5px 10px', borderTop: '1px solid #E5E7EB', alignItems: 'center' }}>
                           <input value={item.company} onChange={e => setInvoiceItems(prev => prev.map((it, i) => i === idx ? { ...it, company: e.target.value } : it))}
                             style={{ ...invInputStyle, width: '100%' }} />
                           <input type="number" value={item.quantity} onChange={e => { const q = Number(e.target.value) || 0; setInvoiceItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: q, amount: q * it.unitPrice } : it)); }}
@@ -1008,6 +1011,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                           <input type="number" value={item.unitPrice} onChange={e => { const p = Number(e.target.value) || 0; setInvoiceItems(prev => prev.map((it, i) => i === idx ? { ...it, unitPrice: p, amount: it.quantity * p } : it)); }}
                             style={{ ...invInputStyle, width: '100%', textAlign: 'right' }} />
                           <span style={{ textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#0D2247', fontFamily: "'JetBrains Mono'", paddingRight: 4 }}>{formatCurrency(item.amount)}</span>
+                          <input value={item.note || ''} onChange={e => setInvoiceItems(prev => prev.map((it, i) => i === idx ? { ...it, note: e.target.value } : it))}
+                            placeholder="備考" style={{ ...invInputStyle, width: '100%', fontSize: 10 }} />
                           <button onClick={() => setInvoiceItems(prev => prev.filter((_, i) => i !== idx))}
                             style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 14, padding: 0, lineHeight: 1 }} title="削除">×</button>
                         </div>
