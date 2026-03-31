@@ -494,6 +494,11 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("[Export] error:", e);
+      if (e.message?.includes("dynamically imported module")) {
+        alert("アプリが更新されました。ページを再読み込みします。");
+        window.location.reload();
+        return;
+      }
       alert("エクスポートに失敗しました: " + e.message);
     }
     setLsExporting(null);
@@ -646,6 +651,11 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       document.body.removeChild(container);
     } catch (e) {
       console.error('[PDF Export]', e);
+      if (e.message?.includes("dynamically imported module")) {
+        alert("アプリが更新されました。ページを再読み込みします。");
+        window.location.reload();
+        return;
+      }
       alert('PDF出力に失敗しました: ' + e.message);
     }
     setLsPdfExporting(null);
@@ -803,6 +813,11 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("[ExportItems] error:", e);
+      if (e.message?.includes("dynamically imported module")) {
+        alert("アプリが更新されました。ページを再読み込みします。");
+        window.location.reload();
+        return;
+      }
       alert("エクスポートに失敗しました: " + e.message);
     }
     setLsExporting(null);
