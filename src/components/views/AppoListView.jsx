@@ -4,7 +4,7 @@ import { C } from '../../constants/colors';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/formatters';
-import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo } from '../../lib/supabaseWrite';
+import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, uploadAppoRecording } from '../../lib/supabaseWrite';
 import { PAST_APPOINTMENT_COMPANIES } from '../../constants/pastAppointmentCompanies';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
@@ -207,8 +207,10 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   // 録音URL差し替え用
   const [showReplaceUrl, setShowReplaceUrl] = useState(false);
   const [replaceUrl, setReplaceUrl] = useState('');
-  // 'idle' | 'saving' | 'transcribing' | 'enhancing' | 'done' | 'error'
+  // 'idle' | 'saving' | 'uploading' | 'transcribing' | 'enhancing' | 'done' | 'error'
   const [replaceStep, setReplaceStep] = useState('idle');
+  const [dragOver, setDragOver] = useState(false);
+  const [droppedFileName, setDroppedFileName] = useState('');
   useEffect(() => {
     setShowRecordingDetail(false);
     setDetailEditing(false); setDetailEditForm(null);
@@ -406,6 +408,58 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       if (setAppoData) setAppoData(prev => prev.map(a => a._supaId === supaId ? { ...a, appoReport: report, recordingUrl: replaceUrl } : a));
       setReplaceStep('error');
       setTimeout(() => setReplaceStep('idle'), 4000);
+    }
+  };
+
+  // ドラッグ&ドロップで音声ファイルをアップロード → AI再分析
+  const handleDropRecording = async (file) => {
+    const supaId = reportDetail?._supaId;
+    if (!supaId || replaceStep !== 'idle') return;
+    setDroppedFileName(file.name);
+    setReplaceStep('uploading');
+    try {
+      const { url, error: upErr } = await uploadAppoRecording(supaId, file);
+      if (upErr || !url) throw new Error(upErr?.message || 'アップロード失敗');
+      setReplaceUrl(url);
+
+      // recording_url を DB 保存
+      setReplaceStep('saving');
+      await updateAppointment(supaId, { ...reportDetail, recording_url: url });
+
+      let report = reportDetail.appoReport || '';
+      const urlPattern = /^　・録音URL[：:]\s*.*$/m;
+      if (urlPattern.test(report)) report = report.replace(urlPattern, `　・録音URL：${url}`);
+
+      // transcribe-recording で AI 再分析
+      setReplaceStep('transcribing');
+      const { data, error } = await invokeTranscribeRecording({
+        recording_url: url,
+        item_id: reportDetail.item_id || '',
+        temperature: '', meetingExp: '', futureConsider: '', other: '',
+      });
+      if (error || data?.error) throw new Error(error?.message || data?.error);
+      setReplaceStep('enhancing');
+
+      const replaceField = (text, pattern, value) =>
+        pattern.test(text) ? text.replace(pattern, value) : text;
+      if (data.temperature)    report = replaceField(report, /^　・先方の温度感→.*$/m, `　・先方の温度感→${data.temperature}`);
+      if (data.meetingExp)     report = replaceField(report, /^　・面談経験の有無→.*$/m, `　・面談経験の有無→${data.meetingExp}`);
+      if (data.futureConsider) report = replaceField(report, /^　・将来的な検討可否→.*$/m, `　・将来的な検討可否→${data.futureConsider}`);
+      if (data.other)          report = replaceField(report, /^　・その他→.*$/m, `　・その他→${data.other}`);
+      if (data.publicRecordingUrl) report = replaceField(report, /^　・録音URL[：:].*$/m, `　・録音URL：${data.publicRecordingUrl}`);
+
+      const finalUrl = data.publicRecordingUrl || url;
+      await updateAppointment(supaId, { ...reportDetail, appoReport: report, recording_url: finalUrl });
+      const updated = { ...reportDetail, appoReport: report, recordingUrl: finalUrl };
+      setReportDetail(updated);
+      if (setAppoData) setAppoData(prev => prev.map(a => a._supaId === supaId ? { ...a, appoReport: report, recordingUrl: finalUrl } : a));
+
+      setReplaceStep('done');
+      setTimeout(() => { setReplaceStep('idle'); setShowReplaceUrl(false); setDroppedFileName(''); }, 3000);
+    } catch (e) {
+      console.error('[handleDropRecording]', e);
+      setReplaceStep('error');
+      setTimeout(() => { setReplaceStep('idle'); setDroppedFileName(''); }, 4000);
     }
   };
 
@@ -1064,8 +1118,29 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                       <InlineAudioPlayer url={recUrl} onClose={() => setShowRecordingDetail(false)} />
                     )}
                     {showReplaceUrl && !detailEditing && (
-                      <div style={{ marginTop: 6, padding: '8px 10px', borderRadius: 4, background: '#F0F4FF', border: '1px solid #CBD5E1' }}>
-                        <div style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4 }}>新しい録音URLを貼り付けてください</div>
+                      <div
+                        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                        onDragLeave={() => setDragOver(false)}
+                        onDrop={e => {
+                          e.preventDefault(); setDragOver(false);
+                          const file = e.dataTransfer.files?.[0];
+                          if (file && (file.type.startsWith('audio/') || file.type.startsWith('video/') || /\.(mp3|mp4|m4a|wav|ogg|webm)$/i.test(file.name))) {
+                            handleDropRecording(file);
+                          } else if (file) {
+                            alert('音声・動画ファイルを選択してください');
+                          }
+                        }}
+                        style={{ marginTop: 6, padding: '8px 10px', borderRadius: 4,
+                          background: dragOver ? '#E0E7FF' : '#F0F4FF',
+                          border: dragOver ? '2px dashed #0D2247' : '1px solid #CBD5E1',
+                          transition: 'all 0.15s' }}>
+                        {/* ドロップゾーン */}
+                        <div style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 6 }}>
+                          URLを貼り付け、または音声ファイルをドラッグ&ドロップ
+                        </div>
+                        {droppedFileName && replaceStep !== 'idle' && (
+                          <div style={{ fontSize: 10, color: C.textMid, marginBottom: 4 }}>{droppedFileName}</div>
+                        )}
                         <input
                           type="text"
                           value={replaceUrl}
@@ -1076,20 +1151,33 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                             fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: replaceStep !== 'idle' ? '#f0f0f0' : '#fff',
                             boxSizing: 'border-box' }}
                         />
-                        <button
-                          onClick={handleReplaceRecordingUrl}
-                          disabled={!replaceUrl || replaceStep !== 'idle'}
-                          style={{ marginTop: 6, padding: '6px 14px', borderRadius: 4, border: 'none',
-                            background: (!replaceUrl || replaceStep !== 'idle') ? C.border : '#0D2247',
-                            color: '#fff', cursor: (!replaceUrl || replaceStep !== 'idle') ? 'default' : 'pointer',
-                            fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'" }}>
-                          {replaceStep === 'saving'       && '保存中...'}
-                          {replaceStep === 'transcribing'  && '文字起こし中...'}
-                          {replaceStep === 'enhancing'     && 'AI添削中...'}
-                          {replaceStep === 'done'          && '完了'}
-                          {replaceStep === 'error'         && 'AI分析エラー（URL保存済み）'}
-                          {replaceStep === 'idle'          && '保存＋AI再分析'}
-                        </button>
+                        <div style={{ display: 'flex', gap: 6, marginTop: 6, alignItems: 'center' }}>
+                          <button
+                            onClick={handleReplaceRecordingUrl}
+                            disabled={!replaceUrl || replaceStep !== 'idle'}
+                            style={{ padding: '6px 14px', borderRadius: 4, border: 'none',
+                              background: (!replaceUrl || replaceStep !== 'idle') ? C.border : '#0D2247',
+                              color: '#fff', cursor: (!replaceUrl || replaceStep !== 'idle') ? 'default' : 'pointer',
+                              fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'" }}>
+                            {replaceStep === 'saving'       && '保存中...'}
+                            {replaceStep === 'uploading'    && 'アップロード中...'}
+                            {replaceStep === 'transcribing' && '文字起こし中...'}
+                            {replaceStep === 'enhancing'    && 'AI添削中...'}
+                            {replaceStep === 'done'         && '完了'}
+                            {replaceStep === 'error'        && 'エラー（リトライ可）'}
+                            {replaceStep === 'idle'         && '保存＋AI再分析'}
+                          </button>
+                          {replaceStep === 'idle' && (
+                            <label style={{ padding: '6px 14px', borderRadius: 4, border: '1px solid #0D2247',
+                              background: '#fff', color: '#0D2247', cursor: 'pointer',
+                              fontSize: 11, fontWeight: 500, fontFamily: "'Noto Sans JP'" }}>
+                              ファイル選択
+                              <input type="file" accept="audio/*,video/*,.mp3,.mp4,.m4a,.wav,.ogg,.webm"
+                                style={{ display: 'none' }}
+                                onChange={e => { const f = e.target.files?.[0]; if (f) handleDropRecording(f); e.target.value = ''; }} />
+                            </label>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>

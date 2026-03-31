@@ -1734,6 +1734,23 @@ export async function deleteRoleplaySession(id) {
   return { error }
 }
 
+export async function uploadAppoRecording(appoId, file) {
+  if (!appoId || !file) return { url: null, error: 'missing params' }
+  const ext = file.name?.split('.').pop() || 'mp4'
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  const safeId = String(appoId).replace(/[^a-zA-Z0-9_-]/g, '')
+  const path = `${safeId}_${dateStr}.${ext}`
+  const { error: uploadError } = await supabase.storage
+    .from('recordings')
+    .upload(path, file, { contentType: file.type || 'audio/mp4', upsert: true })
+  if (uploadError) {
+    console.error('[DB] uploadAppoRecording error:', uploadError)
+    return { url: null, error: uploadError }
+  }
+  const { data: urlData } = supabase.storage.from('recordings').getPublicUrl(path)
+  return { url: urlData.publicUrl, error: null }
+}
+
 export async function uploadRoleplayRecording(userId, sessionId, file) {
   if (!userId || !sessionId || !file) return { path: null, url: null, error: 'missing params' }
   const ext = file.name.split('.').pop() || 'mp4'
