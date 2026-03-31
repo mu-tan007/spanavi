@@ -81,12 +81,12 @@ export function AuthProvider({ children }) {
         console.warn('Profile fetch failed (RLS or missing row):', error?.message)
         setProfile(null)
       } else {
-        // users テーブルから取得成功 → members テーブルから org_id を補完
+        // users テーブルから取得成功 → members テーブルから org_id を補完（user_idで一意検索）
         const { data: memberRow } = await supabase
           .from('members')
           .select('org_id')
-          .eq('name', data.name)
-          .single()
+          .eq('user_id', userId)
+          .maybeSingle()
         const orgId = memberRow?.org_id || null
         if (orgId) setOrgId(orgId)
         setProfile({ ...data, org_id: orgId })
