@@ -256,7 +256,6 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         setConvertStatus('');
 
         // Drive結果処理
-        let driveUrlFromUpload = null;
         if (driveResult.status === 'fulfilled' && driveResult.value) {
           driveUrlFromUpload = driveResult.value;
           await updateRoleplaySession(newSession.id, { video_url: driveUrlFromUpload });
