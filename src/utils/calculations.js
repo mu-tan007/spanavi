@@ -30,9 +30,9 @@ export const calcRankAndRate = (totalSales, orgSettings = null) => {
   const sorted = [...ranks].sort((a, b) => b.threshold - a.threshold);
 
   // デフォルトのインセンティブ率マップ
-  const defaultRates = { 'スーパースパルタン': 0.28, 'スパルタン': 0.27, 'プレイヤー': 0.25, 'トレーニー': 0.22 };
+  const defaultRates = { 'スーパースパルタン': 0.28, 'スパルタン': 0.26, 'プレイヤー': 0.24, 'トレーニー': 0.22 };
   // インデックスベースのフォールバック率
-  const fallbackRates = [0.28, 0.27, 0.25, 0.22];
+  const fallbackRates = [0.28, 0.26, 0.24, 0.22];
 
   for (let i = 0; i < sorted.length; i++) {
     if (totalSales >= sorted[i].threshold) {

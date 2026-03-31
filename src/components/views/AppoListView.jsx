@@ -210,6 +210,10 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   // 'idle' | 'saving' | 'uploading' | 'transcribing' | 'enhancing' | 'done' | 'error'
   const [replaceStep, setReplaceStep] = useState('idle');
   const [dragOver, setDragOver] = useState(false);
+  // ── 一括ステータス変更 ──
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkStatus, setBulkStatus] = useState('');
+  const [bulkProcessing, setBulkProcessing] = useState(false);
   const [droppedFileName, setDroppedFileName] = useState('');
   useEffect(() => {
     setShowRecordingDetail(false);
@@ -223,6 +227,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     localStorage.setItem('spanavi_appo_from', apCustomFrom);
     localStorage.setItem('spanavi_appo_to', apCustomTo);
   }, [apPeriod, apSelectedMonth, apCustomFrom, apCustomTo]);
+
+  // フィルター変更時に選択をクリア
+  useEffect(() => { setSelectedIds(new Set()); }, [statusFilter, apPeriod, apSelectedMonth, apCustomFrom, apCustomTo, search]);
 
   const statuses = [...new Set(appoData.map(a => a.status))];
 
@@ -278,6 +285,77 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   };
 
   const { columns: appoCols, gridTemplateColumns: appoGrid, contentMinWidth: appoMinW, onResizeStart: appoResize, onHeaderContextMenu: appoCtxMenu, contextMenu: appoCtx, setAlign: appoSetAlign, resetAll: appoReset, closeMenu: appoClose } = useColumnConfig('appoList', APPO_COLS, { padding: 22, gap: 2 });
+
+  // チェックボックス列を先頭に追加（useColumnConfigには影響しない）
+  const appoGridWithCheckbox = setAppoData ? `28px ${appoGrid}` : appoGrid;
+  const appoMinWWithCheckbox = setAppoData ? appoMinW + 28 : appoMinW;
+  const selectableFiltered = filtered.filter(a => a._supaId);
+  const allSelected = selectableFiltered.length > 0 && selectableFiltered.every(a => selectedIds.has(a._supaId));
+  const someSelected = selectableFiltered.some(a => selectedIds.has(a._supaId));
+  const headerCheckboxRef = React.useRef(null);
+  useEffect(() => {
+    if (headerCheckboxRef.current) headerCheckboxRef.current.indeterminate = someSelected && !allSelected;
+  }, [someSelected, allSelected]);
+
+  // ── 一括ステータス変更 ──────────────────────────────────────
+  const handleBulkStatusChange = async () => {
+    if (!bulkStatus || selectedIds.size === 0 || bulkProcessing) return;
+    const targetAppos = appoData.filter(a => selectedIds.has(a._supaId));
+    const msg = `${targetAppos.length}件のアポイントメントのステータスを「${bulkStatus}」に変更します。よろしいですか？`;
+    if (!window.confirm(msg)) return;
+    setBulkProcessing(true);
+    try {
+      // 1. getter名でデルタを集計
+      const memberDeltas = {};
+      for (const appo of targetAppos) {
+        const wasKanryo = appo.status === '面談済';
+        const isKanryo = bulkStatus === '面談済';
+        if (wasKanryo === isKanryo) continue;
+        const delta = isKanryo ? (appo.sales || 0) : -(appo.sales || 0);
+        if (delta === 0) continue;
+        if (!memberDeltas[appo.getter]) memberDeltas[appo.getter] = { delta: 0, appos: [] };
+        memberDeltas[appo.getter].delta += delta;
+        memberDeltas[appo.getter].appos.push(appo);
+      }
+      // 2. メンバーの累計売上・ランク・インセンティブ率を更新
+      const memberUpdates = [];
+      if (setMembers) {
+        for (const [getterName, { delta }] of Object.entries(memberDeltas)) {
+          if (delta === 0) continue;
+          const member = members.find(m => typeof m !== 'string' && m.name === getterName);
+          if (!member?._supaId) continue;
+          const newTotal = Math.max(0, (member.totalSales || 0) + delta);
+          const { rank: newRank, rate: newRate } = calcRankAndRate(newTotal);
+          memberUpdates.push({ member, newTotal, newRank, newRate });
+          await updateMemberReward(member._supaId, { cumulativeSales: newTotal, rank: newRank, incentiveRate: newRate });
+        }
+      }
+      // 3. 各アポのステータスとis_counted_in_cumulativeを更新
+      const errors = [];
+      for (const appo of targetAppos) {
+        const wasKanryo = appo.status === '面談済';
+        const isKanryo = bulkStatus === '面談済';
+        const error = await updateAppointment(appo._supaId, { ...appo, status: bulkStatus });
+        if (error) { errors.push(appo.company); continue; }
+        if (wasKanryo !== isKanryo) await updateAppoCounted(appo._supaId, isKanryo);
+      }
+      // 4. ローカルstate反映
+      setAppoData(prev => prev.map(a => selectedIds.has(a._supaId) ? { ...a, status: bulkStatus } : a));
+      if (memberUpdates.length > 0 && setMembers) {
+        setMembers(prev => prev.map(m => {
+          const upd = memberUpdates.find(u => u.member._supaId === m._supaId);
+          return upd ? { ...m, totalSales: upd.newTotal, rank: upd.newRank, rate: upd.newRate } : m;
+        }));
+      }
+      if (errors.length > 0) alert(`${targetAppos.length - errors.length}件更新成功、${errors.length}件失敗しました。`);
+      setSelectedIds(new Set());
+      setBulkStatus('');
+    } catch (e) {
+      alert('一括更新に失敗しました: ' + (e.message || '不明なエラー'));
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
 
   const handleTranscribeDetail = async () => {
     if (transcribeStep !== 'idle') return;
@@ -603,17 +681,63 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         </div>
       </div>
 
-      {/* Table */}
-      <div style={{ background: '#fff', borderRadius: 4, overflowX: "auto", overflowY: "hidden", border: "1px solid #E5E7EB" }}>
-        <div style={{ minWidth: appoMinW }}>
+      {/* Bulk Action Bar */}
+      {setAppoData && selectedIds.size > 0 && (
         <div style={{
-          display: "grid", gridTemplateColumns: appoGrid,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '8px 16px', background: '#0D2247', borderRadius: '4px 4px 0 0',
+          marginBottom: 0, gap: 12,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#fff', fontFamily: "'Noto Sans JP'" }}>
+              {selectedIds.size}件選択中
+            </span>
+            <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)}
+              style={{ padding: '5px 10px', borderRadius: 4, border: '1px solid #CBD5E1', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none' }}>
+              <option value="">ステータスを選択</option>
+              <option value="面談済">面談済</option>
+              <option value="事前確認済">事前確認済</option>
+              <option value="アポ取得">アポ取得</option>
+              <option value="リスケ中">リスケ中</option>
+              <option value="キャンセル">キャンセル</option>
+            </select>
+            <button onClick={handleBulkStatusChange} disabled={!bulkStatus || bulkProcessing}
+              style={{
+                padding: '5px 14px', borderRadius: 4, border: 'none', fontSize: 11, fontWeight: 600,
+                fontFamily: "'Noto Sans JP'", cursor: !bulkStatus || bulkProcessing ? 'default' : 'pointer',
+                background: !bulkStatus || bulkProcessing ? '#4B5563' : '#2E844A', color: '#fff',
+              }}>
+              {bulkProcessing ? '処理中...' : '一括変更'}
+            </button>
+          </div>
+          <button onClick={() => { setSelectedIds(new Set()); setBulkStatus(''); }}
+            style={{ padding: '5px 12px', borderRadius: 4, border: '1px solid #CBD5E1', background: 'transparent', color: '#CBD5E1', fontSize: 11, fontFamily: "'Noto Sans JP'", cursor: 'pointer' }}>
+            選択解除
+          </button>
+        </div>
+      )}
+
+      {/* Table */}
+      <div style={{ background: '#fff', borderRadius: selectedIds.size > 0 ? '0 0 4px 4px' : 4, overflowX: "auto", overflowY: "hidden", border: "1px solid #E5E7EB" }}>
+        <div style={{ minWidth: appoMinWWithCheckbox }}>
+        <div style={{
+          display: "grid", gridTemplateColumns: appoGridWithCheckbox,
           padding: isMobile ? "6px 4px 6px 10px" : "8px 6px 8px 16px", columnGap: 2, background: "#0D2247",
           fontSize: isMobile ? 10 : 11, fontWeight: 600, color: "#fff",
           borderBottom: "1px solid #E5E7EB",
           alignItems: "center",
           verticalAlign: "middle",
         }}>
+          {setAppoData && (
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <input type="checkbox" ref={headerCheckboxRef} checked={allSelected}
+                onChange={() => {
+                  if (allSelected) setSelectedIds(new Set());
+                  else setSelectedIds(new Set(selectableFiltered.map(a => a._supaId)));
+                }}
+                style={{ cursor: 'pointer', accentColor: '#2E844A' }} />
+            </span>
+          )}
           {[
             { label: 'クライアント', key: 'client' },
             { label: '企業名', key: null },
@@ -644,16 +768,30 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           <div style={{ padding: "30px 0", textAlign: "center", color: C.textLight, fontSize: 12 }}>データがありません</div>
         ) : filtered.map((a, i) => {
           const sc = statusColor(a.status);
+          const isSelected = a._supaId && selectedIds.has(a._supaId);
           return (
             <div key={i} style={{
-              display: "grid", gridTemplateColumns: appoGrid,
+              display: "grid", gridTemplateColumns: appoGridWithCheckbox,
               padding: "8px 6px 8px 16px", columnGap: 2, fontSize: 11, alignItems: "center",
               borderBottom: "1px solid #E5E7EB",
-              background: i % 2 === 0 ? '#fff' : '#F8F9FA',
+              background: isSelected ? '#EAF4FF' : (i % 2 === 0 ? '#fff' : '#F8F9FA'),
               transition: "background 0.15s",
             }}
-            onMouseEnter={e => e.currentTarget.style.background = "#EAF4FF"}
-            onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#F8F9FA'}>
+            onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "#EAF4FF"; }}
+            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#F8F9FA'; }}>
+              {setAppoData && (
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {a._supaId ? (
+                    <input type="checkbox" checked={isSelected}
+                      onChange={() => setSelectedIds(prev => {
+                        const next = new Set(prev);
+                        if (next.has(a._supaId)) next.delete(a._supaId); else next.add(a._supaId);
+                        return next;
+                      })}
+                      style={{ cursor: 'pointer', accentColor: '#2E844A' }} />
+                  ) : <span style={{ width: 13 }} />}
+                </span>
+              )}
               <span style={{ color: C.textMid, fontSize: 10, textAlign: appoCols[0]?.align || 'left' }}>{a.client}</span>
               <span style={{ fontWeight: 600, color: '#0D2247', cursor: "pointer", textDecoration: "underline dotted", textUnderlineOffset: 2, textAlign: appoCols[1]?.align || 'left' }} onClick={() => setReportDetail(a)}>{a.company}</span>
               <span style={{ color: C.textDark, textAlign: appoCols[2]?.align || 'left' }}>{a.getter}</span>
