@@ -214,6 +214,11 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkStatus, setBulkStatus] = useState('');
   const [bulkProcessing, setBulkProcessing] = useState(false);
+  // ── 請求書作成 ──
+  const [invoiceModal, setInvoiceModal] = useState(false);
+  const [invoiceMonth, setInvoiceMonth] = useState(AVAILABLE_MONTHS[0]?.yyyymm || '');
+  const [invoiceClient, setInvoiceClient] = useState('');
+  const [invoiceExporting, setInvoiceExporting] = useState(false);
   const [droppedFileName, setDroppedFileName] = useState('');
   useEffect(() => {
     setShowRecordingDetail(false);
@@ -354,6 +359,117 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       alert('一括更新に失敗しました: ' + (e.message || '不明なエラー'));
     } finally {
       setBulkProcessing(false);
+    }
+  };
+
+  // ── 請求書PDF生成 ──────────────────────────────────────
+  const handleInvoiceExport = async () => {
+    if (!invoiceMonth || !invoiceClient || invoiceExporting) return;
+    const client = clientData.find(c => c.company === invoiceClient);
+    if (!client) { alert('クライアントが見つかりません'); return; }
+
+    // 対象アポ: 指定月 + 指定クライアント + 面談済
+    const targetAppos = appoData.filter(a =>
+      a.status === '面談済' &&
+      a.client === invoiceClient &&
+      a.meetDate && a.meetDate.slice(0, 7) === invoiceMonth
+    );
+    if (targetAppos.length === 0) { alert('対象の面談済アポがありません'); return; }
+
+    setInvoiceExporting(true);
+    try {
+      // 税区分の判定
+      const rm = rewardMaster.find(r => r.id === client.rewardType);
+      const taxType = rm?.tax || '税別';
+
+      // 明細行
+      const items = targetAppos.map(a => ({
+        company: a.company,
+        quantity: 1,
+        unitPrice: a.sales || 0,
+        amount: a.sales || 0,
+      }));
+      const subtotal = items.reduce((s, it) => s + it.amount, 0);
+      const tax = taxType === '税別'
+        ? Math.floor(subtotal * 0.1)
+        : Math.floor(subtotal - subtotal / 1.1);  // 内税の消費税額
+      const total = taxType === '税別' ? subtotal + tax : subtotal;
+
+      // 月ラベル
+      const monthNum = parseInt(invoiceMonth.split('-')[1], 10);
+      const monthLabel = monthNum + '月';
+
+      // 発行日: 対象月の翌月1日
+      const [y, m] = invoiceMonth.split('-').map(Number);
+      const nextMonth = m === 12 ? new Date(y + 1, 0, 1) : new Date(y, m, 1);
+      const issueDate = `${nextMonth.getFullYear()}年${String(nextMonth.getMonth() + 1).padStart(2, '0')}月01日`;
+
+      // 請求番号
+      const clientIdx = clientData.filter(c => c.status === '支援中').findIndex(c => c.company === invoiceClient);
+      const invoiceNumber = `${nextMonth.getFullYear()}${String(nextMonth.getMonth() + 1).padStart(2, '0')}01-${String((clientIdx >= 0 ? clientIdx : 0) + 1).padStart(3, '0')}`;
+
+      // 支払期限: paySiteから推定（翌月末をデフォルト）
+      let paymentDeadline = '';
+      const paySite = client.paySite || '';
+      if (paySite.includes('翌月15日')) {
+        const pd = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 15);
+        paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月15日`;
+      } else if (paySite.includes('翌月末')) {
+        const pd = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 2, 0);
+        paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
+      } else if (paySite.includes('翌々月')) {
+        const pd = paySite.includes('15日')
+          ? new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 2, 15)
+          : new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 3, 0);
+        paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
+      } else {
+        // デフォルト: 翌月末
+        const pd = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0);
+        paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
+      }
+
+      // コンポーネント描画 → html2canvas → jsPDF
+      const { default: InvoicePDF } = await import('./InvoicePDF');
+      const ReactDOM = await import('react-dom/client');
+      const container = document.createElement('div');
+      container.style.position = 'fixed';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      document.body.appendChild(container);
+      const root = ReactDOM.createRoot(container);
+      root.render(
+        <InvoicePDF
+          clientName={invoiceClient}
+          month={monthLabel}
+          items={items}
+          subtotal={subtotal}
+          tax={tax}
+          total={total}
+          taxType={taxType}
+          invoiceNumber={invoiceNumber}
+          issueDate={issueDate}
+          paymentDeadline={paymentDeadline}
+        />
+      );
+
+      await new Promise(resolve => setTimeout(resolve, 600));
+
+      const { default: html2canvas } = await import('html2canvas');
+      const { jsPDF } = await import('jspdf');
+      const el = document.getElementById('invoice-pdf-page');
+      const canvas = await html2canvas(el, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' });
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 210, 297);
+      pdf.save(`業務委託料_${monthLabel}分_${invoiceClient} 御中.pdf`);
+
+      root.unmount();
+      document.body.removeChild(container);
+      setInvoiceModal(false);
+    } catch (e) {
+      console.error('[handleInvoiceExport]', e);
+      alert('請求書の生成に失敗しました: ' + (e.message || '不明なエラー'));
+    } finally {
+      setInvoiceExporting(false);
     }
   };
 
@@ -636,6 +752,18 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             onMouseLeave={e => { e.currentTarget.style.background = "#0D2247"; }}
             >＋ アポ追加</button>
           )}
+          {setAppoData && (
+            <button onClick={() => { setInvoiceModal(true); setInvoiceClient(''); }}
+              style={{
+                padding: "8px 16px", borderRadius: 4,
+                background: "#fff", border: "1px solid #0D2247",
+                color: '#0D2247', cursor: "pointer", fontSize: 11, fontWeight: 500,
+                fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = "#F0F4FF"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "#fff"; }}
+            >請求書作成</button>
+          )}
         </div>
       </div>
 
@@ -815,6 +943,93 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         })}
         </div>
       </div>
+
+      {/* Invoice Modal */}
+      {invoiceModal && setAppoData && (() => {
+        // 対象アポのプレビュー計算
+        const previewAppos = appoData.filter(a =>
+          a.status === '面談済' && a.client === invoiceClient && a.meetDate && a.meetDate.slice(0, 7) === invoiceMonth
+        );
+        const previewTotal = previewAppos.reduce((s, a) => s + (a.sales || 0), 0);
+        const previewClient = clientData.find(c => c.company === invoiceClient);
+        const previewRm = previewClient ? rewardMaster.find(r => r.id === previewClient.rewardType) : null;
+        const previewTaxType = previewRm?.tax || '税別';
+        const previewTax = previewTaxType === '税別' ? Math.floor(previewTotal * 0.1) : Math.floor(previewTotal - previewTotal / 1.1);
+        const previewGrandTotal = previewTaxType === '税別' ? previewTotal + previewTax : previewTotal;
+        const invoiceClients = [...new Set(appoData.filter(a => a.status === '面談済' && a.meetDate && a.meetDate.slice(0, 7) === invoiceMonth).map(a => a.client))].filter(Boolean);
+
+        return (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 480, maxWidth: '95vw', boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+              <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15 }}>
+                請求書作成
+              </div>
+              <div style={{ padding: "20px 24px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>対象月</label>
+                    <select value={invoiceMonth} onChange={e => setInvoiceMonth(e.target.value)}
+                      style={{ width: '100%', padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none" }}>
+                      {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>クライアント</label>
+                    <select value={invoiceClient} onChange={e => setInvoiceClient(e.target.value)}
+                      style={{ width: '100%', padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none" }}>
+                      <option value="">選択してください</option>
+                      {invoiceClients.map(name => <option key={name} value={name}>{name}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* プレビュー */}
+                {invoiceClient && (
+                  <div style={{ marginTop: 18, padding: 14, background: '#F8F9FA', borderRadius: 4, border: '1px solid #E5E7EB' }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2247', marginBottom: 8 }}>プレビュー</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11 }}>
+                      <span style={{ color: C.textLight }}>面談済アポ数</span>
+                      <span style={{ fontWeight: 600, color: '#0D2247', textAlign: 'right' }}>{previewAppos.length}件</span>
+                      <span style={{ color: C.textLight }}>小計</span>
+                      <span style={{ fontWeight: 600, color: '#0D2247', textAlign: 'right', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(previewTotal)}</span>
+                      {previewTaxType === '税別' && <>
+                        <span style={{ color: C.textLight }}>消費税 (10%)</span>
+                        <span style={{ fontWeight: 600, color: '#0D2247', textAlign: 'right', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(previewTax)}</span>
+                      </>}
+                      <span style={{ color: C.textLight, fontWeight: 600 }}>ご請求金額</span>
+                      <span style={{ fontWeight: 700, color: '#0D2247', textAlign: 'right', fontSize: 14, fontFamily: "'JetBrains Mono'" }}>{formatCurrency(previewGrandTotal)}</span>
+                      {previewTaxType === '税込' && (
+                        <>
+                          <span></span>
+                          <span style={{ fontSize: 9, color: '#6B7280', textAlign: 'right' }}>（内消費税 {formatCurrency(previewTax)}）</span>
+                        </>
+                      )}
+                    </div>
+                    <div style={{ marginTop: 8, fontSize: 10, color: '#6B7280' }}>
+                      税区分: {previewTaxType}　/　支払サイト: {previewClient?.paySite || '未設定'}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div style={{ padding: "12px 24px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <button onClick={() => setInvoiceModal(false)}
+                  style={{ padding: "8px 16px", borderRadius: 4, border: "1px solid #0D2247", background: '#fff', cursor: "pointer", fontSize: 11, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'" }}>
+                  キャンセル
+                </button>
+                <button onClick={handleInvoiceExport} disabled={!invoiceClient || previewAppos.length === 0 || invoiceExporting}
+                  style={{
+                    padding: "8px 16px", borderRadius: 4, border: "none",
+                    background: (!invoiceClient || previewAppos.length === 0 || invoiceExporting) ? '#9CA3AF' : '#0D2247',
+                    cursor: (!invoiceClient || previewAppos.length === 0 || invoiceExporting) ? 'default' : 'pointer',
+                    fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
+                  }}>
+                  {invoiceExporting ? 'PDF生成中...' : 'PDFダウンロード'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Edit Modal */}
       {editForm && setAppoData && (() => {
