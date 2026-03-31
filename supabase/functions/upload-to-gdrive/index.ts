@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     })
 
   try {
-    const { storage_path, filename, folder_id, mode, file_id } = await req.json()
+    const { storage_path, filename, folder_id, mode, file_id, origin } = await req.json()
 
     // mode=init_resumable: Google Driveのresumable upload URIを返す（大ファイル向け）
     if (mode === 'init_resumable') {
@@ -58,15 +58,22 @@ Deno.serve(async (req) => {
         webm: 'video/webm', wav: 'audio/wav', mov: 'video/quicktime',
       }
       const mimeType = mimeMap[ext] || 'application/octet-stream'
+
+      // ブラウザからの直接アップロード用にOriginヘッダーを付与（CORS対応）
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+        'X-Upload-Content-Type': mimeType,
+      }
+      if (origin) {
+        headers['Origin'] = origin
+      }
+
       const initRes = await fetch(
         'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,webViewLink',
         {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json; charset=UTF-8',
-            'X-Upload-Content-Type': mimeType,
-          },
+          headers,
           body: JSON.stringify(metadata),
         }
       )

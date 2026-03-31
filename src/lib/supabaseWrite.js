@@ -1813,9 +1813,9 @@ export async function invokeAnalyzeRoleplay(payload) {
 }
 
 // ロープレ録画をGoogle Driveにアップロードし、共有リンクを返す
-export async function invokeUploadToGdrive({ storage_path, filename, mode, file_id, folder_id }) {
+export async function invokeUploadToGdrive({ storage_path, filename, mode, file_id, folder_id, origin }) {
   const { data, error } = await supabase.functions.invoke('upload-to-gdrive', {
-    body: { storage_path, filename, mode, file_id, folder_id },
+    body: { storage_path, filename, mode, file_id, folder_id, origin },
   })
   if (error) console.error('[Edge] upload-to-gdrive error:', error)
   return { data, error }
@@ -1823,7 +1823,7 @@ export async function invokeUploadToGdrive({ storage_path, filename, mode, file_
 
 // Google Drive resumable upload URI を取得
 export async function initResumableUpload(filename, folderId) {
-  return invokeUploadToGdrive({ filename, folder_id: folderId, mode: 'init_resumable' })
+  return invokeUploadToGdrive({ filename, folder_id: folderId, mode: 'init_resumable', origin: window.location.origin })
 }
 
 // Google Drive にファイルをチャンク分割でアップロード（resumable）
