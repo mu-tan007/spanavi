@@ -1813,12 +1813,58 @@ export async function invokeAnalyzeRoleplay(payload) {
 }
 
 // ロープレ録画をGoogle Driveにアップロードし、共有リンクを返す
-export async function invokeUploadToGdrive({ storage_path, filename }) {
+export async function invokeUploadToGdrive({ storage_path, filename, mode, file_id, folder_id }) {
   const { data, error } = await supabase.functions.invoke('upload-to-gdrive', {
-    body: { storage_path, filename },
+    body: { storage_path, filename, mode, file_id, folder_id },
   })
   if (error) console.error('[Edge] upload-to-gdrive error:', error)
   return { data, error }
+}
+
+// Google Drive resumable upload URI を取得
+export async function initResumableUpload(filename, folderId) {
+  return invokeUploadToGdrive({ filename, folder_id: folderId, mode: 'init_resumable' })
+}
+
+// Google Drive にファイルをチャンク分割でアップロード（resumable）
+export async function uploadFileToGdriveResumable(file, uploadUri, onProgress) {
+  const CHUNK_SIZE = 8 * 1024 * 1024 // 8MB
+  const totalSize = file.size
+  let offset = 0
+
+  while (offset < totalSize) {
+    const end = Math.min(offset + CHUNK_SIZE, totalSize)
+    const chunk = file.slice(offset, end)
+    const contentRange = `bytes ${offset}-${end - 1}/${totalSize}`
+
+    const res = await fetch(uploadUri, {
+      method: 'PUT',
+      headers: {
+        'Content-Length': String(end - offset),
+        'Content-Range': contentRange,
+      },
+      body: chunk,
+    })
+
+    if (res.status === 308) {
+      const range = res.headers.get('Range')
+      offset = range ? parseInt(range.split('-')[1], 10) + 1 : end
+    } else if (res.ok) {
+      const data = await res.json()
+      onProgress?.(100)
+      return { fileId: data.id, webViewLink: data.webViewLink }
+    } else {
+      throw new Error(`Resumable upload failed at offset ${offset}: ${res.status}`)
+    }
+
+    onProgress?.(Math.round((offset / totalSize) * 100))
+  }
+  throw new Error('Upload completed without final response')
+}
+
+// Google Drive ファイルに共有設定を付与し、共有URLを返す
+export async function setDrivePermissions(fileId) {
+  return invokeUploadToGdrive({ file_id: fileId, mode: 'set_permissions' })
 }
 
 export async function pollRoleplayAnalysis(sessionId, { intervalMs = 5000, timeoutMs = 300000, signal } = {}) {

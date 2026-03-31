@@ -4,14 +4,15 @@ import { prepareAudioForWhisper, needsConversion, isVideoFile } from '../../lib/
 import {
   fetchTrainingProgress,
   upsertTrainingStage,
-  uploadRoleplayVideo,
   fetchRoleplaySessions,
   insertRoleplaySession,
   updateRoleplaySession,
   deleteRoleplaySession,
   uploadRoleplayRecording,
   invokeAnalyzeRoleplay,
-  invokeUploadToGdrive,
+  initResumableUpload,
+  uploadFileToGdriveResumable,
+  setDrivePermissions,
   pollRoleplayAnalysis,
   postRoleplayToSlack,
   downloadDriveFileViaProxy,
@@ -70,6 +71,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   const [deletingId, setDeletingId]       = useState(null);
   const [addingSess, setAddingSess]       = useState(false);
   const [convertStatus, setConvertStatus] = useState('');
+  const [driveUploadProgress, setDriveUploadProgress] = useState(null); // null | 0-100
   const [videoModal, setVideoModal]       = useState(null); // 再生中の Drive file ID
 
   // Google Drive URL 入力（既存セッション用）
@@ -212,34 +214,65 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
     if (hasRecording) {
       let storagePath = null;
       let recordingUrl = addRecordingUrl || addDriveUrl || null;
+      let driveUrlFromUpload = null;
 
       if (addRecordingFile) {
         const isVideo = isVideoFile(addRecordingFile);
 
-        // Whisper 用に変換（大きなファイルは MP3 へ）
-        let fileToUpload = addRecordingFile;
-        if (needsConversion(addRecordingFile)) {
-          try {
+        // ── 並行処理: [A] Google Drive直接アップロード + [B] MP3変換→Storage ──
+        const origName = addRecordingFile.name || `roleplay_${newSession.id}.mp4`;
+        const dateStr = addForm.session_date || new Date().toISOString().slice(0, 10);
+        const driveName = `${currentUser}_${addForm.partner_name || 'RP'}_${dateStr}_${origName}`;
+
+        // [A] 動画の場合: Google Driveにresumable upload
+        const drivePromise = isVideo ? (async () => {
+          const { data: initData, error: initErr } = await initResumableUpload(driveName);
+          if (initErr || !initData?.upload_uri) throw new Error('Resumable upload init failed');
+          setDriveUploadProgress(0);
+          const { fileId } = await uploadFileToGdriveResumable(
+            addRecordingFile, initData.upload_uri,
+            (pct) => setDriveUploadProgress(pct)
+          );
+          setDriveUploadProgress(null);
+          const { data: permData } = await setDrivePermissions(fileId);
+          return permData?.drive_url || `https://drive.google.com/file/d/${fileId}/view?usp=sharing`;
+        })() : Promise.resolve(null);
+
+        // [B] MP3変換 → Storage アップロード
+        const mp3Promise = (async () => {
+          let fileToUpload = addRecordingFile;
+          if (needsConversion(addRecordingFile)) {
             fileToUpload = await prepareAudioForWhisper(addRecordingFile, setConvertStatus);
             setConvertStatus('');
-          } catch (convErr) {
-            console.error('[convert] error:', convErr);
-            setConvertStatus('');
-            setErrorMsg('ファイルの変換に失敗しました。別の形式（MP3・M4A など）で試してください。');
-            // 変換失敗でもセッションは保存されているのでリフレッシュして閉じる
-            const { data: refreshed } = await fetchRoleplaySessions(userId);
-            setSessions(refreshed || []);
-            setAddModalOpen(false);
-            setAddForm({ partner_name: '', session_type: 'weekly', session_date: '', notes: '' });
-            setAddRecordingFile(null); setAddRecordingUrl(''); setAddDriveUrl('');
-            setAddingSess(false);
-            return;
           }
+          const { path, url, error: uploadError } = await uploadRoleplayRecording(userId, newSession.id, fileToUpload);
+          if (uploadError || !path) throw new Error('MP3 upload failed');
+          return { path, url };
+        })();
+
+        // 両方の完了を待つ
+        const [driveResult, mp3Result] = await Promise.allSettled([drivePromise, mp3Promise]);
+        setDriveUploadProgress(null);
+        setConvertStatus('');
+
+        // Drive結果処理
+        let driveUrlFromUpload = null;
+        if (driveResult.status === 'fulfilled' && driveResult.value) {
+          driveUrlFromUpload = driveResult.value;
+          await updateRoleplaySession(newSession.id, { video_url: driveUrlFromUpload });
+          setSessions(prev => prev.map(s => s.id === newSession.id ? { ...s, video_url: driveUrlFromUpload } : s));
+        } else if (driveResult.status === 'rejected') {
+          console.warn('[Drive upload] failed:', driveResult.reason);
         }
-        const { path, url, error: uploadError } = await uploadRoleplayRecording(userId, newSession.id, fileToUpload);
-        if (uploadError || !path) {
-          setErrorMsg('録音ファイルのアップロードに失敗しました。ファイル形式やサイズを確認してください。');
-          // 失敗でもセッションと動画は保存済みなのでリフレッシュ
+
+        // MP3結果処理
+        if (mp3Result.status === 'fulfilled') {
+          storagePath = mp3Result.value.path;
+          recordingUrl = mp3Result.value.url;
+          await updateRoleplaySession(newSession.id, { recording_path: storagePath, recording_url: recordingUrl });
+        } else {
+          console.error('[MP3] failed:', mp3Result.reason);
+          setErrorMsg('音声ファイルの変換/アップロードに失敗しました。');
           const { data: refreshed } = await fetchRoleplaySessions(userId);
           setSessions(refreshed || []);
           setAddModalOpen(false);
@@ -248,9 +281,6 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
           setAddingSess(false);
           return;
         }
-        storagePath = path;
-        recordingUrl = url;
-        await updateRoleplaySession(newSession.id, { recording_path: path, recording_url: url });
       } else if (addDriveUrl && extractDriveId(addDriveUrl)) {
         // Drive URL: プロキシ経由でDL → ffmpegで音声抽出(MP3) → Storage upload
         try {
@@ -306,39 +336,8 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         ? { storage_path: storagePath, session_id: newSession.id }
         : { recording_url: recordingUrl, session_id: newSession.id };
 
-      // Google Driveへ自動アップロード（Slack投稿前に完了を待つ）
-      let driveUrl = extractDriveId(addDriveUrl) ? addDriveUrl.trim() : null;
-      if (addRecordingFile && !driveUrl) {
-        const isVideo = isVideoFile(addRecordingFile);
-        const origName = (addRecordingFile?.name || `roleplay_${newSession.id}.mp4`);
-        const dateStr = addForm.session_date || new Date().toISOString().slice(0, 10);
-        const driveName = `${currentUser}_${addForm.partner_name || 'RP'}_${dateStr}_${origName}`;
-        try {
-          // 動画ファイルの場合は元の動画をStorageにアップロードしてからDriveへ
-          let driveStoragePath = storagePath;
-          if (isVideo) {
-            setConvertStatus('動画をアップロード中...');
-            const { path: videoPath } = await uploadRoleplayVideo(userId, newSession.id, addRecordingFile);
-            setConvertStatus('');
-            if (videoPath) {
-              driveStoragePath = videoPath;
-              await updateRoleplaySession(newSession.id, { video_path: videoPath });
-            }
-          }
-          if (driveStoragePath) {
-            const { data } = await invokeUploadToGdrive({ storage_path: driveStoragePath, filename: driveName });
-            if (data?.drive_url) {
-              await updateRoleplaySession(newSession.id, { video_url: data.drive_url });
-              setSessions(prev => prev.map(s => s.id === newSession.id ? { ...s, video_url: data.drive_url } : s));
-              driveUrl = data.drive_url;
-              console.log('[auto-gdrive] Drive URL保存完了:', data.drive_url);
-            }
-          }
-        } catch (e) {
-          console.warn('[auto-gdrive] Drive upload failed:', e);
-          setConvertStatus('');
-        }
-      }
+      // driveUrl: ローカルファイルの並行アップロード結果 or ユーザー入力のDrive URL
+      const driveUrl = driveUrlFromUpload || (extractDriveId(addDriveUrl) ? addDriveUrl.trim() : null);
 
       const slackInfo = memberTeam ? {
         memberName: currentUser,
@@ -459,15 +458,15 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
   // ── AI 分析実行 ───────────────────────────────────────────────────────
   const handleAnalyze = async (session) => {
-    if (!session.recording_path && !session.recording_url) return;
+    if (!session.recording_path && !session.recording_url && !session.video_url) return;
     setAnalyzingId(session.id);
     await updateRoleplaySession(session.id, { ai_status: 'processing' });
     setSessions(prev => prev.map(s => s.id === session.id ? { ...s, ai_status: 'processing' } : s));
 
     // storage_path がなく recording_url が Drive URL の場合はブラウザ側で音声抽出
     let payload;
-    const driveIdForAnalyze = !session.recording_path && session.recording_url
-      ? extractDriveId(session.recording_url)
+    const driveIdForAnalyze = !session.recording_path
+      ? (extractDriveId(session.recording_url) || extractDriveId(session.video_url))
       : null;
 
     if (driveIdForAnalyze) {
@@ -1306,15 +1305,17 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                   fontFamily: "'Noto Sans JP'",
                 }}
               >
-                {convertStatus
-                  ? convertStatus
-                  : addingSess
-                    ? (addRecordingFile ? 'アップロード中...' : addDriveUrl ? 'ダウンロード・変換中...' : '追加中...')
-                    : (addRecordingFile
-                        ? (needsConversion(addRecordingFile) ? '変換→アップロード→AI分析' : '追加してAI分析する')
-                        : addDriveUrl
-                          ? '追加してAI分析する（動画から自動変換）'
-                          : '追加する')
+                {driveUploadProgress != null
+                  ? `動画アップロード中... ${driveUploadProgress}%`
+                  : convertStatus
+                    ? convertStatus
+                    : addingSess
+                      ? (addRecordingFile ? 'アップロード中...' : addDriveUrl ? 'ダウンロード・変換中...' : '追加中...')
+                      : (addRecordingFile
+                          ? (needsConversion(addRecordingFile) ? '変換→アップロード→AI分析' : '追加してAI分析する')
+                          : addDriveUrl
+                            ? '追加してAI分析する（動画から自動変換）'
+                            : '追加する')
                 }
               </button>
               <button

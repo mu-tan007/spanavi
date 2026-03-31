@@ -44,7 +44,62 @@ Deno.serve(async (req) => {
     })
 
   try {
-    const { storage_path, filename, folder_id } = await req.json()
+    const { storage_path, filename, folder_id, mode, file_id } = await req.json()
+
+    // mode=init_resumable: Google Driveのresumable upload URIを返す（大ファイル向け）
+    if (mode === 'init_resumable') {
+      if (!filename) return json({ error: 'filename is required' }, 400)
+      const accessToken = await getGoogleAccessToken()
+      const metadata: Record<string, unknown> = { name: filename }
+      if (folder_id) metadata.parents = [folder_id]
+      const ext = filename.split('.').pop()?.toLowerCase() || 'mp4'
+      const mimeMap: Record<string, string> = {
+        mp4: 'video/mp4', mp3: 'audio/mpeg', m4a: 'audio/mp4',
+        webm: 'video/webm', wav: 'audio/wav', mov: 'video/quicktime',
+      }
+      const mimeType = mimeMap[ext] || 'application/octet-stream'
+      const initRes = await fetch(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,webViewLink',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json; charset=UTF-8',
+            'X-Upload-Content-Type': mimeType,
+          },
+          body: JSON.stringify(metadata),
+        }
+      )
+      if (!initRes.ok) {
+        const err = await initRes.text()
+        throw new Error('Resumable init failed: ' + err)
+      }
+      const uploadUri = initRes.headers.get('Location')
+      return json({ upload_uri: uploadUri })
+    }
+
+    // mode=set_permissions: アップロード済みファイルに共有設定を付与
+    if (mode === 'set_permissions') {
+      if (!file_id) return json({ error: 'file_id is required' }, 400)
+      const accessToken = await getGoogleAccessToken()
+      const permRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${file_id}/permissions`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+        }
+      )
+      if (!permRes.ok) {
+        const err = await permRes.text()
+        throw new Error('Permission set failed: ' + err)
+      }
+      const driveUrl = `https://drive.google.com/file/d/${file_id}/view?usp=sharing`
+      return json({ drive_url: driveUrl, file_id })
+    }
 
     if (!storage_path) {
       return json({ error: 'storage_path is required' }, 400)
