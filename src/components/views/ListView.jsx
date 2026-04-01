@@ -309,7 +309,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
               />
             </div>
             <div style={{ gridColumn: "span 3" }}>
-              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>スクリプト <span style={{ fontSize: 9, color: '#9CA3AF', fontWeight: 400 }}>（==テキスト== でマーカー）</span></label>
+              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>スクリプト <span style={{ fontSize: 9, color: '#9CA3AF', fontWeight: 400 }}>（Scriptsページでマーカー編集可）</span></label>
               <textarea
                 value={formData.scriptBody}
                 onChange={e => setFormData(p => ({ ...p, scriptBody: e.target.value }))}

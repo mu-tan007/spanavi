@@ -1,12 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { C } from '../../constants/colors';
 import { DEFAULT_BASIC_SCRIPT } from '../../constants/scripts';
 import { fetchSetting, saveSetting, updateCallListRebuttal } from '../../lib/supabaseWrite';
-import { renderMarkedScript } from '../../utils/scriptMarker';
+import { renderMarkedScript, toHtml, fromHtml, toggleMarker } from '../../utils/scriptMarker';
 
 export default function ScriptView({ isAdmin, clientData, callListData, setCallListData }) {
   const [basicScript, setBasicScript] = useState(DEFAULT_BASIC_SCRIPT);
   const [basicScriptEdit, setBasicScriptEdit] = useState(DEFAULT_BASIC_SCRIPT);
+  const editorRef = useRef(null);
+  const editorInitRef = useRef(false);
+
+  // contentEditable初期化：テキスト変更時にHTMLをセット（外部からの変更のみ）
+  useEffect(() => {
+    if (editorRef.current && !editorInitRef.current) {
+      editorRef.current.innerHTML = toHtml(basicScriptEdit);
+      editorInitRef.current = true;
+    }
+  }, [basicScriptEdit]);
   const [savedOk, setSavedOk] = useState(false);
   const [saving, setSaving] = useState(false);
   const [clientTabs, setClientTabs] = useState({});
@@ -48,6 +58,9 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
       const text = value || DEFAULT_BASIC_SCRIPT;
       setBasicScript(text);
       setBasicScriptEdit(text);
+      // Editor HTMLを初期化
+      if (editorRef.current) editorRef.current.innerHTML = toHtml(text);
+      editorInitRef.current = true;
     });
     fetchSetting('qa_data').then(({ value }) => {
       if (value) {
@@ -62,10 +75,13 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
 
   const handleSaveBasicScript = async () => {
     setSaving(true);
-    const err = await saveSetting('basic_script', basicScriptEdit);
+    // editorから最新テキストを取得
+    const text = editorRef.current ? fromHtml(editorRef.current.innerHTML) : basicScriptEdit;
+    const err = await saveSetting('basic_script', text);
     setSaving(false);
     if (err) { alert('保存に失敗しました'); return; }
-    setBasicScript(basicScriptEdit);
+    setBasicScriptEdit(text);
+    setBasicScript(text);
     setSavedOk(true);
     setTimeout(() => setSavedOk(false), 2000);
   };
@@ -126,25 +142,23 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
           {isAdmin ? (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 10, color: '#6B7280', background: '#F3F4F6', borderRadius: 4, padding: '3px 8px' }}>
-                  ==テキスト== で囲むとマーカーが引かれます
-                </span>
+                <button
+                  onMouseDown={e => { e.preventDefault(); toggleMarker(editorRef); setBasicScriptEdit(fromHtml(editorRef.current?.innerHTML || '')); }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '4px 12px', borderRadius: 4, border: '1px solid #E5E7EB', background: '#FFFBE6', color: '#0D2247', cursor: 'pointer', fontWeight: 600, fontFamily: "'Noto Sans JP'" }}>
+                  <span style={{ background: 'linear-gradient(transparent 60%, #FFE066 60%)', padding: '0 2px' }}>A</span> マーカー
+                </button>
+                <span style={{ fontSize: 10, color: '#9CA3AF' }}>テキストを選択してボタンを押すとマーカーが引けます</span>
               </div>
-              <textarea
-                value={basicScriptEdit}
-                onChange={e => setBasicScriptEdit(e.target.value)}
-                rows={10}
-                style={{ width: "100%", border: "none", outline: "none", resize: "vertical",
+              <div
+                ref={editorRef}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={() => setBasicScriptEdit(fromHtml(editorRef.current?.innerHTML || ''))}
+                style={{ width: "100%", border: "none", outline: "none", minHeight: 180,
                   fontSize: 13, color: C.textDark, fontFamily: "'Noto Sans JP', sans-serif",
-                  background: "transparent", lineHeight: 1.8, boxSizing: "border-box" }}
-                placeholder="基本スクリプトを入力してください..."
+                  background: "transparent", lineHeight: 1.8, boxSizing: "border-box",
+                  whiteSpace: "pre-wrap", overflowY: "auto" }}
               />
-              {basicScriptEdit && basicScriptEdit.includes('==') && (
-                <div style={{ marginTop: 8, padding: '12px 16px', background: '#FAFBFC', borderRadius: 4, border: '1px solid #E5E7EB' }}>
-                  <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 6, fontWeight: 600 }}>プレビュー</div>
-                  {renderMarkedScript(basicScriptEdit, { fontSize: 13, color: C.textDark, lineHeight: 1.8 })}
-                </div>
-              )}
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
                 <button
                   onClick={handleSaveBasicScript}
