@@ -96,13 +96,17 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
   }, [cl, contactsByClient]);
 
   const initCompose = () => {
-    setEmailTo(emailOptions.length > 0 ? emailOptions[0].email : (cl?.clientEmail || ''));
+    const selectedOpt = emailOptions.length > 0 ? emailOptions[0] : null;
+    setEmailTo(selectedOpt ? selectedOpt.email : (cl?.clientEmail || ''));
     setEmailSubject('【アポイント取得のご報告】M&Aソーシングパートナーズ 篠宮');
     // appoReportから「当社売上」行を除外してメール本文を組み立て
     const report = (appo.appoReport || '').split('\n').filter(line => !line.startsWith('当社売上：')).join('\n');
-    const clientLabel = cl?.company || appo.client || '';
+    // 担当者が登録されていれば担当者名、なければクライアント名
+    const contacts = cl?._supaId ? (contactsByClient[cl._supaId] || []) : [];
+    const matchedContact = selectedOpt ? contacts.find(ct => ct.email === selectedOpt.email) : null;
+    const greeting = matchedContact ? matchedContact.name : (cl?.company || appo.client || '');
     setEmailBody(
-      `${clientLabel} 様\n\n` +
+      `${greeting} 様\n\n` +
       `お世話になっております。\n` +
       `M&Aソーシングパートナーズの篠宮でございます。\n\n` +
       `下記企業のアポイントを取得いたしましたので、ご報告申し上げます。\n\n` +
@@ -162,7 +166,15 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
           <div style={{ marginBottom: 6 }}>
             <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>宛先</label>
             {emailOptions.length > 0 ? (
-              <select value={emailTo} onChange={e => setEmailTo(e.target.value)} style={iStyle}>
+              <select value={emailTo} onChange={e => {
+                const newEmail = e.target.value;
+                setEmailTo(newEmail);
+                // 宛名を連動更新
+                const contacts = cl?._supaId ? (contactsByClient[cl._supaId] || []) : [];
+                const ct = contacts.find(c => c.email === newEmail);
+                const newGreeting = ct ? ct.name : (cl?.company || appo.client || '');
+                setEmailBody(prev => prev.replace(/^.+? 様/, `${newGreeting} 様`));
+              }} style={iStyle}>
                 {emailOptions.map((opt, i) => <option key={i} value={opt.email}>{opt.label}</option>)}
                 <option value="">手入力...</option>
               </select>
