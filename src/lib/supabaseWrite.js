@@ -1017,6 +1017,16 @@ export async function fetchCallRecordsByItemIds(itemIds) {
   return { data: data || [], error }
 }
 
+export async function updateCallListScript(supaId, scriptBody) {
+  if (!supaId) { console.warn('[DB] updateCallListScript: no supaId'); return null }
+  const { error } = await supabase
+    .from('call_lists')
+    .update({ script_body: scriptBody })
+    .eq('id', supaId)
+  if (error) console.error('[DB] updateCallListScript error:', error)
+  return error
+}
+
 export async function updateCallListRebuttal(supaId, rebuttalData) {
   if (!supaId) { console.warn('[DB] updateCallListRebuttal: no supaId'); return null }
   const { error } = await supabase

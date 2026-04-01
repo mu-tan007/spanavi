@@ -41,48 +41,39 @@ export function toHtml(text) {
  * contentEditableのHTML → ==text== 構文
  */
 export function fromHtml(html) {
-  // Replace marker spans with == syntax
   let text = html.replace(/<span[^>]*data-marker="1"[^>]*>(.*?)<\/span>/gi, '==$1==');
-  // br → newline
   text = text.replace(/<br\s*\/?>/gi, '\n');
-  // div/p blocks → newline (contentEditable sometimes wraps lines in divs)
   text = text.replace(/<\/div>\s*<div[^>]*>/gi, '\n');
   text = text.replace(/<div[^>]*>/gi, '\n');
   text = text.replace(/<\/div>/gi, '');
   text = text.replace(/<\/p>\s*<p[^>]*>/gi, '\n');
   text = text.replace(/<p[^>]*>/gi, '\n');
   text = text.replace(/<\/p>/gi, '');
-  // Strip remaining tags
   text = text.replace(/<[^>]+>/g, '');
-  // Decode entities
   text = text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-  // Trim leading newline (from first div/p)
   if (text.startsWith('\n')) text = text.slice(1);
   return text;
 }
 
 /**
- * 選択テキストにマーカーを付ける/外す (contentEditable用)
+ * 選択テキストが既にマーカー付きかどうか判定
  */
-export function toggleMarker(editorRef) {
+export function isSelectionMarked(editorEl) {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || !editorEl) return false;
+  const node = sel.anchorNode;
+  const parent = node?.nodeType === 3 ? node.parentElement : node;
+  return !!parent?.closest?.('[data-marker]');
+}
+
+/**
+ * 選択テキストにマーカーを付ける
+ */
+export function applyMarker(editorEl) {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
   const range = sel.getRangeAt(0);
-
-  // Check if selection is inside editor
-  if (!editorRef.current?.contains(range.commonAncestorContainer)) return;
-
-  // Check if already marked
-  const parentSpan = sel.anchorNode?.parentElement?.closest?.('[data-marker]');
-  if (parentSpan && editorRef.current.contains(parentSpan)) {
-    // Remove marker: unwrap span
-    const text = document.createTextNode(parentSpan.textContent);
-    parentSpan.parentNode.replaceChild(text, parentSpan);
-    sel.removeAllRanges();
-    return;
-  }
-
-  // Apply marker
+  if (!editorEl?.contains(range.commonAncestorContainer)) return;
   const selectedText = range.toString();
   if (!selectedText.trim()) return;
 
@@ -91,4 +82,20 @@ export function toggleMarker(editorRef) {
   span.setAttribute('data-marker', '1');
   range.surroundContents(span);
   sel.removeAllRanges();
+}
+
+/**
+ * 選択テキストからマーカーを外す
+ */
+export function removeMarker(editorEl) {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return;
+  const node = sel.anchorNode;
+  const parent = node?.nodeType === 3 ? node.parentElement : node;
+  const markerSpan = parent?.closest?.('[data-marker]');
+  if (markerSpan && editorEl?.contains(markerSpan)) {
+    const text = document.createTextNode(markerSpan.textContent);
+    markerSpan.parentNode.replaceChild(text, markerSpan);
+    sel.removeAllRanges();
+  }
 }

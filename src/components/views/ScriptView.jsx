@@ -1,22 +1,45 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { C } from '../../constants/colors';
 import { DEFAULT_BASIC_SCRIPT } from '../../constants/scripts';
-import { fetchSetting, saveSetting, updateCallListRebuttal } from '../../lib/supabaseWrite';
-import { renderMarkedScript, toHtml, fromHtml, toggleMarker } from '../../utils/scriptMarker';
+import { fetchSetting, saveSetting, updateCallListRebuttal, updateCallListScript } from '../../lib/supabaseWrite';
+import { renderMarkedScript, toHtml, fromHtml, isSelectionMarked, applyMarker, removeMarker } from '../../utils/scriptMarker';
 
 export default function ScriptView({ isAdmin, clientData, callListData, setCallListData }) {
   const [basicScript, setBasicScript] = useState(DEFAULT_BASIC_SCRIPT);
   const [basicScriptEdit, setBasicScriptEdit] = useState(DEFAULT_BASIC_SCRIPT);
   const editorRef = useRef(null);
   const editorInitRef = useRef(false);
+  // 右クリックコンテキストメニュー
+  const [ctxMenu, setCtxMenu] = useState(null); // { x, y, editorEl, isMarked }
 
-  // contentEditable初期化：テキスト変更時にHTMLをセット（外部からの変更のみ）
+  // contentEditable初期化
   useEffect(() => {
     if (editorRef.current && !editorInitRef.current) {
       editorRef.current.innerHTML = toHtml(basicScriptEdit);
       editorInitRef.current = true;
     }
   }, [basicScriptEdit]);
+
+  // メニュー外クリックで閉じる
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    window.addEventListener('click', close);
+    window.addEventListener('scroll', close, true);
+    return () => { window.removeEventListener('click', close); window.removeEventListener('scroll', close, true); };
+  }, [ctxMenu]);
+
+  const handleContextMenu = useCallback((e, editorEl) => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.toString().trim()) return; // 選択なしならデフォルトメニュー
+    e.preventDefault();
+    setCtxMenu({
+      x: e.clientX,
+      y: e.clientY,
+      editorEl,
+      isMarked: isSelectionMarked(editorEl),
+    });
+  }, []);
   const [savedOk, setSavedOk] = useState(false);
   const [saving, setSaving] = useState(false);
   const [clientTabs, setClientTabs] = useState({});
@@ -24,6 +47,12 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
   const [qaTab, setQaTab] = useState('reception');
   const [qaEditing, setQaEditing] = useState(false);
   const [qaSaving, setQaSaving] = useState(false);
+  // クライアント別スクリプトのcontentEditable ref管理
+  const clientEditorRefs = useRef({});
+  const clientEditorInitIds = useRef(new Set());
+  const [clientScriptSaving, setClientScriptSaving] = useState(null); // listId being saved
+  const [clientScriptSaved, setClientScriptSaved] = useState(null); // listId just saved
+
   // リスト別アウト返し編集
   const [rebuttalEditListId, setRebuttalEditListId] = useState(null);
   const [rebuttalEditData, setRebuttalEditData] = useState(null);
@@ -141,19 +170,13 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
         <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: "16px 20px" }}>
           {isAdmin ? (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <button
-                  onMouseDown={e => { e.preventDefault(); toggleMarker(editorRef); setBasicScriptEdit(fromHtml(editorRef.current?.innerHTML || '')); }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '4px 12px', borderRadius: 4, border: '1px solid #E5E7EB', background: '#FFFBE6', color: '#0D2247', cursor: 'pointer', fontWeight: 600, fontFamily: "'Noto Sans JP'" }}>
-                  <span style={{ background: 'linear-gradient(transparent 60%, #FFE066 60%)', padding: '0 2px' }}>A</span> マーカー
-                </button>
-                <span style={{ fontSize: 10, color: '#9CA3AF' }}>テキストを選択してボタンを押すとマーカーが引けます</span>
-              </div>
+              <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 6 }}>テキストを選択して右クリックでマーカーを付けられます</div>
               <div
                 ref={editorRef}
                 contentEditable
                 suppressContentEditableWarning
                 onInput={() => setBasicScriptEdit(fromHtml(editorRef.current?.innerHTML || ''))}
+                onContextMenu={e => handleContextMenu(e, editorRef.current)}
                 style={{ width: "100%", border: "none", outline: "none", minHeight: 180,
                   fontSize: 13, color: C.textDark, fontFamily: "'Noto Sans JP', sans-serif",
                   background: "transparent", lineHeight: 1.8, boxSizing: "border-box",
@@ -215,11 +238,53 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                       ))}
                     </div>
                   )}
-                  <div style={{ padding: "14px 16px", maxHeight: 180, overflowY: "auto" }}>
-                    {activeList?.scriptBody ? (
-                      renderMarkedScript(activeList.scriptBody, { fontSize: 12, color: C.textDark, lineHeight: 1.8 })
+                  <div style={{ padding: "14px 16px", maxHeight: 220, overflowY: "auto" }}>
+                    {isAdmin ? (
+                      <>
+                        <div
+                          ref={el => {
+                            if (el && activeList?._supaId) {
+                              clientEditorRefs.current[activeList._supaId] = el;
+                              if (!clientEditorInitIds.current.has(activeList._supaId)) {
+                                el.innerHTML = toHtml(activeList.scriptBody || '');
+                                clientEditorInitIds.current.add(activeList._supaId);
+                              }
+                            }
+                          }}
+                          contentEditable
+                          suppressContentEditableWarning
+                          onContextMenu={e => activeList?._supaId && handleContextMenu(e, clientEditorRefs.current[activeList._supaId])}
+                          style={{ fontSize: 12, color: C.textDark, lineHeight: 1.8, whiteSpace: "pre-wrap",
+                            outline: "none", minHeight: 40, fontFamily: "'Noto Sans JP', sans-serif" }}
+                        />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                          <button
+                            disabled={clientScriptSaving === activeList?._supaId}
+                            onClick={async () => {
+                              const listId = activeList?._supaId;
+                              if (!listId) return;
+                              const el = clientEditorRefs.current[listId];
+                              const text = el ? fromHtml(el.innerHTML) : '';
+                              setClientScriptSaving(listId);
+                              const err = await updateCallListScript(listId, text);
+                              setClientScriptSaving(null);
+                              if (err) { alert('保存に失敗しました'); return; }
+                              if (setCallListData) setCallListData(prev => prev.map(l => l._supaId === listId ? { ...l, scriptBody: text } : l));
+                              setClientScriptSaved(listId);
+                              setTimeout(() => setClientScriptSaved(null), 2000);
+                            }}
+                            style={{ background: '#0D2247', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 12px', fontSize: 10, fontWeight: 500, cursor: clientScriptSaving === activeList?._supaId ? 'not-allowed' : 'pointer', opacity: clientScriptSaving === activeList?._supaId ? 0.6 : 1 }}>
+                            {clientScriptSaving === activeList?._supaId ? '保存中...' : '保存'}
+                          </button>
+                          {clientScriptSaved === activeList?._supaId && <span style={{ fontSize: 10, color: '#27ae60' }}>保存しました</span>}
+                        </div>
+                      </>
                     ) : (
-                      <div style={{ fontSize: 12, color: C.textLight, fontStyle: "italic" }}>スクリプト未設定</div>
+                      activeList?.scriptBody ? (
+                        renderMarkedScript(activeList.scriptBody, { fontSize: 12, color: C.textDark, lineHeight: 1.8 })
+                      ) : (
+                        <div style={{ fontSize: 12, color: C.textLight, fontStyle: "italic" }}>スクリプト未設定</div>
+                      )
                     )}
                   </div>
                   {/* アウト返しセクション */}
@@ -400,6 +465,43 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 右クリックコンテキストメニュー */}
+      {ctxMenu && (
+        <div style={{
+          position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 99999,
+          background: '#fff', border: '1px solid #E5E7EB', borderRadius: 6,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.15)', padding: '4px 0', minWidth: 140,
+        }}>
+          {ctxMenu.isMarked ? (
+            <button onClick={() => {
+              removeMarker(ctxMenu.editorEl);
+              // state同期
+              if (ctxMenu.editorEl === editorRef.current) {
+                setBasicScriptEdit(fromHtml(editorRef.current.innerHTML));
+              }
+              setCtxMenu(null);
+            }} style={{ display: 'block', width: '100%', padding: '8px 16px', border: 'none', background: 'transparent', textAlign: 'left', fontSize: 12, color: '#374151', cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}
+              onMouseEnter={e => e.target.style.background = '#F3F4F6'}
+              onMouseLeave={e => e.target.style.background = 'transparent'}>
+              取り消す
+            </button>
+          ) : (
+            <button onClick={() => {
+              applyMarker(ctxMenu.editorEl);
+              // state同期
+              if (ctxMenu.editorEl === editorRef.current) {
+                setBasicScriptEdit(fromHtml(editorRef.current.innerHTML));
+              }
+              setCtxMenu(null);
+            }} style={{ display: 'block', width: '100%', padding: '8px 16px', border: 'none', background: 'transparent', textAlign: 'left', fontSize: 12, color: '#374151', cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}
+              onMouseEnter={e => e.target.style.background = '#F3F4F6'}
+              onMouseLeave={e => e.target.style.background = 'transparent'}>
+              <span style={{ background: 'linear-gradient(transparent 60%, #FFE066 60%)', fontWeight: 700, padding: '0 2px', marginRight: 6 }}>A</span>強調する
+            </button>
+          )}
         </div>
       )}
 
