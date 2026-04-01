@@ -15,11 +15,9 @@ const FIELDS = [
     ],
   },
   {
-    section: 'チームボーナス',
+    section: '副リーダーボーナス',
     items: [
-      { key: 'team_bonus_rate',            label: 'チームボーナス率',        suffix: '%', min: 0, max: 100 },
-      { key: 'team_bonus_leader_ratio',    label: 'リーダー配分',            suffix: '%', min: 0, max: 100 },
-      { key: 'team_bonus_subleader_ratio', label: 'サブリーダー配分',        suffix: '%', min: 0, max: 100 },
+      { key: 'subleader_bonus_rate', label: 'チーム売上に対する料率', suffix: '%', min: 0, max: 100, step: 0.1 },
     ],
   },
   {
@@ -54,6 +52,20 @@ const DEFAULT_RANKS = [
   { name: 'トレーニー',          threshold: 0 },
 ];
 
+const DEFAULT_LEADER_TIERS = [
+  { threshold: 0,        rate: 0.5 },
+  { threshold: 1000000,  rate: 1.0 },
+  { threshold: 2000000,  rate: 1.5 },
+  { threshold: 3000000,  rate: 2.0 },
+  { threshold: 4000000,  rate: 2.5 },
+  { threshold: 5000000,  rate: 3.0 },
+  { threshold: 6000000,  rate: 3.5 },
+  { threshold: 7000000,  rate: 4.0 },
+  { threshold: 8000000,  rate: 4.5 },
+  { threshold: 9000000,  rate: 5.0 },
+  { threshold: 10000000, rate: 5.5 },
+];
+
 const fmtYen = (n) => {
   if (n >= 10000000) return (n / 10000000) + '千万円';
   if (n >= 10000) return (n / 10000) + '万円';
@@ -63,6 +75,7 @@ const fmtYen = (n) => {
 export default function RewardSettings({ onToast }) {
   const [values, setValues] = useState({});
   const [ranks, setRanks] = useState(DEFAULT_RANKS);
+  const [leaderTiers, setLeaderTiers] = useState(DEFAULT_LEADER_TIERS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -81,6 +94,12 @@ export default function RewardSettings({ onToast }) {
         try {
           const parsed = JSON.parse(map.rank_definitions);
           if (Array.isArray(parsed) && parsed.length > 0) setRanks(parsed);
+        } catch { /* use defaults */ }
+      }
+      if (map.leader_bonus_tiers) {
+        try {
+          const parsed = JSON.parse(map.leader_bonus_tiers);
+          if (Array.isArray(parsed) && parsed.length > 0) setLeaderTiers(parsed);
         } catch { /* use defaults */ }
       }
     }
@@ -119,6 +138,13 @@ export default function RewardSettings({ onToast }) {
       org_id: getOrgId(),
       setting_key: 'rank_definitions',
       setting_value: JSON.stringify(ranks),
+      updated_at: new Date().toISOString(),
+    });
+    // リーダーボーナス段階料率を保存
+    upsertRows.push({
+      org_id: getOrgId(),
+      setting_key: 'leader_bonus_tiers',
+      setting_value: JSON.stringify(leaderTiers),
       updated_at: new Date().toISOString(),
     });
     const { error } = await supabase
@@ -169,6 +195,45 @@ export default function RewardSettings({ onToast }) {
           )}
         </div>
       ))}
+
+      {/* リーダーボーナス段階料率セクション */}
+      <div style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', padding: '20px 24px', marginBottom: 20 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 6, paddingBottom: 10, borderBottom: `2px solid ${NAVY}`, display: 'inline-block' }}>
+          リーダーボーナス（段階料率）
+        </div>
+        <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 14 }}>チーム売上に応じた料率を設定します。売上が該当する最も高い閾値の料率が適用されます。</p>
+
+        <div style={{ display: 'flex', gap: 8, marginBottom: 8, paddingLeft: 28 }}>
+          <span style={{ flex: 1, fontSize: 10, color: '#9CA3AF', fontWeight: 600 }}>売上閾値</span>
+          <span style={{ width: 80, fontSize: 10, color: '#9CA3AF', fontWeight: 600, textAlign: 'right' }}>料率</span>
+          <span style={{ width: 30 }} />
+        </div>
+        {leaderTiers.map((tier, idx) => (
+          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 11, color: '#9CA3AF', width: 20, textAlign: 'center' }}>{idx + 1}</span>
+            <input
+              type="number"
+              value={tier.threshold}
+              onChange={e => setLeaderTiers(prev => prev.map((t, i) => i === idx ? { ...t, threshold: Number(e.target.value) || 0 } : t))}
+              style={{ flex: 1, padding: '5px 8px', border: '1px solid #E5E5E5', borderRadius: 4, fontSize: 12, textAlign: 'right', fontFamily: "'JetBrains Mono'" }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <input
+                type="number"
+                value={tier.rate}
+                step="0.1"
+                min="0"
+                max="100"
+                onChange={e => setLeaderTiers(prev => prev.map((t, i) => i === idx ? { ...t, rate: parseFloat(e.target.value) || 0 } : t))}
+                style={{ width: 70, padding: '5px 8px', border: '1px solid #E5E5E5', borderRadius: 4, fontSize: 12, textAlign: 'right', fontFamily: "'JetBrains Mono'" }}
+              />
+              <span style={{ fontSize: 12, color: '#6B7280' }}>%</span>
+            </div>
+            <button onClick={() => setLeaderTiers(prev => prev.filter((_, i) => i !== idx))} style={{ border: '1px solid #fca5a5', background: 'transparent', color: '#dc2626', borderRadius: 4, padding: '2px 8px', fontSize: 11, cursor: 'pointer' }}>×</button>
+          </div>
+        ))}
+        <button onClick={() => setLeaderTiers(prev => [...prev, { threshold: 0, rate: 0 }])} style={{ padding: '4px 14px', border: '1px dashed #9CA3AF', background: 'transparent', borderRadius: 4, fontSize: 11, color: '#6B7280', cursor: 'pointer', marginTop: 4 }}>+ 段階を追加</button>
+      </div>
 
       {/* ランク定義セクション */}
       <div style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', padding: '20px 24px', marginBottom: 20 }}>

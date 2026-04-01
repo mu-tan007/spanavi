@@ -162,13 +162,37 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
         sales: 0, incentive: 0, teamBonus: 0, total: 0,
       };
     });
+    // リーダーボーナス段階料率（org_settingsから取得、なければデフォルト）
+    let leaderTiers = [
+      { threshold: 0, rate: 0.5 }, { threshold: 1000000, rate: 1.0 }, { threshold: 2000000, rate: 1.5 },
+      { threshold: 3000000, rate: 2.0 }, { threshold: 4000000, rate: 2.5 }, { threshold: 5000000, rate: 3.0 },
+      { threshold: 6000000, rate: 3.5 }, { threshold: 7000000, rate: 4.0 }, { threshold: 8000000, rate: 4.5 },
+      { threshold: 9000000, rate: 5.0 }, { threshold: 10000000, rate: 5.5 },
+    ];
+    if (orgSettings.leader_bonus_tiers) {
+      try {
+        const parsed = JSON.parse(orgSettings.leader_bonus_tiers);
+        if (Array.isArray(parsed) && parsed.length > 0) leaderTiers = parsed;
+      } catch { /* use defaults */ }
+    }
+    const subleaderRate = parseFloat(orgSettings.subleader_bonus_rate) || 1.2;
+    const getLeaderRate = (sales) => {
+      const sorted = [...leaderTiers].sort((a, b) => b.threshold - a.threshold);
+      const tier = sorted.find(t => sales >= t.threshold);
+      return tier ? tier.rate : 0;
+    };
+
     [...new Set(Object.values(byGetter).map(p => p.team))].forEach(team => {
-      const pool = Math.round((teamSales[team] || 0) * 0.03);
+      const sales = teamSales[team] || 0;
       const tm = Object.values(byGetter).filter(p => p.team === team);
       const leaders = tm.filter(p => p.role === 'チームリーダー');
       const subs = tm.filter(p => p.role === '副リーダー');
-      leaders.forEach(p => { p.teamBonus = leaders.length ? Math.round(pool * 0.6 / leaders.length) : 0; });
-      subs.forEach(p => { p.teamBonus = subs.length ? Math.round(pool * 0.4 / subs.length) : 0; });
+      // リーダー: チーム売上 × 段階料率（リーダーが複数の場合は均等配分）
+      const leaderPool = Math.round(sales * getLeaderRate(sales) / 100);
+      leaders.forEach(p => { p.teamBonus = leaders.length ? Math.round(leaderPool / leaders.length) : 0; });
+      // 副リーダー: チーム売上 × 副リーダー率 ÷ 副リーダー人数
+      const subPool = Math.round(sales * subleaderRate / 100);
+      subs.forEach(p => { p.teamBonus = subs.length ? Math.round(subPool / subs.length) : 0; });
     });
     Object.values(byGetter).forEach(p => { p.total = p.incentive + p.teamBonus; });
     return Object.values(byGetter);
