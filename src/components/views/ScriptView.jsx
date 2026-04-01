@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { C } from '../../constants/colors';
 import { DEFAULT_BASIC_SCRIPT } from '../../constants/scripts';
 import { fetchSetting, saveSetting } from '../../lib/supabaseWrite';
+import { renderMarkedScript } from '../../utils/scriptMarker';
 
 export default function ScriptView({ isAdmin, clientData, callListData }) {
   const [basicScript, setBasicScript] = useState(DEFAULT_BASIC_SCRIPT);
@@ -119,6 +120,11 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
         <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: "16px 20px" }}>
           {isAdmin ? (
             <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 10, color: '#6B7280', background: '#F3F4F6', borderRadius: 4, padding: '3px 8px' }}>
+                  ==テキスト== で囲むとマーカーが引かれます
+                </span>
+              </div>
               <textarea
                 value={basicScriptEdit}
                 onChange={e => setBasicScriptEdit(e.target.value)}
@@ -128,6 +134,12 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
                   background: "transparent", lineHeight: 1.8, boxSizing: "border-box" }}
                 placeholder="基本スクリプトを入力してください..."
               />
+              {basicScriptEdit && basicScriptEdit.includes('==') && (
+                <div style={{ marginTop: 8, padding: '12px 16px', background: '#FAFBFC', borderRadius: 4, border: '1px solid #E5E7EB' }}>
+                  <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 6, fontWeight: 600 }}>プレビュー</div>
+                  {renderMarkedScript(basicScriptEdit, { fontSize: 13, color: C.textDark, lineHeight: 1.8 })}
+                </div>
+              )}
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
                 <button
                   onClick={handleSaveBasicScript}
@@ -139,8 +151,10 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
               </div>
             </>
           ) : (
-            <div style={{ fontSize: 13, color: C.textDark, lineHeight: 1.8, whiteSpace: "pre-wrap", minHeight: 120 }}>
-              {basicScript || <span style={{ color: C.textLight, fontStyle: "italic" }}>（スクリプト未設定）</span>}
+            <div style={{ minHeight: 120 }}>
+              {basicScript
+                ? renderMarkedScript(basicScript, { fontSize: 13, color: C.textDark, lineHeight: 1.8 })
+                : <span style={{ color: C.textLight, fontStyle: "italic" }}>（スクリプト未設定）</span>}
             </div>
           )}
         </div>

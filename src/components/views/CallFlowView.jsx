@@ -7,12 +7,13 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting } from '../../lib/supabaseWrite';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
 import AppoReportModal from './AppoReportModal';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import ClientCalendarPanel from '../common/ClientCalendarPanel';
+import { renderMarkedScript } from '../../utils/scriptMarker';
 
 // ============================================================
 // Call Flow View (架電フロー) — 左右分割レイアウト
@@ -70,6 +71,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [subPhone, setSubPhone] = useState('');
   const [lastDialedPhone, setLastDialedPhone] = useState(null);
   const [activeRecordingId, setActiveRecordingId] = useState(null);
+  const [qaData, setQaData] = useState(null);
+  const [qaSubTab, setQaSubTab] = useState('reception');
   const PAGE_SIZE = 30;
   const sessionIdRef = React.useRef(null);
   const [autoDial, setAutoDial] = useState(() => {
@@ -122,6 +125,14 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       setLoading(false);
     });
   }, [list._supaId]);
+
+  useEffect(() => {
+    fetchSetting('qa_data').then(({ value }) => {
+      if (value) {
+        try { setQaData(JSON.parse(value)); } catch {}
+      }
+    });
+  }, []);
 
   useEffect(() => {
     setLocalMemo(selectedRow?.id ? extractUserNote(selectedRow.memo) : '');
@@ -1180,6 +1191,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {scriptPanelOpen && [
               { key: 'script',   label: 'スクリプト' },
+              { key: 'rebuttal', label: 'アウト返し' },
               { key: 'info',     label: '企業概要' },
               { key: 'cautions', label: '注意事項' },
               { key: 'calendar', label: 'カレンダー' },
@@ -1196,8 +1208,28 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           <div style={{ height: 120, overflowY: 'auto', padding: '8px 16px' }}>
             {scriptTab === 'script' && (
               list.scriptBody
-                ? <pre style={{ fontSize: 11, color: C.textDark, whiteSpace: 'pre-wrap', lineHeight: 1.7, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.scriptBody}</pre>
+                ? renderMarkedScript(list.scriptBody, { fontSize: 11, color: C.textDark, lineHeight: 1.7 })
                 : <div style={{ color: C.textLight, fontSize: 11 }}>スクリプト未設定</div>
+            )}
+            {scriptTab === 'rebuttal' && (
+              qaData ? (
+                <div>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                    {[['reception', '受付対応'], ['president', '社長対応']].map(([k, l]) => (
+                      <button key={k} onClick={() => setQaSubTab(k)}
+                        style={{ fontSize: 9, padding: '2px 10px', borderRadius: 4, border: qaSubTab === k ? '1px solid ' + C.gold : '1px solid ' + C.borderLight, background: qaSubTab === k ? C.gold + '20' : C.white, color: qaSubTab === k ? C.navy : C.textMid, cursor: 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: qaSubTab === k ? 700 : 400 }}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                  {(qaData[qaSubTab] || []).map((item, i) => (
+                    <div key={i} style={{ marginBottom: 8, padding: '6px 10px', borderRadius: 4, background: '#F8F9FA', borderLeft: '3px solid ' + C.navy }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#374151', marginBottom: 3 }}>Q: {item.q}</div>
+                      <div style={{ fontSize: 10, color: C.navy, lineHeight: 1.6 }}>A: {item.a}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : <div style={{ color: C.textLight, fontSize: 11 }}>アウト返し未設定（Scriptsページで設定できます）</div>
             )}
             {scriptTab === 'info' && (
               list.companyInfo
@@ -1760,7 +1792,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           {/* タブヘッダー */}
           <div onClick={() => isMobile && setMobileScriptOpen(o => !o)} style={{ display: 'flex', borderBottom: '2px solid #E5E7EB', background: '#F8F9FA', flexShrink: 0, cursor: isMobile ? 'pointer' : 'default' }}>
             {isMobile && <span style={{ display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: 14, color: '#9CA3AF' }}>{mobileScriptOpen ? '▼' : '▲'}</span>}
-            {[{ key: 'script', label: 'スクリプト' }, { key: 'info', label: '企業概要' }, { key: 'cautions', label: '注意事項' }, { key: 'calendar', label: 'カレンダー' }].map(tab => (
+            {[{ key: 'script', label: 'スクリプト' }, { key: 'rebuttal', label: 'アウト返し' }, { key: 'info', label: '企業概要' }, { key: 'cautions', label: '注意事項' }, { key: 'calendar', label: 'カレンダー' }].map(tab => (
               <button key={tab.key} onClick={(e) => { e.stopPropagation(); setScriptTab(tab.key); if (isMobile) setMobileScriptOpen(true); }}
                 style={{ flex: 1, padding: isMobile ? '12px 4px' : '11px 4px', border: 'none', borderBottom: scriptTab === tab.key ? '2px solid #0D2247' : '2px solid transparent',
                   background: 'transparent', color: scriptTab === tab.key ? '#0D2247' : '#9CA3AF',
@@ -1774,8 +1806,28 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
             {scriptTab === 'script' && (
               list.scriptBody
-                ? <pre style={{ fontSize: 12, color: '#0D2247', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.scriptBody}</pre>
+                ? renderMarkedScript(list.scriptBody, { fontSize: 12, color: '#0D2247', lineHeight: 1.8 })
                 : <div style={{ color: '#9CA3AF', fontSize: 12 }}>スクリプト未設定</div>
+            )}
+            {scriptTab === 'rebuttal' && (
+              qaData ? (
+                <div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                    {[['reception', '受付対応'], ['president', '社長対応']].map(([k, l]) => (
+                      <button key={k} onClick={() => setQaSubTab(k)}
+                        style={{ fontSize: 11, padding: '4px 14px', borderRadius: 4, border: 'none', background: qaSubTab === k ? '#0D2247' : '#F3F4F6', color: qaSubTab === k ? '#fff' : '#6B7280', cursor: 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: qaSubTab === k ? 600 : 400 }}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                  {(qaData[qaSubTab] || []).map((item, i) => (
+                    <div key={i} style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 4, background: '#F8F9FA', borderLeft: '3px solid #0D2247' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 4 }}>Q: {item.q}</div>
+                      <div style={{ fontSize: 12, color: '#0D2247', lineHeight: 1.7 }}>A: {item.a}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : <div style={{ color: '#9CA3AF', fontSize: 12 }}>アウト返し未設定（Scriptsページで設定できます）</div>
             )}
             {scriptTab === 'info' && (
               list.companyInfo
