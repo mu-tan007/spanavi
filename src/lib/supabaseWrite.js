@@ -321,6 +321,36 @@ export async function invokeSendEmail({ to, subject, body, cc, bcc, attachments 
   return { data, error: null }
 }
 
+// ── クライアント担当者 CRUD ──────────────────────────────────
+export async function insertClientContact(clientId, { name, email }) {
+  const orgId = getOrgId()
+  const { data, error } = await supabase
+    .from('client_contacts')
+    .insert({ org_id: orgId, client_id: clientId, name, email })
+    .select()
+    .single()
+  if (error) console.error('[DB] insertClientContact error:', error)
+  return { data, error }
+}
+
+export async function updateClientContact(id, { name, email }) {
+  const { error } = await supabase
+    .from('client_contacts')
+    .update({ name, email })
+    .eq('id', id)
+  if (error) console.error('[DB] updateClientContact error:', error)
+  return error
+}
+
+export async function deleteClientContact(id) {
+  const { error } = await supabase
+    .from('client_contacts')
+    .delete()
+    .eq('id', id)
+  if (error) console.error('[DB] deleteClientContact error:', error)
+  return error
+}
+
 // ============================================================
 // Call List Items (架電先企業)
 // ============================================================

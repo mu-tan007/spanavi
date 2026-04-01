@@ -295,6 +295,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   const [clientData, setClientData] = useState(supabaseData?.clientData?.length ? supabaseData.clientData : CLIENT_DATA);
   const [members, setMembers] = useState(supabaseData?.membersDetailed?.length ? supabaseData.membersDetailed : DEFAULT_MEMBERS);
   const [rewardMaster, setRewardMaster] = useState(REWARD_MASTER);
+  const [contactsByClient, setContactsByClient] = useState(supabaseData?.contactsByClient ?? {});
   useEffect(() => {
     fetchRewardMaster().then(({ data }) => { if (data?.length) setRewardMaster(data); });
   }, []);
@@ -302,6 +303,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   useEffect(() => {
     if (supabaseData?.appoData) setAppoData(supabaseData.appoData);
     if (supabaseData?.clientData?.length) setClientData(supabaseData.clientData);
+    if (supabaseData?.contactsByClient) setContactsByClient(supabaseData.contactsByClient);
     if (supabaseData?.callLists?.length) {
       setCallListData(supabaseData.callLists);
       if (!callFlowRestoredRef.current) {
@@ -1022,9 +1024,9 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         {currentTab === "live" && <LiveStatusView now={now} callListData={callListData} members={members} isAdmin={isAdmin} isTeamLeader={!isAdmin && currentMemberDetail?.role === 'チームリーダー'} orgId={orgId} />}
         {currentTab === "incoming" && <IncomingCallsView setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "lists" && <ListView filteredLists={filteredLists} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterType={filterType} setFilterType={setFilterType} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy} setSelectedList={setSelectedList} callListData={callListData} setCallListData={setCallListData} listFormOpen={listFormOpen} setListFormOpen={setListFormOpen} editingListId={editingListId} setEditingListId={setEditingListId} now={now} isAdmin={isAdmin} clientData={clientData} />}
-        {currentTab === "appo" && <AppoListView appoData={appoData} setAppoData={isAdmin ? setAppoData : null} members={members} setMembers={isAdmin ? setMembers : null} clientData={clientData} rewardMaster={rewardMaster} setCallFlowScreen={setCallFlowScreen} callListData={callListData} />}
+        {currentTab === "appo" && <AppoListView appoData={appoData} setAppoData={isAdmin ? setAppoData : null} members={members} setMembers={isAdmin ? setMembers : null} clientData={clientData} rewardMaster={rewardMaster} setCallFlowScreen={setCallFlowScreen} callListData={callListData} contactsByClient={contactsByClient} />}
         {currentTab === "precheck" && <PreCheckView appoData={appoData} setAppoData={isAdmin ? setAppoData : null} setCallFlowScreen={setCallFlowScreen} callListData={callListData} />}
-        {currentTab === "crm" && <CRMView isAdmin={isAdmin} clientData={clientData} setClientData={isAdmin ? setClientData : null} rewardMaster={rewardMaster} />}
+        {currentTab === "crm" && <CRMView isAdmin={isAdmin} clientData={clientData} setClientData={isAdmin ? setClientData : null} rewardMaster={rewardMaster} contactsByClient={contactsByClient} setContactsByClient={setContactsByClient} />}
 
         {currentTab === "members" && <MembersView members={members} setMembers={isAdmin ? setMembers : null} onDataRefetch={onDataRefetch} />}
         {currentTab === "search" && <CompanySearchView importedCSVs={importedCSVs} callListData={callListData} setCallingScreen={setCallingScreen} setImportedCSVs={setImportedCSVs} clientData={clientData} currentUser={currentUser} members={members} setCallFlowScreen={setCallFlowScreen} rewardMaster={rewardMaster} />}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { C } from '../../constants/colors';
-import { updateClient, insertClient, deleteClient } from '../../lib/supabaseWrite';
+import { updateClient, insertClient, deleteClient, insertClientContact, updateClientContact, deleteClientContact } from '../../lib/supabaseWrite';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
@@ -22,7 +22,7 @@ const CRM_COLS_BASE = [
 ];
 const CRM_COLS_EDIT = [...CRM_COLS_BASE, { key: 'edit', width: 32, align: 'center' }];
 
-export default function CRMView({ isAdmin, clientData, setClientData, rewardMaster = [] }) {
+export default function CRMView({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient }) {
   const [statusFilter, setStatusFilter] = useState("支援中");
   const [search, setSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState(null);
@@ -31,6 +31,10 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
   const [addForm, setAddForm] = useState(null);
   const [addSaving, setAddSaving] = useState(false);
   const [addToast, setAddToast] = useState(null);
+  // 担当者管理
+  const [contactAddForm, setContactAddForm] = useState(null); // { name, email }
+  const [contactEditId, setContactEditId] = useState(null);
+  const [contactEditForm, setContactEditForm] = useState(null);
 
   const statusList = ["支援中", "準備中", "停止中", "保留", "中期フォロー", "面談予定"];
   const statusStyle = (st) => {
@@ -299,6 +303,91 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                     ))}
                   </div>
                 )}
+                {/* 担当者セクション */}
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, borderBottom: '2px solid ' + NAVY, paddingBottom: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>担当者</span>
+                    {setContactsByClient && !contactAddForm && (
+                      <button onClick={() => setContactAddForm({ name: '', email: '' })}
+                        style={{ padding: '3px 10px', borderRadius: 3, border: '1px solid ' + NAVY, background: '#fff', color: NAVY, fontSize: 10, fontWeight: 500, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                        ＋ 追加
+                      </button>
+                    )}
+                  </div>
+                  {(() => {
+                    const contacts = contactsByClient[c._supaId] || [];
+                    const inputStyle = { padding: '4px 8px', borderRadius: 3, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none' };
+                    return (
+                      <div>
+                        {contacts.length === 0 && !contactAddForm && (
+                          <div style={{ fontSize: 11, color: C.textLight, padding: '8px 0' }}>担当者が登録されていません</div>
+                        )}
+                        {contacts.map(ct => (
+                          <div key={ct.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid ' + GRAY_200 }}>
+                            {contactEditId === ct.id ? (
+                              <>
+                                <input value={contactEditForm.name} onChange={e => setContactEditForm(p => ({ ...p, name: e.target.value }))}
+                                  style={{ ...inputStyle, width: 120 }} placeholder="名前" />
+                                <input value={contactEditForm.email} onChange={e => setContactEditForm(p => ({ ...p, email: e.target.value }))}
+                                  style={{ ...inputStyle, flex: 1 }} placeholder="メールアドレス" />
+                                <button onClick={async () => {
+                                  await updateClientContact(ct.id, contactEditForm);
+                                  setContactsByClient(prev => ({
+                                    ...prev,
+                                    [c._supaId]: (prev[c._supaId] || []).map(x => x.id === ct.id ? { ...x, ...contactEditForm } : x),
+                                  }));
+                                  setContactEditId(null); setContactEditForm(null);
+                                }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#10B981', fontSize: 12, fontWeight: 700 }}>✓</button>
+                                <button onClick={() => { setContactEditId(null); setContactEditForm(null); }}
+                                  style={{ border: 'none', background: 'none', cursor: 'pointer', color: C.textLight, fontSize: 12 }}>✕</button>
+                              </>
+                            ) : (
+                              <>
+                                <span style={{ fontSize: 11, fontWeight: 500, color: NAVY, width: 120 }}>{ct.name}</span>
+                                <span style={{ fontSize: 11, color: C.textMid, flex: 1 }}>{ct.email}</span>
+                                {setContactsByClient && (
+                                  <>
+                                    <button onClick={() => { setContactEditId(ct.id); setContactEditForm({ name: ct.name, email: ct.email }); }}
+                                      style={{ border: 'none', background: 'none', cursor: 'pointer', color: NAVY, fontSize: 10 }}>編集</button>
+                                    <button onClick={async () => {
+                                      if (!window.confirm(`${ct.name}を削除しますか？`)) return;
+                                      await deleteClientContact(ct.id);
+                                      setContactsByClient(prev => ({
+                                        ...prev,
+                                        [c._supaId]: (prev[c._supaId] || []).filter(x => x.id !== ct.id),
+                                      }));
+                                    }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 10 }}>削除</button>
+                                  </>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        ))}
+                        {contactAddForm && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
+                            <input value={contactAddForm.name} onChange={e => setContactAddForm(p => ({ ...p, name: e.target.value }))}
+                              style={{ ...inputStyle, width: 120 }} placeholder="名前" autoFocus />
+                            <input value={contactAddForm.email} onChange={e => setContactAddForm(p => ({ ...p, email: e.target.value }))}
+                              style={{ ...inputStyle, flex: 1 }} placeholder="メールアドレス" />
+                            <button onClick={async () => {
+                              if (!contactAddForm.name || !contactAddForm.email) return;
+                              const { data } = await insertClientContact(c._supaId, contactAddForm);
+                              if (data) {
+                                setContactsByClient(prev => ({
+                                  ...prev,
+                                  [c._supaId]: [...(prev[c._supaId] || []), { id: data.id, name: data.name, email: data.email }],
+                                }));
+                              }
+                              setContactAddForm(null);
+                            }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#10B981', fontSize: 12, fontWeight: 700 }}>✓</button>
+                            <button onClick={() => setContactAddForm(null)}
+                              style={{ border: 'none', background: 'none', cursor: 'pointer', color: C.textLight, fontSize: 12 }}>✕</button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
               <div style={{ padding: "10px 20px", borderTop: "1px solid " + GRAY_200, display: "flex", justifyContent: "space-between" }}>
                 {setClientData ? <button onClick={() => { setSelectedClient(null); setEditForm({ ...c, _idx: globalIdx }); }} style={{

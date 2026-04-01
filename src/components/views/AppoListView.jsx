@@ -172,7 +172,7 @@ function EmailApprovalSection({ appo, clientData = [], onStatusUpdate }) {
   );
 }
 
-export default function AppoListView({ appoData, setAppoData, members = [], setMembers, clientData = [], rewardMaster = [], setCallFlowScreen, callListData = [] }) {
+export default function AppoListView({ appoData, setAppoData, members = [], setMembers, clientData = [], rewardMaster = [], setCallFlowScreen, callListData = [], contactsByClient = {} }) {
   const isMobile = useIsMobile();
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
   const [activeTab, setActiveTab] = useState('current'); // 'current' | 'past'
@@ -225,6 +225,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [bulkSendMonth, setBulkSendMonth] = useState(AVAILABLE_MONTHS[0]?.yyyymm || '');
   const [bulkSendChecked, setBulkSendChecked] = useState(new Set());  // クライアント名のSet
   const [bulkSendCc, setBulkSendCc] = useState({});      // { clientName: ccEmail }
+  const [bulkSendTo, setBulkSendTo] = useState({});      // { clientName: email } — 選択した送信先
   const [bulkSendStatus, setBulkSendStatus] = useState({}); // { clientName: 'idle'|'sending'|'sent'|'error' }
   const [bulkSending, setBulkSending] = useState(false);
   const [droppedFileName, setDroppedFileName] = useState('');
@@ -566,12 +567,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const handleBulkSend = async () => {
     if (bulkSendChecked.size === 0 || bulkSending) return;
     const targets = [...bulkSendChecked];
-    const noEmail = targets.filter(name => {
-      const c = clientData.find(cl => cl.company === name);
-      return !c?.clientEmail;
-    });
+    const noEmail = targets.filter(name => !bulkSendTo[name]);
     if (noEmail.length > 0) {
-      alert(`以下のクライアントにメールアドレスが設定されていません:\n${noEmail.join('\n')}`);
+      alert(`以下のクライアントの送信先が選択されていません:\n${noEmail.join('\n')}`);
       return;
     }
     if (!window.confirm(`${targets.length}社に請求書メールを送信します。よろしいですか？`)) return;
@@ -588,7 +586,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         const emailBody = `${clientName} 様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\nこのたび、${monthLabel}分の請求書を添付にてお送り申し上げます。\n記載日までに、下記口座へお振込みいただけますと幸甚に存じます。\n\n― 振込先口座 ―\n GMOあおぞらネット銀行　法人営業部（101）\n 普通預金　2370528\n M&Aソーシングパートナーズ株式会社\n\n今後とも、貴社にとって有益となるアポイントの取得に尽力してまいりますので、変わらぬご高配を賜れますようお願い申し上げます。\n何卒よろしくお願い申し上げます。\n\nMASP 篠宮`;
 
         const { error } = await invokeSendEmail({
-          to: client.clientEmail,
+          to: bulkSendTo[clientName],
           subject: `業務委託料_${monthLabel}分`,
           body: emailBody,
           cc: bulkSendCc[clientName] || undefined,
@@ -895,7 +893,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             >請求書作成</button>
           )}
           {setAppoData && (
-            <button onClick={() => { setBulkSendModal(true); setBulkSendChecked(new Set()); setBulkSendStatus({}); setBulkSendCc({}); }}
+            <button onClick={() => { setBulkSendModal(true); setBulkSendChecked(new Set()); setBulkSendStatus({}); setBulkSendCc({}); setBulkSendTo({}); }}
               style={{
                 padding: "8px 16px", borderRadius: 4,
                 background: "#fff", border: "1px solid #0D2247",
@@ -1097,7 +1095,13 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           const appos = monthAppos.filter(a => a.client === name);
           const subtotal = appos.reduce((s, a) => s + (isTaxExcl ? Math.round((a.sales || 0) / 1.1) : (a.sales || 0)), 0);
           const total = isTaxExcl ? subtotal + Math.floor(subtotal * 0.1) : subtotal;
-          return { name, email: c?.clientEmail || '', count: appos.length, total };
+          const contacts = c?._supaId ? (contactsByClient[c._supaId] || []) : [];
+          // 従来のclientEmailもフォールバックとして含める
+          const allEmails = [...contacts.map(ct => ({ label: `${ct.name} <${ct.email}>`, email: ct.email }))];
+          if (c?.clientEmail && !contacts.some(ct => ct.email === c.clientEmail)) {
+            allEmails.push({ label: c.clientEmail, email: c.clientEmail });
+          }
+          return { name, contacts: allEmails, count: appos.length, total };
         });
         const allChecked = clientInfos.length > 0 && clientInfos.every(ci => bulkSendChecked.has(ci.name));
         const monthNum = parseInt(bulkSendMonth.split('-')[1], 10);
@@ -1122,7 +1126,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
                 {/* クライアント一覧テーブル */}
                 <div style={{ border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 180px 60px 100px 160px 70px', gap: 0, background: '#F3F4F6', padding: '6px 10px', fontSize: 10, fontWeight: 600, color: '#374151', alignItems: 'center' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 200px 50px 90px 140px 60px', gap: 0, background: '#F3F4F6', padding: '6px 10px', fontSize: 10, fontWeight: 600, color: '#374151', alignItems: 'center' }}>
                     <span style={{ display: 'flex', justifyContent: 'center' }}>
                       <input type="checkbox" checked={allChecked} onChange={() => {
                         if (allChecked) setBulkSendChecked(new Set());
@@ -1130,7 +1134,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                       }} style={{ cursor: 'pointer' }} />
                     </span>
                     <span>クライアント</span>
-                    <span>メールアドレス</span>
+                    <span>送信先</span>
                     <span style={{ textAlign: 'center' }}>件数</span>
                     <span style={{ textAlign: 'right' }}>請求金額</span>
                     <span style={{ paddingLeft: 8 }}>CC（任意）</span>
@@ -1141,14 +1145,23 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   ) : clientInfos.map(ci => {
                     const st = bulkSendStatus[ci.name] || 'idle';
                     return (
-                      <div key={ci.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 180px 60px 100px 160px 70px', gap: 4, padding: '6px 10px', borderTop: '1px solid #E5E7EB', alignItems: 'center', fontSize: 11 }}>
+                      <div key={ci.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 200px 50px 90px 140px 60px', gap: 4, padding: '6px 10px', borderTop: '1px solid #E5E7EB', alignItems: 'center', fontSize: 11 }}>
                         <span style={{ display: 'flex', justifyContent: 'center' }}>
                           <input type="checkbox" checked={bulkSendChecked.has(ci.name)} disabled={st === 'sent'}
                             onChange={() => setBulkSendChecked(prev => { const next = new Set(prev); if (next.has(ci.name)) next.delete(ci.name); else next.add(ci.name); return next; })}
                             style={{ cursor: st === 'sent' ? 'default' : 'pointer' }} />
                         </span>
                         <span style={{ fontWeight: 500, color: '#0D2247' }}>{ci.name}</span>
-                        <span style={{ fontSize: 10, color: ci.email ? '#374151' : '#EF4444' }}>{ci.email || '未設定'}</span>
+                        {ci.contacts.length > 0 ? (
+                          <select value={bulkSendTo[ci.name] || ''} onChange={e => setBulkSendTo(prev => ({ ...prev, [ci.name]: e.target.value }))}
+                            disabled={st === 'sent'}
+                            style={{ padding: '3px 6px', borderRadius: 3, border: '1px solid ' + C.border, fontSize: 10, fontFamily: "'Noto Sans JP'", outline: 'none' }}>
+                            <option value="">送信先を選択</option>
+                            {ci.contacts.map((ct, i) => <option key={i} value={ct.email}>{ct.label}</option>)}
+                          </select>
+                        ) : (
+                          <span style={{ fontSize: 10, color: '#EF4444' }}>担当者未登録</span>
+                        )}
                         <span style={{ textAlign: 'center', fontFamily: "'JetBrains Mono'", color: '#0D2247' }}>{ci.count}</span>
                         <span style={{ textAlign: 'right', fontFamily: "'JetBrains Mono'", fontWeight: 600, color: '#0D2247' }}>{formatCurrency(ci.total)}</span>
                         <input value={bulkSendCc[ci.name] || ''} onChange={e => setBulkSendCc(prev => ({ ...prev, [ci.name]: e.target.value }))}

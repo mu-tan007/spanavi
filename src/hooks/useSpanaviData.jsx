@@ -33,12 +33,14 @@ export function useSpanaviData(authOrgId) {
         membersRes,
         appointmentsRes,
         rewardTypesRes,
+        clientContactsRes,
       ] = await Promise.all([
         supabase.from('clients').select('*').eq('org_id', orgId).order('sort_order'),
         supabase.from('call_lists').select('*').eq('org_id', orgId).order('sort_order'),
         supabase.from('members').select('*').eq('org_id', orgId).order('sort_order'),
         supabase.from('appointments').select('*').eq('org_id', orgId).order('appointment_date', { ascending: false }),
         supabase.from('reward_types').select('*').order('type_id'),
+        supabase.from('client_contacts').select('*').eq('org_id', orgId).order('created_at'),
       ])
 
       // エラーチェック
@@ -53,6 +55,14 @@ export function useSpanaviData(authOrgId) {
       const members = membersRes.data || []
       const appointments = appointmentsRes.data || []
       const rewardTypes = rewardTypesRes.data || []
+      const clientContacts = clientContactsRes.data || []
+
+      // client_id → 担当者リストのマップ
+      const contactsByClient = {}
+      clientContacts.forEach(cc => {
+        if (!contactsByClient[cc.client_id]) contactsByClient[cc.client_id] = []
+        contactsByClient[cc.client_id].push({ id: cc.id, name: cc.name, email: cc.email })
+      })
 
       // clientsのUUID→name マップ（call_listsのclient_id解決用）
       const clientMap = {}
@@ -162,6 +172,7 @@ export function useSpanaviData(authOrgId) {
         membersDetailed,
         appoData: appoDataFormatted,
         rewardTypes,
+        contactsByClient,
         // 生データも保持（書き込み時に使う）
         _raw: { clients, callLists, members, appointments, rewardTypes },
       })
