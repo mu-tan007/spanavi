@@ -951,7 +951,10 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
       {/* Invoice Modal */}
       {invoiceModal && setAppoData && (() => {
-        const invoiceClients = [...new Set(appoData.filter(a => a.status === '面談済' && a.meetDate && a.meetDate.slice(0, 7) === invoiceMonth).map(a => a.client))].filter(Boolean);
+        // 面談済アポがあるクライアント + 支援中の全クライアント（イレギュラー対応）
+        const appoClients = appoData.filter(a => a.status === '面談済' && a.meetDate && a.meetDate.slice(0, 7) === invoiceMonth).map(a => a.client);
+        const activeClients = clientData.filter(c => c.status === '支援中').map(c => c.company);
+        const invoiceClients = [...new Set([...appoClients, ...activeClients])].filter(Boolean).sort();
         const previewClient = clientData.find(c => c.company === invoiceClient);
         const previewRm = previewClient ? rewardMaster.find(r => r.id === previewClient.rewardType) : null;
         const previewTaxType = previewRm?.tax || '税別';
