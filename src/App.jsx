@@ -9,15 +9,28 @@ import SignupCompletePage from './components/public/SignupCompletePage'
 import SignupCanceledPage from './components/public/SignupCanceledPage'
 import TokushohoPage from './components/public/TokushohoPage'
 import SubscriptionGuard from './components/common/SubscriptionGuard'
-import { useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 
 function MainApp() {
   const { session, profile, loading, signOut, isAdmin, recoveryMode, clearRecoveryMode, orgId } = useAuth()
   const { data: supabaseData, loading: dataLoading, error: dataError, refetch: onDataRefetch } = useSpanaviData(orgId)
 
+  // プロフィール取得タイムアウト（10秒待ってもorgIdが取れない場合はエラー表示）
+  const [profileTimeout, setProfileTimeout] = useState(false)
+  const profileTimeoutRef = useRef(null)
+  useEffect(() => {
+    if (!loading && session && !orgId) {
+      profileTimeoutRef.current = setTimeout(() => setProfileTimeout(true), 10000)
+    } else {
+      clearTimeout(profileTimeoutRef.current)
+      setProfileTimeout(false)
+    }
+    return () => clearTimeout(profileTimeoutRef.current)
+  }, [loading, session, orgId])
+
   // セッションはあるがプロフィール取得に失敗した場合 → ログイン画面に戻す
-  if (!loading && session && !profile) {
+  if ((!loading && session && !profile) || profileTimeout) {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
