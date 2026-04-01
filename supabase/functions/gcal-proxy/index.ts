@@ -71,10 +71,14 @@ Deno.serve(async (req) => {
       // 複数カレンダーの場合: カレンダーIDごとにbusy配列を返す
       if (calendarIdsParam) {
         const calendars: Record<string, any[]> = {}
+        const calendarErrors: Record<string, any[]> = {}
         for (const [id, cal] of Object.entries(data.calendars || {})) {
           calendars[id] = (cal as any).busy || []
+          if ((cal as any).errors?.length) {
+            calendarErrors[id] = (cal as any).errors
+          }
         }
-        return json({ calendars })
+        return json({ calendars, ...(Object.keys(calendarErrors).length ? { calendarErrors } : {}) })
       }
 
       // 後方互換: 単一カレンダーの場合は既存フォーマット

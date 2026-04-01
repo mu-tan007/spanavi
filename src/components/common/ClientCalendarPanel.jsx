@@ -19,12 +19,14 @@ const FREE_COLOR = '#D1FAE5';      // 両方空き: 緑
  *   onSelectSlot     - (date, time) => void  空きスロットクリック時
  *   compact          - boolean  コンパクト表示モード
  */
-export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, onSelectSlot, compact = false }) {
+export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, onSelectSlot, onConfigureCalendar, compact = false }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [myBusy, setMyBusy] = useState([]);
   const [clientBusy, setClientBusy] = useState([]);
+  const [clientErrors, setClientErrors] = useState([]);
+  const [configInput, setConfigInput] = useState('');
 
   // 7日分の日付リスト
   const days = useMemo(() => {
@@ -63,6 +65,7 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, o
         // calendars オブジェクトからそれぞれ取得
         const cals = data.calendars || {};
         const calEntries = Object.entries(cals);
+        const calErrors = data.calendarErrors || {};
         // primary（自分）とクライアントを分離
         let mine = [], client = [];
         for (const [id, busy] of calEntries) {
@@ -74,6 +77,7 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, o
         }
         setMyBusy(mine);
         setClientBusy(client);
+        setClientErrors(calErrors[clientCalendarId] || []);
       } else {
         // 自分のカレンダーのみ
         const res = await fetch(
@@ -141,17 +145,45 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, o
     );
   }
 
-  // カレンダー未連携
-  if (!clientCalendarId && !schedulingUrl) {
-    return (
-      <div style={{ padding: 16, textAlign: 'center', color: '#9CA3AF', fontSize: 12 }}>
-        カレンダー未連携です。CRMでGoogle Calendar IDまたは日程調整URLを設定してください。
-      </div>
-    );
-  }
+  // カレンダー未連携: インライン設定フォームを表示（カレンダーグリッドは下に表示し続ける）
+  const notLinked = !clientCalendarId && !schedulingUrl;
 
   return (
     <div style={{ fontFamily: "'Noto Sans JP'" }}>
+      {/* 未連携バナー + インライン設定フォーム */}
+      {notLinked && (
+        <div style={{ padding: '8px 12px', marginBottom: 8, background: '#FEF3C7', borderRadius: 4, fontSize: 11 }}>
+          <div style={{ color: '#92400E', marginBottom: onConfigureCalendar ? 6 : 0 }}>
+            クライアントカレンダー未連携（自社カレンダーのみ表示中）
+          </div>
+          {onConfigureCalendar && (
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input
+                type="email"
+                placeholder="クライアントのGoogleメールアドレス"
+                value={configInput}
+                onChange={e => setConfigInput(e.target.value)}
+                style={{ flex: 1, padding: '4px 8px', fontSize: 11, border: '1px solid #D1D5DB', borderRadius: 3, fontFamily: "'Noto Sans JP'" }}
+              />
+              <button
+                onClick={() => { if (configInput.trim()) onConfigureCalendar(configInput.trim()); }}
+                disabled={!configInput.trim()}
+                style={{ padding: '4px 12px', fontSize: 11, fontWeight: 600, background: NAVY, color: '#fff', border: 'none', borderRadius: 3, cursor: configInput.trim() ? 'pointer' : 'default', opacity: configInput.trim() ? 1 : 0.5 }}
+              >
+                設定
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* クライアントカレンダー未共有警告 */}
+      {clientCalendarId && clientErrors.length > 0 && (
+        <div style={{ padding: '8px 12px', marginBottom: 8, background: '#FEE2E2', borderRadius: 4, fontSize: 11, color: '#991B1B' }}>
+          カレンダーが共有されていません。クライアント担当者にGoogleカレンダーの「予定の時間枠の表示（空き時間情報）」共有を依頼してください。
+        </div>
+      )}
+
       {/* ヘッダー: 週送りナビ + 凡例 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', marginBottom: 4 }}>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -164,8 +196,8 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, o
         </div>
         <div style={{ display: 'flex', gap: 8, fontSize: 9 }}>
           <span><span style={{ display: 'inline-block', width: 8, height: 8, background: MINE_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>自分</span>
-          <span><span style={{ display: 'inline-block', width: 8, height: 8, background: CLIENT_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>クライアント</span>
-          <span><span style={{ display: 'inline-block', width: 8, height: 8, background: FREE_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>両方空き</span>
+          {clientCalendarId && <span><span style={{ display: 'inline-block', width: 8, height: 8, background: CLIENT_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>クライアント</span>}
+          {clientCalendarId && <span><span style={{ display: 'inline-block', width: 8, height: 8, background: FREE_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>両方空き</span>}
         </div>
       </div>
 

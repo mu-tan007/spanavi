@@ -7,7 +7,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, updateClientCalendarId } from '../../lib/supabaseWrite';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
 import AppoReportModal from './AppoReportModal';
@@ -71,6 +71,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [subPhone, setSubPhone] = useState('');
   const [lastDialedPhone, setLastDialedPhone] = useState(null);
   const [activeRecordingId, setActiveRecordingId] = useState(null);
+  const [overrideCalendarId, setOverrideCalendarId] = useState(null);
   const [qaData, setQaData] = useState(null);
   const [qaSubTab, setQaSubTab] = useState('reception');
   const PAGE_SIZE = 30;
@@ -1249,9 +1250,14 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             {scriptTab === 'calendar' && (() => {
               const cl = (clientData || []).find(c => c.company === list.company);
               return <ClientCalendarPanel
-                clientCalendarId={cl?.googleCalendarId || ''}
+                clientCalendarId={overrideCalendarId || cl?.googleCalendarId || ''}
                 schedulingUrl={cl?.schedulingUrl || ''}
                 compact
+                onConfigureCalendar={async (calId) => {
+                  if (!cl?._supaId) return;
+                  const err = await updateClientCalendarId(cl._supaId, calId);
+                  if (!err) setOverrideCalendarId(calId);
+                }}
               />;
             })()}
           </div>
@@ -1852,8 +1858,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             {scriptTab === 'calendar' && (() => {
               const cl = (clientData || []).find(c => c.company === list.company);
               return <ClientCalendarPanel
-                clientCalendarId={cl?.googleCalendarId || ''}
+                clientCalendarId={overrideCalendarId || cl?.googleCalendarId || ''}
                 schedulingUrl={cl?.schedulingUrl || ''}
+                onConfigureCalendar={async (calId) => {
+                  if (!cl?._supaId) return;
+                  const err = await updateClientCalendarId(cl._supaId, calId);
+                  if (!err) setOverrideCalendarId(calId);
+                }}
               />;
             })()}
           </div>
