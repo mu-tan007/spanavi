@@ -75,7 +75,7 @@ export function MemberSuggestInput({ value, onChange, members = [], style, place
   );
 }
 
-function EmailApprovalSection({ appo, clientData = [], onStatusUpdate }) {
+function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, onStatusUpdate }) {
   const [emailStep, setEmailStep] = React.useState('idle'); // 'idle' | 'compose' | 'sending' | 'sent' | 'error'
   const [emailTo, setEmailTo] = React.useState('');
   const [emailSubject, setEmailSubject] = React.useState('');
@@ -85,17 +85,33 @@ function EmailApprovalSection({ appo, clientData = [], onStatusUpdate }) {
   const cl = (clientData || []).find(c => c.company === appo.client);
   const es = EMAIL_STATUS_LABELS[appo.emailStatus] || EMAIL_STATUS_LABELS.pending;
 
+  // 宛先候補リスト（contactsByClient + clientEmail）
+  const emailOptions = React.useMemo(() => {
+    const contacts = cl?._supaId ? (contactsByClient[cl._supaId] || []) : [];
+    const opts = contacts.map(ct => ({ label: `${ct.name} <${ct.email}>`, email: ct.email }));
+    if (cl?.clientEmail && !contacts.some(ct => ct.email === cl.clientEmail)) {
+      opts.push({ label: cl.clientEmail, email: cl.clientEmail });
+    }
+    return opts;
+  }, [cl, contactsByClient]);
+
   const initCompose = () => {
-    setEmailTo(cl?.clientEmail || '');
-    setEmailSubject(`【面談日程のご連絡】${appo.company}`);
+    setEmailTo(emailOptions.length > 0 ? emailOptions[0].email : (cl?.clientEmail || ''));
+    setEmailSubject(`【アポイント取得のご報告】${appo.company}`);
+    // appoReportから「当社売上」行を除外してメール本文を組み立て
+    const report = (appo.appoReport || '').split('\n').filter(line => !line.startsWith('当社売上：')).join('\n');
+    const clientLabel = cl?.company || appo.client || '';
     setEmailBody(
+      `${clientLabel} 様\n\n` +
       `お世話になっております。\n` +
-      `MA-SPの篠宮です。\n\n` +
-      `下記の通り面談の日程をご連絡いたします。\n\n` +
-      `企業名：${appo.company}\n` +
-      `面談日：${appo.meetDate || '（未定）'}\n\n` +
-      `何卒よろしくお願いいたします。\n\n` +
-      `篠宮`
+      `M&Aソーシングパートナーズの篠宮でございます。\n\n` +
+      `下記企業のアポイントを取得いたしましたので、ご報告申し上げます。\n\n` +
+      `---\n` +
+      `${report}\n` +
+      `---\n\n` +
+      `以上でございます。\n` +
+      `ご確認のほど、よろしくお願いいたします。\n\n` +
+      `MASP 篠宮`
     );
     setSendError('');
     setEmailStep('compose');
@@ -130,9 +146,10 @@ function EmailApprovalSection({ appo, clientData = [], onStatusUpdate }) {
       )}
 
       {emailStep === 'idle' && appo.emailStatus !== 'sent' && (
-        <button onClick={initCompose}
-          style={{ padding: '7px 16px', borderRadius: 4, border: 'none', background: '#0D2247', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: "'Noto Sans JP'" }}>
-          メール内容を確認・送信
+        <button onClick={initCompose} disabled={!appo.appoReport}
+          style={{ padding: '7px 16px', borderRadius: 4, border: 'none', background: !appo.appoReport ? '#9CA3AF' : '#0D2247', color: '#fff', cursor: !appo.appoReport ? 'default' : 'pointer', fontSize: 12, fontWeight: 600, fontFamily: "'Noto Sans JP'" }}
+          title={!appo.appoReport ? 'アポ取得報告が未作成です' : ''}>
+          アポ取得報告を送信
         </button>
       )}
 
@@ -144,7 +161,15 @@ function EmailApprovalSection({ appo, clientData = [], onStatusUpdate }) {
         <div style={{ marginTop: 8 }}>
           <div style={{ marginBottom: 6 }}>
             <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>宛先</label>
-            <input value={emailTo} onChange={e => setEmailTo(e.target.value)} placeholder="client@example.com" style={iStyle} />
+            {emailOptions.length > 0 ? (
+              <select value={emailTo} onChange={e => setEmailTo(e.target.value)} style={iStyle}>
+                {emailOptions.map((opt, i) => <option key={i} value={opt.email}>{opt.label}</option>)}
+                <option value="">手入力...</option>
+              </select>
+            ) : null}
+            {(emailOptions.length === 0 || emailTo === '' || !emailOptions.some(o => o.email === emailTo)) && (
+              <input value={emailTo} onChange={e => setEmailTo(e.target.value)} placeholder="client@example.com" style={{ ...iStyle, marginTop: emailOptions.length > 0 ? 4 : 0 }} />
+            )}
           </div>
           <div style={{ marginBottom: 6 }}>
             <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>件名</label>
@@ -152,7 +177,7 @@ function EmailApprovalSection({ appo, clientData = [], onStatusUpdate }) {
           </div>
           <div style={{ marginBottom: 8 }}>
             <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>本文</label>
-            <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={8}
+            <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={18}
               style={{ ...iStyle, resize: 'vertical', lineHeight: 1.6 }} />
           </div>
           {sendError && <div style={{ fontSize: 10, color: '#DC2626', marginBottom: 6 }}>{sendError}</div>}
@@ -163,7 +188,7 @@ function EmailApprovalSection({ appo, clientData = [], onStatusUpdate }) {
             </button>
             <button onClick={handleSend} disabled={emailStep === 'sending'}
               style={{ padding: '6px 14px', borderRadius: 4, border: 'none', background: emailStep === 'sending' ? '#9CA3AF' : '#0D2247', color: '#fff', cursor: emailStep === 'sending' ? 'default' : 'pointer', fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'" }}>
-              {emailStep === 'sending' ? '送信中...' : '承認してメール送信'}
+              {emailStep === 'sending' ? '送信中...' : 'アポ取得報告を送信'}
             </button>
           </div>
         </div>
@@ -1861,6 +1886,7 @@ MASP 篠宮`}
               <EmailApprovalSection
                 appo={reportDetail}
                 clientData={clientData}
+                contactsByClient={contactsByClient}
                 onStatusUpdate={(newStatus) => {
                   const updated = { ...reportDetail, emailStatus: newStatus };
                   setReportDetail(updated);
