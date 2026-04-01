@@ -97,7 +97,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
 
   const initCompose = () => {
     setEmailTo(emailOptions.length > 0 ? emailOptions[0].email : (cl?.clientEmail || ''));
-    setEmailSubject(`【アポイント取得のご報告】${appo.company}`);
+    setEmailSubject('【アポイント取得のご報告】M&Aソーシングパートナーズ 篠宮');
     // appoReportから「当社売上」行を除外してメール本文を組み立て
     const report = (appo.appoReport || '').split('\n').filter(line => !line.startsWith('当社売上：')).join('\n');
     const clientLabel = cl?.company || appo.client || '';
