@@ -49,7 +49,18 @@ export function AuthProvider({ children }) {
         .single()
 
       if (error || !data) {
-        // フォールバック：auth.usersのemailからmember_idを抽出してmembersから名前取得
+        // フォールバック1: user_idでmembersを検索（RLSを通過しやすい最も確実な方法）
+        const { data: memberByUserId } = await supabase
+          .from('members')
+          .select('id, name, email, rank, org_id')
+          .eq('user_id', userId)
+          .maybeSingle()
+        if (memberByUserId) {
+          if (memberByUserId.org_id) setOrgId(memberByUserId.org_id)
+          setProfile({ id: userId, name: memberByUserId.name, email: memberByUserId.email, role: memberByUserId.rank || 'caller', org_id: memberByUserId.org_id })
+          return
+        }
+        // フォールバック2: auth.usersのemailからmember_idを抽出してmembersから名前取得
         const { data: authUser } = await supabase.auth.getUser()
         const email = authUser?.user?.email || ''
         const match = email.match(/^user_(.+)@(?:masp-internal\.com|[a-f0-9-]+\.spanavi\.internal)$/)
@@ -66,12 +77,12 @@ export function AuthProvider({ children }) {
             return
           }
         }
-        // フォールバック2: 実メールアドレスでmembersテーブルを検索（外部テナント用）
+        // フォールバック3: 実メールアドレスでmembersテーブルを検索（外部テナント用）
         const { data: memberByEmail } = await supabase
           .from('members')
           .select('id, name, email, rank, org_id')
           .eq('email', email)
-          .single()
+          .maybeSingle()
         if (memberByEmail) {
           if (memberByEmail.org_id) setOrgId(memberByEmail.org_id)
           setProfile({ id: userId, name: memberByEmail.name, email: memberByEmail.email, role: memberByEmail.rank || 'caller', org_id: memberByEmail.org_id })
