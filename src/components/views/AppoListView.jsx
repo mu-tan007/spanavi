@@ -340,8 +340,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           if (!member?._supaId) continue;
           const newTotal = Math.max(0, (member.totalSales || 0) + delta);
           const { rank: newRank, rate: newRate } = calcRankAndRate(newTotal);
+          const rewardErr = await updateMemberReward(member._supaId, { cumulativeSales: newTotal, rank: newRank, incentiveRate: newRate });
+          if (rewardErr) { alert(`${getterName}の累計売上更新に失敗しました`); continue; }
           memberUpdates.push({ member, newTotal, newRank, newRate });
-          await updateMemberReward(member._supaId, { cumulativeSales: newTotal, rank: newRank, incentiveRate: newRate });
         }
       }
       // 3. 各アポのステータスとis_counted_in_cumulativeを更新
@@ -1420,17 +1421,20 @@ MASP 篠宮`}
                         if (delta !== 0) {
                           const newTotal = Math.max(0, (member.totalSales || 0) + delta);
                           const { rank: newRank, rate: newRate } = calcRankAndRate(newTotal);
-                          await updateMemberReward(member._supaId, {
+                          const rewardErr = await updateMemberReward(member._supaId, {
                             cumulativeSales: newTotal,
                             rank: newRank,
                             incentiveRate: newRate,
                           });
-                          setMembers(prev => prev.map(m =>
-                            (typeof m !== 'string' && m._supaId === member._supaId)
-                              ? { ...m, totalSales: newTotal, rank: newRank, rate: newRate }
-                              : m
-                          ));
-                          if (original?._supaId) await updateAppoCounted(original._supaId, isKanryo);
+                          if (rewardErr) { alert('累計売上の更新に失敗しました。管理者に連絡してください。'); }
+                          else {
+                            setMembers(prev => prev.map(m =>
+                              (typeof m !== 'string' && m._supaId === member._supaId)
+                                ? { ...m, totalSales: newTotal, rank: newRank, rate: newRate }
+                                : m
+                            ));
+                            if (original?._supaId) await updateAppoCounted(original._supaId, isKanryo);
+                          }
                         }
                       }
                     }
@@ -1591,9 +1595,12 @@ MASP 篠宮`}
                           if (delta !== 0) {
                             const newTotal = Math.max(0, (member.totalSales || 0) + delta);
                             const { rank: newRank, rate: newRate } = calcRankAndRate(newTotal);
-                            await updateMemberReward(member._supaId, { cumulativeSales: newTotal, rank: newRank, incentiveRate: newRate });
-                            setMembers(prev => prev.map(m => (typeof m !== 'string' && m._supaId === member._supaId) ? { ...m, totalSales: newTotal, rank: newRank, rate: newRate } : m));
-                            if (original?._supaId) await updateAppoCounted(original._supaId, isKanryo);
+                            const rewardErr = await updateMemberReward(member._supaId, { cumulativeSales: newTotal, rank: newRank, incentiveRate: newRate });
+                            if (rewardErr) { alert('累計売上の更新に失敗しました。管理者に連絡してください。'); }
+                            else {
+                              setMembers(prev => prev.map(m => (typeof m !== 'string' && m._supaId === member._supaId) ? { ...m, totalSales: newTotal, rank: newRank, rate: newRate } : m));
+                              if (original?._supaId) await updateAppoCounted(original._supaId, isKanryo);
+                            }
                           }
                         }
                       }
