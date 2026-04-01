@@ -60,6 +60,7 @@ export async function updateCallList(supaId, data) {
       company_info: data.companyInfo,
       script_body: data.scriptBody,
       cautions: data.cautions,
+      rebuttal_data: data.rebuttalData,
       notes: data.notes,
       list_type: data.type,
     })
@@ -90,6 +91,7 @@ export async function insertCallList(data) {
       company_info: data.companyInfo,
       script_body: data.scriptBody,
       cautions: data.cautions,
+      rebuttal_data: data.rebuttalData,
       notes: data.notes,
       list_type: data.type,
       script_name: data.script,
@@ -1003,6 +1005,16 @@ export async function fetchCallRecordsByItemIds(itemIds) {
     .order('round')
   if (error) console.error('[DB] fetchCallRecordsByItemIds error:', error)
   return { data: data || [], error }
+}
+
+export async function updateCallListRebuttal(supaId, rebuttalData) {
+  if (!supaId) { console.warn('[DB] updateCallListRebuttal: no supaId'); return null }
+  const { error } = await supabase
+    .from('call_lists')
+    .update({ rebuttal_data: rebuttalData })
+    .eq('id', supaId)
+  if (error) console.error('[DB] updateCallListRebuttal error:', error)
+  return error
 }
 
 export async function updateCallListCount(supaId, count) {

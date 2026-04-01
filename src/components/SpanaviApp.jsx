@@ -1038,7 +1038,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         {currentTab === "mypage" && isAdmin && <AdminView isAdmin={isAdmin} setCurrentTab={setCurrentTab} rewardMaster={rewardMaster} setRewardMaster={setRewardMaster} members={members} appoData={appoData} now={now} onDataRefetch={onDataRefetch} userId={userId} orgId={orgId} />}
         {currentTab === "mypage" && !isAdmin && <MyPageView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} />}
         {currentTab === "edu_performance" && <PerformanceView members={members} currentUser={currentUser} appoData={appoData} />}
-        {currentTab === "edu_script" && <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} />}
+        {currentTab === "edu_script" && <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
         {currentTab === "edu_tips" && <TeleappoTipsView />}
         {currentTab === "edu_rules" && <InternRulesView />}
         {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} />}

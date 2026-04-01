@@ -81,6 +81,7 @@ export function useSpanaviData(authOrgId) {
         companyInfo: cl.company_info || '',
         scriptBody: cl.script_body || '',
         cautions: cl.cautions || '',
+        rebuttalData: cl.rebuttal_data || '',
         script: cl.script_name || '',
         notes: cl.notes || '',
         is_archived: cl.is_archived || false,

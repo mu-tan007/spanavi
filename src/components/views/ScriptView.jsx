@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { C } from '../../constants/colors';
 import { DEFAULT_BASIC_SCRIPT } from '../../constants/scripts';
-import { fetchSetting, saveSetting } from '../../lib/supabaseWrite';
+import { fetchSetting, saveSetting, updateCallListRebuttal } from '../../lib/supabaseWrite';
 import { renderMarkedScript } from '../../utils/scriptMarker';
 
-export default function ScriptView({ isAdmin, clientData, callListData }) {
+export default function ScriptView({ isAdmin, clientData, callListData, setCallListData }) {
   const [basicScript, setBasicScript] = useState(DEFAULT_BASIC_SCRIPT);
   const [basicScriptEdit, setBasicScriptEdit] = useState(DEFAULT_BASIC_SCRIPT);
   const [savedOk, setSavedOk] = useState(false);
@@ -14,6 +14,11 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
   const [qaTab, setQaTab] = useState('reception');
   const [qaEditing, setQaEditing] = useState(false);
   const [qaSaving, setQaSaving] = useState(false);
+  // リスト別アウト返し編集
+  const [rebuttalEditListId, setRebuttalEditListId] = useState(null);
+  const [rebuttalEditData, setRebuttalEditData] = useState(null);
+  const [rebuttalEditTab, setRebuttalEditTab] = useState('reception');
+  const [rebuttalSaving, setRebuttalSaving] = useState(false);
 
 
   const DEFAULT_QA_DATA = {
@@ -196,15 +201,128 @@ export default function ScriptView({ isAdmin, clientData, callListData }) {
                       ))}
                     </div>
                   )}
-                  <div style={{ padding: "14px 16px", maxHeight: 220, overflowY: "auto" }}>
+                  <div style={{ padding: "14px 16px", maxHeight: 180, overflowY: "auto" }}>
                     {activeList?.scriptBody ? (
-                      <div style={{ fontSize: 12, color: C.textDark, lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
-                        {activeList.scriptBody}
-                      </div>
+                      renderMarkedScript(activeList.scriptBody, { fontSize: 12, color: C.textDark, lineHeight: 1.8 })
                     ) : (
                       <div style={{ fontSize: 12, color: C.textLight, fontStyle: "italic" }}>スクリプト未設定</div>
                     )}
                   </div>
+                  {/* アウト返しセクション */}
+                  {activeList && (() => {
+                    const listId = activeList._supaId;
+                    const parsed = (() => { try { return activeList.rebuttalData ? JSON.parse(activeList.rebuttalData) : null; } catch { return null; } })();
+                    const isEditing = rebuttalEditListId === listId;
+                    return (
+                      <div style={{ borderTop: '1px solid #E5E7EB' }}>
+                        <div style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FAFBFC' }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: '#0D2247' }}>アウト返し</span>
+                          {isAdmin && !isEditing && (
+                            <button onClick={() => {
+                              setRebuttalEditListId(listId);
+                              setRebuttalEditData(parsed || { reception: [{ q: '', a: '' }], president: [{ q: '', a: '' }] });
+                              setRebuttalEditTab('reception');
+                            }} style={{ fontSize: 10, padding: '2px 10px', border: '1px solid #0D2247', background: 'transparent', color: '#0D2247', borderRadius: 4, cursor: 'pointer', fontWeight: 500 }}>
+                              {parsed ? '編集' : '設定する'}
+                            </button>
+                          )}
+                        </div>
+                        {isEditing ? (
+                          <div style={{ padding: '10px 16px 14px' }}>
+                            <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                              {[['reception', '受付対応'], ['president', '社長対応']].map(([k, l]) => (
+                                <button key={k} onClick={() => setRebuttalEditTab(k)}
+                                  style={{ fontSize: 10, padding: '3px 12px', borderRadius: 4, border: 'none', background: rebuttalEditTab === k ? '#0D2247' : '#F3F4F6', color: rebuttalEditTab === k ? '#fff' : '#6B7280', cursor: 'pointer', fontWeight: rebuttalEditTab === k ? 600 : 400 }}>
+                                  {l}
+                                </button>
+                              ))}
+                            </div>
+                            {(rebuttalEditData[rebuttalEditTab] || []).map((item, i) => (
+                              <div key={i} style={{ marginBottom: 10, padding: '8px 10px', borderRadius: 4, background: '#F8F9FA', borderLeft: '3px solid #0D2247' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: '#374151' }}>Q:</span>
+                                  <input type="text" value={item.q} onChange={e => {
+                                    setRebuttalEditData(prev => {
+                                      const updated = { ...prev };
+                                      updated[rebuttalEditTab] = [...prev[rebuttalEditTab]];
+                                      updated[rebuttalEditTab][i] = { ...updated[rebuttalEditTab][i], q: e.target.value };
+                                      return updated;
+                                    });
+                                  }} style={{ flex: 1, padding: '3px 6px', border: '1px solid #E5E5E5', borderRadius: 4, fontSize: 11 }} />
+                                  <button onClick={() => {
+                                    setRebuttalEditData(prev => ({
+                                      ...prev,
+                                      [rebuttalEditTab]: prev[rebuttalEditTab].filter((_, idx) => idx !== i),
+                                    }));
+                                  }} style={{ border: '1px solid #fca5a5', background: 'transparent', color: '#dc2626', borderRadius: 4, padding: '1px 6px', fontSize: 10, cursor: 'pointer' }}>削除</button>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: '#0D2247', marginTop: 3 }}>A:</span>
+                                  <textarea value={item.a} onChange={e => {
+                                    setRebuttalEditData(prev => {
+                                      const updated = { ...prev };
+                                      updated[rebuttalEditTab] = [...prev[rebuttalEditTab]];
+                                      updated[rebuttalEditTab][i] = { ...updated[rebuttalEditTab][i], a: e.target.value };
+                                      return updated;
+                                    });
+                                  }} rows={2} style={{ flex: 1, padding: '3px 6px', border: '1px solid #E5E5E5', borderRadius: 4, fontSize: 11, resize: 'vertical', lineHeight: 1.5 }} />
+                                </div>
+                              </div>
+                            ))}
+                            <button onClick={() => {
+                              setRebuttalEditData(prev => ({
+                                ...prev,
+                                [rebuttalEditTab]: [...prev[rebuttalEditTab], { q: '', a: '' }],
+                              }));
+                            }} style={{ padding: '4px 0', border: '1px dashed #9CA3AF', background: 'transparent', borderRadius: 4, fontSize: 10, color: '#6B7280', cursor: 'pointer', width: '100%' }}>+ 項目を追加</button>
+                            <div style={{ display: 'flex', gap: 6, marginTop: 10, justifyContent: 'flex-end' }}>
+                              <button onClick={() => setRebuttalEditListId(null)} style={{ padding: '4px 12px', border: '1px solid #E5E5E5', background: '#fff', borderRadius: 4, fontSize: 10, cursor: 'pointer' }}>キャンセル</button>
+                              <button disabled={rebuttalSaving} onClick={async () => {
+                                setRebuttalSaving(true);
+                                const jsonStr = JSON.stringify(rebuttalEditData);
+                                const err = await updateCallListRebuttal(listId, jsonStr);
+                                setRebuttalSaving(false);
+                                if (err) { alert('保存に失敗しました'); return; }
+                                setRebuttalEditListId(null);
+                                if (setCallListData) {
+                                  setCallListData(prev => prev.map(l => l._supaId === listId ? { ...l, rebuttalData: jsonStr } : l));
+                                }
+                              }} style={{ padding: '4px 12px', border: 'none', background: '#0D2247', color: '#fff', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: rebuttalSaving ? 'not-allowed' : 'pointer' }}>
+                                {rebuttalSaving ? '保存中...' : '保存'}
+                              </button>
+                            </div>
+                          </div>
+                        ) : parsed ? (
+                          <div style={{ padding: '6px 16px 12px', maxHeight: 150, overflowY: 'auto' }}>
+                            {(parsed.reception || []).length > 0 && (
+                              <div style={{ marginBottom: 6 }}>
+                                <div style={{ fontSize: 9, fontWeight: 600, color: '#9CA3AF', marginBottom: 4 }}>受付対応</div>
+                                {parsed.reception.map((item, i) => (
+                                  <div key={i} style={{ marginBottom: 6, padding: '4px 8px', borderRadius: 3, background: '#F8F9FA', borderLeft: '2px solid #0D2247' }}>
+                                    <div style={{ fontSize: 10, fontWeight: 600, color: '#374151' }}>Q: {item.q}</div>
+                                    <div style={{ fontSize: 10, color: '#0D2247', lineHeight: 1.5 }}>A: {item.a}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {(parsed.president || []).length > 0 && (
+                              <div>
+                                <div style={{ fontSize: 9, fontWeight: 600, color: '#9CA3AF', marginBottom: 4 }}>社長対応</div>
+                                {parsed.president.map((item, i) => (
+                                  <div key={i} style={{ marginBottom: 6, padding: '4px 8px', borderRadius: 3, background: '#F8F9FA', borderLeft: '2px solid #0D2247' }}>
+                                    <div style={{ fontSize: 10, fontWeight: 600, color: '#374151' }}>Q: {item.q}</div>
+                                    <div style={{ fontSize: 10, color: '#0D2247', lineHeight: 1.5 }}>A: {item.a}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div style={{ padding: '6px 16px 12px', fontSize: 11, color: C.textLight, fontStyle: 'italic' }}>未設定</div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}

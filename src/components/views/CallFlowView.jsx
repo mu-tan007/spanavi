@@ -1211,9 +1211,14 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 ? renderMarkedScript(list.scriptBody, { fontSize: 11, color: C.textDark, lineHeight: 1.7 })
                 : <div style={{ color: C.textLight, fontSize: 11 }}>スクリプト未設定</div>
             )}
-            {scriptTab === 'rebuttal' && (
-              qaData ? (
+            {scriptTab === 'rebuttal' && (() => {
+              let rd = null;
+              try { rd = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
+              const data = rd || qaData;
+              if (!data) return <div style={{ color: C.textLight, fontSize: 11 }}>アウト返し未設定（Scriptsページで設定できます）</div>;
+              return (
                 <div>
+                  {!rd && qaData && <div style={{ fontSize: 9, color: C.gold, marginBottom: 6, fontWeight: 500 }}>共通のアウト返しを表示中</div>}
                   <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                     {[['reception', '受付対応'], ['president', '社長対応']].map(([k, l]) => (
                       <button key={k} onClick={() => setQaSubTab(k)}
@@ -1222,15 +1227,15 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                       </button>
                     ))}
                   </div>
-                  {(qaData[qaSubTab] || []).map((item, i) => (
+                  {(data[qaSubTab] || []).map((item, i) => (
                     <div key={i} style={{ marginBottom: 8, padding: '6px 10px', borderRadius: 4, background: '#F8F9FA', borderLeft: '3px solid ' + C.navy }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: '#374151', marginBottom: 3 }}>Q: {item.q}</div>
                       <div style={{ fontSize: 10, color: C.navy, lineHeight: 1.6 }}>A: {item.a}</div>
                     </div>
                   ))}
                 </div>
-              ) : <div style={{ color: C.textLight, fontSize: 11 }}>アウト返し未設定（Scriptsページで設定できます）</div>
-            )}
+              );
+            })()}
             {scriptTab === 'info' && (
               list.companyInfo
                 ? <pre style={{ fontSize: 11, color: C.textMid, whiteSpace: 'pre-wrap', lineHeight: 1.7, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.companyInfo}</pre>
@@ -1809,9 +1814,14 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 ? renderMarkedScript(list.scriptBody, { fontSize: 12, color: '#0D2247', lineHeight: 1.8 })
                 : <div style={{ color: '#9CA3AF', fontSize: 12 }}>スクリプト未設定</div>
             )}
-            {scriptTab === 'rebuttal' && (
-              qaData ? (
+            {scriptTab === 'rebuttal' && (() => {
+              let rd = null;
+              try { rd = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
+              const data = rd || qaData;
+              if (!data) return <div style={{ color: '#9CA3AF', fontSize: 12 }}>アウト返し未設定（Scriptsページで設定できます）</div>;
+              return (
                 <div>
+                  {!rd && qaData && <div style={{ fontSize: 10, color: '#D4A017', marginBottom: 8, fontWeight: 500 }}>共通のアウト返しを表示中（リスト別はScriptsページで設定できます）</div>}
                   <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                     {[['reception', '受付対応'], ['president', '社長対応']].map(([k, l]) => (
                       <button key={k} onClick={() => setQaSubTab(k)}
@@ -1820,15 +1830,15 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                       </button>
                     ))}
                   </div>
-                  {(qaData[qaSubTab] || []).map((item, i) => (
+                  {(data[qaSubTab] || []).map((item, i) => (
                     <div key={i} style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 4, background: '#F8F9FA', borderLeft: '3px solid #0D2247' }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 4 }}>Q: {item.q}</div>
                       <div style={{ fontSize: 12, color: '#0D2247', lineHeight: 1.7 }}>A: {item.a}</div>
                     </div>
                   ))}
                 </div>
-              ) : <div style={{ color: '#9CA3AF', fontSize: 12 }}>アウト返し未設定（Scriptsページで設定できます）</div>
-            )}
+              );
+            })()}
             {scriptTab === 'info' && (
               list.companyInfo
                 ? <pre style={{ fontSize: 12, color: '#4a4a4a', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.companyInfo}</pre>
