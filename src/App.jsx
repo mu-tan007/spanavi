@@ -16,6 +16,23 @@ function MainApp() {
   const { session, profile, loading, signOut, isAdmin, recoveryMode, clearRecoveryMode, orgId } = useAuth()
   const { data: supabaseData, loading: dataLoading, error: dataError, refetch: onDataRefetch } = useSpanaviData(orgId)
 
+  // セッションはあるがプロフィール取得に失敗した場合 → ログイン画面に戻す
+  if (!loading && session && !profile) {
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: '#f5f0e8', fontFamily: "'Noto Sans JP', sans-serif",
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ color: '#c0392b', fontSize: 14, marginBottom: 16 }}>アカウント情報の取得に失敗しました。再ログインしてください。</p>
+          <button onClick={async () => { try { await signOut() } catch {} localStorage.clear(); window.location.reload(); }} style={{ padding: '8px 20px', borderRadius: 6, background: '#0176D3', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: "'Noto Sans JP', sans-serif" }}>
+            ログイン画面に戻る
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   // ローディング中（auth完了 + orgId確定 + データ取得完了 まで待つ）
   if (loading || (session && !orgId) || dataLoading) {
     return (
