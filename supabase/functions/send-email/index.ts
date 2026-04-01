@@ -47,23 +47,57 @@ function buildRawEmail(params: {
   body: string
   cc?: string
   bcc?: string
+  attachments?: { filename: string; data: string; mimeType: string }[]
 }): string {
-  const lines: string[] = [
+  const hasAttachments = params.attachments && params.attachments.length > 0
+
+  const headers: string[] = [
     `From: ${FROM_NAME} <${FROM_EMAIL}>`,
     `To: ${params.to}`,
   ]
-  if (params.cc) lines.push(`Cc: ${params.cc}`)
-  if (params.bcc) lines.push(`Bcc: ${params.bcc}`)
-  lines.push(
-    `Subject: ${mimeEncode(params.subject)}`,
-    'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset=UTF-8',
-    'Content-Transfer-Encoding: base64',
-    '',
-    btoa(unescape(encodeURIComponent(params.body))),
-  )
+  if (params.cc) headers.push(`Cc: ${params.cc}`)
+  if (params.bcc) headers.push(`Bcc: ${params.bcc}`)
+  headers.push(`Subject: ${mimeEncode(params.subject)}`)
+  headers.push('MIME-Version: 1.0')
 
-  const raw = lines.join('\r\n')
+  let raw: string
+  if (!hasAttachments) {
+    // テキストメールのみ（従来通り）
+    headers.push(
+      'Content-Type: text/plain; charset=UTF-8',
+      'Content-Transfer-Encoding: base64',
+      '',
+      btoa(unescape(encodeURIComponent(params.body))),
+    )
+    raw = headers.join('\r\n')
+  } else {
+    // MIME multipart/mixed（本文 + 添付ファイル）
+    const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`
+    headers.push(`Content-Type: multipart/mixed; boundary="${boundary}"`)
+    headers.push('')
+    headers.push(`--${boundary}`)
+    headers.push('Content-Type: text/plain; charset=UTF-8')
+    headers.push('Content-Transfer-Encoding: base64')
+    headers.push('')
+    headers.push(btoa(unescape(encodeURIComponent(params.body))))
+
+    for (const att of params.attachments!) {
+      const encodedFilename = mimeEncode(att.filename)
+      headers.push(`--${boundary}`)
+      headers.push(`Content-Type: ${att.mimeType}; name="${att.filename}"`)
+      headers.push('Content-Transfer-Encoding: base64')
+      headers.push(`Content-Disposition: attachment; filename*=UTF-8''${encodeURIComponent(att.filename)}; filename="${encodedFilename}"`)
+      headers.push('')
+      // data は既に base64 エンコード済み — 76文字で改行
+      const b64 = att.data
+      for (let i = 0; i < b64.length; i += 76) {
+        headers.push(b64.slice(i, i + 76))
+      }
+    }
+    headers.push(`--${boundary}--`)
+    raw = headers.join('\r\n')
+  }
+
   // base64url エンコード（Gmail API が要求する形式）
   return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
@@ -84,14 +118,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { to, subject, body, cc, bcc } = await req.json()
+    const { to, subject, body, cc, bcc, attachments } = await req.json()
 
     if (!to || !subject || !body) {
       return json({ error: 'to, subject, body are required' }, 400)
     }
 
     const accessToken = await getAccessToken()
-    const raw = buildRawEmail({ to, subject, body, cc, bcc })
+    const raw = buildRawEmail({ to, subject, body, cc, bcc, attachments })
 
     const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
       method: 'POST',

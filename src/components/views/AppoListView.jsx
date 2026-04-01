@@ -220,6 +220,13 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [invoiceClient, setInvoiceClient] = useState('');
   const [invoiceItems, setInvoiceItems] = useState([]);   // [{ company, quantity, unitPrice, amount }]
   const [invoiceExporting, setInvoiceExporting] = useState(false);
+  // ── 請求書一斉送信 ──
+  const [bulkSendModal, setBulkSendModal] = useState(false);
+  const [bulkSendMonth, setBulkSendMonth] = useState(AVAILABLE_MONTHS[0]?.yyyymm || '');
+  const [bulkSendChecked, setBulkSendChecked] = useState(new Set());  // クライアント名のSet
+  const [bulkSendCc, setBulkSendCc] = useState({});      // { clientName: ccEmail }
+  const [bulkSendStatus, setBulkSendStatus] = useState({}); // { clientName: 'idle'|'sending'|'sent'|'error' }
+  const [bulkSending, setBulkSending] = useState(false);
   const [droppedFileName, setDroppedFileName] = useState('');
   useEffect(() => {
     setShowRecordingDetail(false);
@@ -476,6 +483,124 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     } finally {
       setInvoiceExporting(false);
     }
+  };
+
+  // ── 請求書PDF生成（Base64返却用） ──────────────────────────
+  const generateInvoicePdfBase64 = async (clientName, month) => {
+    const client = clientData.find(c => c.company === clientName);
+    if (!client) throw new Error('クライアントが見つかりません');
+    const rm = rewardMaster.find(r => r.id === client.rewardType);
+    const taxType = rm?.tax || '税別';
+    const isTaxExcl = taxType === '税別';
+
+    const targetAppos = appoData.filter(a =>
+      a.status === '面談済' && a.client === clientName && a.meetDate && a.meetDate.slice(0, 7) === month
+    );
+    const items = targetAppos.map(a => {
+      const raw = a.sales || 0;
+      const unitPrice = isTaxExcl ? Math.round(raw / 1.1) : raw;
+      return { company: a.company, quantity: 1, unitPrice, amount: unitPrice };
+    });
+    if (items.length === 0) throw new Error('対象の面談済アポがありません');
+
+    const subtotal = items.reduce((s, it) => s + it.amount, 0);
+    const tax = isTaxExcl ? Math.floor(subtotal * 0.1) : Math.floor(subtotal - subtotal / 1.1);
+    const total = isTaxExcl ? subtotal + tax : subtotal;
+    const monthNum = parseInt(month.split('-')[1], 10);
+    const monthLabel = monthNum + '月';
+    const [y, m] = month.split('-').map(Number);
+    const nextMonth = m === 12 ? new Date(y + 1, 0, 1) : new Date(y, m, 1);
+    const issueDate = `${nextMonth.getFullYear()}年${String(nextMonth.getMonth() + 1).padStart(2, '0')}月01日`;
+    const clientIdx = clientData.filter(c => c.status === '支援中').findIndex(c => c.company === clientName);
+    const invoiceNumber = `${nextMonth.getFullYear()}${String(nextMonth.getMonth() + 1).padStart(2, '0')}01-${String((clientIdx >= 0 ? clientIdx : 0) + 1).padStart(3, '0')}`;
+    const paySite = client.paySite || '';
+    let paymentDeadline = '';
+    if (paySite.includes('翌月15日')) {
+      const pd = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 15);
+      paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月15日`;
+    } else if (paySite.includes('翌月末')) {
+      const pd = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 2, 0);
+      paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
+    } else if (paySite.includes('翌々月')) {
+      const pd = paySite.includes('15日')
+        ? new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 2, 15)
+        : new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 3, 0);
+      paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
+    } else {
+      const pd = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0);
+      paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
+    }
+
+    const { default: InvoicePDF } = await import('./InvoicePDF');
+    const ReactDOM = await import('react-dom/client');
+    const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    document.body.appendChild(container);
+    const root = ReactDOM.createRoot(container);
+    root.render(
+      <InvoicePDF clientName={clientName} month={monthLabel} items={items}
+        subtotal={subtotal} tax={tax} total={total} taxType={taxType}
+        invoiceNumber={invoiceNumber} issueDate={issueDate} paymentDeadline={paymentDeadline} />
+    );
+    await new Promise(resolve => setTimeout(resolve, 600));
+
+    const { default: html2canvas } = await import('html2canvas');
+    const { jsPDF } = await import('jspdf');
+    const el = document.getElementById('invoice-pdf-page');
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' });
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 210, 297);
+
+    // Base64取得
+    const pdfBase64 = pdf.output('datauristring').split(',')[1];
+    const filename = `業務委託料_${monthLabel}分_${clientName} 御中.pdf`;
+
+    root.unmount();
+    document.body.removeChild(container);
+    return { pdfBase64, filename, monthLabel };
+  };
+
+  // ── 一斉送信ロジック ──────────────────────────────────────
+  const handleBulkSend = async () => {
+    if (bulkSendChecked.size === 0 || bulkSending) return;
+    const targets = [...bulkSendChecked];
+    const noEmail = targets.filter(name => {
+      const c = clientData.find(cl => cl.company === name);
+      return !c?.clientEmail;
+    });
+    if (noEmail.length > 0) {
+      alert(`以下のクライアントにメールアドレスが設定されていません:\n${noEmail.join('\n')}`);
+      return;
+    }
+    if (!window.confirm(`${targets.length}社に請求書メールを送信します。よろしいですか？`)) return;
+
+    setBulkSending(true);
+    const monthNum = parseInt(bulkSendMonth.split('-')[1], 10);
+    const monthLabel = monthNum + '月';
+
+    for (const clientName of targets) {
+      setBulkSendStatus(prev => ({ ...prev, [clientName]: 'sending' }));
+      try {
+        const { pdfBase64, filename } = await generateInvoicePdfBase64(clientName, bulkSendMonth);
+        const client = clientData.find(c => c.company === clientName);
+        const emailBody = `${clientName} 様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\nこのたび、${monthLabel}分の請求書を添付にてお送り申し上げます。\n記載日までに、下記口座へお振込みいただけますと幸甚に存じます。\n\n― 振込先口座 ―\n GMOあおぞらネット銀行　法人営業部（101）\n 普通預金　2370528\n M&Aソーシングパートナーズ株式会社\n\n今後とも、貴社にとって有益となるアポイントの取得に尽力してまいりますので、変わらぬご高配を賜れますようお願い申し上げます。\n何卒よろしくお願い申し上げます。\n\nMASP 篠宮`;
+
+        const { error } = await invokeSendEmail({
+          to: client.clientEmail,
+          subject: `業務委託料_${monthLabel}分`,
+          body: emailBody,
+          cc: bulkSendCc[clientName] || undefined,
+          attachments: [{ filename, data: pdfBase64, mimeType: 'application/pdf' }],
+        });
+        setBulkSendStatus(prev => ({ ...prev, [clientName]: error ? 'error' : 'sent' }));
+      } catch (e) {
+        console.error(`[bulkSend] ${clientName}:`, e);
+        setBulkSendStatus(prev => ({ ...prev, [clientName]: 'error' }));
+      }
+    }
+    setBulkSending(false);
   };
 
   const handleTranscribeDetail = async () => {
@@ -769,6 +894,18 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               onMouseLeave={e => { e.currentTarget.style.background = "#fff"; }}
             >請求書作成</button>
           )}
+          {setAppoData && (
+            <button onClick={() => { setBulkSendModal(true); setBulkSendChecked(new Set()); setBulkSendStatus({}); setBulkSendCc({}); }}
+              style={{
+                padding: "8px 16px", borderRadius: 4,
+                background: "#fff", border: "1px solid #0D2247",
+                color: '#0D2247', cursor: "pointer", fontSize: 11, fontWeight: 500,
+                fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = "#F0F4FF"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "#fff"; }}
+            >請求書一斉送信</button>
+          )}
         </div>
       </div>
 
@@ -948,6 +1085,129 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         })}
         </div>
       </div>
+
+      {/* Bulk Send Modal */}
+      {bulkSendModal && setAppoData && (() => {
+        const monthAppos = appoData.filter(a => a.status === '面談済' && a.meetDate && a.meetDate.slice(0, 7) === bulkSendMonth);
+        const clientNames = [...new Set(monthAppos.map(a => a.client))].filter(Boolean).sort();
+        const clientInfos = clientNames.map(name => {
+          const c = clientData.find(cl => cl.company === name);
+          const rm = c ? rewardMaster.find(r => r.id === c.rewardType) : null;
+          const isTaxExcl = (rm?.tax || '税別') === '税別';
+          const appos = monthAppos.filter(a => a.client === name);
+          const subtotal = appos.reduce((s, a) => s + (isTaxExcl ? Math.round((a.sales || 0) / 1.1) : (a.sales || 0)), 0);
+          const total = isTaxExcl ? subtotal + Math.floor(subtotal * 0.1) : subtotal;
+          return { name, email: c?.clientEmail || '', count: appos.length, total };
+        });
+        const allChecked = clientInfos.length > 0 && clientInfos.every(ci => bulkSendChecked.has(ci.name));
+        const monthNum = parseInt(bulkSendMonth.split('-')[1], 10);
+        const statusLabel = { idle: '', sending: '送信中...', sent: '送信済', error: '失敗' };
+        const statusColor = { idle: '', sending: '#F59E0B', sent: '#10B981', error: '#EF4444' };
+
+        return (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 780, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+              <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15, flexShrink: 0 }}>
+                請求書一斉送信
+              </div>
+              <div style={{ padding: "20px 24px", overflowY: 'auto', flex: 1 }}>
+                {/* 月選択 */}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>対象月</label>
+                  <select value={bulkSendMonth} onChange={e => { setBulkSendMonth(e.target.value); setBulkSendChecked(new Set()); setBulkSendStatus({}); }}
+                    style={{ padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none" }}>
+                    {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
+                  </select>
+                </div>
+
+                {/* クライアント一覧テーブル */}
+                <div style={{ border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 180px 60px 100px 160px 70px', gap: 0, background: '#F3F4F6', padding: '6px 10px', fontSize: 10, fontWeight: 600, color: '#374151', alignItems: 'center' }}>
+                    <span style={{ display: 'flex', justifyContent: 'center' }}>
+                      <input type="checkbox" checked={allChecked} onChange={() => {
+                        if (allChecked) setBulkSendChecked(new Set());
+                        else setBulkSendChecked(new Set(clientInfos.map(ci => ci.name)));
+                      }} style={{ cursor: 'pointer' }} />
+                    </span>
+                    <span>クライアント</span>
+                    <span>メールアドレス</span>
+                    <span style={{ textAlign: 'center' }}>件数</span>
+                    <span style={{ textAlign: 'right' }}>請求金額</span>
+                    <span style={{ paddingLeft: 8 }}>CC（任意）</span>
+                    <span style={{ textAlign: 'center' }}>状態</span>
+                  </div>
+                  {clientInfos.length === 0 ? (
+                    <div style={{ padding: '20px 10px', textAlign: 'center', fontSize: 11, color: C.textLight }}>対象クライアントがありません</div>
+                  ) : clientInfos.map(ci => {
+                    const st = bulkSendStatus[ci.name] || 'idle';
+                    return (
+                      <div key={ci.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 180px 60px 100px 160px 70px', gap: 4, padding: '6px 10px', borderTop: '1px solid #E5E7EB', alignItems: 'center', fontSize: 11 }}>
+                        <span style={{ display: 'flex', justifyContent: 'center' }}>
+                          <input type="checkbox" checked={bulkSendChecked.has(ci.name)} disabled={st === 'sent'}
+                            onChange={() => setBulkSendChecked(prev => { const next = new Set(prev); if (next.has(ci.name)) next.delete(ci.name); else next.add(ci.name); return next; })}
+                            style={{ cursor: st === 'sent' ? 'default' : 'pointer' }} />
+                        </span>
+                        <span style={{ fontWeight: 500, color: '#0D2247' }}>{ci.name}</span>
+                        <span style={{ fontSize: 10, color: ci.email ? '#374151' : '#EF4444' }}>{ci.email || '未設定'}</span>
+                        <span style={{ textAlign: 'center', fontFamily: "'JetBrains Mono'", color: '#0D2247' }}>{ci.count}</span>
+                        <span style={{ textAlign: 'right', fontFamily: "'JetBrains Mono'", fontWeight: 600, color: '#0D2247' }}>{formatCurrency(ci.total)}</span>
+                        <input value={bulkSendCc[ci.name] || ''} onChange={e => setBulkSendCc(prev => ({ ...prev, [ci.name]: e.target.value }))}
+                          placeholder="CC" disabled={st === 'sent'}
+                          style={{ padding: '3px 6px', borderRadius: 3, border: '1px solid ' + C.border, fontSize: 10, fontFamily: "'Noto Sans JP'", outline: 'none' }} />
+                        <span style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: statusColor[st] }}>{statusLabel[st]}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* メール本文プレビュー */}
+                <div style={{ marginTop: 16, padding: 12, background: '#F8F9FA', borderRadius: 4, border: '1px solid #E5E7EB' }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 6 }}>メール本文（プレビュー）</div>
+                  <pre style={{ fontSize: 10, color: '#374151', lineHeight: 1.6, fontFamily: "'Noto Sans JP'", whiteSpace: 'pre-wrap', margin: 0 }}>
+{`〇〇 様
+
+お世話になっております。
+M&Aソーシングパートナーズの篠宮でございます。
+
+このたび、${monthNum}月分の請求書を添付にてお送り申し上げます。
+記載日までに、下記口座へお振込みいただけますと幸甚に存じます。
+
+― 振込先口座 ―
+ GMOあおぞらネット銀行　法人営業部（101）
+ 普通預金　2370528
+ M&Aソーシングパートナーズ株式会社
+
+今後とも、貴社にとって有益となるアポイントの取得に尽力してまいりますので、
+変わらぬご高配を賜れますようお願い申し上げます。
+何卒よろしくお願い申し上げます。
+
+MASP 篠宮`}
+                  </pre>
+                  <div style={{ fontSize: 9, color: '#9CA3AF', marginTop: 4 }}>※「〇〇」は各クライアント名に自動置換されます</div>
+                </div>
+              </div>
+              <div style={{ padding: "12px 24px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 10, color: '#6B7280' }}>{bulkSendChecked.size}社選択中</span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setBulkSendModal(false)}
+                    style={{ padding: "8px 16px", borderRadius: 4, border: "1px solid #0D2247", background: '#fff', cursor: "pointer", fontSize: 11, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'" }}>
+                    閉じる
+                  </button>
+                  <button onClick={handleBulkSend} disabled={bulkSendChecked.size === 0 || bulkSending}
+                    style={{
+                      padding: "8px 16px", borderRadius: 4, border: "none",
+                      background: (bulkSendChecked.size === 0 || bulkSending) ? '#9CA3AF' : '#0D2247',
+                      cursor: (bulkSendChecked.size === 0 || bulkSending) ? 'default' : 'pointer',
+                      fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
+                    }}>
+                    {bulkSending ? '送信中...' : '一斉送信'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Invoice Modal */}
       {invoiceModal && setAppoData && (() => {

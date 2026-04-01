@@ -308,13 +308,13 @@ export async function updateEmailStatus(supaId, emailStatus, extra = {}) {
   return error
 }
 
-export async function invokeSendEmail({ to, subject, body, cc, bcc }) {
+export async function invokeSendEmail({ to, subject, body, cc, bcc, attachments }) {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'apikey': anonKey, 'Authorization': `Bearer ${anonKey}` },
-    body: JSON.stringify({ to, subject, body, cc, bcc }),
+    body: JSON.stringify({ to, subject, body, cc, bcc, attachments }),
   })
   const data = await res.json()
   if (!res.ok) return { data: null, error: data.error || `送信失敗: ${res.status}` }
