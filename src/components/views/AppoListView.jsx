@@ -113,8 +113,14 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
     if (isChat) {
       // Slack/Chatwork: 本文のみ（宛先・件名不要）
       const clientLabel = cl?.company || appo.client || '';
+      // Slackの場合、担当者のメンションを先頭に挿入
+      const contacts = cl?._supaId ? (contactsByClient[cl._supaId] || []) : [];
+      const mentions = isSlack
+        ? contacts.filter(ct => ct.slackMemberId).map(ct => `<@${ct.slackMemberId}>`).join(' ')
+        : '';
+      const mentionLine = mentions ? `${mentions}\n` : '';
       setEmailBody(
-        `${clientLabel} 様\n\n` +
+        `${mentionLine}${clientLabel} 様\n\n` +
         `お世話になっております。\n` +
         `M&Aソーシングパートナーズの篠宮でございます。\n\n` +
         `下記企業のアポイントを取得いたしましたので、ご報告申し上げます。\n\n` +

@@ -61,7 +61,7 @@ export function useSpanaviData(authOrgId) {
       const contactsByClient = {}
       clientContacts.forEach(cc => {
         if (!contactsByClient[cc.client_id]) contactsByClient[cc.client_id] = []
-        contactsByClient[cc.client_id].push({ id: cc.id, name: cc.name, email: cc.email })
+        contactsByClient[cc.client_id].push({ id: cc.id, name: cc.name, email: cc.email, slackMemberId: cc.slack_member_id || '' })
       })
 
       // clientsのUUID→name マップ（call_listsのclient_id解決用）

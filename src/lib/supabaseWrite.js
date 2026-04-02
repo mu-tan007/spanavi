@@ -351,21 +351,21 @@ export async function invokeSendAppoReport({ channel, text, webhook_url, room_id
 }
 
 // ── クライアント担当者 CRUD ──────────────────────────────────
-export async function insertClientContact(clientId, { name, email }) {
+export async function insertClientContact(clientId, { name, email, slackMemberId }) {
   const orgId = getOrgId()
   const { data, error } = await supabase
     .from('client_contacts')
-    .insert({ org_id: orgId, client_id: clientId, name, email })
+    .insert({ org_id: orgId, client_id: clientId, name, email, slack_member_id: slackMemberId || null })
     .select()
     .single()
   if (error) console.error('[DB] insertClientContact error:', error)
   return { data, error }
 }
 
-export async function updateClientContact(id, { name, email }) {
+export async function updateClientContact(id, { name, email, slackMemberId }) {
   const { error } = await supabase
     .from('client_contacts')
-    .update({ name, email })
+    .update({ name, email, slack_member_id: slackMemberId ?? undefined })
     .eq('id', id)
   if (error) console.error('[DB] updateClientContact error:', error)
   return error

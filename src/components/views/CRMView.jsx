@@ -308,7 +308,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, borderBottom: '2px solid ' + NAVY, paddingBottom: 6 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>担当者</span>
                     {setContactsByClient && !contactAddForm && (
-                      <button onClick={() => setContactAddForm({ name: '', email: '' })}
+                      <button onClick={() => setContactAddForm({ name: '', email: '', slackMemberId: '' })}
                         style={{ padding: '3px 10px', borderRadius: 3, border: '1px solid ' + NAVY, background: '#fff', color: NAVY, fontSize: 10, fontWeight: 500, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
                         ＋ 追加
                       </button>
@@ -327,9 +327,13 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                             {contactEditId === ct.id ? (
                               <>
                                 <input value={contactEditForm.name} onChange={e => setContactEditForm(p => ({ ...p, name: e.target.value }))}
-                                  style={{ ...inputStyle, width: 120 }} placeholder="名前" />
+                                  style={{ ...inputStyle, width: 100 }} placeholder="名前" />
                                 <input value={contactEditForm.email} onChange={e => setContactEditForm(p => ({ ...p, email: e.target.value }))}
                                   style={{ ...inputStyle, flex: 1 }} placeholder="メールアドレス" />
+                                {c.contact === 'Slack' && (
+                                  <input value={contactEditForm.slackMemberId || ''} onChange={e => setContactEditForm(p => ({ ...p, slackMemberId: e.target.value }))}
+                                    style={{ ...inputStyle, width: 110 }} placeholder="Slack ID" />
+                                )}
                                 <button onClick={async () => {
                                   await updateClientContact(ct.id, contactEditForm);
                                   setContactsByClient(prev => ({
@@ -343,11 +347,14 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                               </>
                             ) : (
                               <>
-                                <span style={{ fontSize: 11, fontWeight: 500, color: NAVY, width: 120 }}>{ct.name}</span>
+                                <span style={{ fontSize: 11, fontWeight: 500, color: NAVY, width: 100 }}>{ct.name}</span>
                                 <span style={{ fontSize: 11, color: C.textMid, flex: 1 }}>{ct.email}</span>
+                                {c.contact === 'Slack' && ct.slackMemberId && (
+                                  <span style={{ fontSize: 9, color: '#6B7280', background: '#F3F4F6', padding: '1px 6px', borderRadius: 3 }}>@{ct.slackMemberId}</span>
+                                )}
                                 {setContactsByClient && (
                                   <>
-                                    <button onClick={() => { setContactEditId(ct.id); setContactEditForm({ name: ct.name, email: ct.email }); }}
+                                    <button onClick={() => { setContactEditId(ct.id); setContactEditForm({ name: ct.name, email: ct.email, slackMemberId: ct.slackMemberId || '' }); }}
                                       style={{ border: 'none', background: 'none', cursor: 'pointer', color: NAVY, fontSize: 10 }}>編集</button>
                                     <button onClick={async () => {
                                       if (!window.confirm(`${ct.name}を削除しますか？`)) return;
@@ -366,16 +373,20 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                         {contactAddForm && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
                             <input value={contactAddForm.name} onChange={e => setContactAddForm(p => ({ ...p, name: e.target.value }))}
-                              style={{ ...inputStyle, width: 120 }} placeholder="名前" autoFocus />
+                              style={{ ...inputStyle, width: 100 }} placeholder="名前" autoFocus />
                             <input value={contactAddForm.email} onChange={e => setContactAddForm(p => ({ ...p, email: e.target.value }))}
                               style={{ ...inputStyle, flex: 1 }} placeholder="メールアドレス" />
+                            {c.contact === 'Slack' && (
+                              <input value={contactAddForm.slackMemberId || ''} onChange={e => setContactAddForm(p => ({ ...p, slackMemberId: e.target.value }))}
+                                style={{ ...inputStyle, width: 110 }} placeholder="Slack ID" />
+                            )}
                             <button onClick={async () => {
                               if (!contactAddForm.name || !contactAddForm.email) return;
                               const { data } = await insertClientContact(c._supaId, contactAddForm);
                               if (data) {
                                 setContactsByClient(prev => ({
                                   ...prev,
-                                  [c._supaId]: [...(prev[c._supaId] || []), { id: data.id, name: data.name, email: data.email }],
+                                  [c._supaId]: [...(prev[c._supaId] || []), { id: data.id, name: data.name, email: data.email, slackMemberId: data.slack_member_id || '' }],
                                 }));
                               }
                               setContactAddForm(null);
