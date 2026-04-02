@@ -390,7 +390,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                                   style={{ ...inputStyle, width: 110 }} placeholder="Slack ID" />
                               )}
                               <button onClick={async () => {
-                                if (!contactAddForm.name || !contactAddForm.email) return;
+                                if (!contactAddForm.name) return;
                                 const { data } = await insertClientContact(c._supaId, contactAddForm);
                                 if (data) {
                                   setContactsByClient(prev => ({
