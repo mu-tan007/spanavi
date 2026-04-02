@@ -78,6 +78,7 @@ export function MemberSuggestInput({ value, onChange, members = [], style, place
 function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, onStatusUpdate }) {
   const [emailStep, setEmailStep] = React.useState('idle'); // 'idle' | 'compose' | 'sending' | 'sent' | 'error'
   const [emailTo, setEmailTo] = React.useState('');
+  const [emailCc, setEmailCc] = React.useState('');
   const [emailSubject, setEmailSubject] = React.useState('');
   const [emailBody, setEmailBody] = React.useState('');
   const [sendError, setSendError] = React.useState('');
@@ -117,15 +118,21 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
       `ご確認のほど、よろしくお願いいたします。\n\n` +
       `MASP 篠宮`
     );
+    setEmailCc('');
     setSendError('');
     setEmailStep('compose');
   };
+
+  // CC候補（宛先に選ばれていない担当者）
+  const ccOptions = React.useMemo(() => {
+    return emailOptions.filter(o => o.email !== emailTo);
+  }, [emailOptions, emailTo]);
 
   const handleSend = async () => {
     if (!emailTo) { setSendError('宛先メールアドレスを入力してください'); return; }
     setEmailStep('sending');
     setSendError('');
-    const { error } = await invokeSendEmail({ to: emailTo, subject: emailSubject, body: emailBody });
+    const { error } = await invokeSendEmail({ to: emailTo, subject: emailSubject, body: emailBody, cc: emailCc || undefined });
     if (error) {
       setSendError(typeof error === 'string' ? error : error.message || '送信に失敗しました');
       setEmailStep('compose');
@@ -181,6 +188,17 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
             ) : null}
             {(emailOptions.length === 0 || emailTo === '' || !emailOptions.some(o => o.email === emailTo)) && (
               <input value={emailTo} onChange={e => setEmailTo(e.target.value)} placeholder="client@example.com" style={{ ...iStyle, marginTop: emailOptions.length > 0 ? 4 : 0 }} />
+            )}
+          </div>
+          <div style={{ marginBottom: 6 }}>
+            <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>CC</label>
+            {ccOptions.length > 0 ? (
+              <select value={emailCc} onChange={e => setEmailCc(e.target.value)} style={iStyle}>
+                <option value="">なし</option>
+                {ccOptions.map((opt, i) => <option key={i} value={opt.email}>{opt.label}</option>)}
+              </select>
+            ) : (
+              <input value={emailCc} onChange={e => setEmailCc(e.target.value)} placeholder="cc@example.com（任意）" style={iStyle} />
             )}
           </div>
           <div style={{ marginBottom: 6 }}>
