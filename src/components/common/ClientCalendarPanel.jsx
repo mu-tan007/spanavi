@@ -9,6 +9,7 @@ const MINE_COLOR = '#3B82F6';      // 自分のbusy: 青
 const CLIENT_COLOR = '#F59E0B';    // クライアントのbusy: オレンジ
 const BOTH_COLOR = '#EF4444';      // 両方busy: 赤
 const FREE_COLOR = '#D1FAE5';      // 両方空き: 緑
+const APPO_COLOR = '#8B5CF6';      // 登録済みアポ: 紫
 
 /**
  * クライアント＋自分のGoogleカレンダーを並べて表示するパネル
@@ -19,7 +20,7 @@ const FREE_COLOR = '#D1FAE5';      // 両方空き: 緑
  *   onSelectSlot     - (date, time) => void  空きスロットクリック時
  *   compact          - boolean  コンパクト表示モード
  */
-export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, onSelectSlot, onConfigureCalendar, compact = false }) {
+export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, onSelectSlot, onConfigureCalendar, existingAppointments = [], compact = false }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -178,12 +179,11 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, o
             <button onClick={() => setWeekOffset(0)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 10, color: '#6B7280', textDecoration: 'underline' }}>今週</button>
           )}
         </div>
-        {clientCalendarId && (
-          <div style={{ display: 'flex', gap: 8, fontSize: 9 }}>
-            <span><span style={{ display: 'inline-block', width: 8, height: 8, background: CLIENT_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>予定あり</span>
-            <span><span style={{ display: 'inline-block', width: 8, height: 8, background: FREE_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>空き</span>
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: 8, fontSize: 9 }}>
+          {clientCalendarId && <span><span style={{ display: 'inline-block', width: 8, height: 8, background: CLIENT_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>予定あり</span>}
+          <span><span style={{ display: 'inline-block', width: 8, height: 8, background: APPO_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle', opacity: 0.5 }}></span>アポ済</span>
+          {clientCalendarId && <span><span style={{ display: 'inline-block', width: 8, height: 8, background: FREE_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>空き</span>}
+        </div>
       </div>
 
       {loading && <div style={{ padding: 12, textAlign: 'center', fontSize: 11, color: '#6B7280' }}>読み込み中...</div>}
@@ -215,16 +215,18 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, o
                 const past = isPast(slot.startISO);
                 const mBusy = isBusyIn(myBusy, slot.startISO, slot.endISO);
                 const cBusy = isBusyIn(clientBusy, slot.startISO, slot.endISO);
+                const appo = existingAppointments.find(a => a.meetDate === d.dateStr && a.meetTime === slot.startLabel);
 
                 let bg = '#fff';
                 let cursor = 'pointer';
                 if (past) { bg = '#F9FAFB'; cursor = 'default'; }
+                else if (appo) { bg = APPO_COLOR + '18'; cursor = 'default'; }
                 else if (mBusy && cBusy) { bg = BOTH_COLOR + '20'; cursor = 'default'; }
                 else if (mBusy) { bg = MINE_COLOR + '20'; cursor = 'default'; }
                 else if (cBusy) { bg = CLIENT_COLOR + '20'; cursor = 'default'; }
                 else { bg = FREE_COLOR; }
 
-                const canSelect = !past && !mBusy && !cBusy;
+                const canSelect = !past && !mBusy && !cBusy && !appo;
 
                 return (
                   <div key={d.dateStr}
@@ -237,14 +239,23 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, o
                       cursor,
                       position: 'relative',
                       transition: 'background 0.1s',
+                      overflow: 'hidden',
                     }}
                     onMouseEnter={e => { if (canSelect) e.currentTarget.style.background = '#A7F3D0'; }}
                     onMouseLeave={e => { if (canSelect) e.currentTarget.style.background = FREE_COLOR; }}
-                    title={past ? '過去' : mBusy && cBusy ? '両方予定あり' : mBusy ? '自分: 予定あり' : cBusy ? 'クライアント: 予定あり' : `${d.label} ${slot.startLabel} - 空き`}
+                    title={appo ? `アポ: ${appo.isOnline ? 'オンライン' : appo.meetLocation || ''}` : past ? '過去' : mBusy && cBusy ? '両方予定あり' : mBusy ? '自分: 予定あり' : cBusy ? 'クライアント: 予定あり' : `${d.label} ${slot.startLabel} - 空き`}
                   >
-                    {mBusy && !cBusy && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: MINE_COLOR, opacity: 0.25 }} />}
-                    {cBusy && !mBusy && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: CLIENT_COLOR, opacity: 0.25 }} />}
-                    {mBusy && cBusy && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: BOTH_COLOR, opacity: 0.2 }} />}
+                    {appo && (
+                      <>
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: APPO_COLOR, opacity: 0.2 }} />
+                        <span style={{ position: 'absolute', top: 0, left: 2, fontSize: compact ? 6 : 7, color: '#5B21B6', fontWeight: 700, lineHeight: compact ? '16px' : '20px', whiteSpace: 'nowrap' }}>
+                          {appo.isOnline ? 'オンライン' : (appo.meetLocation || '').replace(/[都府県]$/, '')}
+                        </span>
+                      </>
+                    )}
+                    {!appo && mBusy && !cBusy && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: MINE_COLOR, opacity: 0.25 }} />}
+                    {!appo && cBusy && !mBusy && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: CLIENT_COLOR, opacity: 0.25 }} />}
+                    {!appo && mBusy && cBusy && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: BOTH_COLOR, opacity: 0.2 }} />}
                   </div>
                 );
               })}

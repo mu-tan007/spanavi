@@ -270,6 +270,10 @@ export async function insertAppointment(data) {
       item_id: data.item_id || null,
       phone: data.phone || null,
       recording_url: data.recording_url || null,
+      meeting_time: data.meetTime || null,
+      meeting_location: data.meetLocation || null,
+      is_online: data.isOnline || false,
+      gcal_event_id: data.gcalEventId || null,
     })
     .select()
     .single()

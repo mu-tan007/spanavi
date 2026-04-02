@@ -7,12 +7,13 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, updateClientCalendarId } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, updateClientCalendarId, insertAppointment } from '../../lib/supabaseWrite';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
 import AppoReportModal from './AppoReportModal';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import ClientCalendarPanel from '../common/ClientCalendarPanel';
+import QuickAppoModal from '../common/QuickAppoModal';
 import { renderMarkedScript } from '../../utils/scriptMarker';
 
 // ============================================================
@@ -28,7 +29,7 @@ const _cfRealCloseSet = new Set(); // sessionId → リアルクローズ時にa
 const PREFS = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 const extractPref = (address) => PREFS.find(p => address?.startsWith(p)) || '';
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {} }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, ceoConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -72,6 +73,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [lastDialedPhone, setLastDialedPhone] = useState(null);
   const [activeRecordingId, setActiveRecordingId] = useState(null);
   const [overrideCalendarId, setOverrideCalendarId] = useState(null);
+  const [quickAppoSlot, setQuickAppoSlot] = useState(null); // { date, time }
   const [qaData, setQaData] = useState(null);
   const [qaSubTab, setQaSubTab] = useState('reception');
   const PAGE_SIZE = 30;
@@ -1258,6 +1260,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   const err = await updateClientCalendarId(cl._supaId, calId);
                   if (!err) setOverrideCalendarId(calId);
                 }}
+                onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
+                existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
               />;
             })()}
           </div>
@@ -1291,6 +1295,31 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           members={members}
         />
       )}
+
+      {/* ─── カレンダーからの簡易アポ登録モーダル ─── */}
+      {quickAppoSlot && selectedRow && (() => {
+        const cl = (clientData || []).find(c => c.company === list.company);
+        const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
+        return (
+          <QuickAppoModal
+            date={quickAppoSlot.date}
+            time={quickAppoSlot.time}
+            row={selectedRow}
+            list={list}
+            clientInfo={cl ? { _supaId: cl._supaId, slackWebhookUrl: cl.slackWebhookUrl, googleCalendarId: overrideCalendarId || cl.googleCalendarId } : null}
+            contacts={contacts}
+            currentUser={currentUser}
+            onClose={() => setQuickAppoSlot(null)}
+            onSave={async (data) => {
+              const { result } = await insertAppointment(data);
+              if (result && setAppoData) {
+                setAppoData(prev => [{ ...data, _supaId: result.id, gcalEventId: data.gcalEventId }, ...prev]);
+              }
+              setQuickAppoSlot(null);
+            }}
+          />
+        );
+      })()}
     </div>
   ); } // OLD_UI_END
 
@@ -1865,6 +1894,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   const err = await updateClientCalendarId(cl._supaId, calId);
                   if (!err) setOverrideCalendarId(calId);
                 }}
+                onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
+                existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
               />;
             })()}
           </div>
@@ -1960,6 +1991,31 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           </div>
         </div>
       )}
+
+      {/* ─── カレンダーからの簡易アポ登録モーダル（フォーカスモード用） ─── */}
+      {quickAppoSlot && selectedRow && (() => {
+        const cl = (clientData || []).find(c => c.company === list.company);
+        const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
+        return (
+          <QuickAppoModal
+            date={quickAppoSlot.date}
+            time={quickAppoSlot.time}
+            row={selectedRow}
+            list={list}
+            clientInfo={cl ? { _supaId: cl._supaId, slackWebhookUrl: cl.slackWebhookUrl, googleCalendarId: overrideCalendarId || cl.googleCalendarId } : null}
+            contacts={contacts}
+            currentUser={currentUser}
+            onClose={() => setQuickAppoSlot(null)}
+            onSave={async (data) => {
+              const { result } = await insertAppointment(data);
+              if (result && setAppoData) {
+                setAppoData(prev => [{ ...data, _supaId: result.id, gcalEventId: data.gcalEventId }, ...prev]);
+              }
+              setQuickAppoSlot(null);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

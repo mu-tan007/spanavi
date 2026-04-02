@@ -164,6 +164,9 @@ export function useSpanaviData(authOrgId) {
         emailApprovedAt: a.email_approved_at || null,
         emailSentAt: a.email_sent_at || null,
         gcalEventId: a.gcal_event_id || null,
+        meetTime: a.meeting_time || '',
+        meetLocation: a.meeting_location || '',
+        isOnline: a.is_online || false,
         list_id: a.list_id || null,
         item_id: a.item_id || null,
       }))
