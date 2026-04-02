@@ -191,7 +191,19 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               const callerName = currentUser || '不明';
               const listLabel = [list.company, list.industry].filter(Boolean).join(' - ');
               const rangeLabel = (startNo != null && endNo != null) ? `No.${startNo}〜${endNo}` : '全件';
-              const text = `📞 ${callerName} が「${listLabel}」の${rangeLabel}を架電開始しました`;
+              const conditions = [];
+              if (statusFilter) conditions.push(`ステータス: ${statusFilter}`);
+              if (initialRevenueMin || initialRevenueMax) {
+                const minLabel = initialRevenueMin ? `${(initialRevenueMin / 1000).toLocaleString()}百万` : '';
+                const maxLabel = initialRevenueMax ? `${(initialRevenueMax / 1000).toLocaleString()}百万` : '';
+                conditions.push(`売上高: ${minLabel}${minLabel && maxLabel ? '〜' : ''}${maxLabel}${!minLabel && maxLabel ? '以下' : ''}${minLabel && !maxLabel ? '以上' : ''}`);
+              }
+              if (initialPrefFilter) {
+                const prefs = Array.isArray(initialPrefFilter) ? initialPrefFilter : [initialPrefFilter];
+                if (prefs.length > 0) conditions.push(`都道府県: ${prefs.join(', ')}`);
+              }
+              const condLabel = conditions.length > 0 ? `\n絞り込み: ${conditions.join(' / ')}` : '';
+              const text = `📞 ${callerName} が「${listLabel}」の${rangeLabel}を架電開始しました${condLabel}`;
               const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
               const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
               if (supabaseUrl && supabaseKey) {
