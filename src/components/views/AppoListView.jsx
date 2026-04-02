@@ -334,6 +334,13 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [invoiceClient, setInvoiceClient] = useState('');
   const [invoiceItems, setInvoiceItems] = useState([]);   // [{ company, quantity, unitPrice, amount }]
   const [invoiceExporting, setInvoiceExporting] = useState(false);
+  const [invoiceIssueDate, setInvoiceIssueDate] = useState(() => {
+    const mm = AVAILABLE_MONTHS[0]?.yyyymm || '';
+    if (!mm) return '';
+    const [y, m] = mm.split('-').map(Number);
+    const d = m === 12 ? new Date(y + 1, 0, 1) : new Date(y, m, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
   // ── 請求書一斉送信 ──
   const [bulkSendModal, setBulkSendModal] = useState(false);
   const [bulkSendMonth, setBulkSendMonth] = useState(AVAILABLE_MONTHS[0]?.yyyymm || '');
@@ -527,14 +534,14 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       const monthNum = parseInt(invoiceMonth.split('-')[1], 10);
       const monthLabel = monthNum + '月';
 
-      // 発行日: 対象月の翌月1日
+      // 発行日: ユーザー選択の日付を使用
       const [y, m] = invoiceMonth.split('-').map(Number);
-      const nextMonth = m === 12 ? new Date(y + 1, 0, 1) : new Date(y, m, 1);
-      const issueDate = `${nextMonth.getFullYear()}年${String(nextMonth.getMonth() + 1).padStart(2, '0')}月01日`;
+      const [iy, im, id] = invoiceIssueDate.split('-').map(Number);
+      const issueDate = `${iy}年${String(im).padStart(2, '0')}月${String(id).padStart(2, '0')}日`;
 
       // 請求番号
       const clientIdx = clientData.filter(c => c.status === '支援中').findIndex(c => c.company === invoiceClient);
-      const invoiceNumber = `${nextMonth.getFullYear()}${String(nextMonth.getMonth() + 1).padStart(2, '0')}01-${String((clientIdx >= 0 ? clientIdx : 0) + 1).padStart(3, '0')}`;
+      const invoiceNumber = `${iy}${String(im).padStart(2, '0')}${String(id).padStart(2, '0')}-${String((clientIdx >= 0 ? clientIdx : 0) + 1).padStart(3, '0')}`;
 
       // 支払期限: 対象月を基準にpaySiteから算出（翌月末をデフォルト）
       let paymentDeadline = '';
@@ -607,7 +614,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   };
 
   // ── 請求書PDF生成（Base64返却用） ──────────────────────────
-  const generateInvoicePdfBase64 = async (clientName, month) => {
+  const generateInvoicePdfBase64 = async (clientName, month, customIssueDate = null) => {
     const client = clientData.find(c => c.company === clientName);
     if (!client) throw new Error('クライアントが見つかりません');
     const rm = rewardMaster.find(r => r.id === client.rewardType);
@@ -630,10 +637,18 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     const monthNum = parseInt(month.split('-')[1], 10);
     const monthLabel = monthNum + '月';
     const [y, m] = month.split('-').map(Number);
-    const nextMonth = m === 12 ? new Date(y + 1, 0, 1) : new Date(y, m, 1);
-    const issueDate = `${nextMonth.getFullYear()}年${String(nextMonth.getMonth() + 1).padStart(2, '0')}月01日`;
+    let issueDate, issueDateForNumber;
+    if (customIssueDate) {
+      const [iy, im, id] = customIssueDate.split('-').map(Number);
+      issueDate = `${iy}年${String(im).padStart(2, '0')}月${String(id).padStart(2, '0')}日`;
+      issueDateForNumber = `${iy}${String(im).padStart(2, '0')}${String(id).padStart(2, '0')}`;
+    } else {
+      const nextMonth = m === 12 ? new Date(y + 1, 0, 1) : new Date(y, m, 1);
+      issueDate = `${nextMonth.getFullYear()}年${String(nextMonth.getMonth() + 1).padStart(2, '0')}月01日`;
+      issueDateForNumber = `${nextMonth.getFullYear()}${String(nextMonth.getMonth() + 1).padStart(2, '0')}01`;
+    }
     const clientIdx = clientData.filter(c => c.status === '支援中').findIndex(c => c.company === clientName);
-    const invoiceNumber = `${nextMonth.getFullYear()}${String(nextMonth.getMonth() + 1).padStart(2, '0')}01-${String((clientIdx >= 0 ? clientIdx : 0) + 1).padStart(3, '0')}`;
+    const invoiceNumber = `${issueDateForNumber}-${String((clientIdx >= 0 ? clientIdx : 0) + 1).padStart(3, '0')}`;
     const paySite = client.paySite || '';
     let paymentDeadline = '';
     if (paySite.includes('翌月15日')) {
@@ -1374,7 +1389,13 @@ MASP 篠宮`}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                   <div>
                     <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>対象月</label>
-                    <select value={invoiceMonth} onChange={e => { setInvoiceMonth(e.target.value); setInvoiceClient(''); setInvoiceItems([]); }}
+                    <select value={invoiceMonth} onChange={e => {
+                      const v = e.target.value;
+                      setInvoiceMonth(v); setInvoiceClient(''); setInvoiceItems([]);
+                      const [yy, mm] = v.split('-').map(Number);
+                      const dd = mm === 12 ? new Date(yy + 1, 0, 1) : new Date(yy, mm, 1);
+                      setInvoiceIssueDate(`${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`);
+                    }}
                       style={{ width: '100%', padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none" }}>
                       {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
                     </select>
@@ -1387,6 +1408,13 @@ MASP 篠宮`}
                       {invoiceClients.map(name => <option key={name} value={name}>{name}</option>)}
                     </select>
                   </div>
+                </div>
+
+                {/* 請求日 */}
+                <div style={{ marginTop: 14 }}>
+                  <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>請求日</label>
+                  <input type="date" value={invoiceIssueDate} onChange={e => setInvoiceIssueDate(e.target.value)}
+                    style={{ padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none" }} />
                 </div>
 
                 {/* 編集可能な明細テーブル */}
