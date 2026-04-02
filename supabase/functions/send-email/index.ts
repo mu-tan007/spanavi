@@ -52,7 +52,7 @@ function buildRawEmail(params: {
   const hasAttachments = params.attachments && params.attachments.length > 0
 
   const headers: string[] = [
-    `From: ${FROM_NAME} <${FROM_EMAIL}>`,
+    `From: ${mimeEncode(FROM_NAME)} <${FROM_EMAIL}>`,
     `To: ${params.to}`,
   ]
   if (params.cc) headers.push(`Cc: ${params.cc}`)
@@ -84,7 +84,7 @@ function buildRawEmail(params: {
     for (const att of params.attachments!) {
       const encodedFilename = mimeEncode(att.filename)
       headers.push(`--${boundary}`)
-      headers.push(`Content-Type: ${att.mimeType}; name="${att.filename}"`)
+      headers.push(`Content-Type: ${att.mimeType}; name="${encodedFilename}"`)
       headers.push('Content-Transfer-Encoding: base64')
       headers.push(`Content-Disposition: attachment; filename*=UTF-8''${encodeURIComponent(att.filename)}; filename="${encodedFilename}"`)
       headers.push('')
@@ -99,7 +99,11 @@ function buildRawEmail(params: {
   }
 
   // base64url エンコード（Gmail API が要求する形式）
-  return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  // raw にマルチバイト文字が残らない前提だが、安全のため UTF-8 バイト列経由でエンコード
+  const rawBytes = new TextEncoder().encode(raw)
+  let binary = ''
+  for (const b of rawBytes) binary += String.fromCharCode(b)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
 Deno.serve(async (req) => {
