@@ -139,8 +139,8 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, o
           {onConfigureCalendar && (
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <input
-                type="email"
-                placeholder="クライアントのGoogleメールアドレス"
+                type="text"
+                placeholder="GoogleカレンダーID"
                 value={configInput}
                 onChange={e => setConfigInput(e.target.value)}
                 style={{ flex: 1, padding: '4px 8px', fontSize: 11, border: '1px solid #D1D5DB', borderRadius: 3, fontFamily: "'Noto Sans JP'" }}
