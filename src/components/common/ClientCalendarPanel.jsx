@@ -20,15 +20,13 @@ const APPO_COLOR = '#8B5CF6';      // 登録済みアポ: 紫
  *   onSelectSlot     - (date, time) => void  空きスロットクリック時
  *   compact          - boolean  コンパクト表示モード
  */
-export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, onSelectSlot, onConfigureCalendar, onConfigureSchedulingUrl, existingAppointments = [], compact = false }) {
+export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, onSelectSlot, existingAppointments = [], compact = false }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [myBusy, setMyBusy] = useState([]);
   const [clientBusy, setClientBusy] = useState([]);
   const [clientErrors, setClientErrors] = useState([]);
-  const [configInput, setConfigInput] = useState('');
-  const [urlInput, setUrlInput] = useState('');
 
   // 7日分の日付リスト
   const days = useMemo(() => {
@@ -115,69 +113,25 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, o
 
   const isPast = (startISO) => new Date(startISO) < new Date();
 
-  // カレンダー未連携: 設定フォーム + 日程調整ツールリンク
+  // カレンダー未連携: 日程調整ツールリンクがあればそれだけ表示、なければメッセージ
   if (!clientCalendarId) {
-    const toolName = schedulingUrl ? (schedulingUrl.includes('timerex') ? 'TimeRex' : schedulingUrl.includes('spir') ? 'Spir' : '日程調整ツール') : null;
-    return (
-      <div style={{ fontFamily: "'Noto Sans JP'", padding: 16 }}>
-        {/* 日程調整ツールリンク */}
-        {schedulingUrl && (
-          <div style={{ marginBottom: 12, padding: '10px 12px', background: '#EFF6FF', borderRadius: 4, border: '1px solid #BFDBFE' }}>
+    if (schedulingUrl) {
+      const toolName = schedulingUrl.includes('timerex') ? 'TimeRex' : schedulingUrl.includes('spir') ? 'Spir' : '日程調整ツール';
+      return (
+        <div style={{ fontFamily: "'Noto Sans JP'", padding: 16 }}>
+          <div style={{ padding: '10px 12px', background: '#EFF6FF', borderRadius: 4, border: '1px solid #BFDBFE' }}>
             <div style={{ fontSize: 11, color: '#1E40AF', marginBottom: 8, fontWeight: 600 }}>{toolName}で日程調整</div>
             <a href={schedulingUrl} target="_blank" rel="noopener noreferrer"
               style={{ display: 'block', padding: '8px 16px', background: NAVY, color: '#fff', borderRadius: 4, fontSize: 12, fontWeight: 600, textDecoration: 'none', textAlign: 'center' }}>
               {toolName}を開く
             </a>
           </div>
-        )}
-
-        {/* GoogleカレンダーID設定 */}
-        <div style={{ padding: '8px 12px', background: '#FEF3C7', borderRadius: 4, fontSize: 11, marginBottom: !schedulingUrl && onConfigureSchedulingUrl ? 8 : 0 }}>
-          <div style={{ color: '#92400E', marginBottom: onConfigureCalendar ? 6 : 0 }}>
-            Googleカレンダー未連携
-          </div>
-          {onConfigureCalendar && (
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <input
-                type="text"
-                placeholder="GoogleカレンダーID"
-                value={configInput}
-                onChange={e => setConfigInput(e.target.value)}
-                style={{ flex: 1, padding: '4px 8px', fontSize: 11, border: '1px solid #D1D5DB', borderRadius: 3, fontFamily: "'Noto Sans JP'" }}
-              />
-              <button
-                onClick={() => { if (configInput.trim()) onConfigureCalendar(configInput.trim()); }}
-                disabled={!configInput.trim()}
-                style={{ padding: '4px 12px', fontSize: 11, fontWeight: 600, background: NAVY, color: '#fff', border: 'none', borderRadius: 3, cursor: configInput.trim() ? 'pointer' : 'default', opacity: configInput.trim() ? 1 : 0.5 }}
-              >
-                設定
-              </button>
-            </div>
-          )}
         </div>
-
-        {/* 日程調整URL設定（未設定時） */}
-        {!schedulingUrl && onConfigureSchedulingUrl && (
-          <div style={{ padding: '8px 12px', background: '#F3F4F6', borderRadius: 4, fontSize: 11 }}>
-            <div style={{ color: '#6B7280', marginBottom: 6 }}>日程調整ツール（TimeRex / Spir）</div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <input
-                type="text"
-                placeholder="日程調整URL"
-                value={urlInput}
-                onChange={e => setUrlInput(e.target.value)}
-                style={{ flex: 1, padding: '4px 8px', fontSize: 11, border: '1px solid #D1D5DB', borderRadius: 3, fontFamily: "'Noto Sans JP'" }}
-              />
-              <button
-                onClick={() => { if (urlInput.trim()) onConfigureSchedulingUrl(urlInput.trim()); }}
-                disabled={!urlInput.trim()}
-                style={{ padding: '4px 12px', fontSize: 11, fontWeight: 600, background: '#6B7280', color: '#fff', border: 'none', borderRadius: 3, cursor: urlInput.trim() ? 'pointer' : 'default', opacity: urlInput.trim() ? 1 : 0.5 }}
-              >
-                設定
-              </button>
-            </div>
-          </div>
-        )}
+      );
+    }
+    return (
+      <div style={{ fontFamily: "'Noto Sans JP'", padding: 16, textAlign: 'center' }}>
+        <div style={{ color: '#9CA3AF', fontSize: 12 }}>カレンダー未連携です。CRMの担当者設定からカレンダーIDまたは日程調整URLを登録してください。</div>
       </div>
     );
   }
