@@ -325,26 +325,34 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                         {contacts.map(ct => (
                           <div key={ct.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid ' + GRAY_200 }}>
                             {contactEditId === ct.id ? (
-                              <>
-                                <input value={contactEditForm.name} onChange={e => setContactEditForm(p => ({ ...p, name: e.target.value }))}
-                                  style={{ ...inputStyle, width: 100 }} placeholder="名前" />
-                                <input value={contactEditForm.email} onChange={e => setContactEditForm(p => ({ ...p, email: e.target.value }))}
-                                  style={{ ...inputStyle, flex: 1 }} placeholder="メールアドレス" />
-                                {c.contact === 'Slack' && (
-                                  <input value={contactEditForm.slackMemberId || ''} onChange={e => setContactEditForm(p => ({ ...p, slackMemberId: e.target.value }))}
-                                    style={{ ...inputStyle, width: 110 }} placeholder="Slack ID" />
-                                )}
-                                <button onClick={async () => {
-                                  await updateClientContact(ct.id, contactEditForm);
-                                  setContactsByClient(prev => ({
-                                    ...prev,
-                                    [c._supaId]: (prev[c._supaId] || []).map(x => x.id === ct.id ? { ...x, ...contactEditForm } : x),
-                                  }));
-                                  setContactEditId(null); setContactEditForm(null);
-                                }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#10B981', fontSize: 12, fontWeight: 700 }}>✓</button>
-                                <button onClick={() => { setContactEditId(null); setContactEditForm(null); }}
-                                  style={{ border: 'none', background: 'none', cursor: 'pointer', color: C.textLight, fontSize: 12 }}>✕</button>
-                              </>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                  <input value={contactEditForm.name} onChange={e => setContactEditForm(p => ({ ...p, name: e.target.value }))}
+                                    style={{ ...inputStyle, width: 100 }} placeholder="名前" />
+                                  <input value={contactEditForm.email} onChange={e => setContactEditForm(p => ({ ...p, email: e.target.value }))}
+                                    style={{ ...inputStyle, flex: 1 }} placeholder="メールアドレス" />
+                                  {c.contact === 'Slack' && (
+                                    <input value={contactEditForm.slackMemberId || ''} onChange={e => setContactEditForm(p => ({ ...p, slackMemberId: e.target.value }))}
+                                      style={{ ...inputStyle, width: 110 }} placeholder="Slack ID" />
+                                  )}
+                                  <button onClick={async () => {
+                                    await updateClientContact(ct.id, contactEditForm);
+                                    setContactsByClient(prev => ({
+                                      ...prev,
+                                      [c._supaId]: (prev[c._supaId] || []).map(x => x.id === ct.id ? { ...x, ...contactEditForm } : x),
+                                    }));
+                                    setContactEditId(null); setContactEditForm(null);
+                                  }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#10B981', fontSize: 12, fontWeight: 700 }}>✓</button>
+                                  <button onClick={() => { setContactEditId(null); setContactEditForm(null); }}
+                                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: C.textLight, fontSize: 12 }}>✕</button>
+                                </div>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <input value={contactEditForm.googleCalendarId || ''} onChange={e => setContactEditForm(p => ({ ...p, googleCalendarId: e.target.value }))}
+                                    style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="GoogleカレンダーID" />
+                                  <input value={contactEditForm.schedulingUrl || ''} onChange={e => setContactEditForm(p => ({ ...p, schedulingUrl: e.target.value }))}
+                                    style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="日程調整URL（TimeRex/Spir）" />
+                                </div>
+                              </div>
                             ) : (
                               <>
                                 <span style={{ fontSize: 11, fontWeight: 500, color: NAVY, width: 100 }}>{ct.name}</span>
@@ -352,9 +360,11 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                                 {c.contact === 'Slack' && ct.slackMemberId && (
                                   <span style={{ fontSize: 9, color: '#6B7280', background: '#F3F4F6', padding: '1px 6px', borderRadius: 3 }}>@{ct.slackMemberId}</span>
                                 )}
+                                {ct.googleCalendarId && <span style={{ fontSize: 9, color: '#1E40AF', background: '#EFF6FF', padding: '1px 6px', borderRadius: 3 }}>GCal</span>}
+                                {ct.schedulingUrl && <span style={{ fontSize: 9, color: '#065F46', background: '#D1FAE5', padding: '1px 6px', borderRadius: 3 }}>{ct.schedulingUrl.includes('timerex') ? 'TimeRex' : ct.schedulingUrl.includes('spir') ? 'Spir' : 'URL'}</span>}
                                 {setContactsByClient && (
                                   <>
-                                    <button onClick={() => { setContactEditId(ct.id); setContactEditForm({ name: ct.name, email: ct.email, slackMemberId: ct.slackMemberId || '' }); }}
+                                    <button onClick={() => { setContactEditId(ct.id); setContactEditForm({ name: ct.name, email: ct.email, slackMemberId: ct.slackMemberId || '', googleCalendarId: ct.googleCalendarId || '', schedulingUrl: ct.schedulingUrl || '' }); }}
                                       style={{ border: 'none', background: 'none', cursor: 'pointer', color: NAVY, fontSize: 10 }}>編集</button>
                                     <button onClick={async () => {
                                       if (!window.confirm(`${ct.name}を削除しますか？`)) return;
@@ -371,28 +381,36 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                           </div>
                         ))}
                         {contactAddForm && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
-                            <input value={contactAddForm.name} onChange={e => setContactAddForm(p => ({ ...p, name: e.target.value }))}
-                              style={{ ...inputStyle, width: 100 }} placeholder="名前" autoFocus />
-                            <input value={contactAddForm.email} onChange={e => setContactAddForm(p => ({ ...p, email: e.target.value }))}
-                              style={{ ...inputStyle, flex: 1 }} placeholder="メールアドレス" />
-                            {c.contact === 'Slack' && (
-                              <input value={contactAddForm.slackMemberId || ''} onChange={e => setContactAddForm(p => ({ ...p, slackMemberId: e.target.value }))}
-                                style={{ ...inputStyle, width: 110 }} placeholder="Slack ID" />
-                            )}
-                            <button onClick={async () => {
-                              if (!contactAddForm.name || !contactAddForm.email) return;
-                              const { data } = await insertClientContact(c._supaId, contactAddForm);
-                              if (data) {
-                                setContactsByClient(prev => ({
-                                  ...prev,
-                                  [c._supaId]: [...(prev[c._supaId] || []), { id: data.id, name: data.name, email: data.email, slackMemberId: data.slack_member_id || '' }],
-                                }));
-                              }
-                              setContactAddForm(null);
-                            }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#10B981', fontSize: 12, fontWeight: 700 }}>✓</button>
-                            <button onClick={() => setContactAddForm(null)}
-                              style={{ border: 'none', background: 'none', cursor: 'pointer', color: C.textLight, fontSize: 12 }}>✕</button>
+                          <div style={{ padding: '6px 0' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                              <input value={contactAddForm.name} onChange={e => setContactAddForm(p => ({ ...p, name: e.target.value }))}
+                                style={{ ...inputStyle, width: 100 }} placeholder="名前" autoFocus />
+                              <input value={contactAddForm.email} onChange={e => setContactAddForm(p => ({ ...p, email: e.target.value }))}
+                                style={{ ...inputStyle, flex: 1 }} placeholder="メールアドレス" />
+                              {c.contact === 'Slack' && (
+                                <input value={contactAddForm.slackMemberId || ''} onChange={e => setContactAddForm(p => ({ ...p, slackMemberId: e.target.value }))}
+                                  style={{ ...inputStyle, width: 110 }} placeholder="Slack ID" />
+                              )}
+                              <button onClick={async () => {
+                                if (!contactAddForm.name || !contactAddForm.email) return;
+                                const { data } = await insertClientContact(c._supaId, contactAddForm);
+                                if (data) {
+                                  setContactsByClient(prev => ({
+                                    ...prev,
+                                    [c._supaId]: [...(prev[c._supaId] || []), { id: data.id, name: data.name, email: data.email, slackMemberId: data.slack_member_id || '', googleCalendarId: data.google_calendar_id || '', schedulingUrl: data.scheduling_url || '' }],
+                                  }));
+                                }
+                                setContactAddForm(null);
+                              }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#10B981', fontSize: 12, fontWeight: 700 }}>✓</button>
+                              <button onClick={() => setContactAddForm(null)}
+                                style={{ border: 'none', background: 'none', cursor: 'pointer', color: C.textLight, fontSize: 12 }}>✕</button>
+                            </div>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <input value={contactAddForm.googleCalendarId || ''} onChange={e => setContactAddForm(p => ({ ...p, googleCalendarId: e.target.value }))}
+                                style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="GoogleカレンダーID" />
+                              <input value={contactAddForm.schedulingUrl || ''} onChange={e => setContactAddForm(p => ({ ...p, schedulingUrl: e.target.value }))}
+                                style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="日程調整URL（TimeRex/Spir）" />
+                            </div>
                           </div>
                         )}
                       </div>

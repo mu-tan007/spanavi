@@ -58,12 +58,12 @@ const LISTVIEW_ARCHIVE_COLS = [
   { key: 'actions', width: 80, align: 'right' },
 ];
 
-export default function ListView({ filteredLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [] }) {
+export default function ListView({ filteredLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [], contactsByClient = {} }) {
   const isMobile = useIsMobile();
   const { columns: lvCols, gridTemplateColumns: lvGrid, contentMinWidth: lvMinW, onResizeStart: lvResize, onHeaderContextMenu: lvCtxMenu, contextMenu: lvCtx, setAlign: lvSetAlign, resetAll: lvReset, closeMenu: lvClose } = useColumnConfig('listView', LISTVIEW_COLS);
   const { columns: arCols, gridTemplateColumns: arGrid, contentMinWidth: arMinW, onResizeStart: arResize, onHeaderContextMenu: arCtxMenu, contextMenu: arCtx, setAlign: arSetAlign, resetAll: arReset, closeMenu: arClose } = useColumnConfig('listViewArchive', LISTVIEW_ARCHIVE_COLS);
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
-  const emptyForm = { company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "" };
+  const emptyForm = { company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", contactId: null, companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "" };
   const [formData, setFormData] = useState(emptyForm);
   const [showRec, setShowRec] = useState(true);
   const [displayFilter, setDisplayFilter] = useState('active');
@@ -98,6 +98,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
     setFormData({
       company: list.company, type: list.type, status: list.status,
       industry: list.industry, count: String(list.count), manager: list.manager,
+      contactId: list.contactId || null,
       companyInfo: list.companyInfo || "", companyUrl: list.companyUrl || "", scriptBody: list.scriptBody || "", cautions: list.cautions || "", notes: list.notes || "",
     });
     setEditingListId(list.id);
@@ -269,7 +270,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 14 }}>
             <div style={{ gridColumn: "span 2" }}>
               <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>クライアント企業名 *</label>
-              <select value={formData.company} onChange={e => setFormData(p => ({ ...p, company: e.target.value }))} style={formInputStyle}>
+              <select value={formData.company} onChange={e => setFormData(p => ({ ...p, company: e.target.value, contactId: null, manager: '' }))} style={formInputStyle}>
                 <option value="">クライアントを選択...</option>
                 {clientOptions.map(c => (
                   <option key={c._supaId || c.company} value={c.company}>
@@ -297,7 +298,22 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
             </div>
             <div>
               <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>クライアント担当者</label>
-              <input value={formData.manager} onChange={e => setFormData(p => ({ ...p, manager: e.target.value }))} style={formInputStyle} placeholder="例: 田中" />
+              {(() => {
+                const selectedClient = clientOptions.find(c => c.company === formData.company);
+                const contacts = selectedClient ? (contactsByClient[selectedClient._supaId] || []) : [];
+                return contacts.length > 0 ? (
+                  <select value={formData.contactId || ''} onChange={e => {
+                    const ctId = e.target.value || null;
+                    const ct = contacts.find(c => c.id === ctId);
+                    setFormData(p => ({ ...p, contactId: ctId, manager: ct?.name || '' }));
+                  }} style={formInputStyle}>
+                    <option value="">担当者を選択...</option>
+                    {contacts.map(ct => <option key={ct.id} value={ct.id}>{ct.name}{ct.googleCalendarId ? ' (GCal)' : ct.schedulingUrl ? ' (URL)' : ''}</option>)}
+                  </select>
+                ) : (
+                  <input value={formData.manager} onChange={e => setFormData(p => ({ ...p, manager: e.target.value }))} style={formInputStyle} placeholder="例: 田中（CRMで担当者を登録すると選択可能）" />
+                );
+              })()}
             </div>
 <div style={{ gridColumn: "span 3" }}>
               <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>企業概要</label>

@@ -63,6 +63,7 @@ export async function updateCallList(supaId, data) {
       rebuttal_data: data.rebuttalData,
       notes: data.notes,
       list_type: data.type,
+      contact_id: data.contactId ?? undefined,
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateCallList error:', error)
@@ -95,6 +96,7 @@ export async function insertCallList(data) {
       notes: data.notes,
       list_type: data.type,
       script_name: data.script,
+      contact_id: data.contactId || null,
     })
     .select()
     .single()
@@ -365,23 +367,43 @@ export async function invokeSendAppoReport({ channel, text, webhook_url, room_id
 }
 
 // ── クライアント担当者 CRUD ──────────────────────────────────
-export async function insertClientContact(clientId, { name, email, slackMemberId }) {
+export async function insertClientContact(clientId, { name, email, slackMemberId, googleCalendarId, schedulingUrl }) {
   const orgId = getOrgId()
   const { data, error } = await supabase
     .from('client_contacts')
-    .insert({ org_id: orgId, client_id: clientId, name, email, slack_member_id: slackMemberId || null })
+    .insert({ org_id: orgId, client_id: clientId, name, email, slack_member_id: slackMemberId || null, google_calendar_id: googleCalendarId || null, scheduling_url: schedulingUrl || null })
     .select()
     .single()
   if (error) console.error('[DB] insertClientContact error:', error)
   return { data, error }
 }
 
-export async function updateClientContact(id, { name, email, slackMemberId }) {
+export async function updateClientContact(id, { name, email, slackMemberId, googleCalendarId, schedulingUrl }) {
   const { error } = await supabase
     .from('client_contacts')
-    .update({ name, email, slack_member_id: slackMemberId ?? undefined })
+    .update({ name, email, slack_member_id: slackMemberId ?? undefined, google_calendar_id: googleCalendarId ?? undefined, scheduling_url: schedulingUrl ?? undefined })
     .eq('id', id)
   if (error) console.error('[DB] updateClientContact error:', error)
+  return error
+}
+
+export async function updateContactCalendarId(contactId, googleCalendarId) {
+  if (!contactId) return null
+  const { error } = await supabase
+    .from('client_contacts')
+    .update({ google_calendar_id: googleCalendarId || null })
+    .eq('id', contactId)
+  if (error) console.error('[DB] updateContactCalendarId error:', error)
+  return error
+}
+
+export async function updateContactSchedulingUrl(contactId, schedulingUrl) {
+  if (!contactId) return null
+  const { error } = await supabase
+    .from('client_contacts')
+    .update({ scheduling_url: schedulingUrl || null })
+    .eq('id', contactId)
+  if (error) console.error('[DB] updateContactSchedulingUrl error:', error)
   return error
 }
 

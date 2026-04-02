@@ -7,7 +7,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, updateClientCalendarId, updateClientSchedulingUrl, insertAppointment } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, updateClientCalendarId, updateClientSchedulingUrl, updateContactCalendarId, updateContactSchedulingUrl, insertAppointment } from '../../lib/supabaseWrite';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
 import AppoReportModal from './AppoReportModal';
@@ -1252,19 +1252,29 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             )}
             {scriptTab === 'calendar' && (() => {
               const cl = (clientData || []).find(c => c.company === list.company);
+              const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
+              const linkedContact = list.contactId ? contacts.find(ct => ct.id === list.contactId) : null;
               return <ClientCalendarPanel
-                clientCalendarId={overrideCalendarId || cl?.googleCalendarId || ''}
-                schedulingUrl={overrideSchedulingUrl || cl?.schedulingUrl || ''}
+                clientCalendarId={overrideCalendarId || linkedContact?.googleCalendarId || cl?.googleCalendarId || ''}
+                schedulingUrl={overrideSchedulingUrl || linkedContact?.schedulingUrl || cl?.schedulingUrl || ''}
                 compact
                 onConfigureCalendar={async (calId) => {
-                  if (!cl?._supaId) return;
-                  const err = await updateClientCalendarId(cl._supaId, calId);
-                  if (!err) setOverrideCalendarId(calId);
+                  if (linkedContact) {
+                    const err = await updateContactCalendarId(linkedContact.id, calId);
+                    if (!err) setOverrideCalendarId(calId);
+                  } else if (cl?._supaId) {
+                    const err = await updateClientCalendarId(cl._supaId, calId);
+                    if (!err) setOverrideCalendarId(calId);
+                  }
                 }}
                 onConfigureSchedulingUrl={async (url) => {
-                  if (!cl?._supaId) return;
-                  const err = await updateClientSchedulingUrl(cl._supaId, url);
-                  if (!err) setOverrideSchedulingUrl(url);
+                  if (linkedContact) {
+                    const err = await updateContactSchedulingUrl(linkedContact.id, url);
+                    if (!err) setOverrideSchedulingUrl(url);
+                  } else if (cl?._supaId) {
+                    const err = await updateClientSchedulingUrl(cl._supaId, url);
+                    if (!err) setOverrideSchedulingUrl(url);
+                  }
                 }}
                 onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                 existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
@@ -1892,18 +1902,28 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             )}
             {scriptTab === 'calendar' && (() => {
               const cl = (clientData || []).find(c => c.company === list.company);
+              const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
+              const linkedContact = list.contactId ? contacts.find(ct => ct.id === list.contactId) : null;
               return <ClientCalendarPanel
-                clientCalendarId={overrideCalendarId || cl?.googleCalendarId || ''}
-                schedulingUrl={overrideSchedulingUrl || cl?.schedulingUrl || ''}
+                clientCalendarId={overrideCalendarId || linkedContact?.googleCalendarId || cl?.googleCalendarId || ''}
+                schedulingUrl={overrideSchedulingUrl || linkedContact?.schedulingUrl || cl?.schedulingUrl || ''}
                 onConfigureCalendar={async (calId) => {
-                  if (!cl?._supaId) return;
-                  const err = await updateClientCalendarId(cl._supaId, calId);
-                  if (!err) setOverrideCalendarId(calId);
+                  if (linkedContact) {
+                    const err = await updateContactCalendarId(linkedContact.id, calId);
+                    if (!err) setOverrideCalendarId(calId);
+                  } else if (cl?._supaId) {
+                    const err = await updateClientCalendarId(cl._supaId, calId);
+                    if (!err) setOverrideCalendarId(calId);
+                  }
                 }}
                 onConfigureSchedulingUrl={async (url) => {
-                  if (!cl?._supaId) return;
-                  const err = await updateClientSchedulingUrl(cl._supaId, url);
-                  if (!err) setOverrideSchedulingUrl(url);
+                  if (linkedContact) {
+                    const err = await updateContactSchedulingUrl(linkedContact.id, url);
+                    if (!err) setOverrideSchedulingUrl(url);
+                  } else if (cl?._supaId) {
+                    const err = await updateClientSchedulingUrl(cl._supaId, url);
+                    if (!err) setOverrideSchedulingUrl(url);
+                  }
                 }}
                 onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                 existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}

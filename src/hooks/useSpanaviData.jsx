@@ -61,7 +61,7 @@ export function useSpanaviData(authOrgId) {
       const contactsByClient = {}
       clientContacts.forEach(cc => {
         if (!contactsByClient[cc.client_id]) contactsByClient[cc.client_id] = []
-        contactsByClient[cc.client_id].push({ id: cc.id, name: cc.name, email: cc.email, slackMemberId: cc.slack_member_id || '' })
+        contactsByClient[cc.client_id].push({ id: cc.id, name: cc.name, email: cc.email, slackMemberId: cc.slack_member_id || '', googleCalendarId: cc.google_calendar_id || '', schedulingUrl: cc.scheduling_url || '' })
       })
 
       // clientsのUUID→name マップ（call_listsのclient_id解決用）
@@ -85,6 +85,7 @@ export function useSpanaviData(authOrgId) {
         script: cl.script_name || '',
         notes: cl.notes || '',
         is_archived: cl.is_archived || false,
+        contactId: cl.contact_id || null,
         created_at: cl.created_at || null,
       }))
 
