@@ -349,8 +349,18 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                                 <div style={{ display: 'flex', gap: 8 }}>
                                   <input value={contactEditForm.googleCalendarId || ''} onChange={e => setContactEditForm(p => ({ ...p, googleCalendarId: e.target.value }))}
                                     style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="GoogleカレンダーID" />
+                                </div>
+                                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                                  <input value={contactEditForm.schedulingLabel || ''} onChange={e => setContactEditForm(p => ({ ...p, schedulingLabel: e.target.value }))}
+                                    style={{ ...inputStyle, width: 80, fontSize: 10 }} placeholder="ラベル1（例: 対面）" />
                                   <input value={contactEditForm.schedulingUrl || ''} onChange={e => setContactEditForm(p => ({ ...p, schedulingUrl: e.target.value }))}
-                                    style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="日程調整URL（TimeRex/Spir）" />
+                                    style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="日程調整URL①" />
+                                </div>
+                                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                                  <input value={contactEditForm.schedulingLabel2 || ''} onChange={e => setContactEditForm(p => ({ ...p, schedulingLabel2: e.target.value }))}
+                                    style={{ ...inputStyle, width: 80, fontSize: 10 }} placeholder="ラベル2（例: WEB）" />
+                                  <input value={contactEditForm.schedulingUrl2 || ''} onChange={e => setContactEditForm(p => ({ ...p, schedulingUrl2: e.target.value }))}
+                                    style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="日程調整URL②（任意）" />
                                 </div>
                               </div>
                             ) : (
@@ -362,7 +372,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                                 )}
                                 {setContactsByClient && (
                                   <>
-                                    <button onClick={() => { setContactEditId(ct.id); setContactEditForm({ name: ct.name, email: ct.email, slackMemberId: ct.slackMemberId || '', googleCalendarId: ct.googleCalendarId || '', schedulingUrl: ct.schedulingUrl || '' }); }}
+                                    <button onClick={() => { setContactEditId(ct.id); setContactEditForm({ name: ct.name, email: ct.email, slackMemberId: ct.slackMemberId || '', googleCalendarId: ct.googleCalendarId || '', schedulingUrl: ct.schedulingUrl || '', schedulingUrl2: ct.schedulingUrl2 || '', schedulingLabel: ct.schedulingLabel || '', schedulingLabel2: ct.schedulingLabel2 || '' }); }}
                                       style={{ border: 'none', background: 'none', cursor: 'pointer', color: NAVY, fontSize: 10 }}>編集</button>
                                     <button onClick={async () => {
                                       if (!window.confirm(`${ct.name}を削除しますか？`)) return;
@@ -395,7 +405,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                                 if (data) {
                                   setContactsByClient(prev => ({
                                     ...prev,
-                                    [c._supaId]: [...(prev[c._supaId] || []), { id: data.id, name: data.name, email: data.email, slackMemberId: data.slack_member_id || '', googleCalendarId: data.google_calendar_id || '', schedulingUrl: data.scheduling_url || '' }],
+                                    [c._supaId]: [...(prev[c._supaId] || []), { id: data.id, name: data.name, email: data.email, slackMemberId: data.slack_member_id || '', googleCalendarId: data.google_calendar_id || '', schedulingUrl: data.scheduling_url || '', schedulingUrl2: data.scheduling_url_2 || '', schedulingLabel: data.scheduling_label || '', schedulingLabel2: data.scheduling_label_2 || '' }],
                                   }));
                                 }
                                 setContactAddForm(null);
@@ -406,8 +416,18 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                             <div style={{ display: 'flex', gap: 8 }}>
                               <input value={contactAddForm.googleCalendarId || ''} onChange={e => setContactAddForm(p => ({ ...p, googleCalendarId: e.target.value }))}
                                 style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="GoogleカレンダーID" />
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                              <input value={contactAddForm.schedulingLabel || ''} onChange={e => setContactAddForm(p => ({ ...p, schedulingLabel: e.target.value }))}
+                                style={{ ...inputStyle, width: 80, fontSize: 10 }} placeholder="ラベル1（例: 対面）" />
                               <input value={contactAddForm.schedulingUrl || ''} onChange={e => setContactAddForm(p => ({ ...p, schedulingUrl: e.target.value }))}
-                                style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="日程調整URL（TimeRex/Spir）" />
+                                style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="日程調整URL①" />
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                              <input value={contactAddForm.schedulingLabel2 || ''} onChange={e => setContactAddForm(p => ({ ...p, schedulingLabel2: e.target.value }))}
+                                style={{ ...inputStyle, width: 80, fontSize: 10 }} placeholder="ラベル2（例: WEB）" />
+                              <input value={contactAddForm.schedulingUrl2 || ''} onChange={e => setContactAddForm(p => ({ ...p, schedulingUrl2: e.target.value }))}
+                                style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="日程調整URL②（任意）" />
                             </div>
                           </div>
                         )}

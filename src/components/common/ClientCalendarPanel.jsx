@@ -20,7 +20,7 @@ const APPO_COLOR = '#8B5CF6';      // 登録済みアポ: 紫
  *   onSelectSlot     - (date, time) => void  空きスロットクリック時
  *   compact          - boolean  コンパクト表示モード
  */
-export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, onSelectSlot, existingAppointments = [], compact = false }) {
+export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, onSelectSlot, existingAppointments = [], compact = false }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -113,19 +113,27 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, o
 
   const isPast = (startISO) => new Date(startISO) < new Date();
 
+  // 日程調整URLリンク群を構築
+  const getToolName = (url) => url?.includes('timerex') ? 'TimeRex' : url?.includes('spir') ? 'Spir' : '日程調整ツール';
+  const schedulingLinks = [
+    schedulingUrl ? { url: schedulingUrl, label: schedulingLabel || getToolName(schedulingUrl) } : null,
+    schedulingUrl2 ? { url: schedulingUrl2, label: schedulingLabel2 || getToolName(schedulingUrl2) } : null,
+  ].filter(Boolean);
+
   // カレンダー未連携: 日程調整ツールリンクがあればそれだけ表示、なければメッセージ
   if (!clientCalendarId) {
-    if (schedulingUrl) {
-      const toolName = schedulingUrl.includes('timerex') ? 'TimeRex' : schedulingUrl.includes('spir') ? 'Spir' : '日程調整ツール';
+    if (schedulingLinks.length > 0) {
       return (
-        <div style={{ fontFamily: "'Noto Sans JP'", padding: 16 }}>
-          <div style={{ padding: '10px 12px', background: '#EFF6FF', borderRadius: 4, border: '1px solid #BFDBFE' }}>
-            <div style={{ fontSize: 11, color: '#1E40AF', marginBottom: 8, fontWeight: 600 }}>{toolName}で日程調整</div>
-            <a href={schedulingUrl} target="_blank" rel="noopener noreferrer"
-              style={{ display: 'block', padding: '8px 16px', background: NAVY, color: '#fff', borderRadius: 4, fontSize: 12, fontWeight: 600, textDecoration: 'none', textAlign: 'center' }}>
-              {toolName}を開く
-            </a>
-          </div>
+        <div style={{ fontFamily: "'Noto Sans JP'", padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {schedulingLinks.map((link, i) => (
+            <div key={i} style={{ padding: '10px 12px', background: '#EFF6FF', borderRadius: 4, border: '1px solid #BFDBFE' }}>
+              <div style={{ fontSize: 11, color: '#1E40AF', marginBottom: 8, fontWeight: 600 }}>{link.label}</div>
+              <a href={link.url} target="_blank" rel="noopener noreferrer"
+                style={{ display: 'block', padding: '8px 16px', background: NAVY, color: '#fff', borderRadius: 4, fontSize: 12, fontWeight: 600, textDecoration: 'none', textAlign: 'center' }}>
+                {link.label}を開く
+              </a>
+            </div>
+          ))}
         </div>
       );
     }
@@ -139,18 +147,15 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, o
   return (
     <div style={{ fontFamily: "'Noto Sans JP'" }}>
       {/* Googleカレンダー連携済みでも日程調整ツールがあればリンク表示 */}
-      {schedulingUrl && (() => {
-        const toolName = schedulingUrl.includes('timerex') ? 'TimeRex' : schedulingUrl.includes('spir') ? 'Spir' : '日程調整ツール';
-        return (
-          <div style={{ marginBottom: 6, padding: '6px 10px', background: '#EFF6FF', borderRadius: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 10, color: '#1E40AF', fontWeight: 600 }}>{toolName}</span>
-            <a href={schedulingUrl} target="_blank" rel="noopener noreferrer"
-              style={{ fontSize: 10, padding: '3px 10px', background: NAVY, color: '#fff', borderRadius: 3, textDecoration: 'none', fontWeight: 600 }}>
-              開く
-            </a>
-          </div>
-        );
-      })()}
+      {schedulingLinks.map((link, i) => (
+        <div key={i} style={{ marginBottom: 6, padding: '6px 10px', background: '#EFF6FF', borderRadius: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 10, color: '#1E40AF', fontWeight: 600 }}>{link.label}</span>
+          <a href={link.url} target="_blank" rel="noopener noreferrer"
+            style={{ fontSize: 10, padding: '3px 10px', background: NAVY, color: '#fff', borderRadius: 3, textDecoration: 'none', fontWeight: 600 }}>
+            開く
+          </a>
+        </div>
+      ))}
 
       {/* クライアントカレンダー未共有警告 */}
       {clientCalendarId && clientErrors.length > 0 && (

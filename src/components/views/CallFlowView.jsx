@@ -1287,6 +1287,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               return <ClientCalendarPanel
                 clientCalendarId={linkedContact?.googleCalendarId || cl?.googleCalendarId || ''}
                 schedulingUrl={linkedContact?.schedulingUrl || cl?.schedulingUrl || ''}
+                schedulingUrl2={linkedContact?.schedulingUrl2 || ''}
+                schedulingLabel={linkedContact?.schedulingLabel || ''}
+                schedulingLabel2={linkedContact?.schedulingLabel2 || ''}
                 compact
                 onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                 existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
@@ -1921,6 +1924,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               return <ClientCalendarPanel
                 clientCalendarId={linkedContact?.googleCalendarId || cl?.googleCalendarId || ''}
                 schedulingUrl={linkedContact?.schedulingUrl || cl?.schedulingUrl || ''}
+                schedulingUrl2={linkedContact?.schedulingUrl2 || ''}
+                schedulingLabel={linkedContact?.schedulingLabel || ''}
+                schedulingLabel2={linkedContact?.schedulingLabel2 || ''}
                 onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                 existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
               />;
