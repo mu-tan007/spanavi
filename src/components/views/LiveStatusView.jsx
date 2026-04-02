@@ -261,6 +261,11 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
                   {!isEditing && (
                     <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: C.textLight, marginLeft: 3 }}>
                       {dispStart.toLocaleString()}〜{dispEnd.toLocaleString()}
+                      {s.last_called_no != null && (
+                        <span style={{ color: C.navy, fontWeight: 600, marginLeft: 3 }}>
+                          → {s.last_called_no}番まで架電済
+                        </span>
+                      )}
                     </span>
                   )}
                   {active && (

@@ -186,6 +186,21 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             finished_at: null,
             last_called_at: null,
           })
+            .then(() => {
+              // Slack #架電報告 に架電開始通知
+              const callerName = currentUser || '不明';
+              const listLabel = [list.company, list.industry].filter(Boolean).join(' - ');
+              const rangeLabel = (startNo != null && endNo != null) ? `No.${startNo}〜${endNo}` : '全件';
+              const text = `📞 ${callerName} が「${listLabel}」の${rangeLabel}を架電開始しました`;
+              fetchSetting('slack_webhook_keiden').then(({ value }) => {
+                if (!value) return;
+                fetch(value, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ text }),
+                }).catch(e => console.warn('[Slack] 架電開始通知エラー:', e));
+              });
+            })
             .catch(e => console.error('[Session] insertCallSession error:', e));
         });
     }
@@ -294,10 +309,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     }
   }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 架電のたびに last_called_at を更新
-  const _updateSessionProgress = () => {
+  // 架電のたびに last_called_at + last_called_no を更新
+  const _updateSessionProgress = (calledNo) => {
     if (!sessionIdRef.current) return;
-    updateCallSession(sessionIdRef.current, { last_called_at: new Date().toISOString() })
+    const updates = { last_called_at: new Date().toISOString() };
+    if (calledNo != null) updates.last_called_no = calledNo;
+    updateCallSession(sessionIdRef.current, updates)
       .catch(e => console.error('[Session] _updateSessionProgress error:', e));
   };
 
@@ -492,7 +509,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     const newItems = items.map(i => i.id === selectedRow.id ? updatedItem : i);
     setItems(newItems);
     setCallRecords(newRecords);
-    _updateSessionProgress();
+    _updateSessionProgress(selectedRow?.no);
     // sorted（フィルタ済みリスト）の順序で次の架電可能な企業を探す
     const sortedIdx = sorted.findIndex(i => i.id === selectedRow.id);
     let next = null;
@@ -633,7 +650,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     const updatedItem = { ...appoModal, call_status: 'アポ獲得', is_excluded: true };
     const newItems = items.map(i => i.id === appoModal.id ? updatedItem : i);
     setItems(newItems);
-    _updateSessionProgress();
+    _updateSessionProgress(appoModal?.no);
 
     if (setAppoData) {
       const salesVal  = formData.sales  || 0;
@@ -725,7 +742,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     const updatedItem = { ...row, call_status: label, is_excluded: newIsExcl };
     const newItems = items.map(i => i.id === row.id ? updatedItem : i);
     setItems(newItems);
-    _updateSessionProgress();
+    _updateSessionProgress(row?.no);
 
     const idx = newItems.findIndex(i => i.id === row.id);
     let next = null;
