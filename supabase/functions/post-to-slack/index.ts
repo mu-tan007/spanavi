@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { text, webhook_key } = await req.json()
+    const { text, webhook_key, org_id } = await req.json()
 
     if (!text || !webhook_key) {
       return new Response(
@@ -20,17 +20,17 @@ Deno.serve(async (req) => {
       )
     }
 
-    // org_settingsからwebhook URLを取得
+    // org_settingsからwebhook URLを取得（org_idでフィルタ）
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, serviceKey)
 
-    const { data, error: dbErr } = await supabase
+    let query = supabase
       .from('org_settings')
       .select('setting_value')
       .eq('setting_key', webhook_key)
-      .limit(1)
-      .single()
+    if (org_id) query = query.eq('org_id', org_id)
+    const { data, error: dbErr } = await query.limit(1).single()
 
     if (dbErr || !data?.setting_value) {
       return new Response(

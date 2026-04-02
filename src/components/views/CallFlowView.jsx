@@ -8,6 +8,7 @@ import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
 import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment } from '../../lib/supabaseWrite';
+import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
 import AppoReportModal from './AppoReportModal';
@@ -210,7 +211,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 fetch(`${supabaseUrl}/functions/v1/post-to-slack`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
-                  body: JSON.stringify({ text, webhook_key: 'slack_webhook_keiden' }),
+                  body: JSON.stringify({ text, webhook_key: 'slack_webhook_keiden', org_id: getOrgId() }),
                 }).catch(e => console.warn('[Slack] 架電開始通知エラー:', e));
               }
             })
