@@ -117,7 +117,7 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, fontFamily: "'Noto Sans JP'" }}
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10010, fontFamily: "'Noto Sans JP'" }}
       onClick={onClose}>
       <div style={{ background: '#fff', borderRadius: 8, padding: 24, width: 400, maxWidth: '90vw', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}
         onClick={e => e.stopPropagation()}>
