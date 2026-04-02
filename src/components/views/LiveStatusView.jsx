@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { fetchAllCallSessionsWithClients, fetchCalledCountForSession, updateSessionRange, deleteSession } from '../../lib/supabaseWrite';
@@ -41,17 +41,18 @@ const resolveName = (callerName, members) => {
 };
 
 // 担当者ごとの色（Spanaviブランドカラーに合わせた複数色）
-const CALLER_COLORS = [
-  '#0D2247', // navy
-  '#2E844A', // green
-  '#0176D3', // primary blue
-  '#FFB75D', // orange
-  '#7b52ab', // purple
-  '#c0415c', // rose
-  '#1a8c8c', // teal
-  '#5c6bc0', // indigo
-  '#b06020', // amber-dark
-  '#2e7d7d', // teal-dark
+// 担当者ごとの色ペア [薄い色(選択範囲), 濃い色(架電済み範囲)]
+const CALLER_COLOR_PAIRS = [
+  { light: '#BFDBFE', dark: '#2563EB' }, // blue
+  { light: '#BBF7D0', dark: '#16A34A' }, // green
+  { light: '#C7D2FE', dark: '#4F46E5' }, // indigo
+  { light: '#FDE68A', dark: '#D97706' }, // amber
+  { light: '#DDD6FE', dark: '#7C3AED' }, // violet
+  { light: '#FECACA', dark: '#DC2626' }, // red
+  { light: '#99F6E4', dark: '#0D9488' }, // teal
+  { light: '#E0E7FF', dark: '#4338CA' }, // indigo-deep
+  { light: '#FED7AA', dark: '#EA580C' }, // orange
+  { light: '#A5F3FC', dark: '#0891B2' }, // cyan
 ];
 
 // ─── ListCard コンポーネント ─────────────────────────────────────
@@ -81,13 +82,13 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
   const clientName = first.clientName    || '—';
   const totalCount = first.listTotalCount ?? first.total_count ?? 0;
 
-  // 担当者→色マッピング（このカード内でのみ使用）
+  // 担当者→色ペアマッピング（このカード内でのみ使用）
   const callerColorMap = {};
   let colorIdx = 0;
   sorted.forEach(s => {
     const name = resolveName(s.caller_name, members) || '不明';
     if (!callerColorMap[name]) {
-      callerColorMap[name] = CALLER_COLORS[colorIdx % CALLER_COLORS.length];
+      callerColorMap[name] = CALLER_COLOR_PAIRS[colorIdx % CALLER_COLOR_PAIRS.length];
       colorIdx++;
     }
   });
@@ -166,27 +167,49 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
           background: C.offWhite, border: '1px solid ' + C.borderLight,
           overflow: 'hidden',
         }}>
-          {/* 範囲あり: セッションごとに位置指定バー */}
+          {/* 範囲あり: セッションごとに選択範囲(薄)+架電済み範囲(濃)の2レイヤー */}
           {barsessions.length > 0 && barsessions.map(s => {
             const left  = ((s.start_no - 1) / totalCount) * 100;
             const width = ((s.end_no - s.start_no + 1) / totalCount) * 100;
-            const color = callerColorMap[resolveName(s.caller_name, members) || '不明'];
+            const colors = callerColorMap[resolveName(s.caller_name, members) || '不明'];
             const active = isActiveSession(s, todayStr);
+            // 架電済み範囲: start_no 〜 last_called_no
+            const hasProgress = s.last_called_no != null && s.last_called_no >= s.start_no;
+            const progressWidth = hasProgress
+              ? ((Math.min(s.last_called_no, s.end_no) - s.start_no + 1) / totalCount) * 100
+              : 0;
             return (
-              <div
-                key={s.id}
-                title={`${resolveName(s.caller_name, members) || '不明'}: No.${s.start_no}〜${s.end_no}`}
-                style={{
-                  position: 'absolute',
-                  left: `${left}%`,
-                  width: `${Math.max(width, 0.4)}%`,
-                  height: '100%',
-                  background: color,
-                  opacity: active ? 1 : 0.55,
-                  borderRight: '1px solid rgba(255,255,255,0.5)',
-                  transition: 'opacity 0.3s',
-                }}
-              />
+              <React.Fragment key={s.id}>
+                {/* 選択範囲（薄い色） */}
+                <div
+                  title={`${resolveName(s.caller_name, members) || '不明'}: No.${s.start_no}〜${s.end_no}`}
+                  style={{
+                    position: 'absolute',
+                    left: `${left}%`,
+                    width: `${Math.max(width, 0.4)}%`,
+                    height: '100%',
+                    background: colors.light,
+                    opacity: active ? 1 : 0.6,
+                    borderRight: '1px solid rgba(255,255,255,0.5)',
+                    transition: 'opacity 0.3s',
+                  }}
+                />
+                {/* 架電済み範囲（濃い色） */}
+                {progressWidth > 0 && (
+                  <div
+                    title={`${resolveName(s.caller_name, members) || '不明'}: No.${s.start_no}〜${s.last_called_no} 架電済`}
+                    style={{
+                      position: 'absolute',
+                      left: `${left}%`,
+                      width: `${Math.max(progressWidth, 0.4)}%`,
+                      height: '100%',
+                      background: colors.dark,
+                      opacity: active ? 1 : 0.7,
+                      transition: 'opacity 0.3s',
+                    }}
+                  />
+                )}
+              </React.Fragment>
             );
           })}
           {/* totalCountなし */}
@@ -249,11 +272,14 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
               }
             };
 
+            const colors = callerColorMap[name];
+
             return (
               <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                 <span style={{
                   width: 10, height: 10, borderRadius: 2, flexShrink: 0,
-                  background: color, opacity: active ? 1 : 0.6,
+                  background: `linear-gradient(to right, ${colors.dark} 50%, ${colors.light} 50%)`,
+                  opacity: active ? 1 : 0.6,
                 }} />
                 <span style={{ fontSize: 10, color: C.textMid, whiteSpace: 'nowrap' }}>
                   {name}
