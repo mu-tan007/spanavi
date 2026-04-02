@@ -63,6 +63,21 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
   const { columns: lvCols, gridTemplateColumns: lvGrid, contentMinWidth: lvMinW, onResizeStart: lvResize, onHeaderContextMenu: lvCtxMenu, contextMenu: lvCtx, setAlign: lvSetAlign, resetAll: lvReset, closeMenu: lvClose } = useColumnConfig('listView', LISTVIEW_COLS);
   const { columns: arCols, gridTemplateColumns: arGrid, contentMinWidth: arMinW, onResizeStart: arResize, onHeaderContextMenu: arCtxMenu, contextMenu: arCtx, setAlign: arSetAlign, resetAll: arReset, closeMenu: arClose } = useColumnConfig('listViewArchive', LISTVIEW_ARCHIVE_COLS);
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
+
+  // 担当者名を苗字のみで表示（同一クライアント内で苗字被りがあれば名の頭文字付き）
+  const shortManagerName = (list) => {
+    const full = list.manager || '';
+    if (!full) return '';
+    const parts = full.split(/\s+/);
+    const surname = parts[0];
+    if (parts.length < 2) return surname;
+    // 同一クライアントの他リストで同じ苗字がいるか
+    const sameSurname = (callListData || []).filter(l =>
+      l.company === list.company && !l.is_archived && l.manager && l.manager !== full && l.manager.split(/\s+/)[0] === surname
+    );
+    if (sameSurname.length > 0) return `${surname}(${parts[1][0]})`;
+    return surname;
+  };
   const emptyForm = { company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", contactId: null, companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "" };
   const [formData, setFormData] = useState(emptyForm);
   const [showRec, setShowRec] = useState(true);
@@ -421,7 +436,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                       <span style={{ display: "flex", justifyContent: lvCols[1]?.align === 'right' ? 'flex-end' : lvCols[1]?.align === 'center' ? 'center' : 'flex-start' }}><Badge color={list.type === "M&A仲介" ? C.navy : list.type === "IFA" ? '#6366F1' : list.type === "ファンド" ? C.green : C.orange} small>{list.type}</Badge></span>
                       <span style={{ color: C.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[2]?.align || 'left' }}>{list.industry}</span>
                       <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textMid, textAlign: lvCols[3]?.align || 'right' }}>{list.count.toLocaleString()}</span>
-                      <span style={{ color: C.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[4]?.align || 'center' }}>{list.manager}</span>
+                      <span style={{ color: C.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[4]?.align || 'center' }}>{shortManagerName(list)}</span>
                       <span style={{ display: "flex", justifyContent: lvCols[5]?.align === 'right' ? 'flex-end' : lvCols[5]?.align === 'center' ? 'center' : 'flex-start' }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
                       {isAdmin && (
                         <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 4 }}>
@@ -462,7 +477,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                   <span style={{ color: C.textLight, fontSize: 10, textAlign: arCols[1]?.align || 'left' }}>{list.type}</span>
                   <span style={{ color: C.textLight, textAlign: arCols[2]?.align || 'left' }}>{list.industry}</span>
                   <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: arCols[3]?.align || 'left' }}>{list.count.toLocaleString()}</span>
-                  <span style={{ color: C.textLight, textAlign: arCols[4]?.align || 'left' }}>{list.manager}</span>
+                  <span style={{ color: C.textLight, textAlign: arCols[4]?.align || 'left' }}>{shortManagerName(list)}</span>
                   <span style={{ textAlign: arCols[5]?.align || 'right' }}>
                     {isAdmin && <button onClick={async () => {
                       const error = await restoreCallList(list._supaId);
