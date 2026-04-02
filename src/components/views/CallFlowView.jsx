@@ -1281,7 +1281,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             {scriptTab === 'calendar' && (() => {
               const cl = (clientData || []).find(c => c.company === list.company);
               const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
-              const linkedContact = list.contactId ? contacts.find(ct => ct.id === list.contactId) : null;
+              const linkedContact = list.contactId
+                ? contacts.find(ct => ct.id === list.contactId)
+                : (list.manager ? contacts.find(ct => ct.name?.includes(list.manager)) : null);
               return <ClientCalendarPanel
                 clientCalendarId={linkedContact?.googleCalendarId || cl?.googleCalendarId || ''}
                 schedulingUrl={linkedContact?.schedulingUrl || cl?.schedulingUrl || ''}
@@ -1913,7 +1915,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             {scriptTab === 'calendar' && (() => {
               const cl = (clientData || []).find(c => c.company === list.company);
               const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
-              const linkedContact = list.contactId ? contacts.find(ct => ct.id === list.contactId) : null;
+              const linkedContact = list.contactId
+                ? contacts.find(ct => ct.id === list.contactId)
+                : (list.manager ? contacts.find(ct => ct.name?.includes(list.manager)) : null);
               return <ClientCalendarPanel
                 clientCalendarId={linkedContact?.googleCalendarId || cl?.googleCalendarId || ''}
                 schedulingUrl={linkedContact?.schedulingUrl || cl?.schedulingUrl || ''}
