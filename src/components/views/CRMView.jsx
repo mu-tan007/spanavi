@@ -360,8 +360,6 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                                 {c.contact === 'Slack' && ct.slackMemberId && (
                                   <span style={{ fontSize: 9, color: '#6B7280', background: '#F3F4F6', padding: '1px 6px', borderRadius: 3 }}>@{ct.slackMemberId}</span>
                                 )}
-                                {ct.googleCalendarId && <span style={{ fontSize: 9, color: '#1E40AF', background: '#EFF6FF', padding: '1px 6px', borderRadius: 3 }}>GCal</span>}
-                                {ct.schedulingUrl && <span style={{ fontSize: 9, color: '#065F46', background: '#D1FAE5', padding: '1px 6px', borderRadius: 3 }}>{ct.schedulingUrl.includes('timerex') ? 'TimeRex' : ct.schedulingUrl.includes('spir') ? 'Spir' : 'URL'}</span>}
                                 {setContactsByClient && (
                                   <>
                                     <button onClick={() => { setContactEditId(ct.id); setContactEditForm({ name: ct.name, email: ct.email, slackMemberId: ct.slackMemberId || '', googleCalendarId: ct.googleCalendarId || '', schedulingUrl: ct.schedulingUrl || '' }); }}
