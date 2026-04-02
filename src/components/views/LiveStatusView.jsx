@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from "react";
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { fetchAllCallSessionsWithClients, fetchCalledCountForSession, updateSessionRange, deleteSession } from '../../lib/supabaseWrite';
-import CallMonitorPanel from './CallMonitorPanel';
 
 // ─── ユーティリティ ─────────────────────────────────────────────
 const toJSTDateStr = (d) =>
@@ -440,9 +439,6 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
         <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Live Status</div>
         <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>リアルタイム架電状況モニター</div>
       </div>
-
-      {/* 通話モニターパネル */}
-      {(isAdmin || isTeamLeader) && <CallMonitorPanel />}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         {dayGroups.map(({ key, label, date, cards }) => {

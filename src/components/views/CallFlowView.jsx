@@ -187,19 +187,20 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             last_called_at: null,
           })
             .then(() => {
-              // Slack #架電報告 に架電開始通知
+              // Slack #架電報告 に架電開始通知（エッジファンクション経由）
               const callerName = currentUser || '不明';
               const listLabel = [list.company, list.industry].filter(Boolean).join(' - ');
               const rangeLabel = (startNo != null && endNo != null) ? `No.${startNo}〜${endNo}` : '全件';
               const text = `📞 ${callerName} が「${listLabel}」の${rangeLabel}を架電開始しました`;
-              fetchSetting('slack_webhook_keiden').then(({ value }) => {
-                if (!value) return;
-                fetch(value, {
+              const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+              const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+              if (supabaseUrl && supabaseKey) {
+                fetch(`${supabaseUrl}/functions/v1/post-to-slack`, {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ text }),
+                  headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+                  body: JSON.stringify({ text, webhook_key: 'slack_webhook_keiden' }),
                 }).catch(e => console.warn('[Slack] 架電開始通知エラー:', e));
-              });
+              }
             })
             .catch(e => console.error('[Session] insertCallSession error:', e));
         });
