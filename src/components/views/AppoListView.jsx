@@ -4,7 +4,7 @@ import { C } from '../../constants/colors';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/formatters';
-import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, uploadAppoRecording } from '../../lib/supabaseWrite';
+import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, uploadAppoRecording } from '../../lib/supabaseWrite';
 import { PAST_APPOINTMENT_COMPANIES } from '../../constants/pastAppointmentCompanies';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
@@ -85,8 +85,14 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
 
   const cl = (clientData || []).find(c => c.company === appo.client);
   const es = EMAIL_STATUS_LABELS[appo.emailStatus] || EMAIL_STATUS_LABELS.pending;
+  const contactMethod = cl?.contact || '';
+  const isSlack = contactMethod === 'Slack';
+  const isChatwork = contactMethod === 'Chatwork';
+  const isChat = isSlack || isChatwork;
+  const channelLabel = isSlack ? 'Slack' : isChatwork ? 'Chatwork' : 'メール';
+  const channelIcon = isSlack ? '💼' : isChatwork ? '📝' : '✉';
 
-  // 宛先候補リスト（contactsByClient + clientEmail）
+  // 宛先候補リスト（メール送信用）
   const emailOptions = React.useMemo(() => {
     const contacts = cl?._supaId ? (contactsByClient[cl._supaId] || []) : [];
     const opts = contacts.map(ct => ({ label: `${ct.name} <${ct.email}>`, email: ct.email }));
@@ -96,29 +102,50 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
     return opts;
   }, [cl, contactsByClient]);
 
+  // appoReportから「当社売上」行を除外したレポートテキスト
+  const buildReportText = () => {
+    return (appo.appoReport || '').split('\n').filter(line => !line.startsWith('当社売上：')).join('\n');
+  };
+
   const initCompose = () => {
-    const selectedOpt = emailOptions.length > 0 ? emailOptions[0] : null;
-    setEmailTo(selectedOpt ? selectedOpt.email : (cl?.clientEmail || ''));
-    setEmailSubject('【アポイント取得のご報告】M&Aソーシングパートナーズ 篠宮');
-    // appoReportから「当社売上」行を除外してメール本文を組み立て
-    const report = (appo.appoReport || '').split('\n').filter(line => !line.startsWith('当社売上：')).join('\n');
-    // 担当者が登録されていれば担当者名、なければクライアント名
-    const contacts = cl?._supaId ? (contactsByClient[cl._supaId] || []) : [];
-    const matchedContact = selectedOpt ? contacts.find(ct => ct.email === selectedOpt.email) : null;
-    const greeting = matchedContact ? matchedContact.name : (cl?.company || appo.client || '');
-    setEmailBody(
-      `${greeting} 様\n\n` +
-      `お世話になっております。\n` +
-      `M&Aソーシングパートナーズの篠宮でございます。\n\n` +
-      `下記企業のアポイントを取得いたしましたので、ご報告申し上げます。\n\n` +
-      `---\n` +
-      `${report}\n` +
-      `---\n\n` +
-      `以上でございます。\n` +
-      `ご確認のほど、よろしくお願いいたします。\n\n` +
-      `MASP 篠宮`
-    );
-    setEmailCc('');
+    const report = buildReportText();
+
+    if (isChat) {
+      // Slack/Chatwork: 本文のみ（宛先・件名不要）
+      const clientLabel = cl?.company || appo.client || '';
+      setEmailBody(
+        `${clientLabel} 様\n\n` +
+        `お世話になっております。\n` +
+        `M&Aソーシングパートナーズの篠宮でございます。\n\n` +
+        `下記企業のアポイントを取得いたしましたので、ご報告申し上げます。\n\n` +
+        `---\n` +
+        `${report}\n` +
+        `---\n\n` +
+        `以上でございます。\n` +
+        `ご確認のほど、よろしくお願いいたします。`
+      );
+    } else {
+      // メール: 宛先・件名・本文
+      const selectedOpt = emailOptions.length > 0 ? emailOptions[0] : null;
+      setEmailTo(selectedOpt ? selectedOpt.email : (cl?.clientEmail || ''));
+      setEmailSubject('【アポイント取得のご報告】M&Aソーシングパートナーズ 篠宮');
+      const contacts = cl?._supaId ? (contactsByClient[cl._supaId] || []) : [];
+      const matchedContact = selectedOpt ? contacts.find(ct => ct.email === selectedOpt.email) : null;
+      const greeting = matchedContact ? matchedContact.name : (cl?.company || appo.client || '');
+      setEmailBody(
+        `${greeting} 様\n\n` +
+        `お世話になっております。\n` +
+        `M&Aソーシングパートナーズの篠宮でございます。\n\n` +
+        `下記企業のアポイントを取得いたしましたので、ご報告申し上げます。\n\n` +
+        `---\n` +
+        `${report}\n` +
+        `---\n\n` +
+        `以上でございます。\n` +
+        `ご確認のほど、よろしくお願いいたします。\n\n` +
+        `MASP 篠宮`
+      );
+      setEmailCc('');
+    }
     setSendError('');
     setEmailStep('compose');
   };
@@ -129,10 +156,21 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
   }, [emailOptions, emailTo]);
 
   const handleSend = async () => {
-    if (!emailTo) { setSendError('宛先メールアドレスを入力してください'); return; }
     setEmailStep('sending');
     setSendError('');
-    const { error } = await invokeSendEmail({ to: emailTo, subject: emailSubject, body: emailBody, cc: emailCc || undefined });
+
+    let error;
+    if (isSlack) {
+      if (!cl?.slackWebhookUrl) { setSendError('Slack Webhook URLが未設定です。CRMで設定してください。'); setEmailStep('compose'); return; }
+      ({ error } = await invokeSendAppoReport({ channel: 'slack', text: emailBody, webhook_url: cl.slackWebhookUrl }));
+    } else if (isChatwork) {
+      if (!cl?.chatworkRoomId) { setSendError('Chatwork ルームIDが未設定です。CRMで設定してください。'); setEmailStep('compose'); return; }
+      ({ error } = await invokeSendAppoReport({ channel: 'chatwork', text: emailBody, room_id: cl.chatworkRoomId }));
+    } else {
+      if (!emailTo) { setSendError('宛先メールアドレスを入力してください'); setEmailStep('compose'); return; }
+      ({ error } = await invokeSendEmail({ to: emailTo, subject: emailSubject, body: emailBody, cc: emailCc || undefined }));
+    }
+
     if (error) {
       setSendError(typeof error === 'string' ? error : error.message || '送信に失敗しました');
       setEmailStep('compose');
@@ -148,7 +186,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
   return (
     <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 4, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#92400E' }}>メール送信</div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#92400E' }}>{channelIcon} {channelLabel}で送信</div>
         <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 3, background: es.bg, color: es.color, fontWeight: 600 }}>{es.label}</span>
       </div>
 
@@ -165,46 +203,61 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
       )}
 
       {emailStep === 'sent' && (
-        <div style={{ fontSize: 12, color: '#10B981', fontWeight: 600 }}>メールを送信しました</div>
+        <div style={{ fontSize: 12, color: '#10B981', fontWeight: 600 }}>{channelLabel}で送信しました</div>
       )}
 
       {(emailStep === 'compose' || emailStep === 'sending') && (
         <div style={{ marginTop: 8 }}>
-          <div style={{ marginBottom: 6 }}>
-            <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>宛先</label>
-            {emailOptions.length > 0 ? (
-              <select value={emailTo} onChange={e => {
-                const newEmail = e.target.value;
-                setEmailTo(newEmail);
-                // 宛名を連動更新
-                const contacts = cl?._supaId ? (contactsByClient[cl._supaId] || []) : [];
-                const ct = contacts.find(c => c.email === newEmail);
-                const newGreeting = ct ? ct.name : (cl?.company || appo.client || '');
-                setEmailBody(prev => prev.replace(/^.+? 様/, `${newGreeting} 様`));
-              }} style={iStyle}>
-                {emailOptions.map((opt, i) => <option key={i} value={opt.email}>{opt.label}</option>)}
-                <option value="">手入力...</option>
-              </select>
-            ) : null}
-            {(emailOptions.length === 0 || emailTo === '' || !emailOptions.some(o => o.email === emailTo)) && (
-              <input value={emailTo} onChange={e => setEmailTo(e.target.value)} placeholder="client@example.com" style={{ ...iStyle, marginTop: emailOptions.length > 0 ? 4 : 0 }} />
-            )}
-          </div>
-          <div style={{ marginBottom: 6 }}>
-            <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>CC</label>
-            {ccOptions.length > 0 ? (
-              <select value={emailCc} onChange={e => setEmailCc(e.target.value)} style={iStyle}>
-                <option value="">なし</option>
-                {ccOptions.map((opt, i) => <option key={i} value={opt.email}>{opt.label}</option>)}
-              </select>
-            ) : (
-              <input value={emailCc} onChange={e => setEmailCc(e.target.value)} placeholder="cc@example.com（任意）" style={iStyle} />
-            )}
-          </div>
-          <div style={{ marginBottom: 6 }}>
-            <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>件名</label>
-            <input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} style={iStyle} />
-          </div>
+          {/* メール送信の場合のみ: 宛先・CC・件名 */}
+          {!isChat && (<>
+            <div style={{ marginBottom: 6 }}>
+              <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>宛先</label>
+              {emailOptions.length > 0 ? (
+                <select value={emailTo} onChange={e => {
+                  const newEmail = e.target.value;
+                  setEmailTo(newEmail);
+                  const contacts = cl?._supaId ? (contactsByClient[cl._supaId] || []) : [];
+                  const ct = contacts.find(c => c.email === newEmail);
+                  const newGreeting = ct ? ct.name : (cl?.company || appo.client || '');
+                  setEmailBody(prev => prev.replace(/^.+? 様/, `${newGreeting} 様`));
+                }} style={iStyle}>
+                  {emailOptions.map((opt, i) => <option key={i} value={opt.email}>{opt.label}</option>)}
+                  <option value="">手入力...</option>
+                </select>
+              ) : null}
+              {(emailOptions.length === 0 || emailTo === '' || !emailOptions.some(o => o.email === emailTo)) && (
+                <input value={emailTo} onChange={e => setEmailTo(e.target.value)} placeholder="client@example.com" style={{ ...iStyle, marginTop: emailOptions.length > 0 ? 4 : 0 }} />
+              )}
+            </div>
+            <div style={{ marginBottom: 6 }}>
+              <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>CC</label>
+              {ccOptions.length > 0 ? (
+                <select value={emailCc} onChange={e => setEmailCc(e.target.value)} style={iStyle}>
+                  <option value="">なし</option>
+                  {ccOptions.map((opt, i) => <option key={i} value={opt.email}>{opt.label}</option>)}
+                </select>
+              ) : (
+                <input value={emailCc} onChange={e => setEmailCc(e.target.value)} placeholder="cc@example.com（任意）" style={iStyle} />
+              )}
+            </div>
+            <div style={{ marginBottom: 6 }}>
+              <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>件名</label>
+              <input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} style={iStyle} />
+            </div>
+          </>)}
+
+          {/* Slack/Chatwork: 送信先情報 */}
+          {isSlack && (
+            <div style={{ marginBottom: 6, fontSize: 10, color: '#6B7280' }}>
+              送信先: {cl?.slackWebhookUrl ? 'Webhook設定済み' : <span style={{ color: '#DC2626' }}>未設定（CRMで設定してください）</span>}
+            </div>
+          )}
+          {isChatwork && (
+            <div style={{ marginBottom: 6, fontSize: 10, color: '#6B7280' }}>
+              送信先: ルームID {cl?.chatworkRoomId || <span style={{ color: '#DC2626' }}>未設定（CRMで設定してください）</span>}
+            </div>
+          )}
+
           <div style={{ marginBottom: 8 }}>
             <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>本文</label>
             <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={18}
@@ -218,7 +271,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
             </button>
             <button onClick={handleSend} disabled={emailStep === 'sending'}
               style={{ padding: '6px 14px', borderRadius: 4, border: 'none', background: emailStep === 'sending' ? '#9CA3AF' : '#0D2247', color: '#fff', cursor: emailStep === 'sending' ? 'default' : 'pointer', fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'" }}>
-              {emailStep === 'sending' ? '送信中...' : 'アポ取得報告を送信'}
+              {emailStep === 'sending' ? '送信中...' : `${channelLabel}で送信`}
             </button>
           </div>
         </div>

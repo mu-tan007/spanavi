@@ -109,6 +109,8 @@ export function useSpanaviData(authOrgId) {
         googleCalendarId: c.google_calendar_id || '',
         clientEmail: c.client_email || '',
         schedulingUrl: c.scheduling_url || '',
+        slackWebhookUrl: c.slack_webhook_url || '',
+        chatworkRoomId: c.chatwork_room_id || '',
       }))
 
       // members → 既存DEFAULT_MEMBERSフォーマット（名前のリスト）

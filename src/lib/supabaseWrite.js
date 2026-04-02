@@ -156,6 +156,8 @@ export async function insertClient(data) {
       google_calendar_id: data.googleCalendarId || null,
       client_email: data.clientEmail || null,
       scheduling_url: data.schedulingUrl || null,
+      slack_webhook_url: data.slackWebhookUrl || null,
+      chatwork_room_id: data.chatworkRoomId || null,
     })
     .select()
     .single()
@@ -185,6 +187,8 @@ export async function updateClient(supaId, data) {
       google_calendar_id: data.googleCalendarId ?? undefined,
       client_email: data.clientEmail ?? undefined,
       scheduling_url: data.schedulingUrl ?? undefined,
+      slack_webhook_url: data.slackWebhookUrl ?? undefined,
+      chatwork_room_id: data.chatworkRoomId ?? undefined,
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateClient error:', error)
@@ -327,6 +331,19 @@ export async function invokeSendEmail({ to, subject, body, cc, bcc, attachments 
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'apikey': anonKey, 'Authorization': `Bearer ${anonKey}` },
     body: JSON.stringify({ to, subject, body, cc, bcc, attachments }),
+  })
+  const data = await res.json()
+  if (!res.ok) return { data: null, error: data.error || `送信失敗: ${res.status}` }
+  return { data, error: null }
+}
+
+export async function invokeSendAppoReport({ channel, text, webhook_url, room_id }) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  const res = await fetch(`${supabaseUrl}/functions/v1/send-appo-report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': anonKey, 'Authorization': `Bearer ${anonKey}` },
+    body: JSON.stringify({ channel, text, webhook_url, room_id }),
   })
   const data = await res.json()
   if (!res.ok) return { data: null, error: data.error || `送信失敗: ${res.status}` }
