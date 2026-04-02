@@ -609,7 +609,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     const items = targetAppos.map(a => {
       const raw = a.sales || 0;
       const unitPrice = isTaxExcl ? Math.round(raw / 1.1) : raw;
-      return { company: a.company, quantity: 1, unitPrice, amount: unitPrice };
+      return { company: a.company, quantity: 1, unitPrice, amount: unitPrice, note: '' };
     });
     if (items.length === 0) throw new Error('対象の面談済アポがありません');
 

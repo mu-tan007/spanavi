@@ -12,7 +12,7 @@ const fmt = (n) => Number(n).toLocaleString('ja-JP');
 export default function InvoicePDF({
   clientName,
   month,        // "3月" など
-  items,        // [{ company, quantity, unitPrice, amount }]
+  items,        // [{ company, quantity, unitPrice, amount, note }]
   subtotal,
   tax,
   total,
@@ -87,10 +87,11 @@ export default function InvoicePDF({
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
           <thead>
             <tr style={{ backgroundColor: '#f0f0f0', borderTop: '2px solid #222', borderBottom: '2px solid #222' }}>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, width: '50%', color: '#111' }}>品番・品名</th>
-              <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, width: '12%', color: '#111' }}>数量</th>
-              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, width: '19%', color: '#111' }}>単価</th>
-              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, width: '19%', color: '#111' }}>金額</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, width: '36%', color: '#111' }}>品番・品名</th>
+              <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, width: '10%', color: '#111' }}>数量</th>
+              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, width: '17%', color: '#111' }}>単価</th>
+              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, width: '17%', color: '#111' }}>金額</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, width: '20%', color: '#111' }}>備考</th>
             </tr>
           </thead>
           <tbody>
@@ -100,12 +101,14 @@ export default function InvoicePDF({
                 <td style={{ padding: '10px 12px', textAlign: 'center', color: '#222' }}>{item.quantity}</td>
                 <td style={{ padding: '10px 12px', textAlign: 'right', color: '#222', fontFamily: "'JetBrains Mono', monospace" }}>{fmt(item.unitPrice)}</td>
                 <td style={{ padding: '10px 12px', textAlign: 'right', color: '#222', fontFamily: "'JetBrains Mono', monospace" }}>{fmt(item.amount)}</td>
+                <td style={{ padding: '10px 12px', color: '#222', fontSize: 10 }}>{item.note || ''}</td>
               </tr>
             ))}
             {/* 空行で埋める */}
             {Array.from({ length: emptyRows }, (_, i) => (
               <tr key={`empty-${i}`} style={{ borderBottom: '1px solid #e0e0e0' }}>
                 <td style={{ padding: '10px 12px' }}>&nbsp;</td>
+                <td style={{ padding: '10px 12px' }}></td>
                 <td style={{ padding: '10px 12px' }}></td>
                 <td style={{ padding: '10px 12px' }}></td>
                 <td style={{ padding: '10px 12px' }}></td>
