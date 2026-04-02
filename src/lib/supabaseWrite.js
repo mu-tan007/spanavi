@@ -1271,7 +1271,7 @@ export async function fetchAllCallSessionsWithClients() {
   if (supaIds.length) {
     const { data: lists } = await supabase
       .from('call_lists')
-      .select('id, client_id, name, total_count')
+      .select('id, client_id, name, industry, total_count')
       .in('id', supaIds)
     ;(lists || []).forEach(l => { listInfoMap[l.id] = l })
   }
@@ -1288,12 +1288,17 @@ export async function fetchAllCallSessionsWithClients() {
 
   const enriched = sessions.map(s => {
     const listInfo = listInfoMap[s.list_supa_id] || {}
+    const clientName = clientNameMap[listInfo.client_id] || ''
+    // リスト名はクライアント現在名 + 業種から動的構築（社名変更に追従）
+    const dynamicListName = clientName && listInfo.industry
+      ? `${clientName} - ${listInfo.industry}`
+      : listInfo.name || s.list_name || '—'
     return {
       ...s,
-      listName:       listInfo.name       || s.list_name || '—',
+      listName:       dynamicListName,
       listTotalCount: listInfo.total_count ?? s.total_count ?? 0,
       clientId:       listInfo.client_id  || null,
-      clientName:     clientNameMap[listInfo.client_id] || '未設定',
+      clientName:     clientName || '未設定',
     }
   })
   return { data: enriched, error: sErr }
