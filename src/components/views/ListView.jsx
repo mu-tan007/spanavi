@@ -64,17 +64,20 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
   const { columns: arCols, gridTemplateColumns: arGrid, contentMinWidth: arMinW, onResizeStart: arResize, onHeaderContextMenu: arCtxMenu, contextMenu: arCtx, setAlign: arSetAlign, resetAll: arReset, closeMenu: arClose } = useColumnConfig('listViewArchive', LISTVIEW_ARCHIVE_COLS);
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
 
-  // 担当者名を苗字のみで表示（同一クライアント内で苗字被りがあれば名の頭文字付き）
+  // 担当者名を苗字のみで表示（CRMの同一クライアント担当者内で苗字被りがあれば名の頭文字付き）
   const shortManagerName = (list) => {
     const full = list.manager || '';
     if (!full) return '';
     const parts = full.split(/\s+/);
     const surname = parts[0];
     if (parts.length < 2) return surname;
-    // 同一クライアントの他リストで同じ苗字がいるか
-    const sameSurname = (callListData || []).filter(l =>
-      l.company === list.company && !l.is_archived && l.manager && l.manager !== full && l.manager.split(/\s+/)[0] === surname
-    );
+    // CRMに登録されている同一クライアントの担当者から苗字被りを判定
+    const client = clientData.find(c => c.company === list.company);
+    const contacts = client ? (contactsByClient[client._supaId] || []) : [];
+    const sameSurname = contacts.filter(ct => {
+      const ctParts = (ct.name || '').split(/\s+/);
+      return ctParts[0] === surname && ct.name !== full;
+    });
     if (sameSurname.length > 0) return `${surname}(${parts[1][0]})`;
     return surname;
   };
