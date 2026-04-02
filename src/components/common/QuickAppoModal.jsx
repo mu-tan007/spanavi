@@ -52,18 +52,13 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
         const endH = hh + 1;
         const endISO = `${date}T${String(endH).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00`;
 
-        const attendees = [];
-        if (contacts?.length) {
-          contacts.filter(c => c.email).forEach(c => attendees.push({ email: c.email }));
-        }
-
+        // 初回登録時はattendeeなし（クライアントへの共有は報告承認後に行う）
         const eventBody = {
           summary: `アポイント: ${row?.company || ''}`,
           location: isOnline ? 'オンライン' : location,
           start: { dateTime: startISO, timeZone: 'Asia/Tokyo' },
           end: { dateTime: endISO, timeZone: 'Asia/Tokyo' },
           description: `アポ取得者: ${currentUser}\n企業: ${row?.company || ''}\n電話: ${row?.phone || ''}`,
-          ...(attendees.length ? { attendees } : {}),
         };
 
         try {
