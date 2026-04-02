@@ -54,39 +54,22 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, o
 
     try {
       if (clientCalendarId) {
-        // 複数カレンダー同時取得
+        // クライアントのカレンダーのみ取得
         const res = await fetch(
-          `${SUPABASE_URL}/functions/v1/gcal-proxy?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&calendarIds=primary,${encodeURIComponent(clientCalendarId)}`,
+          `${SUPABASE_URL}/functions/v1/gcal-proxy?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&calendarIds=${encodeURIComponent(clientCalendarId)}`,
           { headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'apikey': SUPABASE_ANON_KEY } }
         );
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'fetch failed');
 
-        // calendars オブジェクトからそれぞれ取得
         const cals = data.calendars || {};
-        const calEntries = Object.entries(cals);
         const calErrors = data.calendarErrors || {};
-        // primary（自分）とクライアントを分離
-        let mine = [], client = [];
-        for (const [id, busy] of calEntries) {
-          if (id === clientCalendarId) {
-            client = busy;
-          } else {
-            mine = busy;
-          }
-        }
-        setMyBusy(mine);
-        setClientBusy(client);
+        setMyBusy([]);
+        setClientBusy(cals[clientCalendarId] || []);
         setClientErrors(calErrors[clientCalendarId] || []);
       } else {
-        // 自分のカレンダーのみ
-        const res = await fetch(
-          `${SUPABASE_URL}/functions/v1/gcal-proxy?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`,
-          { headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'apikey': SUPABASE_ANON_KEY } }
-        );
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'fetch failed');
-        setMyBusy(data.busy || []);
+        // クライアント未連携時はデータ取得しない
+        setMyBusy([]);
         setClientBusy([]);
       }
     } catch (e) {
@@ -145,16 +128,13 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, o
     );
   }
 
-  // カレンダー未連携: インライン設定フォームを表示（カレンダーグリッドは下に表示し続ける）
-  const notLinked = !clientCalendarId && !schedulingUrl;
-
-  return (
-    <div style={{ fontFamily: "'Noto Sans JP'" }}>
-      {/* 未連携バナー + インライン設定フォーム */}
-      {notLinked && (
-        <div style={{ padding: '8px 12px', marginBottom: 8, background: '#FEF3C7', borderRadius: 4, fontSize: 11 }}>
+  // カレンダー未連携: インライン設定フォームのみ表示
+  if (!clientCalendarId && !schedulingUrl) {
+    return (
+      <div style={{ fontFamily: "'Noto Sans JP'", padding: 16 }}>
+        <div style={{ padding: '8px 12px', background: '#FEF3C7', borderRadius: 4, fontSize: 11 }}>
           <div style={{ color: '#92400E', marginBottom: onConfigureCalendar ? 6 : 0 }}>
-            クライアントカレンダー未連携（自社カレンダーのみ表示中）
+            クライアントカレンダー未連携
           </div>
           {onConfigureCalendar && (
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -175,8 +155,12 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, o
             </div>
           )}
         </div>
-      )}
+      </div>
+    );
+  }
 
+  return (
+    <div style={{ fontFamily: "'Noto Sans JP'" }}>
       {/* クライアントカレンダー未共有警告 */}
       {clientCalendarId && clientErrors.length > 0 && (
         <div style={{ padding: '8px 12px', marginBottom: 8, background: '#FEE2E2', borderRadius: 4, fontSize: 11, color: '#991B1B' }}>
@@ -194,11 +178,12 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, o
             <button onClick={() => setWeekOffset(0)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 10, color: '#6B7280', textDecoration: 'underline' }}>今週</button>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 8, fontSize: 9 }}>
-          <span><span style={{ display: 'inline-block', width: 8, height: 8, background: MINE_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>自分</span>
-          {clientCalendarId && <span><span style={{ display: 'inline-block', width: 8, height: 8, background: CLIENT_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>クライアント</span>}
-          {clientCalendarId && <span><span style={{ display: 'inline-block', width: 8, height: 8, background: FREE_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>両方空き</span>}
-        </div>
+        {clientCalendarId && (
+          <div style={{ display: 'flex', gap: 8, fontSize: 9 }}>
+            <span><span style={{ display: 'inline-block', width: 8, height: 8, background: CLIENT_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>予定あり</span>
+            <span><span style={{ display: 'inline-block', width: 8, height: 8, background: FREE_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>空き</span>
+          </div>
+        )}
       </div>
 
       {loading && <div style={{ padding: 12, textAlign: 'center', fontSize: 11, color: '#6B7280' }}>読み込み中...</div>}
