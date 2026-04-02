@@ -205,6 +205,16 @@ export async function updateClientCalendarId(supaId, googleCalendarId) {
   return error
 }
 
+export async function updateClientSchedulingUrl(supaId, schedulingUrl) {
+  if (!supaId) { console.warn('[DB] updateClientSchedulingUrl: no supaId'); return null }
+  const { error } = await supabase
+    .from('clients')
+    .update({ scheduling_url: schedulingUrl || null })
+    .eq('id', supaId)
+  if (error) console.error('[DB] updateClientSchedulingUrl error:', error)
+  return error
+}
+
 export async function deleteClient(supaId) {
   if (!supaId) { console.warn('[DB] deleteClient: no supaId'); return null }
   const { error } = await supabase

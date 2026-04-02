@@ -7,7 +7,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, updateClientCalendarId, insertAppointment } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, updateClientCalendarId, updateClientSchedulingUrl, insertAppointment } from '../../lib/supabaseWrite';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
 import AppoReportModal from './AppoReportModal';
@@ -73,6 +73,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [lastDialedPhone, setLastDialedPhone] = useState(null);
   const [activeRecordingId, setActiveRecordingId] = useState(null);
   const [overrideCalendarId, setOverrideCalendarId] = useState(null);
+  const [overrideSchedulingUrl, setOverrideSchedulingUrl] = useState(null);
   const [quickAppoSlot, setQuickAppoSlot] = useState(null); // { date, time }
   const [qaData, setQaData] = useState(null);
   const [qaSubTab, setQaSubTab] = useState('reception');
@@ -1253,12 +1254,17 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               const cl = (clientData || []).find(c => c.company === list.company);
               return <ClientCalendarPanel
                 clientCalendarId={overrideCalendarId || cl?.googleCalendarId || ''}
-                schedulingUrl={cl?.schedulingUrl || ''}
+                schedulingUrl={overrideSchedulingUrl || cl?.schedulingUrl || ''}
                 compact
                 onConfigureCalendar={async (calId) => {
                   if (!cl?._supaId) return;
                   const err = await updateClientCalendarId(cl._supaId, calId);
                   if (!err) setOverrideCalendarId(calId);
+                }}
+                onConfigureSchedulingUrl={async (url) => {
+                  if (!cl?._supaId) return;
+                  const err = await updateClientSchedulingUrl(cl._supaId, url);
+                  if (!err) setOverrideSchedulingUrl(url);
                 }}
                 onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                 existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
@@ -1888,11 +1894,16 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               const cl = (clientData || []).find(c => c.company === list.company);
               return <ClientCalendarPanel
                 clientCalendarId={overrideCalendarId || cl?.googleCalendarId || ''}
-                schedulingUrl={cl?.schedulingUrl || ''}
+                schedulingUrl={overrideSchedulingUrl || cl?.schedulingUrl || ''}
                 onConfigureCalendar={async (calId) => {
                   if (!cl?._supaId) return;
                   const err = await updateClientCalendarId(cl._supaId, calId);
                   if (!err) setOverrideCalendarId(calId);
+                }}
+                onConfigureSchedulingUrl={async (url) => {
+                  if (!cl?._supaId) return;
+                  const err = await updateClientSchedulingUrl(cl._supaId, url);
+                  if (!err) setOverrideSchedulingUrl(url);
                 }}
                 onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                 existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
