@@ -536,23 +536,23 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       const clientIdx = clientData.filter(c => c.status === '支援中').findIndex(c => c.company === invoiceClient);
       const invoiceNumber = `${nextMonth.getFullYear()}${String(nextMonth.getMonth() + 1).padStart(2, '0')}01-${String((clientIdx >= 0 ? clientIdx : 0) + 1).padStart(3, '0')}`;
 
-      // 支払期限: paySiteから推定（翌月末をデフォルト）
+      // 支払期限: 対象月を基準にpaySiteから算出（翌月末をデフォルト）
       let paymentDeadline = '';
       const paySite = client.paySite || '';
       if (paySite.includes('翌月15日')) {
-        const pd = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 15);
+        const pd = new Date(y, m, 15); // 対象月の翌月15日
         paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月15日`;
       } else if (paySite.includes('翌月末')) {
-        const pd = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 2, 0);
+        const pd = new Date(y, m + 1, 0); // 対象月の翌月末日
         paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
       } else if (paySite.includes('翌々月')) {
         const pd = paySite.includes('15日')
-          ? new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 2, 15)
-          : new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 3, 0);
+          ? new Date(y, m + 1, 15) // 対象月の翌々月15日
+          : new Date(y, m + 2, 0); // 対象月の翌々月末日
         paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
       } else {
         // デフォルト: 翌月末
-        const pd = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0);
+        const pd = new Date(y, m + 1, 0);
         paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
       }
 
@@ -632,18 +632,18 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     const paySite = client.paySite || '';
     let paymentDeadline = '';
     if (paySite.includes('翌月15日')) {
-      const pd = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 15);
+      const pd = new Date(y, m, 15); // 対象月の翌月15日
       paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月15日`;
     } else if (paySite.includes('翌月末')) {
-      const pd = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 2, 0);
+      const pd = new Date(y, m + 1, 0); // 対象月の翌月末日
       paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
     } else if (paySite.includes('翌々月')) {
       const pd = paySite.includes('15日')
-        ? new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 2, 15)
-        : new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 3, 0);
+        ? new Date(y, m + 1, 15) // 対象月の翌々月15日
+        : new Date(y, m + 2, 0); // 対象月の翌々月末日
       paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
     } else {
-      const pd = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0);
+      const pd = new Date(y, m + 1, 0); // デフォルト: 翌月末
       paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
     }
 
