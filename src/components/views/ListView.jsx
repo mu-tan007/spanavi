@@ -308,7 +308,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                     setFormData(p => ({ ...p, contactId: ctId, manager: ct?.name || '' }));
                   }} style={formInputStyle}>
                     <option value="">担当者を選択...</option>
-                    {contacts.map(ct => <option key={ct.id} value={ct.id}>{ct.name}{ct.googleCalendarId ? ' (GCal)' : ct.schedulingUrl ? ' (URL)' : ''}</option>)}
+                    {contacts.map(ct => <option key={ct.id} value={ct.id}>{ct.name}</option>)}
                   </select>
                 ) : (
                   <input value={formData.manager} onChange={e => setFormData(p => ({ ...p, manager: e.target.value }))} style={formInputStyle} placeholder="例: 田中（CRMで担当者を登録すると選択可能）" />
