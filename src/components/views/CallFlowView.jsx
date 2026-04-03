@@ -1540,7 +1540,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                     <thead>
                       <tr style={{ background: '#0D2247', position: 'sticky', top: 0, zIndex: 1 }}>
-                        {[['No', '36px'], ['企業名', null], ['事業内容', null], ['住所', '90px'], ['代表者', '90px'], ['電話番号', '112px'], ['売上高', '90px'], ['最終架電日', '80px'], ['担当者', '70px'], ['結果', '80px']].map(([h, w]) => {
+                        {[['No', '36px'], ['企業名', null], ['事業内容', null], ['住所', '90px'], ['売上高', '90px'], ['代表者', '90px'], ['電話番号', '112px'], ['最終架電日', '80px'], ['担当者', '70px'], ['結果', '80px']].map(([h, w]) => {
                           const dir = sortState.column === h ? sortState.direction : null;
                           return (
                             <th key={h} onClick={() => handleSort(h)}
@@ -1565,6 +1565,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                             <td style={{ padding: '7px 8px', fontWeight: 600, color: '#0D2247', maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</td>
                             <td style={{ padding: '7px 8px', color: '#6B7280', fontSize: 10, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.business}</td>
                             <td style={{ padding: '7px 8px', color: '#6B7280', fontSize: 9, width: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.address || '—'}</td>
+                            <td style={{ padding: '7px 8px', fontFamily: "'JetBrains Mono'", fontSize: 9, color: '#6B7280', whiteSpace: 'nowrap', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                              {item.revenue != null ? `${Number(item.revenue).toLocaleString()}千円` : <span style={{ color: '#9CA3AF' }}>-</span>}
+                            </td>
                             <td style={{ padding: '7px 8px', color: '#6B7280', fontSize: 10, whiteSpace: 'nowrap' }}>{item.representative}</td>
                             <td style={{ padding: '7px 8px' }}>
                               {item.phone
@@ -1573,9 +1576,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                                     {item.phone}
                                   </span>
                                 : <span style={{ color: '#9CA3AF', fontSize: 10 }}>-</span>}
-                            </td>
-                            <td style={{ padding: '7px 8px', fontFamily: "'JetBrains Mono'", fontSize: 9, color: '#6B7280', whiteSpace: 'nowrap', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                              {item.revenue != null ? `${Number(item.revenue).toLocaleString()}千円` : <span style={{ color: '#9CA3AF' }}>-</span>}
                             </td>
                             <td style={{ padding: '7px 8px', fontSize: 9, color: '#6B7280', whiteSpace: 'nowrap' }}>
                               {(() => { const recs = getRecordsForItem(item.id); if (!recs.length) return <span style={{ color: '#9CA3AF' }}>-</span>; const latest = recs.reduce((a, b) => new Date(a.called_at || 0) > new Date(b.called_at || 0) ? a : b); return formatJST(latest.called_at); })()}
