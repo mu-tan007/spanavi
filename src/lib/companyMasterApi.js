@@ -1,0 +1,56 @@
+import { supabase } from './supabase';
+
+/** カテゴリマスタ取得（キャッシュ用） */
+let _categoryCache = null;
+export async function fetchCategories() {
+  if (_categoryCache) return _categoryCache;
+  const { data, error } = await supabase
+    .from('tsr_category_master')
+    .select('daibunrui, saibunrui')
+    .order('daibunrui')
+    .order('saibunrui');
+  if (error) throw error;
+  _categoryCache = data;
+  return data;
+}
+
+/** 都道府県一覧取得 */
+let _prefectureCache = null;
+export async function fetchPrefectures() {
+  if (_prefectureCache) return _prefectureCache;
+  const { data, error } = await supabase
+    .from('company_master')
+    .select('prefecture')
+    .not('prefecture', 'is', null)
+    .order('prefecture');
+  if (error) throw error;
+  const unique = [...new Set(data.map(d => d.prefecture))];
+  _prefectureCache = unique;
+  return unique;
+}
+
+/** 企業検索（RPC） */
+export async function searchCompanies(filters) {
+  const params = {};
+  if (filters.keyword) params.p_keyword = filters.keyword;
+  if (filters.daibunrui) params.p_daibunrui = filters.daibunrui;
+  if (filters.saibunrui) params.p_saibunrui = filters.saibunrui;
+  if (filters.prefecture) params.p_prefecture = filters.prefecture;
+  if (filters.city) params.p_city = filters.city;
+  if (filters.revenueMin != null && filters.revenueMin !== '') params.p_revenue_min = Number(filters.revenueMin);
+  if (filters.revenueMax != null && filters.revenueMax !== '') params.p_revenue_max = Number(filters.revenueMax);
+  if (filters.ageMin != null && filters.ageMin !== '') params.p_age_min = Number(filters.ageMin);
+  if (filters.ageMax != null && filters.ageMax !== '') params.p_age_max = Number(filters.ageMax);
+  if (filters.employeeMin != null && filters.employeeMin !== '') params.p_employee_min = Number(filters.employeeMin);
+  if (filters.employeeMax != null && filters.employeeMax !== '') params.p_employee_max = Number(filters.employeeMax);
+  if (filters.phonePattern) params.p_phone_pattern = filters.phonePattern;
+  if (filters.establishedMin != null && filters.establishedMin !== '') params.p_established_min = Number(filters.establishedMin);
+  if (filters.establishedMax != null && filters.establishedMax !== '') params.p_established_max = Number(filters.establishedMax);
+  params.p_page = filters.page || 0;
+  params.p_page_size = filters.pageSize || 50;
+
+  const { data, error } = await supabase.rpc('search_company_master', params);
+  if (error) throw error;
+  const totalCount = data?.[0]?.total_count || 0;
+  return { rows: data || [], totalCount: Number(totalCount) };
+}

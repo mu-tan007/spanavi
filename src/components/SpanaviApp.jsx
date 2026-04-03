@@ -21,6 +21,7 @@ import CRMView from './views/CRMView';
 import AppoListView, { MembersView } from './views/AppoListView';
 import PayrollView from './views/PayrollView';
 import ListView from './views/ListView';
+import DatabaseView from './views/DatabaseView';
 
 import { AVAILABLE_MONTHS } from '../constants/availableMonths';
 import { REWARD_MASTER } from '../constants/rewardMaster';
@@ -326,7 +327,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
-  const _VALID_TABS = ["live","incoming","lists","appo","precheck","crm","members","search","stats","recall","payroll","shift","rules","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin"];
+  const _VALID_TABS = ["live","incoming","lists","appo","precheck","crm","members","search","stats","recall","payroll","shift","rules","database","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin"];
   const [currentTab, setCurrentTab] = useState(() => {
     try {
       const saved = localStorage.getItem("masp_v2_currentTab");
@@ -499,6 +500,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       { id: "search", label: "Search" },
       { id: "recall", label: "Recall" },
       { id: "incoming", label: "Call History" },
+      { id: "database", label: "Database" },
       { id: "rules", label: "Industry Rules" },
     ]},
     { id: "g_appo", label: "PIPELINE", children: [
@@ -1034,6 +1036,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         {currentTab === "recall" && <RecallListView callListData={callListData} supaRecalls={supaRecalls} onRecallComplete={handleSupaRecallComplete} members={memberNames} currentUser={currentUser} isAdmin={isAdmin} onRefresh={fetchSupaRecalls} setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "payroll" && <PayrollView members={members} appoData={appoData} isAdmin={isAdmin} setMembers={setMembers} onDataRefetch={onDataRefetch} currentUser={currentUser} />}
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
+        {currentTab === "database" && <DatabaseView />}
         {currentTab === "rules" && <RulesView />}
         {currentTab === "mypage" && isAdmin && <AdminView isAdmin={isAdmin} setCurrentTab={setCurrentTab} rewardMaster={rewardMaster} setRewardMaster={setRewardMaster} members={members} appoData={appoData} now={now} onDataRefetch={onDataRefetch} userId={userId} orgId={orgId} />}
         {currentTab === "mypage" && !isAdmin && <MyPageView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} />}
