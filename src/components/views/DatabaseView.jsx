@@ -53,14 +53,8 @@ export default function DatabaseView({ isAdmin }) {
   return (
     <div style={{ maxWidth: 1400 }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        <Database size={22} color={C.navy} />
-        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: C.navy }}>
-          企業データベース
-        </h2>
-        <span style={{ fontSize: 12, color: C.textLight, marginLeft: 8 }}>
-          482,958社 | 東京商工リサーチ
-        </span>
+      <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px', marginBottom: 16 }}>
+        Database
       </div>
 
       {/* Filters */}
