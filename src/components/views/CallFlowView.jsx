@@ -1514,6 +1514,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     </React.Fragment>
                   ))}
                 </div>
+                <span style={{ color: '#D1D5DB', fontSize: 10 }}>|</span>
                 {prefOptions.length > 0 && (
                   <div style={{ position: 'relative' }}>
                     {prefDropOpen && (
