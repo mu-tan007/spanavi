@@ -159,8 +159,15 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   // 架電開始ハンドラ: セッション作成 + Slack通知 + フォーカスモード遷移
   const handleStartCalling = () => {
     if (sessionStarted) return;
-    const totalCount = (startNo != null && endNo != null) ? (Number(endNo) - Number(startNo) + 1) : 0;
     const cacheKey = `${list.id}|${startNo ?? ''}|${endNo ?? ''}`;
+    // 既にセッション作成済み（再マウント時）はスキップ
+    if (_cfSessionCache.has(cacheKey)) {
+      sessionIdRef.current = _cfSessionCache.get(cacheKey);
+      setSessionStarted(true);
+      if (sorted.length > 0) { setSelectedRow(sorted[0]); setListMode(false); }
+      return;
+    }
+    const totalCount = (startNo != null && endNo != null) ? (Number(endNo) - Number(startNo) + 1) : 0;
     const newId = `cf_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     sessionIdRef.current = newId;
     _cfSessionCache.set(cacheKey, newId);
