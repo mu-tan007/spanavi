@@ -836,15 +836,18 @@ export async function deleteShift(id) {
 
 export async function fetchCalledItemCountsByListIds(listIds) {
   if (!listIds?.length) return {}
-  const { data, error } = await supabase
-    .from('call_list_items')
-    .select('list_id')
-    .in('list_id', listIds)
-    .not('call_status', 'is', null)
-  if (error) { console.error('[DB] fetchCalledItemCountsByListIds error:', error); return {} }
   const counts = {}
   listIds.forEach(id => { counts[id] = 0 })
-  ;(data || []).forEach(item => { counts[item.list_id] = (counts[item.list_id] || 0) + 1 })
+  // リストごとにcountクエリを発行（Supabaseのデフォルト1000件制限を回避）
+  await Promise.all(listIds.map(async (listId) => {
+    const { count, error } = await supabase
+      .from('call_list_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('list_id', listId)
+      .not('call_status', 'is', null)
+    if (error) { console.error('[DB] fetchCalledItemCountsByListIds error:', error); return }
+    counts[listId] = count || 0
+  }))
   return counts
 }
 
