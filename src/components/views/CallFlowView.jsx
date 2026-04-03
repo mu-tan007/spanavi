@@ -1540,7 +1540,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                     <thead>
                       <tr style={{ background: '#0D2247', position: 'sticky', top: 0, zIndex: 1 }}>
-                        {[['No', '36px'], ['企業名', null], ['事業内容', null], ['住所', '90px'], ['代表者', '90px'], ['電話番号', '112px'], ['売上高', '90px'], ['結果', '80px']].map(([h, w]) => {
+                        {[['No', '36px'], ['企業名', null], ['事業内容', null], ['住所', '90px'], ['代表者', '90px'], ['電話番号', '112px'], ['売上高', '90px'], ['最終架電日', '80px'], ['担当者', '70px'], ['結果', '80px']].map(([h, w]) => {
                           const dir = sortState.column === h ? sortState.direction : null;
                           return (
                             <th key={h} onClick={() => handleSort(h)}
@@ -1576,6 +1576,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                             </td>
                             <td style={{ padding: '7px 8px', fontFamily: "'JetBrains Mono'", fontSize: 9, color: '#6B7280', whiteSpace: 'nowrap', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                               {item.revenue != null ? `${Number(item.revenue).toLocaleString()}千円` : <span style={{ color: '#9CA3AF' }}>-</span>}
+                            </td>
+                            <td style={{ padding: '7px 8px', fontSize: 9, color: '#6B7280', whiteSpace: 'nowrap' }}>
+                              {(() => { const recs = getRecordsForItem(item.id); if (!recs.length) return <span style={{ color: '#9CA3AF' }}>-</span>; const latest = recs.reduce((a, b) => new Date(a.called_at || 0) > new Date(b.called_at || 0) ? a : b); return formatJST(latest.called_at); })()}
+                            </td>
+                            <td style={{ padding: '7px 8px', fontSize: 9, color: '#6B7280', whiteSpace: 'nowrap' }}>
+                              {(() => { const recs = getRecordsForItem(item.id); if (!recs.length) return <span style={{ color: '#9CA3AF' }}>-</span>; const latest = recs.reduce((a, b) => new Date(a.called_at || 0) > new Date(b.called_at || 0) ? a : b); return latest.getter_name || <span style={{ color: '#9CA3AF' }}>-</span>; })()}
                             </td>
                             <td style={{ padding: '7px 8px' }}>
                               <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, fontWeight: 600, background: sc.bg, color: sc.color, whiteSpace: 'nowrap' }}>
