@@ -1450,13 +1450,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             <div style={{ background: '#fff', borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
               {/* 検索バー + 架電開始ボタン */}
               <div style={{ padding: '8px 12px', borderBottom: '1px solid #E5E7EB', display: 'flex', gap: 6, alignItems: 'center', background: '#F8F9FA', flexWrap: 'wrap' }}>
-                <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} placeholder="企業名・代表者・電話番号で検索..."
-                  style={{ flex: 1, minWidth: 160, padding: '6px 12px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', boxSizing: 'border-box' }} />
-                <button onClick={handleStartCalling} disabled={sessionStarted || sorted.length === 0}
-                  style={{ padding: '6px 16px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: sessionStarted ? 'default' : 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
-                    background: sessionStarted ? '#6B7280' : '#0D2247', color: '#fff', border: 'none', opacity: sessionStarted ? 0.6 : 1 }}>
-                  {sessionStarted ? '架電中' : '架電開始'}
-                </button>
+                <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} placeholder="検索..."
+                  style={{ width: 120, minWidth: 80, padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', boxSizing: 'border-box' }} />
                 {[['callable','架電可能'],['all','全件'],['excluded','除外']].map(([mode, label]) => (
                   <button key={mode} onClick={() => { setFilterMode(mode); setPage(0); }}
                     style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
@@ -1535,6 +1530,14 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     )}
                   </div>
                 )}
+                {/* 架電開始ボタン（右端） */}
+                <div style={{ marginLeft: 'auto', paddingLeft: 24 }}>
+                  <button onClick={handleStartCalling} disabled={sessionStarted || sorted.length === 0}
+                    style={{ padding: '6px 20px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: sessionStarted ? 'default' : 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
+                      background: sessionStarted ? '#6B7280' : '#0D2247', color: '#fff', border: 'none', opacity: sessionStarted ? 0.6 : 1 }}>
+                    {sessionStarted ? '架電中' : '架電開始'}
+                  </button>
+                </div>
               </div>
               {/* テーブル */}
               <div style={{ overflow: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
