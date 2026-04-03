@@ -67,6 +67,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [revenueMax, setRevenueMax] = useState(initialRevenueMax ? String(initialRevenueMax) : '');  // 空文字 = 上限なし
   const [prefFilters, setPrefFilters] = useState(Array.isArray(initialPrefFilter) ? initialPrefFilter : (initialPrefFilter ? [initialPrefFilter] : []));
   const [prefDropOpen, setPrefDropOpen] = useState(false);
+  const [statusFilterLocal, setStatusFilterLocal] = useState(null); // null=全ステータス, string=特定ステータス
   const [recallModal, setRecallModal] = useState(null); // { row, statusId, round, label }
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const cfvKbRef = useRef({});
@@ -349,6 +350,17 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       }
       if (prefFilters.length > 0) {
         if (!prefFilters.includes(extractPref(item.address))) return false;
+      }
+      // ステータスフィルタ（企業一覧上のボタン）
+      if (statusFilterLocal) {
+        const recs = getRecordsForItem(item.id);
+        if (statusFilterLocal === '未架電') {
+          if (recs.length > 0) return false;
+        } else {
+          if (recs.length === 0) return false;
+          const latestRec = recs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b);
+          if (latestRec.status !== statusFilterLocal) return false;
+        }
       }
       return true;
     });
@@ -1452,13 +1464,24 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               <div style={{ padding: '8px 12px', borderBottom: '1px solid #E5E7EB', display: 'flex', gap: 6, alignItems: 'center', background: '#F8F9FA', flexWrap: 'wrap' }}>
                 <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} placeholder="検索..."
                   style={{ width: 180, minWidth: 120, padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', boxSizing: 'border-box' }} />
-                {[['callable','架電可能'],['all','全件'],['excluded','除外']].map(([mode, label]) => (
-                  <button key={mode} onClick={() => { setFilterMode(mode); setPage(0); }}
+                {[['callable','架電可能'],['all','全件'],['excluded','架電不可']].map(([mode, label]) => (
+                  <button key={mode} onClick={() => { setFilterMode(mode); setStatusFilterLocal(null); setPage(0); }}
                     style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
-                      background: filterMode === mode ? '#0D2247' : 'transparent',
-                      color: filterMode === mode ? '#fff' : '#9CA3AF',
-                      border: '1px solid ' + (filterMode === mode ? '#0D2247' : '#E5E7EB') }}>
+                      background: filterMode === mode && !statusFilterLocal ? '#0D2247' : 'transparent',
+                      color: filterMode === mode && !statusFilterLocal ? '#fff' : '#9CA3AF',
+                      border: '1px solid ' + (filterMode === mode && !statusFilterLocal ? '#0D2247' : '#E5E7EB') }}>
                     {label}
+                  </button>
+                ))}
+                {/* ステータスフィルタ */}
+                <span style={{ color: '#D1D5DB', fontSize: 10 }}>|</span>
+                {[null,'未架電','不通','社長不在','受付ブロック','受付再コール','社長再コール','アポ獲得','社長お断り','除外'].map(st => (
+                  <button key={st ?? 'all'} onClick={() => { setStatusFilterLocal(st); if (st) setFilterMode('all'); setPage(0); }}
+                    style={{ padding: '3px 8px', borderRadius: 4, fontSize: 9, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
+                      background: statusFilterLocal === st ? '#0D2247' : 'transparent',
+                      color: statusFilterLocal === st ? '#fff' : '#9CA3AF',
+                      border: '1px solid ' + (statusFilterLocal === st ? '#0D2247' : '#E5E7EB') }}>
+                    {st ?? '全ステータス'}
                   </button>
                 ))}
                 {/* 売上高フィルター */}
