@@ -23,6 +23,7 @@ import { renderMarkedScript } from '../../utils/scriptMarker';
 // モジュールレベルのセッションIDキャッシュ（React Strict Mode 二重INSERT防止）
 // useRef と異なりStrict Modeのfake unmount/remountでもリセットされない
 const _cfSessionCache = new Map(); // `${listId}|${startNo}|${endNo}` → sessionId
+const _cfSlackNotified = new Set(); // cacheKey → Slack通知済みフラグ（重複防止）
 // モジュールレベルの「リアルクローズ済みセッションID」セット
 // isRealCloseRef（useRef）はStrict Modeで信頼できないため、同じパターンで管理
 const _cfRealCloseSet = new Set(); // sessionId → リアルクローズ時にadd、cleanup後にdelete
@@ -184,6 +185,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           started_at: new Date().toISOString(), finished_at: null, last_called_at: null,
         }).then(() => {
           if (defaultItemId) return;
+          if (_cfSlackNotified.has(cacheKey)) return;
+          _cfSlackNotified.add(cacheKey);
           const callerName = currentUser || '不明';
           const listLabel = [list.company, list.industry].filter(Boolean).join(' - ');
           const rangeLabel = (startNo != null && endNo != null) ? `No.${startNo}〜${endNo}` : '全件';
