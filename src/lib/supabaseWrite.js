@@ -253,12 +253,25 @@ export async function updateAppointment(supaId, data) {
 }
 
 export async function insertAppointment(data) {
-  const { data: clients } = await supabase
-    .from('clients')
-    .select('id')
-    .eq('name', data.client)
-    .limit(1)
-  const clientId = clients?.[0]?.id || null
+  // list_idがあればcall_listsからclient_idを取得（クライアント名変更に強い）
+  let clientId = null
+  if (data.list_id) {
+    const { data: listRow } = await supabase
+      .from('call_lists')
+      .select('client_id')
+      .eq('id', data.list_id)
+      .single()
+    clientId = listRow?.client_id || null
+  }
+  // list_idからclient_idが取得できなかった場合はクライアント名でフォールバック
+  if (!clientId && data.client) {
+    const { data: clients } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('name', data.client)
+      .limit(1)
+    clientId = clients?.[0]?.id || null
+  }
 
   const appoMonth = data.meetDate ? (parseInt(data.meetDate.slice(5, 7), 10) + '月') : ''
 
