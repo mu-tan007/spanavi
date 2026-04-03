@@ -188,6 +188,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             last_called_at: null,
           })
             .then(() => {
+              // 再コールからの起動時はSlack通知をスキップ
+              if (defaultItemId) return;
               // Slack #架電報告 に架電開始通知（エッジファンクション経由）
               const callerName = currentUser || '不明';
               const listLabel = [list.company, list.industry].filter(Boolean).join(' - ');
