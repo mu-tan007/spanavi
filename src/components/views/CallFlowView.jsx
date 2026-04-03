@@ -161,11 +161,28 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const handleStartCalling = () => {
     if (sessionStarted) return;
     const cacheKey = `${list.id}|${startNo ?? ''}|${endNo ?? ''}`;
-    // 既にセッション作成済み（再マウント時）はスキップ
+    // 既にセッション作成済み（再マウント時）はセッション復元のみ
     if (_cfSessionCache.has(cacheKey)) {
       sessionIdRef.current = _cfSessionCache.get(cacheKey);
       setSessionStarted(true);
       if (sorted.length > 0) { setSelectedRow(sorted[0]); setListMode(false); }
+      // セッションは既存だがSlack未通知なら通知する
+      if (!_cfSlackNotified.has(cacheKey) && !defaultItemId) {
+        _cfSlackNotified.add(cacheKey);
+        const callerName = currentUser || '不明';
+        const listLabel = [list.company, list.industry].filter(Boolean).join(' - ');
+        const rangeLabel = (startNo != null && endNo != null) ? `No.${startNo}〜${endNo}` : '全件';
+        const text = `📞 ${callerName} が「${listLabel}」の${rangeLabel}を架電開始しました`;
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        if (supabaseUrl && supabaseKey) {
+          fetch(`${supabaseUrl}/functions/v1/post-to-slack`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+            body: JSON.stringify({ text, webhook_key: 'slack_webhook_keiden', org_id: getOrgId() }),
+          }).catch(e => console.warn('[Slack] 架電開始通知エラー:', e));
+        }
+      }
       return;
     }
     const totalCount = (startNo != null && endNo != null) ? (Number(endNo) - Number(startNo) + 1) : 0;
