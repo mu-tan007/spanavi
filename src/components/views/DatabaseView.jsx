@@ -6,7 +6,7 @@ import DatabaseResultTable from '../database/DatabaseResultTable';
 import { useCompanySearch } from '../../hooks/useCompanySearch';
 import { searchCompanies } from '../../lib/companyMasterApi';
 
-export default function DatabaseView() {
+export default function DatabaseView({ isAdmin }) {
   const {
     filters, setFilter, resetFilters,
     results, totalCount, loading, error, hasSearched,
@@ -69,7 +69,7 @@ export default function DatabaseView() {
         setFilter={setFilter}
         onSearch={() => doSearch()}
         onReset={resetFilters}
-        onExport={handleExport}
+        onExport={isAdmin ? handleExport : null}
         loading={loading}
         totalCount={totalCount}
         hasSearched={hasSearched}

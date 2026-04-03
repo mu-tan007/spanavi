@@ -380,21 +380,21 @@ export async function invokeSendAppoReport({ channel, text, webhook_url, room_id
 }
 
 // ── クライアント担当者 CRUD ──────────────────────────────────
-export async function insertClientContact(clientId, { name, email, slackMemberId, googleCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2 }) {
+export async function insertClientContact(clientId, { name, email, slackMemberId, googleCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, schedulingNotes }) {
   const orgId = getOrgId()
   const { data, error } = await supabase
     .from('client_contacts')
-    .insert({ org_id: orgId, client_id: clientId, name, email, slack_member_id: slackMemberId || null, google_calendar_id: googleCalendarId || null, scheduling_url: schedulingUrl || null, scheduling_url_2: schedulingUrl2 || null, scheduling_label: schedulingLabel || null, scheduling_label_2: schedulingLabel2 || null })
+    .insert({ org_id: orgId, client_id: clientId, name, email, slack_member_id: slackMemberId || null, google_calendar_id: googleCalendarId || null, scheduling_url: schedulingUrl || null, scheduling_url_2: schedulingUrl2 || null, scheduling_label: schedulingLabel || null, scheduling_label_2: schedulingLabel2 || null, scheduling_notes: schedulingNotes || null })
     .select()
     .single()
   if (error) console.error('[DB] insertClientContact error:', error)
   return { data, error }
 }
 
-export async function updateClientContact(id, { name, email, slackMemberId, googleCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2 }) {
+export async function updateClientContact(id, { name, email, slackMemberId, googleCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, schedulingNotes }) {
   const { error } = await supabase
     .from('client_contacts')
-    .update({ name, email, slack_member_id: slackMemberId ?? undefined, google_calendar_id: googleCalendarId ?? undefined, scheduling_url: schedulingUrl ?? undefined, scheduling_url_2: schedulingUrl2 ?? undefined, scheduling_label: schedulingLabel ?? undefined, scheduling_label_2: schedulingLabel2 ?? undefined })
+    .update({ name, email, slack_member_id: slackMemberId ?? undefined, google_calendar_id: googleCalendarId ?? undefined, scheduling_url: schedulingUrl ?? undefined, scheduling_url_2: schedulingUrl2 ?? undefined, scheduling_label: schedulingLabel ?? undefined, scheduling_label_2: schedulingLabel2 ?? undefined, scheduling_notes: schedulingNotes ?? undefined })
     .eq('id', id)
   if (error) console.error('[DB] updateClientContact error:', error)
   return error

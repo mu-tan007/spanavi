@@ -75,7 +75,7 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
         }}>
           <RotateCcw size={14} /> リセット
         </button>
-        {hasSearched && totalCount > 0 && (
+        {hasSearched && totalCount > 0 && onExport && (
           <button onClick={onExport} style={{
             display: 'flex', alignItems: 'center', gap: 4,
             background: C.white, color: C.navy, border: `1px solid ${C.navy}`,

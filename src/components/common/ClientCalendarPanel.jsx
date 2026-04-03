@@ -20,7 +20,7 @@ const APPO_COLOR = '#8B5CF6';      // 登録済みアポ: 紫
  *   onSelectSlot     - (date, time) => void  空きスロットクリック時
  *   compact          - boolean  コンパクト表示モード
  */
-export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, onSelectSlot, existingAppointments = [], compact = false }) {
+export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, onSelectSlot, existingAppointments = [], schedulingNotes = '', compact = false }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -120,6 +120,22 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
     schedulingUrl2 ? { url: schedulingUrl2, label: schedulingLabel2 || getToolName(schedulingUrl2) } : null,
   ].filter(Boolean);
 
+  // 注意事項パース（JSON配列 or 改行区切りテキスト）
+  const CIRCLE_NUMS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+  const noteItems = (() => {
+    if (!schedulingNotes) return [];
+    try { const arr = JSON.parse(schedulingNotes); if (Array.isArray(arr)) return arr.filter(Boolean); } catch {}
+    return schedulingNotes.split('\n').filter(s => s.trim());
+  })();
+  const notesBlock = noteItems.length > 0 ? (
+    <div style={{ padding: '8px 12px', background: '#FEF3C7', borderRadius: 4, border: '1px solid #FDE68A', fontSize: 11 }}>
+      <div style={{ fontWeight: 600, color: '#92400E', marginBottom: 4 }}>日程調整の注意事項</div>
+      {noteItems.map((note, i) => (
+        <div key={i} style={{ color: '#78350F', lineHeight: 1.6 }}>{CIRCLE_NUMS[i] || `${i+1}.`} {note}</div>
+      ))}
+    </div>
+  ) : null;
+
   // カレンダー未連携: 日程調整ツールリンクがあればそれだけ表示、なければメッセージ
   if (!clientCalendarId) {
     if (schedulingLinks.length > 0) {
@@ -134,6 +150,7 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
               </a>
             </div>
           ))}
+          {notesBlock}
         </div>
       );
     }
@@ -258,6 +275,8 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
           ))}
         </div>
       )}
+
+      {notesBlock}
     </div>
   );
 }
