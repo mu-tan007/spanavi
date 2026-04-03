@@ -378,7 +378,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
               fontSize: 11, fontWeight: 700, fontFamily: "'Noto Sans JP'",
               border: "none",
             }}
-          >架電開始</button>
+          >検索</button>
           {itemCount !== null && (
             <span style={{ fontSize: 10, color: C.textLight }}>
               リスト: {itemCount.toLocaleString()}件

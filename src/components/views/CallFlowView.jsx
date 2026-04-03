@@ -153,74 +153,80 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setSelectedRound(Math.min(maxRound + 1, 8));
   }, [selectedRow?.id]);
 
-  // Session creation on mount + beforeunload guard
-  React.useEffect(() => {
-    const totalCount = (startNo != null && endNo != null)
-      ? (Number(endNo) - Number(startNo) + 1)
-      : 0;
+  const [sessionStarted, setSessionStarted] = useState(false);
 
-    // モジュールレベルキャッシュでStrict Modeの二重INSERT防止
+  // 架電開始ハンドラ: セッション作成 + Slack通知 + フォーカスモード遷移
+  const handleStartCalling = () => {
+    if (sessionStarted) return;
+    const totalCount = (startNo != null && endNo != null) ? (Number(endNo) - Number(startNo) + 1) : 0;
     const cacheKey = `${list.id}|${startNo ?? ''}|${endNo ?? ''}`;
+    const newId = `cf_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    sessionIdRef.current = newId;
+    _cfSessionCache.set(cacheKey, newId);
+    setSessionStarted(true);
 
-    if (_cfSessionCache.has(cacheKey)) {
-      sessionIdRef.current = _cfSessionCache.get(cacheKey);
-    } else {
-      const newId = `cf_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-      sessionIdRef.current = newId;
-      _cfSessionCache.set(cacheKey, newId);
-      // リロード等で残留した同一リスト・同一担当者の未完了セッションを先に閉じてからINSERT
-      // （先に閉じないと、新セッションが即座にcloseされる競合が起きる）
-      closeOpenCallSessionsForList(list._supaId, currentUser || '不明')
-        .catch(e => console.warn('[Session] closeOpenCallSessionsForList error:', e))
-        .finally(() => {
-          insertCallSession({
-            id: newId,
-            list_id: list.id,
-            list_supa_id: list._supaId || null,
-            list_name: list.company || '',
-            industry: list.industry || '',
-            caller_name: currentUser || '不明',
-            start_no: startNo ?? null,
-            end_no: endNo ?? null,
-            total_count: totalCount,
-            started_at: new Date().toISOString(),
-            finished_at: null,
-            last_called_at: null,
-          })
-            .then(() => {
-              // 再コールからの起動時はSlack通知をスキップ
-              if (defaultItemId) return;
-              // Slack #架電報告 に架電開始通知（エッジファンクション経由）
-              const callerName = currentUser || '不明';
-              const listLabel = [list.company, list.industry].filter(Boolean).join(' - ');
-              const rangeLabel = (startNo != null && endNo != null) ? `No.${startNo}〜${endNo}` : '全件';
-              const conditions = [];
-              if (statusFilter) conditions.push(`ステータス: ${statusFilter}`);
-              if (initialRevenueMin || initialRevenueMax) {
-                const minLabel = initialRevenueMin ? `${(initialRevenueMin / 1000).toLocaleString()}百万` : '';
-                const maxLabel = initialRevenueMax ? `${(initialRevenueMax / 1000).toLocaleString()}百万` : '';
-                conditions.push(`売上高: ${minLabel}${minLabel && maxLabel ? '〜' : ''}${maxLabel}${!minLabel && maxLabel ? '以下' : ''}${minLabel && !maxLabel ? '以上' : ''}`);
-              }
-              if (initialPrefFilter) {
-                const prefs = Array.isArray(initialPrefFilter) ? initialPrefFilter : [initialPrefFilter];
-                if (prefs.length > 0) conditions.push(`都道府県: ${prefs.join(', ')}`);
-              }
-              const condLabel = conditions.length > 0 ? `\n絞り込み: ${conditions.join(' / ')}` : '';
-              const text = `📞 ${callerName} が「${listLabel}」の${rangeLabel}を架電開始しました${condLabel}`;
-              const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-              const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-              if (supabaseUrl && supabaseKey) {
-                fetch(`${supabaseUrl}/functions/v1/post-to-slack`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
-                  body: JSON.stringify({ text, webhook_key: 'slack_webhook_keiden', org_id: getOrgId() }),
-                }).catch(e => console.warn('[Slack] 架電開始通知エラー:', e));
-              }
-            })
-            .catch(e => console.error('[Session] insertCallSession error:', e));
-        });
+    closeOpenCallSessionsForList(list._supaId, currentUser || '不明')
+      .catch(e => console.warn('[Session] closeOpenCallSessionsForList error:', e))
+      .finally(() => {
+        insertCallSession({
+          id: newId, list_id: list.id, list_supa_id: list._supaId || null,
+          list_name: list.company || '', industry: list.industry || '',
+          caller_name: currentUser || '不明',
+          start_no: startNo ?? null, end_no: endNo ?? null, total_count: totalCount,
+          started_at: new Date().toISOString(), finished_at: null, last_called_at: null,
+        }).then(() => {
+          if (defaultItemId) return;
+          const callerName = currentUser || '不明';
+          const listLabel = [list.company, list.industry].filter(Boolean).join(' - ');
+          const rangeLabel = (startNo != null && endNo != null) ? `No.${startNo}〜${endNo}` : '全件';
+          const conditions = [];
+          if (statusFilter) conditions.push(`ステータス: ${statusFilter}`);
+          if (initialRevenueMin || initialRevenueMax) {
+            const minLabel = initialRevenueMin ? `${(initialRevenueMin / 1000).toLocaleString()}百万` : '';
+            const maxLabel = initialRevenueMax ? `${(initialRevenueMax / 1000).toLocaleString()}百万` : '';
+            conditions.push(`売上高: ${minLabel}${minLabel && maxLabel ? '〜' : ''}${maxLabel}${!minLabel && maxLabel ? '以下' : ''}${minLabel && !maxLabel ? '以上' : ''}`);
+          }
+          if (initialPrefFilter) {
+            const prefs = Array.isArray(initialPrefFilter) ? initialPrefFilter : [initialPrefFilter];
+            if (prefs.length > 0) conditions.push(`都道府県: ${prefs.join(', ')}`);
+          }
+          const condLabel = conditions.length > 0 ? `\n絞り込み: ${conditions.join(' / ')}` : '';
+          const text = `📞 ${callerName} が「${listLabel}」の${rangeLabel}を架電開始しました${condLabel}`;
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+          if (supabaseUrl && supabaseKey) {
+            fetch(`${supabaseUrl}/functions/v1/post-to-slack`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+              body: JSON.stringify({ text, webhook_key: 'slack_webhook_keiden', org_id: getOrgId() }),
+            }).catch(e => console.warn('[Slack] 架電開始通知エラー:', e));
+          }
+        }).catch(e => console.error('[Session] insertCallSession error:', e));
+      });
+
+    // 先頭企業を選択してフォーカスモードへ
+    if (sorted.length > 0) {
+      setSelectedRow(sorted[0]);
+      setListMode(false);
     }
+  };
 
+  // 再コールからの起動時はマウント時にセッション開始
+  React.useEffect(() => {
+    if (defaultItemId) {
+      const cacheKey = `${list.id}|${startNo ?? ''}|${endNo ?? ''}`;
+      if (!_cfSessionCache.has(cacheKey)) {
+        handleStartCalling();
+      } else {
+        sessionIdRef.current = _cfSessionCache.get(cacheKey);
+        setSessionStarted(true);
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // beforeunload guard
+  React.useEffect(() => {
+    const cacheKey = `${list.id}|${startNo ?? ''}|${endNo ?? ''}`;
     // タブ閉じ・リロード時にも finished_at を書き込む
     const handleBeforeUnload = () => {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -244,18 +250,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       const isRealClose = sessionId != null && _cfRealCloseSet.has(sessionId);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       if (isRealClose) {
-        // handleClose 経由のクローズ: finished_at は handleClose で既に更新済みだが
-        // cleanup でも念のため更新（冪等なので問題なし）
         _cfRealCloseSet.delete(sessionId);
         _cfSessionCache.delete(cacheKey);
         updateCallSession(sessionId, { finished_at: new Date().toISOString() })
           .catch(e => console.error('[Session] unmount updateCallSession error:', e));
-        // IDベース更新が失敗した場合の保険: 全未完了セッションをまとめてクローズ
         closeOpenCallSessionsForList(list._supaId, currentUser || '不明')
           .catch(e => console.error('[Session] unmount closeOpenCallSessionsForList error:', e));
       }
-      // isRealClose = false の場合は Strict Mode の fake unmount のため何もしない
-      // (beforeunload や handleClose で対処済み)
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1447,10 +1448,15 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           {listMode ? (
             /* ────────────── リスト表示モード ────────────── */
             <div style={{ background: '#fff', borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
-              {/* 検索バー */}
+              {/* 検索バー + 架電開始ボタン */}
               <div style={{ padding: '8px 12px', borderBottom: '1px solid #E5E7EB', display: 'flex', gap: 6, alignItems: 'center', background: '#F8F9FA', flexWrap: 'wrap' }}>
                 <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} placeholder="企業名・代表者・電話番号で検索..."
                   style={{ flex: 1, minWidth: 160, padding: '6px 12px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', boxSizing: 'border-box' }} />
+                <button onClick={handleStartCalling} disabled={sessionStarted || sorted.length === 0}
+                  style={{ padding: '6px 16px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: sessionStarted ? 'default' : 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
+                    background: sessionStarted ? '#6B7280' : '#0D2247', color: '#fff', border: 'none', opacity: sessionStarted ? 0.6 : 1 }}>
+                  {sessionStarted ? '架電中' : '架電開始'}
+                </button>
                 {[['callable','架電可能'],['all','全件'],['excluded','除外']].map(([mode, label]) => (
                   <button key={mode} onClick={() => { setFilterMode(mode); setPage(0); }}
                     style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
