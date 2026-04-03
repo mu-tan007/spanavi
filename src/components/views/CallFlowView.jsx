@@ -734,33 +734,39 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       .filter(r => r.item_id === row.id)
       .sort((a, b) => (b.called_at || '').localeCompare(a.called_at || ''))[0];
 
-    const recordingUrlRecall = await fetchRecordingUrl(row.phone, calledAtRecall, _prevRecRecall?.called_at || null);
-
+    // 録音URL取得はブロッキングせず先にDBインサートを実行
     const { result: newRec, error } = await insertCallRecord({
       item_id: row.id, list_id: list._supaId,
       round, status: label, memo: memoJson,
-      called_at: calledAtRecall, recording_url: recordingUrlRecall, getter_name: currentUser,
+      called_at: calledAtRecall, recording_url: null, getter_name: currentUser,
     });
     if (error || !newRec) { setRecallModal(null); return; }
 
-    // 録音URL未取得の場合、90秒後に自動リトライ（Zoomの録音処理遅延対策）
-    if (!recordingUrlRecall && newRec?.id) {
-      const _prevCalledAtRecall = _prevRecRecall?.called_at || null;
-      setTimeout(async () => {
-        try {
-          const url = await fetchRecordingUrl(row.phone, calledAtRecall, _prevCalledAtRecall);
-          if (url) {
-            await updateCallRecordRecordingUrl(newRec.id, url);
-            setCallRecords(prev => prev.map(r => r.id === newRec.id ? { ...r, recording_url: url } : r));
-            console.log('[handleRecallSave] 録音URL自動取得成功:', newRec.id);
-            uploadRecordingToStorage(newRec.id, url);
-          }
-        } catch (e) { console.warn('[handleRecallSave] 録音URL再試行エラー:', e); }
-      }, 90_000);
-    }
-
-    // zoom.us URLをSupabase Storageに変換（非ブロッキング）
-    if (recordingUrlRecall && newRec?.id) uploadRecordingToStorage(newRec.id, recordingUrlRecall);
+    // 録音URL取得をバックグラウンドで実行
+    const _prevCalledAtRecall = _prevRecRecall?.called_at || null;
+    (async () => {
+      try {
+        const url = await fetchRecordingUrl(row.phone, calledAtRecall, _prevCalledAtRecall);
+        if (url && newRec?.id) {
+          await updateCallRecordRecordingUrl(newRec.id, url);
+          setCallRecords(prev => prev.map(r => r.id === newRec.id ? { ...r, recording_url: url } : r));
+          uploadRecordingToStorage(newRec.id, url);
+        } else if (!url && newRec?.id) {
+          // 未取得の場合、90秒後にリトライ
+          setTimeout(async () => {
+            try {
+              const retryUrl = await fetchRecordingUrl(row.phone, calledAtRecall, _prevCalledAtRecall);
+              if (retryUrl) {
+                await updateCallRecordRecordingUrl(newRec.id, retryUrl);
+                setCallRecords(prev => prev.map(r => r.id === newRec.id ? { ...r, recording_url: retryUrl } : r));
+                console.log('[handleRecallSave] 録音URL自動取得成功:', newRec.id);
+                uploadRecordingToStorage(newRec.id, retryUrl);
+              }
+            } catch (e) { console.warn('[handleRecallSave] 録音URL再試行エラー:', e); }
+          }, 90_000);
+        }
+      } catch (e) { console.warn('[handleRecallSave] 録音URL取得エラー:', e); }
+    })();
 
     const newRecords = [...callRecords, newRec];
     setCallRecords(newRecords);
@@ -1340,6 +1346,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           onSubmit={handleRecallSave}
           onCancel={() => setRecallModal(null)}
           members={members}
+          currentUser={currentUser}
         />
       )}
 
@@ -1484,6 +1491,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     {st ?? '全ステータス'}
                   </button>
                 ))}
+                <span style={{ color: '#D1D5DB', fontSize: 10 }}>|</span>
                 {/* 売上高フィルター */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#706E6B', whiteSpace: 'nowrap' }}>
                   <span>売上高</span>
@@ -2002,6 +2010,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           onSubmit={handleRecallSave}
           onCancel={() => setRecallModal(null)}
           members={members}
+          currentUser={currentUser}
         />
       )}
 

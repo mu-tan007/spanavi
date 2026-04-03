@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { C } from '../../constants/colors';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
-export default function RecallModal({ row, statusId, onSubmit, onCancel, members = [] }) {
+export default function RecallModal({ row, statusId, onSubmit, onCancel, members = [], currentUser = '' }) {
   const isMobile = useIsMobile();
   // membersは文字列配列またはオブジェクト配列のどちらでも受け付ける
   const memberNames = members.map(m => typeof m === 'string' ? m : (m?.name || ''));
   const [form, setForm] = useState({
     recallDate: "",
     recallTime: "",
-    assignee: "",
+    assignee: currentUser,
     note: "",
   });
   const [suggestions, setSuggestions] = useState([]);
