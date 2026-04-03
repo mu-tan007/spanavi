@@ -351,7 +351,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', animation: 'fadeIn 0.3s ease' }}>
       {/* Page Header */}
       <div style={{ marginBottom: isMobile ? 16 : 24, paddingBottom: 14, borderBottom: '1px solid #0D2247', flexShrink: 0 }}>
         <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Shifts</div>
