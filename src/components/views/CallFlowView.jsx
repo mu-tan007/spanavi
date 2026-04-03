@@ -219,18 +219,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     }
   };
 
-  // 再コールからの起動時はマウント時にセッション開始
-  React.useEffect(() => {
-    if (defaultItemId) {
-      const cacheKey = `${list.id}|${startNo ?? ''}|${endNo ?? ''}`;
-      if (!_cfSessionCache.has(cacheKey)) {
-        handleStartCalling();
-      } else {
-        sessionIdRef.current = _cfSessionCache.get(cacheKey);
-        setSessionStarted(true);
-      }
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // 再コール・事前確認からの起動時はセッション作成しない
+  // （defaultItemIdが設定されている場合はフォーカスモードのみ）
 
   // beforeunload guard
   React.useEffect(() => {
