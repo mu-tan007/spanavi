@@ -51,7 +51,7 @@ export default function DatabaseView({ isAdmin }) {
   }, [filters, totalCount]);
 
   return (
-    <div style={{ maxWidth: 1400 }}>
+    <div style={{ maxWidth: 1400, animation: 'fadeIn 0.3s ease' }}>
       {/* Header */}
       <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px', marginBottom: 16 }}>
         Database

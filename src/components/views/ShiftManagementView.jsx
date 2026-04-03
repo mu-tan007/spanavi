@@ -261,7 +261,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
     const { isSun, isSat } = getDayMeta(selectedDay);
 
     return (
-      <div>
+      <div style={{ animation: 'fadeIn 0.3s ease' }}>
         {/* 日付ピッカー */}
         <div style={{ padding: '12px 16px', background: '#fff', borderBottom: '1px solid ' + GRAY_200, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
           {days.map(d => {
