@@ -1451,7 +1451,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               {/* 検索バー + 架電開始ボタン */}
               <div style={{ padding: '8px 12px', borderBottom: '1px solid #E5E7EB', display: 'flex', gap: 6, alignItems: 'center', background: '#F8F9FA', flexWrap: 'wrap' }}>
                 <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} placeholder="検索..."
-                  style={{ width: 120, minWidth: 80, padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', boxSizing: 'border-box' }} />
+                  style={{ width: 180, minWidth: 120, padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', boxSizing: 'border-box' }} />
                 {[['callable','架電可能'],['all','全件'],['excluded','除外']].map(([mode, label]) => (
                   <button key={mode} onClick={() => { setFilterMode(mode); setPage(0); }}
                     style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
