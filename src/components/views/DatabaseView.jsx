@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { C } from '../../constants/colors';
 import { Database, Upload } from 'lucide-react';
 import DatabaseFilterPanel from '../database/DatabaseFilterPanel';
@@ -6,6 +6,7 @@ import DatabaseResultTable from '../database/DatabaseResultTable';
 import ImportModal from '../database/ImportModal';
 import { useCompanySearch } from '../../hooks/useCompanySearch';
 import { searchCompanies } from '../../lib/companyMasterApi';
+import { supabase } from '../../lib/supabase';
 
 export default function DatabaseView({ isAdmin }) {
   const {
@@ -14,6 +15,12 @@ export default function DatabaseView({ isAdmin }) {
     doSearch, setPage,
   } = useCompanySearch();
   const [showImport, setShowImport] = useState(false);
+  const [dbTotal, setDbTotal] = useState(null);
+
+  useEffect(() => {
+    supabase.from('company_master').select('id', { count: 'exact', head: true })
+      .then(({ count }) => setDbTotal(count));
+  }, [showImport]);
 
   const handleExport = useCallback(async () => {
     const confirmed = totalCount > 10000
@@ -56,8 +63,13 @@ export default function DatabaseView({ isAdmin }) {
     <div style={{ maxWidth: 1400, animation: 'fadeIn 0.3s ease' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>
-          Database
+        <div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Database</div>
+          {dbTotal != null && (
+            <div style={{ fontSize: 12, color: C.textLight, marginTop: 2 }}>
+              Total: {dbTotal.toLocaleString()} companies
+            </div>
+          )}
         </div>
         {isAdmin && (
           <button onClick={() => setShowImport(true)} style={{
