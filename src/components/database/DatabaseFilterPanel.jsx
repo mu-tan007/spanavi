@@ -4,15 +4,7 @@ import { Search, RotateCcw, Download } from 'lucide-react';
 import CategorySearchInput from './CategorySearchInput';
 import { fetchCategories, fetchPrefectures } from '../../lib/companyMasterApi';
 
-const PHONE_PRESETS = [
-  { label: '携帯(090)', value: '090' },
-  { label: '携帯(080)', value: '080' },
-  { label: '携帯(070)', value: '070' },
-  { label: '東京(03)', value: '03' },
-  { label: '大阪(06)', value: '06' },
-  { label: '名古屋(052)', value: '052' },
-  { label: 'IP電話(050)', value: '050' },
-];
+const PHONE_PRESETS = [];
 
 const labelStyle = { fontSize: 11, color: C.textMid, marginBottom: 3, fontWeight: 600 };
 const inputStyle = {
