@@ -1,8 +1,9 @@
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { C } from '../../constants/colors';
-import { Database } from 'lucide-react';
+import { Database, Upload } from 'lucide-react';
 import DatabaseFilterPanel from '../database/DatabaseFilterPanel';
 import DatabaseResultTable from '../database/DatabaseResultTable';
+import ImportModal from '../database/ImportModal';
 import { useCompanySearch } from '../../hooks/useCompanySearch';
 import { searchCompanies } from '../../lib/companyMasterApi';
 
@@ -12,6 +13,7 @@ export default function DatabaseView({ isAdmin }) {
     results, totalCount, loading, error, hasSearched,
     doSearch, setPage,
   } = useCompanySearch();
+  const [showImport, setShowImport] = useState(false);
 
   const handleExport = useCallback(async () => {
     const confirmed = totalCount > 10000
@@ -53,8 +55,19 @@ export default function DatabaseView({ isAdmin }) {
   return (
     <div style={{ maxWidth: 1400, animation: 'fadeIn 0.3s ease' }}>
       {/* Header */}
-      <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px', marginBottom: 16 }}>
-        Database
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>
+          Database
+        </div>
+        {isAdmin && (
+          <button onClick={() => setShowImport(true)} style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: C.navy, color: C.white, border: 'none',
+            borderRadius: 8, padding: '8px 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+          }}>
+            <Upload size={15} /> リストインポート
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -98,6 +111,14 @@ export default function DatabaseView({ isAdmin }) {
           <div style={{ fontSize: 15, marginBottom: 6 }}>条件を指定して検索してください</div>
           <div style={{ fontSize: 12 }}>業種・エリア・売上高・従業員数・代表者年齢・電話番号などで絞り込めます</div>
         </div>
+      )}
+
+      {/* Import Modal */}
+      {showImport && (
+        <ImportModal
+          onClose={() => setShowImport(false)}
+          onImportComplete={() => { if (hasSearched) doSearch(); }}
+        />
       )}
     </div>
   );
