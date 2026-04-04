@@ -20,8 +20,10 @@ const COLUMNS = [
   { key: 'representative', label: '代表者', width: 100 },
   { key: 'representative_age', label: '年齢', width: 45 },
   { key: 'revenue_k', label: '売上(千円)', width: 100 },
+  { key: 'net_income_k', label: '純利益(千円)', width: 100 },
   { key: 'employee_count', label: '従業員', width: 60 },
   { key: 'established_year', label: '設立', width: 50 },
+  { key: 'clients', label: '取引先', width: 200 },
   { key: 'business_description', label: '事業内容', width: 300 },
 ];
 
