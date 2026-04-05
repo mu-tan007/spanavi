@@ -4,8 +4,6 @@ import { Search, RotateCcw, Download } from 'lucide-react';
 import CategorySearchInput from './CategorySearchInput';
 import { fetchCategories, fetchPrefectures } from '../../lib/companyMasterApi';
 
-const PHONE_PRESETS = [];
-
 const labelStyle = { fontSize: 11, color: C.textMid, marginBottom: 3, fontWeight: 600 };
 const inputStyle = {
   width: '100%', padding: '6px 8px', border: `1px solid ${C.border}`,
@@ -27,8 +25,9 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
   }, [categories]);
 
   const saibunruiList = useMemo(() => {
-    if (!filters.daibunrui) return [...new Set(categories.map(c => c.saibunrui))];
-    return categories.filter(c => c.daibunrui === filters.daibunrui).map(c => c.saibunrui);
+    if (!filters.daibunrui?.length) return [...new Set(categories.map(c => c.saibunrui))];
+    const selectedSet = new Set(filters.daibunrui);
+    return categories.filter(c => selectedSet.has(c.daibunrui)).map(c => c.saibunrui);
   }, [categories, filters.daibunrui]);
 
   const handleKeyDown = (e) => {
@@ -40,7 +39,7 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
       background: C.white, borderRadius: 10, border: `1px solid ${C.border}`,
       padding: 18, marginBottom: 16,
     }}>
-      {/* Row 1: Keyword + Buttons */}
+      {/* Row 1: Keyword + AND/OR + Buttons */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={labelStyle}>キーワード（企業名・事業内容）</div>
@@ -51,6 +50,18 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
             placeholder="企業名や事業内容で検索..."
             style={inputStyle}
           />
+        </div>
+        {/* AND/OR toggle */}
+        <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: `1px solid ${C.border}`, height: 34 }}>
+          {['AND', 'OR'].map(mode => (
+            <button key={mode} onClick={() => setFilter('logic', mode)} style={{
+              padding: '0 14px', fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer',
+              background: filters.logic === mode ? C.navy : C.white,
+              color: filters.logic === mode ? C.white : C.textMid,
+            }}>
+              {mode}
+            </button>
+          ))}
         </div>
         <button onClick={onSearch} disabled={loading} style={{
           display: 'flex', alignItems: 'center', gap: 6,
@@ -85,7 +96,7 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
           <CategorySearchInput
             items={daibunruiList}
             value={filters.daibunrui}
-            onChange={(v) => { setFilter('daibunrui', v); setFilter('saibunrui', ''); }}
+            onChange={(v) => { setFilter('daibunrui', v); setFilter('saibunrui', []); }}
             placeholder="入力して候補を表示..."
           />
         </div>
@@ -130,18 +141,6 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
             placeholder="例: 090, 03..."
             style={inputStyle}
           />
-          <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
-            {PHONE_PRESETS.map(p => (
-              <button key={p.value} onClick={() => setFilter('phonePattern', p.value)} style={{
-                padding: '2px 7px', fontSize: 10, borderRadius: 4, cursor: 'pointer',
-                background: filters.phonePattern === p.value ? C.navy : C.offWhite,
-                color: filters.phonePattern === p.value ? C.white : C.textMid,
-                border: `1px solid ${filters.phonePattern === p.value ? C.navy : C.border}`,
-              }}>
-                {p.label}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 

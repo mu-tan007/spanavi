@@ -1,21 +1,19 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { C } from '../../constants/colors';
+import { X } from 'lucide-react';
 
 /**
- * インクリメンタルサーチ付きカテゴリ入力
+ * 複数選択対応インクリメンタルサーチ
  * items: string[] - 候補リスト
- * value: string - 現在の値
- * onChange: (val) => void
+ * value: string[] - 選択中の値（配列）
+ * onChange: (val: string[]) => void
  * placeholder: string
  */
-export default function CategorySearchInput({ items, value, onChange, placeholder }) {
-  const [input, setInput] = useState(value || '');
+export default function CategorySearchInput({ items, value = [], onChange, placeholder }) {
+  const [input, setInput] = useState('');
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
-  useEffect(() => { setInput(value || ''); }, [value]);
-
-  // 外側クリックで閉じる
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', handler);
@@ -23,44 +21,64 @@ export default function CategorySearchInput({ items, value, onChange, placeholde
   }, []);
 
   const filtered = useMemo(() => {
-    if (!input) return items.slice(0, 30);
+    const selected = new Set(value);
+    const available = items.filter(item => !selected.has(item));
+    if (!input) return available.slice(0, 30);
     const q = input.toLowerCase();
-    return items.filter(item => item.toLowerCase().includes(q)).slice(0, 50);
-  }, [items, input]);
+    return available.filter(item => item.toLowerCase().includes(q)).slice(0, 50);
+  }, [items, input, value]);
 
   const handleSelect = (item) => {
-    setInput(item);
-    onChange(item);
-    setOpen(false);
+    onChange([...value, item]);
+    setInput('');
   };
 
-  const handleClear = () => {
+  const handleRemove = (item) => {
+    onChange(value.filter(v => v !== item));
+  };
+
+  const handleClearAll = () => {
+    onChange([]);
     setInput('');
-    onChange('');
     setOpen(false);
   };
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      <div style={{ display: 'flex', gap: 4 }}>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => { setInput(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-          placeholder={placeholder}
-          style={{
-            flex: 1, padding: '6px 8px', border: `1px solid ${C.border}`,
-            borderRadius: 6, fontSize: 13, outline: 'none', minWidth: 0,
-          }}
-        />
-        {input && (
-          <button onClick={handleClear} style={{
+      {/* Selected tags */}
+      {value.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: 4 }}>
+          {value.map((v, i) => (
+            <span key={i} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 2,
+              padding: '2px 7px', fontSize: 11, borderRadius: 4,
+              background: C.navy, color: C.white, whiteSpace: 'nowrap',
+            }}>
+              {v}
+              <X size={11} style={{ cursor: 'pointer', opacity: 0.8 }} onClick={() => handleRemove(v)} />
+            </span>
+          ))}
+          <button onClick={handleClearAll} style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            color: C.textLight, fontSize: 16, padding: '0 4px',
-          }}>×</button>
-        )}
-      </div>
+            color: C.textLight, fontSize: 10, padding: '2px 4px',
+          }}>全解除</button>
+        </div>
+      )}
+
+      {/* Input */}
+      <input
+        type="text"
+        value={input}
+        onChange={(e) => { setInput(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder={value.length > 0 ? '追加...' : placeholder}
+        style={{
+          width: '100%', padding: '6px 8px', border: `1px solid ${C.border}`,
+          borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box',
+        }}
+      />
+
+      {/* Dropdown */}
       {open && filtered.length > 0 && (
         <div style={{
           position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999,
@@ -75,10 +93,9 @@ export default function CategorySearchInput({ items, value, onChange, placeholde
               style={{
                 padding: '7px 10px', cursor: 'pointer', fontSize: 13,
                 borderBottom: i < filtered.length - 1 ? `1px solid ${C.borderLight}` : 'none',
-                background: item === value ? C.goldGlow : 'transparent',
               }}
               onMouseEnter={(e) => e.currentTarget.style.background = C.offWhite}
-              onMouseLeave={(e) => e.currentTarget.style.background = item === value ? C.goldGlow : 'transparent'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
             >
               {item}
             </div>

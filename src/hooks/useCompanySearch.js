@@ -1,11 +1,11 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { searchCompanies } from '../lib/companyMasterApi';
 
 const INITIAL_FILTERS = {
   keyword: '',
-  daibunrui: '',
-  saibunrui: '',
-  prefecture: '',
+  daibunrui: [],    // 複数選択対応
+  saibunrui: [],    // 複数選択対応
+  prefecture: [],   // 複数選択対応
   city: '',
   revenueMin: '',
   revenueMax: '',
@@ -16,6 +16,7 @@ const INITIAL_FILTERS = {
   phonePattern: '',
   establishedMin: '',
   establishedMax: '',
+  logic: 'AND',     // AND / OR
   page: 0,
   pageSize: 50,
 };
@@ -27,7 +28,6 @@ export function useCompanySearch() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
-  const debounceRef = useRef(null);
 
   const setFilter = useCallback((key, value) => {
     setFiltersState(prev => ({ ...prev, [key]: value, page: key === 'page' ? value : 0 }));
@@ -64,7 +64,6 @@ export function useCompanySearch() {
   const setPage = useCallback((page) => {
     setFiltersState(prev => {
       const newF = { ...prev, page };
-      // Trigger search with new page
       setTimeout(() => doSearch(newF), 0);
       return newF;
     });

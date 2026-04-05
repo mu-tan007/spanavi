@@ -29,13 +29,13 @@ export async function fetchPrefectures() {
   return unique;
 }
 
-/** 企業検索（RPC） */
+/** 企業検索（RPC） - 複数選択・AND/OR対応 */
 export async function searchCompanies(filters) {
   const params = {};
   if (filters.keyword) params.p_keyword = filters.keyword;
-  if (filters.daibunrui) params.p_daibunrui = filters.daibunrui;
-  if (filters.saibunrui) params.p_saibunrui = filters.saibunrui;
-  if (filters.prefecture) params.p_prefecture = filters.prefecture;
+  if (filters.daibunrui?.length) params.p_daibunrui_arr = filters.daibunrui;
+  if (filters.saibunrui?.length) params.p_saibunrui_arr = filters.saibunrui;
+  if (filters.prefecture?.length) params.p_prefecture_arr = filters.prefecture;
   if (filters.city) params.p_city = filters.city;
   if (filters.revenueMin != null && filters.revenueMin !== '') params.p_revenue_min = Number(filters.revenueMin);
   if (filters.revenueMax != null && filters.revenueMax !== '') params.p_revenue_max = Number(filters.revenueMax);
@@ -46,6 +46,7 @@ export async function searchCompanies(filters) {
   if (filters.phonePattern) params.p_phone_pattern = filters.phonePattern;
   if (filters.establishedMin != null && filters.establishedMin !== '') params.p_established_min = Number(filters.establishedMin);
   if (filters.establishedMax != null && filters.establishedMax !== '') params.p_established_max = Number(filters.establishedMax);
+  params.p_logic = filters.logic || 'AND';
   params.p_page = filters.page || 0;
   params.p_page_size = filters.pageSize || 50;
 
