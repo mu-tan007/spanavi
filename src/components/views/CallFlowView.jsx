@@ -1381,13 +1381,14 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       {quickAppoSlot && selectedRow && (() => {
         const cl = (clientData || []).find(c => c.company === list.company);
         const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
+        const lc = list.contactId ? contacts.find(ct => ct.id === list.contactId) : (list.manager ? contacts.find(ct => ct.name?.includes(list.manager)) : null);
         return (
           <QuickAppoModal
             date={quickAppoSlot.date}
             time={quickAppoSlot.time}
             row={selectedRow}
             list={list}
-            clientInfo={cl ? { _supaId: cl._supaId, slackWebhookUrl: cl.slackWebhookUrl, googleCalendarId: overrideCalendarId || cl.googleCalendarId } : null}
+            clientInfo={cl ? { _supaId: cl._supaId, slackWebhookUrl: cl.slackWebhookUrl, googleCalendarId: lc?.googleCalendarId || cl?.googleCalendarId || '' } : null}
             contacts={contacts}
             currentUser={currentUser}
             onClose={() => setQuickAppoSlot(null)}
@@ -2117,13 +2118,14 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       {quickAppoSlot && selectedRow && (() => {
         const cl = (clientData || []).find(c => c.company === list.company);
         const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
+        const lc = list.contactId ? contacts.find(ct => ct.id === list.contactId) : (list.manager ? contacts.find(ct => ct.name?.includes(list.manager)) : null);
         return (
           <QuickAppoModal
             date={quickAppoSlot.date}
             time={quickAppoSlot.time}
             row={selectedRow}
             list={list}
-            clientInfo={cl ? { _supaId: cl._supaId, slackWebhookUrl: cl.slackWebhookUrl, googleCalendarId: overrideCalendarId || cl.googleCalendarId } : null}
+            clientInfo={cl ? { _supaId: cl._supaId, slackWebhookUrl: cl.slackWebhookUrl, googleCalendarId: lc?.googleCalendarId || cl?.googleCalendarId || '' } : null}
             contacts={contacts}
             currentUser={currentUser}
             onClose={() => setQuickAppoSlot(null)}
