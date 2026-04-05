@@ -377,6 +377,8 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
   const [calledCounts, setCalledCounts]     = useState({});
   // 過去日セクションはデフォルト折りたたみ（today = key 0 はデフォルト展開）
   const [collapsed, setCollapsed]           = useState({ 1: true, 2: true });
+  // 削除済みセッションIDを記録（ポーリングでの復活防止）
+  const deletedIdsRef = React.useRef(new Set());
 
   const todayStr = useMemo(() => toJSTDateStr(now), [now]);
 
@@ -391,7 +393,9 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
     const load = async () => {
       const { data: raw } = await fetchAllCallSessionsWithClients();
       if (!raw) return;
-      setSessions(raw);
+      // ローカルで削除済みのセッションを除外（DB反映ラグ対策）
+      const filtered = raw.filter(s => !deletedIdsRef.current.has(s.id));
+      setSessions(filtered);
 
       // 3営業日内のセッションのみ架電件数を取得
       const targets = raw.filter(s => validDates.has(toJSTDateStr(s.started_at)));
@@ -540,6 +544,7 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
                           ));
                         }}
                         onDeleteSession={(sessionId) => {
+                          deletedIdsRef.current.add(sessionId);
                           setSessions(prev => prev.filter(s => s.id !== sessionId));
                         }}
                       />
