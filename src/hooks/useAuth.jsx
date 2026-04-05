@@ -116,6 +116,23 @@ export function AuthProvider({ children }) {
       password,
     })
     if (error) throw error
+
+    // 異常ログイン検知（非同期・エラー無視）
+    try {
+      const userId = data.user?.id
+      if (userId) {
+        const ipRes = await fetch('https://api.ipify.org?format=json').catch(() => null)
+        const ip = ipRes ? (await ipRes.json()).ip : 'unknown'
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+        fetch(`${supabaseUrl}/functions/v1/check-login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+          body: JSON.stringify({ user_id: userId, member_name: '', email: data.user?.email || email, ip_address: ip, user_agent: navigator.userAgent }),
+        }).catch(e => console.warn('[Security] check-login error:', e))
+      }
+    } catch (e) { console.warn('[Security] check-login error:', e) }
+
     return data
   }
 
