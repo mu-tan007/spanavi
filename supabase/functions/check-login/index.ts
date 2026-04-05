@@ -118,11 +118,16 @@ Deno.serve(async (req) => {
       user_agent: user_agent || null,
     })
 
-    // 新しいIPの場合、メール通知を送信
+    // 新しいIPの場合、メール通知を送信（本人 + 管理者）
     if (isNewIp && email) {
       const now = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
+      const name = member_name || 'ユーザー'
       try {
-        await sendAlertEmail(email, member_name || 'ユーザー', ip_address, user_agent || '不明', now)
+        await sendAlertEmail(email, name, ip_address, user_agent || '不明', now)
+        // 管理者にも通知（本人が管理者の場合は重複送信しない）
+        if (email !== 'shinomiya@ma-sp.co') {
+          await sendAlertEmail('shinomiya@ma-sp.co', name, ip_address, user_agent || '不明', now)
+        }
       } catch (e) {
         console.error('[check-login] Alert email error:', e)
       }
