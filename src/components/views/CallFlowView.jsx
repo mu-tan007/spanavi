@@ -1392,13 +1392,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             contacts={contacts}
             currentUser={currentUser}
             onClose={() => setQuickAppoSlot(null)}
-            onSave={async (data) => {
-              const { result } = await insertAppointment(data);
-              if (result && setAppoData) {
-                setAppoData(prev => [{ ...data, _supaId: result.id, gcalEventId: data.gcalEventId }, ...prev]);
-              }
-              setQuickAppoSlot(null);
-            }}
+            onSave={() => { setQuickAppoSlot(null); }}
           />
         );
       })()}
@@ -2129,13 +2123,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             contacts={contacts}
             currentUser={currentUser}
             onClose={() => setQuickAppoSlot(null)}
-            onSave={async (data) => {
-              const { result } = await insertAppointment(data);
-              if (result && setAppoData) {
-                setAppoData(prev => [{ ...data, _supaId: result.id, gcalEventId: data.gcalEventId }, ...prev]);
-              }
-              setQuickAppoSlot(null);
-            }}
+            onSave={() => { setQuickAppoSlot(null); }}
           />
         );
       })()}
