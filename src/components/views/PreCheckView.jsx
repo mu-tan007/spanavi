@@ -231,16 +231,26 @@ const formatMeetDateTime = (appo) => {
   return `${m}月${dd}日（${day}）${time ? time + '～' : ''}`;
 };
 
-const buildPreCheckReport = (appo, contactName) => {
+const buildPreCheckReport = (appo, contactName, resultType) => {
   const greeting = contactName || '';
   const dateTime = formatMeetDateTime(appo);
-  return `${greeting}様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\n${dateTime} よりご予定を頂いております、${appo.company || ''}様への事前確認が無事に完了いたしました。\n\n当日はご対応のほど、よろしくお願い申し上げます。\n\nMASP 篠宮`;
+  const companyName = appo.company || '';
+
+  if (resultType === 'リスケ') {
+    return `${greeting}様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\n${dateTime} よりご予定を頂いておりました${companyName}様との面談ですが、先方のご都合によりリスケジュールとなりました。\n\n改めて日程が確定次第、ご連絡いたします。\n\nMASP 篠宮`;
+  }
+  if (resultType === 'キャンセル') {
+    return `${greeting}様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\n${dateTime} よりご予定を頂いておりました${companyName}様との面談ですが、先方のご都合によりキャンセルとなりました。\n\n何卒ご了承くださいますようお願い申し上げます。\n\nMASP 篠宮`;
+  }
+  // 確認完了
+  return `${greeting}様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\n${dateTime} よりご予定を頂いております、${companyName}様への事前確認が無事に完了いたしました。\n\n当日はご対応のほど、よろしくお願い申し上げます。\n\nMASP 篠宮`;
 };
 
 export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen, callListData = [], clientData = [], contactsByClient = {} }) {
   const isMobile = useIsMobile();
   const [selectedAppo, setSelectedAppo] = useState(null);
   const [reportAppo, setReportAppo] = useState(null);
+  const [reportResultType, setReportResultType] = useState('確認完了');
   const [reportBody, setReportBody] = useState('');
   const [reportStep, setReportStep] = useState('idle');
   const [reportError, setReportError] = useState('');
@@ -463,14 +473,15 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
                       ? <span style={{ fontSize: 12, color: badgeColor, background: badgeColor + '1a', borderRadius: 4, padding: '2px 8px' }}>{pcs}</span>
                       : <span style={{ fontSize: 12, color: C.textLight }}>未入力 →</span>
                     }
-                    {pcs === '確認完了' && (
+                    {['確認完了', 'リスケ', 'キャンセル'].includes(pcs) && (
                       <button onClick={e => {
                         e.stopPropagation();
                         const cl = clientData.find(c => c.company === a.client);
                         const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
                         const contactName = contacts[0]?.name || cl?.company || a.client;
                         setReportAppo(a);
-                        setReportBody(buildPreCheckReport(a, contactName));
+                        setReportResultType(pcs);
+                        setReportBody(buildPreCheckReport(a, contactName, pcs));
                         setReportStep('compose');
                         setReportError('');
                       }} style={{ fontSize: 9, padding: '2px 8px', borderRadius: 3, border: 'none', background: '#0D2247', color: '#fff', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>
@@ -526,6 +537,23 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
             <div style={{ background: '#fff', borderRadius: 8, padding: 24, width: 500, maxWidth: '90vw', maxHeight: '80vh', overflow: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}
               onClick={e => e.stopPropagation()}>
               <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: '#0D2247' }}>事前確認報告を送信</h3>
+              {reportStep === 'compose' && (
+                <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                  {['確認完了', 'リスケ', 'キャンセル'].map(rt => (
+                    <button key={rt} onClick={() => {
+                      setReportResultType(rt);
+                      const cl2 = clientData.find(c => c.company === reportAppo.client);
+                      const contacts2 = cl2 ? (contactsByClient[cl2._supaId] || []) : [];
+                      const cn = contacts2[0]?.name || cl2?.company || reportAppo.client;
+                      setReportBody(buildPreCheckReport(reportAppo, cn, rt));
+                    }} style={{ padding: '4px 12px', borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                      background: reportResultType === rt ? '#0D2247' : '#fff', color: reportResultType === rt ? '#fff' : '#0D2247',
+                      border: '1px solid #0D2247' }}>
+                      {rt}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 8 }}>
                 送信先: {channelLabel} {isSlack ? (cl?.slackWebhookUrl ? '（設定済み）' : <span style={{ color: '#DC2626' }}>（未設定）</span>) : isChatwork ? (cl?.chatworkRoomId ? '（設定済み）' : <span style={{ color: '#DC2626' }}>（未設定）</span>) : ''}
               </div>
