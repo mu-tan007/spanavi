@@ -44,38 +44,7 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
     setError(null);
 
     try {
-      // 1. Google カレンダーにイベント作成
-      let gcalEventId = null;
-      if (clientInfo?.googleCalendarId) {
-        const startISO = `${date}T${meetTime}:00`;
-        const [hh, mm] = meetTime.split(':').map(Number);
-        const endH = hh + 1;
-        const endISO = `${date}T${String(endH).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00`;
-
-        // 初回登録時はattendeeなし（クライアントへの共有は報告承認後に行う）
-        const eventBody = {
-          summary: `アポイント: ${row?.company || ''}`,
-          location: isOnline ? 'オンライン' : location,
-          start: { dateTime: startISO, timeZone: 'Asia/Tokyo' },
-          end: { dateTime: endISO, timeZone: 'Asia/Tokyo' },
-          description: `アポ取得者: ${currentUser}\n企業: ${row?.company || ''}\n電話: ${row?.phone || ''}`,
-        };
-
-        try {
-          const res = await fetch(`${SUPABASE_URL}/functions/v1/gcal-proxy`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'apikey': SUPABASE_ANON_KEY },
-            body: JSON.stringify(eventBody),
-          });
-          const data = await res.json();
-          if (res.ok && data.eventId) gcalEventId = data.eventId;
-          else console.warn('[QuickAppo] GCal event creation failed:', data);
-        } catch (e) {
-          console.warn('[QuickAppo] GCal error:', e);
-        }
-      }
-
-      // 2. DB保存
+      // DB保存
       const appoData = {
         company: row?.company || '',
         client: list?.company || '',
@@ -93,7 +62,7 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
         list_id: list?._supaId || null,
         item_id: row?._supaId || null,
         phone: row?.phone || '',
-        gcalEventId,
+        gcalEventId: null,
       };
 
       // 3. Slack通知（クライアントチャンネル）
