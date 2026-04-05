@@ -31,7 +31,7 @@ const _cfRealCloseSet = new Set(); // sessionId → リアルクローズ時にa
 const PREFS = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 const extractPref = (address) => PREFS.find(p => address?.startsWith(p)) || '';
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {} }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, ceoConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -1330,7 +1330,15 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 schedulingLabel={linkedContact?.schedulingLabel || ''}
                 schedulingLabel2={linkedContact?.schedulingLabel2 || ''}
                 schedulingNotes={linkedContact?.schedulingNotes || ''}
-                onUpdateNotes={linkedContact ? async (notes) => { await updateClientContact(linkedContact.id, { ...linkedContact, schedulingNotes: notes }); } : null}
+                onUpdateNotes={linkedContact ? async (notes) => {
+                  await updateClientContact(linkedContact.id, { ...linkedContact, schedulingNotes: notes });
+                  if (setContactsByClient && cl?._supaId) {
+                    setContactsByClient(prev => ({
+                      ...prev,
+                      [cl._supaId]: (prev[cl._supaId] || []).map(ct => ct.id === linkedContact.id ? { ...ct, schedulingNotes: notes } : ct),
+                    }));
+                  }
+                } : null}
                 compact
                 onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                 existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
@@ -1997,7 +2005,15 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 schedulingLabel={linkedContact?.schedulingLabel || ''}
                 schedulingLabel2={linkedContact?.schedulingLabel2 || ''}
                 schedulingNotes={linkedContact?.schedulingNotes || ''}
-                onUpdateNotes={linkedContact ? async (notes) => { await updateClientContact(linkedContact.id, { ...linkedContact, schedulingNotes: notes }); } : null}
+                onUpdateNotes={linkedContact ? async (notes) => {
+                  await updateClientContact(linkedContact.id, { ...linkedContact, schedulingNotes: notes });
+                  if (setContactsByClient && cl?._supaId) {
+                    setContactsByClient(prev => ({
+                      ...prev,
+                      [cl._supaId]: (prev[cl._supaId] || []).map(ct => ct.id === linkedContact.id ? { ...ct, schedulingNotes: notes } : ct),
+                    }));
+                  }
+                } : null}
                 onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                 existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
               />;

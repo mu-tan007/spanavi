@@ -130,10 +130,19 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
   // propsが変わったらlocalNotesを同期
   useEffect(() => { setLocalNotes(parseNotes(schedulingNotes)); }, [schedulingNotes]);
 
-  const save = (notes) => { if (onUpdateNotes) onUpdateNotes(JSON.stringify(notes.filter(Boolean))); };
-  const updateNote = (idx, val) => { const next = [...localNotes]; next[idx] = val; setLocalNotes(next); };
-  const removeNote = (idx) => { const next = localNotes.filter((_, i) => i !== idx); setLocalNotes(next); save(next); };
-  const addNote = () => { setLocalNotes(prev => [...prev, '']); };
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
+  const updateNote = (idx, val) => { const next = [...localNotes]; next[idx] = val; setLocalNotes(next); setNotesSaved(false); };
+  const removeNote = (idx) => { const next = localNotes.filter((_, i) => i !== idx); setLocalNotes(next); setNotesSaved(false); };
+  const addNote = () => { setLocalNotes(prev => [...prev, '']); setNotesSaved(false); };
+  const handleSaveNotes = async () => {
+    if (!onUpdateNotes) return;
+    setNotesSaving(true);
+    await onUpdateNotes(JSON.stringify(localNotes.filter(Boolean)));
+    setNotesSaving(false);
+    setNotesSaved(true);
+    setTimeout(() => setNotesSaved(false), 2000);
+  };
 
   const notesBlock = (
     <div style={{ padding: '8px 12px', background: '#F0F3F8', borderRadius: 4, border: '1px solid #D0D8E8', fontSize: 11, marginTop: 6 }}>
@@ -142,15 +151,22 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
         <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 3 }}>
           <span style={{ fontSize: 10, color: NAVY, width: 14, flexShrink: 0 }}>{CIRCLE_NUMS[i] || `${i+1}.`}</span>
           <input value={note} onChange={e => updateNote(i, e.target.value)}
-            onBlur={() => save(localNotes)}
             style={{ flex: 1, padding: '3px 6px', fontSize: 10, border: '1px solid #D0D8E8', borderRadius: 3, background: '#fff', fontFamily: "'Noto Sans JP'", outline: 'none' }}
             placeholder="注意事項を入力..." />
           <button onClick={() => removeNote(i)}
             style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 10, padding: 0, lineHeight: 1 }}>✕</button>
         </div>
       ))}
-      <button onClick={addNote}
-        style={{ border: '1px dashed #B0BAC8', background: 'none', cursor: 'pointer', fontSize: 9, color: '#6B7280', padding: '2px 8px', borderRadius: 3, marginTop: 2 }}>+ 追加</button>
+      <div style={{ display: 'flex', gap: 6, marginTop: 2, alignItems: 'center' }}>
+        <button onClick={addNote}
+          style={{ border: '1px dashed #B0BAC8', background: 'none', cursor: 'pointer', fontSize: 9, color: '#6B7280', padding: '2px 8px', borderRadius: 3 }}>+ 追加</button>
+        {onUpdateNotes && (
+          <button onClick={handleSaveNotes} disabled={notesSaving}
+            style={{ padding: '2px 10px', fontSize: 9, fontWeight: 600, border: 'none', borderRadius: 3, background: notesSaved ? '#10B981' : NAVY, color: '#fff', cursor: notesSaving ? 'default' : 'pointer', opacity: notesSaving ? 0.6 : 1 }}>
+            {notesSaving ? '保存中...' : notesSaved ? '保存済み' : '保存'}
+          </button>
+        )}
+      </div>
     </div>
   );
 
