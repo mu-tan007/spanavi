@@ -159,6 +159,7 @@ export async function insertClient(data) {
       client_email: data.clientEmail || null,
       scheduling_url: data.schedulingUrl || null,
       slack_webhook_url: data.slackWebhookUrl || null,
+      slack_webhook_url_internal: data.slackWebhookUrlInternal || null,
       chatwork_room_id: data.chatworkRoomId || null,
     })
     .select()
@@ -190,6 +191,7 @@ export async function updateClient(supaId, data) {
       client_email: data.clientEmail ?? undefined,
       scheduling_url: data.schedulingUrl ?? undefined,
       slack_webhook_url: data.slackWebhookUrl ?? undefined,
+      slack_webhook_url_internal: data.slackWebhookUrlInternal ?? undefined,
       chatwork_room_id: data.chatworkRoomId ?? undefined,
     })
     .eq('id', supaId)
