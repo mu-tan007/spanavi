@@ -111,6 +111,7 @@ export function useSpanaviData(authOrgId) {
         clientEmail: c.client_email || '',
         schedulingUrl: c.scheduling_url || '',
         slackWebhookUrl: c.slack_webhook_url || '',
+        slackWebhookUrlInternal: c.slack_webhook_url_internal || '',
         chatworkRoomId: c.chatwork_room_id || '',
       }))
 

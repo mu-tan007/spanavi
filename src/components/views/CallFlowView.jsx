@@ -1388,7 +1388,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             time={quickAppoSlot.time}
             row={selectedRow}
             list={list}
-            clientInfo={cl ? { _supaId: cl._supaId, slackWebhookUrl: cl.slackWebhookUrl, googleCalendarId: lc?.googleCalendarId || cl?.googleCalendarId || '' } : null}
+            clientInfo={cl ? { _supaId: cl._supaId, slackWebhookUrl: cl.slackWebhookUrlInternal || cl.slackWebhookUrl, googleCalendarId: lc?.googleCalendarId || cl?.googleCalendarId || '' } : null}
             contacts={contacts}
             currentUser={currentUser}
             onClose={() => setQuickAppoSlot(null)}
@@ -2125,7 +2125,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             time={quickAppoSlot.time}
             row={selectedRow}
             list={list}
-            clientInfo={cl ? { _supaId: cl._supaId, slackWebhookUrl: cl.slackWebhookUrl, googleCalendarId: lc?.googleCalendarId || cl?.googleCalendarId || '' } : null}
+            clientInfo={cl ? { _supaId: cl._supaId, slackWebhookUrl: cl.slackWebhookUrlInternal || cl.slackWebhookUrl, googleCalendarId: lc?.googleCalendarId || cl?.googleCalendarId || '' } : null}
             contacts={contacts}
             currentUser={currentUser}
             onClose={() => setQuickAppoSlot(null)}
