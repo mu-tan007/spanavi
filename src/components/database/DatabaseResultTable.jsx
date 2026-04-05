@@ -11,20 +11,24 @@ const tdStyle = {
 };
 
 const COLUMNS = [
-  { key: 'company_name', label: '企業名', width: 200 },
   { key: 'industry_major', label: '大分類', width: 160 },
   { key: 'industry_sub', label: '細分類', width: 180 },
+  { key: 'company_name', label: '企業名', width: 200 },
+  { key: 'business_description', label: '事業内容', width: 300 },
   { key: 'prefecture', label: '都道府県', width: 70 },
   { key: 'city', label: '市区郡', width: 100 },
-  { key: 'phone', label: '電話番号', width: 120 },
+  { key: 'address', label: '住所', width: 180 },
+  { key: 'revenue_k', label: '売上高(千円)', width: 100 },
+  { key: 'net_income_k', label: '当期純利益(千円)', width: 110 },
   { key: 'representative', label: '代表者', width: 100 },
   { key: 'representative_age', label: '年齢', width: 45 },
-  { key: 'revenue_k', label: '売上(千円)', width: 100 },
-  { key: 'net_income_k', label: '純利益(千円)', width: 100 },
-  { key: 'employee_count', label: '従業員', width: 60 },
-  { key: 'established_year', label: '設立', width: 50 },
+  { key: 'shareholders', label: '株主', width: 180 },
+  { key: 'officers', label: '役員', width: 180 },
+  { key: 'employee_count', label: '従業員数', width: 65 },
+  { key: 'established_year', label: '設立年', width: 55 },
   { key: 'clients', label: '取引先', width: 220 },
-  { key: 'business_description', label: '事業内容', width: 300 },
+  { key: 'phone', label: '電話番号', width: 120 },
+  { key: 'remarks', label: '備考', width: 300 },
 ];
 
 function formatNumber(val) {
