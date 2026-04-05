@@ -5,11 +5,9 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const DAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 const NAVY = '#0D2247';
-const MINE_COLOR = '#3B82F6';      // 自分のbusy: 青
-const CLIENT_COLOR = '#F59E0B';    // クライアントのbusy: オレンジ
-const BOTH_COLOR = '#EF4444';      // 両方busy: 赤
-const FREE_COLOR = '#D1FAE5';      // 両方空き: 緑
-const APPO_COLOR = '#8B5CF6';      // 登録済みアポ: 紫
+const CLIENT_COLOR = '#0D2247';    // クライアントのbusy: ネイビー
+const FREE_COLOR = '#E8EDF5';      // 空き: 薄いネイビー
+const APPO_COLOR = '#C9A96E';      // 登録済みアポ: ゴールド
 
 /**
  * クライアント＋自分のGoogleカレンダーを並べて表示するパネル
@@ -122,34 +120,37 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
 
   // 注意事項パース（JSON配列 or 改行区切りテキスト）
   const CIRCLE_NUMS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
-  const [localNotes, setLocalNotes] = useState(() => {
-    if (!schedulingNotes) return [];
-    try { const arr = JSON.parse(schedulingNotes); if (Array.isArray(arr)) return arr; } catch {}
-    return schedulingNotes.split('\n').filter(s => s.trim());
-  });
-  const [notesDirty, setNotesDirty] = useState(false);
+  const parseNotes = (raw) => {
+    if (!raw) return [];
+    try { const arr = JSON.parse(raw); if (Array.isArray(arr)) return arr; } catch {}
+    return raw.split('\n').filter(s => s.trim());
+  };
+  const [localNotes, setLocalNotes] = useState(() => parseNotes(schedulingNotes));
 
-  const updateNote = (idx, val) => { const next = [...localNotes]; next[idx] = val; setLocalNotes(next); setNotesDirty(true); };
-  const removeNote = (idx) => { const next = localNotes.filter((_, i) => i !== idx); setLocalNotes(next); setNotesDirty(true); if (onUpdateNotes) onUpdateNotes(JSON.stringify(next)); };
-  const addNote = () => { setLocalNotes(prev => [...prev, '']); setNotesDirty(true); };
-  const saveNotes = () => { if (onUpdateNotes) onUpdateNotes(JSON.stringify(localNotes.filter(Boolean))); setNotesDirty(false); };
+  // propsが変わったらlocalNotesを同期
+  useEffect(() => { setLocalNotes(parseNotes(schedulingNotes)); }, [schedulingNotes]);
+
+  const save = (notes) => { if (onUpdateNotes) onUpdateNotes(JSON.stringify(notes.filter(Boolean))); };
+  const updateNote = (idx, val) => { const next = [...localNotes]; next[idx] = val; setLocalNotes(next); };
+  const removeNote = (idx) => { const next = localNotes.filter((_, i) => i !== idx); setLocalNotes(next); save(next); };
+  const addNote = () => { setLocalNotes(prev => [...prev, '']); };
 
   const notesBlock = (
-    <div style={{ padding: '8px 12px', background: '#FEF3C7', borderRadius: 4, border: '1px solid #FDE68A', fontSize: 11, marginTop: 6 }}>
-      <div style={{ fontWeight: 600, color: '#92400E', marginBottom: 4 }}>注意事項</div>
+    <div style={{ padding: '8px 12px', background: '#F0F3F8', borderRadius: 4, border: '1px solid #D0D8E8', fontSize: 11, marginTop: 6 }}>
+      <div style={{ fontWeight: 600, color: NAVY, marginBottom: 4 }}>注意事項</div>
       {localNotes.map((note, i) => (
         <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 3 }}>
-          <span style={{ fontSize: 10, color: '#78350F', width: 14, flexShrink: 0 }}>{CIRCLE_NUMS[i] || `${i+1}.`}</span>
+          <span style={{ fontSize: 10, color: NAVY, width: 14, flexShrink: 0 }}>{CIRCLE_NUMS[i] || `${i+1}.`}</span>
           <input value={note} onChange={e => updateNote(i, e.target.value)}
-            onBlur={saveNotes}
-            style={{ flex: 1, padding: '3px 6px', fontSize: 10, border: '1px solid #FDE68A', borderRadius: 3, background: '#FFFBEB', fontFamily: "'Noto Sans JP'", outline: 'none' }}
+            onBlur={() => save(localNotes)}
+            style={{ flex: 1, padding: '3px 6px', fontSize: 10, border: '1px solid #D0D8E8', borderRadius: 3, background: '#fff', fontFamily: "'Noto Sans JP'", outline: 'none' }}
             placeholder="注意事項を入力..." />
           <button onClick={() => removeNote(i)}
             style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 10, padding: 0, lineHeight: 1 }}>✕</button>
         </div>
       ))}
       <button onClick={addNote}
-        style={{ border: '1px dashed #D1D5DB', background: 'none', cursor: 'pointer', fontSize: 9, color: '#6B7280', padding: '2px 8px', borderRadius: 3, marginTop: 2 }}>+ 追加</button>
+        style={{ border: '1px dashed #B0BAC8', background: 'none', cursor: 'pointer', fontSize: 9, color: '#6B7280', padding: '2px 8px', borderRadius: 3, marginTop: 2 }}>+ 追加</button>
     </div>
   );
 
@@ -209,9 +210,9 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
           )}
         </div>
         <div style={{ display: 'flex', gap: 8, fontSize: 9 }}>
-          {clientCalendarId && <span><span style={{ display: 'inline-block', width: 8, height: 8, background: CLIENT_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>予定あり</span>}
-          <span><span style={{ display: 'inline-block', width: 8, height: 8, background: APPO_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle', opacity: 0.5 }}></span>アポ済</span>
-          {clientCalendarId && <span><span style={{ display: 'inline-block', width: 8, height: 8, background: FREE_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>空き</span>}
+          {clientCalendarId && <span><span style={{ display: 'inline-block', width: 8, height: 8, background: CLIENT_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle', opacity: 0.3 }}></span>予定あり</span>}
+          <span><span style={{ display: 'inline-block', width: 8, height: 8, background: APPO_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>アポ済</span>
+          {clientCalendarId && <span><span style={{ display: 'inline-block', width: 8, height: 8, background: FREE_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle', border: '1px solid #D0D8E8' }}></span>空き</span>}
         </div>
       </div>
 
@@ -242,49 +243,44 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
                 if (!slot) return <div key={d.dateStr} />;
 
                 const past = isPast(slot.startISO);
-                const mBusy = isBusyIn(myBusy, slot.startISO, slot.endISO);
                 const cBusy = isBusyIn(clientBusy, slot.startISO, slot.endISO);
                 const appo = existingAppointments.find(a => a.meetDate === d.dateStr && a.meetTime === slot.startLabel);
 
                 let bg = '#fff';
                 let cursor = 'pointer';
                 if (past) { bg = '#F9FAFB'; cursor = 'default'; }
-                else if (appo) { bg = APPO_COLOR + '18'; cursor = 'default'; }
-                else if (mBusy && cBusy) { bg = BOTH_COLOR + '20'; cursor = 'default'; }
-                else if (mBusy) { bg = MINE_COLOR + '20'; cursor = 'default'; }
-                else if (cBusy) { bg = CLIENT_COLOR + '20'; cursor = 'default'; }
+                else if (appo) { bg = APPO_COLOR + '20'; cursor = 'default'; }
+                else if (cBusy) { bg = CLIENT_COLOR + '15'; cursor = 'default'; }
                 else { bg = FREE_COLOR; }
 
-                const canSelect = !past && !mBusy && !cBusy && !appo;
+                const canSelect = !past && !cBusy && !appo;
 
                 return (
                   <div key={d.dateStr}
                     onClick={() => canSelect && onSelectSlot?.(d.dateStr, slot.startLabel)}
                     style={{
                       background: bg,
-                      borderBottom: '1px solid #F3F4F6',
-                      borderLeft: '1px solid #F3F4F6',
+                      borderBottom: '1px solid #E8EDF5',
+                      borderLeft: '1px solid #E8EDF5',
                       height: compact ? 16 : 20,
                       cursor,
                       position: 'relative',
                       transition: 'background 0.1s',
                       overflow: 'hidden',
                     }}
-                    onMouseEnter={e => { if (canSelect) e.currentTarget.style.background = '#A7F3D0'; }}
+                    onMouseEnter={e => { if (canSelect) e.currentTarget.style.background = '#D0D8E8'; }}
                     onMouseLeave={e => { if (canSelect) e.currentTarget.style.background = FREE_COLOR; }}
-                    title={appo ? `アポ: ${appo.isOnline ? 'オンライン' : appo.meetLocation || ''}` : past ? '過去' : mBusy && cBusy ? '両方予定あり' : mBusy ? '自分: 予定あり' : cBusy ? 'クライアント: 予定あり' : `${d.label} ${slot.startLabel} - 空き`}
+                    title={appo ? `アポ: ${appo.isOnline ? 'オンライン' : appo.meetLocation || ''}` : past ? '過去' : cBusy ? '予定あり' : `${d.label} ${slot.startLabel} - 空き`}
                   >
                     {appo && (
                       <>
-                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: APPO_COLOR, opacity: 0.2 }} />
-                        <span style={{ position: 'absolute', top: 0, left: 2, fontSize: compact ? 6 : 7, color: '#5B21B6', fontWeight: 700, lineHeight: compact ? '16px' : '20px', whiteSpace: 'nowrap' }}>
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: APPO_COLOR, opacity: 0.25 }} />
+                        <span style={{ position: 'absolute', top: 0, left: 2, fontSize: compact ? 6 : 7, color: '#8B6914', fontWeight: 700, lineHeight: compact ? '16px' : '20px', whiteSpace: 'nowrap' }}>
                           {appo.isOnline ? 'オンライン' : (appo.meetLocation || '').replace(/[都府県]$/, '')}
                         </span>
                       </>
                     )}
-                    {!appo && mBusy && !cBusy && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: MINE_COLOR, opacity: 0.25 }} />}
-                    {!appo && cBusy && !mBusy && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: CLIENT_COLOR, opacity: 0.25 }} />}
-                    {!appo && mBusy && cBusy && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: BOTH_COLOR, opacity: 0.2 }} />}
+                    {!appo && cBusy && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: CLIENT_COLOR, opacity: 0.15 }} />}
                   </div>
                 );
               })}
