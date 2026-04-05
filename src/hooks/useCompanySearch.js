@@ -17,6 +17,8 @@ const INITIAL_FILTERS = {
   establishedMin: '',
   establishedMax: '',
   logic: 'AND',     // AND / OR
+  sortCol: 'id',
+  sortDir: 'asc',
   page: 0,
   pageSize: 50,
 };

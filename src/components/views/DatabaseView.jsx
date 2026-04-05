@@ -110,6 +110,14 @@ export default function DatabaseView({ isAdmin }) {
           pageSize={filters.pageSize}
           onPageChange={setPage}
           loading={loading}
+          sortCol={filters.sortCol}
+          sortDir={filters.sortDir}
+          onSort={(col, dir) => {
+            setFilter('sortCol', col);
+            setFilter('sortDir', dir);
+            const newF = { ...filters, sortCol: col, sortDir: dir, page: 0 };
+            doSearch(newF);
+          }}
         />
       )}
 

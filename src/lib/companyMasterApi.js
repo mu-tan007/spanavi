@@ -47,6 +47,8 @@ export async function searchCompanies(filters) {
   if (filters.establishedMin != null && filters.establishedMin !== '') params.p_established_min = Number(filters.establishedMin);
   if (filters.establishedMax != null && filters.establishedMax !== '') params.p_established_max = Number(filters.establishedMax);
   params.p_logic = filters.logic || 'AND';
+  if (filters.sortCol) params.p_sort_col = filters.sortCol;
+  if (filters.sortDir) params.p_sort_dir = filters.sortDir;
   params.p_page = filters.page || 0;
   params.p_page_size = filters.pageSize || 50;
 
