@@ -7,7 +7,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -1330,6 +1330,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 schedulingLabel={linkedContact?.schedulingLabel || ''}
                 schedulingLabel2={linkedContact?.schedulingLabel2 || ''}
                 schedulingNotes={linkedContact?.schedulingNotes || ''}
+                onUpdateNotes={linkedContact ? async (notes) => { await updateClientContact(linkedContact.id, { ...linkedContact, schedulingNotes: notes }); } : null}
                 compact
                 onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                 existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
@@ -1996,6 +1997,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 schedulingLabel={linkedContact?.schedulingLabel || ''}
                 schedulingLabel2={linkedContact?.schedulingLabel2 || ''}
                 schedulingNotes={linkedContact?.schedulingNotes || ''}
+                onUpdateNotes={linkedContact ? async (notes) => { await updateClientContact(linkedContact.id, { ...linkedContact, schedulingNotes: notes }); } : null}
                 onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                 existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
               />;

@@ -20,7 +20,7 @@ const APPO_COLOR = '#8B5CF6';      // 登録済みアポ: 紫
  *   onSelectSlot     - (date, time) => void  空きスロットクリック時
  *   compact          - boolean  コンパクト表示モード
  */
-export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, onSelectSlot, existingAppointments = [], schedulingNotes = '', compact = false }) {
+export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, onSelectSlot, existingAppointments = [], schedulingNotes = '', onUpdateNotes, compact = false }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -122,19 +122,36 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
 
   // 注意事項パース（JSON配列 or 改行区切りテキスト）
   const CIRCLE_NUMS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
-  const noteItems = (() => {
+  const [localNotes, setLocalNotes] = useState(() => {
     if (!schedulingNotes) return [];
-    try { const arr = JSON.parse(schedulingNotes); if (Array.isArray(arr)) return arr.filter(Boolean); } catch {}
+    try { const arr = JSON.parse(schedulingNotes); if (Array.isArray(arr)) return arr; } catch {}
     return schedulingNotes.split('\n').filter(s => s.trim());
-  })();
-  const notesBlock = noteItems.length > 0 ? (
-    <div style={{ padding: '8px 12px', background: '#FEF3C7', borderRadius: 4, border: '1px solid #FDE68A', fontSize: 11 }}>
-      <div style={{ fontWeight: 600, color: '#92400E', marginBottom: 4 }}>日程調整の注意事項</div>
-      {noteItems.map((note, i) => (
-        <div key={i} style={{ color: '#78350F', lineHeight: 1.6 }}>{CIRCLE_NUMS[i] || `${i+1}.`} {note}</div>
+  });
+  const [notesDirty, setNotesDirty] = useState(false);
+
+  const updateNote = (idx, val) => { const next = [...localNotes]; next[idx] = val; setLocalNotes(next); setNotesDirty(true); };
+  const removeNote = (idx) => { const next = localNotes.filter((_, i) => i !== idx); setLocalNotes(next); setNotesDirty(true); if (onUpdateNotes) onUpdateNotes(JSON.stringify(next)); };
+  const addNote = () => { setLocalNotes(prev => [...prev, '']); setNotesDirty(true); };
+  const saveNotes = () => { if (onUpdateNotes) onUpdateNotes(JSON.stringify(localNotes.filter(Boolean))); setNotesDirty(false); };
+
+  const notesBlock = (
+    <div style={{ padding: '8px 12px', background: '#FEF3C7', borderRadius: 4, border: '1px solid #FDE68A', fontSize: 11, marginTop: 6 }}>
+      <div style={{ fontWeight: 600, color: '#92400E', marginBottom: 4 }}>注意事項</div>
+      {localNotes.map((note, i) => (
+        <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 3 }}>
+          <span style={{ fontSize: 10, color: '#78350F', width: 14, flexShrink: 0 }}>{CIRCLE_NUMS[i] || `${i+1}.`}</span>
+          <input value={note} onChange={e => updateNote(i, e.target.value)}
+            onBlur={saveNotes}
+            style={{ flex: 1, padding: '3px 6px', fontSize: 10, border: '1px solid #FDE68A', borderRadius: 3, background: '#FFFBEB', fontFamily: "'Noto Sans JP'", outline: 'none' }}
+            placeholder="注意事項を入力..." />
+          <button onClick={() => removeNote(i)}
+            style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 10, padding: 0, lineHeight: 1 }}>✕</button>
+        </div>
       ))}
+      <button onClick={addNote}
+        style={{ border: '1px dashed #D1D5DB', background: 'none', cursor: 'pointer', fontSize: 9, color: '#6B7280', padding: '2px 8px', borderRadius: 3, marginTop: 2 }}>+ 追加</button>
     </div>
-  ) : null;
+  );
 
   // カレンダー未連携: 日程調整ツールリンクがあればそれだけ表示、なければメッセージ
   if (!clientCalendarId) {

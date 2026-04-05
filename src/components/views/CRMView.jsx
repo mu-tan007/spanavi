@@ -362,35 +362,6 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                                   <input value={contactEditForm.schedulingUrl2 || ''} onChange={e => setContactEditForm(p => ({ ...p, schedulingUrl2: e.target.value }))}
                                     style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="日程調整URL②（任意）" />
                                 </div>
-                                <div style={{ marginTop: 4 }}>
-                                  <div style={{ fontSize: 9, color: '#92400E', marginBottom: 2 }}>日程調整の注意事項（1行ずつ ①②③ の形式で表示されます）</div>
-                                  {(() => {
-                                    let items = [];
-                                    try { items = JSON.parse(contactEditForm.schedulingNotes || '[]'); } catch { items = (contactEditForm.schedulingNotes || '').split('\n').filter(Boolean); }
-                                    if (!Array.isArray(items)) items = [];
-                                    const NUMS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
-                                    return (
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                        {items.map((item, idx) => (
-                                          <div key={idx} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                                            <span style={{ fontSize: 10, color: '#78350F', width: 14, flexShrink: 0 }}>{NUMS[idx] || `${idx+1}.`}</span>
-                                            <input value={item} onChange={e => {
-                                              const next = [...items]; next[idx] = e.target.value;
-                                              setContactEditForm(p => ({ ...p, schedulingNotes: JSON.stringify(next) }));
-                                            }} style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="注意事項を入力..." />
-                                            <button onClick={() => {
-                                              const next = items.filter((_, i) => i !== idx);
-                                              setContactEditForm(p => ({ ...p, schedulingNotes: JSON.stringify(next) }));
-                                            }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 10, padding: 0 }}>✕</button>
-                                          </div>
-                                        ))}
-                                        <button onClick={() => {
-                                          setContactEditForm(p => ({ ...p, schedulingNotes: JSON.stringify([...items, '']) }));
-                                        }} style={{ border: '1px dashed #D1D5DB', background: 'none', cursor: 'pointer', fontSize: 9, color: '#6B7280', padding: '3px 8px', borderRadius: 3, alignSelf: 'flex-start' }}>+ 注意事項を追加</button>
-                                      </div>
-                                    );
-                                  })()}
-                                </div>
                               </div>
                             ) : (
                               <>
