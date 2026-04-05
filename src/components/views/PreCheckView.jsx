@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { C } from '../../constants/colors';
 import { CALL_RESULTS } from '../../constants/callResults';
-import { updatePreCheckResult, fetchCallListItemByAppo } from '../../lib/supabaseWrite';
+import { updatePreCheckResult, fetchCallListItemByAppo, invokeSendAppoReport, invokeSendEmail } from '../../lib/supabaseWrite';
 import { Badge } from '../common/Badge';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
@@ -220,9 +220,30 @@ const PRECHECK_COLS = [
   { key: 'status', width: 130, align: 'left' },
 ];
 
-export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen, callListData = [] }) {
+const DAY_NAMES = ['日','月','火','水','木','金','土'];
+const formatMeetDateTime = (appo) => {
+  if (!appo.meetDate) return '';
+  const d = new Date(appo.meetDate + 'T00:00:00');
+  const m = d.getMonth() + 1;
+  const dd = d.getDate();
+  const day = DAY_NAMES[d.getDay()];
+  const time = appo.meetTime || '';
+  return `${m}月${dd}日（${day}）${time ? time + '～' : ''}`;
+};
+
+const buildPreCheckReport = (appo, contactName) => {
+  const greeting = contactName || '';
+  const dateTime = formatMeetDateTime(appo);
+  return `${greeting}様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\n${dateTime} よりご予定を頂いております、${appo.company || ''}様への事前確認が無事に完了いたしました。\n\n当日はご対応のほど、よろしくお願い申し上げます。\n\nMASP 篠宮`;
+};
+
+export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen, callListData = [], clientData = [], contactsByClient = {} }) {
   const isMobile = useIsMobile();
   const [selectedAppo, setSelectedAppo] = useState(null);
+  const [reportAppo, setReportAppo] = useState(null);
+  const [reportBody, setReportBody] = useState('');
+  const [reportStep, setReportStep] = useState('idle');
+  const [reportError, setReportError] = useState('');
   const { columns, gridTemplateColumns, contentMinWidth, onResizeStart, onHeaderContextMenu, contextMenu, setAlign, resetAll, closeMenu } = useColumnConfig('preCheck', PRECHECK_COLS, { padding: 40 });
 
   const handlePreCheckNavigate = ({ listId, itemId }) => {
@@ -437,11 +458,25 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
                   <span style={{ color: C.textMid, fontSize: 11, textAlign: columns[1].align }}>{a.client}</span>
                   <span style={{ fontWeight: 600, color: C.textDark, textAlign: columns[2].align }}>{a.getter}</span>
                   <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: columns[3].align }}>{a.meetDate.slice(5)}</span>
-                  <span style={{ textAlign: columns[4].align }}>
+                  <span style={{ textAlign: columns[4].align, display: 'flex', alignItems: 'center', gap: 6, justifyContent: columns[4].align === 'right' ? 'flex-end' : 'flex-start' }}>
                     {badgeColor
                       ? <span style={{ fontSize: 12, color: badgeColor, background: badgeColor + '1a', borderRadius: 4, padding: '2px 8px' }}>{pcs}</span>
                       : <span style={{ fontSize: 12, color: C.textLight }}>未入力 →</span>
                     }
+                    {pcs === '確認完了' && (
+                      <button onClick={e => {
+                        e.stopPropagation();
+                        const cl = clientData.find(c => c.company === a.client);
+                        const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
+                        const contactName = contacts[0]?.name || cl?.company || a.client;
+                        setReportAppo(a);
+                        setReportBody(buildPreCheckReport(a, contactName));
+                        setReportStep('compose');
+                        setReportError('');
+                      }} style={{ fontSize: 9, padding: '2px 8px', borderRadius: 3, border: 'none', background: '#0D2247', color: '#fff', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        報告
+                      </button>
+                    )}
                   </span>
                 </div>
               );
@@ -477,6 +512,70 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
           onClose={closeMenu}
         />
       )}
+
+      {/* 事前確認報告モーダル */}
+      {reportAppo && reportStep !== 'idle' && (() => {
+        const cl = clientData.find(c => c.company === reportAppo.client);
+        const contactMethod = cl?.contact || 'メール';
+        const isSlack = contactMethod === 'Slack';
+        const isChatwork = contactMethod === 'Chatwork';
+        const channelLabel = isSlack ? 'Slack' : isChatwork ? 'Chatwork' : 'メール';
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10010, fontFamily: "'Noto Sans JP'" }}
+            onClick={() => { setReportAppo(null); setReportStep('idle'); }}>
+            <div style={{ background: '#fff', borderRadius: 8, padding: 24, width: 500, maxWidth: '90vw', maxHeight: '80vh', overflow: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}
+              onClick={e => e.stopPropagation()}>
+              <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: '#0D2247' }}>事前確認報告を送信</h3>
+              <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 8 }}>
+                送信先: {channelLabel} {isSlack ? (cl?.slackWebhookUrl ? '（設定済み）' : <span style={{ color: '#DC2626' }}>（未設定）</span>) : isChatwork ? (cl?.chatworkRoomId ? '（設定済み）' : <span style={{ color: '#DC2626' }}>（未設定）</span>) : ''}
+              </div>
+              {reportStep === 'sent' ? (
+                <div style={{ textAlign: 'center', padding: 20 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#16A34A', marginBottom: 8 }}>送信完了</div>
+                  <button onClick={() => { setReportAppo(null); setReportStep('idle'); }}
+                    style={{ padding: '8px 20px', borderRadius: 4, border: 'none', background: '#0D2247', color: '#fff', cursor: 'pointer', fontSize: 13 }}>閉じる</button>
+                </div>
+              ) : (
+                <>
+                  <textarea value={reportBody} onChange={e => setReportBody(e.target.value)}
+                    style={{ width: '100%', minHeight: 200, padding: 10, fontSize: 12, border: '1px solid #D1D5DB', borderRadius: 4, fontFamily: "'Noto Sans JP'", resize: 'vertical', boxSizing: 'border-box' }} />
+                  {reportError && <div style={{ color: '#DC2626', fontSize: 11, marginTop: 4 }}>{reportError}</div>}
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
+                    <button onClick={() => { setReportAppo(null); setReportStep('idle'); }}
+                      style={{ padding: '8px 16px', borderRadius: 4, border: '1px solid #D1D5DB', background: '#fff', cursor: 'pointer', fontSize: 12 }}>キャンセル</button>
+                    <button disabled={reportStep === 'sending'}
+                      onClick={async () => {
+                        setReportStep('sending'); setReportError('');
+                        try {
+                          let error = null;
+                          if (isSlack) {
+                            if (!cl?.slackWebhookUrl) { setReportError('Slack Webhook URLが未設定です'); setReportStep('compose'); return; }
+                            ({ error } = await invokeSendAppoReport({ channel: 'slack', text: reportBody, webhook_url: cl.slackWebhookUrl }));
+                          } else if (isChatwork) {
+                            if (!cl?.chatworkRoomId) { setReportError('Chatwork ルームIDが未設定です'); setReportStep('compose'); return; }
+                            ({ error } = await invokeSendAppoReport({ channel: 'chatwork', text: reportBody, room_id: cl.chatworkRoomId }));
+                          } else {
+                            const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
+                            const toEmail = contacts[0]?.email || cl?.clientEmail || '';
+                            if (!toEmail) { setReportError('メールアドレスが未設定です'); setReportStep('compose'); return; }
+                            ({ error } = await invokeSendEmail({ to: toEmail, subject: '【事前確認完了のご報告】M&Aソーシングパートナーズ', body: reportBody }));
+                          }
+                          if (error) { setReportError(error); setReportStep('compose'); return; }
+                          setReportStep('sent');
+                        } catch (e) {
+                          setReportError('送信に失敗しました'); setReportStep('compose');
+                        }
+                      }}
+                      style={{ padding: '8px 20px', borderRadius: 4, border: 'none', background: reportStep === 'sending' ? '#6B7280' : '#0D2247', color: '#fff', cursor: reportStep === 'sending' ? 'default' : 'pointer', fontSize: 12, fontWeight: 600 }}>
+                      {reportStep === 'sending' ? '送信中...' : `${channelLabel}で送信`}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
