@@ -666,6 +666,12 @@ export async function deleteCallRecordsByListId(listId) {
 
 export async function deleteCallListItemsByListId(listId) {
   if (!listId) { console.warn('[DB] deleteCallListItemsByListId: no listId'); return null }
+  // appointments.item_id の外部キー参照を解除してから削除
+  const { error: unlinkErr } = await supabase
+    .from('appointments')
+    .update({ item_id: null })
+    .eq('list_id', listId)
+  if (unlinkErr) { console.error('[DB] unlinkAppointmentItems error:', unlinkErr); return unlinkErr }
   const { error } = await supabase
     .from('call_list_items')
     .delete()
