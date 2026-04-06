@@ -1261,6 +1261,32 @@ export async function deletePayrollSnapshots(payMonth) {
   return { error }
 }
 
+export async function fetchPayrollAdjustment(payMonth) {
+  const { data, error } = await supabase
+    .from('payroll_adjustments')
+    .select('*')
+    .eq('org_id', getOrgId())
+    .eq('pay_month', payMonth)
+    .maybeSingle()
+  if (error) console.error('[DB] fetchPayrollAdjustment error:', error)
+  return { data, error }
+}
+
+export async function upsertPayrollAdjustment({ payMonth, salesDiscount, incentiveDiscount, note }) {
+  const { error } = await supabase
+    .from('payroll_adjustments')
+    .upsert({
+      org_id: getOrgId(),
+      pay_month: payMonth,
+      sales_discount: salesDiscount || 0,
+      incentive_discount: incentiveDiscount || 0,
+      note: note || '',
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'org_id,pay_month' })
+  if (error) console.error('[DB] upsertPayrollAdjustment error:', error)
+  return { error }
+}
+
 export async function fetchCallSessions(sinceISO) {
   const { data, error } = await supabase
     .from('call_sessions')

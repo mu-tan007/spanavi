@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
 import { calcRankAndRate } from '../../utils/calculations';
-import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings } from '../../lib/supabaseWrite';
+import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, fetchPayrollAdjustment, upsertPayrollAdjustment } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -85,14 +85,41 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
     return `${sel.year}-${String(sel.month).padStart(2, '0')}`;
   }, [monthTab]);
 
-  // monthTab 変更時にスナップショットを取得
+  // 調整（ディスカウント）
+  const [adjustment, setAdjustment] = useState({ sales_discount: 0, incentive_discount: 0, note: '' });
+  const [showAdjustForm, setShowAdjustForm] = useState(false);
+  const [adjForm, setAdjForm] = useState({ sales: '', incentive: '', note: '' });
+  const [adjSaving, setAdjSaving] = useState(false);
+
+  // monthTab 変更時にスナップショット＆調整を取得
   useEffect(() => {
     setSnapshotLoading(true);
-    fetchPayrollSnapshots(payMonth).then(({ data }) => {
-      setSnapshots(data || []);
+    Promise.all([
+      fetchPayrollSnapshots(payMonth),
+      fetchPayrollAdjustment(payMonth),
+    ]).then(([snapRes, adjRes]) => {
+      setSnapshots(snapRes.data || []);
+      const adj = adjRes.data || { sales_discount: 0, incentive_discount: 0, note: '' };
+      setAdjustment(adj);
+      setAdjForm({ sales: adj.sales_discount || '', incentive: adj.incentive_discount || '', note: adj.note || '' });
       setSnapshotLoading(false);
     });
   }, [payMonth]);
+
+  const handleSaveAdjustment = async () => {
+    setAdjSaving(true);
+    const { error } = await upsertPayrollAdjustment({
+      payMonth,
+      salesDiscount: parseInt(adjForm.sales) || 0,
+      incentiveDiscount: parseInt(adjForm.incentive) || 0,
+      note: adjForm.note,
+    });
+    if (!error) {
+      setAdjustment({ sales_discount: parseInt(adjForm.sales) || 0, incentive_discount: parseInt(adjForm.incentive) || 0, note: adjForm.note });
+      setShowAdjustForm(false);
+    }
+    setAdjSaving(false);
+  };
 
   const isConfirmed = snapshots.length > 0;
   const confirmedAt = isConfirmed
@@ -326,8 +353,12 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
     .filter(p => teamFilter === "all" || p.team === teamFilter)
     .sort((a, b) => b[sortKey] - a[sortKey]);
   const teams = [...new Set(data.map(p => p.team))];
-  const grandTotal = data.reduce((s, p) => s + p.total + (activeReferralMap[p.name] || 0), 0);
-  const grandSales = data.reduce((s, p) => s + p.sales, 0);
+  const rawGrandTotal = data.reduce((s, p) => s + p.total + (activeReferralMap[p.name] || 0), 0);
+  const rawGrandSales = data.reduce((s, p) => s + p.sales, 0);
+  const salesDisc = adjustment.sales_discount || 0;
+  const incDisc = adjustment.incentive_discount || 0;
+  const grandTotal = rawGrandTotal - incDisc;
+  const grandSales = rawGrandSales - salesDisc;
   const paidCount = data.filter(p => p.total > 0).length;
   const fmt = (v) => v > 0 ? "¥" + v.toLocaleString() : "-";
 
@@ -373,6 +404,55 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
           </div>
         ))}
       </div>
+
+      {/* ── 調整（ディスカウント）──────────────────────────────────── */}
+      {(salesDisc > 0 || incDisc > 0) && !showAdjustForm && (
+        <div style={{ marginBottom: 12, padding: '8px 16px', borderRadius: 4, background: '#FEF3C7', border: '1px solid #FDE68A', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#92400E' }}>調整適用中:</span>
+          {salesDisc > 0 && <span style={{ fontSize: 11, color: '#92400E' }}>売上 -¥{salesDisc.toLocaleString()}</span>}
+          {incDisc > 0 && <span style={{ fontSize: 11, color: '#92400E' }}>インセンティブ -¥{incDisc.toLocaleString()}</span>}
+          {adjustment.note && <span style={{ fontSize: 10, color: '#B45309' }}>({adjustment.note})</span>}
+          {isAdmin && <button onClick={() => setShowAdjustForm(true)} style={{ fontSize: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#92400E', textDecoration: 'underline', padding: 0 }}>編集</button>}
+        </div>
+      )}
+      {isAdmin && showAdjustForm && (
+        <div style={{ marginBottom: 12, padding: '12px 16px', borderRadius: 4, background: '#FEF3C7', border: '1px solid #FDE68A' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#92400E', marginBottom: 8 }}>Payroll調整（ディスカウント）</div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <label style={{ fontSize: 10, color: '#92400E' }}>
+              売上ディスカウント
+              <input type="number" value={adjForm.sales} onChange={e => setAdjForm(p => ({ ...p, sales: e.target.value }))}
+                style={{ marginLeft: 6, width: 110, padding: '4px 8px', borderRadius: 4, border: '1px solid #FDE68A', fontSize: 11, fontFamily: MONO }} />
+            </label>
+            <label style={{ fontSize: 10, color: '#92400E' }}>
+              インセンティブディスカウント
+              <input type="number" value={adjForm.incentive} onChange={e => setAdjForm(p => ({ ...p, incentive: e.target.value }))}
+                style={{ marginLeft: 6, width: 110, padding: '4px 8px', borderRadius: 4, border: '1px solid #FDE68A', fontSize: 11, fontFamily: MONO }} />
+            </label>
+            <label style={{ fontSize: 10, color: '#92400E' }}>
+              備考
+              <input value={adjForm.note} onChange={e => setAdjForm(p => ({ ...p, note: e.target.value }))}
+                style={{ marginLeft: 6, width: 160, padding: '4px 8px', borderRadius: 4, border: '1px solid #FDE68A', fontSize: 11 }} />
+            </label>
+            <button onClick={handleSaveAdjustment} disabled={adjSaving}
+              style={{ padding: '4px 14px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: '#0D2247', color: '#fff', border: 'none', cursor: adjSaving ? 'default' : 'pointer', opacity: adjSaving ? 0.6 : 1 }}>
+              {adjSaving ? '保存中...' : '保存'}
+            </button>
+            <button onClick={() => setShowAdjustForm(false)}
+              style={{ padding: '4px 14px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: '#fff', color: '#0D2247', border: '1px solid #0D2247', cursor: 'pointer' }}>
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
+      {isAdmin && !showAdjustForm && salesDisc === 0 && incDisc === 0 && (
+        <div style={{ marginBottom: 8 }}>
+          <button onClick={() => setShowAdjustForm(true)}
+            style={{ fontSize: 10, background: 'none', border: 'none', cursor: 'pointer', color: C.textLight, textDecoration: 'underline', padding: 0 }}>
+            + 調整（ディスカウント）を追加
+          </button>
+        </div>
+      )}
 
       {/* ── Filters + 確定ボタン ──────────────────────────────────── */}
       <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
@@ -554,10 +634,10 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
             <div style={{ padding: cellPad }} />
             <div style={{ padding: cellPad }} />
             <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: TH_BG, textAlign: colCfg[4]?.align || "right" }}>
-              {grandSales > 0 ? "¥" + filtered.reduce((s, p) => s + p.sales, 0).toLocaleString() : "-"}
+              {(() => { const v = filtered.reduce((s, p) => s + p.sales, 0) - salesDisc; return v > 0 ? "¥" + v.toLocaleString() : "-"; })()}
             </div>
             <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.green, textAlign: colCfg[5]?.align || "right" }}>
-              {filtered.reduce((s, p) => s + p.incentive, 0) > 0 ? "¥" + filtered.reduce((s, p) => s + p.incentive, 0).toLocaleString() : "-"}
+              {(() => { const v = filtered.reduce((s, p) => s + p.incentive, 0) - incDisc; return v > 0 ? "¥" + v.toLocaleString() : "-"; })()}
             </div>
             <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: TH_BG, textAlign: colCfg[6]?.align || "right" }}>
               {filtered.reduce((s, p) => s + p.teamBonus, 0) > 0 ? "¥" + filtered.reduce((s, p) => s + p.teamBonus, 0).toLocaleString() : "-"}
@@ -566,7 +646,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
               {filtered.reduce((s, p) => s + (activeReferralMap[p.name] || 0), 0) > 0 ? "¥" + filtered.reduce((s, p) => s + (activeReferralMap[p.name] || 0), 0).toLocaleString() : "-"}
             </div>
             <div style={{ padding: cellPad, fontSize: 13, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 900, color: TH_BG, textAlign: colCfg[8]?.align || "right" }}>
-              {"¥" + filtered.reduce((s, p) => s + p.total + (activeReferralMap[p.name] || 0), 0).toLocaleString()}
+              {"¥" + (filtered.reduce((s, p) => s + p.total + (activeReferralMap[p.name] || 0), 0) - incDisc).toLocaleString()}
             </div>
           </div>
         )}
