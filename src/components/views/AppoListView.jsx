@@ -82,6 +82,8 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
   const [emailSubject, setEmailSubject] = React.useState('');
   const [emailBody, setEmailBody] = React.useState('');
   const [sendError, setSendError] = React.useState('');
+  const [attachedFiles, setAttachedFiles] = React.useState([]);
+  const fileInputRef = React.useRef(null);
 
   const cl = (clientData || []).find(c => c.company === appo.client);
   const es = EMAIL_STATUS_LABELS[appo.emailStatus] || EMAIL_STATUS_LABELS.pending;
@@ -161,6 +163,13 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
     return emailOptions.filter(o => o.email !== emailTo);
   }, [emailOptions, emailTo]);
 
+  const fileToBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
   const handleSend = async () => {
     setEmailStep('sending');
     setSendError('');
@@ -174,7 +183,10 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
       ({ error } = await invokeSendAppoReport({ channel: 'chatwork', text: emailBody, room_id: cl.chatworkRoomId }));
     } else {
       if (!emailTo) { setSendError('宛先メールアドレスを入力してください'); setEmailStep('compose'); return; }
-      ({ error } = await invokeSendEmail({ to: emailTo, subject: emailSubject, body: emailBody, cc: emailCc || undefined }));
+      const emailAttachments = await Promise.all(
+        attachedFiles.map(async (f) => ({ filename: f.name, data: await fileToBase64(f), mimeType: f.type || 'application/octet-stream' }))
+      );
+      ({ error } = await invokeSendEmail({ to: emailTo, subject: emailSubject, body: emailBody, cc: emailCc || undefined, attachments: emailAttachments.length > 0 ? emailAttachments : undefined }));
     }
 
     if (error) {
@@ -269,6 +281,26 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
             <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={18}
               style={{ ...iStyle, resize: 'vertical', lineHeight: 1.6 }} />
           </div>
+          {/* 添付ファイル */}
+          {!isChat && (
+            <div style={{ marginBottom: 8 }}>
+              <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>添付ファイル</label>
+              <input ref={fileInputRef} type="file" multiple onChange={e => setAttachedFiles(prev => [...prev, ...Array.from(e.target.files)])} style={{ display: 'none' }} />
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                <button type="button" onClick={() => fileInputRef.current?.click()}
+                  style={{ padding: '3px 10px', borderRadius: 4, border: '1px dashed #E5E7EB', background: '#fff', cursor: 'pointer', fontSize: 10, color: '#6B7280', fontFamily: "'Noto Sans JP'" }}>
+                  + ファイルを追加
+                </button>
+                {attachedFiles.map((f, i) => (
+                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#FEF3C7', borderRadius: 4, padding: '2px 8px', fontSize: 9, color: '#92400E' }}>
+                    {f.name}
+                    <button type="button" onClick={() => setAttachedFiles(prev => prev.filter((_, j) => j !== i))}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#999', padding: 0, lineHeight: 1 }}>&times;</button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
           {sendError && <div style={{ fontSize: 10, color: '#DC2626', marginBottom: 6 }}>{sendError}</div>}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => setEmailStep('idle')}
