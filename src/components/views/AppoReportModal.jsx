@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
 import { useIsMobile } from '../../hooks/useIsMobile';
-import { invokeAppoAiReport, invokeTranscribeRecording, fetchZoomUserId, insertAppointment } from '../../lib/supabaseWrite';
+import { invokeAppoAiReport, invokeTranscribeRecording, fetchZoomUserId, insertAppointment, uploadAppoAttachments } from '../../lib/supabaseWrite';
 import { MemberSuggestInput } from './AppoListView';
 
 export default function AppoReportModal({ row, list, currentUser = '', members = [], onClose, onSave, onDone, initialRecordingUrl = '', onFetchRecordingUrl, clientData = [], rewardMaster = [] }) {
@@ -62,6 +62,9 @@ export default function AppoReportModal({ row, list, currentUser = '', members =
   const [generateStep, setGenerateStep] = React.useState('idle');
   const [recordingUrlLoading, setRecordingUrlLoading] = React.useState(false);
   const [recordingUrlError, setRecordingUrlError] = React.useState(false);
+  const [attachedFiles, setAttachedFiles] = React.useState([]);
+  const [uploadedFileUrls, setUploadedFileUrls] = React.useState([]);
+  const fileInputRef = useRef(null);
   const set = (key, val) => setForm(p => ({ ...p, [key]: val }));
 
   const handleRefetchRecordingUrl = async () => {
@@ -123,8 +126,12 @@ export default function AppoReportModal({ row, list, currentUser = '', members =
     return `${d}（${dow}）`;
   };
 
-  const generateReport = () =>
-`【アポ取得報告】
+  const generateReport = (fileUrls) => {
+    const urls = fileUrls || uploadedFileUrls;
+    const attachmentLines = urls.length > 0
+      ? '\n　・添付ファイル：\n' + urls.map(f => `　　  ${f.name}: ${f.url}`).join('\n')
+      : '';
+    return `【アポ取得報告】
 企業名：${row.company}
 担当者：${form.contactName}様（${form.contactTitle}）
 アポ取得日：${form.getDate}
@@ -141,8 +148,9 @@ HP：${form.hp}
 　・面談経験の有無→${form.meetingExp}
 　・将来的な検討可否→${form.futureConsider}
 　・その他→${form.other}
-　・録音URL：${form.recordingUrl}
+　・録音URL：${form.recordingUrl}${attachmentLines}
 　・アポ取得者→${form.acquirer}`;
+  };
 
   const handleCopy = async () => {
     try { await navigator.clipboard.writeText(generateReport()); setCopied(true); setTimeout(() => setCopied(false), 2000); }
@@ -186,12 +194,20 @@ HP：${form.hp}
   const handleSave = async () => {
     setSaving(true);
     setAiStatus('saving');
+    // 添付ファイルをアップロード
+    let fileUrls = uploadedFileUrls;
+    if (attachedFiles.length > 0) {
+      const tempId = row.id || Date.now().toString();
+      const { urls } = await uploadAppoAttachments(tempId, attachedFiles);
+      fileUrls = urls;
+      setUploadedFileUrls(urls);
+    }
     // 当社売上・インターン報酬の計算
     const salesVal = parseInt(form.ourSales) || 0;
     const acquirerMember = members.find(m => (typeof m === 'string' ? m : (m.name || '')) === form.acquirer);
     const acquirerRate = parseFloat(acquirerMember?.rate ?? acquirerMember?.incentive_rate ?? 0) || 0;
     const rewardVal = salesVal && acquirerRate ? Math.round(salesVal * acquirerRate) : 0;
-    const reportNote = generateReport();
+    const reportNote = generateReport(fileUrls);
     // Step 1: アポをDBに登録（appointments テーブルへ insert + ローカル状態更新）
     const { result: insResult } = await insertAppointment({
       company:    row.company,
@@ -248,7 +264,7 @@ HP：${form.hp}
       const { data, error } = await invokeAppoAiReport({
         zoom_user_id: zoomUserId,
         callee_phone: form.phone,
-        report_text:  generateReport(),
+        report_text:  generateReport(fileUrls),
         company_name: row.company,
         client_name:  list.company,
       });
@@ -368,6 +384,26 @@ HP：${form.hp}
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={lStyle}>アポ取得者</label>
               <MemberSuggestInput value={form.acquirer} onChange={v => set('acquirer', v)} members={members} style={iStyle} />
+            </div>
+            {/* 添付ファイル */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={lStyle}>添付ファイル</label>
+              <input ref={fileInputRef} type="file" multiple
+                onChange={e => setAttachedFiles(prev => [...prev, ...Array.from(e.target.files)])}
+                style={{ display: 'none' }} />
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                <button type="button" onClick={() => fileInputRef.current?.click()}
+                  style={{ padding: '4px 12px', borderRadius: 4, border: '1px dashed ' + C.border, background: C.offWhite, cursor: 'pointer', fontSize: 11, color: C.textMid, fontFamily: "'Noto Sans JP'" }}>
+                  + ファイルを追加
+                </button>
+                {attachedFiles.map((f, i) => (
+                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#EEF2FF', borderRadius: 4, padding: '2px 8px', fontSize: 10, color: '#0D2247' }}>
+                    {f.name}
+                    <button type="button" onClick={() => setAttachedFiles(prev => prev.filter((_, j) => j !== i))}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#999', padding: 0, lineHeight: 1 }}>&times;</button>
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
           {/* 報告プレビュー */}

@@ -1880,6 +1880,27 @@ export async function deleteRoleplaySession(id) {
   return { error }
 }
 
+export async function uploadAppoAttachments(appoId, files) {
+  if (!appoId || !files?.length) return { urls: [], error: null }
+  const safeId = String(appoId).replace(/[^a-zA-Z0-9_-]/g, '')
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  const urls = []
+  for (const file of files) {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const path = `attachments/${safeId}_${dateStr}_${safeName}`
+    const { error: uploadError } = await supabase.storage
+      .from('recordings')
+      .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: true })
+    if (uploadError) {
+      console.error('[DB] uploadAppoAttachment error:', uploadError)
+      continue
+    }
+    const { data: urlData } = supabase.storage.from('recordings').getPublicUrl(path)
+    if (urlData?.publicUrl) urls.push({ name: file.name, url: urlData.publicUrl })
+  }
+  return { urls, error: null }
+}
+
 export async function uploadAppoRecording(appoId, file) {
   if (!appoId || !file) return { url: null, error: 'missing params' }
   const ext = file.name?.split('.').pop() || 'mp4'
