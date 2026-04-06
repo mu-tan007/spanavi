@@ -63,7 +63,8 @@ export async function updateCallList(supaId, data) {
       rebuttal_data: data.rebuttalData,
       notes: data.notes,
       list_type: data.type,
-      contact_id: data.contactId ?? undefined,
+      contact_ids: data.contactIds ?? undefined,
+      contact_id: (data.contactIds && data.contactIds.length > 0) ? data.contactIds[0] : (data.contactId ?? undefined),
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateCallList error:', error)
@@ -96,7 +97,8 @@ export async function insertCallList(data) {
       notes: data.notes,
       list_type: data.type,
       script_name: data.script,
-      contact_id: data.contactId || null,
+      contact_ids: data.contactIds || [],
+      contact_id: (data.contactIds && data.contactIds.length > 0) ? data.contactIds[0] : (data.contactId || null),
     })
     .select()
     .single()

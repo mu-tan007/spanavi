@@ -14,6 +14,7 @@ import RecallModal from './RecallModal';
 import AppoReportModal from './AppoReportModal';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import ClientCalendarPanel from '../common/ClientCalendarPanel';
+import MultiCalendarPanel from '../common/MultiCalendarPanel';
 import QuickAppoModal from '../common/QuickAppoModal';
 import { renderMarkedScript } from '../../utils/scriptMarker';
 
@@ -1320,25 +1321,26 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             {scriptTab === 'calendar' && (() => {
               const cl = (clientData || []).find(c => c.company === list.company);
               const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
-              const linkedContact = list.contactId
-                ? contacts.find(ct => ct.id === list.contactId)
-                : (list.manager ? contacts.find(ct => ct.name?.includes(list.manager)) : null);
-              return <ClientCalendarPanel
-                clientCalendarId={linkedContact?.googleCalendarId || cl?.googleCalendarId || ''}
-                schedulingUrl={linkedContact?.schedulingUrl || cl?.schedulingUrl || ''}
-                schedulingUrl2={linkedContact?.schedulingUrl2 || ''}
-                schedulingLabel={linkedContact?.schedulingLabel || ''}
-                schedulingLabel2={linkedContact?.schedulingLabel2 || ''}
-                schedulingNotes={linkedContact?.schedulingNotes || ''}
-                onUpdateNotes={linkedContact ? async (notes) => {
-                  await updateClientContact(linkedContact.id, { ...linkedContact, schedulingNotes: notes });
-                  if (setContactsByClient && cl?._supaId) {
-                    setContactsByClient(prev => ({
-                      ...prev,
-                      [cl._supaId]: (prev[cl._supaId] || []).map(ct => ct.id === linkedContact.id ? { ...ct, schedulingNotes: notes } : ct),
-                    }));
-                  }
-                } : null}
+              const linkedContacts = (list.contactIds || [])
+                .map(cid => contacts.find(ct => ct.id === cid))
+                .filter(Boolean);
+              if (linkedContacts.length === 0 && list.manager) {
+                const fallback = contacts.find(ct => ct.name?.includes(list.manager));
+                if (fallback) linkedContacts.push(fallback);
+              }
+              return <MultiCalendarPanel
+                contacts={linkedContacts}
+                fallbackClient={cl}
+                updateContactFn={(ctId, ctData) => {
+                  return updateClientContact(ctId, ctData).then(() => {
+                    if (setContactsByClient && cl?._supaId) {
+                      setContactsByClient(prev => ({
+                        ...prev,
+                        [cl._supaId]: (prev[cl._supaId] || []).map(ct => ct.id === ctId ? { ...ct, ...ctData } : ct),
+                      }));
+                    }
+                  });
+                }}
                 compact
                 onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                 existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
@@ -1381,14 +1383,15 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       {quickAppoSlot && selectedRow && (() => {
         const cl = (clientData || []).find(c => c.company === list.company);
         const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
-        const lc = list.contactId ? contacts.find(ct => ct.id === list.contactId) : (list.manager ? contacts.find(ct => ct.name?.includes(list.manager)) : null);
+        const lcs = (list.contactIds || []).map(cid => contacts.find(ct => ct.id === cid)).filter(Boolean);
+        const primaryLc = lcs[0] || (list.manager ? contacts.find(ct => ct.name?.includes(list.manager)) : null);
         return (
           <QuickAppoModal
             date={quickAppoSlot.date}
             time={quickAppoSlot.time}
             row={selectedRow}
             list={list}
-            clientInfo={cl ? { _supaId: cl._supaId, slackWebhookUrl: cl.slackWebhookUrlInternal || cl.slackWebhookUrl, googleCalendarId: lc?.googleCalendarId || cl?.googleCalendarId || '' } : null}
+            clientInfo={cl ? { _supaId: cl._supaId, slackWebhookUrl: cl.slackWebhookUrlInternal || cl.slackWebhookUrl, googleCalendarId: primaryLc?.googleCalendarId || cl?.googleCalendarId || '' } : null}
             contacts={contacts}
             currentUser={currentUser}
             onClose={() => setQuickAppoSlot(null)}
@@ -1990,25 +1993,26 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             {scriptTab === 'calendar' && (() => {
               const cl = (clientData || []).find(c => c.company === list.company);
               const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
-              const linkedContact = list.contactId
-                ? contacts.find(ct => ct.id === list.contactId)
-                : (list.manager ? contacts.find(ct => ct.name?.includes(list.manager)) : null);
-              return <ClientCalendarPanel
-                clientCalendarId={linkedContact?.googleCalendarId || cl?.googleCalendarId || ''}
-                schedulingUrl={linkedContact?.schedulingUrl || cl?.schedulingUrl || ''}
-                schedulingUrl2={linkedContact?.schedulingUrl2 || ''}
-                schedulingLabel={linkedContact?.schedulingLabel || ''}
-                schedulingLabel2={linkedContact?.schedulingLabel2 || ''}
-                schedulingNotes={linkedContact?.schedulingNotes || ''}
-                onUpdateNotes={linkedContact ? async (notes) => {
-                  await updateClientContact(linkedContact.id, { ...linkedContact, schedulingNotes: notes });
-                  if (setContactsByClient && cl?._supaId) {
-                    setContactsByClient(prev => ({
-                      ...prev,
-                      [cl._supaId]: (prev[cl._supaId] || []).map(ct => ct.id === linkedContact.id ? { ...ct, schedulingNotes: notes } : ct),
-                    }));
-                  }
-                } : null}
+              const linkedContacts = (list.contactIds || [])
+                .map(cid => contacts.find(ct => ct.id === cid))
+                .filter(Boolean);
+              if (linkedContacts.length === 0 && list.manager) {
+                const fallback = contacts.find(ct => ct.name?.includes(list.manager));
+                if (fallback) linkedContacts.push(fallback);
+              }
+              return <MultiCalendarPanel
+                contacts={linkedContacts}
+                fallbackClient={cl}
+                updateContactFn={(ctId, ctData) => {
+                  return updateClientContact(ctId, ctData).then(() => {
+                    if (setContactsByClient && cl?._supaId) {
+                      setContactsByClient(prev => ({
+                        ...prev,
+                        [cl._supaId]: (prev[cl._supaId] || []).map(ct => ct.id === ctId ? { ...ct, ...ctData } : ct),
+                      }));
+                    }
+                  });
+                }}
                 onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                 existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
               />;
@@ -2112,14 +2116,15 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       {quickAppoSlot && selectedRow && (() => {
         const cl = (clientData || []).find(c => c.company === list.company);
         const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
-        const lc = list.contactId ? contacts.find(ct => ct.id === list.contactId) : (list.manager ? contacts.find(ct => ct.name?.includes(list.manager)) : null);
+        const lcs = (list.contactIds || []).map(cid => contacts.find(ct => ct.id === cid)).filter(Boolean);
+        const primaryLc = lcs[0] || (list.manager ? contacts.find(ct => ct.name?.includes(list.manager)) : null);
         return (
           <QuickAppoModal
             date={quickAppoSlot.date}
             time={quickAppoSlot.time}
             row={selectedRow}
             list={list}
-            clientInfo={cl ? { _supaId: cl._supaId, slackWebhookUrl: cl.slackWebhookUrlInternal || cl.slackWebhookUrl, googleCalendarId: lc?.googleCalendarId || cl?.googleCalendarId || '' } : null}
+            clientInfo={cl ? { _supaId: cl._supaId, slackWebhookUrl: cl.slackWebhookUrlInternal || cl.slackWebhookUrl, googleCalendarId: primaryLc?.googleCalendarId || cl?.googleCalendarId || '' } : null}
             contacts={contacts}
             currentUser={currentUser}
             onClose={() => setQuickAppoSlot(null)}

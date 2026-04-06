@@ -66,22 +66,22 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
 
   // 担当者名を苗字のみで表示（CRMの同一クライアント担当者内で苗字被りがあれば名の頭文字付き）
   const shortManagerName = (list) => {
-    const full = list.manager || '';
-    if (!full) return '';
-    const parts = full.split(/\s+/);
-    const surname = parts[0];
-    if (parts.length < 2) return surname;
-    // CRMに登録されている同一クライアントの担当者から苗字被りを判定
+    const fullNames = (list.manager || '').split(', ').filter(Boolean);
+    if (fullNames.length === 0) return '';
     const client = clientData.find(c => c.company === list.company);
     const contacts = client ? (contactsByClient[client._supaId] || []) : [];
-    const sameSurname = contacts.filter(ct => {
-      const ctParts = (ct.name || '').split(/\s+/);
-      return ctParts[0] === surname && ct.name !== full;
-    });
-    if (sameSurname.length > 0) return `${surname}(${parts[1][0]})`;
-    return surname;
+    return fullNames.map(full => {
+      const parts = full.split(/\s+/);
+      const surname = parts[0];
+      if (parts.length < 2) return surname;
+      const sameSurname = contacts.filter(ct => {
+        const ctParts = (ct.name || '').split(/\s+/);
+        return ctParts[0] === surname && ct.name !== full;
+      });
+      return sameSurname.length > 0 ? `${surname}(${parts[1][0]})` : surname;
+    }).join('・');
   };
-  const emptyForm = { company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", contactId: null, companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "" };
+  const emptyForm = { company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", contactIds: [], companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "" };
   const [formData, setFormData] = useState(emptyForm);
   const [showRec, setShowRec] = useState(true);
   const [displayFilter, setDisplayFilter] = useState('active');
@@ -116,7 +116,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
     setFormData({
       company: list.company, type: list.type, status: list.status,
       industry: list.industry, count: String(list.count), manager: list.manager,
-      contactId: list.contactId || null,
+      contactIds: list.contactIds || [],
       companyInfo: list.companyInfo || "", companyUrl: list.companyUrl || "", scriptBody: list.scriptBody || "", cautions: list.cautions || "", notes: list.notes || "",
     });
     setEditingListId(list.id);
@@ -131,12 +131,12 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
         const error = await updateCallList(target._supaId, formData);
         if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
       }
-      setCallListData(prev => prev.map(l => l.id === editingListId ? { ...l, company: formData.company, type: formData.type, status: formData.status, industry: formData.industry, count: parseInt(formData.count) || 0, manager: formData.manager, companyInfo: formData.companyInfo, scriptBody: formData.scriptBody, cautions: formData.cautions, notes: formData.notes } : l));
+      setCallListData(prev => prev.map(l => l.id === editingListId ? { ...l, company: formData.company, type: formData.type, status: formData.status, industry: formData.industry, count: parseInt(formData.count) || 0, manager: formData.manager, contactIds: formData.contactIds, companyInfo: formData.companyInfo, scriptBody: formData.scriptBody, cautions: formData.cautions, notes: formData.notes } : l));
     } else {
       const { result, error } = await insertCallList(formData);
       if (error || !result) { alert('保存に失敗しました: ' + (error?.message || '不明なエラー')); return; }
       const newId = Math.max(0, ...callListData.map(l => l.id)) + 1;
-      setCallListData(prev => [...prev, { id: newId, ...formData, count: parseInt(formData.count) || 0, _supaId: result.id }]);
+      setCallListData(prev => [...prev, { id: newId, ...formData, contactIds: formData.contactIds, count: parseInt(formData.count) || 0, _supaId: result.id }]);
     }
     setListFormOpen(false);
     setEditingListId(null);
@@ -288,7 +288,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 14 }}>
             <div style={{ gridColumn: "span 2" }}>
               <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>クライアント企業名 *</label>
-              <select value={formData.company} onChange={e => setFormData(p => ({ ...p, company: e.target.value, contactId: null, manager: '' }))} style={formInputStyle}>
+              <select value={formData.company} onChange={e => setFormData(p => ({ ...p, company: e.target.value, contactIds: [], manager: '' }))} style={formInputStyle}>
                 <option value="">クライアントを選択...</option>
                 {clientOptions.map(c => (
                   <option key={c._supaId || c.company} value={c.company}>
@@ -320,14 +320,26 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                 const selectedClient = clientOptions.find(c => c.company === formData.company);
                 const contacts = selectedClient ? (contactsByClient[selectedClient._supaId] || []) : [];
                 return contacts.length > 0 ? (
-                  <select value={formData.contactId || ''} onChange={e => {
-                    const ctId = e.target.value || null;
-                    const ct = contacts.find(c => c.id === ctId);
-                    setFormData(p => ({ ...p, contactId: ctId, manager: ct?.name || '' }));
-                  }} style={formInputStyle}>
-                    <option value="">担当者を選択...</option>
-                    {contacts.map(ct => <option key={ct.id} value={ct.id}>{ct.name}</option>)}
-                  </select>
+                  <div style={{ ...formInputStyle, display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 14px' }}>
+                    {contacts.map(ct => (
+                      <label key={ct.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={(formData.contactIds || []).includes(ct.id)}
+                          onChange={e => {
+                            const ids = e.target.checked
+                              ? [...(formData.contactIds || []), ct.id]
+                              : (formData.contactIds || []).filter(id => id !== ct.id);
+                            const names = ids.map(id => contacts.find(c => c.id === id)?.name || '').filter(Boolean).join(', ');
+                            setFormData(p => ({ ...p, contactIds: ids, manager: names }));
+                          }}
+                          style={{ accentColor: C.navy }}
+                        />
+                        <span style={{ color: C.textDark }}>{ct.name}</span>
+                      </label>
+                    ))}
+                    {contacts.length === 0 && <span style={{ fontSize: 11, color: C.textLight }}>担当者未登録</span>}
+                  </div>
                 ) : (
                   <input value={formData.manager} onChange={e => setFormData(p => ({ ...p, manager: e.target.value }))} style={formInputStyle} placeholder="例: 田中（CRMで担当者を登録すると選択可能）" />
                 );
