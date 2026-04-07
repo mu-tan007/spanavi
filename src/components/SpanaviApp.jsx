@@ -322,6 +322,15 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
     }
     if (supabaseData?.membersDetailed?.length) setMembers(supabaseData.membersDetailed);
   }, [supabaseData]);
+  // callListData が更新されたら、開いている callFlowScreen.list も最新版に差し替える
+  // （ScriptView でスクリプト保存後、架電集中画面に最新スクリプトを反映するため）
+  useEffect(() => {
+    if (!callFlowScreen?.list?._supaId) return;
+    const fresh = callListData.find(l => l._supaId === callFlowScreen.list._supaId);
+    if (fresh && fresh !== callFlowScreen.list) {
+      setCallFlowScreen(prev => prev ? { ...prev, list: fresh } : prev);
+    }
+  }, [callListData]);
   const isAdmin = isAdminProp || currentUser === "管理者";
   const currentMemberDetail = useMemo(() => members.find(m => m.name === currentUser), [members, currentUser]);
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');

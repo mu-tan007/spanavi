@@ -242,12 +242,13 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                     {isAdmin ? (
                       <>
                         <div
+                          key={activeList?._supaId}
                           ref={el => {
                             if (el && activeList?._supaId) {
                               clientEditorRefs.current[activeList._supaId] = el;
-                              if (!clientEditorInitIds.current.has(activeList._supaId)) {
+                              if (!el.dataset.spInit) {
                                 el.innerHTML = toHtml(activeList.scriptBody || '');
-                                clientEditorInitIds.current.add(activeList._supaId);
+                                el.dataset.spInit = '1';
                               }
                             }
                           }}
