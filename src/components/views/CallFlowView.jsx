@@ -32,6 +32,87 @@ const _cfRealCloseSet = new Set(); // sessionId → リアルクローズ時にa
 const PREFS = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 const extractPref = (address) => PREFS.find(p => address?.startsWith(p)) || '';
 
+// 注意事項テキストを ①②③④ などのマーカーで章立てに分解する。
+// マーカーが1つも見つからない場合は null を返し、呼び出し側で従来の <pre> にフォールバックする。
+// 元テキストは破壊しない（全行をいずれかの section に必ず含める）。
+const CAUTION_MARKER_RE = /^\s*([①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳])\s*(.*)$/;
+function parseCautions(text) {
+  if (!text) return null;
+  const lines = String(text).split(/\r?\n/);
+  const sections = [];
+  let cur = { marker: null, title: '', body: [] };
+  for (const line of lines) {
+    const m = line.match(CAUTION_MARKER_RE);
+    if (m) {
+      if (cur.marker || cur.title || cur.body.length) sections.push(cur);
+      cur = { marker: m[1], title: m[2].trim(), body: [] };
+    } else {
+      cur.body.push(line);
+    }
+  }
+  if (cur.marker || cur.title || cur.body.length) sections.push(cur);
+  if (!sections.some(s => s.marker)) return null;
+  return sections;
+}
+
+// 注意事項を構造化カードでレンダリングするコンポーネント。
+// 元テキストの内容は1文字も削らず、見出しと本文に分けて表示するだけ。
+function CautionsCards({ text, fontSize = 12 }) {
+  const sections = parseCautions(text);
+  if (!sections) {
+    return (
+      <pre style={{ fontSize, color: '#C07600', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: "'Noto Sans JP'" }}>{text}</pre>
+    );
+  }
+  const NG_RE = /(NG|不可|禁止|×|✗|だめ|ダメ)/;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {sections.map((s, i) => {
+        // body の前後の空行をトリム（元テキストは破壊せず表示時のみ）
+        let body = s.body.slice();
+        while (body.length && !body[0].trim()) body.shift();
+        while (body.length && !body[body.length - 1].trim()) body.pop();
+        return (
+          <div key={i} style={{
+            border: '1px solid #F0D9A8',
+            background: '#FFFBF0',
+            borderRadius: 8,
+            padding: '8px 10px',
+          }}>
+            {(s.marker || s.title) && (
+              <div style={{
+                fontSize, fontWeight: 700, color: '#8B5A00',
+                marginBottom: body.length ? 6 : 0,
+                paddingBottom: body.length ? 4 : 0,
+                borderBottom: body.length ? '1px solid #F0D9A8' : 'none',
+                fontFamily: "'Noto Sans JP'",
+              }}>
+                {s.marker ? `${s.marker} ` : ''}{s.title}
+              </div>
+            )}
+            {body.length > 0 && (
+              <div style={{ fontSize, color: '#5A3D00', lineHeight: 1.7, fontFamily: "'Noto Sans JP'" }}>
+                {body.map((line, j) => {
+                  const isNG = NG_RE.test(line);
+                  return (
+                    <div key={j} style={{
+                      whiteSpace: 'pre-wrap',
+                      color: isNG ? '#C0392B' : undefined,
+                      fontWeight: isNG ? 600 : undefined,
+                    }}>
+                      {line || '\u00A0'}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, ceoConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
@@ -1356,7 +1437,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             )}
             {scriptTab === 'cautions' && (
               list.cautions
-                ? <pre style={{ fontSize: 11, color: C.orange, whiteSpace: 'pre-wrap', lineHeight: 1.7, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.cautions}</pre>
+                ? <CautionsCards text={list.cautions} fontSize={11} />
                 : <div style={{ color: C.textLight, fontSize: 11 }}>注意事項未設定</div>
             )}
             {scriptTab === 'calendar' && (() => {
@@ -2028,7 +2109,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             )}
             {scriptTab === 'cautions' && (
               list.cautions
-                ? <pre style={{ fontSize: 12, color: '#C07600', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.cautions}</pre>
+                ? <CautionsCards text={list.cautions} fontSize={12} />
                 : <div style={{ color: '#b0b0b0', fontSize: 12 }}>注意事項未設定</div>
             )}
             {scriptTab === 'calendar' && (() => {
