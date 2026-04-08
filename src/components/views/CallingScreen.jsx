@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { zoomPhone } from '../../lib/zoomPhoneStore';
-import { fetchCallListItemIdMap, insertCallRecord, updateCallListItem, deleteCallRecordByItemRound, invokeGetZoomRecording, updateCallRecordRecordingUrl } from '../../lib/supabaseWrite';
+import { getCallListItemId, clearCallListItemIdCache, insertCallRecord, updateCallListItem, deleteCallRecordByItemRound, invokeGetZoomRecording, updateCallRecordRecordingUrl } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 
@@ -47,16 +47,11 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
   const [sessionKey] = useState(() => "self_" + (currentUser || "unknown") + "_" + Date.now());
   const csvData = importedCSVs[listId] || [];
 
-  // Supabase item ID lookup: { [no]: call_list_items.id }
-  const [itemIdMap, setItemIdMap] = useState({});
+  // Supabase item ID は遷移時に全件ロードせず、必要になった時だけ getCallListItemId で1件引く（キャッシュあり）。
+  // リスト切替時はキャッシュをクリアして古い listId 由来の id を引かないようにする。
   useEffect(() => {
-    if (!list?._supaId) { console.warn('[CallingScreen] _supaId 未設定のため itemIdMap は空のまま'); return; }
-    fetchCallListItemIdMap(list._supaId).then(({ data, error }) => {
-      if (error) { console.error('[CallingScreen] fetchCallListItemIdMap error:', error); return; }
-      if (!data || !Object.keys(data).length) return;
-      setItemIdMap(data);
-    });
-  }, [list?._supaId]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => { if (list?._supaId) clearCallListItemIdCache(list._supaId); };
+  }, [list?._supaId]);
 
   // Range input
   const [rangeStart, setRangeStart] = useState("");
@@ -210,7 +205,8 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
 
     // ② Supabase への書き込み（新規追加）
     const row = csvData[idx];
-    const itemId = itemIdMap[row?.no];
+    (async () => {
+    const itemId = list?._supaId ? await getCallListItemId(list._supaId, row?.no) : null;
     if (itemId && list?._supaId) {
       // recall の場合は CallFlowView と同じ memo JSON 形式に変換
       let memoStr = memo || null;
@@ -268,6 +264,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
     } else {
       console.warn('[CallingScreen] markStatus — Supabase書き込みスキップ（itemId or _supaId が未設定）');
     }
+    })();
 
     // Auto-advance to next callable
     const next = csvData.findIndex((r, i) => i > idx && isCallable(r));
@@ -285,15 +282,17 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
 
     // ② Supabase への書き込み（新規追加）
     const row = csvData[idx];
-    const itemId = itemIdMap[row?.no];
-    if (itemId) {
-      updateCallListItem(itemId, { memo: memoText || null })
-        .then(err => {
-          if (err) console.error('[CallingScreen] saveMemo updateCallListItem error:', err);
-        }).catch(e => console.error('[CallingScreen] saveMemo updateCallListItem catch:', e));
-    } else {
-      console.warn('[CallingScreen] saveMemo — Supabase書き込みスキップ（itemId 未設定）');
-    }
+    (async () => {
+      const itemId = list?._supaId ? await getCallListItemId(list._supaId, row?.no) : null;
+      if (itemId) {
+        updateCallListItem(itemId, { memo: memoText || null })
+          .then(err => {
+            if (err) console.error('[CallingScreen] saveMemo updateCallListItem error:', err);
+          }).catch(e => console.error('[CallingScreen] saveMemo updateCallListItem catch:', e));
+      } else {
+        console.warn('[CallingScreen] saveMemo — Supabase書き込みスキップ（itemId 未設定）');
+      }
+    })();
   };
 
   const undoStatus = (idx, round) => {
@@ -316,8 +315,9 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
     });
 
     // ② Supabase への書き込み（新規追加）
-    const itemId = itemIdMap[row?.no];
-    if (itemId) {
+    (async () => {
+      const itemId = list?._supaId ? await getCallListItemId(list._supaId, row?.no) : null;
+      if (!itemId) return;
       deleteCallRecordByItemRound(itemId, round)
         .catch(e => console.error('[CallingScreen] undoStatus deleteCallRecordByItemRound error:', e));
       // 前のラウンドのステータスを call_list_items.call_status に反映
@@ -331,7 +331,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
         : null;
       updateCallListItem(itemId, { call_status: prevStatusLabel })
         .catch(e => console.error('[CallingScreen] undoStatus updateCallListItem error:', e));
-    }
+    })();
   };
 
   // Filtered list

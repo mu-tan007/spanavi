@@ -606,6 +606,31 @@ export async function fetchCallListItems(listId) {
   return { data: allData, error: null }
 }
 
+// listId+no → call_list_items.id を1件だけ引く（オンデマンド lookup）。
+// (list_id, no) のユニークインデックスがあるので 1ms 級。
+// listId 単位で Map にキャッシュするので同一企業を2回触っても2回目以降はネットワーク無し。
+const _itemIdCache = new Map() // listId -> Map<no, id>
+export async function getCallListItemId(listId, no) {
+  if (!listId || no == null) return null
+  let inner = _itemIdCache.get(listId)
+  if (!inner) { inner = new Map(); _itemIdCache.set(listId, inner) }
+  if (inner.has(no)) return inner.get(no)
+  const { data, error } = await supabase
+    .from('call_list_items')
+    .select('id')
+    .eq('list_id', listId)
+    .eq('no', no)
+    .maybeSingle()
+  if (error) { console.error('[DB] getCallListItemId error:', error); return null }
+  const id = data?.id || null
+  inner.set(no, id)
+  return id
+}
+export function clearCallListItemIdCache(listId) {
+  if (listId) _itemIdCache.delete(listId)
+  else _itemIdCache.clear()
+}
+
 // 軽量版: { no -> id } マップ生成専用。select('*') と違い数万件でも数十KB・1〜数往復で済む。
 // CallingScreen 遷移時のラグ対策。全カラムが必要な場合は fetchCallListItems を使うこと。
 export async function fetchCallListItemIdMap(listId) {
