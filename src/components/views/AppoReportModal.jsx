@@ -412,7 +412,7 @@ HP：${form.hp}
               {!recordingUrlLoading && generateStep === 'enhancing'    && 'AI添削中...'}
               {!recordingUrlLoading && generateStep === 'done'         && '添削完了'}
               {!recordingUrlLoading && generateStep === 'error'        && 'エラー'}
-              {!recordingUrlLoading && generateStep === 'idle'         && '文字起こし＋AI添削'}
+              {!recordingUrlLoading && generateStep === 'idle'         && '録音から自動生成'}
             </button>
             {/* コピーボタン */}
             <button onClick={handleCopy} disabled={saving}

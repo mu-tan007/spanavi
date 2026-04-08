@@ -86,7 +86,7 @@ export default function ReportPopupModal({ appo, mode = 'callRecord', onClose, o
               style={{ padding: '8px 14px', borderRadius: 4, border: 'none', background: '#0D2247', color: '#fff',
                 cursor: (aiStep === 'running' || !appo.recording_url) ? 'default' : 'pointer',
                 fontSize: 12, fontWeight: 600, opacity: (aiStep === 'running' || !appo.recording_url) ? 0.6 : 1 }}>
-              {aiStep === 'running' ? 'AI生成中...' : '🪄 録音から自動生成'}
+              {aiStep === 'running' ? 'AI生成中...' : '録音から自動生成'}
             </button>
             <div style={{ fontSize: 10, color: C.textMid, flex: 1 }}>
               {!appo.recording_url && '録音URL未取得'}
