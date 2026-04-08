@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { zoomPhone } from '../../lib/zoomPhoneStore';
-import { fetchCallListItems, insertCallRecord, updateCallListItem, deleteCallRecordByItemRound, invokeGetZoomRecording, updateCallRecordRecordingUrl } from '../../lib/supabaseWrite';
+import { fetchCallListItemIdMap, insertCallRecord, updateCallListItem, deleteCallRecordByItemRound, invokeGetZoomRecording, updateCallRecordRecordingUrl } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 
@@ -51,12 +51,10 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
   const [itemIdMap, setItemIdMap] = useState({});
   useEffect(() => {
     if (!list?._supaId) { console.warn('[CallingScreen] _supaId 未設定のため itemIdMap は空のまま'); return; }
-    fetchCallListItems(list._supaId).then(({ data, error }) => {
-      if (error) { console.error('[CallingScreen] fetchCallListItems error:', error); return; }
-      if (!data?.length) return;
-      const map = {};
-      data.forEach(item => { map[item.no] = item.id; });
-      setItemIdMap(map);
+    fetchCallListItemIdMap(list._supaId).then(({ data, error }) => {
+      if (error) { console.error('[CallingScreen] fetchCallListItemIdMap error:', error); return; }
+      if (!data || !Object.keys(data).length) return;
+      setItemIdMap(data);
     });
   }, [list?._supaId]); // eslint-disable-line react-hooks/exhaustive-deps
 

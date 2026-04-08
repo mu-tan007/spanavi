@@ -459,6 +459,30 @@ export async function fetchCallListItems(listId) {
   return { data: allData, error: null }
 }
 
+// 軽量版: { no -> id } マップ生成専用。select('*') と違い数万件でも数十KB・1〜数往復で済む。
+// CallingScreen 遷移時のラグ対策。全カラムが必要な場合は fetchCallListItems を使うこと。
+export async function fetchCallListItemIdMap(listId) {
+  const PAGE_SIZE = 10000
+  let from = 0
+  const map = {}
+  while (true) {
+    const { data, error } = await supabase
+      .from('call_list_items')
+      .select('id, no')
+      .eq('list_id', listId)
+      .order('no')
+      .range(from, from + PAGE_SIZE - 1)
+    if (error) {
+      console.error('[DB] fetchCallListItemIdMap error:', error)
+      return { data: map, error }
+    }
+    if (data) for (const row of data) map[row.no] = row.id
+    if (!data || data.length < PAGE_SIZE) break
+    from += PAGE_SIZE
+  }
+  return { data: map, error: null }
+}
+
 export async function updateCallListItem(id, updates) {
   if (!id) { console.warn('[DB] updateCallListItem: no id'); return null }
   const { error } = await supabase
