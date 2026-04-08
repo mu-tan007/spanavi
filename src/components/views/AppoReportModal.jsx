@@ -377,7 +377,7 @@ HP：${form.hp}
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={lStyle}>アポ取得スタイル</label>
               <div style={{ display: 'flex', gap: 12, fontSize: 11, fontFamily: "'Noto Sans JP'", color: '#0D2247' }}>
-                {['Smooth', 'Slack', '説得'].map(opt => (
+                {['スムーズ', '説得'].map(opt => (
                   <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
                     <input type="radio" name="reportStyle" value={opt}
                       checked={form.reportStyle === opt}

@@ -258,6 +258,13 @@ export async function updateAppointment(supaId, data) {
   return error
 }
 
+// 録音→Whisper→Claude で通話レポートを自動生成
+export async function invokeGenerateCallReport(payload) {
+  const { data, error } = await supabase.functions.invoke('generate-call-report', { body: payload })
+  if (error) console.error('[Edge] generate-call-report error:', error)
+  return { data, error }
+}
+
 // 架電レコードのレポート(スタイル/補足)を更新
 export async function updateCallRecordReport(id, { style, supplement }) {
   if (!id) return { error: new Error('no id') }
