@@ -584,15 +584,19 @@ export async function deleteClientContact(id) {
 // Call List Items (架電先企業)
 // ============================================================
 
-export async function fetchCallListItems(listId) {
+export async function fetchCallListItems(listId, opts = {}) {
+  const { startNo = null, endNo = null } = opts
   const PAGE_SIZE = 1000
   let from = 0
   let allData = []
   while (true) {
-    const { data, error } = await supabase
+    let q = supabase
       .from('call_list_items')
       .select('*')
       .eq('list_id', listId)
+    if (startNo != null) q = q.gte('no', startNo)
+    if (endNo != null) q = q.lte('no', endNo)
+    const { data, error } = await q
       .order('no')
       .range(from, from + PAGE_SIZE - 1)
     if (error) {

@@ -7,7 +7,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -109,10 +109,19 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
     // 全件ロード（リストモード・ソート・架電開始で必要）。
     // defaultItemId 指定時は背景で並行実行し、UI ブロックしない。
-    const loadFull = () => Promise.all([
-      fetchCallListItems(list._supaId),
-      fetchCallRecords(list._supaId),
-    ]).then(([itemsRes, recordsRes]) => {
+    // startNo/endNo 指定時は範囲だけ取得して大規模リストのラグを回避。
+    const hasRange = (startNo != null && endNo != null);
+    const loadFull = () => fetchCallListItems(list._supaId, hasRange ? { startNo, endNo } : {})
+      .then(async (itemsRes) => {
+        if (cancelled) return { itemsRes, recordsRes: { data: [] } };
+        const fetchedItems = itemsRes.data || [];
+        // 範囲指定時は item_id で絞った records だけ取得（全件取得を回避）
+        const recordsRes = hasRange
+          ? { data: (await fetchCallRecordsByItemIds(fetchedItems.map(i => i.id))).data || [] }
+          : await fetchCallRecords(list._supaId);
+        return { itemsRes, recordsRes };
+      })
+      .then(({ itemsRes, recordsRes }) => {
       if (cancelled) return;
       const fetchedItems = itemsRes.data || [];
       const fetchedRecords = recordsRes.data || [];
@@ -162,7 +171,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     }
 
     return () => { cancelled = true; };
-  }, [list._supaId]);
+  }, [list._supaId, startNo, endNo]);
 
   useEffect(() => {
     fetchSetting('qa_data').then(({ value }) => {
