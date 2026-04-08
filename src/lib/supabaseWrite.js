@@ -269,21 +269,66 @@ export async function updateAppointmentReport(supaId, { style, supplement }) {
   return { error }
 }
 
-// 担当者・ステータスで録音ありアポを取得（searchページ録音一覧用）
-export async function fetchAppointmentsWithRecordings({ getter = null, status = null, limit = 200 } = {}) {
+// 担当者・ステータス・期間で録音ありの架電レコードを取得（searchページ録音一覧用）
+// 戻り値: [{ id, status, called_at, recording_url, getter_name, item_id, list_id, round, company_name, appointment_id?, report_style?, report_supplement?, appo_report? }]
+export async function fetchCallRecordsWithRecordings({
+  getter = null,
+  status = null,
+  dateFrom = null,
+  dateTo = null,
+  sortDir = 'desc',
+  limit = 500,
+} = {}) {
   let q = supabase
-    .from('appointments')
-    .select('id, company_name, getter_name, status, appointment_date, meeting_date, recording_url, report_style, report_supplement, appo_report, client_id')
+    .from('call_records')
+    .select('id, status, called_at, recording_url, getter_name, item_id, list_id, round, call_list_items!inner(company)')
     .eq('org_id', getOrgId())
     .not('recording_url', 'is', null)
     .neq('recording_url', '')
-    .order('appointment_date', { ascending: false, nullsFirst: false })
+    .order('called_at', { ascending: sortDir === 'asc', nullsFirst: false })
     .limit(limit)
   if (getter) q = q.eq('getter_name', getter)
   if (status) q = q.eq('status', status)
+  if (dateFrom) q = q.gte('called_at', `${dateFrom}T00:00:00`)
+  if (dateTo)   q = q.lte('called_at', `${dateTo}T23:59:59`)
   const { data, error } = await q
-  if (error) console.error('[DB] fetchAppointmentsWithRecordings error:', error)
-  return { data: data || [], error }
+  if (error) {
+    console.error('[DB] fetchCallRecordsWithRecordings error:', error)
+    return { data: [], error }
+  }
+  const rows = (data || []).map(r => ({
+    id: r.id,
+    status: r.status,
+    called_at: r.called_at,
+    recording_url: r.recording_url,
+    getter_name: r.getter_name,
+    item_id: r.item_id,
+    list_id: r.list_id,
+    round: r.round,
+    company_name: r.call_list_items?.company || '—',
+  }))
+
+  // アポ獲得の record にひもづく appointment（report_style/supplement 用）を取得
+  const appoItemIds = [...new Set(rows.filter(r => r.status === 'アポ獲得').map(r => r.item_id))]
+  if (appoItemIds.length > 0) {
+    const { data: appos } = await supabase
+      .from('appointments')
+      .select('id, item_id, report_style, report_supplement, appo_report, status, getter_name, company_name')
+      .eq('org_id', getOrgId())
+      .in('item_id', appoItemIds)
+    const appoMap = {}
+    ;(appos || []).forEach(a => { if (!appoMap[a.item_id]) appoMap[a.item_id] = a })
+    rows.forEach(r => {
+      if (r.status === 'アポ獲得' && appoMap[r.item_id]) {
+        const a = appoMap[r.item_id]
+        r.appointment_id = a.id
+        r.report_style = a.report_style
+        r.report_supplement = a.report_supplement
+        r.appo_report = a.appo_report
+      }
+    })
+  }
+  return { data: rows, error: null }
 }
 
 // ============================================================
@@ -301,13 +346,14 @@ export async function fetchRecordingBookmarks(userName) {
   return { data: data || [], error }
 }
 
-export async function insertRecordingBookmark({ userName, appointmentId, recordingUrl, companyName, getterName, note }) {
+export async function insertRecordingBookmark({ userName, appointmentId = null, callRecordId = null, recordingUrl, companyName, getterName, note }) {
   const { data, error } = await supabase
     .from('recording_bookmarks')
     .insert({
       org_id: getOrgId(),
       user_name: userName,
       appointment_id: appointmentId,
+      call_record_id: callRecordId,
       recording_url: recordingUrl,
       company_name: companyName,
       getter_name: getterName,
