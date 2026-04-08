@@ -120,15 +120,23 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
 
   // 注意事項パース（JSON配列 or 改行区切りテキスト）
   const CIRCLE_NUMS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+  const stripBullet = (s) => (s || '').replace(/^[\s　]*[・･•‧\-*]+[\s　]*/, '');
   const parseNotes = (raw) => {
     if (!raw) return [];
-    try { const arr = JSON.parse(raw); if (Array.isArray(arr)) return arr; } catch {}
-    return raw.split('\n').filter(s => s.trim());
+    try { const arr = JSON.parse(raw); if (Array.isArray(arr)) return arr.map(stripBullet); } catch {}
+    return raw.split('\n').map(stripBullet).filter(s => s.trim());
   };
-  const [localNotes, setLocalNotes] = useState(() => parseNotes(schedulingNotes));
+  // schedulingNotes が空で list 由来の static lines があれば、それを初期値として編集可能にする
+  // （保存後は schedulingNotes に永続化される）
+  const buildInitial = (notesRaw, staticRaw) => {
+    const fromNotes = parseNotes(notesRaw);
+    if (fromNotes.length > 0) return fromNotes;
+    return (staticRaw || []).map(stripBullet).filter(s => s && s.trim());
+  };
+  const [localNotes, setLocalNotes] = useState(() => buildInitial(schedulingNotes, props.staticNoteLines));
 
   // propsが変わったらlocalNotesを同期
-  useEffect(() => { setLocalNotes(parseNotes(schedulingNotes)); }, [schedulingNotes]);
+  useEffect(() => { setLocalNotes(buildInitial(schedulingNotes, props.staticNoteLines)); /* eslint-disable-next-line */ }, [schedulingNotes, JSON.stringify(props.staticNoteLines || [])]);
 
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
@@ -144,34 +152,12 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
     setTimeout(() => setNotesSaved(false), 2000);
   };
 
-  const staticLines = (props.staticNoteLines || []).filter(l => l && l.trim());
-  const NG_RE = /(NG|不可|禁止|×|✗|だめ|ダメ)/;
   const notesBlock = (
     <div style={{ padding: '8px 12px', background: '#F0F3F8', borderRadius: 4, border: '1px solid #D0D8E8', fontSize: 11, marginTop: 6 }}>
       <div style={{ fontWeight: 600, color: NAVY, marginBottom: 4 }}>注意事項</div>
-      {staticLines.map((line, i) => {
-        const isNG = NG_RE.test(line);
-        return (
-          <div key={`s${i}`} style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 3 }}>
-            <span style={{ fontSize: 10, color: NAVY, width: 14, flexShrink: 0 }}>{CIRCLE_NUMS[i] || `${i+1}.`}</span>
-            <div style={{
-              flex: 1,
-              padding: '3px 6px',
-              fontSize: 10,
-              border: '1px solid #D0D8E8',
-              borderRadius: 3,
-              background: '#F8FAFC',
-              fontFamily: "'Noto Sans JP'",
-              color: isNG ? '#C0392B' : '#374151',
-              fontWeight: isNG ? 600 : 400,
-              whiteSpace: 'pre-wrap',
-            }}>{line}</div>
-          </div>
-        );
-      })}
       {localNotes.map((note, i) => (
         <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 3 }}>
-          <span style={{ fontSize: 10, color: NAVY, width: 14, flexShrink: 0 }}>{CIRCLE_NUMS[staticLines.length + i] || `${staticLines.length + i + 1}.`}</span>
+          <span style={{ fontSize: 10, color: NAVY, width: 14, flexShrink: 0 }}>{CIRCLE_NUMS[i] || `${i+1}.`}</span>
           <input value={note} onChange={e => updateNote(i, e.target.value)}
             style={{ flex: 1, padding: '3px 6px', fontSize: 10, border: '1px solid #D0D8E8', borderRadius: 3, background: '#fff', fontFamily: "'Noto Sans JP'", outline: 'none' }}
             placeholder="注意事項を入力..." />
