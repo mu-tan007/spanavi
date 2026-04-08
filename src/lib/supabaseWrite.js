@@ -351,9 +351,10 @@ export async function fetchCallRecordsWithRecordings({
       if (r.status === 'アポ獲得' && appoMap[r.item_id]) {
         const a = appoMap[r.item_id]
         r.appointment_id = a.id
-        r.report_style = a.report_style
-        r.report_supplement = a.report_supplement
         r.appo_report = a.appo_report
+        // call_records 側に値が無い場合のみ appointments 側で補完
+        if (!r.report_style)      r.report_style      = a.report_style
+        if (!r.report_supplement) r.report_supplement = a.report_supplement
       }
     })
   }
