@@ -149,25 +149,29 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
   const notesBlock = (
     <div style={{ padding: '8px 12px', background: '#F0F3F8', borderRadius: 4, border: '1px solid #D0D8E8', fontSize: 11, marginTop: 6 }}>
       <div style={{ fontWeight: 600, color: NAVY, marginBottom: 4 }}>注意事項</div>
-      {staticLines.length > 0 && (
-        <div style={{ marginBottom: localNotes.length > 0 ? 6 : 4, paddingBottom: 6, borderBottom: '1px dashed #C8D2E2' }}>
-          {staticLines.map((line, i) => {
-            const isNG = NG_RE.test(line);
-            return (
-              <div key={i} style={{
-                fontSize: 10,
-                color: isNG ? '#C0392B' : '#374151',
-                fontWeight: isNG ? 600 : 400,
-                lineHeight: 1.7,
-                whiteSpace: 'pre-wrap',
-              }}>{line}</div>
-            );
-          })}
-        </div>
-      )}
+      {staticLines.map((line, i) => {
+        const isNG = NG_RE.test(line);
+        return (
+          <div key={`s${i}`} style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 3 }}>
+            <span style={{ fontSize: 10, color: NAVY, width: 14, flexShrink: 0 }}>{CIRCLE_NUMS[i] || `${i+1}.`}</span>
+            <div style={{
+              flex: 1,
+              padding: '3px 6px',
+              fontSize: 10,
+              border: '1px solid #D0D8E8',
+              borderRadius: 3,
+              background: '#F8FAFC',
+              fontFamily: "'Noto Sans JP'",
+              color: isNG ? '#C0392B' : '#374151',
+              fontWeight: isNG ? 600 : 400,
+              whiteSpace: 'pre-wrap',
+            }}>{line}</div>
+          </div>
+        );
+      })}
       {localNotes.map((note, i) => (
         <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 3 }}>
-          <span style={{ fontSize: 10, color: NAVY, width: 14, flexShrink: 0 }}>{CIRCLE_NUMS[i] || `${i+1}.`}</span>
+          <span style={{ fontSize: 10, color: NAVY, width: 14, flexShrink: 0 }}>{CIRCLE_NUMS[staticLines.length + i] || `${staticLines.length + i + 1}.`}</span>
           <input value={note} onChange={e => updateNote(i, e.target.value)}
             style={{ flex: 1, padding: '3px 6px', fontSize: 10, border: '1px solid #D0D8E8', borderRadius: 3, background: '#fff', fontFamily: "'Noto Sans JP'", outline: 'none' }}
             placeholder="注意事項を入力..." />
