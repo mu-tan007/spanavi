@@ -258,6 +258,17 @@ export async function updateAppointment(supaId, data) {
   return error
 }
 
+// 架電レコードのレポート(スタイル/補足)を更新
+export async function updateCallRecordReport(id, { style, supplement }) {
+  if (!id) return { error: new Error('no id') }
+  const { error } = await supabase
+    .from('call_records')
+    .update({ report_style: style ?? null, report_supplement: supplement ?? null })
+    .eq('id', id)
+  if (error) console.error('[DB] updateCallRecordReport error:', error)
+  return { error }
+}
+
 // レポートのスタイル(Smooth/Slack/説得)と補足のみを更新
 export async function updateAppointmentReport(supaId, { style, supplement }) {
   if (!supaId) return { error: new Error('no supaId') }
@@ -281,7 +292,7 @@ export async function fetchCallRecordsWithRecordings({
 } = {}) {
   let q = supabase
     .from('call_records')
-    .select('id, status, called_at, recording_url, getter_name, item_id, list_id, round, call_list_items!inner(company)')
+    .select('id, status, called_at, recording_url, getter_name, item_id, list_id, round, report_style, report_supplement, memo, call_list_items!inner(company)')
     .eq('org_id', getOrgId())
     .not('recording_url', 'is', null)
     .neq('recording_url', '')
@@ -305,6 +316,9 @@ export async function fetchCallRecordsWithRecordings({
     item_id: r.item_id,
     list_id: r.list_id,
     round: r.round,
+    report_style: r.report_style,
+    report_supplement: r.report_supplement,
+    memo: r.memo,
     company_name: r.call_list_items?.company || '—',
   }))
 

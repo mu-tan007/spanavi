@@ -1734,7 +1734,6 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
               const calledLabel = rec.called_at
                 ? new Date(new Date(rec.called_at).getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 16).replace('T', ' ')
                 : '';
-              const hasReport = rec.status === 'アポ獲得' && rec.appointment_id;
               return (
                 <div key={rec.id} style={{ borderBottom: '1px solid #F0F0F0', padding: '10px 16px', background: idx % 2 === 0 ? '#fff' : '#FAFBFC' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, fontFamily: "'Noto Sans JP'" }}>
@@ -1753,20 +1752,10 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                       style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #0D2247', background: isPlaying ? '#0D2247' : '#fff', color: isPlaying ? '#fff' : '#0D2247', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
                       {isPlaying ? '■ 停止' : '▶ 録音'}
                     </button>
-                    {hasReport && (
-                      <button onClick={() => setReportPopup({
-                        id: rec.appointment_id,
-                        company_name: rec.company_name,
-                        getter_name: rec.getter_name,
-                        status: rec.status,
-                        report_style: rec.report_style,
-                        report_supplement: rec.report_supplement,
-                        appo_report: rec.appo_report,
-                      })}
-                        style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #0D2247', background: '#fff', color: '#0D2247', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
-                        レポート
-                      </button>
-                    )}
+                    <button onClick={() => setReportPopup(rec)}
+                      style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #0D2247', background: '#fff', color: '#0D2247', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                      レポート
+                    </button>
                     <button onClick={() => handleToggleBookmark(rec)}
                       title={isBookmarked ? 'ブックマーク解除' : 'ブックマーク'}
                       style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', background: '#fff', cursor: 'pointer', fontSize: 14, color: isBookmarked ? '#F59E0B' : '#9CA3AF' }}>
@@ -1786,6 +1775,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       {reportPopup && (
         <ReportPopupModal
           appo={reportPopup}
+          mode="callRecord"
           onClose={() => setReportPopup(null)}
           onSaved={(updated) => {
             setRecList(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a));

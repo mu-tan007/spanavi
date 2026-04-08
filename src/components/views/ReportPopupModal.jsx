@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { C } from '../../constants/colors';
-import { updateAppointmentReport } from '../../lib/supabaseWrite';
+import { updateAppointmentReport, updateCallRecordReport } from '../../lib/supabaseWrite';
 
-// 既存アポのレポート（スタイル/補足/全文）を確認・編集するポップアップ
-export default function ReportPopupModal({ appo, onClose, onSaved }) {
+// 通話レポート（スタイル/補足）を確認・編集するポップアップ
+// mode: 'appointment' (アポ) | 'callRecord' (架電レコード)
+export default function ReportPopupModal({ appo, mode = 'appointment', onClose, onSaved }) {
   const [style, setStyle] = useState(appo?.report_style || '');
   const [supplement, setSupplement] = useState(appo?.report_supplement || '');
   const [saving, setSaving] = useState(false);
@@ -13,7 +14,8 @@ export default function ReportPopupModal({ appo, onClose, onSaved }) {
 
   const handleSave = async () => {
     setSaving(true);
-    const { error } = await updateAppointmentReport(appo.id, { style, supplement });
+    const updater = mode === 'callRecord' ? updateCallRecordReport : updateAppointmentReport;
+    const { error } = await updater(appo.id, { style, supplement });
     setSaving(false);
     if (!error) {
       setSavedAt(Date.now());
@@ -62,6 +64,14 @@ export default function ReportPopupModal({ appo, onClose, onSaved }) {
                 border: '1px solid ' + C.border, fontSize: 12, background: C.offWhite,
                 resize: 'vertical', boxSizing: 'border-box', fontFamily: "'Noto Sans JP'" }} />
           </div>
+          {appo.memo && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2247', marginBottom: 4 }}>架電メモ</div>
+              <pre style={{ background: '#F8F9FA', border: '1px solid #E5E7EB', borderRadius: 4,
+                padding: 10, fontSize: 11, whiteSpace: 'pre-wrap', lineHeight: 1.6,
+                color: C.textDark, margin: 0, fontFamily: "'Noto Sans JP'" }}>{appo.memo}</pre>
+            </div>
+          )}
           {appo.appo_report && (
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2247', marginBottom: 4 }}>アポ取得時の元レポート</div>
