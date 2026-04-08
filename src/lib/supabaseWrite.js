@@ -268,12 +268,20 @@ export async function invokeGenerateCallReport(payload) {
 // 架電レコードのレポート(スタイル/補足)を更新
 export async function updateCallRecordReport(id, { style, supplement }) {
   if (!id) return { error: new Error('no id') }
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('call_records')
     .update({ report_style: style ?? null, report_supplement: supplement ?? null })
     .eq('id', id)
-  if (error) console.error('[DB] updateCallRecordReport error:', error)
-  return { error }
+    .select('id, report_style, report_supplement')
+  if (error) {
+    console.error('[DB] updateCallRecordReport error:', error)
+    return { error }
+  }
+  if (!data || data.length === 0) {
+    console.error('[DB] updateCallRecordReport: 0 rows updated (RLS or id mismatch)', { id })
+    return { error: new Error('保存できませんでした (RLS拒否または対象なし)') }
+  }
+  return { data, error: null }
 }
 
 // レポートのスタイル(Smooth/Slack/説得)と補足のみを更新

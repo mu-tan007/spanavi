@@ -10,6 +10,7 @@ export default function ReportPopupModal({ appo, mode = 'callRecord', onClose, o
   const [supplement, setSupplement] = useState(appo?.report_supplement || '');
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
+  const [saveError, setSaveError] = useState('');
   const [aiStep, setAiStep] = useState('idle'); // idle | running | done | error
   const [aiError, setAiError] = useState('');
 
@@ -31,14 +32,17 @@ export default function ReportPopupModal({ appo, mode = 'callRecord', onClose, o
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError('');
     const updater = mode === 'callRecord' ? updateCallRecordReport : updateAppointmentReport;
     const { error } = await updater(appo.id, { style, supplement });
     setSaving(false);
-    if (!error) {
-      setSavedAt(Date.now());
-      onSaved?.({ ...appo, report_style: style, report_supplement: supplement });
-      setTimeout(() => setSavedAt(null), 2000);
+    if (error) {
+      setSaveError(error.message || '保存に失敗しました');
+      return;
     }
+    setSavedAt(Date.now());
+    onSaved?.({ ...appo, report_style: style, report_supplement: supplement });
+    setTimeout(() => setSavedAt(null), 2000);
   };
 
   const handleGenerateAI = async () => {
@@ -146,6 +150,7 @@ export default function ReportPopupModal({ appo, mode = 'callRecord', onClose, o
         <div style={{ padding: '10px 20px', borderTop: '1px solid #E5E7EB',
           display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center' }}>
           {savedAt && <span style={{ fontSize: 11, color: '#0a0', marginRight: 'auto' }}>保存しました</span>}
+          {saveError && <span style={{ fontSize: 11, color: '#c00', marginRight: 'auto' }}>エラー: {saveError}</span>}
           <button onClick={onClose}
             style={{ padding: '8px 16px', borderRadius: 4, border: '1px solid #0D2247',
               background: '#fff', cursor: 'pointer', fontSize: 12, color: '#0D2247' }}>閉じる</button>
