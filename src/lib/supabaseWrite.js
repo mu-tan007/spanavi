@@ -250,10 +250,79 @@ export async function updateAppointment(supaId, data) {
       notes: data.note || null,
       appo_report: data.appoReport ?? undefined,
       recording_url: data.recording_url ?? undefined,
+      report_style: data.reportStyle ?? undefined,
+      report_supplement: data.reportSupplement ?? undefined,
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateAppointment error:', error)
   return error
+}
+
+// レポートのスタイル(Smooth/Slack/説得)と補足のみを更新
+export async function updateAppointmentReport(supaId, { style, supplement }) {
+  if (!supaId) return { error: new Error('no supaId') }
+  const { error } = await supabase
+    .from('appointments')
+    .update({ report_style: style ?? null, report_supplement: supplement ?? null })
+    .eq('id', supaId)
+  if (error) console.error('[DB] updateAppointmentReport error:', error)
+  return { error }
+}
+
+// 担当者・ステータスで録音ありアポを取得（searchページ録音一覧用）
+export async function fetchAppointmentsWithRecordings({ getter = null, status = null, limit = 200 } = {}) {
+  let q = supabase
+    .from('appointments')
+    .select('id, company_name, getter_name, status, appointment_date, meeting_date, recording_url, report_style, report_supplement, appo_report, client_id')
+    .eq('org_id', getOrgId())
+    .not('recording_url', 'is', null)
+    .neq('recording_url', '')
+    .order('appointment_date', { ascending: false, nullsFirst: false })
+    .limit(limit)
+  if (getter) q = q.eq('getter_name', getter)
+  if (status) q = q.eq('status', status)
+  const { data, error } = await q
+  if (error) console.error('[DB] fetchAppointmentsWithRecordings error:', error)
+  return { data: data || [], error }
+}
+
+// ============================================================
+// Recording Bookmarks (録音ブックマーク)
+// ============================================================
+
+export async function fetchRecordingBookmarks(userName) {
+  if (!userName) return { data: [], error: null }
+  const { data, error } = await supabase
+    .from('recording_bookmarks')
+    .select('*')
+    .eq('user_name', userName)
+    .order('created_at', { ascending: false })
+  if (error) console.error('[DB] fetchRecordingBookmarks error:', error)
+  return { data: data || [], error }
+}
+
+export async function insertRecordingBookmark({ userName, appointmentId, recordingUrl, companyName, getterName, note }) {
+  const { data, error } = await supabase
+    .from('recording_bookmarks')
+    .insert({
+      org_id: getOrgId(),
+      user_name: userName,
+      appointment_id: appointmentId,
+      recording_url: recordingUrl,
+      company_name: companyName,
+      getter_name: getterName,
+      note: note || null,
+    })
+    .select()
+    .single()
+  if (error) console.error('[DB] insertRecordingBookmark error:', error)
+  return { data, error }
+}
+
+export async function deleteRecordingBookmark(id) {
+  const { error } = await supabase.from('recording_bookmarks').delete().eq('id', id)
+  if (error) console.error('[DB] deleteRecordingBookmark error:', error)
+  return { error }
 }
 
 export async function insertAppointment(data) {
@@ -299,6 +368,8 @@ export async function insertAppointment(data) {
       item_id: data.item_id || null,
       phone: data.phone || null,
       recording_url: data.recording_url || null,
+      report_style: data.reportStyle || null,
+      report_supplement: data.reportSupplement || null,
       meeting_time: data.meetTime || null,
       meeting_location: data.meetLocation || null,
       is_online: data.isOnline || false,

@@ -3,7 +3,8 @@ import React from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
-import { getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl, fetchMyCallRecords, updateMember, fetchMemberPayrollHistory } from '../../lib/supabaseWrite';
+import { getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl, fetchMyCallRecords, updateMember, fetchMemberPayrollHistory, fetchRecordingBookmarks, deleteRecordingBookmark } from '../../lib/supabaseWrite';
+import InlineAudioPlayer from '../common/InlineAudioPlayer';
 import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from '../../lib/pushNotification';
 import { getOrgId } from '../../lib/orgContext';
 import TrainingRoleplaySection from './TrainingRoleplaySection';
@@ -43,6 +44,18 @@ export default function MyPageView({ currentUser, userId, callListData, members,
     } finally {
       setProfileUploading(false); // 成功・失敗・例外いずれの場合も必ず解除
     }
+  };
+
+  // ブックマーク録音
+  const [bookmarks, setBookmarks] = useState([]);
+  const [bookmarkPlayingId, setBookmarkPlayingId] = useState(null);
+  useEffect(() => {
+    if (!currentUser) return;
+    fetchRecordingBookmarks(currentUser).then(({ data }) => setBookmarks(data || []));
+  }, [currentUser]);
+  const handleRemoveBookmark = async (id) => {
+    await deleteRecordingBookmark(id);
+    setBookmarks(prev => prev.filter(b => b.id !== id));
   };
 
   // Supabaseから自分の架電レコードを全件取得
@@ -606,6 +619,40 @@ export default function MyPageView({ currentUser, userId, callListData, members,
           </div>
         );
       })()}
+
+      {/* ─── ブックマークした録音 ─── */}
+      <div style={{ marginTop: 24, background: '#fff', borderRadius: 6, border: '1px solid #E5E7EB', padding: '16px 20px' }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#0D2247', marginBottom: 12 }}>
+          ★ ブックマークした録音 <span style={{ fontSize: 10, fontWeight: 400, color: C.textLight, marginLeft: 6 }}>{bookmarks.length}件</span>
+        </div>
+        {bookmarks.length === 0 && (
+          <div style={{ padding: 16, textAlign: 'center', color: C.textLight, fontSize: 12 }}>
+            ブックマークはまだありません。Search → 録音一覧 から追加できます。
+          </div>
+        )}
+        {bookmarks.map((b, idx) => {
+          const isPlaying = bookmarkPlayingId === b.id;
+          return (
+            <div key={b.id} style={{ borderTop: idx === 0 ? 'none' : '1px solid #F0F0F0', padding: '10px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, fontFamily: "'Noto Sans JP'" }}>
+                <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, color: '#0D2247', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.company_name || '—'}</div>
+                  <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>
+                    {b.getter_name || '—'} ・ {(b.created_at || '').slice(0, 10)}
+                  </div>
+                </div>
+                <button onClick={() => setBookmarkPlayingId(isPlaying ? null : b.id)}
+                  style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #0D2247', background: isPlaying ? '#0D2247' : '#fff', color: isPlaying ? '#fff' : '#0D2247', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                  {isPlaying ? '■ 停止' : '▶ 再生'}
+                </button>
+                <button onClick={() => handleRemoveBookmark(b.id)} title="ブックマーク解除"
+                  style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', background: '#fff', cursor: 'pointer', fontSize: 14, color: '#F59E0B' }}>★</button>
+              </div>
+              {isPlaying && <InlineAudioPlayer url={b.recording_url} onClose={() => setBookmarkPlayingId(null)} />}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

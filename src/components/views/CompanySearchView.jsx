@@ -20,8 +20,14 @@ import {
   deleteCallRecord,
   invokeGetZoomRecording,
   updateCallRecordRecordingUrl,
+  fetchAppointmentsWithRecordings,
+  fetchRecordingBookmarks,
+  insertRecordingBookmark,
+  deleteRecordingBookmark,
 } from '../../lib/supabaseWrite';
 import AppoReportModal from './AppoReportModal';
+import ReportPopupModal from './ReportPopupModal';
+import InlineAudioPlayer from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -133,6 +139,16 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   const [localMemo, setLocalMemo] = useState('');
   const [savingMemo, setSavingMemo] = useState(false);
   const [appoModal, setAppoModal] = useState(null);
+
+  // ====== 録音一覧タブ用 state ======
+  const [recGetter, setRecGetter] = useState('all');
+  const [recStatus, setRecStatus] = useState('all');
+  const [recList, setRecList] = useState([]);
+  const [recLoading, setRecLoading] = useState(false);
+  const [recPlayingId, setRecPlayingId] = useState(null);
+  const [reportPopup, setReportPopup] = useState(null);
+  const [bookmarkSet, setBookmarkSet] = useState({});
+
   const [subPhone, setSubPhone] = useState('');
   const [activeRecordingId, setActiveRecordingId] = useState(null);
   const [selectedItemFull, setSelectedItemFull] = useState(null);
@@ -868,6 +884,39 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
     });
   };
 
+  // ====== 録音一覧タブ ロジック ======
+  const reloadBookmarks = useCallback(async () => {
+    if (!currentUser) return;
+    const { data } = await fetchRecordingBookmarks(currentUser);
+    const map = {};
+    (data || []).forEach(b => { if (b.appointment_id) map[b.appointment_id] = b; });
+    setBookmarkSet(map);
+  }, [currentUser]);
+  useEffect(() => { if (subTab === 'recordings') reloadBookmarks(); }, [subTab, reloadBookmarks]);
+  useEffect(() => {
+    if (subTab !== 'recordings') return;
+    setRecLoading(true);
+    fetchAppointmentsWithRecordings({
+      getter: recGetter === 'all' ? null : recGetter,
+      status: recStatus === 'all' ? null : recStatus,
+    }).then(({ data }) => { setRecList(data); setRecLoading(false); });
+  }, [subTab, recGetter, recStatus]);
+  const handleToggleBookmark = async (appo) => {
+    const existing = bookmarkSet[appo.id];
+    if (existing) {
+      await deleteRecordingBookmark(existing.id);
+    } else {
+      await insertRecordingBookmark({
+        userName: currentUser,
+        appointmentId: appo.id,
+        recordingUrl: appo.recording_url,
+        companyName: appo.company_name,
+        getterName: appo.getter_name,
+      });
+    }
+    reloadBookmarks();
+  };
+
   const handleAppoSave = async (_formData) => {
     if (!appoModal) return;
     const { item, round } = appoModal;
@@ -966,6 +1015,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
         {[
           { id: "company", label: "企業検索" },
           { id: "listSearch", label: "リスト検索" },
+          { id: "recordings", label: "録音一覧" },
         ].map(tab => (
           <button key={tab.id} onClick={() => setSubTab(tab.id)} style={{
             padding: "10px 24px", fontSize: 12, fontWeight: 700, cursor: "pointer",
@@ -1616,6 +1666,91 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           </div>
         )}
       </div>)}
+      {/* ─── 録音一覧タブ ─── */}
+      {subTab === "recordings" && (
+        <div>
+          <div style={{ background: "#fff", borderRadius: 4, padding: "16px 20px", marginBottom: 16, border: "1px solid #E5E7EB" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>録音一覧</span>
+              <span style={{ fontSize: 10, color: C.textLight }}>担当者・ステータスで絞り込み{recList.length > 0 ? `（${recList.length}件）` : ""}</span>
+            </div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', display: 'block', marginBottom: 4 }}>担当者</label>
+                <select value={recGetter} onChange={e => setRecGetter(e.target.value)}
+                  style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 12, minWidth: 160, fontFamily: "'Noto Sans JP'" }}>
+                  <option value="all">全担当者</option>
+                  {(members || []).map(m => {
+                    const name = typeof m === 'string' ? m : (m?.name || '');
+                    return name ? <option key={name} value={name}>{name}</option> : null;
+                  })}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', display: 'block', marginBottom: 4 }}>ステータス</label>
+                <select value={recStatus} onChange={e => setRecStatus(e.target.value)}
+                  style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 12, minWidth: 160, fontFamily: "'Noto Sans JP'" }}>
+                  <option value="all">全ステータス</option>
+                  <option value="アポ取得">アポ取得</option>
+                  <option value="実施済み">実施済み</option>
+                  <option value="キャンセル">キャンセル</option>
+                  <option value="リスケ">リスケ</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ background: "#fff", borderRadius: 4, border: "1px solid #E5E7EB", overflow: 'hidden' }}>
+            {recLoading && <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>読み込み中...</div>}
+            {!recLoading && recList.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>該当する録音がありません</div>}
+            {!recLoading && recList.map((appo, idx) => {
+              const isPlaying = recPlayingId === appo.id;
+              const isBookmarked = !!bookmarkSet[appo.id];
+              return (
+                <div key={appo.id} style={{ borderBottom: '1px solid #F0F0F0', padding: '10px 16px', background: idx % 2 === 0 ? '#fff' : '#FAFBFC' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, fontFamily: "'Noto Sans JP'" }}>
+                    <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, color: '#0D2247', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{appo.company_name || '—'}</div>
+                      <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>
+                        {appo.getter_name || '—'} ・ {appo.status || ''} ・ {appo.appointment_date || ''}
+                        {appo.report_style && <span style={{ marginLeft: 6, padding: '1px 6px', background: '#0D2247', color: '#fff', borderRadius: 3, fontSize: 9 }}>{appo.report_style}</span>}
+                      </div>
+                    </div>
+                    <button onClick={() => setRecPlayingId(isPlaying ? null : appo.id)}
+                      style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #0D2247', background: isPlaying ? '#0D2247' : '#fff', color: isPlaying ? '#fff' : '#0D2247', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                      {isPlaying ? '■ 停止' : '▶ 録音'}
+                    </button>
+                    <button onClick={() => setReportPopup(appo)}
+                      style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #0D2247', background: '#fff', color: '#0D2247', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                      レポート
+                    </button>
+                    <button onClick={() => handleToggleBookmark(appo)}
+                      title={isBookmarked ? 'ブックマーク解除' : 'ブックマーク'}
+                      style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', background: '#fff', cursor: 'pointer', fontSize: 14, color: isBookmarked ? '#F59E0B' : '#9CA3AF' }}>
+                      {isBookmarked ? '★' : '☆'}
+                    </button>
+                  </div>
+                  {isPlaying && (
+                    <InlineAudioPlayer url={appo.recording_url} onClose={() => setRecPlayingId(null)} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {reportPopup && (
+        <ReportPopupModal
+          appo={reportPopup}
+          onClose={() => setReportPopup(null)}
+          onSaved={(updated) => {
+            setRecList(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a));
+            setReportPopup(updated);
+          }}
+        />
+      )}
+
       {/* ─── アポ取得報告モーダル（リスト検索から） ─── */}
       {appoModal && (
         <AppoReportModal

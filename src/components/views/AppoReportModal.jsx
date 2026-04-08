@@ -52,6 +52,8 @@ export default function AppoReportModal({ row, list, currentUser = '', members =
     recordingUrl:   initialRecordingUrl,
     acquirer:       currentUser,
     ourSales:       initialOurSales,
+    reportStyle:    row.report_style    || '',
+    reportSupplement: row.report_supplement || '',
   });
   const [copied, setCopied] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -207,6 +209,8 @@ HP：${form.hp}
       item_id:    row.id || null,
       phone:      row.phone || null,
       recording_url: form.recordingUrl || null,
+      reportStyle: form.reportStyle || null,
+      reportSupplement: form.reportSupplement || null,
     });
     await onSave({
       company:    row.company,
@@ -368,6 +372,27 @@ HP：${form.hp}
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={lStyle}>アポ取得者</label>
               <MemberSuggestInput value={form.acquirer} onChange={v => set('acquirer', v)} members={members} style={iStyle} />
+            </div>
+            {/* アポ取得スタイル */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={lStyle}>アポ取得スタイル</label>
+              <div style={{ display: 'flex', gap: 12, fontSize: 11, fontFamily: "'Noto Sans JP'", color: '#0D2247' }}>
+                {['Smooth', 'Slack', '説得'].map(opt => (
+                  <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+                    <input type="radio" name="reportStyle" value={opt}
+                      checked={form.reportStyle === opt}
+                      onChange={() => set('reportStyle', opt)} />
+                    {opt}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={lStyle}>補足（経緯・所感）</label>
+              <textarea value={form.reportSupplement}
+                onChange={e => set('reportSupplement', e.target.value)}
+                placeholder="例：1回目で温度感薄かったが、事例紹介で前向きに転じてアポ獲得"
+                style={{ ...iStyle, minHeight: 56, resize: 'vertical', fontFamily: "'Noto Sans JP'" }} />
             </div>
           </div>
           {/* 報告プレビュー */}
