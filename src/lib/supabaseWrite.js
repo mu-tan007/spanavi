@@ -907,6 +907,7 @@ export async function fetchAllRecallRecords() {
     .select('*')
     .in('status', ['受付再コール', '社長再コール'])
     .order('called_at', { ascending: false })
+    .limit(10000)
   if (error) { console.error('[DB] fetchAllRecallRecords error:', error); return { data: [], error } }
 
   // フィルタ1: memo.recall_completed === true のものを除外
@@ -921,12 +922,17 @@ export async function fetchAllRecallRecords() {
   let clientMap = {}
 
   if (itemIds.length > 0) {
-    // call_status も取得して完了判定に使う
-    const { data: items } = await supabase
-      .from('call_list_items')
-      .select('id, company, phone, representative, address, call_status')
-      .in('id', itemIds)
-    ;(items || []).forEach(i => { itemMap[i.id] = i })
+    // .in() は URL 長制限があるため 200 件ずつバッチ取得
+    const CHUNK = 200
+    for (let i = 0; i < itemIds.length; i += CHUNK) {
+      const chunk = itemIds.slice(i, i + CHUNK)
+      const { data: items, error: itemsErr } = await supabase
+        .from('call_list_items')
+        .select('id, company, phone, representative, address, call_status')
+        .in('id', chunk)
+      if (itemsErr) { console.error('[DB] fetchAllRecallRecords items chunk error:', itemsErr); continue }
+      ;(items || []).forEach(i => { itemMap[i.id] = i })
+    }
   }
 
   if (listIds.length > 0) {
