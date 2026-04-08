@@ -4,6 +4,7 @@ import { Database, Upload } from 'lucide-react';
 import DatabaseFilterPanel from '../database/DatabaseFilterPanel';
 import DatabaseResultTable from '../database/DatabaseResultTable';
 import ImportModal from '../database/ImportModal';
+import TsrIndustryModal from '../TsrIndustryModal';
 import { useCompanySearch } from '../../hooks/useCompanySearch';
 import { searchCompanies } from '../../lib/companyMasterApi';
 import { supabase } from '../../lib/supabase';
@@ -15,6 +16,7 @@ export default function DatabaseView({ isAdmin }) {
     doSearch, setPage,
   } = useCompanySearch();
   const [showImport, setShowImport] = useState(false);
+  const [showTsrModal, setShowTsrModal] = useState(false);
   const [dbTotal, setDbTotal] = useState(null);
 
   useEffect(() => {
@@ -71,15 +73,21 @@ export default function DatabaseView({ isAdmin }) {
             </div>
           )}
         </div>
-        {isAdmin && (
-          <button onClick={() => setShowImport(true)} style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            background: C.navy, color: C.white, border: 'none',
-            borderRadius: 8, padding: '8px 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer',
-          }}>
-            <Upload size={15} /> リストインポート
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button onClick={() => setShowTsrModal(true)}
+            style={{ padding: '6px 14px', borderRadius: 4, border: '1px solid #E5E7EB', background: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#0D2247', fontFamily: "'Noto Sans JP'" }}>
+            TSR業種分類一覧
           </button>
-        )}
+          {isAdmin && (
+            <button onClick={() => setShowImport(true)} style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: C.navy, color: C.white, border: 'none',
+              borderRadius: 8, padding: '8px 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+            }}>
+              <Upload size={15} /> リストインポート
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
@@ -132,6 +140,8 @@ export default function DatabaseView({ isAdmin }) {
           <div style={{ fontSize: 12 }}>業種・エリア・売上高・従業員数・代表者年齢・電話番号などで絞り込めます</div>
         </div>
       )}
+
+      {showTsrModal && <TsrIndustryModal onClose={() => setShowTsrModal(false)} />}
 
       {/* Import Modal */}
       {showImport && (
