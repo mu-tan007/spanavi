@@ -787,6 +787,31 @@ export async function updateMemberReward(supaId, { cumulativeSales, rank, incent
 // Call Records (架電記録)
 // ============================================================
 
+// 単一企業ロード（fast-path 用）。AppoListView 等から特定企業の架電ページを開く時に
+// 全件 fetchCallListItems を待たずに対象1件だけ即取得して描画するために使う。
+export async function fetchCallListItemById(itemId) {
+  if (!itemId) return { data: null, error: null }
+  const { data, error } = await supabase
+    .from('call_list_items')
+    .select('*')
+    .eq('id', itemId)
+    .maybeSingle()
+  if (error) console.error('[DB] fetchCallListItemById error:', error)
+  return { data, error }
+}
+
+// 単一企業の架電履歴のみ取得（fast-path 用）。
+export async function fetchCallRecordsByItem(itemId) {
+  if (!itemId) return { data: [], error: null }
+  const { data, error } = await supabase
+    .from('call_records')
+    .select('*')
+    .eq('item_id', itemId)
+    .order('round')
+  if (error) console.error('[DB] fetchCallRecordsByItem error:', error)
+  return { data: data || [], error }
+}
+
 export async function fetchCallRecords(listId) {
   const PAGE_SIZE = 1000
   let from = 0

@@ -7,7 +7,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -105,15 +105,21 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       setLoading(false);
       return;
     }
-    Promise.all([
+    let cancelled = false;
+
+    // 全件ロード（リストモード・ソート・架電開始で必要）。
+    // defaultItemId 指定時は背景で並行実行し、UI ブロックしない。
+    const loadFull = () => Promise.all([
       fetchCallListItems(list._supaId),
       fetchCallRecords(list._supaId),
     ]).then(([itemsRes, recordsRes]) => {
+      if (cancelled) return;
       const fetchedItems = itemsRes.data || [];
       const fetchedRecords = recordsRes.data || [];
       setItems(fetchedItems);
       setCallRecords(fetchedRecords);
       if (defaultItemId) {
+        // 高速パスで既に selectedRow セット済みでも、全件版に差し替えて参照同一性を保つ
         const target = fetchedItems.find(i => i.id === defaultItemId);
         if (target) setSelectedRow(target);
       } else {
@@ -127,9 +133,35 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       }
       setLoading(false);
     }).catch(err => {
+      if (cancelled) return;
       console.error('[CallFlowView] データ取得エラー:', err);
       setLoading(false);
     });
+
+    if (defaultItemId) {
+      // ★ 高速パス: アポ一覧等から特定企業を開く時、その1件＋関連レコードだけ即取得し
+      // すぐに描画する。3万件級リストでも体感ラグなし。全件は背景で並行ロード。
+      Promise.all([
+        fetchCallListItemById(defaultItemId),
+        fetchCallRecordsByItem(defaultItemId),
+      ]).then(([itemRes, recRes]) => {
+        if (cancelled) return;
+        if (itemRes.data) {
+          setItems([itemRes.data]);
+          setSelectedRow(itemRes.data);
+        }
+        if (recRes.data) setCallRecords(recRes.data);
+        setLoading(false);
+      }).catch(err => {
+        console.warn('[CallFlowView] 高速パスエラー（全件ロードにフォールバック）:', err);
+      });
+      // 背景で全件もロード
+      loadFull();
+    } else {
+      loadFull();
+    }
+
+    return () => { cancelled = true; };
   }, [list._supaId]);
 
   useEffect(() => {
