@@ -14,6 +14,7 @@ export default function MultiCalendarPanel({
   onSelectSlot,
   existingAppointments = [],
   compact = false,
+  staticNoteLines = [],
 }) {
   const [activeTab, setActiveTab] = useState(0);
 
@@ -31,6 +32,7 @@ export default function MultiCalendarPanel({
         compact={compact}
         onSelectSlot={onSelectSlot}
         existingAppointments={existingAppointments}
+        staticNoteLines={staticNoteLines}
       />
     );
   }
@@ -52,6 +54,7 @@ export default function MultiCalendarPanel({
         compact={compact}
         onSelectSlot={onSelectSlot}
         existingAppointments={existingAppointments}
+        staticNoteLines={staticNoteLines}
       />
     );
   }
@@ -101,6 +104,7 @@ export default function MultiCalendarPanel({
         compact={compact}
         onSelectSlot={onSelectSlot}
         existingAppointments={existingAppointments}
+        staticNoteLines={staticNoteLines}
       />
     </div>
   );

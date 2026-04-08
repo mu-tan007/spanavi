@@ -60,6 +60,21 @@ function parseCautions(text) {
 // filter: 'all' | 'calendar' | 'non-calendar'
 //   'calendar'     - タイトルに「カレンダー」を含むセクションだけ表示
 //   'non-calendar' - 「カレンダー」を含むセクションを除外して表示
+// list.cautions から「カレンダー」セクションの本文行だけ抽出
+function extractCalendarCautionLines(text) {
+  const sections = parseCautions(text);
+  if (!sections) return [];
+  const out = [];
+  for (const s of sections) {
+    if (/カレンダー/.test(s.title || '')) {
+      for (const line of s.body) {
+        if (line && line.trim()) out.push(line.trim());
+      }
+    }
+  }
+  return out;
+}
+
 function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   const parsed = parseCautions(text);
   if (!parsed) {
@@ -1482,8 +1497,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     compact
                     onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                     existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
+                    staticNoteLines={extractCalendarCautionLines(list.cautions)}
                   />
-                  {list.cautions && <CautionsCards text={list.cautions} fontSize={11} filter="calendar" />}
                 </div>
               );
             })()}
@@ -2158,8 +2173,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     }}
                     onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                     existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
+                    staticNoteLines={extractCalendarCautionLines(list.cautions)}
                   />
-                  {list.cautions && <CautionsCards text={list.cautions} fontSize={12} filter="calendar" />}
                 </div>
               );
             })()}
