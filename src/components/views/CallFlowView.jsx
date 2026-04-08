@@ -1036,7 +1036,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                 <thead>
                   <tr style={{ background: C.navyDeep, position: 'sticky', top: 0, zIndex: 1 }}>
-                    {[['No', '36px'], ['企業名', null], ['事業内容', null], ['住所', '80px'], ['代表者', '90px'], ['電話番号', '112px'], ['結果', '76px']].map(([h, w]) => {
+                    {[['No', '52px'], ['企業名', null], ['事業内容', null], ['住所', '80px'], ['代表者', '90px'], ['電話番号', '112px'], ['結果', '76px']].map(([h, w]) => {
                       const dir = sortState.column === h ? sortState.direction : null;
                       return (
                         <th key={h} onClick={() => handleSort(h)}
@@ -1065,7 +1065,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     return (
                       <tr key={item.id} onClick={() => setSelectedRow(item)}
                         style={{ cursor: 'pointer', background: isSelected ? C.gold + '18' : isCalled ? '#f5f3ef' : i % 2 === 0 ? C.white : C.cream, borderLeft: isSelected ? '3px solid ' + C.gold : '3px solid transparent', transition: 'background 0.12s' }}>
-                        <td style={{ padding: '6px 8px', fontFamily: "'JetBrains Mono'", fontSize: 9, color: C.textLight }}>{item.no}</td>
+                        <td style={{ padding: '6px 8px', fontFamily: "'JetBrains Mono'", fontSize: 9, color: C.textLight, whiteSpace: 'nowrap' }}>{item.no}</td>
                         <td style={{ padding: '6px 8px', fontWeight: 600, color: C.navy, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</td>
                         <td style={{ padding: '6px 8px', color: C.textMid, fontSize: 10, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.business}</td>
                         <td style={{ padding: '6px 8px', color: C.textMid, fontSize: 9, width: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.address || '—'}</td>
@@ -1728,7 +1728,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                     <thead>
                       <tr style={{ background: '#0D2247', position: 'sticky', top: 0, zIndex: 1 }}>
-                        {[['No', '36px'], ['企業名', null], ['事業内容', null], ['住所', '90px'], ['売上高', '90px'], ['代表者', '90px'], ['電話番号', '112px'], ['最終架電日', '80px'], ['担当者', '70px'], ['結果', '80px']].map(([h, w]) => {
+                        {[['No', '52px'], ['企業名', null], ['事業内容', null], ['住所', '90px'], ['売上高', '90px'], ['代表者', '90px'], ['電話番号', '112px'], ['最終架電日', '80px'], ['担当者', '70px'], ['結果', '80px']].map(([h, w]) => {
                           const dir = sortState.column === h ? sortState.direction : null;
                           return (
                             <th key={h} onClick={() => handleSort(h)}
@@ -1749,7 +1749,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                             style={{ cursor: 'pointer', background: isSelected ? '#EFF6FF' : i % 2 === 0 ? '#fff' : '#F8F9FA', borderBottom: '1px solid #E5E7EB', transition: 'background 0.12s', borderLeft: isSelected ? '3px solid #0D2247' : '3px solid transparent' }}
                             onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#EFF6FF'; }}
                             onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#F8F9FA'; }}>
-                            <td style={{ padding: '7px 8px', fontFamily: "'JetBrains Mono'", fontSize: 9, color: '#6B7280', textAlign: 'right' }}>{item.no}</td>
+                            <td style={{ padding: '7px 8px', fontFamily: "'JetBrains Mono'", fontSize: 9, color: '#6B7280', textAlign: 'right', whiteSpace: 'nowrap' }}>{item.no}</td>
                             <td style={{ padding: '7px 8px', fontWeight: 600, color: '#0D2247', maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</td>
                             <td style={{ padding: '7px 8px', color: '#6B7280', fontSize: 10, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.business}</td>
                             <td style={{ padding: '7px 8px', color: '#6B7280', fontSize: 9, width: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.address || '—'}</td>
