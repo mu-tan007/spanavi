@@ -75,6 +75,9 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
       ? parsed.filter(s => !isCal(s))
       : parsed;
   if (sections.length === 0) return null;
+  // フィルタで歯抜けになった番号を繰り上げる（① ② ④ → ① ② ③）
+  const CIRCLE = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
+  const renumber = filter !== 'all';
   const NG_RE = /(NG|不可|禁止|×|✗|だめ|ダメ)/;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -98,7 +101,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
                 borderBottom: body.length ? '1px solid #F0D9A8' : 'none',
                 fontFamily: "'Noto Sans JP'",
               }}>
-                {s.marker ? `${s.marker} ` : ''}{s.title}
+                {(renumber && s.marker) ? `${CIRCLE[i] || s.marker} ` : (s.marker ? `${s.marker} ` : '')}{s.title}
               </div>
             )}
             {body.length > 0 && (
@@ -1463,7 +1466,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               }
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {list.cautions && <CautionsCards text={list.cautions} fontSize={11} filter="calendar" />}
                   <MultiCalendarPanel
                     contacts={linkedContacts}
                     fallbackClient={cl}
@@ -1481,6 +1483,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                     existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
                   />
+                  {list.cautions && <CautionsCards text={list.cautions} fontSize={11} filter="calendar" />}
                 </div>
               );
             })()}
@@ -2140,7 +2143,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               }
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {list.cautions && <CautionsCards text={list.cautions} fontSize={12} filter="calendar" />}
                   <MultiCalendarPanel
                     contacts={linkedContacts}
                     fallbackClient={cl}
@@ -2157,6 +2159,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                     existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
                   />
+                  {list.cautions && <CautionsCards text={list.cautions} fontSize={12} filter="calendar" />}
                 </div>
               );
             })()}
