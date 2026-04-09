@@ -1112,7 +1112,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                                   const statusVal = item.call_status || recs.reduce((a, b) => a.round >= b.round ? a : b).status;
                                   return `${recs.length}回/${statusVal}`;
                                 })()
-                              : '未架電'}
+                              : (item.call_status || '未架電')}
                           </span>
                         </td>
                       </tr>
@@ -1813,7 +1813,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                                       const statusVal = item.call_status || recs.reduce((a, b) => a.round >= b.round ? a : b).status;
                                       return `${recs.length}回/${statusVal}`;
                                     })()
-                                  : '未架電'}
+                                  : (item.call_status || '未架電')}
                               </span>
                             </td>
                           </tr>
