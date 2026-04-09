@@ -224,14 +224,6 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
             <input type="number" value={filters.ageMax} onChange={e => setFilter('ageMax', e.target.value)} onKeyDown={handleKeyDown} placeholder="上限" style={{ ...inputStyle, width: '50%' }} />
           </div>
         </div>
-        <div>
-          <div style={labelStyle}>設立年</div>
-          <div style={rowStyle}>
-            <input type="number" value={filters.establishedMin} onChange={e => setFilter('establishedMin', e.target.value)} onKeyDown={handleKeyDown} placeholder="下限" style={{ ...inputStyle, width: '50%' }} />
-            <span style={{ color: C.textLight, fontSize: 12 }}>〜</span>
-            <input type="number" value={filters.establishedMax} onChange={e => setFilter('establishedMax', e.target.value)} onKeyDown={handleKeyDown} placeholder="上限" style={{ ...inputStyle, width: '50%' }} />
-          </div>
-        </div>
       </div>
     </div>
   );
