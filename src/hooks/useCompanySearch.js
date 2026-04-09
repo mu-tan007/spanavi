@@ -15,8 +15,10 @@ const INITIAL_FILTERS = {
   netIncomeNullMode: '',  // '' | 'include' | 'exclude'
   ageMin: '',
   ageMax: '',
+  ageNullMode: '',       // '' | 'include' | 'exclude'
   employeeMin: '',
   employeeMax: '',
+  employeeNullMode: '',  // '' | 'include' | 'exclude'
   phonePattern: '',
   establishedMin: '',
   establishedMax: '',

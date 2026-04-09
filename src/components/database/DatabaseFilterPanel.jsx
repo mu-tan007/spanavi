@@ -215,6 +215,15 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
             <span style={{ color: C.textLight, fontSize: 12 }}>〜</span>
             <input type="number" value={filters.employeeMax} onChange={e => setFilter('employeeMax', e.target.value)} onKeyDown={handleKeyDown} placeholder="上限" style={{ ...inputStyle, width: '50%' }} />
           </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+            {[{ v: 'include', l: '空欄を含む' }, { v: 'exclude', l: '空欄を含まない' }].map(o => (
+              <label key={o.v} style={{ fontSize: 11, color: C.textMid, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
+                <input type="checkbox" checked={filters.employeeNullMode === o.v}
+                  onChange={() => setFilter('employeeNullMode', filters.employeeNullMode === o.v ? '' : o.v)} />
+                {o.l}
+              </label>
+            ))}
+          </div>
         </div>
         <div>
           <div style={labelStyle}>代表者年齢</div>
@@ -222,6 +231,15 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
             <input type="number" value={filters.ageMin} onChange={e => setFilter('ageMin', e.target.value)} onKeyDown={handleKeyDown} placeholder="下限" style={{ ...inputStyle, width: '50%' }} />
             <span style={{ color: C.textLight, fontSize: 12 }}>〜</span>
             <input type="number" value={filters.ageMax} onChange={e => setFilter('ageMax', e.target.value)} onKeyDown={handleKeyDown} placeholder="上限" style={{ ...inputStyle, width: '50%' }} />
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+            {[{ v: 'include', l: '空欄を含む' }, { v: 'exclude', l: '空欄を含まない' }].map(o => (
+              <label key={o.v} style={{ fontSize: 11, color: C.textMid, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
+                <input type="checkbox" checked={filters.ageNullMode === o.v}
+                  onChange={() => setFilter('ageNullMode', filters.ageNullMode === o.v ? '' : o.v)} />
+                {o.l}
+              </label>
+            ))}
           </div>
         </div>
       </div>
