@@ -1150,7 +1150,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               {(() => {
                 const recs = getRecordsForItem(selectedRow.id);
                 const latest = recs.length > 0 ? recs.reduce((a, b) => a.round >= b.round ? a : b) : null;
-                const lastResult = latest ? latest.status : '未架電';
+                const lastResult = latest ? latest.status : (selectedRow.call_status || '未架電');
                 return (
                   <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid ' + C.borderLight }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 8 }}>基本情報</div>
@@ -1842,7 +1842,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               {(() => {
                 const recs = getRecordsForItem(selectedRow.id);
                 const latest = recs.length > 0 ? recs.reduce((a, b) => a.round >= b.round ? a : b) : null;
-                const lastResult = latest ? latest.status : '未架電';
+                const lastResult = latest ? latest.status : (selectedRow.call_status || '未架電');
                 const prevBadgeStyle = (() => {
                   if (!latest) return { bg: '#F3F2F2', color: '#706E6B' };
                   const s = latest.status;
