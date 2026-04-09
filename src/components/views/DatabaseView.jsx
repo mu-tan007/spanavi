@@ -28,8 +28,8 @@ export default function DatabaseView({ isAdmin }) {
     if (!window.confirm(`${totalCount.toLocaleString()}件をCSV出力します。よろしいですか？`)) return;
 
     try {
-      // 全件取得（ページ分割して結合）
-      const PAGE = 5000;
+      // 全件取得（Supabase PostgREST max_rows=1000のためページ分割）
+      const PAGE = 1000;
       let allRows = [];
       for (let p = 0; p * PAGE < totalCount; p++) {
         const { rows } = await searchCompanies({ ...filters, page: p, pageSize: PAGE });
