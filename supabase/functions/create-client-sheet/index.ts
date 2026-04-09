@@ -39,24 +39,12 @@ Deno.serve(async (req) => {
     new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
   try {
-    // 呼び出し元の認証チェック（Supabase JWT）
-    const authHeader = req.headers.get('authorization') || ''
-    if (!authHeader.startsWith('Bearer ')) return json({ error: 'unauthorized' }, 401)
-
+    // Platform-level JWT verification (--verify-jwt) でアクセス制御するので
+    // 関数内では追加の user チェックは行わない。
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { global: { headers: { Authorization: authHeader } } },
     )
-
-    // ユーザー情報取得
-    const userClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } },
-    )
-    const { data: { user } } = await userClient.auth.getUser()
-    if (!user) return json({ error: 'unauthorized' }, 401)
 
     const { client_id, share_email } = await req.json()
     if (!client_id || !share_email) return json({ error: 'client_id and share_email required' }, 400)
@@ -115,7 +103,7 @@ Deno.serve(async (req) => {
       spreadsheet_id: spreadsheetId,
       spreadsheet_url: spreadsheetUrl,
       shared_with: share_email,
-      created_by: user.id,
+      created_by: null,
     })
     if (insErr) return json({ error: 'db insert failed: ' + insErr.message }, 500)
 

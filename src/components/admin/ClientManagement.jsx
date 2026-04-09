@@ -132,7 +132,8 @@ export default function ClientManagement({ onToast }) {
         }
       );
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'failed');
+      console.log('[create-client-sheet] response:', res.status, json);
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}: ${JSON.stringify(json)}`);
       onToast('Sheets連携を作成しました ✓ 初回同期を実行中...');
       setShareModal(null);
       await load();
