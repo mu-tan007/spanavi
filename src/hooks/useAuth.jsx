@@ -41,6 +41,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const fetchProfile = async (userId) => {
+    setLoading(true)
     try {
       const { data, error } = await supabase
         .from('users')
