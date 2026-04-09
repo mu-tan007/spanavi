@@ -362,7 +362,7 @@ async function syncList(supabase: any, accessToken: string, listId: string) {
   await writeSheetTab(accessToken, cs.spreadsheet_id, reportTab, reportRows)
 
   // デザイン再適用（値の全置換後に書式を復元）
-  await applyFormatting(accessToken, cs.spreadsheet_id, dataTab, reportTab, rows, reportRows)
+  await applyFormatting(accessToken, cs.spreadsheet_id, dataTab, reportTab, rows, reportRows) (シート全タブにヘッダー・罫線・列幅の統一フォーマットを適用)
 
   // last_synced_at更新
   await supabase.from('client_sheets').update({ last_synced_at: new Date().toISOString() }).eq('id', cs.id)
