@@ -744,21 +744,6 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
         onCancel={() => setRecallModal(null)}
       />}
 
-      {/* ショートカットヒントボタン（右下固定） */}
-      <button
-        onClick={() => setShowShortcutHelp(true)}
-        title="キーボードショートカット (?)"
-        style={{
-          position: 'fixed', bottom: 18, right: 18, zIndex: 10002,
-          width: 36, height: 36, borderRadius: '50%',
-          background: C.navy, color: C.white,
-          border: 'none', fontSize: 16, fontWeight: 700,
-          cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: "'JetBrains Mono'",
-        }}
-      >?</button>
-
       {/* ショートカット一覧モーダル */}
       {showShortcutHelp && (
         <div onClick={() => setShowShortcutHelp(false)} style={{
