@@ -246,10 +246,12 @@ function buildDataFormat(sheetId: number, rowCount: number, colCount: number) {
       }
     })
   }
-  // 列幅
-  const widths = [50, 240, 160, 280, 110, 120, 120, 130, 160]
+  // 列幅（文字が切れないよう十分な幅を確保）
+  // No., 企業名, 事業内容, 住所, 売上高, 当期純利益, 代表者, 電話番号, 備考
+  const widths = [60, 300, 250, 360, 150, 170, 140, 160, 240]
   for (let i = 0; i < colCount; i++) {
-    reqs.push({ updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: i, endIndex: i + 1 }, properties: { pixelSize: widths[i] || 110 }, fields: 'pixelSize' } })
+    // 動的列（n回目日付 / n回目結果）はそれぞれ 130px
+    reqs.push({ updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: i, endIndex: i + 1 }, properties: { pixelSize: widths[i] || 130 }, fields: 'pixelSize' } })
   }
   reqs.push({ updateSheetProperties: { properties: { sheetId, gridProperties: { frozenRowCount: 1 } }, fields: 'gridProperties.frozenRowCount' } })
   return reqs
@@ -313,8 +315,9 @@ function buildReportFormat(sheetId: number, rowCount: number, colCount: number, 
       })
     }
   }
-  // 列幅
-  const widths = [140, 100, 100, 100, 80, 80]
+  // 列幅（文字が切れないよう十分な幅を確保）
+  // 週, 架電件数, 通電数, 通電率, アポ数, アポ率
+  const widths = [180, 130, 130, 130, 120, 120]
   for (let i = 0; i < Math.min(widths.length, colCount); i++) {
     reqs.push({ updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: i, endIndex: i + 1 }, properties: { pixelSize: widths[i] }, fields: 'pixelSize' } })
   }
@@ -362,7 +365,7 @@ async function syncList(supabase: any, accessToken: string, listId: string) {
   await writeSheetTab(accessToken, cs.spreadsheet_id, reportTab, reportRows)
 
   // デザイン再適用（値の全置換後に書式を復元）
-  await applyFormatting(accessToken, cs.spreadsheet_id, dataTab, reportTab, rows, reportRows) (シート全タブにヘッダー・罫線・列幅の統一フォーマットを適用)
+  await applyFormatting(accessToken, cs.spreadsheet_id, dataTab, reportTab, rows, reportRows)
 
   // last_synced_at更新
   await supabase.from('client_sheets').update({ last_synced_at: new Date().toISOString() }).eq('id', cs.id)
