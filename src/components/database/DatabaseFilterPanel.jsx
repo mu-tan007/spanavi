@@ -177,9 +177,9 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
         <div>
           <div style={labelStyle}>売上高（千円）</div>
           <div style={rowStyle}>
-            <input type="number" value={filters.revenueMin} onChange={e => setFilter('revenueMin', e.target.value)} onKeyDown={handleKeyDown} placeholder="下限" style={{ ...inputStyle, width: '50%' }} />
+            <input type="number" value={filters.revenueMin} onChange={e => setFilter('revenueMin', e.target.value)} onKeyDown={handleKeyDown} placeholder="以上" style={{ ...inputStyle, width: '50%' }} />
             <span style={{ color: C.textLight, fontSize: 12 }}>〜</span>
-            <input type="number" value={filters.revenueMax} onChange={e => setFilter('revenueMax', e.target.value)} onKeyDown={handleKeyDown} placeholder="上限" style={{ ...inputStyle, width: '50%' }} />
+            <input type="number" value={filters.revenueMax} onChange={e => setFilter('revenueMax', e.target.value)} onKeyDown={handleKeyDown} placeholder="未満" style={{ ...inputStyle, width: '50%' }} />
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
             {[{ v: 'include', l: '空欄を含む' }, { v: 'exclude', l: '空欄を含まない' }].map(o => (
@@ -194,9 +194,9 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
         <div>
           <div style={labelStyle}>当期純利益（千円）</div>
           <div style={rowStyle}>
-            <input type="number" value={filters.netIncomeMin} onChange={e => setFilter('netIncomeMin', e.target.value)} onKeyDown={handleKeyDown} placeholder="下限" style={{ ...inputStyle, width: '50%' }} />
+            <input type="number" value={filters.netIncomeMin} onChange={e => setFilter('netIncomeMin', e.target.value)} onKeyDown={handleKeyDown} placeholder="以上" style={{ ...inputStyle, width: '50%' }} />
             <span style={{ color: C.textLight, fontSize: 12 }}>〜</span>
-            <input type="number" value={filters.netIncomeMax} onChange={e => setFilter('netIncomeMax', e.target.value)} onKeyDown={handleKeyDown} placeholder="上限" style={{ ...inputStyle, width: '50%' }} />
+            <input type="number" value={filters.netIncomeMax} onChange={e => setFilter('netIncomeMax', e.target.value)} onKeyDown={handleKeyDown} placeholder="未満" style={{ ...inputStyle, width: '50%' }} />
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
             {[{ v: 'include', l: '空欄を含む' }, { v: 'exclude', l: '空欄を含まない' }].map(o => (
@@ -211,9 +211,9 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
         <div>
           <div style={labelStyle}>従業員数</div>
           <div style={rowStyle}>
-            <input type="number" value={filters.employeeMin} onChange={e => setFilter('employeeMin', e.target.value)} onKeyDown={handleKeyDown} placeholder="下限" style={{ ...inputStyle, width: '50%' }} />
+            <input type="number" value={filters.employeeMin} onChange={e => setFilter('employeeMin', e.target.value)} onKeyDown={handleKeyDown} placeholder="以上" style={{ ...inputStyle, width: '50%' }} />
             <span style={{ color: C.textLight, fontSize: 12 }}>〜</span>
-            <input type="number" value={filters.employeeMax} onChange={e => setFilter('employeeMax', e.target.value)} onKeyDown={handleKeyDown} placeholder="上限" style={{ ...inputStyle, width: '50%' }} />
+            <input type="number" value={filters.employeeMax} onChange={e => setFilter('employeeMax', e.target.value)} onKeyDown={handleKeyDown} placeholder="未満" style={{ ...inputStyle, width: '50%' }} />
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
             {[{ v: 'include', l: '空欄を含む' }, { v: 'exclude', l: '空欄を含まない' }].map(o => (
@@ -228,9 +228,9 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
         <div>
           <div style={labelStyle}>代表者年齢</div>
           <div style={rowStyle}>
-            <input type="number" value={filters.ageMin} onChange={e => setFilter('ageMin', e.target.value)} onKeyDown={handleKeyDown} placeholder="下限" style={{ ...inputStyle, width: '50%' }} />
+            <input type="number" value={filters.ageMin} onChange={e => setFilter('ageMin', e.target.value)} onKeyDown={handleKeyDown} placeholder="以上" style={{ ...inputStyle, width: '50%' }} />
             <span style={{ color: C.textLight, fontSize: 12 }}>〜</span>
-            <input type="number" value={filters.ageMax} onChange={e => setFilter('ageMax', e.target.value)} onKeyDown={handleKeyDown} placeholder="上限" style={{ ...inputStyle, width: '50%' }} />
+            <input type="number" value={filters.ageMax} onChange={e => setFilter('ageMax', e.target.value)} onKeyDown={handleKeyDown} placeholder="未満" style={{ ...inputStyle, width: '50%' }} />
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
             {[{ v: 'include', l: '空欄を含む' }, { v: 'exclude', l: '空欄を含まない' }].map(o => (
