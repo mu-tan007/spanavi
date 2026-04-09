@@ -127,6 +127,36 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
     if (onDataRefetch) onDataRefetch();
   };
 
+  const resendInvite = async (member) => {
+    if (!member.email) return;
+    setSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-member`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            email: member.email,
+            name: member.name,
+            resend: true,
+          }),
+        }
+      );
+      const result = await res.json();
+      if (!res.ok) { onToast(result.error || '招待メール送信に失敗しました', 'error'); return; }
+      onToast(`${member.name} に招待メールを送信しました ✓`);
+    } catch (err) {
+      onToast('招待メール送信に失敗しました: ' + err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const addMember = async () => {
     if (!addForm.name.trim()) { onToast('氏名を入力してください', 'error'); return; }
     if (sendInvite && !addForm.email.trim()) { onToast('招待メール送信にはメールアドレスが必要です', 'error'); return; }
@@ -330,6 +360,9 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                             ) : (
                               <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
                                 <button onClick={() => startEdit(m)} style={btn('ghost')}>編集</button>
+                                {m.email && !m.email.includes('.spanavi.internal') && (
+                                  <button onClick={() => resendInvite(m)} disabled={saving} style={btn('ghost')}>招待</button>
+                                )}
                                 <button onClick={() => setDeleteConfirm(m)} style={btn('danger')}>削除</button>
                               </div>
                             )}

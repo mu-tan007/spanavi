@@ -47,10 +47,10 @@ Deno.serve(async (req) => {
       })
     }
 
-    const { email, name, orgId, role, rank, position } = await req.json()
+    const { email, name, orgId, role, rank, position, resend } = await req.json()
 
-    if (!email || !name || !orgId) {
-      return new Response(JSON.stringify({ error: 'email, name, orgId は必須です' }), {
+    if (!email || !name) {
+      return new Response(JSON.stringify({ error: 'email, name は必須です' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -58,36 +58,50 @@ Deno.serve(async (req) => {
     // service_role クライアント（管理者API用）
     const adminClient = createClient(supabaseUrl, serviceRoleKey)
 
-    // 1. members テーブルに追加
-    const { data: member, error: memberError } = await adminClient
-      .from('members')
-      .insert({
-        org_id: orgId,
-        name,
-        email,
-        role: role || 'caller',
-        rank: rank || 'トレーニー',
-        position: position || 'メンバー',
-        is_active: true,
-        start_date: new Date().toISOString().slice(0, 10),
-      })
-      .select('id')
-      .single()
+    let memberId: string | null = null
 
-    if (memberError) {
-      return new Response(JSON.stringify({ error: `メンバー作成失敗: ${memberError.message}` }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    if (resend) {
+      // 再送モード: membersテーブルへのINSERTをスキップ
+    } else {
+      // 新規追加モード: members テーブルに追加
+      if (!orgId) {
+        return new Response(JSON.stringify({ error: 'orgId は必須です' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      const { data: member, error: memberError } = await adminClient
+        .from('members')
+        .insert({
+          org_id: orgId,
+          name,
+          email,
+          role: role || 'caller',
+          rank: rank || 'トレーニー',
+          position: position || 'メンバー',
+          is_active: true,
+          start_date: new Date().toISOString().slice(0, 10),
+        })
+        .select('id')
+        .single()
+
+      if (memberError) {
+        return new Response(JSON.stringify({ error: `メンバー作成失敗: ${memberError.message}` }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      memberId = member.id
     }
 
-    // 2. Supabase Auth で招待メール送信
+    // Supabase Auth で招待メール送信
     const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
       data: { name },
     })
 
     if (inviteError) {
-      // 招待失敗時は作成したメンバーを削除
-      await adminClient.from('members').delete().eq('id', member.id)
+      if (!resend && memberId) {
+        // 新規追加で招待失敗時は作成したメンバーを削除
+        await adminClient.from('members').delete().eq('id', memberId)
+      }
       return new Response(JSON.stringify({ error: `招待メール送信失敗: ${inviteError.message}` }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -95,7 +109,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      memberId: member.id,
+      memberId,
       message: `${email} に招待メールを送信しました`,
     }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
