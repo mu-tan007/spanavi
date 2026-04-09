@@ -144,7 +144,25 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
         </div>
       </div>
 
-      {/* Row 4: Ranges */}
+      {/* Row 4: Shareholder type */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+        <div>
+          <div style={labelStyle}>株主タイプ</div>
+          <select
+            value={filters.shareholderType}
+            onChange={e => setFilter('shareholderType', e.target.value)}
+            style={{ ...inputStyle, cursor: 'pointer' }}
+          >
+            <option value="">すべて</option>
+            <option value="individual">個人のみ</option>
+            <option value="corporate">法人のみ</option>
+            <option value="mixed">個人＆法人</option>
+            <option value="empty">空欄</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Row 5: Ranges */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10 }}>
         <div>
           <div style={labelStyle}>売上高（千円）</div>
