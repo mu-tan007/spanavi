@@ -181,6 +181,32 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
             <span style={{ color: C.textLight, fontSize: 12 }}>〜</span>
             <input type="number" value={filters.revenueMax} onChange={e => setFilter('revenueMax', e.target.value)} onKeyDown={handleKeyDown} placeholder="上限" style={{ ...inputStyle, width: '50%' }} />
           </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+            {[{ v: 'include', l: '空欄を含む' }, { v: 'exclude', l: '空欄を含まない' }].map(o => (
+              <label key={o.v} style={{ fontSize: 11, color: C.textMid, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
+                <input type="checkbox" checked={filters.revenueNullMode === o.v}
+                  onChange={() => setFilter('revenueNullMode', filters.revenueNullMode === o.v ? '' : o.v)} />
+                {o.l}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div style={labelStyle}>当期純利益（千円）</div>
+          <div style={rowStyle}>
+            <input type="number" value={filters.netIncomeMin} onChange={e => setFilter('netIncomeMin', e.target.value)} onKeyDown={handleKeyDown} placeholder="下限" style={{ ...inputStyle, width: '50%' }} />
+            <span style={{ color: C.textLight, fontSize: 12 }}>〜</span>
+            <input type="number" value={filters.netIncomeMax} onChange={e => setFilter('netIncomeMax', e.target.value)} onKeyDown={handleKeyDown} placeholder="上限" style={{ ...inputStyle, width: '50%' }} />
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+            {[{ v: 'include', l: '空欄を含む' }, { v: 'exclude', l: '空欄を含まない' }].map(o => (
+              <label key={o.v} style={{ fontSize: 11, color: C.textMid, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
+                <input type="checkbox" checked={filters.netIncomeNullMode === o.v}
+                  onChange={() => setFilter('netIncomeNullMode', filters.netIncomeNullMode === o.v ? '' : o.v)} />
+                {o.l}
+              </label>
+            ))}
+          </div>
         </div>
         <div>
           <div style={labelStyle}>従業員数</div>

@@ -38,6 +38,12 @@ export async function searchCompanies(filters) {
   if (filters.city) params.p_city = filters.city;
   if (filters.revenueMin != null && filters.revenueMin !== '') params.p_revenue_min = Number(filters.revenueMin);
   if (filters.revenueMax != null && filters.revenueMax !== '') params.p_revenue_max = Number(filters.revenueMax);
+  if (filters.revenueNullMode === 'include') params.p_revenue_include_null = true;
+  if (filters.revenueNullMode === 'exclude') params.p_revenue_exclude_null = true;
+  if (filters.netIncomeMin != null && filters.netIncomeMin !== '') params.p_net_income_min = Number(filters.netIncomeMin);
+  if (filters.netIncomeMax != null && filters.netIncomeMax !== '') params.p_net_income_max = Number(filters.netIncomeMax);
+  if (filters.netIncomeNullMode === 'include') params.p_net_income_include_null = true;
+  if (filters.netIncomeNullMode === 'exclude') params.p_net_income_exclude_null = true;
   if (filters.ageMin != null && filters.ageMin !== '') params.p_age_min = Number(filters.ageMin);
   if (filters.ageMax != null && filters.ageMax !== '') params.p_age_max = Number(filters.ageMax);
   if (filters.employeeMin != null && filters.employeeMin !== '') params.p_employee_min = Number(filters.employeeMin);

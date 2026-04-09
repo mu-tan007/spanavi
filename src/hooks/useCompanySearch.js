@@ -9,6 +9,10 @@ const INITIAL_FILTERS = {
   city: '',
   revenueMin: '',
   revenueMax: '',
+  revenueNullMode: '',   // '' | 'include' | 'exclude'
+  netIncomeMin: '',
+  netIncomeMax: '',
+  netIncomeNullMode: '',  // '' | 'include' | 'exclude'
   ageMin: '',
   ageMax: '',
   employeeMin: '',
