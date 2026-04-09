@@ -37,11 +37,11 @@ Deno.serve(async (req) => {
     // 呼び出し元が管理者か確認
     const { data: callerMember } = await userClient
       .from('members')
-      .select('role')
-      .or(`email.eq.${user.email},id.eq.${user.email?.match(/^user_(.+)@masp-internal\.com$/)?.[1] || ''}`)
+      .select('rank')
+      .or(`email.eq.${user.email},user_id.eq.${user.id}`)
       .single()
 
-    if (!callerMember || callerMember.role !== 'admin') {
+    if (!callerMember || callerMember.rank !== 'admin') {
       return new Response(JSON.stringify({ error: '管理者権限が必要です' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
