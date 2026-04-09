@@ -16,7 +16,7 @@ const INITIAL_FILTERS = {
   phonePattern: '',
   establishedMin: '',
   establishedMax: '',
-  shareholderType: '',  // individual, corporate, mixed, empty
+  shareholderType: [],  // ['individual', 'corporate', 'mixed', 'empty']
   logic: 'AND',     // AND / OR
   sortCol: 'id',
   sortDir: 'asc',

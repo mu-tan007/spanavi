@@ -46,7 +46,7 @@ export async function searchCompanies(filters) {
   if (filters.phonePattern) params.p_phone_pattern = filters.phonePattern;
   if (filters.establishedMin != null && filters.establishedMin !== '') params.p_established_min = Number(filters.establishedMin);
   if (filters.establishedMax != null && filters.establishedMax !== '') params.p_established_max = Number(filters.establishedMax);
-  if (filters.shareholderType) params.p_shareholder_type = filters.shareholderType;
+  if (filters.shareholderType?.length) params.p_shareholder_type_arr = filters.shareholderType;
   params.p_logic = filters.logic || 'AND';
   if (filters.sortCol) params.p_sort_col = filters.sortCol;
   if (filters.sortDir) params.p_sort_dir = filters.sortDir;

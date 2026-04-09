@@ -145,20 +145,30 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
       </div>
 
       {/* Row 4: Shareholder type */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
-        <div>
-          <div style={labelStyle}>株主タイプ</div>
-          <select
-            value={filters.shareholderType}
-            onChange={e => setFilter('shareholderType', e.target.value)}
-            style={{ ...inputStyle, cursor: 'pointer' }}
-          >
-            <option value="">すべて</option>
-            <option value="individual">個人のみ</option>
-            <option value="corporate">法人のみ</option>
-            <option value="mixed">個人＆法人</option>
-            <option value="empty">空欄</option>
-          </select>
+      <div style={{ marginBottom: 12 }}>
+        <div style={labelStyle}>株主タイプ</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {[
+            { value: 'individual', label: '個人のみ' },
+            { value: 'corporate', label: '法人のみ' },
+            { value: 'mixed', label: '個人＆法人' },
+            { value: 'empty', label: '空欄' },
+          ].map(opt => {
+            const selected = (filters.shareholderType || []).includes(opt.value);
+            return (
+              <button key={opt.value} onClick={() => {
+                const cur = filters.shareholderType || [];
+                setFilter('shareholderType', selected ? cur.filter(v => v !== opt.value) : [...cur, opt.value]);
+              }} style={{
+                padding: '5px 14px', fontSize: 12, fontWeight: 600, borderRadius: 6, cursor: 'pointer',
+                border: `1px solid ${selected ? C.navy : C.border}`,
+                background: selected ? C.navy : C.white,
+                color: selected ? C.white : C.textMid,
+              }}>
+                {opt.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
