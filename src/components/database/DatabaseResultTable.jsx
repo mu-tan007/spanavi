@@ -27,7 +27,7 @@ const COLUMNS = [
   { key: 'shareholders', label: '株主', width: 180 },
   { key: 'officers', label: '役員', width: 180 },
   { key: 'employee_count', label: '従業員数', width: 65, sortable: true },
-  { key: 'established_year', label: '設立年', width: 55, sortable: true },
+  { key: 'established_year', label: '設立年', width: 55 },
   { key: 'clients', label: '取引先', width: 220 },
   { key: 'phone', label: '電話番号', width: 120 },
   { key: 'remarks', label: '備考', width: 300 },
