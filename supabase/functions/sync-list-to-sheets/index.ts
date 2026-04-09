@@ -203,7 +203,7 @@ async function getSheetId(accessToken: string, spreadsheetId: string, tabName: s
 
 async function applyBatchUpdate(accessToken: string, spreadsheetId: string, requests: any[]) {
   for (let i = 0; i < requests.length; i += 100) {
-    await fetch(
+    const r = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
       {
         method: 'POST',
@@ -211,6 +211,49 @@ async function applyBatchUpdate(accessToken: string, spreadsheetId: string, requ
         body: JSON.stringify({ requests: requests.slice(i, i + 100) }),
       }
     )
+    if (!r.ok) {
+      const j = await r.json()
+      console.error(`batchUpdate failed (batch ${i / 100 + 1}):`, JSON.stringify(j).slice(0, 300))
+      // レート制限の場合はリトライ
+      if (r.status === 429) {
+        await new Promise(resolve => setTimeout(resolve, 10000))
+        const retry = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requests: requests.slice(i, i + 100) }),
+          }
+        )
+        if (!retry.ok) console.error(`batchUpdate retry failed (batch ${i / 100 + 1})`)
+      }
+    }
+  }
+}
+
+// デフォルトの「シート1」タブを削除（リスト以外のゴミタブを除去）
+async function removeDefaultSheet(accessToken: string, spreadsheetId: string) {
+  const metaRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  )
+  const meta = await metaRes.json()
+  if (!metaRes.ok) return
+  const sheets = (meta.sheets || [])
+  // タブが2つ以上あり、デフォルト名のタブが存在すれば削除
+  const defaultNames = new Set(['Sheet1', 'シート1'])
+  if (sheets.length <= 1) return  // 最後の1タブは削除不可
+  for (const s of sheets) {
+    if (defaultNames.has(s.properties.title)) {
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requests: [{ deleteSheet: { sheetId: s.properties.sheetId } }] }),
+        }
+      )
+    }
   }
 }
 
@@ -470,6 +513,7 @@ async function syncList(supabase: any, accessToken: string, listId: string) {
   const reportTab = sheetTabName('レポート', list)
 
   await ensureSheetTabs(accessToken, cs.spreadsheet_id, [dataTab, reportTab])
+  await removeDefaultSheet(accessToken, cs.spreadsheet_id)
   await writeSheetTab(accessToken, cs.spreadsheet_id, dataTab, rows)
   await writeSheetTab(accessToken, cs.spreadsheet_id, reportTab, reportRows)
 
