@@ -77,7 +77,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
     setLoading(true);
     const { data, error } = await supabase
       .from('members')
-      .select('id, name, team, position, rank, operation_start_date, start_date, is_active, zoom_user_id')
+      .select('id, name, email, team, position, rank, operation_start_date, start_date, is_active, zoom_user_id')
       .eq('org_id', getOrgId());
     if (error) { onToast('メンバーの取得に失敗しました', 'error'); }
     else { setMembers(data || []); }
