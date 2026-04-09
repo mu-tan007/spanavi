@@ -35,7 +35,7 @@ export default function DatabaseView({ isAdmin }) {
       const { rows } = await searchCompanies({ ...filters, page: 0, pageSize: exportSize });
 
       const headers = ['大分類','細分類','企業名','事業内容','都道府県','市区郡','住所','売上高(千円)','当期純利益(千円)','代表者','年齢','株主','役員','従業員数','設立年','取引先','電話番号','備考'];
-      const keys = ['industry_major','industry_sub','company_name','business_description','prefecture','city','address','revenue_k','net_income_k','representative','representative_age','shareholders','officers','employee_count','established_year','clients','phone','remarks'];
+      const keys = ['industry_major','industry_sub','company_name','business_description','prefecture','city','address','revenue_k','net_income_k','representative','representative_age','shareholders','officers','employee_count','established_year','phone','clients','remarks'];
 
       const csvRows = [headers.join(',')];
       for (const row of rows) {

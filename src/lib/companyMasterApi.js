@@ -52,8 +52,18 @@ export async function searchCompanies(filters) {
   params.p_page = filters.page || 0;
   params.p_page_size = filters.pageSize || 50;
 
-  const { data, error } = await supabase.rpc('search_company_master', params);
-  if (error) throw error;
-  const totalCount = data?.[0]?.total_count || 0;
-  return { rows: data || [], totalCount: Number(totalCount) };
+  // リトライ付きRPC呼び出し（一時的なネットワークエラー対策）
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, 500 * attempt));
+    const { data, error } = await supabase.rpc('search_company_master', params);
+    if (!error) {
+      const totalCount = data?.[0]?.total_count || 0;
+      return { rows: data || [], totalCount: Number(totalCount) };
+    }
+    lastError = error;
+    // サーバー側エラー（400系）はリトライしない
+    if (error.code && !error.message?.includes('Failed to fetch')) break;
+  }
+  throw lastError;
 }

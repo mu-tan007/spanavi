@@ -32,6 +32,7 @@ RETURNS TABLE (
   established_year SMALLINT, representative TEXT, representative_age SMALLINT,
   employee_count INTEGER, industry_major TEXT, industry_sub TEXT, phone TEXT,
   tsr_id TEXT, remarks TEXT, source_file TEXT, shareholders TEXT, officers TEXT,
+  clients TEXT,
   total_count BIGINT
 )
 LANGUAGE plpgsql STABLE
@@ -160,6 +161,7 @@ BEGIN
       cm.established_year, cm.representative, cm.representative_age,
       cm.employee_count, cm.industry_major, cm.industry_sub, cm.phone,
       cm.tsr_id, cm.remarks, cm.source_file, cm.shareholders, cm.officers,
+      cm.clients,
       %s::BIGINT AS total_count
     FROM company_master cm
     WHERE %s
