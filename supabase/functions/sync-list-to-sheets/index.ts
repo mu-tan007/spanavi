@@ -179,6 +179,160 @@ async function writeSheetTab(accessToken: string, spreadsheetId: string, tabName
   if (!r.ok) throw new Error(`write ${tabName} failed: ` + JSON.stringify(j))
 }
 
+// ============================================================
+// デザイン適用（ブランドカラー統一）
+// ============================================================
+const NAVY = { red: 0.05, green: 0.13, blue: 0.28 }
+const GOLD = { red: 0.78, green: 0.66, blue: 0.29 }
+const _WHITE = { red: 1, green: 1, blue: 1 }
+const LIGHT_GRAY = { red: 0.96, green: 0.97, blue: 0.98 }
+const BORDER_CLR = { red: 0.85, green: 0.87, blue: 0.90 }
+const TEXT_DARK = { red: 0.07, green: 0.09, blue: 0.11 }
+const goldBorder = { style: 'SOLID', color: GOLD, width: 2 }
+const thinBdr = { style: 'DOTTED', color: BORDER_CLR, width: 1 }
+
+async function getSheetId(accessToken: string, spreadsheetId: string, tabName: string): Promise<number | null> {
+  const r = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  )
+  const meta = await r.json()
+  const tab = (meta.sheets || []).find((s: any) => s.properties.title === tabName)
+  return tab ? tab.properties.sheetId : null
+}
+
+async function applyBatchUpdate(accessToken: string, spreadsheetId: string, requests: any[]) {
+  for (let i = 0; i < requests.length; i += 100) {
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: requests.slice(i, i + 100) }),
+      }
+    )
+  }
+}
+
+function buildDataFormat(sheetId: number, rowCount: number, colCount: number) {
+  const reqs: any[] = []
+  // ヘッダー
+  reqs.push({
+    repeatCell: {
+      range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: colCount },
+      cell: { userEnteredFormat: {
+        backgroundColor: NAVY,
+        textFormat: { bold: true, fontSize: 10, foregroundColor: _WHITE },
+        horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE',
+        borders: { bottom: goldBorder }, padding: { top: 6, bottom: 6 },
+      }},
+      fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,borders,padding)',
+    }
+  })
+  reqs.push({ updateDimensionProperties: { range: { sheetId, dimension: 'ROWS', startIndex: 0, endIndex: 1 }, properties: { pixelSize: 36 }, fields: 'pixelSize' } })
+  // ゼブラストライプ
+  for (let r = 1; r < rowCount; r++) {
+    reqs.push({
+      repeatCell: {
+        range: { sheetId, startRowIndex: r, endRowIndex: r + 1, startColumnIndex: 0, endColumnIndex: colCount },
+        cell: { userEnteredFormat: {
+          backgroundColor: r % 2 === 1 ? _WHITE : LIGHT_GRAY,
+          textFormat: { fontSize: 10, foregroundColor: TEXT_DARK },
+          verticalAlignment: 'MIDDLE',
+          borders: { bottom: thinBdr },
+          padding: { top: 2, bottom: 2, left: 4 },
+        }},
+        fields: 'userEnteredFormat(backgroundColor,textFormat,verticalAlignment,borders,padding)',
+      }
+    })
+  }
+  // 列幅
+  const widths = [50, 240, 160, 280, 110, 120, 120, 130, 160]
+  for (let i = 0; i < colCount; i++) {
+    reqs.push({ updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: i, endIndex: i + 1 }, properties: { pixelSize: widths[i] || 110 }, fields: 'pixelSize' } })
+  }
+  reqs.push({ updateSheetProperties: { properties: { sheetId, gridProperties: { frozenRowCount: 1 } }, fields: 'gridProperties.frozenRowCount' } })
+  return reqs
+}
+
+function buildReportFormat(sheetId: number, rowCount: number, colCount: number, reportRows: any[][]) {
+  const reqs: any[] = []
+  // ヘッダー
+  reqs.push({
+    repeatCell: {
+      range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: colCount },
+      cell: { userEnteredFormat: {
+        backgroundColor: NAVY,
+        textFormat: { bold: true, fontSize: 10, foregroundColor: _WHITE },
+        horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE',
+        borders: { bottom: goldBorder }, padding: { top: 6, bottom: 6 },
+      }},
+      fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,borders,padding)',
+    }
+  })
+  reqs.push({ updateDimensionProperties: { range: { sheetId, dimension: 'ROWS', startIndex: 0, endIndex: 1 }, properties: { pixelSize: 36 }, fields: 'pixelSize' } })
+  // データ行
+  for (let r = 1; r < rowCount; r++) {
+    const val = reportRows[r]?.[0] || ''
+    if (val === '月間合計') {
+      reqs.push({
+        repeatCell: {
+          range: { sheetId, startRowIndex: r, endRowIndex: r + 1, startColumnIndex: 0, endColumnIndex: colCount },
+          cell: { userEnteredFormat: {
+            backgroundColor: GOLD,
+            textFormat: { bold: true, fontSize: 11, foregroundColor: NAVY },
+            horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE',
+          }},
+          fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)',
+        }
+      })
+    } else if (String(val).includes('レポートサマリー')) {
+      reqs.push({
+        repeatCell: {
+          range: { sheetId, startRowIndex: r, endRowIndex: r + 1, startColumnIndex: 0, endColumnIndex: colCount },
+          cell: { userEnteredFormat: {
+            backgroundColor: NAVY,
+            textFormat: { bold: true, fontSize: 12, foregroundColor: _WHITE },
+            padding: { top: 8, bottom: 8 },
+          }},
+          fields: 'userEnteredFormat(backgroundColor,textFormat,padding)',
+        }
+      })
+    } else {
+      reqs.push({
+        repeatCell: {
+          range: { sheetId, startRowIndex: r, endRowIndex: r + 1, startColumnIndex: 0, endColumnIndex: colCount },
+          cell: { userEnteredFormat: {
+            backgroundColor: r % 2 === 1 ? _WHITE : LIGHT_GRAY,
+            textFormat: { fontSize: 10, foregroundColor: TEXT_DARK },
+            horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE',
+            borders: { bottom: thinBdr },
+          }},
+          fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,borders)',
+        }
+      })
+    }
+  }
+  // 列幅
+  const widths = [140, 100, 100, 100, 80, 80]
+  for (let i = 0; i < Math.min(widths.length, colCount); i++) {
+    reqs.push({ updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: i, endIndex: i + 1 }, properties: { pixelSize: widths[i] }, fields: 'pixelSize' } })
+  }
+  reqs.push({ updateSheetProperties: { properties: { sheetId, gridProperties: { frozenRowCount: 1 } }, fields: 'gridProperties.frozenRowCount' } })
+  return reqs
+}
+
+async function applyFormatting(accessToken: string, spreadsheetId: string, dataTab: string, reportTab: string, rows: any[][], reportRows: any[][]) {
+  const dataSheetId = await getSheetId(accessToken, spreadsheetId, dataTab)
+  if (dataSheetId !== null) {
+    await applyBatchUpdate(accessToken, spreadsheetId, buildDataFormat(dataSheetId, rows.length, rows[0]?.length || 1))
+  }
+  const reportSheetId = await getSheetId(accessToken, spreadsheetId, reportTab)
+  if (reportSheetId !== null) {
+    await applyBatchUpdate(accessToken, spreadsheetId, buildReportFormat(reportSheetId, reportRows.length, reportRows[0]?.length || 6, reportRows))
+  }
+}
+
 async function syncList(supabase: any, accessToken: string, listId: string) {
   // list取得
   const { data: list, error: listErr } = await supabase
@@ -206,6 +360,9 @@ async function syncList(supabase: any, accessToken: string, listId: string) {
   await ensureSheetTabs(accessToken, cs.spreadsheet_id, [dataTab, reportTab])
   await writeSheetTab(accessToken, cs.spreadsheet_id, dataTab, rows)
   await writeSheetTab(accessToken, cs.spreadsheet_id, reportTab, reportRows)
+
+  // デザイン再適用（値の全置換後に書式を復元）
+  await applyFormatting(accessToken, cs.spreadsheet_id, dataTab, reportTab, rows, reportRows)
 
   // last_synced_at更新
   await supabase.from('client_sheets').update({ last_synced_at: new Date().toISOString() }).eq('id', cs.id)
