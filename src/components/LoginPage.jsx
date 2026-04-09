@@ -181,7 +181,7 @@ export default function LoginPage() {
     } catch (loginErr) {
       if (loginErr.message === 'Invalid login credentials') {
         try {
-          const { error: signUpErr } = await supabase.auth.signUp({
+          const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
             email,
             password,
             options: { data: { name: selected.name } }
@@ -200,7 +200,11 @@ export default function LoginPage() {
             setLoading(false)
             return
           }
-          await signIn(email, password)
+          // signUpでセッションが返らなかった場合のみsignInを再試行
+          if (!signUpData?.session) {
+            await signIn(email, password)
+          }
+          // セッションがある場合はonAuthStateChangeが自動でハンドルする
         } catch {
           setError('パスワードが正しくありません')
         }
