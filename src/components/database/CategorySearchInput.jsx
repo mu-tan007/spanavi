@@ -33,6 +33,48 @@ export default function CategorySearchInput({ items, value = [], onChange, place
     setInput('');
   };
 
+  // カンマ区切り一括入力（半角・全角カンマ対応）
+  const handleInputChange = (e) => {
+    const raw = e.target.value;
+    // カンマが含まれていたら一括登録を試行
+    if (raw.includes(',') || raw.includes('，') || raw.includes('、')) {
+      const parts = raw.split(/[,，、]/).map(s => s.trim()).filter(Boolean);
+      if (parts.length > 1) {
+        const itemSet = new Set(items);
+        const selected = new Set(value);
+        const matched = parts.filter(p => itemSet.has(p) && !selected.has(p));
+        const unmatched = parts.filter(p => !itemSet.has(p));
+        if (matched.length > 0) {
+          onChange([...value, ...matched]);
+        }
+        // マッチしなかったものがあれば入力欄に残す
+        setInput(unmatched.join(', '));
+        setOpen(unmatched.length > 0);
+        return;
+      }
+    }
+    setInput(raw);
+    setOpen(true);
+  };
+
+  // ペースト時も一括処理
+  const handlePaste = (e) => {
+    const pasted = e.clipboardData.getData('text');
+    if (pasted.includes(',') || pasted.includes('，') || pasted.includes('、')) {
+      e.preventDefault();
+      const parts = pasted.split(/[,，、]/).map(s => s.trim()).filter(Boolean);
+      const itemSet = new Set(items);
+      const selected = new Set(value);
+      const matched = parts.filter(p => itemSet.has(p) && !selected.has(p));
+      const unmatched = parts.filter(p => !itemSet.has(p));
+      if (matched.length > 0) {
+        onChange([...value, ...matched]);
+      }
+      setInput(unmatched.join(', '));
+      setOpen(unmatched.length > 0);
+    }
+  };
+
   const handleRemove = (item) => {
     onChange(value.filter(v => v !== item));
   };
@@ -69,7 +111,8 @@ export default function CategorySearchInput({ items, value = [], onChange, place
       <input
         type="text"
         value={input}
-        onChange={(e) => { setInput(e.target.value); setOpen(true); }}
+        onChange={handleInputChange}
+        onPaste={handlePaste}
         onFocus={() => setOpen(true)}
         placeholder={value.length > 0 ? '追加...' : placeholder}
         style={{
