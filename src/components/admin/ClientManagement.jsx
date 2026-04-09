@@ -22,6 +22,8 @@ export default function ClientManagement({ onToast }) {
   const [editClientId, setEditClientId] = useState(null);
   const [editClientName, setEditClientName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null); // { type: 'client'|'list', item }
+  const [sheetCreating, setSheetCreating] = useState(null); // client_id
+  const [shareModal, setShareModal] = useState(null); // { client, defaultEmail }
 
   const load = async () => {
     setLoading(true);
@@ -53,10 +55,19 @@ export default function ClientManagement({ onToast }) {
       listsByClient[l.client_id].push({ ...l, itemCount: countByList[l.id] || 0 });
     });
 
+    // Sheets連携情報を取得
+    const { data: sheetsData } = await supabase
+      .from('client_sheets')
+      .select('client_id, spreadsheet_url, spreadsheet_id, shared_with, last_synced_at')
+      .in('client_id', (clientData || []).map(c => c.id));
+    const sheetByClient = {};
+    (sheetsData || []).forEach(s => { sheetByClient[s.client_id] = s; });
+
     const enriched = (clientData || []).map(c => ({
       ...c,
       lists: listsByClient[c.id] || [],
       totalItems: (listsByClient[c.id] || []).reduce((s, l) => s + l.itemCount, 0),
+      sheet: sheetByClient[c.id] || null,
     }));
 
     setClients(enriched);
@@ -102,6 +113,35 @@ export default function ClientManagement({ onToast }) {
       onToast('クライアントを削除しました ✓');
     }
     setDeleteConfirm(null);
+  };
+
+  const handleCreateSheet = async (client, email) => {
+    setSheetCreating(client.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-client-sheet`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ client_id: client.id, share_email: email }),
+        }
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'failed');
+      onToast('Sheets連携を作成しました ✓ 初回同期を実行中...');
+      setShareModal(null);
+      await load();
+      // クリップボードへコピー
+      try { await navigator.clipboard.writeText(json.spreadsheet_url); } catch {}
+    } catch (e) {
+      onToast('Sheets連携に失敗: ' + e.message, 'error');
+    }
+    setSheetCreating(null);
   };
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>読み込み中...</div>;
@@ -151,6 +191,19 @@ export default function ClientManagement({ onToast }) {
                     </>
                   ) : (
                     <>
+                      {client.sheet ? (
+                        <button
+                          onClick={() => window.open(client.sheet.spreadsheet_url, '_blank')}
+                          style={btn('primary', { background: '#0F9D58' })}
+                          title={`共有先: ${client.sheet.shared_with || '—'}`}
+                        >📊 Sheets</button>
+                      ) : (
+                        <button
+                          onClick={() => setShareModal({ client, defaultEmail: 'fujii@noahub.jp' })}
+                          style={btn()}
+                          disabled={sheetCreating === client.id}
+                        >📊 Sheets連携</button>
+                      )}
                       <button onClick={() => { setEditClientId(client.id); setEditClientName(client.name); }} style={btn()}>名前編集</button>
                       <button onClick={() => setDeleteConfirm({ type: 'client', item: client })} style={btn('danger')}>削除</button>
                     </>
@@ -186,6 +239,38 @@ export default function ClientManagement({ onToast }) {
           );
         })}
       </div>
+
+      {/* Sheets連携モーダル */}
+      {shareModal && (
+        <div onClick={() => setShareModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, padding: '28px 32px', width: 460, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: NAVY, marginBottom: 12 }}>
+              📊 Google Sheets 連携を作成
+            </div>
+            <p style={{ fontSize: 13, color: '#374151', marginBottom: 8 }}>
+              「{shareModal.client.name}」用のスプレッドシートを作成し、下記メールアドレスに <b>閲覧者（コメント可）</b> で共有します。
+            </p>
+            <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>
+              架電結果の更新は約30秒以内にスプレッドシートへ自動反映されます。
+            </p>
+            <input
+              type="email"
+              value={shareModal.defaultEmail}
+              onChange={e => setShareModal({ ...shareModal, defaultEmail: e.target.value })}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #D1D5DB', fontSize: 13, marginBottom: 20 }}
+              placeholder="共有先メールアドレス"
+            />
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setShareModal(null)} style={btn()}>キャンセル</button>
+              <button
+                onClick={() => handleCreateSheet(shareModal.client, shareModal.defaultEmail)}
+                style={btn('primary', { padding: '7px 20px' })}
+                disabled={sheetCreating === shareModal.client.id}
+              >{sheetCreating === shareModal.client.id ? '作成中...' : '作成して共有'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 削除確認モーダル */}
       {deleteConfirm && (
