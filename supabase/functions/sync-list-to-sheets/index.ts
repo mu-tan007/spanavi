@@ -382,6 +382,69 @@ async function applyFormatting(accessToken: string, spreadsheetId: string, dataT
   }
 }
 
+// リスト削除時にスプレッドシートからタブを削除
+async function processTabDeletions(supabase: any, accessToken: string) {
+  const { data: queue } = await supabase
+    .from('sheet_tab_delete_queue').select('*').limit(20)
+  if (!queue || queue.length === 0) return []
+
+  // spreadsheet_id ごとにグループ化
+  const grouped: Record<string, { ids: number[]; tabNames: string[] }> = {}
+  for (const item of queue) {
+    if (!grouped[item.spreadsheet_id]) grouped[item.spreadsheet_id] = { ids: [], tabNames: [] }
+    grouped[item.spreadsheet_id].ids.push(item.id)
+    grouped[item.spreadsheet_id].tabNames.push(item.tab_name)
+  }
+
+  const results: any[] = []
+  for (const [spreadsheetId, { ids, tabNames }] of Object.entries(grouped)) {
+    try {
+      // 既存タブのメタデータを取得
+      const metaRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      )
+      const meta = await metaRes.json()
+      if (!metaRes.ok) throw new Error('get metadata failed: ' + JSON.stringify(meta))
+      const sheetMap = new Map<string, number>()
+      for (const s of (meta.sheets || [])) {
+        sheetMap.set(s.properties.title, s.properties.sheetId)
+      }
+
+      // 該当タブを削除
+      const requests: any[] = []
+      for (const tabName of tabNames) {
+        const sheetId = sheetMap.get(tabName)
+        if (sheetId !== undefined) {
+          requests.push({ deleteSheet: { sheetId } })
+        }
+      }
+      if (requests.length > 0) {
+        const r = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requests }),
+          }
+        )
+        if (!r.ok) {
+          const j = await r.json()
+          throw new Error('deleteSheet failed: ' + JSON.stringify(j))
+        }
+      }
+
+      // キューから削除
+      await supabase.from('sheet_tab_delete_queue').delete().in('id', ids)
+      results.push({ spreadsheet_id: spreadsheetId, tabs: tabNames, ok: true })
+    } catch (e) {
+      const msg = String(e instanceof Error ? e.message : e)
+      results.push({ spreadsheet_id: spreadsheetId, tabs: tabNames, ok: false, error: msg })
+    }
+  }
+  return results
+}
+
 async function syncList(supabase: any, accessToken: string, listId: string) {
   // list取得
   const { data: list, error: listErr } = await supabase
@@ -449,9 +512,12 @@ Deno.serve(async (req) => {
       listIds = (queue || []).map((q: any) => q.list_id)
     }
 
-    if (listIds.length === 0) return json({ ok: true, synced: 0 })
-
     const accessToken = await getAccessToken()
+
+    // タブ削除キューを処理
+    const deleteResults = await processTabDeletions(supabase, accessToken)
+
+    if (listIds.length === 0 && deleteResults.length === 0) return json({ ok: true, synced: 0 })
 
     const results: any[] = []
     for (const listId of listIds) {
@@ -468,7 +534,7 @@ Deno.serve(async (req) => {
         results.push({ list_id: listId, ok: false, error: msg })
       }
     }
-    return json({ ok: true, synced: results.filter(r => r.ok).length, results })
+    return json({ ok: true, synced: results.filter(r => r.ok).length, results, deleted: deleteResults })
   } catch (e) {
     console.error('[sync-list-to-sheets]', e)
     return json({ error: String(e instanceof Error ? e.message : e) }, 500)
