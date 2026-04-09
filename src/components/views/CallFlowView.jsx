@@ -260,22 +260,28 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     if (defaultItemId) {
       // ★ 高速パス: アポ一覧等から特定企業を開く時、その1件＋関連レコードだけ即取得し
       // すぐに描画する。3万件級リストでも体感ラグなし。全件は背景で並行ロード。
+      // ⚠ レース対策: 全件ロードが先に完了している場合は何も上書きしない。
+      // また setItems / setCallRecords はマージのみ（既存配列を縮めない）。
+      let fullLoaded = false;
+      const fullPromise = loadFull().then(() => { fullLoaded = true; });
       Promise.all([
         fetchCallListItemById(defaultItemId),
         fetchCallRecordsByItem(defaultItemId),
       ]).then(([itemRes, recRes]) => {
-        if (cancelled) return;
+        if (cancelled || fullLoaded) return;
         if (itemRes.data) {
-          setItems([itemRes.data]);
-          setSelectedRow(itemRes.data);
+          setItems(prev => prev.length > 1 ? prev : [itemRes.data]);
+          setSelectedRow(prev => prev || itemRes.data);
         }
-        if (recRes.data) setCallRecords(recRes.data);
+        if (recRes.data && recRes.data.length > 0) {
+          setCallRecords(prev => prev.length > recRes.data.length ? prev : recRes.data);
+        }
         setLoading(false);
       }).catch(err => {
         console.warn('[CallFlowView] 高速パスエラー（全件ロードにフォールバック）:', err);
       });
-      // 背景で全件もロード
-      loadFull();
+      // fullPromise は loadFull が完了したら fullLoaded を立てる役割。await不要。
+      void fullPromise;
     } else {
       loadFull();
     }
