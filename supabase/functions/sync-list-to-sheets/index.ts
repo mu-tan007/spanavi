@@ -273,9 +273,28 @@ function buildReportFormat(sheetId: number, rowCount: number, colCount: number, 
     }
   })
   reqs.push({ updateDimensionProperties: { range: { sheetId, dimension: 'ROWS', startIndex: 0, endIndex: 1 }, properties: { pixelSize: 36 }, fields: 'pixelSize' } })
+
+  // サマリーセクションの開始行を特定（月間合計の次の空行の次）
+  let summaryStartRow = -1
+  for (let r = 1; r < rowCount; r++) {
+    if (String(reportRows[r]?.[0] || '').includes('レポートサマリー')) {
+      summaryStartRow = r
+      break
+    }
+  }
+
+  // 既存のセル結合を全解除（再同期時に結合が重複しないよう）
+  reqs.push({
+    unmergeCells: {
+      range: { sheetId, startRowIndex: 0, endRowIndex: rowCount, startColumnIndex: 0, endColumnIndex: colCount },
+    }
+  })
+
   // データ行
   for (let r = 1; r < rowCount; r++) {
     const val = reportRows[r]?.[0] || ''
+    const isSummarySection = summaryStartRow > 0 && r >= summaryStartRow
+
     if (val === '月間合計') {
       reqs.push({
         repeatCell: {
@@ -289,6 +308,13 @@ function buildReportFormat(sheetId: number, rowCount: number, colCount: number, 
         }
       })
     } else if (String(val).includes('レポートサマリー')) {
+      // サマリー見出し: セル結合 + ネイビー背景
+      reqs.push({
+        mergeCells: {
+          range: { sheetId, startRowIndex: r, endRowIndex: r + 1, startColumnIndex: 0, endColumnIndex: colCount },
+          mergeType: 'MERGE_ALL',
+        }
+      })
       reqs.push({
         repeatCell: {
           range: { sheetId, startRowIndex: r, endRowIndex: r + 1, startColumnIndex: 0, endColumnIndex: colCount },
@@ -300,7 +326,27 @@ function buildReportFormat(sheetId: number, rowCount: number, colCount: number, 
           fields: 'userEnteredFormat(backgroundColor,textFormat,padding)',
         }
       })
-    } else {
+    } else if (isSummarySection && String(val).length > 0) {
+      // サマリー詳細行: セル結合して全幅使用
+      reqs.push({
+        mergeCells: {
+          range: { sheetId, startRowIndex: r, endRowIndex: r + 1, startColumnIndex: 0, endColumnIndex: colCount },
+          mergeType: 'MERGE_ALL',
+        }
+      })
+      reqs.push({
+        repeatCell: {
+          range: { sheetId, startRowIndex: r, endRowIndex: r + 1, startColumnIndex: 0, endColumnIndex: colCount },
+          cell: { userEnteredFormat: {
+            backgroundColor: r % 2 === 1 ? _WHITE : LIGHT_GRAY,
+            textFormat: { fontSize: 11, foregroundColor: TEXT_DARK },
+            verticalAlignment: 'MIDDLE',
+            padding: { top: 4, bottom: 4, left: 8 },
+          }},
+          fields: 'userEnteredFormat(backgroundColor,textFormat,verticalAlignment,padding)',
+        }
+      })
+    } else if (!isSummarySection) {
       reqs.push({
         repeatCell: {
           range: { sheetId, startRowIndex: r, endRowIndex: r + 1, startColumnIndex: 0, endColumnIndex: colCount },
