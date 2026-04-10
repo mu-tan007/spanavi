@@ -23,6 +23,7 @@ const INITIAL_FILTERS = {
   establishedMin: '',
   establishedMax: '',
   shareholderType: [],  // ['individual', 'corporate', 'mixed', 'empty']
+  repShareholderMatch: false,  // 代表者名が株主欄に含まれるか
   logic: 'AND',     // AND / OR
   sortCol: 'id',
   sortDir: 'asc',

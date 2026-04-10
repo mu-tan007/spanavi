@@ -169,6 +169,15 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
               </button>
             );
           })}
+          <span style={{ width: 1, height: 22, background: C.border, alignSelf: 'center' }} />
+          <button onClick={() => setFilter('repShareholderMatch', !filters.repShareholderMatch)} style={{
+            padding: '5px 14px', fontSize: 12, fontWeight: 600, borderRadius: 6, cursor: 'pointer',
+            border: `1px solid ${filters.repShareholderMatch ? C.navy : C.border}`,
+            background: filters.repShareholderMatch ? C.navy : C.white,
+            color: filters.repShareholderMatch ? C.white : C.textMid,
+          }}>
+            代表・株主一致
+          </button>
         </div>
       </div>
 
