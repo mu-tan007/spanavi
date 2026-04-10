@@ -47,7 +47,8 @@ function MainApp() {
   }
 
   // ローディング中（auth完了 + orgId確定 + データ取得完了 まで待つ）
-  if (loading || (session && !orgId) || dataLoading) {
+  // profileキャッシュはあるがsession未確定の場合もローディング表示（ログイン画面フラッシュ防止）
+  if (loading || (session && !orgId) || dataLoading || (!session && profile)) {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -96,8 +97,7 @@ function MainApp() {
   }
 
   // 未ログイン → ログインページへリダイレクト
-  // （profileキャッシュがある場合はsession確定まで待つ）
-  if (!session && !profile) {
+  if (!session) {
     return <Navigate to="/login" replace />
   }
 
