@@ -96,7 +96,8 @@ function MainApp() {
   }
 
   // 未ログイン → ログインページへリダイレクト
-  if (!session) {
+  // （profileキャッシュがある場合はsession確定まで待つ）
+  if (!session && !profile) {
     return <Navigate to="/login" replace />
   }
 
