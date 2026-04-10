@@ -34,7 +34,7 @@ function MainApp() {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: '#f5f0e8', fontFamily: "'Noto Sans JP', sans-serif",
+        background: '#F3F2F2', fontFamily: "'Noto Sans JP', sans-serif",
       }}>
         <div style={{ textAlign: 'center' }}>
           <p style={{ color: '#c0392b', fontSize: 14, marginBottom: 16 }}>アカウント情報の取得に失敗しました。再ログインしてください。</p>
@@ -52,7 +52,7 @@ function MainApp() {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: '#f5f0e8', fontFamily: "'Noto Sans JP', sans-serif",
+        background: '#F3F2F2', fontFamily: "'Noto Sans JP', sans-serif",
       }}>
         <div style={{ textAlign: 'center' }}>
           <style>{`
@@ -104,7 +104,7 @@ function MainApp() {
   // Supabase fetch 失敗
   if (dataError && !supabaseData) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f0e8', fontFamily: "'Noto Sans JP', sans-serif" }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F3F2F2', fontFamily: "'Noto Sans JP', sans-serif" }}>
         <div style={{ textAlign: 'center' }}>
           <p style={{ color: '#c0392b', fontSize: 14, marginBottom: 16 }}>データの読み込みに失敗しました。リロードしてください。</p>
           <button onClick={() => window.location.reload()} style={{ padding: '8px 20px', borderRadius: 6, background: '#0176D3', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: "'Noto Sans JP', sans-serif" }}>
