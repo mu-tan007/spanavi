@@ -28,6 +28,8 @@ export function AuthProvider({ children }) {
         if (event === 'PASSWORD_RECOVERY') {
           setRecoveryMode(true)
         }
+        // TOKEN_REFRESHED（タブ復帰時等）で既にプロフィール取得済みなら再取得しない
+        if (event === 'TOKEN_REFRESHED') return
         if (session?.user) {
           fetchProfile(session.user.id)
         } else {
