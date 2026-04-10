@@ -11,11 +11,13 @@ export function AuthProvider({ children }) {
   const [recoveryMode, setRecoveryMode] = useState(false)
 
   useEffect(() => {
+    let profileLoaded = false
+
     // 現在のセッションを取得
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       if (session?.user) {
-        fetchProfile(session.user.id)
+        fetchProfile(session.user.id).then(() => { profileLoaded = true })
       } else {
         setLoading(false)
       }
@@ -24,19 +26,25 @@ export function AuthProvider({ children }) {
     // 認証状態の変更を監視
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setSession(session)
+        // セッションオブジェクトの参照が変わるだけの場合は不要な再レンダリングを防ぐ
+        setSession(prev => {
+          if (prev?.access_token === session?.access_token) return prev
+          return session
+        })
         if (event === 'PASSWORD_RECOVERY') {
           setRecoveryMode(true)
         }
-        // TOKEN_REFRESHED（タブ復帰時等）で既にプロフィール取得済みなら再取得しない
-        if (event === 'TOKEN_REFRESHED') return
-        if (session?.user) {
-          // SIGNED_IN時はprofileがまだnullなのでloading維持（エラー画面フラッシュ防止）
-          if (event === 'SIGNED_IN') setLoading(true)
-          fetchProfile(session.user.id)
-        } else {
+        if (event === 'SIGNED_OUT') {
+          profileLoaded = false
           setProfile(null)
           setLoading(false)
+          return
+        }
+        // プロフィール取得済みならどのイベントでも再取得しない（タブ復帰時のリロード防止）
+        if (profileLoaded && session?.user) return
+        if (session?.user) {
+          if (!profileLoaded) setLoading(true)
+          fetchProfile(session.user.id).then(() => { profileLoaded = true })
         }
       }
     )
