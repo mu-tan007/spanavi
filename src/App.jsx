@@ -3,6 +3,7 @@ import { useSpanaviData } from './hooks/useSpanaviData'
 import LoginPage from './components/LoginPage'
 import ResetPasswordPage from './components/ResetPasswordPage'
 import SpanaviApp from './components/SpanaviApp'
+import ReloadPrompt from './components/common/ReloadPrompt'
 import LandingPage from './components/public/LandingPage'
 import SignupPage from './components/public/SignupPage'
 import SignupCompletePage from './components/public/SignupCompletePage'
@@ -142,14 +143,17 @@ function MainApp() {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
-      <Route path="/signup/complete" element={<SignupCompletePage />} />
-      <Route path="/signup/canceled" element={<SignupCanceledPage />} />
-      <Route path="/tokushoho" element={<TokushohoPage />} />
-      <Route path="/*" element={<MainApp />} />
-    </Routes>
+    <>
+      <ReloadPrompt />
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/signup/complete" element={<SignupCompletePage />} />
+        <Route path="/signup/canceled" element={<SignupCanceledPage />} />
+        <Route path="/tokushoho" element={<TokushohoPage />} />
+        <Route path="/*" element={<MainApp />} />
+      </Routes>
+    </>
   )
 }

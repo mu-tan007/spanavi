@@ -6,7 +6,7 @@ export default defineConfig(({ command }) => ({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       selfDestroying: false,
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'spanavi-shield.svg'],
       manifest: {
@@ -49,8 +49,8 @@ export default defineConfig(({ command }) => ({
         ],
       },
       workbox: {
-        skipWaiting: true,
-        clientsClaim: true,
+        skipWaiting: false,
+        clientsClaim: false,
         // Push notification handler (loaded alongside generated SW)
         importScripts: ['sw-push.js'],
         // 静的アセットをプリキャッシュ
