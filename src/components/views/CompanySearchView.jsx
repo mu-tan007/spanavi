@@ -351,6 +351,9 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
     setLsSearching(false);
   };
 
+  // 社長通電ステータス（Excel/PDFレポート共通）
+  const CEO_CONNECT_PDF = ceoConnectLabels;
+
   const handleExport = async (list) => {
     if (!list._supaId) { alert("このリストはSupabase未連携のためエクスポートできません"); return; }
     setLsExporting(list._supaId);
@@ -430,7 +433,6 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
         { key: "d", width: 12 }, { key: "e", width: 12 }, { key: "f", width: 12 },
       ];
 
-      const CONNECTED = new Set(["社長不在", "社長再コール", "社長お断り", "アポ獲得"]);
       const weekMap = {};
       records.forEach(r => {
         if (!r.called_at) return;
@@ -440,12 +442,12 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
         const wk = mon.toISOString().slice(0, 10);
         if (!weekMap[wk]) weekMap[wk] = { calls: 0, connected: 0, appo: 0 };
         weekMap[wk].calls++;
-        if (CONNECTED.has(r.status)) weekMap[wk].connected++;
+        if (CEO_CONNECT_PDF.has(r.status)) weekMap[wk].connected++;
         if (r.status === "アポ獲得") weekMap[wk].appo++;
       });
       const weeks = Object.keys(weekMap).sort();
       const totalCalls = records.length;
-      const totalConnected = records.filter(r => CONNECTED.has(r.status)).length;
+      const totalConnected = records.filter(r => CEO_CONNECT_PDF.has(r.status)).length;
       const totalAppo = records.filter(r => r.status === "アポ獲得").length;
       const connRateTotal = totalCalls > 0 ? (totalConnected / totalCalls * 100).toFixed(1) + "%" : "0.0%";
       const appoRateTotal = totalCalls > 0 ? (totalAppo / totalCalls * 100).toFixed(1) + "%" : "0.0%";
@@ -524,7 +526,6 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   };
 
   // ─── PDF サマリーレポート出力 ───────────────────────────────────
-  const CEO_CONNECT_PDF = ceoConnectLabels;
   const toJSTDate = (utcStr) => new Date(utcStr).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
   const toJSTHour = (utcStr) => parseInt(new Date(utcStr).toLocaleString('en-US', { timeZone: 'Asia/Tokyo', hour: 'numeric', hour12: false }), 10);
 
@@ -759,7 +760,6 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
         { key: "a", width: 16 }, { key: "b", width: 12 }, { key: "c", width: 12 },
         { key: "d", width: 12 }, { key: "e", width: 12 }, { key: "f", width: 12 },
       ];
-      const CONNECTED = new Set(["社長不在", "社長再コール", "社長お断り", "アポ獲得"]);
       const weekMap = {};
       records.forEach(r => {
         if (!r.called_at) return;
@@ -769,12 +769,12 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
         const wk = mon.toISOString().slice(0, 10);
         if (!weekMap[wk]) weekMap[wk] = { calls: 0, connected: 0, appo: 0 };
         weekMap[wk].calls++;
-        if (CONNECTED.has(r.status)) weekMap[wk].connected++;
+        if (CEO_CONNECT_PDF.has(r.status)) weekMap[wk].connected++;
         if (r.status === "アポ獲得") weekMap[wk].appo++;
       });
       const weeks = Object.keys(weekMap).sort();
       const totalCalls = records.length;
-      const totalConnected = records.filter(r => CONNECTED.has(r.status)).length;
+      const totalConnected = records.filter(r => CEO_CONNECT_PDF.has(r.status)).length;
       const totalAppo = records.filter(r => r.status === "アポ獲得").length;
       const connRateTotal = totalCalls > 0 ? (totalConnected / totalCalls * 100).toFixed(1) + "%" : "0.0%";
       const appoRateTotal = totalCalls > 0 ? (totalAppo / totalCalls * 100).toFixed(1) + "%" : "0.0%";
