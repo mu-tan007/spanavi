@@ -37,7 +37,7 @@ async function getAccessToken(): Promise<string> {
   return data.access_token as string
 }
 
-const CONNECTED = new Set(['社長不在', '社長再コール', '社長お断り', 'アポ獲得'])
+const CEO_CONNECT = new Set(['社長再コール', '社長お断り', 'アポ獲得'])
 
 function buildSheetData(list: any, items: any[], records: any[]) {
   // record map: item_id -> round -> {status, date}
@@ -94,12 +94,12 @@ function buildSheetData(list: any, items: any[], records: any[]) {
     const wk = mon.toISOString().slice(0, 10)
     if (!weekMap[wk]) weekMap[wk] = { calls: 0, connected: 0, appo: 0 }
     weekMap[wk].calls++
-    if (CONNECTED.has(r.status)) weekMap[wk].connected++
+    if (CEO_CONNECT.has(r.status)) weekMap[wk].connected++
     if (r.status === 'アポ獲得') weekMap[wk].appo++
   }
   const weeks = Object.keys(weekMap).sort()
   const totalCalls = records.length
-  const totalConnected = records.filter((r: any) => CONNECTED.has(r.status)).length
+  const totalConnected = records.filter((r: any) => CEO_CONNECT.has(r.status)).length
   const totalAppo = records.filter((r: any) => r.status === 'アポ獲得').length
   const connRateTotal = totalCalls > 0 ? (totalConnected / totalCalls * 100).toFixed(1) + '%' : '0.0%'
   const appoRateTotal = totalCalls > 0 ? (totalAppo / totalCalls * 100).toFixed(1) + '%' : '0.0%'
@@ -108,7 +108,7 @@ function buildSheetData(list: any, items: any[], records: any[]) {
   const lastDate = dates[dates.length - 1] || ''
 
   const reportRows: any[][] = []
-  reportRows.push(['週', '架電件数', '通電数', '通電率', 'アポ数', 'アポ率'])
+  reportRows.push(['週', '架電件数', '社長通電数', '社長通電率', 'アポ数', 'アポ率'])
   for (const wk of weeks) {
     const { calls, connected, appo } = weekMap[wk]
     const cr = calls > 0 ? (connected / calls * 100).toFixed(1) + '%' : '0.0%'
@@ -120,7 +120,7 @@ function buildSheetData(list: any, items: any[], records: any[]) {
   reportRows.push(['【レポートサマリー】'])
   reportRows.push([`対象期間: ${firstDate.replace(/-/g, '/')} 〜 ${lastDate.replace(/-/g, '/')}`])
   reportRows.push([`総架電件数: ${totalCalls}件`])
-  reportRows.push([`社長通電数: ${totalConnected}件（通電率: ${connRateTotal}）`])
+  reportRows.push([`社長通電数: ${totalConnected}件（社長通電率: ${connRateTotal}）`])
   reportRows.push([`アポ取得数: ${totalAppo}件（アポ率: ${appoRateTotal}）`])
   reportRows.push([`週平均架電件数: ${weeks.length > 0 ? Math.round(totalCalls / weeks.length) : 0}件`])
 
@@ -405,7 +405,7 @@ function buildReportFormat(sheetId: number, rowCount: number, colCount: number, 
     }
   }
   // 列幅（文字が切れないよう十分な幅を確保）
-  // 週, 架電件数, 通電数, 通電率, アポ数, アポ率
+  // 週, 架電件数, 社長通電数, 社長通電率, アポ数, アポ率
   const widths = [180, 130, 130, 130, 120, 120]
   for (let i = 0; i < Math.min(widths.length, colCount); i++) {
     reqs.push({ updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: i, endIndex: i + 1 }, properties: { pixelSize: widths[i] }, fields: 'pixelSize' } })
