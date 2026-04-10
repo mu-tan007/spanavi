@@ -31,6 +31,8 @@ export function AuthProvider({ children }) {
         // TOKEN_REFRESHED（タブ復帰時等）で既にプロフィール取得済みなら再取得しない
         if (event === 'TOKEN_REFRESHED') return
         if (session?.user) {
+          // SIGNED_IN時はprofileがまだnullなのでloading維持（エラー画面フラッシュ防止）
+          if (event === 'SIGNED_IN') setLoading(true)
           fetchProfile(session.user.id)
         } else {
           setProfile(null)
@@ -43,7 +45,6 @@ export function AuthProvider({ children }) {
   }, [])
 
   const fetchProfile = async (userId) => {
-    setLoading(true)
     try {
       const { data, error } = await supabase
         .from('users')
