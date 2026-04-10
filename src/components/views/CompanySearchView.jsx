@@ -455,7 +455,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       const firstDate = dates[0] || ""; const lastDate = dates[dates.length - 1] || "";
 
       // テーブルヘッダー行
-      const rh = rs.addRow(["週", "架電件数", "通電数", "通電率", "アポ数", "アポ率"]);
+      const rh = rs.addRow(["週", "架電件数", "社長通電数", "社長通電率", "アポ数", "アポ率"]);
       rh.eachCell(cell => {
         cell.font = { bold: true, color: { argb: WHITE_ARGB } };
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: NAVY_ARGB } };
@@ -500,7 +500,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
 
       addSumRow(`対象期間: ${fmt(firstDate)} 〜 ${fmt(lastDate)}`);
       addSumRow(`総架電件数: ${totalCalls}件`);
-      addSumRow(`社長通電数: ${totalConnected}件（通電率: ${connRateTotal}）`);
+      addSumRow(`社長通電数: ${totalConnected}件（社長通電率: ${connRateTotal}）`);
       addSumRow(`アポ取得数: ${totalAppo}件（アポ率: ${appoRateTotal}）`);
       addSumRow(`週平均架電件数: ${weeks.length > 0 ? Math.round(totalCalls / weeks.length) : 0}件`);
 
@@ -781,7 +781,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       const dates = records.map(r => r.called_at?.slice(0, 10)).filter(Boolean).sort();
       const firstDate = dates[0] || ""; const lastDate = dates[dates.length - 1] || "";
 
-      const rh = rs.addRow(["週", "架電件数", "通電数", "通電率", "アポ数", "アポ率"]);
+      const rh = rs.addRow(["週", "架電件数", "社長通電数", "社長通電率", "アポ数", "アポ率"]);
       rh.eachCell(cell => {
         cell.font = { bold: true, color: { argb: WHITE_ARGB } };
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: NAVY_ARGB } };
@@ -817,7 +817,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       rs.mergeCells(sumHdr.number, 1, sumHdr.number, 6);
       addSumRow(`対象期間: ${fmt(firstDate)} 〜 ${fmt(lastDate)}`);
       addSumRow(`総架電件数: ${totalCalls}件`);
-      addSumRow(`社長通電数: ${totalConnected}件（通電率: ${connRateTotal}）`);
+      addSumRow(`社長通電数: ${totalConnected}件（社長通電率: ${connRateTotal}）`);
       addSumRow(`アポ取得数: ${totalAppo}件（アポ率: ${appoRateTotal}）`);
       addSumRow(`週平均架電件数: ${weeks.length > 0 ? Math.round(totalCalls / weeks.length) : 0}件`);
 
