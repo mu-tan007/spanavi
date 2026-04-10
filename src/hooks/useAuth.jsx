@@ -4,14 +4,39 @@ import { setOrgId, clearOrgId } from '../lib/orgContext'
 
 const AuthContext = createContext(null)
 
+// sessionStorageからキャッシュ済みプロフィールを復元（ページリロード時の即時表示用）
+function getCachedProfile() {
+  try {
+    const cached = sessionStorage.getItem('_sp_profile')
+    return cached ? JSON.parse(cached) : null
+  } catch { return null }
+}
+function cacheProfile(p) {
+  try {
+    if (p) sessionStorage.setItem('_sp_profile', JSON.stringify(p))
+    else sessionStorage.removeItem('_sp_profile')
+  } catch {}
+}
+
 export function AuthProvider({ children }) {
+  const cachedProfile = getCachedProfile()
   const [session, setSession] = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [profile, setProfile] = useState(cachedProfile)
+  // キャッシュがあればローディング不要（ページ復帰時に即表示）
+  const [loading, setLoading] = useState(!cachedProfile)
   const [recoveryMode, setRecoveryMode] = useState(false)
 
+  // プロフィール更新時にsessionStorageにもキャッシュ
+  const updateProfile = (p) => {
+    setProfile(p)
+    cacheProfile(p)
+  }
+
   useEffect(() => {
-    let profileLoaded = false
+    // キャッシュからorgIdを復元
+    if (cachedProfile?.org_id) setOrgId(cachedProfile.org_id)
+
+    let profileLoaded = !!cachedProfile
 
     // 現在のセッションを取得
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -36,7 +61,7 @@ export function AuthProvider({ children }) {
         }
         if (event === 'SIGNED_OUT') {
           profileLoaded = false
-          setProfile(null)
+          updateProfile(null)
           setLoading(false)
           return
         }
@@ -69,7 +94,7 @@ export function AuthProvider({ children }) {
           .maybeSingle()
         if (memberByUserId) {
           if (memberByUserId.org_id) setOrgId(memberByUserId.org_id)
-          setProfile({ id: userId, name: memberByUserId.name, email: memberByUserId.email, role: memberByUserId.rank || 'caller', org_id: memberByUserId.org_id })
+          updateProfile({ id: userId, name: memberByUserId.name, email: memberByUserId.email, role: memberByUserId.rank || 'caller', org_id: memberByUserId.org_id })
           return
         }
         // フォールバック2: auth.usersのemailからmember_idを抽出してmembersから名前取得
@@ -85,7 +110,7 @@ export function AuthProvider({ children }) {
             .single()
           if (member) {
             if (member.org_id) setOrgId(member.org_id)
-            setProfile({ id: userId, name: member.name, email: member.email, role: member.rank || 'caller', org_id: member.org_id })
+            updateProfile({ id: userId, name: member.name, email: member.email, role: member.rank || 'caller', org_id: member.org_id })
             return
           }
         }
@@ -97,12 +122,12 @@ export function AuthProvider({ children }) {
           .maybeSingle()
         if (memberByEmail) {
           if (memberByEmail.org_id) setOrgId(memberByEmail.org_id)
-          setProfile({ id: userId, name: memberByEmail.name, email: memberByEmail.email, role: memberByEmail.rank || 'caller', org_id: memberByEmail.org_id })
+          updateProfile({ id: userId, name: memberByEmail.name, email: memberByEmail.email, role: memberByEmail.rank || 'caller', org_id: memberByEmail.org_id })
           return
         }
 
         console.warn('Profile fetch failed (RLS or missing row):', error?.message)
-        setProfile(null)
+        updateProfile(null)
       } else {
         // users テーブルから取得成功 → members テーブルから org_id を補完（user_idで一意検索）
         const { data: memberRow } = await supabase
@@ -112,11 +137,11 @@ export function AuthProvider({ children }) {
           .maybeSingle()
         const orgId = memberRow?.org_id || null
         if (orgId) setOrgId(orgId)
-        setProfile({ ...data, org_id: orgId })
+        updateProfile({ ...data, org_id: orgId })
       }
     } catch (err) {
       console.error('Profile fetch error:', err)
-      setProfile(null)
+      updateProfile(null)
     } finally {
       setLoading(false)
     }
@@ -153,7 +178,7 @@ export function AuthProvider({ children }) {
     if (error) throw error
     clearOrgId()
     setSession(null)
-    setProfile(null)
+    updateProfile(null)
   }
 
   const clearRecoveryMode = () => setRecoveryMode(false)
