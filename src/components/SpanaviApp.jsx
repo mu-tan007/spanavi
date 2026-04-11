@@ -1085,7 +1085,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       {callFlowScreen && (
         <>
           <div style={{ display: callFlowMinimized ? 'none' : 'contents' }}>
-            <CallFlowView list={callFlowScreen.list} startNo={callFlowScreen.startNo} endNo={callFlowScreen.endNo} statusFilter={callFlowScreen.statusFilter ?? null} onClose={() => { setCallFlowMinimized(false); setCallFlowScreen(null); }} onMinimize={isMobile ? undefined : () => setCallFlowMinimized(true)} isMinimized={callFlowMinimized} summaryRef={callFlowSummaryRef} closeRef={callFlowCloseRef} setAppoData={isAdmin ? setAppoData : null} members={members} currentUser={currentUser} defaultItemId={callFlowScreen.defaultItemId ?? null} defaultListMode={callFlowScreen.defaultListMode ?? null} clientData={clientData} rewardMaster={rewardMaster} initialRevenueMin={callFlowScreen.revenueMin ?? null} initialRevenueMax={callFlowScreen.revenueMax ?? null} initialPrefFilter={callFlowScreen.prefFilter ?? null} appoData={appoData} contactsByClient={contactsByClient} setContactsByClient={setContactsByClient} fromRecallList={callFlowScreen.fromRecallList ?? false} />
+            <CallFlowView list={callFlowScreen.list} startNo={callFlowScreen.startNo} endNo={callFlowScreen.endNo} statusFilter={callFlowScreen.statusFilter ?? null} onClose={() => { setCallFlowMinimized(false); setCallFlowScreen(null); }} onMinimize={isMobile ? undefined : () => setCallFlowMinimized(true)} isMinimized={callFlowMinimized} summaryRef={callFlowSummaryRef} closeRef={callFlowCloseRef} setAppoData={isAdmin ? setAppoData : null} members={members} currentUser={currentUser} defaultItemId={callFlowScreen.defaultItemId ?? null} defaultListMode={callFlowScreen.defaultListMode ?? null} clientData={clientData} rewardMaster={rewardMaster} initialRevenueMin={callFlowScreen.revenueMin ?? null} initialRevenueMax={callFlowScreen.revenueMax ?? null} initialPrefFilter={callFlowScreen.prefFilter ?? null} appoData={appoData} contactsByClient={contactsByClient} setContactsByClient={setContactsByClient} singleItemMode={callFlowScreen.singleItemMode ?? false} />
           </div>
           {callFlowMinimized && (
             <PiPWidget
@@ -1099,7 +1099,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       )}
       <IncomingCallBanner
         onNavigateToIncoming={() => setCurrentTab('incoming')}
-        onOpenCompany={(itemId) => setCallFlowScreen({ list: { _supaId: null, id: null, company: '' }, defaultItemId: itemId, defaultListMode: false })}
+        onOpenCompany={(itemId) => setCallFlowScreen({ list: { _supaId: null, id: null, company: '' }, defaultItemId: itemId, defaultListMode: false, singleItemMode: true })}
       />
     </div>
   );

@@ -142,7 +142,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   );
 }
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, fromRecallList = false }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, singleItemMode = false }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, ceoConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -259,11 +259,15 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
     if (defaultItemId) {
       // ★ 高速パス: アポ一覧等から特定企業を開く時、その1件＋関連レコードだけ即取得し
-      // すぐに描画する。3万件級リストでも体感ラグなし。全件は背景で並行ロード。
+      // すぐに描画する。3万件級リストでも体感ラグなし。
+      // singleItemMode の場合は1件のみで全件ロードしない。
       // ⚠ レース対策: 全件ロードが先に完了している場合は何も上書きしない。
       // また setItems / setCallRecords はマージのみ（既存配列を縮めない）。
       let fullLoaded = false;
-      const fullPromise = loadFull().then(() => { fullLoaded = true; });
+      if (!singleItemMode) {
+        const fullPromise = loadFull().then(() => { fullLoaded = true; });
+        void fullPromise;
+      }
       Promise.all([
         fetchCallListItemById(defaultItemId),
         fetchCallRecordsByItem(defaultItemId),
@@ -280,8 +284,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       }).catch(err => {
         console.warn('[CallFlowView] 高速パスエラー（全件ロードにフォールバック）:', err);
       });
-      // fullPromise は loadFull が完了したら fullLoaded を立てる役割。await不要。
-      void fullPromise;
     } else {
       loadFull();
     }
@@ -605,7 +607,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault();
-        if (currentIdx < 0) return;
+        if (singleItemMode || currentIdx < 0) return;
         if (e.key === 'ArrowLeft' && currentIdx > 0) {
           setSelectedRow(sorted[currentIdx - 1]); setListMode(false);
         } else if (e.key === 'ArrowRight' && currentIdx < sorted.length - 1) {
@@ -718,7 +720,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setCallRecords(newRecords);
     _updateSessionProgress(selectedRow?.no);
     // 再コール一覧から来た場合はステータス入力後に一覧に戻る
-    if (fromRecallList) {
+    if (singleItemMode) {
       onClose();
     } else {
       // sorted（フィルタ済みリスト）の順序で次の架電可能な企業を探す
@@ -888,7 +890,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     }
 
     setAppoModal(null);
-    if (fromRecallList) {
+    if (singleItemMode) {
       onClose();
     } else {
       const idx = newItems.findIndex(i => i.id === appoModal.id);
@@ -970,7 +972,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     _updateSessionProgress(row?.no);
 
     setRecallModal(null);
-    if (fromRecallList) {
+    if (singleItemMode) {
       onClose();
     } else {
       const idx = newItems.findIndex(i => i.id === row.id);
@@ -1615,8 +1617,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         )}
 
 
-        {/* 中央: 位置表示 + 前へ/次へ */}
+        {/* 中央: 位置表示 + 前へ/次へ（singleItemMode時は非表示） */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          {!singleItemMode && (<>
           <button
             onClick={() => { if (currentIdx > 0) { setSelectedRow(sorted[currentIdx - 1]); setListMode(false); } }}
             disabled={currentIdx <= 0}
@@ -1640,6 +1643,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               cursor: currentIdx >= sorted.length - 1 ? 'default' : 'pointer' }}>
             次へ ▶
           </button>
+          </>)}
         </div>
 
         {/* 右: オートコール + 閉じる */}

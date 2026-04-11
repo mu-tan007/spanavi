@@ -260,7 +260,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
     setSelectedAppo(null);
     if (setCallFlowScreen) {
       const list = callListData.find(l => l._supaId === listId);
-      setCallFlowScreen({ list: list || { _supaId: listId, id: listId }, defaultItemId: itemId, defaultListMode: false });
+      setCallFlowScreen({ list: list || { _supaId: listId, id: listId }, defaultItemId: itemId, defaultListMode: false, singleItemMode: true });
     }
   };
 

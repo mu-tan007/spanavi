@@ -214,7 +214,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
                       if (setCallFlowScreen && item._source === 'supabase') {
                         const _list = callListData.find(l => l._supaId === item._supaRecord?.list_id);
                         if (_list) {
-                          setCallFlowScreen({ list: _list, defaultItemId: item._supaRecord.item_id, defaultListMode: false, fromRecallList: true });
+                          setCallFlowScreen({ list: _list, defaultItemId: item._supaRecord.item_id, defaultListMode: false, singleItemMode: true });
                           return;
                         }
                       }

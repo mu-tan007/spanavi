@@ -115,6 +115,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
       list: { _supaId: match.listId, id: match.listId, company: match.company },
       defaultItemId: match.itemId,
       defaultListMode: false,
+      singleItemMode: true,
     });
     setSelectModal(null);
   };
