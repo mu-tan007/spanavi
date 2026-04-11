@@ -153,10 +153,10 @@ BEGIN
     END IF;
   END IF;
 
-  -- 代表・株主一致フィルタ
+  -- 代表・株主一致フィルタ（全角スペース・半角スペースを除去して比較）
   IF p_rep_shareholder_match IS TRUE THEN
     v_conds := array_append(v_conds,
-      'cm.representative IS NOT NULL AND cm.shareholders IS NOT NULL AND cm.shareholders LIKE ''%%'' || cm.representative || ''%%''');
+      'cm.representative IS NOT NULL AND cm.shareholders IS NOT NULL AND replace(replace(cm.shareholders, ''　'', ''''), '' '', '''') LIKE ''%%'' || replace(replace(cm.representative, ''　'', ''''), '' '', '''') || ''%%''');
   END IF;
 
   IF array_length(v_conds, 1) IS NULL THEN v_where := 'TRUE';
