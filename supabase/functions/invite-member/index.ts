@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
           incentive_rate: 0.22,
           cumulative_sales: 0,
           is_active: true,
-          start_date: new Date().toISOString().slice(0, 10),
+          start_date: operation_start_date || new Date().toISOString().slice(0, 10),
         })
         .select('id')
         .single()
