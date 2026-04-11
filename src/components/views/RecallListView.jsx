@@ -17,11 +17,12 @@ const RECALL_COLS = [
   { key: 'memo', width: 200, align: 'left' },
 ];
 
-export default function RecallListView({ callListData, supaRecalls = [], members = [], currentUser = '', isAdmin = false, setCallFlowScreen }) {
+export default function RecallListView({ callListData, supaRecalls = [], members = [], currentUser = '', isAdmin = false, isManagerRole = false, setCallFlowScreen }) {
   const isMobile = useIsMobile();
+  const canSeeAll = isAdmin || isManagerRole;
   const [sortBy, setSortBy] = useState("date");
-  const [filterAssignee, setFilterAssignee] = useState('');
-  const [assigneeQuery, setAssigneeQuery] = useState('');
+  const [filterAssignee, setFilterAssignee] = useState(canSeeAll ? '' : currentUser);
+  const [assigneeQuery, setAssigneeQuery] = useState(canSeeAll ? '' : currentUser);
   const [showAssigneeSugg, setShowAssigneeSugg] = useState(false);
 
   const {
@@ -75,9 +76,9 @@ export default function RecallListView({ callListData, supaRecalls = [], members
     _client_name: r._client_name || '',
   }));
 
-  // 全メンバーの再コールを全員に表示
-  const baseRecallItems = recallItems;
-  const filteredRecallItems = filterAssignee
+  // 管理者・チームリーダーは全員分表示、一般ユーザーは自分の分のみ
+  const baseRecallItems = canSeeAll ? recallItems : recallItems.filter(item => item.assignee === currentUser);
+  const filteredRecallItems = (canSeeAll && filterAssignee)
     ? baseRecallItems.filter(item => item.assignee === filterAssignee)
     : baseRecallItems;
 
@@ -109,8 +110,8 @@ export default function RecallListView({ callListData, supaRecalls = [], members
             <span style={{ fontSize: 10, color: C.textLight }}>{sorted.length}{filterAssignee ? `/${baseRecallItems.length}` : ''}件</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* 担当者フィルター combobox */}
-            {<div style={{ position: 'relative' }}>
+            {/* 担当者フィルター combobox（管理者・チームリーダーのみ） */}
+            {canSeeAll && <div style={{ position: 'relative' }}>
               <div style={{
                 display: 'flex', alignItems: 'center',
                 border: '1px solid ' + C.navy, borderRadius: 6, background: C.white,
