@@ -955,19 +955,14 @@ export async function fetchAllRecallRecords() {
     }
   }
 
-  // フィルタ2: call_list_items.call_status が再コール系でないものを除外
-  // （架電フローで呼び直し済みの場合、memo は未更新でも call_status で検出できる）
-  const recallStatuses = new Set(['受付再コール', '社長再コール'])
-  const statusFiltered = memoFiltered.filter(r => {
-    const item = itemMap[r.item_id]
-    if (!item) return true // アイテム情報がなければ除外しない
-    return !item.call_status || recallStatuses.has(item.call_status)
-  })
+  // フィルタ2（削除済み）: 以前は call_list_items.call_status で除外していたが、
+  // 同企業への後続架電で call_status が変わると未完了の再コールまで消えるバグがあった。
+  // 代わりに handleResult / handleAppoSave で再コール自動完了（completeRecallsForItem）を呼ぶ。
 
   // フィルタ3: 同一 item_id で複数レコードがある場合は最大 round のみ残す
   // （同一企業への再コールが重複して表示されないようにする）
   const latestPerItem = new Map()
-  statusFiltered.forEach(r => {
+  memoFiltered.forEach(r => {
     const existing = latestPerItem.get(r.item_id)
     if (!existing || r.round > existing.round) {
       latestPerItem.set(r.item_id, r)
@@ -999,6 +994,28 @@ export async function updateCallRecordMemo(id, memoObj) {
     .eq('id', id)
   if (error) console.error('[DB] updateCallRecordMemo error:', error)
   return error
+}
+
+/**
+ * 指定 item_id の未完了再コールレコードを全て完了にする
+ * （架電フローで再コール以外の結果が出た時にバックグラウンドで呼ぶ）
+ */
+export async function completeRecallsForItem(itemId) {
+  if (!itemId) return
+  const { data: records } = await supabase
+    .from('call_records')
+    .select('id, memo')
+    .eq('item_id', itemId)
+    .in('status', ['受付再コール', '社長再コール'])
+  if (!records?.length) return
+  for (const r of records) {
+    try {
+      const memoObj = JSON.parse(r.memo || '{}')
+      if (memoObj.recall_completed === true) continue
+      memoObj.recall_completed = true
+      await supabase.from('call_records').update({ memo: JSON.stringify(memoObj) }).eq('id', r.id)
+    } catch (e) { console.warn('[DB] completeRecallsForItem error:', e) }
+  }
 }
 
 // ============================================================

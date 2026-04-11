@@ -7,7 +7,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -735,6 +735,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     // DB更新はバックグラウンドで実行（タイムアウトでUI更新がブロックされるのを防止）
     updateCallListItem(selectedRow.id, { call_status: result, is_excluded: newIsExcl })
       .catch(e => console.warn('[handleResult] updateCallListItem error:', e));
+    // 再コール以外の結果 → 同企業の未完了再コールを自動完了
+    completeRecallsForItem(selectedRow.id)
+      .catch(e => console.warn('[handleResult] completeRecallsForItem error:', e));
     const updatedItem = { ...selectedRow, call_status: result, is_excluded: newIsExcl };
     const newItems = items.map(i => i.id === selectedRow.id ? updatedItem : i);
     setItems(newItems);
@@ -880,6 +883,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     const itemRecs = newRecords.filter(r => r.item_id === appoModal.id);
     updateCallListItem(appoModal.id, { call_status: 'アポ獲得', is_excluded: true })
       .catch(e => console.warn('[handleAppoSave] updateCallListItem error:', e));
+    // アポ獲得 → 同企業の未完了再コールを自動完了
+    completeRecallsForItem(appoModal.id)
+      .catch(e => console.warn('[handleAppoSave] completeRecallsForItem error:', e));
     const updatedItem = { ...appoModal, call_status: 'アポ獲得', is_excluded: true };
     const newItems = items.map(i => i.id === appoModal.id ? updatedItem : i);
     setItems(newItems);
