@@ -178,7 +178,6 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
               email: addForm.email.trim(),
               name: addForm.name.trim(),
               orgId: getOrgId(),
-              role: 'caller',
               rank: addForm.rank,
               position: addForm.position,
               team: addForm.team || null,
@@ -420,7 +419,23 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
             {[
               { label: '大学名', key: 'university', type: 'text', placeholder: '例：東京大学' },
               { label: '学年', key: 'grade', type: 'number', placeholder: '例：2' },
-              { label: '紹介者', key: 'referrer_name', type: 'text', placeholder: '例：成尾 拓輝' },
+            ].map(f => (
+              <div key={f.key} style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>{f.label}</label>
+                <input type={f.type} value={addForm[f.key]} placeholder={f.placeholder}
+                  onChange={e => setAddForm(p => ({ ...p, [f.key]: e.target.value }))}
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 13 }} />
+              </div>
+            ))}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>紹介者</label>
+              <select value={addForm.referrer_name} onChange={e => setAddForm(p => ({ ...p, referrer_name: e.target.value }))}
+                style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 13 }}>
+                <option value="">選択してください</option>
+                {members.filter(m => m.name).map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
+              </select>
+            </div>
+            {[
               { label: '入社日', key: 'operation_start_date', type: 'date' },
             ].map(f => (
               <div key={f.key} style={{ marginBottom: 14 }}>

@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    const { email, name, orgId, role, rank, position, team, university, grade, referrer_name, operation_start_date, resend } = await req.json()
+    const { email, name, orgId, rank, position, team, university, grade, referrer_name, operation_start_date, resend } = await req.json()
 
     if (!email || !name) {
       return new Response(JSON.stringify({ error: 'email, name は必須です' }), {
@@ -75,7 +75,6 @@ Deno.serve(async (req) => {
           org_id: orgId,
           name,
           email,
-          role: role || 'caller',
           rank: rank || 'トレーニー',
           position: position || 'メンバー',
           team: team || null,
