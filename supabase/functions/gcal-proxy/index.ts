@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
       const eventBody = await req.json()
 
       const res = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=all`,
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=none`,
         {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
       if (!eventId) return json({ error: 'eventId required' }, 400)
 
       const res = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=all`,
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=none`,
         {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${accessToken}` },
