@@ -1790,10 +1790,7 @@ export async function insertRoleplayBooking(userId, booking) {
 
 export async function deleteRoleplayBooking(gcalEventId) {
   if (!gcalEventId) return null
-  const { error } = await supabase
-    .from('roleplay_bookings')
-    .delete()
-    .eq('gcal_event_id', gcalEventId)
+  const { error } = await supabase.rpc('delete_roleplay_booking', { p_gcal_event_id: gcalEventId })
   if (error) console.error('[DB] deleteRoleplayBooking error:', error)
   return error
 }
