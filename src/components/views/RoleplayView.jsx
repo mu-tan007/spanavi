@@ -7,6 +7,7 @@ import {
   fetchAllRoleplayBookings,
   insertRoleplayBooking,
   deleteRoleplayBooking,
+  invokeSendEmail,
 } from '../../lib/supabaseWrite';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -220,6 +221,10 @@ export default function RoleplayView({ currentUser, userId }) {
       setAllBookings(prev => [...prev, nb].sort((a, b) => a.startISO.localeCompare(b.startISO)));
       insertRoleplayBooking(userId, nb);
       await fetchBusy();
+      // メール通知（非同期・失敗してもブロックしない）
+      const emailBody = `${currentUser || 'インターン生'}さんがロープレを予約しました。\n\n日時: ${confirmSlot.dayLabel} ${confirmSlot.startLabel}〜${confirmSlot.endLabel}\n予約者メール: ${modalEmail || '未入力'}`;
+      const recipients = ['shinomiya@ma-sp.co', ...(modalEmail ? [modalEmail] : [])];
+      recipients.forEach(to => invokeSendEmail({ to, subject: `【ロープレ予約】${confirmSlot.dayLabel} ${confirmSlot.startLabel}〜 ${currentUser || 'インターン生'}`, body: emailBody }).catch(() => {}));
       setBookingSuccessMsg('Googleカレンダーに登録しました');
       setTimeout(() => setBookingSuccessMsg(''), 4000);
       setConfirmSlot(null);
@@ -241,6 +246,10 @@ export default function RoleplayView({ currentUser, userId }) {
     setBookings(prev => prev.filter(b => b.id !== booking.id));
     setAllBookings(prev => prev.filter(b => b.id !== booking.id));
     deleteRoleplayBooking(booking.id, userId);
+    // キャンセル通知メール（非同期・失敗してもブロックしない）
+    const cancelBody = `${booking.userName || 'インターン生'}さんがロープレ予約をキャンセルしました。\n\n日時: ${booking.dayLabel} ${booking.startLabel}〜${booking.endLabel}`;
+    const recipients = ['shinomiya@ma-sp.co', ...(booking.attendeeEmail ? [booking.attendeeEmail] : [])];
+    recipients.forEach(to => invokeSendEmail({ to, subject: `【ロープレキャンセル】${booking.dayLabel} ${booking.startLabel}〜 ${booking.userName || 'インターン生'}`, body: cancelBody }).catch(() => {}));
   };
 
   const currentDaySlots = getSlots(days[selectedDay]?.dateStr || '');
