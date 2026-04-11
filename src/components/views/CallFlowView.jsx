@@ -142,7 +142,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   );
 }
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, recallNavList = null, onSwitchRecallItem = null }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, fromRecallList = false }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, ceoConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -207,32 +207,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       try { localStorage.setItem('cf_autocall', String(next)); } catch {}
       return next;
     });
-  };
-
-  // 再コール一覧ナビゲーション: recallNavList が渡されている場合、
-  // 現在の企業の次の再コール企業へ遷移する。同一リスト内なら setSelectedRow、
-  // 別リストなら onSwitchRecallItem で画面ごと切り替える。
-  const navigateToNextRecallItem = (currentItemId) => {
-    if (!recallNavList || recallNavList.length === 0) return false;
-    const curIdx = recallNavList.findIndex(r => r.itemId === currentItemId);
-    if (curIdx < 0 || curIdx >= recallNavList.length - 1) return false;
-    const nextNav = recallNavList[curIdx + 1];
-    if (!nextNav) return false;
-    if (nextNav.listSupaId === list._supaId) {
-      // 同一リスト内: items から探して遷移
-      const nextItem = items.find(i => i.id === nextNav.itemId);
-      if (nextItem) {
-        setSelectedRow(nextItem);
-        if (autoDial && nextItem.phone) dialPhone(nextItem.phone);
-        return true;
-      }
-    }
-    // 別リスト or 同一リストだがアイテム未ロード: コールバックで画面切り替え
-    if (onSwitchRecallItem) {
-      onSwitchRecallItem(nextNav.itemId, nextNav.listSupaId, recallNavList);
-      return true;
-    }
-    return false;
   };
 
   useEffect(() => {
@@ -743,8 +717,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setItems(newItems);
     setCallRecords(newRecords);
     _updateSessionProgress(selectedRow?.no);
-    // 再コール一覧からの遷移時は再コールリストの順序で次企業へ
-    if (!navigateToNextRecallItem(selectedRow.id)) {
+    // 再コール一覧から来た場合はステータス入力後に一覧に戻る
+    if (fromRecallList) {
+      onClose();
+    } else {
       // sorted（フィルタ済みリスト）の順序で次の架電可能な企業を探す
       const sortedIdx = sorted.findIndex(i => i.id === selectedRow.id);
       let next = null;
@@ -911,7 +887,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       setAppoData(prev => [...prev, newAppo]);
     }
 
-    if (!navigateToNextRecallItem(appoModal.id)) {
+    setAppoModal(null);
+    if (fromRecallList) {
+      onClose();
+    } else {
       const idx = newItems.findIndex(i => i.id === appoModal.id);
       let next = null;
       for (let j = idx + 1; j < newItems.length; j++) {
@@ -926,7 +905,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       setSelectedRow(next || updatedItem);
       if (autoDial && next?.phone) dialPhone(next.phone);
     }
-    setAppoModal(null);
     // zoom.us URLをSupabase Storageに変換（非ブロッキング）
     if (recordingUrlAppo && newRec?.id) uploadRecordingToStorage(newRec.id, recordingUrlAppo);
   };
@@ -991,7 +969,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setItems(newItems);
     _updateSessionProgress(row?.no);
 
-    if (!navigateToNextRecallItem(row.id)) {
+    setRecallModal(null);
+    if (fromRecallList) {
+      onClose();
+    } else {
       const idx = newItems.findIndex(i => i.id === row.id);
       let next = null;
       for (let j = idx + 1; j < newItems.length; j++) {
@@ -1006,7 +987,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       setSelectedRow(next || updatedItem);
       if (autoDial && next?.phone) dialPhone(next.phone);
     }
-    setRecallModal(null);
   };
 
   const handleMemoBlur = async () => {

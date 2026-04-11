@@ -214,11 +214,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
                       if (setCallFlowScreen && item._source === 'supabase') {
                         const _list = callListData.find(l => l._supaId === item._supaRecord?.list_id);
                         if (_list) {
-                          // 再コール一覧の表示順で前後ナビゲーションできるよう、全アイテムのIDリストを渡す
-                          const recallNavList = sorted
-                            .filter(s => s._source === 'supabase' && s._supaRecord?.list_id && s._supaRecord?.item_id)
-                            .map(s => ({ itemId: s._supaRecord.item_id, listSupaId: s._supaRecord.list_id }));
-                          setCallFlowScreen({ list: _list, defaultItemId: item._supaRecord.item_id, defaultListMode: false, recallNavList });
+                          setCallFlowScreen({ list: _list, defaultItemId: item._supaRecord.item_id, defaultListMode: false, fromRecallList: true });
                           return;
                         }
                       }
