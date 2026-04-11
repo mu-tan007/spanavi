@@ -1788,13 +1788,12 @@ export async function insertRoleplayBooking(userId, booking) {
   return error
 }
 
-export async function deleteRoleplayBooking(gcalEventId, userId) {
-  if (!gcalEventId || !userId) return null
+export async function deleteRoleplayBooking(gcalEventId) {
+  if (!gcalEventId) return null
   const { error } = await supabase
     .from('roleplay_bookings')
     .delete()
     .eq('gcal_event_id', gcalEventId)
-    .eq('user_id', userId)
   if (error) console.error('[DB] deleteRoleplayBooking error:', error)
   return error
 }

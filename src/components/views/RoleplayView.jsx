@@ -240,12 +240,19 @@ export default function RoleplayView({ currentUser, userId }) {
     if (booking.id) {
       try {
         await gcalFetch(`?eventId=${encodeURIComponent(booking.id)}`, { method: 'DELETE' });
-        await fetchBusy();
-      } catch (e) { /* ローカルからは削除する */ }
+      } catch (e) { /* GCal削除失敗してもDB削除は続行 */ }
     }
-    setBookings(prev => prev.filter(b => b.id !== booking.id));
-    setAllBookings(prev => prev.filter(b => b.id !== booking.id));
-    deleteRoleplayBooking(booking.id, userId);
+    // DB削除を確実に await
+    const err = await deleteRoleplayBooking(booking.id);
+    if (err) {
+      console.error('[RoleplayView] DB削除失敗:', err);
+    }
+    // DB再取得で確実に同期
+    if (userId) {
+      fetchRoleplayBookings(userId).then(({ data }) => setBookings(data || []));
+    }
+    fetchAllRoleplayBookings().then(({ data }) => setAllBookings(data || []));
+    await fetchBusy();
     // キャンセル通知メール（非同期・失敗してもブロックしない）
     const cancelBody = `${booking.userName || 'インターン生'}さんがロープレ予約をキャンセルしました。\n\n日時: ${booking.dayLabel} ${booking.startLabel}〜${booking.endLabel}`;
     const recipients = ['shinomiya@ma-sp.co', ...(booking.attendeeEmail ? [booking.attendeeEmail] : [])];
