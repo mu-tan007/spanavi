@@ -212,7 +212,14 @@ export default function RecallListView({ callListData, supaRecalls = [], members
                   <div key={i} onClick={() => {
                       if (setCallFlowScreen && item._source === 'supabase') {
                         const _list = callListData.find(l => l._supaId === item._supaRecord?.list_id);
-                        if (_list) { setCallFlowScreen({ list: _list, defaultItemId: item._supaRecord.item_id, defaultListMode: false }); return; }
+                        if (_list) {
+                          // 再コール一覧の表示順で前後ナビゲーションできるよう、全アイテムのIDリストを渡す
+                          const recallNavList = sorted
+                            .filter(s => s._source === 'supabase' && s._supaRecord?.list_id && s._supaRecord?.item_id)
+                            .map(s => ({ itemId: s._supaRecord.item_id, listSupaId: s._supaRecord.list_id }));
+                          setCallFlowScreen({ list: _list, defaultItemId: item._supaRecord.item_id, defaultListMode: false, recallNavList });
+                          return;
+                        }
                       }
                     }}
                     style={{ display: 'grid', gridTemplateColumns, padding: isMobile ? '6px 10px' : '8px 14px', fontSize: isMobile ? 10 : 11, alignItems: 'center', borderBottom: '1px solid #E5E7EB', borderLeft: '3px solid transparent', background: past ? '#fff5f5' : i % 2 === 0 ? '#fff' : '#F8F9FA', cursor: 'pointer' }}

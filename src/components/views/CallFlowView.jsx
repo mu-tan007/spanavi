@@ -142,7 +142,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   );
 }
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, recallNavList = null, onSwitchRecallItem = null }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, ceoConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -207,6 +207,32 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       try { localStorage.setItem('cf_autocall', String(next)); } catch {}
       return next;
     });
+  };
+
+  // 再コール一覧ナビゲーション: recallNavList が渡されている場合、
+  // 現在の企業の次の再コール企業へ遷移する。同一リスト内なら setSelectedRow、
+  // 別リストなら onSwitchRecallItem で画面ごと切り替える。
+  const navigateToNextRecallItem = (currentItemId) => {
+    if (!recallNavList || recallNavList.length === 0) return false;
+    const curIdx = recallNavList.findIndex(r => r.itemId === currentItemId);
+    if (curIdx < 0 || curIdx >= recallNavList.length - 1) return false;
+    const nextNav = recallNavList[curIdx + 1];
+    if (!nextNav) return false;
+    if (nextNav.listSupaId === list._supaId) {
+      // 同一リスト内: items から探して遷移
+      const nextItem = items.find(i => i.id === nextNav.itemId);
+      if (nextItem) {
+        setSelectedRow(nextItem);
+        if (autoDial && nextItem.phone) dialPhone(nextItem.phone);
+        return true;
+      }
+    }
+    // 別リスト or 同一リストだがアイテム未ロード: コールバックで画面切り替え
+    if (onSwitchRecallItem) {
+      onSwitchRecallItem(nextNav.itemId, nextNav.listSupaId, recallNavList);
+      return true;
+    }
+    return false;
   };
 
   useEffect(() => {
@@ -714,20 +740,23 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setItems(newItems);
     setCallRecords(newRecords);
     _updateSessionProgress(selectedRow?.no);
-    // sorted（フィルタ済みリスト）の順序で次の架電可能な企業を探す
-    const sortedIdx = sorted.findIndex(i => i.id === selectedRow.id);
-    let next = null;
-    for (let j = sortedIdx + 1; j < sorted.length; j++) {
-      const ni = sorted[j];
-      const niRecs = newRecords.filter(r => r.item_id === ni.id);
-      const niExcl = niRecs.some(r => EXCLUDED_STATUSES.has(r.status));
-      const niLatest = niRecs.length > 0 ? niRecs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b) : null;
-      const niRecall = niLatest && RECALL_STATUSES.has(niLatest.status);
-      const niNext = niRecs.length === 0 ? 1 : Math.min(Math.max(...niRecs.map(r => r.round)) + 1, 8);
-      if (!niExcl && !niRecall && niNext <= 8) { next = ni; break; }
+    // 再コール一覧からの遷移時は再コールリストの順序で次企業へ
+    if (!navigateToNextRecallItem(selectedRow.id)) {
+      // sorted（フィルタ済みリスト）の順序で次の架電可能な企業を探す
+      const sortedIdx = sorted.findIndex(i => i.id === selectedRow.id);
+      let next = null;
+      for (let j = sortedIdx + 1; j < sorted.length; j++) {
+        const ni = sorted[j];
+        const niRecs = newRecords.filter(r => r.item_id === ni.id);
+        const niExcl = niRecs.some(r => EXCLUDED_STATUSES.has(r.status));
+        const niLatest = niRecs.length > 0 ? niRecs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b) : null;
+        const niRecall = niLatest && RECALL_STATUSES.has(niLatest.status);
+        const niNext = niRecs.length === 0 ? 1 : Math.min(Math.max(...niRecs.map(r => r.round)) + 1, 8);
+        if (!niExcl && !niRecall && niNext <= 8) { next = ni; break; }
+      }
+      setSelectedRow(next || updatedItem);
+      if (autoDial && next?.phone) dialPhone(next.phone);
     }
-    setSelectedRow(next || updatedItem);
-    if (autoDial && next?.phone) dialPhone(next.phone);
 
     // 録音URLをバックグラウンドで取得してDBを後から更新
     ;(async () => {
@@ -876,19 +905,21 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       setAppoData(prev => [...prev, newAppo]);
     }
 
-    const idx = newItems.findIndex(i => i.id === appoModal.id);
-    let next = null;
-    for (let j = idx + 1; j < newItems.length; j++) {
-      const ni = newItems[j];
-      const niRecs = newRecords.filter(r => r.item_id === ni.id);
-      const niExcl = niRecs.some(r => EXCLUDED_STATUSES.has(r.status));
-      const niLatest = niRecs.length > 0 ? niRecs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b) : null;
-      const niRecall = niLatest && RECALL_STATUSES.has(niLatest.status);
-      const niNext = niRecs.length === 0 ? 1 : Math.min(Math.max(...niRecs.map(r => r.round)) + 1, 8);
-      if (!niExcl && !niRecall && niNext <= 8) { next = ni; break; }
+    if (!navigateToNextRecallItem(appoModal.id)) {
+      const idx = newItems.findIndex(i => i.id === appoModal.id);
+      let next = null;
+      for (let j = idx + 1; j < newItems.length; j++) {
+        const ni = newItems[j];
+        const niRecs = newRecords.filter(r => r.item_id === ni.id);
+        const niExcl = niRecs.some(r => EXCLUDED_STATUSES.has(r.status));
+        const niLatest = niRecs.length > 0 ? niRecs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b) : null;
+        const niRecall = niLatest && RECALL_STATUSES.has(niLatest.status);
+        const niNext = niRecs.length === 0 ? 1 : Math.min(Math.max(...niRecs.map(r => r.round)) + 1, 8);
+        if (!niExcl && !niRecall && niNext <= 8) { next = ni; break; }
+      }
+      setSelectedRow(next || updatedItem);
+      if (autoDial && next?.phone) dialPhone(next.phone);
     }
-    setSelectedRow(next || updatedItem);
-    if (autoDial && next?.phone) dialPhone(next.phone);
     setAppoModal(null);
     // zoom.us URLをSupabase Storageに変換（非ブロッキング）
     if (recordingUrlAppo && newRec?.id) uploadRecordingToStorage(newRec.id, recordingUrlAppo);
@@ -954,19 +985,21 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setItems(newItems);
     _updateSessionProgress(row?.no);
 
-    const idx = newItems.findIndex(i => i.id === row.id);
-    let next = null;
-    for (let j = idx + 1; j < newItems.length; j++) {
-      const ni = newItems[j];
-      const niRecs = newRecords.filter(r => r.item_id === ni.id);
-      const niExcl = niRecs.some(r => EXCLUDED_STATUSES.has(r.status));
-      const niLatest = niRecs.length > 0 ? niRecs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b) : null;
-      const niRecall = niLatest && RECALL_STATUSES.has(niLatest.status);
-      const niNext = niRecs.length === 0 ? 1 : Math.min(Math.max(...niRecs.map(r => r.round)) + 1, 8);
-      if (!niExcl && !niRecall && niNext <= 8) { next = ni; break; }
+    if (!navigateToNextRecallItem(row.id)) {
+      const idx = newItems.findIndex(i => i.id === row.id);
+      let next = null;
+      for (let j = idx + 1; j < newItems.length; j++) {
+        const ni = newItems[j];
+        const niRecs = newRecords.filter(r => r.item_id === ni.id);
+        const niExcl = niRecs.some(r => EXCLUDED_STATUSES.has(r.status));
+        const niLatest = niRecs.length > 0 ? niRecs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b) : null;
+        const niRecall = niLatest && RECALL_STATUSES.has(niLatest.status);
+        const niNext = niRecs.length === 0 ? 1 : Math.min(Math.max(...niRecs.map(r => r.round)) + 1, 8);
+        if (!niExcl && !niRecall && niNext <= 8) { next = ni; break; }
+      }
+      setSelectedRow(next || updatedItem);
+      if (autoDial && next?.phone) dialPhone(next.phone);
     }
-    setSelectedRow(next || updatedItem);
-    if (autoDial && next?.phone) dialPhone(next.phone);
     setRecallModal(null);
   };
 
