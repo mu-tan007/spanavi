@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
       if (!eventId) return json({ error: 'eventId required' }, 400)
 
       const res = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=all`,
         {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${accessToken}` },
