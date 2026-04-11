@@ -66,7 +66,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [addModal, setAddModal] = useState(false);
-  const [addForm, setAddForm] = useState({ name: '', team: '', position: 'メンバー', rank: 'トレーニー', operation_start_date: '', email: '' });
+  const [addForm, setAddForm] = useState({ name: '', team: '', position: 'メンバー', rank: 'トレーニー', operation_start_date: '', email: '', university: '', grade: '', referrer_name: '' });
   const [sendInvite, setSendInvite] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -181,6 +181,11 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
               role: 'caller',
               rank: addForm.rank,
               position: addForm.position,
+              team: addForm.team || null,
+              university: addForm.university || null,
+              grade: addForm.grade || null,
+              referrer_name: addForm.referrer_name || null,
+              operation_start_date: addForm.operation_start_date || null,
             }),
           }
         );
@@ -203,6 +208,9 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
           email: addForm.email.trim() || null,
           position: addForm.position,
           rank: addForm.rank,
+          university: addForm.university || null,
+          grade: addForm.grade ? parseInt(addForm.grade) : null,
+          referrer_name: addForm.referrer_name || null,
           operation_start_date: addForm.operation_start_date || null,
           is_active: true,
         })
@@ -214,7 +222,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
 
     setSaving(false);
     setAddModal(false);
-    setAddForm({ name: '', team: '', position: 'メンバー', rank: 'トレーニー', operation_start_date: '', email: '' });
+    setAddForm({ name: '', team: '', position: 'メンバー', rank: 'トレーニー', operation_start_date: '', email: '', university: '', grade: '', referrer_name: '' });
     setSendInvite(true);
     await load();
     syncSeatCount(members.length + 1);
@@ -385,10 +393,8 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
           <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, padding: '28px 32px', width: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 20 }}>新規メンバー追加</div>
             {[
-              { label: '氏名', key: 'name', type: 'text', placeholder: '例：山田太郎' },
-              { label: 'メールアドレス', key: 'email', type: 'email', placeholder: '例：user@example.com' },
-              { label: 'チーム', key: 'team', type: 'text', placeholder: '例：Aチーム' },
-              { label: '入社日', key: 'operation_start_date', type: 'date' },
+              { label: '氏名 *', key: 'name', type: 'text', placeholder: '例：山田太郎' },
+              { label: 'メールアドレス *', key: 'email', type: 'email', placeholder: '例：user@example.com' },
             ].map(f => (
               <div key={f.key} style={{ marginBottom: 14 }}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>{f.label}</label>
@@ -398,6 +404,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
               </div>
             ))}
             {[
+              { label: 'チーム', key: 'team', options: [...new Set(members.map(m => m.team).filter(Boolean))] },
               { label: '役職', key: 'position', options: POSITIONS },
               { label: 'ランク', key: 'rank', options: RANKS },
             ].map(f => (
@@ -405,8 +412,22 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>{f.label}</label>
                 <select value={addForm[f.key]} onChange={e => setAddForm(p => ({ ...p, [f.key]: e.target.value }))}
                   style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 13 }}>
+                  <option value="">選択してください</option>
                   {f.options.map(o => <option key={o}>{o}</option>)}
                 </select>
+              </div>
+            ))}
+            {[
+              { label: '大学名', key: 'university', type: 'text', placeholder: '例：東京大学' },
+              { label: '学年', key: 'grade', type: 'number', placeholder: '例：2' },
+              { label: '紹介者', key: 'referrer_name', type: 'text', placeholder: '例：成尾 拓輝' },
+              { label: '入社日', key: 'operation_start_date', type: 'date' },
+            ].map(f => (
+              <div key={f.key} style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>{f.label}</label>
+                <input type={f.type} value={addForm[f.key]} placeholder={f.placeholder}
+                  onChange={e => setAddForm(p => ({ ...p, [f.key]: e.target.value }))}
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 13 }} />
               </div>
             ))}
             {addForm.email.trim() && (
