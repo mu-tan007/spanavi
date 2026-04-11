@@ -82,6 +82,8 @@ Deno.serve(async (req) => {
           grade: grade ? parseInt(grade) : null,
           referrer_name: referrer_name || null,
           operation_start_date: operation_start_date || null,
+          incentive_rate: 22,
+          cumulative_sales: 0,
           is_active: true,
           start_date: new Date().toISOString().slice(0, 10),
         })
