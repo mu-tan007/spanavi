@@ -521,14 +521,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         if (!prefFilters.includes(extractPref(item.address))) return false;
       }
       // ステータスフィルタ（企業一覧上のボタン・複数選択対応）
+      // call_list_items.call_status を使用（callRecords未ロード時でも動作）
       if (statusFilterLocal.length > 0) {
-        const recs = getRecordsForItem(item.id);
-        if (recs.length === 0) {
-          if (!statusFilterLocal.includes('未架電')) return false;
-        } else {
-          const latestRec = recs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b);
-          if (!statusFilterLocal.includes(latestRec.status)) return false;
-        }
+        const currentStatus = item.call_status || '未架電';
+        if (!statusFilterLocal.includes(currentStatus)) return false;
       }
       return true;
     });
@@ -1667,11 +1663,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
           {listMode ? (
             /* ────────────── リスト表示モード ────────────── */
-            <>
-            {/* DEBUG: フィルター状態確認 - 修正確認後に削除 */}
-            <div style={{ padding: '4px 12px', background: '#FEF3C7', border: '1px solid #F59E0B', borderRadius: 4, marginBottom: 4, fontSize: 10, fontFamily: "'JetBrains Mono'", color: '#92400E' }}>
-              DEBUG: statusFilterLocal=[{statusFilterLocal.join(',')}] | callRecords={callRecords.length} | rangeItems={rangeItems.length} | filtered={filtered.length} | sorted={sorted.length} | filterMode={filterMode}
-            </div>
             <div style={{ background: '#fff', borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
               {/* 検索バー + 架電開始ボタン */}
               <div style={{ padding: '8px 12px', borderBottom: '1px solid #E5E7EB', display: 'flex', gap: 6, alignItems: 'center', background: '#F8F9FA', flexWrap: 'wrap' }}>
@@ -1870,7 +1861,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 </div>
               )}
             </div>
-            </>
 
           ) : selectedRow ? (
             /* ────────────── フォーカスモード ────────────── */
