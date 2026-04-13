@@ -1667,6 +1667,11 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
           {listMode ? (
             /* ────────────── リスト表示モード ────────────── */
+            <>
+            {/* DEBUG: フィルター状態確認 - 修正確認後に削除 */}
+            <div style={{ padding: '4px 12px', background: '#FEF3C7', border: '1px solid #F59E0B', borderRadius: 4, marginBottom: 4, fontSize: 10, fontFamily: "'JetBrains Mono'", color: '#92400E' }}>
+              DEBUG: statusFilterLocal=[{statusFilterLocal.join(',')}] | callRecords={callRecords.length} | rangeItems={rangeItems.length} | filtered={filtered.length} | sorted={sorted.length} | filterMode={filterMode}
+            </div>
             <div style={{ background: '#fff', borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
               {/* 検索バー + 架電開始ボタン */}
               <div style={{ padding: '8px 12px', borderBottom: '1px solid #E5E7EB', display: 'flex', gap: 6, alignItems: 'center', background: '#F8F9FA', flexWrap: 'wrap' }}>
@@ -1865,6 +1870,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 </div>
               )}
             </div>
+            </>
 
           ) : selectedRow ? (
             /* ────────────── フォーカスモード ────────────── */
