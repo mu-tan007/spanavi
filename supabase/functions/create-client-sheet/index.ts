@@ -265,7 +265,7 @@ Deno.serve(async (req) => {
 
     // 4. このクライアントの全リストを同期キューへ
     const { data: lists } = await supabase
-      .from('call_lists').select('id').eq('client_id', client_id).eq('is_archived', false)
+      .from('call_lists').select('id').eq('client_id', client_id)
     if (lists && lists.length > 0) {
       await supabase.from('sheet_sync_queue').upsert(
         lists.map((l: any) => ({ list_id: l.id, requested_at: new Date().toISOString() })),
