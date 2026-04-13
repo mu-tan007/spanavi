@@ -179,7 +179,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [revenueMax, setRevenueMax] = useState(initialRevenueMax ? String(initialRevenueMax) : '');  // 空文字 = 上限なし
   const [prefFilters, setPrefFilters] = useState(Array.isArray(initialPrefFilter) ? initialPrefFilter : (initialPrefFilter ? [initialPrefFilter] : []));
   const [prefDropOpen, setPrefDropOpen] = useState(false);
-  const [statusFilterLocal, setStatusFilterLocal] = useState(null); // null=全ステータス, string=特定ステータス
+  const [statusFilterLocal, setStatusFilterLocal] = useState(() => Array.isArray(statusFilter) ? statusFilter : []); // DetailModalの選択を引き継ぎ
   const [recallModal, setRecallModal] = useState(null); // { row, statusId, round, label }
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const cfvKbRef = useRef({});
@@ -485,16 +485,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     return items;
   })();
 
-  // Status filter (statusFilter=null は絞り込みなし)
-  const statusFilteredItems = (() => {
-    if (!statusFilter || statusFilter.length === 0) return rangeItems;
-    return rangeItems.filter(item => {
-      const records = getRecordsForItem(item.id);
-      if (records.length === 0) return statusFilter.includes('未架電');
-      const latestRecord = records.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b);
-      return statusFilter.includes(latestRecord.status);
-    });
-  })();
+  // statusFilterLocal に一本化（DetailModal prop は初期値として引き継ぎ済み）
+  const statusFilteredItems = rangeItems;
 
   // 範囲指定なし時のみ: items ロード完了後に total_count を実件数で確定
   React.useEffect(() => {
@@ -528,15 +520,14 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       if (prefFilters.length > 0) {
         if (!prefFilters.includes(extractPref(item.address))) return false;
       }
-      // ステータスフィルタ（企業一覧上のボタン）
-      if (statusFilterLocal) {
+      // ステータスフィルタ（企業一覧上のボタン・複数選択対応）
+      if (statusFilterLocal.length > 0) {
         const recs = getRecordsForItem(item.id);
-        if (statusFilterLocal === '未架電') {
-          if (recs.length > 0) return false;
+        if (recs.length === 0) {
+          if (!statusFilterLocal.includes('未架電')) return false;
         } else {
-          if (recs.length === 0) return false;
           const latestRec = recs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b);
-          if (latestRec.status !== statusFilterLocal) return false;
+          if (!statusFilterLocal.includes(latestRec.status)) return false;
         }
       }
       return true;
@@ -1682,25 +1673,36 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} placeholder="検索..."
                   style={{ width: 180, minWidth: 120, padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', boxSizing: 'border-box' }} />
                 {[['callable','架電可能'],['all','全件'],['excluded','架電不可']].map(([mode, label]) => (
-                  <button key={mode} onClick={() => { setFilterMode(mode); setStatusFilterLocal(null); setPage(0); }}
+                  <button key={mode} onClick={() => { setFilterMode(mode); setStatusFilterLocal([]); setPage(0); }}
                     style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
-                      background: filterMode === mode && !statusFilterLocal ? '#0D2247' : 'transparent',
-                      color: filterMode === mode && !statusFilterLocal ? '#fff' : '#9CA3AF',
-                      border: '1px solid ' + (filterMode === mode && !statusFilterLocal ? '#0D2247' : '#E5E7EB') }}>
+                      background: filterMode === mode && statusFilterLocal.length === 0 ? '#0D2247' : 'transparent',
+                      color: filterMode === mode && statusFilterLocal.length === 0 ? '#fff' : '#9CA3AF',
+                      border: '1px solid ' + (filterMode === mode && statusFilterLocal.length === 0 ? '#0D2247' : '#E5E7EB') }}>
                     {label}
                   </button>
                 ))}
-                {/* ステータスフィルタ */}
+                {/* ステータスフィルタ（複数選択対応） */}
                 <span style={{ color: '#D1D5DB', fontSize: 10 }}>|</span>
-                {[null,'未架電','不通','社長不在','受付ブロック','受付再コール','社長再コール','アポ獲得','社長お断り','除外'].map(st => (
-                  <button key={st ?? 'all'} onClick={() => { setStatusFilterLocal(st); if (st) setFilterMode('all'); setPage(0); }}
+                {['全ステータス', '未架電', ...callStatuses.map(s => s.label)].map(st => {
+                  const isAll = st === '全ステータス';
+                  const isActive = isAll ? statusFilterLocal.length === 0 : statusFilterLocal.includes(st);
+                  return (
+                  <button key={st} onClick={() => {
+                    if (isAll) { setStatusFilterLocal([]); }
+                    else {
+                      setStatusFilterLocal(prev => prev.includes(st) ? prev.filter(s => s !== st) : [...prev, st]);
+                      setFilterMode('all');
+                    }
+                    setPage(0);
+                  }}
                     style={{ padding: '3px 8px', borderRadius: 4, fontSize: 9, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
-                      background: statusFilterLocal === st ? '#0D2247' : 'transparent',
-                      color: statusFilterLocal === st ? '#fff' : '#9CA3AF',
-                      border: '1px solid ' + (statusFilterLocal === st ? '#0D2247' : '#E5E7EB') }}>
-                    {st ?? '全ステータス'}
+                      background: isActive ? '#0D2247' : 'transparent',
+                      color: isActive ? '#fff' : '#9CA3AF',
+                      border: '1px solid ' + (isActive ? '#0D2247' : '#E5E7EB') }}>
+                    {st}
                   </button>
-                ))}
+                  );
+                })}
                 <span style={{ color: '#D1D5DB', fontSize: 10 }}>|</span>
                 {/* 売上高フィルター */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#706E6B', whiteSpace: 'nowrap' }}>
