@@ -365,7 +365,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         }
       });
   }, []);
-  const [filterStatus, setFilterStatus] = useState("架電可能");
+  const [filterStatus, setFilterStatus] = useState(["架電可能"]);
   const [filterType, setFilterType] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedList, setSelectedList] = useState(null);
@@ -443,7 +443,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   const filteredLists = useMemo(() => {
     let lists = enrichedLists;
     lists = lists.filter(l => !l.is_archived);
-    if (filterStatus !== "all") lists = lists.filter(l => l.status === filterStatus);
+    if (filterStatus.length > 0) lists = lists.filter(l => filterStatus.includes(l.status));
     if (filterType !== "all") lists = lists.filter(l => l.type === filterType);
     if (searchQuery) { const q = searchQuery.toLowerCase(); lists = lists.filter(l => l.company.toLowerCase().includes(q) || l.industry.toLowerCase().includes(q) || l.manager.toLowerCase().includes(q)); }
     if (sortBy === "date") lists = [...lists].sort((a, b) => a.id - b.id);

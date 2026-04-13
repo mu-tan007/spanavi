@@ -1554,8 +1554,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           ) : (() => {
             const itemListMap = {};
             callListData.forEach(l => { if (l._supaId) itemListMap[l._supaId] = l; });
-            const statusBg = { "受付ブロック": "#fff7ed", "受付再コール": "#ebf8ff", "社長不在": "#fefce8", "社長再コール": "#ebf8ff", "社長お断り": "#faf5ff", "アポ獲得": "#f0fff4", "除外": "#fee2e2" };
-            const statusFg = { "受付ブロック": "#dd6b20", "受付再コール": "#3182ce", "社長不在": "#d69e2e", "社長再コール": "#3182ce", "社長お断り": "#805ad5", "アポ獲得": "#38a169", "除外": "#e53e3e" };
+            const statusColorFn = (s) => getStatusColor(s) || { color: '#9CA3AF', bg: '#9CA3AF18' };
             return (
               <div style={{ background: "#fff", borderRadius: 4, overflowX: "auto", overflowY: "hidden", border: "1px solid #E5E7EB" }}>
                 <div style={{ minWidth: sliMinW }}>
@@ -1588,7 +1587,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                       <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: sliCols[1]?.align || 'left' }}>{item.representative || "-"}</span>
                       <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.navy, textAlign: sliCols[2]?.align || 'left' }}>{item.phone || "-"}</span>
                       <span style={{ textAlign: sliCols[3]?.align || 'left' }}>
-                        <span style={{ fontSize: 10, borderLeft: '3px solid ' + (statusFg[item.call_status] || '#9CA3AF'), paddingLeft: 8, color: statusFg[item.call_status] || '#9CA3AF' }}>
+                        <span style={{ fontSize: 10, borderLeft: '3px solid ' + (statusColorFn(item.call_status).color), paddingLeft: 8, color: statusColorFn(item.call_status).color }}>
                           {item.call_status || "-"}
                         </span>
                       </span>

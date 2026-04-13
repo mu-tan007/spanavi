@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { C } from '../../constants/colors';
 import { useIsMobile } from '../../hooks/useIsMobile';
-import { CALL_RESULTS } from '../../constants/callResults';
+import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { getIndustryCategory } from '../../utils/industry';
 import { deleteCallRecordsByListId, deleteCallListItemsByListId, updateCallListCount, fetchCallListItems, insertCallListItems } from '../../lib/supabaseWrite';
 import { Badge } from '../common/Badge';
@@ -14,6 +14,7 @@ const extractPref = (address) => PREFS.find(p => address?.startsWith(p)) || '';
 
 export default function DetailModal({ list, onClose, industryRules, now, callListData, setCallListData, setCallFlowScreen, isAdmin, onDelete }) {
   const isMobile = useIsMobile();
+  const { statuses: callStatuses } = useCallStatuses();
   if (!list) return null;
   const cat = getIndustryCategory(list.industry);
   const rule = industryRules.find(r => r.industry === cat);
@@ -388,7 +389,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
 
         {/* ステータス絞り込みボタン */}
         {(() => {
-          const STATUS_LABELS = ['未架電', ...CALL_RESULTS.map(r => r.label)];
+          const STATUS_LABELS = ['未架電', ...callStatuses.map(r => r.label)];
           const isAll = selectedStatuses.length === 0;
           const toggleStatus = (label) => {
             if (label === '全ステータス') {
