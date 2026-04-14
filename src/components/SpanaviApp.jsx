@@ -630,7 +630,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
             </svg>
           )}
           <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 800, letterSpacing: 2, lineHeight: 1 }}>
-            <span style={{ color: branding.accentColor }}>{branding.orgName.slice(0, Math.ceil(branding.orgName.length / 2))}</span><span style={{ color: branding.highlightColor }}>{branding.orgName.slice(Math.ceil(branding.orgName.length / 2))}</span>
+            <span style={{ color: branding.accentColor }}>{branding.orgName.slice(0, Math.floor(branding.orgName.length / 2))}</span><span style={{ color: branding.highlightColor }}>{branding.orgName.slice(Math.floor(branding.orgName.length / 2))}</span>
           </div>
         </div>
         {/* User area — クリックでマイページへ */}
@@ -857,7 +857,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
             </g>
           </svg>
           <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 24, fontWeight: 800, color: "#0176D3", letterSpacing: 2, lineHeight: 1 }}>
-            Spa<span style={{ background: "linear-gradient(180deg, #c6a358, #a8883a)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>navi</span>
+            Spa<span style={{ color: "#C8A84B" }}>navi</span>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>

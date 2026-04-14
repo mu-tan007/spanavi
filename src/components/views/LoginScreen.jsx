@@ -65,7 +65,7 @@ export default function LoginScreen({ onLogin, members }) {
           <div style={{
             fontSize: 38, fontWeight: 800, letterSpacing: 2, color: C.navy,
             fontFamily: "'Outfit', sans-serif",
-          }}>Spa<span style={{ background: "linear-gradient(180deg, #c6a358, #a8883a)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>navi</span></div>
+          }}>Spa<span style={{ color: "#C8A84B" }}>navi</span></div>
         </div>
 
         <div style={{ position: "relative" }}>
