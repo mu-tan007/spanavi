@@ -26,7 +26,6 @@ import DatabaseView from './views/DatabaseView';
 import { AVAILABLE_MONTHS } from '../constants/availableMonths';
 import { REWARD_MASTER } from '../constants/rewardMaster';
 import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordByItemRound, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, fetchMyCallRecords, insertCallSession, updateCallSession, fetchCallSessions, fetchRecentDuplicateSession, getProfileImageUrl, uploadProfileImage, fetchSetting, saveSetting, fetchLatestSessionPerList, updateAppoCounted, fetchRewardMaster } from "../lib/supabaseWrite";
-import LoginScreen from './views/LoginScreen';
 import LiveStatusView from './views/LiveStatusView';
 import PreCheckView from './views/PreCheckView';
 import IncomingCallBanner from './views/IncomingCallBanner';
@@ -566,10 +565,6 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentTab, navGroups]);
-
-  // Login screen
-  // Login is handled by App.jsx via Supabase auth
-  // if (!currentUser) { return <LoginScreen ... />; }
 
   return (
     <div style={{ minHeight: "100vh", background: '#F3F2F2', color: C.textDark, fontFamily: "'Noto Sans JP', sans-serif" }}>
