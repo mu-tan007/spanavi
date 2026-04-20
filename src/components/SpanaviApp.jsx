@@ -12,6 +12,7 @@ import CompanySearchView from './views/CompanySearchView';
 import StatsView from './views/StatsView';
 import CallingScreen from './views/CallingScreen';
 import PiPWidget from './common/PiPWidget';
+import EngagementHeader from './common/EngagementHeader';
 import RecallModal from './views/RecallModal';
 import AppoReportModal from './views/AppoReportModal';
 import CallFlowView from './views/CallFlowView';
@@ -508,7 +509,6 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       { id: "search", label: "Search" },
       { id: "recall", label: "Recall" },
       { id: "incoming", label: "Call History" },
-      { id: "database", label: "Database" },
       { id: "rules", label: "Industry Rules" },
     ]},
     { id: "g_appo", label: "PIPELINE", children: [
@@ -1025,8 +1025,11 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       </>)}
       {/* OLD_HEADER_END */}
 
+      {/* ===== ENGAGEMENT (6 businesses) HEADER ===== */}
+      <EngagementHeader isMobile={isMobile} onOpenDatabase={() => setCurrentTab('database')} />
+
       {/* ===== CONTENT ===== */}
-      <main style={{ marginLeft: isMobile ? 0 : 220, paddingTop: isMobile ? 48 : 54, paddingLeft: isMobile ? 12 : 28, paddingRight: isMobile ? 12 : 28, paddingBottom: isMobile ? 72 : 24, minHeight: '100vh', width: isMobile ? '100%' : 'calc(100% - 220px)', boxSizing: 'border-box', overflowX: 'hidden' }}>
+      <main style={{ marginLeft: isMobile ? 0 : 220, paddingTop: (isMobile ? 48 : 54) + 36, paddingLeft: isMobile ? 12 : 28, paddingRight: isMobile ? 12 : 28, paddingBottom: isMobile ? 72 : 24, minHeight: '100vh', width: isMobile ? '100%' : 'calc(100% - 220px)', boxSizing: 'border-box', overflowX: 'hidden' }}>
         {currentTab === "live" && <LiveStatusView now={now} callListData={callListData} members={members} isAdmin={isAdmin} isTeamLeader={!isAdmin && currentMemberDetail?.role === 'チームリーダー'} orgId={orgId} />}
         {currentTab === "incoming" && <IncomingCallsView setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "lists" && <ListView filteredLists={filteredLists} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterType={filterType} setFilterType={setFilterType} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy} setSelectedList={setSelectedList} callListData={callListData} setCallListData={setCallListData} listFormOpen={listFormOpen} setListFormOpen={setListFormOpen} editingListId={editingListId} setEditingListId={setEditingListId} now={now} isAdmin={isAdmin} clientData={clientData} contactsByClient={contactsByClient} />}
