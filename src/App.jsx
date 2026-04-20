@@ -29,6 +29,12 @@ function MainApp() {
     return () => clearTimeout(profileTimeoutRef.current)
   }, [loading, session, orgId])
 
+  // パスワードリカバリーモード（profile取得より優先：新規招待ユーザーはusers/membersがRLSで引けずprofileがnullのままになるため、
+  // この判定を下に置くと「アカウント情報取得失敗」画面にリダイレクトされてパスワード再設定に辿り着けない）
+  if (recoveryMode && session) {
+    return <ResetPasswordPage onComplete={clearRecoveryMode} />
+  }
+
   // セッションはあるがプロフィール取得に失敗した場合 → ログイン画面に戻す
   if ((!loading && session && !profile) || profileTimeout) {
     return (
@@ -89,11 +95,6 @@ function MainApp() {
         </div>
       </div>
     )
-  }
-
-  // パスワードリカバリーモード
-  if (recoveryMode && session) {
-    return <ResetPasswordPage onComplete={clearRecoveryMode} />
   }
 
   // 未ログイン → ログインページへリダイレクト
