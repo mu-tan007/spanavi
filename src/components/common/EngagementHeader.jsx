@@ -1,29 +1,27 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { C } from '../../constants/colors';
 import { useEngagements } from '../../hooks/useEngagements';
 
-const READY_SLUGS = new Set(['seller_sourcing']);
+// タブ選択でサイドバーが切り替わる対象（実装済み or 枠だけ準備済み）
+const SWITCHABLE_SLUGS = new Set(['masp', 'seller_sourcing', 'spartia_career']);
+// コンテンツまで完全に実装済みのもの（タグを出さない）
+const READY_SLUGS = new Set(['masp', 'seller_sourcing']);
 
-export default function EngagementHeader({ isMobile = false, onOpenDatabase }) {
+export default function EngagementHeader({ isMobile = false, onEngagementChange }) {
   const { engagements, currentEngagement, switchEngagement } = useEngagements();
   const [comingSoon, setComingSoon] = useState(null);
-  const [mspOpen, setMspOpen] = useState(false);
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    const onDocClick = (e) => {
-      if (!menuRef.current) return;
-      if (!menuRef.current.contains(e.target)) setMspOpen(false);
-    };
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
-  }, []);
 
   if (!engagements.length) return null;
 
+  const sorted = [...engagements].sort((a, b) => a.display_order - b.display_order);
+
   const handleTabClick = (eng) => {
-    if (READY_SLUGS.has(eng.slug)) switchEngagement(eng.slug);
-    else setComingSoon(eng);
+    if (SWITCHABLE_SLUGS.has(eng.slug)) {
+      switchEngagement(eng.slug);
+      onEngagementChange?.(eng);
+    } else {
+      setComingSoon(eng);
+    }
   };
 
   const barStyle = {
@@ -47,85 +45,49 @@ export default function EngagementHeader({ isMobile = false, onOpenDatabase }) {
   return (
     <>
       <div style={barStyle}>
-        <div ref={menuRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', marginRight: 18 }}>
-          <button
-            type="button"
-            onClick={() => setMspOpen(o => !o)}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px',
-              fontSize: 10, fontWeight: 700, color: C.textMid, letterSpacing: '0.1em',
-              textTransform: 'uppercase', fontFamily: "'Outfit','Noto Sans JP',sans-serif",
-              display: 'flex', alignItems: 'center', gap: 4,
-            }}
-          >
-            MASP
-            <span style={{ fontSize: 8, color: C.textLight }}>▾</span>
-          </button>
-          {mspOpen && (
-            <div style={{
-              position: 'absolute', top: 34, left: 0, minWidth: 220,
-              background: C.white, border: `1px solid ${C.border}`,
-              borderRadius: 6, boxShadow: '0 6px 20px rgba(3,45,96,0.12)',
-              padding: 6, zIndex: 400,
-            }}>
-              <button
-                type="button"
-                onClick={() => { setMspOpen(false); if (onOpenDatabase) onOpenDatabase(); }}
-                style={{
-                  display: 'block', width: '100%', textAlign: 'left',
-                  padding: '8px 12px', fontSize: 12, fontWeight: 500,
-                  border: 'none', background: 'transparent', cursor: 'pointer',
-                  color: C.navy, borderRadius: 4,
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = C.offWhite; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-              >Database（全社共有）</button>
-              {['全社ダッシュボード', 'Members', 'Settings'].map(label => (
-                <div key={label} style={{ padding: '8px 12px', fontSize: 12, color: C.textLight, cursor: 'not-allowed' }}>
-                  {label}<span style={{ fontSize: 10, marginLeft: 6 }}>（準備中）</span>
-                </div>
-              ))}
-            </div>
-          )}
-          <div style={{ width: 1, height: 18, background: C.border, marginLeft: 12 }} />
-        </div>
-
         <div style={{ display: 'flex', alignSelf: 'stretch', gap: 2 }}>
-          {engagements.map(eng => {
-            const active = currentEngagement?.id === eng.id;
+          {sorted.map((eng) => {
+            const active = currentEngagement?.slug === eng.slug;
             const ready = READY_SLUGS.has(eng.slug);
+            const isMasp = eng.slug === 'masp';
             return (
-              <button
-                key={eng.id}
-                type="button"
-                onClick={() => handleTabClick(eng)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  padding: '0 14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  fontFamily: "'Noto Sans JP',sans-serif",
-                  fontWeight: active ? 600 : 400,
-                  color: active ? C.navy : (ready ? C.textMid : C.textLight),
-                  borderBottom: active ? `2px solid ${C.gold}` : '2px solid transparent',
-                  marginBottom: -1,
-                  whiteSpace: 'nowrap',
-                }}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.color = C.navy; }}
-                onMouseLeave={e => { if (!active) e.currentTarget.style.color = ready ? C.textMid : C.textLight; }}
-              >
-                {eng.name}
-                {!ready && (
-                  <span style={{
-                    fontSize: 9, padding: '1px 5px', borderRadius: 3,
-                    background: C.offWhite, color: C.textLight, fontWeight: 500,
-                  }}>準備中</span>
+              <React.Fragment key={eng.id}>
+                <button
+                  type="button"
+                  onClick={() => handleTabClick(eng)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    padding: isMasp ? '0 14px 0 2px' : '0 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    cursor: 'pointer',
+                    fontSize: isMasp ? 12 : 12,
+                    fontFamily: isMasp ? "'Outfit','Noto Sans JP',sans-serif" : "'Noto Sans JP',sans-serif",
+                    letterSpacing: isMasp ? '0.08em' : 0,
+                    fontWeight: active ? 600 : (isMasp ? 600 : 400),
+                    color: active ? C.navy : (ready ? C.textMid : C.textLight),
+                    borderBottom: active ? `2px solid ${C.gold}` : '2px solid transparent',
+                    marginBottom: -1,
+                    whiteSpace: 'nowrap',
+                    textTransform: isMasp ? 'uppercase' : 'none',
+                  }}
+                  onMouseEnter={e => { if (!active) e.currentTarget.style.color = C.navy; }}
+                  onMouseLeave={e => { if (!active) e.currentTarget.style.color = ready ? C.textMid : C.textLight; }}
+                >
+                  {eng.name}
+                  {!ready && !isMasp && (
+                    <span style={{
+                      fontSize: 9, padding: '1px 5px', borderRadius: 3,
+                      background: C.offWhite, color: C.textLight, fontWeight: 500,
+                    }}>準備中</span>
+                  )}
+                </button>
+                {isMasp && (
+                  <div style={{ width: 1, height: 18, background: C.border, alignSelf: 'center', marginRight: 6 }} />
                 )}
-              </button>
+              </React.Fragment>
             );
           })}
         </div>

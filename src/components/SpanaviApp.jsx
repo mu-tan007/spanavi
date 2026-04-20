@@ -13,6 +13,10 @@ import StatsView from './views/StatsView';
 import CallingScreen from './views/CallingScreen';
 import PiPWidget from './common/PiPWidget';
 import EngagementHeader from './common/EngagementHeader';
+import { EngagementProvider, useEngagements } from '../hooks/useEngagements';
+import MASPSidebar from './common/sidebars/MASPSidebar';
+import SpartiaCareerSidebar from './common/sidebars/SpartiaCareerSidebar';
+import PlaceholderSidebar from './common/sidebars/PlaceholderSidebar';
 import RecallModal from './views/RecallModal';
 import AppoReportModal from './views/AppoReportModal';
 import CallFlowView from './views/CallFlowView';
@@ -253,7 +257,9 @@ const CLIENT_DATA = [{"no": 1, "status": "支援中", "contract": "済", "compan
 // dialPhone はsrc/utils/phone.jsからimport済み
 
 // インライン録音プレーヤー（全画面共通）
-function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabaseData, onDataRefetch, orgId }) {
+function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, supabaseData, onDataRefetch, orgId }) {
+  const { currentEngagement } = useEngagements();
+  const engSlug = currentEngagement?.slug || 'seller_sourcing';
   const branding = useBranding();
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -346,6 +352,18 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
   useEffect(() => {
     try { localStorage.setItem("masp_v2_currentTab", currentTab); } catch(e) {}
   }, [currentTab]);
+  // engagement 切替時のデフォルト遷移
+  const _prevEngSlugRef = useRef(engSlug);
+  useEffect(() => {
+    const prev = _prevEngSlugRef.current;
+    if (prev === engSlug) return;
+    _prevEngSlugRef.current = engSlug;
+    if (engSlug === 'masp') {
+      if (currentTab !== 'database' && currentTab !== 'mypage') setCurrentTab('database');
+    } else if (engSlug === 'seller_sourcing') {
+      if (currentTab === 'database') setCurrentTab('lists');
+    }
+  }, [engSlug, currentTab]);
   const [now, setNow] = useState(new Date());
   const [lastUpdated, setLastUpdated] = useState(() => new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   // call_sessions ベースの「リストごと最終架電日時」マップ { [supaId]: ISO string }
@@ -593,7 +611,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
           userName={currentUser}
         />
       )}
-      <div style={{ width: 220, position: 'fixed', left: 0, top: 0, height: '100vh', background: branding.primaryColor, overflowY: 'auto', zIndex: 200, boxShadow: '2px 0 8px rgba(0,0,0,0.15)', display: isMobile ? 'none' : 'flex', flexDirection: 'column' }}>
+      <div style={{ width: 220, position: 'fixed', left: 0, top: 0, height: '100vh', background: branding.primaryColor, overflowY: 'auto', zIndex: 200, boxShadow: '2px 0 8px rgba(0,0,0,0.15)', display: (isMobile || engSlug !== 'seller_sourcing') ? 'none' : 'flex', flexDirection: 'column' }}>
         {/* Logo */}
         <div onClick={() => setCurrentTab('live')} style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 10 }}>
           {branding.logoUrl ? (
@@ -704,6 +722,44 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
           }}>ログアウト</button>
         </div>
       </div>
+
+      {/* ===== ALT SIDEBARS (desktop, non Seller Sourcing) ===== */}
+      {!isMobile && engSlug !== 'seller_sourcing' && (() => {
+        const _mem = Array.isArray(members) ? members.find(m => (typeof m === 'object' ? m.name : m) === currentUser) : null;
+        const _avatar = typeof _mem === 'object' ? _mem?.avatarUrl : null;
+        const _onLogout = () => { if (onLogout) onLogout(); else setCurrentUser(null); };
+        const _onUserClick = () => setCurrentTab('mypage');
+        if (engSlug === 'masp') return (
+          <MASPSidebar
+            currentTab={currentTab}
+            setCurrentTab={setCurrentTab}
+            branding={branding}
+            currentUser={currentUser}
+            currentMemberAvatar={_avatar}
+            onUserClick={_onUserClick}
+            onLogout={_onLogout}
+          />
+        );
+        if (engSlug === 'spartia_career') return (
+          <SpartiaCareerSidebar
+            branding={branding}
+            currentUser={currentUser}
+            currentMemberAvatar={_avatar}
+            onUserClick={_onUserClick}
+            onLogout={_onLogout}
+          />
+        );
+        return (
+          <PlaceholderSidebar
+            engagement={currentEngagement}
+            branding={branding}
+            currentUser={currentUser}
+            currentMemberAvatar={_avatar}
+            onUserClick={_onUserClick}
+            onLogout={_onLogout}
+          />
+        );
+      })()}
 
       {/* ===== NEW HEADER ===== */}
       <header style={{
@@ -1026,10 +1082,21 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
       {/* OLD_HEADER_END */}
 
       {/* ===== ENGAGEMENT (6 businesses) HEADER ===== */}
-      <EngagementHeader isMobile={isMobile} onOpenDatabase={() => setCurrentTab('database')} />
+      <EngagementHeader isMobile={isMobile} />
 
       {/* ===== CONTENT ===== */}
       <main style={{ marginLeft: isMobile ? 0 : 220, paddingTop: (isMobile ? 48 : 54) + 36, paddingLeft: isMobile ? 12 : 28, paddingRight: isMobile ? 12 : 28, paddingBottom: isMobile ? 72 : 24, minHeight: '100vh', width: isMobile ? '100%' : 'calc(100% - 220px)', boxSizing: 'border-box', overflowX: 'hidden' }}>
+        {engSlug === 'masp' && currentTab !== 'database' && currentTab !== 'mypage' && (
+          <EngagementComingSoon title="MASP" subtitle="この画面は準備中です" />
+        )}
+        {engSlug === 'spartia_career' && (
+          <EngagementComingSoon title={currentEngagement?.name || 'Spartia Career'} subtitle="スパキャリ専用画面は Phase 3 で実装予定です" />
+        )}
+        {engSlug !== 'seller_sourcing' && engSlug !== 'masp' && engSlug !== 'spartia_career' && (
+          <EngagementPlaceholder engagement={currentEngagement} />
+        )}
+        {/* --- Seller Sourcing views (既存) / MASPモードはdatabase + mypage のみ通す --- */}
+        {(engSlug === 'seller_sourcing' || (engSlug === 'masp' && (currentTab === 'database' || currentTab === 'mypage'))) && (<>
         {currentTab === "live" && <LiveStatusView now={now} callListData={callListData} members={members} isAdmin={isAdmin} isTeamLeader={!isAdmin && currentMemberDetail?.role === 'チームリーダー'} orgId={orgId} />}
         {currentTab === "incoming" && <IncomingCallsView setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "lists" && <ListView filteredLists={filteredLists} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterType={filterType} setFilterType={setFilterType} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy} setSelectedList={setSelectedList} callListData={callListData} setCallListData={setCallListData} listFormOpen={listFormOpen} setListFormOpen={setListFormOpen} editingListId={editingListId} setEditingListId={setEditingListId} now={now} isAdmin={isAdmin} clientData={clientData} contactsByClient={contactsByClient} />}
@@ -1054,6 +1121,7 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
         {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} />}
         {currentTab === "ai" && <AIAssistantView appoData={appoData} members={members} callListData={callListData} industryRules={industryRules} currentUser={currentUser} />}
         {currentTab === "manager_admin" && isManagerRole && <ManagerAdminView currentUser={currentUser} members={members} appoData={appoData} now={now} />}
+        </>)}
       </main>
 
       {isMobile && (
@@ -1105,6 +1173,50 @@ function SpanaviApp({ userName, userId, isAdmin: isAdminProp, onLogout, supabase
 
 
 // ============================================================
-// Live Status View (架電状況)
+// Engagement 別 プレースホルダー
 // ============================================================
-export default SpanaviApp;
+function EngagementComingSoon({ title, subtitle }) {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      minHeight: 'calc(100vh - 160px)', color: C.textMid, textAlign: 'center', padding: 32,
+    }}>
+      <div style={{ fontSize: 10, color: C.textLight, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>MASP</div>
+      <h2 style={{ fontSize: 22, fontWeight: 600, color: C.navy, marginBottom: 10, fontFamily: "'Outfit','Noto Sans JP',sans-serif" }}>
+        {title}
+      </h2>
+      <div style={{ width: 48, height: 2, background: C.gold, marginBottom: 14 }} />
+      <p style={{ fontSize: 13, color: C.textMid, lineHeight: 1.7 }}>{subtitle}</p>
+    </div>
+  );
+}
+
+function EngagementPlaceholder({ engagement }) {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      minHeight: 'calc(100vh - 160px)', color: C.textMid, textAlign: 'center', padding: 32,
+    }}>
+      <div style={{ fontSize: 10, color: C.textLight, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>Engagement</div>
+      <h2 style={{ fontSize: 26, fontWeight: 600, color: C.navy, marginBottom: 10, fontFamily: "'Outfit','Noto Sans JP',sans-serif" }}>
+        {engagement?.name || ''}
+      </h2>
+      <div style={{ width: 48, height: 2, background: C.gold, marginBottom: 14 }} />
+      <p style={{ fontSize: 13, color: C.textMid, lineHeight: 1.7, marginBottom: 4 }}>この事業は準備中です</p>
+      {engagement?.description && (
+        <p style={{ fontSize: 11, color: C.textLight }}>{engagement.description}</p>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// EngagementProvider で包んで export
+// ============================================================
+export default function SpanaviApp(props) {
+  return (
+    <EngagementProvider>
+      <SpanaviAppInner {...props} />
+    </EngagementProvider>
+  );
+}
