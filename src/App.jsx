@@ -143,6 +143,16 @@ function MainApp() {
 }
 
 export default function App() {
+  // パスワードリカバリーは全ルートに優先（Supabase recovery メールは Site URL "/" に着地するが
+  // "/" は LandingPage で、LandingPage は recoveryMode を検出しないためパスワード再設定画面に到達できない）
+  const { recoveryMode, session, clearRecoveryMode } = useAuth()
+  if (recoveryMode && session) {
+    return <ResetPasswordPage onComplete={() => {
+      clearRecoveryMode()
+      window.location.href = '/login'
+    }} />
+  }
+
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
