@@ -50,7 +50,7 @@ export default function DealsView() {
     <div style={{ display: 'flex', flexDirection: 'column', background: C.offWhite, margin: -28 /* main padding 相殺 */, marginTop: 0, marginBottom: 0 }}>
       <div style={{ padding: '14px 20px 0', background: C.white }}>
         <div style={{ fontSize: 10, color: C.textLight, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>
-          Seller Sourcing · Pipeline
+          Sourcing · Pipeline
         </div>
         <h1 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 2px', color: C.navy, fontFamily: "'Outfit','Noto Sans JP',sans-serif" }}>
           Deals

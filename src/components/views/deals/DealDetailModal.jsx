@@ -57,7 +57,7 @@ export default function DealDetailModal({ deal, stages, onClose, onUpdate }) {
           background: C.navy,
         }}>
           <div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Seller Sourcing</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Sourcing</div>
             <h2 style={{ fontSize: 16, fontWeight: 600, color: C.white, margin: 0, fontFamily: "'Outfit','Noto Sans JP',sans-serif" }}>
               Deal 詳細
             </h2>
