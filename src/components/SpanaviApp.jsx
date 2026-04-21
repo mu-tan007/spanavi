@@ -16,7 +16,9 @@ import EngagementHeader from './common/EngagementHeader';
 import { EngagementProvider, useEngagements } from '../hooks/useEngagements';
 import MASPSidebar from './common/sidebars/MASPSidebar';
 import SpartiaCareerSidebar from './common/sidebars/SpartiaCareerSidebar';
+import SpartiaCapitalSidebar from './common/sidebars/SpartiaCapitalSidebar';
 import PlaceholderSidebar from './common/sidebars/PlaceholderSidebar';
+import CapitalApp from './views/capital/CapitalApp';
 import RecallModal from './views/RecallModal';
 import AppoReportModal from './views/AppoReportModal';
 import CallFlowView from './views/CallFlowView';
@@ -761,6 +763,16 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
             onLogout={_onLogout}
           />
         );
+        if (engSlug === 'spartia_capital') return (
+          <SpartiaCapitalSidebar
+            currentTab={currentTab}
+            branding={branding}
+            currentUser={currentUser}
+            currentMemberAvatar={_avatar}
+            onUserClick={_onUserClick}
+            onLogout={_onLogout}
+          />
+        );
         return (
           <PlaceholderSidebar
             engagement={currentEngagement}
@@ -1106,7 +1118,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {engSlug === 'spartia_career' && currentTab !== 'applications' && currentTab !== 'deals_career' && currentTab !== 'mypage' && (
           <EngagementComingSoon title={currentEngagement?.name || 'Spartia Career'} subtitle="この画面は Phase 3B 以降で実装予定です" />
         )}
-        {engSlug !== 'seller_sourcing' && engSlug !== 'masp' && engSlug !== 'spartia_career' && (
+        {engSlug === 'spartia_capital' && <CapitalApp />}
+        {engSlug !== 'seller_sourcing' && engSlug !== 'masp' && engSlug !== 'spartia_career' && engSlug !== 'spartia_capital' && (
           <EngagementPlaceholder engagement={currentEngagement} />
         )}
         {/* --- Seller Sourcing views (既存) / MASP / Spartia Careerのmypageも通す --- */}

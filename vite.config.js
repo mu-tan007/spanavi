@@ -53,6 +53,8 @@ export default defineConfig(({ command }) => ({
         clientsClaim: true,
         // Push notification handler (loaded alongside generated SW)
         importScripts: ['sw-push.js'],
+        // Capital (Caesar移植) 取り込みでバンドル肥大化→プリキャッシュ上限を 5MB に拡張
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         // 静的アセットをプリキャッシュ
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,woff,woff2}'],
         // APIコール（Supabase）はネットワークファースト
