@@ -13,9 +13,10 @@ export function useEngagementClients(engagementId) {
       if (!orgId || !engagementId) { setLoading(false); return; }
       const { data, error } = await supabase
         .from('clients')
-        .select('id, name')
+        .select('id, name, status')
         .eq('org_id', orgId)
         .eq('engagement_id', engagementId)
+        .in('status', ['支援中', '停止中'])
         .order('name', { nullsFirst: false });
       if (cancelled) return;
       if (!error && data) {

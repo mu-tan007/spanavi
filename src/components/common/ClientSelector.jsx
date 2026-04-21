@@ -15,7 +15,7 @@ export default function ClientSelector({ clients, selectedClientId, onSelect }) 
         letterSpacing: '0.12em', textTransform: 'uppercase',
         fontFamily: "'Outfit','Noto Sans JP',sans-serif",
       }}>CLIENT</span>
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
         <ClientChip active={selectedClientId === null} label="All" onClick={() => onSelect(null)} />
         {clients.map(c => (
           <ClientChip
@@ -25,6 +25,11 @@ export default function ClientSelector({ clients, selectedClientId, onSelect }) 
             onClick={() => onSelect(c.id)}
           />
         ))}
+        {clients.length === 0 && (
+          <span style={{ fontSize: 11, color: C.textLight, fontStyle: 'italic', marginLeft: 4 }}>
+            対象クライアントがありません
+          </span>
+        )}
       </div>
     </div>
   );
