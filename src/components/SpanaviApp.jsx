@@ -27,6 +27,7 @@ import AppoListView, { MembersView } from './views/AppoListView';
 import PayrollView from './views/PayrollView';
 import ListView from './views/ListView';
 import DatabaseView from './views/DatabaseView';
+import DealsView from './views/DealsView';
 
 import { AVAILABLE_MONTHS } from '../constants/availableMonths';
 import { REWARD_MASTER } from '../constants/rewardMaster';
@@ -342,7 +343,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
-  const _VALID_TABS = ["live","incoming","lists","appo","precheck","crm","members","search","stats","recall","payroll","shift","rules","database","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin"];
+  const _VALID_TABS = ["live","incoming","lists","appo","precheck","deals","crm","members","search","stats","recall","payroll","shift","rules","database","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin"];
   const [currentTab, setCurrentTab] = useState(() => {
     try {
       const saved = localStorage.getItem("masp_v2_currentTab");
@@ -532,6 +533,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     { id: "g_appo", label: "PIPELINE", children: [
       { id: "appo", label: "Appointments" },
       { id: "precheck", label: "Pre-Check" },
+      { id: "deals", label: "Deals" },
     ]},
     { id: "stats", label: "Analytics", children: null },
     { id: "g_other", label: "OPERATIONS", children: [
@@ -1102,6 +1104,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "lists" && <ListView filteredLists={filteredLists} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterType={filterType} setFilterType={setFilterType} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy} setSelectedList={setSelectedList} callListData={callListData} setCallListData={setCallListData} listFormOpen={listFormOpen} setListFormOpen={setListFormOpen} editingListId={editingListId} setEditingListId={setEditingListId} now={now} isAdmin={isAdmin} clientData={clientData} contactsByClient={contactsByClient} />}
         {currentTab === "appo" && <AppoListView appoData={appoData} setAppoData={isAdmin ? setAppoData : null} members={members} setMembers={isAdmin ? setMembers : null} clientData={clientData} rewardMaster={rewardMaster} setCallFlowScreen={setCallFlowScreen} callListData={callListData} contactsByClient={contactsByClient} />}
         {currentTab === "precheck" && <PreCheckView appoData={appoData} setAppoData={isAdmin ? setAppoData : null} setCallFlowScreen={setCallFlowScreen} callListData={callListData} clientData={clientData} contactsByClient={contactsByClient} />}
+        {currentTab === "deals" && <DealsView />}
         {currentTab === "crm" && <CRMView isAdmin={isAdmin} clientData={clientData} setClientData={isAdmin ? setClientData : null} rewardMaster={rewardMaster} contactsByClient={contactsByClient} setContactsByClient={setContactsByClient} />}
 
         {currentTab === "members" && <MembersView members={members} setMembers={isAdmin ? setMembers : null} onDataRefetch={onDataRefetch} />}

@@ -11,6 +11,8 @@ import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { supabase } from '../../lib/supabase';
+import { getOrgId } from '../../lib/orgContext';
 
 const APPO_COLS = [
   { key: 'client', width: 240, align: 'left' },
@@ -348,6 +350,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [detailEditForm, setDetailEditForm] = useState(null);
   const [detailSaving, setDetailSaving] = useState(false);
   const [detailNavigating, setDetailNavigating] = useState(false);
+  // ── Deal化 ──
+  const [detailDealId, setDetailDealId] = useState(null);
+  const [dealizing, setDealizing] = useState(false);
   // 'idle' | 'fetching' | 'transcribing' | 'enhancing' | 'done' | 'error'
   const [transcribeStep, setTranscribeStep] = React.useState('idle');
   // 録音URL差し替え用
@@ -386,7 +391,58 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     setShowRecordingDetail(false);
     setDetailEditing(false); setDetailEditForm(null);
     setShowReplaceUrl(false); setReplaceUrl(''); setReplaceStep('idle');
+    setDetailDealId(null);
+    // 詳細モーダルが開いたら appointments.deal_id を取得
+    const supaId = reportDetail?._supaId;
+    if (!supaId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('appointments')
+        .select('deal_id')
+        .eq('id', supaId)
+        .maybeSingle();
+      if (!cancelled) setDetailDealId(data?.deal_id || null);
+    })();
+    return () => { cancelled = true; };
   }, [reportDetail]);
+
+  // アポからDealを作成
+  const handleDealize = async () => {
+    if (!reportDetail?._supaId || dealizing) return;
+    setDealizing(true);
+    try {
+      const { data: aptRow, error: aErr } = await supabase
+        .from('appointments')
+        .select('id, engagement_id, client_id, item_id, company_name, representative, phone, deal_id')
+        .eq('id', reportDetail._supaId)
+        .single();
+      if (aErr || !aptRow) { alert('アポ情報の取得に失敗しました'); return; }
+      if (aptRow.deal_id) { setDetailDealId(aptRow.deal_id); alert('既にDeal化済みです'); return; }
+      if (!aptRow.engagement_id) { alert('このアポに engagement が紐付いていません'); return; }
+      const { data: newDeal, error: iErr } = await supabase
+        .from('deals')
+        .insert({
+          org_id: getOrgId(),
+          engagement_id: aptRow.engagement_id,
+          client_id: aptRow.client_id,
+          appointment_id: aptRow.id,
+          call_list_item_id: aptRow.item_id,
+          prospect_company: aptRow.company_name || '',
+          prospect_name: aptRow.representative || '',
+          prospect_phone: aptRow.phone || '',
+          stage: 'first_meeting_done',
+        })
+        .select('id')
+        .single();
+      if (iErr || !newDeal) { alert('Dealの作成に失敗しました: ' + (iErr?.message || '')); return; }
+      await supabase.from('appointments').update({ deal_id: newDeal.id }).eq('id', aptRow.id);
+      setDetailDealId(newDeal.id);
+      alert('Dealを作成しました');
+    } finally {
+      setDealizing(false);
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem('spanavi_appo_period', apPeriod);
@@ -1753,6 +1809,27 @@ MASP 篠宮`}
                     style={{ padding: "4px 12px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.4)", background: "transparent", color: '#fff', cursor: detailNavigating ? "default" : "pointer", opacity: detailNavigating ? 0.6 : 1, fontSize: 11, fontFamily: "'Noto Sans JP'" }}>
                     {detailNavigating ? '検索中...' : '架電ページへ'}
                   </button>
+                )}
+                {!detailEditing && (
+                  detailDealId ? (
+                    <span style={{ padding: "4px 10px", fontSize: 11, color: 'rgba(255,255,255,0.75)', fontFamily: "'Noto Sans JP'" }}>
+                      Deal化済み
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={dealizing}
+                      onClick={handleDealize}
+                      style={{
+                        padding: "4px 12px", borderRadius: 4,
+                        border: "1px solid rgba(255,255,255,0.4)", background: "transparent",
+                        color: '#fff', cursor: dealizing ? "default" : "pointer",
+                        opacity: dealizing ? 0.6 : 1, fontSize: 11, fontFamily: "'Noto Sans JP'",
+                      }}
+                    >
+                      {dealizing ? '作成中...' : 'Deal化'}
+                    </button>
+                  )
                 )}
                 {!detailEditing ? (
                   <button onClick={() => { setDetailEditForm({ ...reportDetail, _idx: appoData.findIndex(a => a._supaId === reportDetail._supaId) }); setDetailEditing(true); }}
