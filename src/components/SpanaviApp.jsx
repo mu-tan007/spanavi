@@ -28,6 +28,8 @@ import PayrollView from './views/PayrollView';
 import ListView from './views/ListView';
 import DatabaseView from './views/DatabaseView';
 import DealsView from './views/DealsView';
+import ApplicationsView from './views/career/ApplicationsView';
+import CareerDealsView from './views/career/CareerDealsView';
 
 import { AVAILABLE_MONTHS } from '../constants/availableMonths';
 import { REWARD_MASTER } from '../constants/rewardMaster';
@@ -343,7 +345,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
-  const _VALID_TABS = ["live","incoming","lists","appo","precheck","deals","crm","members","search","stats","recall","payroll","shift","rules","database","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin"];
+  const _VALID_TABS = ["live","incoming","lists","appo","precheck","deals","crm","members","search","stats","recall","payroll","shift","rules","database","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin","applications","deals_career"];
   const [currentTab, setCurrentTab] = useState(() => {
     try {
       const saved = localStorage.getItem("masp_v2_currentTab");
@@ -362,7 +364,13 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     if (engSlug === 'masp') {
       if (currentTab !== 'database' && currentTab !== 'mypage') setCurrentTab('database');
     } else if (engSlug === 'seller_sourcing') {
-      if (currentTab === 'database') setCurrentTab('lists');
+      if (currentTab === 'database' || currentTab === 'applications' || currentTab === 'deals_career') {
+        setCurrentTab('lists');
+      }
+    } else if (engSlug === 'spartia_career') {
+      if (currentTab !== 'applications' && currentTab !== 'deals_career' && currentTab !== 'mypage') {
+        setCurrentTab('applications');
+      }
     }
   }, [engSlug, currentTab]);
   const [now, setNow] = useState(new Date());
@@ -744,6 +752,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         );
         if (engSlug === 'spartia_career') return (
           <SpartiaCareerSidebar
+            currentTab={currentTab}
+            setCurrentTab={setCurrentTab}
             branding={branding}
             currentUser={currentUser}
             currentMemberAvatar={_avatar}
@@ -1091,14 +1101,18 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {engSlug === 'masp' && currentTab !== 'database' && currentTab !== 'mypage' && (
           <EngagementComingSoon title="MASP" subtitle="この画面は準備中です" />
         )}
-        {engSlug === 'spartia_career' && (
-          <EngagementComingSoon title={currentEngagement?.name || 'Spartia Career'} subtitle="スパキャリ専用画面は Phase 3 で実装予定です" />
+        {engSlug === 'spartia_career' && currentTab === 'applications' && <ApplicationsView />}
+        {engSlug === 'spartia_career' && currentTab === 'deals_career' && <CareerDealsView />}
+        {engSlug === 'spartia_career' && currentTab !== 'applications' && currentTab !== 'deals_career' && currentTab !== 'mypage' && (
+          <EngagementComingSoon title={currentEngagement?.name || 'Spartia Career'} subtitle="この画面は Phase 3B 以降で実装予定です" />
         )}
         {engSlug !== 'seller_sourcing' && engSlug !== 'masp' && engSlug !== 'spartia_career' && (
           <EngagementPlaceholder engagement={currentEngagement} />
         )}
-        {/* --- Seller Sourcing views (既存) / MASPモードはdatabase + mypage のみ通す --- */}
-        {(engSlug === 'seller_sourcing' || (engSlug === 'masp' && (currentTab === 'database' || currentTab === 'mypage'))) && (<>
+        {/* --- Seller Sourcing views (既存) / MASP / Spartia Careerのmypageも通す --- */}
+        {(engSlug === 'seller_sourcing'
+          || (engSlug === 'masp' && (currentTab === 'database' || currentTab === 'mypage'))
+          || (engSlug === 'spartia_career' && currentTab === 'mypage')) && (<>
         {currentTab === "live" && <LiveStatusView now={now} callListData={callListData} members={members} isAdmin={isAdmin} isTeamLeader={!isAdmin && currentMemberDetail?.role === 'チームリーダー'} orgId={orgId} />}
         {currentTab === "incoming" && <IncomingCallsView setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "lists" && <ListView filteredLists={filteredLists} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterType={filterType} setFilterType={setFilterType} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy} setSelectedList={setSelectedList} callListData={callListData} setCallListData={setCallListData} listFormOpen={listFormOpen} setListFormOpen={setListFormOpen} editingListId={editingListId} setEditingListId={setEditingListId} now={now} isAdmin={isAdmin} clientData={clientData} contactsByClient={contactsByClient} />}

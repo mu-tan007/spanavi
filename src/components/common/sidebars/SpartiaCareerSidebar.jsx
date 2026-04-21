@@ -1,7 +1,11 @@
 import React from 'react';
-import SidebarShell, { DisabledItem, SectionHeader } from './SidebarShell';
+import SidebarShell, { ActiveItem, DisabledItem, SectionHeader } from './SidebarShell';
+
+const ACTIVE_IDS = new Set(['applications', 'deals_career']);
 
 export default function SpartiaCareerSidebar({
+  currentTab,
+  setCurrentTab,
   branding,
   currentUser,
   currentMemberAvatar,
@@ -38,12 +42,20 @@ export default function SpartiaCareerSidebar({
       currentUser={currentUser}
       currentMemberAvatar={currentMemberAvatar}
       onUserClick={onUserClick}
+      userHighlighted={currentTab === 'mypage'}
       onLogout={onLogout}
     >
       {sections.map(section => (
         <React.Fragment key={section.label}>
           <SectionHeader label={section.label} />
-          {section.items.map(it => (
+          {section.items.map(it => ACTIVE_IDS.has(it.id) ? (
+            <ActiveItem
+              key={it.id}
+              label={it.label}
+              active={currentTab === it.id}
+              onClick={() => setCurrentTab && setCurrentTab(it.id)}
+            />
+          ) : (
             <DisabledItem key={it.id} label={it.label} />
           ))}
         </React.Fragment>
