@@ -3,9 +3,9 @@ import { C } from '../../constants/colors';
 import { useEngagements } from '../../hooks/useEngagements';
 
 // タブ選択でサイドバーが切り替わる対象（実装済み or 枠だけ準備済み）
-const SWITCHABLE_SLUGS = new Set(['masp', 'seller_sourcing', 'spartia_career']);
+const SWITCHABLE_SLUGS = new Set(['masp', 'seller_sourcing', 'spartia_career', 'spartia_capital']);
 // コンテンツまで完全に実装済みのもの（タグを出さない）
-const READY_SLUGS = new Set(['masp', 'seller_sourcing']);
+const READY_SLUGS = new Set(['masp', 'seller_sourcing', 'spartia_capital']);
 
 export default function EngagementHeader({ isMobile = false, onEngagementChange }) {
   const { engagements, currentEngagement, switchEngagement } = useEngagements();
