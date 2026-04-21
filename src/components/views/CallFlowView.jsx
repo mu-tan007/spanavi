@@ -7,7 +7,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getScriptPdfSignedUrl } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -189,6 +189,17 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [quickAppoSlot, setQuickAppoSlot] = useState(null); // { date, time }
   const [qaData, setQaData] = useState(null);
   const [qaSubTab, setQaSubTab] = useState('reception');
+  const [pdfPreview, setPdfPreview] = useState(null); // { name, url }
+  const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
+
+  const handleOpenScriptPdf = async (pdf) => {
+    if (!pdf?.path) return;
+    setPdfPreviewLoading(true);
+    const { url, error } = await getScriptPdfSignedUrl(pdf.path);
+    setPdfPreviewLoading(false);
+    if (error || !url) { alert('PDFを開けませんでした'); return; }
+    setPdfPreview({ name: pdf.name, url });
+  };
   const PAGE_SIZE = 30;
   const sessionIdRef = React.useRef(null);
   const [autoDial, setAutoDial] = useState(() => {
@@ -1443,11 +1454,29 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         </div>
         {scriptPanelOpen && (
           <div style={{ height: 120, overflowY: 'auto', padding: '8px 16px' }}>
-            {scriptTab === 'script' && (
-              list.scriptBody
-                ? renderMarkedScript(list.scriptBody, { fontSize: 11, color: C.textDark, lineHeight: 1.7 })
-                : <div style={{ color: C.textLight, fontSize: 11 }}>スクリプト未設定</div>
-            )}
+            {scriptTab === 'script' && (() => {
+              const pdfs = Array.isArray(list.scriptPdfs) ? list.scriptPdfs : [];
+              return (
+                <>
+                  {list.scriptBody
+                    ? renderMarkedScript(list.scriptBody, { fontSize: 11, color: C.textDark, lineHeight: 1.7 })
+                    : <div style={{ color: C.textLight, fontSize: 11 }}>スクリプト未設定</div>}
+                  {pdfs.length > 0 && (
+                    <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px dashed ' + C.borderLight }}>
+                      <div style={{ fontSize: 9, fontWeight: 600, color: C.navy, marginBottom: 4 }}>添付PDF</div>
+                      {pdfs.map((pdf, i) => (
+                        <button key={pdf.path || i}
+                          onClick={() => handleOpenScriptPdf(pdf)}
+                          title={pdf.name}
+                          style={{ display: 'block', width: '100%', textAlign: 'left', background: '#F8F9FA', border: '1px solid ' + C.borderLight, borderLeft: '2px solid ' + C.navy, borderRadius: 3, padding: '3px 6px', fontSize: 10, color: C.navy, fontWeight: 500, cursor: 'pointer', marginBottom: 3, textDecoration: 'underline', fontFamily: "'Noto Sans JP'", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {pdf.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             {scriptTab === 'rebuttal' && (() => {
               let rd = null;
               try { rd = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
@@ -2133,11 +2162,29 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           </div>
           {/* タブコンテンツ */}
           <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
-            {scriptTab === 'script' && (
-              list.scriptBody
-                ? renderMarkedScript(list.scriptBody, { fontSize: 12, color: '#0D2247', lineHeight: 1.8 })
-                : <div style={{ color: '#9CA3AF', fontSize: 12 }}>スクリプト未設定</div>
-            )}
+            {scriptTab === 'script' && (() => {
+              const pdfs = Array.isArray(list.scriptPdfs) ? list.scriptPdfs : [];
+              return (
+                <>
+                  {list.scriptBody
+                    ? renderMarkedScript(list.scriptBody, { fontSize: 12, color: '#0D2247', lineHeight: 1.8 })
+                    : <div style={{ color: '#9CA3AF', fontSize: 12 }}>スクリプト未設定</div>}
+                  {pdfs.length > 0 && (
+                    <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px dashed #E5E7EB' }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2247', marginBottom: 6 }}>添付PDF</div>
+                      {pdfs.map((pdf, i) => (
+                        <button key={pdf.path || i}
+                          onClick={() => handleOpenScriptPdf(pdf)}
+                          title={pdf.name}
+                          style={{ display: 'block', width: '100%', textAlign: 'left', background: '#F8F9FA', border: '1px solid #E5E7EB', borderLeft: '3px solid #0D2247', borderRadius: 4, padding: '6px 10px', fontSize: 12, color: '#0D2247', fontWeight: 500, cursor: 'pointer', marginBottom: 5, textDecoration: 'underline', fontFamily: "'Noto Sans JP'", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {pdf.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             {scriptTab === 'rebuttal' && (() => {
               let rd = null;
               try { rd = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
@@ -2305,6 +2352,33 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           />
         );
       })()}
+
+      {pdfPreviewLoading && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13 }}>
+          PDFを読み込み中...
+        </div>
+      )}
+
+      {pdfPreview && (
+        <div onClick={() => setPdfPreview(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9600, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width: '95vw', height: '92vh', maxWidth: 1200, borderRadius: 4, background: '#fff', border: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ background: '#0D2247', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, fontWeight: 600, fontSize: 13, color: '#fff' }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pdfPreview.name}</span>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                <a href={pdfPreview.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#fff', textDecoration: 'underline' }}>新規タブで開く</a>
+                <button onClick={() => setPdfPreview(null)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+              </div>
+            </div>
+            <iframe
+              src={pdfPreview.url}
+              title={pdfPreview.name}
+              style={{ flex: 1, border: 'none', width: '100%' }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
