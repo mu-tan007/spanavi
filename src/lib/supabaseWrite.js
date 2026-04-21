@@ -1364,6 +1364,58 @@ export async function updateCallListRebuttal(supaId, rebuttalData) {
   return error
 }
 
+// ============================================================
+// Script PDFs (クライアント別スクリプト添付PDF)
+// ============================================================
+const SCRIPT_PDF_BUCKET = 'script-pdfs'
+
+export async function uploadScriptPdf(listId, file) {
+  if (!listId || !file) return { item: null, error: new Error('invalid args') }
+  const orgId = getOrgId()
+  const safeName = file.name.replace(/[^\w.\-]+/g, '_')
+  const path = `${orgId}/${listId}/${Date.now()}_${safeName}`
+  const { error: upErr } = await supabase.storage
+    .from(SCRIPT_PDF_BUCKET)
+    .upload(path, file, { contentType: 'application/pdf', upsert: false })
+  if (upErr) {
+    console.error('[DB] uploadScriptPdf error:', upErr)
+    return { item: null, error: upErr }
+  }
+  const item = {
+    path,
+    name: file.name,
+    size: file.size,
+    uploaded_at: new Date().toISOString(),
+  }
+  return { item, error: null }
+}
+
+export async function deleteScriptPdfObject(path) {
+  if (!path) return null
+  const { error } = await supabase.storage.from(SCRIPT_PDF_BUCKET).remove([path])
+  if (error) console.error('[DB] deleteScriptPdfObject error:', error)
+  return error
+}
+
+export async function updateCallListScriptPdfs(supaId, pdfs) {
+  if (!supaId) { console.warn('[DB] updateCallListScriptPdfs: no supaId'); return null }
+  const { error } = await supabase
+    .from('call_lists')
+    .update({ script_pdfs: pdfs })
+    .eq('id', supaId)
+  if (error) console.error('[DB] updateCallListScriptPdfs error:', error)
+  return error
+}
+
+export async function getScriptPdfSignedUrl(path, expiresIn = 600) {
+  if (!path) return { url: null, error: new Error('no path') }
+  const { data, error } = await supabase.storage
+    .from(SCRIPT_PDF_BUCKET)
+    .createSignedUrl(path, expiresIn)
+  if (error) console.error('[DB] getScriptPdfSignedUrl error:', error)
+  return { url: data?.signedUrl || null, error }
+}
+
 export async function updateCallListCount(supaId, count) {
   if (!supaId) { console.warn('[DB] updateCallListCount: no supaId'); return null }
   const { error } = await supabase

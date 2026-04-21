@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { C } from '../../constants/colors';
 import { DEFAULT_BASIC_SCRIPT } from '../../constants/scripts';
-import { fetchSetting, saveSetting, updateCallListRebuttal, updateCallListScript } from '../../lib/supabaseWrite';
+import { fetchSetting, saveSetting, updateCallListRebuttal, updateCallListScript, uploadScriptPdf, deleteScriptPdfObject, updateCallListScriptPdfs, getScriptPdfSignedUrl } from '../../lib/supabaseWrite';
 import { renderMarkedScript, toHtml, fromHtml, isSelectionMarked, applyMarker, removeMarker } from '../../utils/scriptMarker';
 
 export default function ScriptView({ isAdmin, clientData, callListData, setCallListData }) {
@@ -58,6 +58,76 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
   const [rebuttalEditData, setRebuttalEditData] = useState(null);
   const [rebuttalEditTab, setRebuttalEditTab] = useState('reception');
   const [rebuttalSaving, setRebuttalSaving] = useState(false);
+
+  // PDF添付
+  const [pdfUploadingListId, setPdfUploadingListId] = useState(null);
+  const [pdfDeletingPath, setPdfDeletingPath] = useState(null);
+  const [pdfPreview, setPdfPreview] = useState(null); // { name, url }
+  const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
+  const pdfFileInputRefs = useRef({});
+
+  const handleUploadPdf = async (listId, file) => {
+    if (!listId || !file) return;
+    if (file.type !== 'application/pdf') { alert('PDFファイルのみアップロードできます'); return; }
+    if (file.size > 20 * 1024 * 1024) { alert('ファイルサイズは20MB以下にしてください'); return; }
+    setPdfUploadingListId(listId);
+    const { item, error } = await uploadScriptPdf(listId, file);
+    if (error || !item) {
+      setPdfUploadingListId(null);
+      alert('PDFのアップロードに失敗しました');
+      return;
+    }
+    const currentList = (callListData || []).find(l => l._supaId === listId);
+    const currentPdfs = Array.isArray(currentList?.scriptPdfs) ? currentList.scriptPdfs : [];
+    const nextPdfs = [...currentPdfs, item];
+    const updErr = await updateCallListScriptPdfs(listId, nextPdfs);
+    setPdfUploadingListId(null);
+    if (updErr) {
+      // ロールバック: アップロード済みオブジェクトを削除
+      await deleteScriptPdfObject(item.path);
+      alert('PDFの保存に失敗しました');
+      return;
+    }
+    if (setCallListData) {
+      setCallListData(prev => prev.map(l => l._supaId === listId ? { ...l, scriptPdfs: nextPdfs } : l));
+    }
+  };
+
+  const handleDeletePdf = async (listId, pdf) => {
+    if (!listId || !pdf?.path) return;
+    if (!window.confirm(`「${pdf.name}」を削除しますか？`)) return;
+    setPdfDeletingPath(pdf.path);
+    const currentList = (callListData || []).find(l => l._supaId === listId);
+    const currentPdfs = Array.isArray(currentList?.scriptPdfs) ? currentList.scriptPdfs : [];
+    const nextPdfs = currentPdfs.filter(p => p.path !== pdf.path);
+    const updErr = await updateCallListScriptPdfs(listId, nextPdfs);
+    if (updErr) {
+      setPdfDeletingPath(null);
+      alert('PDFの削除に失敗しました');
+      return;
+    }
+    await deleteScriptPdfObject(pdf.path);
+    setPdfDeletingPath(null);
+    if (setCallListData) {
+      setCallListData(prev => prev.map(l => l._supaId === listId ? { ...l, scriptPdfs: nextPdfs } : l));
+    }
+  };
+
+  const handleOpenPdf = async (pdf) => {
+    if (!pdf?.path) return;
+    setPdfPreviewLoading(true);
+    const { url, error } = await getScriptPdfSignedUrl(pdf.path);
+    setPdfPreviewLoading(false);
+    if (error || !url) { alert('PDFを開けませんでした'); return; }
+    setPdfPreview({ name: pdf.name, url });
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes && bytes !== 0) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  };
 
 
   const DEFAULT_QA_DATA = {
@@ -288,6 +358,67 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                       )
                     )}
                   </div>
+                  {/* 添付PDFセクション */}
+                  {activeList && (() => {
+                    const listId = activeList._supaId;
+                    const pdfs = Array.isArray(activeList.scriptPdfs) ? activeList.scriptPdfs : [];
+                    const isUploading = pdfUploadingListId === listId;
+                    return (
+                      <div style={{ borderTop: '1px solid #E5E7EB' }}>
+                        <div style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FAFBFC' }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: '#0D2247' }}>添付PDF</span>
+                          {isAdmin && (
+                            <>
+                              <input
+                                ref={el => { if (el) pdfFileInputRefs.current[listId] = el; }}
+                                type="file"
+                                accept="application/pdf"
+                                style={{ display: 'none' }}
+                                onChange={e => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleUploadPdf(listId, file);
+                                  e.target.value = '';
+                                }}
+                              />
+                              <button
+                                disabled={isUploading}
+                                onClick={() => pdfFileInputRefs.current[listId]?.click()}
+                                style={{ fontSize: 10, padding: '2px 10px', border: '1px solid #0D2247', background: 'transparent', color: '#0D2247', borderRadius: 4, cursor: isUploading ? 'not-allowed' : 'pointer', fontWeight: 500, opacity: isUploading ? 0.6 : 1 }}>
+                                {isUploading ? 'アップロード中...' : '＋ 追加'}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                        {pdfs.length === 0 ? (
+                          <div style={{ padding: '6px 16px 12px', fontSize: 11, color: C.textLight, fontStyle: 'italic' }}>未添付</div>
+                        ) : (
+                          <div style={{ padding: '6px 16px 12px' }}>
+                            {pdfs.map((pdf, i) => (
+                              <div key={pdf.path || i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', borderRadius: 3, background: '#F8F9FA', borderLeft: '2px solid #0D2247', marginBottom: 4 }}>
+                                <button
+                                  onClick={() => handleOpenPdf(pdf)}
+                                  style={{ flex: 1, textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontSize: 11, color: '#0D2247', fontWeight: 500, textDecoration: 'underline', fontFamily: "'Noto Sans JP'", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                  title={pdf.name}
+                                >
+                                  {pdf.name}
+                                </button>
+                                <span style={{ fontSize: 10, color: '#9CA3AF', flexShrink: 0 }}>{formatFileSize(pdf.size)}</span>
+                                {isAdmin && (
+                                  <button
+                                    disabled={pdfDeletingPath === pdf.path}
+                                    onClick={() => handleDeletePdf(listId, pdf)}
+                                    style={{ border: '1px solid #fca5a5', background: 'transparent', color: '#dc2626', borderRadius: 3, padding: '1px 6px', fontSize: 10, cursor: pdfDeletingPath === pdf.path ? 'not-allowed' : 'pointer', flexShrink: 0 }}>
+                                    {pdfDeletingPath === pdf.path ? '...' : '削除'}
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {/* アウト返しセクション */}
                   {activeList && (() => {
                     const listId = activeList._supaId;
@@ -465,6 +596,35 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                 </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* PDFプレビューローディング */}
+      {pdfPreviewLoading && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13 }}>
+          PDFを読み込み中...
+        </div>
+      )}
+
+      {/* PDFプレビューモーダル */}
+      {pdfPreview && (
+        <div onClick={() => setPdfPreview(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9600, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width: '95vw', height: '92vh', maxWidth: 1200, borderRadius: 4, background: '#fff', border: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ background: '#0D2247', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, fontWeight: 600, fontSize: 13, color: '#fff' }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pdfPreview.name}</span>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                <a href={pdfPreview.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#fff', textDecoration: 'underline' }}>新規タブで開く</a>
+                <button onClick={() => setPdfPreview(null)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+              </div>
+            </div>
+            <iframe
+              src={pdfPreview.url}
+              title={pdfPreview.name}
+              style={{ flex: 1, border: 'none', width: '100%' }}
+            />
           </div>
         </div>
       )}
