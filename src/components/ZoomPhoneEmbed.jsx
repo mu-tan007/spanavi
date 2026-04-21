@@ -11,17 +11,6 @@ export default function ZoomPhoneEmbed({ currentUser = '' }) {
   const iframeRef = useRef(null);
   const [minimized, setMinimized] = useState(false);
   const [ready, setReady] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
-  const [reconnecting, setReconnecting] = useState(false);
-
-  const handleReconnect = (e) => {
-    e?.stopPropagation();
-    setReady(false);
-    setReconnecting(true);
-    zoomPhone.setReady(false);
-    setReloadKey(k => k + 1);
-    setTimeout(() => setReconnecting(false), 1500);
-  };
 
   // iframeロード時: zp-init-config を送信してソフトフォンを初期化
   const handleLoad = () => {
@@ -141,19 +130,9 @@ export default function ZoomPhoneEmbed({ currentUser = '' }) {
         <span style={{ fontSize: 12, fontWeight: 600 }}>
           Zoom Phone{ready ? ' ✓' : ''}
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            onClick={handleReconnect}
-            disabled={reconnecting}
-            title="Zoom Phoneを再接続（「現在使用できません」表示が出る時用）"
-            style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.4)', color: '#fff', borderRadius: 4, padding: '2px 8px', fontSize: 10, fontWeight: 500, cursor: reconnecting ? 'not-allowed' : 'pointer', opacity: reconnecting ? 0.5 : 1, fontFamily: "'Noto Sans JP', sans-serif" }}>
-            {reconnecting ? '再接続中...' : '再接続'}
-          </button>
-          <span style={{ fontSize: 14 }}>{minimized ? '▲' : '▼'}</span>
-        </div>
+        <span style={{ fontSize: 14 }}>{minimized ? '▲' : '▼'}</span>
       </div>
       <iframe
-        key={reloadKey}
         ref={iframeRef}
         id={IFRAME_ID}
         src={ZOOM_EMBED_URL}
