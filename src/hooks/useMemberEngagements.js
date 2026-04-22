@@ -88,10 +88,12 @@ export function useAllMembersWithEngagements() {
 }
 
 /**
- * 特定 engagement に所属しているメンバー一覧を取得する hook (読み取り専用ビュー用)。
+ * 特定 engagement に所属しているメンバー + 事業内のチーム情報を取得する hook。
+ * teams: [{id, name, display_order, members: [...]}] + 未所属メンバーは末尾の仮想チーム。
  */
 export function useEngagementMembers(engagementId) {
   const [members, setMembers] = useState([]);
+  const [teamGroups, setTeamGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const orgId = getOrgId();
 
@@ -100,22 +102,58 @@ export function useEngagementMembers(engagementId) {
     async function load() {
       if (!orgId || !engagementId) { setLoading(false); return; }
       setLoading(true);
-      const { data, error } = await supabase
-        .from('member_engagements')
-        .select(`member_id, member:members(id, name, email, position, rank, team, start_date, is_active, avatar_url, cumulative_sales, incentive_rate)`)
-        .eq('org_id', orgId)
-        .eq('engagement_id', engagementId);
+      const [memRes, teamRes, tmRes] = await Promise.all([
+        supabase
+          .from('member_engagements')
+          .select(`member_id, member:members(id, name, email, position, rank, team, start_date, is_active, avatar_url, cumulative_sales, incentive_rate)`)
+          .eq('org_id', orgId)
+          .eq('engagement_id', engagementId),
+        supabase
+          .from('teams')
+          .select('id, name, display_order')
+          .eq('org_id', orgId)
+          .eq('engagement_id', engagementId)
+          .eq('status', 'active')
+          .order('display_order'),
+        supabase
+          .from('team_members')
+          .select('member_id, team_id, role, left_at, team:teams!inner(engagement_id)')
+          .eq('org_id', orgId)
+          .eq('team.engagement_id', engagementId)
+          .is('left_at', null),
+      ]);
       if (cancelled) return;
-      if (!error && data) {
-        const rows = data.map(r => r.member).filter(Boolean).filter(m => m.is_active);
-        rows.sort(sortByPositionThenStart);
-        setMembers(rows);
+      const activeMembers = (memRes.data || [])
+        .map(r => r.member).filter(Boolean).filter(m => m.is_active);
+      activeMembers.sort(sortByPositionThenStart);
+      setMembers(activeMembers);
+
+      // member_id → team_id の map (1人は1チーム想定、複数あれば最初の1つ)
+      const memberTeamMap = {};
+      (tmRes.data || []).forEach(r => {
+        if (!memberTeamMap[r.member_id]) memberTeamMap[r.member_id] = r.team_id;
+      });
+
+      // teams 毎にメンバーを束ねる + 未所属を最後に
+      const teams = (teamRes.data || []).map(t => ({ ...t, members: [] }));
+      const teamIndex = {};
+      teams.forEach((t, i) => { teamIndex[t.id] = i; });
+      const unassigned = [];
+      for (const m of activeMembers) {
+        const tid = memberTeamMap[m.id];
+        if (tid != null && teamIndex[tid] != null) {
+          teams[teamIndex[tid]].members.push(m);
+        } else {
+          unassigned.push(m);
+        }
       }
+      if (unassigned.length) teams.push({ id: '__unassigned', name: '未所属', display_order: 9999, members: unassigned });
+      setTeamGroups(teams);
       setLoading(false);
     }
     load();
     return () => { cancelled = true; };
   }, [orgId, engagementId]);
 
-  return { members, loading };
+  return { members, teamGroups, loading };
 }

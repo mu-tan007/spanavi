@@ -553,7 +553,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     { id: "g_other", label: "OPERATIONS", children: [
       { id: "crm", label: "CRM" },
       { id: "members", label: "Members" },
-      { id: "goals", label: "Goals" },
+      { id: "goals", label: "KPI" },
       { id: "payroll", label: "Payroll" },
       { id: "shift", label: "Shifts" },
     ]},
