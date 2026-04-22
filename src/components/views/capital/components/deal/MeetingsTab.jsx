@@ -24,7 +24,7 @@ export default function MeetingsTab({ dealId }) {
       <div style={{ ...card, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60' }}>マネジメント面談ログ</div>
-          <div style={{ fontSize: 11, color: '#A0A0A0', marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: '#706E6B', marginTop: 2 }}>
             経営陣とのセッション記録。議事録を AIチャットに投げると自動でこのタブに記録されます。
           </div>
         </div>
@@ -40,14 +40,14 @@ export default function MeetingsTab({ dealId }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '0.5px solid #E5E5E5' }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60' }}>
-                  {cat.label} <span style={{ fontSize: 11, fontWeight: 400, color: '#A0A0A0', marginLeft: 6 }}>({list.length}件)</span>
+                  {cat.label} <span style={{ fontSize: 11, fontWeight: 400, color: '#706E6B', marginLeft: 6 }}>({list.length}件)</span>
                 </div>
-                <div style={{ fontSize: 10, color: '#A0A0A0', marginTop: 2 }}>{cat.hint}</div>
+                <div style={{ fontSize: 10, color: '#706E6B', marginTop: 2 }}>{cat.hint}</div>
               </div>
             </div>
 
             {isLoading ? (
-              <div style={{ fontSize: 12, color: '#E5E5E5', textAlign: 'center', padding: '16px 0' }}>読み込み中...</div>
+              <div style={{ fontSize: 12, color: '#706E6B', textAlign: 'center', padding: '16px 0' }}>読み込み中...</div>
             ) : list.length === 0 ? (
               <div style={{ padding: '20px 16px', background: '#FAFAFA', border: '0.5px dashed #E5E5E5', borderRadius: 6, fontSize: 12, color: '#706E6B', textAlign: 'center' }}>
                 記録がまだありません。AIチャットに議事録をアップロードするか、カレンダーからこのカテゴリで予定を作成してください。
@@ -60,7 +60,7 @@ export default function MeetingsTab({ dealId }) {
                       {m.held_at ? new Date(m.held_at).toLocaleString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '日程未設定'}
                     </span>
                     {m.attendees?.length > 0 && (
-                      <span style={{ fontSize: 10, color: '#A0A0A0' }}>
+                      <span style={{ fontSize: 10, color: '#706E6B' }}>
                         参加者: {Array.isArray(m.attendees) ? m.attendees.slice(0, 3).join(', ') : ''}
                         {Array.isArray(m.attendees) && m.attendees.length > 3 ? ` 他${m.attendees.length - 3}名` : ''}
                       </span>

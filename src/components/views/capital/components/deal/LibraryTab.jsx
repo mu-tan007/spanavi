@@ -291,17 +291,17 @@ export default function LibraryTab({ dealId }) {
         {/* 一覧領域 */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
           {isLoading ? (
-            <div style={{ textAlign: 'center', color: '#A0A0A0', padding: 40, fontSize: 13 }}>読み込み中...</div>
+            <div style={{ textAlign: 'center', color: '#706E6B', padding: 40, fontSize: 13 }}>読み込み中...</div>
           ) : displayList.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '80px 24px', color: '#A0A0A0' }}>
-              <div style={{ color: '#E5E5E5', marginBottom: 16 }}>
+            <div style={{ textAlign: 'center', padding: '80px 24px', color: '#706E6B' }}>
+              <div style={{ color: '#706E6B', marginBottom: 16 }}>
                 <Icon name="folder-open" size={48} />
               </div>
               <div style={{ fontSize: 13, marginBottom: 6, color: '#706E6B' }}>
                 {files.length === 0 ? 'ファイルがまだありません' : '該当するファイルがありません'}
               </div>
               {files.length === 0 && (
-                <div style={{ fontSize: 11, color: '#A0A0A0', lineHeight: 1.7 }}>
+                <div style={{ fontSize: 11, color: '#706E6B', lineHeight: 1.7 }}>
                   AIチャットタブから資料をアップロードすると、自動的にここに蓄積されます。<br/>
                   または右上の「アップロード」から直接追加できます。
                 </div>
@@ -363,7 +363,7 @@ function FileCard({ file: f, versions, onStar, onDownload, onDelete, onClick, se
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 12, color: '#032D60', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.file_name}</div>
-          <div style={{ fontSize: 10, color: '#A0A0A0', marginTop: 2 }}>{fmtDate(f.uploaded_at)}{f.file_size ? ` · ${fmtSize(f.file_size)}` : ''}</div>
+          <div style={{ fontSize: 10, color: '#706E6B', marginTop: 2 }}>{fmtDate(f.uploaded_at)}{f.file_size ? ` · ${fmtSize(f.file_size)}` : ''}</div>
         </div>
         <button onClick={e => { e.stopPropagation(); onStar() }}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: f.starred ? '#C8A84B' : '#E5E5E5', display: 'flex', alignItems: 'center', padding: 2 }}>
@@ -419,7 +419,7 @@ function FileRow({ file: f, versions, onStar, onDownload, onDelete, onClick, sel
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 12, color: '#032D60', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.file_name}</div>
-        <div style={{ fontSize: 10, color: '#A0A0A0', marginTop: 2, display: 'flex', gap: 8 }}>
+        <div style={{ fontSize: 10, color: '#706E6B', marginTop: 2, display: 'flex', gap: 8 }}>
           <span>{fmtDate(f.uploaded_at)}</span>
           {f.file_size && <span>{fmtSize(f.file_size)}</span>}
           {hasVersions && <span>全{versions.length}版</span>}
@@ -455,12 +455,12 @@ function FileDetailDrawer({ file: f, versions, onClose, onStar, onDownload, onDe
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 500, color: '#032D60', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.file_name}</div>
-          <div style={{ fontSize: 10, color: '#A0A0A0', marginTop: 2 }}>{fmtDate(f.uploaded_at)}{f.file_size ? ` · ${fmtSize(f.file_size)}` : ''}</div>
+          <div style={{ fontSize: 10, color: '#706E6B', marginTop: 2 }}>{fmtDate(f.uploaded_at)}{f.file_size ? ` · ${fmtSize(f.file_size)}` : ''}</div>
         </div>
         <button onClick={onStar} style={{ background: 'none', border: 'none', cursor: 'pointer', color: f.starred ? '#C8A84B' : '#E5E5E5', display: 'flex', alignItems: 'center', padding: 4 }}>
           <Icon name={f.starred ? 'star-fill' : 'star'} size={16} />
         </button>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#A0A0A0', display: 'flex', alignItems: 'center', padding: 4 }}>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#706E6B', display: 'flex', alignItems: 'center', padding: 4 }}>
           <Icon name="close" size={14} />
         </button>
       </div>
@@ -474,7 +474,7 @@ function FileDetailDrawer({ file: f, versions, onClose, onStar, onDownload, onDe
             <img src={f._previewUrl} alt={f.file_name} style={{ maxWidth: '100%', borderRadius: 6 }} />
           )
         ) : (
-          <div style={{ padding: '40px 20px', textAlign: 'center', color: '#A0A0A0', fontSize: 11 }}>
+          <div style={{ padding: '40px 20px', textAlign: 'center', color: '#706E6B', fontSize: 11 }}>
             {canPreview ? 'プレビューを準備中...' : 'このファイル形式はプレビュー非対応。ダウンロードしてください。'}
           </div>
         )}
@@ -508,7 +508,7 @@ function FileDetailDrawer({ file: f, versions, onClose, onStar, onDownload, onDe
                 <div style={{ flex: 1, fontSize: 11, color: v.id === f.id ? '#FFFFFF' : '#706E6B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {v.file_name}
                 </div>
-                <span style={{ fontSize: 10, color: '#A0A0A0' }}>{fmtDate(v.uploaded_at)}</span>
+                <span style={{ fontSize: 10, color: '#706E6B' }}>{fmtDate(v.uploaded_at)}</span>
               </div>
             ))}
           </div>
@@ -533,7 +533,7 @@ function FileDetailDrawer({ file: f, versions, onClose, onStar, onDownload, onDe
 function Meta({ label, value, children }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 11 }}>
-      <div style={{ width: 80, color: '#A0A0A0' }}>{label}</div>
+      <div style={{ width: 80, color: '#706E6B' }}>{label}</div>
       <div style={{ flex: 1, color: '#032D60' }}>{children || value || '—'}</div>
     </div>
   )

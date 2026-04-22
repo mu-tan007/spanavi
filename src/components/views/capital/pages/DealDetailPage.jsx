@@ -47,7 +47,7 @@ const card = { background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 
 function InfoRow({ label, value }) {
   return (
     <div style={{ display: 'flex', borderBottom: '0.5px solid #f0f2f5', padding: '7px 0' }}>
-      <div style={{ fontSize: 11, color: '#A0A0A0', width: 120, flexShrink: 0 }}>{label}</div>
+      <div style={{ fontSize: 11, color: '#706E6B', width: 120, flexShrink: 0 }}>{label}</div>
       <div style={{ fontSize: 12, color: '#032D60' }}>{value || '—'}</div>
     </div>
   )
@@ -62,7 +62,7 @@ function ScoreBar({ label, value }) {
       <div style={{ flex: 1, height: 5, background: '#F3F2F2', borderRadius: 3, overflow: 'hidden' }}>
         <div style={{ width: `${value}%`, height: '100%', background: color, borderRadius: 3 }} />
       </div>
-      <div style={{ fontSize: 11, color: '#A0A0A0', width: 28, textAlign: 'right' }}>{value}</div>
+      <div style={{ fontSize: 11, color: '#706E6B', width: 28, textAlign: 'right' }}>{value}</div>
     </div>
   )
 }
@@ -76,7 +76,7 @@ export default function DealDetailPage() {
   const [newStatus, setNewStatus] = useState('')
   const [reason, setReason] = useState('')
 
-  if (isLoading) return <div style={{ padding: 24, color: '#A0A0A0', fontSize: 13 }}>読み込み中...</div>
+  if (isLoading) return <div style={{ padding: 24, color: '#706E6B', fontSize: 13 }}>読み込み中...</div>
   if (error || !data?.deal) return <div style={{ padding: 24, color: '#EA001E', fontSize: 13 }}>案件が見つかりません</div>
 
   const { deal, company, financials, meetings, todos, valuation, lbo } = data
@@ -94,7 +94,7 @@ export default function DealDetailPage() {
     <div style={{ padding: '20px 24px', maxWidth: '100%' }}>
 
       {/* Breadcrumb */}
-      <div style={{ fontSize: 12, color: '#A0A0A0', marginBottom: 16 }}>
+      <div style={{ fontSize: 12, color: '#706E6B', marginBottom: 16 }}>
         <Link to="/deals" style={{ color: '#032D60' }}>案件一覧</Link>
         <span style={{ margin: '0 6px' }}>/</span>
         <span>{deal.name}</span>
@@ -108,7 +108,7 @@ export default function DealDetailPage() {
               <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 3, fontWeight: 500, background: ss.bg, color: ss.color }}>
                 {ss.label}
               </span>
-              <span style={{ fontSize: 10, color: '#A0A0A0' }}>
+              <span style={{ fontSize: 10, color: '#706E6B' }}>
                 優先度: {deal.priority === 1 ? '高' : deal.priority === 2 ? '中' : '低'}
               </span>
             </div>
@@ -136,7 +136,7 @@ export default function DealDetailPage() {
             {score.total && (
               <div style={{ textAlign: 'center', padding: '8px 16px', background: '#F3F2F2', borderRadius: 8 }}>
                 <div style={{ fontSize: 28, fontWeight: 500, color: '#032D60' }}>{score.total}</div>
-                <div style={{ fontSize: 10, color: '#A0A0A0' }}>買収スコア</div>
+                <div style={{ fontSize: 10, color: '#706E6B' }}>買収スコア</div>
               </div>
             )}
             <button
@@ -197,17 +197,17 @@ export default function DealDetailPage() {
             <ScoreBar label="PMI難度"      value={score.pmi} />
             <ScoreBar label="市場成長性"   value={score.market} />
             <ScoreBar label="バリュエーション" value={score.valuation} />
-            {!score.total && <div style={{ fontSize: 12, color: '#E5E5E5', textAlign: 'center', padding: '20px 0' }}>スコアデータなし</div>}
+            {!score.total && <div style={{ fontSize: 12, color: '#706E6B', textAlign: 'center', padding: '20px 0' }}>スコアデータなし</div>}
           </div>
           <div style={{ ...card, gridColumn: '1 / -1' }}>
             <div style={{ fontSize: 12, fontWeight: 500, color: '#706E6B', marginBottom: 12 }}>TODO</div>
             {todos.length === 0 ? (
-              <div style={{ fontSize: 12, color: '#E5E5E5', textAlign: 'center', padding: '12px 0' }}>タスクはありません</div>
+              <div style={{ fontSize: 12, color: '#706E6B', textAlign: 'center', padding: '12px 0' }}>タスクはありません</div>
             ) : todos.map((t, i) => (
               <div key={t.id} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: i < todos.length-1 ? '0.5px solid #f0f2f5' : 'none', alignItems: 'center' }}>
                 <div style={{ width: 13, height: 13, border: '0.5px solid #E5E5E5', borderRadius: 3 }} />
                 <div style={{ flex: 1, fontSize: 12, color: '#032D60' }}>{t.title}</div>
-                {t.due_date && <div style={{ fontSize: 10, color: '#A0A0A0' }}>{t.due_date}</div>}
+                {t.due_date && <div style={{ fontSize: 10, color: '#706E6B' }}>{t.due_date}</div>}
               </div>
             ))}
           </div>
@@ -272,7 +272,7 @@ export default function DealDetailPage() {
             <h2 style={{ fontSize: 16, fontWeight: 500, color: '#032D60', marginBottom: 20 }}>ステータス変更</h2>
             <form onSubmit={handleStatusChange} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <label style={{ fontSize: 11, color: '#A0A0A0', display: 'block', marginBottom: 4 }}>新しいステータス</label>
+                <label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 4 }}>新しいステータス</label>
                 <select
                   value={newStatus} onChange={e => setNewStatus(e.target.value)}
                   style={{ width: '100%', height: 36, padding: '0 10px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, outline: 'none' }}
@@ -284,7 +284,7 @@ export default function DealDetailPage() {
               </div>
               {['stop','break'].includes(newStatus) && (
                 <div>
-                  <label style={{ fontSize: 11, color: '#A0A0A0', display: 'block', marginBottom: 4 }}>
+                  <label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 4 }}>
                     {newStatus === 'stop' ? 'ストップ理由' : 'ブレイク理由'}
                   </label>
                   <textarea

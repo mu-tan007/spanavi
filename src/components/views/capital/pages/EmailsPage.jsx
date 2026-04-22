@@ -281,7 +281,7 @@ export default function EmailsPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 18, fontWeight: 500, color: '#032D60' }}>メール</h1>
-          <p style={{ fontSize: 12, color: '#A0A0A0', marginTop: 3 }}>
+          <p style={{ fontSize: 12, color: '#706E6B', marginTop: 3 }}>
             未処理 {pendingReview.length} 件　処理済み {processed.length} 件　手動 {manual.length} 件
           </p>
         </div>
@@ -341,9 +341,9 @@ export default function EmailsPage() {
         {/* Email list */}
         <div style={card}>
           {isLoading ? (
-            <div style={{ fontSize: 12, color: '#E5E5E5', textAlign: 'center', padding: '20px 0' }}>読み込み中...</div>
+            <div style={{ fontSize: 12, color: '#706E6B', textAlign: 'center', padding: '20px 0' }}>読み込み中...</div>
           ) : displayed.length === 0 ? (
-            <div style={{ fontSize: 12, color: '#E5E5E5', textAlign: 'center', padding: '20px 0' }}>メールがありません</div>
+            <div style={{ fontSize: 12, color: '#706E6B', textAlign: 'center', padding: '20px 0' }}>メールがありません</div>
           ) : (
             displayed.map((email) => {
               const cls = email.ai_classification
@@ -372,11 +372,11 @@ export default function EmailsPage() {
                     <div style={{ fontSize: 12, fontWeight: 500, color: '#032D60', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {email.subject || '（件名なし）'}
                     </div>
-                    <div style={{ fontSize: 10, color: '#E5E5E5', flexShrink: 0 }}>
+                    <div style={{ fontSize: 10, color: '#706E6B', flexShrink: 0 }}>
                       {formatRelative(email.received_at || email.sent_at || email.created_at)}
                     </div>
                   </div>
-                  <div style={{ fontSize: 11, color: '#A0A0A0', display: 'flex', gap: 8, overflow: 'hidden' }}>
+                  <div style={{ fontSize: 11, color: '#706E6B', display: 'flex', gap: 8, overflow: 'hidden' }}>
                     {email.from_name || email.from_email ? (
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {email.from_name || email.from_email}
@@ -394,7 +394,7 @@ export default function EmailsPage() {
         <div>
           {!selected ? (
             <div style={{ ...card, textAlign: 'center', padding: '60px 24px' }}>
-              <div style={{ fontSize: 13, color: '#E5E5E5' }}>メールを選択してください</div>
+              <div style={{ fontSize: 13, color: '#706E6B' }}>メールを選択してください</div>
             </div>
           ) : (
             <EmailDetail
@@ -417,7 +417,7 @@ export default function EmailsPage() {
 
             {/* Templates */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
-              <div style={{ fontSize: 11, color: '#A0A0A0', alignSelf: 'center', marginRight: 4 }}>テンプレート:</div>
+              <div style={{ fontSize: 11, color: '#706E6B', alignSelf: 'center', marginRight: 4 }}>テンプレート:</div>
               {[['ng','NG通知'],['question','質問'],['meeting','打合せ依頼'],['loi','LOI意向']].map(([k,l]) => (
                 <button key={k} onClick={() => applyTemplate(k)}
                   style={{ height: 26, padding: '0 10px', background: templateKey===k ? '#032D60' : '#F3F2F2', border: '0.5px solid #E5E5E5', borderRadius: 4, fontSize: 11, color: templateKey===k ? '#fff' : '#706E6B', cursor: 'pointer' }}>
@@ -429,7 +429,7 @@ export default function EmailsPage() {
             <form onSubmit={handleSend} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
-                  <label style={{ fontSize: 11, color: '#A0A0A0', display: 'block', marginBottom: 4 }}>関連案件</label>
+                  <label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 4 }}>関連案件</label>
                   <select value={compose.deal_id} onChange={e => setComposeForm(f => ({ ...f, deal_id: e.target.value }))}
                     style={{ width: '100%', height: 36, padding: '0 10px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, outline: 'none' }}>
                     <option value="">選択しない</option>
@@ -437,7 +437,7 @@ export default function EmailsPage() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, color: '#A0A0A0', display: 'block', marginBottom: 4 }}>宛先担当者</label>
+                  <label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 4 }}>宛先担当者</label>
                   <select value={compose.contact_id} onChange={e => setComposeForm(f => ({ ...f, contact_id: e.target.value }))}
                     style={{ width: '100%', height: 36, padding: '0 10px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, outline: 'none' }}>
                     <option value="">選択しない</option>
@@ -446,12 +446,12 @@ export default function EmailsPage() {
                 </div>
               </div>
               <div>
-                <label style={{ fontSize: 11, color: '#A0A0A0', display: 'block', marginBottom: 4 }}>件名</label>
+                <label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 4 }}>件名</label>
                 <input value={compose.subject} onChange={e => setComposeForm(f => ({ ...f, subject: e.target.value }))}
                   style={{ width: '100%', height: 36, padding: '0 12px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, outline: 'none' }} />
               </div>
               <div>
-                <label style={{ fontSize: 11, color: '#A0A0A0', display: 'block', marginBottom: 4 }}>本文</label>
+                <label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 4 }}>本文</label>
                 <textarea value={compose.body} onChange={e => setComposeForm(f => ({ ...f, body: e.target.value }))} rows={10}
                   style={{ width: '100%', padding: '10px 12px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, outline: 'none', resize: 'vertical', lineHeight: 1.8 }} />
               </div>
@@ -496,7 +496,7 @@ function EmailDetail({ email, onApply, onDismiss, applying, applyError }) {
           {(email.to_emails || []).length > 0 && (
             <div>To: {email.to_emails.map(t => t.email).join(', ')}</div>
           )}
-          <div style={{ color: '#E5E5E5' }}>
+          <div style={{ color: '#706E6B' }}>
             {email.received_at ? new Date(email.received_at).toLocaleString('ja-JP') : ''}
           </div>
         </div>
@@ -518,21 +518,21 @@ function EmailDetail({ email, onApply, onDismiss, applying, applyError }) {
           </div>
           {cls.reasoning && (
             <div style={{ fontSize: 12, color: '#4a5a6a', lineHeight: 1.7, marginBottom: hasExtracted || proposals.length ? 12 : 0 }}>
-              <span style={{ color: '#A0A0A0' }}>AI判断: </span>{cls.reasoning}
+              <span style={{ color: '#706E6B' }}>AI判断: </span>{cls.reasoning}
             </div>
           )}
           {hasExtracted && (
             <div style={{ marginBottom: proposals.length ? 12 : 0 }}>
-              <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 6 }}>抽出データ</div>
+              <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 6 }}>抽出データ</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', fontSize: 12, color: '#032D60' }}>
-                {extracted.industry && <div><span style={{ color: '#A0A0A0' }}>業種:</span> {extracted.industry}</div>}
-                {extracted.revenue_jpy != null && <div><span style={{ color: '#A0A0A0' }}>売上:</span> {formatYen(extracted.revenue_jpy) || extracted.revenue_jpy}</div>}
-                {extracted.ebitda_jpy != null && <div><span style={{ color: '#A0A0A0' }}>EBITDA:</span> {formatYen(extracted.ebitda_jpy) || extracted.ebitda_jpy}</div>}
-                {extracted.ask_price_jpy != null && <div><span style={{ color: '#A0A0A0' }}>希望価格:</span> {formatYen(extracted.ask_price_jpy) || extracted.ask_price_jpy}</div>}
-                {extracted.location && <div><span style={{ color: '#A0A0A0' }}>所在地:</span> {extracted.location}</div>}
-                {extracted.intermediary_name && <div><span style={{ color: '#A0A0A0' }}>仲介:</span> {extracted.intermediary_name}</div>}
-                {extracted.contact_name && <div><span style={{ color: '#A0A0A0' }}>担当:</span> {extracted.contact_name}{extracted.contact_title ? ` (${extracted.contact_title})` : ''}</div>}
-                {extracted.contact_email && <div><span style={{ color: '#A0A0A0' }}>メール:</span> {extracted.contact_email}</div>}
+                {extracted.industry && <div><span style={{ color: '#706E6B' }}>業種:</span> {extracted.industry}</div>}
+                {extracted.revenue_jpy != null && <div><span style={{ color: '#706E6B' }}>売上:</span> {formatYen(extracted.revenue_jpy) || extracted.revenue_jpy}</div>}
+                {extracted.ebitda_jpy != null && <div><span style={{ color: '#706E6B' }}>EBITDA:</span> {formatYen(extracted.ebitda_jpy) || extracted.ebitda_jpy}</div>}
+                {extracted.ask_price_jpy != null && <div><span style={{ color: '#706E6B' }}>希望価格:</span> {formatYen(extracted.ask_price_jpy) || extracted.ask_price_jpy}</div>}
+                {extracted.location && <div><span style={{ color: '#706E6B' }}>所在地:</span> {extracted.location}</div>}
+                {extracted.intermediary_name && <div><span style={{ color: '#706E6B' }}>仲介:</span> {extracted.intermediary_name}</div>}
+                {extracted.contact_name && <div><span style={{ color: '#706E6B' }}>担当:</span> {extracted.contact_name}{extracted.contact_title ? ` (${extracted.contact_title})` : ''}</div>}
+                {extracted.contact_email && <div><span style={{ color: '#706E6B' }}>メール:</span> {extracted.contact_email}</div>}
               </div>
               {extracted.deal_description && (
                 <div style={{ marginTop: 6, fontSize: 12, color: '#4a5a6a' }}>{extracted.deal_description}</div>
@@ -541,7 +541,7 @@ function EmailDetail({ email, onApply, onDismiss, applying, applyError }) {
           )}
           {proposals.length > 0 && (
             <div>
-              <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 6 }}>提案アクション</div>
+              <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 6 }}>提案アクション</div>
               <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: '#032D60', lineHeight: 1.8 }}>
                 {proposals.map((p, i) => (
                   <li key={i}>
@@ -580,14 +580,14 @@ function EmailDetail({ email, onApply, onDismiss, applying, applyError }) {
             <div style={{ fontSize: 11, color: '#2E844A', marginTop: 10 }}>✓ 適用済み ({email.reviewed_at ? new Date(email.reviewed_at).toLocaleString('ja-JP') : ''})</div>
           )}
           {email.ai_status === 'dismissed' && (
-            <div style={{ fontSize: 11, color: '#A0A0A0', marginTop: 10 }}>却下済み</div>
+            <div style={{ fontSize: 11, color: '#706E6B', marginTop: 10 }}>却下済み</div>
           )}
         </div>
       )}
 
       {email.has_attachments && (email.attachments || []).length > 0 && (
         <div style={{ marginBottom: 14, fontSize: 12, color: '#706E6B' }}>
-          <span style={{ color: '#A0A0A0' }}>添付: </span>
+          <span style={{ color: '#706E6B' }}>添付: </span>
           {email.attachments.map((a, i) => (
             <span key={i} style={{ marginRight: 10 }}>{a.name}</span>
           ))}

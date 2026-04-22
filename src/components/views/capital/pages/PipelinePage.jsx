@@ -136,11 +136,11 @@ function DecisionCard({ d, onPursue, onPass, onHold, pending }) {
       {/* Meta row */}
       <div style={{ display: 'flex', gap: 14, fontSize: 11, color: '#706E6B', flexWrap: 'wrap' }}>
         <span>{d.industry_label || '業種未設定'}</span>
-        <span style={{ color: '#E5E5E5' }}>│</span>
+        <span style={{ color: '#706E6B' }}>│</span>
         <span>{STAGE_LABEL[d.status]}</span>
-        <span style={{ color: '#E5E5E5' }}>│</span>
+        <span style={{ color: '#706E6B' }}>│</span>
         <span>EV {fmtOku(d.ev_estimate)}</span>
-        <span style={{ color: '#E5E5E5' }}>│</span>
+        <span style={{ color: '#706E6B' }}>│</span>
         <span>スコア <ScoreChip total={d.score?.total} /></span>
       </div>
 
@@ -362,7 +362,7 @@ const kpi = {
 }
 const kpiLabel = { fontSize: 11, color: '#706E6B', fontWeight: 500 }
 const kpiValue = { fontSize: 22, fontWeight: 600, color: '#032D60', marginTop: 4 }
-const kpiSub   = { fontSize: 10, color: '#A0A0A0', marginTop: 2 }
+const kpiSub   = { fontSize: 10, color: '#706E6B', marginTop: 2 }
 
 const PACE_STYLE = {
   over:     { color: '#EA001E', bg: '#fbeaea', label: '🔴' },
@@ -408,7 +408,7 @@ function BudgetSection() {
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: '#032D60' }}>
-          当期M&A投資枠 <span style={{ fontSize: 11, color: '#A0A0A0', marginLeft: 6 }}>{fyLabel}</span>
+          当期M&A投資枠 <span style={{ fontSize: 11, color: '#706E6B', marginLeft: 6 }}>{fyLabel}</span>
         </div>
         <div style={{ fontSize: 11, color: '#706E6B' }}>
           残り {fyRemainingDays}日 / {fyTotalDays}日

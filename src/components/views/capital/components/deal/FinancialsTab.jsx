@@ -3,7 +3,7 @@
 
 const card = { background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 20 }
 const sectionTitle = { fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }
-const sectionHint = { fontSize: 11, color: '#A0A0A0', marginBottom: 14, lineHeight: 1.6 }
+const sectionHint = { fontSize: 11, color: '#706E6B', marginBottom: 14, lineHeight: 1.6 }
 
 function fmtOku(v) {
   if (v == null) return '—'
@@ -91,7 +91,7 @@ export default function FinancialsTab({ financials = [], company }) {
           <MiniMetric label="DIO" value="—" unit="日" />
           <MiniMetric label="CCC" value="—" unit="日" />
         </div>
-        <div style={{ fontSize: 10, color: '#E5E5E5', marginTop: 10 }}>※ 売上債権・買掛金・在庫データが別途必要 (試算表 or 外部DD取込)</div>
+        <div style={{ fontSize: 10, color: '#706E6B', marginTop: 10 }}>※ 売上債権・買掛金・在庫データが別途必要 (試算表 or 外部DD取込)</div>
       </div>
 
       {/* CAPEX */}
@@ -119,7 +119,7 @@ export default function FinancialsTab({ financials = [], company }) {
 function Kpi({ label, value, sub }) {
   return (
     <div style={card}>
-      <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 4, letterSpacing: 1 }}>{label}</div>
+      <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4, letterSpacing: 1 }}>{label}</div>
       <div style={{ fontSize: 22, fontWeight: 600, color: '#032D60' }}>{value}</div>
       <div style={{ fontSize: 11, color: '#706E6B', marginTop: 4 }}>{sub || '—'}</div>
     </div>
@@ -131,7 +131,7 @@ function MiniMetric({ label, value, unit }) {
     <div style={{ padding: 12, background: '#FAFAFA', border: '0.5px solid #E5E5E5', borderRadius: 8 }}>
       <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 16, fontWeight: 500, color: '#032D60' }}>
-        {value}{unit && value !== '—' ? <span style={{ fontSize: 11, color: '#A0A0A0', marginLeft: 4 }}>{unit}</span> : null}
+        {value}{unit && value !== '—' ? <span style={{ fontSize: 11, color: '#706E6B', marginLeft: 4 }}>{unit}</span> : null}
       </div>
     </div>
   )
@@ -152,7 +152,7 @@ function EmptyTable({ headers, rows, note }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
             <tr style={{ background: '#FAFAFA' }}>
-              {headers.map((h, i) => <th key={i} style={{ textAlign: i === 0 ? 'left' : 'right', padding: '8px 12px', fontSize: 11, color: '#A0A0A0', fontWeight: 500, borderBottom: '0.5px solid #E5E5E5' }}>{h}</th>)}
+              {headers.map((h, i) => <th key={i} style={{ textAlign: i === 0 ? 'left' : 'right', padding: '8px 12px', fontSize: 11, color: '#706E6B', fontWeight: 500, borderBottom: '0.5px solid #E5E5E5' }}>{h}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -186,13 +186,13 @@ function PLTable({ financials }) {
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
         <thead>
           <tr style={{ background: '#FAFAFA' }}>
-            <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 11, color: '#A0A0A0', fontWeight: 500, borderBottom: '0.5px solid #E5E5E5' }}>項目</th>
+            <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 11, color: '#706E6B', fontWeight: 500, borderBottom: '0.5px solid #E5E5E5' }}>項目</th>
             {financials.map(f => (
-              <th key={f.id} style={{ textAlign: 'right', padding: '8px 12px', fontSize: 11, color: '#A0A0A0', fontWeight: 500, borderBottom: '0.5px solid #E5E5E5' }}>
+              <th key={f.id} style={{ textAlign: 'right', padding: '8px 12px', fontSize: 11, color: '#706E6B', fontWeight: 500, borderBottom: '0.5px solid #E5E5E5' }}>
                 {f.fiscal_year}年度
               </th>
             ))}
-            <th style={{ textAlign: 'right', padding: '8px 12px', fontSize: 11, color: '#A0A0A0', fontWeight: 500, borderBottom: '0.5px solid #E5E5E5' }}>直近YoY</th>
+            <th style={{ textAlign: 'right', padding: '8px 12px', fontSize: 11, color: '#706E6B', fontWeight: 500, borderBottom: '0.5px solid #E5E5E5' }}>直近YoY</th>
           </tr>
         </thead>
         <tbody>

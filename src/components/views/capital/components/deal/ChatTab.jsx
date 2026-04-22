@@ -294,14 +294,14 @@ export default function ChatTab({ dealId }) {
           }}>
           <span style={{ transform: showFiles ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>▶</span>
           <span>案件ファイル ({files.length})</span>
-          <span style={{ fontSize: 10, color: '#A0A0A0', marginLeft: 8 }}>
+          <span style={{ fontSize: 10, color: '#706E6B', marginLeft: 8 }}>
             IM/財務資料は自動解析されます
           </span>
         </button>
         {showFiles && (
           <div style={{ padding: '4px 16px 10px', maxHeight: 160, overflowY: 'auto' }}>
             {files.length === 0 ? (
-              <div style={{ fontSize: 11, color: '#A0A0A0', padding: '6px 0' }}>まだファイルはありません。下のクリップアイコンからアップロードするか、ドロップしてください。</div>
+              <div style={{ fontSize: 11, color: '#706E6B', padding: '6px 0' }}>まだファイルはありません。下のクリップアイコンからアップロードするか、ドロップしてください。</div>
             ) : files.map(f => (
               <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '0.5px solid #f0f2f5' }}>
                 <span style={{ fontSize: 10, padding: '2px 6px', background: '#F8F8F8', color: '#032D60', borderRadius: 3, flexShrink: 0 }}>
@@ -314,7 +314,7 @@ export default function ChatTab({ dealId }) {
                 {f.parsed_data && Object.keys(f.parsed_data).length > 0 && (
                   <span style={{ fontSize: 10, color: '#2E844A', flexShrink: 0 }}>解析済</span>
                 )}
-                <span style={{ fontSize: 10, color: '#A0A0A0', flexShrink: 0 }}>
+                <span style={{ fontSize: 10, color: '#706E6B', flexShrink: 0 }}>
                   {new Date(f.uploaded_at).toLocaleDateString('ja-JP')}
                 </span>
                 <button onClick={() => deleteFile(f)}
@@ -401,7 +401,7 @@ export default function ChatTab({ dealId }) {
                 <button onClick={() => removeAttachment(i)} style={{ background: 'none', border: 'none', color: '#EA001E', cursor: 'pointer', fontSize: 13 }}>×</button>
               </div>
             ))}
-            <div style={{ fontSize: 10, color: '#A0A0A0', paddingLeft: 4 }}>
+            <div style={{ fontSize: 10, color: '#706E6B', paddingLeft: 4 }}>
               種別を選択: IM / 財務資料 は送信後に自動で財務データ・SWOT・スコアを抽出します
             </div>
           </div>

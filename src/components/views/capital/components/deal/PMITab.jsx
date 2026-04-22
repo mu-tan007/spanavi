@@ -11,7 +11,7 @@ const PHASES = [
 const CATEGORIES = ['org','system','finance','hr','sales','culture','other']
 const CAT_LABELS = { org:'組織', system:'システム', finance:'財務', hr:'人事', sales:'営業', culture:'文化', other:'その他' }
 const STATUS_STYLE = {
-  not_started: { bg: '#F3F2F2', color: '#A0A0A0', label: '未着手' },
+  not_started: { bg: '#F3F2F2', color: '#706E6B', label: '未着手' },
   in_progress: { bg: '#F8F8F8', color: '#032D60', label: '進行中' },
   done:        { bg: '#E1F5EE', color: '#2E844A', label: '完了' },
   delayed:     { bg: '#FAF3E0', color: '#A08040', label: '遅延' },
@@ -112,7 +112,7 @@ export default function PMITab({ dealId }) {
               cursor: 'pointer',
             }}>
             {p.label}
-            <span style={{ fontSize: 10, color: '#E5E5E5', marginLeft: 4 }}>
+            <span style={{ fontSize: 10, color: '#706E6B', marginLeft: 4 }}>
               {tasks.filter(t => t.phase === p.key && t.status === 'done').length}/{tasks.filter(t => t.phase === p.key).length}
             </span>
           </button>
@@ -138,20 +138,20 @@ export default function PMITab({ dealId }) {
         </div>
 
         {filtered.length === 0 && !adding ? (
-          <div style={{ fontSize: 12, color: '#E5E5E5', textAlign: 'center', padding: '20px 0' }}>タスクがありません</div>
+          <div style={{ fontSize: 12, color: '#706E6B', textAlign: 'center', padding: '20px 0' }}>タスクがありません</div>
         ) : (
           <div>
             {filtered.map((t, i) => {
               const ss = STATUS_STYLE[t.status] || STATUS_STYLE.not_started
               return (
                 <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '0.5px solid #f0f2f5' }}>
-                  <span style={{ fontSize: 10, padding: '1px 6px', background: '#F3F2F2', color: '#A0A0A0', borderRadius: 3, flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, padding: '1px 6px', background: '#F3F2F2', color: '#706E6B', borderRadius: 3, flexShrink: 0 }}>
                     {CAT_LABELS[t.category] || t.category}
                   </span>
                   <div style={{ flex: 1, fontSize: 12, color: t.status === 'done' ? '#E5E5E5' : '#FFFFFF', textDecoration: t.status === 'done' ? 'line-through' : 'none' }}>
                     {t.title}
                   </div>
-                  {t.due_date && <div style={{ fontSize: 10, color: '#A0A0A0', flexShrink: 0 }}>{t.due_date}</div>}
+                  {t.due_date && <div style={{ fontSize: 10, color: '#706E6B', flexShrink: 0 }}>{t.due_date}</div>}
                   <select value={t.status} onChange={e => updateStatus(t.id, e.target.value)}
                     style={{ height: 26, padding: '0 6px', border: `0.5px solid ${ss.bg === '#F3F2F2' ? '#E5E5E5' : ss.bg}`, borderRadius: 4, fontSize: 10, background: ss.bg, color: ss.color, outline: 'none', cursor: 'pointer' }}>
                     {Object.entries(STATUS_STYLE).map(([v, s]) => <option key={v} value={v}>{s.label}</option>)}
@@ -181,11 +181,11 @@ export default function PMITab({ dealId }) {
       {/* Day 1 チェックリスト */}
       <div style={{ background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 20 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }}>Day 1 必須チェックリスト</div>
-        <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 14 }}>クロージング当日に完了すべき事項</div>
+        <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 14 }}>クロージング当日に完了すべき事項</div>
         {DAY1_CHECKLIST.map((item, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: i < DAY1_CHECKLIST.length - 1 ? '0.5px solid #f0f2f5' : 'none' }}>
             <div style={{ width: 14, height: 14, border: '0.5px solid #E5E5E5', borderRadius: 3, flexShrink: 0 }} />
-            <span style={{ fontSize: 10, padding: '1px 6px', background: '#F3F2F2', color: '#A0A0A0', borderRadius: 3, flexShrink: 0 }}>{CAT_LABELS[item.category]}</span>
+            <span style={{ fontSize: 10, padding: '1px 6px', background: '#F3F2F2', color: '#706E6B', borderRadius: 3, flexShrink: 0 }}>{CAT_LABELS[item.category]}</span>
             <div style={{ flex: 1, fontSize: 12, color: '#032D60' }}>{item.title}</div>
           </div>
         ))}
@@ -194,7 +194,7 @@ export default function PMITab({ dealId }) {
       {/* シナジー追跡 */}
       <div style={{ background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 20 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }}>シナジー追跡</div>
-        <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 14 }}>コスト削減 / 売上拡大 / CAPEX 効率化の実現額追跡</div>
+        <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 14 }}>コスト削減 / 売上拡大 / CAPEX 効率化の実現額追跡</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
           <SynergyCell label="コストシナジー" target="—" realized="—" hint="本社機能統合・共通購買" />
           <SynergyCell label="売上シナジー" target="—" realized="—" hint="クロスセル・地域展開" />
@@ -208,12 +208,12 @@ export default function PMITab({ dealId }) {
       {/* KPI ダッシュボード */}
       <div style={{ background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 20 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }}>クローズ後 KPI ダッシュボード</div>
-        <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 14 }}>月次で追跡する財務・非財務 KPI の骨組み</div>
+        <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 14 }}>月次で追跡する財務・非財務 KPI の骨組み</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
           {['売上高', 'EBITDA', 'EBITDA マージン', 'フリーCF', '主要顧客離脱', 'キーマン離職', '新規契約', 'NPS / CS'].map(k => (
             <div key={k} style={{ padding: 12, background: '#FAFAFA', border: '0.5px solid #E5E5E5', borderRadius: 6 }}>
-              <div style={{ fontSize: 10, color: '#A0A0A0', marginBottom: 4 }}>{k}</div>
-              <div style={{ fontSize: 14, color: '#E5E5E5', fontWeight: 500 }}>—</div>
+              <div style={{ fontSize: 10, color: '#706E6B', marginBottom: 4 }}>{k}</div>
+              <div style={{ fontSize: 14, color: '#706E6B', fontWeight: 500 }}>—</div>
             </div>
           ))}
         </div>
@@ -222,7 +222,7 @@ export default function PMITab({ dealId }) {
       {/* 経営陣インセンティブ */}
       <div style={{ background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 20 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }}>経営陣インセンティブ設計</div>
-        <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 14 }}>MBO / ESOP / 業績連動報酬 の構造</div>
+        <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 14 }}>MBO / ESOP / 業績連動報酬 の構造</div>
         <div style={{ padding: '20px 16px', background: '#FAFAFA', border: '0.5px dashed #E5E5E5', borderRadius: 6, fontSize: 11, color: '#706E6B', textAlign: 'center' }}>
           エクイティ配分 (オーナー / CEO / 経営チーム / ファンド) + ベスティング条件の設計は次ビルドで追加
         </div>
@@ -237,15 +237,15 @@ function SynergyCell({ label, target, realized, hint }) {
       <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4, fontWeight: 500 }}>{label}</div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
         <div>
-          <div style={{ fontSize: 9, color: '#A0A0A0' }}>目標</div>
+          <div style={{ fontSize: 9, color: '#706E6B' }}>目標</div>
           <div style={{ fontSize: 14, color: '#032D60', fontWeight: 600 }}>{target}</div>
         </div>
         <div>
-          <div style={{ fontSize: 9, color: '#A0A0A0' }}>実現</div>
+          <div style={{ fontSize: 9, color: '#706E6B' }}>実現</div>
           <div style={{ fontSize: 14, color: '#2E844A', fontWeight: 600 }}>{realized}</div>
         </div>
       </div>
-      <div style={{ fontSize: 9, color: '#A0A0A0' }}>{hint}</div>
+      <div style={{ fontSize: 9, color: '#706E6B' }}>{hint}</div>
     </div>
   )
 }

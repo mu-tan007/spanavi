@@ -69,7 +69,7 @@ export default function AdvisorInvitePanel({ dealId, contacts }) {
       {creating && (
         <form onSubmit={createInvitation} style={{ background: '#FAFAFA', borderRadius: 8, padding: 14, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
-            <label style={{ fontSize: 11, color: '#A0A0A0', display: 'block', marginBottom: 3 }}>担当者（任意）</label>
+            <label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 3 }}>担当者（任意）</label>
             <select value={selectedContact} onChange={e => setSelectedContact(e.target.value)}
               style={{ width: '100%', height: 32, padding: '0 8px', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 12, outline: 'none' }}>
               <option value="">指定しない</option>
@@ -77,7 +77,7 @@ export default function AdvisorInvitePanel({ dealId, contacts }) {
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 11, color: '#A0A0A0', display: 'block', marginBottom: 3 }}>有効期限</label>
+            <label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 3 }}>有効期限</label>
             <select value={expiryDays} onChange={e => setExpiryDays(Number(e.target.value))}
               style={{ width: '100%', height: 32, padding: '0 8px', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 12, outline: 'none' }}>
               <option value={3}>3日間</option>
@@ -100,7 +100,7 @@ export default function AdvisorInvitePanel({ dealId, contacts }) {
       )}
 
       {invitations.length === 0 ? (
-        <div style={{ fontSize: 12, color: '#E5E5E5', textAlign: 'center', padding: '12px 0' }}>
+        <div style={{ fontSize: 12, color: '#706E6B', textAlign: 'center', padding: '12px 0' }}>
           招待リンクがありません
         </div>
       ) : (
@@ -117,7 +117,7 @@ export default function AdvisorInvitePanel({ dealId, contacts }) {
                 </div>
                 <div style={{ fontSize: 10, color: statusColor }}>{statusLabel}</div>
               </div>
-              <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 4 }}>
+              <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4 }}>
                 期限: {new Date(inv.expires_at).toLocaleDateString('ja-JP')}
                 {inv.last_accessed_at && ` • 最終アクセス: ${new Date(inv.last_accessed_at).toLocaleDateString('ja-JP')}`}
               </div>
@@ -128,7 +128,7 @@ export default function AdvisorInvitePanel({ dealId, contacts }) {
                     {copied === inv.id ? 'コピーしました' : 'URLをコピー'}
                   </button>
                   <button onClick={() => deactivate(inv.id)}
-                    style={{ height: 24, padding: '0 8px', background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 4, fontSize: 10, color: '#A0A0A0', cursor: 'pointer' }}>
+                    style={{ height: 24, padding: '0 8px', background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 4, fontSize: 10, color: '#706E6B', cursor: 'pointer' }}>
                     無効化
                   </button>
                 </div>

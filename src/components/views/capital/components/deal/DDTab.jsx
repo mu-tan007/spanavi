@@ -13,7 +13,7 @@ const CATEGORIES = [
 ]
 
 const STATUS_STYLE = {
-  pending:      { bg: '#F3F2F2', color: '#A0A0A0', label: '未対応' },
+  pending:      { bg: '#F3F2F2', color: '#706E6B', label: '未対応' },
   requested:    { bg: '#F8F8F8', color: '#032D60', label: '依頼済' },
   received:     { bg: '#E1F5EE', color: '#2E844A', label: '受領済' },
   issue_found:  { bg: '#FAF3E0', color: '#A08040', label: '要確認' },
@@ -189,7 +189,7 @@ export default function DDTab({ dealId }) {
               <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60' }}>
                 {CATEGORIES.find(c => c.key === activeCategory)?.label}
               </div>
-              <div style={{ fontSize: 10, color: '#A0A0A0', marginTop: 2 }}>
+              <div style={{ fontSize: 10, color: '#706E6B', marginTop: 2 }}>
                 {CATEGORIES.find(c => c.key === activeCategory)?.hint}
               </div>
             </div>
@@ -206,9 +206,9 @@ export default function DDTab({ dealId }) {
           </div>
 
           {isLoading ? (
-            <div style={{ fontSize: 12, color: '#E5E5E5', textAlign: 'center', padding: '20px 0' }}>読み込み中...</div>
+            <div style={{ fontSize: 12, color: '#706E6B', textAlign: 'center', padding: '20px 0' }}>読み込み中...</div>
           ) : filtered.length === 0 && !adding ? (
-            <div style={{ fontSize: 12, color: '#E5E5E5', textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ fontSize: 12, color: '#706E6B', textAlign: 'center', padding: '20px 0' }}>
               項目がありません。テンプレートから追加してください。
             </div>
           ) : (

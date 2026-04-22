@@ -98,7 +98,7 @@ export default function QATab({ dealId }) {
       <div style={{ ...card, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 500, color: '#032D60' }}>Q&A シート ({items.length}件)</div>
-          <div style={{ fontSize: 11, color: '#A0A0A0', marginTop: 2, lineHeight: 1.7 }}>
+          <div style={{ fontSize: 11, color: '#706E6B', marginTop: 2, lineHeight: 1.7 }}>
             AIチャット履歴から抽出 / 追加で確認すべき質問を AI が提案 / 手動追加も可能
           </div>
         </div>
@@ -132,15 +132,15 @@ export default function QATab({ dealId }) {
 
       {/* List */}
       {isLoading ? (
-        <div style={{ ...card, textAlign: 'center', color: '#A0A0A0', fontSize: 12 }}>読み込み中...</div>
+        <div style={{ ...card, textAlign: 'center', color: '#706E6B', fontSize: 12 }}>読み込み中...</div>
       ) : items.length === 0 ? (
-        <div style={{ ...card, textAlign: 'center', color: '#A0A0A0', padding: '40px 20px' }}>
+        <div style={{ ...card, textAlign: 'center', color: '#706E6B', padding: '40px 20px' }}>
           <div style={{ fontSize: 13, marginBottom: 8 }}>QAがまだありません</div>
           <div style={{ fontSize: 11 }}>「チャットから抽出」または「追加質問をAI提案」で自動追加できます</div>
         </div>
       ) : items.map(q => (
         <div key={q.id} style={card}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 11, color: '#A0A0A0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 11, color: '#706E6B' }}>
             <span style={{ padding: '2px 8px', background: SOURCE_COLOR[q.source]?.bg || '#F3F2F2', color: SOURCE_COLOR[q.source]?.color || '#706E6B', borderRadius: 3, fontSize: 10 }}>
               {SOURCE_LABEL[q.source] || q.source || '—'}
             </span>
@@ -189,7 +189,7 @@ export default function QATab({ dealId }) {
                   <div style={{ fontSize: 13, color: '#706E6B', lineHeight: 1.8, flex: 1, whiteSpace: 'pre-wrap' }}>{q.answer}</div>
                 </div>
               ) : (
-                <div style={{ fontSize: 11, color: '#E5E5E5', paddingLeft: 32 }}>回答待ち</div>
+                <div style={{ fontSize: 11, color: '#706E6B', paddingLeft: 32 }}>回答待ち</div>
               )}
             </>
           )}

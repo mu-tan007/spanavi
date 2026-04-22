@@ -125,7 +125,7 @@ export default function ValuationTab({ dealId, valuation, financials }) {
       <div style={{ ...card, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 500, color: '#032D60', marginBottom: 4 }}>バリュエーション</div>
-          <div style={{ fontSize: 11, color: '#A0A0A0', lineHeight: 1.7 }}>
+          <div style={{ fontSize: 11, color: '#706E6B', lineHeight: 1.7 }}>
             年倍方式 + EBITDA倍率方式で算定。AI 自動算定 (希望株価含む) も可能です。
           </div>
         </div>
@@ -138,14 +138,14 @@ export default function ValuationTab({ dealId, valuation, financials }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
         <div style={card}>
-          <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 4, letterSpacing: 1 }}>年倍方式</div>
+          <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4, letterSpacing: 1 }}>年倍方式</div>
           <div style={{ fontSize: 22, fontWeight: 600, color: '#032D60' }}>{formatYen(nenKaiResult)}</div>
-          <div style={{ fontSize: 10, color: '#A0A0A0', marginTop: 4 }}>純資産 + 営業利益 × 年数</div>
+          <div style={{ fontSize: 10, color: '#706E6B', marginTop: 4 }}>純資産 + 営業利益 × 年数</div>
         </div>
         <div style={card}>
-          <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 4, letterSpacing: 1 }}>EBITDA倍率方式</div>
+          <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4, letterSpacing: 1 }}>EBITDA倍率方式</div>
           <div style={{ fontSize: 22, fontWeight: 600, color: '#032D60' }}>{formatYen(evEbitdaResult)}</div>
-          <div style={{ fontSize: 10, color: '#A0A0A0', marginTop: 4 }}>EBITDA × 倍率 − ネットデット</div>
+          <div style={{ fontSize: 10, color: '#706E6B', marginTop: 4 }}>EBITDA × 倍率 − ネットデット</div>
         </div>
         <div style={{ ...card, background: '#FAFAFA', border: '0.5px solid #E5E5E5' }}>
           <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4, letterSpacing: 1 }}>希望株価 (IM記載)</div>
@@ -170,7 +170,7 @@ export default function ValuationTab({ dealId, valuation, financials }) {
             <input type="number" value={form.nen_kai_annual_profit} onChange={e => set('nen_kai_annual_profit', e.target.value)} style={inp} placeholder="例: 30000000" />
           </div>
         </div>
-        <div style={{ marginTop: 10, fontSize: 11, color: '#A0A0A0' }}>
+        <div style={{ marginTop: 10, fontSize: 11, color: '#706E6B' }}>
           算定式: {formatYen(Number(form.nen_kai_net_assets) || 0)} + {formatYen(Number(form.nen_kai_annual_profit) || 0)} × {form.nen_kai_years}年 = <strong style={{ color: '#032D60' }}>{formatYen(nenKaiResult)}</strong>
         </div>
       </div>
@@ -189,7 +189,7 @@ export default function ValuationTab({ dealId, valuation, financials }) {
             </div>
           </div>
         </div>
-        <div style={{ marginTop: 10, fontSize: 11, color: '#A0A0A0' }}>
+        <div style={{ marginTop: 10, fontSize: 11, color: '#706E6B' }}>
           EV = {formatYen(latest?.ebitda || 0)} × {form.ev_ebitda_multiple} = {formatYen(ev)} / ネットデット控除 {formatYen(netDebt)} / <strong style={{ color: '#032D60' }}>Equity: {formatYen(evEbitdaResult)}</strong>
         </div>
       </div>

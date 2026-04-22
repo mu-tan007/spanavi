@@ -102,7 +102,7 @@ export default function FirmContractsPanel({ intermediaryId, intermediaryName })
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div>
           <div style={{ fontSize: 12, fontWeight: 500, color: '#706E6B' }}>包括契約 (NDA・アドバイザリー等)</div>
-          <div style={{ fontSize: 10, color: '#A0A0A0', marginTop: 2 }}>案件横断で有効なマスター契約</div>
+          <div style={{ fontSize: 10, color: '#706E6B', marginTop: 2 }}>案件横断で有効なマスター契約</div>
         </div>
         <button onClick={() => setShowForm(v => !v)}
           style={{ height: 28, padding: '0 10px', background: '#032D60', border: 'none', borderRadius: 5, fontSize: 11, color: '#fff', cursor: 'pointer' }}>
@@ -113,26 +113,26 @@ export default function FirmContractsPanel({ intermediaryId, intermediaryName })
       {showForm && (
         <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 14, padding: 12, background: '#FAFAFA', borderRadius: 8 }}>
           <div>
-            <label style={{ fontSize: 10, color: '#A0A0A0', display: 'block', marginBottom: 4 }}>種別 *</label>
+            <label style={{ fontSize: 10, color: '#706E6B', display: 'block', marginBottom: 4 }}>種別 *</label>
             <select value={form.contract_type} onChange={e => setForm(f => ({ ...f, contract_type: e.target.value }))} style={inp}>
               {CONTRACT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 10, color: '#A0A0A0', display: 'block', marginBottom: 4 }}>締結日</label>
+            <label style={{ fontSize: 10, color: '#706E6B', display: 'block', marginBottom: 4 }}>締結日</label>
             <input type="date" value={form.signed_at} max={today} onChange={e => setForm(f => ({ ...f, signed_at: e.target.value }))} style={inp} />
           </div>
           <div>
-            <label style={{ fontSize: 10, color: '#A0A0A0', display: 'block', marginBottom: 4 }}>有効期限 (無期限なら空)</label>
+            <label style={{ fontSize: 10, color: '#706E6B', display: 'block', marginBottom: 4 }}>有効期限 (無期限なら空)</label>
             <input type="date" value={form.expires_at} onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))} style={inp} />
           </div>
           <div>
-            <label style={{ fontSize: 10, color: '#A0A0A0', display: 'block', marginBottom: 4 }}>原本PDF</label>
+            <label style={{ fontSize: 10, color: '#706E6B', display: 'block', marginBottom: 4 }}>原本PDF</label>
             <input ref={fileRef} type="file" accept=".pdf" onChange={e => setPendingFile(e.target.files?.[0] || null)}
               style={{ fontSize: 11 }} />
           </div>
           <div style={{ gridColumn: '1 / -1' }}>
-            <label style={{ fontSize: 10, color: '#A0A0A0', display: 'block', marginBottom: 4 }}>メモ</label>
+            <label style={{ fontSize: 10, color: '#706E6B', display: 'block', marginBottom: 4 }}>メモ</label>
             <input type="text" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={inp} placeholder="条件・特記事項" />
           </div>
           <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
@@ -145,7 +145,7 @@ export default function FirmContractsPanel({ intermediaryId, intermediaryName })
       )}
 
       {contracts.length === 0 ? (
-        <div style={{ fontSize: 11, color: '#E5E5E5', textAlign: 'center', padding: '16px 0' }}>まだ契約がありません</div>
+        <div style={{ fontSize: 11, color: '#706E6B', textAlign: 'center', padding: '16px 0' }}>まだ契約がありません</div>
       ) : (
         contracts.map((c, i) => {
           const expired = c.expires_at && c.expires_at < today
@@ -160,7 +160,7 @@ export default function FirmContractsPanel({ intermediaryId, intermediaryName })
                 {c.expires_at && <span style={{ color: expired ? '#EA001E' : '#706E6B', marginLeft: 10 }}>
                   {expired ? '⚠ 期限切れ ' : '有効期限 '}{c.expires_at}
                 </span>}
-                {c.notes && <div style={{ fontSize: 10, color: '#A0A0A0', marginTop: 2 }}>{c.notes}</div>}
+                {c.notes && <div style={{ fontSize: 10, color: '#706E6B', marginTop: 2 }}>{c.notes}</div>}
               </div>
               {c.file_name && (
                 <button onClick={() => download(c)}
