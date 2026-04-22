@@ -811,7 +811,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         display: 'flex', alignItems: 'stretch', justifyContent: 'space-between',
         padding: isMobile ? '0 12px' : '0 24px', boxSizing: 'border-box',
       }} onClick={() => setShowBellDropdown(false)}>
-        <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, overflowX: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, overflowX: isMobile ? 'auto' : 'visible', minWidth: 0 }}>
           {isMobile && (
             <button onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(true); }} style={{
               background: 'none', border: 'none', cursor: 'pointer', padding: 6,
