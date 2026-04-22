@@ -91,7 +91,7 @@ export default function DealDetailPage() {
   }
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '100%' }}>
+    <div style={{ padding: '20px 24px', maxWidth: '100%', animation: 'fadeIn 0.3s ease' }}>
 
       {/* Breadcrumb */}
       <div style={{ fontSize: 12, color: '#706E6B', marginBottom: 16 }}>

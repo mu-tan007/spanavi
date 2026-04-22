@@ -37,7 +37,7 @@ export default function ManagerAdminView({ currentUser, members = [], appoData =
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         bleed={false}
         eyebrow="Admin · マネージャー"

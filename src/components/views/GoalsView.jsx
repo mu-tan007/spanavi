@@ -6,7 +6,7 @@ import PageHeader from '../common/PageHeader';
 // Sourcing の独立ページ「KPI」。全員閲覧可、編集は admin 全権限 or 非admin は自分のみ。
 export default function GoalsView({ isAdmin }) {
   return (
-    <div style={{ background: C.offWhite, minHeight: 'calc(100vh - 120px)' }}>
+    <div style={{ background: C.offWhite, minHeight: 'calc(100vh - 120px)', animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         eyebrow="Sourcing · KPI"
         title="KPI 目標"

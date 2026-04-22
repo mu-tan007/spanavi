@@ -170,7 +170,7 @@ export default function DashboardPage() {
     .slice(0, 6)
 
   return (
-    <div style={{ maxWidth: '100%' }}>
+    <div style={{ maxWidth: '100%', animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         bleed={false}
         eyebrow="Spartia Capital · ダッシュボード"

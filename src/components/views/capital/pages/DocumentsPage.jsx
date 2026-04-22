@@ -161,7 +161,7 @@ export default function DocumentsPage() {
   const isLoading = tab === 'files' ? filesLoading : tab === 'contracts' ? contractsLoading : templatesLoading
 
   return (
-    <div style={{ maxWidth: '100%' }}>
+    <div style={{ maxWidth: '100%', animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         bleed={false}
         eyebrow="Spartia Capital · 書類"

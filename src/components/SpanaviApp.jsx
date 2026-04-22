@@ -51,7 +51,6 @@ import ShiftManagementView from './views/ShiftManagementView';
 import RulesView from './views/RulesView';
 import PlaceholderView from './views/PlaceholderView';
 import PerformanceView from './views/PerformanceView';
-import TeleappoTipsView from './views/TeleappoTipsView';
 import InternRulesView from './views/InternRulesView';
 import AIAssistantView from './views/AIAssistantView';
 import AdminView from './views/AdminView';
@@ -560,7 +559,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     { id: "g_education", label: "DEVELOPMENT", children: [
       { id: "edu_performance", label: "Performance" },
       { id: "edu_script", label: "Scripts" },
-      { id: "edu_tips", label: "Mastery" },
       { id: "edu_rules", label: "22 Rules" },
       { id: "edu_roleplay", label: "Role Play" },
     ]},
@@ -1149,7 +1147,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "mypage" && !isAdmin && <MyPageView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} />}
         {currentTab === "edu_performance" && <PerformanceView members={members} currentUser={currentUser} appoData={appoData} />}
         {currentTab === "edu_script" && <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
-        {currentTab === "edu_tips" && <TeleappoTipsView />}
         {currentTab === "edu_rules" && <InternRulesView />}
         {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} />}
         {currentTab === "ai" && <AIAssistantView appoData={appoData} members={members} callListData={callListData} industryRules={industryRules} currentUser={currentUser} />}

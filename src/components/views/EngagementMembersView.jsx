@@ -35,7 +35,7 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
   }
 
   return (
-    <div style={{ background: C.offWhite, minHeight: 'calc(100vh - 120px)' }}>
+    <div style={{ background: C.offWhite, minHeight: 'calc(100vh - 120px)', animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         bleed={bleed}
         eyebrow={`${engagement.name} · 所属メンバー`}

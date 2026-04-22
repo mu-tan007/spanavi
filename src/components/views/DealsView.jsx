@@ -48,7 +48,7 @@ export default function DealsView() {
   const openDeals = deals.filter(d => d.closed_status !== 'lost');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', background: C.offWhite }}>
+    <div style={{ display: 'flex', flexDirection: 'column', background: C.offWhite, animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         compact
         eyebrow="Sourcing · Pipeline"

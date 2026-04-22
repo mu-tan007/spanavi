@@ -232,7 +232,7 @@ export default function AgencyRegistryPage() {
   const selNoContact = selectedAgencies.filter(a => !a.contact_email && !a.contact_form_url)
 
   return (
-    <div>
+    <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         bleed={false}
         eyebrow="Spartia Capital · Registry"

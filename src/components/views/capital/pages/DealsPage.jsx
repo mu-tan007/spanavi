@@ -87,7 +87,7 @@ export default function DealsPage() {
   const broken  = deals.filter(d => d.status === 'break')
 
   return (
-    <div style={{ maxWidth: '100%' }}>
+    <div style={{ maxWidth: '100%', animation: 'fadeIn 0.3s ease' }}>
 
       <PageHeader
         bleed={false}

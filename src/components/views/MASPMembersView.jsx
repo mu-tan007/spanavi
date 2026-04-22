@@ -34,7 +34,7 @@ export default function MASPMembersView({ isAdmin }) {
   }
 
   return (
-    <div style={{ background: C.offWhite, minHeight: 'calc(100vh - 120px)' }}>
+    <div style={{ background: C.offWhite, minHeight: 'calc(100vh - 120px)', animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         eyebrow="MASP · 全社従業員"
         title="Members"
