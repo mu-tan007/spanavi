@@ -5,9 +5,10 @@ import { getOrgId } from '../../lib/orgContext';
 import { useKpiGoals, KPI_TYPES, PERIOD_TYPES } from '../../hooks/useKpiGoals';
 
 // Sourcing の teams / members / kpi_goals を束ねた目標設定パネル
-// AdminView 内の 1 タブとして使う
+// 全員閲覧可、編集は admin 全権限 or 非admin は自分の member-scope のみ
 export default function GoalSettingsPanel({ isAdmin, onToast }) {
   const [engagementId, setEngagementId] = useState(null);
+  const [currentMemberId, setCurrentMemberId] = useState(null);
   const [scopeType, setScopeType] = useState('org');   // 'org' | 'team' | 'member'
   const [teams, setTeams] = useState([]);
   const [members, setMembers] = useState([]);
@@ -17,17 +18,34 @@ export default function GoalSettingsPanel({ isAdmin, onToast }) {
 
   const orgId = getOrgId();
 
-  // Sourcing engagement_id を取得
+  // Sourcing engagement_id + 現在ログインユーザの member_id を取得
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from('engagements')
+      const { data: eng } = await supabase.from('engagements')
         .select('id')
         .eq('org_id', orgId)
         .eq('slug', 'seller_sourcing')
         .maybeSingle();
-      if (data?.id) setEngagementId(data.id);
+      if (eng?.id) setEngagementId(eng.id);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: me } = await supabase.from('members')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('org_id', orgId)
+          .maybeSingle();
+        if (me?.id) {
+          setCurrentMemberId(me.id);
+          // 非 admin は初期状態で「自分」スコープを開く
+          if (!isAdmin) {
+            setScopeType('member');
+            setSelectedMember(me.id);
+          }
+        }
+      }
     })();
-  }, [orgId]);
+  }, [orgId, isAdmin]);
 
   // teams / members 取得
   useEffect(() => {
@@ -70,6 +88,13 @@ export default function GoalSettingsPanel({ isAdmin, onToast }) {
     engagementId, scopeType, scopeId, effectiveFrom,
   });
 
+  // このスコープを現在のユーザが編集できるか
+  const canEditThisScope = useMemo(() => {
+    if (isAdmin) return true;
+    if (scopeType === 'member' && selectedMember && selectedMember === currentMemberId) return true;
+    return false;
+  }, [isAdmin, scopeType, selectedMember, currentMemberId]);
+
   // goals を { kpi_type + period_type: target_value } で引きやすくする
   const goalMap = useMemo(() => {
     const map = {};
@@ -90,7 +115,10 @@ export default function GoalSettingsPanel({ isAdmin, onToast }) {
   }, [goalMap]);
 
   const handleSave = async () => {
-    if (!isAdmin) return;
+    if (!canEditThisScope) {
+      onToast?.('このスコープは編集権限がありません', 'error');
+      return;
+    }
     if (scopeType !== 'org' && !scopeId) {
       onToast?.('対象を選択してください', 'error');
       return;
@@ -228,7 +256,7 @@ export default function GoalSettingsPanel({ isAdmin, onToast }) {
                 </td>
                 {PERIOD_TYPES.map(p => {
                   const key = `${k.id}__${p.id}`;
-                  const disabled = !isAdmin || (k.isRate && p.id === 'daily');
+                  const disabled = !canEditThisScope || (k.isRate && p.id === 'daily');
                   return (
                     <td key={p.id} style={td}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -261,7 +289,7 @@ export default function GoalSettingsPanel({ isAdmin, onToast }) {
       </div>
 
       {/* 保存 */}
-      {isAdmin && (
+      {canEditThisScope && (
         <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
           <button
             onClick={handleSave}
@@ -275,9 +303,9 @@ export default function GoalSettingsPanel({ isAdmin, onToast }) {
           >保存</button>
         </div>
       )}
-      {!isAdmin && (
+      {!canEditThisScope && (
         <div style={{ marginTop: 12, fontSize: 11, color: C.textLight, textAlign: 'right' }}>
-          ※ 閲覧のみ (編集は admin)
+          ※ 閲覧のみ {isAdmin ? '' : '(自分の目標のみ編集可)'}
         </div>
       )}
     </div>

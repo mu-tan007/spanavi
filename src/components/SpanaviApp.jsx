@@ -31,6 +31,7 @@ import PayrollView from './views/PayrollView';
 import ListView from './views/ListView';
 import DatabaseView from './views/DatabaseView';
 import DealsView from './views/DealsView';
+import GoalsView from './views/GoalsView';
 import ApplicationsView from './views/career/ApplicationsView';
 import CareerDealsView from './views/career/CareerDealsView';
 import MASPMembersView from './views/MASPMembersView';
@@ -350,7 +351,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
-  const _VALID_TABS = ["live","incoming","lists","appo","precheck","deals","crm","members","search","stats","recall","payroll","shift","rules","database","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin","applications","deals_career","all_members","members_career"];
+  const _VALID_TABS = ["live","incoming","lists","appo","precheck","deals","crm","members","goals","search","stats","recall","payroll","shift","rules","database","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin","applications","deals_career","all_members","members_career"];
   const [currentTab, setCurrentTab] = useState(() => {
     try {
       const saved = localStorage.getItem("masp_v2_currentTab");
@@ -552,6 +553,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     { id: "g_other", label: "OPERATIONS", children: [
       { id: "crm", label: "CRM" },
       { id: "members", label: "Members" },
+      { id: "goals", label: "Goals" },
       { id: "payroll", label: "Payroll" },
       { id: "shift", label: "Shifts" },
     ]},
@@ -1135,6 +1137,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "crm" && <CRMView isAdmin={isAdmin} clientData={clientData} setClientData={isAdmin ? setClientData : null} rewardMaster={rewardMaster} contactsByClient={contactsByClient} setContactsByClient={setContactsByClient} />}
 
         {currentTab === "members" && <EngagementMembersView />}
+        {currentTab === "goals" && <GoalsView isAdmin={isAdmin} />}
         {currentTab === "search" && <CompanySearchView importedCSVs={importedCSVs} callListData={callListData} setCallingScreen={setCallingScreen} setImportedCSVs={setImportedCSVs} clientData={clientData} currentUser={currentUser} members={members} setCallFlowScreen={setCallFlowScreen} rewardMaster={rewardMaster} />}
         {currentTab === "stats" && <StatsView callListData={callListData} currentUser={currentUser} appoData={appoData} members={members} now={now} />}
         {currentTab === "recall" && <RecallListView callListData={callListData} supaRecalls={supaRecalls} onRecallComplete={handleSupaRecallComplete} members={memberNames} currentUser={currentUser} isAdmin={isAdmin} isManagerRole={isManagerRole} onRefresh={fetchSupaRecalls} setCallFlowScreen={setCallFlowScreen} />}
