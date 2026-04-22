@@ -1678,6 +1678,21 @@ export async function fetchLatestSessionPerList(supaIds) {
   return { data: map, error: null }
 }
 
+// リスト単位の架電履歴を新しい順に取得（架電履歴パネル用）
+export async function fetchCallSessionsByList(listSupaId, limit = 50) {
+  if (!listSupaId) return { data: [], error: null }
+  const { data, error } = await supabase
+    .from('call_sessions')
+    .select('id, caller_name, start_no, end_no, started_at, status_filter, revenue_min, revenue_max, pref_filter')
+    .eq('list_supa_id', listSupaId)
+    .not('start_no', 'is', null)
+    .not('end_no', 'is', null)
+    .order('started_at', { ascending: false })
+    .limit(limit)
+  if (error) console.error('[DB] fetchCallSessionsByList error:', error)
+  return { data: data || [], error }
+}
+
 export async function fetchRecentDuplicateSession(listId, startNo, endNo) {
   const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString()
   let query = supabase

@@ -6,6 +6,7 @@ import { getIndustryCategory } from '../../utils/industry';
 import { deleteCallRecordsByListId, deleteCallListItemsByListId, updateCallListCount, fetchCallListItems, insertCallListItems } from '../../lib/supabaseWrite';
 import { Badge } from '../common/Badge';
 import { ScorePill } from '../common/ScorePill';
+import CallHistoryPanel from './CallHistoryPanel';
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -353,6 +354,8 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             <span style={{ fontWeight: 600, color: '#0D2247' }}>備考: </span>{list.notes}
           </div>
         )}
+
+        <CallHistoryPanel listSupaId={list._supaId} />
 
         {/* 架電開始 + CSV取込 */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>

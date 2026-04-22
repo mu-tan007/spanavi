@@ -371,6 +371,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           caller_name: currentUser || '不明',
           start_no: startNo ?? null, end_no: endNo ?? null, total_count: totalCount,
           started_at: new Date().toISOString(), finished_at: null, last_called_at: null,
+          status_filter: Array.isArray(statusFilter) ? statusFilter : (statusFilter ? [statusFilter] : []),
+          revenue_min: initialRevenueMin != null && initialRevenueMin !== '' ? Number(initialRevenueMin) : null,
+          revenue_max: initialRevenueMax != null && initialRevenueMax !== '' ? Number(initialRevenueMax) : null,
+          pref_filter: Array.isArray(initialPrefFilter) ? initialPrefFilter : (initialPrefFilter ? [initialPrefFilter] : []),
         }).then(() => {
           if (defaultItemId) return;
           if (_cfSlackNotified.has(cacheKey)) return;
