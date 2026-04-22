@@ -202,7 +202,8 @@ export default function AgencyRegistryPage() {
   }
 
   const selectStyle = { height: 32, padding: '0 8px', background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 12, outline: 'none', color: '#032D60' }
-  const th = { fontSize: 10, color: '#181818', fontWeight: 500, padding: '6px 4px', textAlign: 'center', lineHeight: 1.3 }
+  // color は <tr> の背景に合わせて親から継承させる (navy bg → 白、grey bg → dark)
+  const th = { fontSize: 10, fontWeight: 500, padding: '6px 4px', textAlign: 'center', lineHeight: 1.3 }
   const td = { fontSize: 11, color: '#032D60', padding: '6px 4px', textAlign: 'center', borderBottom: '0.5px solid #e0e8f4' }
 
   function Pager() {
@@ -327,7 +328,7 @@ export default function AgencyRegistryPage() {
       <div style={{ overflowX: 'auto', border: '1px solid #E5E5E5', borderRadius: 4 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1400 }}>
           <thead>
-            <tr style={{ background: '#032D60' }}>
+            <tr style={{ background: '#032D60', color: '#FFFFFF' }}>
               <th rowSpan={3} style={{ ...th, width: 32 }}><input type="checkbox" checked={selectAll} onChange={toggleSelectAll} style={{ width: 13, height: 13 }} /></th>
               <th rowSpan={3} style={{ ...th, width: 36 }}>No</th>
               <th colSpan={4} style={{ ...th, borderBottom: '1px solid #E5E5E5', borderRight: '1px solid #E5E5E5' }}>基本情報</th>
@@ -336,7 +337,7 @@ export default function AgencyRegistryPage() {
               <th rowSpan={3} style={{ ...th, width: 90 }}>連絡先</th>
               <th rowSpan={3} style={{ ...th, width: 70 }}>ステータス</th>
             </tr>
-            <tr style={{ background: '#032D60' }}>
+            <tr style={{ background: '#032D60', color: '#FFFFFF' }}>
               <th rowSpan={2} style={{ ...th, minWidth: 180, textAlign: 'left', paddingLeft: 8 }}>支援機関名</th>
               <th rowSpan={2} style={{ ...th, width: 56 }}>本店<br/>所在地</th>
               <th rowSpan={2} style={{ ...th, width: 48 }}>M&A<br/>専従<br/>者数</th>
@@ -346,7 +347,7 @@ export default function AgencyRegistryPage() {
               <th colSpan={4} style={{ ...th, borderBottom: '1px solid #E5E5E5', fontSize: 9 }}>譲渡側</th>
               <th colSpan={2} style={{ ...th, borderBottom: '1px solid #E5E5E5', borderRight: '1px solid #E5E5E5', fontSize: 9 }}>譲受側</th>
             </tr>
-            <tr style={{ background: '#E5E5E5' }}>
+            <tr style={{ background: '#E5E5E5', color: '#181818' }}>
               <th style={{ ...th, width: 40 }}>成功<br/>報酬</th><th style={{ ...th, width: 50 }}>算定<br/>方式</th>
               <th style={{ ...th, width: 52 }}>最低<br/>手数料</th><th style={{ ...th, width: 40 }}>その他</th>
               <th style={{ ...th, width: 40 }}>成功<br/>報酬</th><th style={{ ...th, width: 50, borderRight: '1px solid #E5E5E5' }}>算定<br/>方式</th>

@@ -39,7 +39,7 @@ function KpiCard({ label, value, sub, danger }) {
   return (
     <div style={{ background: '#F8F8F8', borderRadius: 8, padding: '12px 14px', border: '0.5px solid #E5E5E5' }}>
       <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 500, color: danger ? '#EA001E' : '#FFFFFF' }}>{value}</div>
+      <div style={{ fontSize: 22, fontWeight: 500, color: danger ? '#EA001E' : '#032D60' }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: '#706E6B', marginTop: 3 }}>{sub}</div>}
     </div>
   )

@@ -355,7 +355,7 @@ export default function ChatTab({ dealId }) {
               <div style={{
                 maxWidth: m.role === 'user' ? '78%' : '92%', padding: '12px 16px', borderRadius: 12,
                 background: m.role === 'user' ? '#032D60' : '#f0f6ff',
-                color: m.role === 'user' ? '#181818' : '#FFFFFF',
+                color: m.role === 'user' ? '#FFFFFF' : '#181818',
                 fontSize: 13, lineHeight: 1.7,
               }}>
                 {m.attachments && Array.isArray(m.attachments) && m.attachments.length > 0 && (

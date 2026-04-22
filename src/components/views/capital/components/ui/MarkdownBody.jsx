@@ -6,7 +6,7 @@ export default function MarkdownBody({ children, compact = false, dark = false }
   const base = {
     fontSize: compact ? 12 : 13,
     lineHeight: 1.9,
-    color: dark ? '#181818' : '#FFFFFF',
+    color: '#181818',
     wordBreak: 'break-word',
   }
   return (

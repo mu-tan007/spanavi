@@ -715,7 +715,7 @@ function MonthView({ cursor, allEvents, onDayClick, onQuickCreate, onEventClick,
                   width: 22, height: 22, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 11, fontWeight: isToday ? 600 : 400,
                   background: isToday ? '#032D60' : 'transparent',
-                  color: isToday ? '#fff' : inMonth ? (i % 7 === 0 ? '#EA001E' : i % 7 === 6 ? '#032D60' : '#FFFFFF') : '#E5E5E5',
+                  color: isToday ? '#fff' : inMonth ? (i % 7 === 0 ? '#EA001E' : i % 7 === 6 ? '#032D60' : '#181818') : '#A0A0A0',
                   cursor: 'pointer',
                 }}>{d.getDate()}</span>
               </div>
@@ -782,7 +782,7 @@ function WeekView({ cursor, allEvents, getEventsForDay, onDayClick, onSlotClick,
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 width: 28, height: 28, borderRadius: '50%',
                 background: isToday ? '#032D60' : 'transparent',
-                color: isToday ? '#fff' : '#FFFFFF',
+                color: isToday ? '#fff' : '#181818',
                 fontSize: 14, fontWeight: isToday ? 600 : 400,
               }}>{d.getDate()}</div>
             </div>

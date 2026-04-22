@@ -200,7 +200,7 @@ export default function DealsPage() {
                 <div style={{ fontSize: 11, color: '#032D60', textAlign: 'right', paddingRight: 8 }}>{fmtK(fin.operating_income)}</div>
                 <div style={{ fontSize: 11, color: '#032D60', textAlign: 'right', paddingRight: 8 }}>{fmtK(fin.ebitda)}</div>
                 <div style={{ fontSize: 11, color: '#032D60', textAlign: 'right', paddingRight: 8 }}>{fmtK(fin.net_assets)}</div>
-                <div style={{ fontSize: 11, color: netCash != null && netCash < 0 ? '#EA001E' : '#FFFFFF', textAlign: 'right', paddingRight: 8 }}>{fmtK(netCash)}</div>
+                <div style={{ fontSize: 11, color: netCash != null && netCash < 0 ? '#EA001E' : '#032D60', textAlign: 'right', paddingRight: 8 }}>{fmtK(netCash)}</div>
                 <div style={{ textAlign: 'right', paddingRight: 8 }}><Score score={d.score} /></div>
                 <div style={{ fontSize: 11, color: '#706E6B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {d.contacts?.name || '—'}

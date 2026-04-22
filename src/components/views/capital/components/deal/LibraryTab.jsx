@@ -505,7 +505,7 @@ function FileDetailDrawer({ file: f, versions, onClose, onStar, onDownload, onDe
                 <span style={{ fontSize: 10, padding: '1px 6px', background: v.id === f.id ? '#032D60' : '#F3F2F2', color: v.id === f.id ? '#fff' : '#706E6B', borderRadius: 3 }}>
                   {v.version_label || `v${versions.length - i}`}
                 </span>
-                <div style={{ flex: 1, fontSize: 11, color: v.id === f.id ? '#FFFFFF' : '#706E6B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ flex: 1, fontSize: 11, color: v.id === f.id ? '#032D60' : '#706E6B', fontWeight: v.id === f.id ? 500 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {v.file_name}
                 </div>
                 <span style={{ fontSize: 10, color: '#706E6B' }}>{fmtDate(v.uploaded_at)}</span>
