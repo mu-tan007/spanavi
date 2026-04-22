@@ -254,8 +254,8 @@ export default function IntakePage() {
               <button key={t} onClick={() => setTab(t)} style={{
                 padding: '6px 16px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
                 border: tab === t ? 'none' : '0.5px solid #E5E5E5',
-                background: tab === t ? '#FFFFFF' : 'transparent',
-                color: tab === t ? '#fff' : '#706E6B',
+                background: tab === t ? '#032D60' : 'transparent',
+                color: tab === t ? '#FFFFFF' : '#706E6B',
               }}>{l}</button>
             ))}
           </div>

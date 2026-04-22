@@ -265,7 +265,7 @@ export default function AgencyRegistryPage() {
         <button onClick={() => setShowAdvanced(!showAdvanced)} style={{
           height: 32, padding: '0 14px', background: showAdvanced ? '#032D60' : '#fff',
           border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 12, cursor: 'pointer',
-          color: showAdvanced ? '#181818' : '#706E6B',
+          color: showAdvanced ? '#FFFFFF' : '#706E6B',
         }}>{showAdvanced ? '✕ 詳細検索を閉じる' : '詳細検索'}</button>
         {(filterStatus || filterPref || filterInfoSharing || filterFeeType || filterStaffMin || filterStaffMax) && (
           <button onClick={clearFilters} style={{ height: 32, padding: '0 12px', background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 12, cursor: 'pointer', color: '#F0B4B4' }}>クリア</button>

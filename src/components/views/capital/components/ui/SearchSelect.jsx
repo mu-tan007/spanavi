@@ -82,7 +82,7 @@ export default function SearchSelect({ items, value = [], onChange, placeholder 
             <span key={i} style={{
               display: 'inline-flex', alignItems: 'center', gap: 3,
               padding: '2px 8px', fontSize: 11, borderRadius: 4,
-              background: '#032D60', color: '#181818', whiteSpace: 'nowrap',
+              background: '#032D60', color: '#FFFFFF', whiteSpace: 'nowrap',
             }}>
               {v}
               <span onClick={() => handleRemove(v)} style={{ cursor: 'pointer', opacity: 0.7, fontSize: 13, lineHeight: 1 }}>×</span>

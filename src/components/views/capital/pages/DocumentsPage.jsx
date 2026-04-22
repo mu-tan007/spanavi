@@ -257,7 +257,7 @@ export default function DocumentsPage() {
               </div>
               <button onClick={() => setShowUpload(true)} style={{
                 height: 40, padding: '0 24px', background: '#032D60', border: 'none',
-                borderRadius: 6, color: '#181818', fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                borderRadius: 6, color: '#FFFFFF', fontSize: 14, fontWeight: 500, cursor: 'pointer',
               }}>+ テンプレートを追加</button>
             </div>
           )}
@@ -306,7 +306,7 @@ export default function DocumentsPage() {
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button onClick={() => { setShowGenerate(tpl); setSelectedDeal(''); setGeneratedContent('') }} style={{
                         flex: 1, height: 32, background: '#032D60', border: 'none', borderRadius: 5,
-                        color: '#181818', fontSize: 12, cursor: 'pointer', fontWeight: 500,
+                        color: '#FFFFFF', fontSize: 12, cursor: 'pointer', fontWeight: 500,
                       }}>案件で使う</button>
                       <button onClick={() => downloadTemplate(tpl)} style={{
                         height: 32, padding: '0 12px', background: '#F3F2F2', border: '0.5px solid #E5E5E5',
