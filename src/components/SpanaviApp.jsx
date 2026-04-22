@@ -804,30 +804,22 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         );
       })()}
 
-      {/* ===== NEW HEADER ===== */}
+      {/* ===== NEW HEADER (engagement tabs + bell を 1 段に統合) ===== */}
       <header style={{
         position: 'fixed', top: 0, left: isMobile ? 0 : 220, right: 0, width: isMobile ? '100%' : 'calc(100% - 220px)', height: isMobile ? 48 : 54, zIndex: 150,
         background: '#FFFFFF', borderBottom: '1px solid #E5E7EB',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        display: 'flex', alignItems: 'stretch', justifyContent: 'space-between',
         padding: isMobile ? '0 12px' : '0 24px', boxSizing: 'border-box',
       }} onClick={() => setShowBellDropdown(false)}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, overflowX: 'auto' }}>
           {isMobile && (
             <button onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(true); }} style={{
               background: 'none', border: 'none', cursor: 'pointer', padding: 6,
               fontSize: 20, color: C.navy, lineHeight: 1, minWidth: 44, minHeight: 44,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', alignSelf: 'center',
             }}>☰</button>
           )}
-        <div style={{ fontSize: 11, fontWeight: 500, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-          {(() => {
-            for (const _hg of navGroups) {
-              if (!_hg.children && _hg.id === currentTab) return _hg.label;
-              if (_hg.children) { const _hc = _hg.children.find(c => c.id === currentTab); if (_hc) return _hc.label; }
-            }
-            return '';
-          })()}
-        </div>
+          <EngagementHeader isMobile={isMobile} inline />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 16 }}>
           <div style={{ position: "relative" }} onClick={e => e.stopPropagation()}>
@@ -901,16 +893,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
                 </div>
               </div>
             )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 10, color: '#9CA3AF', letterSpacing: '0.05em' }}>最終更新</div>
-              <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: '#6B7280' }}>{lastUpdated}</div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: C.navy }}>{timeStr}</div>
-              <div style={{ fontSize: 10, color: C.textLight }}>{dateStr}</div>
-            </div>
           </div>
         </div>
       </header>
@@ -1124,11 +1106,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       </>)}
       {/* OLD_HEADER_END */}
 
-      {/* ===== ENGAGEMENT (6 businesses) HEADER ===== */}
-      <EngagementHeader isMobile={isMobile} />
-
       {/* ===== CONTENT ===== */}
-      <main style={{ marginLeft: isMobile ? 0 : 220, paddingTop: (isMobile ? 48 : 54) + 36, paddingLeft: isMobile ? 12 : 28, paddingRight: isMobile ? 12 : 28, paddingBottom: isMobile ? 72 : 24, minHeight: '100vh', width: isMobile ? '100%' : 'calc(100% - 220px)', boxSizing: 'border-box', overflowX: 'hidden' }}>
+      <main style={{ marginLeft: isMobile ? 0 : 220, paddingTop: isMobile ? 48 : 54, paddingLeft: isMobile ? 12 : 28, paddingRight: isMobile ? 12 : 28, paddingBottom: isMobile ? 72 : 24, minHeight: '100vh', width: isMobile ? '100%' : 'calc(100% - 220px)', boxSizing: 'border-box', overflowX: 'hidden' }}>
         {engSlug === 'masp' && !['database','mypage','all_members'].includes(currentTab) && (
           <EngagementComingSoon title="MASP" subtitle="この画面は準備中です" />
         )}

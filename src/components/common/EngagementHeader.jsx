@@ -7,7 +7,9 @@ const SWITCHABLE_SLUGS = new Set(['masp', 'seller_sourcing', 'spartia_career', '
 // コンテンツまで完全に実装済みのもの（タグを出さない）
 const READY_SLUGS = new Set(['masp', 'seller_sourcing', 'spartia_capital']);
 
-export default function EngagementHeader({ isMobile = false, onEngagementChange }) {
+// inline=true のとき: 外側の position:fixed コンテナを出さず、タブ列だけ返す。
+// (SpanaviApp のトップヘッダー内に埋め込んで使う)
+export default function EngagementHeader({ isMobile = false, onEngagementChange, inline = false }) {
   const { engagements, currentEngagement, switchEngagement } = useEngagements();
   const [comingSoon, setComingSoon] = useState(null);
 
@@ -24,28 +26,8 @@ export default function EngagementHeader({ isMobile = false, onEngagementChange 
     }
   };
 
-  const barStyle = {
-    position: 'fixed',
-    top: isMobile ? 48 : 54,
-    left: isMobile ? 0 : 220,
-    right: 0,
-    width: isMobile ? '100%' : 'calc(100% - 220px)',
-    height: 36,
-    zIndex: 140,
-    background: '#FFFFFF',
-    borderBottom: `1px solid ${C.border}`,
-    display: 'flex',
-    alignItems: 'stretch',
-    padding: isMobile ? '0 8px' : '0 24px',
-    boxSizing: 'border-box',
-    overflowX: isMobile ? 'auto' : 'visible',
-    whiteSpace: 'nowrap',
-  };
-
-  return (
-    <>
-      <div style={barStyle}>
-        <div style={{ display: 'flex', alignSelf: 'stretch', gap: 2 }}>
+  const tabsRow = (
+    <div style={{ display: 'flex', alignSelf: 'stretch', gap: 2, height: '100%', alignItems: 'stretch' }}>
           {sorted.map((eng) => {
             const active = currentEngagement?.slug === eng.slug;
             const ready = READY_SLUGS.has(eng.slug);
@@ -90,8 +72,30 @@ export default function EngagementHeader({ isMobile = false, onEngagementChange 
               </React.Fragment>
             );
           })}
-        </div>
-      </div>
+    </div>
+  );
+
+  const barStyle = {
+    position: 'fixed',
+    top: isMobile ? 48 : 54,
+    left: isMobile ? 0 : 220,
+    right: 0,
+    width: isMobile ? '100%' : 'calc(100% - 220px)',
+    height: 36,
+    zIndex: 140,
+    background: '#FFFFFF',
+    borderBottom: `1px solid ${C.border}`,
+    display: 'flex',
+    alignItems: 'stretch',
+    padding: isMobile ? '0 8px' : '0 24px',
+    boxSizing: 'border-box',
+    overflowX: isMobile ? 'auto' : 'visible',
+    whiteSpace: 'nowrap',
+  };
+
+  return (
+    <>
+      {inline ? tabsRow : <div style={barStyle}>{tabsRow}</div>}
 
       {comingSoon && (
         <div
