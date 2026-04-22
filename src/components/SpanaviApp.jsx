@@ -33,6 +33,8 @@ import DatabaseView from './views/DatabaseView';
 import DealsView from './views/DealsView';
 import ApplicationsView from './views/career/ApplicationsView';
 import CareerDealsView from './views/career/CareerDealsView';
+import MASPMembersView from './views/MASPMembersView';
+import EngagementMembersView from './views/EngagementMembersView';
 
 import { AVAILABLE_MONTHS } from '../constants/availableMonths';
 import { REWARD_MASTER } from '../constants/rewardMaster';
@@ -348,7 +350,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
-  const _VALID_TABS = ["live","incoming","lists","appo","precheck","deals","crm","members","search","stats","recall","payroll","shift","rules","database","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin","applications","deals_career"];
+  const _VALID_TABS = ["live","incoming","lists","appo","precheck","deals","crm","members","search","stats","recall","payroll","shift","rules","database","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin","applications","deals_career","all_members","members_career"];
   const [currentTab, setCurrentTab] = useState(() => {
     try {
       const saved = localStorage.getItem("masp_v2_currentTab");
@@ -364,16 +366,16 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     const prev = _prevEngSlugRef.current;
     if (prev === engSlug) return;
     _prevEngSlugRef.current = engSlug;
+    const MASP_TABS = ['database', 'all_members', 'mypage'];
+    const CAREER_TABS = ['applications', 'deals_career', 'members_career', 'mypage'];
     if (engSlug === 'masp') {
-      if (currentTab !== 'database' && currentTab !== 'mypage') setCurrentTab('database');
+      if (!MASP_TABS.includes(currentTab)) setCurrentTab('database');
     } else if (engSlug === 'seller_sourcing') {
-      if (currentTab === 'database' || currentTab === 'applications' || currentTab === 'deals_career') {
+      if (!["live","incoming","lists","appo","precheck","deals","crm","members","search","stats","recall","payroll","shift","rules","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin"].includes(currentTab)) {
         setCurrentTab('lists');
       }
     } else if (engSlug === 'spartia_career') {
-      if (currentTab !== 'applications' && currentTab !== 'deals_career' && currentTab !== 'mypage') {
-        setCurrentTab('applications');
-      }
+      if (!CAREER_TABS.includes(currentTab)) setCurrentTab('applications');
     }
   }, [engSlug, currentTab]);
   const [now, setNow] = useState(new Date());
@@ -602,7 +604,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       } else if (engSlug === 'spartia_career') {
         cycle(['applications', 'deals_career', 'mypage'], currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'spartia_capital') {
-        const paths = ['/dashboard', '/deals', '/needs', '/firms', '/registry', '/documents'];
+        const paths = ['/dashboard', '/deals', '/needs', '/firms', '/registry', '/documents', '/members'];
         const cur = getCapitalPathname();
         // /deals/:id のような詳細ページは /deals にマッチさせる
         const normalized = paths.find(p => cur === p || cur.startsWith(p + '/')) || paths[0];
@@ -1130,16 +1132,18 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {engSlug === 'masp' && currentTab !== 'database' && currentTab !== 'mypage' && (
           <EngagementComingSoon title="MASP" subtitle="この画面は準備中です" />
         )}
+        {engSlug === 'masp' && currentTab === 'all_members' && <MASPMembersView isAdmin={isAdmin} />}
         {engSlug === 'spartia_career' && currentTab === 'applications' && <ApplicationsView />}
         {engSlug === 'spartia_career' && currentTab === 'deals_career' && <CareerDealsView />}
-        {engSlug === 'spartia_career' && currentTab !== 'applications' && currentTab !== 'deals_career' && currentTab !== 'mypage' && (
+        {engSlug === 'spartia_career' && currentTab === 'members_career' && <EngagementMembersView />}
+        {engSlug === 'spartia_career' && !['applications','deals_career','members_career','mypage'].includes(currentTab) && (
           <EngagementComingSoon title={currentEngagement?.name || 'Spartia Career'} subtitle="この画面は Phase 3B 以降で実装予定です" />
         )}
         {engSlug === 'spartia_capital' && <CapitalApp />}
         {engSlug !== 'seller_sourcing' && engSlug !== 'masp' && engSlug !== 'spartia_career' && engSlug !== 'spartia_capital' && (
           <EngagementPlaceholder engagement={currentEngagement} />
         )}
-        {/* --- Seller Sourcing views (既存) / MASP / Spartia Careerのmypageも通す --- */}
+        {/* --- Seller Sourcing views (既存) / MASP の database+mypage / Spartia Career の mypage --- */}
         {(engSlug === 'seller_sourcing'
           || (engSlug === 'masp' && (currentTab === 'database' || currentTab === 'mypage'))
           || (engSlug === 'spartia_career' && currentTab === 'mypage')) && (<>
@@ -1151,7 +1155,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "deals" && <DealsView />}
         {currentTab === "crm" && <CRMView isAdmin={isAdmin} clientData={clientData} setClientData={isAdmin ? setClientData : null} rewardMaster={rewardMaster} contactsByClient={contactsByClient} setContactsByClient={setContactsByClient} />}
 
-        {currentTab === "members" && <MembersView members={members} setMembers={isAdmin ? setMembers : null} onDataRefetch={onDataRefetch} />}
+        {currentTab === "members" && <EngagementMembersView />}
         {currentTab === "search" && <CompanySearchView importedCSVs={importedCSVs} callListData={callListData} setCallingScreen={setCallingScreen} setImportedCSVs={setImportedCSVs} clientData={clientData} currentUser={currentUser} members={members} setCallFlowScreen={setCallFlowScreen} rewardMaster={rewardMaster} />}
         {currentTab === "stats" && <StatsView callListData={callListData} currentUser={currentUser} appoData={appoData} members={members} now={now} />}
         {currentTab === "recall" && <RecallListView callListData={callListData} supaRecalls={supaRecalls} onRecallComplete={handleSupaRecallComplete} members={memberNames} currentUser={currentUser} isAdmin={isAdmin} isManagerRole={isManagerRole} onRefresh={fetchSupaRecalls} setCallFlowScreen={setCallFlowScreen} />}

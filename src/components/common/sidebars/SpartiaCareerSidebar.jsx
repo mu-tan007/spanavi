@@ -1,7 +1,7 @@
 import React from 'react';
 import SidebarShell, { ActiveItem, DisabledItem, SectionHeader } from './SidebarShell';
 
-const ACTIVE_IDS = new Set(['applications', 'deals_career']);
+const ACTIVE_IDS = new Set(['applications', 'deals_career', 'members_career']);
 
 export default function SpartiaCareerSidebar({
   currentTab,
@@ -25,6 +25,9 @@ export default function SpartiaCareerSidebar({
       { id: 'customers', label: '受講生' },
       { id: 'curriculum', label: 'カリキュラム' },
       { id: 'payments', label: '支払い管理' },
+    ]},
+    { label: 'MEMBERS', items: [
+      { id: 'members_career', label: 'Members' },
     ]},
     { label: 'ANALYTICS', items: [
       { id: 'kpi_career', label: 'KPI' },

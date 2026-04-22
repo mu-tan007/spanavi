@@ -1,7 +1,7 @@
 import React from 'react';
 import SidebarShell, { ActiveItem, DisabledItem, SectionHeader } from './SidebarShell';
 
-const MASP_VIEW_IDS = new Set(['database']);
+const MASP_VIEW_IDS = new Set(['database', 'all_members']);
 
 export default function MASPSidebar({
   currentTab,
@@ -17,8 +17,8 @@ export default function MASPSidebar({
       label: '全社',
       items: [
         { id: 'database', label: 'Database', enabled: true },
+        { id: 'all_members', label: 'Members', enabled: true },
         { id: 'global_dashboard', label: '全社ダッシュボード', enabled: false },
-        { id: 'all_members', label: 'Members', enabled: false },
         { id: 'global_analytics', label: '全社Analytics', enabled: false },
       ],
     },

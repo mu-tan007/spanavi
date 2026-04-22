@@ -10,6 +10,7 @@ import NeedsPage from './pages/NeedsPage';
 import IntermediariesPage from './pages/IntermediariesPage';
 import AgencyRegistryPage from './pages/AgencyRegistryPage';
 import DocumentsPage from './pages/DocumentsPage';
+import EngagementMembersView from '../EngagementMembersView';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,6 +52,7 @@ export default function CapitalApp() {
               <Route path="/firms" element={<IntermediariesPage />} />
               <Route path="/registry" element={<AgencyRegistryPage />} />
               <Route path="/documents" element={<DocumentsPage />} />
+              <Route path="/members" element={<EngagementMembersView />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </div>

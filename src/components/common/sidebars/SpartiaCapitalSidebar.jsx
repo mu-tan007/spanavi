@@ -16,6 +16,9 @@ const NAV_SECTIONS = [
   { label: 'WORKSPACE', items: [
     { path: '/documents', label: 'Documents' },
   ]},
+  { label: 'MEMBERS', items: [
+    { path: '/members', label: 'Members' },
+  ]},
 ];
 
 export default function SpartiaCapitalSidebar({
