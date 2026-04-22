@@ -32,6 +32,7 @@ export default function SidebarShell({
         {branding?.logoUrl ? (
           <img src={branding.logoUrl} alt={orgName} style={{ width: 28, height: 32, objectFit: 'contain' }} />
         ) : (
+          // Sourcing のサイドバーと完全一致 (2層の装飾ライン + accent→primary グラデーション)
           <svg width="28" height="32" viewBox="0 0 52 60" aria-hidden="true">
             <defs>
               <linearGradient id="spShieldAlt" x1="0" y1="0" x2="0.3" y2="1">
@@ -48,12 +49,19 @@ export default function SidebarShell({
                 <line x1="26" y1="30" x2="47" y2="5"/><line x1="26" y1="30" x2="47" y2="55"/>
                 <line x1="26" y1="30" x2="5" y2="55"/><line x1="26" y1="30" x2="5" y2="5"/>
               </g>
+              <g opacity="0.30" strokeWidth="0.8">
+                <line x1="26" y1="30" x2="37" y2="-2"/><line x1="26" y1="30" x2="53" y2="16"/>
+                <line x1="26" y1="30" x2="53" y2="44"/><line x1="26" y1="30" x2="37" y2="62"/>
+                <line x1="26" y1="30" x2="15" y2="62"/><line x1="26" y1="30" x2="-1" y2="44"/>
+                <line x1="26" y1="30" x2="-1" y2="16"/><line x1="26" y1="30" x2="15" y2="-2"/>
+              </g>
             </g>
           </svg>
         )}
         <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 800, letterSpacing: 2, lineHeight: 1 }}>
-          <span style={{ color: accent }}>{orgName.slice(0, Math.ceil(orgName.length / 2))}</span>
-          <span style={{ color: highlight }}>{orgName.slice(Math.ceil(orgName.length / 2))}</span>
+          {/* 分割位置を Sourcing サイドバーと揃える (Math.floor) */}
+          <span style={{ color: accent }}>{orgName.slice(0, Math.floor(orgName.length / 2))}</span>
+          <span style={{ color: highlight }}>{orgName.slice(Math.floor(orgName.length / 2))}</span>
         </div>
       </div>
 
