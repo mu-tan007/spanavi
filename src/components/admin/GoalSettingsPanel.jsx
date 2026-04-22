@@ -4,16 +4,15 @@ import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import { useKpiGoals, KPI_TYPES } from '../../hooks/useKpiGoals';
 
-// 対象期間 (月 or その月の N週) を生成。
-// 第1週 = 1〜7日 / 第2週 = 8〜14日 / ... / 第5週 = 29〜月末。
+// 対象期間: 月単位 / 週単位 / 日次 を生成。
 function buildPeriodOptions(baseMonths = 3) {
   const opts = [];
   const now = new Date();
   const yearBase = now.getFullYear();
-  const monthBase = now.getMonth(); // 0-indexed
+  const monthBase = now.getMonth();
   for (let i = 0; i < baseMonths; i++) {
     const y = yearBase + Math.floor((monthBase + i) / 12);
-    const mi = (monthBase + i) % 12; // 0-11
+    const mi = (monthBase + i) % 12;
     const mName = `${y}年${mi + 1}月`;
     const mIso = `${y}-${String(mi + 1).padStart(2, '0')}-01`;
     // 月単位
@@ -23,7 +22,14 @@ function buildPeriodOptions(baseMonths = 3) {
       period_type: 'monthly',
       effective_from: mIso,
     });
-    // 週単位 (1〜7, 8〜14, 15〜21, 22〜28, 29〜末)
+    // 日次 (その月の全日に同じ目標を適用)
+    opts.push({
+      key: `d:${mIso}`,
+      label: `${mName} (日次 — その月の1日あたり目標)`,
+      period_type: 'daily',
+      effective_from: mIso,
+    });
+    // 週単位
     const lastDay = new Date(y, mi + 1, 0).getDate();
     for (let w = 0; w < 5; w++) {
       const start = 1 + w * 7;
@@ -148,6 +154,8 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
 
     let saved = 0, skipped = 0, errs = [];
     for (const k of KPI_TYPES) {
+      // rate 系は日次禁止
+      if (k.isRate && selectedPeriod.period_type === 'daily') continue;
       const newVal = draft[k.id];
       const existing = goalByType[k.id];
       const hasVal = newVal !== '' && newVal != null && !Number.isNaN(Number(newVal));
@@ -252,12 +260,13 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
           </thead>
           <tbody>
             {KPI_TYPES.map(k => {
-              const disabled = !canEditThisScope;
+              const rateOnDaily = k.isRate && selectedPeriod?.period_type === 'daily';
+              const disabled = !canEditThisScope || rateOnDaily;
               return (
                 <tr key={k.id} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
                   <td style={{ ...td, textAlign: 'left', paddingLeft: 16, fontWeight: 500, color: C.navy }}>
                     {k.label}
-                    {k.isRate && selectedPeriod?.period_type === 'daily' && (
+                    {rateOnDaily && (
                       <span style={{ fontSize: 9, marginLeft: 6, color: C.textLight }}>(日次不可)</span>
                     )}
                   </td>

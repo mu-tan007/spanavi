@@ -11,12 +11,14 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
 
+// Spanavi テーマに準拠
 const CEO_INTENT_OPTIONS = [
-  { value: 'positive', label: 'あり',   color: '#10B981' },
-  { value: 'wait',     label: '様子見', color: '#F59E0B' },
-  { value: 'unknown',  label: '不明',   color: '#9CA3AF' },
-  { value: 'negative', label: 'なし',   color: '#EF4444' },
+  { value: 'positive', label: 'あり',   color: C.green },     // #2E844A
+  { value: 'wait',     label: '様子見', color: C.gold },      // #C8A84B
+  { value: 'unknown',  label: '不明',   color: C.textLight }, // #A0A0A0
+  { value: 'negative', label: 'なし',   color: C.navy },      // #032D60
 ];
+const UNSET_COLOR = C.border; // 未入力 = #E5E5E5
 
 function bucketRevenue(oku) {
   if (oku == null) return '不明';
@@ -36,11 +38,12 @@ function formatOku(oku) {
 export default function AppointmentsTab({ client }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [updating, setUpdating] = useState(null); // appointment_id being updated
+  const [updating, setUpdating] = useState(null);
+  const [extraByName, setExtraByName] = useState({}); // { company_name: {address, revenue} }
   const orgId = getOrgId();
 
   useEffect(() => {
-    if (!orgId || !client?.id) { setRows([]); return; }
+    if (!orgId || !client?.id) { setRows([]); setExtraByName({}); return; }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -55,28 +58,65 @@ export default function AppointmentsTab({ client }) {
         .order('meeting_date', { ascending: false });
       if (cancelled) return;
       setRows(data || []);
+
+      // fallback: item_id の join で address/revenue が取れなかった企業を列挙
+      const missingNames = [...new Set(
+        (data || [])
+          .filter(r => !r.item?.address || !r.item?.revenue)
+          .map(r => r.company_name)
+          .filter(Boolean)
+      )];
+      if (missingNames.length === 0) { setExtraByName({}); setLoading(false); return; }
+
+      // fallback A: call_list_items の別行 (アーカイブ済リストも含む) で同名企業
+      // fallback B: company_master (MASP database) で同名企業
+      const [cliRes, cmRes] = await Promise.all([
+        supabase.from('call_list_items')
+          .select('company, address, revenue')
+          .eq('org_id', orgId)
+          .in('company', missingNames),
+        supabase.from('company_master')
+          .select('company_name, address, revenue_k')
+          .eq('org_id', orgId)
+          .in('company_name', missingNames),
+      ]);
+      if (cancelled) return;
+      const acc = {};
+      // company_master 優先度は低め (A があれば A)
+      (cmRes.data || []).forEach(c => {
+        if (!acc[c.company_name]) acc[c.company_name] = {};
+        if (!acc[c.company_name].address && c.address) acc[c.company_name].address = c.address;
+        if (!acc[c.company_name].revenue && c.revenue_k) acc[c.company_name].revenue = String(c.revenue_k);
+      });
+      (cliRes.data || []).forEach(c => {
+        if (!acc[c.company]) acc[c.company] = {};
+        if (c.address) acc[c.company].address = c.address;
+        if (c.revenue) acc[c.company].revenue = c.revenue;
+      });
+      setExtraByName(acc);
       setLoading(false);
     })();
     return () => { cancelled = true; };
   }, [orgId, client?.id]);
 
   const enriched = useMemo(() => (rows || []).map(r => {
-    // 住所: list_items の address を優先、欠損時は appo_report から抽出
-    const address = r.item?.address || extractAddressFromReport(r.appo_report);
-    // 売上: list_items の revenue テキスト → 億換算。欠損時は appo_report から
-    const revenue_oku = parseRevenueOku(r.item?.revenue) ?? extractRevenueFromReport(r.appo_report);
-    // 社長意向: DB に保存済みなら優先、無ければ appo_report から推定 (UIに表示用)
+    const fallback = extraByName[r.company_name] || {};
+    // 住所 優先度: item → 同名リスト行 → company_master → appo_report
+    const address = r.item?.address || fallback.address || extractAddressFromReport(r.appo_report);
+    // 売上 同様
+    const revenueText = r.item?.revenue || fallback.revenue || null;
+    const revenue_oku = parseRevenueOku(revenueText) ?? extractRevenueFromReport(r.appo_report);
     const intent = r.ceo_ma_intent || extractCeoMaIntent(r.appo_report) || null;
     return {
       ...r,
       address,
       prefecture: extractPrefecture(address),
       revenue_oku,
-      revenue_text: r.item?.revenue || (revenue_oku != null ? formatOku(revenue_oku) : null),
-      resolved_intent: intent,           // 表示に使う (DB 値 OR 推定値)
-      intent_is_derived: !r.ceo_ma_intent && !!intent, // 推定値かどうか
+      revenue_text: revenue_oku != null ? formatOku(revenue_oku) : (revenueText || null),
+      resolved_intent: intent,
+      intent_is_derived: !r.ceo_ma_intent && !!intent,
     };
-  }), [rows]);
+  }), [rows, extraByName]);
 
   const handleIntentChange = async (id, value) => {
     setUpdating(id);
@@ -107,7 +147,7 @@ export default function AppointmentsTab({ client }) {
   if (enriched.length === 0) return <EmptyCard>このクライアントへのアポイントがありません</EmptyCard>;
 
   const intentChartData = CEO_INTENT_OPTIONS.map(o => ({ name: o.label, value: stats.intentCount[o.value] || 0, color: o.color }))
-    .concat([{ name: '未入力', value: stats.intentCount.unset || 0, color: '#E5E7EB' }])
+    .concat([{ name: '未入力', value: stats.intentCount.unset || 0, color: UNSET_COLOR }])
     .filter(d => d.value > 0);
   const prefChartData = Object.entries(stats.prefCount).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 8);
   const revChartData = ['〜1億','1〜3億','3〜10億','10〜30億','30億〜','不明']

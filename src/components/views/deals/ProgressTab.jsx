@@ -9,11 +9,12 @@ import { getOrgId } from '../../../lib/orgContext';
 //   - カードクリック → ステージ変更 (deals 行を作成/更新)
 export default function ProgressTab({ deals, stages, onStageChange, client, engagementId, refresh }) {
   const [appos, setAppos] = useState([]);
+  const [clientsById, setClientsById] = useState({});
   const [loading, setLoading] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState(null);
   const orgId = getOrgId();
 
-  // 面談済アポを取得 (client 選択時はそのクライアントのみ)
+  // 面談済アポを取得 (FK join は不要、clients は別 fetch)
   useEffect(() => {
     if (!orgId) { setAppos([]); return; }
     let cancelled = false;
@@ -21,7 +22,7 @@ export default function ProgressTab({ deals, stages, onStageChange, client, enga
       setLoading(true);
       let q = supabase
         .from('appointments')
-        .select('id, company_name, meeting_date, status, client_id, client:clients(id, name), sales_amount')
+        .select('id, company_name, meeting_date, status, client_id, sales_amount, engagement_id')
         .eq('org_id', orgId)
         .eq('status', '面談済')
         .order('meeting_date', { ascending: false })
@@ -32,6 +33,19 @@ export default function ProgressTab({ deals, stages, onStageChange, client, enga
       if (cancelled) return;
       if (error) console.error('[ProgressTab] 面談済アポ取得失敗:', error);
       setAppos(data || []);
+
+      // client 名を別 fetch (RLS でブロックされても appos は出る)
+      const clientIds = [...new Set((data || []).map(a => a.client_id).filter(Boolean))];
+      if (clientIds.length > 0) {
+        const { data: cs } = await supabase.from('clients')
+          .select('id, name')
+          .in('id', clientIds);
+        const m = {};
+        (cs || []).forEach(c => { m[c.id] = c.name; });
+        setClientsById(m);
+      } else {
+        setClientsById({});
+      }
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -60,7 +74,7 @@ export default function ProgressTab({ deals, stages, onStageChange, client, enga
         appointment_id: a.id,
         deal_id: deal?.id || null,
         company: a.company_name || '—',
-        client_name: a.client?.name || '',
+        client_name: clientsById[a.client_id] || '',
         stage: deal?.stage || 'first_meeting',
         meeting_date: a.meeting_date,
         deal_value: deal?.deal_value || a.sales_amount || null,
@@ -83,7 +97,7 @@ export default function ProgressTab({ deals, stages, onStageChange, client, enga
       });
     }
     return cards;
-  }, [appos, deals, dealByAppo]);
+  }, [appos, deals, dealByAppo, clientsById]);
 
   const cardsByStage = useMemo(() => {
     const m = {};
