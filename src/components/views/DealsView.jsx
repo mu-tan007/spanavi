@@ -125,6 +125,7 @@ export default function DealsView() {
             onUpdateDeal={updateDeal}
             refresh={refreshDeals}
             client={selectedClient}
+            engagementId={currentEngagement?.id}
           />
         )}
       </div>

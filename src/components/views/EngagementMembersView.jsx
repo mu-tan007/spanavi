@@ -206,7 +206,7 @@ function TeamBlock({ group, draggable }) {
         <thead>
           <tr style={{ borderBottom: `1px solid ${C.border}`, background: C.cream }}>
             {draggable && <th style={{ ...th, width: 18, padding: '10px 2px' }}></th>}
-            <th style={th}>入社日</th>
+            <th style={{ ...th, padding: '10px 4px' }}>入社日</th>
             <th style={{ ...th, textAlign: 'left' }}>氏名</th>
             <th style={{ ...th, textAlign: 'left' }}>ポジション</th>
             <th style={{ ...th, textAlign: 'left' }}>メール</th>
@@ -262,7 +262,7 @@ function StaticMemberRow({ m }) {
 function MemberRowCells({ m }) {
   return (
     <>
-      <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", color: C.textMid, whiteSpace: 'nowrap', textAlign: 'center' }}>
+      <td style={{ ...td, padding: '8px 4px', fontFamily: "'JetBrains Mono',monospace", color: C.textMid, whiteSpace: 'nowrap', textAlign: 'center' }}>
         {m.start_date || '—'}
       </td>
       <td style={{ ...td, textAlign: 'left', fontWeight: 500, color: C.navy }}>

@@ -8,104 +8,63 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-// 選択されたクライアントに紐付くリストごとの架電結果サマリ + 時系列
+// クライアント選択時のリスト別 架電結果サマリ + 時系列
+// DB の集計は RPC 経由なので 1000件上限に影響されない。
 export default function CallResultsTab({ client }) {
   const { ceoConnectLabels } = useCallStatuses();
-  const [lists, setLists] = useState([]);
-  const [summary, setSummary] = useState([]);
-  const [byDay, setByDay] = useState([]);
+  const [rows, setRows] = useState([]);    // [{list_id, list_name, industry, calls, ceo_connects, appos}]
+  const [byDay, setByDay] = useState([]);  // [{date, calls}]
   const [loading, setLoading] = useState(false);
   const orgId = getOrgId();
 
   useEffect(() => {
-    if (!orgId || !client?.id) { setLists([]); setSummary([]); setByDay([]); return; }
+    if (!orgId || !client?.id) { setRows([]); setByDay([]); return; }
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const { data: listRows } = await supabase
-        .from('call_lists')
-        .select('id, name, industry, status, is_archived')
-        .eq('org_id', orgId)
-        .eq('client_id', client.id);
+      const ceoLabels = Array.from(ceoConnectLabels || []);
+      const [sumRes, dayRes] = await Promise.all([
+        supabase.rpc('sourcing_call_result_by_list', {
+          p_client_id: client.id, p_org_id: orgId, p_ceo_labels: ceoLabels,
+        }),
+        supabase.rpc('sourcing_call_daily', {
+          p_client_id: client.id, p_org_id: orgId,
+        }),
+      ]);
       if (cancelled) return;
-      const activeLists = (listRows || []).filter(l => !l.is_archived);
-      setLists(activeLists);
-
-      const listIds = activeLists.map(l => l.id);
-      if (listIds.length === 0) { setSummary([]); setByDay([]); setLoading(false); return; }
-
-      const { data: calls } = await supabase
-        .from('call_records')
-        .select('id, list_id, called_at, status')
-        .in('list_id', listIds);
-
-      const { data: appos } = await supabase
-        .from('appointments')
-        .select('id, list_id, client_id, status')
-        .eq('client_id', client.id);
-
-      if (cancelled) return;
-
-      const sum = {};
-      for (const l of activeLists) {
-        sum[l.id] = { list_id: l.id, list_name: l.company || '(名称未設定)', industry: l.industry || '', calls: 0, ceoConnects: 0, appos: 0 };
-      }
-      (calls || []).forEach(r => {
-        const s = sum[r.list_id]; if (!s) return;
-        s.calls += 1;
-        if (ceoConnectLabels.has(r.status)) s.ceoConnects += 1;
-      });
-      (appos || []).forEach(a => {
-        const s = sum[a.list_id]; if (!s) return;
-        s.appos += 1;
-      });
-      setSummary(Object.values(sum));
-
-      const dayMap = {};
-      (calls || []).forEach(r => {
-        const d = (r.called_at || '').slice(0, 10);
-        if (!d) return;
-        dayMap[d] = (dayMap[d] || 0) + 1;
-      });
-      setByDay(Object.entries(dayMap).map(([date, calls]) => ({ date, calls })).sort((a, b) => a.date.localeCompare(b.date)));
-
+      setRows(sumRes.data || []);
+      setByDay(dayRes.data || []);
       setLoading(false);
     })();
     return () => { cancelled = true; };
   }, [orgId, client?.id, ceoConnectLabels]);
 
-  const totals = useMemo(() => summary.reduce((a, s) => ({
-    calls: a.calls + s.calls,
-    ceoConnects: a.ceoConnects + s.ceoConnects,
-    appos: a.appos + s.appos,
-  }), { calls: 0, ceoConnects: 0, appos: 0 }), [summary]);
+  const totals = useMemo(() => rows.reduce((a, s) => ({
+    calls:       a.calls       + Number(s.calls || 0),
+    ceoConnects: a.ceoConnects + Number(s.ceo_connects || 0),
+    appos:       a.appos       + Number(s.appos || 0),
+  }), { calls: 0, ceoConnects: 0, appos: 0 }), [rows]);
 
-  if (!client) {
-    return <EmptyCard>クライアントを選択してください</EmptyCard>;
-  }
-  if (loading) {
-    return <div style={{ padding: 40, textAlign: 'center', color: C.textMid }}>読み込み中...</div>;
-  }
-  if (lists.length === 0) {
-    return <EmptyCard>このクライアントに紐付くリストがありません</EmptyCard>;
-  }
+  if (!client) return <EmptyCard>クライアントを選択してください</EmptyCard>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: C.textMid }}>読み込み中...</div>;
+  if (rows.length === 0) return <EmptyCard>このクライアントに紐付くリストがありません</EmptyCard>;
+
+  const ratePct = (num, den) => den > 0 ? `${((num / den) * 100).toFixed(1)}%` : '—';
+  const rate2Pct = (num, den) => den > 0 ? `${((num / den) * 100).toFixed(2)}%` : '—';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* サマリーカード */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-        <SummaryCard label="総架電件数" value={totals.calls} />
-        <SummaryCard label="社長接続数" value={totals.ceoConnects} />
-        <SummaryCard label="社長接続率" value={totals.calls > 0 ? `${((totals.ceoConnects / totals.calls) * 100).toFixed(1)}%` : '—'} />
-        <SummaryCard label="アポ獲得数 (獲得率)" value={`${totals.appos} (${totals.calls > 0 ? `${((totals.appos / totals.calls) * 100).toFixed(2)}%` : '—'})`} />
+        <SummaryCard label="総架電件数" value={totals.calls.toLocaleString()} />
+        <SummaryCard label="社長接続数" value={totals.ceoConnects.toLocaleString()} />
+        <SummaryCard label="社長接続率" value={ratePct(totals.ceoConnects, totals.calls)} />
+        <SummaryCard label="アポ獲得数 / 獲得率" value={`${totals.appos.toLocaleString()} / ${rate2Pct(totals.appos, totals.calls)}`} />
       </div>
 
-      {/* リスト別テーブル */}
       <Card title="リスト別 架電結果">
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
             <tr style={{ background: C.cream, borderBottom: `1px solid ${C.border}` }}>
-              <th style={{ ...th, textAlign: 'left' }}>リスト名</th>
               <th style={{ ...th, textAlign: 'left' }}>業種</th>
               <th style={th}>架電件数</th>
               <th style={th}>社長接続数</th>
@@ -115,22 +74,34 @@ export default function CallResultsTab({ client }) {
             </tr>
           </thead>
           <tbody>
-            {summary.map(s => (
-              <tr key={s.list_id} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
-                <td style={{ ...td, textAlign: 'left', fontWeight: 500, color: C.navy }}>{s.list_name}</td>
-                <td style={{ ...td, textAlign: 'left', color: C.textMid }}>{s.industry || '—'}</td>
-                <td style={td}>{s.calls.toLocaleString()}</td>
-                <td style={td}>{s.ceoConnects.toLocaleString()}</td>
-                <td style={td}>{s.calls > 0 ? `${((s.ceoConnects / s.calls) * 100).toFixed(1)}%` : '—'}</td>
-                <td style={td}>{s.appos.toLocaleString()}</td>
-                <td style={td}>{s.calls > 0 ? `${((s.appos / s.calls) * 100).toFixed(2)}%` : '—'}</td>
-              </tr>
-            ))}
+            {rows.map(s => {
+              const calls = Number(s.calls || 0);
+              const ceo = Number(s.ceo_connects || 0);
+              const appos = Number(s.appos || 0);
+              return (
+                <tr key={s.list_id} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                  <td style={{ ...td, textAlign: 'left', color: C.textMid }}>{s.industry || '—'}</td>
+                  <td style={td}>{calls.toLocaleString()}</td>
+                  <td style={td}>{ceo.toLocaleString()}</td>
+                  <td style={td}>{ratePct(ceo, calls)}</td>
+                  <td style={td}>{appos.toLocaleString()}</td>
+                  <td style={td}>{rate2Pct(appos, calls)}</td>
+                </tr>
+              );
+            })}
+            {/* 合計行 */}
+            <tr style={{ background: C.cream, borderTop: `2px solid ${C.navy}`, fontWeight: 600 }}>
+              <td style={{ ...td, textAlign: 'left', color: C.navy, fontWeight: 700 }}>合計</td>
+              <td style={{ ...td, color: C.navy, fontWeight: 700 }}>{totals.calls.toLocaleString()}</td>
+              <td style={{ ...td, color: C.navy, fontWeight: 700 }}>{totals.ceoConnects.toLocaleString()}</td>
+              <td style={{ ...td, color: C.navy, fontWeight: 700 }}>{ratePct(totals.ceoConnects, totals.calls)}</td>
+              <td style={{ ...td, color: C.navy, fontWeight: 700 }}>{totals.appos.toLocaleString()}</td>
+              <td style={{ ...td, color: C.navy, fontWeight: 700 }}>{rate2Pct(totals.appos, totals.calls)}</td>
+            </tr>
           </tbody>
         </table>
       </Card>
 
-      {/* 時系列 */}
       {byDay.length > 0 && (
         <Card title="日別 架電件数">
           <div style={{ height: 220 }}>

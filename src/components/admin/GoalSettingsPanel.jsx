@@ -2,51 +2,76 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { C } from '../../constants/colors';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
-import { useKpiGoals, KPI_TYPES, PERIOD_TYPES } from '../../hooks/useKpiGoals';
+import { useKpiGoals, KPI_TYPES } from '../../hooks/useKpiGoals';
 
-// Sourcing の teams / members / kpi_goals を束ねた目標設定パネル
-// readOnly=true の場合は閲覧専用 (KPI ページ用)
-// 編集権限: admin 全スコープ / team スコープは該当チームの leader / member スコープは自分
+// 対象期間 (月 or その月の N週) を生成。
+// 第1週 = 1〜7日 / 第2週 = 8〜14日 / ... / 第5週 = 29〜月末。
+function buildPeriodOptions(baseMonths = 3) {
+  const opts = [];
+  const now = new Date();
+  const yearBase = now.getFullYear();
+  const monthBase = now.getMonth(); // 0-indexed
+  for (let i = 0; i < baseMonths; i++) {
+    const y = yearBase + Math.floor((monthBase + i) / 12);
+    const mi = (monthBase + i) % 12; // 0-11
+    const mName = `${y}年${mi + 1}月`;
+    const mIso = `${y}-${String(mi + 1).padStart(2, '0')}-01`;
+    // 月単位
+    opts.push({
+      key: `m:${mIso}`,
+      label: `${mName} (月単位)`,
+      period_type: 'monthly',
+      effective_from: mIso,
+    });
+    // 週単位 (1〜7, 8〜14, 15〜21, 22〜28, 29〜末)
+    const lastDay = new Date(y, mi + 1, 0).getDate();
+    for (let w = 0; w < 5; w++) {
+      const start = 1 + w * 7;
+      if (start > lastDay) break;
+      const end = Math.min(start + 6, lastDay);
+      const iso = `${y}-${String(mi + 1).padStart(2, '0')}-${String(start).padStart(2, '0')}`;
+      opts.push({
+        key: `w:${iso}`,
+        label: `${mName} 第${w + 1}週 (${start}日〜${end}日)`,
+        period_type: 'weekly',
+        effective_from: iso,
+      });
+    }
+  }
+  return opts;
+}
+
 export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, defaultScopeType = 'org' }) {
   const [engagementId, setEngagementId] = useState(null);
   const [currentMemberId, setCurrentMemberId] = useState(null);
   const [leaderTeamIds, setLeaderTeamIds] = useState(new Set());
-  const [scopeType, setScopeType] = useState(defaultScopeType);   // 'org' | 'team' | 'member'
+  const [scopeType, setScopeType] = useState(defaultScopeType);
   const [teams, setTeams] = useState([]);
   const [members, setMembers] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState('');
   const [selectedMember, setSelectedMember] = useState('');
-  const [effectiveFrom, setEffectiveFrom] = useState('2026-05-01');
+
+  const periodOptions = useMemo(() => buildPeriodOptions(3), []);
+  const [periodKey, setPeriodKey] = useState(periodOptions[0]?.key || '');
+  const selectedPeriod = periodOptions.find(p => p.key === periodKey) || periodOptions[0];
 
   const orgId = getOrgId();
 
-  // Sourcing engagement_id + 現在ログインユーザの member_id を取得
   useEffect(() => {
     (async () => {
       const { data: eng } = await supabase.from('engagements')
-        .select('id')
-        .eq('org_id', orgId)
-        .eq('slug', 'seller_sourcing')
-        .maybeSingle();
+        .select('id').eq('org_id', orgId).eq('slug', 'seller_sourcing').maybeSingle();
       if (eng?.id) setEngagementId(eng.id);
 
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: me } = await supabase.from('members')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('org_id', orgId)
-          .maybeSingle();
+          .select('id').eq('user_id', user.id).eq('org_id', orgId).maybeSingle();
         if (me?.id) {
           setCurrentMemberId(me.id);
-          // リーダーをしているチーム ID を集める (team-scope 編集権限判定用)
           const { data: leadTeams } = await supabase.from('teams')
-            .select('id')
-            .eq('org_id', orgId)
-            .eq('leader_member_id', me.id);
+            .select('id').eq('org_id', orgId).eq('leader_member_id', me.id);
           setLeaderTeamIds(new Set((leadTeams || []).map(t => t.id)));
-
-          // 非 admin は編集UIとして初期状態で「自分」スコープを開く
           if (!isAdmin && !readOnly) {
             setScopeType('member');
             setSelectedMember(me.id);
@@ -56,21 +81,16 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
     })();
   }, [orgId, isAdmin, readOnly]);
 
-  // teams / members 取得
   useEffect(() => {
     if (!engagementId) return;
     (async () => {
       const [tRes, mRes] = await Promise.all([
-        supabase.from('teams')
-          .select('id, name, display_order')
-          .eq('org_id', orgId)
-          .eq('engagement_id', engagementId)
-          .eq('status', 'active')
+        supabase.from('teams').select('id, name, display_order')
+          .eq('org_id', orgId).eq('engagement_id', engagementId).eq('status', 'active')
           .order('display_order'),
         supabase.from('member_engagements')
           .select('member:members(id, name, position, rank, start_date, is_active)')
-          .eq('org_id', orgId)
-          .eq('engagement_id', engagementId),
+          .eq('org_id', orgId).eq('engagement_id', engagementId),
       ]);
       if (tRes.data) setTeams(tRes.data);
       if (mRes.data) {
@@ -94,10 +114,9 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
   }, [scopeType, selectedTeam, selectedMember]);
 
   const { goals, upsertGoal, deleteGoal } = useKpiGoals({
-    engagementId, scopeType, scopeId, effectiveFrom,
+    engagementId, scopeType, scopeId, effectiveFrom: selectedPeriod?.effective_from,
   });
 
-  // このスコープを現在のユーザが編集できるか
   const canEditThisScope = useMemo(() => {
     if (readOnly) return false;
     if (isAdmin) return true;
@@ -106,107 +125,80 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
     return false;
   }, [readOnly, isAdmin, scopeType, selectedMember, selectedTeam, currentMemberId, leaderTeamIds]);
 
-  // goals を { kpi_type + period_type: target_value } で引きやすくする
-  const goalMap = useMemo(() => {
-    const map = {};
+  // 選択期間の既存 goal を KPI 種別でインデックス化
+  const goalByType = useMemo(() => {
+    const m = {};
     for (const g of goals) {
-      map[`${g.kpi_type}__${g.period_type}`] = g;
+      if (g.period_type === selectedPeriod?.period_type) m[g.kpi_type] = g;
     }
-    return map;
-  }, [goals]);
+    return m;
+  }, [goals, selectedPeriod]);
 
   const [draft, setDraft] = useState({});
   useEffect(() => {
-    // 既存値で draft を初期化
     const d = {};
-    for (const k of KPI_TYPES) for (const p of PERIOD_TYPES) {
-      d[`${k.id}__${p.id}`] = goalMap[`${k.id}__${p.id}`]?.target_value ?? '';
-    }
+    for (const k of KPI_TYPES) d[k.id] = goalByType[k.id]?.target_value ?? '';
     setDraft(d);
-  }, [goalMap]);
+  }, [goalByType]);
 
   const handleSave = async () => {
-    if (!canEditThisScope) {
-      onToast?.('このスコープは編集権限がありません', 'error');
-      return;
-    }
-    if (scopeType !== 'org' && !scopeId) {
-      onToast?.('対象を選択してください', 'error');
-      return;
-    }
+    if (!canEditThisScope) { onToast?.('このスコープは編集権限がありません', 'error'); return; }
+    if (scopeType !== 'org' && !scopeId) { onToast?.('対象を選択してください', 'error'); return; }
+    if (!selectedPeriod) { onToast?.('対象期間を選択してください', 'error'); return; }
+
     let saved = 0, skipped = 0, errs = [];
     for (const k of KPI_TYPES) {
-      for (const p of PERIOD_TYPES) {
-        // rate の daily は disabled
-        if (k.isRate && p.id === 'daily') continue;
-
-        const key = `${k.id}__${p.id}`;
-        const newVal = draft[key];
-        const existing = goalMap[key];
-        const hasNewVal = newVal !== '' && newVal != null && !Number.isNaN(Number(newVal));
-
-        if (hasNewVal) {
-          // rate は 0-100 範囲チェック
-          if (k.isRate && (Number(newVal) < 0 || Number(newVal) > 100)) {
-            errs.push(`${k.label} (${p.label}): 0〜100 の範囲で入力`);
-            continue;
-          }
-          if (Number(newVal) < 0) { errs.push(`${k.label} (${p.label}): 負値不可`); continue; }
-          // 値が変わった場合のみ upsert
-          if (!existing || Number(existing.target_value) !== Number(newVal)) {
-            const { error } = await upsertGoal({
-              kpi_type: k.id, period_type: p.id,
-              target_value: newVal, effective_from: effectiveFrom,
-            });
-            if (error) errs.push(`${k.label} (${p.label}): ${error.message}`);
-            else saved++;
-          } else {
-            skipped++;
-          }
-        } else if (existing) {
-          // 空入力 = 既存目標を削除
-          const { error } = await deleteGoal(existing.id);
-          if (error) errs.push(`${k.label} (${p.label}): 削除失敗`);
-          else saved++;
+      const newVal = draft[k.id];
+      const existing = goalByType[k.id];
+      const hasVal = newVal !== '' && newVal != null && !Number.isNaN(Number(newVal));
+      if (hasVal) {
+        if (k.isRate && (Number(newVal) < 0 || Number(newVal) > 100)) {
+          errs.push(`${k.label}: 0〜100 の範囲で入力`); continue;
         }
+        if (Number(newVal) < 0) { errs.push(`${k.label}: 負値不可`); continue; }
+        if (!existing || Number(existing.target_value) !== Number(newVal)) {
+          const { error } = await upsertGoal({
+            kpi_type: k.id, period_type: selectedPeriod.period_type,
+            target_value: newVal, effective_from: selectedPeriod.effective_from,
+          });
+          if (error) errs.push(`${k.label}: ${error.message}`);
+          else saved++;
+        } else {
+          skipped++;
+        }
+      } else if (existing) {
+        const { error } = await deleteGoal(existing.id);
+        if (error) errs.push(`${k.label}: 削除失敗`);
+        else saved++;
       }
     }
-    if (errs.length) {
-      onToast?.(errs.join(' / '), 'error');
-    } else {
-      onToast?.(`保存しました (${saved}件更新 / ${skipped}件変更なし)`, 'success');
-    }
+    if (errs.length) onToast?.(errs.join(' / '), 'error');
+    else onToast?.(`保存しました (${saved}件更新 / ${skipped}件変更なし)`, 'success');
   };
-
-  const th = { padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: C.navy, fontSize: 11 };
-  const td = { padding: '8px 12px', fontSize: 12, color: C.textDark, textAlign: 'center' };
 
   return (
     <div style={{ padding: 20 }}>
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 12, color: C.textMid, marginBottom: 4 }}>
           {readOnly
-            ? 'Sourcing 事業の KPI 目標 (閲覧のみ)。編集はマイページから行ってください。'
-            : 'Sourcing 事業の KPI 目標を設定します。空欄にして保存するとその目標は削除されます。組織全体は admin のみ / チームはリーダー (成尾・高橋) / メンバーは本人が編集可。'}
+            ? 'Sourcing 事業の KPI 目標 (閲覧のみ)。編集はマイページから。'
+            : '対象期間を選んで 5 つの KPI 目標を入力します。組織全体は admin のみ / チームはリーダー / メンバーは本人が編集可。'}
         </div>
       </div>
 
       {/* スコープ切替 */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
         {[
-          { id: 'org',    label: '組織全体' },
-          { id: 'team',   label: 'チーム別' },
+          { id: 'org', label: '組織全体' },
+          { id: 'team', label: 'チーム別' },
           { id: 'member', label: 'メンバー別' },
         ].map(s => {
           const active = scopeType === s.id;
           return (
-            <button
-              key={s.id}
-              onClick={() => setScopeType(s.id)}
+            <button key={s.id} onClick={() => setScopeType(s.id)}
               style={{
                 padding: '6px 14px', fontSize: 12,
-                background: active ? C.navy : C.white,
-                color: active ? C.white : C.textMid,
+                background: active ? C.navy : C.white, color: active ? C.white : C.textMid,
                 border: `1px solid ${active ? C.navy : C.border}`,
                 borderRadius: 4, cursor: 'pointer', fontWeight: active ? 600 : 400,
               }}
@@ -215,12 +207,11 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
         })}
       </div>
 
-      {/* 対象選択 (team / member のみ) */}
       {scopeType === 'team' && (
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 11, color: C.textMid, marginRight: 8 }}>チーム:</label>
           <select value={selectedTeam} onChange={e => setSelectedTeam(e.target.value)}
-            style={{ padding: '6px 10px', fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 4, minWidth: 200 }}>
+            style={selectStyle}>
             <option value="">選択してください</option>
             {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
@@ -230,7 +221,7 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 11, color: C.textMid, marginRight: 8 }}>メンバー:</label>
           <select value={selectedMember} onChange={e => setSelectedMember(e.target.value)}
-            style={{ padding: '6px 10px', fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 4, minWidth: 240 }}>
+            style={{ ...selectStyle, minWidth: 240 }}>
             <option value="">選択してください</option>
             {members.map(m => (
               <option key={m.id} value={m.id}>
@@ -241,71 +232,66 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
         </div>
       )}
 
-      {/* effective_from */}
+      {/* 対象期間 */}
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 11, color: C.textMid, marginRight: 8 }}>有効開始日:</label>
-        <input type="date" value={effectiveFrom} onChange={e => setEffectiveFrom(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 4 }} />
-        <span style={{ fontSize: 10, color: C.textLight, marginLeft: 8 }}>
-          (この日から有効になる目標として保存)
-        </span>
+        <label style={{ fontSize: 11, color: C.textMid, marginRight: 8 }}>対象期間:</label>
+        <select value={periodKey} onChange={e => setPeriodKey(e.target.value)}
+          style={{ ...selectStyle, minWidth: 280 }}>
+          {periodOptions.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+        </select>
       </div>
 
-      {/* グリッド: KPI × period */}
+      {/* 5 KPI 入力 */}
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 4, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
             <tr style={{ background: C.cream, borderBottom: `1px solid ${C.border}` }}>
               <th style={{ ...th, textAlign: 'left', paddingLeft: 16 }}>KPI</th>
-              {PERIOD_TYPES.map(p => <th key={p.id} style={th}>{p.label}</th>)}
+              <th style={th}>目標値</th>
             </tr>
           </thead>
           <tbody>
-            {KPI_TYPES.map(k => (
-              <tr key={k.id} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
-                <td style={{ ...td, textAlign: 'left', paddingLeft: 16, fontWeight: 500, color: C.navy }}>
-                  {k.label}
-                  {k.isRate && <span style={{ fontSize: 9, marginLeft: 6, color: C.textLight }}>(日次不可)</span>}
-                </td>
-                {PERIOD_TYPES.map(p => {
-                  const key = `${k.id}__${p.id}`;
-                  const disabled = !canEditThisScope || (k.isRate && p.id === 'daily');
-                  return (
-                    <td key={p.id} style={td}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                        <input
-                          type="number"
-                          step={k.isRate ? '0.1' : '1'}
-                          min="0"
-                          max={k.isRate ? 100 : undefined}
-                          value={draft[key] ?? ''}
-                          disabled={disabled}
-                          onChange={e => setDraft(d => ({ ...d, [key]: e.target.value }))}
-                          placeholder={disabled ? '—' : '未設定'}
-                          style={{
-                            width: 90, padding: '5px 8px', fontSize: 12,
-                            border: `1px solid ${C.border}`, borderRadius: 3,
-                            textAlign: 'right',
-                            background: disabled ? C.cream : C.white,
-                            color: disabled ? C.textLight : C.textDark,
-                          }}
-                        />
-                        <span style={{ fontSize: 11, color: C.textMid }}>{k.unit}</span>
-                      </div>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+            {KPI_TYPES.map(k => {
+              const disabled = !canEditThisScope;
+              return (
+                <tr key={k.id} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                  <td style={{ ...td, textAlign: 'left', paddingLeft: 16, fontWeight: 500, color: C.navy }}>
+                    {k.label}
+                    {k.isRate && selectedPeriod?.period_type === 'daily' && (
+                      <span style={{ fontSize: 9, marginLeft: 6, color: C.textLight }}>(日次不可)</span>
+                    )}
+                  </td>
+                  <td style={td}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <input
+                        type="number"
+                        step={k.isRate ? '0.1' : '1'}
+                        min="0"
+                        max={k.isRate ? 100 : undefined}
+                        value={draft[k.id] ?? ''}
+                        disabled={disabled}
+                        onChange={e => setDraft(d => ({ ...d, [k.id]: e.target.value }))}
+                        placeholder={disabled ? '—' : '未設定'}
+                        style={{
+                          width: 120, padding: '5px 8px', fontSize: 12,
+                          border: `1px solid ${C.border}`, borderRadius: 3, textAlign: 'right',
+                          background: disabled ? C.cream : C.white,
+                          color: disabled ? C.textLight : C.textDark,
+                        }}
+                      />
+                      <span style={{ fontSize: 11, color: C.textMid }}>{k.unit}</span>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      {/* 保存 */}
       {canEditThisScope && (
         <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
-          <button
-            onClick={handleSave}
+          <button onClick={handleSave}
             disabled={scopeType !== 'org' && !scopeId}
             style={{
               padding: '8px 24px', fontSize: 13, fontWeight: 600,
@@ -324,3 +310,10 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
     </div>
   );
 }
+
+const selectStyle = {
+  padding: '6px 10px', fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 4,
+  minWidth: 200,
+};
+const th = { padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: C.navy, fontSize: 11 };
+const td = { padding: '8px 12px', fontSize: 12, color: C.textDark, textAlign: 'center' };

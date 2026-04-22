@@ -7,7 +7,7 @@ import { getOrgId } from '../../../lib/orgContext';
 //   - 面談済のアポを「初回面談」カラムに配置 (deals 行が無くてもカードは出す)
 //   - deals 行があればそのステージに配置
 //   - カードクリック → ステージ変更 (deals 行を作成/更新)
-export default function ProgressTab({ deals, stages, onStageChange, client, refresh }) {
+export default function ProgressTab({ deals, stages, onStageChange, client, engagementId, refresh }) {
   const [appos, setAppos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState(null);
@@ -24,15 +24,18 @@ export default function ProgressTab({ deals, stages, onStageChange, client, refr
         .select('id, company_name, meeting_date, status, client_id, client:clients(id, name), sales_amount')
         .eq('org_id', orgId)
         .eq('status', '面談済')
-        .order('meeting_date', { ascending: false });
+        .order('meeting_date', { ascending: false })
+        .limit(5000);
+      if (engagementId) q = q.eq('engagement_id', engagementId);
       if (client?.id) q = q.eq('client_id', client.id);
-      const { data } = await q;
+      const { data, error } = await q;
       if (cancelled) return;
+      if (error) console.error('[ProgressTab] 面談済アポ取得失敗:', error);
       setAppos(data || []);
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [orgId, client?.id]);
+  }, [orgId, engagementId, client?.id]);
 
   const orderedStages = useMemo(
     () => [...(stages || [])].sort((a, b) => (a.order || 0) - (b.order || 0)),
