@@ -64,14 +64,9 @@ export default function MASPMembersView({ isAdmin }) {
             <tr style={{ borderBottom: `1px solid ${C.border}`, background: C.cream }}>
               <th style={th}>入社日</th>
               <th style={{ ...th, textAlign: 'left' }}>氏名</th>
-              <th style={{ ...th, textAlign: 'left' }}>ポジション</th>
-              <th style={{ ...th, textAlign: 'left' }}>チーム</th>
-              {engagementCols.map(e => {
-                const hasTeams = (teamsByEngagement[e.id] || []).length > 0;
-                return (
-                  <th key={e.id} style={{ ...th, minWidth: hasTeams ? 160 : 96 }}>{e.name}</th>
-                );
-              })}
+              {engagementCols.map(e => (
+                <th key={e.id} style={{ ...th, minWidth: 96 }}>{e.name}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -83,60 +78,29 @@ export default function MASPMembersView({ isAdmin }) {
                     {m.start_date ? formatDate(m.start_date) : '—'}
                   </td>
                   <td style={{ ...td, textAlign: 'left', fontWeight: 500, color: C.navy }}>{m.name}</td>
-                  <td style={{ ...td, textAlign: 'left', color: C.textMid }}>{m.position || '—'}</td>
-                  <td style={{ ...td, textAlign: 'left', color: C.textMid }}>{m.team || '—'}</td>
-                  {engagementCols.map(e => {
-                    const teams = teamsByEngagement[e.id] || [];
-                    const assigned = set.has(e.id);
-                    const curTeamId = memberTeam[`${m.id}:${e.id}`] || '';
-                    return (
-                      <td key={e.id} style={{ ...td, textAlign: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                          <input
-                            type="checkbox"
-                            checked={assigned}
-                            disabled={!isAdmin}
-                            onChange={ev => {
-                              if (!isAdmin) return;
-                              toggleAssignment(m.id, e.id, ev.target.checked);
-                              if (!ev.target.checked) {
-                                // 事業から外したらチーム割当も解除
-                                assignMemberToTeam(m.id, e.id, null);
-                              }
-                            }}
-                            style={{ width: 16, height: 16, cursor: isAdmin ? 'pointer' : 'not-allowed' }}
-                          />
-                          {teams.length > 0 && assigned && (
-                            <select
-                              value={curTeamId}
-                              disabled={!isAdmin}
-                              onChange={ev => {
-                                if (!isAdmin) return;
-                                assignMemberToTeam(m.id, e.id, ev.target.value || null);
-                              }}
-                              style={{
-                                fontSize: 11, padding: '3px 6px', border: `1px solid ${C.border}`,
-                                borderRadius: 3, background: C.white, color: C.textDark,
-                                cursor: isAdmin ? 'pointer' : 'not-allowed',
-                                minWidth: 70,
-                              }}
-                            >
-                              <option value="">未所属</option>
-                              {teams.map(t => (
-                                <option key={t.id} value={t.id}>{t.name}</option>
-                              ))}
-                            </select>
-                          )}
-                        </div>
-                      </td>
-                    );
-                  })}
+                  {engagementCols.map(e => (
+                    <td key={e.id} style={{ ...td, textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={set.has(e.id)}
+                        disabled={!isAdmin}
+                        onChange={ev => {
+                          if (!isAdmin) return;
+                          toggleAssignment(m.id, e.id, ev.target.checked);
+                          if (!ev.target.checked) {
+                            assignMemberToTeam(m.id, e.id, null);
+                          }
+                        }}
+                        style={{ width: 16, height: 16, cursor: isAdmin ? 'pointer' : 'not-allowed' }}
+                      />
+                    </td>
+                  ))}
                 </tr>
               );
             })}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={4 + engagementCols.length} style={{ padding: '40px 12px', textAlign: 'center', color: C.textLight }}>
+                <td colSpan={2 + engagementCols.length} style={{ padding: '40px 12px', textAlign: 'center', color: C.textLight }}>
                   該当するメンバーがいません
                 </td>
               </tr>

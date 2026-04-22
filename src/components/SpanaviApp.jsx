@@ -540,7 +540,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       { id: "lists", label: "Lists" },
       { id: "search", label: "Search" },
       { id: "recall", label: "Recall" },
-      { id: "incoming", label: "Call History" },
+      { id: "incoming", label: "Incoming Call" },
       { id: "rules", label: "Industry Rules" },
     ]},
     { id: "g_appo", label: "PIPELINE", children: [

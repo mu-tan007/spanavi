@@ -1,16 +1,16 @@
 import React from 'react';
 import { C } from '../../constants/colors';
 
-// Spanavi 全ページ共通のヘッダー帯。Members / Deals / KPI と同じスタイル。
-// - eyebrow: 小さい大文字キャプション (例: "Sourcing · Pipeline")
+// Spanavi 全ページ共通のヘッダー帯。タイトル + 副題 (青文字) のシンプル構成。
 // - title:   メインタイトル (Outfit, 20/600, navy)
 // - description: 補足テキスト (11px, textMid)
 // - right:   右側アクション (ボタン等)
 // - bleed:   親の padding を相殺 (margin: -28)。既定 true。
 // - compact: 下余白を縮小 (タブバーが直下に来るページ用)。既定 false。
 // - children: 帯の内側下部に追加要素 (検索 input / 小さいフィルタ等) を置く場合
+// (eyebrow は廃止。後方互換のため prop は受け取るが描画しない)
 export default function PageHeader({
-  eyebrow,
+  eyebrow, // eslint-disable-line no-unused-vars
   title,
   description,
   right,
@@ -35,15 +35,6 @@ export default function PageHeader({
       }}
     >
       <div style={{ minWidth: 0, flex: '1 1 auto' }}>
-        {eyebrow && (
-          <div style={{
-            fontSize: 10, color: C.textLight,
-            letterSpacing: '0.12em', textTransform: 'uppercase',
-            marginBottom: 2,
-          }}>
-            {eyebrow}
-          </div>
-        )}
         <h1 style={{
           fontSize: 20, fontWeight: 600, margin: '0 0 2px',
           color: C.navy,

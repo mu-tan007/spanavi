@@ -22,7 +22,6 @@ const APPO_COLS = [
   { key: 'getDate', width: 105, align: 'right' },
   { key: 'meetDate', width: 110, align: 'right' },
   { key: 'status', width: 200, align: 'center' },
-  { key: 'email', width: 80, align: 'center' },
   { key: 'revenue', width: 90, align: 'right' },
   { key: 'incentive', width: 110, align: 'right' },
 ];
@@ -1244,7 +1243,6 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             { label: '取得日', key: 'getDate' },
             { label: '面談日', key: 'meetDate' },
             { label: 'ステータス', key: null },
-            { label: 'メール', key: null },
             { label: '当社売上', key: null },
             { label: 'インセンティブ', key: null },
           ].map(({ label, key }, i) => (
@@ -1301,14 +1299,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 color: sc.color,
                 whiteSpace: 'nowrap',
               }}>{a.status}</span>
-              {(() => {
-                const es = EMAIL_STATUS_LABELS[a.emailStatus] || EMAIL_STATUS_LABELS.pending;
-                return <span style={{ textAlign: appoCols[6]?.align || 'center', display: 'flex', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 3, background: es.bg, color: es.color, fontWeight: 600, whiteSpace: 'nowrap' }}>{es.label}</span>
-                </span>;
-              })()}
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: '#0D2247', textAlign: appoCols[7]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid, textAlign: appoCols[8]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: '#0D2247', textAlign: appoCols[6]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid, textAlign: appoCols[7]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
             </div>
           );
         })}

@@ -130,9 +130,8 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        eyebrow="Sourcing · 履歴"
-        title="Call History"
-        description="着信・架電履歴"
+        title="Incoming Call"
+        description="着信履歴"
         style={{ marginBottom: isMobile ? 16 : 24 }}
       />
       {/* フィルター */}

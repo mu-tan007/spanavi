@@ -1015,7 +1015,6 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       <div style={{ display: "flex", gap: 0, marginBottom: 16 }}>
         {[
           { id: "company", label: "企業検索" },
-          { id: "listSearch", label: "リスト検索" },
           { id: "recordings", label: "録音一覧" },
         ].map(tab => (
           <button key={tab.id} onClick={() => setSubTab(tab.id)} style={{
