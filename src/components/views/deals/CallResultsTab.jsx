@@ -24,7 +24,7 @@ export default function CallResultsTab({ client }) {
       setLoading(true);
       const { data: listRows } = await supabase
         .from('call_lists')
-        .select('id, company, industry, status, is_archived')
+        .select('id, name, industry, status, is_archived')
         .eq('org_id', orgId)
         .eq('client_id', client.id);
       if (cancelled) return;

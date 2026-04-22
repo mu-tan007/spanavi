@@ -3,6 +3,10 @@ import { C } from '../../../constants/colors';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import {
+  extractCeoMaIntent, extractPrefecture, parseRevenueOku,
+  extractRevenueFromReport, extractAddressFromReport,
+} from '../../../utils/apppoReportParse';
+import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
@@ -14,33 +18,6 @@ const CEO_INTENT_OPTIONS = [
   { value: 'negative', label: 'なし',   color: '#EF4444' },
 ];
 
-// 住所から都道府県を抜き出す簡易パーサ (頭の3〜4字が都道府県名)
-function extractPrefecture(address) {
-  if (!address) return '不明';
-  const m = address.match(/^(.+?[都道府県])/);
-  return m ? m[1] : '不明';
-}
-
-// revenue テキスト (例: "12億3000万", "1,234千円", "500000") を億円単位の数値に
-function parseRevenueOku(text) {
-  if (!text) return null;
-  const s = String(text).replace(/[,\s]/g, '');
-  const okuMatch = s.match(/([0-9.]+)\s*億/);
-  const manMatch = s.match(/([0-9.]+)\s*万/);
-  if (okuMatch) {
-    const oku = parseFloat(okuMatch[1]);
-    const man = manMatch ? parseFloat(manMatch[1]) / 10000 : 0;
-    return oku + man;
-  }
-  if (manMatch) return parseFloat(manMatch[1]) / 10000;
-  const num = parseFloat(s);
-  if (!isNaN(num)) {
-    // 単位不明の場合は円と仮定 → 億円へ
-    return num / 100000000;
-  }
-  return null;
-}
-
 function bucketRevenue(oku) {
   if (oku == null) return '不明';
   if (oku < 1) return '〜1億';
@@ -48,6 +25,12 @@ function bucketRevenue(oku) {
   if (oku < 10) return '3〜10億';
   if (oku < 30) return '10〜30億';
   return '30億〜';
+}
+
+function formatOku(oku) {
+  if (oku == null) return '—';
+  if (oku < 0.01) return `${Math.round(oku * 10000).toLocaleString()}万円`;
+  return `${oku.toFixed(oku < 1 ? 2 : 1)}億円`;
 }
 
 export default function AppointmentsTab({ client }) {
@@ -64,7 +47,7 @@ export default function AppointmentsTab({ client }) {
       const { data } = await supabase
         .from('appointments')
         .select(`
-          id, company_name, meeting_date, status, cancel_reason, ceo_ma_intent, sales_amount,
+          id, company_name, meeting_date, status, cancel_reason, ceo_ma_intent, sales_amount, appo_report,
           item:call_list_items(id, company, address, revenue, business)
         `)
         .eq('org_id', orgId)
@@ -77,11 +60,23 @@ export default function AppointmentsTab({ client }) {
     return () => { cancelled = true; };
   }, [orgId, client?.id]);
 
-  const enriched = useMemo(() => (rows || []).map(r => ({
-    ...r,
-    prefecture: extractPrefecture(r.item?.address),
-    revenue_oku: parseRevenueOku(r.item?.revenue),
-  })), [rows]);
+  const enriched = useMemo(() => (rows || []).map(r => {
+    // 住所: list_items の address を優先、欠損時は appo_report から抽出
+    const address = r.item?.address || extractAddressFromReport(r.appo_report);
+    // 売上: list_items の revenue テキスト → 億換算。欠損時は appo_report から
+    const revenue_oku = parseRevenueOku(r.item?.revenue) ?? extractRevenueFromReport(r.appo_report);
+    // 社長意向: DB に保存済みなら優先、無ければ appo_report から推定 (UIに表示用)
+    const intent = r.ceo_ma_intent || extractCeoMaIntent(r.appo_report) || null;
+    return {
+      ...r,
+      address,
+      prefecture: extractPrefecture(address),
+      revenue_oku,
+      revenue_text: r.item?.revenue || (revenue_oku != null ? formatOku(revenue_oku) : null),
+      resolved_intent: intent,           // 表示に使う (DB 値 OR 推定値)
+      intent_is_derived: !r.ceo_ma_intent && !!intent, // 推定値かどうか
+    };
+  }), [rows]);
 
   const handleIntentChange = async (id, value) => {
     setUpdating(id);
@@ -99,7 +94,7 @@ export default function AppointmentsTab({ client }) {
     const canceled = enriched.filter(r => r.status === 'キャンセル').length;
     const rescheduled = enriched.filter(r => r.status === 'リスケ中').length;
     const intentCount = { positive: 0, wait: 0, unknown: 0, negative: 0, unset: 0 };
-    enriched.forEach(r => { intentCount[r.ceo_ma_intent || 'unset'] = (intentCount[r.ceo_ma_intent || 'unset'] || 0) + 1; });
+    enriched.forEach(r => { intentCount[r.resolved_intent || 'unset'] = (intentCount[r.resolved_intent || 'unset'] || 0) + 1; });
     const prefCount = {};
     enriched.forEach(r => { prefCount[r.prefecture] = (prefCount[r.prefecture] || 0) + 1; });
     const revCount = {};
@@ -191,23 +186,28 @@ export default function AppointmentsTab({ client }) {
                   <tr key={r.id} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
                     <td style={{ ...td, textAlign: 'left', fontWeight: 500, color: C.navy }}>{r.company_name || '—'}</td>
                     <td style={{ ...td, textAlign: 'left', color: C.textMid }}>{r.item?.business || '—'}</td>
-                    <td style={td}>{r.item?.revenue || '—'}</td>
+                    <td style={td}>{r.revenue_text || '—'}</td>
                     <td style={td}>{r.prefecture}</td>
                     <td style={td}>{r.meeting_date ? String(r.meeting_date).slice(0, 10) : '—'}</td>
                     <td style={{ ...td, color: statusColor, fontWeight: 600 }}>{r.status || '—'}</td>
                     <td style={td}>
-                      <select
-                        value={r.ceo_ma_intent || ''}
-                        disabled={updating === r.id}
-                        onChange={e => handleIntentChange(r.id, e.target.value)}
-                        style={{
-                          fontSize: 11, padding: '3px 6px', border: `1px solid ${C.border}`,
-                          borderRadius: 3, background: C.white, color: C.textDark, cursor: 'pointer',
-                        }}
-                      >
-                        <option value="">—</option>
-                        {CEO_INTENT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                        <select
+                          value={r.ceo_ma_intent || r.resolved_intent || ''}
+                          disabled={updating === r.id}
+                          onChange={e => handleIntentChange(r.id, e.target.value)}
+                          style={{
+                            fontSize: 11, padding: '3px 6px', border: `1px solid ${C.border}`,
+                            borderRadius: 3, background: C.white, color: C.textDark, cursor: 'pointer',
+                          }}
+                        >
+                          <option value="">—</option>
+                          {CEO_INTENT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                        {r.intent_is_derived && (
+                          <span title="議事録から自動推定" style={{ fontSize: 9, color: C.textLight }}>AI</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

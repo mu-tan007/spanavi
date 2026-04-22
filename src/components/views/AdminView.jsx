@@ -12,6 +12,7 @@ import CallStatusSettings from '../admin/CallStatusSettings';
 import RewardMasterView from './RewardMasterView';
 import MyPageView from './MyPageView';
 import BillingSettings from '../admin/BillingSettings';
+import GoalSettingsPanel from '../admin/GoalSettingsPanel';
 import PageHeader from '../common/PageHeader';
 
 const NAVY = '#0D2247';
@@ -19,6 +20,7 @@ const GOLD = '#C8A84B';
 
 const TABS = [
   { id: 'members',  label: 'メンバー管理',          icon: '' },
+  { id: 'kpi',      label: 'KPI 目標',              icon: '' },
   { id: 'reward',   label: '報酬・給与設定',         icon: '' },
   { id: 'calling',  label: '架電設定',              icon: '' },
   { id: 'slack',    label: 'Slack / Zoom設定',       icon: '' },
@@ -197,6 +199,9 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
             onViewMyPage={(name) => setViewingMember(name)}
             onDataRefetch={onDataRefetch}
           />
+        )}
+        {activeTab === 'kpi' && (
+          <GoalSettingsPanel isAdmin={isAdmin} onToast={showToast} />
         )}
         {activeTab === 'reward'  && (
           <>

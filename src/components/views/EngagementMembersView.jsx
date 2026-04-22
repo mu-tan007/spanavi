@@ -205,7 +205,7 @@ function TeamBlock({ group, draggable }) {
       }}>
         <thead>
           <tr style={{ borderBottom: `1px solid ${C.border}`, background: C.cream }}>
-            {draggable && <th style={{ ...th, width: 28 }}></th>}
+            {draggable && <th style={{ ...th, width: 18, padding: '10px 2px' }}></th>}
             <th style={th}>入社日</th>
             <th style={{ ...th, textAlign: 'left' }}>氏名</th>
             <th style={{ ...th, textAlign: 'left' }}>ポジション</th>
@@ -242,7 +242,7 @@ function SortableMemberRow({ m }) {
   };
   return (
     <tr ref={setNodeRef} style={{ ...style, borderBottom: `1px solid ${C.borderLight}` }} {...attributes}>
-      <td style={{ ...td, textAlign: 'center', width: 28, cursor: 'grab', color: C.textLight, userSelect: 'none' }} {...listeners}>
+      <td style={{ ...td, textAlign: 'center', width: 18, padding: '8px 2px', cursor: 'grab', color: C.textLight, userSelect: 'none' }} {...listeners}>
         ⋮⋮
       </td>
       <MemberRowCells m={m} />
