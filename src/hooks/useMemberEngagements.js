@@ -25,13 +25,15 @@ function sortByPositionThenStart(a, b) {
 export function useAllMembersWithEngagements() {
   const [members, setMembers] = useState([]);
   const [assignments, setAssignments] = useState({}); // { member_id: Set<engagement_id> }
+  const [teamsByEngagement, setTeamsByEngagement] = useState({}); // { engagement_id: [{id, name, display_order}] }
+  const [memberTeam, setMemberTeam] = useState({}); // { `${member_id}:${engagement_id}`: team_id }
   const [loading, setLoading] = useState(true);
   const orgId = getOrgId();
 
   const fetchAll = useCallback(async () => {
     if (!orgId) { setLoading(false); return; }
     setLoading(true);
-    const [m, me] = await Promise.all([
+    const [m, me, tRes, tmRes] = await Promise.all([
       supabase.from('members')
         .select('id, name, email, position, rank, team, start_date, is_active, avatar_url')
         .eq('org_id', orgId)
@@ -39,6 +41,15 @@ export function useAllMembersWithEngagements() {
       supabase.from('member_engagements')
         .select('member_id, engagement_id')
         .eq('org_id', orgId),
+      supabase.from('teams')
+        .select('id, name, display_order, engagement_id')
+        .eq('org_id', orgId)
+        .eq('status', 'active')
+        .order('display_order'),
+      supabase.from('team_members')
+        .select('member_id, team_id, left_at, team:teams!inner(id, engagement_id)')
+        .eq('org_id', orgId)
+        .is('left_at', null),
     ]);
     if (!m.error) setMembers([...(m.data || [])].sort(sortByPositionThenStart));
     const map = {};
@@ -47,6 +58,22 @@ export function useAllMembersWithEngagements() {
       map[r.member_id].add(r.engagement_id);
     });
     setAssignments(map);
+
+    const teamsMap = {};
+    (tRes.data || []).forEach(t => {
+      if (!teamsMap[t.engagement_id]) teamsMap[t.engagement_id] = [];
+      teamsMap[t.engagement_id].push({ id: t.id, name: t.name, display_order: t.display_order });
+    });
+    setTeamsByEngagement(teamsMap);
+
+    const mtMap = {};
+    (tmRes.data || []).forEach(r => {
+      const engId = r.team?.engagement_id;
+      if (!engId) return;
+      mtMap[`${r.member_id}:${engId}`] = r.team_id;
+    });
+    setMemberTeam(mtMap);
+
     setLoading(false);
   }, [orgId]);
 
@@ -84,7 +111,42 @@ export function useAllMembersWithEngagements() {
     return { error: null };
   }, [orgId]);
 
-  return { members, assignments, loading, toggleAssignment, refresh: fetchAll };
+  /** member × engagement のチーム割当を変更 (newTeamId = null で割当解除) */
+  const assignMemberToTeam = useCallback(async (memberId, engagementId, newTeamId) => {
+    if (!orgId) return { error: new Error('no org') };
+    const engTeamIds = (teamsByEngagement[engagementId] || []).map(t => t.id);
+    // この engagement 内の既存レコードを全て left_at 付きで閉じる
+    if (engTeamIds.length > 0) {
+      const { error: closeErr } = await supabase.from('team_members')
+        .delete()
+        .eq('member_id', memberId)
+        .in('team_id', engTeamIds)
+        .is('left_at', null);
+      if (closeErr) return { error: closeErr };
+    }
+    // 新しいチームに insert
+    if (newTeamId) {
+      const { error: insErr } = await supabase.from('team_members').insert({
+        org_id: orgId, member_id: memberId, team_id: newTeamId,
+      });
+      if (insErr && insErr.code !== '23505') return { error: insErr };
+      // members.team legacy 列も名前で同期 (Sourcing の既存コード互換)
+      const teamName = (teamsByEngagement[engagementId] || []).find(t => t.id === newTeamId)?.name;
+      if (teamName) {
+        await supabase.from('members').update({ team: teamName }).eq('id', memberId);
+      }
+    }
+    setMemberTeam(prev => {
+      const next = { ...prev };
+      const key = `${memberId}:${engagementId}`;
+      if (newTeamId) next[key] = newTeamId;
+      else delete next[key];
+      return next;
+    });
+    return { error: null };
+  }, [orgId, teamsByEngagement]);
+
+  return { members, assignments, teamsByEngagement, memberTeam, loading, toggleAssignment, assignMemberToTeam, refresh: fetchAll };
 }
 
 /**
