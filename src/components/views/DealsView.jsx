@@ -1,24 +1,19 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { C } from '../../constants/colors';
 import { useEngagements } from '../../hooks/useEngagements';
 import { useDealStages } from '../../hooks/useDealStages';
 import { useDeals } from '../../hooks/useDeals';
 import { useEngagementClients } from '../../hooks/useEngagementClients';
 import ClientSelector from '../common/ClientSelector';
-import DealsKanbanTab from './deals/DealsKanbanTab';
-import DealsListTab from './deals/DealsListTab';
-import DealsLostTab from './deals/DealsLostTab';
-import DealsFunnelTab from './deals/DealsFunnelTab';
-import DealsClientSharingTab from './deals/DealsClientSharingTab';
-import DealDetailModal from './deals/DealDetailModal';
 import PageHeader from '../common/PageHeader';
+import CallResultsTab from './deals/CallResultsTab';
+import AppointmentsTab from './deals/AppointmentsTab';
+import ProgressTab from './deals/ProgressTab';
 
 const TABS = [
-  { id: 'kanban', label: 'Kanban' },
-  { id: 'list', label: 'List' },
-  { id: 'lost', label: 'Lost Deals' },
-  { id: 'funnel', label: 'Funnel Analysis' },
-  { id: 'sharing', label: 'Client Sharing' },
+  { id: 'calls',    label: '架電結果' },
+  { id: 'appos',    label: '獲得アポ詳細' },
+  { id: 'progress', label: '商談進捗' },
 ];
 
 export default function DealsView() {
@@ -27,35 +22,54 @@ export default function DealsView() {
   const { clients } = useEngagementClients(currentEngagement?.id);
 
   const [selectedClientId, setSelectedClientId] = useState(null);
-  const [activeTab, setActiveTab] = useState('kanban');
-  const [selectedDeal, setSelectedDeal] = useState(null);
+  const [activeTab, setActiveTab] = useState('calls');
 
-  const { deals, loading: dealsLoading, updateDealStage, updateDeal } = useDeals({
+  const { deals, loading: dealsLoading, updateDealStage, updateDeal, refresh: refreshDeals } = useDeals({
     engagementId: currentEngagement?.id,
     clientId: selectedClientId,
   });
 
-  if (!currentEngagement) return null;
-  if (stagesLoading || dealsLoading) {
-    return (
-      <div style={{ padding: 40, textAlign: 'center', color: C.textMid }}>
-        読み込み中...
-      </div>
-    );
-  }
+  // Ctrl+←/→ でサブタブ切替 (他ページと揃える)
+  useEffect(() => {
+    const ids = TABS.map(t => t.id);
+    const cycle = (dir) => setActiveTab(prev => {
+      const i = ids.indexOf(prev);
+      if (i === -1) return prev;
+      return ids[(i + dir + ids.length) % ids.length];
+    });
+    const onEvt = e => cycle(e.detail.direction);
+    const onKey = e => {
+      if (!e.ctrlKey) return;
+      if (e.key === 'ArrowLeft')  { e.preventDefault(); cycle(-1); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); cycle(1); }
+    };
+    window.addEventListener('spanavi-subtab-cycle', onEvt);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('spanavi-subtab-cycle', onEvt);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, []);
 
-  // Kanbanは open のみ、他タブは全件 (Lost含む)
-  const openDeals = deals.filter(d => d.closed_status !== 'lost');
+  const selectedClient = useMemo(
+    () => clients.find(c => c.id === selectedClientId) || null,
+    [clients, selectedClientId]
+  );
+
+  if (!currentEngagement) return null;
+  if (stagesLoading) {
+    return <div style={{ padding: 40, textAlign: 'center', color: C.textMid }}>読み込み中...</div>;
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', background: C.offWhite, animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         compact
-        eyebrow="Sourcing · Pipeline"
         title="Deals"
-        description="商談パイプライン — アポ獲得後の進捗管理"
+        description="架電結果から商談進捗まで、案件のライフサイクルを1画面で管理"
       />
 
+      {/* タブバー */}
       <div style={{
         display: 'flex', padding: '0 20px', borderBottom: `1px solid ${C.border}`,
         background: C.white, gap: 0,
@@ -64,8 +78,7 @@ export default function DealsView() {
           const active = activeTab === tab.id;
           return (
             <button
-              key={tab.id}
-              type="button"
+              key={tab.id} type="button"
               onClick={() => setActiveTab(tab.id)}
               style={{
                 fontSize: 12, padding: '10px 16px',
@@ -75,46 +88,46 @@ export default function DealsView() {
                 fontWeight: active ? 600 : 400, marginBottom: -1,
                 cursor: 'pointer', fontFamily: "'Noto Sans JP',sans-serif",
               }}
-              onMouseEnter={e => { if (!active) e.currentTarget.style.color = C.navy; }}
-              onMouseLeave={e => { if (!active) e.currentTarget.style.color = C.textMid; }}
-            >
-              {tab.label}
-            </button>
+            >{tab.label}</button>
           );
         })}
       </div>
 
+      {/* クライアント選択 */}
       <ClientSelector
         clients={clients}
         selectedClientId={selectedClientId}
         onSelect={setSelectedClientId}
       />
 
-      <div style={{ flex: 1, minHeight: 'calc(100vh - 260px)' }}>
-        {activeTab === 'kanban' && (
-          <DealsKanbanTab
-            deals={openDeals}
-            stages={activeStages}
-            onCardClick={setSelectedDeal}
-            onStageChange={updateDealStage}
+      <div style={{ padding: '16px 20px', flex: 1, minHeight: 'calc(100vh - 260px)' }}>
+        {activeTab === 'calls' && (
+          <CallResultsTab
+            engagementId={currentEngagement.id}
+            client={selectedClient}
+            clients={clients}
           />
         )}
-        {activeTab === 'list' && (
-          <DealsListTab deals={deals} stages={stages} onRowClick={setSelectedDeal} />
+        {activeTab === 'appos' && (
+          <AppointmentsTab
+            engagementId={currentEngagement.id}
+            client={selectedClient}
+            clients={clients}
+          />
         )}
-        {activeTab === 'lost' && <DealsLostTab deals={deals} />}
-        {activeTab === 'funnel' && <DealsFunnelTab deals={deals} stages={stages} />}
-        {activeTab === 'sharing' && <DealsClientSharingTab />}
+        {activeTab === 'progress' && (
+          <ProgressTab
+            deals={deals}
+            stages={stages}
+            activeStages={activeStages}
+            loading={dealsLoading}
+            onStageChange={updateDealStage}
+            onUpdateDeal={updateDeal}
+            refresh={refreshDeals}
+            client={selectedClient}
+          />
+        )}
       </div>
-
-      {selectedDeal && (
-        <DealDetailModal
-          deal={selectedDeal}
-          stages={stages}
-          onClose={() => setSelectedDeal(null)}
-          onUpdate={updateDeal}
-        />
-      )}
     </div>
   );
 }

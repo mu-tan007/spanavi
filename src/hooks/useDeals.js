@@ -32,10 +32,12 @@ export function useDeals({ engagementId, clientId = null, closedStatus = null })
   useEffect(() => { setLoading(true); fetchDeals(); }, [fetchDeals]);
 
   const updateDealStage = async (dealId, newStage) => {
+    const isTerminal = ['spa_closing','broken'].includes(newStage);
     const payload = {
       stage: newStage,
-      closed_status: newStage === 'closed_won' ? 'won' : newStage === 'closed_lost' ? 'lost' : 'open',
-      closed_at: (newStage === 'closed_won' || newStage === 'closed_lost') ? new Date().toISOString() : null,
+      stage_changed_at: new Date().toISOString(),
+      closed_status: newStage === 'spa_closing' ? 'won' : newStage === 'broken' ? 'lost' : 'open',
+      closed_at: isTerminal ? new Date().toISOString() : null,
     };
     const { error } = await supabase.from('deals').update(payload).eq('id', dealId);
     if (!error) await fetchDeals();
