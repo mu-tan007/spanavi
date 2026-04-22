@@ -1,6 +1,6 @@
 import { useDashboard } from '../hooks/useDashboard'
 import { DEAL_STATUSES } from '../lib/constants'
-import { Link } from 'react-router-dom'
+import { Link } from '../lib/miniRouter'
 import CaesarLogo from '../components/ui/CaesarLogo'
 
 // ---- 共通スタイル定数 ----

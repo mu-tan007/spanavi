@@ -1,5 +1,5 @@
 import React from 'react';
-import { MemoryRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { CapitalRouterProvider, Routes, Route, Navigate } from './lib/miniRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { C } from '../../../constants/colors';
 import { CapitalNavBridge } from './lib/capitalNav';
@@ -44,7 +44,7 @@ export default function CapitalApp() {
   return (
     <CapitalErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/dashboard']}>
+        <CapitalRouterProvider initialPath="/dashboard">
           <CapitalNavBridge />
           <div style={{ margin: -28, marginTop: 0, marginBottom: 0, minHeight: 'calc(100vh - 120px)' }}>
             <Routes>
@@ -62,7 +62,7 @@ export default function CapitalApp() {
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </div>
-        </MemoryRouter>
+        </CapitalRouterProvider>
       </QueryClientProvider>
     </CapitalErrorBoundary>
   );

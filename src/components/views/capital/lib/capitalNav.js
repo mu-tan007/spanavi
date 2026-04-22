@@ -2,7 +2,7 @@
 // MemoryRouter は Capital の <CapitalApp> 内に閉じるので、サイドバーはこのモジュールの
 // capitalNavigate() を呼ぶ / subscribeCapitalPathname() で現在パスを購読する。
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from './miniRouter';
 
 let _navigateFn = null;
 let _pathname = '/dashboard';

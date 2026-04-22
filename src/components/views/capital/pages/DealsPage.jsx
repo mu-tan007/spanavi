@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from '../lib/miniRouter'
 import { useDeals, useCreateDeal } from '../hooks/useDeals'
 import { DEAL_STATUSES } from '../lib/constants'
 

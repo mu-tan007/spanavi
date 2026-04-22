@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link } from '../lib/miniRouter'
 import { useDeal, useUpdateDealStatus } from '../hooks/useDeals'
 import ValuationTab from '../components/deal/ValuationTab'
 import DDTab from '../components/deal/DDTab'

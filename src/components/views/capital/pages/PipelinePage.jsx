@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from '../lib/miniRouter'
 import { useDecisionQueue } from '../hooks/usePipeline'
 import { useUpdateDealStatus } from '../hooks/useDeals'
 import { useBudgetForecast } from '../hooks/useMaMandate'

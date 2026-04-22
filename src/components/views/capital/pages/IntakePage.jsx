@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '../lib/miniRouter'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { logAudit } from '../lib/audit'

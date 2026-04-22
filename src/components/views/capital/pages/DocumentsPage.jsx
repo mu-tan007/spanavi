@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
-import { Link } from 'react-router-dom'
+import { Link } from '../lib/miniRouter'
 import { useAuth } from '../hooks/useAuth'
 
 const card = { background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 16 }
