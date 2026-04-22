@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import PageHeader from '../common/PageHeader';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
@@ -234,11 +235,12 @@ export default function InternRulesView() {
   return (
     <div style={{ paddingBottom: 64, animation: 'fadeIn 0.3s ease' }}>
 
-      {/* Page Header */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>22 Rules</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>インターン22か条</div>
-      </div>
+      <PageHeader
+        eyebrow="研修 · 心得"
+        title="22 Rules"
+        description="インターン22か条"
+        style={{ marginBottom: 24 }}
+      />
 
       {/* ヘッダーエリア */}
       <div

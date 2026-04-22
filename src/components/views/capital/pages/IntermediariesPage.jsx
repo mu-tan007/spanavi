@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import FirmContractsPanel from '../components/firm/FirmContractsPanel'
+import PageHeader from '../../../common/PageHeader'
 
 const card = { background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 16 }
 
@@ -81,17 +82,21 @@ export default function IntermediariesPage() {
   )
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 18, fontWeight: 500, color: '#032D60' }}>仲介会社・FA</h1>
-          <p style={{ fontSize: 12, color: '#706E6B', marginTop: 3 }}>{intermediaries.length} 社登録中</p>
-        </div>
-        <button onClick={() => setModal(true)}
-          style={{ height: 36, padding: '0 16px', background: '#032D60', border: 'none', borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-          + 追加
-        </button>
-      </div>
+    <div style={{ maxWidth: '100%' }}>
+      <PageHeader
+        bleed={false}
+        eyebrow="Spartia Capital · 仲介"
+        title="仲介会社・FA"
+        description={`${intermediaries.length} 社登録中`}
+        style={{ marginBottom: 20 }}
+        right={
+          <button onClick={() => setModal(true)}
+            style={{ height: 32, padding: '0 14px', background: '#032D60', border: 'none', borderRadius: 4, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            + 追加
+          </button>
+        }
+      />
+      <div style={{ padding: '0 24px' }}>
 
       <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 14 }}>
         {/* List */}
@@ -272,6 +277,7 @@ export default function IntermediariesPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

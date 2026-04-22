@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { logAudit } from '../lib/audit'
+import PageHeader from '../../../common/PageHeader'
 
 const STATUS_STYLE = {
   not_contacted: { bg: '#F8F8F8', color: '#706E6B', label: '未接触' },
@@ -231,32 +232,29 @@ export default function AgencyRegistryPage() {
   const selNoContact = selectedAgencies.filter(a => !a.contact_email && !a.contact_form_url)
 
   return (
-    <div style={{ padding: '20px 24px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 500, color: '#032D60', marginBottom: 4 }}>登録支援機関データベース</h1>
-          <p style={{ fontSize: 12, color: '#706E6B' }}>
-            {filtered.length === stats.total
-              ? `${(page-1)*PAGE_SIZE+1}〜${Math.min(page*PAGE_SIZE, filtered.length)}件を表示中（全${stats.total}件）`
-              : `${filtered.length}件該当（全${stats.total}件）`}
-            　接触済 {stats.contacted}社　未接触 {stats.notContacted}社
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {selectedIds.size > 0 && (
-            <>
-              <button onClick={lookupContacts} disabled={lookingUp} style={{
-                height: 36, padding: '0 14px', background: '#fff', border: '0.5px solid #E5E5E5',
-                borderRadius: 6, color: '#032D60', fontSize: 12, cursor: 'pointer',
-              }}>{lookingUp ? 'AI取得中...' : `${selectedIds.size}社の連絡先を取得`}</button>
-              <button onClick={openBroadcast} style={{
-                height: 36, padding: '0 16px', background: '#032D60', border: 'none',
-                borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer',
-              }}>{selectedIds.size}社に配信</button>
-            </>
-          )}
-        </div>
-      </div>
+    <div>
+      <PageHeader
+        bleed={false}
+        eyebrow="Spartia Capital · Registry"
+        title="登録支援機関データベース"
+        description={`${filtered.length === stats.total
+          ? `${(page-1)*PAGE_SIZE+1}〜${Math.min(page*PAGE_SIZE, filtered.length)}件を表示中（全${stats.total}件）`
+          : `${filtered.length}件該当（全${stats.total}件）`}　接触済 ${stats.contacted}社　未接触 ${stats.notContacted}社`}
+        style={{ marginBottom: 16 }}
+        right={selectedIds.size > 0 ? (
+          <>
+            <button onClick={lookupContacts} disabled={lookingUp} style={{
+              height: 32, padding: '0 12px', background: '#fff', border: '0.5px solid #E5E5E5',
+              borderRadius: 4, color: '#032D60', fontSize: 12, cursor: 'pointer',
+            }}>{lookingUp ? 'AI取得中...' : `${selectedIds.size}社の連絡先を取得`}</button>
+            <button onClick={openBroadcast} style={{
+              height: 32, padding: '0 14px', background: '#032D60', border: 'none',
+              borderRadius: 4, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            }}>{selectedIds.size}社に配信</button>
+          </>
+        ) : null}
+      />
+      <div style={{ padding: '0 24px' }}>
 
       {/* 検索バー */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -474,6 +472,7 @@ export default function AgencyRegistryPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

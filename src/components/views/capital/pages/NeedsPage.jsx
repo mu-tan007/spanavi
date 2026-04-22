@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
+import PageHeader from '../../../common/PageHeader'
 
 const card = { background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 16 }
 
@@ -99,19 +100,21 @@ export default function NeedsPage() {
   )
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 18, fontWeight: 500, color: '#032D60' }}>買収ニーズ</h1>
-          <p style={{ fontSize: 12, color: '#706E6B', marginTop: 3 }}>
-            有効 {needs.filter(n => n.is_active).length} 件 / 全 {needs.length} 件
-          </p>
-        </div>
-        <button onClick={() => setModal(true)}
-          style={{ height: 36, padding: '0 16px', background: '#032D60', border: 'none', borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-          + ニーズを追加
-        </button>
-      </div>
+    <div style={{ maxWidth: '100%' }}>
+      <PageHeader
+        bleed={false}
+        eyebrow="Spartia Capital · ニーズ"
+        title="買収ニーズ"
+        description={`有効 ${needs.filter(n => n.is_active).length} 件 / 全 ${needs.length} 件`}
+        style={{ marginBottom: 20 }}
+        right={
+          <button onClick={() => setModal(true)}
+            style={{ height: 32, padding: '0 14px', background: '#032D60', border: 'none', borderRadius: 4, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            + ニーズを追加
+          </button>
+        }
+      />
+      <div style={{ padding: '0 24px' }}>
 
       {isLoading ? (
         <div style={{ fontSize: 13, color: '#706E6B', textAlign: 'center', padding: '40px 0' }}>読み込み中...</div>
@@ -267,6 +270,7 @@ export default function NeedsPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

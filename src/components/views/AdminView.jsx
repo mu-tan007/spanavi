@@ -12,6 +12,7 @@ import CallStatusSettings from '../admin/CallStatusSettings';
 import RewardMasterView from './RewardMasterView';
 import MyPageView from './MyPageView';
 import BillingSettings from '../admin/BillingSettings';
+import PageHeader from '../common/PageHeader';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
@@ -137,29 +138,30 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
 
   return (
     <div style={{ paddingBottom: 48, animation: 'fadeIn 0.3s ease' }}>
-      {/* Page Header */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247', display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Admin Settings</div>
-          <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>管理者設定 — 代表のみアクセス可能</div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 12, color: '#6B7280' }}>プッシュ通知</span>
-          <button
-            onClick={handleTogglePush}
-            disabled={pushLoading}
-            style={{
-              padding: '5px 14px', borderRadius: 14, border: 'none',
-              background: pushEnabled ? GOLD : '#E5E5E5',
-              color: pushEnabled ? '#fff' : '#9CA3AF',
-              fontSize: 11, fontWeight: 700, cursor: pushLoading ? 'wait' : 'pointer',
-              transition: 'background 0.2s',
-            }}
-          >
-            {pushLoading ? '処理中...' : pushEnabled ? 'ON' : 'OFF'}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Admin · 設定"
+        title="Admin Settings"
+        description="管理者設定 — 代表のみアクセス可能"
+        style={{ marginBottom: 24 }}
+        right={
+          <>
+            <span style={{ fontSize: 12, color: '#6B7280' }}>プッシュ通知</span>
+            <button
+              onClick={handleTogglePush}
+              disabled={pushLoading}
+              style={{
+                padding: '5px 14px', borderRadius: 14, border: 'none',
+                background: pushEnabled ? GOLD : '#E5E5E5',
+                color: pushEnabled ? '#fff' : '#9CA3AF',
+                fontSize: 11, fontWeight: 700, cursor: pushLoading ? 'wait' : 'pointer',
+                transition: 'background 0.2s',
+              }}
+            >
+              {pushLoading ? '処理中...' : pushEnabled ? 'ON' : 'OFF'}
+            </button>
+          </>
+        }
+      />
 
       {/* タブバー */}
       <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #E5E5E5', background: '#fff', borderRadius: '4px 4px 0 0', overflow: isMobile ? 'auto' : 'hidden', marginBottom: 0 }}>

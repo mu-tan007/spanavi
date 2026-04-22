@@ -8,6 +8,7 @@ import TsrIndustryModal from '../TsrIndustryModal';
 import { useCompanySearch } from '../../hooks/useCompanySearch';
 import { searchCompanies } from '../../lib/companyMasterApi';
 import { supabase } from '../../lib/supabase';
+import PageHeader from '../common/PageHeader';
 
 export default function DatabaseView({ isAdmin }) {
   const {
@@ -67,32 +68,29 @@ export default function DatabaseView({ isAdmin }) {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Database</div>
-          {dbTotal != null && (
-            <div style={{ fontSize: 12, color: C.textLight, marginTop: 2 }}>
-              Total: {dbTotal.toLocaleString()} companies
-            </div>
-          )}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button onClick={() => setShowTsrModal(true)}
-            style={{ padding: '6px 14px', borderRadius: 4, border: '1px solid #E5E7EB', background: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#0D2247', fontFamily: "'Noto Sans JP'" }}>
-            TSR業種分類一覧
-          </button>
-          {isAdmin && (
-            <button onClick={() => setShowImport(true)} style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              background: C.navy, color: C.white, border: 'none',
-              borderRadius: 8, padding: '8px 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer',
-            }}>
-              <Upload size={15} /> リストインポート
+      <PageHeader
+        eyebrow="Sourcing · Database"
+        title="Database"
+        description={dbTotal != null ? `Total: ${dbTotal.toLocaleString()} companies` : undefined}
+        style={{ marginBottom: 16 }}
+        right={
+          <>
+            <button onClick={() => setShowTsrModal(true)}
+              style={{ padding: '6px 14px', borderRadius: 4, border: `1px solid ${C.border}`, background: C.white, cursor: 'pointer', fontSize: 11, fontWeight: 600, color: C.navy, fontFamily: "'Noto Sans JP'" }}>
+              TSR業種分類一覧
             </button>
-          )}
-        </div>
-      </div>
+            {isAdmin && (
+              <button onClick={() => setShowImport(true)} style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                background: C.navy, color: C.white, border: 'none',
+                borderRadius: 4, padding: '7px 14px', fontWeight: 600, fontSize: 12, cursor: 'pointer',
+              }}>
+                <Upload size={14} /> リストインポート
+              </button>
+            )}
+          </>
+        }
+      />
 
       {/* Filters */}
       <DatabaseFilterPanel

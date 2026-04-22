@@ -14,6 +14,7 @@ import {
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
+import PageHeader from '../common/PageHeader';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
@@ -491,11 +492,12 @@ export default function StatsView({ callListData, currentUser, appoData, members
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
 
-      {/* ページヘッダー */}
-      <div style={{ marginBottom: isMobile ? 16 : 24, paddingBottom: 14, borderBottom: `1px solid ${NAVY}` }}>
-        <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: NAVY, letterSpacing: '-0.3px' }}>Analytics</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>売上・架電・ランキングの統合分析ダッシュボード</div>
-      </div>
+      <PageHeader
+        eyebrow="Sourcing · Analytics"
+        title="Analytics"
+        description="売上・架電・ランキングの統合分析ダッシュボード"
+        style={{ marginBottom: isMobile ? 16 : 24 }}
+      />
 
       {/* ========== セクション1: KPIサマリーカード ========== */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 8 : 14, marginBottom: 20 }}>

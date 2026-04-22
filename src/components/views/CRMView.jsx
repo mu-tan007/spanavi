@@ -4,6 +4,7 @@ import { updateClient, insertClient, deleteClient, insertClientContact, updateCl
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
+import PageHeader from '../common/PageHeader';
 
 const NAVY = '#0D2247';
 const BLUE = '#1E40AF';
@@ -130,11 +131,12 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
-      {/* Page Header */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>CRM</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>顧客関係管理・商談パイプライン</div>
-      </div>
+      <PageHeader
+        eyebrow="Sourcing · 顧客"
+        title="CRM"
+        description="顧客関係管理・商談パイプライン"
+        style={{ marginBottom: 24 }}
+      />
 
       {/* Header */}
       <div style={{

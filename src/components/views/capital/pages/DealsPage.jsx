@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from '../lib/miniRouter'
 import { useDeals, useCreateDeal } from '../hooks/useDeals'
 import { DEAL_STATUSES } from '../lib/constants'
+import PageHeader from '../../../common/PageHeader'
 
 const STATUS_STYLE = {
   nn_review:       { bg: '#F3F2F2', color: '#2a4a7a', label: 'NN精査' },
@@ -86,26 +87,27 @@ export default function DealsPage() {
   const broken  = deals.filter(d => d.status === 'break')
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '100%' }}>
+    <div style={{ maxWidth: '100%' }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 18, fontWeight: 500, color: '#032D60' }}>案件一覧</h1>
-          <p style={{ fontSize: 12, color: '#706E6B', marginTop: 3 }}>
-            進行中 {active.length} 件　ストップ {stopped.length} 件　ブレイク {broken.length} 件
-          </p>
-        </div>
-        <button
-          onClick={() => setModal(true)}
-          style={{
-            height: 36, padding: '0 16px', background: '#032D60', border: 'none',
-            borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer',
-          }}
-        >
-          + 案件を追加
-        </button>
-      </div>
+      <PageHeader
+        bleed={false}
+        eyebrow="Spartia Capital · 案件"
+        title="Deals"
+        description={`進行中 ${active.length} 件　ストップ ${stopped.length} 件　ブレイク ${broken.length} 件`}
+        style={{ marginBottom: 20 }}
+        right={
+          <button
+            onClick={() => setModal(true)}
+            style={{
+              height: 32, padding: '0 14px', background: '#032D60', border: 'none',
+              borderRadius: 4, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            + 案件を追加
+          </button>
+        }
+      />
+      <div style={{ padding: '0 24px' }}>
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
@@ -269,6 +271,7 @@ export default function DealsPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

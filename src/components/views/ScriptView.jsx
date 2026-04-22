@@ -3,6 +3,7 @@ import { C } from '../../constants/colors';
 import { DEFAULT_BASIC_SCRIPT } from '../../constants/scripts';
 import { fetchSetting, saveSetting, updateCallListRebuttal, updateCallListScript, uploadScriptPdf, deleteScriptPdfObject, updateCallListScriptPdfs, getScriptPdfSignedUrl } from '../../lib/supabaseWrite';
 import { renderMarkedScript, toHtml, fromHtml, isSelectionMarked, applyMarker, removeMarker } from '../../utils/scriptMarker';
+import PageHeader from '../common/PageHeader';
 
 export default function ScriptView({ isAdmin, clientData, callListData, setCallListData }) {
   const [basicScript, setBasicScript] = useState(DEFAULT_BASIC_SCRIPT);
@@ -224,11 +225,12 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease", padding: "0 0 40px 0" }}>
-      {/* Page Header */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Scripts</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>架電スクリプトライブラリ</div>
-      </div>
+      <PageHeader
+        eyebrow="Sourcing · Scripts"
+        title="Scripts"
+        description="架電スクリプトライブラリ"
+        style={{ marginBottom: 24 }}
+      />
 
       {/* 基本スクリプト */}
       <div style={{ marginBottom: 32 }}>

@@ -1,4 +1,5 @@
 import { C } from '../../constants/colors';
+import PageHeader from '../common/PageHeader';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
@@ -166,11 +167,12 @@ export default function RulesView({ currentIndustry }) {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      {/* Page Header */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Industry Rules</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>業種別対応ルール・注意事項</div>
-      </div>
+      <PageHeader
+        eyebrow="Sourcing · ルール"
+        title="Industry Rules"
+        description="業種別対応ルール・注意事項"
+        style={{ marginBottom: 24 }}
+      />
 
       {/* Active category notice */}
       <div style={{ marginBottom: 20 }}>

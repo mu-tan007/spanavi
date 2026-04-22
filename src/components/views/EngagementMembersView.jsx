@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { C } from '../../constants/colors';
 import { useEngagements } from '../../hooks/useEngagements';
 import { useEngagementMembers } from '../../hooks/useMemberEngagements';
+import PageHeader from '../common/PageHeader';
 
 // 各事業タブの「Members」ページ。読み取り専用で、MASP Members で割当てたメンバーのみ表示。
 // 事業を跨いで使い回せる (sourcing / career / capital …)。
@@ -34,17 +35,13 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
   }
 
   return (
-    <div style={{ background: C.offWhite, margin: bleed ? -28 : 0, marginTop: 0, marginBottom: 0, minHeight: 'calc(100vh - 120px)' }}>
-      <div style={{ padding: '14px 20px 16px', background: C.white, borderBottom: `1px solid ${C.border}` }}>
-        <div style={{ fontSize: 10, color: C.textLight, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>
-          {engagement.name} · 所属メンバー
-        </div>
-        <h1 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 2px', color: C.navy, fontFamily: "'Outfit','Noto Sans JP',sans-serif" }}>
-          Members
-        </h1>
-        <p style={{ fontSize: 11, color: C.textMid, margin: '0 0 12px' }}>
-          {members.length} 名 (入社日順)。所属の変更は MASP → Members から
-        </p>
+    <div style={{ background: C.offWhite, minHeight: 'calc(100vh - 120px)' }}>
+      <PageHeader
+        bleed={bleed}
+        eyebrow={`${engagement.name} · 所属メンバー`}
+        title="Members"
+        description={`${members.length} 名 (入社日順)。所属の変更は MASP → Members から`}
+      >
         <input
           type="text"
           value={filter}
@@ -54,9 +51,10 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
             width: 320, padding: '7px 10px', fontSize: 12,
             border: `1px solid ${C.border}`, borderRadius: 4,
             fontFamily: "'Noto Sans JP',sans-serif",
+            marginTop: 12,
           }}
         />
-      </div>
+      </PageHeader>
 
       <div style={{ padding: 16, overflowX: 'auto' }}>
         {visibleGroups.length === 0 ? (

@@ -8,6 +8,7 @@ import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import PageHeader from '../common/PageHeader';
 
 export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
   const PRE_CHECK_OPTIONS = ['確認完了', '確認中', 'リスケ', 'キャンセル'];
@@ -361,11 +362,12 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
-      {/* Page Header */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Pre-Check</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>事前確認・ヒアリング管理</div>
-      </div>
+      <PageHeader
+        eyebrow="Sourcing · Pre-Check"
+        title="Pre-Check"
+        description="事前確認・ヒアリング管理"
+        style={{ marginBottom: 24 }}
+      />
 
       {/* Summary */}
       <div style={{

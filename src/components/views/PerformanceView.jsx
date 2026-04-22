@@ -10,6 +10,7 @@ import ActivitySummaryCards from '../dashboard/ActivitySummaryCards';
 import HourlyActivityChart from '../dashboard/HourlyActivityChart';
 import ActivityRankingSection from '../dashboard/ActivityRankingSection';
 import TeamPerformanceTable from '../dashboard/TeamPerformanceTable';
+import PageHeader from '../common/PageHeader';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
@@ -416,11 +417,12 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      {/* Page Header */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Performance</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>個人・チーム パフォーマンス分析</div>
-      </div>
+      <PageHeader
+        eyebrow="Sourcing · Performance"
+        title="Performance"
+        description="個人・チーム パフォーマンス分析"
+        style={{ marginBottom: 24 }}
+      />
 
       {selectedPerson && (
         <PersonDetailModal

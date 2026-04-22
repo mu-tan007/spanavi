@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { C } from '../../constants/colors';
 import { supabase } from '../../lib/supabase';
+import PageHeader from '../common/PageHeader';
 import {
   fetchRoleplayBookings,
   fetchAllRoleplayBookings,
@@ -242,11 +243,12 @@ export default function RoleplayView({ currentUser, userId }) {
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease", display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Page Header */}
-      <div style={{ marginBottom: 8, paddingBottom: 14, borderBottom: `1px solid ${NAVY}` }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: NAVY, letterSpacing: '-0.3px' }}>Role Play</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>代表とのロープレ予約</div>
-      </div>
+      <PageHeader
+        eyebrow="研修 · ロープレ"
+        title="Role Play"
+        description="代表とのロープレ予約"
+        style={{ marginBottom: 8 }}
+      />
 
       <div style={{ display: "flex", gap: 20, alignItems: "flex-start", position: "relative" }}>
 

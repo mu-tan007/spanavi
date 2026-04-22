@@ -112,7 +112,7 @@ export default function DealDetailPage() {
                 優先度: {deal.priority === 1 ? '高' : deal.priority === 2 ? '中' : '低'}
               </span>
             </div>
-            <h1 style={{ fontSize: 20, fontWeight: 500, color: '#032D60', marginBottom: 6 }}>{deal.name}</h1>
+            <h1 style={{ fontSize: 20, fontWeight: 600, color: '#032D60', marginBottom: 6, fontFamily: "'Outfit','Noto Sans JP',sans-serif" }}>{deal.name}</h1>
             <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
               {deal.intermediaries?.name && (
                 <span style={{ fontSize: 12, color: '#706E6B' }}>仲介: {deal.intermediaries.name}</span>

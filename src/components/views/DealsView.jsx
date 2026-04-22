@@ -11,6 +11,7 @@ import DealsLostTab from './deals/DealsLostTab';
 import DealsFunnelTab from './deals/DealsFunnelTab';
 import DealsClientSharingTab from './deals/DealsClientSharingTab';
 import DealDetailModal from './deals/DealDetailModal';
+import PageHeader from '../common/PageHeader';
 
 const TABS = [
   { id: 'kanban', label: 'Kanban' },
@@ -47,18 +48,13 @@ export default function DealsView() {
   const openDeals = deals.filter(d => d.closed_status !== 'lost');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', background: C.offWhite, margin: -28 /* main padding 相殺 */, marginTop: 0, marginBottom: 0 }}>
-      <div style={{ padding: '14px 20px 0', background: C.white }}>
-        <div style={{ fontSize: 10, color: C.textLight, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>
-          Sourcing · Pipeline
-        </div>
-        <h1 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 2px', color: C.navy, fontFamily: "'Outfit','Noto Sans JP',sans-serif" }}>
-          Deals
-        </h1>
-        <p style={{ fontSize: 11, color: C.textMid, margin: '0 0 12px' }}>
-          商談パイプライン — アポ獲得後の進捗管理
-        </p>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', background: C.offWhite }}>
+      <PageHeader
+        compact
+        eyebrow="Sourcing · Pipeline"
+        title="Deals"
+        description="商談パイプライン — アポ獲得後の進捗管理"
+      />
 
       <div style={{
         display: 'flex', padding: '0 20px', borderBottom: `1px solid ${C.border}`,

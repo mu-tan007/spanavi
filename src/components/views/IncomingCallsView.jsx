@@ -7,6 +7,7 @@ import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
 
 import { getOrgId } from '../../lib/orgContext';
+import PageHeader from '../common/PageHeader';
 
 const formatJST = (iso) => {
   if (!iso) return '-';
@@ -128,11 +129,12 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      {/* ページヘッダー */}
-      <div style={{ marginBottom: isMobile ? 16 : 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
-        <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Call History</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>着信・架電履歴</div>
-      </div>
+      <PageHeader
+        eyebrow="Sourcing · 履歴"
+        title="Call History"
+        description="着信・架電履歴"
+        style={{ marginBottom: isMobile ? 16 : 24 }}
+      />
       {/* フィルター */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'flex-end',

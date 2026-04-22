@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import MyPageView from './MyPageView';
 import { C } from '../../constants/colors';
+import PageHeader from '../common/PageHeader';
 
 const NAVY = '#0D2247';
 const GRAY_200 = '#E5E7EB';
@@ -37,11 +38,13 @@ export default function ManagerAdminView({ currentUser, members = [], appoData =
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Page Header */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247', flexShrink: 0, padding: '0 28px 14px' }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Manager</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>マネージャー管理パネル</div>
-      </div>
+      <PageHeader
+        bleed={false}
+        eyebrow="Admin · マネージャー"
+        title="Manager"
+        description="マネージャー管理パネル"
+        style={{ marginBottom: 24, flexShrink: 0, padding: '14px 28px 16px' }}
+      />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Member list sidebar */}

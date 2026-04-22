@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { Link } from '../lib/miniRouter'
 import { useAuth } from '../hooks/useAuth'
+import PageHeader from '../../../common/PageHeader'
 
 const card = { background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 16 }
 
@@ -160,21 +161,21 @@ export default function DocumentsPage() {
   const isLoading = tab === 'files' ? filesLoading : tab === 'contracts' ? contractsLoading : templatesLoading
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 18, fontWeight: 500, color: '#032D60' }}>書類管理</h1>
-          <p style={{ fontSize: 12, color: '#706E6B', marginTop: 3 }}>
-            {tab === 'files' ? `ファイル ${files.length}件` : tab === 'contracts' ? `契約書 ${contracts.length}件` : `テンプレート ${templates.length}件`}
-          </p>
-        </div>
-        {tab === 'templates' && (
+    <div style={{ maxWidth: '100%' }}>
+      <PageHeader
+        bleed={false}
+        eyebrow="Spartia Capital · 書類"
+        title="書類管理"
+        description={tab === 'files' ? `ファイル ${files.length}件` : tab === 'contracts' ? `契約書 ${contracts.length}件` : `テンプレート ${templates.length}件`}
+        style={{ marginBottom: 20 }}
+        right={tab === 'templates' ? (
           <button onClick={() => setShowUpload(true)} style={{
-            height: 36, padding: '0 16px', background: '#032D60', border: 'none',
-            borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+            height: 32, padding: '0 14px', background: '#032D60', border: 'none',
+            borderRadius: 4, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
           }}>+ テンプレート追加</button>
-        )}
-      </div>
+        ) : null}
+      />
+      <div style={{ padding: '0 24px' }}>
 
       {/* Tabs */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, borderBottom: '0.5px solid #E5E5E5' }}>
@@ -419,6 +420,7 @@ export default function DocumentsPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

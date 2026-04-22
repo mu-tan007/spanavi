@@ -2,6 +2,7 @@ import { useDashboard } from '../hooks/useDashboard'
 import { DEAL_STATUSES } from '../lib/constants'
 import { Link } from '../lib/miniRouter'
 import CaesarLogo from '../components/ui/CaesarLogo'
+import PageHeader from '../../../common/PageHeader'
 
 // ---- 共通スタイル定数 ----
 const card = {
@@ -169,7 +170,15 @@ export default function DashboardPage() {
     .slice(0, 6)
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '100%' }}>
+    <div style={{ maxWidth: '100%' }}>
+      <PageHeader
+        bleed={false}
+        eyebrow="Spartia Capital · ダッシュボード"
+        title="Dashboard"
+        description="M&A案件の進捗と主要KPI"
+        style={{ marginBottom: 20 }}
+      />
+      <div style={{ padding: '0 24px' }}>
 
       {/* KPI */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
@@ -328,6 +337,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      </div>
     </div>
   )
 }

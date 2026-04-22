@@ -5,6 +5,7 @@ import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import PageHeader from '../common/PageHeader';
 
 const RECALL_COLS = [
   { key: 'datetime', width: 78, align: 'left' },
@@ -98,11 +99,12 @@ export default function RecallListView({ callListData, supaRecalls = [], members
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease", height: 'calc(100vh - 130px)', display: 'flex', flexDirection: 'column' }}>
-      {/* ページヘッダー */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Recall</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>コールバック・再架電管理</div>
-      </div>
+      <PageHeader
+        eyebrow="Sourcing · Recall"
+        title="Recall"
+        description="コールバック・再架電管理"
+        style={{ marginBottom: 24 }}
+      />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowX: 'auto', overflowY: 'hidden', background: "#fff", borderRadius: 4, border: '1px solid #E5E7EB' }}>
         <div style={{ padding: isMobile ? '8px 10px' : '10px 14px', borderBottom: '1px solid ' + C.borderLight, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

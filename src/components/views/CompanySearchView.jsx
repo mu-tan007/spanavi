@@ -32,6 +32,7 @@ import useColumnConfig from '../../hooks/useColumnConfig';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
+import PageHeader from '../common/PageHeader';
 
 const SEARCH_COMPANY_COLS = [
   { key: 'company', width: 350, align: 'left' },
@@ -1004,11 +1005,12 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
-      {/* ページヘッダー */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Search</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>企業・連絡先検索</div>
-      </div>
+      <PageHeader
+        eyebrow="Sourcing · 検索"
+        title="Search"
+        description="企業・連絡先検索"
+        style={{ marginBottom: 24 }}
+      />
       {/* Sub tabs */}
       <div style={{ display: "flex", gap: 0, marginBottom: 16 }}>
         {[

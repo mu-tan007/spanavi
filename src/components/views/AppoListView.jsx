@@ -13,6 +13,7 @@ import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
+import PageHeader from '../common/PageHeader';
 
 const APPO_COLS = [
   { key: 'client', width: 240, align: 'left' },
@@ -1015,22 +1016,24 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
-      {/* Page Header */}
-      <div style={{ marginBottom: 24, paddingBottom: 0, borderBottom: '1px solid #0D2247' }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Appointments</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>アポイントメント・パイプライン管理</div>
+      <PageHeader
+        eyebrow="Sourcing · アポ"
+        title="Appointments"
+        description="アポイントメント・パイプライン管理"
+        style={{ marginBottom: 24 }}
+      >
         <div style={{ display: 'flex', gap: 0, marginTop: 14 }}>
           {[['current', 'アポ一覧'], ['past', '過去アポ一覧']].map(([key, label]) => (
             <button key={key} onClick={() => setActiveTab(key)}
               style={{
                 padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                fontFamily: "'Noto Sans JP'", border: 'none', borderBottom: activeTab === key ? '3px solid #0D2247' : '3px solid transparent',
-                background: 'transparent', color: activeTab === key ? '#0D2247' : '#9CA3AF',
+                fontFamily: "'Noto Sans JP'", border: 'none', borderBottom: activeTab === key ? `2px solid ${C.navy}` : '2px solid transparent',
+                background: 'transparent', color: activeTab === key ? C.navy : C.textLight,
                 transition: 'all 0.15s',
               }}>{label}</button>
           ))}
         </div>
-      </div>
+      </PageHeader>
 
       {activeTab === 'current' && (<>
       {/* Header */}
@@ -2421,11 +2424,12 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
-      {/* Page Header */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Employee Roster</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>従業員名簿</div>
-      </div>
+      <PageHeader
+        eyebrow="Admin · 名簿"
+        title="Employee Roster"
+        description="従業員名簿"
+        style={{ marginBottom: 24 }}
+      />
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
         padding: isMobile ? "10px 12px" : "14px 18px", background: '#fff', borderRadius: 4,

@@ -6,6 +6,7 @@ import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import PageHeader from '../common/PageHeader';
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -165,11 +166,12 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
-      {/* ページヘッダー */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Lists</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>架電リスト管理</div>
-      </div>
+      <PageHeader
+        eyebrow="Sourcing · Lists"
+        title="Lists"
+        description="架電リスト管理"
+        style={{ marginBottom: 24 }}
+      />
       {/* 時間外メッセージ */}
       {now && (now.getHours() < 7 || now.getHours() >= 20) && (
         <div style={{ background: "#fff", borderRadius: 4, padding: "14px 20px", marginBottom: 16, border: "1px solid #E5E7EB", borderLeft: "4px solid " + C.textLight, display: "flex", alignItems: "center", gap: 8 }}>

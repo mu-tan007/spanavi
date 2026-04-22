@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { fetchShifts, insertShift, updateShift, deleteShift } from '../../lib/supabaseWrite';
+import PageHeader from '../common/PageHeader';
 
 const NAVY = '#0D2247';
 const GRAY_200 = '#E5E7EB';
@@ -352,11 +353,12 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', animation: 'fadeIn 0.3s ease' }}>
-      {/* Page Header */}
-      <div style={{ marginBottom: isMobile ? 16 : 24, paddingBottom: 14, borderBottom: '1px solid #0D2247', flexShrink: 0 }}>
-        <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Shifts</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>シフト・勤怠管理</div>
-      </div>
+      <PageHeader
+        eyebrow="Admin · シフト"
+        title="Shifts"
+        description="シフト・勤怠管理"
+        style={{ marginBottom: isMobile ? 16 : 24, flexShrink: 0 }}
+      />
 
       {/* ヘッダー */}
       <div style={{ padding: isMobile ? '10px 12px' : '14px 24px', background: '#fff', borderBottom: '1px solid ' + GRAY_200, display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12, flexShrink: 0, flexWrap: 'wrap' }}>

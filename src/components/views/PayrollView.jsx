@@ -7,6 +7,7 @@ import { getOrgId } from '../../lib/orgContext';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
+import PageHeader from '../common/PageHeader';
 
 const PAYROLL_DATA = [];
 
@@ -384,11 +385,12 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
 
-      {/* ── ページヘッダー ────────────────────────────────────────── */}
-      <div style={{ marginBottom: 24, paddingBottom: 14, borderBottom: `1px solid ${TH_BG}` }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: TH_BG, letterSpacing: '-0.3px' }}>Payroll</div>
-        <div style={{ fontSize: 13, color: C.textLight, marginTop: 4 }}>月次インセンティブ・支給額の管理</div>
-      </div>
+      <PageHeader
+        eyebrow="Admin · 報酬"
+        title="Payroll"
+        description="月次インセンティブ・支給額の管理"
+        style={{ marginBottom: 24 }}
+      />
 
       {/* ── Summary cards ────────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>

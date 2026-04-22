@@ -2,6 +2,7 @@ import { useState } from "react";
 import { C } from '../../constants/colors';
 import { CALL_RESULTS } from '../../constants/callResults';
 import { Badge } from '../common/Badge';
+import PageHeader from '../common/PageHeader';
 
 const INTERNS = [
   "成尾 拓輝", "武山 創", "小山 在人", "坂 玲央奈", "山村 蓮",
@@ -30,15 +31,20 @@ export default function LogView({ callLogs, logFormOpen, setLogFormOpen, addCall
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, color: C.navy, fontFamily: "'Noto Serif JP', serif" }}>架電ログ</h2>
-        <button onClick={() => setLogFormOpen(!logFormOpen)} style={{
-          padding: "8px 20px", borderRadius: 8,
-          background: logFormOpen ? C.white : "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")",
-          border: logFormOpen ? "1px solid " + C.border : "none",
-          color: logFormOpen ? C.textDark : C.white, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-        }}>{logFormOpen ? "✕ 閉じる" : "＋ ログを記録"}</button>
-      </div>
+      <PageHeader
+        eyebrow="Sourcing · ログ"
+        title="架電ログ"
+        description="日次架電の記録と重複チェック"
+        style={{ marginBottom: 20 }}
+        right={
+          <button onClick={() => setLogFormOpen(!logFormOpen)} style={{
+            padding: "7px 14px", borderRadius: 4,
+            background: logFormOpen ? C.white : C.navy,
+            border: logFormOpen ? "1px solid " + C.border : "none",
+            color: logFormOpen ? C.textDark : C.white, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+          }}>{logFormOpen ? "✕ 閉じる" : "＋ ログを記録"}</button>
+        }
+      />
 
       {logFormOpen && (
         <div style={{ background: C.white, border: "1px solid " + C.gold + "40", borderRadius: 12, padding: 24, marginBottom: 24, animation: "fadeIn 0.3s ease", borderLeft: "2px solid " + C.gold }}>
