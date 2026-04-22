@@ -2192,45 +2192,68 @@ function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
     }));
   }, [appoData]);
 
-  // 架電可能リストのIDリスト
+  // 架電可能リストのIDリスト (安定参照のため joined string も memo)
   const activeListIds = React.useMemo(
     () => callListData.filter(l => l.status === '架電可能' && !l.is_archived).map(l => l._supaId).filter(Boolean),
     [callListData]
   );
+  const activeListIdsKey = activeListIds.join(',');
 
-  // マウント時＋activeListIds変更時にマッチ検索
+  // callListData を id で引けるように map 化 (行ごとの find を避ける)
+  const callListById = React.useMemo(() => {
+    const m = {};
+    for (const l of callListData) if (l._supaId) m[l._supaId] = l;
+    return m;
+  }, [callListData]);
+
+  // 照合対象企業名の集合 (appoData が変わるたびに string key で安定化)
+  const allPastNamesKey = React.useMemo(
+    () => [...new Set(pastItems.map(p => p.company))].sort().join('|'),
+    [pastItems]
+  );
+
   useEffect(() => {
     if (!activeListIds.length) { setMatchMap({}); return; }
-    const allNames = [...new Set(pastItems.map(p => p.company))];
+    const allNames = allPastNamesKey ? allPastNamesKey.split('|') : [];
+    if (!allNames.length) { setMatchMap({}); return; }
     setLoading(true);
     fetchMatchingListItemsByCompanyNames(allNames, activeListIds)
       .then(({ data }) => setMatchMap(data || {}))
       .catch(() => setMatchMap({}))
       .finally(() => setLoading(false));
-  }, [activeListIds, pastItems]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeListIdsKey, allPastNamesKey]);
 
-  // 該当企業のクライアント群に含まれないリストのみを返すヘルパー
-  const getOtherListMatches = (p) => {
-    const matches = matchMap[p.company] || [];
-    return matches.filter(m => {
-      const list = callListData.find(l => l._supaId === m.listId);
-      return list && !list.is_archived && !p.clients.includes(list.company);
-    });
-  };
+  // 行ごとの otherMatches を一括 precompute
+  const otherMatchesByCompany = React.useMemo(() => {
+    const m = {};
+    for (const p of pastItems) {
+      const matches = matchMap[p.company] || [];
+      m[p.company] = matches.filter(x => {
+        const list = callListById[x.listId];
+        return list && !list.is_archived && !p.clients.includes(list.company);
+      });
+    }
+    return m;
+  }, [pastItems, matchMap, callListById]);
+  const getOtherListMatches = (p) => otherMatchesByCompany[p.company] || [];
 
-  const filtered = pastItems.filter(p => {
+  const filtered = React.useMemo(() => pastItems.filter(p => {
     if (sourceFilter === 'spanavi' && p.clients.length === 0) return false;
     if (sourceFilter === 'excel' && p.clients.length > 0) return false;
     if (pastSearch && !p.company.includes(pastSearch) && !p.client.includes(pastSearch)) return false;
     if (listFilter !== 'all') {
-      const hasOther = getOtherListMatches(p).length > 0;
+      const hasOther = (otherMatchesByCompany[p.company] || []).length > 0;
       if (listFilter === 'matched' && !hasOther) return false;
       if (listFilter === 'unmatched' && hasOther) return false;
     }
     return true;
-  });
+  }), [pastItems, sourceFilter, pastSearch, listFilter, otherMatchesByCompany]);
 
-  const matchCount = filtered.filter(p => getOtherListMatches(p).length > 0).length;
+  const matchCount = React.useMemo(
+    () => filtered.reduce((s, p) => s + ((otherMatchesByCompany[p.company] || []).length > 0 ? 1 : 0), 0),
+    [filtered, otherMatchesByCompany]
+  );
 
   const handleNavigate = (companyName, listId, itemId) => {
     const list = callListData.find(l => l._supaId === listId);

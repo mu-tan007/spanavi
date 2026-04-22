@@ -2468,21 +2468,26 @@ export async function fetchOrgSettings() {
 export async function fetchMatchingListItemsByCompanyNames(companyNames, activeListIds) {
   if (!companyNames?.length || !activeListIds?.length) return { data: {}, error: null }
   const CHUNK = 200
-  const allRows = []
+  // チャンクを並列で投げる (以前は sequential で RTT × N かかっていた)
+  const chunks = []
   for (let i = 0; i < companyNames.length; i += CHUNK) {
-    const chunk = companyNames.slice(i, i + CHUNK)
-    const { data, error } = await supabase
+    chunks.push(companyNames.slice(i, i + CHUNK))
+  }
+  const results = await Promise.all(chunks.map(chunk =>
+    supabase
       .from('call_list_items')
       .select('id, list_id, company')
       .in('list_id', activeListIds)
       .in('company', chunk)
-    if (error) {
-      console.error('[DB] fetchMatchingListItemsByCompanyNames error:', error)
-      return { data: {}, error }
+  ))
+  const allRows = []
+  for (const r of results) {
+    if (r.error) {
+      console.error('[DB] fetchMatchingListItemsByCompanyNames error:', r.error)
+      return { data: {}, error: r.error }
     }
-    allRows.push(...(data || []))
+    allRows.push(...(r.data || []))
   }
-  // company → [{ itemId, listId }]
   const map = {}
   allRows.forEach(r => {
     if (!map[r.company]) map[r.company] = []
