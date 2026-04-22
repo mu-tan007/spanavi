@@ -19,19 +19,24 @@ export default function PageHeader({
   children,
   style,
 }) {
+  // style の spread で margin 全体が上書きされないよう、個別プロパティに分解
+  const { marginTop, marginBottom, marginLeft, marginRight, margin: _m, ...restStyle } = style || {};
   return (
     <div
       style={{
         padding: compact ? '14px 20px 0' : '14px 20px 16px',
         background: C.white,
         borderBottom: compact ? 'none' : `1px solid ${C.border}`,
-        margin: bleed ? '0 -28px' : 0,
+        marginTop: marginTop ?? 0,
+        marginRight: marginRight ?? (bleed ? -28 : 0),
+        marginBottom: marginBottom ?? 0,
+        marginLeft: marginLeft ?? (bleed ? -28 : 0),
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
         gap: 16,
         flexWrap: 'wrap',
-        ...style,
+        ...restStyle,
       }}
     >
       <div style={{ minWidth: 0, flex: '1 1 auto' }}>
