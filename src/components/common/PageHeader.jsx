@@ -25,7 +25,7 @@ export default function PageHeader({
         padding: compact ? '14px 20px 0' : '14px 20px 16px',
         background: C.white,
         borderBottom: compact ? 'none' : `1px solid ${C.border}`,
-        margin: bleed ? '-28px -28px 0' : 0,
+        margin: bleed ? '0 -28px' : 0,
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
