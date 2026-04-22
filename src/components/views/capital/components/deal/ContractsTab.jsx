@@ -36,7 +36,7 @@ export default function ContractsTab({ dealId, intermediaryId, intermediaryName 
   const { data: contracts = [] } = useQuery({
     queryKey: ['deal-contracts', dealId],
     queryFn: async () => {
-      const { data } = await supabase.from('deal_contracts').select('*').eq('deal_id', dealId).order('created_at', { ascending: false })
+      const { data } = await supabase.from('cap_deal_contracts').select('*').eq('deal_id', dealId).order('created_at', { ascending: false })
       return data || []
     },
   })
@@ -44,7 +44,7 @@ export default function ContractsTab({ dealId, intermediaryId, intermediaryName 
   function startAdd(type) { setAddingType(type); setForm({ title: '', signed_at: '', status: 'drafting', amount: '', counterparty: intermediaryName || '', notes: '' }); setPendingFile(null) }
 
   async function save() {
-    if (!tenantId || !addingType) return
+    if (false || !addingType) return
     setSaving(true)
     try {
       let storage_path = null, file_name = null
@@ -68,7 +68,7 @@ export default function ContractsTab({ dealId, intermediaryId, intermediaryName 
       }
       // executed_at は signed_at と同期
       if (form.status === 'signed' && form.signed_at) payload.executed_at = form.signed_at
-      const { data, error } = await supabase.from('deal_contracts').insert(payload).select().single()
+      const { data, error } = await supabase.from('cap_deal_contracts').insert(payload).select().single()
       if (error) { alert('保存エラー: ' + error.message); setSaving(false); return }
       logAudit({ action: 'create', resourceType: 'deal_contract', resourceId: data?.id, resourceName: payload.title, metadata: { deal_id: dealId, type: addingType } })
       qc.invalidateQueries({ queryKey: ['deal-contracts', dealId] })
@@ -89,7 +89,7 @@ export default function ContractsTab({ dealId, intermediaryId, intermediaryName 
   async function updateStatus(c, newStatus) {
     const patch = { status: newStatus }
     if (newStatus === 'signed' && !c.signed_at) patch.signed_at = new Date().toISOString().slice(0, 10)
-    await supabase.from('deal_contracts').update(patch).eq('id', c.id)
+    await supabase.from('cap_deal_contracts').update(patch).eq('id', c.id)
     logAudit({ action: 'update', resourceType: 'deal_contract', resourceId: c.id, metadata: { status: newStatus } })
     qc.invalidateQueries({ queryKey: ['deal-contracts', dealId] })
   }
@@ -97,7 +97,7 @@ export default function ContractsTab({ dealId, intermediaryId, intermediaryName 
   async function deleteContract(c) {
     if (!confirm(`${c.title} を削除しますか？`)) return
     if (c.storage_path) await supabase.storage.from('caesar-files').remove([c.storage_path])
-    await supabase.from('deal_contracts').delete().eq('id', c.id)
+    await supabase.from('cap_deal_contracts').delete().eq('id', c.id)
     logAudit({ action: 'delete', resourceType: 'deal_contract', resourceId: c.id })
     qc.invalidateQueries({ queryKey: ['deal-contracts', dealId] })
   }

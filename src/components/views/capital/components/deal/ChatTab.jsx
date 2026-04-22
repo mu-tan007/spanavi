@@ -46,7 +46,7 @@ export default function ChatTab({ dealId }) {
     queryKey: ['deal-chat', dealId],
     queryFn: async () => {
       const { data } = await supabase
-        .from('deal_chat_messages')
+        .from('cap_deal_chat_messages')
         .select('*')
         .eq('deal_id', dealId)
         .order('created_at', { ascending: true })
@@ -59,7 +59,7 @@ export default function ChatTab({ dealId }) {
     queryKey: ['deal-files', dealId],
     queryFn: async () => {
       const { data } = await supabase
-        .from('deal_files')
+        .from('cap_deal_files')
         .select('*')
         .eq('deal_id', dealId)
         .order('uploaded_at', { ascending: false })
@@ -114,7 +114,7 @@ export default function ChatTab({ dealId }) {
       const versionGroup = versionMatch ? versionMatch[1].trim().replace(/[\s_\-]+$/, '') : stem
       const versionLabel = versionMatch ? versionMatch[2] : null
 
-      const { data: fileRec, error: dbErr } = await supabase.from('deal_files').insert({
+      const { data: fileRec, error: dbErr } = await supabase.from('cap_deal_files').insert({
         deal_id: dealId,
         file_name: att.file.name,
         file_type: att.fileType || 'other',
@@ -162,7 +162,7 @@ export default function ChatTab({ dealId }) {
 
   async function handleSend() {
     if (!message.trim() && attachments.length === 0) return
-    if (!tenantId) return
+    if (false) return
     setSending(true)
     const sentMessage = message
     const sentAttachments = attachments
@@ -205,7 +205,7 @@ export default function ChatTab({ dealId }) {
 
   async function clearChat() {
     if (!confirm('このチャット履歴を全て削除しますか？')) return
-    await supabase.from('deal_chat_messages').delete().eq('deal_id', dealId)
+    await supabase.from('cap_deal_chat_messages').delete().eq('deal_id', dealId)
     logAudit({ action: 'delete', resourceType: 'chat', resourceId: dealId, metadata: { scope: 'all_messages' } })
     qc.invalidateQueries({ queryKey: ['deal-chat', dealId] })
   }
@@ -214,7 +214,7 @@ export default function ChatTab({ dealId }) {
     if (!confirm(`${f.file_name} を削除しますか？`)) return
     try {
       await supabase.storage.from('caesar-files').remove([f.storage_path])
-      await supabase.from('deal_files').delete().eq('id', f.id)
+      await supabase.from('cap_deal_files').delete().eq('id', f.id)
       logAudit({ action: 'delete', resourceType: 'file', resourceId: f.id, resourceName: f.file_name })
       qc.invalidateQueries({ queryKey: ['deal-files', dealId] })
     } catch (e) {

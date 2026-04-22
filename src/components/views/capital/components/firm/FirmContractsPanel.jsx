@@ -32,7 +32,7 @@ export default function FirmContractsPanel({ intermediaryId, intermediaryName })
     enabled: !!intermediaryId,
     queryFn: async () => {
       const { data } = await supabase
-        .from('firm_contracts')
+        .from('cap_firm_contracts')
         .select('*')
         .eq('intermediary_id', intermediaryId)
         .order('created_at', { ascending: false })
@@ -42,7 +42,7 @@ export default function FirmContractsPanel({ intermediaryId, intermediaryName })
 
   async function handleSave(e) {
     e.preventDefault()
-    if (!tenantId) return
+    if (false) return
     setSaving(true)
     try {
       let storage_path = null
@@ -55,15 +55,14 @@ export default function FirmContractsPanel({ intermediaryId, intermediaryName })
         if (upErr) { alert('ファイルアップロード失敗: ' + upErr.message); setSaving(false); return }
       }
       const payload = {
-        tenant_id: tenantId,
-        intermediary_id: intermediaryId,
+                intermediary_id: intermediaryId,
         contract_type: form.contract_type,
         signed_at: form.signed_at || null,
         expires_at: form.expires_at || null,
         notes: form.notes || null,
         storage_path, file_name,
       }
-      const { data, error } = await supabase.from('firm_contracts').insert(payload).select().single()
+      const { data, error } = await supabase.from('cap_firm_contracts').insert(payload).select().single()
       if (error) { alert('保存エラー: ' + error.message); setSaving(false); return }
       logAudit({ action: 'create', resourceType: 'firm_contract', resourceId: data?.id, resourceName: `${intermediaryName} / ${CONTRACT_TYPES.find(t => t.value === form.contract_type)?.label}` })
       qc.invalidateQueries({ queryKey: ['firm-contracts', intermediaryId] })
@@ -90,7 +89,7 @@ export default function FirmContractsPanel({ intermediaryId, intermediaryName })
   async function deleteContract(c) {
     if (!confirm('この契約を削除しますか？')) return
     if (c.storage_path) await supabase.storage.from('caesar-files').remove([c.storage_path])
-    await supabase.from('firm_contracts').delete().eq('id', c.id)
+    await supabase.from('cap_firm_contracts').delete().eq('id', c.id)
     logAudit({ action: 'delete', resourceType: 'firm_contract', resourceId: c.id })
     qc.invalidateQueries({ queryKey: ['firm-contracts', intermediaryId] })
   }
@@ -189,7 +188,7 @@ export function MasterContractBanner({ intermediaryId, intermediaryName }) {
     enabled: !!intermediaryId,
     queryFn: async () => {
       const { data } = await supabase
-        .from('firm_contracts')
+        .from('cap_firm_contracts')
         .select('*')
         .eq('intermediary_id', intermediaryId)
       return data || []

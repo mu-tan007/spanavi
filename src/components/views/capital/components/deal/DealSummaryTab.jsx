@@ -29,7 +29,7 @@ export default function DealSummaryTab({ dealId }) {
   const { data: company } = useQuery({
     queryKey: ['deal-summary', dealId],
     queryFn: async () => {
-      const { data } = await supabase.from('deal_companies').select('detailed_summary, detailed_summary_updated_at').eq('deal_id', dealId).maybeSingle()
+      const { data } = await supabase.from('cap_deal_companies').select('detailed_summary, detailed_summary_updated_at').eq('deal_id', dealId).maybeSingle()
       return data
     },
   })

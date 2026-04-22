@@ -27,7 +27,7 @@ function useMeetings(viewStart, viewEnd) {
   return useQuery({
     queryKey: ['meetings-cal', viewStart.toISOString(), viewEnd.toISOString()],
     queryFn: async () => {
-      const { data } = await supabase.from('deal_meetings')
+      const { data } = await supabase.from('cap_deal_meetings')
         .select('*, deals(id, name)')
         .gte('held_at', viewStart.toISOString())
         .lte('held_at', viewEnd.toISOString())
@@ -41,7 +41,7 @@ function useDealsSimple() {
   return useQuery({
     queryKey: ['deals-simple'],
     queryFn: async () => {
-      const { data } = await supabase.from('deals').select('id, name').order('name')
+      const { data } = await supabase.from('cap_deals').select('id, name').order('name')
       return data || []
     },
   })
@@ -181,7 +181,7 @@ export default function CalendarPage() {
     try {
       if (ev.source === 'caesar') {
         // Caesarを更新
-        await supabase.from('deal_meetings').update({
+        await supabase.from('cap_deal_meetings').update({
           held_at: newStart.toISOString(),
         }).eq('id', ev.raw.id)
         // Google にも同期（cal_event_id があれば）
@@ -211,9 +211,9 @@ export default function CalendarPage() {
           })
         }
         // 紐付けされた Caesar 予定も更新
-        const { data: linked } = await supabase.from('deal_meetings').select('id').eq('cal_event_id', ev.raw.id).maybeSingle()
+        const { data: linked } = await supabase.from('cap_deal_meetings').select('id').eq('cal_event_id', ev.raw.id).maybeSingle()
         if (linked) {
-          await supabase.from('deal_meetings').update({ held_at: newStart.toISOString() }).eq('id', linked.id)
+          await supabase.from('cap_deal_meetings').update({ held_at: newStart.toISOString() }).eq('id', linked.id)
         }
         fetchGcalEvents()
       }
@@ -235,7 +235,7 @@ export default function CalendarPage() {
     try {
       if (ev.source === 'caesar') {
         // Caesar側を削除
-        await supabase.from('deal_meetings').delete().eq('id', ev.raw.id)
+        await supabase.from('cap_deal_meetings').delete().eq('id', ev.raw.id)
         // Google にも紐付けがあれば削除
         if (ev.raw.cal_event_id && gcalConnected && window.gapi?.client?.calendar) {
           try {
@@ -249,9 +249,9 @@ export default function CalendarPage() {
           await window.gapi.client.calendar.events.delete({ calendarId: 'primary', eventId: ev.raw.id })
         }
         // 紐付けされた Caesar 予定も削除
-        const { data: linked } = await supabase.from('deal_meetings').select('id').eq('cal_event_id', ev.raw.id).maybeSingle()
+        const { data: linked } = await supabase.from('cap_deal_meetings').select('id').eq('cal_event_id', ev.raw.id).maybeSingle()
         if (linked) {
-          await supabase.from('deal_meetings').delete().eq('id', linked.id)
+          await supabase.from('cap_deal_meetings').delete().eq('id', linked.id)
         }
         fetchGcalEvents()
       }
@@ -290,7 +290,7 @@ export default function CalendarPage() {
       }
       if (!payload.deal_id) delete payload.deal_id
       // Caesarに保存して新規IDを取得
-      const { data: created } = await supabase.from('deal_meetings').insert(payload).select().single().then(r => r).catch(() => ({ data: null }))
+      const { data: created } = await supabase.from('cap_deal_meetings').insert(payload).select().single().then(r => r).catch(() => ({ data: null }))
 
       if (form.syncGoogle && gcalConnected && payload.held_at) {
         const deal = deals.find(d => d.id === payload.deal_id)
@@ -302,7 +302,7 @@ export default function CalendarPage() {
         })
         // GoogleイベントIDをCaesar側に紐付ける
         if (created && gEvent?.id) {
-          await supabase.from('deal_meetings').update({ cal_event_id: gEvent.id }).eq('id', created.id)
+          await supabase.from('cap_deal_meetings').update({ cal_event_id: gEvent.id }).eq('id', created.id)
         }
         fetchGcalEvents()
       }

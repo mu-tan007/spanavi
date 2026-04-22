@@ -35,7 +35,7 @@ export default function NeedsPage() {
   const { data: needs = [], isLoading } = useQuery({
     queryKey: ['needs'],
     queryFn: async () => {
-      const { data } = await supabase.from('acquisition_needs').select('*').order('priority').order('created_at', { ascending: false })
+      const { data } = await supabase.from('cap_acquisition_needs').select('*').order('priority').order('created_at', { ascending: false })
       return data || []
     },
   })
@@ -43,7 +43,7 @@ export default function NeedsPage() {
   const { data: contacts = [] } = useQuery({
     queryKey: ['all-contacts'],
     queryFn: async () => {
-      const { data } = await supabase.from('contacts').select('id, name, email, intermediaries(name)').not('email', 'is', null)
+      const { data } = await supabase.from('cap_contacts').select('id, name, email, intermediaries(name)').not('email', 'is', null)
       return data || []
     },
   })
@@ -53,7 +53,7 @@ export default function NeedsPage() {
     setSaving(true)
     const payload = { ...form, priority: Number(form.priority) }
     ;['ev_min','ev_max','ebitda_multiple_max'].forEach(k => { if (!payload[k]) payload[k] = null })
-    await supabase.from('acquisition_needs').insert(payload)
+    await supabase.from('cap_acquisition_needs').insert(payload)
     qc.invalidateQueries({ queryKey: ['needs'] })
     setSaving(false)
     setModal(false)
@@ -75,7 +75,7 @@ export default function NeedsPage() {
   async function handleSendBroadcast() {
     if (!showBroadcast) return
     setSaving(true)
-    await supabase.from('need_broadcasts').insert({
+    await supabase.from('cap_need_broadcasts').insert({
       need_id: showBroadcast.id,
       subject: `【買収ニーズ】${showBroadcast.industry_label || '業種未指定'} EV ${fmt(showBroadcast.ev_min)}〜${fmt(showBroadcast.ev_max)}`,
       body: broadcastBody,
@@ -88,7 +88,7 @@ export default function NeedsPage() {
   }
 
   async function toggleActive(need) {
-    await supabase.from('acquisition_needs').update({ is_active: !need.is_active }).eq('id', need.id)
+    await supabase.from('cap_acquisition_needs').update({ is_active: !need.is_active }).eq('id', need.id)
     qc.invalidateQueries({ queryKey: ['needs'] })
   }
 

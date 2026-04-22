@@ -16,7 +16,7 @@ function useIntermediaries() {
     queryKey: ['intermediaries'],
     queryFn: async () => {
       const { data } = await supabase
-        .from('intermediaries')
+        .from('cap_intermediaries')
         .select('*, contacts(id, name, email, title)')
         .order('name')
       return data || []
@@ -29,7 +29,7 @@ function useContacts(intermediaryId) {
     queryKey: ['contacts', intermediaryId],
     queryFn: async () => {
       const { data } = await supabase
-        .from('contacts')
+        .from('cap_contacts')
         .select('*')
         .eq('intermediary_id', intermediaryId)
         .order('name')
@@ -56,7 +56,7 @@ export default function IntermediariesPage() {
   async function handleSave(e) {
     e.preventDefault()
     setSaving(true)
-    await supabase.from('intermediaries').insert(form)
+    await supabase.from('cap_intermediaries').insert(form)
     qc.invalidateQueries({ queryKey: ['intermediaries'] })
     setSaving(false)
     setModal(false)
@@ -66,7 +66,7 @@ export default function IntermediariesPage() {
   async function handleContactSave(e) {
     e.preventDefault()
     setSaving(true)
-    await supabase.from('contacts').insert({ ...contactForm, intermediary_id: selected.id })
+    await supabase.from('cap_contacts').insert({ ...contactForm, intermediary_id: selected.id })
     qc.invalidateQueries({ queryKey: ['contacts', selected.id] })
     qc.invalidateQueries({ queryKey: ['intermediaries'] })
     setSaving(false)

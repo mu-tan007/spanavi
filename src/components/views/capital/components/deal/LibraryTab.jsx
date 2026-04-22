@@ -87,7 +87,7 @@ export default function LibraryTab({ dealId }) {
   const { data: files = [], isLoading } = useQuery({
     queryKey: ['deal-files', dealId],
     queryFn: async () => {
-      const { data } = await supabase.from('deal_files').select('*').eq('deal_id', dealId).order('uploaded_at', { ascending: false })
+      const { data } = await supabase.from('cap_deal_files').select('*').eq('deal_id', dealId).order('uploaded_at', { ascending: false })
       return data || []
     },
   })
@@ -154,7 +154,7 @@ export default function LibraryTab({ dealId }) {
 
   async function handleUpload(e) {
     const list = Array.from(e.target.files || [])
-    if (!list.length || !tenantId) return
+    if (!list.length || false) return
     setUploading(true)
     try {
       for (const file of list) {
@@ -164,7 +164,7 @@ export default function LibraryTab({ dealId }) {
         const { error: upErr } = await supabase.storage.from('caesar-files').upload(path, file, { cacheControl: '3600', upsert: false })
         if (upErr) { alert('アップロード失敗: ' + upErr.message); continue }
         const { version, base } = { version: extractVersionGroup(file.name).version, base: extractVersionGroup(file.name).base }
-        const { data: fileRec } = await supabase.from('deal_files').insert({
+        const { data: fileRec } = await supabase.from('cap_deal_files').insert({
           deal_id: dealId,
           file_name: file.name,
           file_type: pendingType,
@@ -185,12 +185,12 @@ export default function LibraryTab({ dealId }) {
   }
 
   async function toggleStar(f) {
-    await supabase.from('deal_files').update({ starred: !f.starred }).eq('id', f.id)
+    await supabase.from('cap_deal_files').update({ starred: !f.starred }).eq('id', f.id)
     qc.invalidateQueries({ queryKey: ['deal-files', dealId] })
   }
 
   async function updateCategory(f, cat) {
-    await supabase.from('deal_files').update({ dd_category: cat }).eq('id', f.id)
+    await supabase.from('cap_deal_files').update({ dd_category: cat }).eq('id', f.id)
     qc.invalidateQueries({ queryKey: ['deal-files', dealId] })
   }
 
@@ -206,7 +206,7 @@ export default function LibraryTab({ dealId }) {
   async function deleteFile(f) {
     if (!confirm(`${f.file_name} を削除しますか？`)) return
     await supabase.storage.from('caesar-files').remove([f.storage_path])
-    await supabase.from('deal_files').delete().eq('id', f.id)
+    await supabase.from('cap_deal_files').delete().eq('id', f.id)
     logAudit({ action: 'delete', resourceType: 'file', resourceId: f.id, resourceName: f.file_name })
     qc.invalidateQueries({ queryKey: ['deal-files', dealId] })
     if (selected?.id === f.id) setSelected(null)

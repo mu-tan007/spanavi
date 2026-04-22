@@ -26,7 +26,7 @@ export default function ExecutiveSnapshot({ deal, company, valuation, intermedia
     enabled: !!intermediaryId,
     queryFn: async () => {
       const today = new Date().toISOString().slice(0, 10)
-      const { data } = await supabase.from('firm_contracts')
+      const { data } = await supabase.from('cap_firm_contracts')
         .select('contract_type, signed_at, expires_at')
         .eq('intermediary_id', intermediaryId)
       return (data || []).filter(c => !c.expires_at || c.expires_at >= today)
@@ -38,7 +38,7 @@ export default function ExecutiveSnapshot({ deal, company, valuation, intermedia
     queryKey: ['deal-contracts-snap', deal?.id],
     enabled: !!deal?.id,
     queryFn: async () => {
-      const { data } = await supabase.from('deal_contracts').select('contract_type, executed_at, status').eq('deal_id', deal.id)
+      const { data } = await supabase.from('cap_deal_contracts').select('contract_type, executed_at, status').eq('deal_id', deal.id)
       return data || []
     },
   })

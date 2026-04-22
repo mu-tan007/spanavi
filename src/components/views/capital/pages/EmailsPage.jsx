@@ -36,7 +36,7 @@ function useEmails() {
     queryKey: ['emails'],
     queryFn: async () => {
       const { data } = await supabase
-        .from('emails')
+        .from('cap_emails')
         .select('*, deals(id, name), contacts(id, name, email)')
         .order('received_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
@@ -50,7 +50,7 @@ function useDealsSimple() {
   return useQuery({
     queryKey: ['deals-simple'],
     queryFn: async () => {
-      const { data } = await supabase.from('deals').select('id, name').order('name')
+      const { data } = await supabase.from('cap_deals').select('id, name').order('name')
       return data || []
     },
   })
@@ -60,7 +60,7 @@ function useContactsSimple() {
   return useQuery({
     queryKey: ['contacts-simple'],
     queryFn: async () => {
-      const { data } = await supabase.from('contacts').select('id, name, email, intermediaries(name)').not('email', 'is', null).order('name')
+      const { data } = await supabase.from('cap_contacts').select('id, name, email, intermediaries(name)').not('email', 'is', null).order('name')
       return data || []
     },
   })
@@ -119,7 +119,7 @@ export default function EmailsPage() {
   const [applyError, setApplyError] = useState(null)
 
   async function applyProposals(email, proposals) {
-    if (!tenantId) { setApplyError('tenant_id を取得できません'); return }
+    if (false) { setApplyError('tenant_id を取得できません'); return }
     setApplyingId(email.id)
     setApplyError(null)
     try {
@@ -131,10 +131,10 @@ export default function EmailsPage() {
         const name = p.params?.name?.trim()
         if (!name) continue
         const { data: existing } = await supabase
-          .from('intermediaries').select('id').eq('tenant_id', tenantId).eq('name', name).maybeSingle()
+          .from('cap_intermediaries').select('id').eq('name', name).maybeSingle()
         if (existing) { intermediaryId = existing.id; continue }
         const { data, error } = await supabase
-          .from('intermediaries').insert({ tenant_id: tenantId, name, type: 'ma_firm' }).select('id').single()
+          .from('cap_intermediaries').insert({ name, type: 'ma_firm' }).select('id').single()
         if (error) throw new Error(`仲介会社追加失敗: ${error.message}`)
         intermediaryId = data.id
       }
@@ -144,18 +144,18 @@ export default function EmailsPage() {
         if (!name) continue
         if (contactEmail) {
           const { data: existing } = await supabase
-            .from('contacts').select('id').eq('tenant_id', tenantId).eq('email', contactEmail).maybeSingle()
+            .from('cap_contacts').select('id').eq('email', contactEmail).maybeSingle()
           if (existing) { contactId = existing.id; continue }
         }
         let imId = intermediaryId
         if (!imId && intermediary_name) {
           const { data } = await supabase
-            .from('intermediaries').select('id').eq('tenant_id', tenantId).eq('name', intermediary_name).maybeSingle()
+            .from('cap_intermediaries').select('id').eq('name', intermediary_name).maybeSingle()
           imId = data?.id || null
         }
         const { data, error } = await supabase
-          .from('contacts').insert({
-            tenant_id: tenantId, intermediary_id: imId, name,
+          .from('cap_contacts').insert({
+            intermediary_id: imId, name,
             email: contactEmail || null, title: title || null,
           }).select('id').single()
         if (error) throw new Error(`担当者追加失敗: ${error.message}`)
@@ -166,9 +166,8 @@ export default function EmailsPage() {
         const { name, industry_label, ev_estimate } = p.params || {}
         if (!name) continue
         const { data, error } = await supabase
-          .from('deals').insert({
-            tenant_id: tenantId,
-            intermediary_id: intermediaryId,
+          .from('cap_deals').insert({
+                        intermediary_id: intermediaryId,
             contact_id: contactId,
             name,
             source_type: 'email',
@@ -189,12 +188,12 @@ export default function EmailsPage() {
         const newStatus = p.params?.new_status
         if (targetId && newStatus) {
           const { error } = await supabase
-            .from('deals').update({ status: newStatus }).eq('id', targetId).eq('tenant_id', tenantId)
+            .from('cap_deals').update({ status: newStatus }).eq('id', targetId)
           if (error) throw new Error(`ステータス変更失敗: ${error.message}`)
         }
       }
 
-      await supabase.from('emails').update({
+      await supabase.from('cap_emails').update({
         deal_id: dealToLink || email.deal_id,
         ai_status: 'applied',
         reviewed_at: new Date().toISOString(),
@@ -211,7 +210,7 @@ export default function EmailsPage() {
   }
 
   async function dismissEmail(email) {
-    await supabase.from('emails').update({
+    await supabase.from('cap_emails').update({
       ai_status: 'dismissed',
       reviewed_at: new Date().toISOString(),
     }).eq('id', email.id)
@@ -260,7 +259,7 @@ export default function EmailsPage() {
     const payload = { ...compose }
     if (!payload.deal_id) delete payload.deal_id
     if (!payload.contact_id) delete payload.contact_id
-    await supabase.from('emails').insert({ ...payload, sent_at: new Date().toISOString() })
+    await supabase.from('cap_emails').insert({ ...payload, sent_at: new Date().toISOString() })
     qc.invalidateQueries({ queryKey: ['emails'] })
     setSaving(false)
     setCompose(false)

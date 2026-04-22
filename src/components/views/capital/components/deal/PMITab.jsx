@@ -52,7 +52,7 @@ export default function PMITab({ dealId }) {
   const { data: tasks = [] } = useQuery({
     queryKey: ['pmi', dealId],
     queryFn: async () => {
-      const { data } = await supabase.from('deal_pmi_tasks').select('*').eq('deal_id', dealId).order('created_at')
+      const { data } = await supabase.from('cap_deal_pmi_tasks').select('*').eq('deal_id', dealId).order('created_at')
       return data || []
     },
   })
@@ -62,7 +62,7 @@ export default function PMITab({ dealId }) {
     const existing = tasks.filter(t => t.phase === phase).map(t => t.title)
     const toAdd = templates.filter(t => !existing.includes(t.title))
     if (!toAdd.length) return
-    await supabase.from('deal_pmi_tasks').insert(
+    await supabase.from('cap_deal_pmi_tasks').insert(
       toAdd.map(t => ({ deal_id: dealId, phase, category: t.category, title: t.title, status: 'not_started' }))
     )
     qc.invalidateQueries({ queryKey: ['pmi', dealId] })
@@ -71,14 +71,14 @@ export default function PMITab({ dealId }) {
   async function addCustom(e) {
     e.preventDefault()
     if (!newTitle.trim()) return
-    await supabase.from('deal_pmi_tasks').insert({ deal_id: dealId, phase, category: newCat, title: newTitle.trim(), status: 'not_started' })
+    await supabase.from('cap_deal_pmi_tasks').insert({ deal_id: dealId, phase, category: newCat, title: newTitle.trim(), status: 'not_started' })
     qc.invalidateQueries({ queryKey: ['pmi', dealId] })
     setNewTitle('')
     setAdding(false)
   }
 
   async function updateStatus(id, status) {
-    await supabase.from('deal_pmi_tasks').update({ status }).eq('id', id)
+    await supabase.from('cap_deal_pmi_tasks').update({ status }).eq('id', id)
     qc.invalidateQueries({ queryKey: ['pmi', dealId] })
   }
 

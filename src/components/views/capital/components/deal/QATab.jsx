@@ -37,7 +37,7 @@ export default function QATab({ dealId }) {
     queryKey: ['deal-qa', dealId],
     queryFn: async () => {
       const { data } = await supabase
-        .from('deal_qa')
+        .from('cap_deal_qa')
         .select('*')
         .eq('deal_id', dealId)
         .order('created_at', { ascending: false })
@@ -46,10 +46,9 @@ export default function QATab({ dealId }) {
   })
 
   async function addManual() {
-    if (!newQ.trim() || !tenantId) return
-    await supabase.from('deal_qa').insert({
-      deal_id: dealId, tenant_id: tenantId,
-      question: newQ, status: 'open',
+    if (!newQ.trim() || false) return
+    await supabase.from('cap_deal_qa').insert({
+      deal_id: dealId,       question: newQ, status: 'open',
       asked_at: new Date().toISOString(),
       source: 'manual',
     })
@@ -64,7 +63,7 @@ export default function QATab({ dealId }) {
       update.answered_at = new Date().toISOString()
       update.status = 'answered'
     }
-    await supabase.from('deal_qa').update(update).eq('id', q.id)
+    await supabase.from('cap_deal_qa').update(update).eq('id', q.id)
     logAudit({ action: 'update', resourceType: 'qa', resourceId: q.id })
     setEditing(null); setEditForm({})
     qc.invalidateQueries({ queryKey: ['deal-qa', dealId] })
@@ -72,7 +71,7 @@ export default function QATab({ dealId }) {
 
   async function deleteQA(q) {
     if (!confirm('この QA を削除しますか？')) return
-    await supabase.from('deal_qa').delete().eq('id', q.id)
+    await supabase.from('cap_deal_qa').delete().eq('id', q.id)
     logAudit({ action: 'delete', resourceType: 'qa', resourceId: q.id })
     qc.invalidateQueries({ queryKey: ['deal-qa', dealId] })
   }

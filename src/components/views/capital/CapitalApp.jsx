@@ -14,10 +14,6 @@ import AgencyRegistryPage from './pages/AgencyRegistryPage';
 import CalendarPage from './pages/CalendarPage';
 import EmailsPage from './pages/EmailsPage';
 import DocumentsPage from './pages/DocumentsPage';
-import ReportsPage from './pages/ReportsPage';
-import MaNewsPage from './pages/MaNewsPage';
-import CompanyPage from './pages/CompanyPage';
-import SettingsPage from './pages/SettingsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,10 +59,6 @@ export default function CapitalApp() {
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/emails" element={<EmailsPage />} />
               <Route path="/documents" element={<DocumentsPage />} />
-              <Route path="/reports" element={<ReportsPage />} />
-              <Route path="/ma-news" element={<MaNewsPage />} />
-              <Route path="/company" element={<CompanyPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </div>

@@ -21,12 +21,6 @@ const NAV_SECTIONS = [
     { path: '/calendar', label: 'Calendar' },
     { path: '/emails', label: 'Emails' },
     { path: '/documents', label: 'Documents' },
-    { path: '/reports', label: 'Reports' },
-    { path: '/ma-news', label: 'M&A News' },
-  ]},
-  { label: 'ADMIN', items: [
-    { path: '/company', label: 'Company' },
-    { path: '/settings', label: 'Settings' },
   ]},
 ];
 

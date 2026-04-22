@@ -84,9 +84,9 @@ export default function ValuationTab({ dealId, valuation, financials }) {
         updated_at: new Date().toISOString(),
       }
       if (valuation?.id) {
-        await supabase.from('deal_valuations').update(payload).eq('id', valuation.id)
+        await supabase.from('cap_deal_valuations').update(payload).eq('id', valuation.id)
       } else {
-        await supabase.from('deal_valuations').insert(payload)
+        await supabase.from('cap_deal_valuations').insert(payload)
       }
       logAudit({ action: 'update', resourceType: 'valuation', resourceId: dealId })
       qc.invalidateQueries({ queryKey: ['deal', dealId] })

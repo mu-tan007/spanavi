@@ -56,7 +56,7 @@ export default function AgencyRegistryPage() {
     queryFn: async () => {
       let all = []; let from = 0; const step = 1000
       while (true) {
-        const { data } = await supabase.from('ma_agencies').select('*').range(from, from + step - 1).order('name')
+        const { data } = await supabase.from('cap_ma_agencies').select('*').range(from, from + step - 1).order('name')
         if (!data || data.length === 0) break; all = all.concat(data)
         if (data.length < step) break; from += step
       }
@@ -67,7 +67,7 @@ export default function AgencyRegistryPage() {
 
   const { data: needs = [] } = useQuery({
     queryKey: ['needs-active'],
-    queryFn: async () => { const { data } = await supabase.from('acquisition_needs').select('*').eq('is_active', true).order('priority'); return data || [] },
+    queryFn: async () => { const { data } = await supabase.from('cap_acquisition_needs').select('*').eq('is_active', true).order('priority'); return data || [] },
   })
 
   const filtered = useMemo(() => {
@@ -98,7 +98,7 @@ export default function AgencyRegistryPage() {
   const stats = { total: allAgencies.length, contacted: allAgencies.filter(a => a.status === 'contacted').length, notContacted: allAgencies.filter(a => a.status === 'not_contacted').length }
 
   async function updateStatus(id, status) {
-    await supabase.from('ma_agencies').update({ status, contacted_at: status !== 'not_contacted' ? new Date().toISOString() : null }).eq('id', id)
+    await supabase.from('cap_ma_agencies').update({ status, contacted_at: status !== 'not_contacted' ? new Date().toISOString() : null }).eq('id', id)
     qc.invalidateQueries({ queryKey: ['ma-agencies'] })
   }
   function toggleSelect(id) { setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n }) }
@@ -141,7 +141,7 @@ export default function AgencyRegistryPage() {
     const noContact = selected.filter(a => !a.contact_email && !a.contact_form_url)
 
     // 記録保存
-    await supabase.from('need_broadcasts').insert({
+    await supabase.from('cap_need_broadcasts').insert({
       subject: `【買収ニーズ配信】${selected.length}社`,
       body: broadcastBody,
       sent_to: selected.map(a => ({ agency_id: a.id, name: a.name, method: a.contact_email ? 'email' : 'form' })),
@@ -191,7 +191,7 @@ export default function AgencyRegistryPage() {
   // 連絡先手動編集
   async function saveContact() {
     if (!editingContact) return
-    await supabase.from('ma_agencies').update({
+    await supabase.from('cap_ma_agencies').update({
       contact_email: editForm.email || null,
       contact_form_url: editForm.form_url || null,
       website: editForm.website || null,

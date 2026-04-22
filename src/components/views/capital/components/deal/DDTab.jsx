@@ -101,7 +101,7 @@ export default function DDTab({ dealId }) {
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['dd', dealId],
     queryFn: async () => {
-      const { data } = await supabase.from('deal_dd_checklists').select('*').eq('deal_id', dealId).order('created_at')
+      const { data } = await supabase.from('cap_deal_dd_checklists').select('*').eq('deal_id', dealId).order('created_at')
       return data || []
     },
   })
@@ -111,7 +111,7 @@ export default function DDTab({ dealId }) {
     const existing = items.filter(i => i.category === activeCategory).map(i => i.item)
     const toAdd = templates.filter(t => !existing.includes(t))
     if (toAdd.length === 0) return
-    await supabase.from('deal_dd_checklists').insert(
+    await supabase.from('cap_deal_dd_checklists').insert(
       toAdd.map(item => ({ deal_id: dealId, category: activeCategory, item, status: 'pending' }))
     )
     qc.invalidateQueries({ queryKey: ['dd', dealId] })
@@ -120,14 +120,14 @@ export default function DDTab({ dealId }) {
   async function addCustom(e) {
     e.preventDefault()
     if (!newItem.trim()) return
-    await supabase.from('deal_dd_checklists').insert({ deal_id: dealId, category: activeCategory, item: newItem.trim(), status: 'pending' })
+    await supabase.from('cap_deal_dd_checklists').insert({ deal_id: dealId, category: activeCategory, item: newItem.trim(), status: 'pending' })
     qc.invalidateQueries({ queryKey: ['dd', dealId] })
     setNewItem('')
     setAdding(false)
   }
 
   async function updateStatus(id, status) {
-    await supabase.from('deal_dd_checklists').update({ status }).eq('id', id)
+    await supabase.from('cap_deal_dd_checklists').update({ status }).eq('id', id)
     qc.invalidateQueries({ queryKey: ['dd', dealId] })
   }
 

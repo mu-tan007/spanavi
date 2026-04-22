@@ -19,37 +19,6 @@ export function parseUA(ua = navigator.userAgent) {
   return out
 }
 
-// 監査ログを記録（fire-and-forget）
-export async function logAudit({
-  action, resourceType, resourceId = null, resourceName = null, metadata = {},
-}) {
-  try {
-    await supabase.rpc('log_audit', {
-      p_action: action,
-      p_resource_type: resourceType,
-      p_resource_id: resourceId ? String(resourceId) : null,
-      p_resource_name: resourceName,
-      p_metadata: { ...metadata, user_agent: navigator.userAgent },
-    })
-  } catch (e) {
-    console.warn('[audit] log failed:', e)
-  }
-}
-
-// ログイン履歴を記録
-export async function logLogin({ userId, tenantId, success = true, failureReason = null }) {
-  try {
-    const { deviceType, browser, os } = parseUA()
-    await supabase.from('login_history').insert({
-      user_id: userId,
-      tenant_id: tenantId,
-      user_agent: navigator.userAgent,
-      device_type: deviceType,
-      browser, os,
-      success,
-      failure_reason: failureReason,
-    })
-  } catch (e) {
-    console.warn('[login_history] insert failed:', e)
-  }
-}
+// Spanavi 統合後は audit_logs / login_history は無効化 (Spanavi 側で管理)。
+export async function logAudit(_input) { /* noop */ }
+export async function logLogin(_input) { /* noop */ }

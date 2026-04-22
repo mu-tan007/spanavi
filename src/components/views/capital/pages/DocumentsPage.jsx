@@ -66,7 +66,7 @@ export default function DocumentsPage() {
   const { data: files = [], isLoading: filesLoading } = useQuery({
     queryKey: ['all-files', search],
     queryFn: async () => {
-      let q = supabase.from('deal_files').select('*, deals(id, name)').order('uploaded_at', { ascending: false }).limit(100)
+      let q = supabase.from('cap_deal_files').select('*, deals(id, name)').order('uploaded_at', { ascending: false }).limit(100)
       if (search) q = q.ilike('file_name', `%${search}%`)
       const { data } = await q; return data || []
     },
@@ -74,37 +74,36 @@ export default function DocumentsPage() {
   const { data: contracts = [], isLoading: contractsLoading } = useQuery({
     queryKey: ['all-contracts'],
     queryFn: async () => {
-      const { data } = await supabase.from('deal_contracts').select('*, deals(id, name)').order('created_at', { ascending: false }).limit(100)
+      const { data } = await supabase.from('cap_deal_contracts').select('*, deals(id, name)').order('created_at', { ascending: false }).limit(100)
       return data || []
     },
   })
   const { data: templates = [], isLoading: templatesLoading } = useQuery({
     queryKey: ['templates'],
     queryFn: async () => {
-      const { data } = await supabase.from('templates').select('*').order('created_at', { ascending: false })
+      const { data } = await supabase.from('cap_templates').select('*').order('created_at', { ascending: false })
       return data || []
     },
   })
   const { data: deals = [] } = useQuery({
     queryKey: ['deals-simple'],
     queryFn: async () => {
-      const { data } = await supabase.from('deals').select('id, name').order('name')
+      const { data } = await supabase.from('cap_deals').select('id, name').order('name')
       return data || []
     },
   })
 
   async function uploadTemplate(e) {
     e.preventDefault()
-    if (!tplFile || !tplName.trim() || !tenantId) return
+    if (!tplFile || !tplName.trim() || false) return
     setUploading(true)
     try {
       const safeName = tplFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-      const path = `templates/${tenantId}/${Date.now()}_${safeName}`
+      const path = `templates/masp/${Date.now()}_${safeName}`
       const { error: upErr } = await supabase.storage.from('caesar-files').upload(path, tplFile)
       if (upErr) throw upErr
-      const { error: dbErr } = await supabase.from('templates').insert({
-        tenant_id: tenantId,
-        name: tplName.trim(),
+      const { error: dbErr } = await supabase.from('cap_templates').insert({
+                name: tplName.trim(),
         category: tplCategory,
         description: tplDesc,
         file_type: tplFile.name.split('.').pop().toLowerCase(),
@@ -135,7 +134,7 @@ export default function DocumentsPage() {
     setGenerating(true)
     try {
       const { data, error } = await supabase.functions.invoke('template-fill', {
-        body: { template_id: showGenerate.id, deal_id: selectedDeal, tenant_id: tenantId },
+        body: { template_id: showGenerate.id, deal_id: selectedDeal,  },
       })
       if (error) throw error
       setGeneratedContent(data.content || '生成に失敗しました')

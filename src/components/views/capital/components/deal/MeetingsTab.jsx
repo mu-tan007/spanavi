@@ -14,7 +14,7 @@ export default function MeetingsTab({ dealId }) {
   const { data: meetings = [], isLoading } = useQuery({
     queryKey: ['deal-meetings', dealId],
     queryFn: async () => {
-      const { data } = await supabase.from('deal_meetings').select('*').eq('deal_id', dealId).order('held_at', { ascending: false })
+      const { data } = await supabase.from('cap_deal_meetings').select('*').eq('deal_id', dealId).order('held_at', { ascending: false })
       return data || []
     },
   })

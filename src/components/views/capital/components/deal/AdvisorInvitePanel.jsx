@@ -14,7 +14,7 @@ export default function AdvisorInvitePanel({ dealId, contacts }) {
     queryKey: ['invitations', dealId],
     queryFn: async () => {
       const { data } = await supabase
-        .from('advisor_invitations')
+        .from('cap_advisor_invitations')
         .select('*, contacts(name, email)')
         .eq('deal_id', dealId)
         .order('created_at', { ascending: false })
@@ -27,7 +27,7 @@ export default function AdvisorInvitePanel({ dealId, contacts }) {
     setSaving(true)
     const token = crypto.randomUUID().replace(/-/g, '')
     const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000).toISOString()
-    await supabase.from('advisor_invitations').insert({
+    await supabase.from('cap_advisor_invitations').insert({
       deal_id: dealId,
       contact_id: selectedContact || null,
       token_hash: token,
@@ -42,7 +42,7 @@ export default function AdvisorInvitePanel({ dealId, contacts }) {
   }
 
   async function deactivate(id) {
-    await supabase.from('advisor_invitations').update({ is_active: false }).eq('id', id)
+    await supabase.from('cap_advisor_invitations').update({ is_active: false }).eq('id', id)
     qc.invalidateQueries({ queryKey: ['invitations', dealId] })
   }
 

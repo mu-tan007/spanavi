@@ -4,11 +4,10 @@
 // - サーバーの error フィールドを確実に露出
 import { supabase } from './supabase'
 
-// capital は Caesar の独立 Supabase を向く (Spanavi 本体の env と混同しない)
-const SUPABASE_URL = import.meta.env.VITE_CAPITAL_SUPABASE_URL
-  || 'https://qhrcvzhshqoteepqewir.supabase.co'
-const SUPABASE_ANON = import.meta.env.VITE_CAPITAL_SUPABASE_ANON_KEY
-  || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFocmN2emhzaHFvdGVlcHFld2lyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwNDY2NzQsImV4cCI6MjA5MTYyMjY3NH0.E0v3VnlggOJ3jbOLO_uNLH7jLl8cRfPspdk9aAxg_6o'
+// Spanavi 統合後は Spanavi の Supabase プロジェクトに Edge Functions を再デプロイするため、
+// 本体の VITE_SUPABASE_URL / _ANON_KEY をそのまま使う。
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export class SessionExpiredError extends Error {
   constructor(msg) { super(msg); this.name = 'SessionExpiredError' }

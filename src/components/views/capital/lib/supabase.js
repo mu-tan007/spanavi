@@ -1,4 +1,3 @@
-// capital 配下は Caesar 専用 Supabase (qhrcvzhshqoteepqewir) に接続する。
-// 既存 Caesar コードは `../lib/supabase` を期待しているので、
-// Spanavi 側 capitalSupabase を `supabase` という名前で再輸出する。
-export { capitalSupabase as supabase } from '../../../../lib/capitalSupabase';
+// Spanavi フル統合後は Spanavi 本体の supabase client をそのまま使う。
+// cap_* プレフィックスのテーブルは Spanavi プロジェクト内にあり、RLS は authenticated-only。
+export { supabase } from '../../../../lib/supabase';

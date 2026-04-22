@@ -84,9 +84,9 @@ export default function IntakePage() {
       // 仲介会社登録
       if (registerFirm && editedIntermediary?.name) {
         const { data: existing } = await supabase
-          .from('intermediaries')
+          .from('cap_intermediaries')
           .select('id')
-          .eq('tenant_id', tenantId)
+          
           .ilike('name', editedIntermediary.name)
           .maybeSingle()
 
@@ -94,10 +94,9 @@ export default function IntakePage() {
           firmId = existing.id
         } else {
           const { data: newFirm, error } = await supabase
-            .from('intermediaries')
+            .from('cap_intermediaries')
             .insert({
-              tenant_id: tenantId,
-              name: editedIntermediary.name,
+                            name: editedIntermediary.name,
               type: editedIntermediary.type || 'intermediary',
               website: editedIntermediary.website,
             })
@@ -111,9 +110,9 @@ export default function IntakePage() {
       // 担当者登録
       if (registerContact && editedContact?.name && firmId) {
         const { data: existing } = await supabase
-          .from('contacts')
+          .from('cap_contacts')
           .select('id')
-          .eq('tenant_id', tenantId)
+          
           .ilike('name', editedContact.name)
           .maybeSingle()
 
@@ -121,10 +120,9 @@ export default function IntakePage() {
           contactId = existing.id
         } else {
           const { data: newContact, error } = await supabase
-            .from('contacts')
+            .from('cap_contacts')
             .insert({
-              tenant_id: tenantId,
-              intermediary_id: firmId,
+                            intermediary_id: firmId,
               name: editedContact.name,
               email: editedContact.email,
               phone: editedContact.phone,
@@ -145,10 +143,9 @@ export default function IntakePage() {
           : Number(editedDeal.ev_min) || Number(editedDeal.ev_max) || null
 
         const { data: newDeal, error } = await supabase
-          .from('deals')
+          .from('cap_deals')
           .insert({
-            tenant_id: tenantId,
-            name: editedDeal.name,
+                        name: editedDeal.name,
             industry_label: editedDeal.industry,
             ev_estimate: evMid ? evMid * 1000 : null,
             status: editedDeal.status || 'nn_review',
@@ -165,7 +162,7 @@ export default function IntakePage() {
 
         // deal_companies にも登録
         if (editedDeal.company_name || editedDeal.description || editedDeal.location) {
-          await supabase.from('deal_companies').insert({
+          await supabase.from('cap_deal_companies').insert({
             deal_id: dealId,
             seller_name: editedDeal.company_name,
             hq_address: editedDeal.location,

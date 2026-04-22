@@ -74,9 +74,9 @@ export default function LBOTab({ dealId, lbo, financials }) {
     }
     Object.keys(payload).forEach(k => { if (payload[k] === '') payload[k] = null })
     if (lbo?.id) {
-      await supabase.from('lbo_models').update(payload).eq('id', lbo.id)
+      await supabase.from('cap_lbo_models').update(payload).eq('id', lbo.id)
     } else {
-      await supabase.from('lbo_models').insert(payload)
+      await supabase.from('cap_lbo_models').insert(payload)
     }
     qc.invalidateQueries({ queryKey: ['deal', dealId] })
     setSaving(false)

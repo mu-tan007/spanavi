@@ -47,7 +47,7 @@ export function useDecisionQueue() {
     queryKey: ['pipeline', 'decision-queue'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('deals')
+        .from('cap_deals')
         .select(`
           id, name, status, priority, industry_label,
           ev_estimate, score, updated_at, created_at,
