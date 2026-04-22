@@ -5,7 +5,13 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from './miniRouter';
 
 let _navigateFn = null;
-let _pathname = '/dashboard';
+// 強制リロード後も localStorage から復元 (miniRouter の CapitalRouterProvider と同キー)
+let _pathname = (() => {
+  try {
+    if (typeof window === 'undefined') return '/dashboard';
+    return window.localStorage.getItem('spanavi_capital_path') || '/dashboard';
+  } catch { return '/dashboard'; }
+})();
 const listeners = new Set();
 
 export function capitalNavigate(path) {

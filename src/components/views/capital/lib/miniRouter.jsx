@@ -6,13 +6,28 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 const RouterCtx = createContext(null);
 const ParamsCtx = createContext({});
 
+// Capital 内のパスを localStorage に永続化するキー (強制リロード時の復元用)
+const LS_KEY = 'spanavi_capital_path';
+
+function readSavedPath(fallback) {
+  try {
+    if (typeof window === 'undefined') return fallback;
+    const v = window.localStorage.getItem(LS_KEY);
+    return v && typeof v === 'string' ? v : fallback;
+  } catch { return fallback; }
+}
+
 export function CapitalRouterProvider({ initialPath = '/dashboard', children }) {
-  const [pathname, setPathname] = useState(initialPath);
+  const [pathname, setPathname] = useState(() => readSavedPath(initialPath));
 
   const navigate = useCallback((to, _opts) => {
     if (typeof to === 'number') return; // history.go は非対応
     const t = typeof to === 'string' ? to : (to?.pathname || '/');
-    setPathname(prev => (prev === t ? prev : t));
+    setPathname(prev => {
+      if (prev === t) return prev;
+      try { window.localStorage.setItem(LS_KEY, t); } catch { /* ignore */ }
+      return t;
+    });
   }, []);
 
   const value = useMemo(() => ({ pathname, navigate }), [pathname, navigate]);

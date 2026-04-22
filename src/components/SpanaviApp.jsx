@@ -19,6 +19,7 @@ import SpartiaCareerSidebar from './common/sidebars/SpartiaCareerSidebar';
 import SpartiaCapitalSidebar from './common/sidebars/SpartiaCapitalSidebar';
 import PlaceholderSidebar from './common/sidebars/PlaceholderSidebar';
 import CapitalApp from './views/capital/CapitalApp';
+import { capitalNavigate, getCapitalPathname } from './views/capital/lib/capitalNav';
 import RecallModal from './views/RecallModal';
 import AppoReportModal from './views/AppoReportModal';
 import CallFlowView from './views/CallFlowView';
@@ -572,29 +573,45 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const [hoveredGroup, setHoveredGroup] = useState(null);
   const hoverTimeout = React.useRef(null);
 
-  // Keyboard shortcuts: Ctrl+↑↓ for main menu, Ctrl+←→ for sub-tabs
+  // Keyboard shortcut: Ctrl+↑/↓ で engagement ごとのページ巡回
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!e.ctrlKey) return;
-      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+
+      const cycle = (items, current, key, onPick) => {
+        const idx = items.indexOf(current);
+        if (idx === -1) return;
+        e.preventDefault();
+        const next = key === 'ArrowUp'
+          ? (idx - 1 + items.length) % items.length
+          : (idx + 1) % items.length;
+        onPick(items[next]);
+      };
+
+      if (engSlug === 'seller_sourcing') {
         const flatTabs = [];
         for (const g of navGroups) {
           if (g.children) g.children.forEach(c => flatTabs.push(c.id));
           else flatTabs.push(g.id);
         }
         flatTabs.push('mypage');
-        const idx = flatTabs.indexOf(currentTab);
-        if (idx === -1) return;
-        e.preventDefault();
-        setCurrentTab(flatTabs[e.key === 'ArrowUp'
-          ? (idx - 1 + flatTabs.length) % flatTabs.length
-          : (idx + 1) % flatTabs.length
-        ]);
+        cycle(flatTabs, currentTab, e.key, setCurrentTab);
+      } else if (engSlug === 'masp') {
+        cycle(['database', 'mypage'], currentTab, e.key, setCurrentTab);
+      } else if (engSlug === 'spartia_career') {
+        cycle(['applications', 'deals_career', 'mypage'], currentTab, e.key, setCurrentTab);
+      } else if (engSlug === 'spartia_capital') {
+        const paths = ['/dashboard', '/deals', '/needs', '/firms', '/registry', '/documents'];
+        const cur = getCapitalPathname();
+        // /deals/:id のような詳細ページは /deals にマッチさせる
+        const normalized = paths.find(p => cur === p || cur.startsWith(p + '/')) || paths[0];
+        cycle(paths, normalized, e.key, capitalNavigate);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentTab, navGroups]);
+  }, [currentTab, navGroups, engSlug]);
 
   return (
     <div style={{ minHeight: "100vh", background: '#F3F2F2', color: C.textDark, fontFamily: "'Noto Sans JP', sans-serif" }}>
