@@ -1129,7 +1129,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
 
       {/* ===== CONTENT ===== */}
       <main style={{ marginLeft: isMobile ? 0 : 220, paddingTop: (isMobile ? 48 : 54) + 36, paddingLeft: isMobile ? 12 : 28, paddingRight: isMobile ? 12 : 28, paddingBottom: isMobile ? 72 : 24, minHeight: '100vh', width: isMobile ? '100%' : 'calc(100% - 220px)', boxSizing: 'border-box', overflowX: 'hidden' }}>
-        {engSlug === 'masp' && currentTab !== 'database' && currentTab !== 'mypage' && (
+        {engSlug === 'masp' && !['database','mypage','all_members'].includes(currentTab) && (
           <EngagementComingSoon title="MASP" subtitle="この画面は準備中です" />
         )}
         {engSlug === 'masp' && currentTab === 'all_members' && <MASPMembersView isAdmin={isAdmin} />}

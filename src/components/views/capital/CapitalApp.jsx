@@ -52,7 +52,7 @@ export default function CapitalApp() {
               <Route path="/firms" element={<IntermediariesPage />} />
               <Route path="/registry" element={<AgencyRegistryPage />} />
               <Route path="/documents" element={<DocumentsPage />} />
-              <Route path="/members" element={<EngagementMembersView />} />
+              <Route path="/members" element={<EngagementMembersView bleed={false} />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </div>

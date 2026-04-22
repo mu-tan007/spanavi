@@ -5,7 +5,7 @@ import { useEngagementMembers } from '../../hooks/useMemberEngagements';
 
 // 各事業タブの「Members」ページ。読み取り専用で、MASP Members で割当てたメンバーのみ表示。
 // 事業を跨いで使い回せる (sourcing / career / capital …)。
-export default function EngagementMembersView({ engagementOverride }) {
+export default function EngagementMembersView({ engagementOverride, bleed = true }) {
   const { currentEngagement } = useEngagements();
   const engagement = engagementOverride || currentEngagement;
   const { members, loading } = useEngagementMembers(engagement?.id);
@@ -28,7 +28,7 @@ export default function EngagementMembersView({ engagementOverride }) {
   }
 
   return (
-    <div style={{ background: C.offWhite, margin: -28, marginTop: 0, marginBottom: 0, minHeight: 'calc(100vh - 120px)' }}>
+    <div style={{ background: C.offWhite, margin: bleed ? -28 : 0, marginTop: 0, marginBottom: 0, minHeight: 'calc(100vh - 120px)' }}>
       <div style={{ padding: '14px 20px 16px', background: C.white, borderBottom: `1px solid ${C.border}` }}>
         <div style={{ fontSize: 10, color: C.textLight, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>
           {engagement.name} · 所属メンバー
