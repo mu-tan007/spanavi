@@ -66,9 +66,7 @@ export default function EngagementHeader({ isMobile = false, onEngagementChange,
                     }}>準備中</span>
                   )}
                 </button>
-                {isMasp && (
-                  <div style={{ width: 1, height: 18, background: C.border, alignSelf: 'center', marginRight: 6 }} />
-                )}
+                {/* MASP と他事業の区切り線はトップヘッダー統合で不要になったため削除 */}
               </React.Fragment>
             );
           })}
