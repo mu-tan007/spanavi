@@ -4,15 +4,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { C } from '../../../constants/colors';
 import { CapitalNavBridge } from './lib/capitalNav';
 import DashboardPage from './pages/DashboardPage';
-import IntakePage from './pages/IntakePage';
-import PipelinePage from './pages/PipelinePage';
 import DealsPage from './pages/DealsPage';
 import DealDetailPage from './pages/DealDetailPage';
 import NeedsPage from './pages/NeedsPage';
 import IntermediariesPage from './pages/IntermediariesPage';
 import AgencyRegistryPage from './pages/AgencyRegistryPage';
-import CalendarPage from './pages/CalendarPage';
-import EmailsPage from './pages/EmailsPage';
 import DocumentsPage from './pages/DocumentsPage';
 
 const queryClient = new QueryClient({
@@ -49,15 +45,11 @@ export default function CapitalApp() {
           <div style={{ margin: -28, marginTop: 0, marginBottom: 0, minHeight: 'calc(100vh - 120px)' }}>
             <Routes>
               <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/intake" element={<IntakePage />} />
-              <Route path="/pipeline" element={<PipelinePage />} />
               <Route path="/deals" element={<DealsPage />} />
               <Route path="/deals/:id" element={<DealDetailPage />} />
               <Route path="/needs" element={<NeedsPage />} />
               <Route path="/firms" element={<IntermediariesPage />} />
               <Route path="/registry" element={<AgencyRegistryPage />} />
-              <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/emails" element={<EmailsPage />} />
               <Route path="/documents" element={<DocumentsPage />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>

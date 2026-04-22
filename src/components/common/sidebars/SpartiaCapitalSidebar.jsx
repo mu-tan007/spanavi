@@ -7,10 +7,6 @@ const NAV_SECTIONS = [
   { label: 'OVERVIEW', items: [
     { path: '/dashboard', label: 'Dashboard' },
   ]},
-  { label: 'INTAKE', items: [
-    { path: '/intake', label: 'Intake' },
-    { path: '/pipeline', label: 'Pipeline' },
-  ]},
   { label: 'EXECUTION', items: [
     { path: '/deals', label: 'Deals', basePath: '/deals' },
     { path: '/needs', label: 'Needs' },
@@ -18,8 +14,6 @@ const NAV_SECTIONS = [
     { path: '/registry', label: 'Registry' },
   ]},
   { label: 'WORKSPACE', items: [
-    { path: '/calendar', label: 'Calendar' },
-    { path: '/emails', label: 'Emails' },
     { path: '/documents', label: 'Documents' },
   ]},
 ];
