@@ -8,6 +8,7 @@ import InlineAudioPlayer from '../common/InlineAudioPlayer';
 import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from '../../lib/pushNotification';
 import { getOrgId } from '../../lib/orgContext';
 import TrainingRoleplaySection from './TrainingRoleplaySection';
+import GoalSettingsPanel from '../admin/GoalSettingsPanel';
 
 export default function MyPageView({ currentUser, userId, callListData, members, now, appoData, onDataRefetch, isAdmin = false }) {
   const isMobile = useIsMobile();
@@ -370,6 +371,17 @@ export default function MyPageView({ currentUser, userId, callListData, members,
             </div>
           ))}
         </div>
+      </div>
+
+      {/* KPI 目標 設定 */}
+      <div style={{
+        background: C.white, borderRadius: 4, marginBottom: 16,
+        border: "1px solid #E5E7EB", overflow: 'hidden',
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "16px 20px 0" }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>KPI 目標の入力</span>
+        </div>
+        <GoalSettingsPanel isAdmin={isAdmin} onToast={() => {}} />
       </div>
 
       {/* Training Progress */}

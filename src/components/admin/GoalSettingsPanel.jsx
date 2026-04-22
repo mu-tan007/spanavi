@@ -5,11 +5,13 @@ import { getOrgId } from '../../lib/orgContext';
 import { useKpiGoals, KPI_TYPES, PERIOD_TYPES } from '../../hooks/useKpiGoals';
 
 // Sourcing の teams / members / kpi_goals を束ねた目標設定パネル
-// 全員閲覧可、編集は admin 全権限 or 非admin は自分の member-scope のみ
-export default function GoalSettingsPanel({ isAdmin, onToast }) {
+// readOnly=true の場合は閲覧専用 (KPI ページ用)
+// 編集権限: admin 全スコープ / team スコープは該当チームの leader / member スコープは自分
+export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, defaultScopeType = 'org' }) {
   const [engagementId, setEngagementId] = useState(null);
   const [currentMemberId, setCurrentMemberId] = useState(null);
-  const [scopeType, setScopeType] = useState('org');   // 'org' | 'team' | 'member'
+  const [leaderTeamIds, setLeaderTeamIds] = useState(new Set());
+  const [scopeType, setScopeType] = useState(defaultScopeType);   // 'org' | 'team' | 'member'
   const [teams, setTeams] = useState([]);
   const [members, setMembers] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState('');
@@ -37,15 +39,22 @@ export default function GoalSettingsPanel({ isAdmin, onToast }) {
           .maybeSingle();
         if (me?.id) {
           setCurrentMemberId(me.id);
-          // 非 admin は初期状態で「自分」スコープを開く
-          if (!isAdmin) {
+          // リーダーをしているチーム ID を集める (team-scope 編集権限判定用)
+          const { data: leadTeams } = await supabase.from('teams')
+            .select('id')
+            .eq('org_id', orgId)
+            .eq('leader_member_id', me.id);
+          setLeaderTeamIds(new Set((leadTeams || []).map(t => t.id)));
+
+          // 非 admin は編集UIとして初期状態で「自分」スコープを開く
+          if (!isAdmin && !readOnly) {
             setScopeType('member');
             setSelectedMember(me.id);
           }
         }
       }
     })();
-  }, [orgId, isAdmin]);
+  }, [orgId, isAdmin, readOnly]);
 
   // teams / members 取得
   useEffect(() => {
@@ -90,10 +99,12 @@ export default function GoalSettingsPanel({ isAdmin, onToast }) {
 
   // このスコープを現在のユーザが編集できるか
   const canEditThisScope = useMemo(() => {
+    if (readOnly) return false;
     if (isAdmin) return true;
     if (scopeType === 'member' && selectedMember && selectedMember === currentMemberId) return true;
+    if (scopeType === 'team' && selectedTeam && leaderTeamIds.has(selectedTeam)) return true;
     return false;
-  }, [isAdmin, scopeType, selectedMember, currentMemberId]);
+  }, [readOnly, isAdmin, scopeType, selectedMember, selectedTeam, currentMemberId, leaderTeamIds]);
 
   // goals を { kpi_type + period_type: target_value } で引きやすくする
   const goalMap = useMemo(() => {
@@ -174,7 +185,9 @@ export default function GoalSettingsPanel({ isAdmin, onToast }) {
     <div style={{ padding: 20 }}>
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 12, color: C.textMid, marginBottom: 4 }}>
-          Sourcing 事業の KPI 目標を設定します。空欄にして保存するとその目標は削除されます。閲覧は全員可、編集は admin のみ。
+          {readOnly
+            ? 'Sourcing 事業の KPI 目標 (閲覧のみ)。編集はマイページから行ってください。'
+            : 'Sourcing 事業の KPI 目標を設定します。空欄にして保存するとその目標は削除されます。組織全体は admin のみ / チームはリーダー (成尾・高橋) / メンバーは本人が編集可。'}
         </div>
       </div>
 
