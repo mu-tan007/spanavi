@@ -1108,6 +1108,9 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
 
       {/* ===== CONTENT ===== */}
       <main style={{ marginLeft: isMobile ? 0 : 220, paddingTop: isMobile ? 48 : 54, paddingLeft: isMobile ? 12 : 28, paddingRight: isMobile ? 12 : 28, paddingBottom: isMobile ? 72 : 24, minHeight: '100vh', width: isMobile ? '100%' : 'calc(100% - 220px)', boxSizing: 'border-box', overflowX: 'hidden' }}>
+        {/* key で engSlug+currentTab が変わるたびに DOM を強制再マウント。
+            各 View の fadeIn が (engagement 切替含め) 必ず再生される。 */}
+        <div key={`${engSlug}:${currentTab}`}>
         {engSlug === 'masp' && !['database','mypage','all_members'].includes(currentTab) && (
           <EngagementComingSoon title="MASP" subtitle="この画面は準備中です" />
         )}
@@ -1152,6 +1155,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "ai" && <AIAssistantView appoData={appoData} members={members} callListData={callListData} industryRules={industryRules} currentUser={currentUser} />}
         {currentTab === "manager_admin" && isManagerRole && <ManagerAdminView currentUser={currentUser} members={members} appoData={appoData} now={now} />}
         </>)}
+        </div>
       </main>
 
       {isMobile && (
