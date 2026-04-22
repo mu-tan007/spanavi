@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import React from 'react';
 import { C } from '../../constants/colors';
 import { supabase } from '../../lib/supabase';
 import {
@@ -13,36 +12,13 @@ import {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+const NAVY = '#0D2247';
+const GOLD = '#C9A96E';
+const FREE_BG = '#E8EDF5';
+const HOVER_BG = '#D0D8E8';
+const DAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
+
 export default function RoleplayView({ currentUser, userId }) {
-  // ===== AI ロープレ =====
-  const patterns = [
-    { id: "strict_reception", label: "厳しい受付" },
-    { id: "gentle_ceo", label: "優しい社長" },
-    { id: "busy_ceo", label: "忙しい社長" },
-    { id: "interested_ceo", label: "興味ある社長" },
-    { id: "claim_ceo", label: "クレーム気質の社長" },
-  ];
-  const [selectedPattern, setSelectedPattern] = useState(null);
-  const [chatStarted, setChatStarted] = useState(false);
-  const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState([]);
-  const chatBottomRef = React.useRef(null);
-
-  useEffect(() => { chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
-
-  const handleStartRoleplay = () => {
-    if (!selectedPattern) return;
-    const label = patterns.find(p => p.id === selectedPattern)?.label || '';
-    setChatStarted(true);
-    setChatMessages([{ role: 'ai', text: `【${label}】モードでロープレを開始します。話しかけてください。` }]);
-  };
-  const handleSendChat = () => {
-    if (!chatInput.trim()) return;
-    setChatMessages(prev => [...prev, { role: 'user', text: chatInput.trim() }]);
-    setChatInput('');
-    setTimeout(() => setChatMessages(prev => [...prev, { role: 'ai', text: '（AIロープレ機能は準備中です）' }]), 500);
-  };
-
   // ===== Google Calendar (Edge Function 経由) =====
   const [busySlots, setBusySlots] = useState(null);
   const [loadingBusy, setLoadingBusy] = useState(false);
@@ -54,7 +30,6 @@ export default function RoleplayView({ currentUser, userId }) {
   const [bookingSuccessMsg, setBookingSuccessMsg] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [modalEmail, setModalEmail] = useState('');
-  const [selectedDay, setSelectedDay] = useState(0);
   const [weekOffset, setWeekOffset] = useState(0);
 
   // Supabase Auth からメールアドレス自動取得
@@ -93,12 +68,12 @@ export default function RoleplayView({ currentUser, userId }) {
       },
     });
 
-  // 空き時間取得
+  // 空き時間取得（表示中の週にあわせて範囲を動かす）
   const fetchBusy = async () => {
     setLoadingBusy(true);
     setGcalError(null);
     const now = new Date();
-    const base = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const base = new Date(now.getFullYear(), now.getMonth(), now.getDate() + weekOffset * 7);
     const timeMin = base.toISOString();
     const timeMax = new Date(base.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
     try {
@@ -113,17 +88,22 @@ export default function RoleplayView({ currentUser, userId }) {
     }
   };
 
-  // マウント時に自動取得（OAuth 不要）
-  useEffect(() => { fetchBusy(); }, []);
+  // 週が変わったら busy 再取得
+  useEffect(() => { fetchBusy(); /* eslint-disable-next-line */ }, [weekOffset]);
 
   // 7日分の日付リスト
   const days = useMemo(() => {
-    const DAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
     const now = new Date();
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + weekOffset * 7 + i);
       const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      return { dateStr: ds, label: `${d.getMonth() + 1}/${d.getDate()} (${DAY_LABELS[d.getDay()]})`, isWeekend: d.getDay() === 0 || d.getDay() === 6 };
+      return {
+        dateStr: ds,
+        label: `${d.getMonth() + 1}/${d.getDate()}`,
+        dayLabel: DAY_LABELS[d.getDay()],
+        longLabel: `${d.getMonth() + 1}/${d.getDate()} (${DAY_LABELS[d.getDay()]})`,
+        isWeekend: d.getDay() === 0 || d.getDay() === 6,
+      };
     });
   }, [weekOffset]);
 
@@ -172,7 +152,6 @@ export default function RoleplayView({ currentUser, userId }) {
     const s = new Date(startISO).getTime(), e = new Date(endISO).getTime();
     return bufferedBusyBlocks.some(b => s < b.e && e > b.s);
   };
-  const isBooked = (startISO) => bookings.some(b => b.startISO === startISO);
   const isPast = (startISO) => new Date(startISO) < new Date();
 
   // イベント作成
@@ -221,7 +200,6 @@ export default function RoleplayView({ currentUser, userId }) {
       setAllBookings(prev => [...prev, nb].sort((a, b) => a.startISO.localeCompare(b.startISO)));
       insertRoleplayBooking(userId, nb);
       await fetchBusy();
-      // メール通知（非同期・失敗してもブロックしない）
       const emailBody = `${currentUser || 'インターン生'}さんがロープレを予約しました。\n\n日時: ${confirmSlot.dayLabel} ${confirmSlot.startLabel}〜${confirmSlot.endLabel}\n予約者メール: ${modalEmail || '未入力'}`;
       const recipients = [...new Set(['shinomiya@ma-sp.co', ...(modalEmail ? [modalEmail] : [])])];
       recipients.forEach(to => invokeSendEmail({ to, subject: `【ロープレ予約】${confirmSlot.dayLabel} ${confirmSlot.startLabel}〜 ${currentUser || 'インターン生'}`, body: emailBody }).catch(() => {}));
@@ -242,167 +220,239 @@ export default function RoleplayView({ currentUser, userId }) {
         await gcalFetch(`?eventId=${encodeURIComponent(booking.id)}`, { method: 'DELETE' });
       } catch (e) { /* GCal削除失敗してもDB削除は続行 */ }
     }
-    // DB削除を確実に await
     const err = await deleteRoleplayBooking(booking.id);
     if (err) {
       console.error('[RoleplayView] DB削除失敗:', err);
     }
-    // DB再取得で確実に同期
     if (userId) {
       fetchRoleplayBookings(userId).then(({ data }) => setBookings(data || []));
     }
     fetchAllRoleplayBookings().then(({ data }) => setAllBookings(data || []));
     await fetchBusy();
-    // キャンセル通知メール（非同期・失敗してもブロックしない）
     const cancelBody = `${booking.userName || 'インターン生'}さんがロープレ予約をキャンセルしました。\n\n日時: ${booking.dayLabel} ${booking.startLabel}〜${booking.endLabel}`;
     const recipients = [...new Set(['shinomiya@ma-sp.co', ...(booking.attendeeEmail ? [booking.attendeeEmail] : [])])];
     recipients.forEach(to => invokeSendEmail({ to, subject: `【ロープレキャンセル】${booking.dayLabel} ${booking.startLabel}〜 ${booking.userName || 'インターン生'}`, body: cancelBody }).catch(() => {}));
   };
 
-  const currentDaySlots = getSlots(days[selectedDay]?.dateStr || '');
+  // 予約済みチェック（全メンバー分）
+  const findBookingAt = (startISO) => allBookings.find(b => b.startISO === startISO);
+
+  // 参照用スロット（時間ラベル列で使う）
+  const refSlots = useMemo(() => getSlots(days[0]?.dateStr || ''), [days]);
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease", display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Page Header */}
-      <div style={{ marginBottom: 8, paddingBottom: 14, borderBottom: '1px solid #0D2247' }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#0D2247', letterSpacing: '-0.3px' }}>Role Play</div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>ロープレトレーニング管理</div>
+      <div style={{ marginBottom: 8, paddingBottom: 14, borderBottom: `1px solid ${NAVY}` }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: NAVY, letterSpacing: '-0.3px' }}>Role Play</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>代表とのロープレ予約</div>
       </div>
 
-      <div style={{ display: "flex", gap: 20, minHeight: 520, position: "relative" }}>
+      <div style={{ display: "flex", gap: 20, alignItems: "flex-start", position: "relative" }}>
 
-        {/* 左: AIロープレ */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
-          <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0D2247', borderBottom: '2px solid #0D2247', paddingBottom: 6 }}>AIロープレ</h2>
-          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4,
-            flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300 }}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#0D2247', marginBottom: 6 }}>工事中</div>
-              <div style={{ fontSize: 12, color: C.textLight }}>近日実装予定</div>
-            </div>
-          </div>
-        </div>
-
-        {/* 右: 代表とのロープレ予約 */}
-        <div style={{ width: 380, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14 }}>
-          <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0D2247', borderBottom: '2px solid #0D2247', paddingBottom: 6 }}>代表とのロープレ予約</h2>
+        {/* 左 (8): 週グリッドカレンダー */}
+        <div style={{ flex: 8, minWidth: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+          <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: `2px solid ${NAVY}`, paddingBottom: 6 }}>
+            代表とのロープレ予約
+          </h2>
 
           {gcalError && (
-            <div style={{ fontSize: 11, color: '#DC2626', background: '#DC26261a',
-              padding: "6px 10px", borderRadius: 4 }}>
+            <div style={{ fontSize: 11, color: '#DC2626', background: '#DC26261a', padding: "6px 10px", borderRadius: 4 }}>
               {gcalError}
             </div>
           )}
 
-          {/* 日付タブ */}
-          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: '#F8F9FA', borderBottom: "1px solid #E5E7EB", gap: 8 }}>
-              <button onClick={() => { setWeekOffset(w => w - 1); setSelectedDay(0); }}
-                disabled={weekOffset === 0}
-                style={{ background: '#fff', color: '#0D2247', border: '1px solid #D1D5DB', borderRadius: 3, padding: '3px 6px', fontSize: 9, fontWeight: 500, cursor: weekOffset === 0 ? 'default' : 'pointer',
-                  flexShrink: 0, fontFamily: "'Noto Sans JP'",
-                  opacity: weekOffset === 0 ? 0.4 : 1 }}>
-                ← 前週
+          {/* 週ナビ + 凡例 */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: "'Noto Sans JP'" }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <button onClick={() => setWeekOffset(w => w - 1)}
+                style={{ background: '#fff', border: '1px solid #D1D5DB', borderRadius: 3, cursor: 'pointer', padding: '3px 10px', fontSize: 12, color: NAVY, fontWeight: 600 }}>
+                &lt;
               </button>
-              <div style={{ display: "flex", overflowX: "auto", flex: 1 }}>
-                {days.map((day, i) => (
-                  <button key={i} onClick={() => setSelectedDay(i)}
-                    style={{ padding: "7px 10px", border: "none", cursor: "pointer", whiteSpace: "nowrap",
-                      background: "transparent",
-                      color: selectedDay === i ? '#0D2247' : (day.isWeekend ? C.red : C.textMid),
-                      fontSize: 10, fontWeight: selectedDay === i ? 700 : 400,
-                      borderBottom: "2px solid " + (selectedDay === i ? '#0D2247' : "transparent"),
-                      fontFamily: "'Noto Sans JP'" }}>
-                    {day.label}
-                  </button>
-                ))}
-              </div>
-              <button onClick={() => { setWeekOffset(w => w + 1); setSelectedDay(0); }}
-                disabled={weekOffset >= 3}
-                style={{ background: '#fff', color: '#0D2247', border: '1px solid #D1D5DB', borderRadius: 3, padding: '3px 6px', fontSize: 9, fontWeight: 500, cursor: weekOffset >= 3 ? 'default' : 'pointer',
-                  flexShrink: 0, fontFamily: "'Noto Sans JP'",
-                  opacity: weekOffset >= 3 ? 0.4 : 1 }}>
-                次週 →
+              <span style={{ fontSize: 13, fontWeight: 700, color: NAVY, minWidth: 110, textAlign: 'center' }}>
+                {days[0]?.label} ~ {days[6]?.label}
+              </span>
+              <button onClick={() => setWeekOffset(w => w + 1)}
+                style={{ background: '#fff', border: '1px solid #D1D5DB', borderRadius: 3, cursor: 'pointer', padding: '3px 10px', fontSize: 12, color: NAVY, fontWeight: 600 }}>
+                &gt;
               </button>
-            </div>
-
-            {/* スロット一覧 */}
-            <div style={{ padding: 12, maxHeight: 280, overflowY: "auto" }}>
-              {loadingBusy ? (
-                <div style={{ textAlign: "center", padding: 20, color: C.textLight, fontSize: 12 }}>読み込み中...</div>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 5 }}>
-                  {currentDaySlots.map((slot, si) => {
-                    const busy = isBusy(slot.startISO, slot.endISO);
-                    const booked = isBooked(slot.startISO);
-                    const past = isPast(slot.startISO);
-                    const disabled = busy || past;
-                    return (
-                      <button key={si}
-                        onClick={() => !disabled && !booked && setConfirmSlot({ ...slot, dayLabel: days[selectedDay].label })}
-                        disabled={disabled || booked}
-                        style={{ padding: "5px 0", borderRadius: 4, fontSize: 10, fontWeight: 600, textAlign: "center",
-                          cursor: disabled || booked ? "default" : "pointer",
-                          border: booked ? "1.5px solid #0D2247" : (disabled ? "1px solid #E5E7EB" : "1.5px solid #1E40AF"),
-                          background: booked ? '#0D2247' : (disabled ? '#F8F9FA' : '#1E40AF1a'),
-                          color: booked ? '#fff' : (disabled ? '#9CA3AF' : '#0D2247'),
-                          fontFamily: "'JetBrains Mono', monospace" }}>
-                        {slot.startLabel}
-                      </button>
-                    );
-                  })}
-                </div>
+              {weekOffset !== 0 && (
+                <button onClick={() => setWeekOffset(0)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#6B7280', textDecoration: 'underline', marginLeft: 4 }}>
+                  今週
+                </button>
               )}
-              <div style={{ marginTop: 10, display: "flex", gap: 12, fontSize: 9, color: C.textLight, alignItems: "center" }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 2, background: '#1E40AF1a', border: "1.5px solid #1E40AF", display: "inline-block" }} />空き
-                </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 2, background: '#F8F9FA', border: "1px solid #E5E7EB", display: "inline-block" }} />予定あり
-                </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 2, background: '#0D2247', display: "inline-block" }} />予約済
-                </span>
-                <span style={{ marginLeft: "auto" }}>
-                  <button onClick={() => fetchBusy()} disabled={loadingBusy}
-                    style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, border: "1px solid #E5E7EB",
-                      background: "transparent", color: C.textMid, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
-                    {loadingBusy ? '読込中...' : '更新'}
-                  </button>
-                </span>
-              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, fontSize: 10, alignItems: 'center', color: C.textMid }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 10, height: 10, background: FREE_BG, border: '1px solid #D0D8E8', borderRadius: 2 }} />空き
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 10, height: 10, background: NAVY, borderRadius: 2 }} />予約済（自分）
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 10, height: 10, background: GOLD, borderRadius: 2 }} />予約済（他）
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 10, height: 10, background: NAVY, opacity: 0.15, borderRadius: 2 }} />予定あり
+              </span>
+              <button onClick={fetchBusy} disabled={loadingBusy}
+                style={{ fontSize: 10, padding: '3px 8px', borderRadius: 4, border: '1px solid #E5E7EB', background: 'transparent', color: C.textMid, cursor: 'pointer', fontFamily: "'Noto Sans JP'", marginLeft: 6 }}>
+                {loadingBusy ? '読込中...' : '更新'}
+              </button>
             </div>
           </div>
 
-          {/* 予約完了メッセージ */}
+          {/* 週グリッド */}
+          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden', fontFamily: "'Noto Sans JP'" }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '56px repeat(7, 1fr)', fontSize: 10 }}>
+              {/* ヘッダ行 */}
+              <div style={{ background: NAVY, padding: '6px 2px' }} />
+              {days.map(d => (
+                <div key={d.dateStr}
+                  style={{ background: NAVY, color: d.isWeekend ? '#FCA5A5' : '#fff', padding: '6px 2px', textAlign: 'center', fontWeight: 600, borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: 11 }}>{d.label}</div>
+                  <div style={{ fontSize: 9, opacity: 0.8 }}>{d.dayLabel}</div>
+                </div>
+              ))}
+
+              {/* 時間行 */}
+              {refSlots.map((refSlot, si) => {
+                const onHour = refSlot.startLabel.endsWith(':00');
+                return (
+                  <div key={si} style={{ display: 'contents' }}>
+                    {/* 時間ラベル */}
+                    <div style={{
+                      padding: '0 6px',
+                      textAlign: 'right',
+                      color: '#6B7280',
+                      fontSize: 10,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      borderBottom: '1px solid #F3F4F6',
+                      borderRight: '1px solid #E5E7EB',
+                      background: '#FAFBFC',
+                      height: 22,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'flex-end',
+                    }}>
+                      {onHour ? refSlot.startLabel : ''}
+                    </div>
+
+                    {/* 各日のセル */}
+                    {days.map(d => {
+                      const slots = getSlots(d.dateStr);
+                      const slot = slots[si];
+                      if (!slot) return <div key={d.dateStr} />;
+
+                      const past = isPast(slot.startISO);
+                      const booking = findBookingAt(slot.startISO);
+                      const ownBooked = booking && booking.userId === userId;
+                      const otherBooked = booking && booking.userId !== userId;
+                      const busy = !booking && isBusy(slot.startISO, slot.endISO);
+
+                      let bg = FREE_BG;
+                      let label = '';
+                      let labelColor = '';
+                      let cursor = 'pointer';
+
+                      if (past && !booking) {
+                        bg = '#F9FAFB';
+                        cursor = 'default';
+                      } else if (ownBooked) {
+                        bg = NAVY;
+                        label = '自分';
+                        labelColor = '#fff';
+                        cursor = 'default';
+                      } else if (otherBooked) {
+                        bg = GOLD + '33';
+                        label = booking.userName || '他';
+                        labelColor = '#8B6914';
+                        cursor = 'default';
+                      } else if (busy) {
+                        bg = NAVY + '26';
+                        cursor = 'default';
+                      }
+
+                      const canSelect = !past && !booking && !busy;
+
+                      return (
+                        <div key={d.dateStr}
+                          onClick={() => canSelect && setConfirmSlot({ ...slot, dayLabel: d.longLabel })}
+                          onMouseEnter={e => { if (canSelect) e.currentTarget.style.background = HOVER_BG; }}
+                          onMouseLeave={e => { if (canSelect) e.currentTarget.style.background = FREE_BG; }}
+                          title={
+                            booking ? `${booking.userName || ''} ${slot.startLabel}-${slot.endLabel}`
+                            : past ? '過去'
+                            : busy ? '予定あり'
+                            : `${d.longLabel} ${slot.startLabel}`
+                          }
+                          style={{
+                            background: bg,
+                            height: 22,
+                            cursor,
+                            borderBottom: onHour ? '1px solid #E5E7EB' : '1px solid #F3F4F6',
+                            borderLeft: '1px solid #E8EDF5',
+                            position: 'relative',
+                            overflow: 'hidden',
+                            transition: 'background 0.1s',
+                          }}>
+                          {label && (
+                            <span style={{
+                              position: 'absolute',
+                              inset: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 9,
+                              fontWeight: 700,
+                              color: labelColor,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              padding: '0 2px',
+                            }}>
+                              {label}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           {bookingSuccessMsg && (
             <div style={{ background: "#f0faf4", border: "1px solid #34a853", borderRadius: 4,
               padding: "10px 14px", fontSize: 12, fontWeight: 600, color: C.green }}>
               {bookingSuccessMsg}
             </div>
           )}
+        </div>
 
-          {/* 予約済み一覧（全メンバー・本日以降） */}
+        {/* 右 (2): 予約済み一覧 */}
+        <div style={{ flex: 2, minWidth: 220, display: "flex", flexDirection: "column", gap: 10 }}>
+          <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: `2px solid ${NAVY}`, paddingBottom: 6 }}>
+            予約済み一覧 {allBookings.length > 0 && <span style={{ fontWeight: 400, color: C.textMid, fontSize: 11 }}>({allBookings.length}件)</span>}
+          </h2>
+
           <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, overflow: "hidden" }}>
-            <div style={{ background: '#0D2247', padding: "8px 14px", fontSize: 11, fontWeight: 700, color: '#fff' }}>
-              予約済み一覧 {allBookings.length > 0 && <span style={{ opacity: 0.7, fontSize: 10 }}>({allBookings.length}件)</span>}
-            </div>
             {allBookings.length === 0 ? (
               <div style={{ padding: "16px 14px", textAlign: "center", color: C.textLight, fontSize: 12 }}>予約はありません</div>
             ) : (
-              <div style={{ maxHeight: 240, overflowY: "auto" }}>
+              <div style={{ maxHeight: 640, overflowY: "auto" }}>
                 {allBookings.map(b => {
                   const isOwn = b.userId === userId;
                   return (
-                    <div key={b.id} style={{ padding: "8px 14px", borderBottom: "1px solid #E5E7EB",
+                    <div key={b.id} style={{ padding: "10px 14px", borderBottom: "1px solid #E5E7EB",
                       display: "flex", justifyContent: "space-between", alignItems: "center",
                       background: isOwn ? '#F0F4FF' : 'transparent' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#0D2247' }}>{b.dayLabel}</span>
-                          <span style={{ fontSize: 10, color: C.textMid, fontFamily: "'JetBrains Mono', monospace" }}>
-                            {b.startLabel} – {b.endLabel}
-                          </span>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: NAVY }}>{b.dayLabel}</div>
+                        <div style={{ fontSize: 10, color: C.textMid, fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
+                          {b.startLabel} – {b.endLabel}
                         </div>
                         <div style={{ fontSize: 10, color: isOwn ? '#1E40AF' : '#6B7280', fontWeight: isOwn ? 600 : 400, marginTop: 2 }}>
                           {b.userName || '不明'}{isOwn ? '（自分）' : ''}
@@ -429,11 +479,11 @@ export default function RoleplayView({ currentUser, userId }) {
               display: "flex", alignItems: "center", justifyContent: "center" }}>
             <div onClick={e => e.stopPropagation()}
               style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: "28px 32px", width: 340 }}>
-              <div style={{ background: '#0D2247', color: '#fff', padding: '12px 24px', fontWeight: 600, fontSize: 15, borderRadius: '4px 4px 0 0', margin: '-28px -32px 20px -32px' }}>ロープレを予約する</div>
+              <div style={{ background: NAVY, color: '#fff', padding: '12px 24px', fontWeight: 600, fontSize: 15, borderRadius: '4px 4px 0 0', margin: '-28px -32px 20px -32px' }}>ロープレを予約する</div>
               <div style={{ fontSize: 13, color: C.textMid, marginBottom: 16, lineHeight: 1.7 }}>
-                <strong style={{ color: '#0D2247' }}>{confirmSlot.dayLabel}</strong>
+                <strong style={{ color: NAVY }}>{confirmSlot.dayLabel}</strong>
                 {'　'}
-                <strong style={{ color: '#0D2247', fontFamily: "'JetBrains Mono', monospace" }}>
+                <strong style={{ color: NAVY, fontFamily: "'JetBrains Mono', monospace" }}>
                   {confirmSlot.startLabel} – {confirmSlot.endLabel}
                 </strong>
               </div>
@@ -456,12 +506,12 @@ export default function RoleplayView({ currentUser, userId }) {
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <button onClick={handleBook} disabled={bookingLoading}
-                  style={{ flex: 1, background: bookingLoading ? '#E5E7EB' : '#0D2247', color: bookingLoading ? '#9CA3AF' : '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: bookingLoading ? "default" : "pointer",
+                  style={{ flex: 1, background: bookingLoading ? '#E5E7EB' : NAVY, color: bookingLoading ? '#9CA3AF' : '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: bookingLoading ? "default" : "pointer",
                     fontFamily: "'Noto Sans JP'" }}>
                   {bookingLoading ? '予約中...' : '予約する'}
                 </button>
                 <button onClick={() => setConfirmSlot(null)}
-                  style={{ flex: 1, background: '#fff', color: '#0D2247', border: '1px solid #0D2247', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
+                  style={{ flex: 1, background: '#fff', color: NAVY, border: `1px solid ${NAVY}`, borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
                   キャンセル
                 </button>
               </div>
