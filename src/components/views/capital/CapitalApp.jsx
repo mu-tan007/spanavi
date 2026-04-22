@@ -37,7 +37,7 @@ class CapitalErrorBoundary extends React.Component {
   }
 }
 
-export default function CapitalApp() {
+export default function CapitalApp({ isAdmin = false }) {
   return (
     <CapitalErrorBoundary>
       <QueryClientProvider client={queryClient}>
@@ -52,7 +52,7 @@ export default function CapitalApp() {
               <Route path="/firms" element={<IntermediariesPage />} />
               <Route path="/registry" element={<AgencyRegistryPage />} />
               <Route path="/documents" element={<DocumentsPage />} />
-              <Route path="/members" element={<EngagementMembersView bleed={false} />} />
+              <Route path="/members" element={<EngagementMembersView bleed={false} isAdmin={isAdmin} />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </div>

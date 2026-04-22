@@ -159,63 +159,151 @@ export function useEngagementMembers(engagementId) {
   const [loading, setLoading] = useState(true);
   const orgId = getOrgId();
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      if (!orgId || !engagementId) { setLoading(false); return; }
-      setLoading(true);
-      const [memRes, teamRes, tmRes] = await Promise.all([
-        supabase
-          .from('member_engagements')
-          .select(`member_id, member:members(id, name, email, position, rank, team, start_date, is_active, avatar_url, cumulative_sales, incentive_rate)`)
-          .eq('org_id', orgId)
-          .eq('engagement_id', engagementId),
-        supabase
-          .from('teams')
-          .select('id, name, display_order')
-          .eq('org_id', orgId)
-          .eq('engagement_id', engagementId)
-          .eq('status', 'active')
-          .order('display_order'),
-        supabase
-          .from('team_members')
-          .select('member_id, team_id, role, left_at, team:teams!inner(engagement_id)')
-          .eq('org_id', orgId)
-          .eq('team.engagement_id', engagementId)
-          .is('left_at', null),
-      ]);
-      if (cancelled) return;
-      const activeMembers = (memRes.data || [])
-        .map(r => r.member).filter(Boolean).filter(m => m.is_active);
-      activeMembers.sort(sortByPositionThenStart);
-      setMembers(activeMembers);
+  const load = useCallback(async () => {
+    if (!orgId || !engagementId) { setLoading(false); return; }
+    setLoading(true);
+    const [memRes, teamRes, tmRes] = await Promise.all([
+      supabase
+        .from('member_engagements')
+        .select(`member_id, member:members(id, name, email, position, rank, team, start_date, is_active, avatar_url, cumulative_sales, incentive_rate)`)
+        .eq('org_id', orgId)
+        .eq('engagement_id', engagementId),
+      supabase
+        .from('teams')
+        .select('id, name, display_order')
+        .eq('org_id', orgId)
+        .eq('engagement_id', engagementId)
+        .eq('status', 'active')
+        .order('display_order'),
+      supabase
+        .from('team_members')
+        .select('id, member_id, team_id, display_order, role, left_at, team:teams!inner(engagement_id)')
+        .eq('org_id', orgId)
+        .eq('team.engagement_id', engagementId)
+        .is('left_at', null),
+    ]);
+    const activeMembers = (memRes.data || [])
+      .map(r => r.member).filter(Boolean).filter(m => m.is_active);
+    activeMembers.sort(sortByPositionThenStart);
+    setMembers(activeMembers);
 
-      // member_id → team_id の map (1人は1チーム想定、複数あれば最初の1つ)
-      const memberTeamMap = {};
-      (tmRes.data || []).forEach(r => {
-        if (!memberTeamMap[r.member_id]) memberTeamMap[r.member_id] = r.team_id;
-      });
-
-      // teams 毎にメンバーを束ねる + 未所属を最後に
-      const teams = (teamRes.data || []).map(t => ({ ...t, members: [] }));
-      const teamIndex = {};
-      teams.forEach((t, i) => { teamIndex[t.id] = i; });
-      const unassigned = [];
-      for (const m of activeMembers) {
-        const tid = memberTeamMap[m.id];
-        if (tid != null && teamIndex[tid] != null) {
-          teams[teamIndex[tid]].members.push(m);
-        } else {
-          unassigned.push(m);
-        }
+    const memberTeamMap = {};
+    const memberOrderMap = {};
+    (tmRes.data || []).forEach(r => {
+      if (!memberTeamMap[r.member_id]) {
+        memberTeamMap[r.member_id] = r.team_id;
+        memberOrderMap[r.member_id] = r.display_order ?? 0;
       }
-      if (unassigned.length) teams.push({ id: '__unassigned', name: '未所属', display_order: 9999, members: unassigned });
-      setTeamGroups(teams);
-      setLoading(false);
+    });
+
+    const teams = (teamRes.data || []).map(t => ({ ...t, members: [] }));
+    const teamIndex = {};
+    teams.forEach((t, i) => { teamIndex[t.id] = i; });
+    const unassigned = [];
+    for (const m of activeMembers) {
+      const tid = memberTeamMap[m.id];
+      if (tid != null && teamIndex[tid] != null) {
+        teams[teamIndex[tid]].members.push(m);
+      } else {
+        unassigned.push(m);
+      }
     }
-    load();
-    return () => { cancelled = true; };
+    // 各チーム内を display_order でソート
+    for (const t of teams) {
+      t.members.sort((a, b) => (memberOrderMap[a.id] ?? 0) - (memberOrderMap[b.id] ?? 0));
+    }
+    if (unassigned.length) teams.push({ id: '__unassigned', name: '未所属', display_order: 9999, members: unassigned });
+    setTeamGroups(teams);
+    setLoading(false);
   }, [orgId, engagementId]);
 
-  return { members, teamGroups, loading };
+  useEffect(() => {
+    let cancelled = false;
+    (async () => { if (!cancelled) await load(); })();
+    return () => { cancelled = true; };
+  }, [load]);
+
+  /**
+   * DnD 完了時に呼ぶ: 新しい teamGroups 配列 (並び替え後) を受け取り、
+   * DB 上の team_members を同期する。'__unassigned' からメンバーを外したら
+   * 現在のチームから左遷 (delete)。既存チームから別チームに移動した場合は
+   * 旧チーム行を消して新チームに insert。同チーム内の並び替えなら display_order だけ更新。
+   */
+  const applyTeamGroups = useCallback(async (nextGroups) => {
+    if (!orgId) return { error: new Error('no org') };
+
+    // 旧状態 (サーバー) を state から復元するより、渡された new groups から差分を計算
+    // メンバー→(team_id, index) の現在の配置
+    const prevIdx = {};
+    for (const g of teamGroups) {
+      if (g.id === '__unassigned') {
+        g.members.forEach(m => { prevIdx[m.id] = { team_id: null, order: null }; });
+      } else {
+        g.members.forEach((m, i) => { prevIdx[m.id] = { team_id: g.id, order: i }; });
+      }
+    }
+    const nextIdx = {};
+    for (const g of nextGroups) {
+      if (g.id === '__unassigned') {
+        g.members.forEach(m => { nextIdx[m.id] = { team_id: null, order: null }; });
+      } else {
+        g.members.forEach((m, i) => { nextIdx[m.id] = { team_id: g.id, order: i }; });
+      }
+    }
+
+    // optimistic: UI を即更新
+    setTeamGroups(nextGroups);
+
+    const ops = [];
+    for (const memberId of Object.keys(nextIdx)) {
+      const p = prevIdx[memberId];
+      const n = nextIdx[memberId];
+      if (!p) continue;
+      if (p.team_id !== n.team_id) {
+        // 旧 team_members 行を削除
+        if (p.team_id) {
+          ops.push(
+            supabase.from('team_members').delete()
+              .eq('member_id', memberId).eq('team_id', p.team_id).is('left_at', null)
+          );
+        }
+        if (n.team_id) {
+          ops.push(
+            supabase.from('team_members').insert({
+              org_id: orgId, member_id: memberId, team_id: n.team_id,
+              display_order: (n.order ?? 0) * 10,
+            })
+          );
+        }
+      } else if (p.team_id && n.order !== p.order) {
+        ops.push(
+          supabase.from('team_members').update({ display_order: (n.order ?? 0) * 10 })
+            .eq('member_id', memberId).eq('team_id', p.team_id).is('left_at', null)
+        );
+      }
+    }
+    const results = await Promise.all(ops);
+    for (const r of results) {
+      if (r?.error) {
+        // DB 書き込み失敗。リロードして整合性を戻す。
+        await load();
+        return { error: r.error };
+      }
+    }
+    // チーム移動があった場合、members.team legacy 列も同期
+    const legacyUpdates = [];
+    for (const memberId of Object.keys(nextIdx)) {
+      const p = prevIdx[memberId];
+      const n = nextIdx[memberId];
+      if (!p || p.team_id === n.team_id) continue;
+      const newTeamName = n.team_id
+        ? nextGroups.find(g => g.id === n.team_id)?.name || null
+        : null;
+      legacyUpdates.push(supabase.from('members').update({ team: newTeamName }).eq('id', memberId));
+    }
+    await Promise.all(legacyUpdates);
+    return { error: null };
+  }, [orgId, teamGroups, load]);
+
+  return { members, teamGroups, loading, applyTeamGroups, refresh: load };
 }

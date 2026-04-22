@@ -1,16 +1,31 @@
 import React, { useMemo, useState } from 'react';
+import {
+  DndContext, DragOverlay, PointerSensor, KeyboardSensor,
+  closestCenter, useSensor, useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext, sortableKeyboardCoordinates,
+  useSortable, verticalListSortingStrategy, arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { C } from '../../constants/colors';
 import { useEngagements } from '../../hooks/useEngagements';
 import { useEngagementMembers } from '../../hooks/useMemberEngagements';
 import PageHeader from '../common/PageHeader';
 
-// 各事業タブの「Members」ページ。読み取り専用で、MASP Members で割当てたメンバーのみ表示。
-// 事業を跨いで使い回せる (sourcing / career / capital …)。
-export default function EngagementMembersView({ engagementOverride, bleed = true }) {
+// 各事業タブの「Members」ページ。
+// admin はドラッグ&ドロップでチーム間移動/チーム内並び替えが可能。
+// 非 admin は閲覧のみ。
+export default function EngagementMembersView({ engagementOverride, bleed = true, isAdmin = false }) {
   const { currentEngagement } = useEngagements();
   const engagement = engagementOverride || currentEngagement;
-  const { members, teamGroups, loading } = useEngagementMembers(engagement?.id);
+  const { members, teamGroups, loading, applyTeamGroups } = useEngagementMembers(engagement?.id);
   const [filter, setFilter] = useState('');
+  const [activeId, setActiveId] = useState(null);
+  const [localGroups, setLocalGroups] = useState(null); // DnD 最中のオーバーレイ状態
+
+  // filter が空のときは localGroups (DnD 中) を優先、そうでなければ teamGroups
+  const workingGroups = localGroups || teamGroups;
 
   const matcher = (m) => {
     const q = filter.trim().toLowerCase();
@@ -21,26 +36,107 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
       || (m.team || '').toLowerCase().includes(q);
   };
 
-  // フィルタ後の teamGroups (空チームも可視化するかどうか: 非表示)
+  // 表示用 (フィルタ後)。DnD は filter 非適用時のみ有効 (インデックスがずれるため)
+  const canDrag = isAdmin && !filter.trim();
   const visibleGroups = useMemo(() => {
-    return (teamGroups || [])
+    if (canDrag) return workingGroups || [];
+    return (workingGroups || [])
       .map(g => ({ ...g, members: (g.members || []).filter(matcher) }))
       .filter(g => g.members.length > 0);
-  }, [teamGroups, filter]); // eslint-disable-line react-hooks/exhaustive-deps
-  const totalVisible = visibleGroups.reduce((s, g) => s + g.members.length, 0);
+  }, [workingGroups, filter, canDrag]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  // id → {team_id, member} を引く helper
+  const findLocation = (memberId, groups) => {
+    for (const g of groups) {
+      const idx = g.members.findIndex(m => m.id === memberId);
+      if (idx !== -1) return { teamId: g.id, index: idx };
+    }
+    return null;
+  };
+
+  const handleDragStart = (event) => {
+    setActiveId(event.active.id);
+    setLocalGroups(teamGroups); // DnD 中は独自コピーで差分計算
+  };
+
+  const handleDragOver = (event) => {
+    if (!localGroups) return;
+    const { active, over } = event;
+    if (!over) return;
+    const activeMid = active.id;
+    const overId = over.id;
+
+    const src = findLocation(activeMid, localGroups);
+    if (!src) return;
+
+    // over がチーム ID (ドロップゾーン) の場合
+    const isTeam = localGroups.some(g => g.id === overId);
+    if (isTeam && overId !== src.teamId) {
+      const next = localGroups.map(g => ({ ...g, members: [...g.members] }));
+      const srcGroup = next.find(g => g.id === src.teamId);
+      const dstGroup = next.find(g => g.id === overId);
+      const [m] = srcGroup.members.splice(src.index, 1);
+      dstGroup.members.push(m);
+      setLocalGroups(next);
+      return;
+    }
+
+    // over が別メンバー行
+    const dst = findLocation(overId, localGroups);
+    if (!dst) return;
+    if (src.teamId === dst.teamId && src.index === dst.index) return;
+    const next = localGroups.map(g => ({ ...g, members: [...g.members] }));
+    if (src.teamId === dst.teamId) {
+      const g = next.find(g => g.id === src.teamId);
+      g.members = arrayMove(g.members, src.index, dst.index);
+    } else {
+      const srcGroup = next.find(g => g.id === src.teamId);
+      const dstGroup = next.find(g => g.id === dst.teamId);
+      const [m] = srcGroup.members.splice(src.index, 1);
+      dstGroup.members.splice(dst.index, 0, m);
+    }
+    setLocalGroups(next);
+  };
+
+  const handleDragEnd = async () => {
+    setActiveId(null);
+    if (!localGroups) return;
+    const next = localGroups;
+    setLocalGroups(null);
+    // 差分を DB に反映 (楽観的更新は applyTeamGroups 内で実行)
+    const { error } = await applyTeamGroups(next);
+    if (error) {
+      console.error('[EngagementMembers] applyTeamGroups failed:', error);
+    }
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
+    setLocalGroups(null);
+  };
 
   if (!engagement) return null;
   if (loading) {
     return <div style={{ padding: 40, textAlign: 'center', color: C.textMid }}>読み込み中…</div>;
   }
 
+  const activeMember = activeId
+    ? (workingGroups || []).flatMap(g => g.members).find(m => m.id === activeId)
+    : null;
+
   return (
     <div style={{ background: C.offWhite, minHeight: 'calc(100vh - 120px)', animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         bleed={bleed}
-        eyebrow={`${engagement.name} · 所属メンバー`}
         title="Members"
-        description={`${members.length} 名 (入社日順)。所属の変更は MASP → Members から`}
+        description={canDrag
+          ? `${members.length} 名。行をドラッグしてチーム間の移動・チーム内の並び替えができます`
+          : `${members.length} 名 (入社日順)${isAdmin && filter.trim() ? ' — 検索中はドラッグ不可' : ''}`}
       >
         <input
           type="text"
@@ -61,66 +157,175 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
           <div style={{ padding: '40px 12px', textAlign: 'center', color: C.textLight, background: C.white, border: `1px solid ${C.border}`, borderRadius: 4 }}>
             {members.length === 0 ? 'この事業に所属するメンバーはいません' : '該当するメンバーがいません'}
           </div>
+        ) : canDrag ? (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
+            {visibleGroups.map(g => (
+              <TeamBlock key={g.id} group={g} draggable />
+            ))}
+            <DragOverlay>
+              {activeMember ? <MemberRowContent m={activeMember} dragging /> : null}
+            </DragOverlay>
+          </DndContext>
         ) : (
           visibleGroups.map(g => (
-            <div key={g.id} style={{ marginBottom: 16 }}>
-              <div style={{
-                padding: '8px 14px', background: C.navy, color: C.white,
-                borderRadius: '4px 4px 0 0',
-                display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, fontWeight: 600,
-                letterSpacing: '0.04em',
-              }}>
-                <span>{g.name}</span>
-                <span style={{ fontSize: 10, opacity: 0.8, fontWeight: 400 }}>({g.members.length}名)</span>
-              </div>
-              <table style={{
-                width: '100%', borderCollapse: 'collapse',
-                background: C.white, border: `1px solid ${C.border}`, borderTop: 'none',
-                borderRadius: '0 0 4px 4px',
-                fontSize: 12,
-              }}>
-                <thead>
-                  <tr style={{ borderBottom: `1px solid ${C.border}`, background: C.cream }}>
-                    <th style={th}>入社日</th>
-                    <th style={{ ...th, textAlign: 'left' }}>氏名</th>
-                    <th style={{ ...th, textAlign: 'left' }}>ポジション</th>
-                    <th style={{ ...th, textAlign: 'left' }}>メール</th>
-                    <th style={th}>ランク</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {g.members.map(m => (
-                    <tr key={m.id} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
-                      <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", color: C.textMid, whiteSpace: 'nowrap', textAlign: 'center' }}>
-                        {m.start_date ? m.start_date : '—'}
-                      </td>
-                      <td style={{ ...td, textAlign: 'left', fontWeight: 500, color: C.navy }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{
-                            width: 26, height: 26, borderRadius: '50%',
-                            background: C.navy, color: C.white,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 11, fontWeight: 600, overflow: 'hidden', flexShrink: 0,
-                          }}>
-                            {m.avatar_url
-                              ? <img src={m.avatar_url} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                              : (m.name || '?')[0]}
-                          </div>
-                          {m.name}
-                        </div>
-                      </td>
-                      <td style={{ ...td, textAlign: 'left', color: C.textMid }}>{m.position || '—'}</td>
-                      <td style={{ ...td, textAlign: 'left', color: C.textMid, fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>{m.email || '—'}</td>
-                      <td style={{ ...td, color: C.textMid, textAlign: 'center' }}>{m.rank || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <TeamBlock key={g.id} group={g} draggable={false} />
           ))
         )}
       </div>
     </div>
+  );
+}
+
+// ─── チーム 1 ブロック ────────────────────────────────
+function TeamBlock({ group, draggable }) {
+  const items = group.members.map(m => m.id);
+  return (
+    <div key={group.id} style={{ marginBottom: 16 }}>
+      <div style={{
+        padding: '8px 14px', background: C.navy, color: C.white,
+        borderRadius: '4px 4px 0 0',
+        display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, fontWeight: 600,
+        letterSpacing: '0.04em',
+      }}>
+        <span>{group.name}</span>
+        <span style={{ fontSize: 10, opacity: 0.8, fontWeight: 400 }}>({group.members.length}名)</span>
+      </div>
+      <table style={{
+        width: '100%', borderCollapse: 'collapse',
+        background: C.white, border: `1px solid ${C.border}`, borderTop: 'none',
+        borderRadius: '0 0 4px 4px',
+        fontSize: 12,
+      }}>
+        <thead>
+          <tr style={{ borderBottom: `1px solid ${C.border}`, background: C.cream }}>
+            {draggable && <th style={{ ...th, width: 28 }}></th>}
+            <th style={th}>入社日</th>
+            <th style={{ ...th, textAlign: 'left' }}>氏名</th>
+            <th style={{ ...th, textAlign: 'left' }}>ポジション</th>
+            <th style={{ ...th, textAlign: 'left' }}>メール</th>
+            <th style={th}>ランク</th>
+          </tr>
+        </thead>
+        <tbody>
+          {draggable ? (
+            <SortableContext items={items} strategy={verticalListSortingStrategy} id={group.id}>
+              {group.members.length === 0 ? (
+                <EmptyTeamDropZone teamId={group.id} />
+              ) : (
+                group.members.map(m => <SortableMemberRow key={m.id} m={m} />)
+              )}
+            </SortableContext>
+          ) : (
+            group.members.map(m => <StaticMemberRow key={m.id} m={m} />)
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ─── 並び替え可能な行 ─────────────────────────────────
+function SortableMemberRow({ m }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: m.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    background: isDragging ? C.cream : undefined,
+  };
+  return (
+    <tr ref={setNodeRef} style={{ ...style, borderBottom: `1px solid ${C.borderLight}` }} {...attributes}>
+      <td style={{ ...td, textAlign: 'center', width: 28, cursor: 'grab', color: C.textLight, userSelect: 'none' }} {...listeners}>
+        ⋮⋮
+      </td>
+      <MemberRowCells m={m} />
+    </tr>
+  );
+}
+
+// DnD 無し時の静的な行
+function StaticMemberRow({ m }) {
+  return (
+    <tr style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+      <MemberRowCells m={m} />
+    </tr>
+  );
+}
+
+function MemberRowCells({ m }) {
+  return (
+    <>
+      <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", color: C.textMid, whiteSpace: 'nowrap', textAlign: 'center' }}>
+        {m.start_date || '—'}
+      </td>
+      <td style={{ ...td, textAlign: 'left', fontWeight: 500, color: C.navy }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{
+            width: 26, height: 26, borderRadius: '50%',
+            background: C.navy, color: C.white,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 11, fontWeight: 600, overflow: 'hidden', flexShrink: 0,
+          }}>
+            {m.avatar_url
+              ? <img src={m.avatar_url} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : (m.name || '?')[0]}
+          </div>
+          {m.name}
+        </div>
+      </td>
+      <td style={{ ...td, textAlign: 'left', color: C.textMid }}>{m.position || '—'}</td>
+      <td style={{ ...td, textAlign: 'left', color: C.textMid, fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>{m.email || '—'}</td>
+      <td style={{ ...td, color: C.textMid, textAlign: 'center' }}>{m.rank || '—'}</td>
+    </>
+  );
+}
+
+// DragOverlay 用のコンテンツ (tr の中身でなく div で別レンダ)
+function MemberRowContent({ m }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      background: C.white, border: `1px solid ${C.gold}`, borderRadius: 4,
+      padding: '6px 12px', fontSize: 12, color: C.navy, fontWeight: 600,
+      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+    }}>
+      <span style={{ color: C.textLight }}>⋮⋮</span>
+      <div style={{
+        width: 26, height: 26, borderRadius: '50%',
+        background: C.navy, color: C.white,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 11, fontWeight: 600, flexShrink: 0,
+      }}>
+        {(m.name || '?')[0]}
+      </div>
+      {m.name}
+    </div>
+  );
+}
+
+// 空チームのドロップゾーン
+function EmptyTeamDropZone({ teamId }) {
+  // SortableContext の空配列でもドロップできるように、専用の dummy row を置く。
+  // collisionDetection は closestCenter なので tr でも当たる。
+  const { setNodeRef, isOver } = useSortable({ id: `__empty:${teamId}` });
+  return (
+    <tr ref={setNodeRef}>
+      <td colSpan={6} style={{
+        padding: '18px 12px', textAlign: 'center', fontSize: 11,
+        color: C.textLight,
+        background: isOver ? C.cream : 'transparent',
+        border: isOver ? `1px dashed ${C.gold}` : 'none',
+      }}>
+        ここにドロップしてチームに追加
+      </td>
+    </tr>
   );
 }
 

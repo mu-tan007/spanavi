@@ -1114,11 +1114,11 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {engSlug === 'masp' && currentTab === 'all_members' && <MASPMembersView isAdmin={isAdmin} />}
         {engSlug === 'spartia_career' && currentTab === 'applications' && <ApplicationsView />}
         {engSlug === 'spartia_career' && currentTab === 'deals_career' && <CareerDealsView />}
-        {engSlug === 'spartia_career' && currentTab === 'members_career' && <EngagementMembersView />}
+        {engSlug === 'spartia_career' && currentTab === 'members_career' && <EngagementMembersView isAdmin={isAdmin} />}
         {engSlug === 'spartia_career' && !['applications','deals_career','members_career','mypage'].includes(currentTab) && (
           <EngagementComingSoon title={currentEngagement?.name || 'Spartia Career'} subtitle="この画面は Phase 3B 以降で実装予定です" />
         )}
-        {engSlug === 'spartia_capital' && <CapitalApp />}
+        {engSlug === 'spartia_capital' && <CapitalApp isAdmin={isAdmin} />}
         {engSlug !== 'seller_sourcing' && engSlug !== 'masp' && engSlug !== 'spartia_career' && engSlug !== 'spartia_capital' && (
           <EngagementPlaceholder engagement={currentEngagement} />
         )}
@@ -1134,7 +1134,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "deals" && <DealsView />}
         {currentTab === "crm" && <CRMView isAdmin={isAdmin} clientData={clientData} setClientData={isAdmin ? setClientData : null} rewardMaster={rewardMaster} contactsByClient={contactsByClient} setContactsByClient={setContactsByClient} />}
 
-        {currentTab === "members" && <EngagementMembersView />}
+        {currentTab === "members" && <EngagementMembersView isAdmin={isAdmin} />}
         {currentTab === "goals" && <GoalsView isAdmin={isAdmin} />}
         {currentTab === "search" && <CompanySearchView importedCSVs={importedCSVs} callListData={callListData} setCallingScreen={setCallingScreen} setImportedCSVs={setImportedCSVs} clientData={clientData} currentUser={currentUser} members={members} setCallFlowScreen={setCallFlowScreen} rewardMaster={rewardMaster} />}
         {currentTab === "stats" && <StatsView callListData={callListData} currentUser={currentUser} appoData={appoData} members={members} now={now} />}
