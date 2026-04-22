@@ -600,7 +600,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         flatTabs.push('mypage');
         cycle(flatTabs, currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'masp') {
-        cycle(['database', 'mypage'], currentTab, e.key, setCurrentTab);
+        cycle(['database', 'all_members', 'mypage'], currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'spartia_career') {
         cycle(['applications', 'deals_career', 'mypage'], currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'spartia_capital') {
