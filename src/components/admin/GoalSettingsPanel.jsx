@@ -4,8 +4,8 @@ import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import { useKpiGoals, KPI_TYPES } from '../../hooks/useKpiGoals';
 
-// 対象期間: 月単位 / 週単位 / 日次 を生成。
-function buildPeriodOptions(baseMonths = 3) {
+// 月次・週次のプリセット options を生成。日次は別途 date input で選ぶ。
+function buildMonthlyOptions(baseMonths = 6) {
   const opts = [];
   const now = new Date();
   const yearBase = now.getFullYear();
@@ -15,21 +15,19 @@ function buildPeriodOptions(baseMonths = 3) {
     const mi = (monthBase + i) % 12;
     const mName = `${y}年${mi + 1}月`;
     const mIso = `${y}-${String(mi + 1).padStart(2, '0')}-01`;
-    // 月単位
-    opts.push({
-      key: `m:${mIso}`,
-      label: `${mName} (月単位)`,
-      period_type: 'monthly',
-      effective_from: mIso,
-    });
-    // 日次 (その月の全日に同じ目標を適用)
-    opts.push({
-      key: `d:${mIso}`,
-      label: `${mName} (日次 — その月の1日あたり目標)`,
-      period_type: 'daily',
-      effective_from: mIso,
-    });
-    // 週単位
+    opts.push({ key: mIso, label: mName, effective_from: mIso });
+  }
+  return opts;
+}
+function buildWeeklyOptions(baseMonths = 6) {
+  const opts = [];
+  const now = new Date();
+  const yearBase = now.getFullYear();
+  const monthBase = now.getMonth();
+  for (let i = 0; i < baseMonths; i++) {
+    const y = yearBase + Math.floor((monthBase + i) / 12);
+    const mi = (monthBase + i) % 12;
+    const mName = `${y}年${mi + 1}月`;
     const lastDay = new Date(y, mi + 1, 0).getDate();
     for (let w = 0; w < 5; w++) {
       const start = 1 + w * 7;
@@ -37,14 +35,18 @@ function buildPeriodOptions(baseMonths = 3) {
       const end = Math.min(start + 6, lastDay);
       const iso = `${y}-${String(mi + 1).padStart(2, '0')}-${String(start).padStart(2, '0')}`;
       opts.push({
-        key: `w:${iso}`,
+        key: iso,
         label: `${mName} 第${w + 1}週 (${start}日〜${end}日)`,
-        period_type: 'weekly',
         effective_from: iso,
       });
     }
   }
   return opts;
+}
+// 今日の YYYY-MM-DD
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, defaultScopeType = 'org' }) {
@@ -57,9 +59,26 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
   const [selectedTeam, setSelectedTeam] = useState('');
   const [selectedMember, setSelectedMember] = useState('');
 
-  const periodOptions = useMemo(() => buildPeriodOptions(3), []);
-  const [periodKey, setPeriodKey] = useState(periodOptions[0]?.key || '');
-  const selectedPeriod = periodOptions.find(p => p.key === periodKey) || periodOptions[0];
+  // 期間モード: 'monthly' | 'weekly' | 'daily'
+  const [periodMode, setPeriodMode] = useState('monthly');
+  const monthlyOptions = useMemo(() => buildMonthlyOptions(6), []);
+  const weeklyOptions = useMemo(() => buildWeeklyOptions(6), []);
+  const [monthlyKey, setMonthlyKey] = useState(monthlyOptions[0]?.key || '');
+  const [weeklyKey, setWeeklyKey] = useState(weeklyOptions[0]?.key || '');
+  const [dailyDate, setDailyDate] = useState(todayIso());
+
+  // 現在選択中の (period_type, effective_from)
+  const selectedPeriod = useMemo(() => {
+    if (periodMode === 'monthly') {
+      const o = monthlyOptions.find(x => x.key === monthlyKey) || monthlyOptions[0];
+      return o ? { period_type: 'monthly', effective_from: o.effective_from, label: o.label } : null;
+    }
+    if (periodMode === 'weekly') {
+      const o = weeklyOptions.find(x => x.key === weeklyKey) || weeklyOptions[0];
+      return o ? { period_type: 'weekly', effective_from: o.effective_from, label: o.label } : null;
+    }
+    return { period_type: 'daily', effective_from: dailyDate, label: dailyDate };
+  }, [periodMode, monthlyKey, weeklyKey, dailyDate, monthlyOptions, weeklyOptions]);
 
   const orgId = getOrgId();
 
@@ -240,13 +259,58 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
         </div>
       )}
 
-      {/* 対象期間 */}
+      {/* 期間モード: 月次 / 週次 / 日次 */}
+      <div style={{ marginBottom: 10 }}>
+        <label style={{ fontSize: 11, color: C.textMid, marginRight: 8 }}>期間:</label>
+        {[
+          { id: 'monthly', label: '月次' },
+          { id: 'weekly',  label: '週次' },
+          { id: 'daily',   label: '日次' },
+        ].map(p => {
+          const active = periodMode === p.id;
+          return (
+            <button key={p.id} onClick={() => setPeriodMode(p.id)}
+              style={{
+                padding: '5px 12px', fontSize: 11, marginRight: 4,
+                background: active ? C.navy : C.white, color: active ? C.white : C.textMid,
+                border: `1px solid ${active ? C.navy : C.border}`,
+                borderRadius: 4, cursor: 'pointer', fontWeight: active ? 600 : 400,
+              }}
+            >{p.label}</button>
+          );
+        })}
+      </div>
+
+      {/* モード別の期間選択 */}
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 11, color: C.textMid, marginRight: 8 }}>対象期間:</label>
-        <select value={periodKey} onChange={e => setPeriodKey(e.target.value)}
-          style={{ ...selectStyle, minWidth: 280 }}>
-          {periodOptions.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-        </select>
+        {periodMode === 'monthly' && (
+          <>
+            <label style={{ fontSize: 11, color: C.textMid, marginRight: 8 }}>月:</label>
+            <select value={monthlyKey} onChange={e => setMonthlyKey(e.target.value)}
+              style={{ ...selectStyle, minWidth: 180 }}>
+              {monthlyOptions.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+            </select>
+          </>
+        )}
+        {periodMode === 'weekly' && (
+          <>
+            <label style={{ fontSize: 11, color: C.textMid, marginRight: 8 }}>週:</label>
+            <select value={weeklyKey} onChange={e => setWeeklyKey(e.target.value)}
+              style={{ ...selectStyle, minWidth: 280 }}>
+              {weeklyOptions.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+            </select>
+          </>
+        )}
+        {periodMode === 'daily' && (
+          <>
+            <label style={{ fontSize: 11, color: C.textMid, marginRight: 8 }}>日付:</label>
+            <input type="date" value={dailyDate} onChange={e => setDailyDate(e.target.value)}
+              style={{ ...selectStyle, minWidth: 160 }} />
+            <span style={{ fontSize: 10, color: C.textLight, marginLeft: 8 }}>
+              (その日ごとに目標を設定できます)
+            </span>
+          </>
+        )}
       </div>
 
       {/* 5 KPI 入力 */}

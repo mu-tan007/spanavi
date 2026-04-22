@@ -11,14 +11,18 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
 
-// Spanavi テーマに準拠
+// Spanavi テーマに準拠。ラベルは 前向き/様子見/消極的/不明 の 4 グループ。
+//   前向き  ← 前向き・比較的高い(と思われる)・角度高い方です
+//   様子見  ← 様子見・普通・中
+//   消極的  ← 消極的・やや低め・低め・やや消極的・やや低い・やんわり断り(気味)
+//   不明    ← 不明・面談化には成功したが・空欄
 const CEO_INTENT_OPTIONS = [
-  { value: 'positive', label: 'あり',   color: C.green },     // #2E844A
-  { value: 'wait',     label: '様子見', color: C.gold },      // #C8A84B
-  { value: 'unknown',  label: '不明',   color: C.textLight }, // #A0A0A0
-  { value: 'negative', label: 'なし',   color: C.navy },      // #032D60
+  { value: 'positive', label: '前向き', color: C.green },
+  { value: 'wait',     label: '様子見', color: C.gold },
+  { value: 'negative', label: '消極的', color: C.navy },
+  { value: 'unknown',  label: '不明',   color: C.textLight },
 ];
-const UNSET_COLOR = C.border; // 未入力 = #E5E5E5
+const UNSET_COLOR = C.border;
 
 function bucketRevenue(oku) {
   if (oku == null) return '不明';
@@ -160,7 +164,7 @@ export default function AppointmentsTab({ client }) {
         <SummaryCard label="アポ数" value={stats.total} />
         <SummaryCard label="キャンセル" value={`${stats.canceled} (${stats.total > 0 ? ((stats.canceled / stats.total) * 100).toFixed(1) : 0}%)`} />
         <SummaryCard label="リスケ中" value={stats.rescheduled} />
-        <SummaryCard label="意向あり (positive)" value={stats.intentCount.positive || 0} />
+        <SummaryCard label="前向き" value={stats.intentCount.positive || 0} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>

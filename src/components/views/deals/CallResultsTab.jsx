@@ -12,9 +12,10 @@ import {
 // DB の集計は RPC 経由なので 1000件上限に影響されない。
 export default function CallResultsTab({ client }) {
   const { ceoConnectLabels } = useCallStatuses();
-  const [rows, setRows] = useState([]);    // [{list_id, list_name, industry, calls, ceo_connects, appos}]
-  const [byDay, setByDay] = useState([]);  // [{date, calls}]
+  const [rows, setRows] = useState([]);
+  const [byDay, setByDay] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [detailList, setDetailList] = useState(null); // { list_id, list_name }
   const orgId = getOrgId();
 
   useEffect(() => {
@@ -71,6 +72,7 @@ export default function CallResultsTab({ client }) {
               <th style={th}>社長接続率</th>
               <th style={th}>アポ獲得数</th>
               <th style={th}>アポ獲得率</th>
+              <th style={th}>詳細</th>
             </tr>
           </thead>
           <tbody>
@@ -86,10 +88,18 @@ export default function CallResultsTab({ client }) {
                   <td style={td}>{ratePct(ceo, calls)}</td>
                   <td style={td}>{appos.toLocaleString()}</td>
                   <td style={td}>{rate2Pct(appos, calls)}</td>
+                  <td style={td}>
+                    <button
+                      onClick={() => setDetailList({ list_id: s.list_id, list_name: s.industry || '(名称未設定)' })}
+                      style={{
+                        fontSize: 10, padding: '3px 10px', border: `1px solid ${C.border}`,
+                        background: C.white, color: C.navy, borderRadius: 3, cursor: 'pointer',
+                      }}
+                    >▶ 開く</button>
+                  </td>
                 </tr>
               );
             })}
-            {/* 合計行 */}
             <tr style={{ background: C.cream, borderTop: `2px solid ${C.navy}`, fontWeight: 600 }}>
               <td style={{ ...td, textAlign: 'left', color: C.navy, fontWeight: 700 }}>合計</td>
               <td style={{ ...td, color: C.navy, fontWeight: 700 }}>{totals.calls.toLocaleString()}</td>
@@ -97,10 +107,19 @@ export default function CallResultsTab({ client }) {
               <td style={{ ...td, color: C.navy, fontWeight: 700 }}>{ratePct(totals.ceoConnects, totals.calls)}</td>
               <td style={{ ...td, color: C.navy, fontWeight: 700 }}>{totals.appos.toLocaleString()}</td>
               <td style={{ ...td, color: C.navy, fontWeight: 700 }}>{rate2Pct(totals.appos, totals.calls)}</td>
+              <td style={td}></td>
             </tr>
           </tbody>
         </table>
       </Card>
+
+      {detailList && (
+        <ListApproachModal
+          list={detailList}
+          orgId={orgId}
+          onClose={() => setDetailList(null)}
+        />
+      )}
 
       {byDay.length > 0 && (
         <Card title="日別 架電件数">
@@ -119,6 +138,125 @@ export default function CallResultsTab({ client }) {
       )}
     </div>
   );
+}
+
+// ─── リスト詳細モーダル: 各企業の架電タイムライン ─────────
+function ListApproachModal({ list, orgId, onClose }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const { data, error } = await supabase.rpc('sourcing_list_approach_detail', {
+        p_list_id: list.list_id, p_org_id: orgId,
+      });
+      if (cancelled) return;
+      if (error) console.error('[ListApproachModal]', error);
+      setItems(data || []);
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [list.list_id, orgId]);
+
+  const filtered = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(it => (it.company || '').toLowerCase().includes(q));
+  }, [items, filter]);
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: C.white, borderRadius: 4, width: '100%', maxWidth: 1100, maxHeight: '85vh',
+        display: 'flex', flexDirection: 'column', boxShadow: '0 12px 40px rgba(0,0,0,0.25)',
+      }}>
+        <div style={{
+          padding: '14px 20px', borderBottom: `1px solid ${C.border}`,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: C.navy }}>
+              {list.list_name} — 各企業のアプローチ詳細
+            </div>
+            <div style={{ fontSize: 11, color: C.textMid, marginTop: 2 }}>
+              {items.length}社
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              value={filter} onChange={e => setFilter(e.target.value)}
+              placeholder="企業名で絞り込み"
+              style={{ padding: '6px 10px', fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 3, width: 200 }}
+            />
+            <button onClick={onClose}
+              style={{ fontSize: 13, padding: '5px 10px', background: 'transparent', border: 'none', cursor: 'pointer', color: C.textMid }}>✕</button>
+          </div>
+        </div>
+        <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
+          {loading ? (
+            <div style={{ padding: 40, textAlign: 'center', color: C.textMid }}>読み込み中...</div>
+          ) : filtered.length === 0 ? (
+            <div style={{ padding: 40, textAlign: 'center', color: C.textLight }}>該当企業がありません</div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+              <thead>
+                <tr style={{ background: C.cream, borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, zIndex: 1 }}>
+                  <th style={{ ...th, width: 40 }}>#</th>
+                  <th style={{ ...th, textAlign: 'left' }}>企業名</th>
+                  <th style={{ ...th, textAlign: 'left' }}>架電履歴 (新しい順)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(it => {
+                  const calls = Array.isArray(it.calls) ? [...it.calls].reverse() : [];
+                  return (
+                    <tr key={it.item_id} style={{ borderBottom: `1px solid ${C.borderLight}`, verticalAlign: 'top' }}>
+                      <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", color: C.textLight }}>{it.no ?? '—'}</td>
+                      <td style={{ ...td, textAlign: 'left', fontWeight: 500, color: C.navy }}>{it.company || '—'}</td>
+                      <td style={{ ...td, textAlign: 'left', color: C.textDark, padding: '6px 12px' }}>
+                        {calls.length === 0 ? (
+                          <span style={{ color: C.textLight }}>未架電</span>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {calls.map((c, i) => (
+                              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11 }}>
+                                <span style={{ width: 42, color: C.textMid, fontWeight: 600 }}>
+                                  {c.round ? `${c.round}回目` : `${calls.length - i}回目`}
+                                </span>
+                                <span style={{ fontFamily: "'JetBrains Mono',monospace", color: C.textMid, minWidth: 82 }}>
+                                  {c.called_at ? new Date(c.called_at).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
+                                </span>
+                                <span style={{ color: statusColor(c.status), fontWeight: 500 }}>{c.status || '—'}</span>
+                                {c.getter_name && <span style={{ color: C.textLight, fontSize: 10 }}>({c.getter_name})</span>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function statusColor(status) {
+  if (!status) return C.textMid;
+  if (status.includes('アポ')) return C.green;
+  if (status.includes('お断り') || status.includes('ブロック')) return '#C0392B';
+  if (status.includes('不在') || status.includes('再コール')) return C.gold;
+  return C.textMid;
 }
 
 function SummaryCard({ label, value }) {
