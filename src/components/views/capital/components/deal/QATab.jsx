@@ -97,7 +97,7 @@ export default function QATab({ dealId }) {
       {/* Header */}
       <div style={{ ...card, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 500, color: '#FFFFFF' }}>Q&A シート ({items.length}件)</div>
+          <div style={{ fontSize: 14, fontWeight: 500, color: '#032D60' }}>Q&A シート ({items.length}件)</div>
           <div style={{ fontSize: 11, color: '#A0A0A0', marginTop: 2, lineHeight: 1.7 }}>
             AIチャット履歴から抽出 / 追加で確認すべき質問を AI が提案 / 手動追加も可能
           </div>
@@ -181,7 +181,7 @@ export default function QATab({ dealId }) {
             <>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
                 <span style={{ fontSize: 11, padding: '3px 8px', background: '#F8F8F8', color: '#032D60', borderRadius: 3, flexShrink: 0 }}>Q</span>
-                <div style={{ fontSize: 13, color: '#FFFFFF', lineHeight: 1.8, flex: 1 }}>{q.question}</div>
+                <div style={{ fontSize: 13, color: '#032D60', lineHeight: 1.8, flex: 1 }}>{q.question}</div>
               </div>
               {q.answer ? (
                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>

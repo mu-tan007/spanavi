@@ -56,7 +56,7 @@ export default function DealSummaryTab({ dealId }) {
       {/* Header */}
       <div style={{ padding: '14px 20px', borderBottom: '0.5px solid #E5E5E5', background: '#FAFAFA', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#FFFFFF' }}>案件詳細サマリー</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#032D60' }}>案件詳細サマリー</div>
           <div style={{ fontSize: 11, color: '#A0A0A0', marginTop: 2 }}>
             AIチャットに投入された IM / ノンネーム / Q&A回答 / 議事録 / 財務 / 追加資料 を総合して AI が作成
             {updatedAt && ` · 最終更新 ${new Date(updatedAt).toLocaleString('ja-JP')}`}

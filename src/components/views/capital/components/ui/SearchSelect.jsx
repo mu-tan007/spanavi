@@ -106,7 +106,7 @@ export default function SearchSelect({ items, value = [], onChange, placeholder 
         style={{
           width: '100%', padding: '6px 10px',
           border: '0.5px solid #E5E5E5', borderRadius: 5,
-          fontSize: 12, outline: 'none', color: '#FFFFFF',
+          fontSize: 12, outline: 'none', color: '#032D60',
           background: '#fff',
         }}
       />
@@ -122,7 +122,7 @@ export default function SearchSelect({ items, value = [], onChange, placeholder 
           {filtered.map((item, i) => (
             <div key={i} onClick={() => handleSelect(item)}
               style={{
-                padding: '7px 10px', cursor: 'pointer', fontSize: 12, color: '#FFFFFF',
+                padding: '7px 10px', cursor: 'pointer', fontSize: 12, color: '#032D60',
                 borderBottom: i < filtered.length - 1 ? '0.5px solid #F8F8F8' : 'none',
               }}
               onMouseEnter={e => e.currentTarget.style.background = '#f0f6ff'}

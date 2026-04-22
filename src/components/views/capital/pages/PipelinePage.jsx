@@ -75,7 +75,7 @@ function ReasonModal({ open, title, placeholder, onSubmit, onClose, saving }) {
           width: 440, background: '#fff', borderRadius: 12, padding: 20,
           boxShadow: '0 10px 40px rgba(10,30,60,0.25)',
         }}>
-        <div style={{ fontSize: 14, fontWeight: 500, color: '#FFFFFF', marginBottom: 4 }}>{title}</div>
+        <div style={{ fontSize: 14, fontWeight: 500, color: '#032D60', marginBottom: 4 }}>{title}</div>
         <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 12 }}>
           判断の根拠を記録しておくと、後日の振り返り（Pass Reasoning Analytics）で学習材料になります。
         </div>
@@ -86,7 +86,7 @@ function ReasonModal({ open, title, placeholder, onSubmit, onClose, saving }) {
           placeholder={placeholder}
           rows={4}
           style={{
-            width: '100%', padding: 10, fontSize: 12, color: '#FFFFFF',
+            width: '100%', padding: 10, fontSize: 12, color: '#032D60',
             border: '0.5px solid #E5E5E5', borderRadius: 6, outline: 'none', resize: 'vertical',
             fontFamily: 'inherit',
           }}
@@ -127,7 +127,7 @@ function DecisionCard({ d, onPursue, onPass, onHold, pending }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <PriDot p={d.priority} />
         <Link to={`/deals/${d.id}`} style={{
-          fontSize: 14, fontWeight: 500, color: '#FFFFFF', textDecoration: 'none',
+          fontSize: 14, fontWeight: 500, color: '#032D60', textDecoration: 'none',
         }}>{d.name}</Link>
         <div style={{ flex: 1 }} />
         <RecBadge rec={d.recommendation} />
@@ -252,7 +252,7 @@ export default function PipelinePage() {
 
       {/* Header */}
       <div style={{ marginBottom: 16 }}>
-        <h1 style={{ fontSize: 18, fontWeight: 500, color: '#FFFFFF' }}>Pipeline</h1>
+        <h1 style={{ fontSize: 18, fontWeight: 500, color: '#032D60' }}>Pipeline</h1>
         <p style={{ fontSize: 12, color: '#706E6B', marginTop: 4 }}>
           AIが分析済みの案件のうち、意思決定を要するものを緊急度順に表示しています。
         </p>
@@ -298,7 +298,7 @@ export default function PipelinePage() {
           background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12,
           padding: '40px 20px', textAlign: 'center',
         }}>
-          <div style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 500, marginBottom: 4 }}>
+          <div style={{ fontSize: 13, color: '#032D60', fontWeight: 500, marginBottom: 4 }}>
             意思決定待ちの案件はありません
           </div>
           <div style={{ fontSize: 11, color: '#706E6B' }}>
@@ -361,7 +361,7 @@ const kpi = {
   background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: '12px 14px',
 }
 const kpiLabel = { fontSize: 11, color: '#706E6B', fontWeight: 500 }
-const kpiValue = { fontSize: 22, fontWeight: 600, color: '#FFFFFF', marginTop: 4 }
+const kpiValue = { fontSize: 22, fontWeight: 600, color: '#032D60', marginTop: 4 }
 const kpiSub   = { fontSize: 10, color: '#A0A0A0', marginTop: 2 }
 
 const PACE_STYLE = {
@@ -383,7 +383,7 @@ function BudgetSection() {
         background: '#fff', border: '0.5px dashed #E5E5E5', borderRadius: 12,
         padding: 16, marginBottom: 16,
       }}>
-        <div style={{ fontSize: 12, fontWeight: 500, color: '#FFFFFF' }}>
+        <div style={{ fontSize: 12, fontWeight: 500, color: '#032D60' }}>
           M&A投資方針が未設定です
         </div>
         <div style={{ fontSize: 11, color: '#706E6B', marginTop: 4, lineHeight: 1.6 }}>
@@ -407,7 +407,7 @@ function BudgetSection() {
       padding: 16, marginBottom: 16,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#FFFFFF' }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#032D60' }}>
           当期M&A投資枠 <span style={{ fontSize: 11, color: '#A0A0A0', marginLeft: 6 }}>{fyLabel}</span>
         </div>
         <div style={{ fontSize: 11, color: '#706E6B' }}>

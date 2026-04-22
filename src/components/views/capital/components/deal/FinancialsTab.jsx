@@ -2,7 +2,7 @@
 // 空時でも分析項目の骨組みが見える
 
 const card = { background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 20 }
-const sectionTitle = { fontSize: 13, fontWeight: 600, color: '#FFFFFF', marginBottom: 4 }
+const sectionTitle = { fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }
 const sectionHint = { fontSize: 11, color: '#A0A0A0', marginBottom: 14, lineHeight: 1.6 }
 
 function fmtOku(v) {
@@ -130,7 +130,7 @@ function MiniMetric({ label, value, unit }) {
   return (
     <div style={{ padding: 12, background: '#FAFAFA', border: '0.5px solid #E5E5E5', borderRadius: 8 }}>
       <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 16, fontWeight: 500, color: '#FFFFFF' }}>
+      <div style={{ fontSize: 16, fontWeight: 500, color: '#032D60' }}>
         {value}{unit && value !== '—' ? <span style={{ fontSize: 11, color: '#A0A0A0', marginLeft: 4 }}>{unit}</span> : null}
       </div>
     </div>
@@ -204,7 +204,7 @@ function PLTable({ financials }) {
               <tr key={key} style={{ background: ri % 2 === 0 ? '#fff' : '#FAFAFA' }}>
                 <td style={{ padding: '7px 12px', color: '#706E6B', borderBottom: '0.5px solid #f0f2f5' }}>{label}</td>
                 {financials.map(f => (
-                  <td key={f.id} style={{ padding: '7px 12px', textAlign: 'right', color: '#FFFFFF', borderBottom: '0.5px solid #f0f2f5' }}>
+                  <td key={f.id} style={{ padding: '7px 12px', textAlign: 'right', color: '#032D60', borderBottom: '0.5px solid #f0f2f5' }}>
                     {f[key] != null ? `¥${(f[key] / 100000000).toFixed(1)}億` : '—'}
                   </td>
                 ))}

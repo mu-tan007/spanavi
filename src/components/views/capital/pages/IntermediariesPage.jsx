@@ -84,7 +84,7 @@ export default function IntermediariesPage() {
     <div style={{ padding: '20px 24px', maxWidth: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 18, fontWeight: 500, color: '#FFFFFF' }}>仲介会社・FA</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 500, color: '#032D60' }}>仲介会社・FA</h1>
           <p style={{ fontSize: 12, color: '#A0A0A0', marginTop: 3 }}>{intermediaries.length} 社登録中</p>
         </div>
         <button onClick={() => setModal(true)}
@@ -113,7 +113,7 @@ export default function IntermediariesPage() {
                     border: isSelected ? '0.5px solid #c0d0f0' : '0.5px solid transparent',
                   }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#FFFFFF', flex: 1 }}>{i.name}</div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#032D60', flex: 1 }}>{i.name}</div>
                     <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, background: ts.bg, color: ts.color }}>{ts.label}</span>
                   </div>
                   <div style={{ fontSize: 11, color: '#A0A0A0' }}>
@@ -137,7 +137,7 @@ export default function IntermediariesPage() {
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <h2 style={{ fontSize: 18, fontWeight: 500, color: '#FFFFFF' }}>{selectedFull?.name}</h2>
+                      <h2 style={{ fontSize: 18, fontWeight: 500, color: '#032D60' }}>{selectedFull?.name}</h2>
                       <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 3, background: TYPE_STYLE[selectedFull?.type]?.bg, color: TYPE_STYLE[selectedFull?.type]?.color }}>
                         {TYPE_STYLE[selectedFull?.type]?.label}
                       </span>
@@ -173,7 +173,7 @@ export default function IntermediariesPage() {
                         {c.name?.slice(0, 1)}
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: '#FFFFFF' }}>{c.name}</div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: '#032D60' }}>{c.name}</div>
                         {c.title && <div style={{ fontSize: 11, color: '#A0A0A0' }}>{c.title}</div>}
                       </div>
                       <div style={{ fontSize: 12, color: '#706E6B' }}>{c.email}</div>
@@ -195,7 +195,7 @@ export default function IntermediariesPage() {
         <div onClick={e => { if (e.target === e.currentTarget) setModal(false) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 400 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#FFFFFF', marginBottom: 20 }}>仲介会社・FAを追加</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#032D60', marginBottom: 20 }}>仲介会社・FAを追加</h2>
             <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <label style={{ fontSize: 11, color: '#A0A0A0', display: 'block', marginBottom: 4 }}>会社名 *</label>
@@ -239,7 +239,7 @@ export default function IntermediariesPage() {
         <div onClick={e => { if (e.target === e.currentTarget) setContactModal(false) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 400 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#FFFFFF', marginBottom: 6 }}>担当者を追加</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#032D60', marginBottom: 6 }}>担当者を追加</h2>
             <p style={{ fontSize: 12, color: '#A0A0A0', marginBottom: 20 }}>{selected?.name}</p>
             <form onSubmit={handleContactSave} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>

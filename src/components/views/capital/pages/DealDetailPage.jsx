@@ -48,7 +48,7 @@ function InfoRow({ label, value }) {
   return (
     <div style={{ display: 'flex', borderBottom: '0.5px solid #f0f2f5', padding: '7px 0' }}>
       <div style={{ fontSize: 11, color: '#A0A0A0', width: 120, flexShrink: 0 }}>{label}</div>
-      <div style={{ fontSize: 12, color: '#FFFFFF' }}>{value || '—'}</div>
+      <div style={{ fontSize: 12, color: '#032D60' }}>{value || '—'}</div>
     </div>
   )
 }
@@ -112,7 +112,7 @@ export default function DealDetailPage() {
                 優先度: {deal.priority === 1 ? '高' : deal.priority === 2 ? '中' : '低'}
               </span>
             </div>
-            <h1 style={{ fontSize: 20, fontWeight: 500, color: '#FFFFFF', marginBottom: 6 }}>{deal.name}</h1>
+            <h1 style={{ fontSize: 20, fontWeight: 500, color: '#032D60', marginBottom: 6 }}>{deal.name}</h1>
             <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
               {deal.intermediaries?.name && (
                 <span style={{ fontSize: 12, color: '#706E6B' }}>仲介: {deal.intermediaries.name}</span>
@@ -141,7 +141,7 @@ export default function DealDetailPage() {
             )}
             <button
               onClick={() => { setNewStatus(deal.status); setStatusModal(true) }}
-              style={{ height: 36, padding: '0 14px', background: '#F3F2F2', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 12, color: '#FFFFFF', cursor: 'pointer' }}
+              style={{ height: 36, padding: '0 14px', background: '#F3F2F2', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 12, color: '#032D60', cursor: 'pointer' }}
             >
               ステータス変更
             </button>
@@ -206,7 +206,7 @@ export default function DealDetailPage() {
             ) : todos.map((t, i) => (
               <div key={t.id} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: i < todos.length-1 ? '0.5px solid #f0f2f5' : 'none', alignItems: 'center' }}>
                 <div style={{ width: 13, height: 13, border: '0.5px solid #E5E5E5', borderRadius: 3 }} />
-                <div style={{ flex: 1, fontSize: 12, color: '#FFFFFF' }}>{t.title}</div>
+                <div style={{ flex: 1, fontSize: 12, color: '#032D60' }}>{t.title}</div>
                 {t.due_date && <div style={{ fontSize: 10, color: '#A0A0A0' }}>{t.due_date}</div>}
               </div>
             ))}
@@ -269,7 +269,7 @@ export default function DealDetailPage() {
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
         >
           <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 380 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#FFFFFF', marginBottom: 20 }}>ステータス変更</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#032D60', marginBottom: 20 }}>ステータス変更</h2>
             <form onSubmit={handleStatusChange} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <label style={{ fontSize: 11, color: '#A0A0A0', display: 'block', marginBottom: 4 }}>新しいステータス</label>

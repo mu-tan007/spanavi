@@ -186,7 +186,7 @@ export default function DDTab({ dealId }) {
         <div style={{ background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60' }}>
                 {CATEGORIES.find(c => c.key === activeCategory)?.label}
               </div>
               <div style={{ fontSize: 10, color: '#A0A0A0', marginTop: 2 }}>

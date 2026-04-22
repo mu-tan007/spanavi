@@ -116,7 +116,7 @@ export default function ContractsTab({ dealId, intermediaryId, intermediaryName 
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 4, height: 28, background: folder.color, borderRadius: 2 }} />
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60' }}>
                     {folder.label} <span style={{ fontSize: 11, fontWeight: 400, color: '#A0A0A0', marginLeft: 6 }}>({list.length})</span>
                   </div>
                   <div style={{ fontSize: 10, color: '#A0A0A0', marginTop: 2 }}>{folder.hint}</div>
@@ -177,7 +177,7 @@ export default function ContractsTab({ dealId, intermediaryId, intermediaryName 
                 return (
                   <div key={c.id} style={{ padding: '10px 0', borderBottom: i < list.length - 1 ? '0.5px solid #f0f2f5' : 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 500, marginBottom: 3 }}>{c.title || folder.label}</div>
+                      <div style={{ fontSize: 13, color: '#032D60', fontWeight: 500, marginBottom: 3 }}>{c.title || folder.label}</div>
                       <div style={{ fontSize: 10, color: '#A0A0A0', display: 'flex', gap: 12 }}>
                         {c.counterparty && <span>相手方: {c.counterparty}</span>}
                         {c.signed_at && <span>締結: {c.signed_at}</span>}

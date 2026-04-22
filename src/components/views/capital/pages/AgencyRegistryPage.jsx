@@ -201,9 +201,9 @@ export default function AgencyRegistryPage() {
     setEditingContact(null)
   }
 
-  const selectStyle = { height: 32, padding: '0 8px', background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 12, outline: 'none', color: '#FFFFFF' }
+  const selectStyle = { height: 32, padding: '0 8px', background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 12, outline: 'none', color: '#032D60' }
   const th = { fontSize: 10, color: '#181818', fontWeight: 500, padding: '6px 4px', textAlign: 'center', lineHeight: 1.3 }
-  const td = { fontSize: 11, color: '#FFFFFF', padding: '6px 4px', textAlign: 'center', borderBottom: '0.5px solid #e0e8f4' }
+  const td = { fontSize: 11, color: '#032D60', padding: '6px 4px', textAlign: 'center', borderBottom: '0.5px solid #e0e8f4' }
 
   function Pager() {
     return (
@@ -233,7 +233,7 @@ export default function AgencyRegistryPage() {
     <div style={{ padding: '20px 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 500, color: '#FFFFFF', marginBottom: 4 }}>登録支援機関データベース</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 500, color: '#032D60', marginBottom: 4 }}>登録支援機関データベース</h1>
           <p style={{ fontSize: 12, color: '#706E6B' }}>
             {filtered.length === stats.total
               ? `${(page-1)*PAGE_SIZE+1}〜${Math.min(page*PAGE_SIZE, filtered.length)}件を表示中（全${stats.total}件）`
@@ -246,7 +246,7 @@ export default function AgencyRegistryPage() {
             <>
               <button onClick={lookupContacts} disabled={lookingUp} style={{
                 height: 36, padding: '0 14px', background: '#fff', border: '0.5px solid #E5E5E5',
-                borderRadius: 6, color: '#FFFFFF', fontSize: 12, cursor: 'pointer',
+                borderRadius: 6, color: '#032D60', fontSize: 12, cursor: 'pointer',
               }}>{lookingUp ? 'AI取得中...' : `${selectedIds.size}社の連絡先を取得`}</button>
               <button onClick={openBroadcast} style={{
                 height: 36, padding: '0 16px', background: '#032D60', border: 'none',
@@ -422,7 +422,7 @@ export default function AgencyRegistryPage() {
         <div onClick={e => { if (e.target === e.currentTarget) setEditingContact(null) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 420 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 500, color: '#FFFFFF', marginBottom: 16 }}>連絡先を編集</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 500, color: '#032D60', marginBottom: 16 }}>連絡先を編集</h3>
             {[['担当者名', 'contact_name', 'text'], ['メールアドレス', 'email', 'email'], ['問い合わせフォームURL', 'form_url', 'url'], ['ウェブサイト', 'website', 'url']].map(([label, key, type]) => (
               <div key={key} style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 3 }}>{label}</div>
@@ -443,12 +443,12 @@ export default function AgencyRegistryPage() {
         <div onClick={e => { if (e.target === e.currentTarget) setShowBroadcast(false) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 620, maxHeight: '85vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#FFFFFF', marginBottom: 4 }}>買収ニーズ配信</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#032D60', marginBottom: 4 }}>買収ニーズ配信</h2>
             <p style={{ fontSize: 12, color: '#706E6B', marginBottom: 16 }}>選択した {selectedIds.size} 社に配信します</p>
 
             {/* 配信方法の内訳 */}
             <div style={{ background: '#FAFAFA', border: '0.5px solid #E5E5E5', borderRadius: 8, padding: 14, marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: '#FFFFFF', marginBottom: 8 }}>配信方法の内訳</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: '#032D60', marginBottom: 8 }}>配信方法の内訳</div>
               <div style={{ display: 'flex', gap: 16, fontSize: 12 }}>
                 <div style={{ color: '#2E844A' }}>メール送信: {selWithEmail.length}社</div>
                 <div style={{ color: '#032D60' }}>フォーム: {selWithForm.length}社</div>

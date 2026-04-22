@@ -163,7 +163,7 @@ export default function DocumentsPage() {
     <div style={{ padding: '20px 24px', maxWidth: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 18, fontWeight: 500, color: '#FFFFFF' }}>書類管理</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 500, color: '#032D60' }}>書類管理</h1>
           <p style={{ fontSize: 12, color: '#706E6B', marginTop: 3 }}>
             {tab === 'files' ? `ファイル ${files.length}件` : tab === 'contracts' ? `契約書 ${contracts.length}件` : `テンプレート ${templates.length}件`}
           </p>
@@ -207,7 +207,7 @@ export default function DocumentsPage() {
               return (
                 <div key={f.id} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 160px 120px 100px', padding: '9px 12px', alignItems: 'center', borderTop: '0.5px solid #E5E5E5', background: i%2===0?'#fff':'#FAFAFA' }}>
                   <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 3, background: ts.bg, color: ts.color, display: 'inline-block' }}>{ts.label}</span>
-                  <div style={{ fontSize: 12, color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 12 }}>{f.file_name}</div>
+                  <div style={{ fontSize: 12, color: '#032D60', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 12 }}>{f.file_name}</div>
                   <div style={{ fontSize: 11, color: '#706E6B' }}>{f.deals ? <Link to={`/deals/${f.deals.id}`} style={{ color: '#032D60' }}>{f.deals.name}</Link> : '—'}</div>
                   <div style={{ fontSize: 11, color: '#706E6B' }}>{f.uploaded_via === 'advisor_portal' ? '担当者' : f.uploaded_via === 'email' ? 'メール' : '内部'}</div>
                   <div style={{ fontSize: 11, color: '#706E6B' }}>{new Date(f.uploaded_at).toLocaleDateString('ja-JP')}</div>
@@ -233,7 +233,7 @@ export default function DocumentsPage() {
               return (
                 <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '140px 1fr 160px 120px 100px', padding: '9px 12px', alignItems: 'center', borderTop: '0.5px solid #E5E5E5', background: i%2===0?'#fff':'#FAFAFA' }}>
                   <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 3, background: ts.bg, color: ts.color, display: 'inline-block' }}>{ts.label}</span>
-                  <div style={{ fontSize: 12, color: '#FFFFFF', paddingRight: 12 }}>{c.deals ? <Link to={`/deals/${c.deals.id}`} style={{ color: '#032D60' }}>{c.deals.name}</Link> : '—'}</div>
+                  <div style={{ fontSize: 12, color: '#032D60', paddingRight: 12 }}>{c.deals ? <Link to={`/deals/${c.deals.id}`} style={{ color: '#032D60' }}>{c.deals.name}</Link> : '—'}</div>
                   <div style={{ fontSize: 11, color: '#706E6B' }}>{c.signed_at ? new Date(c.signed_at).toLocaleDateString('ja-JP') : '未署名'}</div>
                   <div style={{ fontSize: 11, color: cautions.length > 0 ? '#A08040' : '#706E6B' }}>{cautions.length > 0 ? `${cautions.length}件` : 'なし'}</div>
                   <div style={{ fontSize: 11, color: '#706E6B' }}>{new Date(c.created_at).toLocaleDateString('ja-JP')}</div>
@@ -250,7 +250,7 @@ export default function DocumentsPage() {
           {/* 使い方ガイド */}
           {templates.length === 0 && !isLoading && (
             <div style={{ ...card, textAlign: 'center', padding: '40px 24px' }}>
-              <div style={{ fontSize: 15, color: '#FFFFFF', fontWeight: 500, marginBottom: 8 }}>テンプレートを登録してください</div>
+              <div style={{ fontSize: 15, color: '#032D60', fontWeight: 500, marginBottom: 8 }}>テンプレートを登録してください</div>
               <div style={{ fontSize: 12, color: '#706E6B', lineHeight: 1.8, marginBottom: 20 }}>
                 自社のPPTX・PDFをアップロードすると、案件データを差し込んで資料を自動生成できます。<br/>
                 ノンネームシート、IM、LOI、バリュエーションレポートなど、買収プロセスで必要な資料に対応しています。
@@ -265,7 +265,7 @@ export default function DocumentsPage() {
           {/* 差し込み変数リファレンス */}
           {templates.length === 0 && !isLoading && (
             <div style={{ ...card, marginTop: 14 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#FFFFFF', marginBottom: 12 }}>差し込み変数リファレンス</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: '#032D60', marginBottom: 12 }}>差し込み変数リファレンス</div>
               <div style={{ fontSize: 12, color: '#706E6B', marginBottom: 10 }}>
                 テンプレート内に以下の変数を記載すると、案件データに自動で置き換わります。
               </div>
@@ -289,7 +289,7 @@ export default function DocumentsPage() {
                   <div key={tpl.id} style={card}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
                       <div>
-                        <div style={{ fontSize: 14, fontWeight: 500, color: '#FFFFFF', marginBottom: 4 }}>{tpl.name}</div>
+                        <div style={{ fontSize: 14, fontWeight: 500, color: '#032D60', marginBottom: 4 }}>{tpl.name}</div>
                         <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 3, background: '#F8F8F8', color: '#032D60' }}>
                           {cat?.label || tpl.category}
                         </span>
@@ -326,7 +326,7 @@ export default function DocumentsPage() {
         <div onClick={e => { if (e.target === e.currentTarget) setShowUpload(false) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 480 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#FFFFFF', marginBottom: 20 }}>テンプレートを追加</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#032D60', marginBottom: 20 }}>テンプレートを追加</h2>
             <form onSubmit={uploadTemplate} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4 }}>テンプレート名 *</div>
@@ -354,7 +354,7 @@ export default function DocumentsPage() {
                     textAlign: 'center', cursor: 'pointer', background: '#FAFAFA',
                   }}>
                   {tplFile ? (
-                    <div style={{ fontSize: 12, color: '#FFFFFF' }}>{tplFile.name}</div>
+                    <div style={{ fontSize: 12, color: '#032D60' }}>{tplFile.name}</div>
                   ) : (
                     <div style={{ fontSize: 12, color: '#706E6B' }}>クリックしてファイルを選択</div>
                   )}
@@ -376,7 +376,7 @@ export default function DocumentsPage() {
         <div onClick={e => { if (e.target === e.currentTarget) { setShowGenerate(null); setGeneratedContent('') } }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 700, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#FFFFFF', marginBottom: 4 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#032D60', marginBottom: 4 }}>
               {showGenerate.name} — 資料生成
             </h2>
             <p style={{ fontSize: 12, color: '#706E6B', marginBottom: 16 }}>
@@ -404,7 +404,7 @@ export default function DocumentsPage() {
             ) : (
               <>
                 <div style={{ background: '#FAFAFA', border: '0.5px solid #E5E5E5', borderRadius: 8, padding: 16, marginBottom: 16, maxHeight: 400, overflowY: 'auto' }}>
-                  <pre style={{ fontSize: 13, color: '#FFFFFF', lineHeight: 1.8, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                  <pre style={{ fontSize: 13, color: '#032D60', lineHeight: 1.8, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
                     {generatedContent}
                   </pre>
                 </div>

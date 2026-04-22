@@ -112,7 +112,7 @@ export default function AdvisorInvitePanel({ dealId, contacts }) {
             <div key={inv.id} style={{ padding: '8px 0', borderBottom: i < invitations.length - 1 ? '0.5px solid #E5E5E5' : 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor, flexShrink: 0 }} />
-                <div style={{ fontSize: 12, color: '#FFFFFF', flex: 1 }}>
+                <div style={{ fontSize: 12, color: '#032D60', flex: 1 }}>
                   {inv.contacts?.name || '担当者未指定'}
                 </div>
                 <div style={{ fontSize: 10, color: statusColor }}>{statusLabel}</div>

@@ -160,7 +160,7 @@ export default function LBOTab({ dealId, lbo, financials }) {
 
       {/* Sources & Uses */}
       <div style={{ ...card, marginTop: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF', marginBottom: 4 }}>Sources & Uses</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }}>Sources & Uses</div>
         <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 14 }}>調達 (エクイティ/シニア/メザニン/sponsor loan) vs 使途 (株式取得/費用/運転資本)</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div>
@@ -184,7 +184,7 @@ export default function LBOTab({ dealId, lbo, financials }) {
 
       {/* Returns Waterfall */}
       <div style={{ ...card, marginTop: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF', marginBottom: 4 }}>リターン Waterfall</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }}>リターン Waterfall</div>
         <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 14 }}>LP / GP / 経営陣 への分配構造 (Preferred Return + Catch-up + Carry)</div>
         <div style={{ padding: '20px 16px', background: '#FAFAFA', border: '0.5px dashed #E5E5E5', borderRadius: 6, fontSize: 12, color: '#706E6B', textAlign: 'center' }}>
           Preferred Return (8%) + GP Catch-up (100%) + Carried Interest (20%) の構造を定義します。次ビルドで UI 追加。
@@ -193,14 +193,14 @@ export default function LBOTab({ dealId, lbo, financials }) {
 
       {/* 感度分析 */}
       <div style={{ ...card, marginTop: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF', marginBottom: 4 }}>感度分析 (IRR マトリクス)</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }}>感度分析 (IRR マトリクス)</div>
         <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 14 }}>EBITDA 成長率 × Exit マルチプル の 5x5 マトリクス</div>
         <SensitivityMatrix baseEbitda={exitEbitda} baseMultiple={Number(form.exit_multiple)} equity={equity} debt={debt} exitYear={Number(form.exit_year)} repayYears={Number(form.repayment_years)} />
       </div>
 
       {/* コベナンツ */}
       <div style={{ ...card, marginTop: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF', marginBottom: 4 }}>財務コベナンツ</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }}>財務コベナンツ</div>
         <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 14 }}>DSCR / Leverage / Interest Coverage の基準値と現状</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
           <CovenantCell label="DSCR" value="—" threshold="≥ 1.2x" />
@@ -216,7 +216,7 @@ function SUEntry({ label, value, pct, hint }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '0.5px solid #f0f2f5' }}>
       <div style={{ fontSize: 11, color: '#706E6B' }}>{label}{hint && <span style={{ color: '#E5E5E5', marginLeft: 6, fontSize: 10 }}>({hint})</span>}</div>
-      <div style={{ fontSize: 12, color: '#FFFFFF', fontWeight: 500 }}>
+      <div style={{ fontSize: 12, color: '#032D60', fontWeight: 500 }}>
         {value} {pct != null && <span style={{ fontSize: 10, color: '#A0A0A0', marginLeft: 4 }}>({pct.toFixed(0)}%)</span>}
       </div>
     </div>
@@ -234,7 +234,7 @@ function CovenantCell({ label, value, threshold }) {
   return (
     <div style={{ padding: 12, background: '#FAFAFA', border: '0.5px solid #E5E5E5', borderRadius: 8 }}>
       <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 600, color: '#FFFFFF' }}>{value}</div>
+      <div style={{ fontSize: 18, fontWeight: 600, color: '#032D60' }}>{value}</div>
       <div style={{ fontSize: 10, color: '#A0A0A0', marginTop: 4 }}>基準: {threshold}</div>
     </div>
   )

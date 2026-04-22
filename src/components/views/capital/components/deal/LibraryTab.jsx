@@ -362,7 +362,7 @@ function FileCard({ file: f, versions, onStar, onDownload, onDelete, onClick, se
           <Icon name={iconName} size={32} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, color: '#FFFFFF', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.file_name}</div>
+          <div style={{ fontSize: 12, color: '#032D60', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.file_name}</div>
           <div style={{ fontSize: 10, color: '#A0A0A0', marginTop: 2 }}>{fmtDate(f.uploaded_at)}{f.file_size ? ` · ${fmtSize(f.file_size)}` : ''}</div>
         </div>
         <button onClick={e => { e.stopPropagation(); onStar() }}
@@ -418,7 +418,7 @@ function FileRow({ file: f, versions, onStar, onDownload, onDelete, onClick, sel
         <Icon name={iconName} size={18} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, color: '#FFFFFF', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.file_name}</div>
+        <div style={{ fontSize: 12, color: '#032D60', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.file_name}</div>
         <div style={{ fontSize: 10, color: '#A0A0A0', marginTop: 2, display: 'flex', gap: 8 }}>
           <span>{fmtDate(f.uploaded_at)}</span>
           {f.file_size && <span>{fmtSize(f.file_size)}</span>}
@@ -454,7 +454,7 @@ function FileDetailDrawer({ file: f, versions, onClose, onStar, onDownload, onDe
           <Icon name={iconName} size={22} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 500, color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.file_name}</div>
+          <div style={{ fontSize: 12, fontWeight: 500, color: '#032D60', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.file_name}</div>
           <div style={{ fontSize: 10, color: '#A0A0A0', marginTop: 2 }}>{fmtDate(f.uploaded_at)}{f.file_size ? ` · ${fmtSize(f.file_size)}` : ''}</div>
         </div>
         <button onClick={onStar} style={{ background: 'none', border: 'none', cursor: 'pointer', color: f.starred ? '#C8A84B' : '#E5E5E5', display: 'flex', alignItems: 'center', padding: 4 }}>
@@ -534,7 +534,7 @@ function Meta({ label, value, children }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 11 }}>
       <div style={{ width: 80, color: '#A0A0A0' }}>{label}</div>
-      <div style={{ flex: 1, color: '#FFFFFF' }}>{children || value || '—'}</div>
+      <div style={{ flex: 1, color: '#032D60' }}>{children || value || '—'}</div>
     </div>
   )
 }

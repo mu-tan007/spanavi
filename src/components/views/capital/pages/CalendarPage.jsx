@@ -331,13 +331,13 @@ export default function CalendarPage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexShrink: 0 }}>
         <button onClick={goToday} style={{
           height: 32, padding: '0 14px', background: '#fff', border: '0.5px solid #E5E5E5',
-          borderRadius: 6, color: '#FFFFFF', fontSize: 12, cursor: 'pointer', fontWeight: 500,
+          borderRadius: 6, color: '#032D60', fontSize: 12, cursor: 'pointer', fontWeight: 500,
         }}>今日</button>
         <div style={{ display: 'flex', gap: 2 }}>
           <button onClick={prev} style={{ width: 32, height: 32, background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 6, color: '#706E6B', fontSize: 14, cursor: 'pointer' }}>‹</button>
           <button onClick={next} style={{ width: 32, height: 32, background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 6, color: '#706E6B', fontSize: 14, cursor: 'pointer' }}>›</button>
         </div>
-        <h1 style={{ fontSize: 18, fontWeight: 500, color: '#FFFFFF', margin: 0 }}>{titleText}</h1>
+        <h1 style={{ fontSize: 18, fontWeight: 500, color: '#032D60', margin: 0 }}>{titleText}</h1>
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           {/* View switcher */}
@@ -381,7 +381,7 @@ export default function CalendarPage() {
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 480, maxHeight: '80vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 500, color: '#FFFFFF', margin: 0 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 500, color: '#032D60', margin: 0 }}>
                 {showDayDetail.getFullYear()}年 {fmtDate(showDayDetail)}（{DAYS[showDayDetail.getDay()]}）
               </h2>
               <button onClick={() => setShowDayDetail(null)} style={{ background: 'none', border: 'none', fontSize: 18, color: '#706E6B', cursor: 'pointer' }}>✕</button>
@@ -394,7 +394,7 @@ export default function CalendarPage() {
                   <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 3 }}>
                     {ev.allDay ? '終日' : `${fmtTime(ev.start)} - ${fmtTime(ev.end)}`} · {ev.sub}
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: '#FFFFFF' }}>{ev.title}</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: '#032D60' }}>{ev.title}</div>
                   {ev.raw?.summary && ev.source === 'caesar' && <div style={{ fontSize: 12, color: '#706E6B', marginTop: 4 }}>{ev.raw.summary}</div>}
                   {ev.raw?.location && <div style={{ fontSize: 11, color: '#706E6B', marginTop: 2 }}>📍 {ev.raw.location}</div>}
                 </div>
@@ -419,7 +419,7 @@ export default function CalendarPage() {
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
                 <div style={{ width: 14, height: 14, borderRadius: 3, background: ev.color, flexShrink: 0, marginTop: 4 }} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 16, fontWeight: 500, color: '#FFFFFF', marginBottom: 2 }}>{ev.title}</div>
+                  <div style={{ fontSize: 16, fontWeight: 500, color: '#032D60', marginBottom: 2 }}>{ev.title}</div>
                   <div style={{ fontSize: 12, color: '#706E6B' }}>
                     {ev.allDay ? '終日' : `${fmtTime(ev.start)} - ${fmtTime(ev.end)}`} · {fmtDate(ev.start)}
                   </div>
@@ -440,7 +440,7 @@ export default function CalendarPage() {
                     </div>
                   )}
                   {ev.raw?.summary && (
-                    <div style={{ padding: '8px 0', borderTop: '0.5px solid #F8F8F8', fontSize: 12, color: '#FFFFFF', lineHeight: 1.6 }}>
+                    <div style={{ padding: '8px 0', borderTop: '0.5px solid #F8F8F8', fontSize: 12, color: '#032D60', lineHeight: 1.6 }}>
                       {ev.raw.summary}
                     </div>
                   )}
@@ -454,13 +454,13 @@ export default function CalendarPage() {
                     Google Calendar
                   </div>
                   {ev.raw?.location && (
-                    <div style={{ padding: '8px 0', borderTop: '0.5px solid #F8F8F8', fontSize: 12, color: '#FFFFFF' }}>
+                    <div style={{ padding: '8px 0', borderTop: '0.5px solid #F8F8F8', fontSize: 12, color: '#032D60' }}>
                       <span style={{ display: 'inline-block', minWidth: 60, color: '#706E6B' }}>場所</span>
                       {ev.raw.location}
                     </div>
                   )}
                   {ev.raw?.description && (
-                    <div style={{ padding: '8px 0', borderTop: '0.5px solid #F8F8F8', fontSize: 12, color: '#FFFFFF', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                    <div style={{ padding: '8px 0', borderTop: '0.5px solid #F8F8F8', fontSize: 12, color: '#032D60', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                       {ev.raw.description}
                     </div>
                   )}
@@ -508,7 +508,7 @@ export default function CalendarPage() {
                 value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                 placeholder="タイトルを追加"
-                style={{ border: 'none', borderBottom: '1.5px solid #032D60', padding: '4px 0', fontSize: 16, outline: 'none', color: '#FFFFFF' }}
+                style={{ border: 'none', borderBottom: '1.5px solid #032D60', padding: '4px 0', fontSize: 16, outline: 'none', color: '#032D60' }}
               />
               <div style={{ fontSize: 12, color: '#706E6B', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span>🕐</span>

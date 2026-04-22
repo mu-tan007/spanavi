@@ -91,7 +91,7 @@ export default function DealsPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 18, fontWeight: 500, color: '#FFFFFF' }}>案件一覧</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 500, color: '#032D60' }}>案件一覧</h1>
           <p style={{ fontSize: 12, color: '#706E6B', marginTop: 3 }}>
             進行中 {active.length} 件　ストップ {stopped.length} 件　ブレイク {broken.length} 件
           </p>
@@ -116,7 +116,7 @@ export default function DealsPage() {
           style={{
             height: 36, padding: '0 12px', background: '#ffffff',
             border: '0.5px solid #E5E5E5', borderRadius: 6,
-            fontSize: 13, color: '#FFFFFF', width: 240, outline: 'none',
+            fontSize: 13, color: '#032D60', width: 240, outline: 'none',
           }}
         />
         <select
@@ -125,7 +125,7 @@ export default function DealsPage() {
           style={{
             height: 36, padding: '0 10px', background: '#ffffff',
             border: '0.5px solid #E5E5E5', borderRadius: 6,
-            fontSize: 13, color: '#FFFFFF', outline: 'none',
+            fontSize: 13, color: '#032D60', outline: 'none',
           }}
         >
           <option value="">全ステータス</option>
@@ -187,7 +187,7 @@ export default function DealsPage() {
                 <div style={{ fontSize: 11, color: '#706E6B' }}>{i + 1}</div>
                 <PriDot p={d.priority} />
                 <div style={{ minWidth: 0, paddingRight: 12 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#032D60', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {d.name}
                   </div>
                   {d.intermediaries?.name && (
@@ -196,10 +196,10 @@ export default function DealsPage() {
                 </div>
                 <div style={{ fontSize: 11, color: '#706E6B', paddingRight: 8 }}>{d.industry_label || '—'}</div>
                 <StatusBadge status={d.status} />
-                <div style={{ fontSize: 11, color: '#FFFFFF', textAlign: 'right', paddingRight: 8 }}>{fmtK(fin.revenue)}</div>
-                <div style={{ fontSize: 11, color: '#FFFFFF', textAlign: 'right', paddingRight: 8 }}>{fmtK(fin.operating_income)}</div>
-                <div style={{ fontSize: 11, color: '#FFFFFF', textAlign: 'right', paddingRight: 8 }}>{fmtK(fin.ebitda)}</div>
-                <div style={{ fontSize: 11, color: '#FFFFFF', textAlign: 'right', paddingRight: 8 }}>{fmtK(fin.net_assets)}</div>
+                <div style={{ fontSize: 11, color: '#032D60', textAlign: 'right', paddingRight: 8 }}>{fmtK(fin.revenue)}</div>
+                <div style={{ fontSize: 11, color: '#032D60', textAlign: 'right', paddingRight: 8 }}>{fmtK(fin.operating_income)}</div>
+                <div style={{ fontSize: 11, color: '#032D60', textAlign: 'right', paddingRight: 8 }}>{fmtK(fin.ebitda)}</div>
+                <div style={{ fontSize: 11, color: '#032D60', textAlign: 'right', paddingRight: 8 }}>{fmtK(fin.net_assets)}</div>
                 <div style={{ fontSize: 11, color: netCash != null && netCash < 0 ? '#EA001E' : '#FFFFFF', textAlign: 'right', paddingRight: 8 }}>{fmtK(netCash)}</div>
                 <div style={{ textAlign: 'right', paddingRight: 8 }}><Score score={d.score} /></div>
                 <div style={{ fontSize: 11, color: '#706E6B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -221,7 +221,7 @@ export default function DealsPage() {
           }}
         >
           <div style={{ background: '#ffffff', borderRadius: 12, padding: 28, width: 400, boxShadow: '0 8px 40px rgba(0,0,0,0.15)' }}>
-            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#FFFFFF', marginBottom: 20 }}>案件を追加</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#032D60', marginBottom: 20 }}>案件を追加</h2>
             <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 4 }}>案件名 *</label>

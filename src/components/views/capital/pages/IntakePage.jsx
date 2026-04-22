@@ -197,7 +197,7 @@ export default function IntakePage() {
     borderRadius: 6,
     padding: '0 12px',
     fontSize: 13,
-    color: '#FFFFFF',
+    color: '#032D60',
     background: '#FAFAFA',
     outline: 'none',
   }
@@ -238,7 +238,7 @@ export default function IntakePage() {
     <div style={{ padding: '20px 24px', maxWidth: 840, margin: '0 auto' }}>
 
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 500, color: '#FFFFFF', marginBottom: 4 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 500, color: '#032D60', marginBottom: 4 }}>
           Quick Intake
         </h1>
         <p style={{ fontSize: 12, color: '#706E6B' }}>
@@ -290,7 +290,7 @@ export default function IntakePage() {
             <div style={{ ...card, padding: 12, marginBottom: 16 }}>
               {files.map((f, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
-                  <span style={{ fontSize: 12, color: '#FFFFFF' }}>{f.name}</span>
+                  <span style={{ fontSize: 12, color: '#032D60' }}>{f.name}</span>
                   <button onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))}
                     style={{ fontSize: 11, color: '#F0B4B4', background: 'none', border: 'none', cursor: 'pointer' }}>
                     削除
@@ -307,7 +307,7 @@ export default function IntakePage() {
               placeholder="メール本文・ノンネームシートの内容・案件情報などを貼り付けてください..."
               style={{
                 width: '100%', minHeight: 200, border: '0.5px solid #E5E5E5',
-                borderRadius: 8, padding: 14, fontSize: 13, color: '#FFFFFF',
+                borderRadius: 8, padding: 14, fontSize: 13, color: '#032D60',
                 background: '#FAFAFA', outline: 'none', resize: 'vertical',
                 marginBottom: 16, lineHeight: 1.7,
               }}
@@ -345,7 +345,7 @@ export default function IntakePage() {
           <div style={card}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 14, fontWeight: 500, color: '#FFFFFF' }}>案件</span>
+                <span style={{ fontSize: 14, fontWeight: 500, color: '#032D60' }}>案件</span>
                 {!editedDeal?.name && (
                   <span style={{ fontSize: 10, background: '#fce8e8', color: '#EA001E', padding: '2px 8px', borderRadius: 10 }}>未検出</span>
                 )}
@@ -383,7 +383,7 @@ export default function IntakePage() {
           <div style={card}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 14, fontWeight: 500, color: '#FFFFFF' }}>仲介会社・FA</span>
+                <span style={{ fontSize: 14, fontWeight: 500, color: '#032D60' }}>仲介会社・FA</span>
                 {!editedIntermediary?.name && (
                   <span style={{ fontSize: 10, background: '#fce8e8', color: '#EA001E', padding: '2px 8px', borderRadius: 10 }}>未検出</span>
                 )}
@@ -408,7 +408,7 @@ export default function IntakePage() {
           <div style={card}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 14, fontWeight: 500, color: '#FFFFFF' }}>担当者</span>
+                <span style={{ fontSize: 14, fontWeight: 500, color: '#032D60' }}>担当者</span>
                 {!editedContact?.name && (
                   <span style={{ fontSize: 10, background: '#fce8e8', color: '#EA001E', padding: '2px 8px', borderRadius: 10 }}>未検出</span>
                 )}
@@ -455,7 +455,7 @@ export default function IntakePage() {
               <polyline points="20 6 9 17 4 12"/>
             </svg>
           </div>
-          <div style={{ fontSize: 18, fontWeight: 500, color: '#FFFFFF', marginBottom: 8 }}>登録完了</div>
+          <div style={{ fontSize: 18, fontWeight: 500, color: '#032D60', marginBottom: 8 }}>登録完了</div>
           <div style={{ fontSize: 13, color: '#706E6B', marginBottom: 32, lineHeight: 1.8 }}>
             {result.dealId && '案件を登録しました。'}
             {result.firmId && ' 仲介会社を登録しました。'}

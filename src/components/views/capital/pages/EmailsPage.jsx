@@ -280,7 +280,7 @@ export default function EmailsPage() {
     <div style={{ padding: '20px 24px', maxWidth: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 18, fontWeight: 500, color: '#FFFFFF' }}>メール</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 500, color: '#032D60' }}>メール</h1>
           <p style={{ fontSize: 12, color: '#A0A0A0', marginTop: 3 }}>
             未処理 {pendingReview.length} 件　処理済み {processed.length} 件　手動 {manual.length} 件
           </p>
@@ -369,7 +369,7 @@ export default function EmailsPage() {
                     {email.ai_status === 'pending' && email.gmail_message_id && (
                       <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: '#f8f5e8', color: '#8a7020' }}>分析待ち</span>
                     )}
-                    <div style={{ fontSize: 12, fontWeight: 500, color: '#FFFFFF', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: '#032D60', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {email.subject || '（件名なし）'}
                     </div>
                     <div style={{ fontSize: 10, color: '#E5E5E5', flexShrink: 0 }}>
@@ -413,7 +413,7 @@ export default function EmailsPage() {
         <div onClick={e => { if (e.target === e.currentTarget) setCompose(false) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 600, maxHeight: '85vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#FFFFFF', marginBottom: 20 }}>メールを作成</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#032D60', marginBottom: 20 }}>メールを作成</h2>
 
             {/* Templates */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -486,7 +486,7 @@ function EmailDetail({ email, onApply, onDismiss, applying, applyError }) {
   return (
     <div style={cardStyle}>
       <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '0.5px solid #E5E5E5' }}>
-        <div style={{ fontSize: 15, fontWeight: 500, color: '#FFFFFF', marginBottom: 8 }}>
+        <div style={{ fontSize: 15, fontWeight: 500, color: '#032D60', marginBottom: 8 }}>
           {email.subject || '（件名なし）'}
         </div>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: '#706E6B' }}>
@@ -524,7 +524,7 @@ function EmailDetail({ email, onApply, onDismiss, applying, applyError }) {
           {hasExtracted && (
             <div style={{ marginBottom: proposals.length ? 12 : 0 }}>
               <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 6 }}>抽出データ</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', fontSize: 12, color: '#FFFFFF' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', fontSize: 12, color: '#032D60' }}>
                 {extracted.industry && <div><span style={{ color: '#A0A0A0' }}>業種:</span> {extracted.industry}</div>}
                 {extracted.revenue_jpy != null && <div><span style={{ color: '#A0A0A0' }}>売上:</span> {formatYen(extracted.revenue_jpy) || extracted.revenue_jpy}</div>}
                 {extracted.ebitda_jpy != null && <div><span style={{ color: '#A0A0A0' }}>EBITDA:</span> {formatYen(extracted.ebitda_jpy) || extracted.ebitda_jpy}</div>}
@@ -542,7 +542,7 @@ function EmailDetail({ email, onApply, onDismiss, applying, applyError }) {
           {proposals.length > 0 && (
             <div>
               <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 6 }}>提案アクション</div>
-              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: '#FFFFFF', lineHeight: 1.8 }}>
+              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: '#032D60', lineHeight: 1.8 }}>
                 {proposals.map((p, i) => (
                   <li key={i}>
                     <strong>{ACTION_LABELS[p.kind] || p.kind}</strong>
@@ -594,7 +594,7 @@ function EmailDetail({ email, onApply, onDismiss, applying, applyError }) {
         </div>
       )}
 
-      <div style={{ fontSize: 13, color: '#FFFFFF', lineHeight: 1.9, whiteSpace: 'pre-wrap' }}>
+      <div style={{ fontSize: 13, color: '#032D60', lineHeight: 1.9, whiteSpace: 'pre-wrap' }}>
         {email.body}
       </div>
     </div>

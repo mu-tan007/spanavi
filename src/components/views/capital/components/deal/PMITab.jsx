@@ -180,20 +180,20 @@ export default function PMITab({ dealId }) {
 
       {/* Day 1 チェックリスト */}
       <div style={{ background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF', marginBottom: 4 }}>Day 1 必須チェックリスト</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }}>Day 1 必須チェックリスト</div>
         <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 14 }}>クロージング当日に完了すべき事項</div>
         {DAY1_CHECKLIST.map((item, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: i < DAY1_CHECKLIST.length - 1 ? '0.5px solid #f0f2f5' : 'none' }}>
             <div style={{ width: 14, height: 14, border: '0.5px solid #E5E5E5', borderRadius: 3, flexShrink: 0 }} />
             <span style={{ fontSize: 10, padding: '1px 6px', background: '#F3F2F2', color: '#A0A0A0', borderRadius: 3, flexShrink: 0 }}>{CAT_LABELS[item.category]}</span>
-            <div style={{ flex: 1, fontSize: 12, color: '#FFFFFF' }}>{item.title}</div>
+            <div style={{ flex: 1, fontSize: 12, color: '#032D60' }}>{item.title}</div>
           </div>
         ))}
       </div>
 
       {/* シナジー追跡 */}
       <div style={{ background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF', marginBottom: 4 }}>シナジー追跡</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }}>シナジー追跡</div>
         <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 14 }}>コスト削減 / 売上拡大 / CAPEX 効率化の実現額追跡</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
           <SynergyCell label="コストシナジー" target="—" realized="—" hint="本社機能統合・共通購買" />
@@ -207,7 +207,7 @@ export default function PMITab({ dealId }) {
 
       {/* KPI ダッシュボード */}
       <div style={{ background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF', marginBottom: 4 }}>クローズ後 KPI ダッシュボード</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }}>クローズ後 KPI ダッシュボード</div>
         <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 14 }}>月次で追跡する財務・非財務 KPI の骨組み</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
           {['売上高', 'EBITDA', 'EBITDA マージン', 'フリーCF', '主要顧客離脱', 'キーマン離職', '新規契約', 'NPS / CS'].map(k => (
@@ -221,7 +221,7 @@ export default function PMITab({ dealId }) {
 
       {/* 経営陣インセンティブ */}
       <div style={{ background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF', marginBottom: 4 }}>経営陣インセンティブ設計</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }}>経営陣インセンティブ設計</div>
         <div style={{ fontSize: 11, color: '#A0A0A0', marginBottom: 14 }}>MBO / ESOP / 業績連動報酬 の構造</div>
         <div style={{ padding: '20px 16px', background: '#FAFAFA', border: '0.5px dashed #E5E5E5', borderRadius: 6, fontSize: 11, color: '#706E6B', textAlign: 'center' }}>
           エクイティ配分 (オーナー / CEO / 経営チーム / ファンド) + ベスティング条件の設計は次ビルドで追加

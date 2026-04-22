@@ -307,7 +307,7 @@ export default function ChatTab({ dealId }) {
                 <span style={{ fontSize: 10, padding: '2px 6px', background: '#F8F8F8', color: '#032D60', borderRadius: 3, flexShrink: 0 }}>
                   {FILE_TYPE_LABEL[f.file_type] || f.file_type || 'その他'}
                 </span>
-                <span style={{ flex: 1, fontSize: 11, color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
+                <span style={{ flex: 1, fontSize: 11, color: '#032D60', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
                   onClick={() => downloadFile(f)} title="クリックでダウンロード">
                   {f.file_name}
                 </span>
@@ -393,7 +393,7 @@ export default function ChatTab({ dealId }) {
             {attachments.map((a, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 5, padding: '5px 8px', fontSize: 11 }}>
                 <span style={{ color: '#706E6B', display: 'flex', alignItems: 'center' }}><Icon name="paperclip" size={12} /></span>
-                <span style={{ color: '#FFFFFF', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</span>
+                <span style={{ color: '#032D60', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</span>
                 <select value={a.fileType} onChange={e => updateAttachmentType(i, e.target.value)}
                   style={{ height: 22, padding: '0 6px', border: '0.5px solid #E5E5E5', borderRadius: 4, fontSize: 10, outline: 'none', background: '#fff' }}>
                   {FILE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}

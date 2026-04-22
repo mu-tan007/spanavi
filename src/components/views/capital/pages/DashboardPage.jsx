@@ -108,7 +108,7 @@ function NotifItem({ n }) {
     <div style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '0.5px solid #E5E5E5' }}>
       <div style={{ width: 7, height: 7, borderRadius: '50%', background: dotColor, marginTop: 4, flexShrink: 0 }} />
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 12, fontWeight: 500, color: '#FFFFFF' }}>{n.title}</div>
+        <div style={{ fontSize: 12, fontWeight: 500, color: '#032D60' }}>{n.title}</div>
         {n.summary && <div style={{ fontSize: 11, color: '#706E6B', marginTop: 2 }}>{n.summary}</div>}
       </div>
       <div style={{ fontSize: 10, color: '#706E6B', flexShrink: 0, whiteSpace: 'nowrap' }}>
@@ -188,13 +188,13 @@ export default function DashboardPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 14, paddingTop: 12, borderTop: '0.5px solid #E5E5E5' }}>
             <div>
               <div style={{ fontSize: 10, color: '#706E6B', marginBottom: 3 }}>ルート別</div>
-              <div style={{ fontSize: 11, color: '#706E6B' }}>仲介/FA: <strong style={{ color: '#FFFFFF' }}>{active.filter(d => d.source_type !== 'self').length}</strong></div>
-              <div style={{ fontSize: 11, color: '#706E6B' }}>自社ソーシング: <strong style={{ color: '#FFFFFF' }}>{active.filter(d => d.source_type === 'self').length}</strong></div>
+              <div style={{ fontSize: 11, color: '#706E6B' }}>仲介/FA: <strong style={{ color: '#032D60' }}>{active.filter(d => d.source_type !== 'self').length}</strong></div>
+              <div style={{ fontSize: 11, color: '#706E6B' }}>自社ソーシング: <strong style={{ color: '#032D60' }}>{active.filter(d => d.source_type === 'self').length}</strong></div>
             </div>
             <div>
               <div style={{ fontSize: 10, color: '#706E6B', marginBottom: 3 }}>合計案件数</div>
-              <div style={{ fontSize: 11, color: '#706E6B' }}>進行中: <strong style={{ color: '#FFFFFF' }}>{active.length}</strong></div>
-              <div style={{ fontSize: 11, color: '#706E6B' }}>全案件: <strong style={{ color: '#FFFFFF' }}>{deals.length}</strong></div>
+              <div style={{ fontSize: 11, color: '#706E6B' }}>進行中: <strong style={{ color: '#032D60' }}>{active.length}</strong></div>
+              <div style={{ fontSize: 11, color: '#706E6B' }}>全案件: <strong style={{ color: '#032D60' }}>{deals.length}</strong></div>
             </div>
           </div>
         </div>
@@ -209,7 +209,7 @@ export default function DashboardPage() {
                 <div key={m.id} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: i < meetings.length - 1 ? '0.5px solid #E5E5E5' : 'none' }}>
                   <div style={{ fontSize: 10, color: '#706E6B', whiteSpace: 'nowrap', marginTop: 1, minWidth: 72 }}>{formatDate(m.held_at)}</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, color: '#FFFFFF' }}>{m.summary || '打合せ'}</div>
+                    <div style={{ fontSize: 12, color: '#032D60' }}>{m.summary || '打合せ'}</div>
                     <div style={{ fontSize: 10, color: '#706E6B', marginTop: 2 }}>
                       {m.meeting_type === 'top_meeting' ? 'トップ面談' : '打合せ'}
                     </div>
@@ -249,7 +249,7 @@ export default function DashboardPage() {
                     width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
                     background: d.priority === 1 ? '#032D60' : d.priority === 2 ? '#032D60' : '#9fbedd',
                   }} />
-                  <div style={{ fontSize: 12, fontWeight: 500, color: '#FFFFFF', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: '#032D60', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {d.name}
                   </div>
                   <div style={{ fontSize: 10, color: '#706E6B', width: 72, flexShrink: 0 }}>{d.industry_label || '—'}</div>
@@ -309,7 +309,7 @@ export default function DashboardPage() {
                         width: 14, height: 14, border: '0.5px solid #E5E5E5',
                         borderRadius: 3, marginTop: 1, flexShrink: 0,
                       }} />
-                      <div style={{ fontSize: 12, color: '#FFFFFF', flex: 1, lineHeight: 1.4 }}>{t.title}</div>
+                      <div style={{ fontSize: 12, color: '#032D60', flex: 1, lineHeight: 1.4 }}>{t.title}</div>
                       {t.due_date && (
                         <span style={{
                           fontSize: 10, padding: '1px 6px', borderRadius: 2, flexShrink: 0,

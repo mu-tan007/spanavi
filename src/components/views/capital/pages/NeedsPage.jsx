@@ -102,7 +102,7 @@ export default function NeedsPage() {
     <div style={{ padding: '20px 24px', maxWidth: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 18, fontWeight: 500, color: '#FFFFFF' }}>買収ニーズ</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 500, color: '#032D60' }}>買収ニーズ</h1>
           <p style={{ fontSize: 12, color: '#A0A0A0', marginTop: 3 }}>
             有効 {needs.filter(n => n.is_active).length} 件 / 全 {needs.length} 件
           </p>
@@ -135,23 +135,23 @@ export default function NeedsPage() {
                       {!need.is_active && (
                         <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 3, background: '#F3F2F2', color: '#A0A0A0' }}>無効</span>
                       )}
-                      <span style={{ fontSize: 14, fontWeight: 500, color: '#FFFFFF' }}>{need.industry_label || '業種未指定'}</span>
+                      <span style={{ fontSize: 14, fontWeight: 500, color: '#032D60' }}>{need.industry_label || '業種未指定'}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
                       <div>
                         <div style={{ fontSize: 10, color: '#A0A0A0', marginBottom: 2 }}>EV目安</div>
-                        <div style={{ fontSize: 13, color: '#FFFFFF' }}>{fmt(need.ev_min)} 〜 {fmt(need.ev_max)}</div>
+                        <div style={{ fontSize: 13, color: '#032D60' }}>{fmt(need.ev_min)} 〜 {fmt(need.ev_max)}</div>
                       </div>
                       {need.ebitda_multiple_max && (
                         <div>
                           <div style={{ fontSize: 10, color: '#A0A0A0', marginBottom: 2 }}>EBITDA倍率上限</div>
-                          <div style={{ fontSize: 13, color: '#FFFFFF' }}>{need.ebitda_multiple_max}x</div>
+                          <div style={{ fontSize: 13, color: '#032D60' }}>{need.ebitda_multiple_max}x</div>
                         </div>
                       )}
                       {need.region && (
                         <div>
                           <div style={{ fontSize: 10, color: '#A0A0A0', marginBottom: 2 }}>地域</div>
-                          <div style={{ fontSize: 13, color: '#FFFFFF' }}>{need.region}</div>
+                          <div style={{ fontSize: 13, color: '#032D60' }}>{need.region}</div>
                         </div>
                       )}
                     </div>
@@ -181,7 +181,7 @@ export default function NeedsPage() {
         <div onClick={e => { if (e.target === e.currentTarget) setModal(false) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 480, maxHeight: '80vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#FFFFFF', marginBottom: 20 }}>買収ニーズを追加</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#032D60', marginBottom: 20 }}>買収ニーズを追加</h2>
             <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <label style={{ fontSize: 11, color: '#A0A0A0', display: 'block', marginBottom: 4 }}>業種 *</label>
@@ -245,7 +245,7 @@ export default function NeedsPage() {
         <div onClick={e => { if (e.target === e.currentTarget) setBroadcast(null) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 560 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#FFFFFF', marginBottom: 4 }}>買収ニーズ一斉配信</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#032D60', marginBottom: 4 }}>買収ニーズ一斉配信</h2>
             <p style={{ fontSize: 12, color: '#A0A0A0', marginBottom: 16 }}>
               登録済み担当者 {contacts.length} 名に送信されます
             </p>

@@ -155,7 +155,7 @@ export default function FirmContractsPanel({ intermediaryId, intermediaryName })
               <span style={{ fontSize: 10, padding: '2px 8px', background: tc.bg, color: tc.color, borderRadius: 3, flexShrink: 0 }}>
                 {CONTRACT_TYPES.find(t => t.value === c.contract_type)?.label || c.contract_type}
               </span>
-              <div style={{ flex: 1, fontSize: 11, color: '#FFFFFF' }}>
+              <div style={{ flex: 1, fontSize: 11, color: '#032D60' }}>
                 {c.signed_at ? `${c.signed_at} 締結` : '日付未設定'}
                 {c.expires_at && <span style={{ color: expired ? '#EA001E' : '#706E6B', marginLeft: 10 }}>
                   {expired ? '⚠ 期限切れ ' : '有効期限 '}{c.expires_at}
@@ -217,7 +217,7 @@ export function MasterContractBanner({ intermediaryId, intermediaryName }) {
 
   return (
     <div style={{ padding: '10px 16px', background: '#FAFAFA', border: '0.5px solid #E5E5E5', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 12, marginBottom: 14 }}>
-      <span style={{ color: '#706E6B' }}>仲介: <strong style={{ color: '#FFFFFF' }}>{intermediaryName}</strong> — 包括契約:</span>
+      <span style={{ color: '#706E6B' }}>仲介: <strong style={{ color: '#032D60' }}>{intermediaryName}</strong> — 包括契約:</span>
       <Pill ok={!!nda} label="包括NDA" signed={nda?.signed_at} />
       <Pill ok={!!aa} label="アドバイザリー契約" signed={aa?.signed_at} />
     </div>

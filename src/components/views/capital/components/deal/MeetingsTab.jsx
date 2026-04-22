@@ -23,7 +23,7 @@ export default function MeetingsTab({ dealId }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ ...card, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF' }}>マネジメント面談ログ</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60' }}>マネジメント面談ログ</div>
           <div style={{ fontSize: 11, color: '#A0A0A0', marginTop: 2 }}>
             経営陣とのセッション記録。議事録を AIチャットに投げると自動でこのタブに記録されます。
           </div>
@@ -67,7 +67,7 @@ export default function MeetingsTab({ dealId }) {
                     )}
                   </div>
                   {m.summary && (
-                    <div style={{ fontSize: 12, color: '#FFFFFF', lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{m.summary}</div>
+                    <div style={{ fontSize: 12, color: '#032D60', lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{m.summary}</div>
                   )}
                   {m.action_items && (
                     <div style={{ marginTop: 8, padding: '8px 12px', background: '#FAFAFA', borderRadius: 5, fontSize: 11, color: '#706E6B', lineHeight: 1.7 }}>
