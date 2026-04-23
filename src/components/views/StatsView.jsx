@@ -5,6 +5,7 @@ import { C } from '../../constants/colors';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { formatCurrency } from '../../utils/formatters';
 import { fetchCallRecordsByRange, fetchCallListsMeta } from '../../lib/supabaseWrite';
+import { supabase } from '../../lib/supabase';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -227,8 +228,25 @@ export default function StatsView({ callListData, currentUser, appoData, members
 
   const kpiMonthSales = useMemo(() => monthAppoFiltered.reduce((s, a) => s + (a.sales || 0), 0), [monthAppoFiltered]);
   const kpiPrevMonthSales = useMemo(() => prevMonthAppoFiltered.reduce((s, a) => s + (a.sales || 0), 0), [prevMonthAppoFiltered]);
-  const kpiMonthAppo = monthAppoFiltered.length;
-  const kpiPrevMonthAppo = prevMonthAppoFiltered.length;
+  // アポ件数は call_records.status='アポ獲得' ベース（Performance/Dashboard と統一）
+  const [kpiMonthAppo, setKpiMonthAppo] = useState(0);
+  const [kpiPrevMonthAppo, setKpiPrevMonthAppo] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    const monthEnd = monthStr + '-' + String(new Date(_kpiY, _kpiM, 0).getDate()).padStart(2, '0');
+    const prevMonthEnd = prevMonthStr + '-' + String(prevMonthMaxDays).padStart(2, '0');
+    Promise.all([
+      supabase.rpc('get_call_ranking', { from_iso: _jstStart(monthStart), to_iso: _jstEnd(monthEnd) }),
+      supabase.rpc('get_call_ranking', { from_iso: _jstStart(prevMonthStr + '-01'), to_iso: _jstEnd(prevMonthEnd) }),
+    ]).then(([cur, prev]) => {
+      if (cancelled) return;
+      setKpiMonthAppo((cur.data || []).reduce((s, r) => s + Number(r.appo || 0), 0));
+      setKpiPrevMonthAppo((prev.data || []).reduce((s, r) => s + Number(r.appo || 0), 0));
+    }).catch(err => console.error('[StatsView] monthAppoFetch:', err));
+    return () => { cancelled = true; };
+  }, [monthStart, monthStr, prevMonthStr, _kpiY, _kpiM, prevMonthMaxDays]);
+  // リスケ率/キャンセル率の denominator は従来通り appointments ベース
+  const kpiMonthAppoActive = monthAppoFiltered.length;
   const kpiWeekCalls = kpiCalls.length;
   const kpiPrevWeekCalls = kpiPrevCalls.length;
   const kpiWeekAppo = useMemo(() => kpiCalls.filter(r => r.status === 'アポ獲得').length, [kpiCalls]);
@@ -244,7 +262,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
     const d = (a.getDate || '').slice(0, 10);
     return a.status === 'キャンセル' && d >= monthStart && d <= todayStr;
   }).length, [appoData, monthStart, todayStr]);
-  const kpiMonthAppoTotal = kpiMonthAppo + kpiMonthReschedule + kpiMonthCancel;
+  const kpiMonthAppoTotal = kpiMonthAppoActive + kpiMonthReschedule + kpiMonthCancel;
   const kpiRescheduleRate = kpiMonthAppoTotal > 0 ? kpiMonthReschedule / kpiMonthAppoTotal * 100 : 0;
   const kpiCancelRate = kpiMonthAppoTotal > 0 ? kpiMonthCancel / kpiMonthAppoTotal * 100 : 0;
 

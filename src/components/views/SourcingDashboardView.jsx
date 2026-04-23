@@ -200,14 +200,17 @@ export default function SourcingDashboardView({
         .or('is_archived.is.null,is_archived.eq.false');
       const activeListIds = new Set((activeLists || []).map(l => l.id));
 
+      // 14日経過の断定は todayStr ベース（日替わりで再取得、day単位の安定カットオフ）
+      const cutoffIso = new Date(new Date(todayStr + 'T00:00:00+09:00').getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
       const [{ data: recallRows }, rejRowsRes] = await Promise.all([
         fetchAllRecallRecords(),
         supabase
           .from('call_records')
           .select('id, item_id, list_id, status, called_at, getter_name, memo')
           .eq('status', '社長お断り')
+          .lte('called_at', cutoffIso)
           .order('called_at', { ascending: false })
-          .limit(500),
+          .limit(2000),
       ]);
 
       // 再コール: アーカイブ外のみ、かつ 社長再コール のみ
@@ -268,10 +271,8 @@ export default function SourcingDashboardView({
       });
   }, [recallRaw, now]);
 
-  const oldRejections = useMemo(() => {
-    const cutoff = now.getTime() - 14 * 24 * 60 * 60 * 1000;
-    return rejectionsRaw.filter(r => new Date(r.called_at).getTime() <= cutoff);
-  }, [rejectionsRaw, now]);
+  // raw自体がすでに 14日経過フィルタ済み
+  const oldRejections = rejectionsRaw;
 
   // ---- おすすめリスト TOP4 ----
   const topLists = useMemo(() => {
