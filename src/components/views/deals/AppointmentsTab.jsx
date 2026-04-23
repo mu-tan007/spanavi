@@ -17,10 +17,10 @@ import {
 //   消極的  ← 消極的・やや低め・低め・やや消極的・やや低い・やんわり断り(気味)
 //   不明    ← 不明・面談化には成功したが・空欄
 const CEO_INTENT_OPTIONS = [
-  { value: 'positive', label: '前向き', color: C.green },
-  { value: 'wait',     label: '様子見', color: C.gold },
-  { value: 'negative', label: '消極的', color: C.navy },
-  { value: 'unknown',  label: '不明',   color: C.textLight },
+  { value: 'positive', label: '前向き', color: C.gold },      // ゴールド
+  { value: 'wait',     label: '様子見', color: C.navy },      // ネイビー
+  { value: 'negative', label: '消極的', color: C.navyLight }, // ブルー
+  { value: 'unknown',  label: '不明',   color: C.textLight }, // グレー
 ];
 
 function bucketRevenue(oku) {
@@ -311,7 +311,7 @@ export default function AppointmentsTab({ client }) {
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: C.textMid }} />
                 <YAxis tick={{ fontSize: 10, fill: C.textMid }} />
                 <Tooltip />
-                <Bar dataKey="value" fill={C.gold} />
+                <Bar dataKey="value" fill={C.navy} />
               </BarChart>
             </ResponsiveContainer>
           </div>
