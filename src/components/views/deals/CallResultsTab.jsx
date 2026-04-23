@@ -19,17 +19,7 @@ export default function CallResultsTab({ client }) {
   const [detailList, setDetailList] = useState(null); // { list_id, list_name }
   const orgId = getOrgId();
 
-  // リスト詳細ページ表示中はそれだけ描画
-  if (detailList) {
-    return (
-      <ListApproachPage
-        list={detailList}
-        orgId={orgId}
-        onBack={() => setDetailList(null)}
-      />
-    );
-  }
-
+  // 全てのフックは早期 return より前に宣言する (Rules of Hooks)
   useEffect(() => {
     if (!orgId || !client?.id) { setRows([]); setByDay([]); return; }
     let cancelled = false;
@@ -57,6 +47,17 @@ export default function CallResultsTab({ client }) {
     ceoConnects: a.ceoConnects + Number(s.ceo_connects || 0),
     appos:       a.appos       + Number(s.appos || 0),
   }), { calls: 0, ceoConnects: 0, appos: 0 }), [rows]);
+
+  // 詳細ページ: 全フック宣言後に描画切替
+  if (detailList) {
+    return (
+      <ListApproachPage
+        list={detailList}
+        orgId={orgId}
+        onBack={() => setDetailList(null)}
+      />
+    );
+  }
 
   if (!client) return <EmptyCard>クライアントを選択してください</EmptyCard>;
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: C.textMid }}>読み込み中...</div>;
