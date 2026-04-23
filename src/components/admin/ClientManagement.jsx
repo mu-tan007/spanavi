@@ -210,14 +210,7 @@ export default function ClientManagement({ onToast }) {
                   <span style={{ flex: 1, fontWeight: 700, fontSize: 14, color: '#111827' }}>{client.name}</span>
                 )}
 
-                <span style={{ fontSize: 11, color: '#6B7280', flexShrink: 0 }}>
-                  リスト {client.lists.length}件 / 計 {client.totalItems.toLocaleString()}社
-                </span>
-                <span style={{ fontSize: 11, color: '#9CA3AF', flexShrink: 0 }}>
-                  {client.created_at ? new Date(client.created_at).toLocaleDateString('ja-JP') : '—'}
-                </span>
-
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 'auto' }} onClick={e => e.stopPropagation()}>
                   {isEditingName ? (
                     <>
                       <button onClick={() => saveClientName(client.id)} style={btn('primary')}>保存</button>
@@ -225,20 +218,6 @@ export default function ClientManagement({ onToast }) {
                     </>
                   ) : (
                     <>
-                      {client.sheet ? (
-                        <button
-                          onClick={() => window.open(client.sheet.spreadsheet_url, '_blank')}
-                          style={btn('primary', { background: '#0F9D58' })}
-                          title={`共有先: ${client.sheet.shared_with || '—'}`}
-                        >📊 Sheets</button>
-                      ) : (
-                        <button
-                          onClick={() => setShareModal({ client, defaultEmail: 'fujii@noahub.jp' })}
-                          style={btn()}
-                          disabled={sheetCreating === client.id}
-                        >📊 Sheets連携</button>
-                      )}
-                      <button onClick={() => { setEditClientId(client.id); setEditClientName(client.name); }} style={btn()}>名前編集</button>
                       {client.auth_user_id ? (
                         <button
                           onClick={() => setCredentialsModal({ client, mode: 'reset' })}
