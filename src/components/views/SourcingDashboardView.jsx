@@ -40,7 +40,7 @@ const getMemberNamesForScope = (scope, members) => {
 // ============================================================
 export default function SourcingDashboardView({
   currentUser, userId, callListData, members, now, appoData, onDataRefetch, isAdmin,
-  setCurrentTab, setSelectedList,
+  setCurrentTab, setSelectedList, setCallFlowScreen,
 }) {
   const isMobile = useIsMobile();
   const { currentEngagement } = useEngagements();
@@ -125,9 +125,14 @@ export default function SourcingDashboardView({
   }, [engagementId, todayStr, weekStart, monthStart]);
 
   const aggScope = (rankingRows) => {
-    const names = getMemberNamesForScope(scope, members);
-    const set = new Set(names);
-    const filtered = (rankingRows || []).filter(r => set.has(r.getter_name));
+    // 組織全体は退職者含む全件（members フィルタなし）
+    let filtered;
+    if (scope.type === 'org') {
+      filtered = (rankingRows || []);
+    } else {
+      const set = new Set(getMemberNamesForScope(scope, members));
+      filtered = (rankingRows || []).filter(r => set.has(r.getter_name));
+    }
     const total = filtered.reduce((s, r) => s + Number(r.total || 0), 0);
     const ceoConnect = filtered.reduce((s, r) => s + Number(r.ceo_connect || 0), 0);
     const appo = filtered.reduce((s, r) => s + Number(r.appo || 0), 0);
@@ -140,9 +145,10 @@ export default function SourcingDashboardView({
 
   // アポ・売上・インセンティブ（appoData + payroll）
   const scopedAppos = useMemo(() => {
-    const names = getMemberNamesForScope(scope, members);
-    const set = new Set(names);
-    return (appoData || []).filter(a => set.has(a.getter) && APPO_COUNTABLE.has(a.status));
+    const base = (appoData || []).filter(a => APPO_COUNTABLE.has(a.status));
+    if (scope.type === 'org') return base; // 組織全体は全件
+    const set = new Set(getMemberNamesForScope(scope, members));
+    return base.filter(a => set.has(a.getter));
   }, [appoData, scope, members]);
 
   const salesInPeriod = (from, to) =>
@@ -231,6 +237,7 @@ export default function SourcingDashboardView({
       const rejections = (rejRows || []).map(r => ({
         id: r.id,
         item_id: r.item_id,
+        list_id: r.list_id,
         company: itemMap[r.item_id]?.company || '—',
         phone: itemMap[r.item_id]?.phone || '',
         representative: itemMap[r.item_id]?.representative || '',
@@ -384,7 +391,7 @@ export default function SourcingDashboardView({
                 {r._item?.company || r.company || '—'}
               </div>
               <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>
-                {r._list_name || ''} {r._client_name ? `／ ${r._client_name}` : ''}
+                {r._list_name || ''}
               </div>
             </div>
             <div style={{ fontSize: 10, color: C.red, minWidth: 120 }}>
@@ -393,6 +400,15 @@ export default function SourcingDashboardView({
             <div style={{ fontSize: 10, color: C.textMid, minWidth: 80 }}>
               担当: {r._memoObj?.assignee || r.getter_name || '—'}
             </div>
+            <CallButton
+              disabled={!setCallFlowScreen || !r.item_id || !r.list_id}
+              onClick={() => setCallFlowScreen?.({
+                list: { _supaId: r.list_id, id: r.list_id, company: r._list_name || '' },
+                defaultItemId: r.item_id,
+                defaultListMode: false,
+                singleItemMode: true,
+              })}
+            />
           </div>
         )}
       />
@@ -409,7 +425,7 @@ export default function SourcingDashboardView({
                 {r.company}
               </div>
               <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>
-                {r.list_name || ''} {r.client_name ? `／ ${r.client_name}` : ''}
+                {r.list_name || ''}
               </div>
             </div>
             <div style={{ fontSize: 10, color: C.textMid, minWidth: 110 }}>
@@ -418,6 +434,15 @@ export default function SourcingDashboardView({
             <div style={{ fontSize: 10, color: C.textMid, minWidth: 80 }}>
               担当: {r.getter_name || '—'}
             </div>
+            <CallButton
+              disabled={!setCallFlowScreen || !r.item_id || !r.list_id}
+              onClick={() => setCallFlowScreen?.({
+                list: { _supaId: r.list_id, id: r.list_id, company: r.list_name || '' },
+                defaultItemId: r.item_id,
+                defaultListMode: false,
+                singleItemMode: true,
+              })}
+            />
           </div>
         )}
       />
@@ -517,6 +542,24 @@ function ProgressBar({ actual, goal, pct, money }) {
         {goal > 0 ? fmtPct(pct) : '—'}
       </div>
     </div>
+  );
+}
+
+function CallButton({ onClick, disabled }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title="架電集中画面を開く"
+      style={{
+        padding: '5px 10px', fontSize: 11, fontWeight: 600,
+        background: disabled ? '#E5E7EB' : C.navy,
+        color: disabled ? C.textLight : C.white,
+        border: 'none', borderRadius: 3,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        whiteSpace: 'nowrap',
+      }}
+    >📞 架電</button>
   );
 }
 
