@@ -47,7 +47,11 @@ export default function SpanaviLogo({
         </g>
       </svg>
       {!hideText && (
-        <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: ts, fontWeight: 800, letterSpacing: 2, lineHeight: 1 }}>
+        <div style={{
+          fontFamily: "'Outfit', sans-serif", fontSize: ts, fontWeight: 800,
+          // サイドバーと同じ固定 2px。サイズが変わっても間隔を広げない (詰まって見える方を優先)
+          letterSpacing: '2px', lineHeight: 1,
+        }}>
           <span style={{ color: C.navyLight }}>Spa</span>
           <span style={{ color: C.gold }}>navi</span>
         </div>

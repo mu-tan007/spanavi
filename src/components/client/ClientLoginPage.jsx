@@ -45,14 +45,11 @@ export default function ClientLoginPage() {
     }}>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 4, padding: '32px 36px', width: 360 }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-          <SpanaviLogo size={44} textSize={28} gap={12} uidSuffix="client-login" />
+          <SpanaviLogo size={32} textSize={20} gap={10} uidSuffix="client-login" />
         </div>
-        <div style={{ fontSize: 11, color: C.textLight, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4, textAlign: 'center' }}>
+        <div style={{ fontSize: 11, color: C.textLight, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 20, textAlign: 'center' }}>
           Client Portal
         </div>
-        <p style={{ fontSize: 11, color: C.textMid, marginBottom: 20, textAlign: 'center' }}>
-          発行されたユーザー ID とパスワードでログインしてください。
-        </p>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <label style={{ fontSize: 11, color: C.textMid }}>ユーザー ID
@@ -85,9 +82,6 @@ export default function ClientLoginPage() {
           >{submitting ? 'ログイン中...' : 'ログイン'}</button>
         </form>
 
-        <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.border}`, fontSize: 11, color: C.textMid, textAlign: 'center' }}>
-          社内メンバー (MASP) の方は <a href="/login" style={{ color: C.navyLight, textDecoration: 'underline' }}>こちらからログイン</a>
-        </div>
       </div>
     </div>
   );

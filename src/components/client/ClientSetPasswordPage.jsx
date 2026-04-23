@@ -35,7 +35,7 @@ export default function ClientSetPasswordPage() {
     }}>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 4, padding: '32px 36px', width: 380 }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-          <SpanaviLogo size={44} textSize={28} gap={12} uidSuffix="client-setpw" />
+          <SpanaviLogo size={32} textSize={20} gap={10} uidSuffix="client-setpw" />
         </div>
         <div style={{ fontSize: 11, color: C.textLight, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4, textAlign: 'center' }}>
           Client Portal
