@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { C } from '../../constants/colors';
+import SpanaviLogo from '../common/SpanaviLogo';
 
 // 招待メールから初回アクセスしたクライアントに、パスワードを設定させる画面。
 // 成功したら user_metadata.password_set = true をセットして /client へ。
@@ -33,10 +34,13 @@ export default function ClientSetPasswordPage() {
       background: C.offWhite, fontFamily: "'Noto Sans JP', sans-serif",
     }}>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 4, padding: '32px 36px', width: 380 }}>
-        <div style={{ fontSize: 11, color: C.textLight, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+          <SpanaviLogo size={44} textSize={28} gap={12} uidSuffix="client-setpw" />
+        </div>
+        <div style={{ fontSize: 11, color: C.textLight, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4, textAlign: 'center' }}>
           Client Portal
         </div>
-        <h1 style={{ fontSize: 20, fontWeight: 600, color: C.navy, margin: '0 0 12px', fontFamily: "'Outfit','Noto Sans JP',sans-serif" }}>
+        <h1 style={{ fontSize: 20, fontWeight: 600, color: C.navy, margin: '0 0 12px', fontFamily: "'Outfit','Noto Sans JP',sans-serif", textAlign: 'center' }}>
           パスワード設定
         </h1>
         <p style={{ fontSize: 11, color: C.textMid, marginBottom: 20 }}>

@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { C } from '../../constants/colors';
 import ClientDealsView from './ClientDealsView';
 import ClientSetPasswordPage from './ClientSetPasswordPage';
+import SpanaviLogo from '../common/SpanaviLogo';
 
 // ログイン済みクライアント専用の最小シェル。
 // - user_metadata.role === 'client' でなければ /login へ戻す (社内ログイン)
@@ -72,9 +73,7 @@ export default function ClientPortalApp() {
         padding: '0 24px',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 18, fontWeight: 800, letterSpacing: 2, color: C.navy }}>
-            Spanavi
-          </div>
+          <SpanaviLogo size={26} textSize={17} gap={8} uidSuffix="portal-hdr" />
           <span style={{ fontSize: 10, color: C.textLight, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
             Client Portal
           </span>
