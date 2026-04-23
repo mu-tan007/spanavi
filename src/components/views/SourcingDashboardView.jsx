@@ -224,9 +224,14 @@ export default function SourcingDashboardView({
   }, [setCallFlowScreen, resolveFullList]);
 
   const openQueue = useCallback((items, startIdx) => {
-    const slice = items.slice(startIdx).filter(it => it.item_id && it.list_id);
-    if (!slice.length) return;
-    queueRef.current = { items: slice, idx: 0 };
+    // 全件をキューに保持し、選択された位置を初期 idx に。
+    // 前後矢印で 1〜N 全件を自由に行き来できる。
+    const full = (items || []).filter(it => it.item_id && it.list_id);
+    if (!full.length) return;
+    // 元配列の startIdx が valid でない場合に備え、対応する item で再検索
+    const targetId = items[startIdx]?.item_id;
+    const initialIdx = Math.max(0, full.findIndex(it => it.item_id === targetId));
+    queueRef.current = { items: full, idx: initialIdx };
     openQueueItemAtIdx();
   }, [openQueueItemAtIdx]);
 
