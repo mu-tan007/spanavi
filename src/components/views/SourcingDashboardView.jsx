@@ -281,7 +281,7 @@ export default function SourcingDashboardView({
   // ---- おすすめリスト TOP4 ----
   const topLists = useMemo(() => {
     return (callListData || [])
-      .filter(l => l.status === '架電可能' && l.recommendation)
+      .filter(l => l.status === '架電可能' && !l.is_archived && l.recommendation)
       .sort((a, b) => (b.recommendation?.score || 0) - (a.recommendation?.score || 0))
       .slice(0, 4);
   }, [callListData]);
