@@ -5,6 +5,7 @@ import { useEngagements } from '../../hooks/useEngagements';
 import { useKpiGoals, KPI_TYPES, PERIOD_TYPES } from '../../hooks/useKpiGoals';
 import { supabase } from '../../lib/supabase';
 import { fetchAllRecallRecords, fetchMemberPayrollHistory } from '../../lib/supabaseWrite';
+import PageHeader from '../common/PageHeader';
 
 const TEAMS = ['成尾', '高橋'];
 const APPO_COUNTABLE = new Set(['面談済', '事前確認済', 'アポ取得']);
@@ -271,32 +272,31 @@ export default function SourcingDashboardView({
   };
 
   // ============================================================
+  const scopeDesc = scope.type === 'member' ? '自分の進捗'
+    : scope.type === 'team' ? `${scope.name}チームの進捗` : '組織全体の進捗';
+
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      {/* ヘッダ + スコープトグル */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 16, gap: 12, flexWrap: 'wrap',
-      }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: C.navy }}>Dashboard</div>
-          <div style={{ fontSize: 11, color: C.textLight }}>
-            {scope.type === 'member' ? '自分の進捗' : scope.type === 'team' ? `${scope.name}チームの進捗` : '組織全体の進捗'}
+      <PageHeader
+        title="Dashboard"
+        description={scopeDesc}
+        right={(
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {scopeOptions.map((s, i) => (
+              <button key={i} onClick={() => setScopeIdx(i)}
+                style={{
+                  padding: '6px 12px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: "'Noto Sans JP',sans-serif",
+                  border: `1px solid ${scopeIdx === i ? C.navy : C.border}`,
+                  background: scopeIdx === i ? C.navy : C.white,
+                  color: scopeIdx === i ? C.white : C.navy,
+                }}>{s.label}</button>
+            ))}
           </div>
-        </div>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {scopeOptions.map((s, i) => (
-            <button key={i} onClick={() => setScopeIdx(i)}
-              style={{
-                padding: '6px 12px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-                cursor: 'pointer', fontFamily: "'Noto Sans JP',sans-serif",
-                border: `1px solid ${scopeIdx === i ? C.navy : C.border}`,
-                background: scopeIdx === i ? C.navy : C.white,
-                color: scopeIdx === i ? C.white : C.navy,
-              }}>{s.label}</button>
-          ))}
-        </div>
-      </div>
+        )}
+      />
+
+      <div style={{ height: 16 }} />
 
       {/* 本日の目標 vs 実績 */}
       <div style={{
