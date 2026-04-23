@@ -38,14 +38,20 @@ export default function ClientManagement({ onToast }) {
       const { data, error } = await supabase.functions.invoke('invite_client', {
         body: { client_id: client.id, email: email.trim(), redirectTo },
       });
+      // non-2xx でも context.response.json() でボディを取れる
       if (error) {
-        onToast(data?.error || error.message || '招待に失敗しました', 'error');
+        let serverMsg = error.message || '招待に失敗しました';
+        try {
+          const res = error.context?.response;
+          if (res) {
+            const body = await res.json();
+            if (body?.error) serverMsg = body.error;
+          }
+        } catch { /* ignore */ }
+        onToast(serverMsg, 'error');
         return;
       }
-      if (data?.error) {
-        onToast(data.error, 'error');
-        return;
-      }
+      if (data?.error) { onToast(data.error, 'error'); return; }
       onToast(`${email} に招待メールを送信しました`, 'success');
       await load();
     } catch (e) {
