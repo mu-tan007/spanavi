@@ -9,6 +9,8 @@ import SignupCompletePage from './components/public/SignupCompletePage'
 import SignupCanceledPage from './components/public/SignupCanceledPage'
 import TokushohoPage from './components/public/TokushohoPage'
 import SubscriptionGuard from './components/common/SubscriptionGuard'
+import ClientLoginPage from './components/client/ClientLoginPage'
+import ClientPortalApp from './components/client/ClientPortalApp'
 import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 
@@ -33,6 +35,12 @@ function MainApp() {
   // この判定を下に置くと「アカウント情報取得失敗」画面にリダイレクトされてパスワード再設定に辿り着けない）
   if (recoveryMode && session) {
     return <ResetPasswordPage onComplete={clearRecoveryMode} />
+  }
+
+  // クライアント・ロールは members プロフィールを持たない → 先に /client へ逃がす
+  // (これを profile チェックより前に置かないと「アカウント情報取得失敗」画面に吸われてしまう)
+  if (!loading && session && session.user?.user_metadata?.role === 'client') {
+    return <Navigate to="/client" replace />
   }
 
   // セッションはあるがプロフィール取得に失敗した場合 → ログイン画面に戻す
@@ -161,6 +169,8 @@ export default function App() {
       <Route path="/signup/complete" element={<SignupCompletePage />} />
       <Route path="/signup/canceled" element={<SignupCanceledPage />} />
       <Route path="/tokushoho" element={<TokushohoPage />} />
+      <Route path="/client/login" element={<ClientLoginPage />} />
+      <Route path="/client/*" element={<ClientPortalApp />} />
       <Route path="/*" element={<MainApp />} />
     </Routes>
   )

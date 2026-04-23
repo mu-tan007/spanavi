@@ -25,11 +25,41 @@ export default function ClientManagement({ onToast }) {
   const [sheetCreating, setSheetCreating] = useState(null); // client_id
   const [shareModal, setShareModal] = useState(null); // { client, defaultEmail }
 
+  const [invitingId, setInvitingId] = useState(null);
+
+  const handleInviteClientPortal = async (client) => {
+    const email = window.prompt(
+      `「${client.name}」のポータル閲覧用メールアドレスを入力してください。\n入力したメールに招待リンクが届きます。`
+    );
+    if (!email || !email.trim()) return;
+    setInvitingId(client.id);
+    try {
+      const redirectTo = `${window.location.origin}/client`;
+      const { data, error } = await supabase.functions.invoke('invite_client', {
+        body: { client_id: client.id, email: email.trim(), redirectTo },
+      });
+      if (error) {
+        onToast(data?.error || error.message || '招待に失敗しました', 'error');
+        return;
+      }
+      if (data?.error) {
+        onToast(data.error, 'error');
+        return;
+      }
+      onToast(`${email} に招待メールを送信しました`, 'success');
+      await load();
+    } catch (e) {
+      onToast(e?.message || '招待に失敗しました', 'error');
+    } finally {
+      setInvitingId(null);
+    }
+  };
+
   const load = async () => {
     setLoading(true);
     const { data: clientData, error } = await supabase
       .from('clients')
-      .select('id, name, created_at')
+      .select('id, name, created_at, auth_user_id')
       .eq('org_id', getOrgId())
       .order('name');
     if (error) { onToast('クライアントの取得に失敗しました', 'error'); setLoading(false); return; }
@@ -206,6 +236,17 @@ export default function ClientManagement({ onToast }) {
                         >📊 Sheets連携</button>
                       )}
                       <button onClick={() => { setEditClientId(client.id); setEditClientName(client.name); }} style={btn()}>名前編集</button>
+                      {client.auth_user_id ? (
+                        <span style={{ ...btn(), background: '#ECFDF5', color: '#065F46', borderColor: '#A7F3D0', cursor: 'default' }}>
+                          ポータル発行済
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleInviteClientPortal(client)}
+                          disabled={invitingId === client.id}
+                          style={btn('primary', { background: GOLD })}
+                        >{invitingId === client.id ? '送信中...' : 'ポータル招待'}</button>
+                      )}
                       <button onClick={() => setDeleteConfirm({ type: 'client', item: client })} style={btn('danger')}>削除</button>
                     </>
                   )}
