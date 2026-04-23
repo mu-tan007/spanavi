@@ -1805,27 +1805,6 @@ MASP 篠宮`}
                     {detailNavigating ? '検索中...' : '架電ページへ'}
                   </button>
                 )}
-                {!detailEditing && (
-                  detailDealId ? (
-                    <span style={{ padding: "4px 10px", fontSize: 11, color: 'rgba(255,255,255,0.75)', fontFamily: "'Noto Sans JP'" }}>
-                      Deal化済み
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={dealizing}
-                      onClick={handleDealize}
-                      style={{
-                        padding: "4px 12px", borderRadius: 4,
-                        border: "1px solid rgba(255,255,255,0.4)", background: "transparent",
-                        color: '#fff', cursor: dealizing ? "default" : "pointer",
-                        opacity: dealizing ? 0.6 : 1, fontSize: 11, fontFamily: "'Noto Sans JP'",
-                      }}
-                    >
-                      {dealizing ? '作成中...' : 'Deal化'}
-                    </button>
-                  )
-                )}
                 {!detailEditing ? (
                   <button onClick={() => { setDetailEditForm({ ...reportDetail, _idx: appoData.findIndex(a => a._supaId === reportDetail._supaId) }); setDetailEditing(true); }}
                     style={{ padding: "4px 12px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.4)", background: "transparent", color: '#fff', cursor: "pointer", fontSize: 11, fontFamily: "'Noto Sans JP'" }}>

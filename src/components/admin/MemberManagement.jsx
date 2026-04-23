@@ -249,9 +249,10 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
     });
   })();
 
-  const th = { padding: '8px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#ffffff', background: '#0D2247', borderBottom: '2px solid #0D2247' };
-  const thPad  = { 'ランク': '8px 2px 8px 6px', '入社日': '8px 6px 8px 2px' };
-  const td = { padding: '8px 16px', fontSize: 11, color: '#374151', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' };
+  // Sourcing Members ページとデザイン統一: クリーム背景の header + ネイビー文字
+  const th = { padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: NAVY, background: '#F8F8F8', letterSpacing: '0.04em' };
+  const thPad  = { 'ランク': '10px 6px', '入社日': '10px 6px' };
+  const td = { padding: '8px 16px', fontSize: 12, color: '#181818', borderBottom: '1px solid #F0F0F0', verticalAlign: 'middle' };
   const COLS = ['氏名', '役職', 'ランク', '入社日', 'ステータス', 'マイページ', '操作'];
 
   return (
@@ -301,9 +302,9 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                           onMouseEnter={() => setHoveredRow(m.id)}
                           onMouseLeave={() => setHoveredRow(null)}
                           style={{
-                            background: isEditing ? NAVY + '06' : hoveredRow === m.id ? '#EAF4FF' : idx % 2 === 0 ? '#fff' : '#F8F9FA',
-                            borderLeft: hoveredRow === m.id && !isEditing ? `3px solid ${NAVY}` : '3px solid transparent',
-                            transition: 'background 0.12s, border-color 0.12s',
+                            // Sourcing Members と同じ白背景 + ホバーのみ薄色
+                            background: isEditing ? NAVY + '06' : hoveredRow === m.id ? '#F8F8F8' : '#fff',
+                            transition: 'background 0.12s',
                           }}
                         >
                           <td style={{ ...td, textAlign: memCols[0].align, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><span style={{ fontWeight: 600 }}>{m.name}</span></td>

@@ -11,6 +11,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { C } from '../../constants/colors';
 import { useEngagements } from '../../hooks/useEngagements';
 import { useEngagementMembers } from '../../hooks/useMemberEngagements';
+import { invokeSyncZoomUsers } from '../../lib/supabaseWrite';
 import PageHeader from '../common/PageHeader';
 
 // 各事業タブの「Members」ページ。
@@ -19,10 +20,26 @@ import PageHeader from '../common/PageHeader';
 export default function EngagementMembersView({ engagementOverride, bleed = true, isAdmin = false }) {
   const { currentEngagement } = useEngagements();
   const engagement = engagementOverride || currentEngagement;
-  const { members, teamGroups, loading, applyTeamGroups } = useEngagementMembers(engagement?.id);
+  const { members, teamGroups, loading, applyTeamGroups, refresh } = useEngagementMembers(engagement?.id);
   const [filter, setFilter] = useState('');
   const [activeId, setActiveId] = useState(null);
   const [localGroups, setLocalGroups] = useState(null); // DnD 最中のオーバーレイ状態
+  const [zoomSyncing, setZoomSyncing] = useState(false);
+  const [zoomResult, setZoomResult] = useState(null);
+
+  const handleZoomSync = async () => {
+    setZoomSyncing(true);
+    setZoomResult(null);
+    const { data, error } = await invokeSyncZoomUsers();
+    setZoomSyncing(false);
+    if (error || !data) {
+      setZoomResult({ error: error?.message || 'Zoom Phone 連携に失敗しました' });
+      return;
+    }
+    setZoomResult(data);
+    await refresh?.();
+    setTimeout(() => setZoomResult(null), 5000);
+  };
 
   // filter が空のときは localGroups (DnD 中) を優先、そうでなければ teamGroups
   const workingGroups = localGroups || teamGroups;
@@ -137,6 +154,21 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
         description={canDrag
           ? `${members.length} 名。行をドラッグしてチーム間の移動・チーム内の並び替えができます`
           : `${members.length} 名 (入社日順)${isAdmin && filter.trim() ? ' — 検索中はドラッグ不可' : ''}`}
+        right={isAdmin ? (
+          <button
+            onClick={handleZoomSync}
+            disabled={zoomSyncing}
+            title="Zoom Phone の user_id をメンバーに紐付けます (新メンバー追加後に実行)"
+            style={{
+              padding: '7px 14px', fontSize: 12, fontWeight: 600,
+              background: C.navy, color: C.white,
+              border: 'none', borderRadius: 4,
+              cursor: zoomSyncing ? 'default' : 'pointer',
+              opacity: zoomSyncing ? 0.6 : 1,
+              fontFamily: "'Noto Sans JP',sans-serif",
+            }}
+          >{zoomSyncing ? '連携中...' : 'Zoom Phone 連携'}</button>
+        ) : null}
       >
         <input
           type="text"
@@ -150,6 +182,18 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
             marginTop: 12,
           }}
         />
+        {zoomResult && (
+          <div style={{
+            marginTop: 10, padding: '8px 10px', fontSize: 11, borderRadius: 3,
+            background: zoomResult.error ? '#FEF2F2' : '#ECFDF5',
+            color: zoomResult.error ? '#c0392b' : '#065F46',
+            border: `1px solid ${zoomResult.error ? '#FECACA' : '#A7F3D0'}`,
+          }}>
+            {zoomResult.error
+              ? `連携に失敗しました: ${zoomResult.error}`
+              : `✓ Zoom Phone 連携完了 (更新: ${(zoomResult.updated || []).length}件)`}
+          </div>
+        )}
       </PageHeader>
 
       <div style={{ padding: 16, overflowX: 'auto' }}>
@@ -209,8 +253,9 @@ function TeamBlock({ group, draggable }) {
             <th style={{ ...th, padding: '10px 4px' }}>入社日</th>
             <th style={{ ...th, textAlign: 'left' }}>氏名</th>
             <th style={{ ...th, textAlign: 'left' }}>ポジション</th>
-            <th style={{ ...th, textAlign: 'left' }}>メール</th>
             <th style={th}>ランク</th>
+            <th style={th}>累計売上</th>
+            <th style={th}>インセンティブ率</th>
           </tr>
         </thead>
         <tbody>
@@ -281,8 +326,13 @@ function MemberRowCells({ m }) {
         </div>
       </td>
       <td style={{ ...td, textAlign: 'left', color: C.textMid }}>{m.position || '—'}</td>
-      <td style={{ ...td, textAlign: 'left', color: C.textMid, fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>{m.email || '—'}</td>
       <td style={{ ...td, color: C.textMid, textAlign: 'center' }}>{m.rank || '—'}</td>
+      <td style={{ ...td, textAlign: 'right', color: C.textDark, fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: 'tabular-nums' }}>
+        {m.cumulative_sales ? `¥${Number(m.cumulative_sales).toLocaleString()}` : '—'}
+      </td>
+      <td style={{ ...td, textAlign: 'right', color: C.textMid, fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: 'tabular-nums' }}>
+        {m.incentive_rate != null ? `${m.incentive_rate}%` : '—'}
+      </td>
     </>
   );
 }
