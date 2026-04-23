@@ -3,8 +3,12 @@ import { supabase } from '../../lib/supabase';
 import { C } from '../../constants/colors';
 
 // クライアント・ポータルのログイン画面。社内ログイン (/login) とは別 URL。
+// Supabase Auth は email+password なので、ユーザー ID を受け取って内部で
+// {username}@portal.spanavi.local に合成してサインインする。
+const EMAIL_DOMAIN = 'portal.spanavi.local';
+
 export default function ClientLoginPage() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -13,13 +17,15 @@ export default function ClientLoginPage() {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
+    const uname = username.trim().toLowerCase();
+    // 入力が既に email 形式ならそのまま使う (旧招待メールアカウント互換)
+    const email = uname.includes('@') ? uname : `${uname}@${EMAIL_DOMAIN}`;
     const { data, error: authErr } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
+      email, password,
     });
     setSubmitting(false);
     if (authErr) {
-      setError(authErr.message || 'ログインに失敗しました');
+      setError('ID またはパスワードが正しくありません');
       return;
     }
     const role = data?.user?.user_metadata?.role;
@@ -28,7 +34,6 @@ export default function ClientLoginPage() {
       setError('このアカウントはクライアント・ポータル用ではありません。');
       return;
     }
-    // サーバー側 (RLS) で client 参照を再確認してから遷移
     window.location.href = '/client';
   };
 
@@ -45,14 +50,15 @@ export default function ClientLoginPage() {
           Spanavi ログイン
         </h1>
         <p style={{ fontSize: 11, color: C.textMid, marginBottom: 20 }}>
-          招待メールに記載のメールアドレスと、初回設定時のパスワードでログインしてください。
+          発行されたユーザー ID とパスワードでログインしてください。
         </p>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <label style={{ fontSize: 11, color: C.textMid }}>メールアドレス
+          <label style={{ fontSize: 11, color: C.textMid }}>ユーザー ID
             <input
-              type="email" required autoComplete="email"
-              value={email} onChange={e => setEmail(e.target.value)}
+              type="text" required autoCapitalize="none" autoComplete="username"
+              value={username} onChange={e => setUsername(e.target.value)}
+              placeholder="例: fullerene2026"
               style={inputStyle}
             />
           </label>
@@ -78,9 +84,6 @@ export default function ClientLoginPage() {
           >{submitting ? 'ログイン中...' : 'ログイン'}</button>
         </form>
 
-        <div style={{ marginTop: 16, fontSize: 10, color: C.textLight, textAlign: 'center' }}>
-          招待リンクからパスワードを未設定の場合は、メール内のリンクをご利用ください。
-        </div>
         <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.border}`, fontSize: 11, color: C.textMid, textAlign: 'center' }}>
           社内メンバー (MASP) の方は <a href="/login" style={{ color: C.navyLight, textDecoration: 'underline' }}>こちらからログイン</a>
         </div>

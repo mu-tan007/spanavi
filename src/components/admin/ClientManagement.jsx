@@ -25,54 +25,44 @@ export default function ClientManagement({ onToast }) {
   const [sheetCreating, setSheetCreating] = useState(null); // client_id
   const [shareModal, setShareModal] = useState(null); // { client, defaultEmail }
 
-  const [invitingId, setInvitingId] = useState(null);
+  // ポータル認証発行モーダル: { client, mode: 'create'|'reset' }
+  const [credentialsModal, setCredentialsModal] = useState(null);
+  // 発行結果 (admin に表示するだけ、DB には保存しない)
+  const [issuedCredentials, setIssuedCredentials] = useState(null);
 
-  const handleInviteClientPortal = async (client) => {
-    const email = window.prompt(
-      `「${client.name}」のポータル閲覧用メールアドレスを入力してください。\n入力したメールに招待リンクが届きます。`
-    );
-    if (!email || !email.trim()) return;
-    setInvitingId(client.id);
-    try {
-      const redirectTo = `${window.location.origin}/client`;
-      // FunctionsHttpError のボディを確実に取るため、明示的に session token を付けて fetch する
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite_client`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify({ client_id: client.id, email: email.trim(), redirectTo }),
-      });
-      const text = await res.text();
-      let body = null;
-      try { body = text ? JSON.parse(text) : null; } catch { /* ignore */ }
-      if (!res.ok) {
-        const msg = body?.error || text || `HTTP ${res.status}`;
-        // eslint-disable-next-line no-console
-        console.error('[invite_client] error', res.status, body || text);
-        onToast(msg, 'error');
-        return;
-      }
-      onToast(`${email} に招待メールを送信しました`, 'success');
-      await load();
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('[invite_client] exception', e);
-      onToast(e?.message || '招待に失敗しました', 'error');
-    } finally {
-      setInvitingId(null);
-    }
+  // クライアント名から ID 候補を作る簡易ローマ字化 (admin が編集する前提)
+  const suggestUsername = (name) => {
+    if (!name) return '';
+    // 全角英数 → 半角、英字と数字だけ抜き出す
+    const ascii = name.normalize('NFKC').toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+    return (ascii || 'client') + '2026';
+  };
+
+  const callCredsFn = async (body) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create_client_credentials`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(body),
+    });
+    const text = await res.text();
+    let payload = null;
+    try { payload = text ? JSON.parse(text) : null; } catch { /* ignore */ }
+    if (!res.ok) throw new Error(payload?.error || text || `HTTP ${res.status}`);
+    return payload;
   };
 
   const load = async () => {
     setLoading(true);
     const { data: clientData, error } = await supabase
       .from('clients')
-      .select('id, name, created_at, auth_user_id')
+      .select('id, name, created_at, auth_user_id, portal_username')
       .eq('org_id', getOrgId())
       .order('name');
     if (error) { onToast('クライアントの取得に失敗しました', 'error'); setLoading(false); return; }
@@ -250,15 +240,16 @@ export default function ClientManagement({ onToast }) {
                       )}
                       <button onClick={() => { setEditClientId(client.id); setEditClientName(client.name); }} style={btn()}>名前編集</button>
                       {client.auth_user_id ? (
-                        <span style={{ ...btn(), background: '#ECFDF5', color: '#065F46', borderColor: '#A7F3D0', cursor: 'default' }}>
-                          ポータル発行済
-                        </span>
+                        <button
+                          onClick={() => setCredentialsModal({ client, mode: 'reset' })}
+                          style={btn()}
+                          title={`ID: ${client.portal_username || '(設定なし)'}`}
+                        >パスワード再発行</button>
                       ) : (
                         <button
-                          onClick={() => handleInviteClientPortal(client)}
-                          disabled={invitingId === client.id}
+                          onClick={() => setCredentialsModal({ client, mode: 'create' })}
                           style={btn('primary', { background: GOLD })}
-                        >{invitingId === client.id ? '送信中...' : 'ポータル招待'}</button>
+                        >ポータル発行</button>
                       )}
                       <button onClick={() => setDeleteConfirm({ type: 'client', item: client })} style={btn('danger')}>削除</button>
                     </>
@@ -347,6 +338,165 @@ export default function ClientManagement({ onToast }) {
           </div>
         </div>
       )}
+
+      {credentialsModal && (
+        <CredentialsModal
+          client={credentialsModal.client}
+          mode={credentialsModal.mode}
+          suggestUsername={suggestUsername}
+          onClose={() => { setCredentialsModal(null); setIssuedCredentials(null); }}
+          onIssue={async (payload) => {
+            try {
+              const result = await callCredsFn(payload);
+              setIssuedCredentials({
+                username: result.username,
+                password: result.password,
+                clientName: credentialsModal.client.name,
+                mode: credentialsModal.mode,
+              });
+              await load();
+            } catch (e) {
+              onToast(e?.message || '発行に失敗しました', 'error');
+            }
+          }}
+          issued={issuedCredentials}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── ポータル認証発行モーダル ──────────────────────────────
+function CredentialsModal({ client, mode, suggestUsername, onClose, onIssue, issued }) {
+  const [username, setUsername] = useState(mode === 'create' ? suggestUsername(client.name) : (client.portal_username || ''));
+  const [customPw, setCustomPw] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const copied = (text) => navigator.clipboard?.writeText(text);
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    const body = { client_id: client.id };
+    if (mode === 'create') body.username = username.trim();
+    if (mode === 'reset')  body.reset = true;
+    if (customPw.trim()) body.password = customPw.trim();
+    await onIssue(body);
+    setSubmitting(false);
+  };
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: '#fff', borderRadius: 4, width: '100%', maxWidth: 480,
+        boxShadow: '0 12px 40px rgba(0,0,0,0.25)',
+      }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid #E5E5E5' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#0D2247' }}>
+            {mode === 'create' ? 'ポータル・アカウント発行' : 'パスワード再発行'}
+          </div>
+          <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{client.name}</div>
+        </div>
+
+        {!issued ? (
+          <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ fontSize: 11, color: '#6B7280' }}>
+              {mode === 'create'
+                ? 'ユーザー ID とパスワードを発行します。発行後の画面でコピーし、クライアントにお伝えください (メールは送信されません)。'
+                : `現在の ID「${client.portal_username || '(未設定)'}」はそのままで、新しいパスワードを発行します。`}
+            </div>
+
+            {mode === 'create' && (
+              <label style={{ fontSize: 11, color: '#374151' }}>
+                ユーザー ID (半角英小文字+数字+ . _ -)
+                <input
+                  value={username}
+                  onChange={e => setUsername(e.target.value.toLowerCase())}
+                  placeholder="例: fullerene2026"
+                  style={{
+                    display: 'block', width: '100%', marginTop: 4,
+                    padding: '8px 10px', fontSize: 13,
+                    border: '1px solid #E5E5E5', borderRadius: 3, fontFamily: "'JetBrains Mono',monospace",
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </label>
+            )}
+
+            <label style={{ fontSize: 11, color: '#374151' }}>
+              パスワード (空欄なら自動生成・推奨)
+              <input
+                type="text"
+                value={customPw}
+                onChange={e => setCustomPw(e.target.value)}
+                placeholder="自動生成する場合は空欄のまま"
+                style={{
+                  display: 'block', width: '100%', marginTop: 4,
+                  padding: '8px 10px', fontSize: 13,
+                  border: '1px solid #E5E5E5', borderRadius: 3, fontFamily: "'JetBrains Mono',monospace",
+                  boxSizing: 'border-box',
+                }}
+              />
+            </label>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+              <button onClick={onClose} disabled={submitting}
+                style={{ padding: '7px 14px', border: '1px solid #E5E5E5', background: '#fff', color: '#374151', borderRadius: 4, fontSize: 12, cursor: 'pointer' }}>
+                キャンセル
+              </button>
+              <button onClick={handleSubmit} disabled={submitting || (mode === 'create' && !username)}
+                style={{
+                  padding: '7px 18px', border: 'none', background: '#0D2247', color: '#fff',
+                  borderRadius: 4, fontSize: 12, fontWeight: 600,
+                  cursor: submitting ? 'default' : 'pointer',
+                  opacity: submitting || (mode === 'create' && !username) ? 0.5 : 1,
+                }}>
+                {submitting ? '処理中...' : mode === 'create' ? '発行' : 'パスワード再発行'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ fontSize: 12, color: '#065F46', background: '#ECFDF5', padding: '8px 12px', borderRadius: 4, border: '1px solid #A7F3D0' }}>
+              ✓ {issued.mode === 'create' ? 'アカウントを発行しました' : 'パスワードを更新しました'}。以下をクライアントへお伝えください。この画面を閉じた後は再表示できません (再発行は可能)。
+            </div>
+            <CopyRow label="ログイン URL" value={`${window.location.origin}/client/login`} onCopy={copied} />
+            <CopyRow label="ユーザー ID" value={issued.username} onCopy={copied} />
+            <CopyRow label="パスワード"  value={issued.password} onCopy={copied} />
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+              <button onClick={onClose}
+                style={{ padding: '7px 18px', border: 'none', background: '#0D2247', color: '#fff', borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                閉じる
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CopyRow({ label, value, onCopy }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div>
+      <div style={{ fontSize: 10, color: '#6B7280', marginBottom: 4 }}>{label}</div>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'stretch' }}>
+        <input readOnly value={value}
+          onClick={e => e.currentTarget.select()}
+          style={{
+            flex: 1, padding: '7px 10px', fontSize: 12, fontFamily: "'JetBrains Mono',monospace",
+            border: '1px solid #E5E5E5', borderRadius: 3, background: '#F9FAFB', boxSizing: 'border-box',
+          }} />
+        <button onClick={() => { onCopy(value); setCopied(true); setTimeout(() => setCopied(false), 1200); }}
+          style={{
+            padding: '0 12px', fontSize: 11, fontWeight: 600,
+            background: copied ? '#10B981' : '#fff', color: copied ? '#fff' : '#374151',
+            border: '1px solid ' + (copied ? '#10B981' : '#E5E5E5'),
+            borderRadius: 3, cursor: 'pointer',
+          }}>{copied ? '✓ コピー済' : 'コピー'}</button>
+      </div>
     </div>
   );
 }
