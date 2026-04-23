@@ -124,7 +124,7 @@ export default function SourcingDashboardView({
     load();
   }, [engagementId, todayStr, weekStart, monthStart]);
 
-  const aggScope = (rankingRows) => {
+  const aggScope = useCallback((rankingRows) => {
     // 組織全体は退職者含む全件（members フィルタなし）
     let filtered;
     if (scope.type === 'org') {
@@ -137,11 +137,11 @@ export default function SourcingDashboardView({
     const ceoConnect = filtered.reduce((s, r) => s + Number(r.ceo_connect || 0), 0);
     const appo = filtered.reduce((s, r) => s + Number(r.appo || 0), 0);
     return { total, ceoConnect, appo };
-  };
+  }, [scope, members]);
 
-  const todayAgg = useMemo(() => aggScope(ranking.today), [ranking.today, scope, members]);
-  const weekAgg = useMemo(() => aggScope(ranking.week), [ranking.week, scope, members]);
-  const monthAgg = useMemo(() => aggScope(ranking.month), [ranking.month, scope, members]);
+  const todayAgg = useMemo(() => aggScope(ranking.today), [ranking.today, aggScope]);
+  const weekAgg = useMemo(() => aggScope(ranking.week), [ranking.week, aggScope]);
+  const monthAgg = useMemo(() => aggScope(ranking.month), [ranking.month, aggScope]);
 
   // アポ・売上・インセンティブ（appoData + payroll）
   const scopedAppos = useMemo(() => {
@@ -184,10 +184,14 @@ export default function SourcingDashboardView({
   const [goalModalOpen, setGoalModalOpen] = useState(false);
 
   // ---- 社長再コール超過 / 社長お断り14日経過 ----
-  const [overdueRecalls, setOverdueRecalls] = useState([]);
-  const [oldRejections, setOldRejections] = useState([]);
+  // rawデータは日替わりでだけ再フェッチ、now更新では再実行しない（毎分 heavy fetch を防ぐ）
+  const [recallRaw, setRecallRaw] = useState([]);
+  const [rejectionsRaw, setRejectionsRaw] = useState([]);
+  const [recallLoading, setRecallLoading] = useState(true);
+
   useEffect(() => {
     let cancelled = false;
+    setRecallLoading(true);
     const load = async () => {
       // アーカイブ済リストを除外するため、非アーカイブのリストIDセットを取得
       const { data: activeLists } = await supabase
@@ -196,40 +200,26 @@ export default function SourcingDashboardView({
         .or('is_archived.is.null,is_archived.eq.false');
       const activeListIds = new Set((activeLists || []).map(l => l.id));
 
-      // 社長再コール超過
-      const { data: recallRows } = await fetchAllRecallRecords();
-      const nowMs = now.getTime();
-      const overdue = (recallRows || []).filter(r => {
-        if (r.status !== '社長再コール') return false;
-        if (!activeListIds.has(r.list_id)) return false; // アーカイブ済リストを除外
-        const d = r._memoObj?.recall_date;
-        const t = r._memoObj?.recall_time || '00:00';
-        if (!d) return false;
-        const due = new Date(`${d}T${t}:00+09:00`).getTime();
-        return due < nowMs;
-      }).sort((a, b) => {
-        const ad = `${a._memoObj?.recall_date} ${a._memoObj?.recall_time || ''}`;
-        const bd = `${b._memoObj?.recall_date} ${b._memoObj?.recall_time || ''}`;
-        return ad.localeCompare(bd);
-      });
+      const [{ data: recallRows }, rejRowsRes] = await Promise.all([
+        fetchAllRecallRecords(),
+        supabase
+          .from('call_records')
+          .select('id, item_id, list_id, status, called_at, getter_name, memo')
+          .eq('status', '社長お断り')
+          .order('called_at', { ascending: false })
+          .limit(500),
+      ]);
 
-      // 社長お断り14日経過
-      const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
-      const { data: rejRows } = await supabase
-        .from('call_records')
-        .select('id, item_id, list_id, status, called_at, getter_name, memo')
-        .eq('status', '社長お断り')
-        .lte('called_at', fourteenDaysAgo)
-        .order('called_at', { ascending: false })
-        .limit(500);
+      // 再コール: アーカイブ外のみ、かつ 社長再コール のみ
+      const recallFiltered = (recallRows || []).filter(r =>
+        r.status === '社長再コール' && activeListIds.has(r.list_id) && r._memoObj?.recall_date
+      );
 
-      // アーカイブ済リストを除外
-      const filteredRejRows = (rejRows || []).filter(r => activeListIds.has(r.list_id));
-
-      // item_id / list_id の展開
-      const rejItemIds = [...new Set(filteredRejRows.map(r => r.item_id).filter(Boolean))];
-      const rejListIds = [...new Set(filteredRejRows.map(r => r.list_id).filter(Boolean))];
-      let itemMap = {}, listMap = {}, clientMap = {};
+      // お断り: アーカイブ外 + item/list 展開
+      const rejFiltered = (rejRowsRes.data || []).filter(r => activeListIds.has(r.list_id));
+      const rejItemIds = [...new Set(rejFiltered.map(r => r.item_id).filter(Boolean))];
+      const rejListIds = [...new Set(rejFiltered.map(r => r.list_id).filter(Boolean))];
+      let itemMap = {}, listMap = {};
       if (rejItemIds.length) {
         const { data: items } = await supabase.from('call_list_items')
           .select('id, company, phone, representative').in('id', rejItemIds);
@@ -237,35 +227,51 @@ export default function SourcingDashboardView({
       }
       if (rejListIds.length) {
         const { data: lists } = await supabase.from('call_lists')
-          .select('id, name, client_id, industry').in('id', rejListIds);
+          .select('id, name').in('id', rejListIds);
         (lists || []).forEach(l => { listMap[l.id] = l; });
-        const cids = [...new Set(Object.values(listMap).map(l => l.client_id).filter(Boolean))];
-        if (cids.length) {
-          const { data: clients } = await supabase.from('clients').select('id, name').in('id', cids);
-          (clients || []).forEach(c => { clientMap[c.id] = c; });
-        }
       }
-      const rejections = filteredRejRows.map(r => ({
+      const rejections = rejFiltered.map(r => ({
         id: r.id,
         item_id: r.item_id,
         list_id: r.list_id,
         company: itemMap[r.item_id]?.company || '—',
-        phone: itemMap[r.item_id]?.phone || '',
-        representative: itemMap[r.item_id]?.representative || '',
         list_name: listMap[r.list_id]?.name || '',
-        client_name: clientMap[listMap[r.list_id]?.client_id]?.name || '',
         getter_name: r.getter_name || '',
         called_at: r.called_at,
       }));
 
       if (!cancelled) {
-        setOverdueRecalls(overdue);
-        setOldRejections(rejections);
+        setRecallRaw(recallFiltered);
+        setRejectionsRaw(rejections);
+        setRecallLoading(false);
       }
     };
     load();
     return () => { cancelled = true; };
-  }, [now]);
+    // 日替わりでだけ再取得
+  }, [todayStr]);
+
+  // 期限・経過日の判定は now ベースで安価に派生計算
+  const overdueRecalls = useMemo(() => {
+    const nowMs = now.getTime();
+    return recallRaw
+      .filter(r => {
+        const d = r._memoObj?.recall_date;
+        const t = r._memoObj?.recall_time || '00:00';
+        const due = new Date(`${d}T${t}:00+09:00`).getTime();
+        return due < nowMs;
+      })
+      .sort((a, b) => {
+        const ad = `${a._memoObj?.recall_date} ${a._memoObj?.recall_time || ''}`;
+        const bd = `${b._memoObj?.recall_date} ${b._memoObj?.recall_time || ''}`;
+        return ad.localeCompare(bd);
+      });
+  }, [recallRaw, now]);
+
+  const oldRejections = useMemo(() => {
+    const cutoff = now.getTime() - 14 * 24 * 60 * 60 * 1000;
+    return rejectionsRaw.filter(r => new Date(r.called_at).getTime() <= cutoff);
+  }, [rejectionsRaw, now]);
 
   // ---- おすすめリスト TOP4 ----
   const topLists = useMemo(() => {
@@ -337,7 +343,7 @@ export default function SourcingDashboardView({
         }}>
           <TodayCard label="架電件数" actual={todayAgg.total} goal={getGoal('calls', 'daily')} unit="件" />
           <TodayCard label="社長接続数" actual={todayAgg.ceoConnect} goal={getGoal('connections', 'daily')} unit="件" />
-          <TodayCard label="アポ獲得数" actual={todayAppo} goal={getGoal('appointments', 'daily')} unit="件" />
+          <TodayCard label="アポ獲得数" actual={todayAgg.appo} goal={getGoal('appointments', 'daily')} unit="件" />
         </div>
       </div>
 
@@ -355,7 +361,7 @@ export default function SourcingDashboardView({
           rows={[
             { kpi: 'calls', label: '架電件数', weekActual: weekAgg.total, monthActual: monthAgg.total, money: false },
             { kpi: 'connections', label: '社長接続数', weekActual: weekAgg.ceoConnect, monthActual: monthAgg.ceoConnect, money: false },
-            { kpi: 'appointments', label: 'アポ獲得数', weekActual: appoInPeriod(weekStart, todayStr), monthActual: appoInPeriod(monthStart, todayStr), money: false },
+            { kpi: 'appointments', label: 'アポ獲得数', weekActual: weekAgg.appo, monthActual: monthAgg.appo, money: false },
             { kpi: 'sales', label: '売上', weekActual: weekSales, monthActual: monthSales, money: true },
             { kpi: 'incentive', label: 'インセンティブ', weekActual: weekIncentive, monthActual: monthIncentive, money: true },
           ]}
@@ -394,6 +400,7 @@ export default function SourcingDashboardView({
       <CollapsibleList
         title="社長再コール超過"
         items={overdueRecalls}
+        loading={recallLoading}
         emptyText="再コール超過はありません。"
         render={(r, i) => (
           <div key={r.id || i} style={rowStyle}>
@@ -428,6 +435,7 @@ export default function SourcingDashboardView({
       <CollapsibleList
         title="社長お断り 14日経過（再アプローチ候補）"
         items={oldRejections}
+        loading={recallLoading}
         emptyText="該当なし。"
         render={(r, i) => (
           <div key={r.id || i} style={rowStyle}>
@@ -605,7 +613,7 @@ function TopListCard({ list, onClick }) {
   );
 }
 
-function CollapsibleList({ title, items, emptyText, render }) {
+function CollapsibleList({ title, items, emptyText, render, loading }) {
   const [open, setOpen] = useState(false);
   const initial = 15;
   const shown = open ? items : items.slice(0, initial);
@@ -613,9 +621,12 @@ function CollapsibleList({ title, items, emptyText, render }) {
     <div style={{ background: C.white, border: '1px solid #E5E7EB', borderRadius: 4, marginBottom: 12, padding: '14px 20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>
-          {title} <span style={{ fontSize: 11, fontWeight: 400, color: C.textLight, marginLeft: 6 }}>{items.length}件</span>
+          {title}{' '}
+          <span style={{ fontSize: 11, fontWeight: 400, color: C.textLight, marginLeft: 6 }}>
+            {loading ? '読み込み中…' : `${items.length}件`}
+          </span>
         </div>
-        {items.length > initial && (
+        {!loading && items.length > initial && (
           <button onClick={() => setOpen(v => !v)}
             style={{
               padding: '4px 10px', fontSize: 11, fontWeight: 600,
@@ -624,12 +635,17 @@ function CollapsibleList({ title, items, emptyText, render }) {
             }}>{open ? '閉じる' : `さらに${items.length - initial}件表示`}</button>
         )}
       </div>
-      {items.length === 0 && (
+      {loading ? (
+        <div style={{ padding: 12, textAlign: 'center', color: C.textLight, fontSize: 12 }}>
+          読み込み中…
+        </div>
+      ) : items.length === 0 ? (
         <div style={{ padding: 12, textAlign: 'center', color: C.textLight, fontSize: 12 }}>
           {emptyText}
         </div>
+      ) : (
+        shown.map(render)
       )}
-      {shown.map(render)}
     </div>
   );
 }
