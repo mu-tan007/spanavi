@@ -1,7 +1,7 @@
 import React from 'react';
 import SidebarShell, { ActiveItem, DisabledItem, SectionHeader } from './SidebarShell';
 
-const MASP_VIEW_IDS = new Set(['database', 'all_members']);
+const MASP_VIEW_IDS = new Set(['database', 'all_members', 'admin_settings']);
 
 export default function MASPSidebar({
   currentTab,
@@ -11,6 +11,7 @@ export default function MASPSidebar({
   currentMemberAvatar,
   onUserClick,
   onLogout,
+  isAdmin = false,
 }) {
   const sections = [
     {
@@ -22,14 +23,13 @@ export default function MASPSidebar({
         { id: 'global_analytics', label: '全社Analytics', enabled: false },
       ],
     },
-    {
+    // admin だけ「設定」セクションを表示
+    ...(isAdmin ? [{
       label: '設定',
       items: [
-        { id: 'branding', label: 'Branding', enabled: false },
-        { id: 'billing', label: 'Billing', enabled: false },
-        { id: 'integrations', label: 'Integrations', enabled: false },
+        { id: 'admin_settings', label: 'Admin Settings', enabled: true },
       ],
-    },
+    }] : []),
   ];
 
   return (

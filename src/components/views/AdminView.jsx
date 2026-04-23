@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../lib/supabase';
 import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from '../../lib/pushNotification';
@@ -12,6 +12,7 @@ import RewardMasterView from './RewardMasterView';
 import MyPageView from './MyPageView';
 import GoalSettingsPanel from '../admin/GoalSettingsPanel';
 import PageHeader from '../common/PageHeader';
+import { useEngagements } from '../../hooks/useEngagements';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
@@ -58,6 +59,27 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
   };
   const [viewingMember, setViewingMember] = useState(null); // マイページモーダル用
   const [toasts, setToasts] = useState([]);
+
+  // 事業セレクタ (各タブの設定は事業ごとに独立)
+  const { engagements } = useEngagements();
+  const selectableEngagements = useMemo(
+    () => (engagements || []).filter(e => e.slug !== 'masp').sort((a, b) => (a.display_order || 0) - (b.display_order || 0)),
+    [engagements]
+  );
+  const [selectedEngagementId, setSelectedEngagementId] = useState(() => {
+    try { return localStorage.getItem('admin_selectedEngagementId') || null; } catch { return null; }
+  });
+  // 事業リスト取得後、未選択なら 1 番最初の事業 (通常 Sourcing) を自動選択
+  useEffect(() => {
+    if (!selectedEngagementId && selectableEngagements.length > 0) {
+      setSelectedEngagementId(selectableEngagements[0].id);
+    }
+  }, [selectableEngagements, selectedEngagementId]);
+  const handleSelectEngagement = (id) => {
+    setSelectedEngagementId(id);
+    try { localStorage.setItem('admin_selectedEngagementId', id); } catch {}
+  };
+  const selectedEngagement = selectableEngagements.find(e => e.id === selectedEngagementId) || null;
 
   // Push notification state
   const [pushEnabled, setPushEnabled] = useState(false);
@@ -160,6 +182,37 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
           </>
         }
       />
+
+      {/* 事業セレクタ (設定は事業ごとに独立) */}
+      {selectableEngagements.length > 0 && (
+        <div style={{
+          background: '#fff', border: '1px solid #E5E5E5', borderRadius: 4,
+          padding: '10px 16px', marginBottom: 12,
+          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+        }}>
+          <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 600 }}>対象事業:</span>
+          {selectableEngagements.map(e => {
+            const active = selectedEngagementId === e.id;
+            return (
+              <button
+                key={e.id}
+                onClick={() => handleSelectEngagement(e.id)}
+                style={{
+                  padding: '5px 14px', fontSize: 12,
+                  background: active ? NAVY : '#fff',
+                  color: active ? '#fff' : '#6B7280',
+                  border: `1px solid ${active ? NAVY : '#E5E5E5'}`,
+                  borderRadius: 4, cursor: 'pointer', fontWeight: active ? 600 : 400,
+                  fontFamily: "'Noto Sans JP',sans-serif",
+                }}
+              >{e.name}</button>
+            );
+          })}
+          <span style={{ fontSize: 10, color: '#9CA3AF', marginLeft: 'auto' }}>
+            ※ 各タブの設定はこの事業スコープで適用されます
+          </span>
+        </div>
+      )}
 
       {/* タブバー */}
       <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #E5E5E5', background: '#fff', borderRadius: '4px 4px 0 0', overflow: isMobile ? 'auto' : 'hidden', marginBottom: 0 }}>

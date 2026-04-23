@@ -350,7 +350,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
-  const _VALID_TABS = ["live","incoming","lists","appo","precheck","deals","crm","members","goals","search","stats","recall","payroll","shift","rules","database","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin","applications","deals_career","all_members","members_career"];
+  const _VALID_TABS = ["live","incoming","lists","appo","precheck","deals","crm","members","goals","search","stats","recall","payroll","shift","rules","database","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin","applications","deals_career","all_members","members_career","admin_settings"];
   const [currentTab, setCurrentTab] = useState(() => {
     try {
       const saved = localStorage.getItem("masp_v2_currentTab");
@@ -768,6 +768,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
             currentMemberAvatar={_avatar}
             onUserClick={_onUserClick}
             onLogout={_onLogout}
+            isAdmin={isAdmin}
           />
         );
         if (engSlug === 'spartia_career') return (
@@ -1112,10 +1113,24 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {/* key で engSlug+currentTab が変わるたびに DOM を強制再マウント。
             各 View の fadeIn が (engagement 切替含め) 必ず再生される。 */}
         <div key={`${engSlug}:${currentTab}`}>
-        {engSlug === 'masp' && !['database','mypage','all_members'].includes(currentTab) && (
+        {engSlug === 'masp' && !['database','mypage','all_members','admin_settings'].includes(currentTab) && (
           <EngagementComingSoon title="MASP" subtitle="この画面は準備中です" />
         )}
         {engSlug === 'masp' && currentTab === 'all_members' && <MASPMembersView isAdmin={isAdmin} />}
+        {engSlug === 'masp' && currentTab === 'admin_settings' && isAdmin && (
+          <AdminView
+            isAdmin={isAdmin}
+            setCurrentTab={setCurrentTab}
+            rewardMaster={rewardMaster}
+            setRewardMaster={setRewardMaster}
+            members={members}
+            appoData={appoData}
+            now={now}
+            onDataRefetch={onDataRefetch}
+            userId={userId}
+            orgId={orgId}
+          />
+        )}
         {engSlug === 'spartia_career' && currentTab === 'applications' && <ApplicationsView />}
         {engSlug === 'spartia_career' && currentTab === 'deals_career' && <CareerDealsView />}
         {engSlug === 'spartia_career' && currentTab === 'members_career' && <EngagementMembersView isAdmin={isAdmin} />}
@@ -1147,8 +1162,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
         {currentTab === "database" && <DatabaseView isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView onBack={() => setCurrentTab('lists')} />}
-        {currentTab === "mypage" && isAdmin && <AdminView isAdmin={isAdmin} setCurrentTab={setCurrentTab} rewardMaster={rewardMaster} setRewardMaster={setRewardMaster} members={members} appoData={appoData} now={now} onDataRefetch={onDataRefetch} userId={userId} orgId={orgId} />}
-        {currentTab === "mypage" && !isAdmin && <MyPageView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} />}
+        {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} />}
         {currentTab === "edu_performance" && <PerformanceView members={members} currentUser={currentUser} appoData={appoData} />}
         {currentTab === "edu_script" && <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
         {currentTab === "edu_rules" && <InternRulesView />}
