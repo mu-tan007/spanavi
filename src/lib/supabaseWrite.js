@@ -906,13 +906,22 @@ export async function deleteCallListItemsByListId(listId) {
 }
 
 export async function fetchAllRecallRecords() {
-  const { data: records, error } = await supabase
-    .from('call_records')
-    .select('*')
-    .in('status', ['受付再コール', '社長再コール'])
-    .order('called_at', { ascending: false })
-    .limit(10000)
-  if (error) { console.error('[DB] fetchAllRecallRecords error:', error); return { data: [], error } }
+  // .limit(10000) は PostgREST max_rows (1000) で頭打ち → range で全件ページ取得
+  const PAGE = 1000
+  const records = []
+  let from = 0
+  while (true) {
+    const { data, error } = await supabase
+      .from('call_records')
+      .select('*')
+      .in('status', ['受付再コール', '社長再コール'])
+      .order('called_at', { ascending: false })
+      .range(from, from + PAGE - 1)
+    if (error) { console.error('[DB] fetchAllRecallRecords error:', error); return { data: records, error } }
+    records.push(...(data || []))
+    if ((data || []).length < PAGE) break
+    from += PAGE
+  }
 
   // フィルタ1: memo.recall_completed === true のものを除外
   const memoFiltered = (records || []).filter(r => {
@@ -1335,13 +1344,30 @@ export async function fetchCallListItemsByIds(itemIds) {
 
 export async function fetchCallRecordsByItemIds(itemIds) {
   if (!itemIds?.length) return { data: [], error: null }
-  const { data, error } = await supabase
-    .from('call_records')
-    .select('*')
-    .in('item_id', itemIds)
-    .order('round')
-  if (error) console.error('[DB] fetchCallRecordsByItemIds error:', error)
-  return { data: data || [], error }
+  // in() 自体の URL 長対策 + PostgREST max_rows (1000) 回避
+  const IN_CHUNK = 200
+  const PAGE = 1000
+  const all = []
+  for (let i = 0; i < itemIds.length; i += IN_CHUNK) {
+    const idsChunk = itemIds.slice(i, i + IN_CHUNK)
+    let from = 0
+    while (true) {
+      const { data, error } = await supabase
+        .from('call_records')
+        .select('*')
+        .in('item_id', idsChunk)
+        .order('round')
+        .range(from, from + PAGE - 1)
+      if (error) {
+        console.error('[DB] fetchCallRecordsByItemIds error:', error)
+        return { data: all, error }
+      }
+      all.push(...(data || []))
+      if ((data || []).length < PAGE) break
+      from += PAGE
+    }
+  }
+  return { data: all, error: null }
 }
 
 export async function updateCallListScript(supaId, scriptBody) {

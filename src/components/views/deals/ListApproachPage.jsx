@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { C } from '../../../constants/colors';
-import { supabase } from '../../../lib/supabase';
+import { fetchAllRpc } from '../../../lib/fetchAllRpc';
 
 const PAGE_SIZE = 100;
 
@@ -18,9 +18,12 @@ export default function ListApproachPage({ list, orgId, onBack }) {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .rpc('sourcing_list_approach_detail', { p_list_id: list.list_id, p_org_id: orgId })
-        .range(0, 99999);
+      // PostgREST の max_rows (1000) を超える件数も取得するため chunk 連続 fetch
+      const { data, error } = await fetchAllRpc(
+        'sourcing_list_approach_detail',
+        { p_list_id: list.list_id, p_org_id: orgId },
+        1000,
+      );
       if (cancelled) return;
       if (error) console.error('[ListApproachPage]', error);
       setItems(data || []);
