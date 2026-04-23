@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { C } from '../../constants/colors';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useEngagements } from '../../hooks/useEngagements';
@@ -183,96 +183,77 @@ export default function SourcingDashboardView({
   // ---- 目標入力モーダル ----
   const [goalModalOpen, setGoalModalOpen] = useState(false);
 
+  // ---- 架電キュー（📞ボタン→次企業へ自動遷移） ----
+  const queueRef = useRef({ items: [], idx: 0 });
+  const openQueueItemAtIdx = useCallback(() => {
+    const q = queueRef.current;
+    const cur = q.items[q.idx];
+    if (!cur || !setCallFlowScreen) { setCallFlowScreen?.(null); return; }
+    setCallFlowScreen({
+      list: { _supaId: cur.list_id, id: cur.list_id, company: cur.list_name || '' },
+      defaultItemId: cur.item_id,
+      defaultListMode: false,
+      singleItemMode: true,
+      onResultSubmit: () => {
+        queueRef.current = { items: q.items, idx: q.idx + 1 };
+        if (queueRef.current.idx < queueRef.current.items.length) {
+          openQueueItemAtIdx();
+        } else {
+          setCallFlowScreen?.(null);
+        }
+      },
+    });
+  }, [setCallFlowScreen]);
+
+  const openQueue = useCallback((items, startIdx) => {
+    const slice = items.slice(startIdx).filter(it => it.item_id && it.list_id);
+    if (!slice.length) return;
+    queueRef.current = { items: slice, idx: 0 };
+    openQueueItemAtIdx();
+  }, [openQueueItemAtIdx]);
+
   // ---- 社長再コール超過 / 社長お断り14日経過 ----
-  // rawデータは日替わりでだけ再フェッチ、now更新では再実行しない（毎分 heavy fetch を防ぐ）
-  const [recallRaw, setRecallRaw] = useState([]);
-  const [rejectionsRaw, setRejectionsRaw] = useState([]);
+  // サーバー側 RPC (dashboard_overdue_recalls / dashboard_old_rejections) で join 済の必要行だけ取得
+  const [overdueRecalls, setOverdueRecalls] = useState([]);
+  const [oldRejections, setOldRejections] = useState([]);
   const [recallLoading, setRecallLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     setRecallLoading(true);
-    const load = async () => {
-      // アーカイブ済リストを除外するため、非アーカイブのリストIDセットを取得
-      const { data: activeLists } = await supabase
-        .from('call_lists')
-        .select('id')
-        .or('is_archived.is.null,is_archived.eq.false');
-      const activeListIds = new Set((activeLists || []).map(l => l.id));
-
-      // 14日経過の断定は todayStr ベース（日替わりで再取得、day単位の安定カットオフ）
-      const cutoffIso = new Date(new Date(todayStr + 'T00:00:00+09:00').getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
-      const [{ data: recallRows }, rejRowsRes] = await Promise.all([
-        fetchAllRecallRecords(),
-        supabase
-          .from('call_records')
-          .select('id, item_id, list_id, status, called_at, getter_name, memo')
-          .eq('status', '社長お断り')
-          .lte('called_at', cutoffIso)
-          .order('called_at', { ascending: false })
-          .limit(2000),
-      ]);
-
-      // 再コール: アーカイブ外のみ、かつ 社長再コール のみ
-      const recallFiltered = (recallRows || []).filter(r =>
-        r.status === '社長再コール' && activeListIds.has(r.list_id) && r._memoObj?.recall_date
-      );
-
-      // お断り: アーカイブ外 + item/list 展開
-      const rejFiltered = (rejRowsRes.data || []).filter(r => activeListIds.has(r.list_id));
-      const rejItemIds = [...new Set(rejFiltered.map(r => r.item_id).filter(Boolean))];
-      const rejListIds = [...new Set(rejFiltered.map(r => r.list_id).filter(Boolean))];
-      let itemMap = {}, listMap = {};
-      if (rejItemIds.length) {
-        const { data: items } = await supabase.from('call_list_items')
-          .select('id, company, phone, representative').in('id', rejItemIds);
-        (items || []).forEach(i => { itemMap[i.id] = i; });
-      }
-      if (rejListIds.length) {
-        const { data: lists } = await supabase.from('call_lists')
-          .select('id, name').in('id', rejListIds);
-        (lists || []).forEach(l => { listMap[l.id] = l; });
-      }
-      const rejections = rejFiltered.map(r => ({
-        id: r.id,
+    Promise.all([
+      supabase.rpc('dashboard_overdue_recalls'),
+      supabase.rpc('dashboard_old_rejections', { p_days: 14 }),
+    ]).then(([recRes, rejRes]) => {
+      if (cancelled) return;
+      setOverdueRecalls((recRes.data || []).map(r => ({
+        id: r.record_id,
         item_id: r.item_id,
         list_id: r.list_id,
-        company: itemMap[r.item_id]?.company || '—',
-        list_name: listMap[r.list_id]?.name || '',
-        getter_name: r.getter_name || '',
+        company: r.company || '—',
+        list_name: r.list_name || '',
+        recall_date: r.recall_date,
+        recall_time: r.recall_time,
+        assignee: r.assignee,
+        getter_name: r.getter_name,
+      })));
+      setOldRejections((rejRes.data || []).map(r => ({
+        id: r.record_id,
+        item_id: r.item_id,
+        list_id: r.list_id,
+        company: r.company || '—',
+        list_name: r.list_name || '',
+        getter_name: r.getter_name,
         called_at: r.called_at,
-      }));
-
-      if (!cancelled) {
-        setRecallRaw(recallFiltered);
-        setRejectionsRaw(rejections);
-        setRecallLoading(false);
-      }
-    };
-    load();
+      })));
+      setRecallLoading(false);
+    }).catch(err => {
+      console.error('[Dashboard] recall/rejection RPC error:', err);
+      if (!cancelled) setRecallLoading(false);
+    });
     return () => { cancelled = true; };
-    // 日替わりでだけ再取得
+    // 日替わりでだけ再取得（RPC内部でnow()判定するので時間経過で境界線が動くが、初回ロードはtodayStrに依存）
   }, [todayStr]);
-
-  // 期限・経過日の判定は now ベースで安価に派生計算
-  const overdueRecalls = useMemo(() => {
-    const nowMs = now.getTime();
-    return recallRaw
-      .filter(r => {
-        const d = r._memoObj?.recall_date;
-        const t = r._memoObj?.recall_time || '00:00';
-        const due = new Date(`${d}T${t}:00+09:00`).getTime();
-        return due < nowMs;
-      })
-      .sort((a, b) => {
-        const ad = `${a._memoObj?.recall_date} ${a._memoObj?.recall_time || ''}`;
-        const bd = `${b._memoObj?.recall_date} ${b._memoObj?.recall_time || ''}`;
-        return ad.localeCompare(bd);
-      });
-  }, [recallRaw, now]);
-
-  // raw自体がすでに 14日経過フィルタ済み
-  const oldRejections = rejectionsRaw;
 
   // ---- おすすめリスト TOP4 ----
   const topLists = useMemo(() => {
@@ -407,26 +388,21 @@ export default function SourcingDashboardView({
           <div key={r.id || i} style={rowStyle}>
             <div style={{ flex: '1 1 220px', minWidth: 0 }}>
               <div style={{ fontWeight: 700, color: C.navy, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {r._item?.company || r.company || '—'}
+                {r.company || '—'}
               </div>
               <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>
-                {r._list_name || ''}
+                {r.list_name || ''}
               </div>
             </div>
             <div style={{ fontSize: 10, color: C.red, minWidth: 120 }}>
-              再コール予定: {r._memoObj?.recall_date} {r._memoObj?.recall_time || ''}
+              再コール予定: {r.recall_date} {r.recall_time || ''}
             </div>
             <div style={{ fontSize: 10, color: C.textMid, minWidth: 80 }}>
-              担当: {r._memoObj?.assignee || r.getter_name || '—'}
+              担当: {r.assignee || r.getter_name || '—'}
             </div>
             <CallButton
               disabled={!setCallFlowScreen || !r.item_id || !r.list_id}
-              onClick={() => setCallFlowScreen?.({
-                list: { _supaId: r.list_id, id: r.list_id, company: r._list_name || '' },
-                defaultItemId: r.item_id,
-                defaultListMode: false,
-                singleItemMode: true,
-              })}
+              onClick={() => openQueue(overdueRecalls, i)}
             />
           </div>
         )}
@@ -456,12 +432,7 @@ export default function SourcingDashboardView({
             </div>
             <CallButton
               disabled={!setCallFlowScreen || !r.item_id || !r.list_id}
-              onClick={() => setCallFlowScreen?.({
-                list: { _supaId: r.list_id, id: r.list_id, company: r.list_name || '' },
-                defaultItemId: r.item_id,
-                defaultListMode: false,
-                singleItemMode: true,
-              })}
+              onClick={() => openQueue(oldRejections, i)}
             />
           </div>
         )}

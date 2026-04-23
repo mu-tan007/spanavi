@@ -142,7 +142,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   );
 }
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, singleItemMode = false }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, singleItemMode = false, onResultSubmit = null }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, ceoConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -722,8 +722,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setCallRecords(newRecords);
     _updateSessionProgress(selectedRow?.no);
     // 再コール一覧から来た場合はステータス入力後に一覧に戻る
+    // onResultSubmit が指定されていればキュー送り（Dashboard 起点）、なければ閉じる
     if (singleItemMode) {
-      onClose();
+      if (onResultSubmit) onResultSubmit(result);
+      else onClose();
     } else {
       // sorted（フィルタ済みリスト）の順序で次の架電可能な企業を探す
       const sortedIdx = sorted.findIndex(i => i.id === selectedRow.id);
