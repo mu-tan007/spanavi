@@ -215,9 +215,24 @@ export default function CallResultsTab({ client }) {
               const calls = Number(s.calls || 0);
               const ceo = Number(s.ceo_connects || 0);
               const appos = Number(s.appos || 0);
+              const archived = !!s.is_archived;
               return (
-                <tr key={s.list_id} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
-                  <td style={{ ...td, textAlign: 'left', color: C.textMid }}>{s.industry || '—'}</td>
+                <tr key={s.list_id} style={{
+                  borderBottom: `1px solid ${C.borderLight}`,
+                  background: archived ? C.cream : 'transparent',
+                  color: archived ? C.textMid : undefined,
+                }}>
+                  <td style={{ ...td, textAlign: 'left', color: archived ? C.textLight : C.textMid }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      {s.industry || '—'}
+                      {archived && (
+                        <span style={{
+                          fontSize: 9, padding: '1px 6px', borderRadius: 2,
+                          background: C.border, color: C.textMid, fontWeight: 600, letterSpacing: '0.04em',
+                        }}>ARCHIVED</span>
+                      )}
+                    </span>
+                  </td>
                   <td style={td}>{calls.toLocaleString()}</td>
                   <td style={td}>{ceo.toLocaleString()}</td>
                   <td style={td}>{ratePct(ceo, calls)}</td>
