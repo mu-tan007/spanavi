@@ -25,6 +25,7 @@ import AppoReportModal from './views/AppoReportModal';
 import CallFlowView from './views/CallFlowView';
 import ScriptView from './views/ScriptView';
 import MyPageView from './views/MyPageView';
+import SourcingDashboardView from './views/SourcingDashboardView';
 import CRMView from './views/CRMView';
 import AppoListView, { MembersView } from './views/AppoListView';
 import PayrollView from './views/PayrollView';
@@ -350,7 +351,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
-  const _VALID_TABS = ["live","incoming","lists","appo","precheck","deals","crm","members","goals","search","stats","recall","payroll","shift","rules","database","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin","applications","deals_career","all_members","members_career","admin_settings"];
+  const _VALID_TABS = ["dashboard","live","incoming","lists","appo","precheck","deals","crm","members","goals","search","stats","recall","payroll","shift","rules","database","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin","applications","deals_career","all_members","members_career","admin_settings"];
   const [currentTab, setCurrentTab] = useState(() => {
     try {
       const saved = localStorage.getItem("masp_v2_currentTab");
@@ -535,6 +536,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   };
 
   const navGroups = [
+    { id: "dashboard", label: "Dashboard", children: null },
     { id: "g_call", label: "CALLING", children: [
       { id: "live", label: "Live Status" },
       { id: "lists", label: "Lists" },
@@ -1162,7 +1164,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
         {currentTab === "database" && <DatabaseView isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView onBack={() => setCurrentTab('lists')} />}
-        {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} />}
+        {currentTab === "dashboard" && <SourcingDashboardView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} />}
+        {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} />}
         {currentTab === "edu_performance" && <PerformanceView members={members} currentUser={currentUser} appoData={appoData} />}
         {currentTab === "edu_script" && <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
         {currentTab === "edu_rules" && <InternRulesView />}
