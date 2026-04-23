@@ -6,6 +6,8 @@ export const KPI_TYPES = [
   { id: 'calls',            label: '架電件数',   unit: '件', isRate: false },
   { id: 'connections',      label: '社長接続数', unit: '件', isRate: false },
   { id: 'appointments',     label: 'アポ獲得数', unit: '件', isRate: false },
+  { id: 'sales',            label: '売上',       unit: '円', isRate: false },
+  { id: 'incentive',        label: 'インセンティブ', unit: '円', isRate: false },
   { id: 'connection_rate',  label: '社長接続率', unit: '%',  isRate: true },
   { id: 'appointment_rate', label: 'アポ獲得率', unit: '%',  isRate: true },
 ];

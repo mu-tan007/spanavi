@@ -6,14 +6,14 @@ const NAVY = '#0D2247';
 const DAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 
 const DEFAULT_RULES = [
-  { industry: "建設", goodDays: [1,2,3,4,5], badDays: [0,6], goodHours: "8:00〜10:00, 16:00〜18:00", badHours: "10:00〜16:00" },
-  { industry: "製造", goodDays: [1,2,3,4,5], badDays: [0,6], goodHours: "8:00〜10:00, 16:00〜18:00", badHours: "10:00〜16:00" },
-  { industry: "物流", goodDays: [1,2,3,4,5], badDays: [0,6], goodHours: "8:00〜10:00, 16:00〜18:00", badHours: "10:00〜16:00" },
-  { industry: "IT", goodDays: [1,2,3,4,5], badDays: [0,6], goodHours: "10:00〜12:00, 14:00〜17:00", badHours: "" },
-  { industry: "不動産", goodDays: [1,4,5,6], badDays: [0,3], goodHours: "8:00〜9:30, 16:00〜18:00", badHours: "" },
-  { industry: "調剤薬局", goodDays: [1,2,3,4,5,6], badDays: [0], goodHours: "13:00〜15:00", badHours: "" },
-  { industry: "介護", goodDays: [0,1,2,3,4,5,6], badDays: [], goodHours: "8:00〜10:00, 17:00〜19:00", badHours: "" },
-  { industry: "その他（平日一般）", goodDays: [1,2,3,4,5], badDays: [0,6], goodHours: "8:00〜9:30, 16:00〜18:00", badHours: "" },
+  { industry: "建設", goodDays: [1,2,3,4,5,6], badDays: [0], goodHours: "8:00〜12:00, 13:00〜19:00", badHours: "12:00〜13:00" },
+  { industry: "製造", goodDays: [1,2,3,4,5,6], badDays: [0], goodHours: "8:00〜12:00, 13:00〜19:00", badHours: "12:00〜13:00" },
+  { industry: "物流", goodDays: [1,2,3,4,5,6], badDays: [0], goodHours: "8:00〜12:00, 13:00〜19:00", badHours: "12:00〜13:00" },
+  { industry: "IT", goodDays: [1,2,3,4,5], badDays: [0,6], goodHours: "8:00〜12:00, 13:00〜17:00", badHours: "12:00〜13:00" },
+  { industry: "不動産", goodDays: [1,2,4,5,6], badDays: [0,3], goodHours: "8:00〜12:00, 13:00〜19:00", badHours: "12:00〜13:00" },
+  { industry: "調剤薬局", goodDays: [1,2,3,4,5,6], badDays: [0], goodHours: "13:00〜15:00", badHours: "9:00〜13:00, 15:00〜20:00" },
+  { industry: "介護", goodDays: [0,1,2,3,4,5,6], badDays: [], goodHours: "8:00〜19:00", badHours: "" },
+  { industry: "その他（平日一般）", goodDays: [1,2,3,4,5], badDays: [0,6], goodHours: "8:00〜12:00, 13:00〜19:00", badHours: "12:00〜13:00" },
 ];
 
 const emptyRule = () => ({ industry: '', goodDays: [1,2,3,4,5], badDays: [0,6], goodHours: '', badHours: '' });

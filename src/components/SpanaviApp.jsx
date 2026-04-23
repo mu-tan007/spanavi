@@ -53,6 +53,7 @@ import RulesView from './views/RulesView';
 import PlaceholderView from './views/PlaceholderView';
 import PerformanceView from './views/PerformanceView';
 import InternRulesView from './views/InternRulesView';
+import LibraryView from './views/LibraryView';
 import AIAssistantView from './views/AIAssistantView';
 import AdminView from './views/AdminView';
 import ManagerAdminView from './views/ManagerAdminView';
@@ -351,7 +352,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
-  const _VALID_TABS = ["dashboard","live","incoming","lists","appo","precheck","deals","crm","members","goals","search","stats","recall","payroll","shift","rules","database","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin","applications","deals_career","all_members","members_career","admin_settings"];
+  const _VALID_TABS = ["dashboard","live","incoming","lists","appo","precheck","deals","crm","members","goals","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","applications","deals_career","all_members","members_career","admin_settings"];
   const [currentTab, setCurrentTab] = useState(() => {
     try {
       const saved = localStorage.getItem("masp_v2_currentTab");
@@ -372,7 +373,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     if (engSlug === 'masp') {
       if (!MASP_TABS.includes(currentTab)) setCurrentTab('database');
     } else if (engSlug === 'seller_sourcing') {
-      if (!["live","incoming","lists","appo","precheck","deals","crm","members","search","stats","recall","payroll","shift","rules","mypage","edu_script","edu_rules","edu_roleplay","edu_performance","ai","manager_admin"].includes(currentTab)) {
+      if (!["live","incoming","lists","appo","precheck","deals","crm","members","search","stats","recall","payroll","shift","rules","mypage","library","edu_roleplay","edu_performance","ai","manager_admin"].includes(currentTab)) {
         setCurrentTab('lists');
       }
     } else if (engSlug === 'spartia_career') {
@@ -559,8 +560,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     ]},
     { id: "g_education", label: "DEVELOPMENT", children: [
       { id: "edu_performance", label: "Performance" },
-      { id: "edu_script", label: "Scripts" },
-      { id: "edu_rules", label: "22 Rules" },
+      { id: "library", label: "Library" },
       { id: "edu_roleplay", label: "Role Play" },
     ]},
     ...(isManagerRole ? [{ id: "manager_admin", label: "Admin", children: null }] : []),
@@ -1164,11 +1164,10 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
         {currentTab === "database" && <DatabaseView isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView onBack={() => setCurrentTab('lists')} />}
-        {currentTab === "dashboard" && <SourcingDashboardView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} />}
+        {currentTab === "dashboard" && <SourcingDashboardView currentUser={currentUser} userId={userId} callListData={enrichedLists} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} setCurrentTab={setCurrentTab} setSelectedList={setSelectedList} />}
         {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} />}
         {currentTab === "edu_performance" && <PerformanceView members={members} currentUser={currentUser} appoData={appoData} />}
-        {currentTab === "edu_script" && <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
-        {currentTab === "edu_rules" && <InternRulesView />}
+        {currentTab === "library" && <LibraryView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
         {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} />}
         {currentTab === "ai" && <AIAssistantView appoData={appoData} members={members} callListData={callListData} industryRules={industryRules} currentUser={currentUser} />}
         {currentTab === "manager_admin" && isManagerRole && <ManagerAdminView currentUser={currentUser} members={members} appoData={appoData} now={now} />}
