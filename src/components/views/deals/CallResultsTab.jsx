@@ -150,9 +150,10 @@ function ListApproachModal({ list, orgId, onClose }) {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      // PostgREST max_rows (1000) を回避するため明示的に上限を大きく設定
       const { data, error } = await supabase.rpc('sourcing_list_approach_detail', {
         p_list_id: list.list_id, p_org_id: orgId,
-      });
+      }).range(0, 99999);
       if (cancelled) return;
       if (error) console.error('[ListApproachModal]', error);
       setItems(data || []);
@@ -160,6 +161,45 @@ function ListApproachModal({ list, orgId, onClose }) {
     })();
     return () => { cancelled = true; };
   }, [list.list_id, orgId]);
+
+  // CSV エクスポート (Excel で開けば xlsx 同等に扱える)
+  const handleExport = () => {
+    const headers = ['No','企業名','回数','架電日時','ステータス','架電者'];
+    const rows = [headers.join(',')];
+    const esc = v => {
+      if (v == null) return '';
+      const s = String(v).replace(/"/g, '""');
+      return /[,"\n]/.test(s) ? `"${s}"` : s;
+    };
+    for (const it of items) {
+      const calls = Array.isArray(it.calls) ? it.calls : [];
+      if (calls.length === 0) {
+        rows.push([esc(it.no), esc(it.company), '', '', '未架電', ''].join(','));
+      } else {
+        for (const c of calls) {
+          rows.push([
+            esc(it.no),
+            esc(it.company),
+            c.round || '',
+            c.called_at ? new Date(c.called_at).toLocaleString('ja-JP', { hour12: false }) : '',
+            esc(c.status || ''),
+            esc(c.getter_name || ''),
+          ].join(','));
+        }
+      }
+    }
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeName = (list.list_name || 'list').replace(/[^\w\u3040-\u30ff\u4e00-\u9fff]/g, '_');
+    a.href = url;
+    a.download = `架電詳細_${safeName}_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -194,6 +234,15 @@ function ListApproachModal({ list, orgId, onClose }) {
               placeholder="企業名で絞り込み"
               style={{ padding: '6px 10px', fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 3, width: 200 }}
             />
+            <button onClick={handleExport} disabled={loading || items.length === 0}
+              style={{
+                fontSize: 11, fontWeight: 600, padding: '6px 12px',
+                background: (loading || items.length === 0) ? C.cream : C.navy,
+                color: (loading || items.length === 0) ? C.textLight : C.white,
+                border: 'none', borderRadius: 3,
+                cursor: (loading || items.length === 0) ? 'not-allowed' : 'pointer',
+              }}
+            >⬇ Excel 出力</button>
             <button onClick={onClose}
               style={{ fontSize: 13, padding: '5px 10px', background: 'transparent', border: 'none', cursor: 'pointer', color: C.textMid }}>✕</button>
           </div>

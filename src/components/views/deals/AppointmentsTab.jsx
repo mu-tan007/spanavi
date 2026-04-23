@@ -22,7 +22,6 @@ const CEO_INTENT_OPTIONS = [
   { value: 'negative', label: '消極的', color: C.navy },
   { value: 'unknown',  label: '不明',   color: C.textLight },
 ];
-const UNSET_COLOR = C.border;
 
 function bucketRevenue(oku) {
   if (oku == null) return '不明';
@@ -110,7 +109,8 @@ export default function AppointmentsTab({ client }) {
     // 売上 同様
     const revenueText = r.item?.revenue || fallback.revenue || null;
     const revenue_oku = parseRevenueOku(revenueText) ?? extractRevenueFromReport(r.appo_report);
-    const intent = r.ceo_ma_intent || extractCeoMaIntent(r.appo_report) || null;
+    // 未入力 & 推定できずは 不明 に集約
+    const intent = r.ceo_ma_intent || extractCeoMaIntent(r.appo_report) || 'unknown';
     return {
       ...r,
       address,
@@ -118,7 +118,7 @@ export default function AppointmentsTab({ client }) {
       revenue_oku,
       revenue_text: revenue_oku != null ? formatOku(revenue_oku) : (revenueText || null),
       resolved_intent: intent,
-      intent_is_derived: !r.ceo_ma_intent && !!intent,
+      intent_is_derived: !r.ceo_ma_intent && intent !== 'unknown' ? !!extractCeoMaIntent(r.appo_report) : false,
     };
   }), [rows, extraByName]);
 
@@ -137,8 +137,8 @@ export default function AppointmentsTab({ client }) {
     const total = enriched.length;
     const canceled = enriched.filter(r => r.status === 'キャンセル').length;
     const rescheduled = enriched.filter(r => r.status === 'リスケ中').length;
-    const intentCount = { positive: 0, wait: 0, unknown: 0, negative: 0, unset: 0 };
-    enriched.forEach(r => { intentCount[r.resolved_intent || 'unset'] = (intentCount[r.resolved_intent || 'unset'] || 0) + 1; });
+    const intentCount = { positive: 0, wait: 0, unknown: 0, negative: 0 };
+    enriched.forEach(r => { intentCount[r.resolved_intent] = (intentCount[r.resolved_intent] || 0) + 1; });
     const prefCount = {};
     enriched.forEach(r => { prefCount[r.prefecture] = (prefCount[r.prefecture] || 0) + 1; });
     const revCount = {};
@@ -151,7 +151,6 @@ export default function AppointmentsTab({ client }) {
   if (enriched.length === 0) return <EmptyCard>このクライアントへのアポイントがありません</EmptyCard>;
 
   const intentChartData = CEO_INTENT_OPTIONS.map(o => ({ name: o.label, value: stats.intentCount[o.value] || 0, color: o.color }))
-    .concat([{ name: '未入力', value: stats.intentCount.unset || 0, color: UNSET_COLOR }])
     .filter(d => d.value > 0);
   const prefChartData = Object.entries(stats.prefCount).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 8);
   const revChartData = ['〜1億','1〜3億','3〜10億','10〜30億','30億〜','不明']
