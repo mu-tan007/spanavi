@@ -3,6 +3,7 @@ import { C } from '../../../constants/colors';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import { useCallStatuses } from '../../../hooks/useCallStatuses';
+import ListApproachPage from './ListApproachPage';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
@@ -17,6 +18,17 @@ export default function CallResultsTab({ client }) {
   const [loading, setLoading] = useState(false);
   const [detailList, setDetailList] = useState(null); // { list_id, list_name }
   const orgId = getOrgId();
+
+  // リスト詳細ページ表示中はそれだけ描画
+  if (detailList) {
+    return (
+      <ListApproachPage
+        list={detailList}
+        orgId={orgId}
+        onBack={() => setDetailList(null)}
+      />
+    );
+  }
 
   useEffect(() => {
     if (!orgId || !client?.id) { setRows([]); setByDay([]); return; }
@@ -113,14 +125,6 @@ export default function CallResultsTab({ client }) {
         </table>
       </Card>
 
-      {detailList && (
-        <ListApproachModal
-          list={detailList}
-          orgId={orgId}
-          onClose={() => setDetailList(null)}
-        />
-      )}
-
       {byDay.length > 0 && (
         <Card title="日別 架電件数">
           <div style={{ height: 220 }}>
@@ -138,174 +142,6 @@ export default function CallResultsTab({ client }) {
       )}
     </div>
   );
-}
-
-// ─── リスト詳細モーダル: 各企業の架電タイムライン ─────────
-function ListApproachModal({ list, orgId, onClose }) {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('');
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      // PostgREST max_rows (1000) を回避するため明示的に上限を大きく設定
-      const { data, error } = await supabase.rpc('sourcing_list_approach_detail', {
-        p_list_id: list.list_id, p_org_id: orgId,
-      }).range(0, 99999);
-      if (cancelled) return;
-      if (error) console.error('[ListApproachModal]', error);
-      setItems(data || []);
-      setLoading(false);
-    })();
-    return () => { cancelled = true; };
-  }, [list.list_id, orgId]);
-
-  // CSV エクスポート (Excel で開けば xlsx 同等に扱える)
-  const handleExport = () => {
-    const headers = ['No','企業名','回数','架電日時','ステータス','架電者'];
-    const rows = [headers.join(',')];
-    const esc = v => {
-      if (v == null) return '';
-      const s = String(v).replace(/"/g, '""');
-      return /[,"\n]/.test(s) ? `"${s}"` : s;
-    };
-    for (const it of items) {
-      const calls = Array.isArray(it.calls) ? it.calls : [];
-      if (calls.length === 0) {
-        rows.push([esc(it.no), esc(it.company), '', '', '未架電', ''].join(','));
-      } else {
-        for (const c of calls) {
-          rows.push([
-            esc(it.no),
-            esc(it.company),
-            c.round || '',
-            c.called_at ? new Date(c.called_at).toLocaleString('ja-JP', { hour12: false }) : '',
-            esc(c.status || ''),
-            esc(c.getter_name || ''),
-          ].join(','));
-        }
-      }
-    }
-    const bom = '\uFEFF';
-    const blob = new Blob([bom + rows.join('\n')], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const safeName = (list.list_name || 'list').replace(/[^\w\u3040-\u30ff\u4e00-\u9fff]/g, '_');
-    a.href = url;
-    a.download = `架電詳細_${safeName}_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  const filtered = useMemo(() => {
-    const q = filter.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(it => (it.company || '').toLowerCase().includes(q));
-  }, [items, filter]);
-
-  return (
-    <div onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
-    }}>
-      <div onClick={e => e.stopPropagation()} style={{
-        background: C.white, borderRadius: 4, width: '100%', maxWidth: 1100, maxHeight: '85vh',
-        display: 'flex', flexDirection: 'column', boxShadow: '0 12px 40px rgba(0,0,0,0.25)',
-      }}>
-        <div style={{
-          padding: '14px 20px', borderBottom: `1px solid ${C.border}`,
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        }}>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: C.navy }}>
-              {list.list_name} — 各企業のアプローチ詳細
-            </div>
-            <div style={{ fontSize: 11, color: C.textMid, marginTop: 2 }}>
-              {items.length}社
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input
-              value={filter} onChange={e => setFilter(e.target.value)}
-              placeholder="企業名で絞り込み"
-              style={{ padding: '6px 10px', fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 3, width: 200 }}
-            />
-            <button onClick={handleExport} disabled={loading || items.length === 0}
-              style={{
-                fontSize: 11, fontWeight: 600, padding: '6px 12px',
-                background: (loading || items.length === 0) ? C.cream : C.navy,
-                color: (loading || items.length === 0) ? C.textLight : C.white,
-                border: 'none', borderRadius: 3,
-                cursor: (loading || items.length === 0) ? 'not-allowed' : 'pointer',
-              }}
-            >⬇ Excel 出力</button>
-            <button onClick={onClose}
-              style={{ fontSize: 13, padding: '5px 10px', background: 'transparent', border: 'none', cursor: 'pointer', color: C.textMid }}>✕</button>
-          </div>
-        </div>
-        <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
-          {loading ? (
-            <div style={{ padding: 40, textAlign: 'center', color: C.textMid }}>読み込み中...</div>
-          ) : filtered.length === 0 ? (
-            <div style={{ padding: 40, textAlign: 'center', color: C.textLight }}>該当企業がありません</div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-              <thead>
-                <tr style={{ background: C.cream, borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, zIndex: 1 }}>
-                  <th style={{ ...th, width: 40 }}>#</th>
-                  <th style={{ ...th, textAlign: 'left' }}>企業名</th>
-                  <th style={{ ...th, textAlign: 'left' }}>架電履歴 (新しい順)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(it => {
-                  const calls = Array.isArray(it.calls) ? [...it.calls].reverse() : [];
-                  return (
-                    <tr key={it.item_id} style={{ borderBottom: `1px solid ${C.borderLight}`, verticalAlign: 'top' }}>
-                      <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", color: C.textLight }}>{it.no ?? '—'}</td>
-                      <td style={{ ...td, textAlign: 'left', fontWeight: 500, color: C.navy }}>{it.company || '—'}</td>
-                      <td style={{ ...td, textAlign: 'left', color: C.textDark, padding: '6px 12px' }}>
-                        {calls.length === 0 ? (
-                          <span style={{ color: C.textLight }}>未架電</span>
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            {calls.map((c, i) => (
-                              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11 }}>
-                                <span style={{ width: 42, color: C.textMid, fontWeight: 600 }}>
-                                  {c.round ? `${c.round}回目` : `${calls.length - i}回目`}
-                                </span>
-                                <span style={{ fontFamily: "'JetBrains Mono',monospace", color: C.textMid, minWidth: 82 }}>
-                                  {c.called_at ? new Date(c.called_at).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
-                                </span>
-                                <span style={{ color: statusColor(c.status), fontWeight: 500 }}>{c.status || '—'}</span>
-                                {c.getter_name && <span style={{ color: C.textLight, fontSize: 10 }}>({c.getter_name})</span>}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function statusColor(status) {
-  if (!status) return C.textMid;
-  if (status.includes('アポ')) return C.green;
-  if (status.includes('お断り') || status.includes('ブロック')) return '#C0392B';
-  if (status.includes('不在') || status.includes('再コール')) return C.gold;
-  return C.textMid;
 }
 
 function SummaryCard({ label, value }) {
