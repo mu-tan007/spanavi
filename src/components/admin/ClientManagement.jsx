@@ -1,8 +1,19 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toRomaji } from 'wanakana';
+import { KATAKANA_LOANWORDS } from '../../utils/katakanaLoanwords';
 
 import { getOrgId } from '../../lib/orgContext';
+
+// 長いキーから順に置換 (e.g., "パートナーズ" を "パートナー" より先に当てる)
+const LOANWORD_KEYS = Object.keys(KATAKANA_LOANWORDS).sort((a, b) => b.length - a.length);
+function replaceLoanwords(text) {
+  let out = text;
+  for (const key of LOANWORD_KEYS) {
+    out = out.split(key).join(` ${KATAKANA_LOANWORDS[key]} `);
+  }
+  return out;
+}
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
@@ -34,21 +45,21 @@ export default function ClientManagement({ onToast }) {
   // クライアント名から ID 候補を作る。
   //   1. 全角→半角に正規化
   //   2. 法人格 (株式会社 / 合同会社 / 有限会社 / (株) / (有) 等) を除去
-  //   3. wanakana で 平仮名・片仮名 → ローマ字。漢字は変換不可なので残る。
-  //   4. 残った非 ASCII を除去し、小文字 + 英数に整形
-  //   5. 有効な ID が作れなければ空文字 (admin に手入力させる)
+  //   3. 業界外来語 (キャピタル=capital 等) を元の英単語に置換
+  //   4. wanakana で 残った平仮名・片仮名 → ローマ字。漢字は変換不可なので残る。
+  //   5. 非 ASCII を除去し、小文字 + 英数に整形
+  //   6. 有効な ID が作れなければ空文字 (admin に手入力させる)
   const suggestUsername = (name) => {
     if (!name) return '';
     const norm = name.normalize('NFKC');
-    // 法人格除去
     const stripped = norm
       .replace(/株式会社|合同会社|有限会社|合資会社|一般社団法人|公益社団法人|医療法人|学校法人|\(株\)|\(有\)|\(合\)/g, '')
       .trim();
-    // 平仮名/片仮名だけローマ字化 (漢字は変換不可なので残る)
-    const romaji = toRomaji(stripped, { IMEMode: false });
+    const withEnglish = replaceLoanwords(stripped);
+    const romaji = toRomaji(withEnglish, { IMEMode: false });
     const ascii = romaji.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (ascii.length < 2) return '';          // 漢字のみ等で変換できなかった場合
-    return `${ascii.slice(0, 30)}2026`;        // 長すぎる場合は 30 文字で打ち切り
+    if (ascii.length < 2) return '';
+    return `${ascii.slice(0, 30)}2026`;
   };
 
   const callCredsFn = async (body) => {
