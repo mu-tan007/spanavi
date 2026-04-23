@@ -7,6 +7,7 @@ import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import PageHeader from '../common/PageHeader';
+import TopListCard, { progressRoundInfo } from '../common/TopListCard';
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -51,26 +52,13 @@ const LISTVIEW_COLS = [
   { key: 'actions', width: 65, align: 'left' },
 ];
 
-// 0-100%=1周目、101-200%=2周目、201-300%=3周目、…
-const progressRoundInfo = (pct) => {
-  const p = Math.round(pct || 0);
-  const round = p <= 100 ? 1 : Math.ceil(p / 100);
-  const palette = {
-    1: { color: '#2E844A', bg: '#ECFDF5' }, // 1周目: 緑
-    2: { color: '#1E40AF', bg: '#EFF6FF' }, // 2周目: 青
-    3: { color: '#B45309', bg: '#FEF3C7' }, // 3周目: 橙
-  };
-  const style = palette[round] || { color: '#6B7280', bg: '#F3F4F6' }; // 4周目〜: 灰
-  return { pct: p, round, ...style };
-};
-
 const ProgressPill = ({ pct }) => {
-  const { pct: p, round, color, bg } = progressRoundInfo(pct);
+  const { pct: p, round, color, bg, border } = progressRoundInfo(pct);
   return (
     <span style={{
       display: 'inline-block', fontSize: 10, fontWeight: 700, color, background: bg,
       padding: '2px 8px', borderRadius: 3, fontFamily: "'Noto Sans JP', sans-serif",
-      border: `1px solid ${color}30`, whiteSpace: 'nowrap',
+      border: `1px solid ${border}`, whiteSpace: 'nowrap',
     }}>{round}周目 <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{p}%</span></span>
   );
 };
@@ -112,25 +100,11 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
   const [showRec, setShowRec] = useState(true);
   const [displayFilter, setDisplayFilter] = useState('active');
 
-  // Step1: 足切り（定休日・非推奨帯・timeScore 40以下を除外）
-  const callable = filteredLists.filter(l =>
-    l.status === "架電可能" &&
-    l.recommendation &&
-    l.recommendation.timeScore > 40
-  );
-  // Step2: インポートから1週間以内のものに絞る
-  const withinOneWeek = callable.filter(l => {
-    if (!l.created_at) return false;
-    const daysSinceImport = (Date.now() - new Date(l.created_at).getTime()) / (1000 * 60 * 60 * 24);
-    return daysSinceImport <= 7;
-  });
-  console.log('callable:', callable.length);
-  console.log('withinOneWeek:', withinOneWeek.length);
-  console.log('sample created_at:', callable[0]?.created_at);
-  // Step3: インポート日が新しい順にソートして最大10件
-  const topRecommended = [...withinOneWeek]
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-    .slice(0, 10);
+  // Dashboard の「現在のおすすめリスト TOP4」と同一ロジック: アクティブ + 架電可能 + recommendation あり、score降順 で TOP4
+  const topRecommended = (callListData || [])
+    .filter(l => l.status === '架電可能' && !l.is_archived && l.recommendation)
+    .sort((a, b) => (b.recommendation?.score || 0) - (a.recommendation?.score || 0))
+    .slice(0, 4);
 
   const handleOpenAdd = () => {
     setFormData(emptyForm);
@@ -239,28 +213,9 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
               fontSize: 14, color: C.textLight, padding: "2px 6px",
             }}>×</button>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 8 }}>
-            {topRecommended.slice(0, 8).map((list, i) => (
-              <button key={list.id} onClick={() => setSelectedList(list.id)} style={{
-                background: "#F8F9FA", border: "1px solid #E5E7EB",
-                borderRadius: 4, padding: "10px 14px", cursor: "pointer",
-                textAlign: "left", color: C.textDark,
-                fontFamily: "'Noto Sans JP', sans-serif",
-                transition: "all 0.15s",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = "#EFF6FF"; e.currentTarget.style.borderColor = "#1E40AF50"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = C.offWhite; e.currentTarget.style.borderColor = C.borderLight; }}
-              >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, flex: 1, minWidth: 0, wordBreak: "break-all" }}>{list.company}</span>
-                  <ScorePill score={list.recommendation.score} />
-                </div>
-                <div style={{ display: "flex", gap: 4, alignItems: 'center' }}>
-                  <Badge color={C.textLight} small>{list.industry}</Badge>
-                  <Badge color={C.textLight} small>{list.count.toLocaleString()}社</Badge>
-                  <ProgressPill pct={list.call_progress_pct} />
-                </div>
-              </button>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: 10 }}>
+            {topRecommended.map(list => (
+              <TopListCard key={list.id} list={list} onClick={() => setSelectedList(list.id)} />
             ))}
           </div>
         </div>

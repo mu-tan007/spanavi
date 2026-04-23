@@ -6,6 +6,7 @@ import { useKpiGoals, KPI_TYPES, PERIOD_TYPES } from '../../hooks/useKpiGoals';
 import { supabase } from '../../lib/supabase';
 import { fetchAllRecallRecords, fetchMemberPayrollHistory } from '../../lib/supabaseWrite';
 import PageHeader from '../common/PageHeader';
+import TopListCard from '../common/TopListCard';
 import { Phone } from 'lucide-react';
 
 const TEAMS = ['成尾', '高橋'];
@@ -575,50 +576,6 @@ function CallButton({ onClick, disabled }) {
         display: 'inline-flex', alignItems: 'center', gap: 5,
       }}
     ><Phone size={12} strokeWidth={2} /> 架電</button>
-  );
-}
-
-function TopListCard({ list, onClick }) {
-  const score = list.recommendation?.score || 0;
-  const label = list.recommendation?.label || '—';
-  const progress = Math.round(list.call_progress_pct || 0);
-  const round = progress <= 100 ? 1 : Math.ceil(progress / 100);
-  const progressColor =
-    round === 1 ? '#2E844A' :
-    round === 2 ? '#1E40AF' :
-    round === 3 ? '#B45309' : '#6B7280';
-  return (
-    <button onClick={onClick} style={{
-      textAlign: 'left', background: C.white, border: `1px solid ${C.border}`,
-      borderRadius: 6, padding: '12px 14px', cursor: 'pointer',
-      display: 'flex', flexDirection: 'column', gap: 6, position: 'relative',
-      borderTop: `3px solid ${C.gold}`, transition: 'box-shadow 0.15s',
-    }}
-      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 16px rgba(13,34,71,0.12)'; }}
-      onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
-    >
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        fontSize: 9, color: C.textLight, letterSpacing: '0.06em', textTransform: 'uppercase',
-      }}>
-        <span>{list.industry || '—'}</span>
-        <span style={{ color: C.gold, fontWeight: 700 }}>SCORE {score}</span>
-      </div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, lineHeight: 1.3 }}>
-        {list.company || list.name || '—'}
-      </div>
-      <div style={{ fontSize: 10, color: C.textMid }}>
-        {list.manager || ''} {list.count ? `・${list.count}件` : ''}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-        <span style={{ fontSize: 10, color: C.navy, fontWeight: 600 }}>{label}</span>
-        <span style={{
-          fontSize: 10, fontWeight: 700, color: progressColor,
-        }}>
-          {round}周目 <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{progress}%</span>
-        </span>
-      </div>
-    </button>
   );
 }
 
