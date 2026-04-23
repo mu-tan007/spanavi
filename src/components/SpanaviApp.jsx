@@ -827,9 +827,10 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
               <Bell size={18} />
             </button>
             {overdueCount > 0 && (
-              <div style={{ position: "absolute", top: 0, right: 0, minWidth: 16, height: 16, borderRadius: 8,
+              <div style={{ position: "absolute", top: 0, right: 0, minWidth: 16, height: 16, borderRadius: 999,
                 background: "#e53e3e", color: "white", fontSize: 9, fontWeight: 700,
-                display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", pointerEvents: "none" }}>
+                display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px",
+                whiteSpace: "nowrap", lineHeight: 1, pointerEvents: "none" }}>
                 {overdueCount}
               </div>
             )}
@@ -943,9 +944,10 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
               <Bell size={18} />
             </button>
             {overdueCount > 0 && (
-              <div style={{ position: "absolute", top: 0, right: 0, minWidth: 16, height: 16, borderRadius: 8,
+              <div style={{ position: "absolute", top: 0, right: 0, minWidth: 16, height: 16, borderRadius: 999,
                 background: "#e53e3e", color: "white", fontSize: 9, fontWeight: 700,
-                display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", pointerEvents: "none" }}>
+                display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px",
+                whiteSpace: "nowrap", lineHeight: 1, pointerEvents: "none" }}>
                 {overdueCount}
               </div>
             )}

@@ -180,7 +180,7 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
               border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer',
               fontFamily: "'Noto Sans JP',sans-serif",
             }}
-          >📘 業種別ルールを開く</button>
+          >業種別ルールを開く</button>
         ) : null}
       />
       {/* 時間外メッセージ */}
