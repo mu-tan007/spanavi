@@ -189,11 +189,19 @@ export default function SourcingDashboardView({
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
+      // アーカイブ済リストを除外するため、非アーカイブのリストIDセットを取得
+      const { data: activeLists } = await supabase
+        .from('call_lists')
+        .select('id')
+        .or('is_archived.is.null,is_archived.eq.false');
+      const activeListIds = new Set((activeLists || []).map(l => l.id));
+
       // 社長再コール超過
       const { data: recallRows } = await fetchAllRecallRecords();
       const nowMs = now.getTime();
       const overdue = (recallRows || []).filter(r => {
         if (r.status !== '社長再コール') return false;
+        if (!activeListIds.has(r.list_id)) return false; // アーカイブ済リストを除外
         const d = r._memoObj?.recall_date;
         const t = r._memoObj?.recall_time || '00:00';
         if (!d) return false;
@@ -215,9 +223,12 @@ export default function SourcingDashboardView({
         .order('called_at', { ascending: false })
         .limit(500);
 
+      // アーカイブ済リストを除外
+      const filteredRejRows = (rejRows || []).filter(r => activeListIds.has(r.list_id));
+
       // item_id / list_id の展開
-      const rejItemIds = [...new Set((rejRows || []).map(r => r.item_id).filter(Boolean))];
-      const rejListIds = [...new Set((rejRows || []).map(r => r.list_id).filter(Boolean))];
+      const rejItemIds = [...new Set(filteredRejRows.map(r => r.item_id).filter(Boolean))];
+      const rejListIds = [...new Set(filteredRejRows.map(r => r.list_id).filter(Boolean))];
       let itemMap = {}, listMap = {}, clientMap = {};
       if (rejItemIds.length) {
         const { data: items } = await supabase.from('call_list_items')
@@ -234,7 +245,7 @@ export default function SourcingDashboardView({
           (clients || []).forEach(c => { clientMap[c.id] = c; });
         }
       }
-      const rejections = (rejRows || []).map(r => ({
+      const rejections = filteredRejRows.map(r => ({
         id: r.id,
         item_id: r.item_id,
         list_id: r.list_id,
