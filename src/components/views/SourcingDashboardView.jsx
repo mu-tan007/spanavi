@@ -309,7 +309,7 @@ export default function SourcingDashboardView({
             <button onClick={() => setGoalModalOpen(true)}
               style={{
                 padding: '6px 14px', fontSize: 11, fontWeight: 600,
-                background: C.gold, color: C.navyDeep, border: 'none', borderRadius: 4,
+                background: C.navy, color: C.white, border: 'none', borderRadius: 4,
                 cursor: 'pointer',
               }}>目標入力はこちら</button>
           )}
