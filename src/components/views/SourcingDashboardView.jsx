@@ -6,6 +6,7 @@ import { useKpiGoals, KPI_TYPES, PERIOD_TYPES } from '../../hooks/useKpiGoals';
 import { supabase } from '../../lib/supabase';
 import { fetchAllRecallRecords, fetchMemberPayrollHistory } from '../../lib/supabaseWrite';
 import PageHeader from '../common/PageHeader';
+import { Phone } from 'lucide-react';
 
 const TEAMS = ['成尾', '高橋'];
 const APPO_COUNTABLE = new Set(['面談済', '事前確認済', 'アポ取得']);
@@ -566,8 +567,9 @@ function CallButton({ onClick, disabled }) {
         border: 'none', borderRadius: 3,
         cursor: disabled ? 'not-allowed' : 'pointer',
         whiteSpace: 'nowrap',
+        display: 'inline-flex', alignItems: 'center', gap: 5,
       }}
-    >📞 架電</button>
+    ><Phone size={12} strokeWidth={2} /> 架電</button>
   );
 }
 
