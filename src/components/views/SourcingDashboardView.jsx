@@ -185,6 +185,12 @@ export default function SourcingDashboardView({
 
   // ---- 架電キュー（📞ボタン→次企業へ自動遷移／ヘッダー前後矢印で遷移） ----
   const queueRef = useRef({ items: [], idx: 0 });
+  // 元リストの完全なオブジェクトを解決して渡す（スクリプト・アウト返し・企業概要・注意事項・カレンダーを保持）
+  const resolveFullList = useCallback((listId) => {
+    const found = (callListData || []).find(l => l._supaId === listId || l.id === listId);
+    return found || { _supaId: listId, id: listId, company: '' };
+  }, [callListData]);
+
   const openQueueItemAtIdx = useCallback(() => {
     const q = queueRef.current;
     const cur = q.items[q.idx];
@@ -198,7 +204,7 @@ export default function SourcingDashboardView({
       openQueueItemAtIdx();
     } : null;
     setCallFlowScreen({
-      list: { _supaId: cur.list_id, id: cur.list_id, company: cur.list_name || '' },
+      list: resolveFullList(cur.list_id),
       defaultItemId: cur.item_id,
       defaultListMode: false,
       singleItemMode: true,
@@ -214,7 +220,7 @@ export default function SourcingDashboardView({
         }
       },
     });
-  }, [setCallFlowScreen]);
+  }, [setCallFlowScreen, resolveFullList]);
 
   const openQueue = useCallback((items, startIdx) => {
     const slice = items.slice(startIdx).filter(it => it.item_id && it.list_id);
