@@ -15,11 +15,21 @@ export function progressRoundInfo(pct) {
   return { pct: p, round, ...style };
 }
 
+// 進捗率のPill（Lists テーブルと同じ見た目。両方で共通利用）
+export function ProgressPill({ pct }) {
+  const { pct: p, color, bg, border } = progressRoundInfo(pct);
+  return (
+    <span style={{
+      display: 'inline-block', fontSize: 10, fontWeight: 700, color, background: bg,
+      padding: '2px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono', monospace",
+      border: `1px solid ${border}`, whiteSpace: 'nowrap',
+    }}>{p}%</span>
+  );
+}
+
 // Listsページ、Dashboard の「現在のおすすめリスト」で使う共通カードUI
 export default function TopListCard({ list, onClick }) {
   const score = list.recommendation?.score || 0;
-  const label = list.recommendation?.label || '—';
-  const { pct, round, color: progressColor } = progressRoundInfo(list.call_progress_pct);
   return (
     <button onClick={onClick} style={{
       textAlign: 'left', background: C.white, border: `1px solid ${C.border}`,
@@ -41,14 +51,11 @@ export default function TopListCard({ list, onClick }) {
       <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, lineHeight: 1.3 }}>
         {list.company || list.name || '—'}
       </div>
-      <div style={{ fontSize: 10, color: C.textMid }}>
-        {list.count ? `${list.count.toLocaleString()}件` : ''}
-      </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-        <span style={{ fontSize: 10, color: C.navy, fontWeight: 600 }}>{label}</span>
-        <span style={{ fontSize: 10, fontWeight: 700, color: progressColor, fontFamily: "'JetBrains Mono', monospace" }}>
-          {pct}%
+        <span style={{ fontSize: 10, color: C.textMid }}>
+          {list.count ? `${list.count.toLocaleString()}件` : ''}
         </span>
+        <ProgressPill pct={list.call_progress_pct} />
       </div>
     </button>
   );

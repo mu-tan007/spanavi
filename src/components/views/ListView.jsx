@@ -7,7 +7,7 @@ import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import PageHeader from '../common/PageHeader';
-import TopListCard, { progressRoundInfo } from '../common/TopListCard';
+import TopListCard, { ProgressPill } from '../common/TopListCard';
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -52,16 +52,6 @@ const LISTVIEW_COLS = [
   { key: 'actions', width: 65, align: 'left' },
 ];
 
-const ProgressPill = ({ pct }) => {
-  const { pct: p, color, bg, border } = progressRoundInfo(pct);
-  return (
-    <span style={{
-      display: 'inline-block', fontSize: 10, fontWeight: 700, color, background: bg,
-      padding: '2px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono', monospace",
-      border: `1px solid ${border}`, whiteSpace: 'nowrap',
-    }}>{p}%</span>
-  );
-};
 
 const LISTVIEW_ARCHIVE_COLS = [
   { key: 'client', width: 280, align: 'left' },
