@@ -53,13 +53,13 @@ const LISTVIEW_COLS = [
 ];
 
 const ProgressPill = ({ pct }) => {
-  const { pct: p, round, color, bg, border } = progressRoundInfo(pct);
+  const { pct: p, color, bg, border } = progressRoundInfo(pct);
   return (
     <span style={{
       display: 'inline-block', fontSize: 10, fontWeight: 700, color, background: bg,
-      padding: '2px 8px', borderRadius: 3, fontFamily: "'Noto Sans JP', sans-serif",
+      padding: '2px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono', monospace",
       border: `1px solid ${border}`, whiteSpace: 'nowrap',
-    }}>{round}周目 <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{p}%</span></span>
+    }}>{p}%</span>
   );
 };
 
@@ -72,7 +72,7 @@ const LISTVIEW_ARCHIVE_COLS = [
   { key: 'actions', width: 80, align: 'right' },
 ];
 
-export default function ListView({ filteredLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [], contactsByClient = {}, onOpenIndustryRules }) {
+export default function ListView({ filteredLists, allLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [], contactsByClient = {}, onOpenIndustryRules }) {
   const isMobile = useIsMobile();
   const { columns: lvCols, gridTemplateColumns: lvGrid, contentMinWidth: lvMinW, onResizeStart: lvResize, onHeaderContextMenu: lvCtxMenu, contextMenu: lvCtx, setAlign: lvSetAlign, resetAll: lvReset, closeMenu: lvClose } = useColumnConfig('listView', LISTVIEW_COLS);
   const { columns: arCols, gridTemplateColumns: arGrid, contentMinWidth: arMinW, onResizeStart: arResize, onHeaderContextMenu: arCtxMenu, contextMenu: arCtx, setAlign: arSetAlign, resetAll: arReset, closeMenu: arClose } = useColumnConfig('listViewArchive', LISTVIEW_ARCHIVE_COLS);
@@ -101,7 +101,8 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
   const [displayFilter, setDisplayFilter] = useState('active');
 
   // Dashboard の「現在のおすすめリスト TOP4」と同一ロジック: アクティブ + 架電可能 + recommendation あり、score降順 で TOP4
-  const topRecommended = (callListData || [])
+  // enrichedLists (allLists) を使うことで、現在のフィルタ状態に左右されない
+  const topRecommended = (allLists || [])
     .filter(l => l.status === '架電可能' && !l.is_archived && l.recommendation)
     .sort((a, b) => (b.recommendation?.score || 0) - (a.recommendation?.score || 0))
     .slice(0, 4);

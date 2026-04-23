@@ -46,8 +46,8 @@ export default function TopListCard({ list, onClick }) {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
         <span style={{ fontSize: 10, color: C.navy, fontWeight: 600 }}>{label}</span>
-        <span style={{ fontSize: 10, fontWeight: 700, color: progressColor }}>
-          {round}周目 <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{pct}%</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: progressColor, fontFamily: "'JetBrains Mono', monospace" }}>
+          {pct}%
         </span>
       </div>
     </button>

@@ -4,6 +4,7 @@ import InternRulesView from './InternRulesView';
 import ScriptView from './ScriptView';
 import TrainingRoleplaySection from './TrainingRoleplaySection';
 import InlineAudioPlayer from '../common/InlineAudioPlayer';
+import PageHeader from '../common/PageHeader';
 import { fetchRecordingBookmarks, deleteRecordingBookmark } from '../../lib/supabaseWrite';
 
 function CollapsibleSection({ title, count, defaultOpen = false, children }) {
@@ -65,12 +66,11 @@ export default function LibraryView({
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: C.navy, marginBottom: 4 }}>Library</div>
-        <div style={{ fontSize: 11, color: C.textLight }}>
-          22箇条・スクリプト・ロープレ履歴・録音・ミーティングアーカイブを一箇所に集約。
-        </div>
-      </div>
+      <PageHeader
+        title="Library"
+        description="22箇条・スクリプト・ロープレ履歴・録音・ミーティングアーカイブを一箇所に集約。"
+      />
+      <div style={{ height: 16 }} />
 
       <CollapsibleSection title="22箇条" defaultOpen={false}>
         <div style={{ margin: '0 -20px' }}>
