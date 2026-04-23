@@ -1,35 +1,25 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { C } from '../../constants/colors';
 import { useEngagements } from '../../hooks/useEngagements';
-import { useDealStages } from '../../hooks/useDealStages';
-import { useDeals } from '../../hooks/useDeals';
 import { useEngagementClients } from '../../hooks/useEngagementClients';
 import ClientSelector from '../common/ClientSelector';
 import PageHeader from '../common/PageHeader';
 import CallResultsTab from './deals/CallResultsTab';
 import AppointmentsTab from './deals/AppointmentsTab';
-import ProgressTab from './deals/ProgressTab';
 
 const TABS = [
-  { id: 'calls',    label: '架電結果' },
-  { id: 'appos',    label: '獲得アポ詳細' },
-  { id: 'progress', label: '商談進捗' },
+  { id: 'calls', label: '架電結果' },
+  { id: 'appos', label: '獲得アポ詳細' },
 ];
 
 export default function DealsView() {
   const { currentEngagement } = useEngagements();
-  const { activeStages, stages, loading: stagesLoading } = useDealStages(currentEngagement?.slug);
   const { clients } = useEngagementClients(currentEngagement?.id);
 
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [activeTab, setActiveTab] = useState('calls');
 
-  const { deals, loading: dealsLoading, updateDealStage, updateDeal, refresh: refreshDeals } = useDeals({
-    engagementId: currentEngagement?.id,
-    clientId: selectedClientId,
-  });
-
-  // Ctrl+←/→ でサブタブ切替 (他ページと揃える)
+  // Ctrl+←/→ でサブタブ切替
   useEffect(() => {
     const ids = TABS.map(t => t.id);
     const cycle = (dir) => setActiveTab(prev => {
@@ -57,16 +47,13 @@ export default function DealsView() {
   );
 
   if (!currentEngagement) return null;
-  if (stagesLoading) {
-    return <div style={{ padding: 40, textAlign: 'center', color: C.textMid }}>読み込み中...</div>;
-  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', background: C.offWhite, animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         compact
         title="Deals"
-        description="架電結果から商談進捗まで、案件のライフサイクルを1画面で管理"
+        description="架電結果と獲得アポの詳細をクライアント単位で確認"
       />
 
       {/* タブバー */}
@@ -113,19 +100,6 @@ export default function DealsView() {
             engagementId={currentEngagement.id}
             client={selectedClient}
             clients={clients}
-          />
-        )}
-        {activeTab === 'progress' && (
-          <ProgressTab
-            deals={deals}
-            stages={stages}
-            activeStages={activeStages}
-            loading={dealsLoading}
-            onStageChange={updateDealStage}
-            onUpdateDeal={updateDeal}
-            refresh={refreshDeals}
-            client={selectedClient}
-            engagementId={currentEngagement?.id}
           />
         )}
       </div>
