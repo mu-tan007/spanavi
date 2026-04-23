@@ -6,12 +6,10 @@ import MemberManagement from '../admin/MemberManagement';
 import RewardSettings from '../admin/RewardSettings';
 import SlackZoomSettings from '../admin/SlackZoomSettings';
 import ClientManagement from '../admin/ClientManagement';
-import BrandingSettings from '../admin/BrandingSettings';
 import IndustryRuleSettings from '../admin/IndustryRuleSettings';
 import CallStatusSettings from '../admin/CallStatusSettings';
 import RewardMasterView from './RewardMasterView';
 import MyPageView from './MyPageView';
-import BillingSettings from '../admin/BillingSettings';
 import GoalSettingsPanel from '../admin/GoalSettingsPanel';
 import PageHeader from '../common/PageHeader';
 
@@ -25,8 +23,6 @@ const TABS = [
   { id: 'calling',  label: '架電設定',              icon: '' },
   { id: 'slack',    label: 'Slack / Zoom設定',       icon: '' },
   { id: 'clients',  label: 'クライアント・リスト管理', icon: '' },
-  { id: 'branding', label: 'ブランド設定',           icon: '' },
-  { id: 'billing',  label: 'プラン・請求',           icon: '' },
 ];
 
 // ────────────────────────────────────────────────
@@ -219,8 +215,6 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
         )}
         {activeTab === 'slack'   && <SlackZoomSettings onToast={showToast} />}
         {activeTab === 'clients' && <ClientManagement  onToast={showToast} />}
-        {activeTab === 'branding' && <BrandingSettings onToast={showToast} />}
-        {activeTab === 'billing'  && <BillingSettings onToast={showToast} />}
       </div>
 
       {/* メンバーマイページ モーダル */}
