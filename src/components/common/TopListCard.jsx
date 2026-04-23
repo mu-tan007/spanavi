@@ -42,7 +42,7 @@ export default function TopListCard({ list, onClick }) {
         {list.company || list.name || '—'}
       </div>
       <div style={{ fontSize: 10, color: C.textMid }}>
-        {list.manager || ''} {list.count ? `・${list.count}件` : ''}
+        {list.count ? `${list.count.toLocaleString()}件` : ''}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
         <span style={{ fontSize: 10, color: C.navy, fontWeight: 600 }}>{label}</span>
