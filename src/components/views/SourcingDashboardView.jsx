@@ -582,7 +582,11 @@ function TopListCard({ list, onClick }) {
   const score = list.recommendation?.score || 0;
   const label = list.recommendation?.label || '—';
   const progress = Math.round(list.call_progress_pct || 0);
-  const progressColor = progress >= 100 ? '#6B7280' : progress >= 70 ? '#B45309' : progress >= 30 ? '#1E40AF' : '#2E844A';
+  const round = progress <= 100 ? 1 : Math.ceil(progress / 100);
+  const progressColor =
+    round === 1 ? '#2E844A' :
+    round === 2 ? '#1E40AF' :
+    round === 3 ? '#B45309' : '#6B7280';
   return (
     <button onClick={onClick} style={{
       textAlign: 'left', background: C.white, border: `1px solid ${C.border}`,
@@ -610,8 +614,9 @@ function TopListCard({ list, onClick }) {
         <span style={{ fontSize: 10, color: C.navy, fontWeight: 600 }}>{label}</span>
         <span style={{
           fontSize: 10, fontWeight: 700, color: progressColor,
-          fontFamily: "'JetBrains Mono', monospace",
-        }}>進捗 {progress}%</span>
+        }}>
+          {round}周目 <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{progress}%</span>
+        </span>
       </div>
     </button>
   );

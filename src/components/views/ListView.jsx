@@ -51,16 +51,27 @@ const LISTVIEW_COLS = [
   { key: 'actions', width: 65, align: 'left' },
 ];
 
+// 0-100%=1周目、101-200%=2周目、201-300%=3周目、…
+const progressRoundInfo = (pct) => {
+  const p = Math.round(pct || 0);
+  const round = p <= 100 ? 1 : Math.ceil(p / 100);
+  const palette = {
+    1: { color: '#2E844A', bg: '#ECFDF5' }, // 1周目: 緑
+    2: { color: '#1E40AF', bg: '#EFF6FF' }, // 2周目: 青
+    3: { color: '#B45309', bg: '#FEF3C7' }, // 3周目: 橙
+  };
+  const style = palette[round] || { color: '#6B7280', bg: '#F3F4F6' }; // 4周目〜: 灰
+  return { pct: p, round, ...style };
+};
+
 const ProgressPill = ({ pct }) => {
-  const rounded = Math.round(pct || 0);
-  const color = rounded >= 100 ? '#6B7280' : rounded >= 70 ? '#B45309' : rounded >= 30 ? '#1E40AF' : '#2E844A';
-  const bg    = rounded >= 100 ? '#F3F4F6' : rounded >= 70 ? '#FEF3C7' : rounded >= 30 ? '#EFF6FF' : '#ECFDF5';
+  const { pct: p, round, color, bg } = progressRoundInfo(pct);
   return (
     <span style={{
       display: 'inline-block', fontSize: 10, fontWeight: 700, color, background: bg,
-      padding: '2px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono', monospace",
-      border: `1px solid ${color}30`,
-    }}>{rounded}%</span>
+      padding: '2px 8px', borderRadius: 3, fontFamily: "'Noto Sans JP', sans-serif",
+      border: `1px solid ${color}30`, whiteSpace: 'nowrap',
+    }}>{round}周目 <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{p}%</span></span>
   );
 };
 
