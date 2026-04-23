@@ -35,26 +35,33 @@ export default function ClientManagement({ onToast }) {
     setInvitingId(client.id);
     try {
       const redirectTo = `${window.location.origin}/client`;
-      const { data, error } = await supabase.functions.invoke('invite_client', {
-        body: { client_id: client.id, email: email.trim(), redirectTo },
+      // FunctionsHttpError のボディを確実に取るため、明示的に session token を付けて fetch する
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite_client`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ client_id: client.id, email: email.trim(), redirectTo }),
       });
-      // non-2xx でも context.response.json() でボディを取れる
-      if (error) {
-        let serverMsg = error.message || '招待に失敗しました';
-        try {
-          const res = error.context?.response;
-          if (res) {
-            const body = await res.json();
-            if (body?.error) serverMsg = body.error;
-          }
-        } catch { /* ignore */ }
-        onToast(serverMsg, 'error');
+      const text = await res.text();
+      let body = null;
+      try { body = text ? JSON.parse(text) : null; } catch { /* ignore */ }
+      if (!res.ok) {
+        const msg = body?.error || text || `HTTP ${res.status}`;
+        // eslint-disable-next-line no-console
+        console.error('[invite_client] error', res.status, body || text);
+        onToast(msg, 'error');
         return;
       }
-      if (data?.error) { onToast(data.error, 'error'); return; }
       onToast(`${email} に招待メールを送信しました`, 'success');
       await load();
     } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[invite_client] exception', e);
       onToast(e?.message || '招待に失敗しました', 'error');
     } finally {
       setInvitingId(null);
