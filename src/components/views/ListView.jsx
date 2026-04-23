@@ -59,7 +59,7 @@ const LISTVIEW_ARCHIVE_COLS = [
   { key: 'actions', width: 80, align: 'right' },
 ];
 
-export default function ListView({ filteredLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [], contactsByClient = {} }) {
+export default function ListView({ filteredLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [], contactsByClient = {}, onOpenIndustryRules }) {
   const isMobile = useIsMobile();
   const { columns: lvCols, gridTemplateColumns: lvGrid, contentMinWidth: lvMinW, onResizeStart: lvResize, onHeaderContextMenu: lvCtxMenu, contextMenu: lvCtx, setAlign: lvSetAlign, resetAll: lvReset, closeMenu: lvClose } = useColumnConfig('listView', LISTVIEW_COLS);
   const { columns: arCols, gridTemplateColumns: arGrid, contentMinWidth: arMinW, onResizeStart: arResize, onHeaderContextMenu: arCtxMenu, contextMenu: arCtx, setAlign: arSetAlign, resetAll: arReset, closeMenu: arClose } = useColumnConfig('listViewArchive', LISTVIEW_ARCHIVE_COLS);
@@ -171,6 +171,17 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
         title="Lists"
         description="架電リスト管理"
         style={{ marginBottom: 24 }}
+        right={onOpenIndustryRules ? (
+          <button
+            onClick={onOpenIndustryRules}
+            style={{
+              padding: '7px 14px', fontSize: 12, fontWeight: 600,
+              background: C.white, color: C.navy,
+              border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer',
+              fontFamily: "'Noto Sans JP',sans-serif",
+            }}
+          >📘 業種別ルールを開く</button>
+        ) : null}
       />
       {/* 時間外メッセージ */}
       {now && (now.getHours() < 7 || now.getHours() >= 20) && (

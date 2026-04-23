@@ -541,7 +541,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       { id: "search", label: "Search" },
       { id: "recall", label: "Recall" },
       { id: "incoming", label: "Incoming Call" },
-      { id: "rules", label: "Industry Rules" },
     ]},
     { id: "g_appo", label: "PIPELINE", children: [
       { id: "appo", label: "Appointments" },
@@ -1131,7 +1130,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
           || (engSlug === 'spartia_career' && currentTab === 'mypage')) && (<>
         {currentTab === "live" && <LiveStatusView now={now} callListData={callListData} members={members} isAdmin={isAdmin} isTeamLeader={!isAdmin && currentMemberDetail?.role === 'チームリーダー'} orgId={orgId} />}
         {currentTab === "incoming" && <IncomingCallsView setCallFlowScreen={setCallFlowScreen} />}
-        {currentTab === "lists" && <ListView filteredLists={filteredLists} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterType={filterType} setFilterType={setFilterType} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy} setSelectedList={setSelectedList} callListData={callListData} setCallListData={setCallListData} listFormOpen={listFormOpen} setListFormOpen={setListFormOpen} editingListId={editingListId} setEditingListId={setEditingListId} now={now} isAdmin={isAdmin} clientData={clientData} contactsByClient={contactsByClient} />}
+        {currentTab === "lists" && <ListView filteredLists={filteredLists} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterType={filterType} setFilterType={setFilterType} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy} setSelectedList={setSelectedList} callListData={callListData} setCallListData={setCallListData} listFormOpen={listFormOpen} setListFormOpen={setListFormOpen} editingListId={editingListId} setEditingListId={setEditingListId} now={now} isAdmin={isAdmin} clientData={clientData} contactsByClient={contactsByClient} onOpenIndustryRules={() => setCurrentTab('rules')} />}
         {currentTab === "appo" && <AppoListView appoData={appoData} setAppoData={isAdmin ? setAppoData : null} members={members} setMembers={isAdmin ? setMembers : null} clientData={clientData} rewardMaster={rewardMaster} setCallFlowScreen={setCallFlowScreen} callListData={callListData} contactsByClient={contactsByClient} />}
         {currentTab === "precheck" && <PreCheckView appoData={appoData} setAppoData={isAdmin ? setAppoData : null} setCallFlowScreen={setCallFlowScreen} callListData={callListData} clientData={clientData} contactsByClient={contactsByClient} />}
         {currentTab === "deals" && <DealsView />}
@@ -1145,7 +1144,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "payroll" && <PayrollView members={members} appoData={appoData} isAdmin={isAdmin} setMembers={setMembers} onDataRefetch={onDataRefetch} currentUser={currentUser} />}
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
         {currentTab === "database" && <DatabaseView isAdmin={isAdmin} />}
-        {currentTab === "rules" && <RulesView />}
+        {currentTab === "rules" && <RulesView onBack={() => setCurrentTab('lists')} />}
         {currentTab === "mypage" && isAdmin && <AdminView isAdmin={isAdmin} setCurrentTab={setCurrentTab} rewardMaster={rewardMaster} setRewardMaster={setRewardMaster} members={members} appoData={appoData} now={now} onDataRefetch={onDataRefetch} userId={userId} orgId={orgId} />}
         {currentTab === "mypage" && !isAdmin && <MyPageView currentUser={currentUser} userId={userId} callListData={callListData} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} />}
         {currentTab === "edu_performance" && <PerformanceView members={members} currentUser={currentUser} appoData={appoData} />}

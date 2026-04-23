@@ -38,11 +38,68 @@ function formatOku(oku) {
   return `${oku.toFixed(oku < 1 ? 2 : 1)}億円`;
 }
 
+// ─── 期間生成 (CallResultsTab と同じロジック) ──────────
+function pad2(n) { return String(n).padStart(2, '0'); }
+function toIsoDate(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+function buildMonthlyPeriods() {
+  const opts = [];
+  const now = new Date();
+  for (let i = -11; i <= 0; i++) {
+    const y = now.getFullYear() + Math.floor((now.getMonth() + i) / 12);
+    const mi = ((now.getMonth() + i) % 12 + 12) % 12;
+    const from = new Date(y, mi, 1);
+    const to = new Date(y, mi + 1, 1);
+    opts.push({ key: toIsoDate(from), label: `${y}年${mi + 1}月`, from: from.toISOString(), to: to.toISOString() });
+  }
+  return opts.reverse();
+}
+function buildWeeklyPeriods() {
+  const opts = [];
+  const now = new Date();
+  const day = now.getDay();
+  const offsetToMon = (day === 0 ? -6 : 1 - day);
+  const thisMon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offsetToMon);
+  for (let i = 0; i < 13; i++) {
+    const from = new Date(thisMon); from.setDate(thisMon.getDate() - i * 7);
+    const to = new Date(from); to.setDate(from.getDate() + 7);
+    opts.push({
+      key: toIsoDate(from),
+      label: `${from.getFullYear()}/${from.getMonth() + 1}/${from.getDate()} 週`,
+      from: from.toISOString(), to: to.toISOString(),
+    });
+  }
+  return opts;
+}
+
 export default function AppointmentsTab({ client }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(null);
-  const [extraByName, setExtraByName] = useState({}); // { company_name: {address, revenue} }
+  const [extraByName, setExtraByName] = useState({});
+
+  const [periodMode, setPeriodMode] = useState('total');
+  const monthlyOpts = useMemo(buildMonthlyPeriods, []);
+  const weeklyOpts = useMemo(buildWeeklyPeriods, []);
+  const [monthlyKey, setMonthlyKey] = useState(monthlyOpts[0]?.key || '');
+  const [weeklyKey, setWeeklyKey] = useState(weeklyOpts[0]?.key || '');
+  const [dailyDate, setDailyDate] = useState(toIsoDate(new Date()));
+
+  const periodRange = useMemo(() => {
+    if (periodMode === 'total') return { from: null, to: null, label: 'トータル' };
+    if (periodMode === 'monthly') {
+      const o = monthlyOpts.find(x => x.key === monthlyKey) || monthlyOpts[0];
+      return { from: o.from, to: o.to, label: o.label };
+    }
+    if (periodMode === 'weekly') {
+      const o = weeklyOpts.find(x => x.key === weeklyKey) || weeklyOpts[0];
+      return { from: o.from, to: o.to, label: o.label };
+    }
+    const d = new Date(dailyDate);
+    const from = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const to = new Date(from); to.setDate(from.getDate() + 1);
+    return { from: from.toISOString(), to: to.toISOString(), label: dailyDate };
+  }, [periodMode, monthlyKey, weeklyKey, dailyDate, monthlyOpts, weeklyOpts]);
+
   const orgId = getOrgId();
 
   useEffect(() => {
@@ -50,7 +107,7 @@ export default function AppointmentsTab({ client }) {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const { data } = await supabase
+      let q = supabase
         .from('appointments')
         .select(`
           id, company_name, meeting_date, status, cancel_reason, ceo_ma_intent, sales_amount, appo_report,
@@ -59,6 +116,10 @@ export default function AppointmentsTab({ client }) {
         .eq('org_id', orgId)
         .eq('client_id', client.id)
         .order('meeting_date', { ascending: false });
+      // 期間フィルタ: 獲得日 (created_at) ベース。架電結果の集計と揃える。
+      if (periodRange.from) q = q.gte('created_at', periodRange.from);
+      if (periodRange.to)   q = q.lt('created_at', periodRange.to);
+      const { data } = await q;
       if (cancelled) return;
       setRows(data || []);
 
@@ -100,7 +161,7 @@ export default function AppointmentsTab({ client }) {
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [orgId, client?.id]);
+  }, [orgId, client?.id, periodRange.from, periodRange.to]);
 
   const enriched = useMemo(() => (rows || []).map(r => {
     const fallback = extraByName[r.company_name] || {};
@@ -147,8 +208,6 @@ export default function AppointmentsTab({ client }) {
   }, [enriched]);
 
   if (!client) return <EmptyCard>クライアントを選択してください</EmptyCard>;
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: C.textMid }}>読み込み中...</div>;
-  if (enriched.length === 0) return <EmptyCard>このクライアントへのアポイントがありません</EmptyCard>;
 
   const intentChartData = CEO_INTENT_OPTIONS.map(o => ({ name: o.label, value: stats.intentCount[o.value] || 0, color: o.color }))
     .filter(d => d.value > 0);
@@ -159,6 +218,57 @@ export default function AppointmentsTab({ client }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* 期間セレクタ */}
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 4, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 11, color: C.textMid, fontWeight: 600 }}>期間:</span>
+        {[
+          { id: 'total',   label: 'トータル' },
+          { id: 'monthly', label: '月次' },
+          { id: 'weekly',  label: '週次' },
+          { id: 'daily',   label: '日次' },
+        ].map(p => {
+          const active = periodMode === p.id;
+          return (
+            <button key={p.id} onClick={() => setPeriodMode(p.id)}
+              style={{
+                padding: '5px 12px', fontSize: 11,
+                background: active ? C.navy : C.white, color: active ? C.white : C.textMid,
+                border: `1px solid ${active ? C.navy : C.border}`,
+                borderRadius: 4, cursor: 'pointer', fontWeight: active ? 600 : 400,
+              }}
+            >{p.label}</button>
+          );
+        })}
+        {periodMode === 'monthly' && (
+          <select value={monthlyKey} onChange={e => setMonthlyKey(e.target.value)}
+            style={{ padding: '5px 10px', fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 4, minWidth: 140 }}>
+            {monthlyOpts.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+          </select>
+        )}
+        {periodMode === 'weekly' && (
+          <select value={weeklyKey} onChange={e => setWeeklyKey(e.target.value)}
+            style={{ padding: '5px 10px', fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 4, minWidth: 160 }}>
+            {weeklyOpts.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+          </select>
+        )}
+        {periodMode === 'daily' && (
+          <input type="date" value={dailyDate} onChange={e => setDailyDate(e.target.value)}
+            style={{ padding: '5px 10px', fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 4 }} />
+        )}
+        <span style={{ fontSize: 10, color: C.textLight, marginLeft: 'auto' }}>
+          表示中: {periodRange.label} (獲得日ベース)
+        </span>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 40, textAlign: 'center', color: C.textMid }}>読み込み中...</div>
+      ) : enriched.length === 0 ? (
+        <EmptyCard>
+          {periodMode === 'total'
+            ? 'このクライアントへのアポイントがありません'
+            : 'この期間に該当するアポイントがありません'}
+        </EmptyCard>
+      ) : (<>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
         <SummaryCard label="アポ数" value={stats.total} />
         <SummaryCard label="キャンセル" value={`${stats.canceled} (${stats.total > 0 ? ((stats.canceled / stats.total) * 100).toFixed(1) : 0}%)`} />
@@ -259,6 +369,7 @@ export default function AppointmentsTab({ client }) {
           </table>
         </div>
       </Card>
+      </>)}
     </div>
   );
 }

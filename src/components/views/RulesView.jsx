@@ -162,7 +162,7 @@ function IndustryCard({ name, rule, highlight }) {
   );
 }
 
-export default function RulesView({ currentIndustry }) {
+export default function RulesView({ currentIndustry, onBack }) {
   const activeCategory = resolveCategory(currentIndustry);
 
   return (
@@ -172,6 +172,17 @@ export default function RulesView({ currentIndustry }) {
         title="Industry Rules"
         description="業種別対応ルール・注意事項"
         style={{ marginBottom: 24 }}
+        right={onBack ? (
+          <button
+            onClick={onBack}
+            style={{
+              padding: '7px 14px', fontSize: 12, fontWeight: 600,
+              background: C.white, color: C.navy,
+              border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer',
+              fontFamily: "'Noto Sans JP',sans-serif",
+            }}
+          >← Lists に戻る</button>
+        ) : null}
       />
 
       {/* Active category notice */}
