@@ -19,8 +19,6 @@ export default function MASPSidebar({
       items: [
         { id: 'database', label: 'Database', enabled: true },
         { id: 'all_members', label: 'Members', enabled: true },
-        { id: 'global_dashboard', label: '全社ダッシュボード', enabled: false },
-        { id: 'global_analytics', label: '全社Analytics', enabled: false },
       ],
     },
     // admin だけ「設定」セクションを表示

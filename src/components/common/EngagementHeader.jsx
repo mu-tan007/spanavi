@@ -5,7 +5,7 @@ import { useEngagements } from '../../hooks/useEngagements';
 // タブ選択でサイドバーが切り替わる対象（実装済み or 枠だけ準備済み）
 const SWITCHABLE_SLUGS = new Set(['masp', 'seller_sourcing', 'spartia_career', 'spartia_capital']);
 // コンテンツまで完全に実装済みのもの（タグを出さない）
-const READY_SLUGS = new Set(['masp', 'seller_sourcing', 'spartia_capital']);
+const READY_SLUGS = new Set(['masp', 'seller_sourcing', 'spartia_capital', 'spartia_career']);
 
 // inline=true のとき: 外側の position:fixed コンテナを出さず、タブ列だけ返す。
 // (SpanaviApp のトップヘッダー内に埋め込んで使う)

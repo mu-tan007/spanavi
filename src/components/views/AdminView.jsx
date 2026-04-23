@@ -61,9 +61,13 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
   const [toasts, setToasts] = useState([]);
 
   // 事業セレクタ (各タブの設定は事業ごとに独立)
+  // 現状 Sourcing だけがデータを持つので、それ以外の事業はセレクタから除外。
+  // 他事業のデータが整備され次第、この filter を広げて復活させる。
   const { engagements } = useEngagements();
   const selectableEngagements = useMemo(
-    () => (engagements || []).filter(e => e.slug !== 'masp').sort((a, b) => (a.display_order || 0) - (b.display_order || 0)),
+    () => (engagements || [])
+      .filter(e => e.slug === 'seller_sourcing')
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0)),
     [engagements]
   );
   const [selectedEngagementId, setSelectedEngagementId] = useState(() => {
