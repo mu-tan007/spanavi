@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { toRomaji } from 'wanakana';
 
 import { getOrgId } from '../../lib/orgContext';
 
@@ -30,13 +31,24 @@ export default function ClientManagement({ onToast }) {
   // 発行結果 (admin に表示するだけ、DB には保存しない)
   const [issuedCredentials, setIssuedCredentials] = useState(null);
 
-  // クライアント名から ID 候補を作る簡易ローマ字化 (admin が編集する前提)
+  // クライアント名から ID 候補を作る。
+  //   1. 全角→半角に正規化
+  //   2. 法人格 (株式会社 / 合同会社 / 有限会社 / (株) / (有) 等) を除去
+  //   3. wanakana で 平仮名・片仮名 → ローマ字。漢字は変換不可なので残る。
+  //   4. 残った非 ASCII を除去し、小文字 + 英数に整形
+  //   5. 有効な ID が作れなければ空文字 (admin に手入力させる)
   const suggestUsername = (name) => {
     if (!name) return '';
-    // 全角英数 → 半角、英字と数字だけ抜き出す
-    const ascii = name.normalize('NFKC').toLowerCase()
-      .replace(/[^a-z0-9]/g, '');
-    return (ascii || 'client') + '2026';
+    const norm = name.normalize('NFKC');
+    // 法人格除去
+    const stripped = norm
+      .replace(/株式会社|合同会社|有限会社|合資会社|一般社団法人|公益社団法人|医療法人|学校法人|\(株\)|\(有\)|\(合\)/g, '')
+      .trim();
+    // 平仮名/片仮名だけローマ字化 (漢字は変換不可なので残る)
+    const romaji = toRomaji(stripped, { IMEMode: false });
+    const ascii = romaji.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (ascii.length < 2) return '';          // 漢字のみ等で変換できなかった場合
+    return `${ascii.slice(0, 30)}2026`;        // 長すぎる場合は 30 文字で打ち切り
   };
 
   const callCredsFn = async (body) => {
@@ -389,6 +401,11 @@ function CredentialsModal({ client, mode, suggestUsername, onClose, onIssue, iss
             {mode === 'create' && (
               <label style={{ fontSize: 11, color: '#374151' }}>
                 ユーザー ID (半角英小文字+数字+ . _ -)
+                {!username && (
+                  <span style={{ display: 'block', marginTop: 4, fontSize: 10, color: '#B45309', background: '#FFFBEB', padding: '4px 8px', borderRadius: 3, border: '1px solid #FCD34D' }}>
+                    社名のローマ字表記を入力してください (例: {suggestUsername('フラーレン') || 'fullerene'}2026)
+                  </span>
+                )}
                 <input
                   value={username}
                   onChange={e => setUsername(e.target.value.toLowerCase())}
