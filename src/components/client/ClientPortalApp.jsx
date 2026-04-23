@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { C } from '../../constants/colors';
 import ClientDealsView from './ClientDealsView';
+import ClientSetPasswordPage from './ClientSetPasswordPage';
 
 // ログイン済みクライアント専用の最小シェル。
 // - user_metadata.role === 'client' でなければ /login へ戻す (社内ログイン)
@@ -42,6 +43,14 @@ export default function ClientPortalApp() {
   if (role !== 'client') {
     // 社内ユーザーは誤って /client に来ても戻す
     return <Navigate to="/" replace />;
+  }
+
+  // 招待メール経由 or パスワード未設定なら、パスワード設定画面を強制
+  const hash = typeof window !== 'undefined' ? window.location.hash : '';
+  const isInviteLink = /type=invite/.test(hash) || /type=signup/.test(hash);
+  const passwordSet = session.user?.user_metadata?.password_set === true;
+  if (isInviteLink || !passwordSet) {
+    return <ClientSetPasswordPage />;
   }
   if (!client) {
     return (

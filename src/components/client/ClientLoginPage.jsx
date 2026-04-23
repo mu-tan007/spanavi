@@ -81,6 +81,9 @@ export default function ClientLoginPage() {
         <div style={{ marginTop: 16, fontSize: 10, color: C.textLight, textAlign: 'center' }}>
           招待リンクからパスワードを未設定の場合は、メール内のリンクをご利用ください。
         </div>
+        <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.border}`, fontSize: 11, color: C.textMid, textAlign: 'center' }}>
+          社内メンバー (MASP) の方は <a href="/login" style={{ color: C.navyLight, textDecoration: 'underline' }}>こちらからログイン</a>
+        </div>
       </div>
     </div>
   );
