@@ -383,6 +383,16 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const [lastUpdated, setLastUpdated] = useState(() => new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   // call_sessions ベースの「リストごと最終架電日時」マップ { [supaId]: ISO string }
   const [latestSessionMap, setLatestSessionMap] = useState({});
+  // リストごとの累積架電回数（list_call_progress RPC）{ [supaId]: number }
+  const [listCallCountMap, setListCallCountMap] = useState({});
+  useEffect(() => {
+    supabase.rpc('list_call_progress').then(({ data, error }) => {
+      if (error) { console.error('[list_call_progress] error:', error); return; }
+      const map = {};
+      (data || []).forEach(r => { map[r.list_id] = Number(r.total_calls || 0); });
+      setListCallCountMap(map);
+    });
+  }, []);
   const [industryRules, setIndustryRules] = useState(DEFAULT_INDUSTRY_RULES);
   const [orgSettingsMap, setOrgSettingsMap] = useState({});
   // org_settings から業種ルール + スコア/ランク設定を一括取得
@@ -470,8 +480,10 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const enrichedLists = useMemo(() => callListData.map(list => {
     const latestCallAt = latestSessionMap[list._supaId] || null;
     const rec = getCurrentRecommendation(industryRules, list.industry, now, latestCallAt, list.created_at || null, orgSettingsMap);
-    return { ...list, recommendation: rec };
-  }), [now, latestSessionMap, industryRules, callListData, orgSettingsMap]);
+    const totalCalls = listCallCountMap[list._supaId] || 0;
+    const progressPct = list.count > 0 ? (totalCalls / list.count) * 100 : 0;
+    return { ...list, recommendation: rec, total_calls: totalCalls, call_progress_pct: progressPct };
+  }), [now, latestSessionMap, industryRules, callListData, orgSettingsMap, listCallCountMap]);
 
   const filteredLists = useMemo(() => {
     let lists = enrichedLists;

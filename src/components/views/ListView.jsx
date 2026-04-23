@@ -46,9 +46,23 @@ const LISTVIEW_COLS = [
   { key: 'industry', width: 100, align: 'left' },
   { key: 'count', width: 72, align: 'right' },
   { key: 'manager', width: 180, align: 'center' },
+  { key: 'progress', width: 110, align: 'center' },
   { key: 'score', width: 125, align: 'center' },
   { key: 'actions', width: 65, align: 'left' },
 ];
+
+const ProgressPill = ({ pct }) => {
+  const rounded = Math.round(pct || 0);
+  const color = rounded >= 100 ? '#6B7280' : rounded >= 70 ? '#B45309' : rounded >= 30 ? '#1E40AF' : '#2E844A';
+  const bg    = rounded >= 100 ? '#F3F4F6' : rounded >= 70 ? '#FEF3C7' : rounded >= 30 ? '#EFF6FF' : '#ECFDF5';
+  return (
+    <span style={{
+      display: 'inline-block', fontSize: 10, fontWeight: 700, color, background: bg,
+      padding: '2px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono', monospace",
+      border: `1px solid ${color}30`,
+    }}>{rounded}%</span>
+  );
+};
 
 const LISTVIEW_ARCHIVE_COLS = [
   { key: 'client', width: 280, align: 'left' },
@@ -230,9 +244,10 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                   <span style={{ fontSize: 11, fontWeight: 600, flex: 1, minWidth: 0, wordBreak: "break-all" }}>{list.company}</span>
                   <ScorePill score={list.recommendation.score} />
                 </div>
-                <div style={{ display: "flex", gap: 4 }}>
+                <div style={{ display: "flex", gap: 4, alignItems: 'center' }}>
                   <Badge color={C.textLight} small>{list.industry}</Badge>
                   <Badge color={C.textLight} small>{list.count.toLocaleString()}社</Badge>
+                  <ProgressPill pct={list.call_progress_pct} />
                 </div>
               </button>
             ))}
@@ -438,10 +453,10 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
           padding: isMobile ? "6px 10px" : "8px 16px", background: "#0D2247",
           fontSize: isMobile ? 10 : 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
         }}>
-          {['クライアント', '種別', '業種', '社数', '担当者', 'おすすめ度', ''].map((label, i) => (
+          {['クライアント', '種別', '業種', '社数', '担当者', '架電進捗率', 'おすすめ度', ''].map((label, i) => (
             <span key={i} onContextMenu={e => lvCtxMenu(e, i)} style={{ position: 'relative', textAlign: lvCols[i]?.align || 'left', minWidth: 0, cursor: 'default', userSelect: 'none' }}>
               {label}
-              {i < 6 && <ColumnResizeHandle colIndex={i} onResizeStart={lvResize} />}
+              {i < 7 && <ColumnResizeHandle colIndex={i} onResizeStart={lvResize} />}
             </span>
           ))}
         </div>
@@ -490,7 +505,8 @@ export default function ListView({ filteredLists, filterStatus, setFilterStatus,
                       <span style={{ color: C.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[2]?.align || 'left' }}>{list.industry}</span>
                       <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textMid, textAlign: lvCols[3]?.align || 'right' }}>{list.count.toLocaleString()}</span>
                       <span style={{ color: C.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[4]?.align || 'center' }}>{shortManagerName(list)}</span>
-                      <span style={{ display: "flex", justifyContent: lvCols[5]?.align === 'right' ? 'flex-end' : lvCols[5]?.align === 'center' ? 'center' : 'flex-start' }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
+                      <span style={{ display: "flex", justifyContent: lvCols[5]?.align === 'right' ? 'flex-end' : lvCols[5]?.align === 'center' ? 'center' : 'flex-start' }}><ProgressPill pct={list.call_progress_pct} /></span>
+                      <span style={{ display: "flex", justifyContent: lvCols[6]?.align === 'right' ? 'flex-end' : lvCols[6]?.align === 'center' ? 'center' : 'flex-start' }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
                       {isAdmin && (
                         <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 4 }}>
                           <button onClick={() => handleOpenEdit(list)} title="編集" style={{
