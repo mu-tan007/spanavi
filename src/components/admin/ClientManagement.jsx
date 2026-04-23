@@ -436,24 +436,164 @@ function CredentialsModal({ client, mode, suggestUsername, onClose, onIssue, iss
             </div>
           </div>
         ) : (
-          <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ fontSize: 12, color: '#065F46', background: '#ECFDF5', padding: '8px 12px', borderRadius: 4, border: '1px solid #A7F3D0' }}>
-              ✓ {issued.mode === 'create' ? 'アカウントを発行しました' : 'パスワードを更新しました'}。以下をクライアントへお伝えください。この画面を閉じた後は再表示できません (再発行は可能)。
-            </div>
-            <CopyRow label="ログイン URL" value={`${window.location.origin}/client/login`} onCopy={copied} />
-            <CopyRow label="ユーザー ID" value={issued.username} onCopy={copied} />
-            <CopyRow label="パスワード"  value={issued.password} onCopy={copied} />
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-              <button onClick={onClose}
-                style={{ padding: '7px 18px', border: 'none', background: '#0D2247', color: '#fff', borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                閉じる
-              </button>
-            </div>
-          </div>
+          <IssuedCredentialsView
+            issued={issued}
+            clientName={client.name}
+            onClose={onClose}
+            onCopy={copied}
+          />
         )}
       </div>
     </div>
   );
+}
+
+// 発行完了後のビュー: 3 行コピー + メール文案生成
+function IssuedCredentialsView({ issued, clientName, onClose, onCopy }) {
+  const [showMail, setShowMail] = useState(false);
+  const [mailCopied, setMailCopied] = useState(false);
+  const portalUrl = 'https://spanavi.jp/client/login';
+
+  const subject = '【Spanavi】クライアントポータルご案内のお知らせ';
+  const body = buildMailBody({ clientName, portalUrl, username: issued.username, password: issued.password });
+
+  const handleCopyMail = async () => {
+    try {
+      await navigator.clipboard.writeText(body);
+      setMailCopied(true);
+      setTimeout(() => setMailCopied(false), 1500);
+    } catch {
+      // fallback: select the textarea
+    }
+  };
+
+  const mailtoHref = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+  return (
+    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ fontSize: 12, color: '#065F46', background: '#ECFDF5', padding: '8px 12px', borderRadius: 4, border: '1px solid #A7F3D0' }}>
+        ✓ {issued.mode === 'create' ? 'アカウントを発行しました' : 'パスワードを更新しました'}。以下をクライアントへお伝えください。この画面を閉じた後は再表示できません (再発行は可能)。
+      </div>
+      <CopyRow label="ログイン URL" value={portalUrl} onCopy={onCopy} />
+      <CopyRow label="ユーザー ID" value={issued.username} onCopy={onCopy} />
+      <CopyRow label="パスワード"  value={issued.password} onCopy={onCopy} />
+
+      {showMail && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+          <div style={{ fontSize: 10, color: '#6B7280' }}>
+            件名: <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>{subject}</span>
+          </div>
+          <textarea
+            readOnly
+            value={body}
+            rows={16}
+            style={{
+              width: '100%', padding: 10, fontSize: 11,
+              fontFamily: "'Noto Sans JP', 'JetBrains Mono', monospace",
+              border: '1px solid #E5E5E5', borderRadius: 3, background: '#F9FAFB',
+              resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6,
+            }}
+          />
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-start' }}>
+            <button onClick={handleCopyMail}
+              style={{
+                padding: '6px 12px', fontSize: 11, fontWeight: 600,
+                background: mailCopied ? '#10B981' : '#0D2247', color: '#fff',
+                border: 'none', borderRadius: 3, cursor: 'pointer',
+              }}>{mailCopied ? '✓ コピーしました' : '本文をコピー'}</button>
+            <a href={mailtoHref}
+              style={{
+                padding: '6px 12px', fontSize: 11, fontWeight: 600,
+                background: '#fff', color: '#0D2247',
+                border: '1px solid #E5E5E5', borderRadius: 3, cursor: 'pointer',
+                textDecoration: 'none',
+              }}>メーラーで開く</a>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+        <button onClick={() => setShowMail(v => !v)}
+          style={{
+            padding: '7px 14px', fontSize: 11, fontWeight: 600,
+            background: showMail ? '#F3F4F6' : '#fff', color: '#0D2247',
+            border: '1px solid #E5E5E5', borderRadius: 4, cursor: 'pointer',
+          }}>
+          {showMail ? '閉じる' : 'メール文案を自動生成'}
+        </button>
+        <button onClick={onClose}
+          style={{ padding: '7px 18px', border: 'none', background: '#0D2247', color: '#fff', borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+          閉じる
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function buildMailBody({ clientName, portalUrl, username, password }) {
+  return `${clientName || '貴社'} 御中
+
+平素より大変お世話になっております。
+M&Aソーシングパートナーズの篠宮でございます。
+
+この度、貴社にご依頼いただいておりますM&A候補先へのアプローチ状況を
+リアルタイムでご確認いただける、弊社CTIツール「Spanavi (スパナビ)」の
+クライアントポータルをご用意いたしました。
+
+ログイン情報は下記の通りでございます。
+
+
+━━━━━━━━━━━━━━━━━━━━━━
+▼ ログイン情報
+━━━━━━━━━━━━━━━━━━━━━━
+ URL      : ${portalUrl}
+ ユーザーID : ${username}
+ パスワード : ${password}
+
+
+━━━━━━━━━━━━━━━━━━━━━━
+▼ ポータルでご確認いただける内容
+━━━━━━━━━━━━━━━━━━━━━━
+
+◎ 架電結果
+  ・総架電件数 / 社長接続数 / 社長接続率
+  ・アポ獲得数 / アポ獲得率
+  ・リスト別の詳細集計 (業種ごとの成果)
+  ・日別の架電件数グラフ
+  ・各企業への架電履歴
+   (何回目にどのステータスだったか、対応者まで表示)
+  ・Excel 形式でのダウンロード
+
+◎ 獲得アポの詳細
+  ・取得したアポ企業の一覧
+   (企業名 / 業種 / 売上高 / エリア / 面談日 / ステータス)
+  ・社長のM&A意向の内訳
+   (前向き / 様子見 / 消極的 / 不明)
+  ・エリア分布・売上高レンジ分布のグラフ
+  ・キャンセル / リスケジュール件数
+
+◎ 期間の切替
+  ・トータル / 月次 / 週次 / 日次 で自由に切替可能
+  ・任意の月・週・日のデータにフォーカスして分析いただけます
+
+
+━━━━━━━━━━━━━━━━━━━━━━
+▼ ご利用にあたって
+━━━━━━━━━━━━━━━━━━━━━━
+・上記URLよりログインをお願いいたします
+・パスワードの再発行をご希望の場合は弊社までご連絡ください
+・ご不明点・ご要望等ございましたらお気軽にお申し付けください
+
+
+本ポータルを通じて、貴社の買収戦略推進の一助となれば幸いでございます。
+引き続き、何卒よろしくお願い申し上げます。
+
+─────────────────────────
+M&Aソーシングパートナーズ株式会社
+代表取締役 篠宮 拓武
+E-mail: shinomiya@ma-sp.co
+─────────────────────────
+`;
 }
 
 function CopyRow({ label, value, onCopy }) {
