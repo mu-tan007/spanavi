@@ -142,7 +142,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   );
 }
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, singleItemMode = false, onResultSubmit = null }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, ceoConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -1639,7 +1639,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         )}
 
 
-        {/* 中央: 位置表示 + 前へ/次へ（singleItemMode時は非表示） */}
+        {/* 中央: 位置表示 + 前へ/次へ。通常モードはリスト内、singleItemMode+queue 指定時はキュー内で遷移 */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           {!singleItemMode && (<>
           <button
@@ -1663,6 +1663,31 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               background: currentIdx >= sorted.length - 1 ? 'transparent' : 'rgba(255,255,255,0.1)',
               color: currentIdx >= sorted.length - 1 ? 'rgba(255,255,255,0.3)' : '#ffffff',
               cursor: currentIdx >= sorted.length - 1 ? 'default' : 'pointer' }}>
+            次へ ▶
+          </button>
+          </>)}
+          {singleItemMode && (onQueuePrev || onQueueNext) && (<>
+          <button
+            onClick={() => onQueuePrev && onQueuePrev()}
+            disabled={!onQueuePrev}
+            style={{ padding: '4px 14px', borderRadius: 6, fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+              border: !onQueuePrev ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.5)',
+              background: !onQueuePrev ? 'transparent' : 'rgba(255,255,255,0.1)',
+              color: !onQueuePrev ? 'rgba(255,255,255,0.3)' : '#ffffff',
+              cursor: !onQueuePrev ? 'default' : 'pointer' }}>
+            ◀ 前へ
+          </button>
+          <span style={{ fontSize: 12, color: '#fff', fontWeight: 700, minWidth: 90, textAlign: 'center', fontFamily: "'JetBrains Mono'" }}>
+            {queuePos || ''}
+          </span>
+          <button
+            onClick={() => onQueueNext && onQueueNext()}
+            disabled={!onQueueNext}
+            style={{ padding: '4px 14px', borderRadius: 6, fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+              border: !onQueueNext ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.5)',
+              background: !onQueueNext ? 'transparent' : 'rgba(255,255,255,0.1)',
+              color: !onQueueNext ? 'rgba(255,255,255,0.3)' : '#ffffff',
+              cursor: !onQueueNext ? 'default' : 'pointer' }}>
             次へ ▶
           </button>
           </>)}

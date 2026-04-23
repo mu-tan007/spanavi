@@ -183,17 +183,28 @@ export default function SourcingDashboardView({
   // ---- 目標入力モーダル ----
   const [goalModalOpen, setGoalModalOpen] = useState(false);
 
-  // ---- 架電キュー（📞ボタン→次企業へ自動遷移） ----
+  // ---- 架電キュー（📞ボタン→次企業へ自動遷移／ヘッダー前後矢印で遷移） ----
   const queueRef = useRef({ items: [], idx: 0 });
   const openQueueItemAtIdx = useCallback(() => {
     const q = queueRef.current;
     const cur = q.items[q.idx];
     if (!cur || !setCallFlowScreen) { setCallFlowScreen?.(null); return; }
+    const goPrev = q.idx > 0 ? () => {
+      queueRef.current = { items: q.items, idx: q.idx - 1 };
+      openQueueItemAtIdx();
+    } : null;
+    const goNext = q.idx < q.items.length - 1 ? () => {
+      queueRef.current = { items: q.items, idx: q.idx + 1 };
+      openQueueItemAtIdx();
+    } : null;
     setCallFlowScreen({
       list: { _supaId: cur.list_id, id: cur.list_id, company: cur.list_name || '' },
       defaultItemId: cur.item_id,
       defaultListMode: false,
       singleItemMode: true,
+      onQueuePrev: goPrev,
+      onQueueNext: goNext,
+      queuePos: `${q.idx + 1} / ${q.items.length}件`,
       onResultSubmit: () => {
         queueRef.current = { items: q.items, idx: q.idx + 1 };
         if (queueRef.current.idx < queueRef.current.items.length) {
