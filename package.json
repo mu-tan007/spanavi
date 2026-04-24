@@ -26,6 +26,7 @@
     "react-router-dom": "^7.1.1",
     "recharts": "^3.8.0",
     "remark-gfm": "^4.0.1",
+    "tus-js-client": "^4.3.1",
     "wanakana": "^5.3.1"
   },
   "devDependencies": {

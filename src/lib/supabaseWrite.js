@@ -2303,13 +2303,45 @@ export async function uploadWeeklyMeetingVideo({ file, title, meetingDate, uploa
   const safeTitle = (title || 'meeting').replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, 40);
   const ts = Date.now();
   const path = `${orgId}/${ts}_${safeTitle}.${ext}`;
-  const { error: uploadError } = await supabase.storage
-    .from('weekly-meetings')
-    .upload(path, file, { contentType: file.type || 'video/mp4', upsert: false, duplex: 'half' });
-  if (uploadError) {
-    console.error('[DB] uploadWeeklyMeetingVideo upload error:', uploadError);
-    return { error: uploadError };
+
+  // Supabase 標準 upload は 50MB でカットされるため、tus-js-client で resumable upload を行う
+  const { data: { session } = {} } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+  if (!accessToken) return { error: 'no session' };
+  const projectUrl = (import.meta.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');
+  if (!projectUrl) return { error: 'no supabase url' };
+
+  const tus = await import('tus-js-client');
+  const uploadErr = await new Promise((resolve) => {
+    const upload = new tus.Upload(file, {
+      endpoint: `${projectUrl}/storage/v1/upload/resumable`,
+      retryDelays: [0, 3000, 5000, 10000, 20000],
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'x-upsert': 'true',
+      },
+      uploadDataDuringCreation: true,
+      removeFingerprintOnSuccess: true,
+      metadata: {
+        bucketName: 'weekly-meetings',
+        objectName: path,
+        contentType: file.type || 'video/mp4',
+        cacheControl: '3600',
+      },
+      chunkSize: 6 * 1024 * 1024,
+      onError: (err) => resolve(err),
+      onProgress: (bytesUploaded, bytesTotal) => {
+        try { onProgress?.(bytesUploaded, bytesTotal); } catch (_) {}
+      },
+      onSuccess: () => resolve(null),
+    });
+    upload.start();
+  });
+  if (uploadErr) {
+    console.error('[DB] uploadWeeklyMeetingVideo tus error:', uploadErr);
+    return { error: uploadErr };
   }
+
   const { data: urlData } = supabase.storage.from('weekly-meetings').getPublicUrl(path);
   const publicUrl = urlData.publicUrl;
   const row = {
@@ -2326,7 +2358,6 @@ export async function uploadWeeklyMeetingVideo({ file, title, meetingDate, uploa
   const { data, error: insertError } = await supabase.from('weekly_meeting_videos').insert(row).select().single();
   if (insertError) {
     console.error('[DB] uploadWeeklyMeetingVideo insert error:', insertError);
-    // ストレージのファイルを掃除
     await supabase.storage.from('weekly-meetings').remove([path]);
     return { error: insertError };
   }

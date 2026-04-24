@@ -254,6 +254,7 @@ function MeetingUploader({ currentUser, onUploaded }) {
   const [title, setTitle] = useState('');
   const [meetingDate, setMeetingDate] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [uploadPct, setUploadPct] = useState(0);
   const [error, setError] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef(null);
@@ -288,14 +289,19 @@ function MeetingUploader({ currentUser, onUploaded }) {
   const doUpload = async () => {
     if (!selectedFile) return;
     setUploading(true);
+    setUploadPct(0);
     setError('');
     const { error } = await uploadWeeklyMeetingVideo({
       file: selectedFile,
       title: title || selectedFile.name,
       meetingDate: meetingDate || null,
       uploadedByName: currentUser || null,
+      onProgress: (uploaded, total) => {
+        if (total > 0) setUploadPct(Math.round((uploaded / total) * 100));
+      },
     });
     setUploading(false);
+    setUploadPct(0);
     if (error) {
       setError(typeof error === 'string' ? error : (error.message || 'アップロードに失敗しました'));
       return;
@@ -361,7 +367,7 @@ function MeetingUploader({ currentUser, onUploaded }) {
               border: 'none', borderRadius: 4,
               cursor: uploading ? 'wait' : 'pointer',
             }}
-          >{uploading ? 'アップロード中…' : 'アップロード'}</button>
+          >{uploading ? `アップロード中… ${uploadPct}%` : 'アップロード'}</button>
           <button
             onClick={() => { setSelectedFile(null); setTitle(''); setMeetingDate(''); setError(''); }}
             disabled={uploading}
