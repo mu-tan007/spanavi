@@ -2301,15 +2301,22 @@ export async function uploadWeeklyMeetingVideo({ file, title, meetingDate, uploa
   if (!orgId) return { error: 'no org' };
   const { data: { user } = {} } = await supabase.auth.getUser();
 
-  // 1. Edge Function 経由で Direct Upload URL + uid を取得
+  // 1. Edge Function 経由で TUS セッション作成 → uploadUrl + uid を取得
   const { data: du, error: duErr } = await supabase.functions.invoke('cf-stream', {
-    body: { mode: 'direct_upload', title: title || file.name, maxDurationSeconds: 21600 },
+    body: {
+      mode: 'tus_create',
+      title: title || file.name,
+      filename: file.name,
+      filetype: file.type || 'video/mp4',
+      fileSize: file.size,
+      maxDurationSeconds: 7200,
+    },
   });
-  if (duErr || !du?.uploadURL || !du?.uid) {
-    console.error('[DB] uploadWeeklyMeetingVideo direct_upload error:', duErr || du);
-    return { error: duErr || new Error('cf direct_upload failed') };
+  if (duErr || !du?.uploadUrl || !du?.uid) {
+    console.error('[DB] uploadWeeklyMeetingVideo tus_create error:', duErr || du);
+    return { error: duErr || new Error('cf tus_create failed') };
   }
-  const uploadURL = du.uploadURL;
+  const uploadURL = du.uploadUrl;
   const uid = du.uid;
 
   // 2. TUS PATCH ループで直接 Cloudflare Stream にアップロード
