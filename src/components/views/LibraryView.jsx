@@ -227,7 +227,17 @@ export default function LibraryView({
               </div>
               {isPlaying && (
                 <div style={{ marginTop: 10 }}>
-                  <video src={m.public_url} controls style={{ width: '100%', maxHeight: 480, borderRadius: 4, background: '#000' }} />
+                  {m.drive_file_id ? (
+                    <iframe
+                      src={`https://drive.google.com/file/d/${m.drive_file_id}/preview`}
+                      title={m.title}
+                      allow="autoplay"
+                      allowFullScreen
+                      style={{ width: '100%', height: 480, borderRadius: 4, background: '#000', border: 'none' }}
+                    />
+                  ) : (
+                    <video src={m.public_url} controls style={{ width: '100%', maxHeight: 480, borderRadius: 4, background: '#000' }} />
+                  )}
                 </div>
               )}
             </div>

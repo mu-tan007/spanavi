@@ -2300,56 +2300,40 @@ export async function uploadWeeklyMeetingVideo({ file, title, meetingDate, uploa
   if (!orgId) return { error: 'no org' };
   const { data: { user } = {} } = await supabase.auth.getUser();
   const ext = (file.name.split('.').pop() || 'mp4').toLowerCase();
-  const safeTitle = (title || 'meeting').replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, 40);
-  const ts = Date.now();
-  const path = `${orgId}/${ts}_${safeTitle}.${ext}`;
+  const safeTitle = (title || 'meeting').replace(/[\\/:*?"<>|]/g, '_').slice(0, 80);
+  const ts = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const driveName = `${ts}_${safeTitle}.${ext}`;
 
-  // Supabase 標準 upload は 50MB でカットされるため、tus-js-client で resumable upload を行う
-  const { data: { session } = {} } = await supabase.auth.getSession();
-  const accessToken = session?.access_token;
-  if (!accessToken) return { error: 'no session' };
-  const projectUrl = (import.meta.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');
-  if (!projectUrl) return { error: 'no supabase url' };
-
-  const tus = await import('tus-js-client');
-  const uploadErr = await new Promise((resolve) => {
-    const upload = new tus.Upload(file, {
-      endpoint: `${projectUrl}/storage/v1/upload/resumable`,
-      retryDelays: [0, 3000, 5000, 10000, 20000],
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        'x-upsert': 'true',
-      },
-      uploadDataDuringCreation: true,
-      removeFingerprintOnSuccess: true,
-      metadata: {
-        bucketName: 'weekly-meetings',
-        objectName: path,
-        contentType: file.type || 'video/mp4',
-        cacheControl: '3600',
-      },
-      chunkSize: 6 * 1024 * 1024,
-      onError: (err) => resolve(err),
-      onProgress: (bytesUploaded, bytesTotal) => {
-        try { onProgress?.(bytesUploaded, bytesTotal); } catch (_) {}
-      },
-      onSuccess: () => resolve(null),
-    });
-    upload.start();
-  });
-  if (uploadErr) {
-    console.error('[DB] uploadWeeklyMeetingVideo tus error:', uploadErr);
-    return { error: uploadErr };
+  // Google Drive へ resumable upload（Supabase 標準 upload は 50MB 制限のため Drive 経由）
+  const { data: initData, error: initErr } = await initResumableUpload(driveName);
+  if (initErr || !initData?.upload_uri) {
+    console.error('[DB] uploadWeeklyMeetingVideo init error:', initErr);
+    return { error: initErr || new Error('Drive resumable init failed') };
   }
+  let fileId = null;
+  try {
+    const result = await uploadFileToGdriveResumable(file, initData.upload_uri, (pct) => {
+      try { onProgress?.(Math.round((pct / 100) * file.size), file.size); } catch (_) {}
+    });
+    fileId = result?.fileId || null;
+  } catch (err) {
+    console.error('[DB] uploadWeeklyMeetingVideo drive upload error:', err);
+    return { error: err };
+  }
+  if (!fileId) return { error: new Error('Drive upload returned no fileId') };
 
-  const { data: urlData } = supabase.storage.from('weekly-meetings').getPublicUrl(path);
-  const publicUrl = urlData.publicUrl;
+  // 「リンクを知っている人が閲覧可能」の共有設定を付与
+  const { data: permData, error: permErr } = await setDrivePermissions(fileId);
+  const driveUrl = permData?.drive_url || `https://drive.google.com/file/d/${fileId}/view?usp=sharing`;
+  if (permErr) console.warn('[DB] uploadWeeklyMeetingVideo permission warn:', permErr);
+
   const row = {
     org_id: orgId,
     title: title || file.name,
     meeting_date: meetingDate || null,
-    storage_path: path,
-    public_url: publicUrl,
+    drive_file_id: fileId,
+    public_url: driveUrl,
+    storage_path: null,
     size_bytes: file.size,
     mime_type: file.type || 'video/mp4',
     uploaded_by: user?.id || null,
@@ -2358,7 +2342,6 @@ export async function uploadWeeklyMeetingVideo({ file, title, meetingDate, uploa
   const { data, error: insertError } = await supabase.from('weekly_meeting_videos').insert(row).select().single();
   if (insertError) {
     console.error('[DB] uploadWeeklyMeetingVideo insert error:', insertError);
-    await supabase.storage.from('weekly-meetings').remove([path]);
     return { error: insertError };
   }
   return { data, error: null };
