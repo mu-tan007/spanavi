@@ -34,7 +34,7 @@ function calcWorkHours(calls) {
   return Object.values(dayBounds).reduce((sum, d) => sum + Math.max((d.max - d.min) / 3600000, 0), 0);
 }
 
-function PersonDetailModal({ person, callRecords, appoRecords, sessions, members, teamMap, rankDateRange, onClose }) {
+export function PersonDetailModal({ person, callRecords, appoRecords, sessions, members, teamMap, rankDateRange, onClose }) {
   const { ceoConnectLabels } = useCallStatuses();
   const personCalls = callRecords.filter(r => r.getter_name === person);
   const personAppos = appoRecords.filter(r => r.getter_name === person);

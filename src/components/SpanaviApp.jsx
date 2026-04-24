@@ -10,6 +10,7 @@ import { extractUserNote, buildMemoWithNote } from '../utils/memo';
 import RoleplayView from './views/RoleplayView';
 import CompanySearchView from './views/CompanySearchView';
 import StatsView from './views/StatsView';
+import AnalyticsView from './views/AnalyticsView';
 import CallingScreen from './views/CallingScreen';
 import PiPWidget from './common/PiPWidget';
 import EngagementHeader from './common/EngagementHeader';
@@ -569,7 +570,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       { id: "shift", label: "Shifts" },
     ]},
     { id: "g_education", label: "DEVELOPMENT", children: [
-      { id: "edu_performance", label: "Performance" },
       { id: "library", label: "Library" },
       { id: "edu_roleplay", label: "Role Play" },
     ]},
@@ -1173,7 +1173,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
 
         {currentTab === "members" && <EngagementMembersView isAdmin={isAdmin} />}
         {currentTab === "search" && <CompanySearchView importedCSVs={importedCSVs} callListData={callListData} setCallingScreen={setCallingScreen} setImportedCSVs={setImportedCSVs} clientData={clientData} currentUser={currentUser} members={members} setCallFlowScreen={setCallFlowScreen} rewardMaster={rewardMaster} />}
-        {currentTab === "stats" && <StatsView callListData={callListData} currentUser={currentUser} appoData={appoData} members={members} now={now} />}
+        {currentTab === "stats" && <AnalyticsView callListData={callListData} currentUser={currentUser} appoData={appoData} members={members} now={now} />}
+        {currentTab === "edu_performance" && <AnalyticsView callListData={callListData} currentUser={currentUser} appoData={appoData} members={members} now={now} />}
         {currentTab === "recall" && <RecallListView callListData={callListData} supaRecalls={supaRecalls} onRecallComplete={handleSupaRecallComplete} members={memberNames} currentUser={currentUser} isAdmin={isAdmin} isManagerRole={isManagerRole} onRefresh={fetchSupaRecalls} setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "payroll" && <PayrollView members={members} appoData={appoData} isAdmin={isAdmin} setMembers={setMembers} onDataRefetch={onDataRefetch} currentUser={currentUser} />}
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
@@ -1181,7 +1182,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "rules" && <RulesView onBack={() => setCurrentTab('lists')} />}
         {currentTab === "dashboard" && <SourcingDashboardView currentUser={currentUser} userId={userId} callListData={enrichedLists} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} setCurrentTab={setCurrentTab} setSelectedList={setSelectedList} setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} />}
-        {currentTab === "edu_performance" && <PerformanceView members={members} currentUser={currentUser} appoData={appoData} />}
         {currentTab === "library" && <LibraryView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
         {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} />}
         {currentTab === "ai" && <AIAssistantView appoData={appoData} members={members} callListData={callListData} industryRules={industryRules} currentUser={currentUser} />}

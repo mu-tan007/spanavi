@@ -81,7 +81,7 @@ function getPrevActivityDateRange(period, todayStr, weekStartStr, monthStr) {
 
 const _offsetDays = (ds, n) => { const d = new Date(ds + 'T12:00:00Z'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
-export default function StatsView({ callListData, currentUser, appoData, members, now: nowProp }) {
+export default function StatsView({ callListData, currentUser, appoData, members, now: nowProp, embedded = false }) {
   const isMobile = useIsMobile();
   const { ceoConnectLabels } = useCallStatuses();
 
@@ -510,12 +510,14 @@ export default function StatsView({ callListData, currentUser, appoData, members
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
 
-      <PageHeader
-        eyebrow="Sourcing · Analytics"
-        title="Analytics"
-        description="売上・架電・ランキングの統合分析ダッシュボード"
-        style={{ marginBottom: isMobile ? 16 : 24 }}
-      />
+      {!embedded && (
+        <PageHeader
+          eyebrow="Sourcing · Analytics"
+          title="Analytics"
+          description="売上・架電・ランキングの統合分析ダッシュボード"
+          style={{ marginBottom: isMobile ? 16 : 24 }}
+        />
+      )}
 
       {/* ========== セクション1: KPIサマリーカード ========== */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 8 : 14, marginBottom: 20 }}>
