@@ -73,20 +73,16 @@ export default function LibraryView({
       <div style={{ height: 16 }} />
 
       <CollapsibleSection title="22箇条" defaultOpen={false}>
-        <div style={{ margin: '0 -20px' }}>
-          <InternRulesView embedded />
-        </div>
+        <InternRulesView embedded />
       </CollapsibleSection>
 
       <CollapsibleSection title="ロープレ履歴" defaultOpen={false}>
-        <div style={{ margin: '0 -20px' }}>
-          <TrainingRoleplaySection
-            currentUser={currentUser}
-            userId={userId}
-            members={members}
-            isAdmin={isAdmin}
-          />
-        </div>
+        <TrainingRoleplaySection
+          currentUser={currentUser}
+          userId={userId}
+          members={members}
+          isAdmin={isAdmin}
+        />
       </CollapsibleSection>
 
       <CollapsibleSection title="お気に入り録音" count={bookmarks.length} defaultOpen={true}>
@@ -161,15 +157,13 @@ export default function LibraryView({
       </CollapsibleSection>
 
       <CollapsibleSection title="スクリプト一覧" defaultOpen={false}>
-        <div style={{ margin: '0 -20px' }}>
-          <ScriptView
-            isAdmin={isAdmin}
-            clientData={clientData}
-            callListData={callListData}
-            setCallListData={setCallListData}
-            embedded
-          />
-        </div>
+        <ScriptView
+          isAdmin={isAdmin}
+          clientData={clientData}
+          callListData={callListData}
+          setCallListData={setCallListData}
+          embedded
+        />
       </CollapsibleSection>
     </div>
   );
