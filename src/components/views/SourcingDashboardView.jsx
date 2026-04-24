@@ -447,7 +447,7 @@ export default function SourcingDashboardView({
 
       {/* 社長お断り 14日経過 */}
       <CollapsibleList
-        title="社長お断り 14日経過（再アプローチ候補）"
+        title="社長お断り 14日経過"
         items={oldRejections}
         loading={recallLoading}
         emptyText="該当なし。"
