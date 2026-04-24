@@ -2333,6 +2333,13 @@ export async function uploadWeeklyMeetingVideo({ file, title, meetingDate, uploa
   return { data, error: null };
 }
 
+export async function updateWeeklyMeetingVideo(id, patch) {
+  const { data, error } = await supabase.from('weekly_meeting_videos')
+    .update(patch).eq('id', id).select().single();
+  if (error) console.error('[DB] updateWeeklyMeetingVideo error:', error);
+  return { data, error };
+}
+
 export async function deleteWeeklyMeetingVideo(id, storagePath) {
   const { error: dbErr } = await supabase.from('weekly_meeting_videos').delete().eq('id', id);
   if (dbErr) { console.error('[DB] deleteWeeklyMeetingVideo db error:', dbErr); return { error: dbErr }; }

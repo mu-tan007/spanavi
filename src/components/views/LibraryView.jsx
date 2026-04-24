@@ -6,7 +6,7 @@ import InlineAudioPlayer from '../common/InlineAudioPlayer';
 import PageHeader from '../common/PageHeader';
 import {
   fetchRecordingBookmarks, deleteRecordingBookmark,
-  fetchWeeklyMeetingVideos, uploadWeeklyMeetingVideo, deleteWeeklyMeetingVideo,
+  fetchWeeklyMeetingVideos, uploadWeeklyMeetingVideo, deleteWeeklyMeetingVideo, updateWeeklyMeetingVideo,
 } from '../../lib/supabaseWrite';
 
 function CollapsibleSection({ title, count, defaultOpen = false, children }) {
@@ -81,6 +81,23 @@ export default function LibraryView({
     refreshMeetings();
   };
 
+  const [editingMeetingId, setEditingMeetingId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const startEdit = (m) => {
+    setEditingMeetingId(m.id);
+    setEditTitle(m.title || '');
+    setEditDate(m.meeting_date || '');
+  };
+  const saveEdit = async () => {
+    await updateWeeklyMeetingVideo(editingMeetingId, {
+      title: editTitle.trim() || null,
+      meeting_date: editDate || null,
+    });
+    setEditingMeetingId(null);
+    refreshMeetings();
+  };
+
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
@@ -148,33 +165,64 @@ export default function LibraryView({
           </div>
         ) : weeklyMeetings.map((m, idx) => {
           const isPlaying = meetingPlayingId === m.id;
+          const isEditing = editingMeetingId === m.id;
           return (
             <div key={m.id} style={{ borderTop: idx === 0 && !isAdmin ? 'none' : '1px solid #F0F0F0', padding: '12px 0' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, color: C.navy, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {m.title}
-                  </div>
-                  <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>
-                    {m.meeting_date || m.created_at?.slice(0, 10) || ''}
-                    {m.uploaded_by_name ? ` ・ ${m.uploaded_by_name}` : ''}
-                    {m.size_bytes ? ` ・ ${Math.round(m.size_bytes / 1024 / 1024)}MB` : ''}
-                  </div>
+                  {isEditing ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)}
+                        placeholder="タイトル"
+                        style={{ padding: '5px 10px', border: `1px solid ${C.border}`, borderRadius: 4, fontSize: 12, fontWeight: 700, color: C.navy }} />
+                      <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
+                        style={{ padding: '4px 8px', border: `1px solid ${C.border}`, borderRadius: 4, fontSize: 11, width: 160 }} />
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ fontWeight: 700, color: C.navy, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {m.title}
+                      </div>
+                      <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>
+                        {m.meeting_date || m.created_at?.slice(0, 10) || ''}
+                        {m.uploaded_by_name ? ` ・ ${m.uploaded_by_name}` : ''}
+                        {m.size_bytes ? ` ・ ${Math.round(m.size_bytes / 1024 / 1024)}MB` : ''}
+                      </div>
+                    </>
+                  )}
                 </div>
-                <button onClick={() => setMeetingPlayingId(isPlaying ? null : m.id)}
-                  style={{
-                    padding: '6px 12px', borderRadius: 4, border: '1px solid #0D2247',
-                    background: isPlaying ? '#0D2247' : '#fff', color: isPlaying ? '#fff' : '#0D2247',
-                    cursor: 'pointer', fontSize: 11, fontWeight: 600,
-                  }}>
-                  {isPlaying ? '■ 停止' : '▶ 再生'}
-                </button>
-                {isAdmin && (
-                  <button onClick={() => handleDeleteMeeting(m)} title="削除"
-                    style={{
-                      padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB',
-                      background: '#fff', color: '#DC2626', cursor: 'pointer', fontSize: 11,
-                    }}>削除</button>
+                {isEditing ? (
+                  <>
+                    <button onClick={saveEdit}
+                      style={{ padding: '6px 12px', borderRadius: 4, border: 'none', background: C.navy, color: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>保存</button>
+                    <button onClick={() => setEditingMeetingId(null)}
+                      style={{ padding: '6px 12px', borderRadius: 4, border: `1px solid ${C.border}`, background: '#fff', color: C.textMid, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>キャンセル</button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => setMeetingPlayingId(isPlaying ? null : m.id)}
+                      style={{
+                        padding: '6px 12px', borderRadius: 4, border: '1px solid #0D2247',
+                        background: isPlaying ? '#0D2247' : '#fff', color: isPlaying ? '#fff' : '#0D2247',
+                        cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                      }}>
+                      {isPlaying ? '■ 停止' : '▶ 再生'}
+                    </button>
+                    {isAdmin && (
+                      <button onClick={() => startEdit(m)} title="タイトル・日付を編集"
+                        style={{
+                          padding: '6px 10px', borderRadius: 4, border: `1px solid ${C.border}`,
+                          background: '#fff', color: C.navy, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                        }}>✎ 編集</button>
+                    )}
+                    {isAdmin && (
+                      <button onClick={() => handleDeleteMeeting(m)} title="削除"
+                        style={{
+                          padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB',
+                          background: '#fff', color: '#DC2626', cursor: 'pointer', fontSize: 11,
+                        }}>削除</button>
+                    )}
+                  </>
                 )}
               </div>
               {isPlaying && (
