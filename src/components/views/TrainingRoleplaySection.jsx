@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { C } from '../../constants/colors';
 import { prepareAudioForWhisper, needsConversion, isVideoFile } from '../../lib/convertAudio';
 import {
