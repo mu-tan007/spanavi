@@ -47,6 +47,17 @@ const SESSION_TYPE_LABEL = {
 };
 
 export default function TrainingRoleplaySection({ currentUser, userId, members, isAdmin }) {
+  // admin が他メンバーのロープレを操作するための対象選択（非admin は自動的に自分のみ）
+  const [targetMemberName, setTargetMemberName] = useState(null);
+  if (isAdmin && targetMemberName && members) {
+    const sel = members.find(m => m.name === targetMemberName);
+    if (sel?.user_id) {
+      // 以降の処理内でログインユーザーではなく選択対象者のデータを扱う
+      currentUser = sel.name;
+      userId = sel.user_id;
+    }
+  }
+
   // メンバーのチーム（Slack投稿先特定用）
   const memberTeam = members?.find(m => m.name === currentUser)?.team || null;
   const [activeTab, setActiveTab] = useState('weekly');
@@ -920,6 +931,42 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         onChange={handleFileChange}
         style={{ display: 'none' }}
       />
+
+      {/* admin 用: 対象メンバー切替（非admin は非表示） */}
+      {isAdmin && members && members.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
+          padding: '10px 12px', background: '#F8F9FA', border: '1px solid ' + C.borderLight, borderRadius: 6,
+          flexWrap: 'wrap',
+        }}>
+          <span style={{ fontSize: 10, color: C.textLight, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+            対象メンバー
+          </span>
+          <select
+            value={targetMemberName || ''}
+            onChange={e => setTargetMemberName(e.target.value || null)}
+            style={{
+              padding: '5px 10px', border: '1px solid ' + C.border, borderRadius: 4,
+              fontSize: 12, fontFamily: "'Noto Sans JP'", background: C.white, color: C.navy, minWidth: 220,
+            }}
+          >
+            <option value="">（自分: {currentUser}）</option>
+            {[...members]
+              .filter(m => m?.name && m?.user_id)
+              .sort((a, b) => (a.team || '').localeCompare(b.team || '') || a.name.localeCompare(b.name))
+              .map(m => (
+                <option key={m._supaId || m.user_id} value={m.name}>
+                  {m.team ? `[${m.team}] ` : ''}{m.name}
+                </option>
+              ))}
+          </select>
+          {targetMemberName && (
+            <span style={{ fontSize: 10, color: C.red, fontWeight: 600 }}>
+              ※ {targetMemberName} さんのロープレとして扱われます
+            </span>
+          )}
+        </div>
+      )}
 
       {/* タブ */}
       <div style={{ display: 'flex', gap: 2, marginBottom: 16 }}>
