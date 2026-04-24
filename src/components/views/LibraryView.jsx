@@ -260,13 +260,17 @@ export default function LibraryView({
                 <div style={{ marginTop: 10 }}>
                   {m.stream_uid && CF_STREAM_SUBDOMAIN ? (
                     m.stream_ready ? (
-                      <iframe
-                        src={`https://${CF_STREAM_SUBDOMAIN}.cloudflarestream.com/${m.stream_uid}/iframe?poster=https%3A%2F%2F${CF_STREAM_SUBDOMAIN}.cloudflarestream.com%2F${m.stream_uid}%2Fthumbnails%2Fthumbnail.jpg`}
-                        title={m.title}
-                        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-                        allowFullScreen
-                        style={{ width: '100%', height: 480, borderRadius: 4, background: '#000', border: 'none' }}
-                      />
+                      <div style={{ maxWidth: 960, margin: '0 auto' }}>
+                        <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%', borderRadius: 4, overflow: 'hidden', background: '#000' }}>
+                          <iframe
+                            src={`https://${CF_STREAM_SUBDOMAIN}.cloudflarestream.com/${m.stream_uid}/iframe?poster=https%3A%2F%2F${CF_STREAM_SUBDOMAIN}.cloudflarestream.com%2F${m.stream_uid}%2Fthumbnails%2Fthumbnail.jpg`}
+                            title={m.title}
+                            allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                            allowFullScreen
+                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                          />
+                        </div>
+                      </div>
                     ) : (
                       <div style={{
                         width: '100%', height: 240, borderRadius: 4, background: '#0D2247',
