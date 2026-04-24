@@ -354,7 +354,6 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        bleed={false}
         eyebrow="Admin · シフト"
         title="Shifts"
         description="シフト・勤怠管理"
