@@ -47,12 +47,11 @@ const SESSION_TYPE_LABEL = {
 };
 
 export default function TrainingRoleplaySection({ currentUser, userId, members, isAdmin }) {
-  // admin が他メンバーのロープレを操作するための対象選択（非admin は自動的に自分のみ）
+  // 対象メンバー切替（全員が閲覧のみ他人のロープレを見られる / アップロード等はisAdmin維持）
   const [targetMemberName, setTargetMemberName] = useState(null);
-  if (isAdmin && targetMemberName && members) {
+  if (targetMemberName && members) {
     const sel = members.find(m => m.name === targetMemberName);
     if (sel?.user_id) {
-      // 以降の処理内でログインユーザーではなく選択対象者のデータを扱う
       currentUser = sel.name;
       userId = sel.user_id;
     }
@@ -943,8 +942,8 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         style={{ display: 'none' }}
       />
 
-      {/* admin 用: 対象メンバー切替（非admin は非表示） */}
-      {isAdmin && members && members.length > 0 && (
+      {/* 対象メンバー切替（閲覧用。非adminでも他メンバー選択可） */}
+      {members && members.length > 0 && (
         <TargetMemberPicker
           members={members}
           value={targetMemberName}
