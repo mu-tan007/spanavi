@@ -208,6 +208,13 @@ export default function LibraryView({
                       }}>
                       {isPlaying ? '■ 停止' : '▶ 再生'}
                     </button>
+                    {m.public_url && (
+                      <a href={m.public_url} target="_blank" rel="noopener noreferrer" title="Google Driveで開く"
+                        style={{
+                          padding: '6px 10px', borderRadius: 4, border: `1px solid ${C.border}`,
+                          background: '#fff', color: C.navy, textDecoration: 'none', fontSize: 11, fontWeight: 600,
+                        }}>↗ Drive</a>
+                    )}
                     {isAdmin && (
                       <button onClick={() => startEdit(m)} title="タイトル・日付を編集"
                         style={{
@@ -228,13 +235,19 @@ export default function LibraryView({
               {isPlaying && (
                 <div style={{ marginTop: 10 }}>
                   {m.drive_file_id ? (
-                    <iframe
-                      src={`https://drive.google.com/file/d/${m.drive_file_id}/preview`}
-                      title={m.title}
-                      allow="autoplay"
-                      allowFullScreen
-                      style={{ width: '100%', height: 480, borderRadius: 4, background: '#000', border: 'none' }}
-                    />
+                    <>
+                      <iframe
+                        src={`https://drive.google.com/file/d/${m.drive_file_id}/preview`}
+                        title={m.title}
+                        allow="autoplay; fullscreen"
+                        allowFullScreen
+                        style={{ width: '100%', height: 480, borderRadius: 4, background: '#000', border: 'none' }}
+                      />
+                      <div style={{ fontSize: 10, color: C.textLight, marginTop: 6, lineHeight: 1.5 }}>
+                        ※ 動画のロードが長引く場合、Google Drive 側でストリーミング変換中の可能性があります（500MB超えだと10-30分かかることも）。
+                        「↗ Drive」ボタンから直接開けばダウンロードや別UIでの再生も可能です。
+                      </div>
+                    </>
                   ) : (
                     <video src={m.public_url} controls style={{ width: '100%', maxHeight: 480, borderRadius: 4, background: '#000' }} />
                   )}
