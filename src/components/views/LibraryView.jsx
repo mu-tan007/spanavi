@@ -391,10 +391,7 @@ function MeetingUploader({ currentUser, onUploaded }) {
         <div style={{ fontSize: 12, color: C.navy, fontWeight: 600 }}>
           {selectedFile
             ? `選択中: ${selectedFile.name} (${Math.round(selectedFile.size / 1024 / 1024)}MB)`
-            : '📁 クリックまたはドラッグ＆ドロップで動画ファイルを選択'}
-        </div>
-        <div style={{ fontSize: 10, color: C.textLight, marginTop: 4 }}>
-          対応形式: mp4 / webm / mov / mkv（最大2GB）
+            : '動画ファイルを選択'}
         </div>
         <input
           ref={inputRef}
