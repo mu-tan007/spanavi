@@ -236,10 +236,11 @@ export default function SourcingDashboardView({
     openQueueItemAtIdx();
   }, [openQueueItemAtIdx]);
 
-  // ---- 社長再コール超過 / 社長お断り14日経過 ----
-  // サーバー側 RPC (dashboard_overdue_recalls / dashboard_old_rejections) で join 済の必要行だけ取得
+  // ---- 社長再コール超過 / 社長お断り14日経過 / 再アプローチ候補 ----
+  // サーバー側 RPC で join 済の必要行だけ取得
   const [overdueRecalls, setOverdueRecalls] = useState([]);
   const [oldRejections, setOldRejections] = useState([]);
+  const [reapproachCandidates, setReapproachCandidates] = useState([]);
   const [recallLoading, setRecallLoading] = useState(true);
 
   useEffect(() => {
@@ -248,7 +249,8 @@ export default function SourcingDashboardView({
     Promise.all([
       supabase.rpc('dashboard_overdue_recalls'),
       supabase.rpc('dashboard_old_rejections', { p_days: 14 }),
-    ]).then(([recRes, rejRes]) => {
+      supabase.rpc('dashboard_reapproach_candidates'),
+    ]).then(([recRes, rejRes, reaRes]) => {
       if (cancelled) return;
       setOverdueRecalls((recRes.data || []).map(r => ({
         id: r.record_id,
@@ -270,13 +272,23 @@ export default function SourcingDashboardView({
         getter_name: r.getter_name,
         called_at: r.called_at,
       })));
+      setReapproachCandidates((reaRes.data || []).map(r => ({
+        id: `${r.item_id}_${r.list_id}`,
+        item_id: r.item_id,
+        list_id: r.list_id,
+        company: r.company || '—',
+        list_name: r.list_name || '',
+        client_name: r.client_name || '',
+        past_getter: r.past_getter || '',
+        past_client: r.past_client || '',
+        past_date: r.past_date || null,
+      })));
       setRecallLoading(false);
     }).catch(err => {
-      console.error('[Dashboard] recall/rejection RPC error:', err);
+      console.error('[Dashboard] recall/rejection/reapproach RPC error:', err);
       if (!cancelled) setRecallLoading(false);
     });
     return () => { cancelled = true; };
-    // 日替わりでだけ再取得（RPC内部でnow()判定するので時間経過で境界線が動くが、初回ロードはtodayStrに依存）
   }, [todayStr]);
 
   // ---- おすすめリスト TOP4 ----
@@ -457,6 +469,36 @@ export default function SourcingDashboardView({
             <CallButton
               disabled={!setCallFlowScreen || !r.item_id || !r.list_id}
               onClick={() => openQueue(oldRejections, i)}
+            />
+          </div>
+        )}
+      />
+
+      {/* 再アプローチ候補（過去アポあり・自分以外が取得・アクティブリスト在籍） */}
+      <CollapsibleList
+        title="再アプローチ候補"
+        items={reapproachCandidates}
+        loading={recallLoading}
+        emptyText="該当なし。"
+        render={(r, i) => (
+          <div key={r.id || i} style={rowStyle}>
+            <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+              <div style={{ fontWeight: 700, color: C.navy, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {r.company}
+              </div>
+              <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>
+                {r.list_name || ''}{r.client_name ? ` / ${r.client_name}` : ''}
+              </div>
+            </div>
+            <div style={{ fontSize: 10, color: C.textMid, minWidth: 160 }}>
+              過去アポ: {r.past_date || '—'}{r.past_getter ? ` ・ ${r.past_getter}` : ''}
+            </div>
+            <div style={{ fontSize: 10, color: C.textMid, minWidth: 110 }}>
+              {r.past_client ? `名義: ${r.past_client}` : ''}
+            </div>
+            <CallButton
+              disabled={!setCallFlowScreen || !r.item_id || !r.list_id}
+              onClick={() => openQueue(reapproachCandidates, i)}
             />
           </div>
         )}
