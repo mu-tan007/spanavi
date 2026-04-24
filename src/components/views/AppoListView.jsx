@@ -5,7 +5,6 @@ import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/formatters';
 import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, uploadAppoRecording } from '../../lib/supabaseWrite';
-import { PAST_APPOINTMENT_COMPANIES } from '../../constants/pastAppointmentCompanies';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -323,7 +322,6 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
 export default function AppoListView({ appoData, setAppoData, members = [], setMembers, clientData = [], rewardMaster = [], setCallFlowScreen, callListData = [], contactsByClient = {} }) {
   const isMobile = useIsMobile();
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
-  const [activeTab, setActiveTab] = useState('current'); // 'current' | 'past'
   // ── ランク・レート自動計算 ──────────────────────────────────────
   const [apPeriod, setApPeriod] = useState(() =>
     localStorage.getItem('spanavi_appo_period') || "all"
@@ -1021,20 +1019,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         description="アポイントメント・パイプライン管理"
         style={{ marginBottom: 24 }}
       >
-        <div style={{ display: 'flex', gap: 0, marginTop: 14 }}>
-          {[['current', 'アポ一覧'], ['past', '過去アポ一覧']].map(([key, label]) => (
-            <button key={key} onClick={() => setActiveTab(key)}
-              style={{
-                padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                fontFamily: "'Noto Sans JP'", border: 'none', borderBottom: activeTab === key ? `2px solid ${C.navy}` : '2px solid transparent',
-                background: 'transparent', color: activeTab === key ? C.navy : C.textLight,
-                transition: 'all 0.15s',
-              }}>{label}</button>
-          ))}
-        </div>
       </PageHeader>
 
-      {activeTab === 'current' && (<>
+      <>
       {/* Header */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
@@ -2116,252 +2103,11 @@ MASP 篠宮`}
           onClose={appoClose}
         />
       )}
-      </>)}
-
-      {activeTab === 'past' && (
-        <PastAppoTab appoData={appoData} callListData={callListData} setCallFlowScreen={setCallFlowScreen} />
-      )}
+      </>
     </div>
   );
 }
 
-// ============================================================
-// Past Appointments Tab (過去アポ一覧)
-// ============================================================
-const PAST_APPO_COLS = [
-  { key: 'company', width: 240, align: 'left' },
-  { key: 'client', width: 200, align: 'left' },
-  { key: 'getter', width: 80, align: 'center' },
-  { key: 'getDate', width: 100, align: 'right' },
-  { key: 'listMatch', width: 400, align: 'left' },
-];
-
-function PastAppoTab({ appoData, callListData = [], setCallFlowScreen }) {
-  const isMobile = useIsMobile();
-  const [pastSearch, setPastSearch] = useState('');
-  const [matchMap, setMatchMap] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [sourceFilter, setSourceFilter] = useState('all'); // 'all' | 'spanavi' | 'excel'
-  const [listFilter, setListFilter] = useState('all'); // 'all' | 'matched' | 'unmatched'
-
-  const { columns: pastCols, gridTemplateColumns: pastGrid, contentMinWidth: pastMinW, onResizeStart: pastResize, onHeaderContextMenu: pastCtxMenu, contextMenu: pastCtx, setAlign: pastSetAlign, resetAll: pastReset, closeMenu: pastClose } = useColumnConfig('pastAppoList', PAST_APPO_COLS, { padding: 22, gap: 2 });
-
-  // 全過去アポ企業名を統合（企業名単位で1行に統合）
-  const pastItems = React.useMemo(() => {
-    const map = {};
-    // Spanaviデータを企業名でグループ化
-    appoData.forEach(a => {
-      const name = a.company;
-      if (!map[name]) map[name] = { company: name, clients: [], getters: [], getDates: [] };
-      if (a.client && !map[name].clients.includes(a.client)) map[name].clients.push(a.client);
-      if (a.getter && !map[name].getters.includes(a.getter)) map[name].getters.push(a.getter);
-      if (a.getDate) map[name].getDates.push(a.getDate);
-    });
-    // Excelデータで未登録の企業を追加
-    PAST_APPOINTMENT_COMPANIES.forEach(name => {
-      if (!map[name]) map[name] = { company: name, clients: [], getters: [], getDates: [] };
-    });
-    return Object.values(map).map(g => ({
-      company: g.company,
-      clients: g.clients,
-      client: g.clients.join(', '),
-      getter: g.getters.join(', '),
-      getDates: [...new Set(g.getDates)].sort().reverse(),
-      getDate: [...new Set(g.getDates)].sort().reverse().join(', '),
-    }));
-  }, [appoData]);
-
-  // 架電可能リストのIDリスト (安定参照のため joined string も memo)
-  const activeListIds = React.useMemo(
-    () => callListData.filter(l => l.status === '架電可能' && !l.is_archived).map(l => l._supaId).filter(Boolean),
-    [callListData]
-  );
-  const activeListIdsKey = activeListIds.join(',');
-
-  // callListData を id で引けるように map 化 (行ごとの find を避ける)
-  const callListById = React.useMemo(() => {
-    const m = {};
-    for (const l of callListData) if (l._supaId) m[l._supaId] = l;
-    return m;
-  }, [callListData]);
-
-  // 照合対象企業名の集合 (appoData が変わるたびに string key で安定化)
-  const allPastNamesKey = React.useMemo(
-    () => [...new Set(pastItems.map(p => p.company))].sort().join('|'),
-    [pastItems]
-  );
-
-  useEffect(() => {
-    if (!activeListIds.length) { setMatchMap({}); return; }
-    const allNames = allPastNamesKey ? allPastNamesKey.split('|') : [];
-    if (!allNames.length) { setMatchMap({}); return; }
-    setLoading(true);
-    fetchMatchingListItemsByCompanyNames(allNames, activeListIds)
-      .then(({ data }) => setMatchMap(data || {}))
-      .catch(() => setMatchMap({}))
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeListIdsKey, allPastNamesKey]);
-
-  // 行ごとの otherMatches を一括 precompute
-  const otherMatchesByCompany = React.useMemo(() => {
-    const m = {};
-    for (const p of pastItems) {
-      const matches = matchMap[p.company] || [];
-      m[p.company] = matches.filter(x => {
-        const list = callListById[x.listId];
-        return list && !list.is_archived && !p.clients.includes(list.company);
-      });
-    }
-    return m;
-  }, [pastItems, matchMap, callListById]);
-  const getOtherListMatches = (p) => otherMatchesByCompany[p.company] || [];
-
-  const filtered = React.useMemo(() => pastItems.filter(p => {
-    if (sourceFilter === 'spanavi' && p.clients.length === 0) return false;
-    if (sourceFilter === 'excel' && p.clients.length > 0) return false;
-    if (pastSearch && !p.company.includes(pastSearch) && !p.client.includes(pastSearch)) return false;
-    if (listFilter !== 'all') {
-      const hasOther = (otherMatchesByCompany[p.company] || []).length > 0;
-      if (listFilter === 'matched' && !hasOther) return false;
-      if (listFilter === 'unmatched' && hasOther) return false;
-    }
-    return true;
-  }), [pastItems, sourceFilter, pastSearch, listFilter, otherMatchesByCompany]);
-
-  const matchCount = React.useMemo(
-    () => filtered.reduce((s, p) => s + ((otherMatchesByCompany[p.company] || []).length > 0 ? 1 : 0), 0),
-    [filtered, otherMatchesByCompany]
-  );
-
-  const handleNavigate = (companyName, listId, itemId) => {
-    const list = callListData.find(l => l._supaId === listId);
-    if (!list || !setCallFlowScreen) return;
-    setCallFlowScreen({ list, defaultItemId: itemId, defaultListMode: false, singleItemMode: true });
-  };
-
-  return (
-    <>
-      {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16,
-        padding: isMobile ? '10px 12px' : '14px 18px', background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#0D2247' }}>過去アポ一覧</span>
-          <span style={{ fontSize: 11, color: '#9CA3AF' }}>{filtered.length}件</span>
-          {matchCount > 0 && (
-            <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 3, background: '#DBEAFE', color: '#1E40AF', fontWeight: 600 }}>
-              {matchCount}件がリストに存在
-            </span>
-          )}
-          {loading && <span style={{ fontSize: 10, color: '#9CA3AF' }}>照合中...</span>}
-        </div>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <input value={pastSearch} onChange={e => setPastSearch(e.target.value)} placeholder="企業名で検索..."
-            style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #E5E7EB', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', width: 200 }} />
-          {[['all', '全て'], ['spanavi', 'Spanavi'], ['excel', '過去データ']].map(([k, l]) => (
-            <button key={k} onClick={() => setSourceFilter(k)} style={{
-              padding: '5px 10px', borderRadius: 4, fontSize: 10, fontWeight: 500, cursor: 'pointer',
-              fontFamily: "'Noto Sans JP'",
-              background: sourceFilter === k ? '#0D2247' : '#fff',
-              color: sourceFilter === k ? '#fff' : '#6B7280',
-              border: '1px solid ' + (sourceFilter === k ? '#0D2247' : '#E5E7EB'),
-            }}>{l}</button>
-          ))}
-          <span style={{ width: 1, height: 16, background: '#E5E7EB' }} />
-          {[['all', '全リスト'], ['matched', 'リスト有'], ['unmatched', 'リスト無']].map(([k, l]) => (
-            <button key={k} onClick={() => setListFilter(k)} style={{
-              padding: '5px 10px', borderRadius: 4, fontSize: 10, fontWeight: 500, cursor: 'pointer',
-              fontFamily: "'Noto Sans JP'",
-              background: listFilter === k ? '#1E40AF' : '#fff',
-              color: listFilter === k ? '#fff' : '#6B7280',
-              border: '1px solid ' + (listFilter === k ? '#1E40AF' : '#E5E7EB'),
-            }}>{l}</button>
-          ))}
-        </div>
-      </div>
-
-      {/* Table */}
-      <div style={{ background: '#fff', borderRadius: 4, overflowX: 'auto', overflowY: 'hidden', border: '1px solid #E5E7EB' }}>
-        <div style={{ minWidth: pastMinW }}>
-        <div style={{
-          display: 'grid', gridTemplateColumns: pastGrid,
-          padding: isMobile ? '6px 4px 6px 10px' : '8px 6px 8px 16px', columnGap: 2, background: '#0D2247', fontSize: isMobile ? 10 : 11, fontWeight: 600, color: '#fff',
-          borderBottom: '1px solid #E5E7EB', alignItems: 'center',
-        }}>
-          {[
-            { label: '企業名' },
-            { label: 'アポ供給先クライアント' },
-            { label: '担当者' },
-            { label: '取得日' },
-            { label: '収録先の別リスト（架電可能分）' },
-          ].map(({ label }, i) => (
-            <span key={label}
-              onContextMenu={e => pastCtxMenu(e, i)}
-              style={{ position: 'relative', textAlign: pastCols[i]?.align || 'left', whiteSpace: 'nowrap', userSelect: 'none', minWidth: 0 }}>
-              {label}
-              <ColumnResizeHandle colIndex={i} onResizeStart={pastResize} />
-            </span>
-          ))}
-        </div>
-        {filtered.length === 0 ? (
-          <div style={{ padding: '30px 0', textAlign: 'center', color: '#9CA3AF', fontSize: 12 }}>データがありません</div>
-        ) : filtered.map((p, i) => {
-          const otherMatches = getOtherListMatches(p);
-          return (
-            <div key={p.company + '-' + i} style={{
-              display: 'grid', gridTemplateColumns: pastGrid,
-              padding: '8px 6px 8px 16px', columnGap: 2, fontSize: 11, alignItems: 'center',
-              borderBottom: '1px solid #E5E7EB',
-              background: otherMatches.length > 0 ? '#F0F7FF' : (i % 2 === 0 ? '#fff' : '#F8F9FA'),
-              transition: 'background 0.15s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = '#EAF4FF'}
-            onMouseLeave={e => e.currentTarget.style.background = otherMatches.length > 0 ? '#F0F7FF' : (i % 2 === 0 ? '#fff' : '#F8F9FA')}>
-              <span style={{ fontWeight: 600, color: '#0D2247', textAlign: pastCols[0]?.align || 'left' }}>{p.company}</span>
-              <span style={{ fontSize: 10, color: '#6B7280', textAlign: pastCols[1]?.align || 'left' }}>{p.client || '-'}</span>
-              <span style={{ fontSize: 10, color: '#6B7280', textAlign: pastCols[2]?.align || 'center' }}>{p.getter || '-'}</span>
-              <span style={{ fontSize: 10, color: '#6B7280', fontFamily: "'JetBrains Mono'", textAlign: pastCols[3]?.align || 'right' }}>{p.getDates.length > 0 ? p.getDates.map(d => d.slice(5)).join(', ') : '-'}</span>
-              <span style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: pastCols[4]?.align === 'right' ? 'flex-end' : pastCols[4]?.align === 'center' ? 'center' : 'flex-start' }}>
-                {otherMatches.length > 0 ? otherMatches.map((m, mi) => {
-                  const list = callListData.find(l => l._supaId === m.listId);
-                  if (!list) return null;
-                  return (
-                    <button key={mi} onClick={() => handleNavigate(p.company, m.listId, m.itemId)}
-                      title={`${list.company} / ${list.type}${list.industry ? ' / ' + list.industry : ''} → 集中ページへ`}
-                      style={{
-                        padding: '2px 8px', borderRadius: 3, fontSize: 9, fontWeight: 600, cursor: 'pointer',
-                        background: '#1E40AF', color: '#fff', border: 'none',
-                        fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
-                        transition: 'background 0.15s',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.background = '#1E3A6E'}
-                      onMouseLeave={e => e.currentTarget.style.background = '#1E40AF'}>
-                      {list.company?.replace(/^株式会社/, '(株)').slice(0, 8)} / {list.industry || list.type}
-                    </button>
-                  );
-                }) : (
-                  <span style={{ fontSize: 10, color: '#D1D5DB' }}>-</span>
-                )}
-              </span>
-            </div>
-          );
-        })}
-        </div>
-      </div>
-      {pastCtx.visible && (
-        <AlignmentContextMenu
-          x={pastCtx.x} y={pastCtx.y}
-          currentAlign={pastCols[pastCtx.colIndex]?.align || 'left'}
-          onSelect={align => pastSetAlign(pastCtx.colIndex, align)}
-          onReset={pastReset}
-          onClose={pastClose}
-        />
-      )}
-    </>
-  );
-}
 
 // ============================================================
 // Members View (Employee Directory)
