@@ -73,17 +73,21 @@ export default function Heatmap({
       ) : (
         <>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ borderCollapse: 'collapse', fontSize: 10, fontFamily: "'JetBrains Mono'", minWidth: 520 }}>
+            <table style={{ borderCollapse: 'collapse', fontSize: 11, fontFamily: "'JetBrains Mono'", width: '100%', tableLayout: 'fixed' }}>
+              <colgroup>
+                <col style={{ width: 36 }} />
+                {HOURS.map(h => <col key={h} />)}
+              </colgroup>
               <thead>
                 <tr>
                   <th style={{ padding: '4px 8px', color: C.textLight, fontWeight: 700 }}></th>
-                  {HOURS.map(h => <th key={h} style={{ padding: '4px 6px', color: C.textLight, fontWeight: 700, textAlign: 'center', minWidth: 40 }}>{h}</th>)}
+                  {HOURS.map(h => <th key={h} style={{ padding: '4px 6px', color: C.textLight, fontWeight: 700, textAlign: 'center' }}>{h}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {WEEKDAYS.map((wd, wi) => (
                   <tr key={wd}>
-                    <td style={{ padding: '4px 8px', color: C.textMid, fontWeight: 700, fontFamily: "'Noto Sans JP'" }}>{wd}</td>
+                    <td style={{ padding: '4px 8px', color: C.textMid, fontWeight: 700, fontFamily: "'Noto Sans JP'", textAlign: 'center' }}>{wd}</td>
                     {HOURS.map(h => {
                       const cell = grid[wi + '_' + h];
                       const rate = cell.calls >= 5 ? (cell.connects / cell.calls * 100) : null;
@@ -93,7 +97,7 @@ export default function Heatmap({
                         <td
                           key={h}
                           title={`${wd} ${h}時台\n架電 ${cell.calls}件 / 社長接続 ${cell.connects}件${rate != null ? ` / ${rate.toFixed(1)}%` : ''}`}
-                          style={{ padding: '10px 4px', background: bg, textAlign: 'center', border: '1px solid #fff', color: textColor, fontWeight: rate != null ? 700 : 400, cursor: 'help' }}
+                          style={{ padding: '14px 4px', background: bg, textAlign: 'center', border: '2px solid #fff', color: textColor, fontWeight: rate != null ? 700 : 400, cursor: 'help' }}
                         >
                           {rate != null ? rate.toFixed(0) + '%' : '-'}
                         </td>
