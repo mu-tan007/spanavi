@@ -178,7 +178,7 @@ function RuleCard({ rule, refCallback }) {
   );
 }
 
-export default function InternRulesView() {
+export default function InternRulesView({ embedded = false }) {
   const headerRef = useRef(null);
   const cardRefs = useRef([]);
   const footerRef = useRef(null);
@@ -235,12 +235,14 @@ export default function InternRulesView() {
   return (
     <div style={{ paddingBottom: 64, animation: 'fadeIn 0.3s ease' }}>
 
-      <PageHeader
-        eyebrow="研修 · 心得"
-        title="22 Rules"
-        description="インターン22か条"
-        style={{ marginBottom: 24 }}
-      />
+      {!embedded && (
+        <PageHeader
+          eyebrow="研修 · 心得"
+          title="22 Rules"
+          description="インターン22か条"
+          style={{ marginBottom: 24 }}
+        />
+      )}
 
       {/* ヘッダーエリア */}
       <div

@@ -5,7 +5,7 @@ import { fetchSetting, saveSetting, updateCallListRebuttal, updateCallListScript
 import { renderMarkedScript, toHtml, fromHtml, isSelectionMarked, applyMarker, removeMarker } from '../../utils/scriptMarker';
 import PageHeader from '../common/PageHeader';
 
-export default function ScriptView({ isAdmin, clientData, callListData, setCallListData }) {
+export default function ScriptView({ isAdmin, clientData, callListData, setCallListData, embedded = false }) {
   const [basicScript, setBasicScript] = useState(DEFAULT_BASIC_SCRIPT);
   const [basicScriptEdit, setBasicScriptEdit] = useState(DEFAULT_BASIC_SCRIPT);
   const editorRef = useRef(null);
@@ -225,12 +225,14 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease", padding: "0 0 40px 0" }}>
-      <PageHeader
-        eyebrow="Sourcing · Scripts"
-        title="Scripts"
-        description="架電スクリプトライブラリ"
-        style={{ marginBottom: 24 }}
-      />
+      {!embedded && (
+        <PageHeader
+          eyebrow="Sourcing · Scripts"
+          title="Scripts"
+          description="架電スクリプトライブラリ"
+          style={{ marginBottom: 24 }}
+        />
+      )}
 
       {/* 基本スクリプト */}
       <div style={{ marginBottom: 32 }}>

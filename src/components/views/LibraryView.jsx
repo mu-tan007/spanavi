@@ -74,7 +74,7 @@ export default function LibraryView({
 
       <CollapsibleSection title="22箇条" defaultOpen={false}>
         <div style={{ margin: '0 -20px' }}>
-          <InternRulesView />
+          <InternRulesView embedded />
         </div>
       </CollapsibleSection>
 
@@ -167,6 +167,7 @@ export default function LibraryView({
             clientData={clientData}
             callListData={callListData}
             setCallListData={setCallListData}
+            embedded
           />
         </div>
       </CollapsibleSection>
