@@ -2312,28 +2312,36 @@ export async function uploadWeeklyMeetingVideo({ file, title, meetingDate, uploa
   const uploadURL = du.uploadURL;
   const uid = du.uid;
 
-  // 2. TUS で直接 Cloudflare Stream にアップロード
-  const tus = await import('tus-js-client');
-  const uploadErr = await new Promise((resolve) => {
-    const upload = new tus.Upload(file, {
-      uploadUrl: uploadURL, // CF Stream が既にセッション作成済のため endpoint ではなく uploadUrl
-      retryDelays: [0, 3000, 5000, 10000, 20000],
-      chunkSize: 50 * 1024 * 1024, // 50MB
-      metadata: {
-        name: file.name,
-        filetype: file.type || 'video/mp4',
-      },
-      onError: (err) => resolve(err),
-      onProgress: (bytesUploaded, bytesTotal) => {
-        try { onProgress?.(bytesUploaded, bytesTotal); } catch (_) {}
-      },
-      onSuccess: () => resolve(null),
-    });
-    upload.start();
-  });
-  if (uploadErr) {
-    console.error('[DB] uploadWeeklyMeetingVideo tus error:', uploadErr);
-    return { error: uploadErr };
+  // 2. TUS PATCH ループで直接 Cloudflare Stream にアップロード
+  //    tus-js-client は初回 HEAD で offset 確認を試みるが、CF Direct Upload URL は
+  //    初回 HEAD 非対応で 400 を返すため手動実装に切替。
+  const CHUNK = 50 * 1024 * 1024; // 50MB
+  let offset = 0;
+  const total = file.size;
+  try {
+    while (offset < total) {
+      const end = Math.min(offset + CHUNK, total);
+      const blob = file.slice(offset, end);
+      const res = await fetch(uploadURL, {
+        method: 'PATCH',
+        headers: {
+          'Upload-Offset': String(offset),
+          'Tus-Resumable': '1.0.0',
+          'Content-Type': 'application/offset+octet-stream',
+        },
+        body: blob,
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`CF upload PATCH failed at ${offset}: ${res.status} ${txt}`);
+      }
+      const newOffsetHeader = res.headers.get('Upload-Offset');
+      offset = newOffsetHeader != null ? parseInt(newOffsetHeader, 10) : end;
+      try { onProgress?.(offset, total); } catch (_) {}
+    }
+  } catch (err) {
+    console.error('[DB] uploadWeeklyMeetingVideo PATCH error:', err);
+    return { error: err };
   }
 
   // 3. DB にメタデータを保存
