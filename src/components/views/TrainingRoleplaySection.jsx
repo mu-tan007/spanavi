@@ -945,38 +945,12 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
       {/* admin 用: 対象メンバー切替（非admin は非表示） */}
       {isAdmin && members && members.length > 0 && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
-          padding: '10px 12px', background: '#F8F9FA', border: '1px solid ' + C.borderLight, borderRadius: 6,
-          flexWrap: 'wrap',
-        }}>
-          <span style={{ fontSize: 10, color: C.textLight, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-            対象メンバー
-          </span>
-          <select
-            value={targetMemberName || ''}
-            onChange={e => setTargetMemberName(e.target.value || null)}
-            style={{
-              padding: '5px 10px', border: '1px solid ' + C.border, borderRadius: 4,
-              fontSize: 12, fontFamily: "'Noto Sans JP'", background: C.white, color: C.navy, minWidth: 220,
-            }}
-          >
-            <option value="">（自分: {currentUser}）</option>
-            {[...members]
-              .filter(m => m?.name && m?.user_id)
-              .sort((a, b) => (a.team || '').localeCompare(b.team || '') || a.name.localeCompare(b.name))
-              .map(m => (
-                <option key={m._supaId || m.user_id} value={m.name}>
-                  {m.team ? `[${m.team}] ` : ''}{m.name}
-                </option>
-              ))}
-          </select>
-          {targetMemberName && (
-            <span style={{ fontSize: 10, color: C.red, fontWeight: 600 }}>
-              ※ {targetMemberName} さんのロープレとして扱われます
-            </span>
-          )}
-        </div>
+        <TargetMemberPicker
+          members={members}
+          value={targetMemberName}
+          onChange={setTargetMemberName}
+          fallbackLabel={currentUser}
+        />
       )}
 
       {/* タブ */}
@@ -1423,5 +1397,170 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         </div>
       )}
     </div>
+  );
+}
+
+// admin用 対象メンバー切替（検索+オートコンプリート）
+function TargetMemberPicker({ members, value, onChange, fallbackLabel }) {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const [highlight, setHighlight] = useState(0);
+  const wrapRef = useRef(null);
+
+  const candidates = useMemo(() => {
+    return (members || []).filter(m => m?.name && m?.user_id);
+  }, [members]);
+
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return candidates;
+    return candidates.filter(m => (m.name || '').toLowerCase().includes(q));
+  }, [candidates, query]);
+
+  useEffect(() => {
+    const onClick = (e) => {
+      if (!wrapRef.current) return;
+      if (!wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    window.addEventListener('mousedown', onClick);
+    return () => window.removeEventListener('mousedown', onClick);
+  }, []);
+
+  useEffect(() => { setHighlight(0); }, [query, open]);
+
+  const pick = (name) => {
+    onChange(name || null);
+    setQuery('');
+    setOpen(false);
+  };
+
+  const onKeyDown = (e) => {
+    if (!open) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlight(h => Math.min(h + 1, matches.length));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlight(h => Math.max(h - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (highlight === 0) pick(null);
+      else {
+        const m = matches[highlight - 1];
+        if (m) pick(m.name);
+      }
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+    }
+  };
+
+  const placeholder = value
+    ? `選択中: ${value}`
+    : `自分 (${fallbackLabel})`;
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
+      padding: '10px 12px', background: '#F8F9FA', border: '1px solid ' + C.borderLight, borderRadius: 6,
+    }}>
+      <span style={{ fontSize: 10, color: C.textLight, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+        対象メンバー
+      </span>
+      <div ref={wrapRef} style={{ position: 'relative', flex: '0 1 280px', minWidth: 200 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          border: '1px solid ' + C.border, borderRadius: 3,
+          padding: '4px 8px', background: C.white,
+        }}>
+          <input
+            type="text"
+            value={query}
+            onChange={e => { setQuery(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={onKeyDown}
+            placeholder={placeholder}
+            style={{
+              flex: 1, border: 'none', outline: 'none',
+              fontSize: 12, fontFamily: "'Noto Sans JP',sans-serif",
+              color: C.textDark, background: 'transparent',
+            }}
+          />
+          {value && (
+            <button type="button" onClick={() => pick(null)} title="自分に戻す"
+              style={{ border: 'none', background: 'transparent', cursor: 'pointer',
+                color: C.textLight, fontSize: 14, padding: '0 4px' }}
+            >×</button>
+          )}
+        </div>
+        {open && (
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0,
+            background: C.white, border: '1px solid ' + C.border, borderRadius: 3,
+            boxShadow: '0 6px 20px rgba(13,34,71,0.08)',
+            maxHeight: 280, overflowY: 'auto', zIndex: 50,
+          }}>
+            <PickerItem
+              label={`自分 (${fallbackLabel})`}
+              active={!value}
+              highlighted={highlight === 0}
+              onHover={() => setHighlight(0)}
+              onClick={() => pick(null)}
+            />
+            {matches.length === 0 && (
+              <div style={{ padding: '10px 12px', fontSize: 11, color: C.textLight, fontStyle: 'italic' }}>
+                該当なし
+              </div>
+            )}
+            {matches.map((m, i) => (
+              <PickerItem
+                key={m._supaId || m.user_id}
+                label={m.name}
+                active={value === m.name}
+                highlighted={highlight === i + 1}
+                onHover={() => setHighlight(i + 1)}
+                onClick={() => pick(m.name)}
+                query={query}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PickerItem({ label, active, highlighted, onHover, onClick, query }) {
+  const bg = highlighted ? '#F3F4F6' : (active ? '#F5F7FB' : '#fff');
+  return (
+    <div
+      onMouseEnter={onHover}
+      onClick={onClick}
+      style={{
+        padding: '8px 12px', fontSize: 12, cursor: 'pointer',
+        background: bg, color: active ? C.navy : C.textDark,
+        fontWeight: active ? 600 : 400, fontFamily: "'Noto Sans JP', sans-serif",
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}
+    >
+      <span>{query ? highlightMatch(label, query) : label}</span>
+      {active && <span style={{ fontSize: 11, color: C.gold }}>●</span>}
+    </div>
+  );
+}
+
+function highlightMatch(text, query) {
+  if (!text) return text;
+  const lower = text.toLowerCase();
+  const q = query.toLowerCase();
+  const idx = lower.indexOf(q);
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <span style={{ background: '#FEF3C7', fontWeight: 700 }}>
+        {text.slice(idx, idx + query.length)}
+      </span>
+      {text.slice(idx + query.length)}
+    </>
   );
 }
