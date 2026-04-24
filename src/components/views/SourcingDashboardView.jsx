@@ -486,15 +486,18 @@ export default function SourcingDashboardView({
               <div style={{ fontWeight: 700, color: C.navy, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {r.company}
               </div>
-              <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>
+              <div style={{ fontSize: 10, color: C.textLight, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {r.list_name || ''}{r.client_name ? ` / ${r.client_name}` : ''}
               </div>
             </div>
-            <div style={{ fontSize: 10, color: C.textMid, minWidth: 160 }}>
-              過去アポ: {r.past_date || '—'}{r.past_getter ? ` ・ ${r.past_getter}` : ''}
+            <div style={{ fontSize: 10, color: C.textMid, width: 110, flexShrink: 0, whiteSpace: 'nowrap' }}>
+              過去アポ: {r.past_date || '—'}
             </div>
-            <div style={{ fontSize: 10, color: C.textMid, minWidth: 110 }}>
-              {r.past_client ? `名義: ${r.past_client}` : ''}
+            <div style={{ fontSize: 10, color: C.textMid, width: 110, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              取得者: {r.past_getter || '—'}
+            </div>
+            <div style={{ fontSize: 10, color: C.textMid, width: 200, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              名義: {r.past_client || '—'}
             </div>
             <CallButton
               disabled={!setCallFlowScreen || !r.item_id || !r.list_id}
