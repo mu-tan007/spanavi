@@ -54,6 +54,7 @@ export default function DealsView() {
         title="Deals"
         description="架電結果と獲得アポの詳細をクライアント単位で確認"
       />
+      <div style={{ height: 16 }} />
 
       {/* タブバー */}
       <div style={{
