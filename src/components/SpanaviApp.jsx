@@ -655,7 +655,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       )}
       <div style={{ width: 220, position: 'fixed', left: 0, top: 0, height: '100vh', background: branding.primaryColor, overflowY: 'auto', zIndex: 200, boxShadow: '2px 0 8px rgba(0,0,0,0.15)', display: (isMobile || engSlug !== 'seller_sourcing') ? 'none' : 'flex', flexDirection: 'column' }}>
         {/* Logo */}
-        <div onClick={() => setCurrentTab('live')} style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div onClick={() => setCurrentTab('dashboard')} style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 10 }}>
           {branding.logoUrl ? (
             <img src={branding.logoUrl} alt={branding.orgName} style={{ width: 28, height: 32, objectFit: 'contain' }} />
           ) : (
@@ -920,7 +920,13 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         borderBottom: "3px solid " + C.gold,
         boxShadow: "0 1px 6px rgba(26,58,92,0.06)",
       }}>
-        <div onClick={() => setCurrentTab('live')} style={{ display: "flex", alignItems: "center", gap: 14, cursor: 'pointer' }}>
+        <div onClick={() => {
+          if (engSlug === 'seller_sourcing') setCurrentTab('dashboard');
+          else if (engSlug === 'masp') setCurrentTab('database');
+          else if (engSlug === 'spartia_career') setCurrentTab('applications');
+          else if (engSlug === 'spartia_capital') capitalNavigate('/dashboard');
+          else setCurrentTab('dashboard');
+        }} style={{ display: "flex", alignItems: "center", gap: 14, cursor: 'pointer' }}>
           <svg width="36" height="42" viewBox="0 0 52 60">
             <defs>
               <linearGradient id="spShieldHeader" x1="0" y1="0" x2="0.3" y2="1">
