@@ -4,38 +4,38 @@ import { C } from '../../../constants/colors';
 const NAVY = '#0D2247';
 
 /**
- * 個人スコープ時に、組織平均との差分を表示するカード
+ * 個人スコープ時に、組織平均との差分を表示するカード。
+ * myStats, orgStats: { calls, ceoConnect, appo }
  */
 export default function StrengthWeakness({
   memberName,
-  allCallRecords,        // 組織全体のレコード
-  memberCallRecords,     // 個人のレコード
-  ceoConnectLabels,
+  myStats,
+  orgStats,
 }) {
   const comparison = useMemo(() => {
-    if (!memberName) return null;
+    if (!memberName || !myStats || !orgStats) return null;
 
-    const orgCalls = allCallRecords.length;
-    const orgCeo   = allCallRecords.filter(r => ceoConnectLabels?.has(r.status)).length;
-    const orgAppo  = allCallRecords.filter(r => r.status === 'アポ獲得').length;
+    const orgCalls = orgStats.calls || 0;
+    const orgCeo = orgStats.ceoConnect || 0;
+    const orgAppo = orgStats.appo || 0;
     const orgConnectRate = orgCalls > 0 ? (orgCeo / orgCalls) * 100 : 0;
     const orgAppoRate    = orgCalls > 0 ? (orgAppo / orgCalls) * 100 : 0;
     const orgAppoFromConnect = orgCeo > 0 ? (orgAppo / orgCeo) * 100 : 0;
 
-    const myCalls = memberCallRecords.length;
-    const myCeo   = memberCallRecords.filter(r => ceoConnectLabels?.has(r.status)).length;
-    const myAppo  = memberCallRecords.filter(r => r.status === 'アポ獲得').length;
+    const myCalls = myStats.calls || 0;
+    const myCeo = myStats.ceoConnect || 0;
+    const myAppo = myStats.appo || 0;
     const myConnectRate = myCalls > 0 ? (myCeo / myCalls) * 100 : 0;
     const myAppoRate    = myCalls > 0 ? (myAppo / myCalls) * 100 : 0;
     const myAppoFromConnect = myCeo > 0 ? (myAppo / myCeo) * 100 : 0;
 
     return [
-      { label: '社長接続率',  my: myConnectRate,      org: orgConnectRate,      unit: '%', samples: myCalls },
-      { label: 'アポ率（全架電比）', my: myAppoRate, org: orgAppoRate,         unit: '%', samples: myCalls },
+      { label: '社長接続率',     my: myConnectRate,     org: orgConnectRate,     unit: '%', samples: myCalls },
+      { label: 'アポ率（全架電比）', my: myAppoRate,    org: orgAppoRate,        unit: '%', samples: myCalls },
       { label: '接続後アポ転換率', my: myAppoFromConnect, org: orgAppoFromConnect, unit: '%', samples: myCeo },
-      { label: '架電数（期間合計）', my: myCalls, org: orgCalls / Math.max(1, 1), unit: '件', samples: myCalls, noDiff: true },
+      { label: '架電数（期間合計）', my: myCalls,       org: orgCalls,           unit: '件', samples: myCalls, noDiff: true },
     ];
-  }, [memberName, allCallRecords, memberCallRecords, ceoConnectLabels]);
+  }, [memberName, myStats, orgStats]);
 
   if (!comparison) return null;
 
@@ -47,7 +47,6 @@ export default function StrengthWeakness({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
         {comparison.map(m => {
           const diff = m.my - m.org;
-          const pct = m.org > 0 ? (diff / m.org) * 100 : 0;
           const isStrength = !m.noDiff && diff > 0;
           const isWeakness = !m.noDiff && diff < 0;
           const lowSample = m.samples < 20;

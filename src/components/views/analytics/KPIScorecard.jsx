@@ -53,10 +53,9 @@ function Card({ label, value, unit, sub, predicted, deltaPct, isMoney, accent, s
 }
 
 export default function KPIScorecard({
-  callRecords = [],
-  prevCallRecords = [],
+  stats,          // { calls, ceoConnect, appo }
+  prevStats,      // { calls, ceoConnect, appo }
   appoData = [],
-  ceoConnectLabels,
   period,
   range,
   prevRange,
@@ -66,15 +65,15 @@ export default function KPIScorecard({
   const pacing = useMemo(() => pacingInfo(period, todayStr, range), [period, todayStr, range]);
 
   const metrics = useMemo(() => {
-    const calls = callRecords.length;
-    const ceoConnect = callRecords.filter(r => ceoConnectLabels?.has(r.status)).length;
-    const appo = callRecords.filter(r => r.status === 'アポ獲得').length;
+    const calls = stats?.calls || 0;
+    const ceoConnect = stats?.ceoConnect || 0;
+    const appo = stats?.appo || 0;
     const appoRate = calls > 0 ? (appo / calls) * 100 : 0;
     const connectRate = calls > 0 ? (ceoConnect / calls) * 100 : 0;
 
-    const prevCalls = prevCallRecords.length;
-    const prevCeo = prevCallRecords.filter(r => ceoConnectLabels?.has(r.status)).length;
-    const prevAppo = prevCallRecords.filter(r => r.status === 'アポ獲得').length;
+    const prevCalls = prevStats?.calls || 0;
+    const prevCeo = prevStats?.ceoConnect || 0;
+    const prevAppo = prevStats?.appo || 0;
     const prevAppoRate = prevCalls > 0 ? (prevAppo / prevCalls) * 100 : 0;
     const prevConnectRate = prevCalls > 0 ? (prevCeo / prevCalls) * 100 : 0;
 
@@ -103,7 +102,7 @@ export default function KPIScorecard({
       connectRate: { value: connectRate, prev: prevConnectRate, deltaPt: connectRate - prevConnectRate },
       badRate: { value: badRate, resched: reschedInRange, cancel: cancelInRange, total: appoTotalInRange },
     };
-  }, [callRecords, prevCallRecords, appoData, ceoConnectLabels, range, prevRange, pacing]);
+  }, [stats, prevStats, appoData, range, prevRange, pacing]);
 
   if (loading) {
     return <div style={{ padding: 40, textAlign: 'center', color: C.textLight, fontSize: 12 }}>読込中…</div>;

@@ -1,9 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { C } from '../../constants/colors';
 import PageHeader from '../common/PageHeader';
-import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { useIsMobile } from '../../hooks/useIsMobile';
-import { fetchCallRecordsByRange, fetchCallListsMeta, rpcPerfRanking } from '../../lib/supabaseWrite';
+import {
+  fetchCallListsMeta,
+  rpcPerfRankingScoped,
+  rpcPerfCallHeatmap,
+} from '../../lib/supabaseWrite';
 
 import AnalyticsFilters from './analytics/AnalyticsFilters';
 import ActionBoard from './analytics/ActionBoard';
@@ -50,9 +53,22 @@ function computePrevRange(period, range, todayStr, weekStartStr, monthStr) {
   return null;
 }
 
+/**
+ * rankByPerson (array of {name, call, connect, appo}) からスコープ絞込してアグリゲート
+ */
+function aggregateByScope(rank, scope, scopeId, teamMap) {
+  let rows = rank || [];
+  if (scope === 'member' && scopeId) rows = rows.filter(p => p.name === scopeId);
+  else if (scope === 'team' && scopeId) rows = rows.filter(p => teamMap[p.name] === scopeId);
+  return {
+    calls: rows.reduce((s, p) => s + (p.call || 0), 0),
+    ceoConnect: rows.reduce((s, p) => s + (p.connect || 0), 0),
+    appo: rows.reduce((s, p) => s + (p.appo || 0), 0),
+  };
+}
+
 export default function AnalyticsView({ callListData, currentUser, appoData, members, now: nowProp }) {
   const isMobile = useIsMobile();
-  const { ceoConnectLabels } = useCallStatuses();
 
   const now = nowProp ? new Date(nowProp) : new Date();
   const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
@@ -79,11 +95,12 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
     [period, range, todayStr, weekStartStr, monthStr]
   );
 
-  const [callRecords, setCallRecords] = useState([]);
-  const [prevCallRecords, setPrevCallRecords] = useState([]);
-  const [recordsLoading, setRecordsLoading] = useState(false);
   const [listsMeta, setListsMeta] = useState([]);
-  const [rankByPerson, setRankByPerson] = useState([]);
+  const [rankByPerson, setRankByPerson] = useState([]);       // 現期間の per-person
+  const [prevRankByPerson, setPrevRankByPerson] = useState([]); // 前期間の per-person
+  const [rankLoading, setRankLoading] = useState(false);
+  const [heatmapData, setHeatmapData] = useState([]);
+  const [heatmapLoading, setHeatmapLoading] = useState(false);
 
   useEffect(() => {
     fetchCallListsMeta()
@@ -91,34 +108,23 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
       .catch(err => console.error('[AnalyticsView] listsMetaFetch:', err));
   }, []);
 
+  // 現期間・前期間のランキング（per-person count）をサーバーで集計
   useEffect(() => {
     let cancelled = false;
-    setRecordsLoading(true);
+    setRankLoading(true);
     Promise.all([
-      fetchCallRecordsByRange(_jstStart(range.from), _jstEnd(range.to)),
-      prevRange ? fetchCallRecordsByRange(_jstStart(prevRange.from), _jstEnd(prevRange.to)) : Promise.resolve({ data: [] }),
+      rpcPerfRankingScoped(_jstStart(range.from), _jstEnd(range.to), listId),
+      prevRange ? rpcPerfRankingScoped(_jstStart(prevRange.from), _jstEnd(prevRange.to), listId) : Promise.resolve({ data: [] }),
     ])
       .then(([cur, prev]) => {
         if (cancelled) return;
-        setCallRecords(cur.data || []);
-        setPrevCallRecords(prev.data || []);
+        setRankByPerson((cur.data || []).map(r => ({ name: r.getter_name, call: r.calls, connect: r.ceo_connect, appo: r.appo })));
+        setPrevRankByPerson((prev.data || []).map(r => ({ name: r.getter_name, call: r.calls, connect: r.ceo_connect, appo: r.appo })));
       })
-      .catch(err => console.error('[AnalyticsView] recordsFetch:', err))
-      .finally(() => { if (!cancelled) setRecordsLoading(false); });
+      .catch(err => console.error('[AnalyticsView] rankFetch:', err))
+      .finally(() => { if (!cancelled) setRankLoading(false); });
     return () => { cancelled = true; };
-  }, [range.from, range.to, prevRange?.from, prevRange?.to]);
-
-  // ActionBoard が使うランキング用データ（メンバーの平均乖離検出）
-  useEffect(() => {
-    let cancelled = false;
-    rpcPerfRanking(_jstStart(range.from), _jstEnd(range.to))
-      .then(({ data }) => {
-        if (cancelled) return;
-        setRankByPerson((data || []).map(r => ({ name: r.getter_name, call: r.calls, connect: r.ceo_connect, appo: r.appo })));
-      })
-      .catch(err => console.error('[AnalyticsView] rankFetch:', err));
-    return () => { cancelled = true; };
-  }, [range.from, range.to]);
+  }, [range.from, range.to, prevRange?.from, prevRange?.to, listId]);
 
   const teamMap = useMemo(() => {
     const m = {};
@@ -128,21 +134,40 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
     return m;
   }, [members]);
 
-  const scopedRecords = useMemo(() => {
-    let rows = callRecords;
-    if (scope === 'member' && scopeId) rows = rows.filter(r => r.getter_name === scopeId);
-    else if (scope === 'team' && scopeId) rows = rows.filter(r => teamMap[r.getter_name] === scopeId);
-    if (listId) rows = rows.filter(r => r.list_id === listId);
-    return rows;
-  }, [callRecords, scope, scopeId, listId, teamMap]);
+  // ヒートマップ: サーバー集計（現期間 + スコープ + リスト絞込）
+  useEffect(() => {
+    let cancelled = false;
+    setHeatmapLoading(true);
+    const opts = {};
+    if (scope === 'member' && scopeId) opts.getterName = scopeId;
+    else if (scope === 'team' && scopeId) {
+      const teamMembers = Object.entries(teamMap).filter(([, t]) => t === scopeId).map(([n]) => n);
+      if (teamMembers.length > 0) opts.getterNames = teamMembers;
+    }
+    if (listId) opts.listId = listId;
 
-  const scopedPrevRecords = useMemo(() => {
-    let rows = prevCallRecords;
-    if (scope === 'member' && scopeId) rows = rows.filter(r => r.getter_name === scopeId);
-    else if (scope === 'team' && scopeId) rows = rows.filter(r => teamMap[r.getter_name] === scopeId);
-    if (listId) rows = rows.filter(r => r.list_id === listId);
-    return rows;
-  }, [prevCallRecords, scope, scopeId, listId, teamMap]);
+    rpcPerfCallHeatmap(_jstStart(range.from), _jstEnd(range.to), opts)
+      .then(({ data }) => { if (!cancelled) setHeatmapData(data || []); })
+      .catch(err => console.error('[AnalyticsView] heatmapFetch:', err))
+      .finally(() => { if (!cancelled) setHeatmapLoading(false); });
+    return () => { cancelled = true; };
+  }, [range.from, range.to, scope, scopeId, listId, teamMap]);
+
+  // スコープ絞込したアグリゲート
+  const scopedStats = useMemo(
+    () => aggregateByScope(rankByPerson, scope, scopeId, teamMap),
+    [rankByPerson, scope, scopeId, teamMap]
+  );
+  const prevScopedStats = useMemo(
+    () => aggregateByScope(prevRankByPerson, scope, scopeId, teamMap),
+    [prevRankByPerson, scope, scopeId, teamMap]
+  );
+
+  // 組織全体のアグリゲート（StrengthWeakness や ActionBoard で使用）
+  const orgStats = useMemo(
+    () => aggregateByScope(rankByPerson, 'org', null, teamMap),
+    [rankByPerson, teamMap]
+  );
 
   const scopedAppoData = useMemo(() => {
     let rows = appoData || [];
@@ -163,10 +188,12 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
     return '';
   }, [scope, scopeId]);
 
-  const memberRecordsForComparison = useMemo(() => {
-    if (scope !== 'member' || !scopeId) return [];
-    return callRecords.filter(r => r.getter_name === scopeId);
-  }, [callRecords, scope, scopeId]);
+  const memberStats = useMemo(() => {
+    if (scope !== 'member' || !scopeId) return null;
+    const p = rankByPerson.find(r => r.name === scopeId);
+    if (!p) return { calls: 0, ceoConnect: 0, appo: 0 };
+    return { calls: p.call, ceoConnect: p.connect, appo: p.appo };
+  }, [rankByPerson, scope, scopeId]);
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
@@ -197,39 +224,36 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
       </div>
 
       <ActionBoard
-        callRecords={scopedRecords}
+        heatmapData={heatmapData}
+        orgStats={orgStats}
         callListData={callListData}
         rankByPerson={rankByPerson}
-        ceoConnectLabels={ceoConnectLabels}
       />
 
       <ListAlert callListData={callListData} />
 
       <KPIScorecard
-        callRecords={scopedRecords}
-        prevCallRecords={scopedPrevRecords}
+        stats={scopedStats}
+        prevStats={prevScopedStats}
         appoData={scopedAppoData}
-        ceoConnectLabels={ceoConnectLabels}
         period={period}
         range={range}
         prevRange={prevRange}
         todayStr={todayStr}
-        loading={recordsLoading}
+        loading={rankLoading}
       />
 
       <Funnel
-        callRecords={scopedRecords}
+        stats={scopedStats}
         appoData={scopedAppoData}
-        ceoConnectLabels={ceoConnectLabels}
         from={range.from}
         to={range.to}
-        loading={recordsLoading}
+        loading={rankLoading}
       />
 
       <Heatmap
-        callRecords={scopedRecords}
-        ceoConnectLabels={ceoConnectLabels}
-        loading={recordsLoading}
+        heatmapData={heatmapData}
+        loading={heatmapLoading}
         listName={selectedListName}
       />
 
@@ -241,12 +265,11 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
         appoData={scopedAppoData}
       />
 
-      {scope === 'member' && scopeId && (
+      {scope === 'member' && scopeId && memberStats && (
         <StrengthWeakness
           memberName={scopeId}
-          allCallRecords={callRecords}
-          memberCallRecords={memberRecordsForComparison}
-          ceoConnectLabels={ceoConnectLabels}
+          myStats={memberStats}
+          orgStats={orgStats}
         />
       )}
 

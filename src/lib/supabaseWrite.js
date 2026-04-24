@@ -2141,6 +2141,25 @@ export async function rpcPerfRanking(fromISO, toISO) {
   return { data: data || [], error }
 }
 
+export async function rpcPerfRankingScoped(fromISO, toISO, listId = null) {
+  const { data, error } = await supabase.rpc('perf_ranking_scoped', {
+    p_from: fromISO, p_to: toISO, p_list_id: listId,
+  })
+  if (error) console.error('[RPC] perf_ranking_scoped error:', error)
+  return { data: data || [], error }
+}
+
+export async function rpcPerfCallHeatmap(fromISO, toISO, { getterName = null, getterNames = null, listId = null } = {}) {
+  const { data, error } = await supabase.rpc('perf_call_heatmap', {
+    p_from: fromISO, p_to: toISO,
+    p_getter_name: getterName,
+    p_getter_names: getterNames,
+    p_list_id: listId,
+  })
+  if (error) console.error('[RPC] perf_call_heatmap error:', error)
+  return { data: data || [], error }
+}
+
 export async function rpcPerfWeeklyTrend(weekStartStr, weeks = 8) {
   const { data, error } = await supabase.rpc('perf_weekly_trend', { p_week_start: weekStartStr, p_weeks: weeks })
   if (error) console.error('[RPC] perf_weekly_trend error:', error)

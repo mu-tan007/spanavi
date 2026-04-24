@@ -6,37 +6,28 @@ const NAVY = '#0D2247';
 const WEEKDAYS = ['月', '火', '水', '木', '金', '土', '日'];
 
 /**
- * データから推奨アクションを自動生成
+ * heatmapData: [{ dow, hour, calls, connects }]
+ * orgStats: { calls, ceoConnect, appo }
+ * rankByPerson: [{ name, call, connect, appo }]
+ * callListData: 既存フォーマット
  */
-function generateActions({ callRecords, callListData, rankByPerson, ceoConnectLabels }) {
+function generateActions({ heatmapData, orgStats, callListData, rankByPerson }) {
   const actions = [];
 
   // ── ① ヒートマップで突出した時間帯 ──────────────────────────────────
-  const grid = {};
-  (callRecords || []).forEach(r => {
-    const d = new Date(r.called_at);
-    const jst = new Date(d.getTime() + 9 * 3600000);
-    const hour = jst.getUTCHours();
-    const dow = (jst.getUTCDay() + 6) % 7;
-    if (hour < 8 || hour > 19) return;
-    const key = dow + '_' + hour;
-    if (!grid[key]) grid[key] = { calls: 0, connects: 0 };
-    grid[key].calls++;
-    if (ceoConnectLabels?.has(r.status)) grid[key].connects++;
-  });
-
-  const totalConnects = (callRecords || []).filter(r => ceoConnectLabels?.has(r.status)).length;
-  const totalCalls = (callRecords || []).length;
+  const totalCalls = orgStats?.calls || 0;
+  const totalConnects = orgStats?.ceoConnect || 0;
   const orgRate = totalCalls > 0 ? totalConnects / totalCalls : 0;
 
   let bestCell = null;
-  Object.entries(grid).forEach(([key, c]) => {
-    if (c.calls < 15) return;
-    const rate = c.connects / c.calls;
+  (heatmapData || []).forEach(c => {
+    const calls = Number(c.calls) || 0;
+    const connects = Number(c.connects) || 0;
+    if (calls < 15) return;
+    const rate = connects / calls;
     if (rate > orgRate * 1.3) {
       if (!bestCell || rate > bestCell.rate) {
-        const [w, h] = key.split('_').map(Number);
-        bestCell = { w, h, rate, calls: c.calls };
+        bestCell = { w: c.dow, h: c.hour, rate, calls };
       }
     }
   });
@@ -83,8 +74,8 @@ function generateActions({ callRecords, callListData, rankByPerson, ceoConnectLa
   }
 
   // ── ④ ファネル段階別: 接続→アポ転換の弱さ検出 ─────────────────────
-  const ceoCount = (callRecords || []).filter(r => ceoConnectLabels?.has(r.status)).length;
-  const appoCount = (callRecords || []).filter(r => r.status === 'アポ獲得').length;
+  const ceoCount = orgStats?.ceoConnect || 0;
+  const appoCount = orgStats?.appo || 0;
   if (ceoCount >= 30 && (appoCount / ceoCount) < 0.15) {
     actions.push({
       type: 'funnel',
@@ -94,7 +85,6 @@ function generateActions({ callRecords, callListData, rankByPerson, ceoConnectLa
     });
   }
 
-  // 空なら、健全状態のメッセージ
   if (actions.length === 0) {
     actions.push({
       type: 'ok',
@@ -107,10 +97,10 @@ function generateActions({ callRecords, callListData, rankByPerson, ceoConnectLa
   return actions.sort((a, b) => a.priority - b.priority).slice(0, 5);
 }
 
-export default function ActionBoard({ callRecords, callListData, rankByPerson, ceoConnectLabels }) {
+export default function ActionBoard({ heatmapData, orgStats, callListData, rankByPerson }) {
   const actions = useMemo(
-    () => generateActions({ callRecords, callListData, rankByPerson, ceoConnectLabels }),
-    [callRecords, callListData, rankByPerson, ceoConnectLabels]
+    () => generateActions({ heatmapData, orgStats, callListData, rankByPerson }),
+    [heatmapData, orgStats, callListData, rankByPerson]
   );
 
   const colorFor = (type) => {

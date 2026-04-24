@@ -5,9 +5,11 @@ const NAVY = '#0D2247';
 const WEEKDAYS = ['月', '火', '水', '木', '金', '土', '日'];
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 8); // 8〜19時
 
+/**
+ * heatmapData: [{ dow: 0-6, hour: 0-23, calls: number, connects: number }]
+ */
 export default function Heatmap({
-  callRecords = [],
-  ceoConnectLabels,
+  heatmapData = [],
   loading = false,
   listName = null,
 }) {
@@ -18,23 +20,16 @@ export default function Heatmap({
         g[w + '_' + h] = { calls: 0, connects: 0 };
       }
     }
-    callRecords.forEach(r => {
-      const d = new Date(r.called_at);
-      const utcHour = d.getUTCHours();
-      const jst = new Date(d.getTime() + 9 * 3600000);
-      const hour = jst.getUTCHours();
-      const dow = (jst.getUTCDay() + 6) % 7; // Mon=0 ... Sun=6
-      if (hour < 8 || hour > 19) return;
-      const key = dow + '_' + hour;
+    (heatmapData || []).forEach(r => {
+      if (r.hour < 8 || r.hour > 19) return;
+      const key = r.dow + '_' + r.hour;
       if (!g[key]) return;
-      g[key].calls++;
-      if (ceoConnectLabels?.has(r.status)) g[key].connects++;
-      void utcHour;
+      g[key].calls = Number(r.calls) || 0;
+      g[key].connects = Number(r.connects) || 0;
     });
     return g;
-  }, [callRecords, ceoConnectLabels]);
+  }, [heatmapData]);
 
-  // 最大接続率を算出してカラースケール正規化
   const maxRate = useMemo(() => {
     let max = 0;
     Object.values(grid).forEach(c => {

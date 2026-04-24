@@ -3,23 +3,21 @@ import { C } from '../../../constants/colors';
 import { formatCurrency } from '../../../utils/formatters';
 
 const NAVY = '#0D2247';
-const GOLD = '#C8A84B';
 const STAGE_COLORS = ['#0D2247', '#1E40AF', '#2563EB', '#3B82F6', '#C8A84B', '#C8A84B'];
 
 const MEETING_DONE = new Set(['面談済', '事前確認済', 'アポ取得']);
 
 export default function Funnel({
-  callRecords = [],
+  stats,          // { calls, ceoConnect, appo }
   appoData = [],
-  ceoConnectLabels,
   from,
   to,
   loading = false,
 }) {
   const stages = useMemo(() => {
-    const calls = callRecords.length;
-    const ceoConnect = callRecords.filter(r => ceoConnectLabels?.has(r.status)).length;
-    const appo = callRecords.filter(r => r.status === 'アポ獲得').length;
+    const calls = stats?.calls || 0;
+    const ceoConnect = stats?.ceoConnect || 0;
+    const appo = stats?.appo || 0;
 
     const inRange = (a) => {
       const d = (a.getDate || '').slice(0, 10);
@@ -38,7 +36,7 @@ export default function Funnel({
       { label: '受注',       value: closed,       unit: '件', denom: meetingDone },
       { label: '売上',       value: sales,        unit: '¥',  denom: null, isMoney: true },
     ];
-  }, [callRecords, appoData, ceoConnectLabels, from, to]);
+  }, [stats, appoData, from, to]);
 
   const maxVal = stages[0]?.value || 1;
 
