@@ -2281,6 +2281,68 @@ export async function uploadAppoRecording(appoId, file) {
   return { url: urlData.publicUrl, error: null }
 }
 
+// ============================================================
+// Weekly Meeting Videos（週次ミーティング録画）
+// ============================================================
+export async function fetchWeeklyMeetingVideos() {
+  const { data, error } = await supabase
+    .from('weekly_meeting_videos')
+    .select('*')
+    .order('meeting_date', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false });
+  if (error) console.error('[DB] fetchWeeklyMeetingVideos error:', error);
+  return { data: data || [], error };
+}
+
+export async function uploadWeeklyMeetingVideo({ file, title, meetingDate, uploadedByName, onProgress }) {
+  if (!file) return { error: 'missing file' };
+  const orgId = getOrgId();
+  if (!orgId) return { error: 'no org' };
+  const { data: { user } = {} } = await supabase.auth.getUser();
+  const ext = (file.name.split('.').pop() || 'mp4').toLowerCase();
+  const safeTitle = (title || 'meeting').replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, 40);
+  const ts = Date.now();
+  const path = `${orgId}/${ts}_${safeTitle}.${ext}`;
+  const { error: uploadError } = await supabase.storage
+    .from('weekly-meetings')
+    .upload(path, file, { contentType: file.type || 'video/mp4', upsert: false, duplex: 'half' });
+  if (uploadError) {
+    console.error('[DB] uploadWeeklyMeetingVideo upload error:', uploadError);
+    return { error: uploadError };
+  }
+  const { data: urlData } = supabase.storage.from('weekly-meetings').getPublicUrl(path);
+  const publicUrl = urlData.publicUrl;
+  const row = {
+    org_id: orgId,
+    title: title || file.name,
+    meeting_date: meetingDate || null,
+    storage_path: path,
+    public_url: publicUrl,
+    size_bytes: file.size,
+    mime_type: file.type || 'video/mp4',
+    uploaded_by: user?.id || null,
+    uploaded_by_name: uploadedByName || null,
+  };
+  const { data, error: insertError } = await supabase.from('weekly_meeting_videos').insert(row).select().single();
+  if (insertError) {
+    console.error('[DB] uploadWeeklyMeetingVideo insert error:', insertError);
+    // ストレージのファイルを掃除
+    await supabase.storage.from('weekly-meetings').remove([path]);
+    return { error: insertError };
+  }
+  return { data, error: null };
+}
+
+export async function deleteWeeklyMeetingVideo(id, storagePath) {
+  const { error: dbErr } = await supabase.from('weekly_meeting_videos').delete().eq('id', id);
+  if (dbErr) { console.error('[DB] deleteWeeklyMeetingVideo db error:', dbErr); return { error: dbErr }; }
+  if (storagePath) {
+    const { error: stErr } = await supabase.storage.from('weekly-meetings').remove([storagePath]);
+    if (stErr) console.error('[DB] deleteWeeklyMeetingVideo storage error:', stErr);
+  }
+  return { error: null };
+}
+
 export async function uploadRoleplayRecording(userId, sessionId, file) {
   if (!userId || !sessionId || !file) return { path: null, url: null, error: 'missing params' }
   const ext = file.name.split('.').pop() || 'mp4'

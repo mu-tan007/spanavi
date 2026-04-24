@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { C } from '../../constants/colors';
 import InternRulesView from './InternRulesView';
 import ScriptView from './ScriptView';
 import InlineAudioPlayer from '../common/InlineAudioPlayer';
 import PageHeader from '../common/PageHeader';
-import { fetchRecordingBookmarks, deleteRecordingBookmark } from '../../lib/supabaseWrite';
+import {
+  fetchRecordingBookmarks, deleteRecordingBookmark,
+  fetchWeeklyMeetingVideos, uploadWeeklyMeetingVideo, deleteWeeklyMeetingVideo,
+} from '../../lib/supabaseWrite';
 
 function CollapsibleSection({ title, count, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -50,18 +53,33 @@ export default function LibraryView({
   const [bookmarkPlayingId, setBookmarkPlayingId] = useState(null);
   const [meetingPlayingId, setMeetingPlayingId] = useState(null);
 
+  // 週次ミーティング動画
+  const [weeklyMeetings, setWeeklyMeetings] = useState([]);
+  const [wmLoading, setWmLoading] = useState(true);
+
   useEffect(() => {
     if (!currentUser) return;
     fetchRecordingBookmarks(currentUser).then(({ data }) => setBookmarks(data || []));
   }, [currentUser]);
+
+  const refreshMeetings = async () => {
+    setWmLoading(true);
+    const { data } = await fetchWeeklyMeetingVideos();
+    setWeeklyMeetings(data || []);
+    setWmLoading(false);
+  };
+  useEffect(() => { refreshMeetings(); }, []);
 
   const handleRemoveBookmark = async (id) => {
     await deleteRecordingBookmark(id);
     setBookmarks(prev => prev.filter(b => b.id !== id));
   };
 
-  // 週次ミーティング動画は後ほど格納（weekly_meeting_videos テーブル想定）
-  const weeklyMeetings = [];
+  const handleDeleteMeeting = async (m) => {
+    if (!window.confirm(`「${m.title}」を削除します。よろしいですか？`)) return;
+    await deleteWeeklyMeetingVideo(m.id, m.storage_path);
+    refreshMeetings();
+  };
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
@@ -114,18 +132,34 @@ export default function LibraryView({
       </CollapsibleSection>
 
       <CollapsibleSection title="週次ミーティングアーカイブ" count={weeklyMeetings.length} defaultOpen={true}>
-        {weeklyMeetings.length === 0 ? (
+        {isAdmin && (
+          <MeetingUploader
+            currentUser={currentUser}
+            onUploaded={refreshMeetings}
+          />
+        )}
+        {wmLoading ? (
           <div style={{ padding: 16, textAlign: 'center', color: C.textLight, fontSize: 12 }}>
-            動画は順次アップロード予定です。
+            読み込み中…
+          </div>
+        ) : weeklyMeetings.length === 0 ? (
+          <div style={{ padding: 16, textAlign: 'center', color: C.textLight, fontSize: 12 }}>
+            動画はまだアップロードされていません。
           </div>
         ) : weeklyMeetings.map((m, idx) => {
           const isPlaying = meetingPlayingId === m.id;
           return (
-            <div key={m.id} style={{ borderTop: idx === 0 ? 'none' : '1px solid #F0F0F0', padding: '12px 0' }}>
+            <div key={m.id} style={{ borderTop: idx === 0 && !isAdmin ? 'none' : '1px solid #F0F0F0', padding: '12px 0' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, color: C.navy, fontSize: 13 }}>{m.title}</div>
-                  <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>{m.date}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, color: C.navy, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {m.title}
+                  </div>
+                  <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>
+                    {m.meeting_date || m.created_at?.slice(0, 10) || ''}
+                    {m.uploaded_by_name ? ` ・ ${m.uploaded_by_name}` : ''}
+                    {m.size_bytes ? ` ・ ${Math.round(m.size_bytes / 1024 / 1024)}MB` : ''}
+                  </div>
                 </div>
                 <button onClick={() => setMeetingPlayingId(isPlaying ? null : m.id)}
                   style={{
@@ -135,10 +169,17 @@ export default function LibraryView({
                   }}>
                   {isPlaying ? '■ 停止' : '▶ 再生'}
                 </button>
+                {isAdmin && (
+                  <button onClick={() => handleDeleteMeeting(m)} title="削除"
+                    style={{
+                      padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB',
+                      background: '#fff', color: '#DC2626', cursor: 'pointer', fontSize: 11,
+                    }}>削除</button>
+                )}
               </div>
               {isPlaying && (
                 <div style={{ marginTop: 10 }}>
-                  <video src={m.video_url} controls style={{ width: '100%', maxHeight: 480, borderRadius: 4, background: '#000' }} />
+                  <video src={m.public_url} controls style={{ width: '100%', maxHeight: 480, borderRadius: 4, background: '#000' }} />
                 </div>
               )}
             </div>
@@ -155,6 +196,138 @@ export default function LibraryView({
           embedded
         />
       </CollapsibleSection>
+    </div>
+  );
+}
+
+// 週次ミーティング動画アップロード（クリック選択 + ドラッグ&ドロップ）
+function MeetingUploader({ currentUser, onUploaded }) {
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [title, setTitle] = useState('');
+  const [meetingDate, setMeetingDate] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+  const inputRef = useRef(null);
+
+  const pickFile = (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('video/')) {
+      setError('動画ファイルのみアップロードできます');
+      return;
+    }
+    setError('');
+    setSelectedFile(file);
+    // タイトル未入力なら、ファイル名（拡張子除く）を初期値に
+    if (!title) {
+      const base = file.name.replace(/\.[^.]+$/, '');
+      setTitle(base);
+    }
+    // 日付も今日を初期値に
+    if (!meetingDate) {
+      const d = new Date();
+      setMeetingDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) pickFile(file);
+  };
+
+  const doUpload = async () => {
+    if (!selectedFile) return;
+    setUploading(true);
+    setError('');
+    const { error } = await uploadWeeklyMeetingVideo({
+      file: selectedFile,
+      title: title || selectedFile.name,
+      meetingDate: meetingDate || null,
+      uploadedByName: currentUser || null,
+    });
+    setUploading(false);
+    if (error) {
+      setError(typeof error === 'string' ? error : (error.message || 'アップロードに失敗しました'));
+      return;
+    }
+    setSelectedFile(null);
+    setTitle('');
+    setMeetingDate('');
+    onUploaded?.();
+  };
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div
+        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        onClick={() => inputRef.current?.click()}
+        style={{
+          border: `2px dashed ${dragOver ? C.gold : C.border}`,
+          background: dragOver ? '#FFFBEB' : '#F8F9FA',
+          borderRadius: 6, padding: '20px', textAlign: 'center',
+          cursor: 'pointer', transition: 'all 0.15s',
+        }}
+      >
+        <div style={{ fontSize: 12, color: C.navy, fontWeight: 600 }}>
+          {selectedFile
+            ? `選択中: ${selectedFile.name} (${Math.round(selectedFile.size / 1024 / 1024)}MB)`
+            : '📁 クリックまたはドラッグ＆ドロップで動画ファイルを選択'}
+        </div>
+        <div style={{ fontSize: 10, color: C.textLight, marginTop: 4 }}>
+          対応形式: mp4 / webm / mov / mkv（最大2GB）
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="video/*"
+          style={{ display: 'none' }}
+          onChange={e => pickFile(e.target.files?.[0])}
+        />
+      </div>
+
+      {selectedFile && (
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="タイトル（例: 週次MTG 第1回）"
+            style={{ flex: '1 1 240px', padding: '6px 10px', border: `1px solid ${C.border}`, borderRadius: 4, fontSize: 12 }}
+          />
+          <input
+            type="date"
+            value={meetingDate}
+            onChange={e => setMeetingDate(e.target.value)}
+            style={{ padding: '6px 10px', border: `1px solid ${C.border}`, borderRadius: 4, fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}
+          />
+          <button
+            onClick={doUpload}
+            disabled={uploading || !title.trim()}
+            style={{
+              padding: '7px 18px', fontSize: 12, fontWeight: 600,
+              background: uploading ? C.textLight : C.navy, color: C.white,
+              border: 'none', borderRadius: 4,
+              cursor: uploading ? 'wait' : 'pointer',
+            }}
+          >{uploading ? 'アップロード中…' : 'アップロード'}</button>
+          <button
+            onClick={() => { setSelectedFile(null); setTitle(''); setMeetingDate(''); setError(''); }}
+            disabled={uploading}
+            style={{
+              padding: '7px 14px', fontSize: 12, fontWeight: 600,
+              background: C.white, color: C.textMid,
+              border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer',
+            }}
+          >キャンセル</button>
+        </div>
+      )}
+      {error && (
+        <div style={{ marginTop: 8, fontSize: 11, color: C.red, fontWeight: 600 }}>{error}</div>
+      )}
     </div>
   );
 }
