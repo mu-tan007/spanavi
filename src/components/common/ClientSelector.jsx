@@ -78,7 +78,6 @@ export default function ClientSelector({ clients, selectedClientId, onSelect }) 
           border: `1px solid ${C.border}`, borderRadius: 3,
           padding: '4px 8px', background: C.white,
         }}>
-          <span style={{ fontSize: 11, color: C.textLight }}>🔍</span>
           <input
             type="text"
             value={query}
