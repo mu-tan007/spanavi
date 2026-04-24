@@ -484,16 +484,8 @@ export default function SourcingDashboardView({
         render={(r, i) => (
           <div key={r.id || i} style={rowStyle}>
             <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                <span style={{ fontWeight: 700, color: C.navy, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {r.company}
-                </span>
-                {r.source === 'legacy' && (
-                  <span style={{
-                    fontSize: 9, fontWeight: 700, color: '#8A6D1F', background: '#FFFBEB',
-                    padding: '1px 6px', borderRadius: 3, border: '1px solid #D4A01744', flexShrink: 0,
-                  }}>Excel履歴</span>
-                )}
+              <div style={{ fontWeight: 700, color: C.navy, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {r.company}
               </div>
               <div style={{ fontSize: 10, color: C.textLight, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {r.list_name || ''}{r.client_name ? ` / ${r.client_name}` : ''}
