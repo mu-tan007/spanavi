@@ -2294,7 +2294,86 @@ export async function fetchWeeklyMeetingVideos() {
   return { data: data || [], error };
 }
 
+// Cloudflare Stream 経由のアップロード（Direct Creator Upload + TUS）
 export async function uploadWeeklyMeetingVideo({ file, title, meetingDate, uploadedByName, onProgress }) {
+  if (!file) return { error: 'missing file' };
+  const orgId = getOrgId();
+  if (!orgId) return { error: 'no org' };
+  const { data: { user } = {} } = await supabase.auth.getUser();
+
+  // 1. Edge Function 経由で Direct Upload URL + uid を取得
+  const { data: du, error: duErr } = await supabase.functions.invoke('cf-stream', {
+    body: { mode: 'direct_upload', title: title || file.name, maxDurationSeconds: 21600 },
+  });
+  if (duErr || !du?.uploadURL || !du?.uid) {
+    console.error('[DB] uploadWeeklyMeetingVideo direct_upload error:', duErr || du);
+    return { error: duErr || new Error('cf direct_upload failed') };
+  }
+  const uploadURL = du.uploadURL;
+  const uid = du.uid;
+
+  // 2. TUS で直接 Cloudflare Stream にアップロード
+  const tus = await import('tus-js-client');
+  const uploadErr = await new Promise((resolve) => {
+    const upload = new tus.Upload(file, {
+      uploadUrl: uploadURL, // CF Stream が既にセッション作成済のため endpoint ではなく uploadUrl
+      retryDelays: [0, 3000, 5000, 10000, 20000],
+      chunkSize: 50 * 1024 * 1024, // 50MB
+      metadata: {
+        name: file.name,
+        filetype: file.type || 'video/mp4',
+      },
+      onError: (err) => resolve(err),
+      onProgress: (bytesUploaded, bytesTotal) => {
+        try { onProgress?.(bytesUploaded, bytesTotal); } catch (_) {}
+      },
+      onSuccess: () => resolve(null),
+    });
+    upload.start();
+  });
+  if (uploadErr) {
+    console.error('[DB] uploadWeeklyMeetingVideo tus error:', uploadErr);
+    return { error: uploadErr };
+  }
+
+  // 3. DB にメタデータを保存
+  const row = {
+    org_id: orgId,
+    title: title || file.name,
+    meeting_date: meetingDate || null,
+    stream_uid: uid,
+    stream_ready: false,
+    size_bytes: file.size,
+    mime_type: file.type || 'video/mp4',
+    uploaded_by: user?.id || null,
+    uploaded_by_name: uploadedByName || null,
+  };
+  const { data, error: insertError } = await supabase.from('weekly_meeting_videos').insert(row).select().single();
+  if (insertError) {
+    console.error('[DB] uploadWeeklyMeetingVideo insert error:', insertError);
+    return { error: insertError };
+  }
+  return { data, error: null };
+}
+
+// 配信可否・duration・サムネを Stream API に問い合わせ、DBに反映
+export async function refreshWeeklyMeetingStatus(videoId, uid) {
+  const { data, error } = await supabase.functions.invoke('cf-stream', {
+    body: { mode: 'status', uid },
+  });
+  if (error || !data) return { error };
+  const patch = {
+    stream_ready: !!data.readyToStream,
+    stream_thumbnail: data.thumbnail || null,
+    duration_sec: data.duration ? Math.round(data.duration) : null,
+  };
+  const { error: upErr } = await supabase.from('weekly_meeting_videos').update(patch).eq('id', videoId);
+  return { data: { ...data, ...patch }, error: upErr || null };
+}
+
+// 旧: Google Drive 経由のアップロード（Cloudflare Stream 移行後も参考に残す）
+// eslint-disable-next-line no-unused-vars
+async function _legacy_uploadWeeklyMeetingVideoViaDrive({ file, title, meetingDate, uploadedByName, onProgress }) {
   if (!file) return { error: 'missing file' };
   const orgId = getOrgId();
   if (!orgId) return { error: 'no org' };
@@ -2354,9 +2433,13 @@ export async function updateWeeklyMeetingVideo(id, patch) {
   return { data, error };
 }
 
-export async function deleteWeeklyMeetingVideo(id, storagePath) {
+export async function deleteWeeklyMeetingVideo(id, { streamUid = null, storagePath = null } = {}) {
   const { error: dbErr } = await supabase.from('weekly_meeting_videos').delete().eq('id', id);
   if (dbErr) { console.error('[DB] deleteWeeklyMeetingVideo db error:', dbErr); return { error: dbErr }; }
+  if (streamUid) {
+    const { error: cfErr } = await supabase.functions.invoke('cf-stream', { body: { mode: 'delete', uid: streamUid } });
+    if (cfErr) console.error('[DB] deleteWeeklyMeetingVideo cf error:', cfErr);
+  }
   if (storagePath) {
     const { error: stErr } = await supabase.storage.from('weekly-meetings').remove([storagePath]);
     if (stErr) console.error('[DB] deleteWeeklyMeetingVideo storage error:', stErr);

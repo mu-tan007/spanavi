@@ -7,7 +7,10 @@ import PageHeader from '../common/PageHeader';
 import {
   fetchRecordingBookmarks, deleteRecordingBookmark,
   fetchWeeklyMeetingVideos, uploadWeeklyMeetingVideo, deleteWeeklyMeetingVideo, updateWeeklyMeetingVideo,
+  refreshWeeklyMeetingStatus,
 } from '../../lib/supabaseWrite';
+
+const CF_STREAM_SUBDOMAIN = import.meta.env.VITE_CF_STREAM_CUSTOMER_SUBDOMAIN || '';
 
 function CollapsibleSection({ title, count, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -67,8 +70,29 @@ export default function LibraryView({
     const { data } = await fetchWeeklyMeetingVideos();
     setWeeklyMeetings(data || []);
     setWmLoading(false);
+    // まだ stream_ready でない動画があれば、バックグラウンドで status ポーリング
+    (data || []).filter(m => m.stream_uid && !m.stream_ready).forEach(m => {
+      pollStreamStatus(m.id, m.stream_uid);
+    });
   };
   useEffect(() => { refreshMeetings(); }, []);
+
+  const pollStreamStatus = async (id, uid) => {
+    const maxAttempts = 40; // 40 * 3s = 2分
+    for (let i = 0; i < maxAttempts; i++) {
+      const { data } = await refreshWeeklyMeetingStatus(id, uid);
+      if (data?.stream_ready) {
+        setWeeklyMeetings(prev => prev.map(m => m.id === id ? {
+          ...m,
+          stream_ready: true,
+          stream_thumbnail: data.stream_thumbnail,
+          duration_sec: data.duration_sec,
+        } : m));
+        return;
+      }
+      await new Promise(r => setTimeout(r, 3000));
+    }
+  };
 
   const handleRemoveBookmark = async (id) => {
     await deleteRecordingBookmark(id);
@@ -77,7 +101,7 @@ export default function LibraryView({
 
   const handleDeleteMeeting = async (m) => {
     if (!window.confirm(`「${m.title}」を削除します。よろしいですか？`)) return;
-    await deleteWeeklyMeetingVideo(m.id, m.storage_path);
+    await deleteWeeklyMeetingVideo(m.id, { streamUid: m.stream_uid, storagePath: m.storage_path });
     refreshMeetings();
   };
 
@@ -234,20 +258,35 @@ export default function LibraryView({
               </div>
               {isPlaying && (
                 <div style={{ marginTop: 10 }}>
-                  {m.drive_file_id ? (
-                    <>
+                  {m.stream_uid && CF_STREAM_SUBDOMAIN ? (
+                    m.stream_ready ? (
                       <iframe
-                        src={`https://drive.google.com/file/d/${m.drive_file_id}/preview`}
+                        src={`https://${CF_STREAM_SUBDOMAIN}.cloudflarestream.com/${m.stream_uid}/iframe?poster=https%3A%2F%2F${CF_STREAM_SUBDOMAIN}.cloudflarestream.com%2F${m.stream_uid}%2Fthumbnails%2Fthumbnail.jpg`}
                         title={m.title}
-                        allow="autoplay; fullscreen"
+                        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
                         allowFullScreen
                         style={{ width: '100%', height: 480, borderRadius: 4, background: '#000', border: 'none' }}
                       />
-                      <div style={{ fontSize: 10, color: C.textLight, marginTop: 6, lineHeight: 1.5 }}>
-                        ※ 動画のロードが長引く場合、Google Drive 側でストリーミング変換中の可能性があります（500MB超えだと10-30分かかることも）。
-                        「↗ Drive」ボタンから直接開けばダウンロードや別UIでの再生も可能です。
+                    ) : (
+                      <div style={{
+                        width: '100%', height: 240, borderRadius: 4, background: '#0D2247',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        color: C.white, gap: 6,
+                      }}>
+                        <div style={{ fontSize: 13, fontWeight: 700 }}>処理中…</div>
+                        <div style={{ fontSize: 11, color: C.goldLight }}>
+                          Cloudflare Stream でストリーミング変換中です（通常 1〜2分で完了）
+                        </div>
                       </div>
-                    </>
+                    )
+                  ) : m.drive_file_id ? (
+                    <iframe
+                      src={`https://drive.google.com/file/d/${m.drive_file_id}/preview`}
+                      title={m.title}
+                      allow="autoplay; fullscreen"
+                      allowFullScreen
+                      style={{ width: '100%', height: 480, borderRadius: 4, background: '#000', border: 'none' }}
+                    />
                   ) : (
                     <video src={m.public_url} controls style={{ width: '100%', maxHeight: 480, borderRadius: 4, background: '#000' }} />
                   )}
@@ -314,7 +353,7 @@ function MeetingUploader({ currentUser, onUploaded }) {
     setUploading(true);
     setUploadPct(0);
     setError('');
-    const { error } = await uploadWeeklyMeetingVideo({
+    const { data, error } = await uploadWeeklyMeetingVideo({
       file: selectedFile,
       title: title || selectedFile.name,
       meetingDate: meetingDate || null,
@@ -332,7 +371,7 @@ function MeetingUploader({ currentUser, onUploaded }) {
     setSelectedFile(null);
     setTitle('');
     setMeetingDate('');
-    onUploaded?.();
+    onUploaded?.(data);
   };
 
   return (
