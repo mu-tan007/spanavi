@@ -1,20 +1,17 @@
 @echo off
-chcp 65001 > nul
 setlocal enabledelayedexpansion
 
 REM ============================================================
-REM  週次ミーティング動画 圧縮バッチ
-REM    - ドラッグ&ドロップで使用（複数ファイル対応）
-REM    - Intel QSV (h264_qsv) によるハードウェア加速で高速圧縮
-REM    - 失敗時は自動で libx264 (CPUエンコード) にフォールバック
-REM    - 出力: {元名}_compressed.mp4（同じフォルダ）
-REM    - 解像度: 720p / 音声: AAC 96kbps / 先頭シーク対応
+REM  Weekly Meeting Video Compression (drag and drop)
+REM    - Uses Intel QSV (h264_qsv); falls back to libx264
+REM    - Output: {name}_compressed.mp4  (720p / AAC 96k / faststart)
+REM  NOTE: ASCII only inside this file to avoid CP-mismatch issues.
 REM ============================================================
 
 if "%~1"=="" (
   echo.
-  echo 使い方: このバッチに動画ファイルをドラッグ ^& ドロップしてください
-  echo          または: compress_meeting.bat input.mp4 [input2.mp4 ...]
+  echo Usage: Drag and drop video files onto this batch file.
+  echo        Or:  compress_meeting.bat input.mp4 [input2.mp4 ...]
   echo.
   pause
   exit /b 1
@@ -23,12 +20,9 @@ if "%~1"=="" (
 where ffmpeg >nul 2>&1
 if errorlevel 1 (
   echo.
-  echo ERROR: ffmpeg が見つかりません
-  echo.
-  echo 手順:
-  echo   1. https://www.gyan.dev/ffmpeg/builds/ から「ffmpeg-release-essentials.zip」をダウンロード
-  echo   2. 解凍してできた bin フォルダ^(例: C:\ffmpeg\bin^)を環境変数 PATH に追加
-  echo   3. PC 再起動後、このバッチを再実行
+  echo ERROR: ffmpeg not found in PATH.
+  echo        Install via: winget install Gyan.FFmpeg
+  echo        Or download from: https://www.gyan.dev/ffmpeg/builds/
   echo.
   pause
   exit /b 1
@@ -43,12 +37,12 @@ set "NAME=%~n1"
 set "OUTPUT=%DIR%%NAME%_compressed.mp4"
 
 echo.
-echo ============================================================
-echo 処理中: %INPUT%
-echo 出力先: %OUTPUT%
-echo ============================================================
+echo ------------------------------------------------------------
+echo IN : %INPUT%
+echo OUT: %OUTPUT%
+echo ------------------------------------------------------------
 
-REM ── Intel QSV でハードウェア圧縮（高速） ──
+REM Try Intel QSV first
 ffmpeg -hide_banner -loglevel warning -stats -y ^
   -i "%INPUT%" ^
   -c:v h264_qsv -preset medium -global_quality 25 ^
@@ -59,7 +53,7 @@ ffmpeg -hide_banner -loglevel warning -stats -y ^
 
 if errorlevel 1 (
   echo.
-  echo [!] Intel QSV が使用できないようです。CPU エンコードで再試行します...
+  echo [WARN] QSV failed. Retrying with libx264 (CPU)...
   echo.
   ffmpeg -hide_banner -loglevel warning -stats -y ^
     -i "%INPUT%" ^
@@ -69,22 +63,19 @@ if errorlevel 1 (
     -movflags +faststart ^
     "%OUTPUT%"
   if errorlevel 1 (
-    echo.
-    echo !! 圧縮に失敗しました: %INPUT%
+    echo [ERROR] Compression failed.
     goto :next
   )
 )
 
-REM ── サイズ比較表示 ──
 for %%A in ("%INPUT%")  do set "ORIG_BYTES=%%~zA"
 for %%A in ("%OUTPUT%") do set "COMP_BYTES=%%~zA"
-set /a "ORIG_MB=ORIG_BYTES / 1048576"
-set /a "COMP_MB=COMP_BYTES / 1048576"
+set /a "ORIG_MB=!ORIG_BYTES! / 1048576"
+set /a "COMP_MB=!COMP_BYTES! / 1048576"
 if !ORIG_MB! LEQ 0 set "ORIG_MB=1"
-set /a "RATIO=COMP_MB * 100 / ORIG_MB"
-
+set /a "RATIO=!COMP_MB! * 100 / !ORIG_MB!"
 echo.
-echo [OK] 完了: !ORIG_MB! MB  =^>  !COMP_MB! MB  ^(!RATIO!%% に圧縮^)
+echo [OK] !ORIG_MB! MB -^> !COMP_MB! MB  ^(!RATIO!%% of original^)
 
 :next
 shift
@@ -93,7 +84,7 @@ goto :loop
 :all_done
 echo.
 echo ============================================================
-echo すべての処理が完了しました
+echo All done.
 echo ============================================================
 echo.
 pause
