@@ -136,6 +136,17 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             setSessions(prev => prev.map(s2 =>
               s2.id === sess.id ? { ...s2, transcript: result.transcript, ai_feedback: result.ai_feedback, ai_status: 'done' } : s2
             ));
+            // 再開ポーリング完了時もSlack通知（useEffect再トリガー等で startAnalysisAndPoll の経路を外れて完了するケースに対応）
+            if (memberTeam) {
+              postRoleplayToSlack({
+                memberName: currentUser,
+                memberTeam,
+                partnerName: sess.partner_name,
+                sessionDate: sess.session_date,
+                videoUrl: sess.video_url || null,
+                aiFeedback: result.ai_feedback,
+              }).catch(e => console.error('[Slack] post error (restart-poll):', e));
+            }
           } else {
             setSessions(prev => prev.map(s2 => s2.id === sess.id ? { ...s2, ai_status: 'error' } : s2));
             setAnalyzeErrors(prev => ({ ...prev, [sess.id]: result.error }));

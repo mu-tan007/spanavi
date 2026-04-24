@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { C } from '../../constants/colors';
 import InternRulesView from './InternRulesView';
 import ScriptView from './ScriptView';
-import TrainingRoleplaySection from './TrainingRoleplaySection';
 import InlineAudioPlayer from '../common/InlineAudioPlayer';
 import PageHeader from '../common/PageHeader';
 import { fetchRecordingBookmarks, deleteRecordingBookmark } from '../../lib/supabaseWrite';
@@ -74,15 +73,6 @@ export default function LibraryView({
 
       <CollapsibleSection title="22箇条" defaultOpen={false}>
         <InternRulesView embedded />
-      </CollapsibleSection>
-
-      <CollapsibleSection title="ロープレ履歴" defaultOpen={false}>
-        <TrainingRoleplaySection
-          currentUser={currentUser}
-          userId={userId}
-          members={members}
-          isAdmin={isAdmin}
-        />
       </CollapsibleSection>
 
       <CollapsibleSection title="お気に入り録音" count={bookmarks.length} defaultOpen={true}>

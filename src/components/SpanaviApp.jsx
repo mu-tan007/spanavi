@@ -1177,7 +1177,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} />}
         {currentTab === "edu_performance" && <PerformanceView members={members} currentUser={currentUser} appoData={appoData} />}
         {currentTab === "library" && <LibraryView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
-        {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} />}
+        {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} />}
         {currentTab === "ai" && <AIAssistantView appoData={appoData} members={members} callListData={callListData} industryRules={industryRules} currentUser={currentUser} />}
         {currentTab === "manager_admin" && isManagerRole && <ManagerAdminView currentUser={currentUser} members={members} appoData={appoData} now={now} />}
         </>)}

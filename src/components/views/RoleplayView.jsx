@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { C } from '../../constants/colors';
 import { supabase } from '../../lib/supabase';
 import PageHeader from '../common/PageHeader';
+import TrainingRoleplaySection from './TrainingRoleplaySection';
 import {
   fetchRoleplayBookings,
   fetchAllRoleplayBookings,
@@ -19,7 +20,7 @@ const FREE_BG = '#E8EDF5';
 const HOVER_BG = '#D0D8E8';
 const DAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
-export default function RoleplayView({ currentUser, userId }) {
+export default function RoleplayView({ currentUser, userId, members = [], isAdmin = false }) {
   // ===== Google Calendar (Edge Function 経由) =====
   const [busySlots, setBusySlots] = useState(null);
   const [loadingBusy, setLoadingBusy] = useState(false);
@@ -521,6 +522,39 @@ export default function RoleplayView({ currentUser, userId }) {
           </div>
         )}
       </div>
+
+      {/* ロープレ履歴（録音アップロード・AI分析） */}
+      <RoleplayHistorySection currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} />
+    </div>
+  );
+}
+
+// ロープレ履歴の折り畳みラッパー
+function RoleplayHistorySection({ currentUser, userId, members, isAdmin }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div style={{ background: C.white, border: '1px solid #E5E7EB', borderRadius: 4, marginTop: 8 }}>
+      <button
+        onClick={() => setOpen(!open)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 20px', background: 'transparent', border: 'none', cursor: 'pointer',
+          fontSize: 14, fontWeight: 700, color: NAVY, textAlign: 'left',
+        }}
+      >
+        <span>ロープレ履歴</span>
+        <span style={{ fontSize: 11, color: '#9CA3AF' }}>{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div style={{ padding: '16px 20px 20px', borderTop: '1px solid #F3F4F6' }}>
+          <TrainingRoleplaySection
+            currentUser={currentUser}
+            userId={userId}
+            members={members}
+            isAdmin={isAdmin}
+          />
+        </div>
+      )}
     </div>
   );
 }
