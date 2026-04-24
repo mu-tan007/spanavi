@@ -2313,32 +2313,40 @@ export async function uploadWeeklyMeetingVideo({ file, title, meetingDate, uploa
   const uid = du.uid;
 
   // 2. TUS PATCH ループで直接 Cloudflare Stream にアップロード
-  //    tus-js-client は初回 HEAD で offset 確認を試みるが、CF Direct Upload URL は
-  //    初回 HEAD 非対応で 400 を返すため手動実装に切替。
-  const CHUNK = 50 * 1024 * 1024; // 50MB
-  let offset = 0;
+  //    XHR を使うことでチャンク内のバイト単位進捗が取れる（fetchだと不可）
+  const CHUNK = 6 * 1024 * 1024; // 6MB: tus推奨 + 進捗更新の頻度確保
   const total = file.size;
+  const sendChunk = (offset, blob) => new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        try { onProgress?.(offset + e.loaded, total); } catch (_) {}
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const hdr = xhr.getResponseHeader('Upload-Offset');
+        resolve(hdr ? parseInt(hdr, 10) : offset + blob.size);
+      } else {
+        reject(new Error(`CF upload PATCH ${xhr.status}: ${xhr.responseText}`));
+      }
+    };
+    xhr.onerror = () => reject(new Error('CF upload network error'));
+    xhr.ontimeout = () => reject(new Error('CF upload timeout'));
+    xhr.open('PATCH', uploadURL);
+    xhr.setRequestHeader('Upload-Offset', String(offset));
+    xhr.setRequestHeader('Tus-Resumable', '1.0.0');
+    xhr.setRequestHeader('Content-Type', 'application/offset+octet-stream');
+    xhr.send(blob);
+  });
+  let offset = 0;
   try {
     while (offset < total) {
       const end = Math.min(offset + CHUNK, total);
       const blob = file.slice(offset, end);
-      const res = await fetch(uploadURL, {
-        method: 'PATCH',
-        headers: {
-          'Upload-Offset': String(offset),
-          'Tus-Resumable': '1.0.0',
-          'Content-Type': 'application/offset+octet-stream',
-        },
-        body: blob,
-      });
-      if (!res.ok) {
-        const txt = await res.text().catch(() => '');
-        throw new Error(`CF upload PATCH failed at ${offset}: ${res.status} ${txt}`);
-      }
-      const newOffsetHeader = res.headers.get('Upload-Offset');
-      offset = newOffsetHeader != null ? parseInt(newOffsetHeader, 10) : end;
-      try { onProgress?.(offset, total); } catch (_) {}
+      offset = await sendChunk(offset, blob);
     }
+    try { onProgress?.(total, total); } catch (_) {}
   } catch (err) {
     console.error('[DB] uploadWeeklyMeetingVideo PATCH error:', err);
     return { error: err };
