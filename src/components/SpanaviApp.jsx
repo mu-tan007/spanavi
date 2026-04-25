@@ -551,9 +551,9 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const navGroups = [
     { id: "dashboard", label: "Dashboard", children: null },
     { id: "g_call", label: "CALLING", children: [
-      { id: "live", label: "Live Status" },
       { id: "lists", label: "Lists" },
       { id: "search", label: "Search" },
+      { id: "live", label: "Live Status" },
       { id: "recall", label: "Recall" },
       { id: "incoming", label: "Incoming Call" },
     ]},
@@ -562,16 +562,16 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       { id: "precheck", label: "Pre-Check" },
       { id: "deals", label: "Deals" },
     ]},
-    { id: "stats", label: "Analytics", children: null },
-    { id: "g_other", label: "OPERATIONS", children: [
-      { id: "crm", label: "CRM" },
-      { id: "members", label: "Members" },
-      { id: "payroll", label: "Payroll" },
-      { id: "shift", label: "Shifts" },
-    ]},
-    { id: "g_education", label: "DEVELOPMENT", children: [
+    { id: "g_insights", label: "INSIGHTS", children: [
+      { id: "stats", label: "Analytics" },
       { id: "library", label: "Library" },
       { id: "edu_roleplay", label: "Role Play" },
+    ]},
+    { id: "g_admin", label: "ADMIN", children: [
+      { id: "members", label: "Members" },
+      { id: "crm", label: "CRM" },
+      { id: "payroll", label: "Payroll" },
+      { id: "shift", label: "Shifts" },
     ]},
     ...(isManagerRole ? [{ id: "manager_admin", label: "Admin", children: null }] : []),
   ];
