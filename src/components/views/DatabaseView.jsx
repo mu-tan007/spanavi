@@ -72,7 +72,7 @@ export default function DatabaseView({ isAdmin }) {
         eyebrow="Sourcing · Database"
         title="Database"
         description={dbTotal != null ? `Total: ${dbTotal.toLocaleString()} companies` : undefined}
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: 24 }}
         right={
           <>
             <button onClick={() => setShowTsrModal(true)}

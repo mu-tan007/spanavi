@@ -337,9 +337,8 @@ export default function SourcingDashboardView({
             ))}
           </div>
         )}
+        style={{ marginBottom: 24 }}
       />
-
-      <div style={{ height: 16 }} />
 
       {/* 本日の目標 vs 実績 */}
       <div style={{

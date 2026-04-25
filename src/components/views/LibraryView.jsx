@@ -127,8 +127,8 @@ export default function LibraryView({
       <PageHeader
         title="Library"
         description="営業ナレッジの統合アーカイブ"
+        style={{ marginBottom: 24 }}
       />
-      <div style={{ height: 16 }} />
 
       <CollapsibleSection title="22箇条" defaultOpen={false}>
         <InternRulesView embedded />

@@ -35,7 +35,7 @@ export default function LogView({ callLogs, logFormOpen, setLogFormOpen, addCall
         eyebrow="Sourcing · ログ"
         title="架電ログ"
         description="日次架電の記録と重複チェック"
-        style={{ marginBottom: 20 }}
+        style={{ marginBottom: 24 }}
         right={
           <button onClick={() => setLogFormOpen(!logFormOpen)} style={{
             padding: "7px 14px", borderRadius: 4,

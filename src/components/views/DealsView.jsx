@@ -53,8 +53,8 @@ export default function DealsView() {
       <PageHeader
         title="Deals"
         description="クライアント別 架電・アポ実績"
+        style={{ marginBottom: 24 }}
       />
-      <div style={{ height: 16 }} />
 
       {/* タブバー */}
       <div style={{

@@ -201,7 +201,7 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
         eyebrow="Sourcing · Strategic Analytics"
         title="Analytics"
         description="組織・チーム・個人を俯瞰する戦略分析"
-        style={{ marginBottom: isMobile ? 16 : 20 }}
+        style={{ marginBottom: isMobile ? 16 : 24 }}
       />
 
       <AnalyticsFilters

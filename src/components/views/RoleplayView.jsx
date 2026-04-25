@@ -248,7 +248,7 @@ export default function RoleplayView({ currentUser, userId, members = [], isAdmi
         eyebrow="研修 · ロープレ"
         title="Role Play"
         description="ロープレ予約・履歴"
-        style={{ marginBottom: 8 }}
+        style={{ marginBottom: 24 }}
       />
 
       <div style={{ display: "flex", gap: 20, alignItems: "flex-start", position: "relative" }}>
