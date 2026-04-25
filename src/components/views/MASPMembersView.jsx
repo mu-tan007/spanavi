@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { C } from '../../constants/colors';
 import { useEngagements } from '../../hooks/useEngagements';
 import { useAllMembersWithEngagements } from '../../hooks/useMemberEngagements';
+import { deactivateMember } from '../../lib/supabaseWrite';
 import PageHeader from '../common/PageHeader';
 
 // MASP タブの「Members」ページ。
@@ -9,8 +10,25 @@ import PageHeader from '../common/PageHeader';
 // 編集は isAdmin のみ。非 admin は read-only 表示。
 export default function MASPMembersView({ isAdmin }) {
   const { engagements } = useEngagements();
-  const { members, assignments, teamsByEngagement, memberTeam, loading, toggleAssignment, assignMemberToTeam } = useAllMembersWithEngagements();
+  const { members, assignments, teamsByEngagement, memberTeam, loading, toggleAssignment, assignMemberToTeam, refresh } = useAllMembersWithEngagements();
   const [filter, setFilter] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const error = await deactivateMember(deleteTarget.id);
+    setDeleting(false);
+    if (error) {
+      setDeleteError(error.message || '削除に失敗しました');
+      return;
+    }
+    setDeleteTarget(null);
+    await refresh?.();
+  };
 
   // MASP (virtual) を除外して表示する事業列
   const engagementCols = useMemo(
@@ -67,6 +85,7 @@ export default function MASPMembersView({ isAdmin }) {
               {engagementCols.map(e => (
                 <th key={e.id} style={{ ...th, minWidth: 96 }}>{e.name}</th>
               ))}
+              {isAdmin && <th style={{ ...th, width: 64 }}>操作</th>}
             </tr>
           </thead>
           <tbody>
@@ -95,12 +114,26 @@ export default function MASPMembersView({ isAdmin }) {
                       />
                     </td>
                   ))}
+                  {isAdmin && (
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      <button
+                        onClick={() => { setDeleteTarget(m); setDeleteError(null); }}
+                        title="このメンバーを削除（過去のデータは保持されます）"
+                        style={{
+                          padding: '4px 10px', fontSize: 11, fontWeight: 600,
+                          background: '#fff', color: '#B91C1C',
+                          border: `1px solid #FCA5A5`, borderRadius: 3, cursor: 'pointer',
+                          fontFamily: "'Noto Sans JP',sans-serif",
+                        }}
+                      >削除</button>
+                    </td>
+                  )}
                 </tr>
               );
             })}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={2 + engagementCols.length} style={{ padding: '40px 12px', textAlign: 'center', color: C.textLight }}>
+                <td colSpan={2 + engagementCols.length + (isAdmin ? 1 : 0)} style={{ padding: '40px 12px', textAlign: 'center', color: C.textLight }}>
                   該当するメンバーがいません
                 </td>
               </tr>
@@ -108,6 +141,45 @@ export default function MASPMembersView({ isAdmin }) {
           </tbody>
         </table>
       </div>
+
+      {deleteTarget && (
+        <div
+          onClick={() => !deleting && setDeleteTarget(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 4, width: '100%', maxWidth: 480, padding: 24, fontFamily: "'Noto Sans JP',sans-serif" }}
+          >
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.navy, marginBottom: 12 }}>メンバーを削除しますか？</div>
+            <div style={{ fontSize: 13, color: C.textDark, marginBottom: 8, lineHeight: 1.6 }}>
+              <b>{deleteTarget.name}</b> さんを削除します。
+            </div>
+            <div style={{ fontSize: 11, color: C.textMid, marginBottom: 18, lineHeight: 1.6, padding: '10px 12px', background: '#F8F9FA', borderRadius: 3, border: `1px solid ${C.border}` }}>
+              ・過去の架電履歴・アポ・売上データは <b>保持</b> されます<br />
+              ・本人ログイン・各画面のメンバー一覧から非表示になります<br />
+              ・誤って削除した場合は管理者ツールから再有効化できます
+            </div>
+            {deleteError && (
+              <div style={{ fontSize: 11, color: '#B91C1C', background: '#FEF2F2', border: '1px solid #FCA5A5', padding: '8px 10px', borderRadius: 3, marginBottom: 12 }}>
+                {deleteError}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                style={{ padding: '7px 16px', fontSize: 12, fontWeight: 600, background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 3, cursor: 'pointer' }}
+              >キャンセル</button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+                style={{ padding: '7px 18px', fontSize: 12, fontWeight: 700, background: '#DC2626', color: C.white, border: 'none', borderRadius: 3, cursor: deleting ? 'default' : 'pointer', opacity: deleting ? 0.6 : 1 }}
+              >{deleting ? '削除中…' : '削除する'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

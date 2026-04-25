@@ -763,6 +763,17 @@ export async function deleteMember(supaId) {
   return error
 }
 
+/** メンバーをソフト削除（退職扱い）。過去の架電履歴・売上等は保持される */
+export async function deactivateMember(supaId) {
+  if (!supaId) { console.warn('[DB] deactivateMember: no supaId'); return new Error('no supaId') }
+  const { error } = await supabase
+    .from('members')
+    .update({ is_active: false })
+    .eq('id', supaId)
+  if (error) console.error('[DB] deactivateMember error:', error)
+  return error
+}
+
 export async function updateAppoCounted(supaId, isCounted) {
   if (!supaId) return null
   const { error } = await supabase
