@@ -63,28 +63,25 @@ export default function PushNotificationBanner({ userId }) {
   return (
     <div
       style={{
-        background: 'linear-gradient(135deg, #0D2247 0%, #1E40AF 100%)',
-        color: '#fff', borderRadius: 6, padding: '12px 16px', marginBottom: 16,
-        display: 'flex', alignItems: 'center', gap: 14, position: 'relative',
-        boxShadow: '0 2px 8px rgba(13, 34, 71, 0.15)',
+        background: '#F8F9FA',
+        border: `1px solid ${C.border}`,
+        borderLeft: `3px solid ${C.navy}`,
+        borderRadius: 4, padding: '10px 14px', marginBottom: 16,
+        display: 'flex', alignItems: 'center', gap: 12, position: 'relative',
       }}
     >
-      <div style={{
-        width: 36, height: 36, borderRadius: '50%',
-        background: 'rgba(255, 255, 255, 0.15)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-      }}>
-        <Bell size={18} color="#FFD700" />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <Bell size={16} color={C.textMid} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: C.navy, marginBottom: 2 }}>
           プッシュ通知を ON にしませんか？
         </div>
-        <div style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1.5 }}>
+        <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.5 }}>
           チームメンバーがアポを取った瞬間、事前確認が必要なアポなどを即座に受け取れます。
         </div>
         {error && (
-          <div style={{ fontSize: 10, color: '#FCA5A5', marginTop: 4, fontWeight: 600 }}>{error}</div>
+          <div style={{ fontSize: 10, color: '#B91C1C', marginTop: 4, fontWeight: 600 }}>{error}</div>
         )}
       </div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
@@ -92,11 +89,11 @@ export default function PushNotificationBanner({ userId }) {
           onClick={handleEnable}
           disabled={enabling}
           style={{
-            padding: '7px 18px', borderRadius: 4, border: 'none',
-            background: '#C8A84B', color: '#0D2247',
-            fontSize: 12, fontWeight: 700, cursor: enabling ? 'wait' : 'pointer',
+            padding: '6px 14px', borderRadius: 3, border: `1px solid ${C.navy}`,
+            background: C.navy, color: '#fff',
+            fontSize: 11, fontWeight: 600, cursor: enabling ? 'wait' : 'pointer',
             fontFamily: "'Noto Sans JP', sans-serif",
-            opacity: enabling ? 0.7 : 1,
+            opacity: enabling ? 0.6 : 1,
           }}
         >
           {enabling ? '設定中…' : 'ON にする'}
@@ -105,12 +102,12 @@ export default function PushNotificationBanner({ userId }) {
           onClick={handleDismiss}
           title="閉じる（後で MyPage から ON にできます）"
           style={{
-            padding: 6, borderRadius: 4, border: 'none', background: 'transparent',
-            color: 'rgba(255, 255, 255, 0.7)', cursor: 'pointer',
+            padding: 4, borderRadius: 3, border: 'none', background: 'transparent',
+            color: C.textLight, cursor: 'pointer',
             display: 'flex', alignItems: 'center',
           }}
         >
-          <X size={16} />
+          <X size={14} />
         </button>
       </div>
     </div>
