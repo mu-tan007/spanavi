@@ -7,7 +7,7 @@ import {
   getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl,
   updateMember, updateMemberProfile,
 } from '../../lib/supabaseWrite';
-import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from '../../lib/pushNotification';
+import { subscribeToPush, unsubscribeFromPush, isPushSubscribed, resetPushSubscription } from '../../lib/pushNotification';
 import { getOrgId } from '../../lib/orgContext';
 
 // 組織共通の個人プロフィール画面。事業を跨いで同じ内容が表示される。
@@ -188,6 +188,19 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
         ? '通知の許可が必要です。ブラウザの設定から通知を許可してください。'
         : 'プッシュ通知の設定に失敗しました: ' + (err?.message || ''));
     } finally {
+      setPushLoading(false);
+    }
+  };
+
+  const handleResetPush = async () => {
+    if (!confirm('プッシュ通知を完全にリセットして再設定します。\n\nページが自動で再読み込みされます。よろしいですか？')) return;
+    setPushLoading(true);
+    try {
+      await resetPushSubscription(userId, getOrgId());
+      // ページ再読み込みで新しい SW が登録される
+      window.location.reload();
+    } catch (err) {
+      alert('リセットに失敗しました: ' + (err?.message || ''));
       setPushLoading(false);
     }
   };
@@ -375,12 +388,20 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
             </div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               {pushEnabled && (
-                <button
-                  onClick={handleTestPush}
-                  disabled={pushTestSending}
-                  style={{ ...secondaryBtn, fontSize: 10 }}
-                  title="このデバイスにテスト通知を送信"
-                >{pushTestSending ? '送信中…' : 'テスト送信'}</button>
+                <>
+                  <button
+                    onClick={handleResetPush}
+                    disabled={pushLoading}
+                    style={{ ...secondaryBtn, fontSize: 10 }}
+                    title="古いService Workerを削除して通知を再設定（通知が来ない場合に使用）"
+                  >{pushLoading ? '処理中…' : 'リセット'}</button>
+                  <button
+                    onClick={handleTestPush}
+                    disabled={pushTestSending}
+                    style={{ ...secondaryBtn, fontSize: 10 }}
+                    title="このデバイスにテスト通知を送信"
+                  >{pushTestSending ? '送信中…' : 'テスト送信'}</button>
+                </>
               )}
               <button
                 onClick={handleTogglePush}

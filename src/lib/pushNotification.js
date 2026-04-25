@@ -61,3 +61,38 @@ export async function isPushSubscribed() {
   const subscription = await registration.pushManager.getSubscription();
   return !!subscription;
 }
+
+/**
+ * 古いService Workerが残ってpushが受信されない場合の完全リセット。
+ * 1) 既存の購読を解除（DB含む）
+ * 2) すべてのService Workerをunregister
+ * 3) 再subscribeで新しいSWに紐づく購読を作る
+ */
+export async function resetPushSubscription(userId, orgId) {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    throw new Error('Push notifications not supported');
+  }
+
+  // 1. 既存購読を解除
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      const { endpoint } = sub.toJSON();
+      await sub.unsubscribe();
+      if (userId) {
+        await supabase.from('push_subscriptions').delete().match({ user_id: userId, endpoint });
+      }
+    }
+  } catch (err) {
+    console.warn('[push reset] unsubscribe failed (continuing):', err);
+  }
+
+  // 2. すべての SW を unregister
+  const regs = await navigator.serviceWorker.getRegistrations();
+  await Promise.all(regs.map(r => r.unregister().catch(() => {})));
+
+  // 3. 少し待って Workbox が新しい SW を登録するのを待つ
+  // ページ再読み込みで新SWが確実に登録されるのが王道
+  return { needsReload: true };
+}
