@@ -192,6 +192,39 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
     }
   };
 
+  // ローカル通知テスト（Push経由ではなく Notification API を直接呼ぶ）
+  // サーバー/FCM/SW を一切経由せず、ブラウザ/OS が通知UIを出せるか判定する
+  const handleLocalNotificationTest = async () => {
+    if (typeof Notification === 'undefined') {
+      setPushTestResult('✗ Notification API 非対応');
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      setPushTestResult('✗ ブラウザで通知がブロックされています（chrome://settings/content/notifications で許可してください）');
+      return;
+    }
+    if (Notification.permission === 'default') {
+      const result = await Notification.requestPermission();
+      if (result !== 'granted') {
+        setPushTestResult('✗ 通知が許可されませんでした');
+        return;
+      }
+    }
+    try {
+      // Service Worker 経由で通知（push handler と同じ経路）
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification('🔔 ローカル通知テスト', {
+        body: 'これが見えればブラウザ/OSの通知は正常です',
+        icon: '/pwa-192x192.png',
+        requireInteraction: true,
+      });
+      setPushTestResult('✓ ローカル通知発火 — 画面右下/通知センターを確認してください');
+      setTimeout(() => setPushTestResult(null), 12000);
+    } catch (err) {
+      setPushTestResult('✗ ' + (err?.message || '失敗'));
+    }
+  };
+
   const handleResetPush = async () => {
     if (!confirm('プッシュ通知を完全にリセットして再設定します。\n\nページが自動で再読み込みされます。よろしいですか？')) return;
     setPushLoading(true);
@@ -384,22 +417,34 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: 12, color: C.textDark, fontWeight: 600 }}>プッシュ通知</div>
-              <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>アポ獲得・日次レポートなどをブラウザで受け取る</div>
+              <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>
+                アポ獲得・日次レポートなどをブラウザで受け取る
+                {typeof Notification !== 'undefined' && (
+                  <span style={{ marginLeft: 6, fontFamily: "'JetBrains Mono', monospace", color: Notification.permission === 'granted' ? '#10B981' : Notification.permission === 'denied' ? '#DC2626' : C.textLight }}>
+                    [permission: {Notification.permission}]
+                  </span>
+                )}
+              </div>
             </div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               {pushEnabled && (
                 <>
                   <button
+                    onClick={handleLocalNotificationTest}
+                    style={{ ...secondaryBtn, fontSize: 10 }}
+                    title="サーバー経由せず、ブラウザ/OS の通知UI が出るか直接テスト"
+                  >ローカル通知</button>
+                  <button
                     onClick={handleResetPush}
                     disabled={pushLoading}
                     style={{ ...secondaryBtn, fontSize: 10 }}
-                    title="古いService Workerを削除して通知を再設定（通知が来ない場合に使用）"
+                    title="古いService Workerを削除して通知を再設定"
                   >{pushLoading ? '処理中…' : 'リセット'}</button>
                   <button
                     onClick={handleTestPush}
                     disabled={pushTestSending}
                     style={{ ...secondaryBtn, fontSize: 10 }}
-                    title="このデバイスにテスト通知を送信"
+                    title="このデバイスにテスト通知を送信（サーバー経由）"
                   >{pushTestSending ? '送信中…' : 'テスト送信'}</button>
                 </>
               )}
