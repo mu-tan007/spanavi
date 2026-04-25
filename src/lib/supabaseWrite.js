@@ -2819,8 +2819,8 @@ async function sendAppointmentPushNotification(appoData, orgId) {
   await supabase.functions.invoke('send-push', {
     body: {
       type: 'appointment',
-      title: '新しいアポ',
-      body: `${appoData.getter || ''}が${appoData.company || ''}のアポを獲得しました`,
+      title: '🎉 新しいアポ',
+      body: `${appoData.getter || ''} さんが ${appoData.company || ''} のアポイントを取りました`,
       user_ids: userIds,
       org_id: orgId,
     },

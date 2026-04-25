@@ -535,7 +535,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     return isAdmin || a.getter === currentUser;
   });
   const overdueCsvCount = 0;
-  const overdueCount = overdueSupaRecalls.length + preCheckPendingAppos.length + overdueCsvCount;
+  // Bell通知は「事前確認待ちアポ」のみ。再コール期限超過は Recall タブで管理する。
+  const overdueCount = preCheckPendingAppos.length;
 
   const handleSupaRecallComplete = async (item) => {
     const memoObj = { ...item._memoObj, recall_completed: true };
@@ -869,41 +870,18 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
                       </div>
                     ))}
                   </>)}
-                  {(overdueSupaRecalls.length + overdueCsvCount) > 0 && (<>
-                    <div style={{ padding: "6px 14px", background: C.navy + "08", fontSize: 10, fontWeight: 700, color: C.navy, borderBottom: "1px solid " + C.borderLight }}>
-                      期限超過の再コール（{overdueSupaRecalls.length + overdueCsvCount}件）
-                    </div>
-                    {overdueSupaRecalls.map(r => (
-                      <div key={r.id} style={{ padding: "8px 14px", borderBottom: "1px solid " + C.borderLight, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: C.navy }}>{r._item.company || "企業名不明"}</div>
-                          <div style={{ fontSize: 9, color: C.textLight }}>{r.status} / {r._memoObj.recall_time || "--:--"}</div>
-                        </div>
-                      </div>
-                    ))}
-                    {overdueCsvCount > 0 && (
-                      <div style={{ padding: "8px 14px", borderBottom: "1px solid " + C.borderLight, fontSize: 10, color: C.textMid }}>
-                        CSV架電リストから {overdueCsvCount}件
-                      </div>
-                    )}
-                  </>)}
                   {overdueCount === 0 && (
                     <div style={{ padding: "20px 14px", textAlign: "center", color: C.textLight, fontSize: 11 }}>通知なし</div>
                   )}
                 </div>
-                <div style={{ padding: "8px 14px", borderTop: "1px solid " + C.borderLight, display: "flex", flexDirection: "column", gap: 6 }}>
-                  {preCheckPendingAppos.length > 0 && (
+                {preCheckPendingAppos.length > 0 && (
+                  <div style={{ padding: "8px 14px", borderTop: "1px solid " + C.borderLight }}>
                     <button onClick={() => { setCurrentTab("precheck"); setShowBellDropdown(false); }}
                       style={{ width: "100%", padding: "6px", borderRadius: 5, border: "none", background: C.orange, color: C.white, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
                       事前確認ページを開く
                     </button>
-                  )}
-                  <button onClick={() => { setCurrentTab("recall"); setShowBellDropdown(false); }}
-                    style={{ width: "100%", padding: "6px", borderRadius: 5, border: "none",
-                      background: C.navy, color: C.white, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
-                    再コール一覧を開く
-                  </button>
-                </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
