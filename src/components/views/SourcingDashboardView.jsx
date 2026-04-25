@@ -315,8 +315,8 @@ export default function SourcingDashboardView({
   };
 
   // ============================================================
-  const scopeDesc = scope.type === 'member' ? '自分の進捗'
-    : scope.type === 'team' ? `${scope.name}チームの進捗` : '組織全体の進捗';
+  const scopeDesc = scope.type === 'member' ? '自分の現在地と、次の一手'
+    : scope.type === 'team' ? `${scope.name}チームの現在地と、次の一手` : '組織全体の現在地と、次の一手';
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>

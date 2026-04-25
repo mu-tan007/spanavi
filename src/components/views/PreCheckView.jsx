@@ -365,7 +365,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
       <PageHeader
         eyebrow="Sourcing · Pre-Check"
         title="Pre-Check"
-        description="事前確認・ヒアリング管理"
+        description="アポ前のヒアリング管理"
         style={{ marginBottom: 24 }}
       />
 

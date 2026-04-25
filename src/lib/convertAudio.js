@@ -36,9 +36,10 @@ async function getFFmpeg() {
 /**
  * @param {File} file
  * @param {(msg: string) => void} [onProgress]  変換中の状態メッセージコールバック
+ * @param {number} [maxSeconds]  最大録音時間（秒）。超過分は切り捨て
  * @returns {Promise<File>}  変換済みファイル（または元ファイル）
  */
-export async function prepareAudioForWhisper(file, onProgress) {
+export async function prepareAudioForWhisper(file, onProgress, maxSeconds = null) {
   const ext = (file.name.split('.').pop() || '').toLowerCase()
   const needsConversion = !WHISPER_NATIVE.has(ext) || file.size > WHISPER_MAX_BYTES
 
@@ -58,15 +59,17 @@ export async function prepareAudioForWhisper(file, onProgress) {
   })
 
   onProgress?.('🔄 MP3 に変換中...')
-  await ff.exec([
-    '-i', inputName,
+  const ffmpegArgs = ['-i', inputName]
+  if (maxSeconds) ffmpegArgs.push('-t', String(maxSeconds))
+  ffmpegArgs.push(
     '-vn',                  // 映像トラックを削除
     '-acodec', 'libmp3lame',
-    '-ab', '64k',           // 64 kbps（音声ロープレに十分な品質）
+    '-ab', '32k',           // 32 kbps（音声認識に十分な品質、ファイルサイズ半減）
     '-ar', '22050',         // 22050 Hz（音声に最適）
     '-ac', '1',             // モノラル
     outputName,
-  ])
+  )
+  await ff.exec(ffmpegArgs)
 
   const data = await ff.readFile(outputName)
   await ff.deleteFile(inputName).catch(() => {})

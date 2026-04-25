@@ -247,7 +247,7 @@ export default function RoleplayView({ currentUser, userId, members = [], isAdmi
       <PageHeader
         eyebrow="研修 · ロープレ"
         title="Role Play"
-        description="代表とのロープレ予約"
+        description="ロープレ予約・履歴"
         style={{ marginBottom: 8 }}
       />
 

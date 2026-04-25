@@ -52,7 +52,7 @@ export default function DealsView() {
     <div style={{ display: 'flex', flexDirection: 'column', background: C.offWhite, animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="Deals"
-        description="架電結果と獲得アポの詳細をクライアント単位で確認"
+        description="クライアント別 架電・アポ実績"
       />
       <div style={{ height: 16 }} />
 

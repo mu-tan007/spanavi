@@ -200,7 +200,7 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
       <PageHeader
         eyebrow="Sourcing · Strategic Analytics"
         title="Analytics"
-        description="組織・チーム・個人を俯瞰する戦略分析ダッシュボード"
+        description="組織・チーム・個人を俯瞰する戦略分析"
         style={{ marginBottom: isMobile ? 16 : 20 }}
       />
 

@@ -102,7 +102,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
       <PageHeader
         eyebrow="Sourcing · Recall"
         title="Recall"
-        description="コールバック・再架電管理"
+        description="再コール・社長お断り14日経過の管理"
         style={{ marginBottom: 24 }}
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowX: 'auto', overflowY: 'hidden', background: "#fff", borderRadius: 4, border: '1px solid #E5E7EB' }}>

@@ -1016,7 +1016,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       <PageHeader
         eyebrow="Sourcing · アポ"
         title="Appointments"
-        description="アポイントメント・パイプライン管理"
+        description="獲得アポイント一覧・進行管理"
         style={{ marginBottom: 24 }}
       >
       </PageHeader>

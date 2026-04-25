@@ -468,7 +468,7 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
       <PageHeader
         eyebrow="Sourcing · ライブ"
         title="Live Status"
-        description="リアルタイム架電状況モニター"
+        description="リアルタイム架電状況"
         style={{ marginBottom: isMobile ? 16 : 24 }}
       />
 

@@ -126,7 +126,7 @@ export default function LibraryView({
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="Library"
-        description="22箇条・スクリプト・ロープレ履歴・録音・ミーティングアーカイブを一箇所に集約。"
+        description="営業ナレッジの統合アーカイブ"
       />
       <div style={{ height: 16 }} />
 
