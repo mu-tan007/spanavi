@@ -72,7 +72,7 @@ export default function MASPMembersView({ isAdmin }) {
         />
       </PageHeader>
 
-      <div style={{ padding: 16, overflowX: 'auto' }}>
+      <div style={{ padding: '24px 16px 16px', overflowX: 'auto' }}>
         <table style={{
           width: '100%', borderCollapse: 'collapse',
           background: C.white, border: `1px solid ${C.border}`, borderRadius: 4,

@@ -196,7 +196,7 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
         )}
       </PageHeader>
 
-      <div style={{ padding: 16, overflowX: 'auto' }}>
+      <div style={{ padding: '24px 16px 16px', overflowX: 'auto' }}>
         {visibleGroups.length === 0 ? (
           <div style={{ padding: '40px 12px', textAlign: 'center', color: C.textLight, background: C.white, border: `1px solid ${C.border}`, borderRadius: 4 }}>
             {members.length === 0 ? 'この事業に所属するメンバーはいません' : '該当するメンバーがいません'}

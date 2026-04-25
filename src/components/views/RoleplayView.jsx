@@ -243,12 +243,11 @@ export default function RoleplayView({ currentUser, userId, members = [], isAdmi
   const refSlots = useMemo(() => getSlots(days[0]?.dateStr || ''), [days]);
 
   return (
-    <div style={{ animation: "fadeIn 0.3s ease", display: "flex", flexDirection: "column", gap: 20 }}>
+    <div style={{ animation: "fadeIn 0.3s ease", display: "flex", flexDirection: "column", gap: 24 }}>
       <PageHeader
         eyebrow="研修 · ロープレ"
         title="Role Play"
         description="ロープレ予約・履歴"
-        style={{ marginBottom: 24 }}
       />
 
       <div style={{ display: "flex", gap: 20, alignItems: "flex-start", position: "relative" }}>
