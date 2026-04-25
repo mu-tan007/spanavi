@@ -106,6 +106,59 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
   const [pushTestSending, setPushTestSending] = useState(false);
   const [pushTestResult, setPushTestResult] = useState(null);
   useEffect(() => { isPushSubscribed().then(setPushEnabled); }, []);
+
+  // 自分が所属する事業 + 通知設定
+  const [userEngagements, setUserEngagements] = useState([]); // [{id, name, slug, enabled}]
+  const [prefSaving, setPrefSaving] = useState(null); // saving 中の engagement_id
+
+  useEffect(() => {
+    if (!supaId || !userId) return;
+    let cancelled = false;
+    (async () => {
+      const orgId = getOrgId();
+      // 自分が所属する事業を取得
+      const { data: assignments } = await supabase
+        .from('member_engagements')
+        .select('engagement_id, engagement:engagements!inner(id, name, slug, status)')
+        .eq('member_id', supaId)
+        .eq('engagement.status', 'active');
+      const engs = (assignments || [])
+        .map(a => a.engagement)
+        .filter(Boolean)
+        .filter(e => e.slug !== 'masp'); // MASP は仮想事業なので除外
+
+      // 通知設定を取得
+      const { data: prefs } = await supabase
+        .from('push_notification_preferences')
+        .select('engagement_id, enabled')
+        .eq('user_id', userId)
+        .eq('org_id', orgId);
+      const prefMap = {};
+      (prefs || []).forEach(p => { prefMap[p.engagement_id] = p.enabled; });
+
+      if (!cancelled) {
+        setUserEngagements(engs.map(e => ({ ...e, enabled: prefMap[e.id] !== false })));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [supaId, userId]);
+
+  const toggleEngagementPref = async (engagementId, nextEnabled) => {
+    if (!userId || !engagementId) return;
+    setPrefSaving(engagementId);
+    setUserEngagements(prev => prev.map(e => e.id === engagementId ? { ...e, enabled: nextEnabled } : e));
+    const orgId = getOrgId();
+    const { error } = await supabase
+      .from('push_notification_preferences')
+      .upsert({ user_id: userId, engagement_id: engagementId, org_id: orgId, enabled: nextEnabled, updated_at: new Date().toISOString() }, { onConflict: 'user_id,engagement_id' });
+    setPrefSaving(null);
+    if (error) {
+      console.error('[MyPage] toggleEngagementPref error:', error);
+      // 失敗時は元に戻す
+      setUserEngagements(prev => prev.map(e => e.id === engagementId ? { ...e, enabled: !nextEnabled } : e));
+    }
+  };
+
   const handleTogglePush = async () => {
     setPushLoading(true);
     try {
@@ -140,12 +193,21 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
         },
       });
       if (error) throw error;
-      setPushTestResult(data?.sent > 0 ? `✓ 送信成功（${data.sent}件）` : '送信先が見つかりません');
+      if (data?.sent > 0) {
+        setPushTestResult(`✓ 送信成功（${data.sent}件）— 通知が表示されない場合はブラウザ通知設定とOS通知許可をご確認ください`);
+      } else if (data?.failures && data.failures.length > 0) {
+        const f = data.failures[0];
+        setPushTestResult(`✗ 送信失敗 (${f.endpoint_origin}: HTTP ${f.status}) ${f.body || ''}`.slice(0, 200));
+      } else if (data?.message) {
+        setPushTestResult(`✗ ${data.message}`);
+      } else {
+        setPushTestResult('✗ 送信先なし');
+      }
     } catch (err) {
       setPushTestResult('✗ ' + (err?.message || '送信失敗'));
     } finally {
       setPushTestSending(false);
-      setTimeout(() => setPushTestResult(null), 6000);
+      setTimeout(() => setPushTestResult(null), 12000);
     }
   };
 
@@ -311,7 +373,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
                 disabled={pushLoading}
                 style={{
                   padding: '6px 16px', borderRadius: 14, border: 'none',
-                  background: pushEnabled ? C.gold : C.border,
+                  background: pushEnabled ? C.navy : C.border,
                   color: pushEnabled ? '#fff' : C.textLight,
                   fontSize: 11, fontWeight: 700, cursor: pushLoading ? 'wait' : 'pointer',
                 }}
@@ -319,9 +381,39 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
             </div>
           </div>
           {pushTestResult && (
-            <div style={{ fontSize: 10, color: pushTestResult.startsWith('✓') ? '#10B981' : '#DC2626', textAlign: 'right' }}>
+            <div style={{ fontSize: 10, color: pushTestResult.startsWith('✓') ? '#10B981' : '#DC2626', textAlign: 'right', lineHeight: 1.5 }}>
               {pushTestResult}
             </div>
+          )}
+
+          {pushEnabled && userEngagements.length > 0 && (
+            <>
+              <div style={{ height: 1, background: C.borderLight, marginTop: 4 }} />
+              <div>
+                <div style={{ fontSize: 11, color: C.textMid, fontWeight: 600, marginBottom: 8 }}>
+                  事業ごとの通知 ON/OFF
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {userEngagements.map(e => (
+                    <div key={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
+                      <div style={{ fontSize: 12, color: C.textDark, fontWeight: 500 }}>{e.name}</div>
+                      <button
+                        onClick={() => toggleEngagementPref(e.id, !e.enabled)}
+                        disabled={prefSaving === e.id}
+                        style={{
+                          padding: '4px 14px', borderRadius: 12, border: 'none',
+                          background: e.enabled ? C.navy : C.border,
+                          color: e.enabled ? '#fff' : C.textLight,
+                          fontSize: 10, fontWeight: 700, cursor: prefSaving === e.id ? 'wait' : 'pointer',
+                          opacity: prefSaving === e.id ? 0.6 : 1,
+                          minWidth: 56,
+                        }}
+                      >{prefSaving === e.id ? '…' : (e.enabled ? 'ON' : 'OFF')}</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
         </div>
       </InfoCard>

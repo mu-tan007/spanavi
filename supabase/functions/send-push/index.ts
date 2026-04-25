@@ -211,7 +211,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { type, title, body, user_ids, org_id } = await req.json()
+    const { type, title, body, user_ids, org_id, engagement_id } = await req.json()
 
     if (!user_ids?.length || !org_id) {
       return new Response(
@@ -225,12 +225,33 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
+    // 事業ID指定があれば、その事業を OFF にしているユーザーを除外する
+    let filteredUserIds = user_ids
+    if (engagement_id) {
+      const { data: prefs } = await supabase
+        .from('push_notification_preferences')
+        .select('user_id, enabled')
+        .eq('engagement_id', engagement_id)
+        .in('user_id', user_ids)
+      const disabledUsers = new Set(
+        (prefs || []).filter((p: { enabled: boolean }) => !p.enabled).map((p: { user_id: string }) => p.user_id),
+      )
+      filteredUserIds = user_ids.filter((u: string) => !disabledUsers.has(u))
+    }
+
+    if (filteredUserIds.length === 0) {
+      return new Response(
+        JSON.stringify({ ok: true, sent: 0, message: 'All users opted out for this engagement' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
     // Fetch push subscriptions for the given user_ids within the org
     const { data: subscriptions, error: fetchError } = await supabase
       .from('push_subscriptions')
       .select('id, endpoint, p256dh, auth, user_id')
       .eq('org_id', org_id)
-      .in('user_id', user_ids)
+      .in('user_id', filteredUserIds)
 
     if (fetchError) {
       throw new Error(`DB fetch error: ${fetchError.message}`)
@@ -250,6 +271,7 @@ Deno.serve(async (req) => {
     const payload = JSON.stringify({ type, title, body, url: '/' })
     let sent = 0
     const expiredIds: string[] = []
+    const failures: Array<{ endpoint_origin: string; status: number; body: string }> = []
 
     for (const sub of subscriptions) {
       try {
@@ -282,17 +304,19 @@ Deno.serve(async (req) => {
         if (pushRes.status === 201 || pushRes.status === 200) {
           sent++
         } else if (pushRes.status === 410 || pushRes.status === 404) {
-          // Subscription expired or invalid — mark for deletion
           expiredIds.push(sub.id)
+          failures.push({ endpoint_origin: url.host, status: pushRes.status, body: 'expired' })
         } else {
-          console.error(`[send-push] Push failed for ${sub.endpoint}: ${pushRes.status}`)
+          const errBody = await pushRes.text().catch(() => '')
+          console.error(`[send-push] Push failed for ${sub.endpoint}: ${pushRes.status} ${errBody}`)
+          failures.push({ endpoint_origin: url.host, status: pushRes.status, body: errBody.slice(0, 200) })
         }
       } catch (pushErr) {
         console.error(`[send-push] Error sending to ${sub.endpoint}:`, pushErr)
+        failures.push({ endpoint_origin: 'unknown', status: 0, body: String(pushErr).slice(0, 200) })
       }
     }
 
-    // Clean up expired subscriptions
     if (expiredIds.length > 0) {
       const { error: deleteError } = await supabase
         .from('push_subscriptions')
@@ -305,7 +329,13 @@ Deno.serve(async (req) => {
 
     console.log(`[send-push] Sent: ${sent}, Expired: ${expiredIds.length}, Total: ${subscriptions.length}`)
     return new Response(
-      JSON.stringify({ ok: true, sent, expired: expiredIds.length }),
+      JSON.stringify({
+        ok: true,
+        sent,
+        expired: expiredIds.length,
+        total: subscriptions.length,
+        failures: type === 'test' ? failures : undefined,
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   } catch (err) {

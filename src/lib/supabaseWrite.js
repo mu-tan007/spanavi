@@ -2807,13 +2807,33 @@ export async function createTenantAdmin(orgId, name, email) {
 
 async function sendAppointmentPushNotification(appoData, orgId) {
   if (!orgId) return
-  // Notify all members in the org who have push subscriptions
-  const { data: adminMembers } = await supabase
-    .from('members')
-    .select('user_id')
+  // Sourcing 事業に所属するメンバーへのみ通知
+  const { data: sourcingEng } = await supabase
+    .from('engagements')
+    .select('id')
     .eq('org_id', orgId)
-    .not('user_id', 'is', null)
-  const userIds = (adminMembers || []).map(m => m.user_id).filter(Boolean)
+    .eq('slug', 'seller_sourcing')
+    .maybeSingle()
+  const engagementId = sourcingEng?.id || null
+
+  let userIds = []
+  if (engagementId) {
+    const { data: assignments } = await supabase
+      .from('member_engagements')
+      .select('member:members(user_id)')
+      .eq('org_id', orgId)
+      .eq('engagement_id', engagementId)
+    userIds = (assignments || [])
+      .map(a => a.member?.user_id)
+      .filter(Boolean)
+  } else {
+    const { data: adminMembers } = await supabase
+      .from('members')
+      .select('user_id')
+      .eq('org_id', orgId)
+      .not('user_id', 'is', null)
+    userIds = (adminMembers || []).map(m => m.user_id).filter(Boolean)
+  }
   if (userIds.length === 0) return
 
   await supabase.functions.invoke('send-push', {
@@ -2823,6 +2843,7 @@ async function sendAppointmentPushNotification(appoData, orgId) {
       body: `${appoData.getter || ''} さんが ${appoData.company || ''} のアポイントを取りました`,
       user_ids: userIds,
       org_id: orgId,
+      engagement_id: engagementId,
     },
   })
 }
