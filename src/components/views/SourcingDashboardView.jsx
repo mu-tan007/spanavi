@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import { fetchAllRecallRecords, fetchMemberPayrollHistory } from '../../lib/supabaseWrite';
 import PageHeader from '../common/PageHeader';
 import TopListCard from '../common/TopListCard';
+import PushNotificationBanner from '../dashboard/PushNotificationBanner';
 import { Phone } from 'lucide-react';
 
 const TEAMS = ['成尾', '高橋'];
@@ -339,6 +340,8 @@ export default function SourcingDashboardView({
         )}
         style={{ marginBottom: 24 }}
       />
+
+      <PushNotificationBanner userId={userId} />
 
       {/* 本日の目標 vs 実績 */}
       <div style={{
