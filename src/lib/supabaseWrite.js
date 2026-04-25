@@ -729,6 +729,22 @@ export async function updateMember(supaId, data) {
   return error
 }
 
+/** MyPage 用: 本人が編集可能な基本情報のみを更新 */
+export async function updateMemberProfile(supaId, { name, email, phone_number, start_date }) {
+  if (!supaId) { console.warn('[DB] updateMemberProfile: no supaId'); return new Error('no supaId') }
+  const patch = {}
+  if (name !== undefined) patch.name = name
+  if (email !== undefined) patch.email = email
+  if (phone_number !== undefined) patch.phone_number = phone_number
+  if (start_date !== undefined) patch.start_date = start_date || null
+  const { error } = await supabase
+    .from('members')
+    .update(patch)
+    .eq('id', supaId)
+  if (error) console.error('[DB] updateMemberProfile error:', error)
+  return error
+}
+
 export async function insertMember(data) {
   const { data: result, error } = await supabase
     .from('members')

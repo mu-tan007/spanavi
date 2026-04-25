@@ -1,17 +1,19 @@
 import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
+import { supabase } from '../../lib/supabase';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
-import { getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl, updateMember } from '../../lib/supabaseWrite';
+import {
+  getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl,
+  updateMember, updateMemberProfile,
+} from '../../lib/supabaseWrite';
 import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from '../../lib/pushNotification';
 import { getOrgId } from '../../lib/orgContext';
 
 // 組織共通の個人プロフィール画面。事業を跨いで同じ内容が表示される。
-// 事業ごとの実績・研修・KPI・Payroll は各事業の Dashboard に配置 (Sourcing Dashboard 等)。
 export default function MyPageView({ currentUser, userId, members, isAdmin = false }) {
   const isMobile = useIsMobile();
 
-  // 自分のメンバー行を探す
   const memberInfo = useMemo(
     () => (Array.isArray(members) ? members.find(m => (typeof m === 'object' ? m.name : m) === currentUser) : null),
     [members, currentUser]
@@ -40,6 +42,49 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
     }
   };
 
+  // 基本情報の編集（本人またはadmin）
+  const supaId = memberInfo?._supaId || memberInfo?.id;
+  const [profileForm, setProfileForm] = useState({ name: '', email: '', phone_number: '', start_date: '' });
+  const [profileEditing, setProfileEditing] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState(null);
+  const [profileSavedAt, setProfileSavedAt] = useState(null);
+
+  useEffect(() => {
+    if (!memberInfo) return;
+    setProfileForm({
+      name: memberInfo.name || currentUser || '',
+      email: memberInfo.email || '',
+      phone_number: memberInfo.phone_number || '',
+      start_date: memberInfo.start_date || memberInfo.joinDate || '',
+    });
+  }, [memberInfo, currentUser]);
+
+  const handleSaveProfile = async () => {
+    if (!supaId) return;
+    setProfileSaving(true);
+    setProfileError(null);
+    const error = await updateMemberProfile(supaId, profileForm);
+    setProfileSaving(false);
+    if (error) {
+      setProfileError(error.message || '保存に失敗しました');
+      return;
+    }
+    setProfileEditing(false);
+    setProfileSavedAt(Date.now());
+  };
+
+  const handleCancelProfile = () => {
+    setProfileEditing(false);
+    setProfileError(null);
+    setProfileForm({
+      name: memberInfo?.name || currentUser || '',
+      email: memberInfo?.email || '',
+      phone_number: memberInfo?.phone_number || '',
+      start_date: memberInfo?.start_date || memberInfo?.joinDate || '',
+    });
+  };
+
   // Zoom Phone 番号
   const [zoomPhone, setZoomPhone] = useState('');
   const [zoomPhoneEditing, setZoomPhoneEditing] = useState(false);
@@ -48,9 +93,9 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
     if (memberInfo?.zoomPhoneNumber !== undefined) setZoomPhone(memberInfo.zoomPhoneNumber || '');
   }, [memberInfo?.zoomPhoneNumber]);
   const handleSaveZoomPhone = async () => {
-    if (!memberInfo?._supaId && !memberInfo?.id) return;
+    if (!supaId) return;
     setZoomPhoneSaving(true);
-    await updateMember(memberInfo._supaId || memberInfo.id, { ...memberInfo, zoomPhoneNumber: zoomPhone.trim() });
+    await updateMember(supaId, { ...memberInfo, zoomPhoneNumber: zoomPhone.trim() });
     setZoomPhoneSaving(false);
     setZoomPhoneEditing(false);
   };
@@ -58,6 +103,8 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
   // プッシュ通知
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+  const [pushTestSending, setPushTestSending] = useState(false);
+  const [pushTestResult, setPushTestResult] = useState(null);
   useEffect(() => { isPushSubscribed().then(setPushEnabled); }, []);
   const handleTogglePush = async () => {
     setPushLoading(true);
@@ -72,9 +119,33 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
     } catch (err) {
       alert(err?.message === 'Notification permission denied'
         ? '通知の許可が必要です。ブラウザの設定から通知を許可してください。'
-        : 'プッシュ通知の設定に失敗しました');
+        : 'プッシュ通知の設定に失敗しました: ' + (err?.message || ''));
     } finally {
       setPushLoading(false);
+    }
+  };
+
+  const handleTestPush = async () => {
+    if (!pushEnabled || !userId) return;
+    setPushTestSending(true);
+    setPushTestResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-push', {
+        body: {
+          type: 'test',
+          title: '🔔 テスト通知',
+          body: 'プッシュ通知は正常に動作しています',
+          user_ids: [userId],
+          org_id: getOrgId(),
+        },
+      });
+      if (error) throw error;
+      setPushTestResult(data?.sent > 0 ? `✓ 送信成功（${data.sent}件）` : '送信先が見つかりません');
+    } catch (err) {
+      setPushTestResult('✗ ' + (err?.message || '送信失敗'));
+    } finally {
+      setPushTestSending(false);
+      setTimeout(() => setPushTestResult(null), 6000);
     }
   };
 
@@ -88,7 +159,6 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
         alignItems: isMobile ? 'flex-start' : 'center',
         gap: isMobile ? 14 : 24, flexDirection: isMobile ? 'column' : 'row',
       }}>
-        {/* アバター */}
         <div style={{ position: 'relative' }}>
           <div style={{
             width: 84, height: 84, borderRadius: '50%',
@@ -111,7 +181,6 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
           </label>
         </div>
 
-        {/* 基本情報 */}
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>{currentUser}</div>
           <div style={{ display: 'flex', gap: 14, fontSize: 11, color: C.goldLight, flexWrap: 'wrap' }}>
@@ -120,22 +189,71 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
             {memberInfo?.position && <span>{memberInfo.position}</span>}
             {isAdmin && <span style={{ color: C.gold }}>admin</span>}
           </div>
-          {uploadError && (
-            <div style={{ marginTop: 6, fontSize: 10, color: '#FCA5A5' }}>{uploadError}</div>
-          )}
+          {uploadError && <div style={{ marginTop: 6, fontSize: 10, color: '#FCA5A5' }}>{uploadError}</div>}
         </div>
       </div>
 
       {/* 基本情報カード */}
-      <InfoCard title="基本情報">
-        <InfoRow label="氏名" value={currentUser} />
-        <InfoRow label="メール" value={memberInfo?.email || '—'} mono />
-        <InfoRow label="入社日" value={memberInfo?.start_date || '—'} mono />
-        {memberInfo?.university && <InfoRow label="大学" value={memberInfo.university} />}
-        {memberInfo?.grade != null && <InfoRow label="学年" value={`${memberInfo.grade} 年`} />}
-        {memberInfo?.team && <InfoRow label="所属チーム" value={memberInfo.team} />}
-        {memberInfo?.position && <InfoRow label="ポジション" value={memberInfo.position} />}
-        {memberInfo?.rank && <InfoRow label="ランク" value={memberInfo.rank} />}
+      <InfoCard
+        title="基本情報"
+        right={!profileEditing && supaId ? (
+          <button onClick={() => setProfileEditing(true)} style={secondaryBtn}>編集</button>
+        ) : null}
+      >
+        {profileEditing ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <EditRow label="氏名">
+              <input
+                value={profileForm.name}
+                onChange={e => setProfileForm(s => ({ ...s, name: e.target.value }))}
+                style={inputStyle}
+              />
+            </EditRow>
+            <EditRow label="メールアドレス">
+              <input
+                type="email"
+                value={profileForm.email}
+                onChange={e => setProfileForm(s => ({ ...s, email: e.target.value }))}
+                style={{ ...inputStyle, fontFamily: "'JetBrains Mono', monospace" }}
+                placeholder="example@example.com"
+              />
+            </EditRow>
+            <EditRow label="携帯番号">
+              <input
+                type="tel"
+                value={profileForm.phone_number}
+                onChange={e => setProfileForm(s => ({ ...s, phone_number: e.target.value }))}
+                style={{ ...inputStyle, fontFamily: "'JetBrains Mono', monospace" }}
+                placeholder="090-1234-5678"
+              />
+            </EditRow>
+            <EditRow label="入社日">
+              <input
+                type="date"
+                value={profileForm.start_date || ''}
+                onChange={e => setProfileForm(s => ({ ...s, start_date: e.target.value }))}
+                style={{ ...inputStyle, fontFamily: "'JetBrains Mono', monospace" }}
+              />
+            </EditRow>
+            {profileError && <div style={{ fontSize: 11, color: '#DC2626', padding: '4px 0' }}>{profileError}</div>}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+              <button onClick={handleCancelProfile} disabled={profileSaving} style={secondaryBtn}>キャンセル</button>
+              <button onClick={handleSaveProfile} disabled={profileSaving} style={primaryBtn}>
+                {profileSaving ? '保存中…' : '保存'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <InfoRow label="氏名" value={memberInfo?.name || currentUser || '—'} />
+            <InfoRow label="メールアドレス" value={memberInfo?.email || '—'} mono />
+            <InfoRow label="携帯番号" value={memberInfo?.phone_number || '—'} mono />
+            <InfoRow label="入社日" value={memberInfo?.start_date || memberInfo?.joinDate || '—'} mono />
+            {profileSavedAt && Date.now() - profileSavedAt < 4000 && (
+              <div style={{ marginTop: 8, fontSize: 10, color: '#10B981', fontWeight: 600 }}>✓ 保存しました</div>
+            )}
+          </>
+        )}
       </InfoCard>
 
       {/* 連携・通知設定 */}
@@ -157,8 +275,9 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
                     fontSize: 12, fontFamily: "'JetBrains Mono', monospace", width: 180,
                   }}
                 />
-                <button onClick={handleSaveZoomPhone} disabled={zoomPhoneSaving}
-                  style={primaryBtn}>{zoomPhoneSaving ? '保存中...' : '保存'}</button>
+                <button onClick={handleSaveZoomPhone} disabled={zoomPhoneSaving} style={primaryBtn}>
+                  {zoomPhoneSaving ? '保存中...' : '保存'}
+                </button>
                 <button onClick={() => setZoomPhoneEditing(false)} style={secondaryBtn}>キャンセル</button>
               </div>
             ) : (
@@ -166,9 +285,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
                 <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: C.navy, fontWeight: 600 }}>
                   {zoomPhone || '未設定'}
                 </span>
-                {isAdmin && (
-                  <button onClick={() => setZoomPhoneEditing(true)} style={secondaryBtn}>編集</button>
-                )}
+                {isAdmin && <button onClick={() => setZoomPhoneEditing(true)} style={secondaryBtn}>編集</button>}
               </div>
             )}
           </div>
@@ -178,19 +295,34 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: 12, color: C.textDark, fontWeight: 600 }}>プッシュ通知</div>
-              <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>重要な通知をブラウザで受け取る</div>
+              <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>アポ獲得・日次レポートなどをブラウザで受け取る</div>
             </div>
-            <button
-              onClick={handleTogglePush}
-              disabled={pushLoading}
-              style={{
-                padding: '6px 16px', borderRadius: 14, border: 'none',
-                background: pushEnabled ? C.gold : C.border,
-                color: pushEnabled ? '#fff' : C.textLight,
-                fontSize: 11, fontWeight: 700, cursor: pushLoading ? 'wait' : 'pointer',
-              }}
-            >{pushLoading ? '処理中...' : pushEnabled ? 'ON' : 'OFF'}</button>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              {pushEnabled && (
+                <button
+                  onClick={handleTestPush}
+                  disabled={pushTestSending}
+                  style={{ ...secondaryBtn, fontSize: 10 }}
+                  title="このデバイスにテスト通知を送信"
+                >{pushTestSending ? '送信中…' : 'テスト送信'}</button>
+              )}
+              <button
+                onClick={handleTogglePush}
+                disabled={pushLoading}
+                style={{
+                  padding: '6px 16px', borderRadius: 14, border: 'none',
+                  background: pushEnabled ? C.gold : C.border,
+                  color: pushEnabled ? '#fff' : C.textLight,
+                  fontSize: 11, fontWeight: 700, cursor: pushLoading ? 'wait' : 'pointer',
+                }}
+              >{pushLoading ? '処理中...' : pushEnabled ? 'ON' : 'OFF'}</button>
+            </div>
           </div>
+          {pushTestResult && (
+            <div style={{ fontSize: 10, color: pushTestResult.startsWith('✓') ? '#10B981' : '#DC2626', textAlign: 'right' }}>
+              {pushTestResult}
+            </div>
+          )}
         </div>
       </InfoCard>
 
@@ -201,14 +333,15 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
   );
 }
 
-function InfoCard({ title, children }) {
+function InfoCard({ title, children, right }) {
   return (
     <div style={{
       background: C.white, borderRadius: 4, border: `1px solid ${C.border}`,
       padding: '16px 20px', marginBottom: 16,
     }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 12, letterSpacing: '0.04em' }}>
-        {title}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, letterSpacing: '0.04em' }}>{title}</div>
+        {right}
       </div>
       {children}
     </div>
@@ -227,11 +360,26 @@ function InfoRow({ label, value, mono = false }) {
   );
 }
 
+function EditRow({ label, children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 0' }}>
+      <div style={{ minWidth: 120, fontSize: 11, color: C.textMid, fontWeight: 600 }}>{label}</div>
+      <div style={{ flex: 1 }}>{children}</div>
+    </div>
+  );
+}
+
+const inputStyle = {
+  width: '100%', maxWidth: 320,
+  padding: '6px 10px', borderRadius: 4, border: `1px solid ${C.border}`,
+  fontSize: 12, color: C.textDark,
+  fontFamily: "'Noto Sans JP', sans-serif",
+};
 const primaryBtn = {
-  padding: '6px 12px', fontSize: 11, fontWeight: 600,
+  padding: '6px 14px', fontSize: 11, fontWeight: 600,
   background: C.navy, color: C.white, border: 'none', borderRadius: 4, cursor: 'pointer',
 };
 const secondaryBtn = {
-  padding: '6px 12px', fontSize: 11, fontWeight: 600,
+  padding: '5px 12px', fontSize: 11, fontWeight: 600,
   background: C.white, color: C.navy, border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer',
 };
