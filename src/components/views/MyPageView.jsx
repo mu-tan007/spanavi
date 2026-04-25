@@ -107,6 +107,20 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
   const [pushTestResult, setPushTestResult] = useState(null);
   useEffect(() => { isPushSubscribed().then(setPushEnabled); }, []);
 
+  // SW からの push-received メッセージをリッスン（デバッグ用）
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+    const handler = (e) => {
+      if (e.data?.kind === 'push-received') {
+        console.log('[Push] Service Worker received push:', e.data);
+        setPushTestResult(`✓ デバイスで受信確認: ${e.data.data?.title || ''}`);
+        setTimeout(() => setPushTestResult(null), 8000);
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handler);
+    return () => navigator.serviceWorker.removeEventListener('message', handler);
+  }, []);
+
   // 自分が所属する事業 + 通知設定
   const [userEngagements, setUserEngagements] = useState([]); // [{id, name, slug, enabled}]
   const [prefSaving, setPrefSaving] = useState(null); // saving 中の engagement_id
