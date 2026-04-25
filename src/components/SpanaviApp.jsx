@@ -57,7 +57,7 @@ import LibraryView from './views/LibraryView';
 import AIAssistantView from './views/AIAssistantView';
 import AdminView from './views/AdminView';
 import ManagerAdminView from './views/ManagerAdminView';
-import { Phone, Calendar, BarChart2, Settings, GraduationCap, User, Bot, Bell } from 'lucide-react';
+import { Phone, Calendar, BarChart2, Settings, GraduationCap, User, Bot, Bell, Sparkles } from 'lucide-react';
 import { useBranding } from '../hooks/useBranding';
 import { supabase } from '../lib/supabase';
 import { getOrgId } from '../lib/orgContext';
@@ -709,7 +709,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {/* Navigation */}
         <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>
           {navGroups.map(group => {
-            const _sbIconMap = { g_call: Phone, g_appo: Calendar, stats: BarChart2, g_other: Settings, g_education: GraduationCap, mypage: User, ai: Bot };
+            const _sbIconMap = { g_call: Phone, g_appo: Calendar, g_insights: Sparkles, g_admin: Settings, mypage: User, ai: Bot };
             const SbIconComp = _sbIconMap[group.id];
             if (!group.children) {
               const _sbActive = currentTab === group.id;
