@@ -319,7 +319,10 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
             {memberInfo?.team && <span>{memberInfo.team}</span>}
             {memberInfo?.rank && <span>{memberInfo.rank}</span>}
             {memberInfo?.position && <span>{memberInfo.position}</span>}
-            {isAdmin && <span style={{ color: C.gold }}>admin</span>}
+            {isAdmin
+              && memberInfo?.position?.toLowerCase() !== 'admin'
+              && memberInfo?.rank?.toLowerCase() !== 'admin'
+              && <span style={{ color: C.gold }}>admin</span>}
           </div>
           {uploadError && <div style={{ marginTop: 6, fontSize: 10, color: '#FCA5A5' }}>{uploadError}</div>}
         </div>
