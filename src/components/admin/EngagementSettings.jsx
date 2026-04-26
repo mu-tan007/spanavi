@@ -42,9 +42,9 @@ export default function EngagementSettings({ onToast }) {
         </select>
       </div>
 
-      <RankSection engagementId={engagementId} onToast={onToast} />
-      <div style={{ height: 32 }} />
       <RoleSection engagementId={engagementId} onToast={onToast} />
+      <div style={{ height: 32 }} />
+      <RankSection engagementId={engagementId} onToast={onToast} />
     </div>
   );
 }
@@ -276,9 +276,9 @@ function RoleSection({ engagementId, onToast }) {
       display_order: nextOrder,
     });
     setSaving(false);
-    if (error) { onToast?.(error.message.includes('unique') ? '同名の役割が存在します' : '追加失敗', 'error'); return; }
+    if (error) { onToast?.(error.message.includes('unique') ? '同名のポジションが存在します' : '追加失敗', 'error'); return; }
     setAdding(false); setNewName('');
-    onToast?.('役割を追加しました');
+    onToast?.('ポジションを追加しました');
     await load();
   };
 
@@ -326,9 +326,9 @@ function RoleSection({ engagementId, onToast }) {
   return (
     <div>
       <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 4 }}>役割管理</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 4 }}>ポジション管理</div>
         <div style={{ fontSize: 11, color: TEXT_MID }}>
-          チーム内の役割（リーダー / 副リーダー / メンバーなど）。事業ごとに独自の名称を設定可。行をドラッグで並び替え可。
+          事業内のポジション（リーダー / 副リーダー / メンバーなど）。各事業の Members 画面のポジション dropdown に反映されます。事業ごとに独自の名称を設定可。行をドラッグで並び替え可。
         </div>
       </div>
       {loading ? <div style={{ padding: 20, color: TEXT_MID, fontSize: 12 }}>読込中…</div> : (
@@ -339,7 +339,7 @@ function RoleSection({ engagementId, onToast }) {
                 <tr style={{ background: '#F8F8F8', borderBottom: `1px solid ${BORDER}` }}>
                   <th style={{ ...thBase, width: 18, padding: '10px 2px' }}></th>
                   <th style={{ ...thBase, width: 60, textAlign: 'left' }}>順序</th>
-                  <th style={{ ...thBase, textAlign: 'left' }}>役割名</th>
+                  <th style={{ ...thBase, textAlign: 'left' }}>ポジション名</th>
                   <th style={{ ...thBase, textAlign: 'right', width: 200 }}>操作</th>
                 </tr>
               </thead>
@@ -377,7 +377,7 @@ function RoleSection({ engagementId, onToast }) {
       )}
       {!adding && !loading && (
         <div style={{ marginTop: 10 }}>
-          <button onClick={() => setAdding(true)} style={addBtn}>+ 役割を追加</button>
+          <button onClick={() => setAdding(true)} style={addBtn}>+ ポジションを追加</button>
         </div>
       )}
     </div>

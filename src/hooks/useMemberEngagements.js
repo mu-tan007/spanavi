@@ -157,17 +157,18 @@ export function useEngagementMembers(engagementId) {
   const [members, setMembers] = useState([]);
   const [teamGroups, setTeamGroups] = useState([]);
   const [ranks, setRanks] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const orgId = getOrgId();
 
   const load = useCallback(async () => {
     if (!orgId || !engagementId) { setLoading(false); return; }
     setLoading(true);
-    const [memRes, teamRes, tmRes, rankRes] = await Promise.all([
+    const [memRes, teamRes, tmRes, rankRes, roleRes] = await Promise.all([
       supabase
         .from('member_engagements')
         .select(`
-          member_id, rank_id, incentive_rate_override,
+          member_id, rank_id, role_id, incentive_rate_override,
           member:members(id, name, email, phone_number, position, rank, team, start_date, is_active, avatar_url, cumulative_sales, incentive_rate)
         `)
         .eq('org_id', orgId)
@@ -191,8 +192,15 @@ export function useEngagementMembers(engagementId) {
         .eq('org_id', orgId)
         .eq('engagement_id', engagementId)
         .order('display_order'),
+      supabase
+        .from('engagement_roles')
+        .select('id, name, display_order')
+        .eq('org_id', orgId)
+        .eq('engagement_id', engagementId)
+        .order('display_order'),
     ]);
     setRanks(rankRes.data || []);
+    setRoles(roleRes.data || []);
     // member_engagements の rank_id / incentive_rate_override を member オブジェクトに統合
     const meByMemberId = {};
     (memRes.data || []).forEach(r => { meByMemberId[r.member_id] = r; });
@@ -200,6 +208,7 @@ export function useEngagementMembers(engagementId) {
       .map(r => r.member ? {
         ...r.member,
         rank_id: r.rank_id,
+        role_id: r.role_id,
         incentive_rate_override: r.incentive_rate_override,
       } : null)
       .filter(Boolean)
@@ -345,6 +354,26 @@ export function useEngagementMembers(engagementId) {
     return { error };
   }, [orgId, engagementId, load]);
 
+  /** メンバーの事業内ポジション（role_id）を更新 */
+  const updateMemberRole = useCallback(async (memberId, roleId) => {
+    if (!orgId || !engagementId) return { error: new Error('no orgId/engagementId') };
+    setMembers(prev => prev.map(m => m.id === memberId ? { ...m, role_id: roleId } : m));
+    setTeamGroups(prev => prev.map(g => ({
+      ...g,
+      members: g.members.map(m => m.id === memberId ? { ...m, role_id: roleId } : m),
+    })));
+    const { error } = await supabase
+      .from('member_engagements')
+      .update({ role_id: roleId, updated_at: new Date().toISOString() })
+      .eq('member_id', memberId)
+      .eq('engagement_id', engagementId);
+    if (error) {
+      console.error('[useEngagementMembers] updateMemberRole failed:', error);
+      await load();
+    }
+    return { error };
+  }, [orgId, engagementId, load]);
+
   /** メンバーの incentive_rate_override を更新 (null で解除) */
   const updateMemberOverride = useCallback(async (memberId, override) => {
     if (!orgId || !engagementId) return { error: new Error('no orgId/engagementId') };
@@ -365,5 +394,5 @@ export function useEngagementMembers(engagementId) {
     return { error };
   }, [orgId, engagementId, load]);
 
-  return { members, teamGroups, ranks, loading, applyTeamGroups, updateMemberRank, updateMemberOverride, refresh: load };
+  return { members, teamGroups, ranks, roles, loading, applyTeamGroups, updateMemberRank, updateMemberRole, updateMemberOverride, refresh: load };
 }
