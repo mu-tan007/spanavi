@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   DndContext, DragOverlay, PointerSensor, KeyboardSensor,
   closestCenter, useSensor, useSensors,
@@ -9,10 +9,14 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { C } from '../../constants/colors';
+import { supabase } from '../../lib/supabase';
+import { getOrgId } from '../../lib/orgContext';
 import { useEngagements } from '../../hooks/useEngagements';
 import { useEngagementMembers } from '../../hooks/useMemberEngagements';
-import { invokeSyncZoomUsers } from '../../lib/supabaseWrite';
+import { invokeSyncZoomUsers, updateMember } from '../../lib/supabaseWrite';
 import PageHeader from '../common/PageHeader';
+
+const POSITION_FALLBACK = ['代表取締役', '取締役', '執行役員', '監査役'];
 
 // 各事業タブの「Members」ページ。
 // admin はドラッグ&ドロップでチーム間移動/チーム内並び替えが可能。
@@ -22,6 +26,40 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
   const engagement = engagementOverride || currentEngagement;
   const { members, teamGroups, ranks, loading, applyTeamGroups, updateMemberRank, updateMemberOverride, refresh } = useEngagementMembers(engagement?.id);
   const [filter, setFilter] = useState('');
+  const [positionOptions, setPositionOptions] = useState(POSITION_FALLBACK);
+
+  useEffect(() => {
+    supabase.from('organization_positions')
+      .select('name')
+      .eq('org_id', getOrgId())
+      .order('display_order')
+      .then(({ data }) => {
+        if (data && data.length > 0) setPositionOptions(data.map(p => p.name));
+      });
+  }, []);
+
+  const updateMemberPosition = async (memberId, newPosition) => {
+    // 既存メンバーオブジェクトを取り、updateMember 関数のシグネチャに合わせる
+    const target = members.find(m => m.id === memberId);
+    if (!target) return;
+    await updateMember(memberId, {
+      ...target,
+      name: target.name,
+      position: newPosition || null,
+      role: newPosition || null, // updateMember は data.role を position に書く
+      team: target.team,
+      rank: target.rank,
+      rate: target.incentive_rate,
+      offer: target.job_offer,
+      operationStartDate: target.operation_start_date,
+      referrerName: target.referrer_name,
+      zoomUserId: target.zoom_user_id,
+      zoomPhoneNumber: target.zoom_phone_number,
+      year: target.grade,
+      university: target.university,
+    });
+    await refresh?.();
+  };
   const [activeId, setActiveId] = useState(null);
   const [localGroups, setLocalGroups] = useState(null); // DnD 最中のオーバーレイ状態
   const [zoomSyncing, setZoomSyncing] = useState(false);
@@ -212,9 +250,10 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
           >
             {visibleGroups.map(g => (
               <TeamBlock key={g.id} group={g} draggable
-                ranks={ranks} editable={isAdmin}
+                ranks={ranks} positionOptions={positionOptions} editable={isAdmin}
                 onRankChange={updateMemberRank}
                 onOverrideChange={updateMemberOverride}
+                onPositionChange={updateMemberPosition}
               />
             ))}
             <DragOverlay>
@@ -224,9 +263,10 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
         ) : (
           visibleGroups.map(g => (
             <TeamBlock key={g.id} group={g} draggable={false}
-              ranks={ranks} editable={isAdmin}
+              ranks={ranks} positionOptions={positionOptions} editable={isAdmin}
               onRankChange={updateMemberRank}
               onOverrideChange={updateMemberOverride}
+              onPositionChange={updateMemberPosition}
             />
           ))
         )}
@@ -236,7 +276,7 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
 }
 
 // ─── チーム 1 ブロック ────────────────────────────────
-function TeamBlock({ group, draggable, ranks, editable, onRankChange, onOverrideChange }) {
+function TeamBlock({ group, draggable, ranks, positionOptions, editable, onRankChange, onOverrideChange, onPositionChange }) {
   const items = group.members.map(m => m.id);
   return (
     <div key={group.id} style={{ marginBottom: 16 }}>
@@ -272,11 +312,11 @@ function TeamBlock({ group, draggable, ranks, editable, onRankChange, onOverride
               {group.members.length === 0 ? (
                 <EmptyTeamDropZone teamId={group.id} />
               ) : (
-                group.members.map(m => <SortableMemberRow key={m.id} m={m} ranks={ranks} editable={editable} onRankChange={onRankChange} onOverrideChange={onOverrideChange} />)
+                group.members.map(m => <SortableMemberRow key={m.id} m={m} ranks={ranks} positionOptions={positionOptions} editable={editable} onRankChange={onRankChange} onOverrideChange={onOverrideChange} onPositionChange={onPositionChange} />)
               )}
             </SortableContext>
           ) : (
-            group.members.map(m => <StaticMemberRow key={m.id} m={m} ranks={ranks} editable={editable} onRankChange={onRankChange} onOverrideChange={onOverrideChange} />)
+            group.members.map(m => <StaticMemberRow key={m.id} m={m} ranks={ranks} positionOptions={positionOptions} editable={editable} onRankChange={onRankChange} onOverrideChange={onOverrideChange} onPositionChange={onPositionChange} />)
           )}
         </tbody>
       </table>
@@ -285,7 +325,7 @@ function TeamBlock({ group, draggable, ranks, editable, onRankChange, onOverride
 }
 
 // ─── 並び替え可能な行 ─────────────────────────────────
-function SortableMemberRow({ m, ranks, editable, onRankChange, onOverrideChange }) {
+function SortableMemberRow({ m, ranks, positionOptions, editable, onRankChange, onOverrideChange, onPositionChange }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: m.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -298,21 +338,21 @@ function SortableMemberRow({ m, ranks, editable, onRankChange, onOverrideChange 
       <td style={{ ...td, textAlign: 'center', width: 18, padding: '8px 2px', cursor: 'grab', color: C.textLight, userSelect: 'none' }} {...listeners}>
         ⋮⋮
       </td>
-      <MemberRowCells m={m} ranks={ranks} editable={editable} onRankChange={onRankChange} onOverrideChange={onOverrideChange} />
+      <MemberRowCells m={m} ranks={ranks} positionOptions={positionOptions} editable={editable} onRankChange={onRankChange} onOverrideChange={onOverrideChange} onPositionChange={onPositionChange} />
     </tr>
   );
 }
 
 // DnD 無し時の静的な行
-function StaticMemberRow({ m, ranks, editable, onRankChange, onOverrideChange }) {
+function StaticMemberRow({ m, ranks, positionOptions, editable, onRankChange, onOverrideChange, onPositionChange }) {
   return (
     <tr style={{ borderBottom: `1px solid ${C.borderLight}` }}>
-      <MemberRowCells m={m} ranks={ranks} editable={editable} onRankChange={onRankChange} onOverrideChange={onOverrideChange} />
+      <MemberRowCells m={m} ranks={ranks} positionOptions={positionOptions} editable={editable} onRankChange={onRankChange} onOverrideChange={onOverrideChange} onPositionChange={onPositionChange} />
     </tr>
   );
 }
 
-function MemberRowCells({ m, ranks = [], editable, onRankChange, onOverrideChange }) {
+function MemberRowCells({ m, ranks = [], positionOptions = [], editable, onRankChange, onOverrideChange, onPositionChange }) {
   const [overrideInput, setOverrideInput] = useState('');
   const [overrideEditing, setOverrideEditing] = useState(false);
 
@@ -368,7 +408,15 @@ function MemberRowCells({ m, ranks = [], editable, onRankChange, onOverrideChang
           {m.name}
         </div>
       </td>
-      <td style={{ ...td, textAlign: 'left', color: C.textMid }}>{m.position || '—'}</td>
+      <td style={{ ...td, textAlign: 'left', color: C.textDark }}>
+        {editable ? (
+          <select value={m.position || ''} onChange={e => onPositionChange?.(m.id, e.target.value || null)}
+            style={{ padding: '3px 6px', borderRadius: 3, border: `1px solid ${C.border}`, fontSize: 11, fontFamily: "'Noto Sans JP',sans-serif", color: C.textDark, minWidth: 120 }}>
+            <option value="">（なし）</option>
+            {positionOptions.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        ) : (m.position || '—')}
+      </td>
       <td style={{ ...td, color: C.textDark, textAlign: 'center' }}>
         {editable ? (
           <select value={m.rank_id || ''} onChange={handleRankSelect}
