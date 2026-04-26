@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../lib/supabase';
 import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from '../../lib/pushNotification';
-import MemberManagement from '../admin/MemberManagement';
 import RewardSettings from '../admin/RewardSettings';
 import SlackZoomSettings from '../admin/SlackZoomSettings';
 import ClientManagement from '../admin/ClientManagement';
@@ -17,8 +16,8 @@ import { useEngagements } from '../../hooks/useEngagements';
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
 
+// メンバー管理は MASP > Members に統合済み（Phase 0-B で削除）
 const TABS = [
-  { id: 'members',  label: 'メンバー管理',          icon: '' },
   { id: 'kpi',      label: 'KPI 目標',              icon: '' },
   { id: 'reward',   label: '報酬・給与設定',         icon: '' },
   { id: 'calling',  label: '架電設定',              icon: '' },
@@ -51,7 +50,12 @@ function ToastContainer({ toasts }) {
 export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRewardMaster, members = [], appoData = [], now, onDataRefetch, userId, orgId }) {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState(() => {
-    try { return localStorage.getItem('admin_activeTab') || 'members'; } catch { return 'members'; }
+    try {
+      const stored = localStorage.getItem('admin_activeTab');
+      // 旧 'members' タブが localStorage に残っている場合は kpi に再マップ
+      if (!stored || stored === 'members') return 'kpi';
+      return stored;
+    } catch { return 'kpi'; }
   });
   const _setActiveTab = (tab) => {
     setActiveTab(tab);
@@ -246,13 +250,6 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
 
       {/* タブコンテンツ */}
       <div style={{ background: '#fff', borderRadius: '0 0 4px 4px', border: '1px solid #E5E5E5', borderTop: 'none', padding: isMobile ? '16px 12px' : '24px 28px', marginBottom: 0 }}>
-        {activeTab === 'members' && (
-          <MemberManagement
-            onToast={showToast}
-            onViewMyPage={(name) => setViewingMember(name)}
-            onDataRefetch={onDataRefetch}
-          />
-        )}
         {activeTab === 'kpi' && (
           <GoalSettingsPanel isAdmin={isAdmin} onToast={showToast} />
         )}

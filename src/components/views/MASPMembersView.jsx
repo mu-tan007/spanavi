@@ -38,6 +38,10 @@ export default function MASPMembersView({ isAdmin }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  // 招待再送
+  const [resendingId, setResendingId] = useState(null);
+  const [resendResult, setResendResult] = useState(null);
+
   // 新規追加モーダル
   const [addModal, setAddModal] = useState(false);
   const [addForm, setAddForm] = useState({
@@ -128,6 +132,38 @@ export default function MASPMembersView({ isAdmin }) {
     setEditingId(null);
     setEditForm({});
     await refresh?.();
+  };
+
+  const handleResendInvite = async (m) => {
+    if (!m.email) {
+      setResendResult({ type: 'error', message: 'メールアドレスが未登録です' });
+      setTimeout(() => setResendResult(null), 5000);
+      return;
+    }
+    setResendingId(m.id);
+    setResendResult(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-member`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({ email: m.email, name: m.name, resend: true }),
+        }
+      );
+      const result = await res.json();
+      if (!res.ok) {
+        setResendResult({ type: 'error', message: result.error || '送信失敗' });
+      } else {
+        setResendResult({ type: 'ok', message: `✓ ${m.name} に招待メールを再送しました` });
+      }
+    } catch (err) {
+      setResendResult({ type: 'error', message: err.message || '送信失敗' });
+    } finally {
+      setResendingId(null);
+      setTimeout(() => setResendResult(null), 5000);
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -282,7 +318,7 @@ export default function MASPMembersView({ isAdmin }) {
               {engagementCols.map(e => (
                 <th key={e.id} style={{ ...th, minWidth: 88 }}>{e.name}</th>
               ))}
-              {isAdmin && <th style={{ ...th, width: 130 }}>操作</th>}
+              {isAdmin && <th style={{ ...th, width: 200 }}>操作</th>}
             </tr>
           </thead>
           <tbody>
@@ -345,6 +381,14 @@ export default function MASPMembersView({ isAdmin }) {
                       ) : (
                         <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
                           <button onClick={() => startEdit(m)} style={secondarySmallBtn}>編集</button>
+                          {m.email && (
+                            <button
+                              onClick={() => handleResendInvite(m)}
+                              disabled={resendingId === m.id}
+                              style={secondarySmallBtn}
+                              title="招待メールを再送（パスワード未設定者向け）"
+                            >{resendingId === m.id ? '…' : '再送'}</button>
+                          )}
                           <button onClick={() => setDeleteTarget(m)} style={dangerSmallBtn}>削除</button>
                         </div>
                       )}
@@ -363,6 +407,15 @@ export default function MASPMembersView({ isAdmin }) {
           </tbody>
         </table>
         {saveError && <div style={{ marginTop: 8, fontSize: 11, color: '#DC2626' }}>{saveError}</div>}
+        {resendResult && (
+          <div style={{
+            position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
+            padding: '10px 18px', borderRadius: 4, fontSize: 12, fontWeight: 600,
+            background: resendResult.type === 'error' ? '#FEF2F2' : '#ECFDF5',
+            color: resendResult.type === 'error' ? '#DC2626' : '#065F46',
+            border: `1px solid ${resendResult.type === 'error' ? '#FECACA' : '#A7F3D0'}`,
+          }}>{resendResult.message}</div>
+        )}
       </div>
 
       {addModal && (
