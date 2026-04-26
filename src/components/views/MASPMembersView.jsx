@@ -153,7 +153,7 @@ export default function MASPMembersView({ isAdmin }) {
               {engagementCols.map(e => (
                 <th key={e.id} style={{ ...th, minWidth: 88 }}>{e.name}</th>
               ))}
-              {isAdmin && <th style={{ ...th, width: 110 }}>操作</th>}
+              {isAdmin && <th style={{ ...th, width: 130 }}>操作</th>}
             </tr>
           </thead>
           <tbody>
@@ -277,14 +277,17 @@ const editInput = {
 const primarySmallBtn = {
   padding: '4px 10px', fontSize: 11, fontWeight: 600,
   background: C.navy, color: C.white, border: 'none', borderRadius: 3, cursor: 'pointer',
+  whiteSpace: 'nowrap', fontFamily: "'Noto Sans JP',sans-serif",
 };
 const secondarySmallBtn = {
   padding: '4px 10px', fontSize: 11, fontWeight: 600,
   background: C.white, color: C.navy, border: `1px solid ${C.border}`, borderRadius: 3, cursor: 'pointer',
+  whiteSpace: 'nowrap', fontFamily: "'Noto Sans JP',sans-serif",
 };
 const dangerSmallBtn = {
   padding: '4px 10px', fontSize: 11, fontWeight: 600,
   background: C.white, color: '#B91C1C', border: '1px solid #FCA5A5', borderRadius: 3, cursor: 'pointer',
+  whiteSpace: 'nowrap', fontFamily: "'Noto Sans JP',sans-serif",
 };
 
 function formatDate(d) {
