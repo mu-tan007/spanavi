@@ -1,11 +1,30 @@
 import React, { useMemo, useState } from 'react';
 import { C } from '../../constants/colors';
+import { supabase } from '../../lib/supabase';
 import { useEngagements } from '../../hooks/useEngagements';
 import { useAllMembersWithEngagements } from '../../hooks/useMemberEngagements';
 import { deactivateMember, updateMemberProfile, updateMember } from '../../lib/supabaseWrite';
+import { getOrgId } from '../../lib/orgContext';
 import PageHeader from '../common/PageHeader';
 
 const POSITION_OPTIONS = ['', '代表取締役', '取締役', '執行役員', '監査役'];
+
+async function syncSeatCount(newCount) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-update-seats`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({ newSeatCount: newCount }),
+      }
+    );
+  } catch (e) {
+    console.warn('Stripe seat sync failed:', e.message);
+  }
+}
 
 // MASP タブの「Members」ページ。全社の従業員一覧を編集する。
 export default function MASPMembersView({ isAdmin }) {
@@ -18,6 +37,16 @@ export default function MASPMembersView({ isAdmin }) {
   const [saveError, setSaveError] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  // 新規追加モーダル
+  const [addModal, setAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({
+    name: '', email: '', phone_number: '', position: '', start_date: '',
+  });
+  const [addSendInvite, setAddSendInvite] = useState(true);
+  const [addEngagementIds, setAddEngagementIds] = useState(new Set()); // 選択された engagement IDs
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState(null);
 
   // MASP (virtual) を除外して表示する事業列
   const engagementCols = useMemo(
@@ -109,6 +138,100 @@ export default function MASPMembersView({ isAdmin }) {
     if (!error) {
       setDeleteTarget(null);
       await refresh?.();
+      syncSeatCount(members.filter(m => m.id !== deleteTarget.id).length);
+    }
+  };
+
+  const openAddModal = () => {
+    setAddForm({ name: '', email: '', phone_number: '', position: '', start_date: '' });
+    setAddSendInvite(true);
+    setAddEngagementIds(new Set());
+    setAddError(null);
+    setAddModal(true);
+  };
+
+  const toggleAddEngagement = (id) => {
+    setAddEngagementIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleAdd = async () => {
+    setAddError(null);
+    if (!addForm.name.trim()) { setAddError('氏名は必須です'); return; }
+    if (addSendInvite && !addForm.email.trim()) { setAddError('招待メール送信時はメールアドレスが必須です'); return; }
+    setAdding(true);
+    const orgId = getOrgId();
+    let newMemberId = null;
+
+    try {
+      if (addSendInvite && addForm.email.trim()) {
+        // 招待メール経由（edge function）でメンバー追加
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-member`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({
+              email: addForm.email.trim(),
+              name: addForm.name.trim(),
+              orgId,
+              operation_start_date: addForm.start_date || null,
+            }),
+          }
+        );
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || '招待に失敗しました');
+        newMemberId = result.memberId;
+        // edge function は position='メンバー' rank='トレーニー' をデフォルトで設定する
+        // これを希望の値で上書き（position と phone_number, start_date）
+        if (newMemberId) {
+          await supabase.from('members').update({
+            position: addForm.position || null,
+            phone_number: addForm.phone_number || null,
+            start_date: addForm.start_date || null,
+            // rank はとりあえず NULL（事業ごとに後で設定）
+            rank: null,
+          }).eq('id', newMemberId);
+        }
+      } else {
+        // 直接 INSERT
+        const { data, error } = await supabase.from('members').insert({
+          org_id: orgId,
+          name: addForm.name.trim(),
+          email: addForm.email.trim() || null,
+          phone_number: addForm.phone_number || null,
+          position: addForm.position || null,
+          start_date: addForm.start_date || null,
+          is_active: true,
+          incentive_rate: 0,
+        }).select('id').single();
+        if (error) throw new Error(error.message);
+        newMemberId = data.id;
+      }
+
+      // 事業所属の登録
+      if (newMemberId && addEngagementIds.size > 0) {
+        const rows = Array.from(addEngagementIds).map(eid => ({
+          org_id: orgId, member_id: newMemberId, engagement_id: eid,
+        }));
+        const { error: meErr } = await supabase.from('member_engagements').insert(rows);
+        if (meErr) console.warn('member_engagements insert partially failed:', meErr.message);
+      }
+
+      // Stripe 席数同期
+      syncSeatCount(members.length + 1);
+
+      // 完了
+      setAdding(false);
+      setAddModal(false);
+      await refresh?.();
+    } catch (err) {
+      setAddError(err.message || '追加に失敗しました');
+      setAdding(false);
     }
   };
 
@@ -121,7 +244,13 @@ export default function MASPMembersView({ isAdmin }) {
       <PageHeader
         eyebrow="MASP · 全社従業員"
         title="Members"
-        description={`全従業員 ${members.length} 名 (入社日順)。${isAdmin ? '行クリックで編集' : '閲覧のみ'}`}
+        description={`全従業員 ${members.length} 名 (入社日順)。${isAdmin ? '編集ボタンで個別編集' : '閲覧のみ'}`}
+        right={isAdmin ? (
+          <button onClick={openAddModal}
+            style={{ padding: '7px 16px', fontSize: 12, fontWeight: 600, background: C.navy, color: C.white, border: 'none', borderRadius: 4, cursor: 'pointer', fontFamily: "'Noto Sans JP',sans-serif" }}>
+            + 新規追加
+          </button>
+        ) : null}
       >
         <input
           type="text"
@@ -236,6 +365,79 @@ export default function MASPMembersView({ isAdmin }) {
         {saveError && <div style={{ marginTop: 8, fontSize: 11, color: '#DC2626' }}>{saveError}</div>}
       </div>
 
+      {addModal && (
+        <div
+          onClick={() => !adding && setAddModal(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 4, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', padding: 28, fontFamily: "'Noto Sans JP',sans-serif" }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 18 }}>新規メンバーを追加</div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <FormRow label="氏名 *">
+                <input value={addForm.name} onChange={e => setAddForm(s => ({ ...s, name: e.target.value }))} style={fieldStyle} />
+              </FormRow>
+              <FormRow label="メールアドレス">
+                <input type="email" value={addForm.email} onChange={e => setAddForm(s => ({ ...s, email: e.target.value }))}
+                  placeholder="例: example@ma-sp.co" style={{ ...fieldStyle, fontFamily: "'JetBrains Mono', monospace" }} />
+              </FormRow>
+              <FormRow label="携帯番号">
+                <input type="tel" value={addForm.phone_number} onChange={e => setAddForm(s => ({ ...s, phone_number: e.target.value }))}
+                  placeholder="090-1234-5678" style={{ ...fieldStyle, fontFamily: "'JetBrains Mono', monospace" }} />
+              </FormRow>
+              <FormRow label="役職">
+                <select value={addForm.position} onChange={e => setAddForm(s => ({ ...s, position: e.target.value }))} style={fieldStyle}>
+                  {POSITION_OPTIONS.map(p => <option key={p} value={p}>{p || '（なし）'}</option>)}
+                </select>
+              </FormRow>
+              <FormRow label="入社日">
+                <input type="date" value={addForm.start_date} onChange={e => setAddForm(s => ({ ...s, start_date: e.target.value }))}
+                  style={{ ...fieldStyle, fontFamily: "'JetBrains Mono', monospace" }} />
+              </FormRow>
+
+              <div style={{ marginTop: 8, padding: '12px 14px', background: '#F8F9FA', border: `1px solid ${C.border}`, borderRadius: 4 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 8 }}>所属事業</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {engagementCols.map(e => (
+                    <label key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: C.textDark, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={addEngagementIds.has(e.id)} onChange={() => toggleAddEngagement(e.id)} />
+                      {e.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: C.textDark, cursor: 'pointer', marginTop: 6 }}>
+                <input type="checkbox" checked={addSendInvite} onChange={e => setAddSendInvite(e.target.checked)} />
+                招待メールを送信する（推奨）
+              </label>
+              <div style={{ fontSize: 10, color: C.textLight, marginLeft: 22, marginTop: -4, lineHeight: 1.5 }}>
+                ON: メールに招待リンクを送信、本人がパスワード設定して初回ログイン<br />
+                OFF: メンバー追加のみ。後でログインさせる場合は別途招待が必要
+              </div>
+
+              {addError && (
+                <div style={{ fontSize: 11, color: '#B91C1C', background: '#FEF2F2', border: '1px solid #FCA5A5', padding: '8px 10px', borderRadius: 3 }}>
+                  {addError}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 24 }}>
+              <button onClick={() => setAddModal(false)} disabled={adding}
+                style={{ padding: '8px 18px', fontSize: 12, fontWeight: 600, background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer' }}>キャンセル</button>
+              <button onClick={handleAdd} disabled={adding}
+                style={{ padding: '8px 22px', fontSize: 12, fontWeight: 700, background: C.navy, color: C.white, border: 'none', borderRadius: 4, cursor: adding ? 'default' : 'pointer', opacity: adding ? 0.6 : 1 }}>
+                {adding ? '追加中…' : '追加する'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {deleteTarget && (
         <div
           onClick={() => !deleting && setDeleteTarget(null)}
@@ -296,3 +498,19 @@ function formatDate(d) {
   if (parts.length !== 3) return d;
   return `${parts[0]}-${parts[1]}-${parts[2]}`;
 }
+
+function FormRow({ label, children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ minWidth: 120, fontSize: 11, color: C.textMid, fontWeight: 600 }}>{label}</div>
+      <div style={{ flex: 1 }}>{children}</div>
+    </div>
+  );
+}
+
+const fieldStyle = {
+  width: '100%',
+  padding: '7px 10px', borderRadius: 4, border: `1px solid ${C.border}`,
+  fontSize: 12, color: C.textDark,
+  fontFamily: "'Noto Sans JP', sans-serif",
+};
