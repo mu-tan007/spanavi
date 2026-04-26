@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { C } from '../../constants/colors';
 import { supabase } from '../../lib/supabase';
 import { useEngagements } from '../../hooks/useEngagements';
