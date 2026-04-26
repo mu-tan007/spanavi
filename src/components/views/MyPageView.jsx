@@ -200,7 +200,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
       return;
     }
     if (Notification.permission === 'denied') {
-      setPushTestResult('✗ ブラウザで通知がブロックされています（chrome://settings/content/notifications で許可してください）');
+      setPushTestResult('✗ ブラウザで通知がブロックされています');
       return;
     }
     if (Notification.permission === 'default') {
@@ -210,18 +210,28 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
         return;
       }
     }
+    // ① まず new Notification() で直接テスト（SW非経由）
     try {
-      // Service Worker 経由で通知（push handler と同じ経路）
+      const n = new Notification('🔔 直接通知テスト #1', {
+        body: 'これが見えればOSの通知は完全に正常',
+        icon: '/pwa-192x192.png',
+      });
+      n.onclick = () => { window.focus(); n.close(); };
+    } catch (e) {
+      console.error('[notif] direct fail:', e);
+    }
+    // ② 次に SW 経由でテスト
+    try {
       const reg = await navigator.serviceWorker.ready;
-      await reg.showNotification('🔔 ローカル通知テスト', {
-        body: 'これが見えればブラウザ/OSの通知は正常です',
+      await reg.showNotification('🔔 SW通知テスト #2', {
+        body: 'これが見えればSWからの通知も正常',
         icon: '/pwa-192x192.png',
         requireInteraction: true,
       });
-      setPushTestResult('✓ ローカル通知発火 — 画面右下/通知センターを確認してください');
-      setTimeout(() => setPushTestResult(null), 12000);
+      setPushTestResult('✓ 2種類の通知を発火 — Win+N で通知センターも確認してください');
+      setTimeout(() => setPushTestResult(null), 15000);
     } catch (err) {
-      setPushTestResult('✗ ' + (err?.message || '失敗'));
+      setPushTestResult('✗ SW通知失敗: ' + (err?.message || ''));
     }
   };
 
