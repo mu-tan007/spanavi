@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, isInviteFlow } from '../lib/supabase'
 
 const C = {
   navy: '#0D2247',
@@ -93,10 +93,12 @@ export default function ResetPasswordPage({ onComplete }) {
           <>
             <div style={{ textAlign: 'center', marginBottom: 24 }}>
               <div style={{ fontSize: 20, fontWeight: 700, color: C.navy, marginBottom: 4 }}>
-                パスワード再設定
+                {isInviteFlow ? 'パスワード初期設定' : 'パスワード再設定'}
               </div>
               <div style={{ fontSize: 13, color: C.textMuted }}>
-                新しいパスワードを入力してください
+                {isInviteFlow
+                  ? 'Spanavi へようこそ。ログイン用のパスワードを設定してください'
+                  : '新しいパスワードを入力してください'}
               </div>
             </div>
 
