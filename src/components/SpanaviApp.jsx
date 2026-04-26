@@ -612,7 +612,10 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         flatTabs.push('mypage');
         cycle(flatTabs, currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'masp') {
-        cycle(['database', 'all_members', 'mypage'], currentTab, e.key, setCurrentTab);
+        const tabs = ['database', 'all_members'];
+        if (isAdmin) tabs.push('admin_settings');
+        tabs.push('mypage');
+        cycle(tabs, currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'spartia_career') {
         cycle(['applications', 'deals_career', 'mypage'], currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'spartia_capital') {
@@ -625,7 +628,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentTab, navGroups, engSlug]);
+  }, [currentTab, navGroups, engSlug, isAdmin]);
 
   return (
     <div style={{ minHeight: "100vh", background: '#F3F2F2', color: C.textDark, fontFamily: "'Noto Sans JP', sans-serif" }}>
