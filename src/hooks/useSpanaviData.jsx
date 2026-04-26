@@ -133,6 +133,7 @@ export function useSpanaviData(authOrgId) {
         year: m.grade || 0,
         offer: m.job_offer || '',
         team: m.team || '',
+        position: m.position || '',
         role: m.position || '',
         rank: m.rank || '',
         rate: parseFloat(m.incentive_rate) || 0,
