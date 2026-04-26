@@ -217,6 +217,7 @@ export default function ResetPasswordPage({ onComplete }) {
 }
 
 // ─── ウェルカム画面（招待フロー完了後） ────────────────────
+// プロフィール完成への単一導線。事業に依存しない汎用設計。
 function WelcomeScreen({ userName, onComplete }) {
   return (
     <div style={{
@@ -225,76 +226,49 @@ function WelcomeScreen({ userName, onComplete }) {
       fontFamily: "'Noto Sans JP', sans-serif", padding: 20,
     }}>
       <div style={{
-        background: C.white, borderRadius: 8, padding: '40px 36px',
-        width: '100%', maxWidth: 540,
+        background: C.white, borderRadius: 8, padding: '44px 40px',
+        width: '100%', maxWidth: 460,
         boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
       }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>🎉</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.navy, marginBottom: 6 }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>🎉</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: C.navy, marginBottom: 8 }}>
             ようこそ、{userName} さん
           </div>
-          <div style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.7 }}>
-            パスワード設定が完了しました。<br />
-            Spanavi で何から始めますか？
+          <div style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.8 }}>
+            パスワードの設定が完了しました。<br />
+            まずはプロフィール情報を登録しましょう。
           </div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
-          <ActionCard
-            icon="👤" title="プロフィールを完成させる"
-            description="氏名・連絡先・写真を登録"
-            onClick={() => onComplete('mypage')}
-          />
-          <ActionCard
-            icon="📞" title="架電リストを見る"
-            description="今日のおすすめリストから始める"
-            onClick={() => onComplete('lists')}
-          />
-          <ActionCard
-            icon="📊" title="Dashboard を確認"
-            description="自分の数字と、次の一手"
-            onClick={() => onComplete('dashboard')}
-          />
         </div>
 
         <button
-          onClick={() => onComplete('dashboard')}
+          onClick={() => onComplete('mypage')}
           style={{
-            width: '100%', padding: '10px 16px', borderRadius: 4,
+            width: '100%', padding: '14px 16px', borderRadius: 4,
+            background: C.navy, color: C.white,
+            border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+            fontFamily: "'Noto Sans JP'",
+            transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = C.navyHover; }}
+          onMouseLeave={e => { e.currentTarget.style.background = C.navy; }}
+        >
+          プロフィールを完成させる
+        </button>
+
+        <button
+          onClick={() => onComplete('mypage')}
+          style={{
+            width: '100%', marginTop: 8, padding: '8px',
             background: 'transparent', color: C.textMuted,
-            border: 'none', fontSize: 12, cursor: 'pointer',
+            border: 'none', fontSize: 11, cursor: 'pointer',
             fontFamily: "'Noto Sans JP'",
           }}
         >
-          あとで（Dashboard へ）
+          あとで設定する
         </button>
       </div>
     </div>
-  );
-}
-
-function ActionCard({ icon, title, description, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 14,
-        width: '100%', padding: '14px 16px', borderRadius: 6,
-        background: C.gray100, border: `1px solid ${C.gray200}`,
-        cursor: 'pointer', textAlign: 'left',
-        fontFamily: "'Noto Sans JP'", transition: 'all 0.15s',
-      }}
-      onMouseEnter={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = C.navy; e.currentTarget.style.boxShadow = '0 2px 8px rgba(13,34,71,0.08)'; }}
-      onMouseLeave={e => { e.currentTarget.style.background = C.gray100; e.currentTarget.style.borderColor = C.gray200; e.currentTarget.style.boxShadow = 'none'; }}
-    >
-      <div style={{ fontSize: 22, flexShrink: 0 }}>{icon}</div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 2 }}>{title}</div>
-        <div style={{ fontSize: 11, color: C.textMuted }}>{description}</div>
-      </div>
-      <div style={{ color: C.navy, fontSize: 18 }}>›</div>
-    </button>
   );
 }
 
