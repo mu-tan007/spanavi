@@ -7,7 +7,9 @@ import { deactivateMember, updateMemberProfile, updateMember } from '../../lib/s
 import { getOrgId } from '../../lib/orgContext';
 import PageHeader from '../common/PageHeader';
 
-const POSITION_OPTIONS = ['', '代表取締役', '取締役', '執行役員', '監査役'];
+// POSITION_OPTIONS は organization_positions テーブルから動的取得
+// （fallback: テーブル未設定時のデフォルト）
+const POSITION_FALLBACK = ['代表取締役', '取締役', '執行役員', '監査役'];
 
 async function syncSeatCount(newCount) {
   try {
@@ -30,6 +32,16 @@ async function syncSeatCount(newCount) {
 export default function MASPMembersView({ isAdmin }) {
   const { engagements } = useEngagements();
   const { members, assignments, teamsByEngagement, memberTeam, loading, toggleAssignment, assignMemberToTeam, refresh } = useAllMembersWithEngagements();
+  const [positionOptions, setPositionOptions] = useState(POSITION_FALLBACK);
+  useEffect(() => {
+    supabase.from('organization_positions')
+      .select('name')
+      .eq('org_id', getOrgId())
+      .order('display_order')
+      .then(({ data }) => {
+        if (data && data.length > 0) setPositionOptions(data.map(p => p.name));
+      });
+  }, []);
   const [filter, setFilter] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -340,7 +352,8 @@ export default function MASPMembersView({ isAdmin }) {
                   <td style={{ ...td, textAlign: 'left', color: C.textDark, fontWeight: m.position ? 600 : 400 }}>
                     {isEditing ? (
                       <select value={editForm.position} onChange={e => setEditForm(s => ({ ...s, position: e.target.value }))} style={editInput}>
-                        {POSITION_OPTIONS.map(p => <option key={p} value={p}>{p || '（なし）'}</option>)}
+                        <option value="">（なし）</option>
+                        {positionOptions.map(p => <option key={p} value={p}>{p}</option>)}
                       </select>
                     ) : (m.position || '—')}
                   </td>
@@ -443,7 +456,8 @@ export default function MASPMembersView({ isAdmin }) {
               </FormRow>
               <FormRow label="役職">
                 <select value={addForm.position} onChange={e => setAddForm(s => ({ ...s, position: e.target.value }))} style={fieldStyle}>
-                  {POSITION_OPTIONS.map(p => <option key={p} value={p}>{p || '（なし）'}</option>)}
+                  <option value="">（なし）</option>
+                  {positionOptions.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </FormRow>
               <FormRow label="入社日">

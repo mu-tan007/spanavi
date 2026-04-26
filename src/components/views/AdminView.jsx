@@ -3,6 +3,8 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../lib/supabase';
 import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from '../../lib/pushNotification';
 import RewardSettings from '../admin/RewardSettings';
+import OrganizationSettings from '../admin/OrganizationSettings';
+import EngagementSettings from '../admin/EngagementSettings';
 import SlackZoomSettings from '../admin/SlackZoomSettings';
 import ClientManagement from '../admin/ClientManagement';
 import IndustryRuleSettings from '../admin/IndustryRuleSettings';
@@ -18,6 +20,8 @@ const GOLD = '#C8A84B';
 
 // メンバー管理は MASP > Members に統合済み（Phase 0-B で削除）
 const TABS = [
+  { id: 'org',      label: '組織設定',              icon: '' },
+  { id: 'engagement', label: '事業設定',           icon: '' },
   { id: 'kpi',      label: 'KPI 目標',              icon: '' },
   { id: 'reward',   label: '報酬・給与設定',         icon: '' },
   { id: 'calling',  label: '架電設定',              icon: '' },
@@ -250,6 +254,12 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
 
       {/* タブコンテンツ */}
       <div style={{ background: '#fff', borderRadius: '0 0 4px 4px', border: '1px solid #E5E5E5', borderTop: 'none', padding: isMobile ? '16px 12px' : '24px 28px', marginBottom: 0 }}>
+        {activeTab === 'org' && (
+          <OrganizationSettings onToast={showToast} />
+        )}
+        {activeTab === 'engagement' && (
+          <EngagementSettings onToast={showToast} />
+        )}
         {activeTab === 'kpi' && (
           <GoalSettingsPanel isAdmin={isAdmin} onToast={showToast} />
         )}
