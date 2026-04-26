@@ -34,7 +34,13 @@ function MainApp() {
   // パスワードリカバリーモード（profile取得より優先：新規招待ユーザーはusers/membersがRLSで引けずprofileがnullのままになるため、
   // この判定を下に置くと「アカウント情報取得失敗」画面にリダイレクトされてパスワード再設定に辿り着けない）
   if (recoveryMode && session) {
-    return <ResetPasswordPage onComplete={clearRecoveryMode} />
+    return <ResetPasswordPage onComplete={(destTab) => {
+      // ウェルカム画面のCTAから渡された遷移先を localStorage に保存（SpanaviApp が初期タブとして読む）
+      if (destTab && typeof destTab === 'string') {
+        try { localStorage.setItem('masp_v2_currentTab', destTab); } catch {}
+      }
+      clearRecoveryMode();
+    }} />
   }
 
   // クライアント・ロールは members プロフィールを持たない → 先に /client へ逃がす
