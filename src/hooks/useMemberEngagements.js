@@ -35,7 +35,7 @@ export function useAllMembersWithEngagements() {
     setLoading(true);
     const [m, me, tRes, tmRes] = await Promise.all([
       supabase.from('members')
-        .select('id, name, email, position, rank, team, start_date, is_active, avatar_url')
+        .select('id, name, email, phone_number, position, rank, team, start_date, is_active, avatar_url')
         .eq('org_id', orgId)
         .eq('is_active', true),
       supabase.from('member_engagements')
@@ -165,7 +165,7 @@ export function useEngagementMembers(engagementId) {
     const [memRes, teamRes, tmRes] = await Promise.all([
       supabase
         .from('member_engagements')
-        .select(`member_id, member:members(id, name, email, position, rank, team, start_date, is_active, avatar_url, cumulative_sales, incentive_rate)`)
+        .select(`member_id, member:members(id, name, email, phone_number, position, rank, team, start_date, is_active, avatar_url, cumulative_sales, incentive_rate)`)
         .eq('org_id', orgId)
         .eq('engagement_id', engagementId),
       supabase
