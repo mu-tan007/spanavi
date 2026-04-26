@@ -147,9 +147,9 @@ export default function MASPMembersView({ isAdmin }) {
             <tr style={{ borderBottom: `1px solid ${C.border}`, background: C.cream }}>
               <th style={th}>入社日</th>
               <th style={{ ...th, textAlign: 'left' }}>氏名</th>
+              <th style={{ ...th, textAlign: 'left' }}>役職</th>
               <th style={{ ...th, textAlign: 'left' }}>メール</th>
               <th style={{ ...th, textAlign: 'left' }}>携帯</th>
-              <th style={{ ...th, textAlign: 'left' }}>役職</th>
               {engagementCols.map(e => (
                 <th key={e.id} style={{ ...th, minWidth: 88 }}>{e.name}</th>
               ))}
@@ -172,6 +172,13 @@ export default function MASPMembersView({ isAdmin }) {
                       ? <input value={editForm.name} onChange={e => setEditForm(s => ({ ...s, name: e.target.value }))} style={editInput} />
                       : m.name}
                   </td>
+                  <td style={{ ...td, textAlign: 'left', color: C.textDark, fontWeight: m.position ? 600 : 400 }}>
+                    {isEditing ? (
+                      <select value={editForm.position} onChange={e => setEditForm(s => ({ ...s, position: e.target.value }))} style={editInput}>
+                        {POSITION_OPTIONS.map(p => <option key={p} value={p}>{p || '（なし）'}</option>)}
+                      </select>
+                    ) : (m.position || '—')}
+                  </td>
                   <td style={{ ...td, textAlign: 'left', fontFamily: "'JetBrains Mono',monospace", color: C.textMid }}>
                     {isEditing
                       ? <input type="email" value={editForm.email} onChange={e => setEditForm(s => ({ ...s, email: e.target.value }))} style={editInput} />
@@ -181,13 +188,6 @@ export default function MASPMembersView({ isAdmin }) {
                     {isEditing
                       ? <input type="tel" value={editForm.phone_number} onChange={e => setEditForm(s => ({ ...s, phone_number: e.target.value }))} style={editInput} />
                       : (m.phone_number || '—')}
-                  </td>
-                  <td style={{ ...td, textAlign: 'left', color: C.textDark, fontWeight: m.position ? 600 : 400 }}>
-                    {isEditing ? (
-                      <select value={editForm.position} onChange={e => setEditForm(s => ({ ...s, position: e.target.value }))} style={editInput}>
-                        {POSITION_OPTIONS.map(p => <option key={p} value={p}>{p || '（なし）'}</option>)}
-                      </select>
-                    ) : (m.position || '—')}
                   </td>
                   {engagementCols.map(e => (
                     <td key={e.id} style={{ ...td, textAlign: 'center' }}>
