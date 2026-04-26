@@ -20,7 +20,7 @@ import PageHeader from '../common/PageHeader';
 export default function EngagementMembersView({ engagementOverride, bleed = true, isAdmin = false }) {
   const { currentEngagement } = useEngagements();
   const engagement = engagementOverride || currentEngagement;
-  const { members, teamGroups, loading, applyTeamGroups, refresh } = useEngagementMembers(engagement?.id);
+  const { members, teamGroups, ranks, loading, applyTeamGroups, updateMemberRank, updateMemberOverride, refresh } = useEngagementMembers(engagement?.id);
   const [filter, setFilter] = useState('');
   const [activeId, setActiveId] = useState(null);
   const [localGroups, setLocalGroups] = useState(null); // DnD 最中のオーバーレイ状態
@@ -211,7 +211,11 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
             onDragCancel={handleDragCancel}
           >
             {visibleGroups.map(g => (
-              <TeamBlock key={g.id} group={g} draggable />
+              <TeamBlock key={g.id} group={g} draggable
+                ranks={ranks} editable={isAdmin}
+                onRankChange={updateMemberRank}
+                onOverrideChange={updateMemberOverride}
+              />
             ))}
             <DragOverlay>
               {activeMember ? <MemberRowContent m={activeMember} dragging /> : null}
@@ -219,7 +223,11 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
           </DndContext>
         ) : (
           visibleGroups.map(g => (
-            <TeamBlock key={g.id} group={g} draggable={false} />
+            <TeamBlock key={g.id} group={g} draggable={false}
+              ranks={ranks} editable={isAdmin}
+              onRankChange={updateMemberRank}
+              onOverrideChange={updateMemberOverride}
+            />
           ))
         )}
       </div>
@@ -228,7 +236,7 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
 }
 
 // ─── チーム 1 ブロック ────────────────────────────────
-function TeamBlock({ group, draggable }) {
+function TeamBlock({ group, draggable, ranks, editable, onRankChange, onOverrideChange }) {
   const items = group.members.map(m => m.id);
   return (
     <div key={group.id} style={{ marginBottom: 16 }}>
@@ -254,8 +262,8 @@ function TeamBlock({ group, draggable }) {
             <th style={{ ...th, textAlign: 'left' }}>氏名</th>
             <th style={{ ...th, textAlign: 'left' }}>ポジション</th>
             <th style={th}>ランク</th>
-            <th style={th}>累計売上</th>
             <th style={th}>インセンティブ率</th>
+            <th style={th}>累計売上</th>
           </tr>
         </thead>
         <tbody>
@@ -264,11 +272,11 @@ function TeamBlock({ group, draggable }) {
               {group.members.length === 0 ? (
                 <EmptyTeamDropZone teamId={group.id} />
               ) : (
-                group.members.map(m => <SortableMemberRow key={m.id} m={m} />)
+                group.members.map(m => <SortableMemberRow key={m.id} m={m} ranks={ranks} editable={editable} onRankChange={onRankChange} onOverrideChange={onOverrideChange} />)
               )}
             </SortableContext>
           ) : (
-            group.members.map(m => <StaticMemberRow key={m.id} m={m} />)
+            group.members.map(m => <StaticMemberRow key={m.id} m={m} ranks={ranks} editable={editable} onRankChange={onRankChange} onOverrideChange={onOverrideChange} />)
           )}
         </tbody>
       </table>
@@ -277,7 +285,7 @@ function TeamBlock({ group, draggable }) {
 }
 
 // ─── 並び替え可能な行 ─────────────────────────────────
-function SortableMemberRow({ m }) {
+function SortableMemberRow({ m, ranks, editable, onRankChange, onOverrideChange }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: m.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -290,21 +298,56 @@ function SortableMemberRow({ m }) {
       <td style={{ ...td, textAlign: 'center', width: 18, padding: '8px 2px', cursor: 'grab', color: C.textLight, userSelect: 'none' }} {...listeners}>
         ⋮⋮
       </td>
-      <MemberRowCells m={m} />
+      <MemberRowCells m={m} ranks={ranks} editable={editable} onRankChange={onRankChange} onOverrideChange={onOverrideChange} />
     </tr>
   );
 }
 
 // DnD 無し時の静的な行
-function StaticMemberRow({ m }) {
+function StaticMemberRow({ m, ranks, editable, onRankChange, onOverrideChange }) {
   return (
     <tr style={{ borderBottom: `1px solid ${C.borderLight}` }}>
-      <MemberRowCells m={m} />
+      <MemberRowCells m={m} ranks={ranks} editable={editable} onRankChange={onRankChange} onOverrideChange={onOverrideChange} />
     </tr>
   );
 }
 
-function MemberRowCells({ m }) {
+function MemberRowCells({ m, ranks = [], editable, onRankChange, onOverrideChange }) {
+  const [overrideInput, setOverrideInput] = useState('');
+  const [overrideEditing, setOverrideEditing] = useState(false);
+
+  // 現在のランク情報
+  const currentRank = ranks.find(r => r.id === m.rank_id);
+  const defaultRate = currentRank?.default_incentive_rate ?? null;
+  const override = m.incentive_rate_override;
+  const effectiveRate = override != null ? Number(override) : (defaultRate != null ? Number(defaultRate) : null);
+
+  const handleRankSelect = (e) => {
+    const newRankId = e.target.value || null;
+    onRankChange?.(m.id, newRankId);
+  };
+
+  const startOverrideEdit = () => {
+    setOverrideInput(override != null ? String(Number(override) * 100) : '');
+    setOverrideEditing(true);
+  };
+
+  const commitOverride = async () => {
+    setOverrideEditing(false);
+    const trimmed = overrideInput.trim();
+    if (trimmed === '') {
+      // 空入力 → override 解除（ランクのデフォルトに戻す）
+      if (override != null) await onOverrideChange?.(m.id, null);
+      return;
+    }
+    const num = parseFloat(trimmed);
+    if (isNaN(num) || num < 0 || num > 100) return;
+    const newOverride = num / 100;
+    if (newOverride !== Number(override || 0)) {
+      await onOverrideChange?.(m.id, newOverride);
+    }
+  };
+
   return (
     <>
       <td style={{ ...td, padding: '8px 4px', fontFamily: "'JetBrains Mono',monospace", color: C.textMid, whiteSpace: 'nowrap', textAlign: 'center' }}>
@@ -326,12 +369,40 @@ function MemberRowCells({ m }) {
         </div>
       </td>
       <td style={{ ...td, textAlign: 'left', color: C.textMid }}>{m.position || '—'}</td>
-      <td style={{ ...td, color: C.textMid, textAlign: 'center' }}>{m.rank || '—'}</td>
+      <td style={{ ...td, color: C.textDark, textAlign: 'center' }}>
+        {editable ? (
+          <select value={m.rank_id || ''} onChange={handleRankSelect}
+            style={{ padding: '3px 6px', borderRadius: 3, border: `1px solid ${C.border}`, fontSize: 11, fontFamily: "'Noto Sans JP',sans-serif", color: C.textDark, minWidth: 130 }}>
+            <option value="">（未設定）</option>
+            {ranks.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+        ) : (currentRank?.name || '—')}
+      </td>
+      <td style={{ ...td, textAlign: 'center', color: C.textDark, fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: 'tabular-nums' }}>
+        {overrideEditing && editable ? (
+          <input
+            type="number" step="0.1" min="0" max="100" autoFocus
+            value={overrideInput}
+            onChange={e => setOverrideInput(e.target.value)}
+            onBlur={commitOverride}
+            onKeyDown={e => { if (e.key === 'Enter') commitOverride(); if (e.key === 'Escape') setOverrideEditing(false); }}
+            placeholder="例 24"
+            style={{ width: 70, padding: '3px 6px', borderRadius: 3, border: `1px solid ${C.navy}`, fontSize: 12, fontFamily: "'JetBrains Mono',monospace", textAlign: 'right' }}
+          />
+        ) : (
+          <span
+            onClick={editable ? startOverrideEdit : undefined}
+            title={editable ? 'クリックで個別率を編集（空欄でランクのデフォルトに戻す）' : ''}
+            style={{ cursor: editable ? 'pointer' : 'default', color: override != null ? '#0D2247' : C.textMid, fontWeight: override != null ? 700 : 400 }}>
+            {effectiveRate != null
+              ? `${(effectiveRate * 100).toFixed(1).replace(/\.0$/, '')}%`
+              : '—'}
+            {override != null && <span style={{ fontSize: 9, color: '#C8A84B', marginLeft: 4 }}>個別</span>}
+          </span>
+        )}
+      </td>
       <td style={{ ...td, textAlign: 'right', color: C.textDark, fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: 'tabular-nums' }}>
         {m.cumulative_sales ? `¥${Number(m.cumulative_sales).toLocaleString()}` : '—'}
-      </td>
-      <td style={{ ...td, textAlign: 'right', color: C.textMid, fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: 'tabular-nums' }}>
-        {m.incentive_rate != null ? `${m.incentive_rate}%` : '—'}
       </td>
     </>
   );

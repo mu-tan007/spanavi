@@ -156,16 +156,20 @@ export function useAllMembersWithEngagements() {
 export function useEngagementMembers(engagementId) {
   const [members, setMembers] = useState([]);
   const [teamGroups, setTeamGroups] = useState([]);
+  const [ranks, setRanks] = useState([]);
   const [loading, setLoading] = useState(true);
   const orgId = getOrgId();
 
   const load = useCallback(async () => {
     if (!orgId || !engagementId) { setLoading(false); return; }
     setLoading(true);
-    const [memRes, teamRes, tmRes] = await Promise.all([
+    const [memRes, teamRes, tmRes, rankRes] = await Promise.all([
       supabase
         .from('member_engagements')
-        .select(`member_id, member:members(id, name, email, phone_number, position, rank, team, start_date, is_active, avatar_url, cumulative_sales, incentive_rate)`)
+        .select(`
+          member_id, rank_id, incentive_rate_override,
+          member:members(id, name, email, phone_number, position, rank, team, start_date, is_active, avatar_url, cumulative_sales, incentive_rate)
+        `)
         .eq('org_id', orgId)
         .eq('engagement_id', engagementId),
       supabase
@@ -181,9 +185,25 @@ export function useEngagementMembers(engagementId) {
         .eq('org_id', orgId)
         .eq('team.engagement_id', engagementId)
         .is('left_at', null),
+      supabase
+        .from('engagement_ranks')
+        .select('id, name, display_order, default_incentive_rate')
+        .eq('org_id', orgId)
+        .eq('engagement_id', engagementId)
+        .order('display_order'),
     ]);
+    setRanks(rankRes.data || []);
+    // member_engagements の rank_id / incentive_rate_override を member オブジェクトに統合
+    const meByMemberId = {};
+    (memRes.data || []).forEach(r => { meByMemberId[r.member_id] = r; });
     const activeMembers = (memRes.data || [])
-      .map(r => r.member).filter(Boolean).filter(m => m.is_active);
+      .map(r => r.member ? {
+        ...r.member,
+        rank_id: r.rank_id,
+        incentive_rate_override: r.incentive_rate_override,
+      } : null)
+      .filter(Boolean)
+      .filter(m => m.is_active);
     activeMembers.sort(sortByPositionThenStart);
     setMembers(activeMembers);
 
@@ -305,5 +325,45 @@ export function useEngagementMembers(engagementId) {
     return { error: null };
   }, [orgId, teamGroups, load]);
 
-  return { members, teamGroups, loading, applyTeamGroups, refresh: load };
+  /** メンバーのランクを更新 */
+  const updateMemberRank = useCallback(async (memberId, rankId) => {
+    if (!orgId || !engagementId) return { error: new Error('no orgId/engagementId') };
+    setMembers(prev => prev.map(m => m.id === memberId ? { ...m, rank_id: rankId } : m));
+    setTeamGroups(prev => prev.map(g => ({
+      ...g,
+      members: g.members.map(m => m.id === memberId ? { ...m, rank_id: rankId } : m),
+    })));
+    const { error } = await supabase
+      .from('member_engagements')
+      .update({ rank_id: rankId, updated_at: new Date().toISOString() })
+      .eq('member_id', memberId)
+      .eq('engagement_id', engagementId);
+    if (error) {
+      console.error('[useEngagementMembers] updateMemberRank failed:', error);
+      await load();
+    }
+    return { error };
+  }, [orgId, engagementId, load]);
+
+  /** メンバーの incentive_rate_override を更新 (null で解除) */
+  const updateMemberOverride = useCallback(async (memberId, override) => {
+    if (!orgId || !engagementId) return { error: new Error('no orgId/engagementId') };
+    setMembers(prev => prev.map(m => m.id === memberId ? { ...m, incentive_rate_override: override } : m));
+    setTeamGroups(prev => prev.map(g => ({
+      ...g,
+      members: g.members.map(m => m.id === memberId ? { ...m, incentive_rate_override: override } : m),
+    })));
+    const { error } = await supabase
+      .from('member_engagements')
+      .update({ incentive_rate_override: override, updated_at: new Date().toISOString() })
+      .eq('member_id', memberId)
+      .eq('engagement_id', engagementId);
+    if (error) {
+      console.error('[useEngagementMembers] updateMemberOverride failed:', error);
+      await load();
+    }
+    return { error };
+  }, [orgId, engagementId, load]);
+
+  return { members, teamGroups, ranks, loading, applyTeamGroups, updateMemberRank, updateMemberOverride, refresh: load };
 }
