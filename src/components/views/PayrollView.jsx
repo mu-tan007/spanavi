@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
 import { calcRankAndRate } from '../../utils/calculations';
+import { supabase } from '../../lib/supabase';
 import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, fetchPayrollAdjustment, upsertPayrollAdjustment } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import useColumnConfig from '../../hooks/useColumnConfig';
@@ -71,6 +72,35 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
 
   useEffect(() => {
     fetchOrgSettings().then(({ data }) => setOrgSettings(data || {}));
+  }, []);
+
+  // ── Phase 5: 各メンバーの Sourcing 事業内役割を fetch ────────────
+  // member_engagements.role_id → engagement_roles.name の map を作る
+  // Key: member_id (uuid), Value: 'リーダー' / '副リーダー' / 'メンバー'
+  const [memberRoleMap, setMemberRoleMap] = useState({});
+  useEffect(() => {
+    (async () => {
+      const orgId = getOrgId();
+      if (!orgId) return;
+      const { data: eng } = await supabase
+        .from('engagements')
+        .select('id')
+        .eq('org_id', orgId)
+        .eq('slug', 'seller_sourcing')
+        .maybeSingle();
+      if (!eng) return;
+      const { data: meRows } = await supabase
+        .from('member_engagements')
+        .select('member_id, role:engagement_roles(name)')
+        .eq('engagement_id', eng.id)
+        .eq('org_id', orgId)
+        .not('role_id', 'is', null);
+      const map = {};
+      (meRows || []).forEach(r => {
+        if (r.role?.name) map[r.member_id] = r.role.name;
+      });
+      setMemberRoleMap(map);
+    })();
   }, []);
 
   // ── スナップショット（報酬確定）────────────────────────────────────
@@ -161,6 +191,8 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
     });
     const memberMap = {};
     members.forEach(m => { if (typeof m === 'object' && m.name) memberMap[m.name] = m; });
+    // Phase 5: 役割は member_engagements.role_id 経由で判定（members.position は使わない）
+    const getRole = (mem) => (mem && mem.id) ? (memberRoleMap[mem.id] || '') : '';
     const teamSales = {};
     const byGetter = {};
     monthAppos.forEach(a => {
@@ -170,7 +202,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
       if (!byGetter[a.getter]) {
         byGetter[a.getter] = {
           name: a.getter, team, rank, rate,
-          role: mem.role || '',
+          role: getRole(mem),
           totalSales: mem.totalSales || 0,
           sales: 0, incentive: 0, teamBonus: 0, total: 0,
         };
@@ -181,12 +213,13 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
     });
     members.forEach(m => {
       if (typeof m !== 'object' || !m.name) return;
-      if (!['チームリーダー', '副リーダー'].includes(m.role)) return;
+      const role = getRole(m);
+      if (!['リーダー', '副リーダー'].includes(role)) return;
       if (byGetter[m.name]) return;
       const { rank, rate } = calcRankAndRate(m.totalSales || 0, orgSettings);
       byGetter[m.name] = {
         name: m.name, team: m.team || '', rank, rate,
-        role: m.role || '', totalSales: m.totalSales || 0,
+        role, totalSales: m.totalSales || 0,
         sales: 0, incentive: 0, teamBonus: 0, total: 0,
       };
     });
@@ -213,7 +246,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
     [...new Set(Object.values(byGetter).map(p => p.team))].forEach(team => {
       const sales = teamSales[team] || 0;
       const tm = Object.values(byGetter).filter(p => p.team === team);
-      const leaders = tm.filter(p => p.role === 'チームリーダー');
+      const leaders = tm.filter(p => p.role === 'リーダー');
       const subs = tm.filter(p => p.role === '副リーダー');
       // リーダー: チーム売上 × 段階料率（リーダーが複数の場合は均等配分）
       const leaderPool = Math.round(sales * getLeaderRate(sales) / 100);
@@ -224,7 +257,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
     });
     Object.values(byGetter).forEach(p => { p.total = p.incentive + p.teamBonus; });
     return Object.values(byGetter);
-  }, [appoData, members, payMonth, orgSettings]);
+  }, [appoData, members, payMonth, orgSettings, memberRoleMap]);
 
   const data = React.useMemo(() => {
     if (!isConfirmed) return calcData;
