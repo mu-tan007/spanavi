@@ -1,4 +1,5 @@
 import React from 'react';
+import { Building2, Settings } from 'lucide-react';
 import SidebarShell, { ActiveItem, DisabledItem, SectionHeader } from './SidebarShell';
 
 const MASP_VIEW_IDS = new Set(['database', 'all_members', 'admin_settings']);
@@ -15,15 +16,17 @@ export default function MASPSidebar({
 }) {
   const sections = [
     {
-      label: '全社',
+      label: 'COMPANY',
+      icon: Building2,
       items: [
         { id: 'database', label: 'Database', enabled: true },
         { id: 'all_members', label: 'Members', enabled: true },
       ],
     },
-    // admin だけ「設定」セクションを表示
+    // admin だけ「SETTINGS」セクションを表示
     ...(isAdmin ? [{
-      label: '設定',
+      label: 'SETTINGS',
+      icon: Settings,
       items: [
         { id: 'admin_settings', label: 'Admin Settings', enabled: true },
       ],
@@ -41,7 +44,7 @@ export default function MASPSidebar({
     >
       {sections.map(section => (
         <React.Fragment key={section.label}>
-          <SectionHeader label={section.label} />
+          <SectionHeader label={section.label} Icon={section.icon} />
           {section.items.map(it => it.enabled ? (
             <ActiveItem
               key={it.id}

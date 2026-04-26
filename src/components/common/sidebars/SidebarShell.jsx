@@ -154,12 +154,16 @@ export function ActiveItem({ label, active, onClick }) {
   );
 }
 
-export function SectionHeader({ label }) {
+export function SectionHeader({ label, Icon }) {
   return (
     <div style={{
       padding: '16px 20px 6px', fontSize: 9, fontWeight: 700,
       color: 'rgba(255,255,255,0.45)', letterSpacing: '0.12em',
       textTransform: 'uppercase',
-    }}>{label}</div>
+      display: 'flex', alignItems: 'center', gap: 6,
+    }}>
+      {Icon && <Icon size={12} />}
+      {label}
+    </div>
   );
 }
