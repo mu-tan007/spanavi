@@ -50,18 +50,27 @@ export default function DailyReportPanel({ currentUser, userId, isAdmin }) {
 
   const selected = reports.find(r => r.report_date === selectedDate && r.team_id === selectedTeamId);
 
+  // 前日比のための yesterday report を取得（hooks は early return 前に必ず呼ぶ）
+  const yesterdayDate = useMemo(() => {
+    if (!selectedDate) return null;
+    const d = new Date(selectedDate + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }, [selectedDate]);
+  const yesterdayReports = useMemo(() => reports.filter(r => r.report_date === yesterdayDate), [reports, yesterdayDate]);
+
   if (!sourcing) return <Empty>ソーシング事業が見つかりません</Empty>;
   if (loading) return <Empty>読み込み中…</Empty>;
   if (reports.length === 0) {
     return (
       <Empty>
         まだ Daily Report はありません。<br />
-        平日 18:00 JST に自動で生成されます。
+        平日 20:00 JST に自動で生成されます。
       </Empty>
     );
   }
 
-  // 日付ナビゲーション
+  // 日付ナビゲーション（hook ではないので early return 後で OK）
   const dateIdx = dates.indexOf(selectedDate);
   const goPrevDate = () => {
     if (dateIdx < dates.length - 1) {
@@ -82,7 +91,6 @@ export default function DailyReportPanel({ currentUser, userId, isAdmin }) {
   const onDateInput = (v) => {
     if (!v) return;
     if (!dates.includes(v)) {
-      // その日付のレポートが無い → そのまま選択して空表示にする
       setSelectedDate(v);
       setSelectedTeamId(null);
       return;
@@ -91,15 +99,6 @@ export default function DailyReportPanel({ currentUser, userId, isAdmin }) {
     const t = reports.find(r => r.report_date === v);
     setSelectedTeamId(t?.team_id || null);
   };
-
-  // 前日比のための yesterday report を取得
-  const yesterdayDate = useMemo(() => {
-    if (!selectedDate) return null;
-    const d = new Date(selectedDate + 'T00:00:00Z');
-    d.setUTCDate(d.getUTCDate() - 1);
-    return d.toISOString().slice(0, 10);
-  }, [selectedDate]);
-  const yesterdayReports = useMemo(() => reports.filter(r => r.report_date === yesterdayDate), [reports, yesterdayDate]);
 
   return (
     <div>
