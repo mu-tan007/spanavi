@@ -90,11 +90,11 @@ function MemberProfileDrawer({ memberId, width, onResize, onClose, currentUserId
     });
 
     // 所属する各事業 + role + rank
-    const { data: assignments } = await supabase
+    const { data: assignments, error: aErr } = await supabase
       .from('member_engagements')
       .select(`
         engagement_id,
-        rank_override_rate,
+        incentive_rate_override,
         engagement:engagements!inner(id, name, slug, status),
         role:engagement_roles(id, name),
         rank:engagement_ranks(id, name, default_incentive_rate)
@@ -102,15 +102,15 @@ function MemberProfileDrawer({ memberId, width, onResize, onClose, currentUserId
       .eq('member_id', memberId)
       .eq('org_id', orgId)
       .eq('engagement.status', 'active');
+    if (aErr) console.error('[MemberProfileDrawer] assignments error:', aErr);
     const list = (assignments || [])
       .map(a => ({
         engagement_id: a.engagement_id,
         engagement_name: a.engagement?.name || '',
         engagement_slug: a.engagement?.slug || '',
-        team: null, // members.team は事業横断値だが、UI 上は事業別チームに後で発展できる
         role_name: a.role?.name || null,
         rank_name: a.rank?.name || null,
-        override_rate: a.rank_override_rate ?? null,
+        override_rate: a.incentive_rate_override ?? null,
         default_rate: a.rank?.default_incentive_rate ?? null,
       }))
       .filter(a => a.engagement_slug !== 'masp')
