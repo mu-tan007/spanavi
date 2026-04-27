@@ -129,45 +129,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 3. Slack に投稿 ─────────────────────────────────────────────────
-    let slackPosted = false
-    const slackBotToken   = Deno.env.get('SLACK_BOT_TOKEN')
-    const slackWebhookUrl = Deno.env.get('SLACK_WEBHOOK_URL')
-    const slackChannel    = Deno.env.get('SLACK_CHANNEL') || '#アポ報告'
-
-    if (slackBotToken || slackWebhookUrl) {
-      try {
-        const slackText = `*【アポ取得報告】${company_name || ''}*\n\`\`\`${enhancedReport}\`\`\``
-
-        if (slackBotToken) {
-          // Bot Token を使用（chat.postMessage）
-          const slackRes = await fetch('https://slack.com/api/chat.postMessage', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${slackBotToken}`,
-              'Content-Type': 'application/json; charset=utf-8',
-            },
-            body: JSON.stringify({ channel: slackChannel, text: slackText }),
-          })
-          const slackData = await slackRes.json()
-          slackPosted = slackData.ok
-          if (!slackData.ok) console.error('[appo-ai-report] Slack Bot error:', slackData.error)
-        } else if (slackWebhookUrl) {
-          // Incoming Webhook を使用
-          const slackRes = await fetch(slackWebhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: slackText }),
-          })
-          slackPosted = slackRes.ok
-        }
-      } catch (slackErr) {
-        console.error('[appo-ai-report] Slack error:', slackErr)
-      }
-    }
-
+    // Slack 投稿は post-appo-to-slack に一本化したため当 Function からは行わない。
+    // 過去は SLACK_BOT_TOKEN / SLACK_WEBHOOK_URL が設定されていると重複投稿されていた。
     return new Response(
-      JSON.stringify({ enhancedReport, slackPosted, hasTranscript }),
+      JSON.stringify({ enhancedReport, slackPosted: false, hasTranscript }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {
