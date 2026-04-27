@@ -348,7 +348,7 @@ export default function MASPMembersView({ isAdmin }) {
               {engagementCols.map(e => (
                 <th key={e.id} style={{ ...th, minWidth: 88 }}>{e.name}</th>
               ))}
-              {isAdmin && <th style={{ ...th, width: 200 }}>操作</th>}
+              {isAdmin && <th style={{ ...th, width: 36, padding: 0 }} aria-label="操作"></th>}
             </tr>
           </thead>
           <tbody>
@@ -403,7 +403,7 @@ export default function MASPMembersView({ isAdmin }) {
                     </td>
                   ))}
                   {isAdmin && (
-                    <td style={{ ...td, textAlign: 'center' }}>
+                    <td style={{ ...td, textAlign: 'center', width: 36, padding: '4px 4px' }}>
                       {isEditing ? (
                         <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
                           <button onClick={saveEdit} disabled={saving} style={primarySmallBtn}>{saving ? '…' : '保存'}</button>
@@ -415,11 +415,14 @@ export default function MASPMembersView({ isAdmin }) {
                             onClick={() => setActionMenuId(actionMenuId === m.id ? null : m.id)}
                             title="編集メニュー"
                             style={{
-                              padding: '4px 8px', fontSize: 13, fontWeight: 600,
+                              width: 24, height: 24, padding: 0, fontSize: 13,
                               background: actionMenuId === m.id ? C.navy + '12' : 'transparent',
-                              color: C.navy, border: `1px solid ${C.border}`, borderRadius: 3,
+                              color: C.textMid, border: 'none', borderRadius: 3,
                               cursor: 'pointer', fontFamily: "'Noto Sans JP'", lineHeight: 1,
+                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                             }}
+                            onMouseEnter={e => { e.currentTarget.style.background = C.navy + '12'; e.currentTarget.style.color = C.navy; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = actionMenuId === m.id ? C.navy + '12' : 'transparent'; e.currentTarget.style.color = actionMenuId === m.id ? C.navy : C.textMid; }}
                           >✎</button>
                           {actionMenuId === m.id && (
                             <div style={{
