@@ -1325,62 +1325,25 @@ export async function fetchAllCallListItemsBasic() {
 export async function searchCallListItemsServerSide({
   keyword = '', searchField = 'all', statusFilter = 'all', page = 0, pageSize = 50
 } = {}) {
-  const COLS = 'id, list_id, no, company, business, representative, phone, call_status';
-  // ilike エスケープ: % と _ を文字通りに扱う
-  const kw = keyword.trim().replace(/%/g, '\\%').replace(/_/g, '\\_');
-
-  const applyStatus = (q) => {
-    if (statusFilter === 'uncalled') return q.is('call_status', null);
-    if (statusFilter !== 'all') {
-      const jp = statusIdToLabel(statusFilter);
-      if (jp) return q.eq('call_status', jp);
-    }
-    return q;
-  };
-
-  // searchField !== 'all': 単一カラム ilike（速い & 確実）
-  if (searchField !== 'all' || !kw) {
-    let query = supabase.from('call_list_items')
-      .select(COLS, { count: 'exact' });
-    query = applyStatus(query);
-    if (kw) {
-      const col = searchField === 'status' ? 'call_status' : searchField;
-      query = query.ilike(col, `%${kw}%`);
-    }
-    query = query.order('list_id').order('no').range(page * pageSize, (page + 1) * pageSize - 1);
-    const { data, error, count } = await query;
-    if (error) console.error('[DB] searchCallListItemsServerSide error:', error);
-    return { data: data || [], error, count: count ?? 0 };
-  }
-
-  // searchField === 'all' && kw あり:
-  // .or() + 複数 ilike 構成は 100k 行スケール + 一部キーワードで結果が空になる挙動が
-  // 確認されている（PostgREST の or 構文 vs 多言語/特殊文字の組み合わせが原因と推定）。
-  // 安定性を優先して、対象カラムごとに個別 ilike を並列実行し、結果を id で dedupe する。
-  const FIELDS = ['company', 'representative', 'phone', 'business'];
-  const FETCH_LIMIT = pageSize * 4;
-  const fetches = FIELDS.map(col => {
-    let q = supabase.from('call_list_items').select(COLS).ilike(col, `%${kw}%`);
-    q = applyStatus(q);
-    return q.order('list_id').order('no').limit(FETCH_LIMIT);
+  // search_call_list_items RPC を使う。SQL 側で OR-ILIKE を直接実行するため、
+  // supabase-js の .or() URL 構築の制約や 100k 行スケールの不安定挙動を回避できる。
+  const { data, error } = await supabase.rpc('search_call_list_items', {
+    p_keyword: keyword.trim(),
+    p_search_field: searchField || 'all',
+    p_status_filter: statusFilter || 'all',
+    p_offset: page * pageSize,
+    p_limit: pageSize,
   });
-  const results = await Promise.all(fetches);
-  for (const r of results) {
-    if (r.error) console.error('[DB] searchCallListItemsServerSide field error:', r.error);
+  if (error) {
+    console.error('[DB] search_call_list_items rpc error:', error);
+    return { data: [], error, count: 0 };
   }
-  const merged = new Map();
-  for (const r of results) {
-    for (const row of (r.data || [])) {
-      if (!merged.has(row.id)) merged.set(row.id, row);
-    }
-  }
-  // 並べ替え (list_id, no) して全体件数とページ範囲で切り出す
-  const all = Array.from(merged.values()).sort((a, b) => {
-    if (a.list_id !== b.list_id) return String(a.list_id || '').localeCompare(String(b.list_id || ''));
-    return (a.no || 0) - (b.no || 0);
-  });
-  const slice = all.slice(page * pageSize, (page + 1) * pageSize);
-  return { data: slice, error: null, count: all.length };
+  const rows = data || [];
+  // total_count は全行に同じ値が入っている（RPC 内 CROSS JOIN）
+  const count = rows.length > 0 ? Number(rows[0].total_count || 0) : 0;
+  // total_count を表向きの行から除外
+  const cleaned = rows.map(({ total_count, ...rest }) => rest);
+  return { data: cleaned, error: null, count };
 }
 
 export async function fetchCallListItemsByIds(itemIds) {

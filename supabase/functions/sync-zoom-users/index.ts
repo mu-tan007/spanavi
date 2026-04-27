@@ -11,6 +11,29 @@ function normalizeName(s: string): string {
     .replace(/髙/g, '高')
 }
 
+// E.164 等の Zoom 形式の電話番号を日本国内表記 (XX-XXXX-XXXX) に整形
+function formatJpPhone(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  let n = String(raw).trim()
+  if (!n) return null
+  // +81 を 0 に
+  if (n.startsWith('+81')) n = '0' + n.substring(3)
+  // 数字以外を除去
+  const digits = n.replace(/[^\d]/g, '')
+  if (!digits.startsWith('0')) return raw
+  // 03/06/045 等の市外局番別フォーマット
+  if (digits.length === 10 && (digits.startsWith('03') || digits.startsWith('06'))) {
+    return `${digits.substring(0,2)}-${digits.substring(2,6)}-${digits.substring(6)}`
+  }
+  if (digits.length === 11) {
+    return `${digits.substring(0,3)}-${digits.substring(3,7)}-${digits.substring(7)}`
+  }
+  if (digits.length === 10) {
+    return `${digits.substring(0,3)}-${digits.substring(3,6)}-${digits.substring(6)}`
+  }
+  return digits
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -85,7 +108,7 @@ Deno.serve(async (req) => {
     // ── 3. Supabase の members テーブル全件取得 ───────────────────────────
     console.log('[sync-zoom-users] Supabase members 取得中...')
     const membersRes = await fetch(
-      `${supabaseUrl}/rest/v1/members?select=id,name,email,zoom_user_id`,
+      `${supabaseUrl}/rest/v1/members?select=id,name,email,zoom_user_id,zoom_phone_number`,
       {
         headers: {
           'Authorization': `Bearer ${serviceRoleKey}`,
@@ -102,7 +125,7 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-    const members: { id: string; name: string; email: string | null; zoom_user_id: string | null }[] = await membersRes.json()
+    const members: { id: string; name: string; email: string | null; zoom_user_id: string | null; zoom_phone_number: string | null }[] = await membersRes.json()
     console.log(`[sync-zoom-users] members: ${members.length} 件`)
 
     // ── 4. マッチング（メール優先 → 名前フォールバック） ──────────────────
@@ -140,13 +163,39 @@ Deno.serve(async (req) => {
         continue
       }
 
+      // ── 5. ユーザー詳細を取得して phone_numbers を抽出 ──────────────────
+      let phoneNumber: string | null = null
+      try {
+        const detailRes = await fetch(`https://api.zoom.us/v2/phone/users/${zu.id}`, {
+          headers: { 'Authorization': `Bearer ${zoomToken}` },
+        })
+        if (detailRes.ok) {
+          const detail = await detailRes.json()
+          // phone_numbers: [{ id, number, source }] のうち先頭の番号を使う
+          const raw = (detail.phone_numbers && detail.phone_numbers[0]?.number) || null
+          phoneNumber = formatJpPhone(raw)
+        } else {
+          console.warn(`[sync-zoom-users] ${member.name} 詳細取得失敗 (${detailRes.status})`)
+        }
+      } catch (e) {
+        console.warn(`[sync-zoom-users] ${member.name} 詳細取得例外:`, e)
+      }
+
       const hasRealEmail = member.email && !member.email.includes('@masp-internal.com')
-      if (member.zoom_user_id === zu.id && hasRealEmail) {
+      const userIdMatches = member.zoom_user_id === zu.id
+      const phoneMatches = (member.zoom_phone_number || null) === (phoneNumber || null)
+      if (userIdMatches && hasRealEmail && phoneMatches) {
         skipped.push(member.name)
         continue
       }
 
-      // UPDATE
+      // UPDATE（phone_number も含める。phone 未取得時は既存値を温存）
+      const patch: Record<string, string | null> = {
+        zoom_user_id: zu.id,
+        email: zu.email,
+      }
+      if (phoneNumber) patch.zoom_phone_number = phoneNumber
+
       const upRes = await fetch(
         `${supabaseUrl}/rest/v1/members?id=eq.${member.id}`,
         {
@@ -157,11 +206,11 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
             'Prefer': 'return=minimal',
           },
-          body: JSON.stringify({ zoom_user_id: zu.id, email: zu.email }),
+          body: JSON.stringify(patch),
         }
       )
       if (upRes.ok) {
-        console.log(`[sync-zoom-users] ✓ ${member.name} → ${zu.id}`)
+        console.log(`[sync-zoom-users] ✓ ${member.name} → ${zu.id} / ${phoneNumber || '(no phone)'}`)
         updated.push(member.name)
       } else {
         const errText = await upRes.text()
