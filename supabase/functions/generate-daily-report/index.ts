@@ -20,6 +20,7 @@ const REJECT_STATUS = '社長お断り'
 interface CallRow {
   id: string
   caller_id: string | null
+  getter_name: string | null
   list_id: string | null
   item_id: string | null
   status: string | null
@@ -113,11 +114,19 @@ Deno.serve(async (req) => {
       // 当日の call_records 全件
       const { data: callsRaw } = await supabase
         .from('call_records')
-        .select('id, caller_id, list_id, item_id, status, called_at, recording_url, rejection_reason')
+        .select('id, caller_id, getter_name, list_id, item_id, status, called_at, recording_url, rejection_reason')
         .eq('org_id', orgId)
         .gte('called_at', dayStart)
         .lte('called_at', dayEnd)
-      const calls = (callsRaw || []) as CallRow[]
+      // caller_id が NULL の場合 getter_name で member を解決して補完
+      const calls = ((callsRaw || []) as CallRow[]).map(c => {
+        if (c.caller_id) return c
+        if (c.getter_name) {
+          const m = (members || []).find((mm: any) => mm.name === c.getter_name)
+          if (m) return { ...c, caller_id: m.id as string }
+        }
+        return c
+      })
 
       // 当日の appointments（売上）
       const { data: appos } = await supabase
