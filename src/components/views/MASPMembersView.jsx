@@ -6,6 +6,7 @@ import { useAllMembersWithEngagements } from '../../hooks/useMemberEngagements';
 import { deactivateMember, updateMemberProfile, updateMember } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import PageHeader from '../common/PageHeader';
+import { useMemberProfile } from '../common/MemberProfileDrawer';
 
 // POSITION_OPTIONS は organization_positions テーブルから動的取得
 // （fallback: テーブル未設定時のデフォルト）
@@ -31,6 +32,7 @@ async function syncSeatCount(newCount) {
 // MASP タブの「Members」ページ。全社の従業員一覧を編集する。
 export default function MASPMembersView({ isAdmin }) {
   const { engagements } = useEngagements();
+  const { openProfile } = useMemberProfile();
   const { members, assignments, teamsByEngagement, memberTeam, loading, toggleAssignment, assignMemberToTeam, refresh } = useAllMembersWithEngagements();
   const [positionOptions, setPositionOptions] = useState(POSITION_FALLBACK);
   useEffect(() => {
@@ -347,7 +349,7 @@ export default function MASPMembersView({ isAdmin }) {
                   <td style={{ ...td, textAlign: 'left', fontWeight: 500, color: C.navy }}>
                     {isEditing
                       ? <input value={editForm.name} onChange={e => setEditForm(s => ({ ...s, name: e.target.value }))} style={editInput} />
-                      : m.name}
+                      : <span onClick={() => openProfile(m.id)} style={{ cursor: 'pointer' }} title="プロフィールを開く">{m.name}</span>}
                   </td>
                   <td style={{ ...td, textAlign: 'left', color: C.textDark, fontWeight: m.position ? 600 : 400 }}>
                     {isEditing ? (

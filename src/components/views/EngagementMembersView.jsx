@@ -13,6 +13,7 @@ import { useEngagements } from '../../hooks/useEngagements';
 import { useEngagementMembers } from '../../hooks/useMemberEngagements';
 import { invokeSyncZoomUsers } from '../../lib/supabaseWrite';
 import PageHeader from '../common/PageHeader';
+import { useMemberProfile } from '../common/MemberProfileDrawer';
 
 // 各事業タブの「Members」ページ。
 // admin はドラッグ&ドロップでチーム間移動/チーム内並び替えが可能。
@@ -315,6 +316,7 @@ function StaticMemberRow({ m, ranks, roles, editable, onRankChange, onRoleChange
 }
 
 function MemberRowCells({ m, ranks = [], roles = [], editable, onRankChange, onRoleChange, onOverrideChange }) {
+  const { openProfile } = useMemberProfile();
   const [overrideInput, setOverrideInput] = useState('');
   const [overrideEditing, setOverrideEditing] = useState(false);
 
@@ -356,7 +358,7 @@ function MemberRowCells({ m, ranks = [], roles = [], editable, onRankChange, onR
         {m.start_date || '—'}
       </td>
       <td style={{ ...td, textAlign: 'left', fontWeight: 500, color: C.navy }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div onClick={() => openProfile?.(m.id)} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: openProfile ? 'pointer' : 'default' }} title={openProfile ? 'プロフィールを開く' : undefined}>
           <div style={{
             width: 26, height: 26, borderRadius: '50%',
             background: C.navy, color: C.white,

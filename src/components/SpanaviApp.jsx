@@ -15,6 +15,7 @@ import CallingScreen from './views/CallingScreen';
 import PiPWidget from './common/PiPWidget';
 import EngagementHeader from './common/EngagementHeader';
 import { EngagementProvider, useEngagements } from '../hooks/useEngagements';
+import { MemberProfileProvider } from './common/MemberProfileDrawer';
 import MASPSidebar from './common/sidebars/MASPSidebar';
 import SpartiaCareerSidebar from './common/sidebars/SpartiaCareerSidebar';
 import SpartiaCapitalSidebar from './common/sidebars/SpartiaCapitalSidebar';
@@ -1256,7 +1257,9 @@ function EngagementPlaceholder({ engagement }) {
 export default function SpanaviApp(props) {
   return (
     <EngagementProvider>
-      <SpanaviAppInner {...props} />
+      <MemberProfileProvider currentUserId={props.userId} isAdmin={props.isAdmin}>
+        <SpanaviAppInner {...props} />
+      </MemberProfileProvider>
     </EngagementProvider>
   );
 }
