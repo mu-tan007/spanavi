@@ -198,47 +198,10 @@ const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 // ============================================================
 // Members Data
 // ============================================================
-const DEFAULT_MEMBERS = [
-  { id: 1, name: "成尾 拓輝", university: "大阪市立大学", year: 4, offer: "", team: "成尾", role: "チームリーダー", rank: "トレーニー", rate: 0.22, totalSales: 1880000, joinDate: "2025-09-01" },
-  { id: 2, name: "武山 創", university: "立命館大学", year: 3, offer: "M&Aロイヤルアドバイザリー株式会社", team: "高橋", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 865000, joinDate: "2025-09-01" },
-  { id: 3, name: "小山 在人", university: "立教大学", year: 4, offer: "株式会社M&A総合研究所", team: "", role: "営業統括", rank: "", rate: 0, totalSales: 0, joinDate: "2025-09-09" },
-  { id: 4, name: "坂 玲央奈", university: "立教大学", year: 4, offer: "株式会社日本M&Aセンター", team: "", role: "営業統括", rank: "", rate: 0, totalSales: 0, joinDate: "2025-09-15" },
-  { id: 5, name: "山村 蓮", university: "秋田県立大学", year: 3, offer: "", team: "クライアント開拓", role: "", rank: "", rate: 0, totalSales: 165000, joinDate: "2025-09-22" },
-  { id: 6, name: "尾鼻 優吾", university: "同志社大学", year: 4, offer: "株式会社ストライク", team: "高橋", role: "副リーダー", rank: "プレイヤー", rate: 0.24, totalSales: 2765000, joinDate: "2025-09-23" },
-  { id: 7, name: "古木 優作", university: "早稲田大学", year: 4, offer: "株式会社日本M&Aセンター", team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 1270000, joinDate: "2025-09-30" },
-  { id: 8, name: "石井 智也", university: "同志社大学", year: 4, offer: "M&A Lead株式会社", team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 286000, joinDate: "2025-10-06" },
-  { id: 9, name: "半田 航希", university: "立教大学", year: 4, offer: "", team: "高橋", role: "副リーダー", rank: "トレーニー", rate: 0.22, totalSales: 495000, joinDate: "2025-10-31" },
-  { id: 10, name: "高橋 航世", university: "早稲田大学", year: 1, offer: "", team: "高橋", role: "チームリーダー", rank: "プレイヤー", rate: 0.24, totalSales: 2139000, joinDate: "2025-11-04" },
-  { id: 11, name: "吉川 諒馬", university: "明治学院大学", year: 4, offer: "", team: "高橋", role: "副リーダー", rank: "トレーニー", rate: 0.22, totalSales: 902000, joinDate: "2025-11-11" },
-  { id: 12, name: "清水 慧吾", university: "同志社大学", year: 4, offer: "株式会社日本M&Aセンター", team: "高橋", role: "副リーダー", rank: "プレイヤー", rate: 0.24, totalSales: 2334000, joinDate: "2025-11-11" },
-  { id: 13, name: "竹野内 佑大", university: "立教大学", year: 3, offer: "", team: "成尾", role: "副リーダー", rank: "トレーニー", rate: 0.22, totalSales: 462000, joinDate: "2025-11-24" },
-  { id: 14, name: "伊藤 耶麻音", university: "立命館大学", year: 4, offer: "M&Aロイヤルアドバイザリー株式会社", team: "成尾", role: "副リーダー", rank: "トレーニー", rate: 0.22, totalSales: 242000, joinDate: "2025-11-24" },
-  { id: 15, name: "上田 悠斗", university: "同志社大学", year: 4, offer: "", team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2025-11-25" },
-  { id: 16, name: "伊藤 航", university: "慶應義塾大学", year: 3, offer: "", team: "高橋", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 220000, joinDate: "2025-12-06" },
-  { id: 17, name: "吉藤 永翔", university: "金沢大学", year: 3, offer: "", team: "高橋", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 242000, joinDate: "2025-12-07" },
-  { id: 18, name: "池田 紘規", university: "Brigham Young University", year: 3, offer: "", team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2025-12-11" },
-  { id: 19, name: "植木 帆希", university: "福岡大学", year: 3, offer: "", team: "高橋", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2025-12-11" },
-  { id: 20, name: "徳富 悠風", university: "東京科学大学", year: 4, offer: "", team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 220000, joinDate: "2025-12-13" },
-  { id: 21, name: "石井 佑弥", university: "同志社大学", year: 3, offer: "", team: "高橋", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2025-12-13" },
-  { id: 22, name: "瀬尾 貫太", university: "上智大学", year: 3, offer: "株式会社ストライク", team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 231000, joinDate: "2025-12-17" },
-  { id: 23, name: "高尾 諭良", university: "横浜国立大学", year: 3, offer: "", team: "高橋", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2025-12-25" },
-  { id: 24, name: "小中谷 樹斗", university: "早稲田大学", year: 1, offer: "", team: "高橋", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2025-12-27" },
-  { id: 25, name: "岡田 大和", university: "早稲田大学", year: 4, offer: "株式会社ストライク", team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2025-12-27" },
-  { id: 26, name: "山元 真滉", university: "早稲田大学", year: 2, offer: "", team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 495000, joinDate: "2026-01-05" },
-  { id: 27, name: "浅井 佑", university: "岡山大学", year: 4, offer: "", team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2026-01-06" },
-  { id: 28, name: "粟飯原 柚月", university: "モナッシュ大学", year: 2, offer: "", team: "高橋", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2026-01-07" },
-  { id: 29, name: "中村 光希", university: "北海道大学", year: 1, offer: "", team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2026-01-13" },
-  { id: 30, name: "能登谷 斗夢", university: "新潟大学", year: 3, offer: "株式会社日本経営総合研究所", team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2026-01-16" },
-  { id: 31, name: "鍛冶 雅也", university: "関西大学", year: 3, offer: "株式会社ストライク", team: "高橋", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2026-01-20" },
-  { id: 32, name: "篠原 大吾朗", university: "早稲田大学", year: 1, offer: "", team: "高橋", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2026-01-22" },
-  { id: 33, name: "中島 稀里琥", university: "青山学院大学", year: 3, offer: "", team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2026-01-23" },
-  { id: 34, name: "平 晴來", university: "白百合女子大", year: 2, offer: "", team: "高橋", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2026-01-27" },
-  { id: 35, name: "羽室 れい", university: "立命館大学", year: 3, offer: "", team: "高橋", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2026-01-29" },
-  { id: 36, name: "伊藤 結音", university: "名古屋工業大学", year: 1, offer: "", team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2026-01-29" },
-  { id: 37, name: "川又 友翔", university: "ブラッドフォード大学大学院", year: 1, offer: "", team: "高橋", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2026-01-30" },
-  { id: 38, name: "小林 武蔵", university: "慶應義塾大学", year: 1, offer: "", team: "高橋", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2026-01-30" },
-  { id: 39, name: "渡部 陽生", university: "早稲田大学", year: 1, offer: "", team: "高橋", role: "メンバー", rank: "トレーニー", rate: 0.22, totalSales: 0, joinDate: "2026-02-09" },
-];
+// SaaS化に伴い、ハードコードされた社内メンバーロスター fallback は削除済み。
+// 他テナントのバンドルに Spanavi 実メンバーが混入しないようにするため。
+// supabaseData が空の場合は空配列で起動し、データ取得後に置き換える。
+const DEFAULT_MEMBERS = [];
 
 
 // ============================================================

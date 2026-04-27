@@ -10,7 +10,7 @@ import TopListCard from '../common/TopListCard';
 import PushNotificationBanner from '../dashboard/PushNotificationBanner';
 import { Phone } from 'lucide-react';
 
-const TEAMS = ['成尾', '高橋'];
+// teams は teams テーブルから動的取得（SourcingEngagement の active チーム）
 const APPO_COUNTABLE = new Set(['面談済', '事前確認済', 'アポ取得']);
 const PAYROLL_COUNTABLE = new Set(['アポ取得', '事前確認済', '面談済']);
 
@@ -62,9 +62,8 @@ export default function SourcingDashboardView({
   // ---- スコープ ----
   const scopeOptions = useMemo(() => {
     const opts = [{ type: 'member', id: myMember?._supaId || null, label: '自分', name: currentUser }];
-    TEAMS.forEach(t => {
-      const row = teamRows.find(r => r.name === t);
-      opts.push({ type: 'team', id: row?.id || null, label: `${t}チーム`, name: t });
+    teamRows.forEach(row => {
+      opts.push({ type: 'team', id: row.id, label: `${row.name}チーム`, name: row.name });
     });
     opts.push({ type: 'org', id: null, label: '組織全体', name: null });
     return opts;

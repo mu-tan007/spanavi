@@ -752,23 +752,29 @@ export async function updateMemberProfile(supaId, { name, email, phone_number, s
 }
 
 export async function insertMember(data) {
+  // Phase 5 以降 members.position は 会社役職 (代表取締役/取締役) 専用。
+  // 事業内ポジションは member_engagements.role_id 側にあるため、ここで data.role を
+  // position に書き込まない。data.position が明示指定された時のみセット。
+  const row = {
+    org_id: getOrgId(),
+    name: data.name,
+    university: data.university || '',
+    grade: parseInt(data.year) || 0,
+    team: data.team || '',
+    rank: data.rank || null,
+    incentive_rate: parseFloat(data.rate) || 0,
+    job_offer: data.offer || '',
+    cumulative_sales: 0,
+    start_date: new Date().toISOString().slice(0, 10),
+    operation_start_date: data.operationStartDate || null,
+    referrer_name: data.referrerName || null,
+  }
+  if (Object.prototype.hasOwnProperty.call(data, 'position')) {
+    row.position = data.position || null
+  }
   const { data: result, error } = await supabase
     .from('members')
-    .insert({
-      org_id: getOrgId(),
-      name: data.name,
-      university: data.university || '',
-      grade: parseInt(data.year) || 0,
-      team: data.team || '',
-      position: data.role || 'メンバー',
-      rank: data.rank || 'トレーニー',
-      incentive_rate: parseFloat(data.rate) || 0.22,
-      job_offer: data.offer || '',
-      cumulative_sales: 0,
-      start_date: new Date().toISOString().slice(0, 10),
-      operation_start_date: data.operationStartDate || null,
-      referrer_name: data.referrerName || null,
-    })
+    .insert(row)
     .select()
     .single()
   if (error) console.error('[DB] insertMember error:', error)
@@ -2797,8 +2803,9 @@ export async function createTenantAdmin(orgId, name, email) {
       name,
       email,
       role: 'admin',
-      rank: 'トレーニー',
-      position: '代表',
+      // SaaS化: rank/position はテナントが後から設定。Sourcing前提のデフォルトを書かない。
+      rank: null,
+      position: null,
       is_active: true,
       start_date: new Date().toISOString().slice(0, 10),
     })
