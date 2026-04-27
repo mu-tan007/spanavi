@@ -708,22 +708,28 @@ export async function insertCallListItems(listId, rows) {
 
 export async function updateMember(supaId, data) {
   if (!supaId) { console.warn('[DB] updateMember: no supaId'); return null }
+  // members.position = 会社役職 (代表取締役/取締役)。事業内ポジションは member_engagements 側へ。
+  // data.role は useSpanaviData が member_engagements から注入した legacy 互換値なので
+  // ここで position に書き戻すと会社役職を破壊する。data.position が明示指定された時だけ書く。
+  const patch = {
+    name: data.name,
+    university: data.university,
+    grade: parseInt(data.year) || 0,
+    team: data.team,
+    rank: data.rank,
+    incentive_rate: parseFloat(data.rate) || 0,
+    job_offer: data.offer,
+    operation_start_date: data.operationStartDate || null,
+    referrer_name: data.referrerName || null,
+    zoom_user_id: data.zoomUserId || null,
+    zoom_phone_number: data.zoomPhoneNumber ?? null,
+  }
+  if (Object.prototype.hasOwnProperty.call(data, 'position')) {
+    patch.position = data.position || null
+  }
   const { error } = await supabase
     .from('members')
-    .update({
-      name: data.name,
-      university: data.university,
-      grade: parseInt(data.year) || 0,
-      team: data.team,
-      position: data.role,
-      rank: data.rank,
-      incentive_rate: parseFloat(data.rate) || 0,
-      job_offer: data.offer,
-      operation_start_date: data.operationStartDate || null,
-      referrer_name: data.referrerName || null,
-      zoom_user_id: data.zoomUserId || null,
-      zoom_phone_number: data.zoomPhoneNumber ?? null,
-    })
+    .update(patch)
     .eq('id', supaId)
   if (error) console.error('[DB] updateMember error:', error)
   return error
