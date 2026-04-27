@@ -129,11 +129,12 @@ Deno.serve(async (req) => {
       })
 
       // 当日の appointments（売上）
+      // 注: 当面は engagement_id でフィルタしない（既存データに NULL が混在しており
+      // org_id だけで Sourcing 由来として扱う運用）
       const { data: appos } = await supabase
         .from('appointments')
         .select('id, getter_name, sales_amount, status, created_at')
         .eq('org_id', orgId)
-        .eq('engagement_id', engagementId)
         .gte('created_at', dayStart)
         .lte('created_at', dayEnd)
 
@@ -248,14 +249,18 @@ Deno.serve(async (req) => {
           }
         }
 
-        // 売上は appointments.getter_name と一致するメンバーに加算
-        for (const a of (appos || [])) {
+        // 売上: status='アポ取得' は加算、'リスケ中'/'キャンセル' は控除
+        const SALES_POSITIVE = new Set(['アポ取得'])
+        const SALES_NEGATIVE = new Set(['リスケ中', 'キャンセル'])
+        for (const a of (appos || []) as Array<{ getter_name: string | null; sales_amount: number | null; status: string | null }>) {
           if (!a.getter_name) continue
-          const m = memberByName[a.getter_name as string]
+          const m = memberByName[a.getter_name]
           if (!m) continue
           const ms = memberStats[m.id]
           if (!ms || !teamMemberSet.has(m.id)) continue
-          ms.sales += Number(a.sales_amount || 0)
+          const amt = Number(a.sales_amount || 0)
+          if (SALES_POSITIVE.has(a.status || '')) ms.sales += amt
+          else if (SALES_NEGATIVE.has(a.status || '')) ms.sales -= amt
         }
 
         // 各メンバーの call_ranges を整形
