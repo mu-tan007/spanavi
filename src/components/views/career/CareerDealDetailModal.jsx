@@ -119,7 +119,7 @@ export default function CareerDealDetailModal({ deal, stages, teams, onClose, on
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.navy,
         }}>
           <div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Spartia Career</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.12em', marginBottom: 2 }}>スパキャリ</div>
             <h2 style={{ fontSize: 16, fontWeight: 600, color: C.white, margin: 0, fontFamily: "'Outfit','Noto Sans JP',sans-serif" }}>
               Deal 詳細
             </h2>

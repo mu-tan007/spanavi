@@ -1128,13 +1128,13 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {engSlug === 'spartia_career' && currentTab === 'deals_career' && <CareerDealsView />}
         {engSlug === 'spartia_career' && currentTab === 'members_career' && <EngagementMembersView isAdmin={isAdmin} />}
         {engSlug === 'spartia_career' && !['applications','deals_career','members_career','mypage'].includes(currentTab) && (
-          <EngagementComingSoon title={currentEngagement?.name || 'Spartia Career'} subtitle="この画面は Phase 3B 以降で実装予定です" />
+          <EngagementComingSoon title={currentEngagement?.name || 'スパキャリ'} subtitle="この画面は Phase 3B 以降で実装予定です" />
         )}
         {engSlug === 'spartia_capital' && <CapitalApp isAdmin={isAdmin} />}
         {engSlug !== 'seller_sourcing' && engSlug !== 'masp' && engSlug !== 'spartia_career' && engSlug !== 'spartia_capital' && (
           <EngagementPlaceholder engagement={currentEngagement} />
         )}
-        {/* --- Seller Sourcing views (既存) / MASP の database+mypage / Spartia Career の mypage --- */}
+        {/* --- Seller Sourcing views (既存) / MASP の database+mypage / スパキャリ の mypage --- */}
         {(engSlug === 'seller_sourcing'
           || (engSlug === 'masp' && (currentTab === 'database' || currentTab === 'mypage'))
           || (engSlug === 'spartia_career' && currentTab === 'mypage')) && (<>
