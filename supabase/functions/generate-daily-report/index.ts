@@ -287,17 +287,25 @@ Deno.serve(async (req) => {
           sales: teamSales,
         }
 
-        // 時間別架電（チーム）
-        const hourlyMap: Record<number, number> = {}
-        for (let h = 7; h <= 21; h++) hourlyMap[h] = 0
+        // 時間別架電/接続/アポ（チーム）
+        const hourlyCalls: Record<number, number> = {}
+        const hourlyConnects: Record<number, number> = {}
+        const hourlyAppos: Record<number, number> = {}
+        for (let h = 7; h <= 21; h++) {
+          hourlyCalls[h] = 0; hourlyConnects[h] = 0; hourlyAppos[h] = 0
+        }
         for (const c of teamCalls) {
           const h = jstHour(c.called_at)
-          if (hourlyMap[h] != null) hourlyMap[h]++
-          else hourlyMap[h] = 1
+          hourlyCalls[h] = (hourlyCalls[h] || 0) + 1
+          if (c.status && CONNECT_STATUSES.has(c.status)) hourlyConnects[h] = (hourlyConnects[h] || 0) + 1
+          if (c.status === APPO_STATUS) hourlyAppos[h] = (hourlyAppos[h] || 0) + 1
         }
-        const hourly_calls = Object.entries(hourlyMap)
-          .map(([h, n]) => ({ hour: Number(h), count: n as number }))
-          .sort((a, b) => a.hour - b.hour)
+        const hourly_calls = Object.keys(hourlyCalls).map(h => ({
+          hour: Number(h),
+          count: hourlyCalls[Number(h)],
+          connects: hourlyConnects[Number(h)] || 0,
+          appointments: hourlyAppos[Number(h)] || 0,
+        })).sort((a, b) => a.hour - b.hour)
 
         // リスト別集計
         const listAgg: Record<string, any> = {}
@@ -319,13 +327,15 @@ Deno.serve(async (req) => {
           appointment_rate: a.connects > 0 ? +(a.appointments / a.connects * 100).toFixed(1) : 0,
         })).sort((a: any, b: any) => b.calls - a.calls)
 
-        // コーチングピック（稼働メンバーのみ対象）
+        // コーチングピック（稼働メンバーのみ対象）+ 閾値も payload に保存
         const teamCallPerHourAvg = activeMembers.length > 0
-          ? activeMembers.reduce((s, m: any) => s + m.calls, 0) / activeMembers.length / 6 // 6h想定
+          ? activeMembers.reduce((s, m: any) => s + m.calls, 0) / activeMembers.length / 6
           : 0
         const teamConnectRateAvg = teamCallsTotal > 0 ? teamConnects / teamCallsTotal : 0
 
         const coaching_picks = {
+          team_call_per_hour_avg: +teamCallPerHourAvg.toFixed(1),
+          team_connect_rate_avg: +(teamConnectRateAvg * 100).toFixed(1),
           low_calls_per_hour: activeMembers
             .filter((m: any) => (m.calls / 6) < teamCallPerHourAvg * 0.7)
             .map((m: any) => ({ member_id: m.member_id, name: m.name, calls_per_hour: +(m.calls / 6).toFixed(1) })),

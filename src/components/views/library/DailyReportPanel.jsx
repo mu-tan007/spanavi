@@ -61,19 +61,58 @@ export default function DailyReportPanel({ currentUser, userId, isAdmin }) {
     );
   }
 
+  // 日付ナビゲーション
+  const dateIdx = dates.indexOf(selectedDate);
+  const goPrevDate = () => {
+    if (dateIdx < dates.length - 1) {
+      const next = dates[dateIdx + 1];
+      setSelectedDate(next);
+      const t = reports.find(r => r.report_date === next);
+      setSelectedTeamId(t?.team_id || null);
+    }
+  };
+  const goNextDate = () => {
+    if (dateIdx > 0) {
+      const next = dates[dateIdx - 1];
+      setSelectedDate(next);
+      const t = reports.find(r => r.report_date === next);
+      setSelectedTeamId(t?.team_id || null);
+    }
+  };
+  const onDateInput = (v) => {
+    if (!v) return;
+    if (!dates.includes(v)) {
+      // その日付のレポートが無い → そのまま選択して空表示にする
+      setSelectedDate(v);
+      setSelectedTeamId(null);
+      return;
+    }
+    setSelectedDate(v);
+    const t = reports.find(r => r.report_date === v);
+    setSelectedTeamId(t?.team_id || null);
+  };
+
+  // 前日比のための yesterday report を取得
+  const yesterdayDate = useMemo(() => {
+    if (!selectedDate) return null;
+    const d = new Date(selectedDate + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }, [selectedDate]);
+  const yesterdayReports = useMemo(() => reports.filter(r => r.report_date === yesterdayDate), [reports, yesterdayDate]);
+
   return (
     <div>
-      {/* 日付・チーム切替 */}
+      {/* 日付ナビゲーション */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, color: C.textMid, fontWeight: 600 }}>日付:</span>
-        <select value={selectedDate || ''} onChange={e => {
-          setSelectedDate(e.target.value);
-          const t = reports.find(r => r.report_date === e.target.value);
-          setSelectedTeamId(t?.team_id || null);
-        }} style={selectStyle}>
-          {dates.map(d => <option key={d} value={d}>{d}</option>)}
-        </select>
-        <span style={{ fontSize: 11, color: C.textMid, fontWeight: 600, marginLeft: 8 }}>チーム:</span>
+        <button onClick={goPrevDate} disabled={dateIdx >= dates.length - 1} title="前の日付"
+          style={navBtnStyle(dateIdx >= dates.length - 1)}>‹</button>
+        <input type="date" value={selectedDate || ''} onChange={e => onDateInput(e.target.value)}
+          style={{ padding: '5px 10px', fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 3, fontFamily: "'JetBrains Mono', monospace", color: C.navy, fontWeight: 600 }} />
+        <button onClick={goNextDate} disabled={dateIdx <= 0} title="後の日付"
+          style={navBtnStyle(dateIdx <= 0)}>›</button>
+
+        <span style={{ fontSize: 11, color: C.textMid, fontWeight: 600, marginLeft: 12 }}>チーム:</span>
         <div style={{ display: 'flex', gap: 4 }}>
           {teamsForDate.map(t => (
             <button key={t.team_id || 'org'} onClick={() => setSelectedTeamId(t.team_id)}
@@ -86,12 +125,24 @@ export default function DailyReportPanel({ currentUser, userId, isAdmin }) {
               }}>{t.team_name || 'チーム未設定'}</button>
           ))}
         </div>
+
+        {selected && (
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+            <button onClick={() => downloadCsv(selected)} style={iconBtnStyle} title="CSV ダウンロード">CSV</button>
+            <button onClick={() => repostToSourcing(selected, sourcing.id)} style={iconBtnStyle} title="Sourcing 全員に再通知">再通知</button>
+          </div>
+        )}
       </div>
+
+      {selectedDate && !selected && (
+        <Empty>{selectedDate} のレポートはまだありません。前後の日付に移動してください。</Empty>
+      )}
 
       {selected && (
         <ReportBody
           report={selected}
           allTeamsForDate={allTeamsForDate}
+          yesterdayReports={yesterdayReports}
           isAdmin={isAdmin}
           currentUser={currentUser}
         />
@@ -100,7 +151,64 @@ export default function DailyReportPanel({ currentUser, userId, isAdmin }) {
   );
 }
 
-function ReportBody({ report, allTeamsForDate, isAdmin, currentUser }) {
+// ──── ユーティリティ: CSV / 再通知 ────
+function downloadCsv(report) {
+  const p = report.payload || {};
+  const lines = [];
+  lines.push(`Daily Report,${report.team_name},${report.report_date}`);
+  lines.push('');
+  lines.push('# KPI');
+  const k = p.kpi || {};
+  lines.push(`稼働メンバー,${k.active_members ?? 0}`);
+  lines.push(`架電,${k.calls ?? 0}`);
+  lines.push(`接続,${k.ceo_connects ?? 0}`);
+  lines.push(`アポ,${k.appointments ?? 0}`);
+  lines.push(`接続率,${k.ceo_connect_rate ?? 0}%`);
+  lines.push(`アポ率,${k.appointment_rate ?? 0}%`);
+  lines.push(`売上,${k.sales ?? 0}`);
+  lines.push('');
+  lines.push('# メンバー別');
+  lines.push('氏名,架電,接続,アポ,接続率,アポ率,売上');
+  for (const m of (p.members || [])) {
+    lines.push(`${m.name},${m.calls},${m.connects},${m.appointments},${m.connect_rate}%,${m.appointment_rate}%,${m.sales || 0}`);
+  }
+  lines.push('');
+  lines.push('# リスト別');
+  lines.push('リスト名,架電,接続,アポ,接続率,アポ率');
+  for (const l of (p.list_breakdown || [])) {
+    lines.push(`${l.list_name},${l.calls},${l.connects},${l.appointments},${l.connect_rate}%,${l.appointment_rate}%`);
+  }
+  const csv = '\uFEFF' + lines.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `daily_report_${report.team_name}_${report.report_date}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function repostToSourcing(report, engagementId) {
+  if (!confirm(`${report.report_date} のレポートを Sourcing 全員に再通知しますか？`)) return;
+  const orgId = getOrgId();
+  const k = report.payload?.kpi || {};
+  const body = `[${report.team_name}] ${report.report_date}: 架電 ${k.calls || 0} / アポ ${k.appointments || 0}件`;
+  // Sourcing 全員の user_id を取得
+  const { data: assignments } = await supabase
+    .from('member_engagements')
+    .select('member:members!inner(user_id)')
+    .eq('org_id', orgId).eq('engagement_id', engagementId);
+  const userIds = (assignments || []).map(a => a.member?.user_id).filter(Boolean);
+  if (userIds.length === 0) { alert('通知対象のユーザーがいません'); return; }
+  const { error } = await supabase.functions.invoke('send-push', {
+    body: {
+      type: 'daily_report', title: 'デイリーレポート（再通知）',
+      body, user_ids: userIds, org_id: orgId, engagement_id: engagementId,
+    },
+  });
+  alert(error ? '送信に失敗しました: ' + error.message : '再通知を送信しました');
+}
+
+function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, currentUser }) {
   const p = report.payload || {};
   const kpi = p.kpi || {};
   const members = p.members || [];
@@ -110,22 +218,72 @@ function ReportBody({ report, allTeamsForDate, isAdmin, currentUser }) {
   const hourly = p.hourly_calls || [];
   const { openProfile } = useMemberProfile();
 
-  // 他チーム比較
+  // 昨日の同チーム
+  const yesterdayMine = yesterdayReports?.find(r => r.team_id === report.team_id);
+  const ykpi = yesterdayMine?.payload?.kpi || null;
+
+  // 他チーム
   const otherTeams = allTeamsForDate.filter(t => t.team_id !== report.team_id);
+
+  // メンバーソート
+  const [sortKey, setSortKey] = useState('appointments');
+  const [sortDir, setSortDir] = useState('desc');
+  const sortedMembers = useMemo(() => {
+    const arr = [...members];
+    arr.sort((a, b) => {
+      const va = a[sortKey] ?? 0;
+      const vb = b[sortKey] ?? 0;
+      if (typeof va === 'number' && typeof vb === 'number') return sortDir === 'desc' ? vb - va : va - vb;
+      return sortDir === 'desc' ? String(vb).localeCompare(String(va)) : String(va).localeCompare(String(vb));
+    });
+    return arr;
+  }, [members, sortKey, sortDir]);
+
+  // リストソート
+  const [listSortKey, setListSortKey] = useState('calls');
+  const [listSortDir, setListSortDir] = useState('desc');
+  const sortedLists = useMemo(() => {
+    const arr = [...lists];
+    arr.sort((a, b) => {
+      const va = a[listSortKey] ?? 0;
+      const vb = b[listSortKey] ?? 0;
+      if (typeof va === 'number' && typeof vb === 'number') return listSortDir === 'desc' ? vb - va : va - vb;
+      return listSortDir === 'desc' ? String(vb).localeCompare(String(va)) : String(va).localeCompare(String(vb));
+    });
+    return arr;
+  }, [lists, listSortKey, listSortDir]);
+
+  const onListSort = (k) => {
+    if (listSortKey === k) setListSortDir(d => d === 'desc' ? 'asc' : 'desc');
+    else { setListSortKey(k); setListSortDir('desc'); }
+  };
+
+  // グローバル単一再生制御
+  const [globalPlayingId, setGlobalPlayingId] = useState(null);
+
+  // ピーク時間
+  const peakHour = useMemo(() => {
+    let max = 0, peak = null;
+    for (const h of hourly) if ((h.count || 0) > max) { max = h.count; peak = h.hour; }
+    return peak;
+  }, [hourly]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-      {/* 1. ヘッダー */}
+      {/* 1. ヘッダー（前日比 delta 付き） */}
       <div>
         <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, letterSpacing: '0.06em' }}>
           {report.team_name} ・ {report.report_date}
         </div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: C.navy, marginTop: 4 }}>
-          本日: 架電 {kpi.calls || 0} ・ 接続 {kpi.ceo_connects || 0} ・ アポ {kpi.appointments || 0}件 ・ 売上 ¥{(kpi.sales || 0).toLocaleString()}
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.navy, marginTop: 4, display: 'flex', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
+          <SummaryNum label="架電" cur={kpi.calls} prev={ykpi?.calls} />
+          <SummaryNum label="接続" cur={kpi.ceo_connects} prev={ykpi?.ceo_connects} />
+          <SummaryNum label="アポ" cur={kpi.appointments} prev={ykpi?.appointments} suffix="件" />
+          <SummaryNum label="売上" cur={kpi.sales} prev={ykpi?.sales} prefix="¥" formatter={v => v.toLocaleString()} />
         </div>
       </div>
 
-      {/* 2. KPI スコアボード */}
+      {/* 2. KPI スコアボード（チーム比較に ▲/▼ delta） */}
       <Section title="KPI スコアボード（他チーム比較）">
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5, minWidth: 520 }}>
@@ -138,120 +296,292 @@ function ReportBody({ report, allTeamsForDate, isAdmin, currentUser }) {
             </thead>
             <tbody>
               <KpiRow label="出勤者 / 稼働者" value={`${kpi.active_members ?? '-'} / ${kpi.active_members ?? '-'}`}
-                others={otherTeams.map(t => `${t.payload?.kpi?.active_members ?? '-'} / ${t.payload?.kpi?.active_members ?? '-'}`)} />
+                others={otherTeams.map(t => `${t.payload?.kpi?.active_members ?? '-'} / ${t.payload?.kpi?.active_members ?? '-'}`)} compare={false} />
               <KpiRow label="架電件数" value={kpi.calls} others={otherTeams.map(t => t.payload?.kpi?.calls ?? 0)} />
               <KpiRow label="社長接続数" value={kpi.ceo_connects} others={otherTeams.map(t => t.payload?.kpi?.ceo_connects ?? 0)} />
               <KpiRow label="アポ獲得数" value={kpi.appointments} others={otherTeams.map(t => t.payload?.kpi?.appointments ?? 0)} />
-              <KpiRow label="社長接続率" value={`${kpi.ceo_connect_rate ?? 0}%`} others={otherTeams.map(t => `${t.payload?.kpi?.ceo_connect_rate ?? 0}%`)} />
-              <KpiRow label="アポ獲得率" value={`${kpi.appointment_rate ?? 0}%`} others={otherTeams.map(t => `${t.payload?.kpi?.appointment_rate ?? 0}%`)} />
-              <KpiRow label="売上 (¥)" value={(kpi.sales || 0).toLocaleString()}
-                others={otherTeams.map(t => (t.payload?.kpi?.sales || 0).toLocaleString())} />
+              <KpiRow label="社長接続率" value={kpi.ceo_connect_rate} others={otherTeams.map(t => t.payload?.kpi?.ceo_connect_rate ?? 0)} suffix="%" />
+              <KpiRow label="アポ獲得率" value={kpi.appointment_rate} others={otherTeams.map(t => t.payload?.kpi?.appointment_rate ?? 0)} suffix="%" />
+              <KpiRow label="売上 (¥)" value={kpi.sales || 0} others={otherTeams.map(t => t.payload?.kpi?.sales ?? 0)}
+                formatter={v => v.toLocaleString()} />
             </tbody>
           </table>
         </div>
       </Section>
 
-      {/* 3. メンバー別ボード */}
+      {/* 3. メンバー別ボード（ソート付き） */}
       <Section title={`メンバー別ボード（稼働 ${members.length}名）`}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: 11 }}>
+          <span style={{ color: C.textMid, fontWeight: 600 }}>並び替え:</span>
+          {[
+            { k: 'appointments', label: 'アポ獲得' },
+            { k: 'connect_rate', label: '接続率' },
+            { k: 'calls', label: '架電数' },
+            { k: 'sales', label: '売上' },
+          ].map(({ k, label }) => (
+            <button key={k} onClick={() => {
+              if (sortKey === k) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
+              else { setSortKey(k); setSortDir('desc'); }
+            }}
+              style={{ padding: '3px 10px', fontSize: 10.5, fontWeight: 600,
+                background: sortKey === k ? C.navy : C.white,
+                color: sortKey === k ? C.white : C.navy,
+                border: `1px solid ${sortKey === k ? C.navy : C.border}`,
+                borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+              {label} {sortKey === k ? (sortDir === 'desc' ? '↓' : '↑') : ''}
+            </button>
+          ))}
+        </div>
         {members.length === 0 ? <Empty>本日稼働したメンバーはいません</Empty> : (
           <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))' }}>
-            {members.map(m => <MemberCard key={m.member_id} m={m} report={report} isAdmin={isAdmin} openProfile={openProfile} />)}
+            {sortedMembers.map(m => <MemberCard key={m.member_id} m={m} report={report} isAdmin={isAdmin}
+              openProfile={openProfile} currentUser={currentUser}
+              globalPlayingId={globalPlayingId} setGlobalPlayingId={setGlobalPlayingId} />)}
           </div>
         )}
       </Section>
 
-      {/* 4. コーチングピック */}
+      {/* 4. コーチングピック（チーム平均値の根拠を表示） */}
       <Section title="コーチングピック（自動抽出）">
-        <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
-          <PickList title="① 時間あたり架電数 < 平均 70%" items={coaching.low_calls_per_hour || []} />
-          <PickList title="② 社長接続率 < 平均 70%" items={coaching.low_connect_rate || []} />
-          <PickList title="③ アポ獲得 0件" items={coaching.zero_appointments || []} />
+        <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
+          <PickList
+            title="① 時間あたり架電数 < 平均 70%"
+            sub={coaching.team_call_per_hour_avg != null
+              ? `チーム平均 ${coaching.team_call_per_hour_avg}件/h × 70% 未満`
+              : null}
+            items={(coaching.low_calls_per_hour || []).map(i => ({ ...i, hint: `${i.calls_per_hour}件/h` }))}
+          />
+          <PickList
+            title="② 社長接続率 < 平均 70%"
+            sub={coaching.team_connect_rate_avg != null
+              ? `チーム平均 ${coaching.team_connect_rate_avg}% × 70% 未満`
+              : null}
+            items={(coaching.low_connect_rate || []).map(i => ({ ...i, hint: `${i.connect_rate}%` }))}
+          />
+          <PickList
+            title="③ アポ獲得 0件"
+            sub="架電 20 件以上で 1 件もアポなし"
+            items={(coaching.zero_appointments || []).map(i => ({ ...i, hint: `${i.calls}件架電` }))}
+          />
         </div>
       </Section>
 
-      {/* 5. シフト提出済み + 架電0件 */}
+      {/* 5. シフト未稼働（理由入力可） */}
       {shiftNoCall.length > 0 && (
         <Section title="シフト提出済みなのに架電 0 件">
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {shiftNoCall.map(s => (
-              <span key={s.member_id} style={{ padding: '4px 12px', fontSize: 11, fontWeight: 600,
-                background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FCA5A5', borderRadius: 12 }}>
-                {s.name}{s.shift_start ? ` (${s.shift_start.slice(0, 5)}-${s.shift_end?.slice(0, 5) || ''})` : ''}
-              </span>
-            ))}
-          </div>
+          <ShiftNoCallList items={shiftNoCall} report={report} currentUser={currentUser} />
         </Section>
       )}
 
-      {/* 6. リスト別実績 */}
+      {/* 6. リスト別実績（ソート + ヒートマップ） */}
       <Section title="リスト別実績">
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5, minWidth: 600 }}>
-            <thead>
-              <tr style={{ background: '#F8F9FA', borderBottom: `1px solid ${C.border}` }}>
-                <th style={{ ...th, textAlign: 'left' }}>リスト名</th>
-                <th style={th}>架電</th>
-                <th style={th}>接続</th>
-                <th style={th}>アポ</th>
-                <th style={th}>接続率</th>
-                <th style={th}>アポ率</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lists.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: 16, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</td></tr>
-              ) : lists.map(l => (
-                <tr key={l.list_id} style={{ borderTop: `1px solid ${C.borderLight}` }}>
-                  <td style={{ ...td, textAlign: 'left', fontWeight: 600, color: C.navy }}>{l.list_name}</td>
-                  <td style={td}>{l.calls}</td>
-                  <td style={td}>{l.connects}</td>
-                  <td style={td}>{l.appointments}</td>
-                  <td style={td}>{l.connect_rate}%</td>
-                  <td style={td}>{l.appointment_rate}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ListBreakdownTable lists={sortedLists} sortKey={listSortKey} sortDir={listSortDir} onSort={onListSort} />
       </Section>
 
-      {/* 7. 時間別架電グラフ */}
-      <Section title="時間別架電件数">
-        <HourlyChart data={hourly} />
+      {/* 7. 時間別グラフ（架電/接続/アポ重ね描き + ピークラベル） */}
+      <Section title="時間別 架電 / 接続 / アポ">
+        <HourlyChart data={hourly} peakHour={peakHour} />
       </Section>
     </div>
   );
 }
 
-function KpiRow({ label, value, others }) {
+function SummaryNum({ label, cur = 0, prev = null, prefix = '', suffix = '', formatter }) {
+  const fmt = formatter || (v => v);
+  const delta = prev != null ? cur - prev : null;
+  const pct = (prev != null && prev > 0) ? ((cur - prev) / prev * 100) : null;
+  const arrow = delta == null || delta === 0 ? '' : (delta > 0 ? '▲' : '▼');
+  const color = delta == null || delta === 0 ? C.textLight : (delta > 0 ? '#059669' : '#DC2626');
+  return (
+    <span>
+      <span style={{ fontSize: 11, color: C.textMid, fontWeight: 600, letterSpacing: '0.06em', marginRight: 4 }}>{label}</span>
+      <span>{prefix}{fmt(cur || 0)}{suffix}</span>
+      {delta != null && (
+        <span style={{ fontSize: 11, color, fontWeight: 700, marginLeft: 6 }}>
+          {arrow}{Math.abs(delta).toLocaleString()}{pct != null ? ` (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)` : ''}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function KpiRow({ label, value, others, compare = true, suffix = '', formatter }) {
+  const fmt = formatter || (v => v);
+  const v = typeof value === 'number' ? value : null;
+  const num = (x) => typeof x === 'number' ? x : null;
   return (
     <tr style={{ borderTop: `1px solid ${C.borderLight}` }}>
       <td style={{ ...td, textAlign: 'left', fontWeight: 600, color: C.textMid }}>{label}</td>
-      <td style={{ ...td, fontWeight: 700, color: C.navy }}>{value}</td>
-      {others.map((v, i) => <td key={i} style={td}>{v}</td>)}
+      <td style={{ ...td, fontWeight: 700, color: C.navy }}>{typeof value === 'number' ? `${fmt(value)}${suffix}` : value}</td>
+      {others.map((o, i) => {
+        const ov = num(o);
+        let arrow = '', col = C.textDark;
+        if (compare && v != null && ov != null && v !== ov) {
+          if (v > ov) { arrow = '▲'; col = '#059669'; } else { arrow = '▼'; col = '#DC2626'; }
+        }
+        return (
+          <td key={i} style={{ ...td, color: col }}>
+            {typeof o === 'number' ? `${fmt(o)}${suffix}` : o}
+            {arrow && <span style={{ fontSize: 9, marginLeft: 3 }}>{arrow}</span>}
+          </td>
+        );
+      })}
     </tr>
   );
 }
 
-function MemberCard({ m, report, openProfile }) {
+function ListBreakdownTable({ lists, sortKey, sortDir, onSort }) {
+  const maxCalls = Math.max(1, ...lists.map(l => l.calls || 0));
+  const heat = (n) => {
+    const ratio = n / maxCalls;
+    return `rgba(13, 34, 71, ${0.04 + ratio * 0.16})`; // navy with light alpha
+  };
+  const SortHead = ({ k, children }) => (
+    <th onClick={() => onSort(k)} style={{ ...th, cursor: 'pointer', userSelect: 'none' }}>
+      {children} {sortKey === k ? (sortDir === 'desc' ? '↓' : '↑') : ''}
+    </th>
+  );
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5, minWidth: 600 }}>
+        <thead>
+          <tr style={{ background: '#F8F9FA', borderBottom: `1px solid ${C.border}` }}>
+            <th style={{ ...th, textAlign: 'left', cursor: 'pointer', userSelect: 'none' }} onClick={() => onSort('list_name')}>
+              リスト名 {sortKey === 'list_name' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
+            </th>
+            <SortHead k="calls">架電</SortHead>
+            <SortHead k="connects">接続</SortHead>
+            <SortHead k="appointments">アポ</SortHead>
+            <SortHead k="connect_rate">接続率</SortHead>
+            <SortHead k="appointment_rate">アポ率</SortHead>
+          </tr>
+        </thead>
+        <tbody>
+          {lists.length === 0 ? (
+            <tr><td colSpan={6} style={{ padding: 16, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</td></tr>
+          ) : lists.map(l => (
+            <tr key={l.list_id} style={{ borderTop: `1px solid ${C.borderLight}`, background: heat(l.calls || 0) }}>
+              <td style={{ ...td, textAlign: 'left', fontWeight: 600, color: C.navy }}>{l.list_name}</td>
+              <td style={td}>{l.calls}</td>
+              <td style={td}>{l.connects}</td>
+              <td style={td}>{l.appointments}</td>
+              <td style={td}>{l.connect_rate}%</td>
+              <td style={td}>{l.appointment_rate}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ShiftNoCallList({ items, report, currentUser }) {
+  const [reasons, setReasons] = useState({});
+  const [editing, setEditing] = useState(null);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setReasons(report.feedback?.shift_reasons || {});
+  }, [report.feedback]);
+
+  const save = async (memberId) => {
+    setSaving(true);
+    const next = { ...(report.feedback || {}), shift_reasons: { ...(report.feedback?.shift_reasons || {}), [memberId]: { reason: draft, by: currentUser, at: new Date().toISOString() } } };
+    const { error } = await supabase.from('daily_reports').update({ feedback: next }).eq('id', report.id);
+    setSaving(false);
+    if (!error) {
+      setReasons(next.shift_reasons);
+      setEditing(null);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {items.map(s => {
+        const r = reasons[s.member_id];
+        return (
+          <div key={s.member_id} style={{ padding: '8px 12px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5 }}>
+              <span style={{ fontWeight: 700, color: '#B91C1C' }}>{s.name}</span>
+              {s.shift_start && (
+                <span style={{ color: C.textMid, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>
+                  {s.shift_start.slice(0, 5)}–{s.shift_end?.slice(0, 5) || ''}
+                </span>
+              )}
+              <span style={{ marginLeft: 'auto' }}>
+                {editing === s.member_id ? null : (
+                  <button onClick={() => { setEditing(s.member_id); setDraft(r?.reason || ''); }}
+                    style={{ padding: '2px 8px', fontSize: 10, fontWeight: 600, background: C.white, color: '#B91C1C', border: '1px solid #FCA5A5', borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                    {r?.reason ? '理由を編集' : '理由を入力'}
+                  </button>
+                )}
+              </span>
+            </div>
+            {editing === s.member_id ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
+                <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={2}
+                  placeholder="例: 体調不良で休み"
+                  style={{ width: '100%', padding: '5px 8px', fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 3, fontFamily: "'Noto Sans JP'", boxSizing: 'border-box', resize: 'vertical' }} />
+                <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                  <button onClick={() => setEditing(null)} disabled={saving}
+                    style={{ padding: '3px 10px', fontSize: 10, fontWeight: 600, background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
+                  <button onClick={() => save(s.member_id)} disabled={saving}
+                    style={{ padding: '3px 10px', fontSize: 10, fontWeight: 600, background: C.navy, color: C.white, border: 'none', borderRadius: 3, cursor: saving ? 'wait' : 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                    {saving ? '保存中…' : '保存'}
+                  </button>
+                </div>
+              </div>
+            ) : r?.reason && (
+              <div style={{ fontSize: 11, color: C.textMid, marginTop: 4, lineHeight: 1.6 }}>
+                {r.reason}
+                <span style={{ fontSize: 9, color: C.textLight, marginLeft: 8 }}>
+                  ({r.by || '不明'} / {(r.at || '').slice(0, 16).replace('T', ' ')})
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MemberCard({ m, report, openProfile, currentUser, globalPlayingId, setGlobalPlayingId }) {
   const [feedback, setFeedback] = useState('');
   const [feedbackSaved, setFeedbackSaved] = useState(null);
+  const [feedbackMeta, setFeedbackMeta] = useState(null); // { by, at }
   const [savingFb, setSavingFb] = useState(false);
-  const [playingId, setPlayingId] = useState(null);
 
-  // フィードバックロード
+  // フィードバックロード（meta は _meta_<member_id> キーで保存）
   useEffect(() => {
-    const fb = report.feedback?.[m.member_id] || '';
-    setFeedback(fb);
-    setFeedbackSaved(fb);
+    const fbBlob = report.feedback?.[m.member_id];
+    let text = '';
+    let meta = null;
+    if (typeof fbBlob === 'string') {
+      text = fbBlob;
+    } else if (fbBlob && typeof fbBlob === 'object') {
+      text = fbBlob.text || '';
+      meta = (fbBlob.by || fbBlob.at) ? { by: fbBlob.by, at: fbBlob.at } : null;
+    }
+    setFeedback(text);
+    setFeedbackSaved(text);
+    setFeedbackMeta(meta);
   }, [report.feedback, m.member_id]);
 
   const saveFeedback = async () => {
     setSavingFb(true);
-    const next = { ...(report.feedback || {}), [m.member_id]: feedback };
+    const meta = { by: currentUser || null, at: new Date().toISOString() };
+    const next = {
+      ...(report.feedback || {}),
+      [m.member_id]: { text: feedback, ...meta },
+    };
     const { error } = await supabase.from('daily_reports').update({ feedback: next }).eq('id', report.id);
     setSavingFb(false);
-    if (!error) setFeedbackSaved(feedback);
+    if (!error) {
+      setFeedbackSaved(feedback);
+      setFeedbackMeta(meta);
+    }
   };
 
   // 架電リストが多い場合は折りたたみ
@@ -322,19 +652,19 @@ function MemberCard({ m, report, openProfile }) {
         </div>
       )}
 
-      {/* 録音 */}
+      {/* 録音（グローバル単一再生） */}
       {(m.appo_recordings?.length > 0 || m.rejection_recordings?.length > 0) && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {m.appo_recordings?.length > 0 && (
             <RecordingGroup
               label="アポ獲得録音" count={m.appo_recordings.length} accent="#059669"
-              records={m.appo_recordings} playingId={playingId} setPlayingId={setPlayingId}
+              records={m.appo_recordings} playingId={globalPlayingId} setPlayingId={setGlobalPlayingId}
             />
           )}
           {m.rejection_recordings?.length > 0 && (
             <RecordingGroup
               label="社長お断り録音" count={m.rejection_recordings.length} accent="#DC2626"
-              records={m.rejection_recordings} playingId={playingId} setPlayingId={setPlayingId}
+              records={m.rejection_recordings} playingId={globalPlayingId} setPlayingId={setGlobalPlayingId}
             />
           )}
         </div>
@@ -348,7 +678,12 @@ function MemberCard({ m, report, openProfile }) {
           placeholder="リーダーからのコメント"
           style={{ width: '100%', padding: '6px 9px', fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 3, fontFamily: "'Noto Sans JP'", boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.6 }}
         />
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 5 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 5, gap: 6 }}>
+          {feedbackMeta?.at ? (
+            <span style={{ fontSize: 9, color: C.textLight }}>
+              {feedbackMeta.by || '不明'} / {(feedbackMeta.at || '').slice(0, 16).replace('T', ' ')}
+            </span>
+          ) : <span />}
           <button onClick={saveFeedback} disabled={savingFb || feedback === feedbackSaved}
             style={{
               padding: '3px 12px', fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'",
@@ -415,36 +750,72 @@ function RecordingRow({ r, accent, playing, onToggle }) {
   );
 }
 
-function PickList({ title, items }) {
+function PickList({ title, sub, items }) {
   return (
     <div style={{ background: '#FEF7E6', border: '1px solid #F4D589', borderRadius: 4, padding: 10 }}>
-      <div style={{ fontSize: 10.5, fontWeight: 700, color: '#92400E', marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 10.5, fontWeight: 700, color: '#92400E', marginBottom: 4 }}>{title}</div>
+      {sub && <div style={{ fontSize: 9.5, color: '#A16207', marginBottom: 6, fontFamily: "'JetBrains Mono', monospace" }}>{sub}</div>}
       {items.length === 0 ? (
         <div style={{ fontSize: 10.5, color: C.textLight }}>該当なし</div>
       ) : items.map(i => (
-        <div key={i.member_id} style={{ fontSize: 11, color: C.navy, fontWeight: 600, marginBottom: 2 }}>
-          ・{i.name}
+        <div key={i.member_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 11, marginBottom: 2 }}>
+          <span style={{ color: C.navy, fontWeight: 600 }}>・{i.name}</span>
+          {i.hint && <span style={{ color: C.textMid, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>{i.hint}</span>}
         </div>
       ))}
     </div>
   );
 }
 
-function HourlyChart({ data }) {
+function HourlyChart({ data, peakHour }) {
   const maxCount = Math.max(1, ...data.map(d => d.count));
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 140, padding: '0 6px', borderBottom: `1px solid ${C.border}` }}>
-      {data.map(d => {
-        const h = Math.max(2, (d.count / maxCount) * 120);
-        return (
-          <div key={d.hour} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 24 }}>
-            <div style={{ fontSize: 9, color: C.textMid, fontWeight: 600 }}>{d.count || ''}</div>
-            <div style={{ width: '100%', maxWidth: 28, height: h, background: d.count > 0 ? C.navy : C.borderLight, borderRadius: '3px 3px 0 0' }} />
-            <div style={{ fontSize: 9, color: C.textLight }}>{d.hour}</div>
-          </div>
-        );
-      })}
+    <div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 160, padding: '0 6px', borderBottom: `1px solid ${C.border}` }}>
+        {data.map(d => {
+          const totalH = Math.max(2, ((d.count || 0) / maxCount) * 130);
+          const apposH = totalH * ((d.appointments || 0) / Math.max(1, d.count));
+          const connectsH = totalH * (((d.connects || 0) - (d.appointments || 0)) / Math.max(1, d.count));
+          const callsH = totalH - apposH - connectsH;
+          const isPeak = d.hour === peakHour && (d.count || 0) > 0;
+          return (
+            <div key={d.hour} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 24 }}>
+              <div style={{ fontSize: 9, fontWeight: 700,
+                color: isPeak ? '#DC2626' : C.textMid,
+                display: 'flex', alignItems: 'center', gap: 2 }}>
+                {isPeak && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 2, background: '#FEF2F2', color: '#DC2626' }}>PEAK</span>}
+                {d.count || ''}
+              </div>
+              {d.count > 0 ? (
+                <div style={{ width: '100%', maxWidth: 28, height: totalH, display: 'flex', flexDirection: 'column-reverse', borderRadius: '3px 3px 0 0', overflow: 'hidden' }}>
+                  <div style={{ height: callsH, background: C.navy + '60' }} />
+                  <div style={{ height: connectsH, background: C.navy + 'cc' }} />
+                  <div style={{ height: apposH, background: '#059669' }} />
+                </div>
+              ) : (
+                <div style={{ width: '100%', maxWidth: 28, height: 2, background: C.borderLight, borderRadius: '3px 3px 0 0' }} />
+              )}
+              <div style={{ fontSize: 9, color: isPeak ? '#DC2626' : C.textLight, fontWeight: isPeak ? 700 : 400 }}>{d.hour}</div>
+            </div>
+          );
+        })}
+      </div>
+      {/* 凡例 */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 8, fontSize: 10, color: C.textMid }}>
+        <LegendDot color={C.navy + '60'} label="架電" />
+        <LegendDot color={C.navy + 'cc'} label="社長接続" />
+        <LegendDot color="#059669" label="アポ獲得" />
+      </div>
     </div>
+  );
+}
+
+function LegendDot({ color, label }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <span style={{ width: 10, height: 10, background: color, borderRadius: 2, display: 'inline-block' }} />
+      {label}
+    </span>
   );
 }
 
@@ -474,4 +845,18 @@ const td = { padding: '6px 10px', fontSize: 11.5, color: C.textDark, textAlign: 
 const selectStyle = {
   padding: '5px 10px', fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 3,
   fontFamily: "'Noto Sans JP'", color: C.navy, fontWeight: 600,
+};
+const navBtnStyle = (disabled) => ({
+  width: 28, height: 28, padding: 0, fontSize: 16, fontWeight: 600,
+  background: disabled ? C.cream : C.white,
+  color: disabled ? C.textLight : C.navy,
+  border: `1px solid ${C.border}`, borderRadius: 3,
+  cursor: disabled ? 'default' : 'pointer',
+  fontFamily: "'Noto Sans JP'", display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  opacity: disabled ? 0.5 : 1,
+});
+const iconBtnStyle = {
+  padding: '5px 10px', fontSize: 10.5, fontWeight: 600,
+  background: C.white, color: C.navy, border: `1px solid ${C.border}`, borderRadius: 3,
+  cursor: 'pointer', fontFamily: "'Noto Sans JP'",
 };
