@@ -921,7 +921,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
   // メンバー役職かどうか
   const memberInfo = members?.find(m => m.name === currentUser);
-  const showWeekly = isAdmin || memberInfo?.position === 'メンバー' || memberInfo?.rank;
+  const showWeekly = isAdmin || memberInfo?.role === 'メンバー' || memberInfo?.rank;
 
   if (loading) {
     return (
@@ -1104,7 +1104,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       {activeTab === 'weekly' && (
         <div>
           {/* 今週の状況バナー（役職がメンバーの人のみ表示） */}
-          {memberInfo?.position === 'メンバー' && <div style={{
+          {memberInfo?.role === 'メンバー' && <div style={{
             padding: '12px 16px', borderRadius: 8, marginBottom: 16,
             background: thisWeekDone ? C.green + '0a' : '#FFF7ED',
             border: '1px solid ' + (thisWeekDone ? C.green + '30' : '#FED7AA'),
