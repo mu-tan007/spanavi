@@ -38,7 +38,7 @@ export function useSpanaviData(authOrgId) {
       ] = await Promise.all([
         supabase.from('clients').select('*').eq('org_id', orgId).order('sort_order'),
         supabase.from('call_lists').select('*').eq('org_id', orgId).order('sort_order'),
-        supabase.from('members').select('*').eq('org_id', orgId).order('sort_order'),
+        supabase.from('members').select('*').eq('org_id', orgId).neq('is_active', false).order('sort_order'),
         supabase.from('appointments').select('*').eq('org_id', orgId).order('appointment_date', { ascending: false }),
         supabase.from('reward_types').select('*').order('type_id'),
         supabase.from('client_contacts').select('*').eq('org_id', orgId).order('created_at'),
