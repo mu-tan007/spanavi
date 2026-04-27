@@ -45,6 +45,169 @@ export default function EngagementSettings({ onToast }) {
       <RoleSection engagementId={engagementId} onToast={onToast} />
       <div style={{ height: 32 }} />
       <RankSection engagementId={engagementId} onToast={onToast} />
+      <div style={{ height: 32 }} />
+      <NotificationRulesSection engagementId={engagementId} onToast={onToast} />
+    </div>
+  );
+}
+
+// ─── 通知ルール ─────────────────────────────────────────────
+const SCOPE_OPTIONS = [
+  { value: 'all_engagement_members',  label: '事業全員' },
+  { value: 'team_leaders_and_above',  label: 'チームリーダー以上' },
+  { value: 'getter_and_team_and_admin', label: '取得者+リーダー+admin' },
+  { value: 'admin_only',              label: 'admin のみ' },
+];
+
+function NotificationRulesSection({ engagementId, onToast }) {
+  const [catalog, setCatalog] = useState([]);
+  const [overrides, setOverrides] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [cat, ov] = await Promise.all([
+      supabase.from('notification_type_catalog')
+        .select('*').eq('is_active', true).order('display_order'),
+      supabase.from('engagement_notification_settings')
+        .select('*').eq('engagement_id', engagementId),
+    ]);
+    setCatalog(cat.data || []);
+    const map = {};
+    (ov.data || []).forEach(r => { map[r.notification_type] = r; });
+    setOverrides(map);
+    setLoading(false);
+  }, [engagementId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const upsert = async (typeId, patch) => {
+    setSavingId(typeId);
+    const cat = catalog.find(c => c.id === typeId);
+    const existing = overrides[typeId];
+    const row = {
+      org_id: getOrgId(),
+      engagement_id: engagementId,
+      notification_type: typeId,
+      enabled: existing?.enabled ?? true,
+      recipients_scope: existing?.recipients_scope ?? cat?.default_recipients_scope ?? 'all_engagement_members',
+      threshold_value: existing?.threshold_value ?? null,
+      ...patch,
+    };
+    const { data, error } = await supabase
+      .from('engagement_notification_settings')
+      .upsert(row, { onConflict: 'engagement_id,notification_type' })
+      .select()
+      .single();
+    setSavingId(null);
+    if (error) { onToast?.('保存に失敗しました: ' + error.message, 'error'); return; }
+    setOverrides(prev => ({ ...prev, [typeId]: data }));
+  };
+
+  const getEffective = (cat) => {
+    const ov = overrides[cat.id];
+    return {
+      enabled: ov?.enabled ?? true,
+      recipients_scope: ov?.recipients_scope ?? cat.default_recipients_scope,
+      threshold_value: ov?.threshold_value ?? null,
+    };
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 4 }}>通知ルール</div>
+        <div style={{ fontSize: 11, color: TEXT_MID, lineHeight: 1.6 }}>
+          この事業で送る通知の ON/OFF・受信者範囲・閾値を管理します。<br />
+          設定変更は即時反映されます。個人ごとの ON/OFF は MyPage から行えます。
+        </div>
+      </div>
+
+      <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 4 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead>
+            <tr style={{ background: '#F8F8F8', borderBottom: `1px solid ${BORDER}` }}>
+              <th style={{ ...thBase, textAlign: 'left' }}>通知種類</th>
+              <th style={{ ...thBase, textAlign: 'center', width: 80 }}>ON/OFF</th>
+              <th style={{ ...thBase, textAlign: 'left', width: 220 }}>受信者範囲</th>
+              <th style={{ ...thBase, textAlign: 'right', width: 160 }}>閾値</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={4} style={{ ...tdMid, padding: 20, textAlign: 'center' }}>読込中…</td></tr>
+            ) : catalog.length === 0 ? (
+              <tr><td colSpan={4} style={{ ...tdMid, padding: 20, textAlign: 'center' }}>通知種類がありません</td></tr>
+            ) : catalog.map(cat => {
+              const eff = getEffective(cat);
+              const busy = savingId === cat.id;
+              return (
+                <tr key={cat.id} style={{ borderTop: `1px solid ${BORDER}`, opacity: busy ? 0.6 : 1 }}>
+                  <td style={tdBase}>
+                    <div style={{ fontWeight: 600, color: NAVY }}>{cat.label_jp}</div>
+                    {cat.description_jp && (
+                      <div style={{ fontSize: 10.5, color: TEXT_MID, marginTop: 2, lineHeight: 1.5 }}>
+                        {cat.description_jp}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ ...tdBase, textAlign: 'center' }}>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', cursor: busy ? 'wait' : 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={eff.enabled}
+                        disabled={busy}
+                        onChange={e => upsert(cat.id, { enabled: e.target.checked })}
+                        style={{ width: 16, height: 16, cursor: busy ? 'wait' : 'pointer' }}
+                      />
+                    </label>
+                  </td>
+                  <td style={tdBase}>
+                    <select
+                      value={eff.recipients_scope}
+                      disabled={busy || !eff.enabled}
+                      onChange={e => upsert(cat.id, { recipients_scope: e.target.value })}
+                      style={{ padding: '4px 8px', borderRadius: 3, border: `1px solid ${BORDER}`, fontSize: 11, fontFamily: "'Noto Sans JP'", color: NAVY, width: '100%', maxWidth: 200 }}
+                    >
+                      {SCOPE_OPTIONS.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td style={{ ...tdBase, textAlign: 'right' }}>
+                    {cat.has_threshold ? (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <input
+                          type="number"
+                          value={eff.threshold_value ?? ''}
+                          disabled={busy || !eff.enabled}
+                          onBlur={e => {
+                            const v = e.target.value === '' ? null : Number(e.target.value);
+                            if (v !== eff.threshold_value) upsert(cat.id, { threshold_value: v });
+                          }}
+                          onChange={e => {
+                            // optimistic local; commit on blur
+                            setOverrides(prev => ({
+                              ...prev,
+                              [cat.id]: { ...(prev[cat.id] || {}), threshold_value: e.target.value === '' ? null : Number(e.target.value), enabled: eff.enabled, recipients_scope: eff.recipients_scope, notification_type: cat.id, engagement_id: engagementId, org_id: getOrgId() },
+                            }));
+                          }}
+                          placeholder="未設定"
+                          style={{ padding: '4px 8px', borderRadius: 3, border: `1px solid ${BORDER}`, fontSize: 11, width: 110, textAlign: 'right', fontFamily: 'monospace' }}
+                        />
+                        {cat.threshold_unit && <span style={{ fontSize: 10.5, color: TEXT_MID }}>{cat.threshold_unit}</span>}
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: 10.5, color: TEXT_MID }}>—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

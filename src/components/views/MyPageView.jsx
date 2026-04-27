@@ -121,55 +121,104 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
     return () => navigator.serviceWorker.removeEventListener('message', handler);
   }, []);
 
-  // 自分が所属する事業 + 通知設定
-  const [userEngagements, setUserEngagements] = useState([]); // [{id, name, slug, enabled}]
-  const [prefSaving, setPrefSaving] = useState(null); // saving 中の engagement_id
+  // 自分が所属する事業 × 通知種類のマトリクス
+  // 形: [{ id, name, masterEnabled, types: [{ typeId, label, userEnabled }] }]
+  const [userEngagements, setUserEngagements] = useState([]);
+  const [prefSaving, setPrefSaving] = useState(null); // 'eng:{id}:_all' または 'eng:{id}:{typeId}'
 
   useEffect(() => {
     if (!supaId || !userId) return;
     let cancelled = false;
     (async () => {
       const orgId = getOrgId();
-      // 自分が所属する事業を取得
-      const { data: assignments } = await supabase
-        .from('member_engagements')
-        .select('engagement_id, engagement:engagements!inner(id, name, slug, status)')
-        .eq('member_id', supaId)
-        .eq('engagement.status', 'active');
-      const engs = (assignments || [])
+      const [assignmentsRes, catalogRes] = await Promise.all([
+        supabase.from('member_engagements')
+          .select('engagement_id, engagement:engagements!inner(id, name, slug, status)')
+          .eq('member_id', supaId)
+          .eq('engagement.status', 'active'),
+        supabase.from('notification_type_catalog')
+          .select('id, label_jp, default_recipients_scope, display_order, is_active')
+          .eq('is_active', true)
+          .order('display_order'),
+      ]);
+      const engs = (assignmentsRes.data || [])
         .map(a => a.engagement)
         .filter(Boolean)
-        .filter(e => e.slug !== 'masp'); // MASP は仮想事業なので除外
+        .filter(e => e.slug !== 'masp');
+      const catalog = catalogRes.data || [];
+      if (engs.length === 0) { if (!cancelled) setUserEngagements([]); return; }
 
-      // 通知設定を取得
-      const { data: prefs } = await supabase
-        .from('push_notification_preferences')
-        .select('engagement_id, enabled')
-        .eq('user_id', userId)
-        .eq('org_id', orgId);
-      const prefMap = {};
-      (prefs || []).forEach(p => { prefMap[p.engagement_id] = p.enabled; });
+      const engIds = engs.map(e => e.id);
+      const [orgRulesRes, prefsRes] = await Promise.all([
+        supabase.from('engagement_notification_settings')
+          .select('engagement_id, notification_type, enabled')
+          .in('engagement_id', engIds),
+        supabase.from('push_notification_preferences')
+          .select('engagement_id, notification_type, enabled')
+          .eq('user_id', userId)
+          .eq('org_id', orgId)
+          .in('engagement_id', engIds),
+      ]);
 
-      if (!cancelled) {
-        setUserEngagements(engs.map(e => ({ ...e, enabled: prefMap[e.id] !== false })));
-      }
+      // 事業 × 通知種類で組織側の有効/無効を判定
+      const orgRule = {}; // engId -> { typeId -> enabled }
+      (orgRulesRes.data || []).forEach(r => {
+        if (!orgRule[r.engagement_id]) orgRule[r.engagement_id] = {};
+        orgRule[r.engagement_id][r.notification_type] = r.enabled;
+      });
+
+      // 個人の opt-out
+      const userPref = {}; // engId -> { typeId -> enabled }
+      (prefsRes.data || []).forEach(r => {
+        if (!userPref[r.engagement_id]) userPref[r.engagement_id] = {};
+        userPref[r.engagement_id][r.notification_type] = r.enabled;
+      });
+
+      if (cancelled) return;
+      setUserEngagements(engs.map(e => {
+        const masterEnabled = userPref[e.id]?.['_all'] !== false;
+        const types = catalog
+          .filter(c => orgRule[e.id]?.[c.id] !== false) // 組織側 OFF は表示しない（デフォルト ON）
+          .map(c => ({
+            typeId: c.id,
+            label: c.label_jp,
+            userEnabled: userPref[e.id]?.[c.id] !== false,
+          }));
+        return { id: e.id, name: e.name, masterEnabled, types };
+      }));
     })();
     return () => { cancelled = true; };
   }, [supaId, userId]);
 
-  const toggleEngagementPref = async (engagementId, nextEnabled) => {
-    if (!userId || !engagementId) return;
-    setPrefSaving(engagementId);
-    setUserEngagements(prev => prev.map(e => e.id === engagementId ? { ...e, enabled: nextEnabled } : e));
+  const upsertPref = async (engagementId, notificationType, nextEnabled) => {
+    const key = `${engagementId}:${notificationType}`;
+    setPrefSaving(key);
     const orgId = getOrgId();
+    // 楽観更新
+    setUserEngagements(prev => prev.map(e => {
+      if (e.id !== engagementId) return e;
+      if (notificationType === '_all') return { ...e, masterEnabled: nextEnabled };
+      return { ...e, types: e.types.map(t => t.typeId === notificationType ? { ...t, userEnabled: nextEnabled } : t) };
+    }));
     const { error } = await supabase
       .from('push_notification_preferences')
-      .upsert({ user_id: userId, engagement_id: engagementId, org_id: orgId, enabled: nextEnabled, updated_at: new Date().toISOString() }, { onConflict: 'user_id,engagement_id' });
+      .upsert({
+        user_id: userId,
+        engagement_id: engagementId,
+        org_id: orgId,
+        notification_type: notificationType,
+        enabled: nextEnabled,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,engagement_id,notification_type' });
     setPrefSaving(null);
     if (error) {
-      console.error('[MyPage] toggleEngagementPref error:', error);
-      // 失敗時は元に戻す
-      setUserEngagements(prev => prev.map(e => e.id === engagementId ? { ...e, enabled: !nextEnabled } : e));
+      console.error('[MyPage] upsertPref error:', error);
+      // ロールバック
+      setUserEngagements(prev => prev.map(e => {
+        if (e.id !== engagementId) return e;
+        if (notificationType === '_all') return { ...e, masterEnabled: !nextEnabled };
+        return { ...e, types: e.types.map(t => t.typeId === notificationType ? { ...t, userEnabled: !nextEnabled } : t) };
+      }));
     }
   };
 
@@ -480,24 +529,58 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
                 <div style={{ fontSize: 11, color: C.textMid, fontWeight: 600, marginBottom: 8 }}>
                   事業ごとの通知 ON/OFF
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {userEngagements.map(e => (
-                    <div key={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
-                      <div style={{ fontSize: 12, color: C.textDark, fontWeight: 500 }}>{e.name}</div>
-                      <button
-                        onClick={() => toggleEngagementPref(e.id, !e.enabled)}
-                        disabled={prefSaving === e.id}
-                        style={{
-                          padding: '4px 14px', borderRadius: 12, border: 'none',
-                          background: e.enabled ? C.navy : C.border,
-                          color: e.enabled ? '#fff' : C.textLight,
-                          fontSize: 10, fontWeight: 700, cursor: prefSaving === e.id ? 'wait' : 'pointer',
-                          opacity: prefSaving === e.id ? 0.6 : 1,
-                          minWidth: 56,
-                        }}
-                      >{prefSaving === e.id ? '…' : (e.enabled ? 'ON' : 'OFF')}</button>
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {userEngagements.map(e => {
+                    const masterKey = `${e.id}:_all`;
+                    const masterBusy = prefSaving === masterKey;
+                    return (
+                      <div key={e.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {/* 事業全体マスター */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
+                          <div style={{ fontSize: 12, color: C.textDark, fontWeight: 600 }}>{e.name}</div>
+                          <button
+                            onClick={() => upsertPref(e.id, '_all', !e.masterEnabled)}
+                            disabled={masterBusy}
+                            style={{
+                              padding: '4px 14px', borderRadius: 12, border: 'none',
+                              background: e.masterEnabled ? C.navy : C.border,
+                              color: e.masterEnabled ? '#fff' : C.textLight,
+                              fontSize: 10, fontWeight: 700, cursor: masterBusy ? 'wait' : 'pointer',
+                              opacity: masterBusy ? 0.6 : 1,
+                              minWidth: 56,
+                            }}
+                          >{masterBusy ? '…' : (e.masterEnabled ? 'ON' : 'OFF')}</button>
+                        </div>
+
+                        {/* 通知種類別 ON/OFF（マスター ON のときのみ表示） */}
+                        {e.masterEnabled && e.types.length > 0 && (
+                          <div style={{ paddingLeft: 14, display: 'flex', flexDirection: 'column', gap: 4, borderLeft: `2px solid ${C.borderLight}` }}>
+                            {e.types.map(t => {
+                              const tKey = `${e.id}:${t.typeId}`;
+                              const tBusy = prefSaving === tKey;
+                              return (
+                                <div key={t.typeId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 0 2px 8px' }}>
+                                  <div style={{ fontSize: 11, color: C.textMid }}>{t.label}</div>
+                                  <button
+                                    onClick={() => upsertPref(e.id, t.typeId, !t.userEnabled)}
+                                    disabled={tBusy}
+                                    style={{
+                                      padding: '2px 10px', borderRadius: 10, border: 'none',
+                                      background: t.userEnabled ? C.navy : C.border,
+                                      color: t.userEnabled ? '#fff' : C.textLight,
+                                      fontSize: 9, fontWeight: 700, cursor: tBusy ? 'wait' : 'pointer',
+                                      opacity: tBusy ? 0.6 : 1,
+                                      minWidth: 48,
+                                    }}
+                                  >{tBusy ? '…' : (t.userEnabled ? 'ON' : 'OFF')}</button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </>

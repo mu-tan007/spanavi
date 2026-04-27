@@ -2820,7 +2820,6 @@ export async function createTenantAdmin(orgId, name, email) {
 
 async function sendAppointmentPushNotification(appoData, orgId) {
   if (!orgId) return
-  // Sourcing 事業に所属するメンバーへのみ通知
   const { data: sourcingEng } = await supabase
     .from('engagements')
     .select('id')
@@ -2828,30 +2827,36 @@ async function sendAppointmentPushNotification(appoData, orgId) {
     .eq('slug', 'seller_sourcing')
     .maybeSingle()
   const engagementId = sourcingEng?.id || null
+  if (!engagementId) return
 
-  let userIds = []
-  if (engagementId) {
-    const { data: assignments } = await supabase
-      .from('member_engagements')
-      .select('member:members(user_id)')
-      .eq('org_id', orgId)
-      .eq('engagement_id', engagementId)
-    userIds = (assignments || [])
-      .map(a => a.member?.user_id)
-      .filter(Boolean)
-  } else {
-    const { data: adminMembers } = await supabase
-      .from('members')
-      .select('user_id')
-      .eq('org_id', orgId)
-      .not('user_id', 'is', null)
-    userIds = (adminMembers || []).map(m => m.user_id).filter(Boolean)
+  // 組織側の通知ルールを取得（行が無ければ catalog default を使う）
+  const { data: setting } = await supabase
+    .from('engagement_notification_settings')
+    .select('enabled, recipients_scope')
+    .eq('engagement_id', engagementId)
+    .eq('notification_type', 'appointment_created')
+    .maybeSingle()
+  let scope = setting?.recipients_scope
+  if (!setting) {
+    const { data: cat } = await supabase
+      .from('notification_type_catalog')
+      .select('default_recipients_scope, is_active')
+      .eq('id', 'appointment_created')
+      .maybeSingle()
+    if (cat?.is_active === false) return
+    scope = cat?.default_recipients_scope || 'all_engagement_members'
+  } else if (setting.enabled === false) {
+    return
   }
+
+  const userIds = await resolveRecipientUserIds({
+    orgId, engagementId, scope, getterName: appoData.getter || null,
+  })
   if (userIds.length === 0) return
 
   await supabase.functions.invoke('send-push', {
     body: {
-      type: 'appointment',
+      type: 'appointment_created',
       title: '🎉 新しいアポ',
       body: `${appoData.getter || ''} さんが ${appoData.company || ''} のアポイントを取りました`,
       user_ids: userIds,
@@ -2859,4 +2864,57 @@ async function sendAppointmentPushNotification(appoData, orgId) {
       engagement_id: engagementId,
     },
   })
+}
+
+// 受信者スコープを解決（client / edge 両方で使える logic）
+async function resolveRecipientUserIds({ orgId, engagementId, scope, getterName }) {
+  // 全メンバー（事業所属者）の {user_id, name, team} を一括取得
+  const { data: assignments } = await supabase
+    .from('member_engagements')
+    .select('member:members!inner(id, user_id, name, team), role:engagement_roles(name)')
+    .eq('org_id', orgId)
+    .eq('engagement_id', engagementId)
+  const all = (assignments || [])
+    .map(a => ({
+      user_id: a.member?.user_id || null,
+      name: a.member?.name || '',
+      team: a.member?.team || null,
+      role_name: a.role?.name || null,
+    }))
+    .filter(x => x.user_id)
+
+  // admins
+  const { data: adminUsers } = await supabase
+    .from('users')
+    .select('id')
+    .eq('org_id', orgId)
+    .eq('role', 'admin')
+  const adminIds = new Set((adminUsers || []).map(u => u.id))
+
+  if (scope === 'admin_only') {
+    return Array.from(adminIds)
+  }
+  if (scope === 'all_engagement_members') {
+    const set = new Set(all.map(x => x.user_id))
+    adminIds.forEach(id => set.add(id))
+    return Array.from(set)
+  }
+  if (scope === 'team_leaders_and_above') {
+    const set = new Set(all.filter(x => x.role_name === 'リーダー').map(x => x.user_id))
+    adminIds.forEach(id => set.add(id))
+    return Array.from(set)
+  }
+  if (scope === 'getter_and_team_and_admin') {
+    const set = new Set()
+    const getter = getterName ? all.find(x => x.name === getterName) : null
+    if (getter?.user_id) set.add(getter.user_id)
+    if (getter?.team) {
+      all.filter(x => x.team === getter.team && x.role_name === 'リーダー')
+        .forEach(x => set.add(x.user_id))
+    }
+    adminIds.forEach(id => set.add(id))
+    return Array.from(set)
+  }
+  // 不明スコープは admin のみで安全側
+  return Array.from(adminIds)
 }

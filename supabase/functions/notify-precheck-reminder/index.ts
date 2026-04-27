@@ -102,9 +102,40 @@ Deno.serve(async (req) => {
 
     const summary: Array<{ org_id: string; appoCount: number; recipientCount: number }> = []
 
+    // 通知種類カタログのデフォルトを 1 回取得
+    const { data: catalogRow } = await supabase
+      .from('notification_type_catalog')
+      .select('default_recipients_scope, is_active')
+      .eq('id', 'precheck_reminder')
+      .maybeSingle()
+    const catalogActive = catalogRow?.is_active !== false
+    const catalogDefaultScope = catalogRow?.default_recipients_scope || 'getter_and_team_and_admin'
+
     for (const eng of (sourcingEngs || [])) {
       const orgId = eng.org_id as string
       const engagementId = eng.id as string
+
+      // 組織側の通知ルール
+      const { data: orgRule } = await supabase
+        .from('engagement_notification_settings')
+        .select('enabled, recipients_scope')
+        .eq('engagement_id', engagementId)
+        .eq('notification_type', 'precheck_reminder')
+        .maybeSingle()
+      let scope: string
+      if (orgRule) {
+        if (orgRule.enabled === false) {
+          summary.push({ org_id: orgId, appoCount: 0, recipientCount: 0 })
+          continue
+        }
+        scope = orgRule.recipients_scope as string
+      } else {
+        if (!catalogActive) {
+          summary.push({ org_id: orgId, appoCount: 0, recipientCount: 0 })
+          continue
+        }
+        scope = catalogDefaultScope
+      }
 
       // 当該 org の翌営業日アポ（status='アポ取得' / 未確認）
       const { data: rawAppos, error: apposErr } = await supabase
@@ -128,58 +159,62 @@ Deno.serve(async (req) => {
         continue
       }
 
-      // メンバー情報（user_id / team / role）を一括取得
-      const { data: members } = await supabase
-        .from('members')
-        .select('id, name, user_id, team, role')
-        .eq('org_id', orgId)
-        .eq('is_active', true)
-      const membersByName: Record<string, { id: string; user_id: string | null; team: string | null }> = {}
-      const adminUserIds: string[] = []
-      for (const m of (members || [])) {
-        if (m.name) membersByName[m.name as string] = {
-          id: m.id as string,
-          user_id: (m.user_id as string) || null,
-          team: (m.team as string) || null,
-        }
-        if (m.role === 'admin' && m.user_id) adminUserIds.push(m.user_id as string)
-      }
-
-      // チームリーダーの user_id マップ（team名 → user_id[]）
-      // member_engagements.role_id → engagement_roles.name='リーダー' の人
-      const teamLeaderByTeam: Record<string, string[]> = {}
-      const { data: leaderRows } = await supabase
+      // 事業所属者（user_id / team / engagement_role.name）
+      const { data: assignments } = await supabase
         .from('member_engagements')
-        .select('member:members!inner(name, team, user_id), role:engagement_roles!inner(name)')
+        .select('member:members!inner(id, name, user_id, team), role:engagement_roles(name)')
         .eq('org_id', orgId)
         .eq('engagement_id', engagementId)
-      for (const row of (leaderRows || []) as Array<{ member: { name: string; team: string | null; user_id: string | null }; role: { name: string } }>) {
-        if (row.role?.name !== 'リーダー') continue
-        const team = row.member?.team
-        const uid = row.member?.user_id
-        if (!team || !uid) continue
-        if (!teamLeaderByTeam[team]) teamLeaderByTeam[team] = []
-        teamLeaderByTeam[team].push(uid)
+      const allMembers: Array<{ user_id: string; name: string; team: string | null; role_name: string | null }> = []
+      const membersByName: Record<string, { user_id: string | null; team: string | null }> = {}
+      for (const a of (assignments || []) as Array<{ member: { id: string; name: string; user_id: string | null; team: string | null }; role: { name: string } | null }>) {
+        const uid = a.member?.user_id || null
+        const name = a.member?.name || ''
+        const team = a.member?.team || null
+        const role_name = a.role?.name || null
+        if (uid) allMembers.push({ user_id: uid, name, team, role_name })
+        if (name) membersByName[name] = { user_id: uid, team }
       }
+
+      // admin (public.users.role='admin')
+      const { data: adminUsers } = await supabase
+        .from('users')
+        .select('id')
+        .eq('org_id', orgId)
+        .eq('role', 'admin')
+      const adminUserIds = (adminUsers || []).map(u => u.id as string).filter(Boolean)
 
       // 受信者ごとにアポをまとめる
       const recipientAppos: Record<string, AppoRow[]> = {}
-      const addRecipient = (uid: string, appo: AppoRow) => {
+      const addRecipient = (uid: string | null | undefined, appo: AppoRow) => {
         if (!uid) return
         if (!recipientAppos[uid]) recipientAppos[uid] = []
         if (!recipientAppos[uid].some(x => x.id === appo.id)) recipientAppos[uid].push(appo)
       }
+
       for (const a of appos) {
-        // 1) アポ取得者本人
         const getter = a.getter_name ? membersByName[a.getter_name] : null
-        if (getter?.user_id) addRecipient(getter.user_id, a)
-        // 2) チームリーダー（getter のチーム）
-        if (getter?.team) {
-          const leaders = teamLeaderByTeam[getter.team] || []
-          for (const uid of leaders) addRecipient(uid, a)
+
+        if (scope === 'admin_only') {
+          for (const uid of adminUserIds) addRecipient(uid, a)
+        } else if (scope === 'all_engagement_members') {
+          for (const m of allMembers) addRecipient(m.user_id, a)
+          for (const uid of adminUserIds) addRecipient(uid, a)
+        } else if (scope === 'team_leaders_and_above') {
+          for (const m of allMembers) {
+            if (m.role_name === 'リーダー') addRecipient(m.user_id, a)
+          }
+          for (const uid of adminUserIds) addRecipient(uid, a)
+        } else {
+          // getter_and_team_and_admin (default)
+          if (getter?.user_id) addRecipient(getter.user_id, a)
+          if (getter?.team) {
+            for (const m of allMembers) {
+              if (m.team === getter.team && m.role_name === 'リーダー') addRecipient(m.user_id, a)
+            }
+          }
+          for (const uid of adminUserIds) addRecipient(uid, a)
         }
-        // 3) admin（org 管理者）
-        for (const uid of adminUserIds) addRecipient(uid, a)
       }
 
       // 受信者ごとに send-push 呼び出し

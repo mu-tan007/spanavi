@@ -225,17 +225,23 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    // 事業ID指定があれば、その事業を OFF にしているユーザーを除外する
+    // 個人 opt-out フィルタ:
+    //   (user_id, engagement_id, '_all').enabled=false → 事業マスター OFF → 除外
+    //   (user_id, engagement_id, type).enabled=false   → 種類別 OFF       → 除外
     let filteredUserIds = user_ids
     if (engagement_id) {
+      const checkTypes = ['_all']
+      if (type) checkTypes.push(type)
       const { data: prefs } = await supabase
         .from('push_notification_preferences')
-        .select('user_id, enabled')
+        .select('user_id, notification_type, enabled')
         .eq('engagement_id', engagement_id)
         .in('user_id', user_ids)
-      const disabledUsers = new Set(
-        (prefs || []).filter((p: { enabled: boolean }) => !p.enabled).map((p: { user_id: string }) => p.user_id),
-      )
+        .in('notification_type', checkTypes)
+      const disabledUsers = new Set<string>()
+      for (const p of (prefs || []) as Array<{ user_id: string; enabled: boolean }>) {
+        if (!p.enabled) disabledUsers.add(p.user_id)
+      }
       filteredUserIds = user_ids.filter((u: string) => !disabledUsers.has(u))
     }
 
