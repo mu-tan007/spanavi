@@ -171,7 +171,7 @@ function ReportBody({ report, allTeamsForDate, isAdmin, currentUser }) {
 
       {/* 5. シフト提出済み + 架電0件 */}
       {shiftNoCall.length > 0 && (
-        <Section title="⚠ シフト提出済みなのに架電 0 件">
+        <Section title="シフト提出済みなのに架電 0 件">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {shiftNoCall.map(s => (
               <span key={s.member_id} style={{ padding: '4px 12px', fontSize: 11, fontWeight: 600,
@@ -299,7 +299,7 @@ function MemberCard({ m, report, openProfile }) {
         <div style={{ borderTop: `1px solid ${C.borderLight}`, paddingTop: 8, marginBottom: 8 }}>
           {m.appo_recordings?.length > 0 && (
             <div style={{ marginBottom: 6 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#059669', marginBottom: 4 }}>🎯 アポ獲得録音 ({m.appo_recordings.length})</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#059669', marginBottom: 4, letterSpacing: '0.04em' }}>アポ獲得録音 ({m.appo_recordings.length})</div>
               {m.appo_recordings.map(r => (
                 <RecordingRow key={r.id} r={r} playing={playingId === r.id} onToggle={() => setPlayingId(playingId === r.id ? null : r.id)} />
               ))}
@@ -307,7 +307,7 @@ function MemberCard({ m, report, openProfile }) {
           )}
           {m.rejection_recordings?.length > 0 && (
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#DC2626', marginBottom: 4 }}>🚫 社長お断り録音 ({m.rejection_recordings.length})</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#DC2626', marginBottom: 4, letterSpacing: '0.04em' }}>社長お断り録音 ({m.rejection_recordings.length})</div>
               {m.rejection_recordings.map(r => (
                 <RecordingRow key={r.id} r={r} playing={playingId === r.id} onToggle={() => setPlayingId(playingId === r.id ? null : r.id)} />
               ))}

@@ -137,21 +137,27 @@ Deno.serve(async (req) => {
         .gte('created_at', dayStart)
         .lte('created_at', dayEnd)
 
-      // call_lists（リスト名）
+      // call_lists（リスト名）— PostgREST URL 長と max-rows 回避のため 100 件ずつチャンク
+      const CHUNK = 100
       const listIds = Array.from(new Set(calls.map(c => c.list_id).filter(Boolean) as string[]))
       const listMap: Record<string, string> = {}
-      if (listIds.length > 0) {
-        const { data: lists } = await supabase
-          .from('call_lists').select('id, name').in('id', listIds)
+      for (let i = 0; i < listIds.length; i += CHUNK) {
+        const chunk = listIds.slice(i, i + CHUNK)
+        const { data: lists, error: lErr } = await supabase
+          .from('call_lists').select('id, name').in('id', chunk)
+        if (lErr) console.error('[daily-report] list fetch err', i, lErr)
         ;(lists || []).forEach(l => { listMap[l.id as string] = l.name as string })
       }
+      console.log(`[daily-report] listMap size=${Object.keys(listMap).length} for ${listIds.length} ids`)
 
-      // call_list_items（item の no を取得）
+      // call_list_items
       const itemIds = Array.from(new Set(calls.map(c => c.item_id).filter(Boolean) as string[]))
       const itemMap: Record<string, { no: number; company: string; list_id: string }> = {}
-      if (itemIds.length > 0) {
-        const { data: items } = await supabase
-          .from('call_list_items').select('id, no, company, list_id').in('id', itemIds)
+      for (let i = 0; i < itemIds.length; i += CHUNK) {
+        const chunk = itemIds.slice(i, i + CHUNK)
+        const { data: items, error: iErr } = await supabase
+          .from('call_list_items').select('id, no, company, list_id').in('id', chunk)
+        if (iErr) console.error('[daily-report] item fetch err', i, iErr)
         ;(items || []).forEach(it => {
           itemMap[it.id as string] = {
             no: Number(it.no || 0),
@@ -160,6 +166,7 @@ Deno.serve(async (req) => {
           }
         })
       }
+      console.log(`[daily-report] itemMap size=${Object.keys(itemMap).length} for ${itemIds.length} ids`)
 
       // shifts（当日）
       const { data: shifts } = await supabase
@@ -392,7 +399,7 @@ Deno.serve(async (req) => {
         await supabase.functions.invoke('send-push', {
           body: {
             type: 'daily_report',
-            title: '📊 デイリーレポート',
+            title: 'デイリーレポート',
             body,
             user_ids: userIds,
             org_id: orgId,

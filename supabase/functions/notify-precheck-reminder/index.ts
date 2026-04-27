@@ -230,7 +230,7 @@ Deno.serve(async (req) => {
         const { error: pushErr } = await supabase.functions.invoke('send-push', {
           body: {
             type: 'precheck_reminder',
-            title: '🔔 事前確認リマインダー',
+            title: '事前確認リマインダー',
             body,
             user_ids: [user_id],
             org_id: orgId,
