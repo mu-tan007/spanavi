@@ -254,80 +254,104 @@ function MemberCard({ m, report, openProfile }) {
     if (!error) setFeedbackSaved(feedback);
   };
 
+  // 架電リストが多い場合は折りたたみ
+  const [showAllRanges, setShowAllRanges] = useState(false);
+  const RANGE_COLLAPSE_AT = 5;
+  const visibleRanges = showAllRanges ? m.call_ranges : (m.call_ranges || []).slice(0, RANGE_COLLAPSE_AT);
+  const hiddenRangeCount = (m.call_ranges?.length || 0) - (visibleRanges?.length || 0);
+
   return (
-    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 4, padding: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 4, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* ヘッダー: アバター + 名前 + 売上 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{
           width: 36, height: 36, borderRadius: '50%', background: C.navy, color: C.white,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, overflow: 'hidden',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, overflow: 'hidden', flexShrink: 0,
         }}>
           {m.avatar_url ? <img src={m.avatar_url} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (m.name || '?')[0]}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div onClick={() => openProfile?.(m.member_id)}
-            style={{ fontSize: 13, fontWeight: 700, color: C.navy, cursor: openProfile ? 'pointer' : 'default' }}>
+            style={{ fontSize: 13, fontWeight: 700, color: C.navy, cursor: openProfile ? 'pointer' : 'default', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {m.name}
           </div>
+          {m.sales > 0 && (
+            <div style={{ fontSize: 10, color: C.textMid, fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
+              売上 ¥{m.sales.toLocaleString()}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 個人 KPI */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
+      {/* KPI */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
         <Stat label="架電" value={m.calls} />
         <Stat label="接続" value={m.connects} sub={`${m.connect_rate}%`} />
         <Stat label="アポ" value={m.appointments} sub={`${m.appointment_rate}%`} />
       </div>
-      {m.sales > 0 && (
-        <div style={{ fontSize: 11, color: C.navy, fontWeight: 700, marginBottom: 8 }}>
-          売上 ¥{m.sales.toLocaleString()}
-        </div>
-      )}
 
-      {/* 架電範囲 */}
+      {/* 架電したリスト（コンパクト 2 列レイアウト） */}
       {m.call_ranges?.length > 0 && (
-        <div style={{ fontSize: 10.5, color: C.textMid, marginBottom: 10 }}>
-          {m.call_ranges.map((r, i) => (
-            <div key={i} style={{ marginBottom: 2 }}>
-              <span style={{ color: C.navy, fontWeight: 600 }}>{r.list_name}</span>: No.{r.start_no}〜No.{r.end_no} ({r.count}件)
-            </div>
-          ))}
+        <div>
+          <CardEyebrow>架電したリスト ({m.call_ranges.length})</CardEyebrow>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {visibleRanges.map((r, i) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'baseline', gap: 6, fontSize: 11 }}>
+                <span title={r.list_name}
+                  style={{ color: C.navy, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {r.list_name}
+                </span>
+                <span style={{ color: C.textMid, fontSize: 10, fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap' }}>
+                  {r.start_no}–{r.end_no} <span style={{ color: C.textLight }}>({r.count})</span>
+                </span>
+              </div>
+            ))}
+            {hiddenRangeCount > 0 && (
+              <button onClick={() => setShowAllRanges(true)}
+                style={{ background: 'none', border: 'none', color: C.textMid, cursor: 'pointer', fontSize: 10, padding: 0, textAlign: 'left', textDecoration: 'underline', alignSelf: 'flex-start' }}>
+                さらに {hiddenRangeCount} 件
+              </button>
+            )}
+            {showAllRanges && m.call_ranges.length > RANGE_COLLAPSE_AT && (
+              <button onClick={() => setShowAllRanges(false)}
+                style={{ background: 'none', border: 'none', color: C.textMid, cursor: 'pointer', fontSize: 10, padding: 0, textAlign: 'left', textDecoration: 'underline', alignSelf: 'flex-start' }}>
+                折りたたむ
+              </button>
+            )}
+          </div>
         </div>
       )}
 
-      {/* 録音セクション */}
+      {/* 録音 */}
       {(m.appo_recordings?.length > 0 || m.rejection_recordings?.length > 0) && (
-        <div style={{ borderTop: `1px solid ${C.borderLight}`, paddingTop: 8, marginBottom: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {m.appo_recordings?.length > 0 && (
-            <div style={{ marginBottom: 6 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#059669', marginBottom: 4, letterSpacing: '0.04em' }}>アポ獲得録音 ({m.appo_recordings.length})</div>
-              {m.appo_recordings.map(r => (
-                <RecordingRow key={r.id} r={r} playing={playingId === r.id} onToggle={() => setPlayingId(playingId === r.id ? null : r.id)} />
-              ))}
-            </div>
+            <RecordingGroup
+              label="アポ獲得録音" count={m.appo_recordings.length} accent="#059669"
+              records={m.appo_recordings} playingId={playingId} setPlayingId={setPlayingId}
+            />
           )}
           {m.rejection_recordings?.length > 0 && (
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#DC2626', marginBottom: 4, letterSpacing: '0.04em' }}>社長お断り録音 ({m.rejection_recordings.length})</div>
-              {m.rejection_recordings.map(r => (
-                <RecordingRow key={r.id} r={r} playing={playingId === r.id} onToggle={() => setPlayingId(playingId === r.id ? null : r.id)} />
-              ))}
-            </div>
+            <RecordingGroup
+              label="社長お断り録音" count={m.rejection_recordings.length} accent="#DC2626"
+              records={m.rejection_recordings} playingId={playingId} setPlayingId={setPlayingId}
+            />
           )}
         </div>
       )}
 
-      {/* フィードバック欄 */}
-      <div style={{ borderTop: `1px solid ${C.borderLight}`, paddingTop: 8 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: C.textMid, marginBottom: 4 }}>フィードバック</div>
+      {/* フィードバック */}
+      <div>
+        <CardEyebrow>フィードバック</CardEyebrow>
         <textarea
           value={feedback} onChange={e => setFeedback(e.target.value)} rows={2}
           placeholder="リーダーからのコメント"
-          style={{ width: '100%', padding: '5px 8px', fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 3, fontFamily: "'Noto Sans JP'", boxSizing: 'border-box', resize: 'vertical' }}
+          style={{ width: '100%', padding: '6px 9px', fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 3, fontFamily: "'Noto Sans JP'", boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.6 }}
         />
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 5 }}>
           <button onClick={saveFeedback} disabled={savingFb || feedback === feedbackSaved}
             style={{
-              padding: '3px 10px', fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+              padding: '3px 12px', fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'",
               background: feedback !== feedbackSaved ? C.navy : C.borderLight,
               color: feedback !== feedbackSaved ? C.white : C.textLight,
               border: 'none', borderRadius: 3,
@@ -341,19 +365,49 @@ function MemberCard({ m, report, openProfile }) {
   );
 }
 
-function RecordingRow({ r, playing, onToggle }) {
+function CardEyebrow({ children }) {
   return (
-    <div style={{ marginBottom: 4 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5 }}>
-        <span style={{ flex: 1, color: C.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+    <div style={{ fontSize: 9.5, fontWeight: 700, color: C.textMid, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+      {children}
+    </div>
+  );
+}
+
+function RecordingGroup({ label, count, accent, records, playingId, setPlayingId }) {
+  return (
+    <div>
+      <div style={{ fontSize: 9.5, fontWeight: 700, color: accent, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+        {label} ({count})
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {records.map(r => (
+          <RecordingRow key={r.id} r={r} accent={accent}
+            playing={playingId === r.id}
+            onToggle={() => setPlayingId(playingId === r.id ? null : r.id)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RecordingRow({ r, accent, playing, onToggle }) {
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', alignItems: 'center', gap: 8, fontSize: 11, padding: '3px 0' }}>
+        <span title={r.company || '会社名不明'}
+          style={{ color: C.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {r.company || '会社名不明'}
         </span>
-        <span style={{ color: C.textLight, fontSize: 9 }}>{(r.called_at || '').slice(11, 16)}</span>
+        <span style={{ color: C.textLight, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>
+          {(r.called_at || '').slice(11, 16)}
+        </span>
         <button onClick={onToggle}
           style={{
-            padding: '2px 8px', fontSize: 10, fontWeight: 600,
-            background: playing ? C.navy : C.white, color: playing ? C.white : C.navy,
-            border: `1px solid ${C.navy}`, borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+            width: 24, height: 22, padding: 0, fontSize: 10, fontWeight: 600,
+            background: playing ? (accent || C.navy) : C.white,
+            color: playing ? C.white : (accent || C.navy),
+            border: `1px solid ${accent || C.navy}`, borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           }}>{playing ? '■' : '▶'}</button>
       </div>
       {playing && <InlineAudioPlayer url={r.recording_url} onClose={() => onToggle()} />}
