@@ -131,7 +131,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
     let cancelled = false;
     (async () => {
       const orgId = getOrgId();
-      const [assignmentsRes, catalogRes] = await Promise.all([
+      const [assignmentsRes, catalogRes, hiddenRes] = await Promise.all([
         supabase.from('member_engagements')
           .select('engagement_id, engagement:engagements!inner(id, name, slug, status)')
           .eq('member_id', supaId)
@@ -140,12 +140,15 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
           .select('id, label_jp, default_recipients_scope, display_order, is_active')
           .eq('is_active', true)
           .order('display_order'),
+        supabase.from('org_hidden_notification_types')
+          .select('notification_type').eq('org_id', orgId),
       ]);
       const engs = (assignmentsRes.data || [])
         .map(a => a.engagement)
         .filter(Boolean)
         .filter(e => e.slug !== 'masp');
-      const catalog = catalogRes.data || [];
+      const hiddenTypes = new Set((hiddenRes.data || []).map(r => r.notification_type));
+      const catalog = (catalogRes.data || []).filter(c => !hiddenTypes.has(c.id));
       if (engs.length === 0) { if (!cancelled) setUserEngagements([]); return; }
 
       const engIds = engs.map(e => e.id);

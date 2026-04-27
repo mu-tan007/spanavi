@@ -68,13 +68,16 @@ function NotificationRulesSection({ engagementId, onToast }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [cat, ov] = await Promise.all([
+    const [cat, ov, hidden] = await Promise.all([
       supabase.from('notification_type_catalog')
         .select('*').eq('is_active', true).order('display_order'),
       supabase.from('engagement_notification_settings')
         .select('*').eq('engagement_id', engagementId),
+      supabase.from('org_hidden_notification_types')
+        .select('notification_type').eq('org_id', getOrgId()),
     ]);
-    setCatalog(cat.data || []);
+    const hiddenSet = new Set((hidden.data || []).map(r => r.notification_type));
+    setCatalog((cat.data || []).filter(c => !hiddenSet.has(c.id)));
     const map = {};
     (ov.data || []).forEach(r => { map[r.notification_type] = r; });
     setOverrides(map);
@@ -145,15 +148,50 @@ function NotificationRulesSection({ engagementId, onToast }) {
   };
 
   const handleDeleteType = async (cat) => {
-    if (cat.is_system) return;
-    if (!window.confirm(`「${cat.label_jp}」を削除しますか？\n各事業の設定もまとめて削除されます。`)) return;
-    // engagement_notification_settings の子行を先に削除
+    const isSys = cat.is_system;
+    const confirmMsg = isSys
+      ? `「${cat.label_jp}」を非表示にしますか？\nこの組織からのみ非表示になり、いつでも復元できます。`
+      : `「${cat.label_jp}」を削除しますか？\n各事業の設定もまとめて削除されます。`;
+    if (!window.confirm(confirmMsg)) return;
+
+    // どちらの場合も、まず engagement 別設定を削除して綺麗にする
     await supabase.from('engagement_notification_settings')
       .delete().eq('notification_type', cat.id);
-    const { error } = await supabase.from('notification_type_catalog')
-      .delete().eq('id', cat.id);
-    if (error) { onToast?.('削除に失敗: ' + error.message, 'error'); return; }
-    onToast?.('通知種類を削除しました');
+
+    if (isSys) {
+      // system seed は org 別に非表示化（物理削除しない）
+      const { error } = await supabase.from('org_hidden_notification_types')
+        .upsert({ org_id: getOrgId(), notification_type: cat.id });
+      if (error) { onToast?.('非表示化に失敗: ' + error.message, 'error'); return; }
+      onToast?.('通知種類を非表示にしました');
+    } else {
+      const { error } = await supabase.from('notification_type_catalog')
+        .delete().eq('id', cat.id);
+      if (error) { onToast?.('削除に失敗: ' + error.message, 'error'); return; }
+      onToast?.('通知種類を削除しました');
+    }
+    await load();
+  };
+
+  // 非表示化したシステム種類を復元
+  const [hiddenList, setHiddenList] = useState([]);
+  useEffect(() => {
+    (async () => {
+      const { data: hidden } = await supabase.from('org_hidden_notification_types')
+        .select('notification_type').eq('org_id', getOrgId());
+      if (!hidden || hidden.length === 0) { setHiddenList([]); return; }
+      const ids = hidden.map(h => h.notification_type);
+      const { data: cats } = await supabase.from('notification_type_catalog')
+        .select('id, label_jp').in('id', ids);
+      setHiddenList(cats || []);
+    })();
+  }, [catalog]);
+
+  const restoreHidden = async (typeId) => {
+    const { error } = await supabase.from('org_hidden_notification_types')
+      .delete().eq('org_id', getOrgId()).eq('notification_type', typeId);
+    if (error) { onToast?.('復元に失敗: ' + error.message, 'error'); return; }
+    onToast?.('通知種類を復元しました');
     await load();
   };
 
@@ -211,7 +249,12 @@ function NotificationRulesSection({ engagementId, onToast }) {
               return (
                 <tr key={cat.id} style={{ borderTop: `1px solid ${BORDER}`, opacity: busy ? 0.6 : 1 }}>
                   <td style={tdBase}>
-                    <div style={{ fontWeight: 600, color: NAVY }}>{cat.label_jp}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 600, color: NAVY }}>{cat.label_jp}</span>
+                      {cat.is_system && (
+                        <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 8, background: '#F3F4F6', color: TEXT_MID, fontWeight: 600 }}>システム</span>
+                      )}
+                    </div>
                     {cat.description_jp && (
                       <div style={{ fontSize: 10.5, color: TEXT_MID, marginTop: 2, lineHeight: 1.5 }}>
                         {cat.description_jp}
@@ -268,20 +311,17 @@ function NotificationRulesSection({ engagementId, onToast }) {
                     )}
                   </td>
                   <td style={{ ...tdBase, textAlign: 'right' }}>
-                    {cat.is_system ? (
-                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: '#F3F4F6', color: TEXT_MID, fontWeight: 600 }}>システム</span>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => setEditingType({ isNew: false, ...cat })}
-                          style={{ padding: '3px 10px', fontSize: 10.5, fontWeight: 600, background: '#fff', color: NAVY, border: `1px solid ${NAVY}`, borderRadius: 3, cursor: 'pointer', marginRight: 4, fontFamily: "'Noto Sans JP'" }}
-                        >編集</button>
-                        <button
-                          onClick={() => handleDeleteType(cat)}
-                          style={{ padding: '3px 10px', fontSize: 10.5, fontWeight: 600, background: '#fff', color: '#B91C1C', border: '1px solid #FCA5A5', borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}
-                        >削除</button>
-                      </>
+                    {!cat.is_system && (
+                      <button
+                        onClick={() => setEditingType({ isNew: false, ...cat })}
+                        style={{ padding: '3px 10px', fontSize: 10.5, fontWeight: 600, background: '#fff', color: NAVY, border: `1px solid ${NAVY}`, borderRadius: 3, cursor: 'pointer', marginRight: 4, fontFamily: "'Noto Sans JP'" }}
+                      >編集</button>
                     )}
+                    <button
+                      onClick={() => handleDeleteType(cat)}
+                      title={cat.is_system ? 'この組織から非表示にする' : '完全に削除する'}
+                      style={{ padding: '3px 10px', fontSize: 10.5, fontWeight: 600, background: '#fff', color: '#B91C1C', border: '1px solid #FCA5A5', borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}
+                    >{cat.is_system ? '非表示' : '削除'}</button>
                   </td>
                 </tr>
               );
@@ -289,6 +329,20 @@ function NotificationRulesSection({ engagementId, onToast }) {
           </tbody>
         </table>
       </div>
+
+      {hiddenList.length > 0 && (
+        <div style={{ marginTop: 12, padding: '10px 14px', background: '#F8F9FA', border: `1px solid ${BORDER}`, borderRadius: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: TEXT_MID, marginBottom: 6 }}>非表示中のシステム種類</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {hiddenList.map(h => (
+              <button key={h.id} onClick={() => restoreHidden(h.id)}
+                style={{ padding: '3px 10px', fontSize: 10.5, fontWeight: 600, background: '#fff', color: NAVY, border: `1px solid ${NAVY}`, borderRadius: 12, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                {h.label_jp} を復元
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {editingType && (
         <NotificationTypeFormModal
