@@ -34,6 +34,7 @@ export function useSpanaviData(authOrgId) {
         appointmentsRes,
         rewardTypesRes,
         clientContactsRes,
+        sourcingEngRes,
       ] = await Promise.all([
         supabase.from('clients').select('*').eq('org_id', orgId).order('sort_order'),
         supabase.from('call_lists').select('*').eq('org_id', orgId).order('sort_order'),
@@ -41,7 +42,31 @@ export function useSpanaviData(authOrgId) {
         supabase.from('appointments').select('*').eq('org_id', orgId).order('appointment_date', { ascending: false }),
         supabase.from('reward_types').select('*').order('type_id'),
         supabase.from('client_contacts').select('*').eq('org_id', orgId).order('created_at'),
+        supabase.from('engagements').select('id').eq('org_id', orgId).eq('slug', 'seller_sourcing').maybeSingle(),
       ])
+
+      // Sourcing 事業の member_engagements.role_id → engagement_roles.name を取得
+      // members.position はクリーンアップ済み（代表取締役/取締役のみ）なので、事業内ポジションは
+      // member_engagements 経由で取得し、既存コード互換のため m.role に注入する
+      const sourcingEngId = sourcingEngRes?.data?.id || null
+      const sourcingRoleMap = {}
+      if (sourcingEngId) {
+        const { data: meRoleRows } = await supabase
+          .from('member_engagements')
+          .select('member_id, role:engagement_roles(name)')
+          .eq('org_id', orgId)
+          .eq('engagement_id', sourcingEngId)
+          .not('role_id', 'is', null)
+        ;(meRoleRows || []).forEach(r => {
+          if (r.role?.name) sourcingRoleMap[r.member_id] = r.role.name
+        })
+      }
+      // engagement_roles.name → 既存コードが期待する legacy 役職名
+      const ROLE_LEGACY_MAP = {
+        'リーダー': 'チームリーダー',
+        '副リーダー': '副リーダー',
+        'メンバー': 'メンバー',
+      }
 
       // エラーチェック
       for (const res of [clientsRes, callListsRes, membersRes, appointmentsRes, rewardTypesRes]) {
@@ -120,31 +145,38 @@ export function useSpanaviData(authOrgId) {
       const membersFormatted = members.map(m => m.name)
 
       // members → 詳細情報（従業員名簿タブ用・DEFAULT_MEMBERSと同フィールド名）
-      const membersDetailed = members.map(m => ({
-        _supaId: m.id,
-        id: m.id,
-        user_id: m.user_id || null,
-        no: m.sort_order || 0,
-        name: m.name || '',
-        email: m.email || '',
-        phone_number: m.phone_number || '',
-        start_date: m.start_date || '',
-        university: m.university || '',
-        year: m.grade || 0,
-        offer: m.job_offer || '',
-        team: m.team || '',
-        position: m.position || '',
-        role: m.position || '',
-        rank: m.rank || '',
-        rate: parseFloat(m.incentive_rate) || 0,
-        totalSales: parseInt(m.cumulative_sales) || 0,
-        joinDate: m.start_date || '',
-        operationStartDate: m.operation_start_date || '',
-        referrerName: m.referrer_name || '',
-        zoomUserId: m.zoom_user_id || '',
-        zoomPhoneNumber: m.zoom_phone_number || '',
-        avatarUrl: m.avatar_url || '',
-      }))
+      const membersDetailed = members.map(m => {
+        // 事業内ポジション（Sourcing）を優先、無ければ会社役職にフォールバック
+        const engagementRoleName = sourcingRoleMap[m.id] || null
+        const legacyRole = engagementRoleName
+          ? (ROLE_LEGACY_MAP[engagementRoleName] || engagementRoleName)
+          : (m.position || '')
+        return {
+          _supaId: m.id,
+          id: m.id,
+          user_id: m.user_id || null,
+          no: m.sort_order || 0,
+          name: m.name || '',
+          email: m.email || '',
+          phone_number: m.phone_number || '',
+          start_date: m.start_date || '',
+          university: m.university || '',
+          year: m.grade || 0,
+          offer: m.job_offer || '',
+          team: m.team || '',
+          position: m.position || '',  // 会社役職（代表取締役/取締役）
+          role: legacyRole,             // 事業内ポジション (チームリーダー/副リーダー/メンバー) or 会社役職
+          rank: m.rank || '',
+          rate: parseFloat(m.incentive_rate) || 0,
+          totalSales: parseInt(m.cumulative_sales) || 0,
+          joinDate: m.start_date || '',
+          operationStartDate: m.operation_start_date || '',
+          referrerName: m.referrer_name || '',
+          zoomUserId: m.zoom_user_id || '',
+          zoomPhoneNumber: m.zoom_phone_number || '',
+          avatarUrl: m.avatar_url || '',
+        }
+      })
 
       // appointments → 既存APPO_DATAフォーマットに変換
       const appoDataFormatted = appointments.map(a => ({
