@@ -173,6 +173,17 @@ Deno.serve(async (req) => {
         .from('shifts').select('member_id, member_name, start_time, end_time')
         .eq('org_id', orgId).eq('shift_date', targetDate)
 
+      // チームリーダー (engagement_roles.name='リーダー') を抽出 ─ シフト未稼働ピックから除外する
+      const { data: leaderRows } = await supabase
+        .from('member_engagements')
+        .select('member_id, role:engagement_roles!inner(name)')
+        .eq('org_id', orgId).eq('engagement_id', engagementId)
+      const leaderMemberIds = new Set(
+        ((leaderRows || []) as Array<{ member_id: string; role: { name: string } }>)
+          .filter(r => r.role?.name === 'リーダー')
+          .map(r => r.member_id)
+      )
+
       // チームごとに集計
       for (const team of (teams || [])) {
         const teamId = team.id as string
@@ -354,11 +365,12 @@ Deno.serve(async (req) => {
         const active_member_ids = new Set(activeMembers.map((m: any) => m.member_id))
         const shift_no_call = Array.from(shifted_member_ids)
           .filter(id => !active_member_ids.has(id))
+          .filter(id => !leaderMemberIds.has(id)) // リーダーは管理業務専念のため除外
           .map(id => {
             const sh = (shifts || []).find((s: any) => s.member_id === id)
             return {
               member_id: id,
-              name: memberById[id]?.name || '',
+              name: memberById[id]?.name || sh?.member_name || '不明',
               shift_start: sh?.start_time || null,
               shift_end: sh?.end_time || null,
             }
