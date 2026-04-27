@@ -231,8 +231,11 @@ const CLIENT_DATA = [{"no": 1, "status": "支援中", "contract": "済", "compan
 
 // インライン録音プレーヤー（全画面共通）
 function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, supabaseData, onDataRefetch, orgId }) {
-  const { currentEngagement } = useEngagements();
-  const engSlug = currentEngagement?.slug || 'seller_sourcing';
+  const { engagements, currentEngagement, switchEngagement, loading: engLoading } = useEngagements();
+  const engSlug = currentEngagement?.slug || null;
+  // engagement の async ロード中はアプリ本体を描画しない（リロード時のタブ誤遷移防止）
+  // App.jsx の loading 画面が引き続き表示されるよう、loading=true の間は null を返す
+  // ※ Hooks 宣言の前で return できないため、後段の Hooks 完了後に判定する
   const branding = useBranding();
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -326,23 +329,26 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     try { localStorage.setItem("masp_v2_currentTab", currentTab); } catch(e) {}
   }, [currentTab]);
   // engagement 切替時のデフォルト遷移
-  const _prevEngSlugRef = useRef(engSlug);
+  // engagement の async ロードが終わるまでは fire しない（リロード時の誤遷移防止）
+  const _prevEngSlugRef = useRef(null);
   useEffect(() => {
+    if (engLoading) return;
+    if (!engSlug) return;
     const prev = _prevEngSlugRef.current;
-    if (prev === engSlug) return;
+    // 初回（ロード完了直後）は currentTab を尊重する。タブが現エンゲージメントで
+    // 有効ならそのまま、無効ならデフォルトに揃える。
     _prevEngSlugRef.current = engSlug;
-    const MASP_TABS = ['database', 'all_members', 'mypage'];
+    const MASP_TABS = ['database', 'all_members', 'admin_settings', 'mypage'];
+    const SOURCING_TABS = ['dashboard','live','incoming','lists','appo','precheck','deals','crm','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','edu_performance','ai','manager_admin'];
     const CAREER_TABS = ['applications', 'deals_career', 'members_career', 'mypage'];
     if (engSlug === 'masp') {
       if (!MASP_TABS.includes(currentTab)) setCurrentTab('database');
     } else if (engSlug === 'seller_sourcing') {
-      if (!["live","incoming","lists","appo","precheck","deals","crm","members","search","stats","recall","payroll","shift","rules","mypage","library","edu_roleplay","edu_performance","ai","manager_admin"].includes(currentTab)) {
-        setCurrentTab('lists');
-      }
+      if (!SOURCING_TABS.includes(currentTab)) setCurrentTab('dashboard');
     } else if (engSlug === 'spartia_career') {
       if (!CAREER_TABS.includes(currentTab)) setCurrentTab('applications');
     }
-  }, [engSlug, currentTab]);
+  }, [engSlug, engLoading, currentTab]);
   const [now, setNow] = useState(new Date());
   const [lastUpdated, setLastUpdated] = useState(() => new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   // call_sessions ベースの「リストごと最終架電日時」マップ { [supaId]: ISO string }
@@ -550,10 +556,25 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const [hoveredGroup, setHoveredGroup] = useState(null);
   const hoverTimeout = React.useRef(null);
 
-  // Keyboard shortcut: Ctrl+↑/↓ で engagement ごとのページ巡回
+  // Keyboard shortcut: Ctrl+←/→ で事業（engagement）タブ切替
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!e.ctrlKey) return;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        const slugs = (engagements || [])
+          .filter(eg => eg.status === 'active')
+          .map(eg => eg.slug);
+        if (slugs.length === 0) return;
+        const cur = engSlug && slugs.includes(engSlug) ? engSlug : slugs[0];
+        const idx = slugs.indexOf(cur);
+        if (idx === -1) return;
+        e.preventDefault();
+        const next = e.key === 'ArrowLeft'
+          ? (idx - 1 + slugs.length) % slugs.length
+          : (idx + 1) % slugs.length;
+        if (slugs[next] !== cur) switchEngagement(slugs[next]);
+        return;
+      }
       if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
 
       const cycle = (items, current, key, onPick) => {
@@ -591,7 +612,16 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentTab, navGroups, engSlug, isAdmin]);
+  }, [currentTab, navGroups, engSlug, isAdmin, engagements, switchEngagement]);
+
+  // engagement async ロード中は描画しない（タブ誤遷移防止）
+  if (engLoading || !engSlug) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F3F2F2', fontFamily: "'Noto Sans JP', sans-serif" }}>
+        <div style={{ color: '#8896a6', fontSize: 12, letterSpacing: 2 }}>読み込み中...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: '#F3F2F2', color: C.textDark, fontFamily: "'Noto Sans JP', sans-serif" }}>

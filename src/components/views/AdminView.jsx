@@ -116,31 +116,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
     }
   };
 
-  // Ctrl+←/→ でサブタブを切り替え（カスタムイベント + 直接キーボード両対応）
-  useEffect(() => {
-    const ids = TABS.map(t => t.id);
-    const cycle = (direction) => {
-      setActiveTab(prev => {
-        const idx = ids.indexOf(prev);
-        if (idx === -1) return prev;
-        const next = ids[(idx + direction + ids.length) % ids.length];
-        try { localStorage.setItem('admin_activeTab', next); } catch {}
-        return next;
-      });
-    };
-    const handleSubtabCycle = (e) => cycle(e.detail.direction);
-    const handleKeyDown = (e) => {
-      if (!e.ctrlKey) return;
-      if (e.key === 'ArrowLeft') { e.preventDefault(); cycle(-1); }
-      else if (e.key === 'ArrowRight') { e.preventDefault(); cycle(1); }
-    };
-    window.addEventListener('spanavi-subtab-cycle', handleSubtabCycle);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('spanavi-subtab-cycle', handleSubtabCycle);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
+  // Ctrl+←/→ は事業（engagement）タブ切替に変更されたため、ページ内 subtab 切替は廃止
 
   // isAdmin でなければ リスト一覧 にリダイレクト
   useEffect(() => {

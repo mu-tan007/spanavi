@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { C } from '../../constants/colors';
 import { useEngagements } from '../../hooks/useEngagements';
 import { useEngagementClients } from '../../hooks/useEngagementClients';
@@ -19,27 +19,7 @@ export default function DealsView() {
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [activeTab, setActiveTab] = useState('calls');
 
-  // Ctrl+←/→ でサブタブ切替
-  useEffect(() => {
-    const ids = TABS.map(t => t.id);
-    const cycle = (dir) => setActiveTab(prev => {
-      const i = ids.indexOf(prev);
-      if (i === -1) return prev;
-      return ids[(i + dir + ids.length) % ids.length];
-    });
-    const onEvt = e => cycle(e.detail.direction);
-    const onKey = e => {
-      if (!e.ctrlKey) return;
-      if (e.key === 'ArrowLeft')  { e.preventDefault(); cycle(-1); }
-      if (e.key === 'ArrowRight') { e.preventDefault(); cycle(1); }
-    };
-    window.addEventListener('spanavi-subtab-cycle', onEvt);
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('spanavi-subtab-cycle', onEvt);
-      window.removeEventListener('keydown', onKey);
-    };
-  }, []);
+  // Ctrl+←/→ は事業タブ切替に変更されたため subtab 切替ショートカットは廃止
 
   const selectedClient = useMemo(
     () => clients.find(c => c.id === selectedClientId) || null,

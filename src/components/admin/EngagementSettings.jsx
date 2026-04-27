@@ -64,6 +64,7 @@ function NotificationRulesSection({ engagementId, onToast }) {
   const [overrides, setOverrides] = useState({});
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
+  const [editingType, setEditingType] = useState(null); // null | { isNew, ...row }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,6 +106,57 @@ function NotificationRulesSection({ engagementId, onToast }) {
     setOverrides(prev => ({ ...prev, [typeId]: data }));
   };
 
+  const handleSaveType = async (form) => {
+    const isNew = form.isNew;
+    const id = isNew ? (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `t_${Date.now()}_${Math.random().toString(36).slice(2,8)}`) : form.id;
+    const row = {
+      id,
+      label_jp: form.label_jp.trim(),
+      description_jp: form.description_jp.trim() || null,
+      default_recipients_scope: form.default_recipients_scope,
+      has_threshold: !!form.has_threshold,
+      threshold_unit: form.has_threshold ? (form.threshold_unit || null) : null,
+      display_order: form.display_order || ((catalog.at(-1)?.display_order || 0) + 1),
+      is_active: true,
+      org_id: getOrgId(),
+      is_system: false,
+    };
+    if (!row.label_jp) { onToast?.('ラベルは必須です', 'error'); return; }
+
+    if (isNew) {
+      const { error } = await supabase.from('notification_type_catalog').insert(row);
+      if (error) { onToast?.('追加に失敗: ' + error.message, 'error'); return; }
+      onToast?.('通知種類を追加しました');
+    } else {
+      const { error } = await supabase.from('notification_type_catalog')
+        .update({
+          label_jp: row.label_jp,
+          description_jp: row.description_jp,
+          default_recipients_scope: row.default_recipients_scope,
+          has_threshold: row.has_threshold,
+          threshold_unit: row.threshold_unit,
+        })
+        .eq('id', id);
+      if (error) { onToast?.('更新に失敗: ' + error.message, 'error'); return; }
+      onToast?.('通知種類を更新しました');
+    }
+    setEditingType(null);
+    await load();
+  };
+
+  const handleDeleteType = async (cat) => {
+    if (cat.is_system) return;
+    if (!window.confirm(`「${cat.label_jp}」を削除しますか？\n各事業の設定もまとめて削除されます。`)) return;
+    // engagement_notification_settings の子行を先に削除
+    await supabase.from('engagement_notification_settings')
+      .delete().eq('notification_type', cat.id);
+    const { error } = await supabase.from('notification_type_catalog')
+      .delete().eq('id', cat.id);
+    if (error) { onToast?.('削除に失敗: ' + error.message, 'error'); return; }
+    onToast?.('通知種類を削除しました');
+    await load();
+  };
+
   const getEffective = (cat) => {
     const ov = overrides[cat.id];
     return {
@@ -116,12 +168,25 @@ function NotificationRulesSection({ engagementId, onToast }) {
 
   return (
     <div>
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 4 }}>通知ルール</div>
-        <div style={{ fontSize: 11, color: TEXT_MID, lineHeight: 1.6 }}>
-          この事業で送る通知の ON/OFF・受信者範囲・閾値を管理します。<br />
-          設定変更は即時反映されます。個人ごとの ON/OFF は MyPage から行えます。
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 4 }}>通知ルール</div>
+          <div style={{ fontSize: 11, color: TEXT_MID, lineHeight: 1.6 }}>
+            この事業で送る通知の ON/OFF・受信者範囲・閾値を管理します。<br />
+            設定変更は即時反映されます。個人ごとの ON/OFF は MyPage から行えます。
+          </div>
         </div>
+        <button
+          onClick={() => setEditingType({
+            isNew: true,
+            label_jp: '',
+            description_jp: '',
+            default_recipients_scope: 'all_engagement_members',
+            has_threshold: false,
+            threshold_unit: '',
+          })}
+          style={{ padding: '6px 14px', fontSize: 12, fontWeight: 600, background: NAVY, color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap' }}
+        >+ 通知種類を追加</button>
       </div>
 
       <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 4 }}>
@@ -132,13 +197,14 @@ function NotificationRulesSection({ engagementId, onToast }) {
               <th style={{ ...thBase, textAlign: 'center', width: 80 }}>ON/OFF</th>
               <th style={{ ...thBase, textAlign: 'left', width: 220 }}>受信者範囲</th>
               <th style={{ ...thBase, textAlign: 'right', width: 160 }}>閾値</th>
+              <th style={{ ...thBase, textAlign: 'right', width: 140 }}>操作</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} style={{ ...tdMid, padding: 20, textAlign: 'center' }}>読込中…</td></tr>
+              <tr><td colSpan={5} style={{ ...tdMid, padding: 20, textAlign: 'center' }}>読込中…</td></tr>
             ) : catalog.length === 0 ? (
-              <tr><td colSpan={4} style={{ ...tdMid, padding: 20, textAlign: 'center' }}>通知種類がありません</td></tr>
+              <tr><td colSpan={5} style={{ ...tdMid, padding: 20, textAlign: 'center' }}>通知種類がありません</td></tr>
             ) : catalog.map(cat => {
               const eff = getEffective(cat);
               const busy = savingId === cat.id;
@@ -187,7 +253,6 @@ function NotificationRulesSection({ engagementId, onToast }) {
                             if (v !== eff.threshold_value) upsert(cat.id, { threshold_value: v });
                           }}
                           onChange={e => {
-                            // optimistic local; commit on blur
                             setOverrides(prev => ({
                               ...prev,
                               [cat.id]: { ...(prev[cat.id] || {}), threshold_value: e.target.value === '' ? null : Number(e.target.value), enabled: eff.enabled, recipients_scope: eff.recipients_scope, notification_type: cat.id, engagement_id: engagementId, org_id: getOrgId() },
@@ -202,11 +267,96 @@ function NotificationRulesSection({ engagementId, onToast }) {
                       <span style={{ fontSize: 10.5, color: TEXT_MID }}>—</span>
                     )}
                   </td>
+                  <td style={{ ...tdBase, textAlign: 'right' }}>
+                    {cat.is_system ? (
+                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: '#F3F4F6', color: TEXT_MID, fontWeight: 600 }}>システム</span>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => setEditingType({ isNew: false, ...cat })}
+                          style={{ padding: '3px 10px', fontSize: 10.5, fontWeight: 600, background: '#fff', color: NAVY, border: `1px solid ${NAVY}`, borderRadius: 3, cursor: 'pointer', marginRight: 4, fontFamily: "'Noto Sans JP'" }}
+                        >編集</button>
+                        <button
+                          onClick={() => handleDeleteType(cat)}
+                          style={{ padding: '3px 10px', fontSize: 10.5, fontWeight: 600, background: '#fff', color: '#B91C1C', border: '1px solid #FCA5A5', borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}
+                        >削除</button>
+                      </>
+                    )}
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+      </div>
+
+      {editingType && (
+        <NotificationTypeFormModal
+          form={editingType}
+          onSave={handleSaveType}
+          onCancel={() => setEditingType(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// 追加・編集モーダル
+function NotificationTypeFormModal({ form, onSave, onCancel }) {
+  const [local, setLocal] = useState(form);
+  const u = (k, v) => setLocal(p => ({ ...p, [k]: v }));
+  const isNew = local.isNew;
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 4, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', padding: 24, fontFamily: "'Noto Sans JP', sans-serif" }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 16 }}>
+          {isNew ? '通知種類を追加' : '通知種類を編集'}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: TEXT_MID, marginBottom: 4 }}>名称 *</label>
+            <input value={local.label_jp || ''} onChange={e => u('label_jp', e.target.value)}
+              placeholder="例: 大型受注セレブレーション"
+              style={{ width: '100%', padding: '7px 10px', fontSize: 12, border: `1px solid ${BORDER}`, borderRadius: 3, fontFamily: "'Noto Sans JP'", boxSizing: 'border-box' }} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: TEXT_MID, marginBottom: 4 }}>説明</label>
+            <textarea value={local.description_jp || ''} onChange={e => u('description_jp', e.target.value)}
+              rows={2}
+              placeholder="どんな時に送る通知か"
+              style={{ width: '100%', padding: '7px 10px', fontSize: 12, border: `1px solid ${BORDER}`, borderRadius: 3, fontFamily: "'Noto Sans JP'", boxSizing: 'border-box', resize: 'vertical' }} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: TEXT_MID, marginBottom: 4 }}>デフォルト受信者範囲</label>
+            <select value={local.default_recipients_scope || 'all_engagement_members'}
+              onChange={e => u('default_recipients_scope', e.target.value)}
+              style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: `1px solid ${BORDER}`, borderRadius: 3, fontFamily: "'Noto Sans JP'", color: NAVY, boxSizing: 'border-box' }}>
+              {SCOPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input id="hasThreshold" type="checkbox" checked={!!local.has_threshold}
+              onChange={e => u('has_threshold', e.target.checked)}
+              style={{ width: 16, height: 16, cursor: 'pointer' }} />
+            <label htmlFor="hasThreshold" style={{ fontSize: 12, color: NAVY, cursor: 'pointer' }}>閾値（数値）を持つ</label>
+          </div>
+          {local.has_threshold && (
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: TEXT_MID, marginBottom: 4 }}>閾値の単位</label>
+              <input value={local.threshold_unit || ''} onChange={e => u('threshold_unit', e.target.value)}
+                placeholder="例: 円 / 件"
+                style={{ width: 200, padding: '7px 10px', fontSize: 12, border: `1px solid ${BORDER}`, borderRadius: 3, fontFamily: "'Noto Sans JP'", boxSizing: 'border-box' }} />
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
+          <button onClick={onCancel}
+            style={{ padding: '7px 16px', fontSize: 12, fontWeight: 600, background: '#fff', color: NAVY, border: `1px solid ${BORDER}`, borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
+          <button onClick={() => onSave(local)}
+            style={{ padding: '7px 16px', fontSize: 12, fontWeight: 600, background: NAVY, color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>{isNew ? '追加' : '保存'}</button>
+        </div>
       </div>
     </div>
   );

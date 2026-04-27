@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { C } from '../../constants/colors';
 import PageHeader from '../common/PageHeader';
 import CallResultsTab from '../views/deals/CallResultsTab';
@@ -13,22 +13,7 @@ const TABS = [
 export default function ClientDealsView({ client }) {
   const [activeTab, setActiveTab] = useState('calls');
 
-  useEffect(() => {
-    const ids = TABS.map(t => t.id);
-    const onKey = e => {
-      if (!e.ctrlKey) return;
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        e.preventDefault();
-        setActiveTab(prev => {
-          const i = ids.indexOf(prev); if (i === -1) return prev;
-          const dir = e.key === 'ArrowLeft' ? -1 : 1;
-          return ids[(i + dir + ids.length) % ids.length];
-        });
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  // Ctrl+←/→ は事業タブ切替に統一されたため subtab 切替ショートカットは廃止
 
   if (!client) return null;
 
