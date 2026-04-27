@@ -180,9 +180,17 @@ async function processInBackground(
 {
   "overall": "全体的な総評（200字程度）",
   "issues": ["課題点1", "課題点2", "課題点3"],
-  "solutions": ["課題点1への解決策", "課題点2への解決策", "課題点3への解決策"],
-  "practice": ["具体的な練習方法1", "具体的な練習方法2", "具体的な練習方法3"]
+  "actionPlan": [
+    { "principle": "課題点1への対応方針（何を、どう変えるか）", "drill": "次1週間で実施する具体的なドリル（回数・頻度を含む）" },
+    { "principle": "課題点2への対応方針", "drill": "次1週間のドリル" },
+    { "principle": "課題点3への対応方針", "drill": "次1週間のドリル" }
+  ]
 }
+
+【actionPlan の書き分けルール】
+- principle = 何をどう変えるべきかの**方針**（原則・考え方）
+- drill = 次1週間で実施する**具体ドリル**（必ず回数・頻度・場面を含める。例: 「拒否切り返しを毎日5本、1週間継続」）
+- principle と drill が重複しないよう、principle は抽象的な方針、drill は数値つきの実践プランに分けること
 
 【評価の観点】
 - 受付突破トークの自然さ・説得力
@@ -222,7 +230,7 @@ ${transcript}`
     const claudeText: string = claudeData.content?.[0]?.text || ''
     const stopReason: string | undefined = claudeData.stop_reason
 
-    let aiFeedback: { overall?: string; issues?: string[]; solutions?: string[]; practice?: string[] } = {}
+    let aiFeedback: { overall?: string; issues?: string[]; actionPlan?: Array<{ principle?: string; drill?: string }>; solutions?: string[]; practice?: string[] } = {}
     let parseError: string | null = null
     try {
       const jsonMatch = claudeText.match(/\{[\s\S]*\}/)
@@ -237,7 +245,11 @@ ${transcript}`
     }
 
     // 必須フィールドが空ならエラー扱い（silent emptyを防ぐ）
-    const hasContent = !!(aiFeedback.overall || (aiFeedback.issues && aiFeedback.issues.length))
+    const hasContent = !!(
+      aiFeedback.overall
+      || (aiFeedback.issues && aiFeedback.issues.length)
+      || (aiFeedback.actionPlan && aiFeedback.actionPlan.length)
+    )
     if (!hasContent) {
       console.error('[analyze-roleplay] Empty AI feedback. stop_reason:', stopReason, 'raw:', claudeText.slice(0, 800))
       const { error: updateError } = await supabase

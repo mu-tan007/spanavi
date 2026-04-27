@@ -70,16 +70,49 @@ Deno.serve(async (req: Request) => {
     const fb = aiFeedback || {}
     const overall = fb.overall || ''
     const issues: string[] = fb.issues || []
+    // 新形式: actionPlan = [{ principle, drill }, ...]（課題ごとに方針+ドリルを統合）
+    const actionPlan: Array<{ principle?: string; drill?: string } | string> = fb.actionPlan || []
+    // 旧形式: solutions / practice（後方互換）
     const solutions: string[] = fb.solutions || []
     const practice: string[] = fb.practice || []
 
     const issuesText = issues.map((v: string, i: number) => `${i + 1}. ${v}`).join('\n')
-    const solutionsText = solutions.map((v: string, i: number) => `${i + 1}. ${v}`).join('\n')
-    const practiceText = practice.map((v: string, i: number) => `${i + 1}. ${v}`).join('\n')
 
     const videoSection = videoUrl ? `\n\n*動画*\n${videoUrl}` : ''
 
-    const text = `
+    const useNewFormat = actionPlan.length > 0
+    let text: string
+
+    if (useNewFormat) {
+      // 3セクション形式
+      const planText = actionPlan.map((item, i) => {
+        if (typeof item === 'string') {
+          return `${i + 1}. ${item}`
+        }
+        const principle = item.principle || ''
+        const drill = item.drill || ''
+        return `${i + 1}. ${principle}${drill ? `\n　 実践: ${drill}` : ''}`
+      }).join('\n\n')
+
+      text = `
+:microphone: *ロープレレポート*
+*日付:* ${dateStr}
+*メンバー:* ${memberName}　×　*相手:* ${partner}
+
+*【総評】*
+${overall}
+
+*【課題点】*
+${issuesText || 'なし'}
+
+*【アクションプラン】*
+${planText || 'なし'}${videoSection}
+`.trim()
+    } else {
+      // 旧4セクション形式（後方互換）
+      const solutionsText = solutions.map((v, i) => `${i + 1}. ${v}`).join('\n')
+      const practiceText = practice.map((v, i) => `${i + 1}. ${v}`).join('\n')
+      text = `
 :microphone: *ロープレレポート*
 *日付:* ${dateStr}
 *メンバー:* ${memberName}　×　*相手:* ${partner}
@@ -96,6 +129,7 @@ ${solutionsText || 'なし'}
 *【練習方法】*
 ${practiceText || 'なし'}${videoSection}
 `.trim()
+    }
 
     const slackRes = await fetch(webhookUrl, {
       method: 'POST',

@@ -850,8 +850,37 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
               </div>
             )}
 
-            {/* 解決策 */}
-            {fb.solutions?.length > 0 && (
+            {/* Action Plan（新形式: 課題ごとに方針 + ドリルを統合） */}
+            {fb.actionPlan?.length > 0 && (
+              <div style={{ marginBottom: 4 }}>
+                <div style={{ fontSize: 9, letterSpacing: '0.1em', color: C.navy, fontWeight: 700, textTransform: 'uppercase', marginBottom: 7 }}>
+                  Action Plan
+                </div>
+                {fb.actionPlan.map((item, i) => {
+                  const principle = typeof item === 'string' ? item : (item?.principle || '');
+                  const drill = typeof item === 'string' ? '' : (item?.drill || '');
+                  return (
+                    <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 10, alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: 9, color: C.navy, fontFamily: 'monospace', fontWeight: 700, minWidth: 22, flexShrink: 0, marginTop: 2, opacity: 0.6 }}>
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.75 }}>{principle}</div>
+                        {drill && (
+                          <div style={{ marginTop: 4, fontSize: 10.5, color: C.textLight, lineHeight: 1.75, paddingLeft: 10, borderLeft: '2px solid ' + C.navy + '20' }}>
+                            <span style={{ fontWeight: 700, color: C.navy + 'dd', marginRight: 6 }}>実践</span>
+                            {drill}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 旧形式 fallback: solutions / practice（後方互換） */}
+            {!fb.actionPlan?.length && fb.solutions?.length > 0 && (
               <div style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 9, letterSpacing: '0.1em', color: C.navy, fontWeight: 700, textTransform: 'uppercase', marginBottom: 7 }}>
                   Recommendations
@@ -866,9 +895,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                 ))}
               </div>
             )}
-
-            {/* 練習方法 */}
-            {fb.practice?.length > 0 && (
+            {!fb.actionPlan?.length && fb.practice?.length > 0 && (
               <div style={{ marginBottom: 4 }}>
                 <div style={{ fontSize: 9, letterSpacing: '0.1em', color: C.navy, fontWeight: 700, textTransform: 'uppercase', marginBottom: 7 }}>
                   Training Protocol
