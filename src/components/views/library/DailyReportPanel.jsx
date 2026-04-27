@@ -11,8 +11,23 @@ export default function DailyReportPanel({ currentUser, userId, isAdmin }) {
   const sourcing = useMemo(() => (engagements || []).find(e => e.slug === 'seller_sourcing'), [engagements]);
 
   const [reports, setReports] = useState([]); // 直近 30 日分
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [selectedTeamId, setSelectedTeamId] = useState(null);
+  const SEL_KEY = 'spanavi_daily_report_selection_v1';
+  const [selectedDate, _setSelectedDate] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(SEL_KEY) || 'null')?.date || null; }
+    catch { return null; }
+  });
+  const [selectedTeamId, _setSelectedTeamId] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(SEL_KEY) || 'null')?.teamId || null; }
+    catch { return null; }
+  });
+  const setSelectedDate = (d) => {
+    _setSelectedDate(d);
+    try { localStorage.setItem(SEL_KEY, JSON.stringify({ date: d, teamId: selectedTeamId })); } catch {}
+  };
+  const setSelectedTeamId = (t) => {
+    _setSelectedTeamId(t);
+    try { localStorage.setItem(SEL_KEY, JSON.stringify({ date: selectedDate, teamId: t })); } catch {}
+  };
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,11 +43,20 @@ export default function DailyReportPanel({ currentUser, userId, isAdmin }) {
         .eq('org_id', orgId).eq('engagement_id', sourcing.id)
         .gte('report_date', since.toISOString().slice(0, 10))
         .order('report_date', { ascending: false });
-      setReports(data || []);
-      // 最新日付を選択
-      if ((data || []).length > 0) {
-        setSelectedDate(data[0].report_date);
-        setSelectedTeamId(data[0].team_id);
+      const rows = data || [];
+      setReports(rows);
+      // 永続化された選択を尊重しつつ、無効なら最新日付に
+      if (rows.length > 0) {
+        const savedDate = selectedDate;
+        const savedTeam = selectedTeamId;
+        const validRow = rows.find(r => r.report_date === savedDate && r.team_id === savedTeam)
+          || rows.find(r => r.report_date === savedDate);
+        if (validRow) {
+          if (validRow.team_id !== savedTeam) setSelectedTeamId(validRow.team_id);
+        } else {
+          setSelectedDate(rows[0].report_date);
+          setSelectedTeamId(rows[0].team_id);
+        }
       }
       setLoading(false);
     })();

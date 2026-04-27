@@ -52,7 +52,20 @@ export default function LibraryView({
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(order)); } catch { /* ignore */ }
   }, [order]);
 
-  const [activeCardId, setActiveCardId] = useState(null);
+  const ACTIVE_CARD_KEY = 'spanavi_library_active_card_v1';
+  const [activeCardId, _setActiveCardId] = useState(() => {
+    try {
+      const saved = localStorage.getItem(ACTIVE_CARD_KEY);
+      return saved && DEFAULT_ORDER.includes(saved) ? saved : null;
+    } catch { return null; }
+  });
+  const setActiveCardId = (id) => {
+    _setActiveCardId(id);
+    try {
+      if (id) localStorage.setItem(ACTIVE_CARD_KEY, id);
+      else localStorage.removeItem(ACTIVE_CARD_KEY);
+    } catch { /* ignore */ }
+  };
 
   const [bookmarks, setBookmarks] = useState([]);
   const [bookmarkPlayingId, setBookmarkPlayingId] = useState(null);
