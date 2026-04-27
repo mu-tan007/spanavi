@@ -505,8 +505,58 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     return isAdmin || a.getter === currentUser;
   });
   const overdueCsvCount = 0;
-  // Bell通知は「事前確認待ちアポ」のみ。再コール期限超過は Recall タブで管理する。
-  const overdueCount = preCheckPendingAppos.length;
+
+  // ── アプリ内通知 inbox（バッジに溜まる）
+  const [inboxNotifications, setInboxNotifications] = useState([]);
+  const refreshInbox = useCallback(async () => {
+    if (!userId) return;
+    const { data } = await supabase
+      .from('notifications')
+      .select('id, type, title, body, link, data, read_at, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    setInboxNotifications(data || []);
+  }, [userId]);
+  useEffect(() => { refreshInbox(); }, [refreshInbox]);
+  // 1分ごとに inbox を再取得
+  useEffect(() => {
+    const t = setInterval(() => refreshInbox(), 60000);
+    return () => clearInterval(t);
+  }, [refreshInbox]);
+
+  const unreadInbox = inboxNotifications.filter(n => !n.read_at);
+  const overdueCount = preCheckPendingAppos.length + unreadInbox.length;
+
+  const markNotificationRead = async (id) => {
+    setInboxNotifications(prev => prev.map(n => n.id === id ? { ...n, read_at: new Date().toISOString() } : n));
+    await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id);
+  };
+  const markAllNotificationsRead = async () => {
+    if (unreadInbox.length === 0) return;
+    const ids = unreadInbox.map(n => n.id);
+    setInboxNotifications(prev => prev.map(n => ids.includes(n.id) ? { ...n, read_at: new Date().toISOString() } : n));
+    await supabase.from('notifications').update({ read_at: new Date().toISOString() }).in('id', ids);
+  };
+  const handleInboxClick = async (n) => {
+    await markNotificationRead(n.id);
+    setShowBellDropdown(false);
+    // link 経由の遷移
+    if (!n.link) return;
+    // 例: /sourcing/library?card=daily_report
+    if (n.link.startsWith('/sourcing/library')) {
+      // Sourcing 事業に切替＋ Library タブ＋ Daily Report カード
+      try {
+        if (typeof switchEngagement === 'function') switchEngagement('seller_sourcing');
+      } catch { /* ignore */ }
+      setCurrentTab('library');
+      try {
+        const url = new URL(n.link, window.location.origin);
+        const card = url.searchParams.get('card');
+        if (card) localStorage.setItem('spanavi_library_active_card_v1', card);
+      } catch { /* ignore */ }
+    }
+  };
 
   const handleSupaRecallComplete = async (item) => {
     const memoObj = { ...item._memoObj, recall_completed: true };
@@ -653,7 +703,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       )}
       <div style={{ width: 220, position: 'fixed', left: 0, top: 0, height: '100vh', background: branding.primaryColor, overflowY: 'auto', zIndex: 200, boxShadow: '2px 0 8px rgba(0,0,0,0.15)', display: (isMobile || engSlug !== 'seller_sourcing') ? 'none' : 'flex', flexDirection: 'column' }}>
         {/* Logo */}
-        <div onClick={() => setCurrentTab('dashboard')} style={{ padding: '16px 20px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 10 }}>
           {branding.logoUrl ? (
             <img src={branding.logoUrl} alt={branding.orgName} style={{ width: 28, height: 32, objectFit: 'contain' }} />
           ) : (
@@ -846,13 +896,19 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
               </div>
             )}
             {showBellDropdown && (
-              <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 300,
+              <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 320,
                 background: C.white, borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
                 border: "1px solid " + C.borderLight, zIndex: 300, overflow: "hidden" }}>
-                <div style={{ padding: "10px 14px", background: C.navy, color: C.white, fontSize: 11, fontWeight: 700 }}>
-                  通知（{overdueCount}件）
+                <div style={{ padding: "10px 14px", background: C.navy, color: C.white, fontSize: 11, fontWeight: 700, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>通知（{overdueCount}件）</span>
+                  {unreadInbox.length > 0 && (
+                    <button onClick={markAllNotificationsRead}
+                      style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.4)', color: C.white, fontSize: 9, padding: '2px 8px', borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                      全て既読
+                    </button>
+                  )}
                 </div>
-                <div style={{ maxHeight: 280, overflowY: "auto" }}>
+                <div style={{ maxHeight: 360, overflowY: "auto" }}>
                   {preCheckPendingAppos.length > 0 && (<>
                     <div style={{ padding: "6px 14px", background: "#fff8ed", fontSize: 10, fontWeight: 700, color: C.orange, borderBottom: "1px solid " + C.borderLight }}>
                       事前確認が必要なアポ（{preCheckPendingAppos.length}件）
@@ -867,18 +923,42 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
                       </div>
                     ))}
                   </>)}
-                  {overdueCount === 0 && (
+                  {inboxNotifications.length > 0 && (<>
+                    <div style={{ padding: "6px 14px", background: C.offWhite, fontSize: 10, fontWeight: 700, color: C.navy, borderBottom: "1px solid " + C.borderLight }}>
+                      最新の通知（{unreadInbox.length}件未読 / {inboxNotifications.length}件）
+                    </div>
+                    {inboxNotifications.slice(0, 30).map(n => (
+                      <div key={n.id} onClick={() => handleInboxClick(n)}
+                        onMouseEnter={e => { e.currentTarget.style.background = C.offWhite; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = n.read_at ? '' : '#F0F7FF'; }}
+                        style={{
+                          padding: "8px 14px", borderBottom: "1px solid " + C.borderLight,
+                          cursor: "pointer",
+                          background: n.read_at ? '' : '#F0F7FF',
+                        }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {!n.read_at && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#0D2247', flexShrink: 0 }} />}
+                          <div style={{ fontSize: 11, fontWeight: 600, color: C.navy, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {n.title}
+                          </div>
+                          <span style={{ fontSize: 9, color: C.textLight, fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>
+                            {(n.created_at || '').slice(5, 16).replace('T', ' ')}
+                          </span>
+                        </div>
+                        {n.body && (
+                          <div style={{ fontSize: 10, color: C.textMid, marginTop: 2, lineHeight: 1.5,
+                            overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box',
+                            WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                            {n.body}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </>)}
+                  {overdueCount === 0 && inboxNotifications.length === 0 && (
                     <div style={{ padding: "20px 14px", textAlign: "center", color: C.textLight, fontSize: 11 }}>通知なし</div>
                   )}
                 </div>
-                {preCheckPendingAppos.length > 0 && (
-                  <div style={{ padding: "8px 14px", borderTop: "1px solid " + C.borderLight }}>
-                    <button onClick={() => { setCurrentTab("precheck"); setShowBellDropdown(false); }}
-                      style={{ width: "100%", padding: "6px", borderRadius: 5, border: "none", background: C.orange, color: C.white, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
-                      事前確認ページを開く
-                    </button>
-                  </div>
-                )}
               </div>
             )}
           </div>

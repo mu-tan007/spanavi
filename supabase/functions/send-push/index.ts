@@ -211,7 +211,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { type, title, body, user_ids, org_id, engagement_id } = await req.json()
+    const { type, title, body, user_ids, org_id, engagement_id, link, data: extraData } = await req.json()
 
     if (!user_ids?.length || !org_id) {
       return new Response(
@@ -225,9 +225,7 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    // 個人 opt-out フィルタ:
-    //   (user_id, engagement_id, '_all').enabled=false → 事業マスター OFF → 除外
-    //   (user_id, engagement_id, type).enabled=false   → 種類別 OFF       → 除外
+    // 個人 opt-out フィルタ
     let filteredUserIds = user_ids
     if (engagement_id) {
       const checkTypes = ['_all']
@@ -250,6 +248,22 @@ Deno.serve(async (req) => {
         JSON.stringify({ ok: true, sent: 0, message: 'All users opted out for this engagement' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
+    }
+
+    // ── アプリ内通知 inbox にも記録（push 配信成否に関わらず必ず）
+    if (type !== 'test') {
+      try {
+        const inboxRows = filteredUserIds.map((uid: string) => ({
+          org_id, user_id: uid, type: type || 'info',
+          title: title || '', body: body || null,
+          link: link || null,
+          data: extraData || null,
+        }))
+        const { error: ibErr } = await supabase.from('notifications').insert(inboxRows)
+        if (ibErr) console.warn('[send-push] notifications insert warn:', ibErr.message)
+      } catch (ibEx) {
+        console.warn('[send-push] notifications insert exception:', ibEx)
+      }
     }
 
     // Fetch push subscriptions for the given user_ids within the org

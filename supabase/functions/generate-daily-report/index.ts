@@ -424,16 +424,37 @@ Deno.serve(async (req) => {
         const totalAppos = summary.reduce((s, t) => s + (t.appointments || 0), 0)
         const totalCalls = summary.reduce((s, t) => s + (t.calls || 0), 0)
         const body = `本日: 架電 ${totalCalls} / アポ ${totalAppos}件。Library に詳細を格納しました。`
-        await supabase.functions.invoke('send-push', {
-          body: {
-            type: 'daily_report',
-            title: 'デイリーレポート',
-            body,
-            user_ids: userIds,
-            org_id: orgId,
-            engagement_id: engagementId,
-          },
-        })
+
+        // 1) アプリ内通知 inbox に直接 INSERT（必ず成功させる）
+        const inboxRows = userIds.map(uid => ({
+          org_id: orgId,
+          user_id: uid,
+          type: 'daily_report',
+          title: 'デイリーレポート',
+          body,
+          link: '/sourcing/library?card=daily_report',
+          data: { report_date: targetDate },
+        }))
+        const { error: ibErr } = await supabase.from('notifications').insert(inboxRows)
+        if (ibErr) console.error('[daily-report] inbox insert error:', ibErr.message)
+
+        // 2) プッシュ通知（best-effort、送信失敗しても inbox は確保済み）
+        try {
+          await supabase.functions.invoke('send-push', {
+            body: {
+              type: 'daily_report',
+              title: 'デイリーレポート',
+              body,
+              user_ids: userIds,
+              org_id: orgId,
+              engagement_id: engagementId,
+              link: '/sourcing/library?card=daily_report',
+              data: { report_date: targetDate },
+            },
+          })
+        } catch (pushErr) {
+          console.warn('[daily-report] push invoke failed:', pushErr)
+        }
       }
     }
 

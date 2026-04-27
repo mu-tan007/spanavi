@@ -149,12 +149,6 @@ export default function DailyReportPanel({ currentUser, userId, isAdmin }) {
           ))}
         </div>
 
-        {selected && (
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-            <button onClick={() => downloadCsv(selected)} style={iconBtnStyle} title="CSV ダウンロード">CSV</button>
-            <button onClick={() => repostToSourcing(selected, sourcing.id)} style={iconBtnStyle} title="Sourcing 全員に再通知">再通知</button>
-          </div>
-        )}
       </div>
 
       {selectedDate && !selected && (
