@@ -23,12 +23,13 @@ const CF_STREAM_SUBDOMAIN = import.meta.env.VITE_CF_STREAM_CUSTOMER_SUBDOMAIN ||
 const STORAGE_KEY = 'spanavi_library_card_order_v1';
 const DEFAULT_ORDER = ['daily_report', 'bookmarks', 'rules', 'meetings', 'scripts'];
 
+const CARD_COLOR = '#1F3B6B';
 const CARDS = {
-  daily_report: { title: 'Daily Report',         eyebrow: '本日の活動レポート', accent: '#1F3B6B' },
-  bookmarks:    { title: 'お気に入り録音',        eyebrow: '保存した録音',       accent: '#0D2247' },
-  rules:        { title: '22箇条',               eyebrow: 'インターン心得',     accent: '#3D5A80' },
-  meetings:     { title: '週次ミーティング',     eyebrow: 'アーカイブ',         accent: '#5C7CA3' },
-  scripts:      { title: 'スクリプト一覧',       eyebrow: 'クライアント別',     accent: '#7A95B7' },
+  daily_report: { title: 'Daily Report',         eyebrow: '本日の活動レポート', accent: CARD_COLOR },
+  bookmarks:    { title: 'お気に入り録音',        eyebrow: '保存した録音',       accent: CARD_COLOR },
+  rules:        { title: '22箇条',               eyebrow: 'インターン心得',     accent: CARD_COLOR },
+  meetings:     { title: '週次ミーティング',     eyebrow: 'アーカイブ',         accent: CARD_COLOR },
+  scripts:      { title: 'スクリプト一覧',       eyebrow: 'クライアント別',     accent: CARD_COLOR },
 };
 
 export default function LibraryView({
