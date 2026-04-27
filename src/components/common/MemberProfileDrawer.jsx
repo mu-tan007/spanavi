@@ -307,8 +307,8 @@ function MemberProfileDrawer({ memberId, width, onResize, onClose, currentUserId
               )}
             </Section>
 
-            {/* Zoom（admin / 本人のみ表示） */}
-            {(canEdit) && (member.zoom_user_id || member.zoom_phone_number) && (
+            {/* Zoom Phone（全員に公開・全事業共通の連絡先）/ User ID は admin のみ */}
+            {(member.zoom_phone_number || (isAdmin && member.zoom_user_id)) && (
               <Section title="Zoom 連携">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {member.zoom_phone_number && <Row label="Phone" value={member.zoom_phone_number} mono />}
