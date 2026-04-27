@@ -150,7 +150,7 @@ function NotificationRulesSection({ engagementId, onToast }) {
   const handleDeleteType = async (cat) => {
     const isSys = cat.is_system;
     const confirmMsg = isSys
-      ? `「${cat.label_jp}」を非表示にしますか？\nこの組織からのみ非表示になり、いつでも復元できます。`
+      ? `「${cat.label_jp}」を削除しますか？\n通知ルール・MyPage から消え、各事業の設定もまとめて削除されます。\n（後から復元可能です）`
       : `「${cat.label_jp}」を削除しますか？\n各事業の設定もまとめて削除されます。`;
     if (!window.confirm(confirmMsg)) return;
 
@@ -162,8 +162,8 @@ function NotificationRulesSection({ engagementId, onToast }) {
       // system seed は org 別に非表示化（物理削除しない）
       const { error } = await supabase.from('org_hidden_notification_types')
         .upsert({ org_id: getOrgId(), notification_type: cat.id });
-      if (error) { onToast?.('非表示化に失敗: ' + error.message, 'error'); return; }
-      onToast?.('通知種類を非表示にしました');
+      if (error) { onToast?.('削除に失敗: ' + error.message, 'error'); return; }
+      onToast?.('通知種類を削除しました');
     } else {
       const { error } = await supabase.from('notification_type_catalog')
         .delete().eq('id', cat.id);
@@ -319,9 +319,9 @@ function NotificationRulesSection({ engagementId, onToast }) {
                     )}
                     <button
                       onClick={() => handleDeleteType(cat)}
-                      title={cat.is_system ? 'この組織から非表示にする' : '完全に削除する'}
+                      title={cat.is_system ? 'この組織から削除する（復元可能）' : '完全に削除する'}
                       style={{ padding: '3px 10px', fontSize: 10.5, fontWeight: 600, background: '#fff', color: '#B91C1C', border: '1px solid #FCA5A5', borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}
-                    >{cat.is_system ? '非表示' : '削除'}</button>
+                    >削除</button>
                   </td>
                 </tr>
               );
@@ -332,7 +332,7 @@ function NotificationRulesSection({ engagementId, onToast }) {
 
       {hiddenList.length > 0 && (
         <div style={{ marginTop: 12, padding: '10px 14px', background: '#F8F9FA', border: `1px solid ${BORDER}`, borderRadius: 4 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: TEXT_MID, marginBottom: 6 }}>非表示中のシステム種類</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: TEXT_MID, marginBottom: 6 }}>削除済みの種類</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {hiddenList.map(h => (
               <button key={h.id} onClick={() => restoreHidden(h.id)}
