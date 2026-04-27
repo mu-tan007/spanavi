@@ -308,13 +308,13 @@ function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, curren
 
       {/* 2. KPI スコアボード（チーム比較に ▲/▼ delta） */}
       <Section title="KPI スコアボード（他チーム比較）">
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: 'auto', borderRadius: 4, border: `1px solid ${C.border}` }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5, minWidth: 520 }}>
             <thead>
-              <tr style={{ background: '#F8F9FA', borderBottom: `1px solid ${C.border}` }}>
-                <th style={{ ...th, textAlign: 'left' }}>指標</th>
-                <th style={th}>{report.team_name}</th>
-                {otherTeams.map(t => <th key={t.team_id} style={th}>{t.team_name}</th>)}
+              <tr style={{ background: '#0D2247' }}>
+                <th style={{ ...thNavy, textAlign: 'left' }}>指標</th>
+                <th style={thNavy}>{report.team_name}</th>
+                {otherTeams.map(t => <th key={t.team_id} style={thNavy}>{t.team_name}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -401,8 +401,8 @@ function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, curren
         <ListBreakdownTable lists={sortedLists} sortKey={listSortKey} sortDir={listSortDir} onSort={onListSort} />
       </Section>
 
-      {/* 7. 時間別グラフ（架電/接続/アポ重ね描き + ピークラベル） */}
-      <Section title="時間別 架電 / 接続 / アポ">
+      {/* 7. 時間別グラフ（架電/社長接続/アポ重ね描き + ピークラベル） */}
+      <Section title="時間別 架電 / 社長接続 / アポ">
         <HourlyChart data={hourly} peakHour={peakHour} />
       </Section>
     </div>
@@ -457,23 +457,23 @@ function ListBreakdownTable({ lists, sortKey, sortDir, onSort }) {
   const maxCalls = Math.max(1, ...lists.map(l => l.calls || 0));
   const heat = (n) => {
     const ratio = n / maxCalls;
-    return `rgba(13, 34, 71, ${0.04 + ratio * 0.16})`; // navy with light alpha
+    return `rgba(13, 34, 71, ${0.04 + ratio * 0.16})`;
   };
   const SortHead = ({ k, children }) => (
-    <th onClick={() => onSort(k)} style={{ ...th, cursor: 'pointer', userSelect: 'none' }}>
+    <th onClick={() => onSort(k)} style={{ ...thNavy, cursor: 'pointer', userSelect: 'none' }}>
       {children} {sortKey === k ? (sortDir === 'desc' ? '↓' : '↑') : ''}
     </th>
   );
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div style={{ overflowX: 'auto', borderRadius: 4, border: `1px solid ${C.border}` }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5, minWidth: 600 }}>
         <thead>
-          <tr style={{ background: '#F8F9FA', borderBottom: `1px solid ${C.border}` }}>
-            <th style={{ ...th, textAlign: 'left', cursor: 'pointer', userSelect: 'none' }} onClick={() => onSort('list_name')}>
+          <tr style={{ background: '#0D2247' }}>
+            <th style={{ ...thNavy, textAlign: 'left', cursor: 'pointer', userSelect: 'none' }} onClick={() => onSort('list_name')}>
               リスト名 {sortKey === 'list_name' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
             </th>
             <SortHead k="calls">架電</SortHead>
-            <SortHead k="connects">接続</SortHead>
+            <SortHead k="connects">社長接続</SortHead>
             <SortHead k="appointments">アポ</SortHead>
             <SortHead k="connect_rate">接続率</SortHead>
             <SortHead k="appointment_rate">アポ率</SortHead>
@@ -792,36 +792,61 @@ function PickList({ title, sub, items }) {
 
 function HourlyChart({ data, peakHour }) {
   const maxCount = Math.max(1, ...data.map(d => d.count));
+  const [hoverHour, setHoverHour] = useState(null);
+  const hovered = hoverHour != null ? data.find(d => d.hour === hoverHour) : null;
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 160, padding: '0 6px', borderBottom: `1px solid ${C.border}` }}>
-        {data.map(d => {
-          const totalH = Math.max(2, ((d.count || 0) / maxCount) * 130);
-          const apposH = totalH * ((d.appointments || 0) / Math.max(1, d.count));
-          const connectsH = totalH * (((d.connects || 0) - (d.appointments || 0)) / Math.max(1, d.count));
-          const callsH = totalH - apposH - connectsH;
-          const isPeak = d.hour === peakHour && (d.count || 0) > 0;
-          return (
-            <div key={d.hour} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 24 }}>
-              <div style={{ fontSize: 9, fontWeight: 700,
-                color: isPeak ? '#DC2626' : C.textMid,
-                display: 'flex', alignItems: 'center', gap: 2 }}>
-                {isPeak && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 2, background: '#FEF2F2', color: '#DC2626' }}>PEAK</span>}
-                {d.count || ''}
-              </div>
-              {d.count > 0 ? (
-                <div style={{ width: '100%', maxWidth: 28, height: totalH, display: 'flex', flexDirection: 'column-reverse', borderRadius: '3px 3px 0 0', overflow: 'hidden' }}>
-                  <div style={{ height: callsH, background: C.navy + '60' }} />
-                  <div style={{ height: connectsH, background: C.navy + 'cc' }} />
-                  <div style={{ height: apposH, background: '#059669' }} />
+      <div style={{ position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 160, padding: '0 6px', borderBottom: `1px solid ${C.border}` }}>
+          {data.map(d => {
+            const totalH = Math.max(2, ((d.count || 0) / maxCount) * 130);
+            const apposH = totalH * ((d.appointments || 0) / Math.max(1, d.count));
+            const connectsH = totalH * (((d.connects || 0) - (d.appointments || 0)) / Math.max(1, d.count));
+            const callsH = totalH - apposH - connectsH;
+            const isPeak = d.hour === peakHour && (d.count || 0) > 0;
+            const isHovered = hoverHour === d.hour;
+            const tooltip = `${d.hour}時台\n架電 ${d.count || 0}件\n社長接続 ${d.connects || 0}件\nアポ獲得 ${d.appointments || 0}件`;
+            return (
+              <div key={d.hour}
+                onMouseEnter={() => setHoverHour(d.hour)}
+                onMouseLeave={() => setHoverHour(null)}
+                title={tooltip}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 24, cursor: 'default', background: isHovered ? '#0D224708' : 'transparent', borderRadius: 4 }}>
+                <div style={{ fontSize: 9, fontWeight: 700,
+                  color: isPeak ? '#DC2626' : C.textMid,
+                  display: 'flex', alignItems: 'center', gap: 2 }}>
+                  {isPeak && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 2, background: '#FEF2F2', color: '#DC2626' }}>PEAK</span>}
+                  {d.count || ''}
                 </div>
-              ) : (
-                <div style={{ width: '100%', maxWidth: 28, height: 2, background: C.borderLight, borderRadius: '3px 3px 0 0' }} />
-              )}
-              <div style={{ fontSize: 9, color: isPeak ? '#DC2626' : C.textLight, fontWeight: isPeak ? 700 : 400 }}>{d.hour}</div>
-            </div>
-          );
-        })}
+                {d.count > 0 ? (
+                  <div style={{ width: '100%', maxWidth: 28, height: totalH, display: 'flex', flexDirection: 'column-reverse', borderRadius: '3px 3px 0 0', overflow: 'hidden', boxShadow: isHovered ? '0 0 0 2px #0D224733' : 'none' }}>
+                    <div style={{ height: callsH, background: C.navy + '60' }} />
+                    <div style={{ height: connectsH, background: C.navy + 'cc' }} />
+                    <div style={{ height: apposH, background: '#059669' }} />
+                  </div>
+                ) : (
+                  <div style={{ width: '100%', maxWidth: 28, height: 2, background: C.borderLight, borderRadius: '3px 3px 0 0' }} />
+                )}
+                <div style={{ fontSize: 9, color: isPeak ? '#DC2626' : C.textLight, fontWeight: isPeak ? 700 : 400 }}>{d.hour}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* リッチなホバー値表示（カーソル時間帯の集計を上部に表示） */}
+        {hovered && (
+          <div style={{
+            position: 'absolute', top: 0, right: 0,
+            background: C.white, border: `1px solid ${C.border}`, borderRadius: 4,
+            padding: '6px 10px', fontSize: 10.5, color: C.textDark, lineHeight: 1.7,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)', minWidth: 140,
+          }}>
+            <div style={{ fontWeight: 700, color: C.navy, marginBottom: 2 }}>{hovered.hour}時台</div>
+            <div>架電件数 <span style={{ float: 'right', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>{hovered.count || 0}</span></div>
+            <div>社長接続数 <span style={{ float: 'right', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: C.navy }}>{hovered.connects || 0}</span></div>
+            <div>アポ獲得数 <span style={{ float: 'right', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: '#059669' }}>{hovered.appointments || 0}</span></div>
+          </div>
+        )}
       </div>
       {/* 凡例 */}
       <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 8, fontSize: 10, color: C.textMid }}>
@@ -864,6 +889,7 @@ function Empty({ children }) {
 }
 
 const th = { padding: '8px 10px', fontSize: 10.5, fontWeight: 700, color: C.textMid, textAlign: 'center' };
+const thNavy = { padding: '9px 10px', fontSize: 10.5, fontWeight: 700, color: '#fff', textAlign: 'center', whiteSpace: 'nowrap' };
 const td = { padding: '6px 10px', fontSize: 11.5, color: C.textDark, textAlign: 'center', fontFamily: "'JetBrains Mono', monospace" };
 const selectStyle = {
   padding: '5px 10px', fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 3,
