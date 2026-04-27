@@ -219,14 +219,41 @@ ${transcript}`
     }
 
     const claudeData = await claudeRes.json()
-    const claudeText: string = claudeData.content?.[0]?.text || '{}'
+    const claudeText: string = claudeData.content?.[0]?.text || ''
+    const stopReason: string | undefined = claudeData.stop_reason
 
     let aiFeedback: { overall?: string; issues?: string[]; solutions?: string[]; practice?: string[] } = {}
+    let parseError: string | null = null
     try {
       const jsonMatch = claudeText.match(/\{[\s\S]*\}/)
-      aiFeedback = jsonMatch ? JSON.parse(jsonMatch[0]) : {}
+      if (!jsonMatch) {
+        parseError = 'Claudeの応答にJSON構造が含まれていません'
+      } else {
+        aiFeedback = JSON.parse(jsonMatch[0])
+      }
     } catch (parseErr) {
+      parseError = `JSON parse error: ${(parseErr as Error).message}`
       console.error('[analyze-roleplay] JSON parse error:', parseErr, 'raw:', claudeText)
+    }
+
+    // 必須フィールドが空ならエラー扱い（silent emptyを防ぐ）
+    const hasContent = !!(aiFeedback.overall || (aiFeedback.issues && aiFeedback.issues.length))
+    if (!hasContent) {
+      console.error('[analyze-roleplay] Empty AI feedback. stop_reason:', stopReason, 'raw:', claudeText.slice(0, 800))
+      const { error: updateError } = await supabase
+        .from('roleplay_sessions')
+        .update({
+          transcript,
+          ai_status: 'error',
+          ai_feedback: {
+            error: 'AI分析の結果が空でした。再分析してください。',
+            detail: parseError || `stop_reason=${stopReason || 'unknown'}`,
+            raw_excerpt: claudeText.slice(0, 500),
+          },
+        })
+        .eq('id', session_id)
+      if (updateError) console.error('[analyze-roleplay] DB update error:', updateError)
+      return
     }
 
     // ── 7. roleplay_sessions を更新 ────────────────────────────────────
