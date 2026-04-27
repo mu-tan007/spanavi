@@ -51,6 +51,22 @@ export default function MASPMembersView({ isAdmin }) {
   const [saveError, setSaveError] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [actionMenuId, setActionMenuId] = useState(null); // 鉛筆メニューを開いている行 id
+
+  // 外側クリック / ESC でメニュー閉じる
+  useEffect(() => {
+    if (!actionMenuId) return;
+    const onDocClick = (e) => {
+      if (!e.target.closest('[data-action-menu-root]')) setActionMenuId(null);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setActionMenuId(null); };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [actionMenuId]);
 
   // 招待再送
   const [resendingId, setResendingId] = useState(null);
@@ -394,17 +410,41 @@ export default function MASPMembersView({ isAdmin }) {
                           <button onClick={cancelEdit} disabled={saving} style={secondarySmallBtn}>取消</button>
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                          <button onClick={() => startEdit(m)} style={secondarySmallBtn}>編集</button>
-                          {m.email && (
-                            <button
-                              onClick={() => handleResendInvite(m)}
-                              disabled={resendingId === m.id}
-                              style={secondarySmallBtn}
-                              title="招待メールを再送（パスワード未設定者向け）"
-                            >{resendingId === m.id ? '…' : '再送'}</button>
+                        <div data-action-menu-root style={{ position: 'relative', display: 'inline-block' }}>
+                          <button
+                            onClick={() => setActionMenuId(actionMenuId === m.id ? null : m.id)}
+                            title="編集メニュー"
+                            style={{
+                              padding: '4px 8px', fontSize: 13, fontWeight: 600,
+                              background: actionMenuId === m.id ? C.navy + '12' : 'transparent',
+                              color: C.navy, border: `1px solid ${C.border}`, borderRadius: 3,
+                              cursor: 'pointer', fontFamily: "'Noto Sans JP'", lineHeight: 1,
+                            }}
+                          >✎</button>
+                          {actionMenuId === m.id && (
+                            <div style={{
+                              position: 'absolute', right: 0, top: 'calc(100% + 4px)',
+                              minWidth: 130, zIndex: 50,
+                              background: C.white, border: `1px solid ${C.border}`, borderRadius: 4,
+                              boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+                              padding: 4, display: 'flex', flexDirection: 'column', gap: 2,
+                            }}>
+                              <button
+                                onClick={() => { setActionMenuId(null); startEdit(m); }}
+                                style={menuItemStyle}>編集</button>
+                              {m.email && (
+                                <button
+                                  onClick={() => { setActionMenuId(null); handleResendInvite(m); }}
+                                  disabled={resendingId === m.id}
+                                  style={menuItemStyle}
+                                  title="招待メールを再送（パスワード未設定者向け）"
+                                >{resendingId === m.id ? '送信中…' : '招待を再送'}</button>
+                              )}
+                              <button
+                                onClick={() => { setActionMenuId(null); setDeleteTarget(m); }}
+                                style={{ ...menuItemStyle, color: '#B91C1C' }}>削除</button>
+                            </div>
                           )}
-                          <button onClick={() => setDeleteTarget(m)} style={dangerSmallBtn}>削除</button>
                         </div>
                       )}
                     </td>
@@ -559,6 +599,11 @@ const dangerSmallBtn = {
   padding: '4px 10px', fontSize: 11, fontWeight: 600,
   background: C.white, color: '#B91C1C', border: '1px solid #FCA5A5', borderRadius: 3, cursor: 'pointer',
   whiteSpace: 'nowrap', fontFamily: "'Noto Sans JP',sans-serif",
+};
+const menuItemStyle = {
+  padding: '6px 10px', fontSize: 11, fontWeight: 500,
+  background: 'transparent', color: C.navy, border: 'none', borderRadius: 3, cursor: 'pointer',
+  textAlign: 'left', whiteSpace: 'nowrap', fontFamily: "'Noto Sans JP',sans-serif",
 };
 
 function formatDate(d) {
