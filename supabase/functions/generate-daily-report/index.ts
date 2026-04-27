@@ -366,6 +366,7 @@ Deno.serve(async (req) => {
         const shift_no_call = Array.from(shifted_member_ids)
           .filter(id => !active_member_ids.has(id))
           .filter(id => !leaderMemberIds.has(id)) // リーダーは管理業務専念のため除外
+          .filter(id => memberById[id])           // 退職者 (is_active=false) を除外
           .map(id => {
             const sh = (shifts || []).find((s: any) => s.member_id === id)
             return {
