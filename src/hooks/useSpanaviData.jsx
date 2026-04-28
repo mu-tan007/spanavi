@@ -86,7 +86,7 @@ export function useSpanaviData(authOrgId) {
       const contactsByClient = {}
       clientContacts.forEach(cc => {
         if (!contactsByClient[cc.client_id]) contactsByClient[cc.client_id] = []
-        contactsByClient[cc.client_id].push({ id: cc.id, name: cc.name, email: cc.email, slackMemberId: cc.slack_member_id || '', googleCalendarId: cc.google_calendar_id || '', schedulingUrl: cc.scheduling_url || '', schedulingUrl2: cc.scheduling_url_2 || '', schedulingLabel: cc.scheduling_label || '', schedulingLabel2: cc.scheduling_label_2 || '', schedulingNotes: cc.scheduling_notes || '' })
+        contactsByClient[cc.client_id].push({ id: cc.id, name: cc.name, email: cc.email, slackMemberId: cc.slack_member_id || '', googleCalendarId: cc.google_calendar_id || '', schedulingUrl: cc.scheduling_url || '', schedulingUrl2: cc.scheduling_url_2 || '', schedulingLabel: cc.scheduling_label || '', schedulingLabel2: cc.scheduling_label_2 || '', schedulingNotes: cc.scheduling_notes || '', isPrimary: cc.is_primary === true })
       })
 
       // clientsのUUID→name マップ（call_listsのclient_id解決用）

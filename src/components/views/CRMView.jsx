@@ -1,27 +1,57 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { C } from '../../constants/colors';
-import { updateClient, insertClient, deleteClient, insertClientContact, updateClientContact, deleteClientContact } from '../../lib/supabaseWrite';
+import { updateClient, insertClient, deleteClient } from '../../lib/supabaseWrite';
+import { supabase } from '../../lib/supabase';
+import { getOrgId } from '../../lib/orgContext';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import PageHeader from '../common/PageHeader';
+import ContactDrawer from './contacts/ContactDrawer';
 
 const NAVY = '#0D2247';
 const BLUE = '#1E40AF';
 const GRAY_200 = '#E5E7EB';
 const GRAY_50 = '#F8F9FA';
+const GOLD = '#B8860B';
 
 const CRM_COLS_BASE = [
   { key: 'status', width: 100, align: 'left' },
-  { key: 'company', width: 250, align: 'left' },
+  { key: 'company', width: 240, align: 'left' },
   { key: 'industry', width: 80, align: 'left' },
   { key: 'target', width: 70, align: 'center' },
   { key: 'reward', width: 100, align: 'left' },
   { key: 'list', width: 80, align: 'left' },
   { key: 'calendar', width: 80, align: 'left' },
-  { key: 'contact', width: 70, align: 'left' },
+  { key: 'contact', width: 80, align: 'left' },
+  { key: 'lastTouch', width: 90, align: 'center' },
+  { key: 'primaryContact', width: 130, align: 'left' },
 ];
 const CRM_COLS_EDIT = [...CRM_COLS_BASE, { key: 'edit', width: 32, align: 'center' }];
+
+// 連絡手段のテキストラベル（絵文字は使わない）
+const contactLabel = (ct) => {
+  if (!ct) return '-';
+  if (ct === 'LINE') return 'LINE';
+  if (ct === 'Slack') return 'Slack';
+  if (ct === 'Chatwork') return 'Chatwork';
+  if (ct === 'メール') return 'メール';
+  return ct || 'TEL';
+};
+
+// 経過日数（"X日前" / 同日 / 14日以上はゴールド字色）
+function lastTouchDisplay(ts) {
+  if (!ts) return { label: '-', stale: false };
+  const now = Date.now();
+  const t = new Date(ts).getTime();
+  if (Number.isNaN(t)) return { label: '-', stale: false };
+  const diffMs = now - t;
+  if (diffMs < 0) return { label: '本日', stale: false };
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (days === 0) return { label: '本日', stale: false };
+  if (days >= 14) return { label: `${days}日前`, stale: true };
+  return { label: `${days}日前`, stale: false };
+}
 
 export default function CRMView({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient }) {
   const [statusFilter, setStatusFilter] = useState("支援中");
@@ -32,10 +62,58 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
   const [addForm, setAddForm] = useState(null);
   const [addSaving, setAddSaving] = useState(false);
   const [addToast, setAddToast] = useState(null);
-  // 担当者管理
-  const [contactAddForm, setContactAddForm] = useState(null); // { name, email }
-  const [contactEditId, setContactEditId] = useState(null);
-  const [contactEditForm, setContactEditForm] = useState(null);
+  // 担当者ドロワー状態 (mode: 'add' | 'edit', existingContact: object | null)
+  const [contactDrawer, setContactDrawer] = useState({ isOpen: false, mode: 'add', existingContact: null });
+  // 最終接点 (clientId -> ISO timestamp)
+  const [lastTouchByClient, setLastTouchByClient] = useState({});
+
+  // 最終接点を非同期ロード: contact_memo_events と appointments の MAX(created_at / appointment_date)
+  useEffect(() => {
+    let cancelled = false;
+    const orgId = getOrgId();
+    if (!orgId) return;
+    (async () => {
+      // 1) contact_memo_events を contact_id 単位で取得して client_id にマップ
+      const contactToClient = {};
+      Object.entries(contactsByClient).forEach(([cid, list]) => {
+        (list || []).forEach(ct => { if (ct?.id) contactToClient[ct.id] = cid; });
+      });
+      const lastByClient = {};
+      try {
+        const { data: memos, error: e1 } = await supabase
+          .from('contact_memo_events')
+          .select('contact_id, created_at')
+          .eq('org_id', orgId)
+          .order('created_at', { ascending: false })
+          .limit(2000);
+        if (!e1 && Array.isArray(memos)) {
+          memos.forEach(m => {
+            const cid = contactToClient[m.contact_id];
+            if (!cid) return;
+            if (!lastByClient[cid] || m.created_at > lastByClient[cid]) lastByClient[cid] = m.created_at;
+          });
+        }
+      } catch (e) { console.warn('[CRM] memo lookup failed', e); }
+      try {
+        const { data: appos, error: e2 } = await supabase
+          .from('appointments')
+          .select('client_id, appointment_date, created_at')
+          .eq('org_id', orgId)
+          .order('appointment_date', { ascending: false })
+          .limit(2000);
+        if (!e2 && Array.isArray(appos)) {
+          appos.forEach(a => {
+            const ts = a.appointment_date || a.created_at;
+            const cid = a.client_id;
+            if (!cid || !ts) return;
+            if (!lastByClient[cid] || ts > lastByClient[cid]) lastByClient[cid] = ts;
+          });
+        }
+      } catch (e) { console.warn('[CRM] appointment lookup failed', e); }
+      if (!cancelled) setLastTouchByClient(lastByClient);
+    })();
+    return () => { cancelled = true; };
+  }, [contactsByClient]);
 
   const statusList = ["支援中", "準備中", "停止中", "保留", "中期フォロー", "面談予定"];
   const statusStyle = (st) => {
@@ -70,13 +148,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
     return rm.name;
   };
 
-  const contactIcon = (ct) => {
-    if (ct === "LINE") return "\u{1F4AC}";
-    if (ct === "Slack") return "\u{1F4BC}";
-    if (ct === "Chatwork") return "\u{1F4DD}";
-    if (ct === "メール") return "\u2709";
-    return "\u{1F4DE}";
-  };
+  // 連絡手段はテキストラベルに統一（絵文字撤去）。contactLabel(c.contact) を使用
 
   const crmDefaultCols = setClientData ? CRM_COLS_EDIT : CRM_COLS_BASE;
   const { columns: crmCols, gridTemplateColumns: crmGrid, contentMinWidth: crmMinW, onResizeStart: crmResize, onHeaderContextMenu: crmCtxMenu, contextMenu: crmCtx, setAlign: crmSetAlign, resetAll: crmReset, closeMenu: crmClose } = useColumnConfig(setClientData ? 'crmViewEdit' : 'crmView', crmDefaultCols);
@@ -193,7 +265,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
           fontSize: 11, fontWeight: 600, color: '#fff',
           verticalAlign: 'middle',
         }}>
-          {['ステータス','企業名','業界','目標','報酬体系','リスト','カレンダー','連絡'].map((label, idx) => (
+          {['ステータス','企業名','業界','目標','報酬体系','リスト','カレンダー','連絡','最終接点','主担当'].map((label, idx) => (
             <span key={label} style={{ position: 'relative', verticalAlign: 'middle', textAlign: crmCols[idx]?.align || 'left', paddingRight: 6 }} onContextMenu={e => crmCtxMenu(e, idx)}>
               {label}
               <ColumnResizeHandle colIndex={idx} onResizeStart={crmResize} />
@@ -228,7 +300,43 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
               }}>{c.rewardType ? c.rewardType + " " + getRewardSummary(c.rewardType).slice(0, 10) : "-"}</span>
               <span style={{ fontSize: 10, color: C.textMid, textAlign: crmCols[5]?.align }}>{c.listSrc || "-"}</span>
               <span style={{ fontSize: 10, color: C.textMid, textAlign: crmCols[6]?.align }}>{c.calendar || "-"}</span>
-              <span style={{ fontSize: 12, textAlign: crmCols[7]?.align }}>{contactIcon(c.contact)}</span>
+              <span style={{ fontSize: 10, color: C.textMid, textAlign: crmCols[7]?.align }}>{contactLabel(c.contact)}</span>
+              {(() => {
+                const lt = lastTouchDisplay(lastTouchByClient[c._supaId]);
+                return (
+                  <span style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 10,
+                    fontVariantNumeric: 'tabular-nums',
+                    color: lt.stale ? GOLD : (lt.label === '-' ? C.textLight : C.textMid),
+                    fontWeight: lt.stale ? 700 : 400,
+                    textAlign: crmCols[8]?.align,
+                  }}>{lt.label}</span>
+                );
+              })()}
+              {(() => {
+                const list = contactsByClient[c._supaId] || [];
+                const primary = list.find(ct => ct.isPrimary) || list[0];
+                if (!primary) {
+                  return <span style={{ fontSize: 10, color: C.textLight, textAlign: crmCols[9]?.align }}>-</span>;
+                }
+                return (
+                  <span style={{
+                    fontSize: 10, color: NAVY, textAlign: crmCols[9]?.align,
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {primary.isPrimary && (
+                      <span style={{
+                        fontSize: 8, fontWeight: 700, letterSpacing: 1,
+                        color: NAVY, border: '1px solid ' + NAVY,
+                        borderRadius: 2, padding: '1px 3px', flexShrink: 0,
+                      }}>主</span>
+                    )}
+                    <span style={{ fontWeight: 500 }}>{primary.name}</span>
+                  </span>
+                );
+              })()}
               {setClientData && <span style={{ textAlign: "center" }}><button onClick={e => { e.stopPropagation(); setEditForm({ ...c, _idx: globalIdx }); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, padding: 2 }}>&#9998;</button></span>}
             </div>
           );
@@ -309,8 +417,8 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                 <div style={{ marginTop: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, borderBottom: '2px solid ' + NAVY, paddingBottom: 6 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>担当者</span>
-                    {setContactsByClient && !contactAddForm && (
-                      <button onClick={() => setContactAddForm({ name: '', email: '', slackMemberId: '' })}
+                    {setContactsByClient && (
+                      <button onClick={() => setContactDrawer({ isOpen: true, mode: 'add', existingContact: null })}
                         style={{ padding: '3px 10px', borderRadius: 3, border: '1px solid ' + NAVY, background: '#fff', color: NAVY, fontSize: 10, fontWeight: 500, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
                         ＋ 追加
                       </button>
@@ -318,121 +426,48 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                   </div>
                   {(() => {
                     const contacts = contactsByClient[c._supaId] || [];
-                    const inputStyle = { padding: '4px 8px', borderRadius: 3, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none' };
+                    if (contacts.length === 0) {
+                      return <div style={{ fontSize: 11, color: C.textLight, padding: '8px 0' }}>担当者が登録されていません</div>;
+                    }
                     return (
                       <div>
-                        {contacts.length === 0 && !contactAddForm && (
-                          <div style={{ fontSize: 11, color: C.textLight, padding: '8px 0' }}>担当者が登録されていません</div>
-                        )}
                         {contacts.map(ct => (
-                          <div key={ct.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid ' + GRAY_200 }}>
-                            {contactEditId === ct.id ? (
-                              <div style={{ flex: 1 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                                  <input value={contactEditForm.name} onChange={e => setContactEditForm(p => ({ ...p, name: e.target.value }))}
-                                    style={{ ...inputStyle, width: 100 }} placeholder="名前" />
-                                  <input value={contactEditForm.email} onChange={e => setContactEditForm(p => ({ ...p, email: e.target.value }))}
-                                    style={{ ...inputStyle, flex: 1 }} placeholder="メールアドレス" />
-                                  {c.contact === 'Slack' && (
-                                    <input value={contactEditForm.slackMemberId || ''} onChange={e => setContactEditForm(p => ({ ...p, slackMemberId: e.target.value }))}
-                                      style={{ ...inputStyle, width: 110 }} placeholder="Slack ID" />
-                                  )}
-                                  <button onClick={async () => {
-                                    await updateClientContact(ct.id, contactEditForm);
-                                    setContactsByClient(prev => ({
-                                      ...prev,
-                                      [c._supaId]: (prev[c._supaId] || []).map(x => x.id === ct.id ? { ...x, ...contactEditForm } : x),
-                                    }));
-                                    setContactEditId(null); setContactEditForm(null);
-                                  }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#10B981', fontSize: 12, fontWeight: 700 }}>✓</button>
-                                  <button onClick={() => { setContactEditId(null); setContactEditForm(null); }}
-                                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: C.textLight, fontSize: 12 }}>✕</button>
-                                </div>
-                                <div style={{ display: 'flex', gap: 8 }}>
-                                  <input value={contactEditForm.googleCalendarId || ''} onChange={e => setContactEditForm(p => ({ ...p, googleCalendarId: e.target.value }))}
-                                    style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="GoogleカレンダーID" />
-                                </div>
-                                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                                  <input value={contactEditForm.schedulingLabel || ''} onChange={e => setContactEditForm(p => ({ ...p, schedulingLabel: e.target.value }))}
-                                    style={{ ...inputStyle, width: 80, fontSize: 10 }} placeholder="ラベル1（例: 対面）" />
-                                  <input value={contactEditForm.schedulingUrl || ''} onChange={e => setContactEditForm(p => ({ ...p, schedulingUrl: e.target.value }))}
-                                    style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="日程調整URL①" />
-                                </div>
-                                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                                  <input value={contactEditForm.schedulingLabel2 || ''} onChange={e => setContactEditForm(p => ({ ...p, schedulingLabel2: e.target.value }))}
-                                    style={{ ...inputStyle, width: 80, fontSize: 10 }} placeholder="ラベル2（例: WEB）" />
-                                  <input value={contactEditForm.schedulingUrl2 || ''} onChange={e => setContactEditForm(p => ({ ...p, schedulingUrl2: e.target.value }))}
-                                    style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="日程調整URL②（任意）" />
-                                </div>
-                              </div>
-                            ) : (
-                              <>
-                                <span style={{ fontSize: 11, fontWeight: 500, color: NAVY, width: 100 }}>{ct.name}</span>
-                                <span style={{ fontSize: 11, color: C.textMid, flex: 1 }}>{ct.email}</span>
-                                {c.contact === 'Slack' && ct.slackMemberId && (
-                                  <span style={{ fontSize: 9, color: '#6B7280', background: '#F3F4F6', padding: '1px 6px', borderRadius: 3 }}>@{ct.slackMemberId}</span>
-                                )}
-                                {setContactsByClient && (
-                                  <>
-                                    <button onClick={() => { setContactEditId(ct.id); setContactEditForm({ name: ct.name, email: ct.email, slackMemberId: ct.slackMemberId || '', googleCalendarId: ct.googleCalendarId || '', schedulingUrl: ct.schedulingUrl || '', schedulingUrl2: ct.schedulingUrl2 || '', schedulingLabel: ct.schedulingLabel || '', schedulingLabel2: ct.schedulingLabel2 || '', schedulingNotes: ct.schedulingNotes || '' }); }}
-                                      style={{ border: 'none', background: 'none', cursor: 'pointer', color: NAVY, fontSize: 10 }}>編集</button>
-                                    <button onClick={async () => {
-                                      if (!window.confirm(`${ct.name}を削除しますか？`)) return;
-                                      await deleteClientContact(ct.id);
-                                      setContactsByClient(prev => ({
-                                        ...prev,
-                                        [c._supaId]: (prev[c._supaId] || []).filter(x => x.id !== ct.id),
-                                      }));
-                                    }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 10 }}>削除</button>
-                                  </>
-                                )}
-                              </>
+                          <div
+                            key={ct.id}
+                            onClick={() => setContactDrawer({ isOpen: true, mode: 'edit', existingContact: ct })}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 8,
+                              padding: '8px 8px',
+                              borderBottom: '1px solid ' + GRAY_200,
+                              cursor: setContactsByClient ? 'pointer' : 'default',
+                              transition: 'background 0.12s',
+                            }}
+                            onMouseEnter={(e) => { if (setContactsByClient) e.currentTarget.style.background = '#EAF4FF'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                          >
+                            <span style={{
+                              fontSize: 11, fontWeight: 600, color: NAVY, width: 100,
+                              display: 'inline-flex', alignItems: 'center', gap: 5,
+                            }}>
+                              {ct.isPrimary && (
+                                <span style={{
+                                  fontSize: 8, fontWeight: 700, letterSpacing: 1,
+                                  color: NAVY,
+                                  border: '1px solid ' + NAVY,
+                                  borderRadius: 2, padding: '1px 4px',
+                                }}>主</span>
+                              )}
+                              {ct.name}
+                            </span>
+                            <span style={{ fontSize: 11, color: C.textMid, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ct.email}</span>
+                            {c.contact === 'Slack' && ct.slackMemberId && (
+                              <span style={{ fontSize: 9, color: '#6B7280', background: '#F3F4F6', padding: '1px 6px', borderRadius: 3 }}>@{ct.slackMemberId}</span>
+                            )}
+                            {setContactsByClient && (
+                              <span style={{ fontSize: 10, color: NAVY }}>編集 ›</span>
                             )}
                           </div>
                         ))}
-                        {contactAddForm && (
-                          <div style={{ padding: '6px 0' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                              <input value={contactAddForm.name} onChange={e => setContactAddForm(p => ({ ...p, name: e.target.value }))}
-                                style={{ ...inputStyle, width: 100 }} placeholder="名前" autoFocus />
-                              <input value={contactAddForm.email} onChange={e => setContactAddForm(p => ({ ...p, email: e.target.value }))}
-                                style={{ ...inputStyle, flex: 1 }} placeholder="メールアドレス" />
-                              {c.contact === 'Slack' && (
-                                <input value={contactAddForm.slackMemberId || ''} onChange={e => setContactAddForm(p => ({ ...p, slackMemberId: e.target.value }))}
-                                  style={{ ...inputStyle, width: 110 }} placeholder="Slack ID" />
-                              )}
-                              <button onClick={async () => {
-                                if (!contactAddForm.name) return;
-                                const { data } = await insertClientContact(c._supaId, contactAddForm);
-                                if (data) {
-                                  setContactsByClient(prev => ({
-                                    ...prev,
-                                    [c._supaId]: [...(prev[c._supaId] || []), { id: data.id, name: data.name, email: data.email, slackMemberId: data.slack_member_id || '', googleCalendarId: data.google_calendar_id || '', schedulingUrl: data.scheduling_url || '', schedulingUrl2: data.scheduling_url_2 || '', schedulingLabel: data.scheduling_label || '', schedulingLabel2: data.scheduling_label_2 || '' }],
-                                  }));
-                                }
-                                setContactAddForm(null);
-                              }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#10B981', fontSize: 12, fontWeight: 700 }}>✓</button>
-                              <button onClick={() => setContactAddForm(null)}
-                                style={{ border: 'none', background: 'none', cursor: 'pointer', color: C.textLight, fontSize: 12 }}>✕</button>
-                            </div>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                              <input value={contactAddForm.googleCalendarId || ''} onChange={e => setContactAddForm(p => ({ ...p, googleCalendarId: e.target.value }))}
-                                style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="GoogleカレンダーID" />
-                            </div>
-                            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                              <input value={contactAddForm.schedulingLabel || ''} onChange={e => setContactAddForm(p => ({ ...p, schedulingLabel: e.target.value }))}
-                                style={{ ...inputStyle, width: 80, fontSize: 10 }} placeholder="ラベル1（例: 対面）" />
-                              <input value={contactAddForm.schedulingUrl || ''} onChange={e => setContactAddForm(p => ({ ...p, schedulingUrl: e.target.value }))}
-                                style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="日程調整URL①" />
-                            </div>
-                            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                              <input value={contactAddForm.schedulingLabel2 || ''} onChange={e => setContactAddForm(p => ({ ...p, schedulingLabel2: e.target.value }))}
-                                style={{ ...inputStyle, width: 80, fontSize: 10 }} placeholder="ラベル2（例: WEB）" />
-                              <input value={contactAddForm.schedulingUrl2 || ''} onChange={e => setContactAddForm(p => ({ ...p, schedulingUrl2: e.target.value }))}
-                                style={{ ...inputStyle, flex: 1, fontSize: 10 }} placeholder="日程調整URL②（任意）" />
-                            </div>
-                          </div>
-                        )}
                       </div>
                     );
                   })()}
@@ -692,6 +727,48 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
           onSelect={align => crmSetAlign(crmCtx.colIndex, align)}
           onReset={crmReset}
           onClose={crmClose}
+        />
+      )}
+
+      {/* 担当者ドロワー */}
+      {setContactsByClient && selectedClient && (
+        <ContactDrawer
+          isOpen={contactDrawer.isOpen}
+          onClose={() => setContactDrawer({ isOpen: false, mode: 'add', existingContact: null })}
+          mode={contactDrawer.mode}
+          clientSupaId={selectedClient._supaId}
+          clientContactMethod={selectedClient.contact}
+          existingContact={contactDrawer.existingContact}
+          onChanged={({ type, contact }) => {
+            const cid = selectedClient._supaId;
+            if (!cid) return;
+            if (type === 'added' && contact) {
+              setContactsByClient(prev => {
+                const list = prev[cid] || [];
+                // 主担当が立った場合は他の主担当フラグを下ろす
+                const next = contact.isPrimary
+                  ? list.map(x => ({ ...x, isPrimary: false }))
+                  : list;
+                return { ...prev, [cid]: [...next, contact] };
+              });
+            } else if (type === 'updated' && contact) {
+              setContactsByClient(prev => {
+                const list = prev[cid] || [];
+                const others = contact.isPrimary
+                  ? list.map(x => x.id === contact.id ? x : { ...x, isPrimary: false })
+                  : list;
+                return {
+                  ...prev,
+                  [cid]: others.map(x => x.id === contact.id ? { ...x, ...contact } : x),
+                };
+              });
+            } else if (type === 'deleted' && contact) {
+              setContactsByClient(prev => ({
+                ...prev,
+                [cid]: (prev[cid] || []).filter(x => x.id !== contact.id),
+              }));
+            }
+          }}
         />
       )}
     </div>

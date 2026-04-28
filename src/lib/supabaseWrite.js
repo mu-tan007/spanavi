@@ -531,24 +531,165 @@ export async function invokeSendAppoReport({ channel, text, webhook_url, room_id
 }
 
 // ── クライアント担当者 CRUD ──────────────────────────────────
-export async function insertClientContact(clientId, { name, email, slackMemberId, googleCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, schedulingNotes }) {
+export async function insertClientContact(clientId, { name, email, slackMemberId, googleCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, schedulingNotes, isPrimary }) {
   const orgId = getOrgId()
+  const payload = { org_id: orgId, client_id: clientId, name, email, slack_member_id: slackMemberId || null, google_calendar_id: googleCalendarId || null, scheduling_url: schedulingUrl || null, scheduling_url_2: schedulingUrl2 || null, scheduling_label: schedulingLabel || null, scheduling_label_2: schedulingLabel2 || null, scheduling_notes: schedulingNotes || null }
+  if (isPrimary === true || isPrimary === false) payload.is_primary = isPrimary
   const { data, error } = await supabase
     .from('client_contacts')
-    .insert({ org_id: orgId, client_id: clientId, name, email, slack_member_id: slackMemberId || null, google_calendar_id: googleCalendarId || null, scheduling_url: schedulingUrl || null, scheduling_url_2: schedulingUrl2 || null, scheduling_label: schedulingLabel || null, scheduling_label_2: schedulingLabel2 || null, scheduling_notes: schedulingNotes || null })
+    .insert(payload)
     .select()
     .single()
   if (error) console.error('[DB] insertClientContact error:', error)
   return { data, error }
 }
 
-export async function updateClientContact(id, { name, email, slackMemberId, googleCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, schedulingNotes }) {
+export async function updateClientContact(id, { name, email, slackMemberId, googleCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, schedulingNotes, isPrimary }) {
+  const patch = { name, email, slack_member_id: slackMemberId ?? undefined, google_calendar_id: googleCalendarId ?? undefined, scheduling_url: schedulingUrl ?? undefined, scheduling_url_2: schedulingUrl2 ?? undefined, scheduling_label: schedulingLabel ?? undefined, scheduling_label_2: schedulingLabel2 ?? undefined, scheduling_notes: schedulingNotes ?? undefined }
+  if (isPrimary === true || isPrimary === false) patch.is_primary = isPrimary
   const { error } = await supabase
     .from('client_contacts')
-    .update({ name, email, slack_member_id: slackMemberId ?? undefined, google_calendar_id: googleCalendarId ?? undefined, scheduling_url: schedulingUrl ?? undefined, scheduling_url_2: schedulingUrl2 ?? undefined, scheduling_label: schedulingLabel ?? undefined, scheduling_label_2: schedulingLabel2 ?? undefined, scheduling_notes: schedulingNotes ?? undefined })
+    .update(patch)
     .eq('id', id)
   if (error) console.error('[DB] updateClientContact error:', error)
   return error
+}
+
+// 主担当を 1 名に切替 (同一 client 内の他の担当者は false にしてから対象を true に)
+// 部分 unique index を満たすため、2 ステップで安全に行う。
+export async function setPrimaryContact(clientId, contactId) {
+  if (!clientId || !contactId) return { error: { message: 'clientId / contactId が必要です' } }
+  // 1) まず同 client 内の主担当を全部下ろす
+  const { error: e1 } = await supabase
+    .from('client_contacts')
+    .update({ is_primary: false })
+    .eq('client_id', clientId)
+    .eq('is_primary', true)
+  if (e1) { console.error('[DB] setPrimaryContact step1 error:', e1); return { error: e1 } }
+  // 2) 対象を主担当にする
+  const { error: e2 } = await supabase
+    .from('client_contacts')
+    .update({ is_primary: true })
+    .eq('id', contactId)
+  if (e2) { console.error('[DB] setPrimaryContact step2 error:', e2); return { error: e2 } }
+  return { error: null }
+}
+
+// ── 担当者メモ (追記専用) ─────────────────────────────────────
+export async function fetchContactMemoEvents(contactId) {
+  if (!contactId) return { data: [], error: null }
+  const { data, error } = await supabase
+    .from('contact_memo_events')
+    .select('*')
+    .eq('contact_id', contactId)
+    .order('created_at', { ascending: false })
+  if (error) console.error('[DB] fetchContactMemoEvents error:', error)
+  return { data: data || [], error }
+}
+
+export async function insertContactMemoEvent({ contactId, bodyMd, rawTranscript, voiceInputId, source, extracted, authorUserId, authorName }) {
+  const orgId = getOrgId()
+  const payload = {
+    org_id: orgId,
+    contact_id: contactId,
+    body_md: bodyMd,
+    raw_transcript: rawTranscript ?? null,
+    voice_input_id: voiceInputId ?? null,
+    source: source || 'manual',
+    extracted: extracted || {},
+    author_user_id: authorUserId ?? null,
+    author_name: authorName ?? null,
+  }
+  const { data, error } = await supabase
+    .from('contact_memo_events')
+    .insert(payload)
+    .select()
+    .single()
+  if (error) console.error('[DB] insertContactMemoEvent error:', error)
+  return { data, error }
+}
+
+// ── 音声入力ログ (原本永続保持) ──────────────────────────────
+export async function insertContactVoiceInput({ targetKind, contactId, clientId, audioUrl, durationSec, uploadedByUserId, uploadedByName }) {
+  const orgId = getOrgId()
+  const payload = {
+    org_id: orgId,
+    target_kind: targetKind,
+    contact_id: contactId ?? null,
+    client_id: clientId ?? null,
+    audio_url: audioUrl ?? null,
+    duration_sec: durationSec ?? null,
+    uploaded_by_user_id: uploadedByUserId ?? null,
+    uploaded_by_name: uploadedByName ?? null,
+    status: 'pending',
+  }
+  const { data, error } = await supabase
+    .from('contact_voice_inputs')
+    .insert(payload)
+    .select()
+    .single()
+  if (error) console.error('[DB] insertContactVoiceInput error:', error)
+  return { data, error }
+}
+
+export async function updateContactVoiceInput(id, patch) {
+  if (!id) return { error: { message: 'id が必要です' } }
+  const allowed = ['transcript', 'ai_summary', 'ai_extracted', 'status', 'error', 'audio_url', 'duration_sec']
+  const update = { updated_at: new Date().toISOString() }
+  for (const k of allowed) if (patch[k] !== undefined) update[k] = patch[k]
+  const { error } = await supabase
+    .from('contact_voice_inputs')
+    .update(update)
+    .eq('id', id)
+  if (error) console.error('[DB] updateContactVoiceInput error:', error)
+  return { error }
+}
+
+export async function uploadContactAudio(voiceInputId, blob, ext = 'webm') {
+  const orgId = getOrgId()
+  if (!orgId || !voiceInputId || !blob) return { path: null, error: { message: 'orgId / voiceInputId / blob 必須' } }
+  const path = `${orgId}/${voiceInputId}.${ext}`
+  const { error } = await supabase.storage
+    .from('contact-audio')
+    .upload(path, blob, { contentType: blob.type || 'audio/webm', upsert: false })
+  if (error) { console.error('[Storage] uploadContactAudio error:', error); return { path: null, error } }
+  return { path, error: null }
+}
+
+export async function getContactAudioSignedUrl(path, expiresInSec = 600) {
+  if (!path) return { url: null, error: { message: 'path が必要です' } }
+  const { data, error } = await supabase.storage
+    .from('contact-audio')
+    .createSignedUrl(path, expiresInSec)
+  if (error) { console.error('[Storage] getContactAudioSignedUrl error:', error); return { url: null, error } }
+  return { url: data?.signedUrl ?? null, error: null }
+}
+
+// process-contact-voice Edge Function 呼び出し
+// voice_input_id を渡すと Whisper + Claude を経て transcript / ai_summary / ai_extracted が返る
+export async function invokeProcessContactVoice(voiceInputId) {
+  if (!voiceInputId) return { data: null, error: { message: 'voiceInputId が必要です' } }
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  const session = (await supabase.auth.getSession())?.data?.session
+  const token = session?.access_token || anonKey
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/process-contact-voice`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': anonKey,
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ voice_input_id: voiceInputId }),
+    })
+    const data = await res.json()
+    if (!res.ok) return { data: null, error: data.error || `処理失敗: ${res.status}` }
+    return { data, error: null }
+  } catch (e) {
+    console.error('[invoke] process-contact-voice error:', e)
+    return { data: null, error: e.message || String(e) }
+  }
 }
 
 export async function updateContactCalendarId(contactId, googleCalendarId) {
