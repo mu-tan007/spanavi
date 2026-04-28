@@ -437,17 +437,51 @@ export default function ContactDrawer({
 
           {tab === 'memo' && (
             <div>
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: NAVY, marginBottom: 6 }}>
-                  音声で追記
+              {/* 入力エリア（手入力 + 右上のマイクアイコン） */}
+              <div style={{
+                position: 'relative',
+                marginBottom: 12,
+              }}>
+                <div style={{
+                  position: 'absolute', top: 6, right: 6, zIndex: 1,
+                }}>
+                  <VoiceRecorderInline
+                    targetKind="contact_memo"
+                    contactId={existingContact?.id}
+                    onProcessed={handleVoiceProcessed}
+                    onError={(msg) => setErrorMsg(msg)}
+                    disabled={!!voicePending}
+                    size={28}
+                  />
                 </div>
-                <VoiceRecorderInline
-                  targetKind="contact_memo"
-                  contactId={existingContact?.id}
-                  onProcessed={handleVoiceProcessed}
-                  placeholder="例：田中さん、執行役員で北海道出身。ゴルフが趣味で数字とスピード重視。曖昧な表現を嫌うので結論先出しで話す。「前向きに検討」と言ったら実質 NO なので 3 日以内に再アタック。"
-                  disabled={!!voicePending}
+                <textarea
+                  value={manualMemoText}
+                  onChange={e => setManualMemoText(e.target.value)}
+                  rows={4}
+                  placeholder="メモを入力するか、右上のマイクから音声で追記"
+                  style={{
+                    ...inputStyle,
+                    paddingRight: 44,
+                    resize: 'vertical',
+                    lineHeight: 1.6,
+                    background: '#fff',
+                  }}
                 />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+                  <button
+                    onClick={handleAppendManualMemo}
+                    disabled={!manualMemoText.trim() || manualMemoSaving}
+                    style={{
+                      padding: '6px 14px', borderRadius: 4,
+                      border: `1px solid ${NAVY}`,
+                      background: '#fff', color: NAVY,
+                      fontSize: 11, fontWeight: 600,
+                      cursor: (!manualMemoText.trim() || manualMemoSaving) ? 'not-allowed' : 'pointer',
+                      fontFamily: "'Noto Sans JP', sans-serif",
+                      opacity: (!manualMemoText.trim() || manualMemoSaving) ? 0.5 : 1,
+                    }}
+                  >{manualMemoSaving ? '追記中...' : '追記する'}</button>
+                </div>
               </div>
 
               {voicePending && (
@@ -503,39 +537,6 @@ export default function ContactDrawer({
                   </div>
                 </div>
               )}
-
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: NAVY, marginBottom: 6 }}>
-                  または手入力で追記
-                </div>
-                <textarea
-                  value={manualMemoText}
-                  onChange={e => setManualMemoText(e.target.value)}
-                  rows={4}
-                  placeholder="そのまま追記したいメモを入力"
-                  style={{
-                    ...inputStyle,
-                    resize: 'vertical',
-                    lineHeight: 1.6,
-                    background: '#fff',
-                  }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
-                  <button
-                    onClick={handleAppendManualMemo}
-                    disabled={!manualMemoText.trim() || manualMemoSaving}
-                    style={{
-                      padding: '6px 14px', borderRadius: 4,
-                      border: `1px solid ${NAVY}`,
-                      background: '#fff', color: NAVY,
-                      fontSize: 11, fontWeight: 600,
-                      cursor: (!manualMemoText.trim() || manualMemoSaving) ? 'not-allowed' : 'pointer',
-                      fontFamily: "'Noto Sans JP', sans-serif",
-                      opacity: (!manualMemoText.trim() || manualMemoSaving) ? 0.5 : 1,
-                    }}
-                  >{manualMemoSaving ? '追記中...' : '追記する'}</button>
-                </div>
-              </div>
 
               <div style={{
                 marginTop: 16, paddingTop: 12, borderTop: `1px solid ${GRAY_200}`,

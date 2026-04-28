@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { Mic, Square, Loader2 } from 'lucide-react'
 import { C } from '../../../constants/colors'
 import {
   insertContactVoiceInput,
@@ -12,9 +13,8 @@ const NAVY = '#0D2247'
 const BLUE = '#1E40AF'
 const GRAY_200 = '#E5E7EB'
 const GRAY_50 = '#F8F9FA'
-const GOLD = '#B8860B'
 
-const MAX_RECORD_SEC = 300 // 5 分
+const MAX_RECORD_SEC = 300
 
 function formatSec(sec) {
   const m = Math.floor(sec / 60).toString().padStart(2, '0')
@@ -23,31 +23,32 @@ function formatSec(sec) {
 }
 
 /**
- * 音声録音 + Whisper + Claude 処理を 1 ボタンで実現するインライン UI。
- * 録音停止後、自動的にアップロード + 処理 → onProcessed(result) を呼ぶ。
+ * 音声録音 + Whisper + Claude 処理を 1 アイコンで実現するインライン UI。
+ * デフォルトはアイコンのみの控えめな表示。録音時のみタイマーと停止ボタンを出す。
  *
  * Props:
  *  - targetKind: 'contact_memo' | 'client_update' | 'client_create'
  *  - contactId, clientId: 紐付け対象
- *  - onProcessed({ voiceInputId, transcript, ai_summary, ai_extracted, target_kind }): 結果コールバック
- *  - placeholder: 録音前のヒント文 (任意)
- *  - compact: 余白を詰めるモード (任意)
- *  - disabled: ボタン無効化
+ *  - onProcessed({ voiceInputId, transcript, ai_summary, ai_extracted, target_kind })
+ *  - onError(msg): エラー時のフィードバック
+ *  - tooltip: ホバー時のラベル（デフォルト: "ボイスモードを使用"）
+ *  - size: アイコンボタンの一辺 px (デフォルト 30)
+ *  - disabled
  */
 export default function VoiceRecorderInline({
   targetKind,
   contactId = null,
   clientId = null,
   onProcessed,
-  placeholder,
-  compact = false,
+  onError,
+  tooltip = 'ボイスモードを使用',
+  size = 30,
   disabled = false,
 }) {
   const { profile } = useAuth()
   const [recording, setRecording] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [elapsedSec, setElapsedSec] = useState(0)
-  const [errorMsg, setErrorMsg] = useState('')
 
   const recorderRef = useRef(null)
   const chunksRef = useRef([])
@@ -65,7 +66,6 @@ export default function VoiceRecorderInline({
 
   const start = async () => {
     if (recording || processing || disabled) return
-    setErrorMsg('')
     chunksRef.current = []
     setElapsedSec(0)
     try {
@@ -80,7 +80,7 @@ export default function VoiceRecorderInline({
       recorder.onstop = () => handleStopped(stream, recorder.mimeType || mime || 'audio/webm')
       recorder.onerror = (e) => {
         console.error('[VoiceRecorder] onerror', e)
-        setErrorMsg('録音中にエラーが発生しました')
+        onError?.('録音中にエラーが発生しました')
         setRecording(false)
       }
       recorderRef.current = recorder
@@ -94,7 +94,7 @@ export default function VoiceRecorderInline({
       }, 250)
     } catch (e) {
       console.error('[VoiceRecorder] mic permission error', e)
-      setErrorMsg('マイクへのアクセスが許可されていません。ブラウザの権限を確認してください。')
+      onError?.('マイクへのアクセスが許可されていません')
     }
   }
 
@@ -115,7 +115,7 @@ export default function VoiceRecorderInline({
       stream.getTracks().forEach(t => t.stop())
     } catch { /* ignore */ }
     if (chunksRef.current.length === 0) {
-      setErrorMsg('録音データが空でした。マイクを確認して再度お試しください。')
+      onError?.('録音データが空でした')
       return
     }
     const blob = new Blob(chunksRef.current, { type: mime || 'audio/webm' })
@@ -123,7 +123,6 @@ export default function VoiceRecorderInline({
     const duration = elapsedSec
     setProcessing(true)
     try {
-      // 1) voice_input レコード作成
       const { data: vi, error: viErr } = await insertContactVoiceInput({
         targetKind,
         contactId,
@@ -134,14 +133,11 @@ export default function VoiceRecorderInline({
       })
       if (viErr || !vi?.id) throw new Error(viErr?.message || 'voice_input 作成失敗')
 
-      // 2) Storage アップロード
       const { path, error: upErr } = await uploadContactAudio(vi.id, blob, ext)
       if (upErr || !path) throw new Error(upErr?.message || 'アップロード失敗')
 
-      // 3) audio_url 更新
       await updateContactVoiceInput(vi.id, { audio_url: path, duration_sec: duration })
 
-      // 4) Edge Function 呼び出し
       const { data: result, error: procErr } = await invokeProcessContactVoice(vi.id)
       if (procErr) throw new Error(typeof procErr === 'string' ? procErr : (procErr.message || 'AI 処理失敗'))
 
@@ -154,127 +150,92 @@ export default function VoiceRecorderInline({
       })
     } catch (e) {
       console.error('[VoiceRecorder] process error', e)
-      setErrorMsg(e.message || String(e))
+      onError?.(e.message || String(e))
     } finally {
       setProcessing(false)
     }
   }
 
-  const padY = compact ? 8 : 12
-  const padX = compact ? 12 : 16
+  const baseBtn = {
+    width: size,
+    height: size,
+    borderRadius: 4,
+    border: `1px solid ${GRAY_200}`,
+    background: '#fff',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    color: NAVY,
+    transition: 'background 0.12s, border-color 0.12s, color 0.12s',
+    padding: 0,
+    fontFamily: "'Noto Sans JP', sans-serif",
+  }
 
-  return (
-    <div style={{
-      border: `1px solid ${GRAY_200}`,
-      borderRadius: 4,
-      background: GRAY_50,
-      padding: `${padY}px ${padX}px`,
-      fontFamily: "'Noto Sans JP', sans-serif",
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        {!recording && !processing && (
-          <button
-            onClick={start}
-            disabled={disabled}
-            style={{
-              padding: '7px 14px',
-              borderRadius: 4,
-              border: `1px solid ${NAVY}`,
-              background: '#fff',
-              color: NAVY,
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: disabled ? 'not-allowed' : 'pointer',
-              fontFamily: "'Noto Sans JP', sans-serif",
-              opacity: disabled ? 0.5 : 1,
-            }}
-          >
-            録音開始
-          </button>
-        )}
-        {recording && (
-          <button
-            onClick={stop}
-            style={{
-              padding: '7px 14px',
-              borderRadius: 4,
-              border: `1px solid ${BLUE}`,
-              background: BLUE,
-              color: '#fff',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: "'Noto Sans JP', sans-serif",
-            }}
-          >
-            録音停止して整理
-          </button>
-        )}
-        {processing && (
-          <button disabled style={{
-            padding: '7px 14px',
-            borderRadius: 4,
-            border: `1px solid ${GRAY_200}`,
-            background: '#fff',
-            color: C.textLight,
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: 'not-allowed',
-            fontFamily: "'Noto Sans JP', sans-serif",
-          }}>
-            AI 整理中...
-          </button>
-        )}
+  if (processing) {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span title="AI 整理中" style={{ ...baseBtn, color: C.textLight, cursor: 'progress' }}>
+          <Loader2 size={Math.round(size * 0.5)} style={{ animation: 'voiceRecSpin 0.9s linear infinite' }} />
+        </span>
+        <style>{`@keyframes voiceRecSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      </span>
+    )
+  }
 
+  if (recording) {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <button
+          type="button"
+          onClick={stop}
+          title="録音を停止して AI 整理"
+          style={{
+            ...baseBtn,
+            background: BLUE,
+            borderColor: BLUE,
+            color: '#fff',
+          }}
+        >
+          <Square size={Math.round(size * 0.42)} fill="#fff" />
+        </button>
         <span style={{
           fontFamily: "'JetBrains Mono', monospace",
-          fontSize: 11,
-          color: recording ? BLUE : C.textLight,
-          fontVariantNumeric: 'tabular-nums',
-        }}>
-          {formatSec(elapsedSec)} / {formatSec(MAX_RECORD_SEC)}
-        </span>
-
-        {recording && (
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            fontSize: 10, color: BLUE, fontWeight: 600,
-          }}>
-            <span style={{
-              width: 8, height: 8, borderRadius: '50%', background: BLUE,
-              animation: 'voiceRecPulse 1.4s ease-in-out infinite',
-            }} />
-            REC
-          </span>
-        )}
-      </div>
-
-      {placeholder && !recording && !processing && (
-        <div style={{ fontSize: 10, color: C.textLight, marginTop: 8, lineHeight: 1.5 }}>
-          {placeholder}
-        </div>
-      )}
-
-      {errorMsg && (
-        <div style={{
           fontSize: 10,
-          color: '#DC2626',
-          marginTop: 8,
-          padding: '6px 8px',
-          background: '#FEF2F2',
-          borderRadius: 3,
-          border: '1px solid #FECACA',
-        }}>
-          {errorMsg}
-        </div>
-      )}
+          color: BLUE,
+          fontVariantNumeric: 'tabular-nums',
+        }}>{formatSec(elapsedSec)}</span>
+        <span style={{
+          width: 6, height: 6, borderRadius: '50%', background: BLUE,
+          animation: 'voiceRecPulse 1.4s ease-in-out infinite',
+        }} />
+        <style>{`@keyframes voiceRecPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }`}</style>
+      </span>
+    )
+  }
 
-      <style>{`
-        @keyframes voiceRecPulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.35; }
-        }
-      `}</style>
-    </div>
+  return (
+    <button
+      type="button"
+      onClick={start}
+      disabled={disabled}
+      title={tooltip}
+      aria-label={tooltip}
+      style={{
+        ...baseBtn,
+        opacity: disabled ? 0.4 : 1,
+      }}
+      onMouseEnter={(e) => {
+        if (disabled) return
+        e.currentTarget.style.background = GRAY_50
+        e.currentTarget.style.borderColor = NAVY
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = '#fff'
+        e.currentTarget.style.borderColor = GRAY_200
+      }}
+    >
+      <Mic size={Math.round(size * 0.5)} />
+    </button>
   )
 }

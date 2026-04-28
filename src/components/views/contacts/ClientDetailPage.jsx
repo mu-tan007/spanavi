@@ -2,10 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { C } from '../../../constants/colors';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
-import { updateClient, insertClientContact } from '../../../lib/supabaseWrite';
 import ContactDrawer from './ContactDrawer';
 import ActivityTimeline from './ActivityTimeline';
-import ClientVoiceUpdateModal from './ClientVoiceUpdateModal';
 
 const NAVY = '#0D2247';
 const BLUE = '#1E40AF';
@@ -122,60 +120,6 @@ export default function ClientDetailPage({
   const [stats, setStats] = useState({ totalSales: 0, monthSales: 0, contractStart: null, loading: true });
   // 担当者ドロワー
   const [contactDrawer, setContactDrawer] = useState({ isOpen: false, mode: 'add', existingContact: null });
-  // 音声更新モーダル
-  const [voiceUpdateOpen, setVoiceUpdateOpen] = useState(false);
-
-  const handleVoiceApply = async (patch, contactsToAdd) => {
-    if (!c?._supaId) return;
-    // 既存値とマージして updateClient へ送信
-    const merged = { ...c, ...patch };
-    const error = await updateClient(c._supaId, merged);
-    if (error) throw new Error(error.message || '保存に失敗しました');
-    // クライアント一覧を更新
-    setClientData?.(prev => prev.map(x => x._supaId === c._supaId ? merged : x));
-    // 担当者を追加（順次）
-    if (contactsToAdd && contactsToAdd.length > 0 && setContactsByClient) {
-      for (const ct of contactsToAdd) {
-        const payload = {
-          name: ct.name || '',
-          email: ct.email || '',
-          slackMemberId: ct.slack_member_id || '',
-        };
-        // role / phone は client_contacts に列が無いので scheduling_notes に入れる
-        if (ct.role || ct.phone) {
-          payload.schedulingNotes = [
-            ct.role ? `役職: ${ct.role}` : null,
-            ct.phone ? `電話: ${ct.phone}` : null,
-          ].filter(Boolean).join(' / ');
-        }
-        if (!payload.name) continue;
-        const { data, error: e2 } = await insertClientContact(c._supaId, payload);
-        if (e2) {
-          console.error('[ClientDetail] insertClientContact failed', e2);
-          continue;
-        }
-        if (data) {
-          setContactsByClient(prev => {
-            const list = prev[c._supaId] || [];
-            return {
-              ...prev,
-              [c._supaId]: [...list, {
-                id: data.id, name: data.name, email: data.email,
-                slackMemberId: data.slack_member_id || '',
-                googleCalendarId: data.google_calendar_id || '',
-                schedulingUrl: data.scheduling_url || '',
-                schedulingUrl2: data.scheduling_url_2 || '',
-                schedulingLabel: data.scheduling_label || '',
-                schedulingLabel2: data.scheduling_label_2 || '',
-                schedulingNotes: data.scheduling_notes || '',
-                isPrimary: false,
-              }],
-            };
-          });
-        }
-      }
-    }
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -272,27 +216,19 @@ export default function ClientDetailPage({
             )}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {isAdmin && setClientData && (
-            <button
-              onClick={() => setVoiceUpdateOpen(true)}
-              style={{
-                padding: '7px 14px', borderRadius: 4,
-                border: `1px solid ${GOLD}`, background: '#fff',
-                fontSize: 12, color: GOLD, fontWeight: 600,
-                cursor: 'pointer', fontFamily: "'Noto Sans JP', sans-serif",
-              }}
-            >音声で更新</button>
-          )}
+        <div style={{ display: 'flex', gap: 6 }}>
           {isAdmin && onEdit && (
             <button
               onClick={() => onEdit(c)}
+              title="顧客情報を編集"
               style={{
-                padding: '7px 14px', borderRadius: 4,
-                border: `1px solid ${NAVY}`, background: '#fff',
-                fontSize: 12, color: NAVY, fontWeight: 500,
+                padding: '5px 12px', borderRadius: 4,
+                border: `1px solid ${GRAY_200}`, background: '#fff',
+                fontSize: 11, color: C.textMid, fontWeight: 500,
                 cursor: 'pointer', fontFamily: "'Noto Sans JP', sans-serif",
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = NAVY; e.currentTarget.style.color = NAVY; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = GRAY_200; e.currentTarget.style.color = C.textMid; }}
             >編集</button>
           )}
         </div>
@@ -473,16 +409,6 @@ export default function ClientDetailPage({
           )}
         </div>
       </div>
-
-      {/* 音声更新モーダル */}
-      {voiceUpdateOpen && (
-        <ClientVoiceUpdateModal
-          isOpen={voiceUpdateOpen}
-          onClose={() => setVoiceUpdateOpen(false)}
-          client={c}
-          onApply={handleVoiceApply}
-        />
-      )}
 
       {/* 担当者ドロワー */}
       {setContactsByClient && c?._supaId && (
