@@ -8,6 +8,10 @@ import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import PageHeader from '../common/PageHeader';
 import ContactDrawer from './contacts/ContactDrawer';
+import ClientDetailPage from './contacts/ClientDetailPage';
+import VoiceRecorderInline from './contacts/VoiceRecorderInline';
+import { dbFieldsToFe } from '../../utils/clientFieldsMap';
+import { insertClientContact as insertClientContactFn } from '../../lib/supabaseWrite';
 
 const NAVY = '#0D2247';
 const BLUE = '#1E40AF';
@@ -53,17 +57,25 @@ function lastTouchDisplay(ts) {
   return { label: `${days}日前`, stale: false };
 }
 
-export default function CRMView({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient }) {
+export default function CRMView({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient, callListData = [] }) {
   const [statusFilter, setStatusFilter] = useState("支援中");
   const [search, setSearch] = useState("");
-  const [selectedClient, setSelectedClient] = useState(null);
+  const [selectedClient, setSelectedClient] = useState(null); // legacy modal trigger（detail ページに置換、内部参照は残置）
   const [showRewardDetail, setShowRewardDetail] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [addForm, setAddForm] = useState(null);
   const [addSaving, setAddSaving] = useState(false);
   const [addToast, setAddToast] = useState(null);
-  // 担当者ドロワー状態 (mode: 'add' | 'edit', existingContact: object | null)
+  // 担当者ドロワー状態 (legacy: 旧モーダル用、detail ページ移行後は未使用)
   const [contactDrawer, setContactDrawer] = useState({ isOpen: false, mode: 'add', existingContact: null });
+  // 詳細ページ切替
+  const [view, setView] = useState('list'); // 'list' | 'detail'
+  const [detailClient, setDetailClient] = useState(null);
+  // 新規顧客追加で AI が抽出した「追加候補の担当者」をキューする
+  const [pendingNewContacts, setPendingNewContacts] = useState([]);
+
+  const goToDetail = (c) => { setDetailClient(c); setView('detail'); };
+  const goToList = () => { setView('list'); setDetailClient(null); };
   // 最終接点 (clientId -> ISO timestamp)
   const [lastTouchByClient, setLastTouchByClient] = useState({});
 
@@ -164,7 +176,9 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
     }
     setClientData(prev => prev.map((c, i) => i === idx ? updated : c));
     setEditForm(null);
-    setSelectedClient(updated);
+    // 詳細ページ表示中なら detailClient も更新（編集後の値を反映）
+    if (view === 'detail') setDetailClient(updated);
+    else setSelectedClient(updated);
   };
 
   const handleSaveAdd = async () => {
@@ -172,8 +186,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
     if (!addForm.company?.trim()) { alert('企業名を入力してください'); return; }
     setAddSaving(true);
     const { result, error } = await insertClient(addForm);
-    setAddSaving(false);
-    if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
+    if (error) { setAddSaving(false); alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
     const newClient = {
       _supaId: result.id,
       no: result.sort_order || 0,
@@ -196,21 +209,116 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
       schedulingUrl: result.scheduling_url || addForm.schedulingUrl || '',
     };
     setClientData(prev => [newClient, ...prev]);
+
+    // AI が抽出した担当者をまとめて追加
+    if (pendingNewContacts.length > 0 && setContactsByClient && newClient._supaId) {
+      for (const ct of pendingNewContacts) {
+        if (!ct?.name) continue;
+        const payload = {
+          name: ct.name,
+          email: ct.email || '',
+          slackMemberId: ct.slack_member_id || '',
+        };
+        if (ct.role || ct.phone) {
+          payload.schedulingNotes = [
+            ct.role ? `役職: ${ct.role}` : null,
+            ct.phone ? `電話: ${ct.phone}` : null,
+          ].filter(Boolean).join(' / ');
+        }
+        try {
+          const { data, error: e2 } = await insertClientContactFn(newClient._supaId, payload);
+          if (e2) { console.error('[CRM] insertClientContact failed', e2); continue; }
+          if (data) {
+            setContactsByClient(prev => {
+              const list = prev[newClient._supaId] || [];
+              return {
+                ...prev,
+                [newClient._supaId]: [...list, {
+                  id: data.id, name: data.name, email: data.email,
+                  slackMemberId: data.slack_member_id || '',
+                  googleCalendarId: data.google_calendar_id || '',
+                  schedulingUrl: data.scheduling_url || '',
+                  schedulingUrl2: data.scheduling_url_2 || '',
+                  schedulingLabel: data.scheduling_label || '',
+                  schedulingLabel2: data.scheduling_label_2 || '',
+                  schedulingNotes: data.scheduling_notes || '',
+                  isPrimary: false,
+                }],
+              };
+            });
+          }
+        } catch (e) {
+          console.error('[CRM] insertClientContact threw', e);
+        }
+      }
+    }
+
+    setAddSaving(false);
+    setPendingNewContacts([]);
     setAddForm(null);
     setAddToast('顧客を追加しました');
     setTimeout(() => setAddToast(null), 3000);
   };
 
+  // 新規顧客追加: 音声 → AI 整理結果を addForm に反映
+  const handleNewClientVoiceProcessed = (result) => {
+    const ext = result?.ai_extracted || {};
+    const cf = ext.client_fields || {};
+    const fePatch = dbFieldsToFe(cf);
+    setAddForm(prev => {
+      if (!prev) return prev;
+      const next = { ...prev };
+      Object.entries(fePatch).forEach(([k, v]) => {
+        if (v === null || v === undefined || v === '') return;
+        // 既に手入力されている場合は上書きしない
+        if (next[k] !== '' && next[k] !== 0 && next[k] !== undefined && next[k] !== null) {
+          // ただし数値フィールドの 0 デフォルトは空とみなして上書き
+          if (k === 'target' && next[k] === 0) {
+            next[k] = v;
+          }
+          return;
+        }
+        next[k] = v;
+      });
+      return next;
+    });
+    // 担当者は addForm 保存時にまとめて insert する
+    const cs = ext.contacts_to_add || [];
+    if (cs.length > 0) setPendingNewContacts(prev => [...prev, ...cs]);
+  };
+
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
-      <PageHeader
-        eyebrow="Sourcing · 顧客"
-        title="CRM"
-        description="顧客・連絡先・契約条件の管理"
-        style={{ marginBottom: 24 }}
-      />
+      {view === 'list' && (
+        <PageHeader
+          eyebrow="Sourcing · 顧客"
+          title="CRM"
+          description="顧客・連絡先・契約条件の管理"
+          style={{ marginBottom: 24 }}
+        />
+      )}
 
-      {/* Header */}
+      {/* 詳細ページモード */}
+      {view === 'detail' && detailClient && (
+        <ClientDetailPage
+          client={detailClient}
+          contactsByClient={contactsByClient}
+          setContactsByClient={setContactsByClient}
+          rewardMaster={rewardMaster}
+          callListData={callListData}
+          isAdmin={isAdmin}
+          setClientData={setClientData}
+          onBack={goToList}
+          onEdit={(cl) => {
+            const idx = clientData.findIndex(x => x._supaId === cl._supaId);
+            setEditForm({ ...cl, _idx: idx });
+          }}
+          onShowReward={(rid) => setShowRewardDetail(rid)}
+        />
+      )}
+
+      {/* Header (list mode only) */}
+      {view === 'list' && (<>
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
         padding: "14px 18px", background: '#fff', borderRadius: 4,
@@ -285,7 +393,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
               borderBottom: '1px solid ' + GRAY_200,
               background: i % 2 === 0 ? '#fff' : GRAY_50,
               cursor: "pointer", transition: "background 0.15s",
-            }} onClick={() => setSelectedClient(c)}
+            }} onClick={() => goToDetail(c)}
               onMouseEnter={e => e.currentTarget.style.background = "#EAF4FF"}
               onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? '#fff' : GRAY_50}>
               <span style={{
@@ -343,8 +451,9 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
         })}
         </div>
       </div>
+      </>)}
 
-      {/* Client Detail Modal */}
+      {/* Client Detail Modal (legacy: 詳細ページ移行後は表示されない。ContactDrawer 用に残置) */}
       {selectedClient && !editForm && (() => {
         const c = selectedClient;
         const sc = statusStyle(c.status);
@@ -509,6 +618,36 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                 新規顧客を追加
               </div>
               <div style={{ padding: "16px 20px" }}>
+                {/* 音声で一括入力（任意。手入力フローと共存） */}
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: NAVY, marginBottom: 6, letterSpacing: 1 }}>
+                    音声で一括入力（任意）
+                  </div>
+                  <VoiceRecorderInline
+                    targetKind="client_create"
+                    onProcessed={handleNewClientVoiceProcessed}
+                    placeholder={'例：「○○M&A、全業種、月間 10 件、報酬体系は単価制で支払サイト月末締翌月末。リスト先方持ち、Slack 連絡。担当は田中執行役員、tanaka@example.com」'}
+                    compact
+                  />
+                  {pendingNewContacts.length > 0 && (
+                    <div style={{
+                      marginTop: 6, padding: '6px 8px',
+                      fontSize: 10, color: NAVY,
+                      background: '#FFFBF0', border: '1px solid ' + C.gold + '40',
+                      borderRadius: 3,
+                    }}>
+                      AI から担当者 {pendingNewContacts.length} 名の追加候補があります。保存時にまとめて登録されます。
+                      <button
+                        onClick={() => setPendingNewContacts([])}
+                        style={{
+                          background: 'none', border: 'none', color: C.textLight,
+                          fontSize: 10, marginLeft: 6, cursor: 'pointer',
+                          fontFamily: "'Noto Sans JP', sans-serif", textDecoration: 'underline',
+                        }}
+                      >クリア</button>
+                    </div>
+                  )}
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div><label style={labelStyle}>ステータス</label>
                     <select value={addForm.status} onChange={e => u("status", e.target.value)} style={inputStyle}>
@@ -571,7 +710,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                 </div>
               </div>
               <div style={{ padding: "10px 20px", borderTop: "1px solid " + GRAY_200, display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button onClick={() => setAddForm(null)} style={{ padding: "8px 16px", borderRadius: 4, border: '1px solid ' + NAVY, background: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500, color: NAVY, fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
+                <button onClick={() => { setAddForm(null); setPendingNewContacts([]); }} style={{ padding: "8px 16px", borderRadius: 4, border: '1px solid ' + NAVY, background: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500, color: NAVY, fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
                 <button onClick={handleSaveAdd} disabled={addSaving} style={{ padding: "8px 16px", borderRadius: 4, border: "none", background: addSaving ? C.textLight : NAVY, cursor: addSaving ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'" }}>
                   {addSaving ? '保存中...' : '保存'}
                 </button>

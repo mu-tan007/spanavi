@@ -1224,7 +1224,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "appo" && <AppoListView appoData={appoData} setAppoData={isAdmin ? setAppoData : null} members={members} setMembers={isAdmin ? setMembers : null} clientData={clientData} rewardMaster={rewardMaster} setCallFlowScreen={setCallFlowScreen} callListData={callListData} contactsByClient={contactsByClient} />}
         {currentTab === "precheck" && <PreCheckView appoData={appoData} setAppoData={isAdmin ? setAppoData : null} setCallFlowScreen={setCallFlowScreen} callListData={callListData} clientData={clientData} contactsByClient={contactsByClient} />}
         {currentTab === "deals" && <DealsView />}
-        {currentTab === "crm" && <CRMView isAdmin={isAdmin} clientData={clientData} setClientData={isAdmin ? setClientData : null} rewardMaster={rewardMaster} contactsByClient={contactsByClient} setContactsByClient={setContactsByClient} />}
+        {currentTab === "crm" && <CRMView isAdmin={isAdmin} clientData={clientData} setClientData={isAdmin ? setClientData : null} rewardMaster={rewardMaster} contactsByClient={contactsByClient} setContactsByClient={setContactsByClient} callListData={callListData} />}
 
         {currentTab === "members" && <EngagementMembersView isAdmin={isAdmin} />}
         {currentTab === "search" && <CompanySearchView importedCSVs={importedCSVs} callListData={callListData} setCallingScreen={setCallingScreen} setImportedCSVs={setImportedCSVs} clientData={clientData} currentUser={currentUser} members={members} setCallFlowScreen={setCallFlowScreen} rewardMaster={rewardMaster} />}
