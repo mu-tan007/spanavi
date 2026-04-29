@@ -18,7 +18,7 @@ const APPO_COLOR = '#C9A96E';      // 登録済みアポ: ゴールド
  *   onSelectSlot     - (date, time) => void  空きスロットクリック時
  *   compact          - boolean  コンパクト表示モード
  */
-export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, onSelectSlot, existingAppointments = [], schedulingNotes = '', onUpdateNotes, compact = false, ...props }) {
+export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, onSelectSlot, existingAppointments = [], onUpdateCalendarLines = null, compact = false, ...props }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -118,25 +118,15 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
     schedulingUrl2 ? { url: schedulingUrl2, label: schedulingLabel2 || getToolName(schedulingUrl2) } : null,
   ].filter(Boolean);
 
-  // 注意事項パース（JSON配列 or 改行区切りテキスト）
+  // 注意事項: list.cautions の「カレンダー」セクション (staticNoteLines) を編集対象とする
+  // 保存時は onUpdateCalendarLines(newLines) で list.cautions に直接書き戻す（list 固有）
   const CIRCLE_NUMS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
   const stripBullet = (s) => (s || '').replace(/^[\s　]*[・･•‧\-*]+[\s　]*/, '');
-  const parseNotes = (raw) => {
-    if (!raw) return [];
-    try { const arr = JSON.parse(raw); if (Array.isArray(arr)) return arr.map(stripBullet); } catch {}
-    return raw.split('\n').map(stripBullet).filter(s => s.trim());
-  };
-  // schedulingNotes が空で list 由来の static lines があれば、それを初期値として編集可能にする
-  // （保存後は schedulingNotes に永続化される）
-  const buildInitial = (notesRaw, staticRaw) => {
-    const fromNotes = parseNotes(notesRaw);
-    if (fromNotes.length > 0) return fromNotes;
-    return (staticRaw || []).map(stripBullet).filter(s => s && s.trim());
-  };
-  const [localNotes, setLocalNotes] = useState(() => buildInitial(schedulingNotes, props.staticNoteLines));
+  const buildInitial = (staticRaw) => (staticRaw || []).map(stripBullet).filter(s => s && s.trim());
+  const [localNotes, setLocalNotes] = useState(() => buildInitial(props.staticNoteLines));
 
   // propsが変わったらlocalNotesを同期
-  useEffect(() => { setLocalNotes(buildInitial(schedulingNotes, props.staticNoteLines)); /* eslint-disable-next-line */ }, [schedulingNotes, JSON.stringify(props.staticNoteLines || [])]);
+  useEffect(() => { setLocalNotes(buildInitial(props.staticNoteLines)); /* eslint-disable-next-line */ }, [JSON.stringify(props.staticNoteLines || [])]);
 
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
@@ -144,9 +134,9 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
   const removeNote = (idx) => { const next = localNotes.filter((_, i) => i !== idx); setLocalNotes(next); setNotesSaved(false); };
   const addNote = () => { setLocalNotes(prev => [...prev, '']); setNotesSaved(false); };
   const handleSaveNotes = async () => {
-    if (!onUpdateNotes) return;
+    if (!onUpdateCalendarLines) return;
     setNotesSaving(true);
-    await onUpdateNotes(JSON.stringify(localNotes.filter(Boolean)));
+    await onUpdateCalendarLines(localNotes.filter(Boolean));
     setNotesSaving(false);
     setNotesSaved(true);
     setTimeout(() => setNotesSaved(false), 2000);
@@ -168,7 +158,7 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
       <div style={{ display: 'flex', gap: 6, marginTop: 2, alignItems: 'center' }}>
         <button onClick={addNote}
           style={{ border: '1px dashed #B0BAC8', background: 'none', cursor: 'pointer', fontSize: 9, color: '#6B7280', padding: '2px 8px', borderRadius: 3 }}>+ 追加</button>
-        {onUpdateNotes && (
+        {onUpdateCalendarLines && (
           <button onClick={handleSaveNotes} disabled={notesSaving}
             style={{ padding: '2px 10px', fontSize: 9, fontWeight: 600, border: 'none', borderRadius: 3, background: notesSaved ? '#10B981' : NAVY, color: '#fff', cursor: notesSaving ? 'default' : 'pointer', opacity: notesSaving ? 0.6 : 1 }}>
             {notesSaving ? '保存中...' : notesSaved ? '保存済み' : '保存'}

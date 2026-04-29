@@ -1559,6 +1559,16 @@ export async function updateCallListRebuttal(supaId, rebuttalData) {
   return error
 }
 
+export async function updateCallListCautions(supaId, cautions) {
+  if (!supaId) { console.warn('[DB] updateCallListCautions: no supaId'); return null }
+  const { error } = await supabase
+    .from('call_lists')
+    .update({ cautions })
+    .eq('id', supaId)
+  if (error) console.error('[DB] updateCallListCautions error:', error)
+  return error
+}
+
 // ============================================================
 // Script PDFs (クライアント別スクリプト添付PDF)
 // ============================================================

@@ -15,6 +15,7 @@ export default function MultiCalendarPanel({
   existingAppointments = [],
   compact = false,
   staticNoteLines = [],
+  onUpdateCalendarLines = null,
 }) {
   const [activeTab, setActiveTab] = useState(0);
 
@@ -27,12 +28,11 @@ export default function MultiCalendarPanel({
         schedulingUrl2=""
         schedulingLabel=""
         schedulingLabel2=""
-        schedulingNotes=""
-        onUpdateNotes={null}
         compact={compact}
         onSelectSlot={onSelectSlot}
         existingAppointments={existingAppointments}
         staticNoteLines={staticNoteLines}
+        onUpdateCalendarLines={onUpdateCalendarLines}
       />
     );
   }
@@ -47,14 +47,11 @@ export default function MultiCalendarPanel({
         schedulingUrl2={ct.schedulingUrl2 || ''}
         schedulingLabel={ct.schedulingLabel || ''}
         schedulingLabel2={ct.schedulingLabel2 || ''}
-        schedulingNotes={ct.schedulingNotes || ''}
-        onUpdateNotes={updateContactFn ? async (notes) => {
-          await updateContactFn(ct.id, { ...ct, schedulingNotes: notes });
-        } : null}
         compact={compact}
         onSelectSlot={onSelectSlot}
         existingAppointments={existingAppointments}
         staticNoteLines={staticNoteLines}
+        onUpdateCalendarLines={onUpdateCalendarLines}
       />
     );
   }
@@ -97,14 +94,11 @@ export default function MultiCalendarPanel({
         schedulingUrl2={activeCt.schedulingUrl2 || ''}
         schedulingLabel={activeCt.schedulingLabel || ''}
         schedulingLabel2={activeCt.schedulingLabel2 || ''}
-        schedulingNotes={activeCt.schedulingNotes || ''}
-        onUpdateNotes={updateContactFn ? async (notes) => {
-          await updateContactFn(activeCt.id, { ...activeCt, schedulingNotes: notes });
-        } : null}
         compact={compact}
         onSelectSlot={onSelectSlot}
         existingAppointments={existingAppointments}
         staticNoteLines={staticNoteLines}
+        onUpdateCalendarLines={onUpdateCalendarLines}
       />
     </div>
   );

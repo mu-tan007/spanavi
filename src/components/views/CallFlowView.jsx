@@ -7,7 +7,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getScriptPdfSignedUrl } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getScriptPdfSignedUrl, updateCallListCautions } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -73,6 +73,38 @@ function extractCalendarCautionLines(text) {
     }
   }
   return out;
+}
+
+// extractCalendarCautionLines の逆操作: list.cautions の「カレンダー」セクション本文を newLines で差し替えて全文を再構築。
+// セクションが存在しない場合は末尾に新規セクションを追加（次の空き丸数字を使用）。
+// newLines は箇条書き「・」プレフィックス無しの素のテキスト配列。書き出し時に「　・」を付加する。
+function replaceCalendarSection(cautionsText, newLines) {
+  const cleanLines = (newLines || []).map(s => (s || '').trim()).filter(Boolean);
+  const newBody = cleanLines.map(s => `　・${s}`);
+  if (!cautionsText || !cautionsText.trim()) {
+    if (cleanLines.length === 0) return '';
+    return ['①カレンダー', ...newBody].join('\n');
+  }
+  const sections = parseCautions(cautionsText);
+  if (!sections) {
+    if (cleanLines.length === 0) return cautionsText;
+    return cautionsText.trimEnd() + '\n①カレンダー\n' + newBody.join('\n');
+  }
+  const calIdx = sections.findIndex(s => /カレンダー/.test(s.title || ''));
+  if (calIdx >= 0) {
+    sections[calIdx] = { ...sections[calIdx], body: newBody };
+  } else if (cleanLines.length > 0) {
+    const CIRCLE_NUMS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
+    const used = new Set(sections.map(s => s.marker).filter(Boolean));
+    const nextMarker = CIRCLE_NUMS.find(m => !used.has(m)) || '⑪';
+    sections.push({ marker: nextMarker, title: 'カレンダー', body: newBody });
+  }
+  const lines = [];
+  for (const s of sections) {
+    if (s.marker || s.title) lines.push(`${s.marker || ''}${s.title || ''}`);
+    for (const b of s.body) lines.push(b);
+  }
+  return lines.join('\n');
 }
 
 function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
@@ -142,7 +174,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   );
 }
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, ceoConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -1547,6 +1579,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                     existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
                     staticNoteLines={extractCalendarCautionLines(list.cautions)}
+                    onUpdateCalendarLines={async (newLines) => {
+                      if (!list?._supaId) return;
+                      const newCautions = replaceCalendarSection(list.cautions, newLines);
+                      const err = await updateCallListCautions(list._supaId, newCautions);
+                      if (err) { alert('注意事項の保存に失敗しました'); return; }
+                      if (setCallListData) setCallListData(prev => prev.map(l => l._supaId === list._supaId ? { ...l, cautions: newCautions } : l));
+                    }}
                   />
                 </div>
               );
@@ -2279,6 +2318,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
                     existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
                     staticNoteLines={extractCalendarCautionLines(list.cautions)}
+                    onUpdateCalendarLines={async (newLines) => {
+                      if (!list?._supaId) return;
+                      const newCautions = replaceCalendarSection(list.cautions, newLines);
+                      const err = await updateCallListCautions(list._supaId, newCautions);
+                      if (err) { alert('注意事項の保存に失敗しました'); return; }
+                      if (setCallListData) setCallListData(prev => prev.map(l => l._supaId === list._supaId ? { ...l, cautions: newCautions } : l));
+                    }}
                   />
                 </div>
               );
