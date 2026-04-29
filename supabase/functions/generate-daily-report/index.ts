@@ -58,8 +58,18 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
+    // 手動リラン用: body.target_date (YYYY-MM-DD JST) が来たらその日付で再生成。
+    // 平日チェックや cron 認証は維持する。
+    let overrideDate: string | null = null
+    try {
+      const body = await req.clone().json()
+      if (body && typeof body.target_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.target_date)) {
+        overrideDate = body.target_date
+      }
+    } catch { /* no body or non-JSON: ignore */ }
+
     const today = new Date()
-    const targetDate = jstDateStr(today)
+    const targetDate = overrideDate || jstDateStr(today)
 
     // 平日のみ実行（保険）
     const dow = new Date(targetDate + 'T00:00:00Z').getUTCDay()
@@ -112,12 +122,29 @@ Deno.serve(async (req) => {
       ;(tmRows || []).forEach(r => { teamIdByMember[r.member_id as string] = r.team_id as string })
 
       // 当日の call_records 全件
-      const { data: callsRaw } = await supabase
-        .from('call_records')
-        .select('id, caller_id, getter_name, list_id, item_id, status, called_at, recording_url, rejection_reason')
-        .eq('org_id', orgId)
-        .gte('called_at', dayStart)
-        .lte('called_at', dayEnd)
+      // PostgREST のデフォルト 1000 行リミットで取り漏らすと
+      // メンバー別の架電/アポ集計が壊れるため必ずページングする。
+      const PAGE_SIZE = 1000
+      const callsRawAll: any[] = []
+      for (let pageFrom = 0; ; pageFrom += PAGE_SIZE) {
+        const { data: page, error: pageErr } = await supabase
+          .from('call_records')
+          .select('id, caller_id, getter_name, list_id, item_id, status, called_at, recording_url, rejection_reason')
+          .eq('org_id', orgId)
+          .gte('called_at', dayStart)
+          .lte('called_at', dayEnd)
+          .order('called_at', { ascending: true })
+          .range(pageFrom, pageFrom + PAGE_SIZE - 1)
+        if (pageErr) {
+          console.error('[daily-report] call_records page fetch error', pageFrom, pageErr)
+          break
+        }
+        const rows = page || []
+        callsRawAll.push(...rows)
+        if (rows.length < PAGE_SIZE) break
+      }
+      const callsRaw = callsRawAll
+      console.log(`[daily-report] call_records fetched=${callsRaw.length} for ${targetDate}`)
       // caller_id が NULL の場合 getter_name で member を解決して補完
       const calls = ((callsRaw || []) as CallRow[]).map(c => {
         if (c.caller_id) return c
@@ -411,6 +438,11 @@ Deno.serve(async (req) => {
       // 全社サマリ（org_id+engagement_id+team_id=NULL の "all teams" レポート行も保存）
       // → 後で UI 側で「全体」ビューを出す場合に活用
       // 省略可能。今回は team 単位のみ。
+
+      // 手動リランの場合は通知をスキップ（"本日" メッセージが過去日付を指して紛らわしいため）
+      if (overrideDate) {
+        continue
+      }
 
       // Sourcing 全員に通知
       const { data: assignments } = await supabase
