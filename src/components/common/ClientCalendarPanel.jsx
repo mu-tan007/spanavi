@@ -178,12 +178,13 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
     </div>
   );
 
-  // カレンダー未連携: 日程調整ツールリンクがあればそれだけ表示、なければメッセージ
+  // カレンダー未連携: 日程調整ツールリンクがあればそれを、無ければ未連携メッセージを表示。
+  // どちらの場合も list.cautions 由来の注意事項 (notesBlock) は必ず描画する。
   if (!clientCalendarId) {
-    if (schedulingLinks.length > 0) {
-      return (
-        <div style={{ fontFamily: "'Noto Sans JP'", padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {schedulingLinks.map((link, i) => (
+    return (
+      <div style={{ fontFamily: "'Noto Sans JP'", padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {schedulingLinks.length > 0 ? (
+          schedulingLinks.map((link, i) => (
             <div key={i} style={{ padding: '10px 12px', background: '#EFF6FF', borderRadius: 4, border: '1px solid #BFDBFE' }}>
               <div style={{ fontSize: 11, color: '#1E40AF', marginBottom: 8, fontWeight: 600 }}>{link.label}</div>
               <a href={link.url} target="_blank" rel="noopener noreferrer"
@@ -191,14 +192,11 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
                 {link.label}を開く
               </a>
             </div>
-          ))}
-          {notesBlock}
-        </div>
-      );
-    }
-    return (
-      <div style={{ fontFamily: "'Noto Sans JP'", padding: 16, textAlign: 'center' }}>
-        <div style={{ color: '#9CA3AF', fontSize: 12 }}>カレンダー未連携です。CRMの担当者設定からカレンダーIDまたは日程調整URLを登録してください。</div>
+          ))
+        ) : (
+          <div style={{ color: '#9CA3AF', fontSize: 12, textAlign: 'center' }}>カレンダー未連携です。CRMの担当者設定からカレンダーIDまたは日程調整URLを登録してください。</div>
+        )}
+        {notesBlock}
       </div>
     );
   }
