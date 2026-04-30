@@ -229,7 +229,14 @@ export default function RecallListView({ callListData, supaRecalls = [], members
                       <div style={{ fontWeight: 700, color: past ? '#e53e3e' : C.navy, fontFamily: "'JetBrains Mono'", fontSize: 11 }}>{item.recallTime || '--:--'}</div>
                       <div style={{ fontSize: 9, color: C.textLight }}>{item.recallDate ? item.recallDate.slice(5).replace('-', '/') : '日時未設定'}</div>
                     </div>
-                    <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: columns[1].align }}>{item.company}</span>
+                    <div style={{ minWidth: 0, textAlign: columns[1].align }}>
+                      <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</div>
+                      {(item._client_name || item._list_name) && (
+                        <div style={{ fontSize: 9, color: C.textLight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
+                          {[item._client_name, item._list_name].filter(Boolean).join('-')}
+                        </div>
+                      )}
+                    </div>
                     <span style={{ color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 10, textAlign: columns[2].align }}>{item.representative}</span>
                     <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.navy, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: columns[3].align }}>{item.phone}</span>
                     <div style={{ display: 'flex', justifyContent: columns[4].align === 'left' ? 'flex-start' : columns[4].align === 'right' ? 'flex-end' : 'center', width: '100%' }}>
