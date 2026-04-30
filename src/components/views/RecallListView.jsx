@@ -231,9 +231,9 @@ export default function RecallListView({ callListData, supaRecalls = [], members
                     </div>
                     <div style={{ minWidth: 0, textAlign: columns[1].align }}>
                       <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</div>
-                      {(item._client_name || item._list_name) && (
+                      {item._list_name && (
                         <div style={{ fontSize: 9, color: C.textLight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
-                          {[item._client_name, item._list_name].filter(Boolean).join('-')}
+                          {item._list_name}
                         </div>
                       )}
                     </div>
