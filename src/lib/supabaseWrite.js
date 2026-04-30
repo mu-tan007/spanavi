@@ -1131,7 +1131,7 @@ export async function fetchAllRecallRecords() {
   if (listIds.length > 0) {
     const { data: lists } = await supabase
       .from('call_lists')
-      .select('id, name, client_id, industry')
+      .select('id, name, client_id, industry, is_archived')
       .in('id', listIds)
     ;(lists || []).forEach(l => { listMap[l.id] = l })
     const clientIds = [...new Set(Object.values(listMap).map(l => l.client_id).filter(Boolean))]
@@ -1144,14 +1144,13 @@ export async function fetchAllRecallRecords() {
     }
   }
 
-  // フィルタ2（削除済み）: 以前は call_list_items.call_status で除外していたが、
-  // 同企業への後続架電で call_status が変わると未完了の再コールまで消えるバグがあった。
-  // 代わりに handleResult / handleAppoSave で再コール自動完了（completeRecallsForItem）を呼ぶ。
+  // フィルタ2: アーカイブ済みリストの再コールは除外
+  const listAlive = memoFiltered.filter(r => listMap[r.list_id]?.is_archived !== true)
 
   // フィルタ3: 同一 item_id で複数レコードがある場合は最大 round のみ残す
   // （同一企業への再コールが重複して表示されないようにする）
   const latestPerItem = new Map()
-  memoFiltered.forEach(r => {
+  listAlive.forEach(r => {
     const existing = latestPerItem.get(r.item_id)
     if (!existing || r.round > existing.round) {
       latestPerItem.set(r.item_id, r)
