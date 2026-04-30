@@ -53,11 +53,18 @@ export default function SourcingDashboardView({
   const myRole = myMember?.role || '';
   const isTeamLeader = myRole === 'チームリーダー';
 
-  // チーム UUID 取得
+  // チーム UUID 取得（現在の engagement (= Sourcing) のアクティブチームのみ）
   const [teamRows, setTeamRows] = useState([]);
   useEffect(() => {
-    supabase.from('teams').select('id, name, display_order').then(({ data }) => setTeamRows(data || []));
-  }, []);
+    if (!engagementId) { setTeamRows([]); return; }
+    supabase
+      .from('teams')
+      .select('id, name, display_order')
+      .eq('engagement_id', engagementId)
+      .eq('status', 'active')
+      .order('display_order')
+      .then(({ data }) => setTeamRows(data || []));
+  }, [engagementId]);
 
   // ---- スコープ ----
   const scopeOptions = useMemo(() => {
