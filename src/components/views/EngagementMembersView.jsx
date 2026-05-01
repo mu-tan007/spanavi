@@ -366,7 +366,7 @@ function MemberRowCells({ m, ranks = [], roles = [], editable, onRankChange, onR
             fontSize: 11, fontWeight: 600, overflow: 'hidden', flexShrink: 0,
           }}>
             {m.avatar_url
-              ? <img src={m.avatar_url} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ? <img src={m.avatar_url} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover', imageRendering: '-webkit-optimize-contrast' }} />
               : (m.name || '?')[0]}
           </div>
           {m.name}
