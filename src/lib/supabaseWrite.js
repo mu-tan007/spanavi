@@ -1918,12 +1918,15 @@ export async function fetchRecentDuplicateSession(listId, startNo, endNo) {
 // ============================================================
 const PROFILE_BUCKET = 'profile-images'
 
-export async function updateMemberAvatarUrl(memberName, avatarUrl) {
-  if (!memberName) return null
-  const { error } = await supabase
-    .from('members')
-    .update({ avatar_url: avatarUrl })
-    .eq('name', memberName)
+// member の avatar_url を更新する。
+// 第 1 引数は UUID 形式（members.id）を優先、文字列でハイフンが含まれない場合は name として fallback。
+export async function updateMemberAvatarUrl(memberIdOrName, avatarUrl) {
+  if (!memberIdOrName) return null
+  const isUuid = typeof memberIdOrName === 'string' && /^[0-9a-f]{8}-/i.test(memberIdOrName)
+  const query = supabase.from('members').update({ avatar_url: avatarUrl })
+  const { error } = isUuid
+    ? await query.eq('id', memberIdOrName)
+    : await query.eq('name', memberIdOrName)
   if (error) console.error('[DB] updateMemberAvatarUrl error:', error)
   return error
 }

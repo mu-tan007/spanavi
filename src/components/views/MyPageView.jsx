@@ -30,12 +30,20 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
     setUploadError(null);
     setUploading(true);
     try {
-      const url = await uploadProfileImage(userId, file);
+      // uploadProfileImage は { url, error } を返す
+      const { url, error: uploadErr } = await uploadProfileImage(userId, file);
+      if (uploadErr || !url) {
+        throw uploadErr || new Error('アップロード結果が空でした');
+      }
       setProfileImage(url);
-      if (memberInfo?._supaId || memberInfo?.id) {
-        await updateMemberAvatarUrl(memberInfo._supaId || memberInfo.id, url);
+      // members.id (UUID) で更新
+      const memberId = memberInfo?._supaId || memberInfo?.id;
+      if (memberId) {
+        const updateErr = await updateMemberAvatarUrl(memberId, url);
+        if (updateErr) throw updateErr;
       }
     } catch (err) {
+      console.error('[MyPage] avatar upload error:', err);
       setUploadError(err?.message || 'アップロードに失敗しました');
     } finally {
       setUploading(false);
