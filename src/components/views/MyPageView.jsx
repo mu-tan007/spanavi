@@ -14,10 +14,16 @@ import { getOrgId } from '../../lib/orgContext';
 export default function MyPageView({ currentUser, userId, members, isAdmin = false, onDataRefetch }) {
   const isMobile = useIsMobile();
 
-  const memberInfo = useMemo(
-    () => (Array.isArray(members) ? members.find(m => (typeof m === 'object' ? m.name : m) === currentUser) : null),
-    [members, currentUser]
-  );
+  // 自分のメンバー情報を user_id で検索（名前変更後も追従するため）
+  // user_id が無い場合は名前で fallback（後方互換）
+  const memberInfo = useMemo(() => {
+    if (!Array.isArray(members)) return null;
+    if (userId) {
+      const byUserId = members.find(m => typeof m === 'object' && m.user_id === userId);
+      if (byUserId) return byUserId;
+    }
+    return members.find(m => (typeof m === 'object' ? m.name : m) === currentUser) || null;
+  }, [members, currentUser, userId]);
 
   // プロフィール画像
   const [profileImage, setProfileImage] = useState(() => getProfileImageUrl(userId));
