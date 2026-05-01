@@ -390,6 +390,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [bulkInvoiceChecked, setBulkInvoiceChecked] = useState(new Set());  // クライアント名のSet
   const [bulkInvoiceStatus, setBulkInvoiceStatus] = useState({}); // { clientName: 'idle'|'generating'|'done'|'error' }
   const [bulkInvoiceGenerating, setBulkInvoiceGenerating] = useState(false);
+  const [bulkInvoiceDrafts, setBulkInvoiceDrafts] = useState({});  // { clientName: items[] } — 編集済み明細
+  const [bulkInvoiceEditingClient, setBulkInvoiceEditingClient] = useState(null);  // 編集モード中のクライアント名（単発モーダル流用フラグ）
   const [bulkInvoiceIssueDate, setBulkInvoiceIssueDate] = useState(() => {
     const mm = AVAILABLE_MONTHS[0]?.yyyymm || '';
     if (!mm) return '';
@@ -713,21 +715,27 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   };
 
   // ── 請求書PDF生成（Base64返却用） ──────────────────────────
-  const generateInvoicePdfBase64 = async (clientName, month, customIssueDate = null) => {
+  // customItems を渡せば自動生成をスキップして編集済み明細を使う（一括作成の編集ドラフト用）
+  const generateInvoicePdfBase64 = async (clientName, month, customIssueDate = null, customItems = null) => {
     const client = clientData.find(c => c.company === clientName);
     if (!client) throw new Error('クライアントが見つかりません');
     const rm = rewardMaster.find(r => r.id === client.rewardType);
     const taxType = rm?.tax || '税別';
     const isTaxExcl = taxType === '税別';
 
-    const targetAppos = appoData.filter(a =>
-      a.status === '面談済' && a.client === clientName && a.meetDate && a.meetDate.slice(0, 7) === month
-    );
-    const items = targetAppos.map(a => {
-      const raw = a.sales || 0;
-      const unitPrice = isTaxExcl ? Math.round(raw / 1.1) : raw;
-      return { company: a.company, quantity: 1, unitPrice, amount: unitPrice, note: '' };
-    });
+    let items;
+    if (customItems && customItems.length > 0) {
+      items = customItems;
+    } else {
+      const targetAppos = appoData.filter(a =>
+        a.status === '面談済' && a.client === clientName && a.meetDate && a.meetDate.slice(0, 7) === month
+      );
+      items = targetAppos.map(a => {
+        const raw = a.sales || 0;
+        const unitPrice = isTaxExcl ? Math.round(raw / 1.1) : raw;
+        return { company: a.company, quantity: 1, unitPrice, amount: unitPrice, note: '' };
+      });
+    }
     if (items.length === 0) throw new Error('対象の面談済アポがありません');
 
     const subtotal = items.reduce((s, it) => s + it.amount, 0);
@@ -856,7 +864,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       for (const clientName of targets) {
         setBulkInvoiceStatus(prev => ({ ...prev, [clientName]: 'generating' }));
         try {
-          const { pdfBase64, filename } = await generateInvoicePdfBase64(clientName, bulkInvoiceMonth, bulkInvoiceIssueDate);
+          const draft = bulkInvoiceDrafts[clientName] || null;
+          const { pdfBase64, filename } = await generateInvoicePdfBase64(clientName, bulkInvoiceMonth, bulkInvoiceIssueDate, draft);
           zip.file(filename, pdfBase64, { base64: true });
           setBulkInvoiceStatus(prev => ({ ...prev, [clientName]: 'done' }));
           successCount++;
@@ -1171,7 +1180,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             >請求書作成</button>
           )}
           {setAppoData && (
-            <button onClick={() => { setBulkInvoiceModal(true); setBulkInvoiceChecked(new Set()); setBulkInvoiceStatus({}); }}
+            <button onClick={() => { setBulkInvoiceModal(true); setBulkInvoiceChecked(new Set()); setBulkInvoiceStatus({}); setBulkInvoiceDrafts({}); }}
               style={{
                 padding: "8px 16px", borderRadius: 4,
                 background: "#fff", border: "1px solid #0D2247",
@@ -1367,22 +1376,43 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         </div>
       </div>
 
-      {/* Bulk Invoice Create Modal (ZIP) */}
-      {bulkInvoiceModal && setAppoData && (() => {
+      {/* Bulk Invoice Create Modal (ZIP) — 編集モーダル表示中は隠す */}
+      {bulkInvoiceModal && setAppoData && !bulkInvoiceEditingClient && (() => {
         const monthAppos = appoData.filter(a => a.status === '面談済' && a.meetDate && a.meetDate.slice(0, 7) === bulkInvoiceMonth);
         const clientNames = [...new Set(monthAppos.map(a => a.client))].filter(Boolean).sort();
         const clientInfos = clientNames.map(name => {
           const c = clientData.find(cl => cl.company === name);
           const rm = c ? rewardMaster.find(r => r.id === c.rewardType) : null;
           const isTaxExcl = (rm?.tax || '税別') === '税別';
-          const appos = monthAppos.filter(a => a.client === name);
-          const subtotal = appos.reduce((s, a) => s + (isTaxExcl ? Math.round((a.sales || 0) / 1.1) : (a.sales || 0)), 0);
+          const draft = bulkInvoiceDrafts[name];
+          let count, subtotal;
+          if (draft) {
+            count = draft.length;
+            subtotal = draft.reduce((s, it) => s + (it.amount || 0), 0);
+          } else {
+            const appos = monthAppos.filter(a => a.client === name);
+            count = appos.length;
+            subtotal = appos.reduce((s, a) => s + (isTaxExcl ? Math.round((a.sales || 0) / 1.1) : (a.sales || 0)), 0);
+          }
           const total = isTaxExcl ? subtotal + Math.floor(subtotal * 0.1) : subtotal;
-          return { name, count: appos.length, total };
+          return { name, count, total, edited: !!draft };
         });
         const allChecked = clientInfos.length > 0 && clientInfos.every(ci => bulkInvoiceChecked.has(ci.name));
         const statusLabel = { idle: '', generating: '生成中...', done: '生成済', error: '失敗' };
         const statusColor = { idle: '', generating: '#F59E0B', done: '#10B981', error: '#EF4444' };
+
+        const openEditDraft = (name) => {
+          setInvoiceMonth(bulkInvoiceMonth);
+          setInvoiceIssueDate(bulkInvoiceIssueDate);
+          setInvoiceClient(name);
+          if (bulkInvoiceDrafts[name]) {
+            setInvoiceItems(bulkInvoiceDrafts[name]);
+          } else {
+            initInvoiceItems(name, bulkInvoiceMonth);
+          }
+          setBulkInvoiceEditingClient(name);
+          setInvoiceModal(true);
+        };
 
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1397,7 +1427,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                     <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>対象月</label>
                     <select value={bulkInvoiceMonth} onChange={e => {
                       const v = e.target.value;
-                      setBulkInvoiceMonth(v); setBulkInvoiceChecked(new Set()); setBulkInvoiceStatus({});
+                      setBulkInvoiceMonth(v); setBulkInvoiceChecked(new Set()); setBulkInvoiceStatus({}); setBulkInvoiceDrafts({});
                       const [yy, mm] = v.split('-').map(Number);
                       const dd = mm === 12 ? new Date(yy + 1, 0, 1) : new Date(yy, mm, 1);
                       setBulkInvoiceIssueDate(`${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`);
@@ -1415,7 +1445,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
                 {/* クライアント一覧テーブル */}
                 <div style={{ border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 60px 110px 70px', gap: 0, background: '#F3F4F6', padding: '6px 10px', fontSize: 10, fontWeight: 600, color: '#374151', alignItems: 'center' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 60px 110px 56px 70px', gap: 0, background: '#F3F4F6', padding: '6px 10px', fontSize: 10, fontWeight: 600, color: '#374151', alignItems: 'center' }}>
                     <span style={{ display: 'flex', justifyContent: 'center' }}>
                       <input type="checkbox" checked={allChecked} onChange={() => {
                         if (allChecked) setBulkInvoiceChecked(new Set());
@@ -1425,6 +1455,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                     <span>クライアント</span>
                     <span style={{ textAlign: 'center' }}>件数</span>
                     <span style={{ textAlign: 'right' }}>請求金額</span>
+                    <span style={{ textAlign: 'center' }}>編集</span>
                     <span style={{ textAlign: 'center' }}>状態</span>
                   </div>
                   {clientInfos.length === 0 ? (
@@ -1432,15 +1463,30 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   ) : clientInfos.map(ci => {
                     const st = bulkInvoiceStatus[ci.name] || 'idle';
                     return (
-                      <div key={ci.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 60px 110px 70px', gap: 4, padding: '6px 10px', borderTop: '1px solid #E5E7EB', alignItems: 'center', fontSize: 11 }}>
+                      <div key={ci.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 60px 110px 56px 70px', gap: 4, padding: '6px 10px', borderTop: '1px solid #E5E7EB', alignItems: 'center', fontSize: 11 }}>
                         <span style={{ display: 'flex', justifyContent: 'center' }}>
                           <input type="checkbox" checked={bulkInvoiceChecked.has(ci.name)} disabled={bulkInvoiceGenerating}
                             onChange={() => setBulkInvoiceChecked(prev => { const next = new Set(prev); if (next.has(ci.name)) next.delete(ci.name); else next.add(ci.name); return next; })}
                             style={{ cursor: bulkInvoiceGenerating ? 'default' : 'pointer' }} />
                         </span>
-                        <span style={{ fontWeight: 500, color: '#0D2247' }}>{ci.name}</span>
+                        <span style={{ fontWeight: 500, color: '#0D2247', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {ci.name}
+                          {ci.edited && <span style={{ fontSize: 9, padding: '1px 5px', background: '#10B981', color: '#fff', borderRadius: 2, fontWeight: 600 }}>編集済</span>}
+                        </span>
                         <span style={{ textAlign: 'center', fontFamily: "'JetBrains Mono'", color: '#0D2247' }}>{ci.count}</span>
                         <span style={{ textAlign: 'right', fontFamily: "'JetBrains Mono'", fontWeight: 600, color: '#0D2247' }}>{formatCurrency(ci.total)}</span>
+                        <span style={{ textAlign: 'center' }}>
+                          <button onClick={() => openEditDraft(ci.name)} disabled={bulkInvoiceGenerating}
+                            style={{
+                              padding: '3px 10px', borderRadius: 3,
+                              border: '1px solid #0D2247', background: '#fff', color: '#0D2247',
+                              fontSize: 10, fontWeight: 500, fontFamily: "'Noto Sans JP'",
+                              cursor: bulkInvoiceGenerating ? 'default' : 'pointer',
+                              opacity: bulkInvoiceGenerating ? 0.5 : 1,
+                            }}>
+                            編集
+                          </button>
+                        </span>
                         <span style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: statusColor[st] }}>{statusLabel[st]}</span>
                       </div>
                     );
@@ -1448,7 +1494,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 </div>
 
                 <div style={{ marginTop: 12, fontSize: 10, color: '#6B7280' }}>
-                  選択した全クライアントの請求書PDFを生成し、1つのZIPファイルにまとめてダウンロードします。明細の細かい編集が必要な場合は通常の「請求書作成」をご利用ください。
+                  「編集」で個別に明細を調整できます（保存した内容はZIP生成時に反映されます）。未編集の行は面談済アポから自動生成されます。
                 </div>
               </div>
               <div style={{ padding: "12px 24px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: 'center', flexShrink: 0 }}>
@@ -1614,6 +1660,7 @@ MASP 篠宮`}
 
       {/* Invoice Modal */}
       {invoiceModal && setAppoData && (() => {
+        const isBulkEdit = !!bulkInvoiceEditingClient;
         const invoiceClientsBase = [...new Set(appoData.filter(a => a.status === '面談済' && a.meetDate && a.meetDate.slice(0, 7) === invoiceMonth).map(a => a.client))].filter(Boolean);
         // 3月イレギュラー: エムステージマネジメントソリューションズを追加
         if (invoiceMonth === '2026-03' && !invoiceClientsBase.includes('株式会社エムステージマネジメントソリューションズ')) {
@@ -1632,28 +1679,30 @@ MASP 篠宮`}
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 640, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
               <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15, flexShrink: 0 }}>
-                請求書作成
+                {isBulkEdit ? `請求書を編集 — ${bulkInvoiceEditingClient}` : '請求書作成'}
               </div>
               <div style={{ padding: "20px 24px", overflowY: 'auto', flex: 1 }}>
                 {/* 月 + クライアント選択 */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                   <div>
                     <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>対象月</label>
-                    <select value={invoiceMonth} onChange={e => {
-                      const v = e.target.value;
-                      setInvoiceMonth(v); setInvoiceClient(''); setInvoiceItems([]);
-                      const [yy, mm] = v.split('-').map(Number);
-                      const dd = mm === 12 ? new Date(yy + 1, 0, 1) : new Date(yy, mm, 1);
-                      setInvoiceIssueDate(`${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`);
-                    }}
-                      style={{ width: '100%', padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none" }}>
+                    <select value={invoiceMonth} disabled={isBulkEdit}
+                      onChange={e => {
+                        const v = e.target.value;
+                        setInvoiceMonth(v); setInvoiceClient(''); setInvoiceItems([]);
+                        const [yy, mm] = v.split('-').map(Number);
+                        const dd = mm === 12 ? new Date(yy + 1, 0, 1) : new Date(yy, mm, 1);
+                        setInvoiceIssueDate(`${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`);
+                      }}
+                      style={{ width: '100%', padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none", background: isBulkEdit ? '#F3F4F6' : '#fff', color: isBulkEdit ? '#6B7280' : 'inherit' }}>
                       {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
                     </select>
                   </div>
                   <div>
                     <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>クライアント</label>
-                    <select value={invoiceClient} onChange={e => { setInvoiceClient(e.target.value); if (e.target.value) initInvoiceItems(e.target.value, invoiceMonth); else setInvoiceItems([]); }}
-                      style={{ width: '100%', padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none" }}>
+                    <select value={invoiceClient} disabled={isBulkEdit}
+                      onChange={e => { setInvoiceClient(e.target.value); if (e.target.value) initInvoiceItems(e.target.value, invoiceMonth); else setInvoiceItems([]); }}
+                      style={{ width: '100%', padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none", background: isBulkEdit ? '#F3F4F6' : '#fff', color: isBulkEdit ? '#6B7280' : 'inherit' }}>
                       <option value="">選択してください</option>
                       {invoiceClients.map(name => <option key={name} value={name}>{name}</option>)}
                     </select>
@@ -1729,19 +1778,42 @@ MASP 篠宮`}
                 )}
               </div>
               <div style={{ padding: "12px 24px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "flex-end", gap: 8, flexShrink: 0 }}>
-                <button onClick={() => { setInvoiceModal(false); setInvoiceItems([]); }}
+                <button onClick={() => {
+                  setInvoiceModal(false);
+                  if (isBulkEdit) {
+                    setBulkInvoiceEditingClient(null);
+                  } else {
+                    setInvoiceItems([]);
+                  }
+                }}
                   style={{ padding: "8px 16px", borderRadius: 4, border: "1px solid #0D2247", background: '#fff', cursor: "pointer", fontSize: 11, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'" }}>
                   キャンセル
                 </button>
-                <button onClick={handleInvoiceExport} disabled={!invoiceClient || invoiceItems.length === 0 || invoiceExporting}
-                  style={{
-                    padding: "8px 16px", borderRadius: 4, border: "none",
-                    background: (!invoiceClient || invoiceItems.length === 0 || invoiceExporting) ? '#9CA3AF' : '#0D2247',
-                    cursor: (!invoiceClient || invoiceItems.length === 0 || invoiceExporting) ? 'default' : 'pointer',
-                    fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
-                  }}>
-                  {invoiceExporting ? 'PDF生成中...' : 'PDFダウンロード'}
-                </button>
+                {isBulkEdit ? (
+                  <button onClick={() => {
+                    setBulkInvoiceDrafts(prev => ({ ...prev, [bulkInvoiceEditingClient]: invoiceItems }));
+                    setInvoiceModal(false);
+                    setBulkInvoiceEditingClient(null);
+                  }} disabled={invoiceItems.length === 0}
+                    style={{
+                      padding: "8px 16px", borderRadius: 4, border: "none",
+                      background: invoiceItems.length === 0 ? '#9CA3AF' : '#0D2247',
+                      cursor: invoiceItems.length === 0 ? 'default' : 'pointer',
+                      fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
+                    }}>
+                    保存して一覧に戻る
+                  </button>
+                ) : (
+                  <button onClick={handleInvoiceExport} disabled={!invoiceClient || invoiceItems.length === 0 || invoiceExporting}
+                    style={{
+                      padding: "8px 16px", borderRadius: 4, border: "none",
+                      background: (!invoiceClient || invoiceItems.length === 0 || invoiceExporting) ? '#9CA3AF' : '#0D2247',
+                      cursor: (!invoiceClient || invoiceItems.length === 0 || invoiceExporting) ? 'default' : 'pointer',
+                      fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
+                    }}>
+                    {invoiceExporting ? 'PDF生成中...' : 'PDFダウンロード'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
