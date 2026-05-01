@@ -11,7 +11,7 @@ import { subscribeToPush, unsubscribeFromPush, isPushSubscribed, resetPushSubscr
 import { getOrgId } from '../../lib/orgContext';
 
 // 組織共通の個人プロフィール画面。事業を跨いで同じ内容が表示される。
-export default function MyPageView({ currentUser, userId, members, isAdmin = false }) {
+export default function MyPageView({ currentUser, userId, members, isAdmin = false, onDataRefetch }) {
   const isMobile = useIsMobile();
 
   const memberInfo = useMemo(
@@ -41,6 +41,10 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
       if (memberId) {
         const updateErr = await updateMemberAvatarUrl(memberId, url);
         if (updateErr) throw updateErr;
+      }
+      // members 配列を再取得して画面全体に反映
+      if (typeof onDataRefetch === 'function') {
+        try { await onDataRefetch(); } catch (e) { console.warn('[MyPage] onDataRefetch failed:', e); }
       }
     } catch (err) {
       console.error('[MyPage] avatar upload error:', err);
@@ -80,6 +84,10 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
     }
     setProfileEditing(false);
     setProfileSavedAt(Date.now());
+    // members 配列が古いままだと閲覧モードで旧値が見えるので、上位に再 fetch を依頼
+    if (typeof onDataRefetch === 'function') {
+      try { await onDataRefetch(); } catch (e) { console.warn('[MyPage] onDataRefetch failed:', e); }
+    }
   };
 
   const handleCancelProfile = () => {
@@ -106,6 +114,9 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
     await updateMember(supaId, { ...memberInfo, zoomPhoneNumber: zoomPhone.trim() });
     setZoomPhoneSaving(false);
     setZoomPhoneEditing(false);
+    if (typeof onDataRefetch === 'function') {
+      try { await onDataRefetch(); } catch (e) { console.warn('[MyPage] onDataRefetch failed:', e); }
+    }
   };
 
   // プッシュ通知

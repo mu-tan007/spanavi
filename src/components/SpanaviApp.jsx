@@ -1236,7 +1236,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "database" && <DatabaseView isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView onBack={() => setCurrentTab('lists')} />}
         {currentTab === "dashboard" && <SourcingDashboardView currentUser={currentUser} userId={userId} callListData={enrichedLists} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} setCurrentTab={setCurrentTab} setSelectedList={setSelectedList} setCallFlowScreen={setCallFlowScreen} />}
-        {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} />}
+        {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} onDataRefetch={onDataRefetch} />}
         {currentTab === "library" && <LibraryView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
         {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} />}
         {currentTab === "ai" && <AIAssistantView appoData={appoData} members={members} callListData={callListData} industryRules={industryRules} currentUser={currentUser} />}
