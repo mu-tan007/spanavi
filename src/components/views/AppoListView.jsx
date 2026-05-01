@@ -384,6 +384,19 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [bulkSendTo, setBulkSendTo] = useState({});      // { clientName: email } — 選択した送信先
   const [bulkSendStatus, setBulkSendStatus] = useState({}); // { clientName: 'idle'|'sending'|'sent'|'error' }
   const [bulkSending, setBulkSending] = useState(false);
+  // ── 請求書一括作成（ZIP） ──
+  const [bulkInvoiceModal, setBulkInvoiceModal] = useState(false);
+  const [bulkInvoiceMonth, setBulkInvoiceMonth] = useState(AVAILABLE_MONTHS[0]?.yyyymm || '');
+  const [bulkInvoiceChecked, setBulkInvoiceChecked] = useState(new Set());  // クライアント名のSet
+  const [bulkInvoiceStatus, setBulkInvoiceStatus] = useState({}); // { clientName: 'idle'|'generating'|'done'|'error' }
+  const [bulkInvoiceGenerating, setBulkInvoiceGenerating] = useState(false);
+  const [bulkInvoiceIssueDate, setBulkInvoiceIssueDate] = useState(() => {
+    const mm = AVAILABLE_MONTHS[0]?.yyyymm || '';
+    if (!mm) return '';
+    const [y, m] = mm.split('-').map(Number);
+    const d = m === 12 ? new Date(y + 1, 0, 1) : new Date(y, m, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
   const [droppedFileName, setDroppedFileName] = useState('');
   useEffect(() => {
     setShowRecordingDetail(false);
@@ -827,6 +840,54 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     setBulkSending(false);
   };
 
+  // ── 一括作成（ZIP） ──────────────────────────────────────
+  const handleBulkInvoiceExport = async () => {
+    if (bulkInvoiceChecked.size === 0 || bulkInvoiceGenerating) return;
+    const targets = [...bulkInvoiceChecked];
+    setBulkInvoiceGenerating(true);
+    const monthNum = parseInt(bulkInvoiceMonth.split('-')[1], 10);
+    const monthLabel = monthNum + '月';
+
+    try {
+      const { default: JSZip } = await import('jszip');
+      const zip = new JSZip();
+      let successCount = 0;
+
+      for (const clientName of targets) {
+        setBulkInvoiceStatus(prev => ({ ...prev, [clientName]: 'generating' }));
+        try {
+          const { pdfBase64, filename } = await generateInvoicePdfBase64(clientName, bulkInvoiceMonth, bulkInvoiceIssueDate);
+          zip.file(filename, pdfBase64, { base64: true });
+          setBulkInvoiceStatus(prev => ({ ...prev, [clientName]: 'done' }));
+          successCount++;
+        } catch (e) {
+          console.error(`[bulkInvoiceExport] ${clientName}:`, e);
+          setBulkInvoiceStatus(prev => ({ ...prev, [clientName]: 'error' }));
+        }
+      }
+
+      if (successCount === 0) {
+        alert('PDFを1件も生成できませんでした');
+        return;
+      }
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `業務委託料_${monthLabel}分_一括.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('[bulkInvoiceExport]', e);
+      alert('ZIP生成に失敗しました: ' + (e.message || '不明なエラー'));
+    } finally {
+      setBulkInvoiceGenerating(false);
+    }
+  };
+
   const handleTranscribeDetail = async () => {
     if (transcribeStep !== 'idle') return;
     // Step 1: アポ取得報告または備考から録音URLを取得
@@ -1110,6 +1171,18 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             >請求書作成</button>
           )}
           {setAppoData && (
+            <button onClick={() => { setBulkInvoiceModal(true); setBulkInvoiceChecked(new Set()); setBulkInvoiceStatus({}); }}
+              style={{
+                padding: "8px 16px", borderRadius: 4,
+                background: "#fff", border: "1px solid #0D2247",
+                color: '#0D2247', cursor: "pointer", fontSize: 11, fontWeight: 500,
+                fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = "#F0F4FF"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "#fff"; }}
+            >請求書一括作成</button>
+          )}
+          {setAppoData && (
             <button onClick={() => { setBulkSendModal(true); setBulkSendChecked(new Set()); setBulkSendStatus({}); setBulkSendCc({}); setBulkSendTo({}); }}
               style={{
                 padding: "8px 16px", borderRadius: 4,
@@ -1293,6 +1366,113 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         })}
         </div>
       </div>
+
+      {/* Bulk Invoice Create Modal (ZIP) */}
+      {bulkInvoiceModal && setAppoData && (() => {
+        const monthAppos = appoData.filter(a => a.status === '面談済' && a.meetDate && a.meetDate.slice(0, 7) === bulkInvoiceMonth);
+        const clientNames = [...new Set(monthAppos.map(a => a.client))].filter(Boolean).sort();
+        const clientInfos = clientNames.map(name => {
+          const c = clientData.find(cl => cl.company === name);
+          const rm = c ? rewardMaster.find(r => r.id === c.rewardType) : null;
+          const isTaxExcl = (rm?.tax || '税別') === '税別';
+          const appos = monthAppos.filter(a => a.client === name);
+          const subtotal = appos.reduce((s, a) => s + (isTaxExcl ? Math.round((a.sales || 0) / 1.1) : (a.sales || 0)), 0);
+          const total = isTaxExcl ? subtotal + Math.floor(subtotal * 0.1) : subtotal;
+          return { name, count: appos.length, total };
+        });
+        const allChecked = clientInfos.length > 0 && clientInfos.every(ci => bulkInvoiceChecked.has(ci.name));
+        const statusLabel = { idle: '', generating: '生成中...', done: '生成済', error: '失敗' };
+        const statusColor = { idle: '', generating: '#F59E0B', done: '#10B981', error: '#EF4444' };
+
+        return (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 720, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+              <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15, flexShrink: 0 }}>
+                請求書一括作成（ZIP）
+              </div>
+              <div style={{ padding: "20px 24px", overflowY: 'auto', flex: 1 }}>
+                {/* 月選択 + 請求日 */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>対象月</label>
+                    <select value={bulkInvoiceMonth} onChange={e => {
+                      const v = e.target.value;
+                      setBulkInvoiceMonth(v); setBulkInvoiceChecked(new Set()); setBulkInvoiceStatus({});
+                      const [yy, mm] = v.split('-').map(Number);
+                      const dd = mm === 12 ? new Date(yy + 1, 0, 1) : new Date(yy, mm, 1);
+                      setBulkInvoiceIssueDate(`${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`);
+                    }}
+                      style={{ width: '100%', padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none" }}>
+                      {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>請求日（全請求書共通）</label>
+                    <input type="date" value={bulkInvoiceIssueDate} onChange={e => setBulkInvoiceIssueDate(e.target.value)}
+                      style={{ width: '100%', padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none" }} />
+                  </div>
+                </div>
+
+                {/* クライアント一覧テーブル */}
+                <div style={{ border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 60px 110px 70px', gap: 0, background: '#F3F4F6', padding: '6px 10px', fontSize: 10, fontWeight: 600, color: '#374151', alignItems: 'center' }}>
+                    <span style={{ display: 'flex', justifyContent: 'center' }}>
+                      <input type="checkbox" checked={allChecked} onChange={() => {
+                        if (allChecked) setBulkInvoiceChecked(new Set());
+                        else setBulkInvoiceChecked(new Set(clientInfos.map(ci => ci.name)));
+                      }} style={{ cursor: 'pointer' }} />
+                    </span>
+                    <span>クライアント</span>
+                    <span style={{ textAlign: 'center' }}>件数</span>
+                    <span style={{ textAlign: 'right' }}>請求金額</span>
+                    <span style={{ textAlign: 'center' }}>状態</span>
+                  </div>
+                  {clientInfos.length === 0 ? (
+                    <div style={{ padding: '20px 10px', textAlign: 'center', fontSize: 11, color: C.textLight }}>対象クライアントがありません</div>
+                  ) : clientInfos.map(ci => {
+                    const st = bulkInvoiceStatus[ci.name] || 'idle';
+                    return (
+                      <div key={ci.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 60px 110px 70px', gap: 4, padding: '6px 10px', borderTop: '1px solid #E5E7EB', alignItems: 'center', fontSize: 11 }}>
+                        <span style={{ display: 'flex', justifyContent: 'center' }}>
+                          <input type="checkbox" checked={bulkInvoiceChecked.has(ci.name)} disabled={bulkInvoiceGenerating}
+                            onChange={() => setBulkInvoiceChecked(prev => { const next = new Set(prev); if (next.has(ci.name)) next.delete(ci.name); else next.add(ci.name); return next; })}
+                            style={{ cursor: bulkInvoiceGenerating ? 'default' : 'pointer' }} />
+                        </span>
+                        <span style={{ fontWeight: 500, color: '#0D2247' }}>{ci.name}</span>
+                        <span style={{ textAlign: 'center', fontFamily: "'JetBrains Mono'", color: '#0D2247' }}>{ci.count}</span>
+                        <span style={{ textAlign: 'right', fontFamily: "'JetBrains Mono'", fontWeight: 600, color: '#0D2247' }}>{formatCurrency(ci.total)}</span>
+                        <span style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: statusColor[st] }}>{statusLabel[st]}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ marginTop: 12, fontSize: 10, color: '#6B7280' }}>
+                  選択した全クライアントの請求書PDFを生成し、1つのZIPファイルにまとめてダウンロードします。明細の細かい編集が必要な場合は通常の「請求書作成」をご利用ください。
+                </div>
+              </div>
+              <div style={{ padding: "12px 24px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 10, color: '#6B7280' }}>{bulkInvoiceChecked.size}社選択中</span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setBulkInvoiceModal(false)} disabled={bulkInvoiceGenerating}
+                    style={{ padding: "8px 16px", borderRadius: 4, border: "1px solid #0D2247", background: '#fff', cursor: bulkInvoiceGenerating ? 'default' : "pointer", fontSize: 11, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'", opacity: bulkInvoiceGenerating ? 0.5 : 1 }}>
+                    閉じる
+                  </button>
+                  <button onClick={handleBulkInvoiceExport} disabled={bulkInvoiceChecked.size === 0 || bulkInvoiceGenerating}
+                    style={{
+                      padding: "8px 16px", borderRadius: 4, border: "none",
+                      background: (bulkInvoiceChecked.size === 0 || bulkInvoiceGenerating) ? '#9CA3AF' : '#0D2247',
+                      cursor: (bulkInvoiceChecked.size === 0 || bulkInvoiceGenerating) ? 'default' : 'pointer',
+                      fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
+                    }}>
+                    {bulkInvoiceGenerating ? '生成中...' : 'ZIPでダウンロード'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Bulk Send Modal */}
       {bulkSendModal && setAppoData && (() => {
