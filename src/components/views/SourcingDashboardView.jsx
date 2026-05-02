@@ -322,14 +322,11 @@ export default function SourcingDashboardView({
   };
 
   // ============================================================
-  const scopeDesc = scope.type === 'member' ? '自分の現在地と、次の一手'
-    : scope.type === 'team' ? `${scope.name}チームの現在地と、次の一手` : '組織全体の現在地と、次の一手';
-
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="Dashboard"
-        description={scopeDesc}
+        description="現在地と次の一手"
         right={(
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {scopeOptions.map((s, i) => (
