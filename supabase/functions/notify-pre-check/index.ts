@@ -60,114 +60,112 @@ Deno.serve(async (req) => {
     const day2 = addBusinessDays(todayJST, 2)
     const targetDates = [toDateStr(day0), toDateStr(day1), toDateStr(day2)]
 
-    // appointments テーブルを取得（status = 'アポ取得' かつ meeting_date が対象日）
-    // meeting_date は timestamptz 型のため範囲クエリで取得し、JS側で3日分にフィルタ
-    const { data: raw, error: apposError } = await supabase
-      .from('appointments')
-      .select('company_name, getter_name, meeting_date, client_id, notes')
-      .eq('status', 'アポ取得')
-      .gte('meeting_date', `${targetDates[0]}T00:00:00+00:00`)
-      .lte('meeting_date', `${targetDates[2]}T23:59:59+00:00`)
-      .order('meeting_date')
-      .order('company_name')
+    // 通知対象 org = org_settings.slack_webhook_precheck に有効URLが設定されている org のみ
+    const { data: webhookRows, error: webhookErr } = await supabase
+      .from('org_settings')
+      .select('org_id, setting_value')
+      .eq('setting_key', 'slack_webhook_precheck')
+    if (webhookErr) throw new Error(`org_settings fetch error: ${webhookErr.message}`)
 
-    if (apposError) throw new Error(`appointments fetch error: ${apposError.message}`)
-
-    const appos = (raw || []).filter(a => {
-      const d = (a.meeting_date as string).slice(0, 10)
-      return targetDates.includes(d)
-    })
-
-    if (!appos || appos.length === 0) {
-      console.log('[notify-pre-check] 対象アポなし:', targetDates)
+    const orgWebhooks: Array<{ org_id: string; url: string }> = []
+    for (const row of (webhookRows || [])) {
+      const url = (row.setting_value as string | null) || ''
+      if (url.startsWith('http')) orgWebhooks.push({ org_id: row.org_id as string, url })
+    }
+    if (orgWebhooks.length === 0) {
+      console.log('[notify-pre-check] slack_webhook_precheck 設定済 org なし')
       return new Response(
-        JSON.stringify({ ok: true, message: 'No appointments', targetDates }),
+        JSON.stringify({ ok: true, message: 'No org webhook configured', targetDates }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // client_id → クライアント名 マップを構築
-    const clientIds = [...new Set(appos.map(a => a.client_id).filter(Boolean))]
-    const clientMap: Record<string, string> = {}
+    const summary: Array<{ org_id: string; appoCount: number; sent: boolean }> = []
 
-    if (clientIds.length > 0) {
-      const { data: clients, error: clientsError } = await supabase
-        .from('clients')
-        .select('id, name')
-        .in('id', clientIds)
-      if (clientsError) console.warn('[notify-pre-check] clients fetch warn:', clientsError.message)
-      for (const c of (clients || [])) {
-        clientMap[c.id] = c.name
+    for (const { org_id: orgId, url: webhookUrl } of orgWebhooks) {
+      // 当該 org のアポのみ取得（status='アポ取得' / 対象日範囲）
+      const { data: rawOrg, error: apposError } = await supabase
+        .from('appointments')
+        .select('company_name, getter_name, meeting_date, client_id, notes')
+        .eq('org_id', orgId)
+        .eq('status', 'アポ取得')
+        .gte('meeting_date', `${targetDates[0]}T00:00:00+00:00`)
+        .lte('meeting_date', `${targetDates[2]}T23:59:59+00:00`)
+        .order('meeting_date')
+        .order('company_name')
+      if (apposError) {
+        console.warn(`[notify-pre-check] org ${orgId} appos fetch warn:`, apposError.message)
+        continue
       }
-    }
 
-    // 日付ごとにグループ化
-    const grouped: Record<string, typeof appos> = {}
-    for (const a of appos) {
-      const dateKey = (a.meeting_date as string)?.slice(0, 10) || ''
-      if (!grouped[dateKey]) grouped[dateKey] = []
-      grouped[dateKey].push(a)
-    }
+      const appos = (rawOrg || []).filter(a => {
+        const d = (a.meeting_date as string).slice(0, 10)
+        return targetDates.includes(d)
+      })
+      if (appos.length === 0) {
+        summary.push({ org_id: orgId, appoCount: 0, sent: false })
+        continue
+      }
 
-    // 日付ラベル定義
-    const dayLabels: Record<string, string> = {
-      [toDateStr(day0)]: `【事前確認】${formatDateJP(day0)}（当日）`,
-      [toDateStr(day1)]: `【事前確認】${formatDateJP(day1)}（1営業日後）`,
-      [toDateStr(day2)]: `【事前確認】${formatDateJP(day2)}（2営業日後）`,
-    }
+      // client_id → クライアント名 マップを構築（org スコープ）
+      const clientIds = [...new Set(appos.map(a => a.client_id).filter(Boolean))]
+      const clientMap: Record<string, string> = {}
+      if (clientIds.length > 0) {
+        const { data: clients, error: clientsError } = await supabase
+          .from('clients')
+          .select('id, name')
+          .eq('org_id', orgId)
+          .in('id', clientIds)
+        if (clientsError) console.warn(`[notify-pre-check] org ${orgId} clients fetch warn:`, clientsError.message)
+        for (const c of (clients || [])) clientMap[c.id] = c.name
+      }
 
-    // Slack メッセージ組み立て
-    const sections: string[] = []
-    for (const dateStr of targetDates) {
-      if (!grouped[dateStr]) continue
-      sections.push(dayLabels[dateStr])
-      for (const a of grouped[dateStr]) {
-        const clientName = clientMap[a.client_id] || 'クライアント不明'
-        sections.push(`・${a.company_name} / アポ取得者：${a.getter_name} / クライアント：${clientName}`)
-        if (a.notes && (a.notes as string).trim()) {
-          sections.push(`　備考：${(a.notes as string).trim()}`)
+      // 日付ごとにグループ化
+      const grouped: Record<string, typeof appos> = {}
+      for (const a of appos) {
+        const dateKey = (a.meeting_date as string)?.slice(0, 10) || ''
+        if (!grouped[dateKey]) grouped[dateKey] = []
+        grouped[dateKey].push(a)
+      }
+
+      const dayLabels: Record<string, string> = {
+        [toDateStr(day0)]: `【事前確認】${formatDateJP(day0)}（当日）`,
+        [toDateStr(day1)]: `【事前確認】${formatDateJP(day1)}（1営業日後）`,
+        [toDateStr(day2)]: `【事前確認】${formatDateJP(day2)}（2営業日後）`,
+      }
+
+      const sections: string[] = []
+      for (const dateStr of targetDates) {
+        if (!grouped[dateStr]) continue
+        sections.push(dayLabels[dateStr])
+        for (const a of grouped[dateStr]) {
+          const clientName = clientMap[a.client_id] || 'クライアント不明'
+          sections.push(`・${a.company_name} / アポ取得者：${a.getter_name} / クライアント：${clientName}`)
+          if (a.notes && (a.notes as string).trim()) {
+            sections.push(`　備考：${(a.notes as string).trim()}`)
+          }
         }
+        sections.push('')
       }
-      sections.push('')
+
+      const text = sections.join('\n').trimEnd()
+      const slackRes = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      })
+      if (!slackRes.ok) {
+        const body = await slackRes.text()
+        console.error(`[notify-pre-check] org ${orgId} Slack error:`, slackRes.status, body)
+        summary.push({ org_id: orgId, appoCount: appos.length, sent: false })
+        continue
+      }
+      summary.push({ org_id: orgId, appoCount: appos.length, sent: true })
     }
 
-    const text = sections.join('\n').trimEnd()
-
-    // org_settings から Webhook URL を取得（なければ env var にフォールバック）
-    const { data: orgSetting } = await supabase
-      .from('org_settings')
-      .select('setting_value')
-      .eq('org_id', 'a0000000-0000-0000-0000-000000000001')
-      .eq('setting_key', 'slack_webhook_precheck')
-      .maybeSingle()
-    const webhookUrl = (orgSetting?.setting_value && orgSetting.setting_value.startsWith('http'))
-      ? orgSetting.setting_value
-      : Deno.env.get('SLACK_PRECHECK_WEBHOOK_URL')
-    if (!webhookUrl) {
-      return new Response(
-        JSON.stringify({ error: 'SLACK_PRECHECK_WEBHOOK_URL not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    const slackRes = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    })
-
-    if (!slackRes.ok) {
-      const body = await slackRes.text()
-      console.error('[notify-pre-check] Slack error:', slackRes.status, body)
-      return new Response(
-        JSON.stringify({ ok: false, error: body }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    console.log('[notify-pre-check] 送信完了 | アポ数:', appos.length, '| 対象日:', targetDates)
+    console.log('[notify-pre-check] 送信完了 | 対象日:', targetDates, '| summary:', summary)
     return new Response(
-      JSON.stringify({ ok: true, appoCount: appos.length, targetDates }),
+      JSON.stringify({ ok: true, targetDates, summary }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {
