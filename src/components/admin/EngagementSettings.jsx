@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors,
 } from '@dnd-kit/core';
@@ -8,40 +8,19 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
-import { useEngagements } from '../../hooks/useEngagements';
 
 const NAVY = '#0D2247';
 const BORDER = '#E5E5E5';
 const TEXT_MID = '#706E6B';
 
-export default function EngagementSettings({ onToast }) {
-  const { engagements } = useEngagements();
-  const selectableEngagements = useMemo(
-    () => (engagements || []).filter(e => e.slug !== 'masp' && e.status === 'active'),
-    [engagements]
-  );
-  const [engagementId, setEngagementId] = useState(null);
-
-  useEffect(() => {
-    if (!engagementId && selectableEngagements.length > 0) {
-      setEngagementId(selectableEngagements[0].id);
-    }
-  }, [engagementId, selectableEngagements]);
-
+// engagementId は親（AdminView）の対象事業セレクタから受け取る
+export default function EngagementSettings({ engagementId, onToast }) {
   if (!engagementId) {
-    return <div style={{ padding: 40, textAlign: 'center', color: TEXT_MID, fontSize: 13 }}>事業がありません</div>;
+    return <div style={{ padding: 40, textAlign: 'center', color: TEXT_MID, fontSize: 13 }}>対象事業を選択してください</div>;
   }
 
   return (
     <div>
-      <div style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: TEXT_MID }}>事業:</div>
-        <select value={engagementId} onChange={e => setEngagementId(e.target.value)}
-          style={{ padding: '6px 10px', borderRadius: 3, border: `1px solid ${BORDER}`, fontSize: 13, color: NAVY, fontWeight: 600, fontFamily: "'Noto Sans JP'", minWidth: 180 }}>
-          {selectableEngagements.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-        </select>
-      </div>
-
       <RoleSection engagementId={engagementId} onToast={onToast} />
       <div style={{ height: 32 }} />
       <RankSection engagementId={engagementId} onToast={onToast} />

@@ -258,7 +258,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
           <OrganizationSettings onToast={showToast} />
         )}
         {activeTab === 'engagement' && (
-          <EngagementSettings onToast={showToast} />
+          <EngagementSettings engagementId={selectedEngagementId} onToast={showToast} />
         )}
         {activeTab === 'kpi' && (
           <GoalSettingsPanel isAdmin={isAdmin} onToast={showToast} />
