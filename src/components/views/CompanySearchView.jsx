@@ -123,7 +123,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       setItemRecords(recs);
       const full = fullItemRes.data?.[0] || null;
       setSelectedItemFull(full);
-      const nextRound = recs.length === 0 ? 1 : Math.min(Math.max(...recs.map(r => r.round)) + 1, 10);
+      const nextRound = recs.length === 0 ? 1 : Math.max(...recs.map(r => r.round)) + 1;
       setSelectedRound(nextRound);
       setLocalMemo(extractUserNote(full?.memo));
       setSubPhone(full?.sub_phone_number || '');
@@ -1263,10 +1263,13 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                   {/* ラウンドボタン */}
                   <div style={{ marginBottom: 12 }}>
                     <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 5, letterSpacing: 0.5 }}>架電ラウンド選択</div>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      {[1,2,3,4,5,6,7,8,9,10].map(r => {
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {(() => {
+                        const itemNextRound = itemRecords.length === 0 ? 1 : Math.max(...itemRecords.map(rec => rec.round)) + 1;
+                        return Array.from({ length: Math.max(itemNextRound, 10) }, (_, i) => i + 1);
+                      })().map(r => {
                         const roundRec = itemRecords.find(rec => rec.round === r);
-                        const nextRound = itemRecords.length === 0 ? 1 : Math.min(Math.max(...itemRecords.map(rec => rec.round)) + 1, 8);
+                        const nextRound = itemRecords.length === 0 ? 1 : Math.max(...itemRecords.map(rec => rec.round)) + 1;
                         const isCompleted = !!roundRec;
                         const isCurrent = r === nextRound && !isCompleted;
                         const isFuture = r > nextRound;

@@ -355,7 +355,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     if (!selectedRow) { setSelectedRound(null); return; }
     const recs = callRecords.filter(r => r.item_id === selectedRow.id);
     const maxRound = recs.length > 0 ? Math.max(...recs.map(r => r.round)) : 0;
-    setSelectedRound(Math.min(maxRound + 1, 10));
+    setSelectedRound(maxRound + 1);
   }, [selectedRow?.id]);
 
   const [sessionStarted, setSessionStarted] = useState(false);
@@ -511,7 +511,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const getRecordsForItem = (itemId) => callRecords.filter(r => r.item_id === itemId);
   const getNextRound = (itemId) => {
     const recs = getRecordsForItem(itemId);
-    return recs.length === 0 ? 1 : Math.min(Math.max(...recs.map(r => r.round)) + 1, 10);
+    return recs.length === 0 ? 1 : Math.max(...recs.map(r => r.round)) + 1;
   };
   const isExcludedItem = (itemId) => callRecords.some(r => r.item_id === itemId && EXCLUDED_STATUSES.has(r.status));
   const isHiddenFromCallable = (itemId) => {
@@ -768,8 +768,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         const niExcl = niRecs.some(r => EXCLUDED_STATUSES.has(r.status));
         const niLatest = niRecs.length > 0 ? niRecs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b) : null;
         const niRecall = niLatest && RECALL_STATUSES.has(niLatest.status);
-        const niNext = niRecs.length === 0 ? 1 : Math.min(Math.max(...niRecs.map(r => r.round)) + 1, 10);
-        if (!niExcl && !niRecall && niNext <= 10) { next = ni; break; }
+        if (!niExcl && !niRecall) { next = ni; break; }
       }
       setSelectedRow(next || updatedItem);
       if (autoDial && next?.phone) dialPhone(next.phone);
@@ -937,8 +936,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         const niExcl = niRecs.some(r => EXCLUDED_STATUSES.has(r.status));
         const niLatest = niRecs.length > 0 ? niRecs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b) : null;
         const niRecall = niLatest && RECALL_STATUSES.has(niLatest.status);
-        const niNext = niRecs.length === 0 ? 1 : Math.min(Math.max(...niRecs.map(r => r.round)) + 1, 10);
-        if (!niExcl && !niRecall && niNext <= 10) { next = ni; break; }
+        if (!niExcl && !niRecall) { next = ni; break; }
       }
       setSelectedRow(next || updatedItem);
       if (autoDial && next?.phone) dialPhone(next.phone);
@@ -1019,8 +1017,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         const niExcl = niRecs.some(r => EXCLUDED_STATUSES.has(r.status));
         const niLatest = niRecs.length > 0 ? niRecs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b) : null;
         const niRecall = niLatest && RECALL_STATUSES.has(niLatest.status);
-        const niNext = niRecs.length === 0 ? 1 : Math.min(Math.max(...niRecs.map(r => r.round)) + 1, 10);
-        if (!niExcl && !niRecall && niNext <= 10) { next = ni; break; }
+        if (!niExcl && !niRecall) { next = ni; break; }
       }
       setSelectedRow(next || updatedItem);
       if (autoDial && next?.phone) dialPhone(next.phone);
@@ -1283,8 +1280,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               {/* ラウンドボタン */}
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 5, letterSpacing: 0.5 }}>架電ラウンド選択</div>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {[1,2,3,4,5,6,7,8,9,10].map(r => {
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  {Array.from({ length: Math.max(getNextRound(selectedRow.id), 10) }, (_, i) => i + 1).map(r => {
                     const roundRec = getRecordsForItem(selectedRow.id).find(rec => rec.round === r);
                     const nextRound = getNextRound(selectedRow.id);
                     const isCompleted = !!roundRec;
@@ -2021,8 +2018,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   </div>
                 </div>
                 {/* 架電ラウンド選択 */}
-                <div style={{ display: 'flex', gap: 5, justifyContent: 'center', marginBottom: 14 }}>
-                  {[1,2,3,4,5,6,7,8,9,10].map(r => {
+                <div style={{ display: 'flex', gap: 5, justifyContent: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
+                  {Array.from({ length: Math.max(getNextRound(selectedRow.id), 10) }, (_, i) => i + 1).map(r => {
                     const roundRec = getRecordsForItem(selectedRow.id).find(rec => rec.round === r);
                     const nextRound = getNextRound(selectedRow.id);
                     const isCompleted = !!roundRec;
