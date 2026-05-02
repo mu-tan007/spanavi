@@ -102,14 +102,16 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
   };
   const selectedEngagement = selectableEngagements.find(e => e.id === selectedEngagementId) || null;
   const isCompanyWide = selectedEngagementId === COMPANY_WIDE_ID;
-  // 組織設定は「全社」スコープ専用。個別事業選択時はタブから外す。
+  // 「全社」スコープでは組織設定タブのみ、個別事業ではそれ以外のタブのみ表示する。
   const visibleTabs = useMemo(
-    () => TABS.filter(t => t.id !== 'org' || isCompanyWide),
+    () => TABS.filter(t => isCompanyWide ? t.id === 'org' : t.id !== 'org'),
     [isCompanyWide]
   );
-  // 組織設定タブを開いたまま個別事業に切り替えた場合は KPI に戻す
+  // スコープ切替時に表示外のタブが選ばれていたら自動で適切なタブに戻す
   useEffect(() => {
-    if (!isCompanyWide && activeTab === 'org') {
+    if (isCompanyWide && activeTab !== 'org') {
+      _setActiveTab('org');
+    } else if (!isCompanyWide && activeTab === 'org') {
       _setActiveTab('kpi');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
