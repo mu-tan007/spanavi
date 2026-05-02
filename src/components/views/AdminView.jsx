@@ -29,6 +29,13 @@ const TABS = [
   { id: 'clients',  label: 'クライアント・リスト管理', icon: '' },
 ];
 
+// 「全社」スコープを表す UI 専用の仮想 engagement（DB には存在しない）。
+// 全社を選択しているときだけ「組織設定」タブを表示する。
+const COMPANY_WIDE_ID = '__company_wide__';
+const COMPANY_WIDE_ENGAGEMENT = { id: COMPANY_WIDE_ID, name: '全社', slug: COMPANY_WIDE_ID, display_order: 0 };
+// 対象事業セレクタに出す事業 slug のホワイトリスト
+const ADMIN_ENGAGEMENT_SLUGS = ['seller_sourcing', 'spartia_career'];
+
 // ────────────────────────────────────────────────
 // Toast
 // ────────────────────────────────────────────────
@@ -69,22 +76,24 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
   const [toasts, setToasts] = useState([]);
 
   // 事業セレクタ (各タブの設定は事業ごとに独立)
-  // 現状 Sourcing だけがデータを持つので、それ以外の事業はセレクタから除外。
-  // 他事業のデータが整備され次第、この filter を広げて復活させる。
+  // 「全社」 + ホワイトリスト事業（Sourcing / スパキャリ）を選択肢として並べる。
   const { engagements } = useEngagements();
   const selectableEngagements = useMemo(
-    () => (engagements || [])
-      .filter(e => e.slug === 'seller_sourcing')
-      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0)),
+    () => {
+      const fromDb = (engagements || [])
+        .filter(e => ADMIN_ENGAGEMENT_SLUGS.includes(e.slug))
+        .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+      return [COMPANY_WIDE_ENGAGEMENT, ...fromDb];
+    },
     [engagements]
   );
   const [selectedEngagementId, setSelectedEngagementId] = useState(() => {
-    try { return localStorage.getItem('admin_selectedEngagementId') || null; } catch { return null; }
+    try { return localStorage.getItem('admin_selectedEngagementId') || COMPANY_WIDE_ID; } catch { return COMPANY_WIDE_ID; }
   });
-  // 事業リスト取得後、未選択なら 1 番最初の事業 (通常 Sourcing) を自動選択
+  // 事業リスト取得後、未選択なら「全社」を自動選択
   useEffect(() => {
     if (!selectedEngagementId && selectableEngagements.length > 0) {
-      setSelectedEngagementId(selectableEngagements[0].id);
+      setSelectedEngagementId(COMPANY_WIDE_ID);
     }
   }, [selectableEngagements, selectedEngagementId]);
   const handleSelectEngagement = (id) => {
@@ -92,6 +101,19 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
     try { localStorage.setItem('admin_selectedEngagementId', id); } catch {}
   };
   const selectedEngagement = selectableEngagements.find(e => e.id === selectedEngagementId) || null;
+  const isCompanyWide = selectedEngagementId === COMPANY_WIDE_ID;
+  // 組織設定は「全社」スコープ専用。個別事業選択時はタブから外す。
+  const visibleTabs = useMemo(
+    () => TABS.filter(t => t.id !== 'org' || isCompanyWide),
+    [isCompanyWide]
+  );
+  // 組織設定タブを開いたまま個別事業に切り替えた場合は KPI に戻す
+  useEffect(() => {
+    if (!isCompanyWide && activeTab === 'org') {
+      _setActiveTab('kpi');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCompanyWide]);
 
   // Push notification state
   const [pushEnabled, setPushEnabled] = useState(false);
@@ -204,7 +226,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
 
       {/* タブバー */}
       <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #E5E5E5', background: '#fff', borderRadius: '4px 4px 0 0', overflow: isMobile ? 'auto' : 'hidden', marginBottom: 0 }}>
-        {TABS.map(tab => {
+        {visibleTabs.map(tab => {
           const active = activeTab === tab.id;
           return (
             <button
@@ -230,7 +252,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
 
       {/* タブコンテンツ */}
       <div style={{ background: '#fff', borderRadius: '0 0 4px 4px', border: '1px solid #E5E5E5', borderTop: 'none', padding: isMobile ? '16px 12px' : '24px 28px', marginBottom: 0 }}>
-        {activeTab === 'org' && (
+        {activeTab === 'org' && isCompanyWide && (
           <OrganizationSettings onToast={showToast} />
         )}
         {activeTab === 'engagement' && (
