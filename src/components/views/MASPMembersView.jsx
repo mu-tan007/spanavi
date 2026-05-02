@@ -185,6 +185,8 @@ export default function MASPMembersView({ isAdmin }) {
       const result = await res.json();
       if (!res.ok) {
         setResendResult({ type: 'error', message: result.error || '送信失敗' });
+      } else if (result.existingUser) {
+        setResendResult({ type: 'ok', message: `✓ ${m.name} にパスワード再設定メールを送信しました` });
       } else {
         setResendResult({ type: 'ok', message: `✓ ${m.name} に招待メールを再送しました` });
       }
@@ -252,6 +254,20 @@ export default function MASPMembersView({ isAdmin }) {
         const result = await res.json();
         if (!res.ok) throw new Error(result.error || '招待に失敗しました');
         newMemberId = result.memberId;
+        // 既存Authユーザー検出時は recovery メール送信なので、画面にトーストで通知
+        if (result.existingUser) {
+          setResendResult({
+            type: 'ok',
+            message: `✓ ${addForm.email.trim()} は登録済みのため、パスワード再設定メールを送信しました`,
+          });
+          setTimeout(() => setResendResult(null), 6000);
+        } else {
+          setResendResult({
+            type: 'ok',
+            message: `✓ ${addForm.email.trim()} に招待メールを送信しました`,
+          });
+          setTimeout(() => setResendResult(null), 6000);
+        }
         // edge function は position='メンバー' rank='トレーニー' をデフォルトで設定する
         // これを希望の値で上書き（position と phone_number, start_date）
         if (newMemberId) {
