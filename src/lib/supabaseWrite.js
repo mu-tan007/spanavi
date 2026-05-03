@@ -2836,12 +2836,6 @@ export async function pollRoleplayAnalysis(sessionId, { intervalMs = 5000, timeo
   })
 }
 
-export async function postRoleplayToSlack(payload) {
-  const { data, error } = await supabase.functions.invoke('post-roleplay-to-slack', { body: payload })
-  if (error) console.error('[Edge] post-roleplay-to-slack error:', error)
-  return { data, error }
-}
-
 // call_listsテーブルからindustry（業種）のユニーク一覧を取得
 export async function fetchCallListIndustries() {
   const { data, error } = await supabase

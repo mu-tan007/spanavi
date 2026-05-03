@@ -14,7 +14,6 @@ import {
   uploadFileToGdriveResumable,
   setDrivePermissions,
   pollRoleplayAnalysis,
-  postRoleplayToSlack,
   downloadDriveFileViaProxy,
 } from '../../lib/supabaseWrite';
 
@@ -57,8 +56,8 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
     }
   }
 
-  // メンバーのチーム（Slack投稿先特定用）
-  const memberTeam = members?.find(m => m.name === currentUser)?.team || null;
+  // Slack 通知は analyze-roleplay Edge Function 側で発火（クライアントが
+  // ポーリング途中で離脱しても通知が落ちないようサーバー側で完結させる）
   const [activeTab, setActiveTab] = useState('weekly');
   const [progress, setProgress]   = useState([]);   // training_progress rows
   const [sessions, setSessions]   = useState([]);   // roleplay_sessions rows
@@ -135,17 +134,6 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             setSessions(prev => prev.map(s2 =>
               s2.id === sess.id ? { ...s2, transcript: result.transcript, ai_feedback: result.ai_feedback, ai_status: 'done' } : s2
             ));
-            // 再開ポーリング完了時もSlack通知（useEffect再トリガー等で startAnalysisAndPoll の経路を外れて完了するケースに対応）
-            if (memberTeam) {
-              postRoleplayToSlack({
-                memberName: currentUser,
-                memberTeam,
-                partnerName: sess.partner_name,
-                sessionDate: sess.session_date,
-                videoUrl: sess.video_url || null,
-                aiFeedback: result.ai_feedback,
-              }).catch(e => console.error('[Slack] post error (restart-poll):', e));
-            }
           } else {
             setSessions(prev => prev.map(s2 => s2.id === sess.id ? { ...s2, ai_status: 'error' } : s2));
             setAnalyzeErrors(prev => ({ ...prev, [sess.id]: result.error }));
@@ -356,17 +344,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         ? { storage_path: storagePath, session_id: newSession.id }
         : { recording_url: recordingUrl, session_id: newSession.id };
 
-      // driveUrl: ローカルファイルの並行アップロード結果 or ユーザー入力のDrive URL
-      const driveUrl = driveUrlFromUpload || (extractDriveId(addDriveUrl) ? addDriveUrl.trim() : null);
-
-      const slackInfo = memberTeam ? {
-        memberName: currentUser,
-        memberTeam,
-        partnerName: addForm.partner_name,
-        sessionDate: addForm.session_date,
-        videoUrl: driveUrl,
-      } : null;
-      await startAnalysisAndPoll(newSession.id, payload, slackInfo);
+      await startAnalysisAndPoll(newSession.id, payload);
       return;
     }
 
@@ -420,7 +398,8 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   };
 
   // ── AI 分析共通ヘルパー: Edge Function 呼び出し + ポーリング ─────────
-  const startAnalysisAndPoll = async (sessionId, payload, slackInfo = null) => {
+  // Slack 通知は analyze-roleplay の完了時にサーバー側で発火する
+  const startAnalysisAndPoll = async (sessionId, payload) => {
     const { data, error } = await invokeAnalyzeRoleplay(payload);
 
     // Case 1: 直接レスポンス（従来の同期処理 or ローカルテスト用フォールバック）
@@ -432,10 +411,6 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       ));
       setAnalyzeErrors(prev => { const n = { ...prev }; delete n[sessionId]; return n; });
       setExpandedId(sessionId);
-      if (slackInfo) {
-        postRoleplayToSlack({ ...slackInfo, aiFeedback: data.ai_feedback })
-          .catch(e => console.error('[Slack] post error:', e));
-      }
       setAnalyzingId(null);
       return;
     }
@@ -455,10 +430,6 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         ));
         setAnalyzeErrors(prev => { const n = { ...prev }; delete n[sessionId]; return n; });
         setExpandedId(sessionId);
-        if (slackInfo) {
-          postRoleplayToSlack({ ...slackInfo, aiFeedback: result.ai_feedback })
-            .catch(e => console.error('[Slack] post error:', e));
-        }
       } else {
         await updateRoleplaySession(sessionId, { ai_status: 'error' });
         setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, ai_status: 'error' } : s));
@@ -523,14 +494,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         : { recording_url: session.recording_url, session_id: session.id };
     }
 
-    const slackInfo = memberTeam ? {
-      memberName: currentUser,
-      memberTeam,
-      partnerName: session.partner_name,
-      sessionDate: session.session_date,
-      videoUrl: session.video_url || null,
-    } : null;
-    await startAnalysisAndPoll(session.id, payload, slackInfo);
+    await startAnalysisAndPoll(session.id, payload);
   };
 
   // ── 描画ヘルパー ──────────────────────────────────────────────────────

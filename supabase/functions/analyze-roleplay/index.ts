@@ -284,6 +284,53 @@ ${transcript}`
 
     console.log(`[analyze-roleplay] Background processing completed for session ${session_id}`)
 
+    // ── 8. Slack 通知 ─────────────────────────────────────────────────
+    // クライアントがポーリングを離脱しても通知が届くよう、サーバー側で発火する
+    try {
+      const { data: sess } = await supabase
+        .from('roleplay_sessions')
+        .select('user_id, partner_name, session_date, video_url')
+        .eq('id', session_id)
+        .single()
+
+      if (sess?.user_id) {
+        const { data: member } = await supabase
+          .from('members')
+          .select('name, team')
+          .eq('user_id', sess.user_id)
+          .single()
+
+        if (member?.team) {
+          const slackRes = await fetch(
+            `${Deno.env.get('SUPABASE_URL')}/functions/v1/post-roleplay-to-slack`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                memberName: member.name,
+                memberTeam: member.team,
+                partnerName: sess.partner_name,
+                sessionDate: sess.session_date,
+                videoUrl: sess.video_url || null,
+                aiFeedback,
+              }),
+            }
+          )
+          if (!slackRes.ok) {
+            const detail = await slackRes.text()
+            console.error(`[analyze-roleplay] Slack post failed (${slackRes.status}):`, detail)
+          }
+        } else {
+          console.log(`[analyze-roleplay] Slack skipped: member or team missing for user ${sess.user_id}`)
+        }
+      }
+    } catch (slackErr) {
+      console.error('[analyze-roleplay] Slack notification error:', slackErr)
+    }
+
   } catch (err) {
     console.error('[analyze-roleplay] Background unhandled error:', err)
     await supabase
