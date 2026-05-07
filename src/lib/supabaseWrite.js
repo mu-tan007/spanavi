@@ -163,6 +163,7 @@ export async function insertClient(data) {
       slack_webhook_url: data.slackWebhookUrl || null,
       slack_webhook_url_internal: data.slackWebhookUrlInternal || null,
       chatwork_room_id: data.chatworkRoomId || null,
+      status_changed_at: new Date().toISOString(),
     })
     .select()
     .single()
@@ -195,6 +196,8 @@ export async function updateClient(supaId, data) {
       slack_webhook_url: data.slackWebhookUrl ?? undefined,
       slack_webhook_url_internal: data.slackWebhookUrlInternal ?? undefined,
       chatwork_room_id: data.chatworkRoomId ?? undefined,
+      // ステータス変更時のみ更新（呼び出し側で statusChangedAt を渡したときだけ反映）
+      status_changed_at: data.statusChangedAt ?? undefined,
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateClient error:', error)
@@ -3053,4 +3056,57 @@ async function resolveRecipientUserIds({ orgId, engagementId, scope, getterName 
   }
   // 不明スコープは admin のみで安全側
   return Array.from(adminIds)
+}
+
+// ============================================================
+// CRM 月別目標 (client_monthly_targets)
+// ============================================================
+
+export async function fetchClientMonthlyTargets(fromYearMonth, toYearMonth) {
+  const orgId = getOrgId()
+  if (!orgId) return { data: [], error: null }
+  const { data, error } = await supabase
+    .from('client_monthly_targets')
+    .select('id, client_id, year_month, target_count')
+    .eq('org_id', orgId)
+    .gte('year_month', fromYearMonth)
+    .lte('year_month', toYearMonth)
+  if (error) console.error('[DB] fetchClientMonthlyTargets error:', error)
+  return { data: data || [], error }
+}
+
+export async function upsertClientMonthlyTarget(clientId, yearMonth, targetCount) {
+  if (!clientId || !yearMonth) {
+    console.warn('[DB] upsertClientMonthlyTarget: missing args')
+    return { data: null, error: new Error('missing args') }
+  }
+  const orgId = getOrgId()
+  const { data, error } = await supabase
+    .from('client_monthly_targets')
+    .upsert(
+      {
+        org_id: orgId,
+        client_id: clientId,
+        year_month: yearMonth,
+        target_count: Math.max(0, Number(targetCount) || 0),
+      },
+      { onConflict: 'client_id,year_month' }
+    )
+    .select('id, client_id, year_month, target_count')
+    .single()
+  if (error) console.error('[DB] upsertClientMonthlyTarget error:', error)
+  return { data, error }
+}
+
+export async function deleteClientMonthlyTarget(clientId, yearMonth) {
+  if (!clientId || !yearMonth) return { error: new Error('missing args') }
+  const orgId = getOrgId()
+  const { error } = await supabase
+    .from('client_monthly_targets')
+    .delete()
+    .eq('org_id', orgId)
+    .eq('client_id', clientId)
+    .eq('year_month', yearMonth)
+  if (error) console.error('[DB] deleteClientMonthlyTarget error:', error)
+  return { error }
 }

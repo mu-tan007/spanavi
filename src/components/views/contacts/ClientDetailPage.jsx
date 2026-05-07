@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import ContactDrawer from './ContactDrawer';
 import ActivityTimeline from './ActivityTimeline';
+import ClientMonthlyTargetSection from '../crm/ClientMonthlyTargetSection';
 
 const NAVY = '#0D2247';
 const BLUE = '#1E40AF';
@@ -247,7 +248,6 @@ export default function ClientDetailPage({
           padding: '14px 16px', maxHeight: 'calc(100vh - 200px)', overflowY: 'auto',
         }}>
           <SectionTitle>契約条件</SectionTitle>
-          <FieldRow label="月間目標" value={c.target > 0 ? `${c.target} 件 / 月` : '-'} mono />
           <FieldRow label="報酬体系" value={
             c.rewardType ? (
               <span
@@ -265,6 +265,9 @@ export default function ClientDetailPage({
           {c.clientEmail && <FieldRow label="メールアドレス" value={c.clientEmail} />}
           {c.googleCalendarId && <FieldRow label="Google Calendar ID" value={c.googleCalendarId} />}
           {c.schedulingUrl && <FieldRow label="日程調整 URL" value={c.schedulingUrl} />}
+
+          <SectionTitle>月別目標</SectionTitle>
+          <ClientMonthlyTargetSection clientId={c._supaId} />
 
           <SectionTitle>数字</SectionTitle>
           {stats.loading ? (

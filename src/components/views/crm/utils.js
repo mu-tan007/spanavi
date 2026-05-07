@@ -58,3 +58,31 @@ export const CRM_COLS_BASE = [
 export const CRM_COLS_EDIT = [...CRM_COLS_BASE, { key: 'edit', width: 32, align: 'center' }];
 
 export const CRM_COL_LABELS = ['ステータス','企業名','業界','目標','報酬体系','リスト','カレンダー','連絡','最終接点','主担当'];
+
+// 当月の 'YYYY-MM' を取得
+export function currentYearMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// 中心月の前後の 'YYYY-MM' 配列を生成
+export function getMonthRange(centerYM, monthsBefore, monthsAfter) {
+  const [y, m] = centerYM.split('-').map(Number);
+  const result = [];
+  for (let i = -monthsBefore; i <= monthsAfter; i++) {
+    const date = new Date(y, m - 1 + i, 1);
+    const yy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    result.push(`${yy}-${mm}`);
+  }
+  return result;
+}
+
+// 'YYYY-MM' を '5月' 形式に。年が変わるところは '27/1月' のように年も含める
+export function formatMonthLabel(ym, prevYm) {
+  const [y, m] = ym.split('-');
+  const ym2 = m.replace(/^0/, '') + '月';
+  if (!prevYm) return `${y.slice(2)}/${ym2}`;
+  if (prevYm.slice(0, 4) !== y) return `${y.slice(2)}/${ym2}`;
+  return ym2;
+}

@@ -15,6 +15,8 @@ import ClientFormModal from './crm/ClientFormModal';
 import CRMHeader from './crm/CRMHeader';
 import CRMStatusTabs from './crm/CRMStatusTabs';
 import CRMTable from './crm/CRMTable';
+import MonthlyTargetsView from './crm/MonthlyTargetsView';
+import CRMKPIDashboard from './crm/CRMKPIDashboard';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,7 +41,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   const [addSaving, setAddSaving] = useState(false);
   const [addToast, setAddToast] = useState(null);
   // 詳細ページ切替
-  const [view, setView] = useState('list'); // 'list' | 'detail'
+  const [view, setView] = useState('list'); // 'list' | 'detail' | 'targets'
   const [detailClient, setDetailClient] = useState(null);
   // 新規顧客追加で AI が抽出した「追加候補の担当者」をキューする
   const [pendingNewContacts, setPendingNewContacts] = useState([]);
@@ -131,8 +133,14 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   const handleSaveEdit = async () => {
     if (!editForm || !setClientData) return;
     const idx = editForm._idx;
+    const oldStatus = clientData[idx]?.status;
     const updated = { ...editForm };
     delete updated._idx;
+    // ステータスが変わったら変更日時を記録
+    const statusChanged = oldStatus !== updated.status;
+    if (statusChanged) {
+      updated.statusChangedAt = new Date().toISOString();
+    }
     if (updated._supaId) {
       const error = await updateClient(updated._supaId, updated);
       if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
@@ -314,13 +322,48 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
-      {view === 'list' && (
+      {view !== 'detail' && (
         <PageHeader
           eyebrow="Sourcing · 顧客"
           title="CRM"
-          description="顧客・連絡先・契約条件の管理"
-          style={{ marginBottom: 24 }}
+          description="顧客・連絡先・契約条件・月別目標の管理"
+          style={{ marginBottom: 16 }}
         />
+      )}
+
+      {/* サブビュー切替（list / targets） */}
+      {view !== 'detail' && (
+        <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
+          {[
+            { key: 'list',    label: '顧客一覧' },
+            { key: 'targets', label: '月別目標' },
+          ].map(t => {
+            const active = view === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setView(t.key)}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: 4,
+                  border: '1px solid ' + (active ? NAVY : '#E5E7EB'),
+                  background: active ? NAVY : '#fff',
+                  color: active ? '#fff' : '#6B7280',
+                  fontSize: 12, fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: "'Noto Sans JP'",
+                }}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 月別目標ビュー */}
+      {view === 'targets' && (
+        <MonthlyTargetsView clientData={clientData} />
       )}
 
       {/* 詳細ページモード */}
@@ -342,9 +385,10 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
         />
       )}
 
-      {/* List mode: header + tabs + table */}
+      {/* List mode: KPI + header + tabs + table */}
       {view === 'list' && (
         <>
+          <CRMKPIDashboard clientData={clientData} statusCounts={statusCounts} />
           <CRMHeader
             filteredCount={filtered.length}
             search={search}
