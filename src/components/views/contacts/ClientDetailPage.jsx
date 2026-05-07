@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { C } from '../../../constants/colors';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
+import { updateClientNextContactAt } from '../../../lib/supabaseWrite';
 import ContactDrawer from './ContactDrawer';
 import ActivityTimeline from './ActivityTimeline';
 import ClientMonthlyTargetSection from '../crm/ClientMonthlyTargetSection';
@@ -56,6 +57,47 @@ function SectionTitle({ children }) {
       borderBottom: `1px solid ${GRAY_200}`,
       paddingBottom: 6, marginBottom: 10, marginTop: 18,
     }}>{children}</div>
+  );
+}
+
+function NextContactRow({ client, setClientData }) {
+  const initial = client.nextContactAt ? String(client.nextContactAt).slice(0, 10) : '';
+  const [val, setVal] = useState(initial);
+  useEffect(() => {
+    setVal(client.nextContactAt ? String(client.nextContactAt).slice(0, 10) : '');
+  }, [client.nextContactAt]);
+
+  const handleSave = async () => {
+    const newVal = val ? new Date(val + 'T09:00:00').toISOString() : null;
+    if (newVal === client.nextContactAt) return;
+    if (!client._supaId) return;
+    const { error } = await updateClientNextContactAt(client._supaId, newVal);
+    if (error) { alert('保存に失敗しました'); return; }
+    if (setClientData) {
+      setClientData(prev => prev.map(x =>
+        x._supaId === client._supaId ? { ...x, nextContactAt: newVal } : x
+      ));
+    }
+  };
+
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ fontSize: 9, fontWeight: 600, color: C.textLight, marginBottom: 2 }}>次回接点予定日</div>
+      <input
+        type="date"
+        value={val}
+        onChange={e => setVal(e.target.value)}
+        onBlur={handleSave}
+        disabled={!setClientData}
+        style={{
+          width: '100%', padding: '6px 8px', borderRadius: 3,
+          border: '1px solid ' + GRAY_200,
+          fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none',
+          background: setClientData ? '#fff' : GRAY_50,
+          color: C.textDark,
+        }}
+      />
+    </div>
   );
 }
 
@@ -248,6 +290,7 @@ export default function ClientDetailPage({
           padding: '14px 16px', maxHeight: 'calc(100vh - 200px)', overflowY: 'auto',
         }}>
           <SectionTitle>契約条件</SectionTitle>
+          <NextContactRow client={c} setClientData={setClientData} />
           <FieldRow label="報酬体系" value={
             c.rewardType ? (
               <span

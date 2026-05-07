@@ -43,21 +43,18 @@ export function lastTouchDisplay(ts) {
 }
 
 export const CRM_COLS_BASE = [
-  { key: 'status', width: 100, align: 'left' },
-  { key: 'company', width: 240, align: 'left' },
-  { key: 'industry', width: 80, align: 'left' },
-  { key: 'target', width: 70, align: 'center' },
-  { key: 'reward', width: 100, align: 'left' },
-  { key: 'list', width: 80, align: 'left' },
-  { key: 'calendar', width: 80, align: 'left' },
-  { key: 'contact', width: 80, align: 'left' },
-  { key: 'lastTouch', width: 90, align: 'center' },
+  { key: 'status',         width: 100, align: 'left' },
+  { key: 'company',        width: 220, align: 'left' },
+  { key: 'lastTouch',      width: 90,  align: 'center' },
   { key: 'primaryContact', width: 130, align: 'left' },
+  { key: 'nextContact',    width: 100, align: 'center' },
+  { key: 'targetRatio',    width: 100, align: 'center' },
+  { key: 'nextAction',     width: 150, align: 'left' },
 ];
 
 export const CRM_COLS_EDIT = [...CRM_COLS_BASE, { key: 'edit', width: 32, align: 'center' }];
 
-export const CRM_COL_LABELS = ['ステータス','企業名','業界','目標','報酬体系','リスト','カレンダー','連絡','最終接点','主担当'];
+export const CRM_COL_LABELS = ['ステータス','企業名','最終接点','主担当','次回接点予定','目標対比','次のアクション'];
 
 // 当月の 'YYYY-MM' を取得
 export function currentYearMonth() {
@@ -85,4 +82,55 @@ export function formatMonthLabel(ym, prevYm) {
   if (!prevYm) return `${y.slice(2)}/${ym2}`;
   if (prevYm.slice(0, 4) !== y) return `${y.slice(2)}/${ym2}`;
   return ym2;
+}
+
+// 経過日数をミリ秒差から計算（過去日付ならマイナス、null/不正なら null）
+function daysSince(ts) {
+  if (!ts) return null;
+  const t = new Date(ts).getTime();
+  if (Number.isNaN(t)) return null;
+  return Math.floor((Date.now() - t) / (1000 * 60 * 60 * 24));
+}
+
+// 「次のアクション」自動判定。アクション文字列＋色を返す
+//   client: { status, _supaId }
+//   ctx: { lastTouchAt, monthAppoCount, currentYM }
+export function nextActionFor(client, ctx = {}) {
+  const { lastTouchAt, monthAppoCount = 0 } = ctx;
+  const status = client.status;
+  const sinceTouch = daysSince(lastTouchAt);
+  const sinceStatusChange = daysSince(client.statusChangedAt);
+
+  // 1. 「面談予定」で予定日が過去（次回接点予定日が過去になっている）
+  const sinceNext = daysSince(client.nextContactAt);
+  if (status === '面談予定' && sinceNext !== null && sinceNext > 0) {
+    return { label: '商談実施要確認', color: '#DC2626' };
+  }
+
+  // 2. 最終接点が30日以上ない（再アプローチ要）
+  if (sinceTouch !== null && sinceTouch >= 30) {
+    return { label: '要再アプローチ', color: '#DC2626' };
+  }
+
+  // 3. 「面談予定」で14日以上動かず（商談化フォロー）
+  if (status === '面談予定' && sinceTouch !== null && sinceTouch >= 14) {
+    return { label: '商談化フォロー必要', color: '#B8860B' };
+  }
+
+  // 4. 「準備中」で30日以上経過（キックオフ調整）
+  if (status === '準備中' && sinceStatusChange !== null && sinceStatusChange >= 30) {
+    return { label: 'キックオフ調整', color: '#B8860B' };
+  }
+
+  // 5. 「支援中」で当月アポ実績ゼロ（進捗確認）
+  if (status === '支援中' && monthAppoCount === 0) {
+    return { label: '進捗確認', color: '#B8860B' };
+  }
+
+  // 6. 最終接点が14日以上ない（メール送信待ち）
+  if (sinceTouch !== null && sinceTouch >= 14) {
+    return { label: 'メール送信待ち', color: '#B8860B' };
+  }
+
+  return { label: '—', color: '#9CA3AF' };
 }

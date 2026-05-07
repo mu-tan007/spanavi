@@ -9,7 +9,8 @@ import PageHeader from '../common/PageHeader';
 import ClientDetailPage from './contacts/ClientDetailPage';
 import { dbFieldsToFe } from '../../utils/clientFieldsMap';
 import { insertClientContact as insertClientContactFn } from '../../lib/supabaseWrite';
-import { NAVY, CRM_COLS_BASE, CRM_COLS_EDIT } from './crm/utils';
+import { NAVY, CRM_COLS_BASE, CRM_COLS_EDIT, currentYearMonth } from './crm/utils';
+import { fetchClientMonthlyTargets } from '../../lib/supabaseWrite';
 import RewardDetailModal from './crm/RewardDetailModal';
 import ClientFormModal from './crm/ClientFormModal';
 import CRMHeader from './crm/CRMHeader';
@@ -84,6 +85,18 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     enabled: !!orgId,
   });
 
+  // 当月の月別目標（テーブル目標対比%列、KPI共通キャッシュ）
+  const currentYM = useMemo(() => currentYearMonth(), []);
+  const monthlyTargetsQuery = useQuery({
+    queryKey: ['crm-monthly-targets', currentYM, currentYM],
+    queryFn: async () => {
+      const { data } = await fetchClientMonthlyTargets(currentYM, currentYM);
+      return data;
+    },
+    enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
+  });
+
   // 最終接点 (clientId -> ISO timestamp) はメモから派生計算
   const lastTouchByClient = useMemo(() => {
     const contactToClient = {};
@@ -105,6 +118,28 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     return result;
   }, [memoQuery.data, appoQuery.data, contactsByClient]);
 
+  // 当月の実績アポ件数を clientId -> count にまとめる
+  const monthAppoCountByClient = useMemo(() => {
+    const map = {};
+    const ymPrefix = currentYM;
+    (appoQuery.data || []).forEach(a => {
+      const ts = a.appointment_date || a.created_at;
+      if (!ts || !String(ts).startsWith(ymPrefix)) return;
+      if (!a.client_id) return;
+      map[a.client_id] = (map[a.client_id] || 0) + 1;
+    });
+    return map;
+  }, [appoQuery.data, currentYM]);
+
+  // 当月の目標を clientId -> targetCount にまとめる
+  const monthTargetByClient = useMemo(() => {
+    const map = {};
+    (monthlyTargetsQuery.data || []).forEach(t => {
+      map[t.client_id] = t.target_count || 0;
+    });
+    return map;
+  }, [monthlyTargetsQuery.data]);
+
   const filtered = clientData.filter(c => {
     if (statusFilter !== "all" && c.status !== statusFilter) return false;
     if (search && !c.company.includes(search) && !c.industry.includes(search)) return false;
@@ -119,13 +154,6 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     if (!rewardMap[r.id]) rewardMap[r.id] = { name: r.name, timing: r.timing, basis: r.basis, tax: r.tax, tiers: [] };
     rewardMap[r.id].tiers.push(r);
   });
-
-  const getRewardSummary = (typeId) => {
-    const rm = rewardMap[typeId];
-    if (!rm) return "-";
-    if (rm.tiers.length === 1) return rm.tiers[0].memo;
-    return rm.name;
-  };
 
   const crmDefaultCols = setClientData ? CRM_COLS_EDIT : CRM_COLS_BASE;
   const { columns: crmCols, gridTemplateColumns: crmGrid, contentMinWidth: crmMinW, onResizeStart: crmResize, onHeaderContextMenu: crmCtxMenu, contextMenu: crmCtx, setAlign: crmSetAlign, resetAll: crmReset, closeMenu: crmClose } = useColumnConfig(setClientData ? 'crmViewEdit' : 'crmView', crmDefaultCols);
@@ -413,10 +441,10 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
             crmResize={crmResize}
             lastTouchByClient={lastTouchByClient}
             contactsByClient={contactsByClient}
-            getRewardSummary={getRewardSummary}
+            monthAppoCountByClient={monthAppoCountByClient}
+            monthTargetByClient={monthTargetByClient}
             onRowClick={goToDetail}
             onEditRow={(c, globalIdx) => setEditForm({ ...c, _idx: globalIdx })}
-            onShowReward={rid => setShowRewardDetail(rid)}
           />
         </>
       )}
