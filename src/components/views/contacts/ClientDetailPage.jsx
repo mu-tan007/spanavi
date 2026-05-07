@@ -266,8 +266,12 @@ export default function ClientDetailPage({
           {c.googleCalendarId && <FieldRow label="Google Calendar ID" value={c.googleCalendarId} />}
           {c.schedulingUrl && <FieldRow label="日程調整 URL" value={c.schedulingUrl} />}
 
-          <SectionTitle>月別目標</SectionTitle>
-          <ClientMonthlyTargetSection clientId={c._supaId} />
+          {c.status === '支援中' && (
+            <>
+              <SectionTitle>月別目標</SectionTitle>
+              <ClientMonthlyTargetSection clientId={c._supaId} />
+            </>
+          )}
 
           <SectionTitle>数字</SectionTitle>
           {stats.loading ? (
