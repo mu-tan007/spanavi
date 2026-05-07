@@ -6,6 +6,7 @@ import { updateClientNextContactAt } from '../../../lib/supabaseWrite';
 import ContactDrawer from './ContactDrawer';
 import ActivityTimeline from './ActivityTimeline';
 import ClientMonthlyTargetSection from '../crm/ClientMonthlyTargetSection';
+import CRMActionPanel from '../crm/CRMActionPanel';
 
 const NAVY = '#0D2247';
 const BLUE = '#1E40AF';
@@ -136,6 +137,7 @@ export default function ClientDetailPage({
   callListData = [],
   isAdmin = false,
   setClientData,
+  currentUser = '',
   onBack,
   onEdit,
   onShowReward,
@@ -391,11 +393,19 @@ export default function ClientDetailPage({
           />
         </div>
 
-        {/* Right pane: contacts */}
+        {/* Right pane: actions + contacts */}
         <div style={{
           background: '#fff', border: `1px solid ${GRAY_200}`, borderRadius: 4,
           padding: '14px 16px', maxHeight: 'calc(100vh - 200px)', overflowY: 'auto',
         }}>
+          {/* アクションパネル */}
+          <CRMActionPanel
+            client={c}
+            primaryContact={sortedContacts.find(ct => ct.isPrimary) || sortedContacts[0]}
+            currentUser={currentUser}
+            setClientData={setClientData}
+          />
+
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             borderBottom: `1px solid ${GRAY_200}`, paddingBottom: 8, marginBottom: 10,

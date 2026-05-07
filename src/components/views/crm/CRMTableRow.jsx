@@ -2,8 +2,30 @@ import { C } from '../../../constants/colors';
 import {
   NAVY, GRAY_200, GRAY_50, GOLD,
   statusStyle, lastTouchDisplay, nextActionFor,
-  priorityScore, priorityRank,
+  priorityScore, priorityRank, composeEmailDraft,
 } from './utils';
+
+function MiniIconBtn({ label, color = NAVY, disabled, onClick, hint }) {
+  return (
+    <button
+      onClick={e => { e.stopPropagation(); if (!disabled) onClick(); }}
+      title={hint}
+      disabled={disabled}
+      style={{
+        width: 24, height: 22, borderRadius: 3,
+        border: '1px solid ' + (disabled ? GRAY_200 : color),
+        background: disabled ? '#F8F9FA' : '#fff',
+        color: disabled ? C.textLight : color,
+        fontSize: 10, fontWeight: 700, padding: 0,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        fontFamily: "'Noto Sans JP'",
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
 
 // 'YYYY-MM-DD' or ISO → 'M/D' / 過去なら赤
 function formatNextContact(ts) {
@@ -194,17 +216,41 @@ export default function CRMTableRow({
         </span>
       </span>
 
-      {/* 編集アイコン（編集権限あれば） */}
-      {isEditable && (
-        <span style={{ textAlign: 'center' }}>
-          <button
-            onClick={e => { e.stopPropagation(); onEditRow(c, globalIdx); }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, padding: 2 }}
-          >
-            &#9998;
-          </button>
-        </span>
-      )}
+      {/* メール・電話・編集の3アイコン */}
+      {isEditable && (() => {
+        const draft = composeEmailDraft(c, primary);
+        const phone = c.contactPhone || '';
+        return (
+          <span style={{ display: 'inline-flex', gap: 4, justifyContent: 'center', alignItems: 'center' }}>
+            <MiniIconBtn
+              label="@"
+              color={NAVY}
+              disabled={!draft.to}
+              hint={draft.to ? `メール: ${draft.to}` : 'メールアドレス未登録'}
+              onClick={() => window.open(draft.mailto, '_blank')}
+            />
+            <MiniIconBtn
+              label="TEL"
+              color={NAVY}
+              disabled={!phone}
+              hint={phone ? `電話: ${phone}` : '電話番号未登録'}
+              onClick={() => { window.location.href = 'tel:' + phone; }}
+            />
+            <button
+              onClick={e => { e.stopPropagation(); onEditRow(c, globalIdx); }}
+              title="編集"
+              style={{
+                width: 24, height: 22, borderRadius: 3,
+                border: '1px solid ' + GRAY_200, background: '#fff',
+                cursor: 'pointer', fontSize: 12, padding: 0,
+                color: C.textMid,
+              }}
+            >
+              &#9998;
+            </button>
+          </span>
+        );
+      })()}
     </div>
   );
 }

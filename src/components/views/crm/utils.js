@@ -52,7 +52,7 @@ export const CRM_COLS_BASE = [
   { key: 'nextAction',     width: 150, align: 'left' },
 ];
 
-export const CRM_COLS_EDIT = [...CRM_COLS_BASE, { key: 'edit', width: 32, align: 'center' }];
+export const CRM_COLS_EDIT = [...CRM_COLS_BASE, { key: 'edit', width: 96, align: 'center' }];
 
 export const CRM_COL_LABELS = ['ステータス','企業名','最終接点','主担当','次回接点予定','目標対比','次のアクション'];
 
@@ -116,6 +116,102 @@ export function priorityRank(score) {
   if (score >= 80) return { color: '#DC2626', label: '高' };
   if (score >= 50) return { color: '#B8860B', label: '中' };
   return { color: '#9CA3AF', label: '低' };
+}
+
+// ステータス別メールテンプレ（件名・本文）
+const EMAIL_TEMPLATES = {
+  '面談予定': {
+    subjectFor: company => `[${company}様] 面談日程のご相談`,
+    bodyFor: (company, contactName) => `${contactName ? contactName + '様' : 'ご担当者様'}
+
+お世話になっております。
+M&A ソーシングパートナーズの篠宮です。
+
+${company}様との面談日程について、改めてご相談させてください。
+ご都合のよい候補日をいくつかご提示いただけますと幸いです。
+
+何卒よろしくお願いいたします。`,
+  },
+  '準備中': {
+    subjectFor: company => `[${company}様] キックオフ日程のご相談`,
+    bodyFor: (company, contactName) => `${contactName ? contactName + '様' : 'ご担当者様'}
+
+お世話になっております。
+M&A ソーシングパートナーズの篠宮です。
+
+${company}様のサービス開始に向けたキックオフミーティングの日程について
+ご相談させてください。
+
+何卒よろしくお願いいたします。`,
+  },
+  '支援中': {
+    subjectFor: company => `[${company}様] 今月の進捗のご共有`,
+    bodyFor: (company, contactName) => `${contactName ? contactName + '様' : 'ご担当者様'}
+
+いつもお世話になっております。
+M&A ソーシングパートナーズの篠宮です。
+
+${company}様への今月の架電状況・アポ進捗についてご共有させてください。
+詳細は別途資料にてお送りいたします。
+
+何卒よろしくお願いいたします。`,
+  },
+  '中期フォロー': {
+    subjectFor: company => `[${company}様] 近況のご相談`,
+    bodyFor: (company, contactName) => `${contactName ? contactName + '様' : 'ご担当者様'}
+
+ご無沙汰しております。
+M&A ソーシングパートナーズの篠宮です。
+
+${company}様の近況をお伺いさせてください。
+あらためてお力になれることがあればぜひご相談ください。
+
+何卒よろしくお願いいたします。`,
+  },
+  '保留': {
+    subjectFor: company => `[${company}様] サービス再開のご相談`,
+    bodyFor: (company, contactName) => `${contactName ? contactName + '様' : 'ご担当者様'}
+
+お世話になっております。
+M&A ソーシングパートナーズの篠宮です。
+
+${company}様のサービス再開について、改めてご相談させてください。
+ご都合のよろしいお時間をいただけますと幸いです。
+
+何卒よろしくお願いいたします。`,
+  },
+  '停止中': {
+    subjectFor: company => `[${company}様] サービス再開のご相談`,
+    bodyFor: (company, contactName) => `${contactName ? contactName + '様' : 'ご担当者様'}
+
+ご無沙汰しております。
+M&A ソーシングパートナーズの篠宮です。
+
+サービス再開のお声がけにあがりました。
+${company}様の現状をお伺いできればと存じます。
+
+何卒よろしくお願いいたします。`,
+  },
+};
+
+// メールドラフトを生成して mailto: URL を返す
+export function composeEmailDraft(client, primaryContact) {
+  const company = client.company || '';
+  const contactName = primaryContact?.name || '';
+  const to = primaryContact?.email || client.clientEmail || '';
+  const tpl = EMAIL_TEMPLATES[client.status] || EMAIL_TEMPLATES['支援中'];
+  const subject = tpl.subjectFor(company);
+  const body = tpl.bodyFor(company, contactName);
+  const params = [
+    subject ? `subject=${encodeURIComponent(subject)}` : null,
+    body ? `body=${encodeURIComponent(body)}` : null,
+  ].filter(Boolean).join('&');
+  return {
+    to,
+    subject,
+    body,
+    mailto: `mailto:${to}${params ? '?' + params : ''}`,
+  };
 }
 
 // 経過日数をミリ秒差から計算（過去日付ならマイナス、null/不正なら null）

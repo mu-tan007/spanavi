@@ -141,6 +141,7 @@ export function useSpanaviData(authOrgId) {
         chatworkRoomId: c.chatwork_room_id || '',
         statusChangedAt: c.status_changed_at || null,
         nextContactAt: c.next_contact_at || null,
+        contactPhone: c.contact_phone || '',
       }))
 
       // members → 既存DEFAULT_MEMBERSフォーマット（名前のリスト）

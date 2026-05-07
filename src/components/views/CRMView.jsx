@@ -33,7 +33,7 @@ export default function CRMView(props) {
   );
 }
 
-function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient, callListData = [] }) {
+function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient, callListData = [], currentUser = '' }) {
   const [statusFilter, setStatusFilter] = useState("支援中");
   const [search, setSearch] = useState("");
   const [showRewardDetail, setShowRewardDetail] = useState(null);
@@ -434,6 +434,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
           callListData={callListData}
           isAdmin={isAdmin}
           setClientData={setClientData}
+          currentUser={currentUser}
           onBack={goToList}
           onEdit={(cl) => {
             const idx = clientData.findIndex(x => x._supaId === cl._supaId);
