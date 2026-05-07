@@ -84,6 +84,40 @@ export function formatMonthLabel(ym, prevYm) {
   return ym2;
 }
 
+// 優先度スコア（0〜100）
+//   ctx: { lastTouchAt, monthAppoCount, monthTarget, maxMonthTarget }
+//   - 規模: 月間目標 / 全クライアント中の最大目標 * 50
+//   - 放置: min(放置日数/30, 1) * 30
+//   - 進捗遅れ: max(0, 1 - 達成率) * 20
+export function priorityScore(client, ctx = {}) {
+  const { lastTouchAt, monthAppoCount = 0, monthTarget = 0, maxMonthTarget = 0 } = ctx;
+
+  const sizeScore = maxMonthTarget > 0 ? (monthTarget / maxMonthTarget) * 50 : 0;
+
+  let sinceTouch = 30;
+  if (lastTouchAt) {
+    const t = new Date(lastTouchAt).getTime();
+    if (!Number.isNaN(t)) sinceTouch = Math.floor((Date.now() - t) / (1000 * 60 * 60 * 24));
+  }
+  const idleScore = Math.min(Math.max(sinceTouch, 0) / 30, 1) * 30;
+
+  let lagScore = 0;
+  if (monthTarget > 0) {
+    const ratio = monthAppoCount / monthTarget;
+    lagScore = Math.max(0, 1 - ratio) * 20;
+  }
+
+  const total = sizeScore + idleScore + lagScore;
+  return Math.round(Math.max(0, Math.min(100, total)));
+}
+
+// 優先度スコアを色とランク（高/中/低）に変換
+export function priorityRank(score) {
+  if (score >= 80) return { color: '#DC2626', label: '高' };
+  if (score >= 50) return { color: '#B8860B', label: '中' };
+  return { color: '#9CA3AF', label: '低' };
+}
+
 // 経過日数をミリ秒差から計算（過去日付ならマイナス、null/不正なら null）
 function daysSince(ts) {
   if (!ts) return null;
