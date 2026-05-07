@@ -214,6 +214,68 @@ export function composeEmailDraft(client, primaryContact) {
   };
 }
 
+// CSV 1行をパース（ダブルクォート対応）
+export function parseCSVLine(line, sep = ',') {
+  const result = [];
+  let current = '', inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else current += ch;
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === sep) { result.push(current); current = ''; }
+      else current += ch;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+// 列名の正規化（揺れに対応）
+const HEADER_ALIASES = {
+  company: ['会社名', '企業名', '法人名', 'company', 'name'],
+  phone: ['電話番号', '電話', 'phone', 'tel', 'telephone'],
+  representative: ['代表者', '代表者名', '社長', '代表', 'representative'],
+  business: ['事業内容', '業界', '業種', 'business', 'industry'],
+  address: ['住所', '所在地', 'address'],
+  prefecture: ['都道府県', '県', 'pref', 'prefecture'],
+  email: ['メール', 'メールアドレス', 'email', 'mail'],
+  website: ['サイト', 'URL', 'website', 'url'],
+};
+
+export function detectColumnMapping(rawHeaders) {
+  const norm = h => String(h || '').trim().toLowerCase();
+  const map = {};
+  rawHeaders.forEach((h, idx) => {
+    const lh = norm(h);
+    Object.entries(HEADER_ALIASES).forEach(([key, aliases]) => {
+      if (map[key] !== undefined) return;
+      if (aliases.some(a => norm(a) === lh)) map[key] = idx;
+    });
+  });
+  return map;
+}
+
+// CSV テキストを { rows: [{company, phone, ...}], headers, mapping } に変換
+export function parseCSVText(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+  if (lines.length === 0) return { rows: [], headers: [], mapping: {} };
+  const headers = parseCSVLine(lines[0]);
+  const mapping = detectColumnMapping(headers);
+  const rows = lines.slice(1).map((line, i) => {
+    const cols = parseCSVLine(line);
+    const row = { no: i + 1 };
+    Object.entries(mapping).forEach(([key, idx]) => {
+      row[key] = (cols[idx] || '').trim();
+    });
+    return row;
+  }).filter(r => r.company);
+  return { rows, headers, mapping };
+}
+
 // 経過日数をミリ秒差から計算（過去日付ならマイナス、null/不正なら null）
 function daysSince(ts) {
   if (!ts) return null;
