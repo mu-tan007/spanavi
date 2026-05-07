@@ -18,6 +18,7 @@ import CRMStatusTabs from './crm/CRMStatusTabs';
 import CRMTable from './crm/CRMTable';
 import MonthlyTargetsView from './crm/MonthlyTargetsView';
 import CRMKPIDashboard from './crm/CRMKPIDashboard';
+import CRMPipelineView from './crm/CRMPipelineView';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -389,12 +390,13 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
         />
       )}
 
-      {/* サブビュー切替（list / targets） */}
+      {/* サブビュー切替（list / pipeline / targets） */}
       {view !== 'detail' && (
         <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
           {[
-            { key: 'list',    label: '顧客一覧' },
-            { key: 'targets', label: '月別目標' },
+            { key: 'list',     label: '顧客一覧' },
+            { key: 'pipeline', label: 'パイプライン' },
+            { key: 'targets',  label: '月別目標' },
           ].map(t => {
             const active = view === t.key;
             return (
@@ -422,6 +424,19 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
       {/* 月別目標ビュー */}
       {view === 'targets' && (
         <MonthlyTargetsView clientData={clientData} />
+      )}
+
+      {/* パイプラインビュー */}
+      {view === 'pipeline' && (
+        <CRMPipelineView
+          clientData={clientData}
+          setClientData={setClientData}
+          contactsByClient={contactsByClient}
+          monthAppoCountByClient={monthAppoCountByClient}
+          monthTargetByClient={monthTargetByClient}
+          maxMonthTarget={maxMonthTarget}
+          onCardClick={goToDetail}
+        />
       )}
 
       {/* 詳細ページモード */}
