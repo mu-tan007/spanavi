@@ -16,6 +16,7 @@ import CRMHeader from './crm/CRMHeader';
 import CRMStatusTabs from './crm/CRMStatusTabs';
 import CRMTable from './crm/CRMTable';
 import MonthlyTargetsView from './crm/MonthlyTargetsView';
+import CRMKPIDashboard from './crm/CRMKPIDashboard';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -384,9 +385,10 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
         />
       )}
 
-      {/* List mode: header + tabs + table */}
+      {/* List mode: KPI + header + tabs + table */}
       {view === 'list' && (
         <>
+          <CRMKPIDashboard clientData={clientData} statusCounts={statusCounts} />
           <CRMHeader
             filteredCount={filtered.length}
             search={search}
