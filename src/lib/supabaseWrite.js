@@ -3072,6 +3072,183 @@ async function resolveRecipientUserIds({ orgId, engagementId, scope, getterName 
 }
 
 // ============================================================
+// CRM 新規開拓 (client_lead_lists / _companies / client_call_records)
+// ============================================================
+
+export async function fetchClientLeadLists() {
+  const orgId = getOrgId()
+  if (!orgId) return { data: [], error: null }
+  const { data, error } = await supabase
+    .from('client_lead_lists')
+    .select('*')
+    .eq('org_id', orgId)
+    .order('imported_at', { ascending: false })
+  if (error) console.error('[DB] fetchClientLeadLists error:', error)
+  return { data: data || [], error }
+}
+
+export async function insertClientLeadList({ name, industry, scriptBody, createdByName }) {
+  const orgId = getOrgId()
+  const { data, error } = await supabase
+    .from('client_lead_lists')
+    .insert({
+      org_id: orgId,
+      name,
+      industry: industry || null,
+      script_body: scriptBody || null,
+      created_by_name: createdByName || null,
+    })
+    .select()
+    .single()
+  if (error) console.error('[DB] insertClientLeadList error:', error)
+  return { data, error }
+}
+
+export async function updateClientLeadList(id, patch) {
+  const payload = {}
+  if (patch.name !== undefined) payload.name = patch.name
+  if (patch.industry !== undefined) payload.industry = patch.industry
+  if (patch.scriptBody !== undefined) payload.script_body = patch.scriptBody
+  if (patch.isArchived !== undefined) payload.is_archived = patch.isArchived
+  const { error } = await supabase
+    .from('client_lead_lists')
+    .update(payload)
+    .eq('id', id)
+  if (error) console.error('[DB] updateClientLeadList error:', error)
+  return { error }
+}
+
+export async function deleteClientLeadList(id) {
+  const { error } = await supabase
+    .from('client_lead_lists')
+    .delete()
+    .eq('id', id)
+  if (error) console.error('[DB] deleteClientLeadList error:', error)
+  return { error }
+}
+
+export async function fetchClientLeadCompanies(listId) {
+  if (!listId) return { data: [], error: null }
+  const orgId = getOrgId()
+  const { data, error } = await supabase
+    .from('client_lead_companies')
+    .select('*')
+    .eq('org_id', orgId)
+    .eq('list_id', listId)
+    .order('no', { ascending: true })
+  if (error) console.error('[DB] fetchClientLeadCompanies error:', error)
+  return { data: data || [], error }
+}
+
+export async function insertClientLeadCompaniesBulk(listId, rows) {
+  if (!listId || !Array.isArray(rows) || rows.length === 0) return { data: [], error: null }
+  const orgId = getOrgId()
+  const payload = rows.map((r, i) => ({
+    org_id: orgId,
+    list_id: listId,
+    no: r.no ?? (i + 1),
+    company: r.company || '',
+    representative: r.representative || null,
+    business: r.business || null,
+    address: r.address || null,
+    prefecture: r.prefecture || null,
+    phone: r.phone || null,
+    email: r.email || null,
+    website: r.website || null,
+  }))
+  const { data, error } = await supabase
+    .from('client_lead_companies')
+    .insert(payload)
+    .select()
+  if (error) console.error('[DB] insertClientLeadCompaniesBulk error:', error)
+  return { data: data || [], error }
+}
+
+export async function fetchClientCallRecords(listId) {
+  if (!listId) return { data: [], error: null }
+  const orgId = getOrgId()
+  const { data, error } = await supabase
+    .from('client_call_records')
+    .select('*')
+    .eq('org_id', orgId)
+    .eq('list_id', listId)
+    .order('called_at', { ascending: false })
+  if (error) console.error('[DB] fetchClientCallRecords error:', error)
+  return { data: data || [], error }
+}
+
+export async function insertClientCallRecord({ listId, leadCompanyId, round, status, memo, getterName, recordingUrl }) {
+  const orgId = getOrgId()
+  const { data, error } = await supabase
+    .from('client_call_records')
+    .insert({
+      org_id: orgId,
+      list_id: listId,
+      lead_company_id: leadCompanyId,
+      round: round || 1,
+      status,
+      memo: memo || null,
+      getter_name: getterName || null,
+      recording_url: recordingUrl || null,
+    })
+    .select()
+    .single()
+  if (error) console.error('[DB] insertClientCallRecord error:', error)
+  return { data, error }
+}
+
+export async function deleteClientCallRecordByRound(leadCompanyId, round) {
+  if (!leadCompanyId || round == null) return { error: new Error('missing args') }
+  const { error } = await supabase
+    .from('client_call_records')
+    .delete()
+    .eq('lead_company_id', leadCompanyId)
+    .eq('round', round)
+  if (error) console.error('[DB] deleteClientCallRecordByRound error:', error)
+  return { error }
+}
+
+// アポ獲得時: clients に新規追加し、lead_company に promoted_to_client_id を保持
+export async function promoteLeadCompanyToClient(leadCompany, { contactPerson } = {}) {
+  if (!leadCompany?.id || !leadCompany?.company) {
+    return { data: null, error: new Error('invalid leadCompany') }
+  }
+  const orgId = getOrgId()
+  // 1) clients に INSERT (status='面談予定')
+  const { data: client, error: e1 } = await supabase
+    .from('clients')
+    .insert({
+      org_id: orgId,
+      name: leadCompany.company,
+      status: '面談予定',
+      contract_status: '未',
+      industry: leadCompany.business || '',
+      contact_person: contactPerson || leadCompany.representative || null,
+      contact_phone: leadCompany.phone || null,
+      contact_email: leadCompany.email || null,
+      status_changed_at: new Date().toISOString(),
+    })
+    .select()
+    .single()
+  if (e1) {
+    console.error('[DB] promoteLeadCompanyToClient (insert client) error:', e1)
+    return { data: null, error: e1 }
+  }
+  // 2) lead_company に紐付け
+  const { error: e2 } = await supabase
+    .from('client_lead_companies')
+    .update({
+      promoted_to_client_id: client.id,
+      promoted_at: new Date().toISOString(),
+    })
+    .eq('id', leadCompany.id)
+  if (e2) {
+    console.warn('[DB] promoteLeadCompanyToClient (update lead) error:', e2)
+  }
+  return { data: client, error: null }
+}
+
+// ============================================================
 // CRM 月別目標 (client_monthly_targets)
 // ============================================================
 
