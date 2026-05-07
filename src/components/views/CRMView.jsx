@@ -7,7 +7,6 @@ import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import PageHeader from '../common/PageHeader';
-import ContactDrawer from './contacts/ContactDrawer';
 import ClientDetailPage from './contacts/ClientDetailPage';
 import VoiceRecorderInline from './contacts/VoiceRecorderInline';
 import { dbFieldsToFe } from '../../utils/clientFieldsMap';
@@ -60,14 +59,11 @@ function lastTouchDisplay(ts) {
 export default function CRMView({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient, callListData = [] }) {
   const [statusFilter, setStatusFilter] = useState("支援中");
   const [search, setSearch] = useState("");
-  const [selectedClient, setSelectedClient] = useState(null); // legacy modal trigger（detail ページに置換、内部参照は残置）
   const [showRewardDetail, setShowRewardDetail] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [addForm, setAddForm] = useState(null);
   const [addSaving, setAddSaving] = useState(false);
   const [addToast, setAddToast] = useState(null);
-  // 担当者ドロワー状態 (legacy: 旧モーダル用、detail ページ移行後は未使用)
-  const [contactDrawer, setContactDrawer] = useState({ isOpen: false, mode: 'add', existingContact: null });
   // 詳細ページ切替
   const [view, setView] = useState('list'); // 'list' | 'detail'
   const [detailClient, setDetailClient] = useState(null);
@@ -225,7 +221,6 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
     setEditForm(null);
     // 詳細ページ表示中なら detailClient も更新（編集後の値を反映）
     if (view === 'detail') setDetailClient(updated);
-    else setSelectedClient(updated);
   };
 
   const handleSaveAdd = async () => {
@@ -518,151 +513,6 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
       </div>
       </>)}
 
-      {/* Client Detail Modal (legacy: 詳細ページ移行後は表示されない。ContactDrawer 用に残置) */}
-      {selectedClient && !editForm && (() => {
-        const c = selectedClient;
-        const sc = statusStyle(c.status);
-        const rm = rewardMap[c.rewardType];
-        const globalIdx = clientData.indexOf(c);
-        return (
-          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}
-            onClick={() => setSelectedClient(null)}>
-            <div style={{ background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4, width: 600, maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}
-              onClick={e => e.stopPropagation()}>
-              <div style={{ padding: "12px 24px", background: NAVY, borderRadius: "4px 4px 0 0", color: '#fff', fontWeight: 600, fontSize: 15 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ borderLeft: '3px solid ' + sc.color, paddingLeft: 8, color: sc.color, fontSize: 12 }}>{c.status}</span>
-                  <span style={{ fontSize: 9, padding: "2px 8px", borderRadius: 3, background: "rgba(255,255,255,0.15)", color: '#fff' }}>{c.contract === "済" ? "契約済" : c.contract}</span>
-                </div>
-                <div style={{ fontSize: 16, fontWeight: 700, marginTop: 6 }}>{c.company}</div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)', marginTop: 2 }}>{c.industry}{c.target > 0 ? " ・ 月間目標 " + c.target + "件" : ""}</div>
-              </div>
-              <div style={{ padding: "16px 20px" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-                  {[
-                    { label: "報酬体系", val: c.rewardType ? c.rewardType + " (" + (rm ? rm.name : "") + ")" : "-" },
-                    { label: "税区分", val: rm ? rm.tax : "-" },
-                    { label: "支払サイト", val: c.paySite || "-" },
-                    { label: "支払特記", val: c.payNote || "-" },
-                    { label: "リスト負担", val: c.listSrc || "-" },
-                    { label: "カレンダー", val: c.calendar || "-" },
-                    { label: "連絡手段", val: c.contact || "-" },
-                    { label: "供給目標", val: c.target > 0 ? c.target + "件/月" : "-" },
-                    { label: "メールアドレス", val: c.clientEmail || "-" },
-                    { label: "Google Calendar ID", val: c.googleCalendarId || "-" },
-                    { label: "日程調整URL", val: c.schedulingUrl ? c.schedulingUrl : "-" },
-                  ].map((item, idx) => (
-                    <div key={idx}>
-                      <div style={{ fontSize: 9, fontWeight: 600, color: C.textLight, marginBottom: 2 }}>{item.label}</div>
-                      <div style={{ fontSize: 12, color: C.textDark, fontWeight: 500 }}>{item.val}</div>
-                    </div>
-                  ))}
-                </div>
-                {rm && (
-                  <div style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid ' + NAVY, paddingBottom: 6, marginBottom: 12 }}>報酬体系詳細（{c.rewardType}）</div>
-                    <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6 }}>{rm.timing} ・ {rm.basis} ・ {rm.tax}</div>
-                    {rm.tiers.map((t, ti) => (
-                      <div key={ti} style={{ display: "flex", justifyContent: "space-between", padding: "8px 16px", fontSize: 11, background: ti % 2 === 0 ? '#fff' : GRAY_50, borderBottom: '1px solid ' + GRAY_200, verticalAlign: 'middle' }}>
-                        <span style={{ color: C.textMid }}>{t.memo}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: NAVY, fontVariantNumeric: 'tabular-nums' }}>¥{Number(t.price).toLocaleString()}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {(c.noteFirst || c.noteKickoff || c.noteRegular) && (
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid ' + NAVY, paddingBottom: 6, marginBottom: 12 }}>備考</div>
-                    {[
-                      { label: "初回面談時", val: c.noteFirst },
-                      { label: "キックオフミーティング時", val: c.noteKickoff },
-                      { label: "定期ミーティング時", val: c.noteRegular },
-                    ].filter(n => n.val).map((n, ni) => (
-                      <div key={ni} style={{ marginBottom: 10 }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, color: NAVY, marginBottom: 2, display: "flex", alignItems: "center", gap: 4 }}>
-                          <span style={{ width: 4, height: 4, borderRadius: "50%", background: NAVY, display: "inline-block" }}></span>{n.label}
-                        </div>
-                        <div style={{ fontSize: 11, color: C.textMid, whiteSpace: "pre-wrap", lineHeight: 1.6, padding: "4px 0 4px 8px", borderLeft: "2px solid " + GRAY_200, maxHeight: 150, overflow: "auto" }}>{n.val.replace(/\\n/g, "\n")}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {/* 担当者セクション */}
-                <div style={{ marginTop: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, borderBottom: '2px solid ' + NAVY, paddingBottom: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>担当者</span>
-                    {setContactsByClient && (
-                      <button onClick={() => setContactDrawer({ isOpen: true, mode: 'add', existingContact: null })}
-                        style={{ padding: '3px 10px', borderRadius: 3, border: '1px solid ' + NAVY, background: '#fff', color: NAVY, fontSize: 10, fontWeight: 500, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
-                        ＋ 追加
-                      </button>
-                    )}
-                  </div>
-                  {(() => {
-                    const contacts = contactsByClient[c._supaId] || [];
-                    if (contacts.length === 0) {
-                      return <div style={{ fontSize: 11, color: C.textLight, padding: '8px 0' }}>担当者が登録されていません</div>;
-                    }
-                    return (
-                      <div>
-                        {contacts.map(ct => (
-                          <div
-                            key={ct.id}
-                            onClick={() => setContactDrawer({ isOpen: true, mode: 'edit', existingContact: ct })}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 8,
-                              padding: '8px 8px',
-                              borderBottom: '1px solid ' + GRAY_200,
-                              cursor: setContactsByClient ? 'pointer' : 'default',
-                              transition: 'background 0.12s',
-                            }}
-                            onMouseEnter={(e) => { if (setContactsByClient) e.currentTarget.style.background = '#EAF4FF'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                          >
-                            <span style={{
-                              fontSize: 11, fontWeight: 600, color: NAVY, width: 100,
-                              display: 'inline-flex', alignItems: 'center', gap: 5,
-                            }}>
-                              {ct.isPrimary && (
-                                <span style={{
-                                  fontSize: 8, fontWeight: 700, letterSpacing: 1,
-                                  color: NAVY,
-                                  border: '1px solid ' + NAVY,
-                                  borderRadius: 2, padding: '1px 4px',
-                                }}>主</span>
-                              )}
-                              {ct.name}
-                            </span>
-                            <span style={{ fontSize: 11, color: C.textMid, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ct.email}</span>
-                            {c.contact === 'Slack' && ct.slackMemberId && (
-                              <span style={{ fontSize: 9, color: '#6B7280', background: '#F3F4F6', padding: '1px 6px', borderRadius: 3 }}>@{ct.slackMemberId}</span>
-                            )}
-                            {setContactsByClient && (
-                              <span style={{ fontSize: 10, color: NAVY }}>編集 ›</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-              <div style={{ padding: "10px 20px", borderTop: "1px solid " + GRAY_200, display: "flex", justifyContent: "space-between" }}>
-                {setClientData ? <button onClick={() => { setSelectedClient(null); setEditForm({ ...c, _idx: globalIdx }); }} style={{
-                  padding: "8px 16px", borderRadius: 4, border: '1px solid ' + NAVY, background: '#fff',
-                  cursor: "pointer", fontSize: 13, fontWeight: 500, color: NAVY, fontFamily: "'Noto Sans JP'",
-                }}>&#9998; 編集</button> : <div></div>}
-                <button onClick={() => setSelectedClient(null)} style={{
-                  padding: "8px 16px", borderRadius: 4, border: "none",
-                  background: NAVY,
-                  cursor: "pointer", fontSize: 13, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
-                }}>閉じる</button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* Toast */}
       {addToast && (
         <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: NAVY, color: '#fff', padding: "10px 20px", borderRadius: 4, fontSize: 12, fontWeight: 600, zIndex: 30000, boxShadow: "0 4px 16px rgba(0,0,0,0.2)", fontFamily: "'Noto Sans JP'" }}>
@@ -899,7 +749,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
                     if (error) { alert('削除に失敗しました: ' + (error.message || '不明なエラー')); return; }
                   }
                   setClientData(prev => prev.filter((_, i) => i !== editForm._idx));
-                  setEditForm(null); setSelectedClient(null);
+                  setEditForm(null);
                 }} style={{ padding: "8px 16px", borderRadius: 4, border: "1px solid #DC2626", background: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500, color: "#DC2626", fontFamily: "'Noto Sans JP'" }}>削除</button>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={() => { setEditForm(null); setPendingEditContacts([]); }} style={{ padding: "8px 16px", borderRadius: 4, border: '1px solid ' + NAVY, background: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500, color: NAVY, fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
@@ -957,47 +807,6 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
         />
       )}
 
-      {/* 担当者ドロワー */}
-      {setContactsByClient && selectedClient && (
-        <ContactDrawer
-          isOpen={contactDrawer.isOpen}
-          onClose={() => setContactDrawer({ isOpen: false, mode: 'add', existingContact: null })}
-          mode={contactDrawer.mode}
-          clientSupaId={selectedClient._supaId}
-          clientContactMethod={selectedClient.contact}
-          existingContact={contactDrawer.existingContact}
-          onChanged={({ type, contact }) => {
-            const cid = selectedClient._supaId;
-            if (!cid) return;
-            if (type === 'added' && contact) {
-              setContactsByClient(prev => {
-                const list = prev[cid] || [];
-                // 主担当が立った場合は他の主担当フラグを下ろす
-                const next = contact.isPrimary
-                  ? list.map(x => ({ ...x, isPrimary: false }))
-                  : list;
-                return { ...prev, [cid]: [...next, contact] };
-              });
-            } else if (type === 'updated' && contact) {
-              setContactsByClient(prev => {
-                const list = prev[cid] || [];
-                const others = contact.isPrimary
-                  ? list.map(x => x.id === contact.id ? x : { ...x, isPrimary: false })
-                  : list;
-                return {
-                  ...prev,
-                  [cid]: others.map(x => x.id === contact.id ? { ...x, ...contact } : x),
-                };
-              });
-            } else if (type === 'deleted' && contact) {
-              setContactsByClient(prev => ({
-                ...prev,
-                [cid]: (prev[cid] || []).filter(x => x.id !== contact.id),
-              }));
-            }
-          }}
-        />
-      )}
     </div>
   );
 }
