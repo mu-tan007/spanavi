@@ -11,50 +11,11 @@ import ClientDetailPage from './contacts/ClientDetailPage';
 import VoiceRecorderInline from './contacts/VoiceRecorderInline';
 import { dbFieldsToFe } from '../../utils/clientFieldsMap';
 import { insertClientContact as insertClientContactFn } from '../../lib/supabaseWrite';
-
-const NAVY = '#0D2247';
-const BLUE = '#1E40AF';
-const GRAY_200 = '#E5E7EB';
-const GRAY_50 = '#F8F9FA';
-const GOLD = '#B8860B';
-
-const CRM_COLS_BASE = [
-  { key: 'status', width: 100, align: 'left' },
-  { key: 'company', width: 240, align: 'left' },
-  { key: 'industry', width: 80, align: 'left' },
-  { key: 'target', width: 70, align: 'center' },
-  { key: 'reward', width: 100, align: 'left' },
-  { key: 'list', width: 80, align: 'left' },
-  { key: 'calendar', width: 80, align: 'left' },
-  { key: 'contact', width: 80, align: 'left' },
-  { key: 'lastTouch', width: 90, align: 'center' },
-  { key: 'primaryContact', width: 130, align: 'left' },
-];
-const CRM_COLS_EDIT = [...CRM_COLS_BASE, { key: 'edit', width: 32, align: 'center' }];
-
-// 連絡手段のテキストラベル（絵文字は使わない）
-const contactLabel = (ct) => {
-  if (!ct) return '-';
-  if (ct === 'LINE') return 'LINE';
-  if (ct === 'Slack') return 'Slack';
-  if (ct === 'Chatwork') return 'Chatwork';
-  if (ct === 'メール') return 'メール';
-  return ct || 'TEL';
-};
-
-// 経過日数（"X日前" / 同日 / 14日以上はゴールド字色）
-function lastTouchDisplay(ts) {
-  if (!ts) return { label: '-', stale: false };
-  const now = Date.now();
-  const t = new Date(ts).getTime();
-  if (Number.isNaN(t)) return { label: '-', stale: false };
-  const diffMs = now - t;
-  if (diffMs < 0) return { label: '本日', stale: false };
-  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (days === 0) return { label: '本日', stale: false };
-  if (days >= 14) return { label: `${days}日前`, stale: true };
-  return { label: `${days}日前`, stale: false };
-}
+import {
+  NAVY, GRAY_200, GRAY_50, GOLD,
+  STATUS_LIST, statusStyle, contactLabel, lastTouchDisplay,
+  CRM_COLS_BASE, CRM_COLS_EDIT, CRM_COL_LABELS,
+} from './crm/utils';
 
 export default function CRMView({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient, callListData = [] }) {
   const [statusFilter, setStatusFilter] = useState("支援中");
@@ -125,16 +86,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
     return () => { cancelled = true; };
   }, [contactsByClient]);
 
-  const statusList = ["支援中", "準備中", "停止中", "保留", "中期フォロー", "面談予定"];
-  const statusStyle = (st) => {
-    if (st === "支援中") return { bg: C.green + "15", color: C.green, dot: C.green };
-    if (st === "準備中") return { bg: C.gold + "15", color: C.gold, dot: C.gold };
-    if (st === "停止中") return { bg: "#e5383515", color: "#e53835", dot: "#e53835" };
-    if (st === "保留") return { bg: C.textLight + "15", color: C.textLight, dot: C.textLight };
-    if (st === "中期フォロー") return { bg: NAVY + "10", color: NAVY, dot: NAVY };
-    if (st === "面談予定") return { bg: "#7c3aed15", color: "#7c3aed", dot: "#7c3aed" };
-    return { bg: C.textLight + "10", color: C.textLight, dot: C.textLight };
-  };
+  const statusList = STATUS_LIST;
 
   const filtered = clientData.filter(c => {
     if (statusFilter !== "all" && c.status !== statusFilter) return false;
@@ -433,7 +385,7 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
           fontSize: 11, fontWeight: 600, color: '#fff',
           verticalAlign: 'middle',
         }}>
-          {['ステータス','企業名','業界','目標','報酬体系','リスト','カレンダー','連絡','最終接点','主担当'].map((label, idx) => (
+          {CRM_COL_LABELS.map((label, idx) => (
             <span key={label} style={{ position: 'relative', verticalAlign: 'middle', textAlign: crmCols[idx]?.align || 'left', paddingRight: 6 }} onContextMenu={e => crmCtxMenu(e, idx)}>
               {label}
               <ColumnResizeHandle colIndex={idx} onResizeStart={crmResize} />
