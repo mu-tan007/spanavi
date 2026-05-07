@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { updateClient, insertClient, deleteClient } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
@@ -15,7 +16,21 @@ import CRMHeader from './crm/CRMHeader';
 import CRMStatusTabs from './crm/CRMStatusTabs';
 import CRMTable from './crm/CRMTable';
 
-export default function CRMView({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient, callListData = [] }) {
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: 1, refetchOnWindowFocus: false, staleTime: 5 * 60 * 1000 },
+  },
+});
+
+export default function CRMView(props) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <CRMViewInner {...props} />
+    </QueryClientProvider>
+  );
+}
+
+function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient, callListData = [] }) {
   const [statusFilter, setStatusFilter] = useState("支援中");
   const [search, setSearch] = useState("");
   const [showRewardDetail, setShowRewardDetail] = useState(null);
@@ -33,56 +48,60 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
 
   const goToDetail = (c) => { setDetailClient(c); setView('detail'); };
   const goToList = () => { setView('list'); setDetailClient(null); };
-  // 最終接点 (clientId -> ISO timestamp)
-  const [lastTouchByClient, setLastTouchByClient] = useState({});
 
-  // 最終接点を非同期ロード: contact_memo_events と appointments の MAX(created_at / appointment_date)
-  useEffect(() => {
-    let cancelled = false;
-    const orgId = getOrgId();
-    if (!orgId) return;
-    (async () => {
-      // 1) contact_memo_events を contact_id 単位で取得して client_id にマップ
-      const contactToClient = {};
-      Object.entries(contactsByClient).forEach(([cid, list]) => {
-        (list || []).forEach(ct => { if (ct?.id) contactToClient[ct.id] = cid; });
-      });
-      const lastByClient = {};
-      try {
-        const { data: memos, error: e1 } = await supabase
-          .from('contact_memo_events')
-          .select('contact_id, created_at')
-          .eq('org_id', orgId)
-          .order('created_at', { ascending: false })
-          .limit(2000);
-        if (!e1 && Array.isArray(memos)) {
-          memos.forEach(m => {
-            const cid = contactToClient[m.contact_id];
-            if (!cid) return;
-            if (!lastByClient[cid] || m.created_at > lastByClient[cid]) lastByClient[cid] = m.created_at;
-          });
-        }
-      } catch (e) { console.warn('[CRM] memo lookup failed', e); }
-      try {
-        const { data: appos, error: e2 } = await supabase
-          .from('appointments')
-          .select('client_id, appointment_date, created_at')
-          .eq('org_id', orgId)
-          .order('appointment_date', { ascending: false })
-          .limit(2000);
-        if (!e2 && Array.isArray(appos)) {
-          appos.forEach(a => {
-            const ts = a.appointment_date || a.created_at;
-            const cid = a.client_id;
-            if (!cid || !ts) return;
-            if (!lastByClient[cid] || ts > lastByClient[cid]) lastByClient[cid] = ts;
-          });
-        }
-      } catch (e) { console.warn('[CRM] appointment lookup failed', e); }
-      if (!cancelled) setLastTouchByClient(lastByClient);
-    })();
-    return () => { cancelled = true; };
-  }, [contactsByClient]);
+  const orgId = getOrgId();
+
+  // 最終接点の元データを React Query で 5分キャッシュ
+  const memoQuery = useQuery({
+    queryKey: ['crm-memo-events', orgId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('contact_memo_events')
+        .select('contact_id, created_at')
+        .eq('org_id', orgId)
+        .order('created_at', { ascending: false })
+        .limit(2000);
+      if (error) { console.warn('[CRM] memo lookup failed', error); return []; }
+      return data || [];
+    },
+    enabled: !!orgId,
+  });
+
+  const appoQuery = useQuery({
+    queryKey: ['crm-appointments', orgId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('client_id, appointment_date, created_at')
+        .eq('org_id', orgId)
+        .order('appointment_date', { ascending: false })
+        .limit(2000);
+      if (error) { console.warn('[CRM] appointment lookup failed', error); return []; }
+      return data || [];
+    },
+    enabled: !!orgId,
+  });
+
+  // 最終接点 (clientId -> ISO timestamp) はメモから派生計算
+  const lastTouchByClient = useMemo(() => {
+    const contactToClient = {};
+    Object.entries(contactsByClient).forEach(([cid, list]) => {
+      (list || []).forEach(ct => { if (ct?.id) contactToClient[ct.id] = cid; });
+    });
+    const result = {};
+    (memoQuery.data || []).forEach(m => {
+      const cid = contactToClient[m.contact_id];
+      if (!cid) return;
+      if (!result[cid] || m.created_at > result[cid]) result[cid] = m.created_at;
+    });
+    (appoQuery.data || []).forEach(a => {
+      const ts = a.appointment_date || a.created_at;
+      const cid = a.client_id;
+      if (!cid || !ts) return;
+      if (!result[cid] || ts > result[cid]) result[cid] = ts;
+    });
+    return result;
+  }, [memoQuery.data, appoQuery.data, contactsByClient]);
 
   const filtered = clientData.filter(c => {
     if (statusFilter !== "all" && c.status !== statusFilter) return false;
