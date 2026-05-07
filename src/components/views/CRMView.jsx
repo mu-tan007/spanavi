@@ -1,22 +1,19 @@
 import { useState, useEffect } from 'react';
-import { C } from '../../constants/colors';
 import { updateClient, insertClient, deleteClient } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import useColumnConfig from '../../hooks/useColumnConfig';
-import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import PageHeader from '../common/PageHeader';
 import ClientDetailPage from './contacts/ClientDetailPage';
 import { dbFieldsToFe } from '../../utils/clientFieldsMap';
 import { insertClientContact as insertClientContactFn } from '../../lib/supabaseWrite';
-import {
-  NAVY, GRAY_200, GRAY_50, GOLD,
-  STATUS_LIST, statusStyle, contactLabel, lastTouchDisplay,
-  CRM_COLS_BASE, CRM_COLS_EDIT, CRM_COL_LABELS,
-} from './crm/utils';
+import { NAVY, CRM_COLS_BASE, CRM_COLS_EDIT } from './crm/utils';
 import RewardDetailModal from './crm/RewardDetailModal';
 import ClientFormModal from './crm/ClientFormModal';
+import CRMHeader from './crm/CRMHeader';
+import CRMStatusTabs from './crm/CRMStatusTabs';
+import CRMTable from './crm/CRMTable';
 
 export default function CRMView({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient, callListData = [] }) {
   const [statusFilter, setStatusFilter] = useState("支援中");
@@ -87,8 +84,6 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
     return () => { cancelled = true; };
   }, [contactsByClient]);
 
-  const statusList = STATUS_LIST;
-
   const filtered = clientData.filter(c => {
     if (statusFilter !== "all" && c.status !== statusFilter) return false;
     if (search && !c.company.includes(search) && !c.industry.includes(search)) return false;
@@ -110,8 +105,6 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
     if (rm.tiers.length === 1) return rm.tiers[0].memo;
     return rm.name;
   };
-
-  // 連絡手段はテキストラベルに統一（絵文字撤去）。contactLabel(c.contact) を使用
 
   const crmDefaultCols = setClientData ? CRM_COLS_EDIT : CRM_COLS_BASE;
   const { columns: crmCols, gridTemplateColumns: crmGrid, contentMinWidth: crmMinW, onResizeStart: crmResize, onHeaderContextMenu: crmCtxMenu, contextMenu: crmCtx, setAlign: crmSetAlign, resetAll: crmReset, closeMenu: crmClose } = useColumnConfig(setClientData ? 'crmViewEdit' : 'crmView', crmDefaultCols);
@@ -330,141 +323,40 @@ export default function CRMView({ isAdmin, clientData, setClientData, rewardMast
         />
       )}
 
-      {/* Header (list mode only) */}
-      {view === 'list' && (<>
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
-        padding: "14px 18px", background: '#fff', borderRadius: 4,
-        border: "1px solid " + GRAY_200,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>顧客管理（CRM）</span>
-          <span style={{ fontSize: 11, color: C.textLight }}>{filtered.length}社</span>
-        </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="企業名・業界..."
-            style={{ padding: "6px 12px", borderRadius: 4, border: "1px solid " + GRAY_200, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", width: 180 }} />
-          {setClientData && (
-            <button onClick={() => setAddForm({ status: '準備中', contract: '未', company: '', industry: '', target: 0, rewardType: '', paySite: '', payNote: '', listSrc: '', calendar: '', contact: '', noteFirst: '', googleCalendarId: '', clientEmail: '', schedulingUrl: '', slackWebhookUrl: '', slackWebhookUrlInternal: '', chatworkRoomId: '' })}
-              style={{ padding: "8px 16px", borderRadius: 4, border: "none", background: NAVY, color: '#fff', fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap" }}>
-              ＋ 新規顧客追加
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Status tabs */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
-        <button onClick={() => setStatusFilter("all")} style={{
-          padding: "6px 14px", borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'",
-          border: "1px solid " + (statusFilter === "all" ? NAVY : GRAY_200),
-          background: statusFilter === "all" ? NAVY : '#fff', color: statusFilter === "all" ? '#fff' : C.textMid,
-        }}>全て <span style={{ fontSize: 10, opacity: 0.7 }}>{clientData.length}</span></button>
-        {statusList.map(st => {
-          const sc = statusStyle(st);
-          const active = statusFilter === st;
-          return (
-            <button key={st} onClick={() => setStatusFilter(st)} style={{
-              padding: "6px 14px", borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'",
-              border: "1px solid " + (active ? sc.color : GRAY_200),
-              background: active ? sc.bg : '#fff', color: active ? sc.color : C.textMid,
-              display: "flex", alignItems: "center", gap: 4,
-            }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: sc.dot }}></span>
-              {st} <span style={{ fontSize: 10, opacity: 0.7 }}>{statusCounts[st] || 0}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Table */}
-      <div style={{ border: '1px solid ' + GRAY_200, borderRadius: 4, overflowX: "auto", overflowY: "hidden" }}>
-        <div style={{ minWidth: crmMinW }}>
-        <div style={{
-          display: "grid", gridTemplateColumns: crmGrid,
-          padding: "8px 16px", background: NAVY,
-          fontSize: 11, fontWeight: 600, color: '#fff',
-          verticalAlign: 'middle',
-        }}>
-          {CRM_COL_LABELS.map((label, idx) => (
-            <span key={label} style={{ position: 'relative', verticalAlign: 'middle', textAlign: crmCols[idx]?.align || 'left', paddingRight: 6 }} onContextMenu={e => crmCtxMenu(e, idx)}>
-              {label}
-              <ColumnResizeHandle colIndex={idx} onResizeStart={crmResize} />
-            </span>
-          ))}
-          {setClientData && <span></span>}
-        </div>
-        {filtered.length === 0 ? (
-          <div style={{ padding: "30px 0", textAlign: "center", color: C.textLight, fontSize: 12 }}>データがありません</div>
-        ) : filtered.map((c, i) => {
-          const sc = statusStyle(c.status);
-          const globalIdx = clientData.indexOf(c);
-          return (
-            <div key={i} style={{
-              display: "grid", gridTemplateColumns: crmGrid,
-              padding: "8px 16px", fontSize: 11, alignItems: "center",
-              borderBottom: '1px solid ' + GRAY_200,
-              background: i % 2 === 0 ? '#fff' : GRAY_50,
-              cursor: "pointer", transition: "background 0.15s",
-            }} onClick={() => goToDetail(c)}
-              onMouseEnter={e => e.currentTarget.style.background = "#EAF4FF"}
-              onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? '#fff' : GRAY_50}>
-              <span style={{
-                borderLeft: '3px solid ' + sc.color, paddingLeft: 8, color: sc.color, fontSize: 12,
-                display: "inline-block", width: "fit-content", textAlign: crmCols[0]?.align,
-              }}>{c.status}</span>
-              <span style={{ fontWeight: 600, color: NAVY, textAlign: crmCols[1]?.align }}>{c.company}</span>
-              <span style={{ color: C.textMid, fontSize: 10, textAlign: crmCols[2]?.align }}>{c.industry}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, fontWeight: 700, color: c.target > 0 ? NAVY : C.textLight, textAlign: crmCols[3]?.align, fontVariantNumeric: 'tabular-nums' }}>{c.target > 0 ? c.target + "件" : "-"}</span>
-              <span onClick={e => { e.stopPropagation(); setShowRewardDetail(c.rewardType); }} style={{
-                fontSize: 10, fontWeight: 600, color: NAVY, cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textAlign: crmCols[4]?.align,
-              }}>{c.rewardType ? c.rewardType + " " + getRewardSummary(c.rewardType).slice(0, 10) : "-"}</span>
-              <span style={{ fontSize: 10, color: C.textMid, textAlign: crmCols[5]?.align }}>{c.listSrc || "-"}</span>
-              <span style={{ fontSize: 10, color: C.textMid, textAlign: crmCols[6]?.align }}>{c.calendar || "-"}</span>
-              <span style={{ fontSize: 10, color: C.textMid, textAlign: crmCols[7]?.align }}>{contactLabel(c.contact)}</span>
-              {(() => {
-                const lt = lastTouchDisplay(lastTouchByClient[c._supaId]);
-                return (
-                  <span style={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: 10,
-                    fontVariantNumeric: 'tabular-nums',
-                    color: lt.stale ? GOLD : (lt.label === '-' ? C.textLight : C.textMid),
-                    fontWeight: lt.stale ? 700 : 400,
-                    textAlign: crmCols[8]?.align,
-                  }}>{lt.label}</span>
-                );
-              })()}
-              {(() => {
-                const list = contactsByClient[c._supaId] || [];
-                const primary = list.find(ct => ct.isPrimary) || list[0];
-                if (!primary) {
-                  return <span style={{ fontSize: 10, color: C.textLight, textAlign: crmCols[9]?.align }}>-</span>;
-                }
-                return (
-                  <span style={{
-                    fontSize: 10, color: NAVY, textAlign: crmCols[9]?.align,
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    {primary.isPrimary && (
-                      <span style={{
-                        fontSize: 8, fontWeight: 700, letterSpacing: 1,
-                        color: NAVY, border: '1px solid ' + NAVY,
-                        borderRadius: 2, padding: '1px 3px', flexShrink: 0,
-                      }}>主</span>
-                    )}
-                    <span style={{ fontWeight: 500 }}>{primary.name}</span>
-                  </span>
-                );
-              })()}
-              {setClientData && <span style={{ textAlign: "center" }}><button onClick={e => { e.stopPropagation(); setEditForm({ ...c, _idx: globalIdx }); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, padding: 2 }}>&#9998;</button></span>}
-            </div>
-          );
-        })}
-        </div>
-      </div>
-      </>)}
+      {/* List mode: header + tabs + table */}
+      {view === 'list' && (
+        <>
+          <CRMHeader
+            filteredCount={filtered.length}
+            search={search}
+            setSearch={setSearch}
+            onAddClient={initial => setAddForm(initial)}
+            isEditable={!!setClientData}
+          />
+          <CRMStatusTabs
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            statusCounts={statusCounts}
+            totalCount={clientData.length}
+          />
+          <CRMTable
+            filtered={filtered}
+            clientData={clientData}
+            isEditable={!!setClientData}
+            crmCols={crmCols}
+            crmGrid={crmGrid}
+            crmMinW={crmMinW}
+            crmCtxMenu={crmCtxMenu}
+            crmResize={crmResize}
+            lastTouchByClient={lastTouchByClient}
+            contactsByClient={contactsByClient}
+            getRewardSummary={getRewardSummary}
+            onRowClick={goToDetail}
+            onEditRow={(c, globalIdx) => setEditForm({ ...c, _idx: globalIdx })}
+            onShowReward={rid => setShowRewardDetail(rid)}
+          />
+        </>
+      )}
 
       {/* Toast */}
       {addToast && (
