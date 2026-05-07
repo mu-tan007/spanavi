@@ -120,11 +120,22 @@ export default function CRMKPIDashboard({ clientData = [], statusCounts = {} }) 
     [thisMonthAppos]
   );
 
-  const monthAppoCount = thisMonthAppos.length;
+  // 目標対比は「支援中」クライアントだけを対象に算出
+  const supportedClientIds = useMemo(
+    () => new Set(clientData.filter(c => c.status === '支援中').map(c => c._supaId)),
+    [clientData]
+  );
+
+  const monthAppoCount = useMemo(
+    () => thisMonthAppos.filter(a => supportedClientIds.has(a.client_id)).length,
+    [thisMonthAppos, supportedClientIds]
+  );
 
   const monthTargetTotal = useMemo(
-    () => monthlyTargets.reduce((sum, t) => sum + (t.target_count || 0), 0),
-    [monthlyTargets]
+    () => monthlyTargets
+      .filter(t => supportedClientIds.has(t.client_id))
+      .reduce((sum, t) => sum + (t.target_count || 0), 0),
+    [monthlyTargets, supportedClientIds]
   );
 
   const targetRatio = monthTargetTotal > 0

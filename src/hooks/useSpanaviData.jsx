@@ -139,6 +139,8 @@ export function useSpanaviData(authOrgId) {
         slackWebhookUrl: c.slack_webhook_url || '',
         slackWebhookUrlInternal: c.slack_webhook_url_internal || '',
         chatworkRoomId: c.chatwork_room_id || '',
+        statusChangedAt: c.status_changed_at || null,
+        nextContactAt: c.next_contact_at || null,
       }))
 
       // members → 既存DEFAULT_MEMBERSフォーマット（名前のリスト）

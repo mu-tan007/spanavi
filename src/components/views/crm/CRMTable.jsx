@@ -14,10 +14,10 @@ export default function CRMTable({
   crmResize,
   lastTouchByClient,
   contactsByClient,
-  getRewardSummary,
+  monthAppoCountByClient,
+  monthTargetByClient,
   onRowClick,
   onEditRow,
-  onShowReward,
 }) {
   return (
     <div style={{ border: '1px solid ' + GRAY_200, borderRadius: 4, overflowX: 'auto', overflowY: 'hidden' }}>
@@ -62,10 +62,10 @@ export default function CRMTable({
               isEditable={isEditable}
               lastTouchByClient={lastTouchByClient}
               contactsByClient={contactsByClient}
-              getRewardSummary={getRewardSummary}
+              monthAppoCountByClient={monthAppoCountByClient}
+              monthTargetByClient={monthTargetByClient}
               onRowClick={onRowClick}
               onEditRow={onEditRow}
-              onShowReward={onShowReward}
             />
           ))
         )}

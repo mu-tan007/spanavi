@@ -80,7 +80,9 @@ export default function MonthlyTargetsView({ clientData = [] }) {
     return totals;
   }, [targets, months]);
 
+  // 月別目標は「支援中」ステータスのクライアントのみ表示
   const filtered = clientData.filter(c => {
+    if (c.status !== '支援中') return false;
     if (search && !c.company.includes(search) && !c.industry.includes(search)) return false;
     return true;
   });

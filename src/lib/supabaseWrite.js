@@ -198,10 +198,23 @@ export async function updateClient(supaId, data) {
       chatwork_room_id: data.chatworkRoomId ?? undefined,
       // ステータス変更時のみ更新（呼び出し側で statusChangedAt を渡したときだけ反映）
       status_changed_at: data.statusChangedAt ?? undefined,
+      // 次回接点予定日（呼び出し側が明示的に渡したときだけ反映、null可）
+      next_contact_at: data.nextContactAt === undefined ? undefined : data.nextContactAt,
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateClient error:', error)
   return error
+}
+
+// 次回接点予定日のみ更新する軽量API（クライアント詳細ページから単独で呼ぶ）
+export async function updateClientNextContactAt(supaId, nextContactAt) {
+  if (!supaId) return { error: new Error('no supaId') }
+  const { error } = await supabase
+    .from('clients')
+    .update({ next_contact_at: nextContactAt })
+    .eq('id', supaId)
+  if (error) console.error('[DB] updateClientNextContactAt error:', error)
+  return { error }
 }
 
 export async function updateClientCalendarId(supaId, googleCalendarId) {
