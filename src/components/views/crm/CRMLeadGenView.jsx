@@ -106,7 +106,7 @@ function ListsTable({ lists, onSelect, onDelete }) {
   );
 }
 
-export default function CRMLeadGenView({ currentUser, members = [] }) {
+export default function CRMLeadGenView({ currentUser, members = [], setClientData }) {
   const queryClient = useQueryClient();
   const [importOpen, setImportOpen] = useState(false);
   const [selectedListId, setSelectedListId] = useState(null);
@@ -146,6 +146,7 @@ export default function CRMLeadGenView({ currentUser, members = [] }) {
         list={selected}
         currentUser={currentUser}
         members={members}
+        setClientData={setClientData}
         onBack={() => setSelectedListId(null)}
       />
     );

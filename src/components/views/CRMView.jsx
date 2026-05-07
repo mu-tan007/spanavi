@@ -443,7 +443,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
 
       {/* 新規開拓ボード */}
       {view === 'leadgen' && (
-        <CRMLeadGenView currentUser={currentUser} />
+        <CRMLeadGenView currentUser={currentUser} setClientData={setClientData} />
       )}
 
       {/* 詳細ページモード */}

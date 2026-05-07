@@ -115,7 +115,7 @@ function ScriptEditor({ list }) {
   );
 }
 
-export default function CRMLeadListDetailView({ list, currentUser, members = [], onBack }) {
+export default function CRMLeadListDetailView({ list, currentUser, members = [], setClientData, onBack }) {
   const queryClient = useQueryClient();
   const [callingOpen, setCallingOpen] = useState(false);
 
@@ -167,6 +167,7 @@ export default function CRMLeadListDetailView({ list, currentUser, members = [],
         companies={companies}
         records={records}
         currentUser={currentUser}
+        setClientData={setClientData}
         onClose={() => {
           setCallingOpen(false);
           queryClient.invalidateQueries({ queryKey: ['crm-lead-records', list.id] });
