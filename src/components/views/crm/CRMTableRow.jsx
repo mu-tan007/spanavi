@@ -2,6 +2,7 @@ import { C } from '../../../constants/colors';
 import {
   NAVY, GRAY_200, GRAY_50, GOLD,
   statusStyle, lastTouchDisplay, nextActionFor,
+  priorityScore, priorityRank,
 } from './utils';
 
 // 'YYYY-MM-DD' or ISO → 'M/D' / 過去なら赤
@@ -31,6 +32,7 @@ export default function CRMTableRow({
   contactsByClient,
   monthAppoCountByClient = {},
   monthTargetByClient = {},
+  maxMonthTarget = 0,
   onRowClick,
   onEditRow,
 }) {
@@ -63,6 +65,15 @@ export default function CRMTableRow({
     monthAppoCount,
   });
 
+  // 優先度スコア
+  const score = priorityScore(c, {
+    lastTouchAt: lastTouchByClient[c._supaId],
+    monthAppoCount,
+    monthTarget,
+    maxMonthTarget,
+  });
+  const rank = priorityRank(score);
+
   return (
     <div
       style={{
@@ -82,11 +93,32 @@ export default function CRMTableRow({
         display: 'inline-block', width: 'fit-content', textAlign: crmCols[0]?.align,
       }}>{c.status}</span>
 
-      {/* 2. 企業名 */}
+      {/* 2. 企業名（優先度バッジ付き） */}
       <span style={{
-        fontWeight: 600, color: NAVY, textAlign: crmCols[1]?.align,
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      }}>{c.company}</span>
+        textAlign: crmCols[1]?.align,
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        overflow: 'hidden', whiteSpace: 'nowrap',
+      }}>
+        <span
+          title={`優先度スコア ${score}（高80+ / 中50+ / 低<50）`}
+          style={{
+            fontSize: 8, fontWeight: 700,
+            color: rank.color,
+            border: '1px solid ' + rank.color,
+            borderRadius: 2, padding: '1px 4px',
+            flexShrink: 0,
+            fontFamily: "'JetBrains Mono', monospace",
+            fontVariantNumeric: 'tabular-nums',
+            minWidth: 22, textAlign: 'center',
+          }}
+        >
+          {score}
+        </span>
+        <span style={{
+          fontWeight: 600, color: NAVY,
+          overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>{c.company}</span>
+      </span>
 
       {/* 3. 最終接点 */}
       <span style={{

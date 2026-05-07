@@ -140,9 +140,39 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     return map;
   }, [monthlyTargetsQuery.data]);
 
+  // 全クライアント中の最大月間目標（優先度スコアの規模ファクター）
+  const maxMonthTarget = useMemo(
+    () => Math.max(0, ...Object.values(monthTargetByClient)),
+    [monthTargetByClient]
+  );
+
+  // アラートフィルタ ('overdue' | 'expired' | null)
+  const [alertFilter, setAlertFilter] = useState(null);
+
+  // フォロー漏れ判定: 最終接点 30日以上前 or 一度も接点なし（架電履歴・アポ・メモのいずれもない）
+  const isOverdue = (c) => {
+    const ts = lastTouchByClient[c._supaId];
+    if (!ts) return true;  // 接点なし = フォロー漏れ
+    const days = Math.floor((Date.now() - new Date(ts).getTime()) / (1000 * 60 * 60 * 24));
+    return days >= 30;
+  };
+
+  // 予定日超過判定: 「面談予定」ステータスで next_contact_at が過去
+  const isExpired = (c) => {
+    if (c.status !== '面談予定') return false;
+    if (!c.nextContactAt) return false;
+    return new Date(c.nextContactAt).getTime() < Date.now();
+  };
+
+  // バッジ件数（statusFilter は無視して全クライアントから集計）
+  const overdueCount = clientData.filter(isOverdue).length;
+  const expiredCount = clientData.filter(isExpired).length;
+
   const filtered = clientData.filter(c => {
     if (statusFilter !== "all" && c.status !== statusFilter) return false;
     if (search && !c.company.includes(search) && !c.industry.includes(search)) return false;
+    if (alertFilter === 'overdue' && !isOverdue(c)) return false;
+    if (alertFilter === 'expired' && !isExpired(c)) return false;
     return true;
   });
 
@@ -423,6 +453,10 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
             setSearch={setSearch}
             onAddClient={initial => setAddForm(initial)}
             isEditable={!!setClientData}
+            overdueCount={overdueCount}
+            expiredCount={expiredCount}
+            alertFilter={alertFilter}
+            setAlertFilter={setAlertFilter}
           />
           <CRMStatusTabs
             statusFilter={statusFilter}
@@ -443,6 +477,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
             contactsByClient={contactsByClient}
             monthAppoCountByClient={monthAppoCountByClient}
             monthTargetByClient={monthTargetByClient}
+            maxMonthTarget={maxMonthTarget}
             onRowClick={goToDetail}
             onEditRow={(c, globalIdx) => setEditForm({ ...c, _idx: globalIdx })}
           />
