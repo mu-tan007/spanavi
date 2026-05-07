@@ -132,8 +132,14 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   const handleSaveEdit = async () => {
     if (!editForm || !setClientData) return;
     const idx = editForm._idx;
+    const oldStatus = clientData[idx]?.status;
     const updated = { ...editForm };
     delete updated._idx;
+    // ステータスが変わったら変更日時を記録
+    const statusChanged = oldStatus !== updated.status;
+    if (statusChanged) {
+      updated.statusChangedAt = new Date().toISOString();
+    }
     if (updated._supaId) {
       const error = await updateClient(updated._supaId, updated);
       if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }

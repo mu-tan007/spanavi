@@ -5,35 +5,10 @@ import {
   fetchClientMonthlyTargets,
   upsertClientMonthlyTarget,
 } from '../../../lib/supabaseWrite';
-import { NAVY, GRAY_200, GRAY_50 } from './utils';
-
-// 当月の 'YYYY-MM' を取得
-function currentYearMonth() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
-// 中心月から前後の月配列を生成
-function getMonthRange(centerYM, monthsBefore, monthsAfter) {
-  const [y, m] = centerYM.split('-').map(Number);
-  const result = [];
-  for (let i = -monthsBefore; i <= monthsAfter; i++) {
-    const date = new Date(y, m - 1 + i, 1);
-    const yy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    result.push(`${yy}-${mm}`);
-  }
-  return result;
-}
-
-// '2026-05' → '5月' / 年が変わるところは '2027/1月'
-function formatMonthLabel(ym, prevYm) {
-  const [y, m] = ym.split('-');
-  const ym2 = ym.slice(5).replace(/^0/, '') + '月';
-  if (!prevYm) return `${y.slice(2)}/${ym2}`;
-  if (prevYm.slice(0, 4) !== y) return `${y.slice(2)}/${ym2}`;
-  return ym2;
-}
+import {
+  NAVY, GRAY_200, GRAY_50,
+  currentYearMonth, getMonthRange, formatMonthLabel,
+} from './utils';
 
 function CellInput({ value, isCurrent, onSave }) {
   const [val, setVal] = useState(value ?? '');

@@ -98,14 +98,9 @@ export default function ClientFormModal({
               />
             </div>
 
-            <div>
+            <div style={{ gridColumn: '1 / -1' }}>
               <label style={labelStyle}>業界</label>
               <input value={form.industry || ''} onChange={e => u('industry', e.target.value)} style={inputStyle} />
-            </div>
-
-            <div>
-              <label style={labelStyle}>供給目標（件/月）</label>
-              <input type="number" value={form.target ?? 0} onChange={e => u('target', Number(e.target.value))} style={inputStyle} />
             </div>
 
             <div>

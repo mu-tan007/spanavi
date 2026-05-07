@@ -163,6 +163,7 @@ export async function insertClient(data) {
       slack_webhook_url: data.slackWebhookUrl || null,
       slack_webhook_url_internal: data.slackWebhookUrlInternal || null,
       chatwork_room_id: data.chatworkRoomId || null,
+      status_changed_at: new Date().toISOString(),
     })
     .select()
     .single()
@@ -195,6 +196,8 @@ export async function updateClient(supaId, data) {
       slack_webhook_url: data.slackWebhookUrl ?? undefined,
       slack_webhook_url_internal: data.slackWebhookUrlInternal ?? undefined,
       chatwork_room_id: data.chatworkRoomId ?? undefined,
+      // ステータス変更時のみ更新（呼び出し側で statusChangedAt を渡したときだけ反映）
+      status_changed_at: data.statusChangedAt ?? undefined,
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateClient error:', error)
