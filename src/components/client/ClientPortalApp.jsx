@@ -6,6 +6,7 @@ import { C } from '../../constants/colors';
 import ClientDealsView from './ClientDealsView';
 import ClientSetPasswordPage from './ClientSetPasswordPage';
 import SpanaviLogo from '../common/SpanaviLogo';
+import { RecordingPlayerProvider } from '../common/RecordingPlayerProvider';
 
 // ログイン済みクライアント専用の最小シェル。
 // - user_metadata.role === 'client' でなければ /login へ戻す (社内ログイン)
@@ -64,6 +65,7 @@ export default function ClientPortalApp() {
   }
 
   return (
+    <RecordingPlayerProvider>
     <div style={{ minHeight: '100vh', background: C.offWhite, fontFamily: "'Noto Sans JP', sans-serif" }}>
       {/* シンプルなトップバー */}
       <header style={{
@@ -95,6 +97,7 @@ export default function ClientPortalApp() {
         <ClientDealsView client={client} />
       </main>
     </div>
+    </RecordingPlayerProvider>
   );
 }
 

@@ -16,6 +16,7 @@ import PiPWidget from './common/PiPWidget';
 import EngagementHeader from './common/EngagementHeader';
 import { EngagementProvider, useEngagements } from '../hooks/useEngagements';
 import { MemberProfileProvider } from './common/MemberProfileDrawer';
+import { RecordingPlayerProvider } from './common/RecordingPlayerProvider';
 import MASPSidebar from './common/sidebars/MASPSidebar';
 import SpartiaCareerSidebar from './common/sidebars/SpartiaCareerSidebar';
 import SpartiaCapitalSidebar from './common/sidebars/SpartiaCapitalSidebar';
@@ -1339,7 +1340,9 @@ export default function SpanaviApp(props) {
   return (
     <EngagementProvider>
       <MemberProfileProvider currentUserId={props.userId} isAdmin={props.isAdmin}>
-        <SpanaviAppInner {...props} />
+        <RecordingPlayerProvider>
+          <SpanaviAppInner {...props} />
+        </RecordingPlayerProvider>
       </MemberProfileProvider>
     </EngagementProvider>
   );

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { C } from '../../../constants/colors';
 import { fetchAllRpc } from '../../../lib/fetchAllRpc';
+import { PlayRecordingButton } from '../../common/RecordingPlayerProvider';
 
 const PAGE_SIZE = 100;
 
@@ -193,12 +194,13 @@ export default function ListApproachPage({ list, orgId, onBack }) {
                               <span style={{ color: statusColor(c.status), fontWeight: 500 }}>{c.status || '—'}</span>
                               {c.getter_name && <span style={{ fontSize: 9, color: C.textLight }}>{c.getter_name}</span>}
                               {c.recording_url && (
-                                <audio
-                                  controls
-                                  preload="none"
-                                  src={c.recording_url}
-                                  style={{ width: 160, height: 28, marginTop: 2 }}
-                                />
+                                <div style={{ marginTop: 2 }}>
+                                  <PlayRecordingButton
+                                    url={c.recording_url}
+                                    title={it.company || ''}
+                                    subtitle={`${i + 1}回目 ${c.called_at ? new Date(c.called_at).toLocaleDateString('ja-JP') : ''} ・ ${c.status || ''}`}
+                                  />
+                                </div>
                               )}
                             </div>
                           </td>
