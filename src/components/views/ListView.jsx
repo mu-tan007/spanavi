@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card } from '../ui';
 import { updateCallList, insertCallList, archiveCallList, restoreCallList } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
 import useColumnConfig from '../../hooks/useColumnConfig';
@@ -10,13 +12,14 @@ import TopListCard, { ProgressPill } from '../common/TopListCard';
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
-const Badge = ({ children, color = C.navy, glow = false, small = false }) => (
+const TypeBadge = ({ children, color: tone = color.navy, glow = false, small = false }) => (
   <span style={{
     display: "inline-flex", alignItems: "center", gap: 4,
     padding: small ? "1px 7px" : "2px 10px",
-    borderRadius: 4, fontSize: small ? 10 : 11, fontWeight: 600, letterSpacing: 0.3,
-    color, background: glow ? color + "14" : "transparent",
-    border: "1px solid " + color + "30", whiteSpace: "nowrap",
+    borderRadius: radius.md, fontSize: small ? 10 : font.size.xs,
+    fontWeight: font.weight.semibold, letterSpacing: 0.3,
+    color: tone, background: glow ? alpha(tone, 0.08) : "transparent",
+    border: `1px solid ${alpha(tone, 0.19)}`, whiteSpace: "nowrap",
   }}>{children}</span>
 );
 
@@ -31,10 +34,10 @@ const ScorePill = ({ score }) => {
   return (
     <span style={{
       display: "inline-flex", alignItems: "center",
-      padding: "2px 8px", borderRadius: 4,
+      padding: "2px 8px", borderRadius: radius.md,
       background: s.background, border: s.border,
-      fontSize: 10, fontWeight: 700, color: s.color,
-      fontFamily: "'JetBrains Mono', monospace",
+      fontSize: 10, fontWeight: font.weight.bold, color: s.color,
+      fontFamily: font.family.mono,
       letterSpacing: "0.05em", flexShrink: 0, whiteSpace: "nowrap",
     }}>SCORE {score}</span>
   );
@@ -143,14 +146,14 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   };
 
   const inputStyle = {
-    padding: "8px 12px", borderRadius: 6,
-    background: C.white, border: "1px solid " + C.border,
-    color: C.textDark, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none",
+    padding: "8px 12px", borderRadius: radius.lg,
+    background: color.white, border: `1px solid ${color.border}`,
+    color: color.textDark, fontSize: font.size.sm, fontFamily: font.family.sans, outline: "none",
   };
   const formInputStyle = {
-    padding: "10px 14px", borderRadius: 6,
-    background: C.offWhite, border: "1px solid " + C.border,
-    color: C.textDark, fontSize: 13, fontFamily: "'Noto Sans JP'", outline: "none", width: "100%",
+    padding: "10px 14px", borderRadius: radius.lg,
+    background: color.offWhite, border: `1px solid ${color.border}`,
+    color: color.textDark, fontSize: font.size.base, fontFamily: font.family.sans, outline: "none", width: "100%",
   };
 
   return (
@@ -161,49 +164,41 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         description="架電リスト管理"
         style={{ marginBottom: 24 }}
         right={onOpenIndustryRules ? (
-          <button
-            onClick={onOpenIndustryRules}
-            style={{
-              padding: '7px 14px', fontSize: 12, fontWeight: 600,
-              background: C.white, color: C.navy,
-              border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer',
-              fontFamily: "'Noto Sans JP',sans-serif",
-            }}
-          >業種別ルールを開く</button>
+          <Button variant="secondary" size="sm" onClick={onOpenIndustryRules}>業種別ルールを開く</Button>
         ) : null}
       />
       {/* 時間外メッセージ */}
       {now && (now.getHours() < 7 || now.getHours() >= 20) && (
-        <div style={{ background: "#fff", borderRadius: 4, padding: "14px 20px", marginBottom: 16, border: "1px solid #E5E7EB", borderLeft: "4px solid " + C.textLight, display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 13 }}>夜</span>
-          <span style={{ fontSize: 12, color: C.textMid, fontWeight: 600 }}>この時間帯は架電時間外です</span>
-          <span style={{ fontSize: 10, color: C.textLight }}>（7:00〜20:00が架電推奨時間帯）</span>
+        <div style={{ background: color.white, borderRadius: radius.md, padding: "14px 20px", marginBottom: space[4], border: `1px solid ${color.border}`, borderLeft: `4px solid ${color.textLight}`, display: "flex", alignItems: "center", gap: space[2] }}>
+          <span style={{ fontSize: font.size.base }}>夜</span>
+          <span style={{ fontSize: font.size.sm, color: color.textMid, fontWeight: font.weight.semibold }}>この時間帯は架電時間外です</span>
+          <span style={{ fontSize: 10, color: color.textLight }}>（7:00〜20:00が架電推奨時間帯）</span>
         </div>
       )}
 
       {/* Recommendation Banner */}
       {topRecommended.length > 0 && showRec && !(now && (now.getHours() < 7 || now.getHours() >= 20)) && (
         <div style={{
-          background: "#fff", borderRadius: 4, padding: isMobile ? "10px 12px" : "16px 20px", marginBottom: 16,
-          border: "1px solid #E5E7EB", borderLeft: "2px solid #1E40AF",
+          background: color.white, borderRadius: radius.md, padding: isMobile ? "10px 12px" : "16px 20px", marginBottom: space[4],
+          border: `1px solid ${color.border}`, borderLeft: "2px solid #1E40AF",
         }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.green, animation: "pulse 2s infinite" }} />
-              <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>現在のおすすめリスト</span>
-              <span style={{ fontSize: 10, color: C.textLight }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: space[3] }}>
+            <div style={{ display: "flex", alignItems: "center", gap: space[2] }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: color.success, animation: "pulse 2s infinite" }} />
+              <span style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>現在のおすすめリスト</span>
+              <span style={{ fontSize: 10, color: color.textLight }}>
                 {now ? (DAY_NAMES[now.getDay()] + "曜日 " + now.getHours() + "時台") : ""}
               </span>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "#1E40AF", background: "#EFF6FF", padding: "1px 8px", borderRadius: 8 }}>
+              <span style={{ fontSize: 10, fontWeight: font.weight.bold, color: "#1E40AF", background: "#EFF6FF", padding: "1px 8px", borderRadius: 8 }}>
                 {topRecommended.length}件
               </span>
             </div>
             <button onClick={() => setShowRec(false)} style={{
               background: "transparent", border: "none", cursor: "pointer",
-              fontSize: 14, color: C.textLight, padding: "2px 6px",
+              fontSize: 14, color: color.textLight, padding: "2px 6px",
             }}>×</button>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: space[2.5] }}>
             {topRecommended.map(list => (
               <TopListCard key={list.id} list={list} onClick={() => setSelectedList(list.id)} />
             ))}
@@ -212,26 +207,26 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       )}
 
       {/* Filter Tabs */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+      <div style={{ display: "flex", gap: space[2], marginBottom: space[3] }}>
         {[['active', 'アクティブのみ'], ['archived', 'アーカイブのみ'], ['all', '全て表示']].map(([val, label]) => (
           <button key={val} onClick={() => setDisplayFilter(val)} style={{
-            padding: "6px 16px", borderRadius: 4, fontSize: 12, fontWeight: 600,
-            cursor: "pointer", transition: "all 0.15s", fontFamily: "'Noto Sans JP'",
+            padding: "6px 16px", borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold,
+            cursor: "pointer", transition: "all 0.15s", fontFamily: font.family.sans,
             ...(displayFilter === val
-              ? { background: "#0D2247", color: "#fff", border: "1px solid #0D2247" }
-              : { background: "#fff", color: "#6B7280", border: "1px solid #E5E7EB" }),
+              ? { background: color.navy, color: color.white, border: `1px solid ${color.navy}` }
+              : { background: color.white, color: color.textMid, border: `1px solid ${color.border}` }),
           }}
-          onMouseEnter={e => { if (displayFilter !== val) e.currentTarget.style.background = "#F9FAFB"; }}
-          onMouseLeave={e => { if (displayFilter !== val) e.currentTarget.style.background = "#fff"; }}
+          onMouseEnter={e => { if (displayFilter !== val) e.currentTarget.style.background = color.gray50; }}
+          onMouseLeave={e => { if (displayFilter !== val) e.currentTarget.style.background = color.white; }}
           >{label}</button>
         ))}
       </div>
 
       {/* Filters */}
       <div style={{
-        display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center",
-        padding: isMobile ? "10px 12px" : "14px 18px", background: "#fff", borderRadius: 4,
-        border: "1px solid #E5E7EB",
+        display: "flex", gap: space[2.5], marginBottom: space[5], flexWrap: "wrap", alignItems: "center",
+        padding: isMobile ? "10px 12px" : "14px 18px", background: color.white, borderRadius: radius.md,
+        border: `1px solid ${color.border}`,
       }}>
         <input type="text" placeholder="企業名・業種・担当者で検索..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ ...inputStyle, flex: "1 1 200px", minWidth: 180 }} />
         {(() => {
@@ -247,11 +242,11 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                 const isActive = label === '全ステータス' ? isAll : filterStatus.includes(label);
                 return (
                   <button key={label} onClick={() => toggleStatus(label)} style={{
-                    padding: '5px 10px', borderRadius: 4, cursor: 'pointer',
-                    fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-                    background: isActive ? '#0D2247' : '#F8F9FA',
-                    color: isActive ? '#fff' : '#6B7280',
-                    border: '1px solid ' + (isActive ? '#0D2247' : '#E5E7EB'),
+                    padding: '5px 10px', borderRadius: radius.md, cursor: 'pointer',
+                    fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
+                    background: isActive ? color.navy : color.cream,
+                    color: isActive ? color.white : color.textMid,
+                    border: `1px solid ${isActive ? color.navy : color.border}`,
                     transition: 'all 0.12s', whiteSpace: 'nowrap',
                   }}>{label}</button>
                 );
@@ -270,33 +265,31 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
           <option value="date">日付順</option>
           <option value="manager">担当者別</option>
         </select>
-        <span style={{ fontSize: 11, color: C.textLight, fontWeight: 600, fontFamily: "'JetBrains Mono'" }}>{displayFilter === 'archived' ? callListData.filter(l => l.is_archived).length : displayFilter === 'all' ? filteredLists.length + callListData.filter(l => l.is_archived).length : filteredLists.length}件</span>
-        {isAdmin && <button onClick={handleOpenAdd} style={{
-          padding: "8px 18px", borderRadius: 4, marginLeft: "auto",
-          background: "#0D2247",
-          border: "none", color: "#fff", cursor: "pointer",
-          fontSize: 12, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-          whiteSpace: "nowrap",
-        }}>＋ リスト追加</button>}
+        <span style={{ fontSize: font.size.xs, color: color.textLight, fontWeight: font.weight.semibold, fontFamily: font.family.mono }}>{displayFilter === 'archived' ? callListData.filter(l => l.is_archived).length : displayFilter === 'all' ? filteredLists.length + callListData.filter(l => l.is_archived).length : filteredLists.length}件</span>
+        {isAdmin && (
+          <div style={{ marginLeft: 'auto' }}>
+            <Button variant="primary" size="sm" onClick={handleOpenAdd}>＋ リスト追加</Button>
+          </div>
+        )}
       </div>
 
       {/* Add/Edit Form */}
       {listFormOpen && (
         <div style={{
-          background: "#fff", border: "1px solid #E5E7EB", borderRadius: 4,
-          padding: isMobile ? 14 : 24, marginBottom: 20, animation: "fadeIn 0.2s ease",
-          borderLeft: "2px solid #0D2247",
+          background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
+          padding: isMobile ? 14 : 24, marginBottom: space[5], animation: "fadeIn 0.2s ease",
+          borderLeft: `2px solid ${color.navy}`,
         }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{editingListId !== null ? "リストを編集" : "新しいリストを追加"}</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: space[4] }}>
+            <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>{editingListId !== null ? "リストを編集" : "新しいリストを追加"}</div>
             <button onClick={() => { setListFormOpen(false); setEditingListId(null); }} style={{
-              width: 28, height: 28, borderRadius: 6, background: C.offWhite,
-              border: "1px solid " + C.border, color: C.textMid, cursor: "pointer", fontSize: 14,
+              width: 28, height: 28, borderRadius: radius.lg, background: color.offWhite,
+              border: `1px solid ${color.border}`, color: color.textMid, cursor: "pointer", fontSize: 14,
             }}>✕</button>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 14 }}>
             <div style={{ gridColumn: "span 2" }}>
-              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>クライアント企業名 *</label>
+              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>クライアント企業名 *</label>
               <select value={formData.company} onChange={e => setFormData(p => ({ ...p, company: e.target.value, contactIds: [], manager: '' }))} style={formInputStyle}>
                 <option value="">クライアントを選択...</option>
                 {clientOptions.map(c => (
@@ -307,7 +300,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
               </select>
             </div>
             <div>
-              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>種別</label>
+              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>種別</label>
               <select value={formData.type} onChange={e => setFormData(p => ({ ...p, type: e.target.value }))} style={formInputStyle}>
                 <option value="M&A仲介">M&A仲介</option>
                 <option value="IFA">IFA</option>
@@ -316,22 +309,22 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
               </select>
             </div>
             <div>
-              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>業種 *</label>
+              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>業種 *</label>
               <input value={formData.industry} onChange={e => setFormData(p => ({ ...p, industry: e.target.value }))} style={formInputStyle} placeholder="例: 建設" />
             </div>
             <div>
-              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>リスト社数 *</label>
+              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>リスト社数 *</label>
               <input type="number" value={formData.count} onChange={e => setFormData(p => ({ ...p, count: e.target.value }))} style={formInputStyle} placeholder="例: 1000" />
             </div>
             <div>
-              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>クライアント担当者</label>
+              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>クライアント担当者</label>
               {(() => {
                 const selectedClient = clientOptions.find(c => c.company === formData.company);
                 const contacts = selectedClient ? (contactsByClient[selectedClient._supaId] || []) : [];
                 return contacts.length > 0 ? (
                   <div style={{ ...formInputStyle, display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 14px' }}>
                     {contacts.map(ct => (
-                      <label key={ct.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'pointer' }}>
+                      <label key={ct.id} style={{ display: 'flex', alignItems: 'center', gap: space[2], fontSize: font.size.sm, cursor: 'pointer' }}>
                         <input
                           type="checkbox"
                           checked={(formData.contactIds || []).includes(ct.id)}
@@ -342,12 +335,12 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                             const names = ids.map(id => contacts.find(c => c.id === id)?.name || '').filter(Boolean).join(', ');
                             setFormData(p => ({ ...p, contactIds: ids, manager: names }));
                           }}
-                          style={{ accentColor: C.navy }}
+                          style={{ accentColor: color.navy }}
                         />
-                        <span style={{ color: C.textDark }}>{ct.name}</span>
+                        <span style={{ color: color.textDark }}>{ct.name}</span>
                       </label>
                     ))}
-                    {contacts.length === 0 && <span style={{ fontSize: 11, color: C.textLight }}>担当者未登録</span>}
+                    {contacts.length === 0 && <span style={{ fontSize: font.size.xs, color: color.textLight }}>担当者未登録</span>}
                   </div>
                 ) : (
                   <input value={formData.manager} onChange={e => setFormData(p => ({ ...p, manager: e.target.value }))} style={formInputStyle} placeholder="例: 田中（CRMで担当者を登録すると選択可能）" />
@@ -355,7 +348,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
               })()}
             </div>
 <div style={{ gridColumn: "span 3" }}>
-              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>企業概要</label>
+              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>企業概要</label>
               <textarea
                 value={formData.companyInfo}
                 onChange={e => setFormData(p => ({ ...p, companyInfo: e.target.value }))}
@@ -364,7 +357,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
               />
             </div>
             <div style={{ gridColumn: "span 3" }}>
-              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>スクリプト <span style={{ fontSize: 9, color: '#9CA3AF', fontWeight: 400 }}>（Scriptsページでマーカー編集可）</span></label>
+              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>スクリプト <span style={{ fontSize: 9, color: color.gray400, fontWeight: font.weight.normal }}>（Scriptsページでマーカー編集可）</span></label>
               <textarea
                 value={formData.scriptBody}
                 onChange={e => setFormData(p => ({ ...p, scriptBody: e.target.value }))}
@@ -373,41 +366,40 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
               />
             </div>
             <div style={{ gridColumn: "span 2" }}>
-              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>注意事項</label>
+              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>注意事項</label>
               <textarea value={formData.cautions} onChange={e => setFormData(p => ({ ...p, cautions: e.target.value }))} style={{ ...formInputStyle, minHeight: 50, resize: "vertical" }} placeholder="架電時の注意事項を入力..." />
             </div>
             <div>
-              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>備考</label>
+              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>備考</label>
               <textarea value={formData.notes} onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))} style={{ ...formInputStyle, minHeight: 50, resize: "vertical" }} placeholder="任意" />
             </div>
           </div>
-          <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
-            <button onClick={handleSave} disabled={!formData.company || !formData.industry || !formData.count} style={{
-              padding: "10px 28px", borderRadius: 4,
-              background: formData.company && formData.industry && formData.count ? '#0D2247' : C.border,
-              border: "none", color: "#fff",
-              cursor: formData.company && formData.industry && formData.count ? "pointer" : "not-allowed",
-              fontSize: 13, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-            }}>{editingListId !== null ? "更新する" : "追加する"}</button>
-            <button onClick={() => { setListFormOpen(false); setEditingListId(null); }} style={{
-              padding: "10px 20px", borderRadius: 4,
-              background: "#fff", border: "1px solid #0D2247",
-              color: "#0D2247", cursor: "pointer", fontSize: 13, fontFamily: "'Noto Sans JP'",
-            }}>キャンセル</button>
+          <div style={{ marginTop: space[4], display: "flex", gap: space[2.5] }}>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={handleSave}
+              disabled={!formData.company || !formData.industry || !formData.count}
+            >{editingListId !== null ? "更新する" : "追加する"}</Button>
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => { setListFormOpen(false); setEditingListId(null); }}
+            >キャンセル</Button>
           </div>
         </div>
       )}
 
       {/* Table */}
       <div style={{
-        background: "#fff", border: "1px solid #E5E7EB",
-        borderRadius: 4, overflowX: "auto", overflowY: "hidden",
+        background: color.white, border: `1px solid ${color.border}`,
+        borderRadius: radius.md, overflowX: "auto", overflowY: "hidden",
       }}>
         <div style={{ minWidth: lvMinW }}>
         <div style={{
           display: "grid", gridTemplateColumns: lvGrid,
-          padding: isMobile ? "6px 10px" : "8px 16px", background: "#0D2247",
-          fontSize: isMobile ? 10 : 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
+          padding: isMobile ? "6px 10px" : "8px 16px", background: color.navy,
+          fontSize: isMobile ? 10 : font.size.xs, fontWeight: font.weight.semibold, color: color.white, verticalAlign: 'middle',
         }}>
           {['クライアント', '種別', '業種', '社数', '担当者', '架電進捗率', 'おすすめ度', ''].map((label, i) => (
             <span key={i} style={{ position: 'relative', textAlign: lvCols[i]?.align || 'left', minWidth: 0, cursor: 'default', userSelect: 'none' }}>
@@ -428,13 +420,13 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
             return Object.entries(grouped).map(([client, lists]) => (
               <div key={client}>
                 <div style={{
-                  padding: "6px 16px", background: C.navy + "08",
-                  borderBottom: "1px solid " + C.borderLight,
-                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "6px 16px", background: alpha(color.navy, 0.03),
+                  borderBottom: `1px solid ${color.borderLight}`,
+                  display: "flex", alignItems: "center", gap: space[2],
                   position: "sticky", top: 0, zIndex: 1,
                 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: C.navy }}>{client}</span>
-                  <span style={{ fontSize: 10, color: C.textLight }}>{lists.length}リスト・{lists.reduce((s,l)=>s+l.count,0).toLocaleString()}社</span>
+                  <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy }}>{client}</span>
+                  <span style={{ fontSize: 10, color: color.textLight }}>{lists.length}リスト・{lists.reduce((s,l)=>s+l.count,0).toLocaleString()}社</span>
                 </div>
                 {lists.map((list) => {
                   const i = idx++;
@@ -442,38 +434,38 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                     <div key={list.id} style={{
                       display: "grid", gridTemplateColumns: lvGrid,
                       padding: "10px 16px",
-                      borderBottom: "1px solid #F3F2F2",
-                      fontSize: 12, alignItems: "center",
+                      borderBottom: `1px solid ${color.offWhite}`,
+                      fontSize: font.size.sm, alignItems: "center",
                       transition: "background 0.15s",
                       opacity: list.status === "架電停止" ? 0.4 : 1,
                       animation: "fadeIn 0.2s ease " + (i * 0.015) + "s both",
                       borderLeft: "2px solid transparent",
                       position: "relative",
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "#EAF4FF"; e.currentTarget.style.borderLeft = "2px solid #0D2247"; }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#EAF4FF"; e.currentTarget.style.borderLeft = `2px solid ${color.navy}`; }}
                     onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderLeft = "2px solid transparent"; }}
                     >
-                      <span onClick={() => setSelectedList(list.id)} style={{ fontWeight: 500, paddingRight: 8, cursor: "pointer", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[0]?.align || 'left' }}>
-                        {list.status === "架電停止" && <span style={{ color: C.red, marginRight: 4 }}>■</span>}
+                      <span onClick={() => setSelectedList(list.id)} style={{ fontWeight: font.weight.medium, paddingRight: space[2], cursor: "pointer", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[0]?.align || 'left' }}>
+                        {list.status === "架電停止" && <span style={{ color: color.danger, marginRight: 4 }}>■</span>}
                         {list.company}
                       </span>
-                      <span style={{ display: "flex", justifyContent: lvCols[1]?.align === 'right' ? 'flex-end' : lvCols[1]?.align === 'center' ? 'center' : 'flex-start' }}><Badge color={list.type === "M&A仲介" ? C.navy : list.type === "IFA" ? '#6366F1' : list.type === "ファンド" ? C.green : C.orange} small>{list.type}</Badge></span>
-                      <span style={{ color: C.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[2]?.align || 'left' }}>{list.industry}</span>
-                      <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textMid, textAlign: lvCols[3]?.align || 'right' }}>{list.count.toLocaleString()}</span>
-                      <span style={{ color: C.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[4]?.align || 'center' }}>{shortManagerName(list)}</span>
+                      <span style={{ display: "flex", justifyContent: lvCols[1]?.align === 'right' ? 'flex-end' : lvCols[1]?.align === 'center' ? 'center' : 'flex-start' }}><TypeBadge color={list.type === "M&A仲介" ? color.navy : list.type === "IFA" ? '#6366F1' : list.type === "ファンド" ? color.success : color.warn} small>{list.type}</TypeBadge></span>
+                      <span style={{ color: color.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[2]?.align || 'left' }}>{list.industry}</span>
+                      <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.textMid, textAlign: lvCols[3]?.align || 'right' }}>{list.count.toLocaleString()}</span>
+                      <span style={{ color: color.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[4]?.align || 'center' }}>{shortManagerName(list)}</span>
                       <span style={{ display: "flex", justifyContent: lvCols[5]?.align === 'right' ? 'flex-end' : lvCols[5]?.align === 'center' ? 'center' : 'flex-start' }}><ProgressPill pct={list.call_progress_pct} /></span>
                       <span style={{ display: "flex", justifyContent: lvCols[6]?.align === 'right' ? 'flex-end' : lvCols[6]?.align === 'center' ? 'center' : 'flex-start' }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
                       {isAdmin && (
                         <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 4 }}>
                           <button onClick={() => handleOpenEdit(list)} title="編集" style={{
-                            width: isMobile ? 36 : 26, height: isMobile ? 36 : 26, borderRadius: 4, background: C.offWhite,
-                            border: "1px solid " + C.border, color: C.textMid, cursor: "pointer",
-                            fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center",
+                            width: isMobile ? 36 : 26, height: isMobile ? 36 : 26, borderRadius: radius.md, background: color.offWhite,
+                            border: `1px solid ${color.border}`, color: color.textMid, cursor: "pointer",
+                            fontSize: font.size.xs, display: "flex", alignItems: "center", justifyContent: "center",
                           }}>✎</button>
                           <button onClick={() => { handleDelete(list.id); }} title="削除" style={{
-                            width: isMobile ? 36 : 26, height: isMobile ? 36 : 26, borderRadius: 4, background: C.redLight,
-                            border: "1px solid " + C.red + "20", color: C.red, cursor: "pointer",
-                            fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center",
+                            width: isMobile ? 36 : 26, height: isMobile ? 36 : 26, borderRadius: radius.md, background: color.dangerSoft,
+                            border: `1px solid ${alpha(color.danger, 0.13)}`, color: color.danger, cursor: "pointer",
+                            fontSize: font.size.xs, display: "flex", alignItems: "center", justifyContent: "center",
                           }}>✕</button>
                         </div>
                       )}
@@ -487,31 +479,31 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         {/* アーカイブ済みリスト */}
         {displayFilter !== 'active' && (() => {
           const archivedLists = callListData.filter(l => l.is_archived);
-          if (archivedLists.length === 0) return <div style={{ padding: "24px 16px", textAlign: "center", fontSize: 12, color: C.textLight }}>— No records —</div>;
+          if (archivedLists.length === 0) return <div style={{ padding: "24px 16px", textAlign: "center", fontSize: font.size.sm, color: color.textLight }}>— No records —</div>;
           return (
-            <div style={{ borderTop: displayFilter === 'all' ? "1px solid #E5E7EB" : "none", overflowX: "auto", overflowY: "hidden" }}>
+            <div style={{ borderTop: displayFilter === 'all' ? `1px solid ${color.border}` : "none", overflowX: "auto", overflowY: "hidden" }}>
               <div style={{ minWidth: arMinW }}>
               {archivedLists.map(list => (
                 <div key={list.id} style={{
                   display: "grid", gridTemplateColumns: arGrid,
-                  padding: "8px 16px", fontSize: 11, alignItems: "center",
-                  borderBottom: "1px solid " + C.borderLight,
-                  opacity: 0.5, background: C.offWhite,
+                  padding: "8px 16px", fontSize: font.size.xs, alignItems: "center",
+                  borderBottom: `1px solid ${color.borderLight}`,
+                  opacity: 0.5, background: color.offWhite,
                 }}>
-                  <span style={{ color: C.textMid, fontWeight: 500, textAlign: arCols[0]?.align || 'left' }}>{list.company}</span>
-                  <span style={{ color: C.textLight, fontSize: 10, textAlign: arCols[1]?.align || 'left' }}>{list.type}</span>
-                  <span style={{ color: C.textLight, textAlign: arCols[2]?.align || 'left' }}>{list.industry}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: arCols[3]?.align || 'left' }}>{list.count.toLocaleString()}</span>
-                  <span style={{ color: C.textLight, textAlign: arCols[4]?.align || 'left' }}>{shortManagerName(list)}</span>
+                  <span style={{ color: color.textMid, fontWeight: font.weight.medium, textAlign: arCols[0]?.align || 'left' }}>{list.company}</span>
+                  <span style={{ color: color.textLight, fontSize: 10, textAlign: arCols[1]?.align || 'left' }}>{list.type}</span>
+                  <span style={{ color: color.textLight, textAlign: arCols[2]?.align || 'left' }}>{list.industry}</span>
+                  <span style={{ fontFamily: font.family.mono, fontSize: 10, color: color.textLight, textAlign: arCols[3]?.align || 'left' }}>{list.count.toLocaleString()}</span>
+                  <span style={{ color: color.textLight, textAlign: arCols[4]?.align || 'left' }}>{shortManagerName(list)}</span>
                   <span style={{ textAlign: arCols[5]?.align || 'right' }}>
                     {isAdmin && <button onClick={async () => {
                       const error = await restoreCallList(list._supaId);
                       if (error) { alert('復元に失敗しました: ' + (error.message || '不明なエラー')); return; }
                       setCallListData(prev => prev.map(l => l.id === list.id ? { ...l, is_archived: false } : l));
                     }} style={{
-                      padding: isMobile ? "8px 12px" : "4px 10px", borderRadius: 4, fontSize: isMobile ? 12 : 11, fontWeight: 500,
-                      background: "#fff", color: "#0D2247", border: "1px solid #0D2247", cursor: "pointer",
-                      fontFamily: "'Noto Sans JP'",
+                      padding: isMobile ? "8px 12px" : "4px 10px", borderRadius: radius.md, fontSize: isMobile ? font.size.sm : font.size.xs, fontWeight: font.weight.medium,
+                      background: color.white, color: color.navy, border: `1px solid ${color.navy}`, cursor: "pointer",
+                      fontFamily: font.family.sans,
                     }}>復元</button>}
                   </span>
                 </div>

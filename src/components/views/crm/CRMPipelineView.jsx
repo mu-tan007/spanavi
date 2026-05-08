@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import { C } from '../../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Card, Badge } from '../../ui';
 import { updateClient } from '../../../lib/supabaseWrite';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import {
@@ -33,17 +35,23 @@ function StatusChangeMenu({ client, onClose, onChange }) {
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
-          width: 320, boxShadow: '0 8px 32px rgba(0,0,0,0.3)', overflow: 'hidden',
+          background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
+          width: 320, boxShadow: shadow.xl, overflow: 'hidden',
         }}
       >
-        <div style={{ padding: '12px 16px', background: NAVY, color: '#fff', fontWeight: 600, fontSize: 13 }}>
+        <div style={{
+          padding: '12px 16px', background: color.navy, color: color.white,
+          fontWeight: font.weight.semibold, fontSize: font.size.base,
+        }}>
           ステータス変更
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)', fontWeight: 400, marginTop: 2 }}>
+          <div style={{
+            fontSize: font.size.xs - 1, color: alpha(color.white, 0.75),
+            fontWeight: font.weight.normal, marginTop: 2,
+          }}>
             {client.company}
           </div>
         </div>
-        <div style={{ padding: 8 }}>
+        <div style={{ padding: space[2] }}>
           {STATUS_LIST.map(st => {
             const sc = statusStyle(st);
             const isCurrent = st === client.status;
@@ -54,17 +62,17 @@ function StatusChangeMenu({ client, onClose, onChange }) {
                 disabled={isCurrent}
                 style={{
                   width: '100%',
-                  display: 'flex', alignItems: 'center', gap: 8,
+                  display: 'flex', alignItems: 'center', gap: space[2],
                   padding: '8px 10px',
                   marginBottom: 4,
-                  borderRadius: 3,
-                  border: '1px solid ' + (isCurrent ? sc.color : GRAY_200),
-                  background: isCurrent ? sc.bg : '#fff',
-                  color: isCurrent ? sc.color : C.textDark,
-                  fontSize: 12,
-                  fontWeight: isCurrent ? 700 : 500,
+                  borderRadius: radius.sm,
+                  border: `1px solid ${isCurrent ? sc.color : color.border}`,
+                  background: isCurrent ? sc.bg : color.white,
+                  color: isCurrent ? sc.color : color.textDark,
+                  fontSize: font.size.sm,
+                  fontWeight: isCurrent ? font.weight.bold : font.weight.medium,
                   cursor: isCurrent ? 'default' : 'pointer',
-                  fontFamily: "'Noto Sans JP'",
+                  fontFamily: font.family.sans,
                   textAlign: 'left',
                 }}
               >
@@ -75,16 +83,10 @@ function StatusChangeMenu({ client, onClose, onChange }) {
             );
           })}
         </div>
-        <div style={{ padding: '8px 16px', borderTop: '1px solid ' + GRAY_200, textAlign: 'right' }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '6px 12px', borderRadius: 3,
-              border: '1px solid ' + NAVY, background: '#fff',
-              color: NAVY, fontSize: 11, fontWeight: 500, cursor: 'pointer',
-              fontFamily: "'Noto Sans JP'",
-            }}
-          >閉じる</button>
+        <div style={{
+          padding: '8px 16px', borderTop: `1px solid ${color.border}`, textAlign: 'right',
+        }}>
+          <Button size="sm" variant="outline" onClick={onClose}>閉じる</Button>
         </div>
       </div>
     </div>
@@ -115,9 +117,9 @@ function PipelineCard({
   return (
     <div
       style={{
-        background: '#fff',
-        border: '1px solid ' + GRAY_200,
-        borderRadius: 4,
+        background: color.white,
+        border: `1px solid ${color.border}`,
+        borderRadius: radius.md,
         padding: '8px 10px',
         marginBottom: 6,
         cursor: 'pointer',
@@ -125,38 +127,41 @@ function PipelineCard({
         position: 'relative',
       }}
       onClick={() => onClickCard(client)}
-      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)'; }}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = shadow.sm; }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
         <span
           title={`優先度 ${score}`}
           style={{
-            fontSize: 8, fontWeight: 700,
-            color: rank.color, border: '1px solid ' + rank.color,
+            fontSize: 8, fontWeight: font.weight.bold,
+            color: rank.color, border: `1px solid ${rank.color}`,
             borderRadius: 2, padding: '1px 4px',
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: font.family.mono,
             fontVariantNumeric: 'tabular-nums',
             minWidth: 22, textAlign: 'center', flexShrink: 0,
           }}
         >{score}</span>
         <span style={{
-          fontSize: 11, fontWeight: 600, color: NAVY,
+          fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
         }}>
           {client.company}
         </span>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: C.textLight }}>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between',
+        fontSize: 9, color: color.textLight,
+      }}>
         <span>
           {primary ? primary.name : '担当未設定'}
         </span>
         <span style={{
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: font.family.mono,
           fontVariantNumeric: 'tabular-nums',
-          color: days != null && days >= 30 ? GOLD : C.textLight,
-          fontWeight: days != null && days >= 30 ? 700 : 400,
+          color: days != null && days >= 30 ? GOLD : color.textLight,
+          fontWeight: days != null && days >= 30 ? font.weight.bold : font.weight.normal,
         }}>
           {days == null ? '—' : `${days}日`}
         </span>
@@ -168,8 +173,8 @@ function PipelineCard({
         style={{
           position: 'absolute', top: 4, right: 4,
           width: 18, height: 18, borderRadius: 2,
-          border: '1px solid ' + GRAY_200, background: '#fff',
-          color: C.textLight, fontSize: 10, lineHeight: 1,
+          border: `1px solid ${color.border}`, background: color.white,
+          color: color.textLight, fontSize: 10, lineHeight: 1,
           cursor: 'pointer', padding: 0,
         }}
       >⇄</button>
@@ -177,28 +182,33 @@ function PipelineCard({
   );
 }
 
-function FunnelCard({ stage, count, avgDays, color }) {
+function FunnelCard({ stage, count, avgDays, color: stageColor }) {
   return (
     <div style={{
       flex: 1, minWidth: 100,
       padding: '10px 12px',
-      background: '#fff',
-      border: '1px solid ' + GRAY_200,
-      borderRadius: 4,
-      borderTop: '3px solid ' + color,
+      background: color.white,
+      border: `1px solid ${color.border}`,
+      borderRadius: radius.md,
+      borderTop: `3px solid ${stageColor}`,
     }}>
-      <div style={{ fontSize: 10, fontWeight: 600, color: C.textLight, marginBottom: 4 }}>{stage}</div>
+      <div style={{
+        fontSize: 10, fontWeight: font.weight.semibold,
+        color: color.textLight, marginBottom: 4,
+      }}>{stage}</div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <span style={{
-          fontSize: 22, fontWeight: 700, color,
-          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 22, fontWeight: font.weight.bold, color: stageColor,
+          fontFamily: font.family.mono,
           fontVariantNumeric: 'tabular-nums',
         }}>{count}</span>
-        <span style={{ fontSize: 9, color: C.textLight, fontWeight: 400 }}>社</span>
+        <span style={{
+          fontSize: 9, color: color.textLight, fontWeight: font.weight.normal,
+        }}>社</span>
       </div>
       <div style={{
-        fontSize: 9, color: C.textLight, marginTop: 4,
-        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 9, color: color.textLight, marginTop: 4,
+        fontFamily: font.family.mono,
         fontVariantNumeric: 'tabular-nums',
       }}>
         平均滞留 {avgDays != null ? avgDays + '日' : '—'}
@@ -286,7 +296,7 @@ export default function CRMPipelineView({
   return (
     <div>
       {/* ファネル: メイン3段階（モバイルは縦積み） */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+      <div style={{ display: 'flex', gap: space[2], marginBottom: space[2], flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         {FUNNEL_STAGES.map(st => {
           const sc = statusStyle(st);
           return (
@@ -302,23 +312,26 @@ export default function CRMPipelineView({
       </div>
 
       {/* 副次集計: 保留/中期フォロー/停止中（モバイルも横並び維持、小さく） */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: space[2], marginBottom: space[4] }}>
         {SECONDARY_STAGES.map(st => {
           const sc = statusStyle(st);
           const list = groupByStatus[st] || [];
           return (
             <div key={st} style={{
               flex: 1, padding: '8px 12px',
-              background: '#FAFAFA', border: '1px solid ' + GRAY_200, borderRadius: 4,
+              background: color.gray50, border: `1px solid ${color.border}`, borderRadius: radius.md,
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
-              <span style={{ fontSize: 10, fontWeight: 600, color: sc.color, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{
+                fontSize: 10, fontWeight: font.weight.semibold, color: sc.color,
+                display: 'flex', alignItems: 'center', gap: 4,
+              }}>
                 <span style={{ width: 5, height: 5, borderRadius: '50%', background: sc.dot }}></span>
                 {st}
               </span>
               <span style={{
-                fontSize: 14, fontWeight: 700, color: sc.color,
-                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: font.size.md, fontWeight: font.weight.bold, color: sc.color,
+                fontFamily: font.family.mono,
                 fontVariantNumeric: 'tabular-nums',
               }}>{list.length}</span>
             </div>
@@ -342,12 +355,12 @@ export default function CRMPipelineView({
                 onClick={() => setMobileFocusStatus(st)}
                 style={{
                   flexShrink: 0,
-                  padding: '6px 10px', borderRadius: 4,
-                  border: '1px solid ' + (active ? sc.color : GRAY_200),
-                  background: active ? sc.bg : '#fff',
-                  color: active ? sc.color : C.textMid,
-                  fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                  fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
+                  padding: '6px 10px', borderRadius: radius.md,
+                  border: `1px solid ${active ? sc.color : color.border}`,
+                  background: active ? sc.bg : color.white,
+                  color: active ? sc.color : color.textMid,
+                  fontSize: font.size.xs, fontWeight: font.weight.semibold, cursor: 'pointer',
+                  fontFamily: font.family.sans, whiteSpace: 'nowrap',
                   display: 'flex', alignItems: 'center', gap: 4,
                 }}
               >
@@ -363,7 +376,7 @@ export default function CRMPipelineView({
       <div style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : `repeat(${STATUS_LIST.length}, 1fr)`,
-        gap: 8,
+        gap: space[2],
         overflowX: 'auto',
       }}>
         {(isMobile ? [mobileFocusStatus] : STATUS_LIST).map(st => {
@@ -372,34 +385,36 @@ export default function CRMPipelineView({
           return (
             <div key={st} style={{
               minWidth: 200,
-              background: GRAY_50,
-              border: '1px solid ' + GRAY_200,
-              borderRadius: 4,
-              padding: 8,
+              background: color.gray50,
+              border: `1px solid ${color.border}`,
+              borderRadius: radius.md,
+              padding: space[2],
               maxHeight: 'calc(100vh - 350px)',
               overflowY: 'auto',
             }}>
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 marginBottom: 8, paddingBottom: 6,
-                borderBottom: '2px solid ' + sc.color,
+                borderBottom: `2px solid ${sc.color}`,
               }}>
                 <span style={{
-                  fontSize: 11, fontWeight: 700, color: sc.color,
+                  fontSize: font.size.xs, fontWeight: font.weight.bold, color: sc.color,
                   display: 'flex', alignItems: 'center', gap: 4,
                 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: sc.dot }}></span>
                   {st}
                 </span>
                 <span style={{
-                  fontSize: 10, fontWeight: 600, color: sc.color,
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 10, fontWeight: font.weight.semibold, color: sc.color,
+                  fontFamily: font.family.mono,
                   fontVariantNumeric: 'tabular-nums',
                 }}>{list.length}</span>
               </div>
 
               {list.length === 0 ? (
-                <div style={{ fontSize: 10, color: C.textLight, padding: '12px 0', textAlign: 'center' }}>
+                <div style={{
+                  fontSize: 10, color: color.textLight, padding: '12px 0', textAlign: 'center',
+                }}>
                   該当なし
                 </div>
               ) : (

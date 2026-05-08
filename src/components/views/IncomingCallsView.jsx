@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../lib/supabase';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Card, Badge } from '../ui';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 
@@ -124,7 +126,8 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
     statusFilter === 'all' ? true : r.status === statusFilter
   );
 
-  const statusColor = (s) => s === '対応済み' ? C.green : '#e53835';
+  // ステータス → Badge variant
+  const statusVariant = (s) => s === '対応済み' ? 'success' : 'danger';
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
@@ -136,48 +139,42 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
       {/* フィルター */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-        marginBottom: 16, gap: 8,
+        marginBottom: space[4], gap: space[2],
       }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: space[2], alignItems: 'center' }}>
           {['all', '未対応', '対応済み'].map(s => (
-            <button key={s} onClick={() => setStatusFilter(s)} style={{
-              padding: '5px 12px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-              cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-              border: '1px solid ' + (statusFilter === s ? '#0D2247' : '#E5E7EB'),
-              background: statusFilter === s ? '#0D2247' : '#fff',
-              color: statusFilter === s ? '#fff' : '#6B7280',
-            }}>
+            <Button
+              key={s}
+              size="sm"
+              variant={statusFilter === s ? 'primary' : 'outline'}
+              onClick={() => setStatusFilter(s)}
+              style={statusFilter !== s ? { color: color.textMid, borderColor: color.border } : undefined}
+            >
               {s === 'all' ? 'すべて' : s}
-            </button>
+            </Button>
           ))}
-          <button onClick={load} style={{
-            padding: '5px 10px', borderRadius: 4, fontSize: 11, cursor: 'pointer',
-            border: '1px solid #0D2247', background: '#fff', color: '#0D2247',
-          }}>
+          <Button size="sm" variant="outline" onClick={load}>
             ↻ 更新
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* テーブル */}
-      <div style={{
-        background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB',
-        overflowX: 'auto', overflowY: 'hidden',
-      }}>
+      <Card padding="none" style={{ overflowX: 'auto', overflowY: 'hidden' }}>
         <div style={{ minWidth: contentMinWidth }}>
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: C.textLight, fontSize: 13 }}>読み込み中...</div>
+          <div style={{ padding: space[10], textAlign: 'center', color: color.textLight, fontSize: font.size.base }}>読み込み中...</div>
         ) : filtered.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: C.textLight, fontSize: 13 }}>着信履歴がありません</div>
+          <div style={{ padding: space[10], textAlign: 'center', color: color.textLight, fontSize: font.size.base }}>着信履歴がありません</div>
         ) : (
-          <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: isMobile ? 11 : 12 }}>
+          <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: isMobile ? font.size.xs : font.size.sm }}>
             <thead>
-              <tr style={{ background: '#0D2247' }}>
+              <tr style={{ background: color.navy }}>
                 {['受信日時', '企業名・リスト', '電話番号', 'ステータス', '対応者', '操作'].map((label, i) => (
                   <th key={label} style={{
                     padding: i === 0 ? '8px 6px' : '8px 16px',
-                    textAlign: columns[i].align, fontWeight: 600,
-                    color: '#fff', fontSize: 11, verticalAlign: 'middle',
+                    textAlign: columns[i].align, fontWeight: font.weight.semibold,
+                    color: color.white, fontSize: font.size.xs, verticalAlign: 'middle',
                     width: columns[i].width, position: 'relative',
                   }}>
                     {label}
@@ -199,10 +196,10 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
 
                 return (
                   <tr key={r.id} style={{
-                    borderBottom: '1px solid #E5E7EB',
-                    background: i % 2 === 0 ? '#fff' : '#F8F9FA',
+                    borderBottom: `1px solid ${color.border}`,
+                    background: i % 2 === 0 ? color.white : color.cream,
                   }}>
-                    <td style={{ padding: '8px 6px 8px 6px', textAlign: columns[0].align, color: C.textMid, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+                    <td style={{ padding: '8px 6px 8px 6px', textAlign: columns[0].align, color: color.textMid, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                       {formatJST(r.received_at)}
                     </td>
 
@@ -213,12 +210,12 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
                           {canNavigate ? (
                             <span
                               onClick={() => handleCompanyClick(uniqueMatches)}
-                              style={{ color: C.navy, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', fontSize: 12 }}
+                              style={{ color: color.navy, fontWeight: font.weight.bold, cursor: 'pointer', textDecoration: 'underline', fontSize: font.size.sm }}
                             >
                               {companyName}
                             </span>
                           ) : (
-                            <span style={{ color: C.textDark, fontWeight: 700, fontSize: 12 }}>
+                            <span style={{ color: color.textDark, fontWeight: font.weight.bold, fontSize: font.size.sm }}>
                               {companyName}
                             </span>
                           )}
@@ -227,15 +224,15 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
                             <div style={{ marginTop: 3 }}>
                               {uniqueMatches.map(m => (
                                 <div key={m.itemId} style={{
-                                  fontSize: 10, color: C.textLight,
+                                  fontSize: 10, color: color.textLight,
                                   display: 'flex', alignItems: 'center', gap: 3,
                                 }}>
-                                  <span style={{ color: C.textLight }}>└</span>
+                                  <span style={{ color: color.textLight }}>└</span>
                                   <span
                                     onClick={() => setCallFlowScreen && navigateTo(m)}
                                     style={{
                                       cursor: setCallFlowScreen ? 'pointer' : 'default',
-                                      color: setCallFlowScreen ? C.navy + 'cc' : C.textLight,
+                                      color: setCallFlowScreen ? alpha(color.navy, 0.8) : color.textLight,
                                       textDecoration: setCallFlowScreen ? 'underline' : 'none',
                                     }}
                                   >
@@ -247,32 +244,27 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
                           )}
                         </div>
                       ) : (
-                        <span style={{ color: C.textLight }}>—</span>
+                        <span style={{ color: color.textLight }}>—</span>
                       )}
                     </td>
 
-                    <td style={{ padding: '8px 16px', textAlign: columns[2].align, fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums', color: C.textMid, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+                    <td style={{ padding: '8px 16px', textAlign: columns[2].align, fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums', color: color.textMid, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                       {r.caller_number || '-'}
                     </td>
                     <td style={{ padding: '8px 16px', textAlign: columns[3].align, verticalAlign: 'middle' }}>
-                      <span style={{
-                        color: statusColor(r.status), fontSize: 12,
-                      }}>
-                        {r.status || '-'}
-                      </span>
+                      {r.status
+                        ? <Badge variant={statusVariant(r.status)} dot>{r.status}</Badge>
+                        : <span style={{ color: color.textLight, fontSize: font.size.sm }}>-</span>
+                      }
                     </td>
-                    <td style={{ padding: '8px 16px', textAlign: columns[4].align, color: C.textMid, verticalAlign: 'middle' }}>
+                    <td style={{ padding: '8px 16px', textAlign: columns[4].align, color: color.textMid, verticalAlign: 'middle' }}>
                       {r.handled_by || '-'}
                     </td>
                     <td style={{ padding: '8px 16px', textAlign: columns[5].align, verticalAlign: 'middle' }}>
                       {r.status !== '対応済み' && (
-                        <button onClick={() => markHandled(r.id)} style={{
-                          padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 500,
-                          cursor: 'pointer', border: '1px solid #0D2247',
-                          background: '#fff', color: '#0D2247', fontFamily: "'Noto Sans JP'",
-                        }}>
+                        <Button size="sm" variant="outline" onClick={() => markHandled(r.id)}>
                           対応済みにする
-                        </button>
+                        </Button>
                       )}
                     </td>
                   </tr>
@@ -282,7 +274,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
           </table>
         )}
         </div>
-      </div>
+      </Card>
 
       {/* リスト選択モーダル */}
       {selectModal && (
@@ -290,7 +282,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
           onClick={() => setSelectModal(null)}
           style={{
             position: 'fixed', inset: 0,
-            background: 'rgba(10,25,41,0.5)', backdropFilter: 'blur(3px)',
+            background: alpha(color.navyDeep, 0.5), backdropFilter: 'blur(3px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             zIndex: 300,
           }}
@@ -298,34 +290,39 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: '#fff', borderRadius: 4,
+              background: color.white, borderRadius: radius.md,
               minWidth: 320, maxWidth: 420,
-              boxShadow: '0 16px 48px rgba(10,25,41,0.22)',
-              border: '1px solid #E5E7EB',
+              boxShadow: shadow.xl,
+              border: `1px solid ${color.border}`,
               overflow: 'hidden',
             }}
           >
-            <div style={{ background: '#0D2247', color: '#fff', padding: '12px 24px', fontWeight: 600, fontSize: 14 }}>
+            <div style={{
+              background: color.navy, color: color.white,
+              padding: '12px 24px',
+              fontWeight: font.weight.semibold, fontSize: font.size.md,
+            }}>
               どのリストから架電しますか？
             </div>
             <div style={{ padding: '16px 24px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: space[2], marginBottom: space[5] }}>
               {selectModal.map(m => (
                 <button
                   key={m.itemId}
                   onClick={() => navigateTo(m)}
                   style={{
-                    padding: '10px 14px', borderRadius: 4, border: '1px solid #E5E7EB',
-                    background: '#F8F9FA', cursor: 'pointer', textAlign: 'left',
-                    fontFamily: "'Noto Sans JP'", fontSize: 12, color: '#0D2247',
-                    fontWeight: 500, transition: 'background 0.12s',
+                    padding: '10px 14px', borderRadius: radius.md,
+                    border: `1px solid ${color.border}`,
+                    background: color.cream, cursor: 'pointer', textAlign: 'left',
+                    fontFamily: font.family.sans, fontSize: font.size.sm, color: color.navy,
+                    fontWeight: font.weight.medium, transition: 'background 0.12s',
                   }}
                   onMouseEnter={e => { e.currentTarget.style.background = '#EAF4FF'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = '#F8F9FA'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = color.cream; }}
                 >
                   {listLabel(m)}
                   {m.company && (
-                    <span style={{ fontSize: 10, color: C.textLight, fontWeight: 400, marginLeft: 8 }}>
+                    <span style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.normal, marginLeft: 8 }}>
                       {m.company}
                     </span>
                   )}
@@ -333,16 +330,9 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
               ))}
             </div>
             <div style={{ textAlign: 'center' }}>
-              <button
-                onClick={() => setSelectModal(null)}
-                style={{
-                  padding: '6px 20px', borderRadius: 4, border: '1px solid #0D2247',
-                  background: '#fff', color: '#0D2247', cursor: 'pointer',
-                  fontSize: 12, fontFamily: "'Noto Sans JP'",
-                }}
-              >
+              <Button size="sm" variant="outline" onClick={() => setSelectModal(null)}>
                 キャンセル
-              </button>
+              </Button>
             </div>
             </div>
           </div>

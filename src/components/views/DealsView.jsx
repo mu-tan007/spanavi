@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { useEngagements } from '../../hooks/useEngagements';
 import { useEngagementClients } from '../../hooks/useEngagementClients';
 import { invokeAdminImpersonateClient } from '../../lib/supabaseWrite';
@@ -67,7 +69,7 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
   if (!currentEngagement) return null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', background: C.offWhite, animation: 'fadeIn 0.3s ease' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', background: color.offWhite, animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="Deals"
         description="クライアント別 架電・アポ実績"
@@ -76,8 +78,8 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
 
       {/* タブバー */}
       <div style={{
-        display: 'flex', padding: '0 20px', borderBottom: `1px solid ${C.border}`,
-        background: C.white, gap: 0,
+        display: 'flex', padding: '0 20px', borderBottom: `1px solid ${color.border}`,
+        background: color.white, gap: 0,
       }}>
         {TABS.map(tab => {
           const active = activeTab === tab.id;
@@ -86,12 +88,12 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
               key={tab.id} type="button"
               onClick={() => setActiveTab(tab.id)}
               style={{
-                fontSize: 12, padding: '10px 16px',
+                fontSize: font.size.sm, padding: '10px 16px',
                 background: 'transparent', border: 'none',
-                borderBottom: active ? `2px solid ${C.gold}` : '2px solid transparent',
-                color: active ? C.navy : C.textMid,
-                fontWeight: active ? 600 : 400, marginBottom: -1,
-                cursor: 'pointer', fontFamily: "'Noto Sans JP',sans-serif",
+                borderBottom: active ? `2px solid ${color.gold}` : '2px solid transparent',
+                color: active ? color.navy : color.textMid,
+                fontWeight: active ? font.weight.semibold : font.weight.normal, marginBottom: -1,
+                cursor: 'pointer', fontFamily: font.family.sans,
               }}
             >{tab.label}</button>
           );
@@ -111,24 +113,22 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
           />
         </div>
         {isAdmin && selectedClient && (
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleImpersonate}
             disabled={impersonating}
             title={`「${selectedClient.name}」のクライアントポータルを開く（代理ログイン）`}
             style={{
-              padding: '8px 14px', borderRadius: 4,
-              border: '1px solid ' + C.navy,
-              background: impersonating ? C.cream : C.white,
-              color: C.navy, fontSize: 11, fontWeight: 600,
+              fontSize: font.size.xs,
+              background: impersonating ? color.cream : color.white,
               cursor: impersonating ? 'wait' : 'pointer',
-              fontFamily: "'Noto Sans JP'",
-              whiteSpace: 'nowrap',
               flexShrink: 0,
               marginRight: 4,
             }}
           >
             {impersonating ? '生成中...' : '代理ログイン →'}
-          </button>
+          </Button>
         )}
       </div>
 

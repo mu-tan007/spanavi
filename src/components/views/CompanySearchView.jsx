@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { CALL_RESULTS } from '../../constants/callResults';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
@@ -844,8 +846,8 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   };
 
   const inputStyle2 = {
-    padding: "8px 12px", borderRadius: 6, border: "1px solid " + C.border,
-    background: C.offWhite, fontSize: 12, color: C.navy, fontFamily: "'Noto Sans JP'", outline: "none",
+    padding: "8px 12px", borderRadius: radius.lg, border: `1px solid ${color.border}`,
+    background: color.offWhite, fontSize: font.size.sm, color: color.navy, fontFamily: font.family.sans, outline: "none",
   };
 
   // ── 詳細パネル用ヘルパー ──
@@ -1012,18 +1014,18 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
         style={{ marginBottom: 24 }}
       />
       {/* Sub tabs */}
-      <div style={{ display: "flex", gap: 0, marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 0, marginBottom: space[4] }}>
         {[
           { id: "company", label: "企業検索" },
           { id: "recordings", label: "録音一覧" },
         ].map(tab => (
           <button key={tab.id} onClick={() => setSubTab(tab.id)} style={{
-            padding: "10px 24px", fontSize: 12, fontWeight: 700, cursor: "pointer",
-            fontFamily: "'Noto Sans JP'", border: "1px solid #E5E7EB",
-            borderBottom: subTab === tab.id ? "2px solid #0D2247" : "2px solid transparent",
-            background: subTab === tab.id ? "#fff" : "#F8F9FA",
-            color: subTab === tab.id ? "#0D2247" : "#9CA3AF",
-            borderRadius: "4px 4px 0 0", marginRight: -1,
+            padding: "10px 24px", fontSize: font.size.sm, fontWeight: font.weight.bold, cursor: "pointer",
+            fontFamily: font.family.sans, border: `1px solid ${color.border}`,
+            borderBottom: subTab === tab.id ? `2px solid ${color.navy}` : "2px solid transparent",
+            background: subTab === tab.id ? color.white : color.cream,
+            color: subTab === tab.id ? color.navy : color.textLight,
+            borderRadius: `${radius.md}px ${radius.md}px 0 0`, marginRight: -1,
           }}>{tab.label}</button>
         ))}
       </div>
@@ -1031,52 +1033,56 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       {subTab === "company" && (<div>
       {/* Search bar */}
       <div style={{
-        background: "#fff", borderRadius: 4, padding: "16px 20px", marginBottom: 16,
-        border: "1px solid #E5E7EB",
+        background: color.white, borderRadius: radius.md, padding: "16px 20px", marginBottom: space[4],
+        border: `1px solid ${color.border}`,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>企業検索</span>
-          <span style={{ fontSize: 10, color: C.textLight }}>全リストから横断検索{totalCount > 0 ? `（${totalCount.toLocaleString()}社）` : ""}</span>
+          <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>企業検索</span>
+          <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>全リストから横断検索{totalCount > 0 ? `（${totalCount.toLocaleString()}社）` : ""}</span>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <select value={searchField} onChange={e => setSearchField(e.target.value)} style={{
-            padding: "8px 12px", borderRadius: 6, border: "1px solid " + C.border,
-            background: C.offWhite, fontSize: 12, color: C.navy, fontFamily: "'Noto Sans JP'", outline: "none",
-          }}>
-            {fieldOptions.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
-          </select>
-          <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+          <Select
+            value={searchField}
+            onChange={e => setSearchField(e.target.value)}
+            options={fieldOptions.map(f => ({ value: f.id, label: f.label }))}
+            size="sm"
+            fullWidth={false}
+            style={{ minWidth: 120 }}
+          />
+          <Input
+            type="text"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
             placeholder="企業名、代表者名、電話番号などを入力..."
-            style={{
-              flex: 1, padding: "8px 14px", borderRadius: 6, border: "1px solid " + C.border,
-              background: C.white, fontSize: 13, color: C.textDark, fontFamily: "'Noto Sans JP'", outline: "none",
-            }} />
+            size="sm"
+            containerStyle={{ flex: 1 }}
+          />
         </div>
         <div style={{ display: "flex", gap: 4, marginTop: 10, flexWrap: "wrap" }}>
           {statusOptions.map(s => (
             <button key={s.id} onClick={() => setStatusFilter(s.id)} style={{
-              padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600,
-              cursor: "pointer", fontFamily: "'Noto Sans JP'", transition: "all 0.15s",
-              border: statusFilter === s.id ? "1px solid #0D2247" : "1px solid #E5E7EB",
-              background: statusFilter === s.id ? "#0D224715" : "#fff",
-              color: statusFilter === s.id ? "#0D2247" : C.textMid,
+              padding: "4px 10px", borderRadius: radius.md, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold,
+              cursor: "pointer", fontFamily: font.family.sans, transition: "all 0.15s",
+              border: statusFilter === s.id ? `1px solid ${color.navy}` : `1px solid ${color.border}`,
+              background: statusFilter === s.id ? alpha(color.navy, 0.08) : color.white,
+              color: statusFilter === s.id ? color.navy : color.textMid,
             }}>{s.label}</button>
           ))}
         </div>
       </div>
 
       {/* Results count */}
-      <div style={{ fontSize: 11, color: C.textLight, marginBottom: 8 }}>
-        <span>検索結果: <span style={{ fontWeight: 700, color: C.navy }}>{totalCount.toLocaleString()}</span>件</span>
+      <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 8 }}>
+        <span>検索結果: <span style={{ fontWeight: font.weight.bold, color: color.navy }}>{totalCount.toLocaleString()}</span>件</span>
         {searchResults.length < totalCount && <span>（{searchResults.length}件表示中）</span>}
       </div>
 
       {/* Results table */}
-      <div style={{ background: "#fff", borderRadius: 4, border: "1px solid #E5E7EB", overflowX: "auto", overflowY: "hidden" }}>
+      <div style={{ background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}`, overflowX: "auto", overflowY: "hidden" }}>
         <div style={{ minWidth: scMinW }}>
         <div style={{
           display: "grid", gridTemplateColumns: scGrid,
-          padding: "8px 16px", background: "#0D2247", fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
+          padding: "8px 16px", background: color.navy, fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.white, verticalAlign: 'middle',
         }}>
           {[["company","企業名"],["representative","代表者"],["phone","電話番号"],["list","クライアント名"],["industry","業種"],["lastCall","最終発信日"],["status","最終ステータス"]].map(([key, label], i) => (
             <span key={key}
@@ -1088,9 +1094,9 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           ))}
         </div>
         {searchLoading && !searchResults.length ? (
-          <div style={{ padding: "40px 0", textAlign: "center", fontSize: 13, color: C.textLight }}>検索中...</div>
+          <div style={{ padding: "40px 0", textAlign: "center", fontSize: font.size.base, color: color.textLight }}>検索中...</div>
         ) : sortedResults.length === 0 ? (
-          <div style={{ padding: "40px 0", textAlign: "center", fontSize: 13, color: C.textLight }}>
+          <div style={{ padding: "40px 0", textAlign: "center", fontSize: font.size.base, color: color.textLight }}>
             {(searchTerm || statusFilter !== "all") ? "該当する企業が見つかりませんでした" : "検索キーワードを入力してください"}
           </div>
         ) : sortedResults.map((c, i) => {
@@ -1101,30 +1107,30 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           return (
             <div key={c.id} onClick={() => setSelectedItem(c)} style={{
               display: "grid", gridTemplateColumns: scGrid,
-              padding: "8px 16px", fontSize: 11, alignItems: "center",
-              borderBottom: "1px solid #E5E7EB",
-              background: i % 2 === 0 ? "#fff" : "#F8F9FA",
+              padding: "8px 16px", fontSize: font.size.xs, alignItems: "center",
+              borderBottom: `1px solid ${color.border}`,
+              background: i % 2 === 0 ? color.white : color.cream,
               cursor: "pointer",
             }}>
-              <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[0]?.align || 'left' }}>{c.company}</span>
-              <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[1]?.align || 'left' }}>{c.representative || "-"}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.navy, textAlign: scCols[2]?.align || 'left' }}>{c.phone || "-"}</span>
-              <span style={{ fontSize: 10, color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[3]?.align || 'left' }}>
+              <span style={{ fontWeight: font.weight.medium, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[0]?.align || 'left' }}>{c.company}</span>
+              <span style={{ color: color.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[1]?.align || 'left' }}>{c.representative || "-"}</span>
+              <span style={{ fontFamily: font.family.mono, fontSize: 10, color: color.navy, textAlign: scCols[2]?.align || 'left' }}>{c.phone || "-"}</span>
+              <span style={{ fontSize: 10, color: color.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[3]?.align || 'left' }}>
                 {listInfo ? listInfo.company : "-"}
               </span>
-              <span style={{ fontSize: 10, color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[4]?.align || 'left' }}>
+              <span style={{ fontSize: 10, color: color.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[4]?.align || 'left' }}>
                 {listInfo?.industry || "-"}
               </span>
-              <span style={{ fontSize: 9, color: C.textLight, fontFamily: "'JetBrains Mono'", textAlign: scCols[5]?.align || 'right' }}>
+              <span style={{ fontSize: 9, color: color.textLight, fontFamily: font.family.mono, textAlign: scCols[5]?.align || 'right' }}>
                 {latestCalled ? new Date(new Date(latestCalled).getTime() + 9*60*60*1000).toISOString().slice(0,10).replace(/-/g, '/') : "-"}
               </span>
               <span style={{ textAlign: scCols[6]?.align || 'center' }}>
                 {c.call_status ? (
-                  <span style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: stColor + "18", color: stColor, fontWeight: 600, whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: 9, padding: "2px 5px", borderRadius: radius.md, background: stColor + "18", color: stColor, fontWeight: font.weight.semibold, whiteSpace: "nowrap" }}>
                     {c.call_status}
                   </span>
                 ) : (
-                  <span style={{ fontSize: 9, color: C.textLight }}>未架電</span>
+                  <span style={{ fontSize: 9, color: color.textLight }}>未架電</span>
                 )}
               </span>
             </div>
@@ -1136,10 +1142,10 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       {/* 無限スクロール sentinel */}
       <div ref={sentinelRef} style={{ height: 1 }} />
       {searchLoading && searchResults.length > 0 && (
-        <div style={{ padding: "16px 0", textAlign: "center", fontSize: 12, color: C.textLight }}>読み込み中...</div>
+        <div style={{ padding: "16px 0", textAlign: "center", fontSize: font.size.sm, color: color.textLight }}>読み込み中...</div>
       )}
       {!hasMore && searchResults.length > 0 && (
-        <div style={{ padding: "10px 0", textAlign: "center", fontSize: 11, color: C.textLight }}>
+        <div style={{ padding: "10px 0", textAlign: "center", fontSize: font.size.xs, color: color.textLight }}>
           全 {totalCount.toLocaleString()} 件を表示
         </div>
       )}
@@ -1151,24 +1157,24 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: "#fff", borderRadius: 4, width: "min(480px, 96vw)",
+            background: color.white, borderRadius: radius.md, width: "min(480px, 96vw)",
             maxHeight: "92vh", overflow: "hidden", display: "flex", flexDirection: "column",
-            boxShadow: "0 8px 40px rgba(26,58,92,0.22)",
-            border: "1px solid #E5E7EB",
+            boxShadow: shadow.xl,
+            border: `1px solid ${color.border}`,
           }}>
             {/* ヘッダー */}
             <div style={{
-              padding: "12px 24px", borderBottom: "1px solid #E5E7EB",
+              padding: "12px 24px", borderBottom: `1px solid ${color.border}`,
               display: "flex", alignItems: "center", justifyContent: "space-between",
-              background: "#0D2247",
+              background: color.navy,
               flexShrink: 0,
             }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, color: C.white, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div style={{ fontWeight: font.weight.bold, fontSize: 15, color: color.white, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {selectedItem.company}
                 </div>
                 {(() => { const l = callListData.find(li => li._supaId === selectedItem.list_id); return l ? (
-                  <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 2 }}>{l.company} / {l.industry || ''}</div>
+                  <div style={{ fontSize: 10, color: alpha('#FFFFFF', 0.6), marginTop: 2 }}>{l.company} / {l.industry || ''}</div>
                 ) : null; })()}
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, marginLeft: 12 }}>
@@ -1180,12 +1186,12 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                     if (setCallFlowScreen) setCallFlowScreen({ list: l, defaultItemId: selectedItem.id, defaultListMode: false, singleItemMode: true });
                     else setCallingScreen({ listId: l.id, list: l });
                   }}
-                  style={{ padding: '5px 10px', borderRadius: 4, border: '1px solid #fff', background: 'transparent', color: '#fff', fontSize: 10, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: "'Noto Sans JP'" }}>
+                  style={{ padding: '5px 10px', borderRadius: radius.md, border: `1px solid ${color.white}`, background: 'transparent', color: color.white, fontSize: 10, fontWeight: font.weight.semibold, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: font.family.sans }}>
                   架電フローへ
                 </button>
                 <button onClick={() => setSelectedItem(null)} style={{
-                  width: 28, height: 28, borderRadius: 6, background: C.white + '15',
-                  border: '1px solid ' + C.white + '30', color: C.white, cursor: "pointer", fontSize: 16, lineHeight: 1,
+                  width: 28, height: 28, borderRadius: radius.lg, background: alpha(color.white, 0.08),
+                  border: `1px solid ${alpha(color.white, 0.18)}`, color: color.white, cursor: "pointer", fontSize: 16, lineHeight: 1,
                 }}>✕</button>
               </div>
             </div>
@@ -1193,15 +1199,15 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
             {/* 本体スクロール */}
             <div style={{ overflowY: "auto", padding: "14px 16px", flex: 1 }}>
               {loadingItemRecords ? (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: C.textLight, fontSize: 13 }}>読み込み中...</div>
+                <div style={{ textAlign: 'center', padding: '40px 0', color: color.textLight, fontSize: font.size.base }}>読み込み中...</div>
               ) : (
                 <>
                   {/* 基本情報 */}
                   {(() => {
                     const latest = itemRecords.length > 0 ? itemRecords.reduce((a, b) => a.round >= b.round ? a : b) : null;
                     return (
-                      <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid ' + C.borderLight }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 8 }}>基本情報</div>
+                      <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${color.borderLight}` }}>
+                        <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy, marginBottom: 8 }}>基本情報</div>
                         {[
                           { label: '事業内容', value: selectedItemFull?.business || selectedItem.business },
                           { label: '住所', value: (selectedItemFull?.address || '').replace(/\/\s*$/, '') },
@@ -1209,8 +1215,8 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                           { label: '前回架電結果', value: latest ? latest.status : '未架電' },
                         ].map(({ label, value }) => (
                           <div key={label} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'flex-start' }}>
-                            <span style={{ fontSize: 11, color: C.textLight, flexShrink: 0, width: 84 }}>{label}</span>
-                            <span style={{ fontSize: 13, color: C.navy, fontWeight: 500, flex: 1, wordBreak: 'break-all' }}>{value || '-'}</span>
+                            <span style={{ fontSize: font.size.xs, color: color.textLight, flexShrink: 0, width: 84 }}>{label}</span>
+                            <span style={{ fontSize: font.size.base, color: color.navy, fontWeight: font.weight.medium, flex: 1, wordBreak: 'break-all' }}>{value || '-'}</span>
                           </div>
                         ))}
                       </div>
@@ -1225,16 +1231,16 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                     const netIncome = full?.net_income ?? parsedMemo?.net_income ?? null;
                     const biko = parsedMemo?.biko ?? (full?.memo && !parsedMemo ? full.memo : null);
                     return (
-                      <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid ' + C.borderLight }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 8 }}>詳細情報</div>
+                      <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${color.borderLight}` }}>
+                        <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy, marginBottom: 8 }}>詳細情報</div>
                         {[
                           { label: '売上', value: full?.revenue != null ? Number(full.revenue).toLocaleString() + ' 千円' : '-' },
                           { label: '当期純利益', value: netIncome != null ? Number(netIncome).toLocaleString() + ' 千円' : '-' },
                           { label: '備考', value: biko || '-' },
                         ].map(({ label, value }) => (
                           <div key={label} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'flex-start' }}>
-                            <span style={{ fontSize: 11, color: C.textLight, flexShrink: 0, width: 84 }}>{label}</span>
-                            <span style={{ fontSize: 13, color: C.navy, fontWeight: 500, flex: 1, wordBreak: 'break-all' }}>{value}</span>
+                            <span style={{ fontSize: font.size.xs, color: color.textLight, flexShrink: 0, width: 84 }}>{label}</span>
+                            <span style={{ fontSize: font.size.base, color: color.navy, fontWeight: font.weight.medium, flex: 1, wordBreak: 'break-all' }}>{value}</span>
                           </div>
                         ))}
                       </div>
@@ -1243,9 +1249,9 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
 
                   {/* 電話発信ボタン */}
                   {selectedItem.phone && (
-                    <div onClick={() => dialPhone(selectedItem.phone)} style={{ display: 'block', marginBottom: 10, padding: '10px 16px', borderRadius: 4, background: '#0D2247', textAlign: 'center', cursor: 'pointer' }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: C.white + 'cc', marginBottom: 2 }}>電話をかける</div>
-                      <div style={{ fontSize: 18, fontWeight: 900, color: C.white, fontFamily: "'JetBrains Mono'" }}>{selectedItem.phone}</div>
+                    <div onClick={() => dialPhone(selectedItem.phone)} style={{ display: 'block', marginBottom: 10, padding: '10px 16px', borderRadius: radius.md, background: color.navy, textAlign: 'center', cursor: 'pointer' }}>
+                      <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: alpha(color.white, 0.8), marginBottom: 2 }}>電話をかける</div>
+                      <div style={{ fontSize: 18, fontWeight: 900, color: color.white, fontFamily: font.family.mono }}>{selectedItem.phone}</div>
                     </div>
                   )}
 
@@ -1253,15 +1259,15 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                   <div style={{ display: 'flex', gap: 6, marginBottom: 12, alignItems: 'center' }}>
                     <input type="tel" value={subPhone} onChange={e => setSubPhone(e.target.value)} onBlur={handleDetailSubPhoneBlur}
                       placeholder="別の番号に架電"
-                      style={{ flex: 1, padding: '6px 8px', borderRadius: 6, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: C.offWhite, color: C.textDark }} />
+                      style={{ flex: 1, padding: '6px 8px', borderRadius: radius.lg, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: font.family.sans, outline: 'none', background: color.offWhite, color: color.textDark }} />
                     <button onClick={() => { if (!subPhone.trim()) return; dialPhone(subPhone.trim()); }}
                       disabled={!subPhone.trim()}
-                      style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid ' + C.border, background: C.white, cursor: subPhone.trim() ? 'pointer' : 'default', fontSize: 13, opacity: subPhone.trim() ? 1 : 0.4, lineHeight: 1 }}>発信</button>
+                      style={{ padding: '6px 10px', borderRadius: radius.lg, border: `1px solid ${color.border}`, background: color.white, cursor: subPhone.trim() ? 'pointer' : 'default', fontSize: font.size.base, opacity: subPhone.trim() ? 1 : 0.4, lineHeight: 1 }}>発信</button>
                   </div>
 
                   {/* ラウンドボタン */}
                   <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 5, letterSpacing: 0.5 }}>架電ラウンド選択</div>
+                    <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 5, letterSpacing: 0.5 }}>架電ラウンド選択</div>
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       {(() => {
                         const itemNextRound = itemRecords.length === 0 ? 1 : Math.max(...itemRecords.map(rec => rec.round)) + 1;
@@ -1273,18 +1279,18 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                         const isCurrent = r === nextRound && !isCompleted;
                         const isFuture = r > nextRound;
                         const isSelected = r === selectedRound;
-                        const bg = isCompleted ? C.border : isCurrent ? '#1E40AF' : 'transparent';
-                        const color = isCompleted ? C.textLight : isCurrent ? '#fff' : C.textLight;
+                        const bg = isCompleted ? color.border : isCurrent ? '#1E40AF' : 'transparent';
+                        const fgColor = isCompleted ? color.textLight : isCurrent ? color.white : color.textLight;
                         const border = isSelected
-                          ? '2px solid ' + C.navy
-                          : isFuture ? '1px solid ' + C.borderLight
-                          : isCompleted ? '1px solid ' + C.border
+                          ? `2px solid ${color.navy}`
+                          : isFuture ? `1px solid ${color.borderLight}`
+                          : isCompleted ? `1px solid ${color.border}`
                           : '1px solid #1E40AF';
                         return (
                           <button key={r} disabled={isFuture} onClick={() => !isFuture && setSelectedRound(r)}
-                            style={{ width: 34, height: 34, borderRadius: 6, fontSize: 12, fontWeight: 700,
-                              background: bg, color, border, cursor: isFuture ? 'default' : 'pointer',
-                              fontFamily: "'JetBrains Mono'", opacity: isFuture ? 0.3 : 1, flexShrink: 0 }}>
+                            style={{ width: 34, height: 34, borderRadius: radius.lg, fontSize: font.size.sm, fontWeight: font.weight.bold,
+                              background: bg, color: fgColor, border, cursor: isFuture ? 'default' : 'pointer',
+                              fontFamily: font.family.mono, opacity: isFuture ? 0.3 : 1, flexShrink: 0 }}>
                             {r}
                           </button>
                         );
@@ -1297,28 +1303,28 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                     const roundRec = itemRecords.find(r => r.round === selectedRound);
                     const sc = roundRec ? detailCallStatusColor(roundRec.status) : null;
                     return roundRec ? (
-                      <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 4,
-                        background: sc.bg, border: '1.5px solid ' + sc.color + '40',
+                      <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: radius.md,
+                        background: sc.bg, border: `1.5px solid ${sc.color}40`,
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: sc.color }}>
+                        <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: sc.color }}>
                           {selectedRound}回目の結果：{roundRec.status}
                         </span>
                         <button onClick={() => handleDetailDeleteRecord(roundRec)}
-                          style={{ fontSize: 9, padding: '3px 8px', borderRadius: 4,
-                            border: '1px solid ' + C.border, background: C.white,
-                            cursor: 'pointer', color: C.textMid, fontFamily: "'Noto Sans JP'" }}>取消</button>
+                          style={{ fontSize: 9, padding: '3px 8px', borderRadius: radius.md,
+                            border: `1px solid ${color.border}`, background: color.white,
+                            cursor: 'pointer', color: color.textMid, fontFamily: font.family.sans }}>取消</button>
                       </div>
                     ) : (
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 12 }}>
                         {CALL_RESULTS.map(r => {
                           const isAppo = r.id === 'appointment';
                           const isExcl = r.id === 'excluded';
-                          const btnBg    = isAppo ? '#38a169'  : isExcl ? C.red + '10' : C.navy + '08';
-                          const btnColor = isAppo ? '#fff'     : isExcl ? C.red        : C.navy;
-                          const btnBdr   = isAppo ? '1.5px solid #38a169' : isExcl ? '1.5px solid ' + C.red + '40' : '1px solid ' + C.navy + '25';
+                          const btnBg    = isAppo ? '#38a169'  : isExcl ? alpha(color.danger, 0.06) : alpha(color.navy, 0.03);
+                          const btnColor = isAppo ? color.white : isExcl ? color.danger : color.navy;
+                          const btnBdr   = isAppo ? '1.5px solid #38a169' : isExcl ? `1.5px solid ${alpha(color.danger, 0.25)}` : `1px solid ${alpha(color.navy, 0.15)}`;
                           return (
                             <button key={r.id} onClick={() => handleDetailResult(r.label)}
-                              style={{ padding: '9px 6px', borderRadius: 7, border: btnBdr, background: btnBg, color: btnColor, cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: "'Noto Sans JP'", lineHeight: 1.2 }}>
+                              style={{ padding: '9px 6px', borderRadius: 7, border: btnBdr, background: btnBg, color: btnColor, cursor: 'pointer', fontSize: font.size.xs, fontWeight: font.weight.bold, fontFamily: font.family.sans, lineHeight: 1.2 }}>
                               {r.label}
                             </button>
                           );
@@ -1329,19 +1335,19 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
 
                   {/* メモ */}
                   <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
                       メモ
-                      {savingMemo && <span style={{ fontSize: 9, color: C.textLight, fontWeight: 400 }}>保存中...</span>}
+                      {savingMemo && <span style={{ fontSize: 9, color: color.textLight, fontWeight: 400 }}>保存中...</span>}
                     </div>
                     <textarea value={localMemo} onChange={e => setLocalMemo(e.target.value)} onBlur={handleDetailMemoBlur}
                       placeholder="架電メモを入力（フォーカスを外すと自動保存）..."
-                      style={{ width: '100%', minHeight: 64, padding: '8px', borderRadius: 6, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', resize: 'vertical', boxSizing: 'border-box', background: C.offWhite }} />
+                      style={{ width: '100%', minHeight: 64, padding: '8px', borderRadius: radius.lg, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: font.family.sans, outline: 'none', resize: 'vertical', boxSizing: 'border-box', background: color.offWhite }} />
                   </div>
 
                   {/* 架電履歴 */}
                   {itemRecords.length > 0 && (
                     <div style={{ marginBottom: 8 }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 6 }}>架電履歴</div>
+                      <div style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 6 }}>架電履歴</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         {itemRecords.map(rec => {
                           const sc = detailCallStatusColor(rec.status);
@@ -1352,11 +1358,11 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                           return (
                             <div key={rec.id}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6,
-                                padding: '5px 8px', borderRadius: 5, background: C.offWhite, fontSize: 11 }}>
-                                <span style={{ fontWeight: 700, color: C.navy, minWidth: 36, fontFamily: "'JetBrains Mono'", fontSize: 10 }}>{rec.round}回目</span>
-                                <span style={{ flex: 1, color: sc.color, fontWeight: 600 }}>{rec.status}</span>
-                                <span style={{ color: C.textLight, fontSize: 10 }}>{rec.getter_name || '-'}</span>
-                                <span style={{ color: C.textLight, fontSize: 10 }}>{dtStr}</span>
+                                padding: '5px 8px', borderRadius: 5, background: color.offWhite, fontSize: font.size.xs }}>
+                                <span style={{ fontWeight: font.weight.bold, color: color.navy, minWidth: 36, fontFamily: font.family.mono, fontSize: 10 }}>{rec.round}回目</span>
+                                <span style={{ flex: 1, color: sc.color, fontWeight: font.weight.semibold }}>{rec.status}</span>
+                                <span style={{ color: color.textLight, fontSize: 10 }}>{rec.getter_name || '-'}</span>
+                                <span style={{ color: color.textLight, fontSize: 10 }}>{dtStr}</span>
                                 {rec.recording_url
                                   ? <PlayRecordingButton
                                       url={rec.recording_url}
@@ -1366,7 +1372,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                                       size="sm"
                                     />
                                   : <button onClick={() => handleDetailFetchRecording(rec)} title="録音URLを手動取得"
-                                      style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>更新</button>
+                                      style={{ fontSize: font.size.base, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>更新</button>
                                 }
                               </div>
                             </div>
@@ -1386,18 +1392,18 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       {subTab === "listSearch" && (<div>
         {/* 検索フォーム */}
         <div style={{
-          background: "#fff", borderRadius: 4, padding: "16px 20px", marginBottom: 16,
-          border: "1px solid #E5E7EB",
+          background: color.white, borderRadius: radius.md, padding: "16px 20px", marginBottom: space[4],
+          border: `1px solid ${color.border}`,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>リスト検索</span>
-            <span style={{ fontSize: 10, color: C.textLight }}>クライアント・業種・企業属性でSupabaseの架電リストを絞り込み</span>
+            <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>リスト検索</span>
+            <span style={{ fontSize: 10, color: color.textLight }}>クライアント・業種・企業属性でSupabaseの架電リストを絞り込み</span>
           </div>
           {/* 1行目: クライアント名 + 業種 */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
             {/* クライアント名コンボボックス */}
             <div style={{ position: "relative" }}>
-              <label style={{ fontSize: 10, fontWeight: 600, color: C.textLight, marginBottom: 3, display: "block" }}>クライアント名</label>
+              <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.textLight, marginBottom: 3, display: "block" }}>クライアント名</label>
               <input
                 type="text"
                 value={lsClientInput}
@@ -1410,15 +1416,15 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
               {lsClientFocused && filteredClientCandidates.length > 0 && (
                 <div style={{
                   position: "absolute", top: "100%", left: 0, right: 0, zIndex: 500,
-                  background: C.white, border: "1px solid " + C.border, borderRadius: 6,
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.12)", maxHeight: 180, overflowY: "auto",
+                  background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.lg,
+                  boxShadow: shadow.md, maxHeight: 180, overflowY: "auto",
                 }}>
                   {filteredClientCandidates.map(name => (
                     <div key={name}
                       onMouseDown={() => { setLsClientInput(name); setLsClientFocused(false); }}
-                      style={{ padding: "7px 12px", fontSize: 12, cursor: "pointer", color: C.textDark, borderBottom: "1px solid " + C.borderLight + "60" }}
-                      onMouseEnter={e => e.currentTarget.style.background = C.offWhite}
-                      onMouseLeave={e => e.currentTarget.style.background = C.white}
+                      style={{ padding: "7px 12px", fontSize: font.size.sm, cursor: "pointer", color: color.textDark, borderBottom: `1px solid ${alpha(color.borderLight, 0.4)}` }}
+                      onMouseEnter={e => e.currentTarget.style.background = color.offWhite}
+                      onMouseLeave={e => e.currentTarget.style.background = color.white}
                     >{name}</div>
                   ))}
                 </div>
@@ -1426,7 +1432,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
             </div>
             {/* 業種コンボボックス */}
             <div style={{ position: "relative" }}>
-              <label style={{ fontSize: 10, fontWeight: 600, color: C.textLight, marginBottom: 3, display: "block" }}>業種</label>
+              <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.textLight, marginBottom: 3, display: "block" }}>業種</label>
               <input
                 type="text"
                 value={lsIndustry}
@@ -1439,15 +1445,15 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
               {lsIndustryFocused && filteredIndustryCandidates.length > 0 && (
                 <div style={{
                   position: "absolute", top: "100%", left: 0, right: 0, zIndex: 500,
-                  background: C.white, border: "1px solid " + C.border, borderRadius: 6,
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.12)", maxHeight: 180, overflowY: "auto",
+                  background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.lg,
+                  boxShadow: shadow.md, maxHeight: 180, overflowY: "auto",
                 }}>
                   {filteredIndustryCandidates.map(v => (
                     <div key={v}
                       onMouseDown={() => { setLsIndustry(v); setLsIndustryFocused(false); }}
-                      style={{ padding: "7px 12px", fontSize: 12, cursor: "pointer", color: C.textDark, borderBottom: "1px solid " + C.borderLight + "60" }}
-                      onMouseEnter={e => e.currentTarget.style.background = C.offWhite}
-                      onMouseLeave={e => e.currentTarget.style.background = C.white}
+                      style={{ padding: "7px 12px", fontSize: font.size.sm, cursor: "pointer", color: color.textDark, borderBottom: `1px solid ${alpha(color.borderLight, 0.4)}` }}
+                      onMouseEnter={e => e.currentTarget.style.background = color.offWhite}
+                      onMouseLeave={e => e.currentTarget.style.background = color.white}
                     >{v}</div>
                   ))}
                 </div>
@@ -1457,24 +1463,24 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           {/* 2行目: 都道府県 + ステータス */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
             <div>
-              <label style={{ fontSize: 10, fontWeight: 600, color: C.textLight, marginBottom: 3, display: "block" }}>都道府県（企業住所）</label>
+              <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.textLight, marginBottom: 3, display: "block" }}>都道府県（企業住所）</label>
               <input type="text" placeholder="例: 東京都、大阪府..." value={lsPref}
                 onChange={e => setLsPref(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleListSearch()}
                 style={{ ...inputStyle2, width: "100%", boxSizing: "border-box" }} />
             </div>
             <div>
-              <label style={{ fontSize: 10, fontWeight: 600, color: C.textLight, marginBottom: 3, display: "block" }}>
+              <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.textLight, marginBottom: 3, display: "block" }}>
                 架電ステータス
-                {lsStatus.length > 0 && <span style={{ marginLeft: 5, color: C.navy, fontWeight: 700 }}>{lsStatus.length}件選択</span>}
+                {lsStatus.length > 0 && <span style={{ marginLeft: 5, color: color.navy, fontWeight: font.weight.bold }}>{lsStatus.length}件選択</span>}
               </label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", padding: "6px 8px",
-                border: "1px solid " + C.border, borderRadius: 5, background: C.white, boxSizing: "border-box", width: "100%" }}>
+                border: `1px solid ${color.border}`, borderRadius: 5, background: color.white, boxSizing: "border-box", width: "100%" }}>
                 {statuses.map(s => s.label).map(s => (
-                  <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, cursor: "pointer", whiteSpace: "nowrap", color: C.textMid }}>
+                  <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, cursor: "pointer", whiteSpace: "nowrap", color: color.textMid }}>
                     <input type="checkbox" checked={lsStatus.includes(s)}
                       onChange={e => setLsStatus(prev => e.target.checked ? [...prev, s] : prev.filter(x => x !== s))}
-                      style={{ cursor: "pointer", accentColor: C.navy }} />
+                      style={{ cursor: "pointer", accentColor: color.navy }} />
                     {s}
                   </label>
                 ))}
@@ -1484,24 +1490,24 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           {/* 3行目: 売上高 range + 純利益 range */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
             <div>
-              <label style={{ fontSize: 10, fontWeight: 600, color: C.textLight, marginBottom: 3, display: "block" }}>売上高（千円）</label>
+              <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.textLight, marginBottom: 3, display: "block" }}>売上高（千円）</label>
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <input type="number" placeholder="下限" value={lsRevenueMin}
                   onChange={e => setLsRevenueMin(e.target.value)}
                   style={{ ...inputStyle2, flex: 1, minWidth: 0 }} />
-                <span style={{ color: C.textLight, fontSize: 11 }}>〜</span>
+                <span style={{ color: color.textLight, fontSize: font.size.xs }}>〜</span>
                 <input type="number" placeholder="上限" value={lsRevenueMax}
                   onChange={e => setLsRevenueMax(e.target.value)}
                   style={{ ...inputStyle2, flex: 1, minWidth: 0 }} />
               </div>
             </div>
             <div>
-              <label style={{ fontSize: 10, fontWeight: 600, color: C.textLight, marginBottom: 3, display: "block" }}>当期純利益（千円）</label>
+              <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.textLight, marginBottom: 3, display: "block" }}>当期純利益（千円）</label>
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <input type="number" placeholder="下限" value={lsNetIncomeMin}
                   onChange={e => setLsNetIncomeMin(e.target.value)}
                   style={{ ...inputStyle2, flex: 1, minWidth: 0 }} />
-                <span style={{ color: C.textLight, fontSize: 11 }}>〜</span>
+                <span style={{ color: color.textLight, fontSize: font.size.xs }}>〜</span>
                 <input type="number" placeholder="上限" value={lsNetIncomeMax}
                   onChange={e => setLsNetIncomeMax(e.target.value)}
                   style={{ ...inputStyle2, flex: 1, minWidth: 0 }} />
@@ -1511,12 +1517,12 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           {/* 4行目: 架電回数 range */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
             <div>
-              <label style={{ fontSize: 10, fontWeight: 600, color: C.textLight, marginBottom: 3, display: "block" }}>架電回数</label>
+              <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.textLight, marginBottom: 3, display: "block" }}>架電回数</label>
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <input type="number" placeholder="下限" value={lsCallCountMin}
                   onChange={e => setLsCallCountMin(e.target.value)}
                   style={{ ...inputStyle2, flex: 1, minWidth: 0 }} />
-                <span style={{ color: C.textLight, fontSize: 11 }}>〜</span>
+                <span style={{ color: color.textLight, fontSize: font.size.xs }}>〜</span>
                 <input type="number" placeholder="上限" value={lsCallCountMax}
                   onChange={e => setLsCallCountMax(e.target.value)}
                   style={{ ...inputStyle2, flex: 1, minWidth: 0 }} />
@@ -1524,35 +1530,36 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
             </div>
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <button onClick={() => {
-              setLsClientInput(""); setLsIndustry(""); setLsPref("");
-              setLsRevenueMin(""); setLsRevenueMax("");
-              setLsNetIncomeMin(""); setLsNetIncomeMax("");
-              setLsStatus([]); setLsCallCountMin(""); setLsCallCountMax("");
-              setLsResults(null); setLsItemResults(null); setLsCalledCounts({});
-            }} style={{
-              padding: "8px 16px", borderRadius: 4, border: "1px solid #0D2247",
-              background: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 500,
-              color: "#0D2247", fontFamily: "'Noto Sans JP'",
-            }}>条件クリア</button>
-            <button onClick={handleListSearch} disabled={lsSearching} style={{
-              padding: "8px 22px", borderRadius: 4, border: "none",
-              background: lsSearching ? C.textLight : '#0D2247', color: "#fff",
-              cursor: lsSearching ? "default" : "pointer", fontSize: 13, fontWeight: 500,
-              fontFamily: "'Noto Sans JP'",
-            }}>{lsSearching ? "検索中..." : "検索"}</button>
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => {
+                setLsClientInput(""); setLsIndustry(""); setLsPref("");
+                setLsRevenueMin(""); setLsRevenueMax("");
+                setLsNetIncomeMin(""); setLsNetIncomeMax("");
+                setLsStatus([]); setLsCallCountMin(""); setLsCallCountMax("");
+                setLsResults(null); setLsItemResults(null); setLsCalledCounts({});
+              }}
+            >条件クリア</Button>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={handleListSearch}
+              loading={lsSearching}
+              disabled={lsSearching}
+            >{lsSearching ? "検索中..." : "検索"}</Button>
           </div>
         </div>
 
         {/* 検索結果テーブル */}
         {lsResults === null && lsItemResults === null ? (
-          <div style={{ padding: "48px 0", textAlign: "center", color: C.textLight, fontSize: 12 }}>
+          <div style={{ padding: "48px 0", textAlign: "center", color: color.textLight, fontSize: font.size.sm }}>
             条件を入力して「検索」ボタンを押してください
           </div>
         ) : lsItemResults !== null ? (
           // ステータスフィルター選択時: 企業レベルの結果
           lsItemResults.length === 0 ? (
-            <div style={{ padding: "48px 0", textAlign: "center", color: C.textLight, fontSize: 12 }}>
+            <div style={{ padding: "48px 0", textAlign: "center", color: color.textLight, fontSize: font.size.sm }}>
               条件に一致する企業が見つかりませんでした
             </div>
           ) : (() => {
@@ -1560,22 +1567,19 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
             callListData.forEach(l => { if (l._supaId) itemListMap[l._supaId] = l; });
             const statusColorFn = (s) => getStatusColor(s) || { color: '#9CA3AF', bg: '#9CA3AF18' };
             return (
-              <div style={{ background: "#fff", borderRadius: 4, overflowX: "auto", overflowY: "hidden", border: "1px solid #E5E7EB" }}>
+              <div style={{ background: color.white, borderRadius: radius.md, overflowX: "auto", overflowY: "hidden", border: `1px solid ${color.border}` }}>
                 <div style={{ minWidth: sliMinW }}>
-                <div style={{ padding: "8px 16px", background: "#F8F9FA", borderBottom: "1px solid #E5E7EB", fontSize: 12, color: C.textLight, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ padding: "8px 16px", background: color.cream, borderBottom: `1px solid ${color.border}`, fontSize: font.size.sm, color: color.textLight, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span>架電先企業 {lsItemResults.length.toLocaleString()} 件</span>
-                  <button
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={handleExportItems}
+                    loading={lsExporting === '__items__'}
                     disabled={lsExporting === '__items__'}
-                    style={{
-                      padding: "5px 14px", borderRadius: 4, border: "none",
-                      background: lsExporting === '__items__' ? C.textLight : '#0D2247',
-                      color: "#fff", cursor: lsExporting === '__items__' ? "default" : "pointer",
-                      fontSize: 13, fontWeight: 500, fontFamily: "'Noto Sans JP'",
-                    }}
-                  >{lsExporting === '__items__' ? "処理中..." : "エクスポート"}</button>
+                  >{lsExporting === '__items__' ? "処理中..." : "エクスポート"}</Button>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: sliGrid, padding: "8px 16px", background: "#0D2247", fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle' }}>
+                <div style={{ display: "grid", gridTemplateColumns: sliGrid, padding: "8px 16px", background: color.navy, fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.white, verticalAlign: 'middle' }}>
                   {['企業名','代表者名','電話番号','最新ステータス','リスト名'].map((label, i) => (
                     <span key={label} style={{ position: 'relative', textAlign: sliCols[i]?.align || 'left', whiteSpace: 'nowrap', minWidth: 0 }}>
                       {label}
@@ -1586,16 +1590,16 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                 {lsItemResults.map((item, i) => {
                   const list = itemListMap[item.list_id];
                   return (
-                    <div key={item.id || i} style={{ display: "grid", gridTemplateColumns: sliGrid, padding: "8px 16px", fontSize: 11, alignItems: "center", borderBottom: "1px solid #E5E7EB", background: i % 2 === 0 ? "#fff" : "#F8F9FA" }}>
-                      <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: sliCols[0]?.align || 'left' }}>{item.company || "-"}</span>
-                      <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: sliCols[1]?.align || 'left' }}>{item.representative || "-"}</span>
-                      <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.navy, textAlign: sliCols[2]?.align || 'left' }}>{item.phone || "-"}</span>
+                    <div key={item.id || i} style={{ display: "grid", gridTemplateColumns: sliGrid, padding: "8px 16px", fontSize: font.size.xs, alignItems: "center", borderBottom: `1px solid ${color.border}`, background: i % 2 === 0 ? color.white : color.cream }}>
+                      <span style={{ fontWeight: font.weight.medium, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: sliCols[0]?.align || 'left' }}>{item.company || "-"}</span>
+                      <span style={{ color: color.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: sliCols[1]?.align || 'left' }}>{item.representative || "-"}</span>
+                      <span style={{ fontFamily: font.family.mono, fontSize: 10, color: color.navy, textAlign: sliCols[2]?.align || 'left' }}>{item.phone || "-"}</span>
                       <span style={{ textAlign: sliCols[3]?.align || 'left' }}>
-                        <span style={{ fontSize: 10, borderLeft: '3px solid ' + (statusColorFn(item.call_status).color), paddingLeft: 8, color: statusColorFn(item.call_status).color }}>
+                        <span style={{ fontSize: 10, borderLeft: `3px solid ${statusColorFn(item.call_status).color}`, paddingLeft: 8, color: statusColorFn(item.call_status).color }}>
                           {item.call_status || "-"}
                         </span>
                       </span>
-                      <span style={{ color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 10, textAlign: sliCols[4]?.align || 'left' }}>
+                      <span style={{ color: color.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 10, textAlign: sliCols[4]?.align || 'left' }}>
                         {list ? `${list.company}${list.industry ? ` - ${list.industry}` : ""}` : "-"}
                       </span>
                     </div>
@@ -1606,16 +1610,16 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
             );
           })()
         ) : lsResults !== null && lsResults.length === 0 ? (
-          <div style={{ padding: "48px 0", textAlign: "center", color: C.textLight, fontSize: 12 }}>
+          <div style={{ padding: "48px 0", textAlign: "center", color: color.textLight, fontSize: font.size.sm }}>
             条件に一致するリストが見つかりませんでした
           </div>
         ) : lsResults !== null && (
-          <div style={{ background: "#fff", borderRadius: 4, overflowX: "auto", overflowY: "hidden", border: "1px solid #E5E7EB" }}>
+          <div style={{ background: color.white, borderRadius: radius.md, overflowX: "auto", overflowY: "hidden", border: `1px solid ${color.border}` }}>
             <div style={{ minWidth: slMinW }}>
             <div style={{
               display: "grid", gridTemplateColumns: slGrid,
-              padding: "8px 16px", background: "#0D2247",
-              fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
+              padding: "8px 16px", background: color.navy,
+              fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.white, verticalAlign: 'middle',
             }}>
               {['リスト名','クライアント名','業種','企業数','架電済み','操作'].map((label, i) => (
                 <span key={label} style={{ position: 'relative', textAlign: slCols[i]?.align || 'left', whiteSpace: 'nowrap', minWidth: 0 }}>
@@ -1627,40 +1631,36 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
             {lsResults.map((list, i) => (
               <div key={list._supaId || i} style={{
                 display: "grid", gridTemplateColumns: slGrid,
-                padding: "8px 16px", fontSize: 11, alignItems: "center",
-                borderBottom: "1px solid #E5E7EB",
-                background: i % 2 === 0 ? "#fff" : "#F8F9FA",
+                padding: "8px 16px", fontSize: font.size.xs, alignItems: "center",
+                borderBottom: `1px solid ${color.border}`,
+                background: i % 2 === 0 ? color.white : color.cream,
               }}>
-                <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: slCols[0]?.align || 'left' }}>
+                <span style={{ fontWeight: font.weight.medium, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: slCols[0]?.align || 'left' }}>
                   {list.company}{list.industry ? ` - ${list.industry}` : ""}
                 </span>
-                <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: slCols[1]?.align || 'left' }}>{list.company}</span>
-                <span style={{ color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: slCols[2]?.align || 'left' }}>{list.industry || "-"}</span>
-                <span style={{ textAlign: slCols[3]?.align || 'right', fontFamily: "'JetBrains Mono'", fontWeight: 700, color: C.navy }}>{(list.count || 0).toLocaleString()}</span>
-                <span style={{ textAlign: slCols[4]?.align || 'right', fontFamily: "'JetBrains Mono'", color: C.textMid }}>
+                <span style={{ color: color.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: slCols[1]?.align || 'left' }}>{list.company}</span>
+                <span style={{ color: color.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: slCols[2]?.align || 'left' }}>{list.industry || "-"}</span>
+                <span style={{ textAlign: slCols[3]?.align || 'right', fontFamily: font.family.mono, fontWeight: font.weight.bold, color: color.navy }}>{(list.count || 0).toLocaleString()}</span>
+                <span style={{ textAlign: slCols[4]?.align || 'right', fontFamily: font.family.mono, color: color.textMid }}>
                   {lsCalledCounts[list._supaId] != null ? lsCalledCounts[list._supaId].toLocaleString() : "-"}
                 </span>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
-                  <button
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={() => handleExport(list)}
+                    loading={lsExporting === list._supaId}
                     disabled={lsExporting === list._supaId}
-                    style={{
-                      padding: "5px 10px", borderRadius: 4, border: "none", width: 126,
-                      background: lsExporting === list._supaId ? C.textLight : '#0D2247',
-                      color: "#fff", cursor: lsExporting === list._supaId ? "default" : "pointer",
-                      fontSize: 11, fontWeight: 500, fontFamily: "'Noto Sans JP'",
-                    }}
-                  >{lsExporting === list._supaId ? "処理中..." : "Excelエクスポート"}</button>
-                  <button
+                    style={{ width: 126 }}
+                  >{lsExporting === list._supaId ? "処理中..." : "Excelエクスポート"}</Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => handlePdfExport(list)}
+                    loading={lsPdfExporting === list._supaId}
                     disabled={lsPdfExporting === list._supaId}
-                    style={{
-                      padding: "5px 10px", borderRadius: 4, border: "1px solid #0D2247", width: 126,
-                      background: lsPdfExporting === list._supaId ? C.textLight : '#fff',
-                      color: lsPdfExporting === list._supaId ? '#fff' : '#0D2247', cursor: lsPdfExporting === list._supaId ? "default" : "pointer",
-                      fontSize: 11, fontWeight: 500, fontFamily: "'Noto Sans JP'",
-                    }}
-                  >{lsPdfExporting === list._supaId ? "処理中..." : "PDFレポート"}</button>
+                    style={{ width: 126 }}
+                  >{lsPdfExporting === list._supaId ? "処理中..." : "PDFレポート"}</Button>
                 </div>
               </div>
             ))}
@@ -1671,65 +1671,91 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       {/* ─── 録音一覧タブ ─── */}
       {subTab === "recordings" && (
         <div>
-          <div style={{ background: "#fff", borderRadius: 4, padding: "16px 20px", marginBottom: 16, border: "1px solid #E5E7EB" }}>
+          <div style={{ background: color.white, borderRadius: radius.md, padding: "16px 20px", marginBottom: space[4], border: `1px solid ${color.border}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>録音一覧</span>
-              <span style={{ fontSize: 10, color: C.textLight }}>担当者・ステータスで絞り込み{recList.length > 0 ? `（${recList.length}件）` : ""}</span>
+              <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>録音一覧</span>
+              <span style={{ fontSize: 10, color: color.textLight }}>担当者・ステータスで絞り込み{recList.length > 0 ? `（${recList.length}件）` : ""}</span>
             </div>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <div>
-                <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', display: 'block', marginBottom: 4 }}>担当者</label>
-                <select value={recGetter} onChange={e => setRecGetter(e.target.value)}
-                  style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 12, minWidth: 160, fontFamily: "'Noto Sans JP'" }}>
+                <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, display: 'block', marginBottom: 4 }}>担当者</label>
+                <Select
+                  value={recGetter}
+                  onChange={e => setRecGetter(e.target.value)}
+                  size="sm"
+                  fullWidth={false}
+                  style={{ minWidth: 160 }}
+                >
                   <option value="all">全担当者</option>
                   {(members || []).map(m => {
                     const name = typeof m === 'string' ? m : (m?.name || '');
                     return name ? <option key={name} value={name}>{name}</option> : null;
                   })}
-                </select>
+                </Select>
               </div>
               <div>
-                <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', display: 'block', marginBottom: 4 }}>架電ステータス</label>
-                <select value={recStatus} onChange={e => setRecStatus(e.target.value)}
-                  style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 12, minWidth: 160, fontFamily: "'Noto Sans JP'" }}>
+                <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, display: 'block', marginBottom: 4 }}>架電ステータス</label>
+                <Select
+                  value={recStatus}
+                  onChange={e => setRecStatus(e.target.value)}
+                  size="sm"
+                  fullWidth={false}
+                  style={{ minWidth: 160 }}
+                >
                   <option value="all">全ステータス</option>
                   {statuses.map(s => (
                     <option key={s.id} value={s.label}>{s.label}</option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div>
-                <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', display: 'block', marginBottom: 4 }}>架電日 From</label>
-                <input type="date" value={recDateFrom} onChange={e => setRecDateFrom(e.target.value)}
-                  style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 12, fontFamily: "'Noto Sans JP'" }} />
+                <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, display: 'block', marginBottom: 4 }}>架電日 From</label>
+                <Input
+                  type="date"
+                  value={recDateFrom}
+                  onChange={e => setRecDateFrom(e.target.value)}
+                  size="sm"
+                  fullWidth={false}
+                />
               </div>
               <div>
-                <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', display: 'block', marginBottom: 4 }}>架電日 To</label>
-                <input type="date" value={recDateTo} onChange={e => setRecDateTo(e.target.value)}
-                  style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 12, fontFamily: "'Noto Sans JP'" }} />
+                <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, display: 'block', marginBottom: 4 }}>架電日 To</label>
+                <Input
+                  type="date"
+                  value={recDateTo}
+                  onChange={e => setRecDateTo(e.target.value)}
+                  size="sm"
+                  fullWidth={false}
+                />
               </div>
               <div>
-                <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', display: 'block', marginBottom: 4 }}>並び順</label>
-                <select value={recSortDir} onChange={e => setRecSortDir(e.target.value)}
-                  style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 12, fontFamily: "'Noto Sans JP'" }}>
-                  <option value="desc">新しい順</option>
-                  <option value="asc">古い順</option>
-                </select>
+                <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, display: 'block', marginBottom: 4 }}>並び順</label>
+                <Select
+                  value={recSortDir}
+                  onChange={e => setRecSortDir(e.target.value)}
+                  size="sm"
+                  fullWidth={false}
+                  options={[
+                    { value: 'desc', label: '新しい順' },
+                    { value: 'asc', label: '古い順' },
+                  ]}
+                />
               </div>
               {(recGetter !== 'all' || recStatus !== 'all' || recDateFrom || recDateTo) && (
                 <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                  <button onClick={() => { setRecGetter('all'); setRecStatus('all'); setRecDateFrom(''); setRecDateTo(''); }}
-                    style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #E5E7EB', background: '#fff', cursor: 'pointer', fontSize: 11, color: C.textMid, fontFamily: "'Noto Sans JP'" }}>
-                    クリア
-                  </button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => { setRecGetter('all'); setRecStatus('all'); setRecDateFrom(''); setRecDateTo(''); }}
+                  >クリア</Button>
                 </div>
               )}
             </div>
           </div>
 
-          <div style={{ background: "#fff", borderRadius: 4, border: "1px solid #E5E7EB", overflow: 'hidden' }}>
-            {recLoading && <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>読み込み中...</div>}
-            {!recLoading && recList.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>該当する録音がありません</div>}
+          <div style={{ background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}`, overflow: 'hidden' }}>
+            {recLoading && <div style={{ padding: 24, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>読み込み中...</div>}
+            {!recLoading && recList.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>該当する録音がありません</div>}
             {!recLoading && recList.map((rec, idx) => {
               const isPlaying = recPlayingId === rec.id;
               const isBookmarked = !!bookmarkSet[rec.id];
@@ -1738,17 +1764,17 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                 ? new Date(new Date(rec.called_at).getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 16).replace('T', ' ')
                 : '';
               return (
-                <div key={rec.id} style={{ borderBottom: '1px solid #F0F0F0', padding: '10px 16px', background: idx % 2 === 0 ? '#fff' : '#FAFBFC' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, fontFamily: "'Noto Sans JP'" }}>
+                <div key={rec.id} style={{ borderBottom: `1px solid ${color.borderLight}`, padding: '10px 16px', background: idx % 2 === 0 ? color.white : color.snow }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: font.size.sm, fontFamily: font.family.sans }}>
                     <div style={{ flex: '1 1 240px', minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, color: '#0D2247', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{rec.company_name || '—'}</div>
-                      <div style={{ fontSize: 10, color: C.textLight, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <div style={{ fontWeight: font.weight.bold, color: color.navy, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{rec.company_name || '—'}</div>
+                      <div style={{ fontSize: 10, color: color.textLight, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span>{rec.getter_name || '—'}</span>
                         <span>・</span>
-                        <span style={{ padding: '1px 6px', background: sc.bg, color: sc.color, borderRadius: 3, fontWeight: 600 }}>{rec.status || ''}</span>
+                        <span style={{ padding: '1px 6px', background: sc.bg, color: sc.color, borderRadius: 3, fontWeight: font.weight.semibold }}>{rec.status || ''}</span>
                         <span>・</span>
                         <span>{calledLabel}</span>
-                        {rec.report_style && <span style={{ padding: '1px 6px', background: '#0D2247', color: '#fff', borderRadius: 3, fontSize: 9 }}>{rec.report_style}</span>}
+                        {rec.report_style && <span style={{ padding: '1px 6px', background: color.navy, color: color.white, borderRadius: 3, fontSize: 9 }}>{rec.report_style}</span>}
                       </div>
                     </div>
                     {rec.recording_url && (
@@ -1760,13 +1786,14 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                         size="md"
                       />
                     )}
-                    <button onClick={() => setReportPopup(rec)}
-                      style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #0D2247', background: '#fff', color: '#0D2247', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
-                      レポート
-                    </button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setReportPopup(rec)}
+                    >レポート</Button>
                     <button onClick={() => handleToggleBookmark(rec)}
                       title={isBookmarked ? 'ブックマーク解除' : 'ブックマーク'}
-                      style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', background: '#fff', cursor: 'pointer', fontSize: 14, color: isBookmarked ? '#F59E0B' : '#9CA3AF' }}>
+                      style={{ padding: '6px 10px', borderRadius: radius.md, border: `1px solid ${color.border}`, background: color.white, cursor: 'pointer', fontSize: font.size.md, color: isBookmarked ? '#F59E0B' : color.textLight }}>
                       {isBookmarked ? '★' : '☆'}
                     </button>
                   </div>
