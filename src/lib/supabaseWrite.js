@@ -3218,6 +3218,76 @@ export async function deleteClientCallRecordByRound(leadCompanyId, round) {
   return { error }
 }
 
+// 全リスト横断で「最新ラウンドが再コール待ち」の企業を抽出
+//   memo の "[再コール予定: ...]" から予定日時を取り出して付加
+export async function fetchAllPendingRecalls() {
+  const orgId = getOrgId()
+  if (!orgId) return { data: [], error: null }
+
+  const { data: records, error } = await supabase
+    .from('client_call_records')
+    .select('id, list_id, lead_company_id, round, status, memo, called_at')
+    .eq('org_id', orgId)
+    .in('status', ['reception_recall', 'keyman_recall'])
+    .order('called_at', { ascending: false })
+    .limit(500)
+  if (error || !records || records.length === 0) {
+    return { data: [], error: error || null }
+  }
+
+  // 該当 lead_company の最新ラウンドが本当に recall か確認
+  const companyIds = [...new Set(records.map(r => r.lead_company_id))]
+  const { data: maxRoundRecs } = await supabase
+    .from('client_call_records')
+    .select('lead_company_id, round, status')
+    .eq('org_id', orgId)
+    .in('lead_company_id', companyIds)
+  const maxRoundByCompany = {}
+  ;(maxRoundRecs || []).forEach(r => {
+    if (!maxRoundByCompany[r.lead_company_id] || r.round > maxRoundByCompany[r.lead_company_id].round) {
+      maxRoundByCompany[r.lead_company_id] = r
+    }
+  })
+
+  const seen = new Set()
+  const pending = []
+  for (const r of records) {
+    if (seen.has(r.lead_company_id)) continue
+    const max = maxRoundByCompany[r.lead_company_id]
+    if (!max || (max.status !== 'reception_recall' && max.status !== 'keyman_recall')) continue
+    if (max.round !== r.round) continue
+    seen.add(r.lead_company_id)
+    const m = (r.memo || '').match(/\[再コール予定:\s*(.+?)\]/)
+    pending.push({ ...r, recall_at_raw: m ? m[1] : null })
+  }
+
+  const leadCompanyIds = pending.map(p => p.lead_company_id)
+  const listIds = [...new Set(pending.map(p => p.list_id))]
+  const [{ data: leadCompanies }, { data: lists }] = await Promise.all([
+    supabase
+      .from('client_lead_companies')
+      .select('id, no, company, phone, business, representative')
+      .eq('org_id', orgId)
+      .in('id', leadCompanyIds.length > 0 ? leadCompanyIds : ['00000000-0000-0000-0000-000000000000']),
+    supabase
+      .from('client_lead_lists')
+      .select('id, name, industry')
+      .eq('org_id', orgId)
+      .in('id', listIds.length > 0 ? listIds : ['00000000-0000-0000-0000-000000000000']),
+  ])
+  const cMap = Object.fromEntries((leadCompanies || []).map(c => [c.id, c]))
+  const lMap = Object.fromEntries((lists || []).map(l => [l.id, l]))
+
+  return {
+    data: pending.map(p => ({
+      ...p,
+      company: cMap[p.lead_company_id] || null,
+      list: lMap[p.list_id] || null,
+    })),
+    error: null,
+  }
+}
+
 // アポ獲得時: clients に新規追加し、lead_company に promoted_to_client_id を保持
 export async function promoteLeadCompanyToClient(leadCompany, { contactPerson } = {}) {
   if (!leadCompany?.id || !leadCompany?.company) {
