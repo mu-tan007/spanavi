@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 import { CALL_RESULTS } from '../../constants/callResults';
 import { updatePreCheckResult, fetchCallListItemByAppo, invokeSendAppoReport, invokeSendEmail } from '../../lib/supabaseWrite';
-import { Badge } from '../common/Badge';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -58,9 +59,6 @@ export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
     setSaving(false);
   };
 
-  const inputStyle = { width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid ' + C.border, fontSize: 13, color: C.textDark, background: C.white, outline: 'none', boxSizing: 'border-box', fontFamily: "'Noto Sans JP'" };
-  const labelStyle = { fontSize: 11, fontWeight: 600, color: C.textMid, display: 'block', marginBottom: 4 };
-
   const appoMonth = appo.meetDate ? (parseInt(appo.meetDate.slice(5, 7), 10) + '月') : '';
   // noteに埋め込まれた電話番号を抽出（例: "電話番号：03-xxxx-xxxx"）
   const phoneFromNote = (() => {
@@ -71,40 +69,51 @@ export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
   const displayPhone = appo.phone || phoneFromNote;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 560, maxWidth: '95vw', maxHeight: '90vh', boxShadow: '0 8px 40px rgba(26,58,92,0.18)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {/* ── ヘッダー ── */}
-        <div style={{ background: '#0D2247', padding: '12px 24px', color: '#fff', fontWeight: 600, fontSize: 15, flexShrink: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 600 }}>事前確認入力</div>
-          <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>{appo.company} ／ {appo.client}</div>
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1200,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div style={{
+        background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.lg,
+        width: 560, maxWidth: '95vw', maxHeight: '90vh',
+        boxShadow: shadow.xl, overflow: 'hidden',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        {/* ── ヘッダー (Navy bar) ── */}
+        <div style={{
+          background: color.navy, padding: '14px 24px', color: color.white, flexShrink: 0,
+        }}>
+          <div style={{ fontSize: font.size.md, fontWeight: font.weight.semibold }}>事前確認入力</div>
+          <div style={{ fontSize: font.size.xs, color: alpha('#FFFFFF', 0.7), marginTop: 2 }}>
+            {appo.company} ／ {appo.client}
+          </div>
         </div>
 
         {/* ── スクロール可能なコンテンツエリア ── */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
-
-          {/* ── アポ取得報告セクション ── */}
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid #E5E7EB' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#0D2247' }}>{appo.company}</div>
+          {/* アポ取得報告セクション */}
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${color.border}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: color.navy, letterSpacing: font.letterSpacing.tight }}>
+                {appo.company}
+              </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 10 }}>
                 {displayPhone && (
                   <a href={'tel:' + displayPhone} style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4,
-                    fontSize: 11, color: '#fff', background: '#0D2247',
-                    borderRadius: 4, padding: '5px 12px', textDecoration: 'none',
-                    fontFamily: "'JetBrains Mono'", fontWeight: 600,
+                    fontSize: font.size.xs, color: color.white, background: color.navy,
+                    borderRadius: radius.md, padding: '5px 12px', textDecoration: 'none',
+                    fontFamily: font.family.mono, fontWeight: font.weight.semibold,
                   }}>{displayPhone}</a>
                 )}
                 {onNavigate && (
-                  <button onClick={handleNavigate} disabled={navigating} style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 3, padding: '5px 12px',
-                    borderRadius: 4, border: '1px solid #0D2247', background: '#fff',
-                    fontSize: 11, fontWeight: 600, color: '#0D2247', cursor: navigating ? 'default' : 'pointer',
-                    opacity: navigating ? 0.6 : 1, fontFamily: "'Noto Sans JP'",
-                  }}>{navigating ? '検索中...' : '架電ページへ'}</button>
+                  <Button size="sm" variant="outline" loading={navigating} onClick={handleNavigate}>
+                    {navigating ? '検索中...' : '架電ページへ'}
+                  </Button>
                 )}
               </div>
             </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
               {[
                 { label: 'クライアント', value: appo.client },
@@ -114,43 +123,64 @@ export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
                 { label: 'ステータス', value: appo.status },
                 { label: '月', value: appoMonth },
               ].map((item, i) => (
-                <div key={i} style={{ padding: '6px 10px', borderRadius: 4, background: '#F8F9FA', border: '1px solid #E5E7EB' }}>
-                  <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>{item.label}</div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2247' }}>{item.value || '—'}</div>
+                <div key={i} style={{
+                  padding: '6px 10px', borderRadius: radius.md,
+                  background: color.cream, border: `1px solid ${color.borderLight}`,
+                }}>
+                  <div style={{
+                    fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold,
+                    letterSpacing: font.letterSpacing.wide, marginBottom: 2,
+                  }}>{item.label}</div>
+                  <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy }}>
+                    {item.value || '—'}
+                  </div>
                 </div>
               ))}
             </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-              <div style={{ padding: '8px 12px', borderRadius: 4, background: '#F8F9FA', border: '1px solid #E5E7EB' }}>
-                <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>当社売上</div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: '#0D2247', fontFamily: "'JetBrains Mono'" }}>{appo.sales > 0 ? '¥' + appo.sales.toLocaleString() : '—'}</div>
+              <div style={{ padding: '8px 12px', borderRadius: radius.md, background: color.cream, border: `1px solid ${color.borderLight}` }}>
+                <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>当社売上</div>
+                <div style={{ fontSize: font.size.lg, fontWeight: font.weight.black, color: color.navy, fontFamily: font.family.mono }}>
+                  {appo.sales > 0 ? '¥' + appo.sales.toLocaleString() : '—'}
+                </div>
               </div>
-              <div style={{ padding: '8px 12px', borderRadius: 4, background: '#F8F9FA', border: '1px solid #E5E7EB' }}>
-                <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>インターン報酬</div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: '#1E40AF', fontFamily: "'JetBrains Mono'" }}>{appo.reward > 0 ? '¥' + appo.reward.toLocaleString() : '—'}</div>
+              <div style={{ padding: '8px 12px', borderRadius: radius.md, background: color.cream, border: `1px solid ${color.borderLight}` }}>
+                <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>インターン報酬</div>
+                <div style={{ fontSize: font.size.lg, fontWeight: font.weight.black, color: '#1E40AF', fontFamily: font.family.mono }}>
+                  {appo.reward > 0 ? '¥' + appo.reward.toLocaleString() : '—'}
+                </div>
               </div>
             </div>
-            <div style={{ padding: '8px 12px', borderRadius: 4, background: '#F8F9FA', border: '1px solid #E5E7EB', borderLeft: '3px solid #0D2247', marginTop: 8 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#0D2247', marginBottom: 6 }}>アポ取得報告</div>
+
+            <div style={{
+              padding: '10px 14px', borderRadius: radius.md, background: color.cream,
+              border: `1px solid ${color.borderLight}`, borderLeft: `3px solid ${color.navy}`, marginTop: 8,
+            }}>
+              <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, marginBottom: 6, letterSpacing: font.letterSpacing.wide }}>
+                アポ取得報告
+              </div>
               {appo.note
-                ? <div style={{ fontSize: 11, color: C.textDark, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{appo.note}</div>
-                : <div style={{ fontSize: 11, color: C.textLight }}>アポ取得報告が登録されていません</div>
+                ? <div style={{ fontSize: font.size.xs, color: color.textDark, lineHeight: font.lineHeight.relaxed, whiteSpace: 'pre-wrap' }}>{appo.note}</div>
+                : <div style={{ fontSize: font.size.xs, color: color.textLight }}>アポ取得報告が登録されていません</div>
               }
             </div>
+
             {(() => {
               const m = (appo.note || '').match(/録音URL[：:]\s*(https?:\/\/\S+)/);
               const recUrl = m?.[1]?.trim() || '';
               return (
                 <div style={{ marginTop: 8 }}>
-                  <div style={{ padding: '5px 8px', borderRadius: 4, background: '#F8F9FA',
-                    display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', whiteSpace: 'nowrap' }}>録音</span>
+                  <div style={{
+                    padding: '6px 10px', borderRadius: radius.md, background: color.cream,
+                    display: 'flex', alignItems: 'center', gap: 8, border: `1px solid ${color.borderLight}`,
+                  }}>
+                    <span style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy }}>録音</span>
                     {recUrl
-                      ? <button onClick={() => setShowRecording(v => !v)}
-                          title={showRecording ? "閉じる" : "録音を再生"}
-                          style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer',
-                            padding: 0, lineHeight: 1, color: showRecording ? C.red : 'inherit' }}>録音</button>
-                      : <span style={{ fontSize: 11, color: C.textLight }}>録音なし</span>
+                      ? <Button size="sm" variant="ghost" onClick={() => setShowRecording(v => !v)}>
+                          {showRecording ? '閉じる' : '再生'}
+                        </Button>
+                      : <span style={{ fontSize: font.size.xs, color: color.textLight }}>録音なし</span>
                     }
                   </div>
                   {showRecording && recUrl && (
@@ -161,49 +191,86 @@ export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
             })()}
           </div>
 
-          {/* ── 事前確認フォーム ── */}
+          {/* 事前確認フォーム */}
           <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div>
-              <label style={labelStyle}>事前確認結果 <span style={{ color: C.red }}>*</span></label>
-              <select value={form.preCheckStatus} onChange={e => u('preCheckStatus', e.target.value)} style={inputStyle}>
-                <option value=''>選択してください</option>
-                {PRE_CHECK_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
+            <Select
+              label="事前確認結果"
+              required
+              value={form.preCheckStatus}
+              onChange={e => u('preCheckStatus', e.target.value)}
+              options={[
+                { value: '', label: '選択してください' },
+                ...PRE_CHECK_OPTIONS.map(s => ({ value: s, label: s })),
+              ]}
+            />
+
             {form.preCheckStatus === 'リスケ' && (
-              <div style={{ background: '#FFF8E1', borderRadius: 4, padding: '12px 14px', border: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div>
-                  <label style={labelStyle}>状況</label>
-                  <select value={form.rescheduleStatus} onChange={e => u('rescheduleStatus', e.target.value)} style={inputStyle}>
-                    <option value='調整中'>調整中</option>
-                    <option value='日時確定'>日時確定</option>
-                  </select>
-                </div>
+              <div style={{
+                background: '#FFF8E1', borderRadius: radius.md, padding: '14px',
+                border: `1px solid ${color.borderLight}`,
+                display: 'flex', flexDirection: 'column', gap: 10,
+              }}>
+                <Select
+                  label="状況"
+                  value={form.rescheduleStatus}
+                  onChange={e => u('rescheduleStatus', e.target.value)}
+                  options={[
+                    { value: '調整中', label: '調整中' },
+                    { value: '日時確定', label: '日時確定' },
+                  ]}
+                />
                 {form.rescheduleStatus === '日時確定' && (
-                  <div>
-                    <label style={labelStyle}>リスケ先日時</label>
-                    <input type='datetime-local' value={form.rescheduledAt} onChange={e => u('rescheduledAt', e.target.value)} style={inputStyle} />
-                  </div>
+                  <Input
+                    label="リスケ先日時"
+                    type="datetime-local"
+                    value={form.rescheduledAt}
+                    onChange={e => u('rescheduledAt', e.target.value)}
+                  />
                 )}
               </div>
             )}
+
             {form.preCheckStatus === 'キャンセル' && (
-              <div style={{ background: '#FFF5F5', borderRadius: 4, padding: '12px 14px', border: '1px solid #E5E7EB' }}>
-                <label style={labelStyle}>キャンセル理由</label>
-                <input type='text' value={form.cancelReason} onChange={e => u('cancelReason', e.target.value)} placeholder='例：先方都合によりキャンセル' style={inputStyle} />
+              <div style={{ background: '#FFF5F5', borderRadius: radius.md, padding: '14px', border: `1px solid ${color.borderLight}` }}>
+                <Input
+                  label="キャンセル理由"
+                  value={form.cancelReason}
+                  onChange={e => u('cancelReason', e.target.value)}
+                  placeholder="例：先方都合によりキャンセル"
+                />
               </div>
             )}
+
             <div>
-              <label style={labelStyle}>メモ</label>
-              <textarea value={form.preCheckMemo} onChange={e => u('preCheckMemo', e.target.value)} rows={3} placeholder='備考・引き継ぎ事項など' style={{ ...inputStyle, resize: 'vertical', fontSize: 12 }} />
+              <div style={{
+                fontSize: font.size.sm, fontWeight: font.weight.semibold,
+                color: color.textMid, letterSpacing: font.letterSpacing.wide, marginBottom: 4,
+              }}>メモ</div>
+              <textarea
+                value={form.preCheckMemo}
+                onChange={e => u('preCheckMemo', e.target.value)}
+                rows={3}
+                placeholder="備考・引き継ぎ事項など"
+                style={{
+                  width: '100%', padding: '9px 12px', borderRadius: radius.md,
+                  border: `1px solid ${color.border}`, fontSize: font.size.sm,
+                  color: color.textDark, background: color.white,
+                  outline: 'none', boxSizing: 'border-box',
+                  fontFamily: font.family.sans, resize: 'vertical',
+                }}
+              />
             </div>
           </div>
         </div>
 
-        {/* ── ボタン ── */}
-        <div style={{ padding: '12px 20px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end', gap: 8, flexShrink: 0 }}>
-          <button onClick={onCancel} style={{ padding: '8px 16px', borderRadius: 4, border: '1px solid #0D2247', background: '#fff', color: '#0D2247', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
-          <button onClick={handleSave} disabled={saving} style={{ padding: '8px 16px', borderRadius: 4, border: 'none', background: saving ? C.border : '#0D2247', color: '#fff', fontSize: 13, fontWeight: 500, cursor: saving ? 'default' : 'pointer', fontFamily: "'Noto Sans JP'" }}>{saving ? '保存中...' : '保存'}</button>
+        {/* フッターボタン */}
+        <div style={{
+          padding: '12px 20px', borderTop: `1px solid ${color.border}`,
+          display: 'flex', justifyContent: 'flex-end', gap: 8, flexShrink: 0,
+          background: color.white,
+        }}>
+          <Button variant="outline" onClick={onCancel}>キャンセル</Button>
+          <Button onClick={handleSave} loading={saving}>{saving ? '保存中...' : '保存'}</Button>
         </div>
       </div>
     </div>
@@ -244,6 +311,14 @@ const buildPreCheckReport = (appo, contactName, resultType) => {
   }
   // 確認完了
   return `${greeting}様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\n${dateTime} よりご予定を頂いております、${companyName}様への事前確認が無事に完了いたしました。\n\n当日はご対応のほど、よろしくお願い申し上げます。\n\nMASP 篠宮`;
+};
+
+// 事前確認状態 → Badge variant
+const preCheckBadgeVariant = (pcs) => {
+  if (pcs === '確認完了') return 'success';
+  if (pcs === '確認中' || pcs === 'リスケ') return 'warn';
+  if (pcs === 'キャンセル') return 'danger';
+  return 'neutral';
 };
 
 export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen, callListData = [], clientData = [], contactsByClient = {} }) {
@@ -308,16 +383,6 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
     return d;
   };
 
-  const subtractBusinessDays = (target, days) => {
-    const d = new Date(target);
-    let sub = 0;
-    while (sub < days) {
-      d.setDate(d.getDate() - 1);
-      if (d.getDay() !== 0 && d.getDay() !== 6) sub++;
-    }
-    return d;
-  };
-
   const toDateStr = (d) => {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -335,7 +400,6 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
   const t1 = addBusinessDays(today, 1);
   const t2 = addBusinessDays(today, 2);
 
-  // Filter: status === "アポ取得" AND meetDate is today/1BD/2BD AND pre_check_status not resolved
   const targets = appoData.filter(a => {
     if (a.status !== "アポ取得") return false;
     if (['確認完了', 'リスケ', 'キャンセル'].includes(a.preCheckStatus)) return false;
@@ -352,9 +416,9 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
   }).sort((a, b) => a.urgency - b.urgency);
 
   const groups = [
-    { key: 0, label: "当日", date: t0, color: "#e53835", bgColor: "#e5383508", borderColor: "#e5383520", icon: "●" },
-    { key: 1, label: "1営業日前", date: t1, color: "#D97706", bgColor: "#D9770608", borderColor: "#D9770620", icon: "●" },
-    { key: 2, label: "2営業日前", date: t2, color: "#0D2247", bgColor: "#0D224706", borderColor: "#0D224715", icon: "●" },
+    { key: 0, label: "当日", date: t0, color: color.danger,    bg: alpha(color.danger, 0.04),    border: alpha(color.danger, 0.15) },
+    { key: 1, label: "1営業日前", date: t1, color: color.warn,  bg: alpha(color.warn, 0.05),      border: alpha(color.warn, 0.18) },
+    { key: 2, label: "2営業日前", date: t2, color: color.navy,  bg: alpha(color.navy, 0.04),      border: alpha(color.navy, 0.12) },
   ];
 
   const totalCount = targets.length;
@@ -368,145 +432,164 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
         style={{ marginBottom: 24 }}
       />
 
-      {/* Summary */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        background: '#fff', borderRadius: 4, padding: isMobile ? "10px 12px" : "14px 20px", marginBottom: 16,
-        border: "1px solid #E5E7EB",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      {/* サマリー */}
+      <Card padding="md" style={{ marginBottom: 16 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexWrap: 'wrap', gap: 12,
+        }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#0D2247' }}>事前確認</div>
-            <div style={{ fontSize: 10, color: C.textLight }}>ステータス「アポ取得」で面談が近いアポイント</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-          {groups.map(g => {
-            const cnt = targets.filter(t => t.urgency === g.key).length;
-            return (
-              <div key={g.key} style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600 }}><span style={{ color: g.color }}>{g.icon}</span> {g.label}</div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: g.color, fontFamily: "'JetBrains Mono'" }}>{cnt}</div>
-              </div>
-            );
-          })}
-          <div style={{ textAlign: "center", borderLeft: "1px solid #E5E7EB", paddingLeft: 16 }}>
-            <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600 }}>合計</div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: '#0D2247', fontFamily: "'JetBrains Mono'" }}>{totalCount}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Groups */}
-      {groups.map(g => {
-        const items = targets.filter(t => t.urgency === g.key);
-        if (items.length === 0) return (
-          <div key={g.key} style={{
-            background: '#fff', borderRadius: 4, padding: "16px 20px", marginBottom: 12,
-            border: "1px solid #E5E7EB", opacity: 0.6,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: g.color }}>{g.icon}</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: g.color }}>{g.label}</span>
-              <span style={{ fontSize: 11, color: C.textLight }}>─ 面談日: {dayLabel(g.date)}</span>
-              <span style={{ marginLeft: "auto", fontSize: 11, color: C.textLight }}>対象なし</span>
+            <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>事前確認</div>
+            <div style={{ fontSize: font.size.xs, color: color.textLight }}>
+              ステータス「アポ取得」で面談が近いアポイント
             </div>
           </div>
-        );
-        return (
-          <div key={g.key} style={{
-            background: '#fff', borderRadius: 4, marginBottom: 12,
-            border: "1px solid #E5E7EB", overflowX: "auto", overflowY: "hidden",
-          }}>
-            <div style={{ minWidth: contentMinWidth }}>
-            {/* Group header */}
-            <div style={{
-              padding: isMobile ? "8px 12px" : "12px 20px", background: g.bgColor,
-              borderBottom: "1px solid " + g.borderColor,
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ color: g.color }}>{g.icon}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: g.color }}>{g.label}</span>
-                <span style={{ fontSize: 11, color: C.textMid }}>─ 面談日: {dayLabel(g.date)}</span>
-              </div>
-              <span style={{
-                fontSize: 12, color: g.color,
-                background: g.color + "1a", padding: "2px 8px", borderRadius: 4,
-              }}>{items.length}件</span>
-            </div>
-            {/* Table header */}
-            <div style={{
-              display: "grid", gridTemplateColumns,
-              padding: isMobile ? "6px 12px" : "8px 20px", background: '#0D2247', fontSize: isMobile ? 10 : 11, fontWeight: 600, color: '#fff',
-              borderBottom: "1px solid #E5E7EB",
-            }}>
-              {['企業名', 'クライアント', '取得者', '面談日', '確認状況'].map((label, i) => (
-                <span key={label} style={{ position: 'relative', textAlign: columns[i].align, userSelect: 'none' }}>
-                  {label}
-                  <ColumnResizeHandle colIndex={i} onResizeStart={onResizeStart} />
-                </span>
-              ))}
-            </div>
-            {/* Rows */}
-            {items.map((a, i) => {
-              const pcs = a.preCheckStatus;
-              const badgeColor = pcs === '確認完了' ? '#16A34A' : pcs === '確認中' ? '#D97706' : pcs === 'リスケ' ? '#D97706' : pcs === 'キャンセル' ? '#DC2626' : null;
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+            {groups.map(g => {
+              const cnt = targets.filter(t => t.urgency === g.key).length;
               return (
-                <div key={i}
-                  onClick={() => setSelectedAppo(a)}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#F8F9FA'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#F8F9FA'; }}
-                  style={{
-                    display: "grid", gridTemplateColumns,
-                    padding: isMobile ? "6px 12px" : "8px 20px", fontSize: isMobile ? 11 : 12, alignItems: "center",
-                    borderBottom: "1px solid #E5E7EB",
-                    borderLeft: "3px solid " + g.color,
-                    background: i % 2 === 0 ? '#fff' : '#F8F9FA',
-                    cursor: "pointer",
-                  }}>
-                  <span style={{ fontWeight: 600, color: '#0D2247', textAlign: columns[0].align }}>{a.company}</span>
-                  <span style={{ color: C.textMid, fontSize: 11, textAlign: columns[1].align }}>{a.client}</span>
-                  <span style={{ fontWeight: 600, color: C.textDark, textAlign: columns[2].align }}>{a.getter}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: columns[3].align }}>{a.meetDate.slice(5)}</span>
-                  <span style={{ textAlign: columns[4].align, display: 'flex', alignItems: 'center', gap: 6, justifyContent: columns[4].align === 'right' ? 'flex-end' : 'flex-start' }}>
-                    {badgeColor
-                      ? <span style={{ fontSize: 12, color: badgeColor, background: badgeColor + '1a', borderRadius: 4, padding: '2px 8px' }}>{pcs}</span>
-                      : <span style={{ fontSize: 12, color: C.textLight }}>未入力 →</span>
-                    }
-                    {['確認完了', 'リスケ', 'キャンセル'].includes(pcs) && (
-                      <button onClick={e => {
-                        e.stopPropagation();
-                        const cl = clientData.find(c => c.company === a.client);
-                        const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
-                        const contactName = contacts[0]?.name || cl?.company || a.client;
-                        setReportAppo(a);
-                        setReportResultType(pcs);
-                        setReportBody(buildPreCheckReport(a, contactName, pcs));
-                        setReportStep('compose');
-                        setReportError('');
-                      }} style={{ fontSize: 9, padding: '2px 8px', borderRadius: 3, border: 'none', background: '#0D2247', color: '#fff', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                        報告
-                      </button>
-                    )}
-                  </span>
+                <div key={g.key} style={{ textAlign: 'center', minWidth: 64 }}>
+                  <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, letterSpacing: font.letterSpacing.wide }}>
+                    <span style={{ color: g.color }}>●</span> {g.label}
+                  </div>
+                  <div style={{ fontSize: font.size.xl, fontWeight: font.weight.black, color: g.color, fontFamily: font.family.mono }}>
+                    {cnt}
+                  </div>
                 </div>
               );
             })}
+            <div style={{ textAlign: 'center', borderLeft: `1px solid ${color.border}`, paddingLeft: 16, minWidth: 56 }}>
+              <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, letterSpacing: font.letterSpacing.wide }}>合計</div>
+              <div style={{ fontSize: font.size.xl, fontWeight: font.weight.black, color: color.navy, fontFamily: font.family.mono }}>
+                {totalCount}
+              </div>
             </div>
           </div>
+        </div>
+      </Card>
+
+      {/* 各グループ */}
+      {groups.map(g => {
+        const items = targets.filter(t => t.urgency === g.key);
+        if (items.length === 0) return (
+          <Card key={g.key} padding="md" style={{ marginBottom: 12, opacity: 0.6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ color: g.color }}>●</span>
+              <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: g.color }}>{g.label}</span>
+              <span style={{ fontSize: font.size.xs, color: color.textLight }}>─ 面談日: {dayLabel(g.date)}</span>
+              <span style={{ marginLeft: 'auto', fontSize: font.size.xs, color: color.textLight }}>対象なし</span>
+            </div>
+          </Card>
+        );
+        return (
+          <Card key={g.key} padding="none" style={{ marginBottom: 12, overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto', overflowY: 'hidden' }}>
+              <div style={{ minWidth: contentMinWidth }}>
+                {/* グループヘッダー */}
+                <div style={{
+                  padding: isMobile ? '10px 14px' : '12px 20px',
+                  background: g.bg,
+                  borderBottom: `1px solid ${g.border}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: g.color }}>●</span>
+                    <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: g.color }}>{g.label}</span>
+                    <span style={{ fontSize: font.size.xs, color: color.textMid }}>─ 面談日: {dayLabel(g.date)}</span>
+                  </div>
+                  <span style={{
+                    fontSize: font.size.xs, color: g.color,
+                    background: alpha(g.color, 0.10), padding: '2px 10px', borderRadius: radius.sm,
+                    fontWeight: font.weight.semibold, letterSpacing: font.letterSpacing.wide,
+                  }}>{items.length}件</span>
+                </div>
+
+                {/* テーブルヘッダー */}
+                <div style={{
+                  display: 'grid', gridTemplateColumns,
+                  padding: isMobile ? '8px 14px' : '10px 20px',
+                  background: color.navy,
+                  fontSize: isMobile ? 10 : font.size.xs,
+                  fontWeight: font.weight.semibold, color: color.white,
+                  letterSpacing: font.letterSpacing.wide,
+                }}>
+                  {['企業名', 'クライアント', '取得者', '面談日', '確認状況'].map((label, i) => (
+                    <span key={label} style={{ position: 'relative', textAlign: columns[i].align, userSelect: 'none' }}>
+                      {label}
+                      <ColumnResizeHandle colIndex={i} onResizeStart={onResizeStart} />
+                    </span>
+                  ))}
+                </div>
+
+                {/* 行 */}
+                {items.map((a, i) => {
+                  const pcs = a.preCheckStatus;
+                  return (
+                    <div key={i}
+                      onClick={() => setSelectedAppo(a)}
+                      onMouseEnter={e => { e.currentTarget.style.background = alpha(g.color, 0.04); }}
+                      onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 0 ? color.white : color.cream; }}
+                      style={{
+                        display: 'grid', gridTemplateColumns,
+                        padding: isMobile ? '8px 14px' : '10px 20px',
+                        fontSize: isMobile ? 11 : font.size.sm, alignItems: 'center',
+                        borderBottom: `1px solid ${color.borderLight}`,
+                        borderLeft: `3px solid ${g.color}`,
+                        background: i % 2 === 0 ? color.white : color.cream,
+                        cursor: 'pointer', transition: 'background 0.15s ease',
+                      }}>
+                      <span style={{ fontWeight: font.weight.semibold, color: color.navy, textAlign: columns[0].align }}>{a.company}</span>
+                      <span style={{ color: color.textMid, fontSize: font.size.xs, textAlign: columns[1].align }}>{a.client}</span>
+                      <span style={{ fontWeight: font.weight.semibold, color: color.textDark, textAlign: columns[2].align }}>{a.getter}</span>
+                      <span style={{ fontFamily: font.family.mono, fontSize: 10, color: color.textLight, textAlign: columns[3].align }}>{a.meetDate.slice(5)}</span>
+                      <span style={{
+                        textAlign: columns[4].align,
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        justifyContent: columns[4].align === 'right' ? 'flex-end' : 'flex-start',
+                      }}>
+                        {pcs
+                          ? <Badge variant={preCheckBadgeVariant(pcs)} dot>{pcs}</Badge>
+                          : <span style={{ fontSize: font.size.xs, color: color.textLight }}>未入力 →</span>
+                        }
+                        {['確認完了', 'リスケ', 'キャンセル'].includes(pcs) && (
+                          <Button
+                            size="sm"
+                            onClick={e => {
+                              e.stopPropagation();
+                              const cl = clientData.find(c => c.company === a.client);
+                              const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
+                              const contactName = contacts[0]?.name || cl?.company || a.client;
+                              setReportAppo(a);
+                              setReportResultType(pcs);
+                              setReportBody(buildPreCheckReport(a, contactName, pcs));
+                              setReportStep('compose');
+                              setReportError('');
+                            }}
+                          >
+                            報告
+                          </Button>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </Card>
         );
       })}
 
       {totalCount === 0 && (
-        <div style={{
-          background: '#fff', borderRadius: 4, padding: "40px 20px",
-          border: "1px solid #E5E7EB", textAlign: "center",
-        }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#0D2247', marginBottom: 4 }}>事前確認の対象はありません</div>
-          <div style={{ fontSize: 11, color: C.textLight }}>直近の面談で「アポ取得」ステータスのものはすべて確認済みです</div>
-        </div>
+        <Card padding="lg" style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginBottom: 4 }}>
+            事前確認の対象はありません
+          </div>
+          <div style={{ fontSize: font.size.xs, color: color.textLight }}>
+            直近の面談で「アポ取得」ステータスのものはすべて確認済みです
+          </div>
+        </Card>
       )}
+
       {selectedAppo && (
         <PreCheckModal
           appo={selectedAppo}
@@ -524,46 +607,75 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
         const isChatwork = contactMethod === 'Chatwork';
         const channelLabel = isSlack ? 'Slack' : isChatwork ? 'Chatwork' : 'メール';
         return (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10010, fontFamily: "'Noto Sans JP'" }}
-            onClick={() => { setReportAppo(null); setReportStep('idle'); }}>
-            <div style={{ background: '#fff', borderRadius: 8, padding: 24, width: 500, maxWidth: '90vw', maxHeight: '80vh', overflow: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}
-              onClick={e => e.stopPropagation()}>
-              <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: '#0D2247' }}>事前確認報告を送信</h3>
+          <div style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 10010, fontFamily: font.family.sans,
+          }} onClick={() => { setReportAppo(null); setReportStep('idle'); }}>
+            <div style={{
+              background: color.white, borderRadius: radius.lg, padding: 24,
+              width: 500, maxWidth: '90vw', maxHeight: '80vh', overflow: 'auto',
+              boxShadow: shadow.xl,
+              border: `1px solid ${color.border}`,
+            }} onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginBottom: 12 }}>
+                事前確認報告を送信
+              </div>
               {reportStep === 'compose' && (
                 <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
                   {['確認完了', 'リスケ', 'キャンセル'].map(rt => (
-                    <button key={rt} onClick={() => {
-                      setReportResultType(rt);
-                      const cl2 = clientData.find(c => c.company === reportAppo.client);
-                      const contacts2 = cl2 ? (contactsByClient[cl2._supaId] || []) : [];
-                      const cn = contacts2[0]?.name || cl2?.company || reportAppo.client;
-                      setReportBody(buildPreCheckReport(reportAppo, cn, rt));
-                    }} style={{ padding: '4px 12px', borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-                      background: reportResultType === rt ? '#0D2247' : '#fff', color: reportResultType === rt ? '#fff' : '#0D2247',
-                      border: '1px solid #0D2247' }}>
+                    <Button
+                      key={rt}
+                      size="sm"
+                      variant={reportResultType === rt ? 'primary' : 'outline'}
+                      onClick={() => {
+                        setReportResultType(rt);
+                        const cl2 = clientData.find(c => c.company === reportAppo.client);
+                        const contacts2 = cl2 ? (contactsByClient[cl2._supaId] || []) : [];
+                        const cn = contacts2[0]?.name || cl2?.company || reportAppo.client;
+                        setReportBody(buildPreCheckReport(reportAppo, cn, rt));
+                      }}
+                    >
                       {rt}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
-              <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 8 }}>
-                送信先: {channelLabel} {isSlack ? (cl?.slackWebhookUrl ? '（設定済み）' : <span style={{ color: '#DC2626' }}>（未設定）</span>) : isChatwork ? (cl?.chatworkRoomId ? '（設定済み）' : <span style={{ color: '#DC2626' }}>（未設定）</span>) : ''}
+              <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 8 }}>
+                送信先: {channelLabel}{' '}
+                {isSlack
+                  ? (cl?.slackWebhookUrl ? '（設定済み）' : <span style={{ color: color.danger }}>（未設定）</span>)
+                  : isChatwork ? (cl?.chatworkRoomId ? '（設定済み）' : <span style={{ color: color.danger }}>（未設定）</span>) : ''}
               </div>
               {reportStep === 'sent' ? (
                 <div style={{ textAlign: 'center', padding: 20 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#16A34A', marginBottom: 8 }}>送信完了</div>
-                  <button onClick={() => { setReportAppo(null); setReportStep('idle'); }}
-                    style={{ padding: '8px 20px', borderRadius: 4, border: 'none', background: '#0D2247', color: '#fff', cursor: 'pointer', fontSize: 13 }}>閉じる</button>
+                  <Badge variant="success" dot size="md" style={{ marginBottom: 12 }}>送信完了</Badge>
+                  <div style={{ marginTop: 8 }}>
+                    <Button onClick={() => { setReportAppo(null); setReportStep('idle'); }}>閉じる</Button>
+                  </div>
                 </div>
               ) : (
                 <>
-                  <textarea value={reportBody} onChange={e => setReportBody(e.target.value)}
-                    style={{ width: '100%', minHeight: 200, padding: 10, fontSize: 12, border: '1px solid #D1D5DB', borderRadius: 4, fontFamily: "'Noto Sans JP'", resize: 'vertical', boxSizing: 'border-box' }} />
-                  {reportError && <div style={{ color: '#DC2626', fontSize: 11, marginTop: 4 }}>{reportError}</div>}
+                  <textarea
+                    value={reportBody}
+                    onChange={e => setReportBody(e.target.value)}
+                    style={{
+                      width: '100%', minHeight: 200, padding: 10,
+                      fontSize: font.size.sm, color: color.textDark,
+                      border: `1px solid ${color.border}`, borderRadius: radius.md,
+                      fontFamily: font.family.sans, resize: 'vertical', boxSizing: 'border-box',
+                      outline: 'none',
+                    }}
+                  />
+                  {reportError && (
+                    <div style={{ color: color.danger, fontSize: font.size.xs, marginTop: 4 }}>{reportError}</div>
+                  )}
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
-                    <button onClick={() => { setReportAppo(null); setReportStep('idle'); }}
-                      style={{ padding: '8px 16px', borderRadius: 4, border: '1px solid #D1D5DB', background: '#fff', cursor: 'pointer', fontSize: 12 }}>キャンセル</button>
-                    <button disabled={reportStep === 'sending'}
+                    <Button variant="outline" onClick={() => { setReportAppo(null); setReportStep('idle'); }}>
+                      キャンセル
+                    </Button>
+                    <Button
+                      loading={reportStep === 'sending'}
                       onClick={async () => {
                         setReportStep('sending'); setReportError('');
                         try {
@@ -586,9 +698,9 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
                           setReportError('送信に失敗しました'); setReportStep('compose');
                         }
                       }}
-                      style={{ padding: '8px 20px', borderRadius: 4, border: 'none', background: reportStep === 'sending' ? '#6B7280' : '#0D2247', color: '#fff', cursor: reportStep === 'sending' ? 'default' : 'pointer', fontSize: 12, fontWeight: 600 }}>
+                    >
                       {reportStep === 'sending' ? '送信中...' : `${channelLabel}で送信`}
-                    </button>
+                    </Button>
                   </div>
                 </>
               )}
