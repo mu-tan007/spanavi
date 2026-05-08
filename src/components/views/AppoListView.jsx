@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/formatters';
@@ -59,14 +61,14 @@ export function MemberSuggestInput({ value, onChange, members = [], style, place
       />
       {show && rect && (
         <div style={{ position: 'fixed', top: rect.top, left: rect.left, width: rect.width,
-          background: C.white, border: '1px solid ' + C.border, borderRadius: 4,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.25)', zIndex: 99999, maxHeight: 180, overflowY: 'auto' }}>
+          background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
+          boxShadow: shadow.md, zIndex: 99999, maxHeight: 180, overflowY: 'auto' }}>
           {suggs.map((name, i) => (
             <div key={i}
               onMouseDown={() => { onChange(name); setShow(false); }}
-              style={{ padding: '7px 12px', fontSize: 11, cursor: 'pointer', color: C.textDark, fontFamily: "'Noto Sans JP'" }}
-              onMouseEnter={e => e.currentTarget.style.background = C.offWhite}
-              onMouseLeave={e => e.currentTarget.style.background = C.white}
+              style={{ padding: '7px 12px', fontSize: font.size.xs, cursor: 'pointer', color: color.textDark, fontFamily: "'Noto Sans JP'" }}
+              onMouseEnter={e => e.currentTarget.style.background = color.offWhite}
+              onMouseLeave={e => e.currentTarget.style.background = color.white}
             >{name}</div>
           ))}
         </div>
@@ -199,29 +201,28 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
     setEmailStep('sent');
   };
 
-  const iStyle = { width: '100%', padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: '#fff', boxSizing: 'border-box' };
+  const iStyle = { width: '100%', padding: '6px 10px', borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: 'none', background: color.white, boxSizing: 'border-box' };
 
   return (
-    <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 4, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+    <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: radius.md, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#92400E' }}>{channelIcon} {channelLabel}で送信</div>
-        <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 3, background: es.bg, color: es.color, fontWeight: 600 }}>{es.label}</span>
+        <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: '#92400E' }}>{channelIcon} {channelLabel}で送信</div>
+        <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 3, background: es.bg, color: es.color, fontWeight: font.weight.semibold }}>{es.label}</span>
       </div>
 
       {appo.emailStatus === 'sent' && appo.emailSentAt && (
-        <div style={{ fontSize: 10, color: '#6B7280' }}>送信日時: {new Date(appo.emailSentAt).toLocaleString('ja-JP')}</div>
+        <div style={{ fontSize: 10, color: color.textMid }}>送信日時: {new Date(appo.emailSentAt).toLocaleString('ja-JP')}</div>
       )}
 
       {emailStep === 'idle' && appo.emailStatus !== 'sent' && (
-        <button onClick={initCompose} disabled={!appo.appoReport}
-          style={{ padding: '7px 16px', borderRadius: 4, border: 'none', background: !appo.appoReport ? '#9CA3AF' : '#0D2247', color: '#fff', cursor: !appo.appoReport ? 'default' : 'pointer', fontSize: 12, fontWeight: 600, fontFamily: "'Noto Sans JP'" }}
+        <Button onClick={initCompose} disabled={!appo.appoReport} variant="primary" size="sm"
           title={!appo.appoReport ? 'アポ取得報告が未作成です' : ''}>
           アポ取得報告を送信
-        </button>
+        </Button>
       )}
 
       {emailStep === 'sent' && (
-        <div style={{ fontSize: 12, color: '#10B981', fontWeight: 600 }}>{channelLabel}で送信しました</div>
+        <div style={{ fontSize: font.size.sm, color: color.success, fontWeight: font.weight.semibold }}>{channelLabel}で送信しました</div>
       )}
 
       {(emailStep === 'compose' || emailStep === 'sending') && (
@@ -229,7 +230,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
           {/* メール送信の場合のみ: 宛先・CC・件名 */}
           {!isChat && (<>
             <div style={{ marginBottom: 6 }}>
-              <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>宛先</label>
+              <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#92400E', display: 'block', marginBottom: 2 }}>宛先</label>
               {emailOptions.length > 0 ? (
                 <select value={emailTo} onChange={e => {
                   const newEmail = e.target.value;
@@ -248,7 +249,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
               )}
             </div>
             <div style={{ marginBottom: 6 }}>
-              <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>CC</label>
+              <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#92400E', display: 'block', marginBottom: 2 }}>CC</label>
               {ccOptions.length > 0 ? (
                 <select value={emailCc} onChange={e => setEmailCc(e.target.value)} style={iStyle}>
                   <option value="">なし</option>
@@ -259,58 +260,56 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
               )}
             </div>
             <div style={{ marginBottom: 6 }}>
-              <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>件名</label>
+              <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#92400E', display: 'block', marginBottom: 2 }}>件名</label>
               <input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} style={iStyle} />
             </div>
           </>)}
 
           {/* Slack/Chatwork: 送信先情報 */}
           {isSlack && (
-            <div style={{ marginBottom: 6, fontSize: 10, color: '#6B7280' }}>
-              送信先: {cl?.slackWebhookUrl ? 'Webhook設定済み' : <span style={{ color: '#DC2626' }}>未設定（CRMで設定してください）</span>}
+            <div style={{ marginBottom: 6, fontSize: 10, color: color.textMid }}>
+              送信先: {cl?.slackWebhookUrl ? 'Webhook設定済み' : <span style={{ color: color.danger }}>未設定（CRMで設定してください）</span>}
             </div>
           )}
           {isChatwork && (
-            <div style={{ marginBottom: 6, fontSize: 10, color: '#6B7280' }}>
-              送信先: ルームID {cl?.chatworkRoomId || <span style={{ color: '#DC2626' }}>未設定（CRMで設定してください）</span>}
+            <div style={{ marginBottom: 6, fontSize: 10, color: color.textMid }}>
+              送信先: ルームID {cl?.chatworkRoomId || <span style={{ color: color.danger }}>未設定（CRMで設定してください）</span>}
             </div>
           )}
 
           <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>本文</label>
+            <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#92400E', display: 'block', marginBottom: 2 }}>本文</label>
             <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={18}
               style={{ ...iStyle, resize: 'vertical', lineHeight: 1.6 }} />
           </div>
           {/* 添付ファイル */}
           {!isChat && (
             <div style={{ marginBottom: 8 }}>
-              <label style={{ fontSize: 9, fontWeight: 600, color: '#92400E', display: 'block', marginBottom: 2 }}>添付ファイル</label>
+              <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#92400E', display: 'block', marginBottom: 2 }}>添付ファイル</label>
               <input ref={fileInputRef} type="file" multiple onChange={e => setAttachedFiles(prev => [...prev, ...Array.from(e.target.files)])} style={{ display: 'none' }} />
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
                 <button type="button" onClick={() => fileInputRef.current?.click()}
-                  style={{ padding: '3px 10px', borderRadius: 4, border: '1px dashed #E5E7EB', background: '#fff', cursor: 'pointer', fontSize: 10, color: '#6B7280', fontFamily: "'Noto Sans JP'" }}>
+                  style={{ padding: '3px 10px', borderRadius: radius.md, border: `1px dashed ${color.border}`, background: color.white, cursor: 'pointer', fontSize: 10, color: color.textMid, fontFamily: "'Noto Sans JP'" }}>
                   + ファイルを追加
                 </button>
                 {attachedFiles.map((f, i) => (
-                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#FEF3C7', borderRadius: 4, padding: '2px 8px', fontSize: 9, color: '#92400E' }}>
+                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#FEF3C7', borderRadius: radius.md, padding: '2px 8px', fontSize: 9, color: '#92400E' }}>
                     {f.name}
                     <button type="button" onClick={() => setAttachedFiles(prev => prev.filter((_, j) => j !== i))}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#999', padding: 0, lineHeight: 1 }}>&times;</button>
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: font.size.xs, color: '#999', padding: 0, lineHeight: 1 }}>&times;</button>
                   </span>
                 ))}
               </div>
             </div>
           )}
-          {sendError && <div style={{ fontSize: 10, color: '#DC2626', marginBottom: 6 }}>{sendError}</div>}
+          {sendError && <div style={{ fontSize: 10, color: color.danger, marginBottom: 6 }}>{sendError}</div>}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setEmailStep('idle')}
-              style={{ padding: '6px 14px', borderRadius: 4, border: '1px solid #0D2247', background: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'" }}>
+            <Button onClick={() => setEmailStep('idle')} variant="outline" size="sm">
               キャンセル
-            </button>
-            <button onClick={handleSend} disabled={emailStep === 'sending'}
-              style={{ padding: '6px 14px', borderRadius: 4, border: 'none', background: emailStep === 'sending' ? '#9CA3AF' : '#0D2247', color: '#fff', cursor: emailStep === 'sending' ? 'default' : 'pointer', fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'" }}>
+            </Button>
+            <Button onClick={handleSend} disabled={emailStep === 'sending'} loading={emailStep === 'sending'} variant="primary" size="sm">
               {emailStep === 'sending' ? '送信中...' : `${channelLabel}で送信`}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -1094,47 +1093,47 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       {/* Header */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
-        padding: isMobile ? "10px 12px" : "14px 18px", background: '#fff', borderRadius: 4,
-        border: "1px solid #E5E7EB",
+        padding: isMobile ? "10px 12px" : "14px 18px", background: color.white, borderRadius: radius.md,
+        border: `1px solid ${color.border}`,
         overflowX: isMobile ? 'auto' : undefined, WebkitOverflowScrolling: 'touch',
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#0D2247' }}>アポ一覧</span>
-          <span style={{ fontSize: 11, color: C.textLight }}>{filtered.length}件</span>
+          <span style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>アポ一覧</span>
+          <span style={{ fontSize: font.size.xs, color: color.textLight }}>{filtered.length}件</span>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="企業名・クライアント・取得者..."
-            style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", width: 200 }} />
+            style={{ padding: "6px 12px", borderRadius: radius.lg, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: "none", width: 200 }} />
           {/* 月 / 期間指定 */}
           <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
             {[["all", "全月"], ["month", "月"], ["custom", "期間指定"]].map(([k, l]) => (
               <button key={k} onClick={() => setApPeriod(k)} style={{
-                padding: "5px 10px", borderRadius: 4, fontSize: 10, fontWeight: 500, cursor: "pointer",
+                padding: "5px 10px", borderRadius: radius.md, fontSize: 10, fontWeight: font.weight.medium, cursor: "pointer",
                 fontFamily: "'Noto Sans JP'",
-                background: apPeriod === k ? '#0D2247' : '#fff',
-                color: apPeriod === k ? '#fff' : C.textMid,
-                border: "1px solid " + (apPeriod === k ? '#0D2247' : C.border),
+                background: apPeriod === k ? color.navy : color.white,
+                color: apPeriod === k ? color.white : color.textMid,
+                border: `1px solid ${apPeriod === k ? color.navy : color.border}`,
               }}>{l}</button>
             ))}
             {apPeriod === "month" && (
               <select value={apSelectedMonth} onChange={e => setApSelectedMonth(e.target.value)}
-                style={{ padding: "4px 8px", borderRadius: 5, border: "1px solid " + C.border,
-                  fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none" }}>
+                style={{ padding: "4px 8px", borderRadius: 5, border: `1px solid ${color.border}`,
+                  fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: "none" }}>
                 {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
               </select>
             )}
             {apPeriod === "custom" && (
               <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
                 <select value={apCustomFrom} onChange={e => setApCustomFrom(e.target.value)}
-                  style={{ padding: "4px 8px", borderRadius: 5, border: "1px solid " + C.border,
-                    fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none" }}>
+                  style={{ padding: "4px 8px", borderRadius: 5, border: `1px solid ${color.border}`,
+                    fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: "none" }}>
                   <option value="">開始月</option>
                   {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
                 </select>
-                <span style={{ fontSize: 10, color: C.textLight }}>〜</span>
+                <span style={{ fontSize: 10, color: color.textLight }}>〜</span>
                 <select value={apCustomTo} onChange={e => setApCustomTo(e.target.value)}
-                  style={{ padding: "4px 8px", borderRadius: 5, border: "1px solid " + C.border,
-                    fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none" }}>
+                  style={{ padding: "4px 8px", borderRadius: 5, border: `1px solid ${color.border}`,
+                    fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: "none" }}>
                   <option value="">終了月</option>
                   {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
                 </select>
@@ -1142,65 +1141,38 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             )}
           </div>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none" }}>
+            style={{ padding: "6px 10px", borderRadius: radius.lg, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: "none" }}>
             <option value="all">全ステータス</option>
             {statuses.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           {setAppoData && (
-            <button onClick={() => { setSortKey('status'); setSortDir('asc'); }} style={{
-              padding: "6px 12px", borderRadius: 4,
-              background: sortKey === 'status' ? '#0D2247' : '#fff',
-              border: "1px solid " + (sortKey === 'status' ? '#0D2247' : C.border),
-              color: sortKey === 'status' ? '#fff' : C.textMid,
-              fontSize: 11, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
-            }}>デフォルト</button>
+            <Button onClick={() => { setSortKey('status'); setSortDir('asc'); }}
+              variant={sortKey === 'status' ? 'primary' : 'outline'} size="sm">
+              デフォルト
+            </Button>
           )}
           {setAppoData && (
-            <button onClick={() => setAddAppoForm({ client: "", company: "", getter: "", getDate: "", meetDate: "", status: "アポ取得", sales: 0, reward: 0, note: "" })} style={{
-              padding: "8px 16px", borderRadius: 4,
-              background: "#0D2247",
-              border: "none", color: '#fff', cursor: "pointer", fontSize: 11, fontWeight: 500,
-              fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = "#1E3A6E"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "#0D2247"; }}
-            >＋ アポ追加</button>
+            <Button onClick={() => setAddAppoForm({ client: "", company: "", getter: "", getDate: "", meetDate: "", status: "アポ取得", sales: 0, reward: 0, note: "" })}
+              variant="primary" size="sm">
+              ＋ アポ追加
+            </Button>
           )}
           {setAppoData && (
-            <button onClick={() => { setInvoiceModal(true); setInvoiceClient(''); }}
-              style={{
-                padding: "8px 16px", borderRadius: 4,
-                background: "#fff", border: "1px solid #0D2247",
-                color: '#0D2247', cursor: "pointer", fontSize: 11, fontWeight: 500,
-                fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = "#F0F4FF"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "#fff"; }}
-            >請求書作成</button>
+            <Button onClick={() => { setInvoiceModal(true); setInvoiceClient(''); }} variant="outline" size="sm">
+              請求書作成
+            </Button>
           )}
           {setAppoData && (
-            <button onClick={() => { setBulkInvoiceModal(true); setBulkInvoiceChecked(new Set()); setBulkInvoiceStatus({}); setBulkInvoiceDrafts({}); }}
-              style={{
-                padding: "8px 16px", borderRadius: 4,
-                background: "#fff", border: "1px solid #0D2247",
-                color: '#0D2247', cursor: "pointer", fontSize: 11, fontWeight: 500,
-                fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = "#F0F4FF"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "#fff"; }}
-            >請求書一括作成</button>
+            <Button onClick={() => { setBulkInvoiceModal(true); setBulkInvoiceChecked(new Set()); setBulkInvoiceStatus({}); setBulkInvoiceDrafts({}); }}
+              variant="outline" size="sm">
+              請求書一括作成
+            </Button>
           )}
           {setAppoData && (
-            <button onClick={() => { setBulkSendModal(true); setBulkSendChecked(new Set()); setBulkSendStatus({}); setBulkSendCc({}); setBulkSendTo({}); }}
-              style={{
-                padding: "8px 16px", borderRadius: 4,
-                background: "#fff", border: "1px solid #0D2247",
-                color: '#0D2247', cursor: "pointer", fontSize: 11, fontWeight: 500,
-                fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = "#F0F4FF"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "#fff"; }}
-            >請求書一斉送信</button>
+            <Button onClick={() => { setBulkSendModal(true); setBulkSendChecked(new Set()); setBulkSendStatus({}); setBulkSendCc({}); setBulkSendTo({}); }}
+              variant="outline" size="sm">
+              請求書一斉送信
+            </Button>
           )}
         </div>
       </div>
@@ -1209,38 +1181,38 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       <div style={{ marginBottom: 16 }}>
         {/* Total row */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: isMobile ? 8 : 12, marginBottom: 10 }}>
-          <div style={{ padding: isMobile ? "10px 12px" : "14px 18px", background: '#fff', borderRadius: 4, border: "1px solid #E5E7EB" }}>
-            <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>アポ件数 <span style={{ fontSize: 9, color: C.textLight + "90" }}>（有効）</span></div>
-            <div style={{ fontSize: isMobile ? 18 : 24, fontWeight: 900, color: '#0D2247', fontFamily: "'JetBrains Mono'" }}>{countable.length}<span style={{ fontSize: 11, fontWeight: 500, color: C.textLight, marginLeft: 4 }}>/ {filtered.length}件</span></div>
+          <div style={{ padding: isMobile ? "10px 12px" : "14px 18px", background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}` }}>
+            <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>アポ件数 <span style={{ fontSize: 9, color: color.textLight + "90" }}>（有効）</span></div>
+            <div style={{ fontSize: isMobile ? 18 : 24, fontWeight: font.weight.black, color: color.navy, fontFamily: "'JetBrains Mono'" }}>{countable.length}<span style={{ fontSize: font.size.xs, fontWeight: font.weight.medium, color: color.textLight, marginLeft: 4 }}>/ {filtered.length}件</span></div>
           </div>
-          <div style={{ padding: isMobile ? "10px 12px" : "14px 18px", background: '#fff', borderRadius: 4, border: "1px solid #E5E7EB" }}>
-            <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>当社売上合計</div>
-            <div style={{ fontSize: isMobile ? 16 : 22, fontWeight: 900, color: '#0D2247', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(totalSales)}</div>
+          <div style={{ padding: isMobile ? "10px 12px" : "14px 18px", background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}` }}>
+            <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>当社売上合計</div>
+            <div style={{ fontSize: isMobile ? 16 : 22, fontWeight: font.weight.black, color: color.navy, fontFamily: "'JetBrains Mono'" }}>{formatCurrency(totalSales)}</div>
           </div>
-          <div style={{ padding: isMobile ? "10px 12px" : "14px 18px", background: '#fff', borderRadius: 4, border: "1px solid #E5E7EB" }}>
-            <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>インターン報酬合計</div>
-            <div style={{ fontSize: isMobile ? 16 : 22, fontWeight: 900, color: '#1E40AF', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(totalReward)}</div>
+          <div style={{ padding: isMobile ? "10px 12px" : "14px 18px", background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}` }}>
+            <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>インターン報酬合計</div>
+            <div style={{ fontSize: isMobile ? 16 : 22, fontWeight: font.weight.black, color: '#1E40AF', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(totalReward)}</div>
           </div>
         </div>
         {/* Monthly breakdown */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(" + AVAILABLE_MONTHS.length + ", 1fr)", gap: isMobile ? 6 : 10, overflowX: isMobile ? 'auto' : 'visible' }}>
           {monthStats.map(ms => (
             <div key={ms.month} style={{
-              padding: "10px 14px", background: '#fff', borderRadius: 4,
-              border: "1px solid #E5E7EB",
+              padding: "10px 14px", background: color.white, borderRadius: radius.md,
+              border: `1px solid ${color.border}`,
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#0D2247', marginBottom: 6, borderBottom: "1px solid #E5E7EB", paddingBottom: 4 }}>{ms.month}</div>
+              <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, marginBottom: 6, borderBottom: `1px solid ${color.border}`, paddingBottom: 4 }}>{ms.month}</div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 2 }}>
-                <span style={{ color: C.textLight }}>有効アポ</span>
-                <span style={{ fontWeight: 700, color: '#0D2247', fontFamily: "'JetBrains Mono'" }}>{ms.count}件</span>
+                <span style={{ color: color.textLight }}>有効アポ</span>
+                <span style={{ fontWeight: font.weight.bold, color: color.navy, fontFamily: "'JetBrains Mono'" }}>{ms.count}件</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 2 }}>
-                <span style={{ color: C.textLight }}>売上</span>
-                <span style={{ fontWeight: 700, color: '#0D2247', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(ms.sales)}</span>
+                <span style={{ color: color.textLight }}>売上</span>
+                <span style={{ fontWeight: font.weight.bold, color: color.navy, fontFamily: "'JetBrains Mono'" }}>{formatCurrency(ms.sales)}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10 }}>
-                <span style={{ color: C.textLight }}>報酬</span>
-                <span style={{ fontWeight: 700, color: '#1E40AF', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(ms.reward)}</span>
+                <span style={{ color: color.textLight }}>報酬</span>
+                <span style={{ fontWeight: font.weight.bold, color: '#1E40AF', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(ms.reward)}</span>
               </div>
             </div>
           ))}
@@ -1251,15 +1223,15 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       {setAppoData && selectedIds.size > 0 && (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '8px 16px', background: '#0D2247', borderRadius: '4px 4px 0 0',
+          padding: '8px 16px', background: color.navy, borderRadius: '4px 4px 0 0',
           marginBottom: 0, gap: 12,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#fff', fontFamily: "'Noto Sans JP'" }}>
+            <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.white, fontFamily: "'Noto Sans JP'" }}>
               {selectedIds.size}件選択中
             </span>
             <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)}
-              style={{ padding: '5px 10px', borderRadius: 4, border: '1px solid #CBD5E1', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none' }}>
+              style={{ padding: '5px 10px', borderRadius: radius.md, border: '1px solid #CBD5E1', fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: 'none' }}>
               <option value="">ステータスを選択</option>
               <option value="面談済">面談済</option>
               <option value="事前確認済">事前確認済</option>
@@ -1269,28 +1241,28 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             </select>
             <button onClick={handleBulkStatusChange} disabled={!bulkStatus || bulkProcessing}
               style={{
-                padding: '5px 14px', borderRadius: 4, border: 'none', fontSize: 11, fontWeight: 600,
+                padding: '5px 14px', borderRadius: radius.md, border: 'none', fontSize: font.size.xs, fontWeight: font.weight.semibold,
                 fontFamily: "'Noto Sans JP'", cursor: !bulkStatus || bulkProcessing ? 'default' : 'pointer',
-                background: !bulkStatus || bulkProcessing ? '#4B5563' : '#2E844A', color: '#fff',
+                background: !bulkStatus || bulkProcessing ? '#4B5563' : color.success, color: color.white,
               }}>
               {bulkProcessing ? '処理中...' : '一括変更'}
             </button>
           </div>
           <button onClick={() => { setSelectedIds(new Set()); setBulkStatus(''); }}
-            style={{ padding: '5px 12px', borderRadius: 4, border: '1px solid #CBD5E1', background: 'transparent', color: '#CBD5E1', fontSize: 11, fontFamily: "'Noto Sans JP'", cursor: 'pointer' }}>
+            style={{ padding: '5px 12px', borderRadius: radius.md, border: '1px solid #CBD5E1', background: 'transparent', color: '#CBD5E1', fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", cursor: 'pointer' }}>
             選択解除
           </button>
         </div>
       )}
 
       {/* Table */}
-      <div style={{ background: '#fff', borderRadius: selectedIds.size > 0 ? '0 0 4px 4px' : 4, overflowX: "auto", overflowY: "hidden", border: "1px solid #E5E7EB" }}>
+      <div style={{ background: color.white, borderRadius: selectedIds.size > 0 ? '0 0 4px 4px' : radius.md, overflowX: "auto", overflowY: "hidden", border: `1px solid ${color.border}` }}>
         <div style={{ minWidth: appoMinWWithCheckbox }}>
         <div style={{
           display: "grid", gridTemplateColumns: appoGridWithCheckbox,
-          padding: isMobile ? "6px 4px 6px 10px" : "8px 6px 8px 16px", columnGap: 2, background: "#0D2247",
-          fontSize: isMobile ? 10 : 11, fontWeight: 600, color: "#fff",
-          borderBottom: "1px solid #E5E7EB",
+          padding: isMobile ? "6px 4px 6px 10px" : "8px 6px 8px 16px", columnGap: 2, background: color.navy,
+          fontSize: isMobile ? 10 : font.size.xs, fontWeight: font.weight.semibold, color: color.white,
+          borderBottom: `1px solid ${color.border}`,
           alignItems: "center",
           verticalAlign: "middle",
         }}>
@@ -1301,7 +1273,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   if (allSelected) setSelectedIds(new Set());
                   else setSelectedIds(new Set(selectableFiltered.map(a => a._supaId)));
                 }}
-                style={{ cursor: 'pointer', accentColor: '#2E844A' }} />
+                style={{ cursor: 'pointer', accentColor: color.success }} />
             </span>
           )}
           {[
@@ -1320,8 +1292,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               {label}
               {key && (
                 <span style={{ marginLeft: 2 }}>
-                  <span style={{ color: sortKey === key && sortDir === 'asc' ? '#fff' : 'rgba(255,255,255,0.4)' }}>▲</span>
-                  <span style={{ color: sortKey === key && sortDir === 'desc' ? '#fff' : 'rgba(255,255,255,0.4)' }}>▼</span>
+                  <span style={{ color: sortKey === key && sortDir === 'asc' ? color.white : 'rgba(255,255,255,0.4)' }}>▲</span>
+                  <span style={{ color: sortKey === key && sortDir === 'desc' ? color.white : 'rgba(255,255,255,0.4)' }}>▼</span>
                 </span>
               )}
               <ColumnResizeHandle colIndex={i} onResizeStart={appoResize} />
@@ -1329,20 +1301,20 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           ))}
         </div>
         {filtered.length === 0 ? (
-          <div style={{ padding: "30px 0", textAlign: "center", color: C.textLight, fontSize: 12 }}>データがありません</div>
+          <div style={{ padding: "30px 0", textAlign: "center", color: color.textLight, fontSize: font.size.sm }}>データがありません</div>
         ) : filtered.map((a, i) => {
           const sc = statusColor(a.status);
           const isSelected = a._supaId && selectedIds.has(a._supaId);
           return (
             <div key={i} style={{
               display: "grid", gridTemplateColumns: appoGridWithCheckbox,
-              padding: "8px 6px 8px 16px", columnGap: 2, fontSize: 11, alignItems: "center",
-              borderBottom: "1px solid #E5E7EB",
-              background: isSelected ? '#EAF4FF' : (i % 2 === 0 ? '#fff' : '#F8F9FA'),
+              padding: "8px 6px 8px 16px", columnGap: 2, fontSize: font.size.xs, alignItems: "center",
+              borderBottom: `1px solid ${color.border}`,
+              background: isSelected ? '#EAF4FF' : (i % 2 === 0 ? color.white : '#F8F9FA'),
               transition: "background 0.15s",
             }}
             onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "#EAF4FF"; }}
-            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#F8F9FA'; }}>
+            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = i % 2 === 0 ? color.white : '#F8F9FA'; }}>
               {setAppoData && (
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {a._supaId ? (
@@ -1352,22 +1324,22 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                         if (next.has(a._supaId)) next.delete(a._supaId); else next.add(a._supaId);
                         return next;
                       })}
-                      style={{ cursor: 'pointer', accentColor: '#2E844A' }} />
+                      style={{ cursor: 'pointer', accentColor: color.success }} />
                   ) : <span style={{ width: 13 }} />}
                 </span>
               )}
-              <span style={{ color: C.textMid, fontSize: 10, textAlign: appoCols[0]?.align || 'left' }}>{a.client}</span>
-              <span style={{ fontWeight: 600, color: '#0D2247', cursor: "pointer", textDecoration: "underline dotted", textUnderlineOffset: 2, textAlign: appoCols[1]?.align || 'left' }} onClick={() => setReportDetail(a)}>{a.company}</span>
-              <span style={{ color: C.textDark, textAlign: appoCols[2]?.align || 'left' }}>{a.getter}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: appoCols[3]?.align || 'right', display: 'block' }}>{a.getDate.slice(5)}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight, textAlign: appoCols[4]?.align || 'right', display: 'block' }}>{a.meetDate.slice(5)}</span>
+              <span style={{ color: color.textMid, fontSize: 10, textAlign: appoCols[0]?.align || 'left' }}>{a.client}</span>
+              <span style={{ fontWeight: font.weight.semibold, color: color.navy, cursor: "pointer", textDecoration: "underline dotted", textUnderlineOffset: 2, textAlign: appoCols[1]?.align || 'left' }} onClick={() => setReportDetail(a)}>{a.company}</span>
+              <span style={{ color: color.textDark, textAlign: appoCols[2]?.align || 'left' }}>{a.getter}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: color.textLight, textAlign: appoCols[3]?.align || 'right', display: 'block' }}>{a.getDate.slice(5)}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: color.textLight, textAlign: appoCols[4]?.align || 'right', display: 'block' }}>{a.meetDate.slice(5)}</span>
               <span style={{
                 display: 'block', textAlign: appoCols[5]?.align || 'center', fontSize: 10, padding: "2px 6px",
                 color: sc.color,
                 whiteSpace: 'nowrap',
               }}>{a.status}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 600, color: '#0D2247', textAlign: appoCols[6]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid, textAlign: appoCols[7]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, textAlign: appoCols[6]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: color.textMid, textAlign: appoCols[7]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
             </div>
           );
         })}
@@ -1414,15 +1386,15 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 720, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
-              <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15, flexShrink: 0 }}>
+            <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: 720, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
+              <div style={{ padding: "12px 24px", background: color.navy, borderRadius: '4px 4px 0 0', color: color.white, fontWeight: font.weight.semibold, fontSize: 15, flexShrink: 0 }}>
                 請求書一括作成（ZIP）
               </div>
               <div style={{ padding: "20px 24px", overflowY: 'auto', flex: 1 }}>
                 {/* 月選択 + 請求日 */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
                   <div>
-                    <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>対象月</label>
+                    <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4, display: 'block' }}>対象月</label>
                     <select value={bulkInvoiceMonth} onChange={e => {
                       const v = e.target.value;
                       setBulkInvoiceMonth(v); setBulkInvoiceChecked(new Set()); setBulkInvoiceStatus({}); setBulkInvoiceDrafts({});
@@ -1430,20 +1402,20 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                       const dd = mm === 12 ? new Date(yy + 1, 0, 1) : new Date(yy, mm, 1);
                       setBulkInvoiceIssueDate(`${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`);
                     }}
-                      style={{ width: '100%', padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none" }}>
+                      style={{ width: '100%', padding: "8px 10px", borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.sm, fontFamily: "'Noto Sans JP'", outline: "none" }}>
                       {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>請求日（全請求書共通）</label>
+                    <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4, display: 'block' }}>請求日（全請求書共通）</label>
                     <input type="date" value={bulkInvoiceIssueDate} onChange={e => setBulkInvoiceIssueDate(e.target.value)}
-                      style={{ width: '100%', padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none" }} />
+                      style={{ width: '100%', padding: "8px 10px", borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.sm, fontFamily: "'Noto Sans JP'", outline: "none" }} />
                   </div>
                 </div>
 
                 {/* クライアント一覧テーブル */}
-                <div style={{ border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 60px 110px 56px 70px', gap: 0, background: '#F3F4F6', padding: '6px 10px', fontSize: 10, fontWeight: 600, color: '#374151', alignItems: 'center' }}>
+                <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.md, overflow: 'hidden' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 60px 110px 56px 70px', gap: 0, background: color.gray100, padding: '6px 10px', fontSize: 10, fontWeight: font.weight.semibold, color: color.gray700, alignItems: 'center' }}>
                     <span style={{ display: 'flex', justifyContent: 'center' }}>
                       <input type="checkbox" checked={allChecked} onChange={() => {
                         if (allChecked) setBulkInvoiceChecked(new Set());
@@ -1457,60 +1429,48 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                     <span style={{ textAlign: 'center' }}>状態</span>
                   </div>
                   {clientInfos.length === 0 ? (
-                    <div style={{ padding: '20px 10px', textAlign: 'center', fontSize: 11, color: C.textLight }}>対象クライアントがありません</div>
+                    <div style={{ padding: '20px 10px', textAlign: 'center', fontSize: font.size.xs, color: color.textLight }}>対象クライアントがありません</div>
                   ) : clientInfos.map(ci => {
                     const st = bulkInvoiceStatus[ci.name] || 'idle';
                     return (
-                      <div key={ci.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 60px 110px 56px 70px', gap: 4, padding: '6px 10px', borderTop: '1px solid #E5E7EB', alignItems: 'center', fontSize: 11 }}>
+                      <div key={ci.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 60px 110px 56px 70px', gap: 4, padding: '6px 10px', borderTop: `1px solid ${color.border}`, alignItems: 'center', fontSize: font.size.xs }}>
                         <span style={{ display: 'flex', justifyContent: 'center' }}>
                           <input type="checkbox" checked={bulkInvoiceChecked.has(ci.name)} disabled={bulkInvoiceGenerating}
                             onChange={() => setBulkInvoiceChecked(prev => { const next = new Set(prev); if (next.has(ci.name)) next.delete(ci.name); else next.add(ci.name); return next; })}
                             style={{ cursor: bulkInvoiceGenerating ? 'default' : 'pointer' }} />
                         </span>
-                        <span style={{ fontWeight: 500, color: '#0D2247', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontWeight: font.weight.medium, color: color.navy, display: 'flex', alignItems: 'center', gap: 6 }}>
                           {ci.name}
-                          {ci.edited && <span style={{ fontSize: 9, padding: '1px 5px', background: '#10B981', color: '#fff', borderRadius: 2, fontWeight: 600 }}>編集済</span>}
+                          {ci.edited && <Badge variant="success" size="sm">編集済</Badge>}
                         </span>
-                        <span style={{ textAlign: 'center', fontFamily: "'JetBrains Mono'", color: '#0D2247' }}>{ci.count}</span>
-                        <span style={{ textAlign: 'right', fontFamily: "'JetBrains Mono'", fontWeight: 600, color: '#0D2247' }}>{formatCurrency(ci.total)}</span>
+                        <span style={{ textAlign: 'center', fontFamily: "'JetBrains Mono'", color: color.navy }}>{ci.count}</span>
+                        <span style={{ textAlign: 'right', fontFamily: "'JetBrains Mono'", fontWeight: font.weight.semibold, color: color.navy }}>{formatCurrency(ci.total)}</span>
                         <span style={{ textAlign: 'center' }}>
-                          <button onClick={() => openEditDraft(ci.name)} disabled={bulkInvoiceGenerating}
-                            style={{
-                              padding: '3px 10px', borderRadius: 3,
-                              border: '1px solid #0D2247', background: '#fff', color: '#0D2247',
-                              fontSize: 10, fontWeight: 500, fontFamily: "'Noto Sans JP'",
-                              cursor: bulkInvoiceGenerating ? 'default' : 'pointer',
-                              opacity: bulkInvoiceGenerating ? 0.5 : 1,
-                            }}>
+                          <Button onClick={() => openEditDraft(ci.name)} disabled={bulkInvoiceGenerating}
+                            variant="outline" size="sm">
                             編集
-                          </button>
+                          </Button>
                         </span>
-                        <span style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: statusColor[st] }}>{statusLabel[st]}</span>
+                        <span style={{ textAlign: 'center', fontSize: 10, fontWeight: font.weight.semibold, color: statusColor[st] }}>{statusLabel[st]}</span>
                       </div>
                     );
                   })}
                 </div>
 
-                <div style={{ marginTop: 12, fontSize: 10, color: '#6B7280' }}>
+                <div style={{ marginTop: 12, fontSize: 10, color: color.textMid }}>
                   「編集」で個別に明細を調整できます（保存した内容はZIP生成時に反映されます）。未編集の行は面談済アポから自動生成されます。
                 </div>
               </div>
-              <div style={{ padding: "12px 24px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: 'center', flexShrink: 0 }}>
-                <span style={{ fontSize: 10, color: '#6B7280' }}>{bulkInvoiceChecked.size}社選択中</span>
+              <div style={{ padding: "12px 24px", borderTop: `1px solid ${color.border}`, display: "flex", justifyContent: "space-between", alignItems: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 10, color: color.textMid }}>{bulkInvoiceChecked.size}社選択中</span>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => setBulkInvoiceModal(false)} disabled={bulkInvoiceGenerating}
-                    style={{ padding: "8px 16px", borderRadius: 4, border: "1px solid #0D2247", background: '#fff', cursor: bulkInvoiceGenerating ? 'default' : "pointer", fontSize: 11, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'", opacity: bulkInvoiceGenerating ? 0.5 : 1 }}>
+                  <Button onClick={() => setBulkInvoiceModal(false)} disabled={bulkInvoiceGenerating} variant="outline" size="sm">
                     閉じる
-                  </button>
-                  <button onClick={handleBulkInvoiceExport} disabled={bulkInvoiceChecked.size === 0 || bulkInvoiceGenerating}
-                    style={{
-                      padding: "8px 16px", borderRadius: 4, border: "none",
-                      background: (bulkInvoiceChecked.size === 0 || bulkInvoiceGenerating) ? '#9CA3AF' : '#0D2247',
-                      cursor: (bulkInvoiceChecked.size === 0 || bulkInvoiceGenerating) ? 'default' : 'pointer',
-                      fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
-                    }}>
+                  </Button>
+                  <Button onClick={handleBulkInvoiceExport} disabled={bulkInvoiceChecked.size === 0 || bulkInvoiceGenerating}
+                    loading={bulkInvoiceGenerating} variant="primary" size="sm">
                     {bulkInvoiceGenerating ? '生成中...' : 'ZIPでダウンロード'}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -1544,23 +1504,23 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 780, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
-              <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15, flexShrink: 0 }}>
+            <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: 780, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
+              <div style={{ padding: "12px 24px", background: color.navy, borderRadius: '4px 4px 0 0', color: color.white, fontWeight: font.weight.semibold, fontSize: 15, flexShrink: 0 }}>
                 請求書一斉送信
               </div>
               <div style={{ padding: "20px 24px", overflowY: 'auto', flex: 1 }}>
                 {/* 月選択 */}
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>対象月</label>
+                  <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4, display: 'block' }}>対象月</label>
                   <select value={bulkSendMonth} onChange={e => { setBulkSendMonth(e.target.value); setBulkSendChecked(new Set()); setBulkSendStatus({}); }}
-                    style={{ padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none" }}>
+                    style={{ padding: "8px 10px", borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.sm, fontFamily: "'Noto Sans JP'", outline: "none" }}>
                     {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
                   </select>
                 </div>
 
                 {/* クライアント一覧テーブル */}
-                <div style={{ border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 200px 50px 90px 140px 60px', gap: 0, background: '#F3F4F6', padding: '6px 10px', fontSize: 10, fontWeight: 600, color: '#374151', alignItems: 'center' }}>
+                <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.md, overflow: 'hidden' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 200px 50px 90px 140px 60px', gap: 0, background: color.gray100, padding: '6px 10px', fontSize: 10, fontWeight: font.weight.semibold, color: color.gray700, alignItems: 'center' }}>
                     <span style={{ display: 'flex', justifyContent: 'center' }}>
                       <input type="checkbox" checked={allChecked} onChange={() => {
                         if (allChecked) setBulkSendChecked(new Set());
@@ -1575,42 +1535,42 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                     <span style={{ textAlign: 'center' }}>状態</span>
                   </div>
                   {clientInfos.length === 0 ? (
-                    <div style={{ padding: '20px 10px', textAlign: 'center', fontSize: 11, color: C.textLight }}>対象クライアントがありません</div>
+                    <div style={{ padding: '20px 10px', textAlign: 'center', fontSize: font.size.xs, color: color.textLight }}>対象クライアントがありません</div>
                   ) : clientInfos.map(ci => {
                     const st = bulkSendStatus[ci.name] || 'idle';
                     return (
-                      <div key={ci.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 200px 50px 90px 140px 60px', gap: 4, padding: '6px 10px', borderTop: '1px solid #E5E7EB', alignItems: 'center', fontSize: 11 }}>
+                      <div key={ci.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 200px 50px 90px 140px 60px', gap: 4, padding: '6px 10px', borderTop: `1px solid ${color.border}`, alignItems: 'center', fontSize: font.size.xs }}>
                         <span style={{ display: 'flex', justifyContent: 'center' }}>
                           <input type="checkbox" checked={bulkSendChecked.has(ci.name)} disabled={st === 'sent'}
                             onChange={() => setBulkSendChecked(prev => { const next = new Set(prev); if (next.has(ci.name)) next.delete(ci.name); else next.add(ci.name); return next; })}
                             style={{ cursor: st === 'sent' ? 'default' : 'pointer' }} />
                         </span>
-                        <span style={{ fontWeight: 500, color: '#0D2247' }}>{ci.name}</span>
+                        <span style={{ fontWeight: font.weight.medium, color: color.navy }}>{ci.name}</span>
                         {ci.contacts.length > 0 ? (
                           <select value={bulkSendTo[ci.name] || ''} onChange={e => setBulkSendTo(prev => ({ ...prev, [ci.name]: e.target.value }))}
                             disabled={st === 'sent'}
-                            style={{ padding: '3px 6px', borderRadius: 3, border: '1px solid ' + C.border, fontSize: 10, fontFamily: "'Noto Sans JP'", outline: 'none' }}>
+                            style={{ padding: '3px 6px', borderRadius: 3, border: `1px solid ${color.border}`, fontSize: 10, fontFamily: "'Noto Sans JP'", outline: 'none' }}>
                             <option value="">送信先を選択</option>
                             {ci.contacts.map((ct, i) => <option key={i} value={ct.email}>{ct.label}</option>)}
                           </select>
                         ) : (
-                          <span style={{ fontSize: 10, color: '#EF4444' }}>担当者未登録</span>
+                          <span style={{ fontSize: 10, color: color.danger }}>担当者未登録</span>
                         )}
-                        <span style={{ textAlign: 'center', fontFamily: "'JetBrains Mono'", color: '#0D2247' }}>{ci.count}</span>
-                        <span style={{ textAlign: 'right', fontFamily: "'JetBrains Mono'", fontWeight: 600, color: '#0D2247' }}>{formatCurrency(ci.total)}</span>
+                        <span style={{ textAlign: 'center', fontFamily: "'JetBrains Mono'", color: color.navy }}>{ci.count}</span>
+                        <span style={{ textAlign: 'right', fontFamily: "'JetBrains Mono'", fontWeight: font.weight.semibold, color: color.navy }}>{formatCurrency(ci.total)}</span>
                         <input value={bulkSendCc[ci.name] || ''} onChange={e => setBulkSendCc(prev => ({ ...prev, [ci.name]: e.target.value }))}
                           placeholder="CC" disabled={st === 'sent'}
-                          style={{ padding: '3px 6px', borderRadius: 3, border: '1px solid ' + C.border, fontSize: 10, fontFamily: "'Noto Sans JP'", outline: 'none' }} />
-                        <span style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: statusColor[st] }}>{statusLabel[st]}</span>
+                          style={{ padding: '3px 6px', borderRadius: 3, border: `1px solid ${color.border}`, fontSize: 10, fontFamily: "'Noto Sans JP'", outline: 'none' }} />
+                        <span style={{ textAlign: 'center', fontSize: 10, fontWeight: font.weight.semibold, color: statusColor[st] }}>{statusLabel[st]}</span>
                       </div>
                     );
                   })}
                 </div>
 
                 {/* メール本文プレビュー */}
-                <div style={{ marginTop: 16, padding: 12, background: '#F8F9FA', borderRadius: 4, border: '1px solid #E5E7EB' }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 6 }}>メール本文（プレビュー）</div>
-                  <pre style={{ fontSize: 10, color: '#374151', lineHeight: 1.6, fontFamily: "'Noto Sans JP'", whiteSpace: 'pre-wrap', margin: 0 }}>
+                <div style={{ marginTop: 16, padding: 12, background: '#F8F9FA', borderRadius: radius.md, border: `1px solid ${color.border}` }}>
+                  <div style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 6 }}>メール本文（プレビュー）</div>
+                  <pre style={{ fontSize: 10, color: color.gray700, lineHeight: 1.6, fontFamily: "'Noto Sans JP'", whiteSpace: 'pre-wrap', margin: 0 }}>
 {`〇〇 様
 
 お世話になっております。
@@ -1630,25 +1590,19 @@ M&Aソーシングパートナーズの篠宮でございます。
 
 MASP 篠宮`}
                   </pre>
-                  <div style={{ fontSize: 9, color: '#9CA3AF', marginTop: 4 }}>※「〇〇」は各クライアント名に自動置換されます</div>
+                  <div style={{ fontSize: 9, color: color.gray400, marginTop: 4 }}>※「〇〇」は各クライアント名に自動置換されます</div>
                 </div>
               </div>
-              <div style={{ padding: "12px 24px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: 'center', flexShrink: 0 }}>
-                <span style={{ fontSize: 10, color: '#6B7280' }}>{bulkSendChecked.size}社選択中</span>
+              <div style={{ padding: "12px 24px", borderTop: `1px solid ${color.border}`, display: "flex", justifyContent: "space-between", alignItems: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 10, color: color.textMid }}>{bulkSendChecked.size}社選択中</span>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => setBulkSendModal(false)}
-                    style={{ padding: "8px 16px", borderRadius: 4, border: "1px solid #0D2247", background: '#fff', cursor: "pointer", fontSize: 11, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'" }}>
+                  <Button onClick={() => setBulkSendModal(false)} variant="outline" size="sm">
                     閉じる
-                  </button>
-                  <button onClick={handleBulkSend} disabled={bulkSendChecked.size === 0 || bulkSending}
-                    style={{
-                      padding: "8px 16px", borderRadius: 4, border: "none",
-                      background: (bulkSendChecked.size === 0 || bulkSending) ? '#9CA3AF' : '#0D2247',
-                      cursor: (bulkSendChecked.size === 0 || bulkSending) ? 'default' : 'pointer',
-                      fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
-                    }}>
+                  </Button>
+                  <Button onClick={handleBulkSend} disabled={bulkSendChecked.size === 0 || bulkSending}
+                    loading={bulkSending} variant="primary" size="sm">
                     {bulkSending ? '送信中...' : '一斉送信'}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -1671,19 +1625,19 @@ MASP 篠宮`}
         const previewSubtotal = invoiceItems.reduce((s, it) => s + it.amount, 0);
         const previewTax = previewTaxType === '税別' ? Math.floor(previewSubtotal * 0.1) : Math.floor(previewSubtotal - previewSubtotal / 1.1);
         const previewGrandTotal = previewTaxType === '税別' ? previewSubtotal + previewTax : previewSubtotal;
-        const invInputStyle = { padding: '4px 8px', borderRadius: 3, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: '#fff' };
+        const invInputStyle = { padding: '4px 8px', borderRadius: 3, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: 'none', background: color.white };
 
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 640, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
-              <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15, flexShrink: 0 }}>
+            <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: 640, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
+              <div style={{ padding: "12px 24px", background: color.navy, borderRadius: '4px 4px 0 0', color: color.white, fontWeight: font.weight.semibold, fontSize: 15, flexShrink: 0 }}>
                 {isBulkEdit ? `請求書を編集 — ${bulkInvoiceEditingClient}` : '請求書作成'}
               </div>
               <div style={{ padding: "20px 24px", overflowY: 'auto', flex: 1 }}>
                 {/* 月 + クライアント選択 */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                   <div>
-                    <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>対象月</label>
+                    <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4, display: 'block' }}>対象月</label>
                     <select value={invoiceMonth} disabled={isBulkEdit}
                       onChange={e => {
                         const v = e.target.value;
@@ -1692,15 +1646,15 @@ MASP 篠宮`}
                         const dd = mm === 12 ? new Date(yy + 1, 0, 1) : new Date(yy, mm, 1);
                         setInvoiceIssueDate(`${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`);
                       }}
-                      style={{ width: '100%', padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none", background: isBulkEdit ? '#F3F4F6' : '#fff', color: isBulkEdit ? '#6B7280' : 'inherit' }}>
+                      style={{ width: '100%', padding: "8px 10px", borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.sm, fontFamily: "'Noto Sans JP'", outline: "none", background: isBulkEdit ? color.gray100 : color.white, color: isBulkEdit ? color.textMid : 'inherit' }}>
                       {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>クライアント</label>
+                    <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4, display: 'block' }}>クライアント</label>
                     <select value={invoiceClient} disabled={isBulkEdit}
                       onChange={e => { setInvoiceClient(e.target.value); if (e.target.value) initInvoiceItems(e.target.value, invoiceMonth); else setInvoiceItems([]); }}
-                      style={{ width: '100%', padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none", background: isBulkEdit ? '#F3F4F6' : '#fff', color: isBulkEdit ? '#6B7280' : 'inherit' }}>
+                      style={{ width: '100%', padding: "8px 10px", borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.sm, fontFamily: "'Noto Sans JP'", outline: "none", background: isBulkEdit ? color.gray100 : color.white, color: isBulkEdit ? color.textMid : 'inherit' }}>
                       <option value="">選択してください</option>
                       {invoiceClients.map(name => <option key={name} value={name}>{name}</option>)}
                     </select>
@@ -1709,108 +1663,96 @@ MASP 篠宮`}
 
                 {/* 請求日 */}
                 <div style={{ marginTop: 14 }}>
-                  <label style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 4, display: 'block' }}>請求日</label>
+                  <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4, display: 'block' }}>請求日</label>
                   <input type="date" value={invoiceIssueDate} onChange={e => setInvoiceIssueDate(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 12, fontFamily: "'Noto Sans JP'", outline: "none" }} />
+                    style={{ padding: "8px 10px", borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.sm, fontFamily: "'Noto Sans JP'", outline: "none" }} />
                 </div>
 
                 {/* 編集可能な明細テーブル */}
                 {invoiceClient && (
                   <div style={{ marginTop: 18 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#0D2247' }}>明細（{invoiceItems.length}件）</span>
-                      <button onClick={() => setInvoiceItems(prev => [...prev, { company: '', quantity: 1, unitPrice: 0, amount: 0, note: '' }])}
-                        style={{ padding: '3px 10px', borderRadius: 3, border: '1px solid #0D2247', background: '#fff', color: '#0D2247', fontSize: 10, fontWeight: 500, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                      <span style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy }}>明細（{invoiceItems.length}件）</span>
+                      <Button onClick={() => setInvoiceItems(prev => [...prev, { company: '', quantity: 1, unitPrice: 0, amount: 0, note: '' }])}
+                        variant="outline" size="sm">
                         ＋ 行を追加
-                      </button>
+                      </Button>
                     </div>
-                    <div style={{ border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.md, overflow: 'hidden' }}>
                       {/* テーブルヘッダー */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 50px 90px 90px 120px 28px', gap: 0, background: '#F3F4F6', padding: '6px 10px', fontSize: 10, fontWeight: 600, color: '#374151' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 50px 90px 90px 120px 28px', gap: 0, background: color.gray100, padding: '6px 10px', fontSize: 10, fontWeight: font.weight.semibold, color: color.gray700 }}>
                         <span>品名</span><span style={{ textAlign: 'center' }}>数量</span><span style={{ textAlign: 'right' }}>単価</span><span style={{ textAlign: 'right' }}>金額</span><span style={{ paddingLeft: 6 }}>備考</span><span></span>
                       </div>
                       {/* 明細行 */}
                       {invoiceItems.map((item, idx) => (
-                        <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 50px 90px 90px 120px 28px', gap: 4, padding: '5px 10px', borderTop: '1px solid #E5E7EB', alignItems: 'center' }}>
+                        <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 50px 90px 90px 120px 28px', gap: 4, padding: '5px 10px', borderTop: `1px solid ${color.border}`, alignItems: 'center' }}>
                           <input value={item.company} onChange={e => setInvoiceItems(prev => prev.map((it, i) => i === idx ? { ...it, company: e.target.value } : it))}
                             style={{ ...invInputStyle, width: '100%' }} />
                           <input type="number" value={item.quantity} onChange={e => { const q = Number(e.target.value) || 0; setInvoiceItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: q, amount: q * it.unitPrice } : it)); }}
                             style={{ ...invInputStyle, width: '100%', textAlign: 'center' }} />
                           <input type="number" value={item.unitPrice} onChange={e => { const p = Number(e.target.value) || 0; setInvoiceItems(prev => prev.map((it, i) => i === idx ? { ...it, unitPrice: p, amount: it.quantity * p } : it)); }}
                             style={{ ...invInputStyle, width: '100%', textAlign: 'right' }} />
-                          <span style={{ textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#0D2247', fontFamily: "'JetBrains Mono'", paddingRight: 4 }}>{formatCurrency(item.amount)}</span>
+                          <span style={{ textAlign: 'right', fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy, fontFamily: "'JetBrains Mono'", paddingRight: 4 }}>{formatCurrency(item.amount)}</span>
                           <input value={item.note || ''} onChange={e => setInvoiceItems(prev => prev.map((it, i) => i === idx ? { ...it, note: e.target.value } : it))}
                             placeholder="備考" style={{ ...invInputStyle, width: '100%', fontSize: 10 }} />
                           <button onClick={() => setInvoiceItems(prev => prev.filter((_, i) => i !== idx))}
-                            style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 14, padding: 0, lineHeight: 1 }} title="削除">×</button>
+                            style={{ border: 'none', background: 'none', cursor: 'pointer', color: color.danger, fontSize: 14, padding: 0, lineHeight: 1 }} title="削除">×</button>
                         </div>
                       ))}
                       {invoiceItems.length === 0 && (
-                        <div style={{ padding: '16px 10px', textAlign: 'center', fontSize: 11, color: C.textLight }}>明細行がありません</div>
+                        <div style={{ padding: '16px 10px', textAlign: 'center', fontSize: font.size.xs, color: color.textLight }}>明細行がありません</div>
                       )}
                     </div>
 
                     {/* 合計セクション */}
-                    <div style={{ marginTop: 12, padding: 14, background: '#F8F9FA', borderRadius: 4, border: '1px solid #E5E7EB' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11 }}>
-                        <span style={{ color: C.textLight }}>小計</span>
-                        <span style={{ fontWeight: 600, color: '#0D2247', textAlign: 'right', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(previewSubtotal)}</span>
+                    <div style={{ marginTop: 12, padding: 14, background: '#F8F9FA', borderRadius: radius.md, border: `1px solid ${color.border}` }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: font.size.xs }}>
+                        <span style={{ color: color.textLight }}>小計</span>
+                        <span style={{ fontWeight: font.weight.semibold, color: color.navy, textAlign: 'right', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(previewSubtotal)}</span>
                         {previewTaxType === '税別' && <>
-                          <span style={{ color: C.textLight }}>消費税 (10%)</span>
-                          <span style={{ fontWeight: 600, color: '#0D2247', textAlign: 'right', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(previewTax)}</span>
+                          <span style={{ color: color.textLight }}>消費税 (10%)</span>
+                          <span style={{ fontWeight: font.weight.semibold, color: color.navy, textAlign: 'right', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(previewTax)}</span>
                         </>}
-                        <span style={{ color: C.textLight, fontWeight: 600 }}>ご請求金額</span>
-                        <span style={{ fontWeight: 700, color: '#0D2247', textAlign: 'right', fontSize: 14, fontFamily: "'JetBrains Mono'" }}>{formatCurrency(previewGrandTotal)}</span>
+                        <span style={{ color: color.textLight, fontWeight: font.weight.semibold }}>ご請求金額</span>
+                        <span style={{ fontWeight: font.weight.bold, color: color.navy, textAlign: 'right', fontSize: 14, fontFamily: "'JetBrains Mono'" }}>{formatCurrency(previewGrandTotal)}</span>
                         {previewTaxType === '税込' && (
                           <>
                             <span></span>
-                            <span style={{ fontSize: 9, color: '#6B7280', textAlign: 'right' }}>（内消費税 {formatCurrency(previewTax)}）</span>
+                            <span style={{ fontSize: 9, color: color.textMid, textAlign: 'right' }}>（内消費税 {formatCurrency(previewTax)}）</span>
                           </>
                         )}
                       </div>
-                      <div style={{ marginTop: 8, fontSize: 10, color: '#6B7280' }}>
+                      <div style={{ marginTop: 8, fontSize: 10, color: color.textMid }}>
                         税区分: {previewTaxType}　/　支払サイト: {previewClient?.paySite || '未設定'}
                       </div>
                     </div>
                   </div>
                 )}
               </div>
-              <div style={{ padding: "12px 24px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "flex-end", gap: 8, flexShrink: 0 }}>
-                <button onClick={() => {
+              <div style={{ padding: "12px 24px", borderTop: `1px solid ${color.border}`, display: "flex", justifyContent: "flex-end", gap: 8, flexShrink: 0 }}>
+                <Button onClick={() => {
                   setInvoiceModal(false);
                   if (isBulkEdit) {
                     setBulkInvoiceEditingClient(null);
                   } else {
                     setInvoiceItems([]);
                   }
-                }}
-                  style={{ padding: "8px 16px", borderRadius: 4, border: "1px solid #0D2247", background: '#fff', cursor: "pointer", fontSize: 11, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'" }}>
+                }} variant="outline" size="sm">
                   キャンセル
-                </button>
+                </Button>
                 {isBulkEdit ? (
-                  <button onClick={() => {
+                  <Button onClick={() => {
                     setBulkInvoiceDrafts(prev => ({ ...prev, [bulkInvoiceEditingClient]: invoiceItems }));
                     setInvoiceModal(false);
                     setBulkInvoiceEditingClient(null);
-                  }} disabled={invoiceItems.length === 0}
-                    style={{
-                      padding: "8px 16px", borderRadius: 4, border: "none",
-                      background: invoiceItems.length === 0 ? '#9CA3AF' : '#0D2247',
-                      cursor: invoiceItems.length === 0 ? 'default' : 'pointer',
-                      fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
-                    }}>
+                  }} disabled={invoiceItems.length === 0} variant="primary" size="sm">
                     保存して一覧に戻る
-                  </button>
+                  </Button>
                 ) : (
-                  <button onClick={handleInvoiceExport} disabled={!invoiceClient || invoiceItems.length === 0 || invoiceExporting}
-                    style={{
-                      padding: "8px 16px", borderRadius: 4, border: "none",
-                      background: (!invoiceClient || invoiceItems.length === 0 || invoiceExporting) ? '#9CA3AF' : '#0D2247',
-                      cursor: (!invoiceClient || invoiceItems.length === 0 || invoiceExporting) ? 'default' : 'pointer',
-                      fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
-                    }}>
+                  <Button onClick={handleInvoiceExport} disabled={!invoiceClient || invoiceItems.length === 0 || invoiceExporting}
+                    loading={invoiceExporting} variant="primary" size="sm">
                     {invoiceExporting ? 'PDF生成中...' : 'PDFダウンロード'}
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -1820,15 +1762,15 @@ MASP 篠宮`}
 
       {/* Edit Modal */}
       {editForm && setAppoData && (() => {
-        const inputStyle = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", background: C.offWhite };
-        const labelStyle = { fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 2, display: "block" };
+        const inputStyle = { width: "100%", padding: "6px 10px", borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: "none", background: color.offWhite };
+        const labelStyle = { fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 2, display: "block" };
         const u = (k, v) => setEditForm(p => ({ ...p, [k]: v }));
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 520, maxWidth: '95vw', maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
-              <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15 }}>
-                <div style={{ fontSize: 15, fontWeight: 600 }}>アポ情報を編集</div>
-                <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>{editForm.company}</div>
+            <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: 520, maxWidth: '95vw', maxHeight: "90vh", overflow: "auto", boxShadow: shadow.xl }}>
+              <div style={{ padding: "12px 24px", background: color.navy, borderRadius: '4px 4px 0 0', color: color.white, fontWeight: font.weight.semibold, fontSize: 15 }}>
+                <div style={{ fontSize: 15, fontWeight: font.weight.semibold }}>アポ情報を編集</div>
+                <div style={{ fontSize: font.size.xs, color: '#CBD5E1', marginTop: 2 }}>{editForm.company}</div>
               </div>
               <div style={{ padding: "16px 20px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -1861,18 +1803,18 @@ MASP 篠宮`}
                   <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>備考</label><input value={editForm.note} onChange={e => u("note", e.target.value)} style={inputStyle} /></div>
                 </div>
               </div>
-              <div style={{ padding: "10px 20px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between" }}>
-                <button onClick={async () => {
+              <div style={{ padding: "10px 20px", borderTop: `1px solid ${color.border}`, display: "flex", justifyContent: "space-between" }}>
+                <Button onClick={async () => {
                   if (editForm._supaId) {
                     const error = await deleteAppointment(editForm._supaId);
                     if (error) { alert('削除に失敗しました: ' + (error.message || '不明なエラー')); return; }
                   }
                   setAppoData(prev => prev.filter((_, i) => i !== editForm._idx));
                   setEditForm(null);
-                }} style={{ padding: "8px 16px", borderRadius: 4, border: "1px solid #DC2626", background: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500, color: "#DC2626", fontFamily: "'Noto Sans JP'" }}>削除</button>
+                }} variant="outline" size="sm" style={{ borderColor: color.danger, color: color.danger }}>削除</Button>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => setEditForm(null)} style={{ padding: "8px 16px", borderRadius: 4, border: "1px solid #0D2247", background: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
-                  <button onClick={async () => {
+                  <Button onClick={() => setEditForm(null)} variant="outline" size="sm">キャンセル</Button>
+                  <Button variant="primary" size="sm" onClick={async () => {
                     const idx = editForm._idx;
                     const original = appoData[idx];
                     const updated = { ...editForm };
@@ -1917,11 +1859,7 @@ MASP 篠宮`}
                     }
                     setAppoData(prev => prev.map((a, i) => i === idx ? updated : a));
                     setEditForm(null);
-                  }} style={{
-                    padding: "8px 16px", borderRadius: 4, border: "none",
-                    background: "#0D2247",
-                    cursor: "pointer", fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
-                  }}>保存</button>
+                  }}>保存</Button>
                 </div>
               </div>
             </div>
@@ -1931,15 +1869,15 @@ MASP 篠宮`}
 
       {/* Add Appo Modal */}
       {addAppoForm && setAppoData && (() => {
-        const inputStyle = { width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", background: C.offWhite };
-        const labelStyle = { fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 2, display: "block" };
+        const inputStyle = { width: "100%", padding: "6px 10px", borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: "none", background: color.offWhite };
+        const labelStyle = { fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 2, display: "block" };
         const u = (k, v) => setAddAppoForm(p => ({ ...p, [k]: v }));
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 520, maxWidth: '95vw', maxHeight: "90vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
-              <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15 }}>
-                <div style={{ fontSize: 15, fontWeight: 600 }}>アポを追加</div>
-                <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>新規アポイント登録</div>
+            <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: 520, maxWidth: '95vw', maxHeight: "90vh", overflow: "auto", boxShadow: shadow.xl }}>
+              <div style={{ padding: "12px 24px", background: color.navy, borderRadius: '4px 4px 0 0', color: color.white, fontWeight: font.weight.semibold, fontSize: 15 }}>
+                <div style={{ fontSize: 15, fontWeight: font.weight.semibold }}>アポを追加</div>
+                <div style={{ fontSize: font.size.xs, color: '#CBD5E1', marginTop: 2 }}>新規アポイント登録</div>
               </div>
               <div style={{ padding: "16px 20px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -1972,9 +1910,9 @@ MASP 篠宮`}
                   <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>備考</label><input value={addAppoForm.note} onChange={e => u("note", e.target.value)} style={inputStyle} /></div>
                 </div>
               </div>
-              <div style={{ padding: "10px 20px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button onClick={() => setAddAppoForm(null)} style={{ padding: "8px 16px", borderRadius: 4, border: "1px solid #0D2247", background: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
-                <button onClick={async () => {
+              <div style={{ padding: "10px 20px", borderTop: `1px solid ${color.border}`, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <Button onClick={() => setAddAppoForm(null)} variant="outline" size="sm">キャンセル</Button>
+                <Button variant="primary" size="sm" onClick={async () => {
                   if (!addAppoForm.company.trim()) return;
                   const newAppo = {
                     client: addAppoForm.client,
@@ -1993,11 +1931,7 @@ MASP 篠宮`}
                   newAppo._supaId = result.id;
                   setAppoData(prev => [...prev, newAppo]);
                   setAddAppoForm(null);
-                }} style={{
-                  padding: "8px 16px", borderRadius: 4, border: "none",
-                  background: "#0D2247",
-                  cursor: "pointer", fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
-                }}>保存</button>
+                }}>保存</Button>
               </div>
             </div>
           </div>
@@ -2013,15 +1947,15 @@ MASP 篠宮`}
           zIndex: 200, animation: "fadeIn 0.2s ease",
         }}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: 520, maxWidth: '95vw', maxHeight: "80vh", overflow: "auto",
+            background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: 520, maxWidth: '95vw', maxHeight: "80vh", overflow: "auto",
             boxShadow: "0 20px 60px rgba(10,25,41,0.3)",
           }}>
             <div style={{
-              background: '#0D2247',
+              background: color.navy,
               padding: "12px 24px", borderRadius: "4px 4px 0 0",
               display: "flex", alignItems: "center", justifyContent: "space-between",
             }}>
-              <span style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>アポイント詳細</span>
+              <span style={{ fontSize: 15, fontWeight: font.weight.semibold, color: color.white }}>アポイント詳細</span>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 {!detailEditing && setCallFlowScreen && (
                   <button disabled={detailNavigating} onClick={async () => {
@@ -2038,19 +1972,19 @@ MASP 篠宮`}
                       alert('遷移に失敗しました');
                     } finally { setDetailNavigating(false); }
                   }}
-                    style={{ padding: "4px 12px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.4)", background: "transparent", color: '#fff', cursor: detailNavigating ? "default" : "pointer", opacity: detailNavigating ? 0.6 : 1, fontSize: 11, fontFamily: "'Noto Sans JP'" }}>
+                    style={{ padding: "4px 12px", borderRadius: radius.md, border: "1px solid rgba(255,255,255,0.4)", background: "transparent", color: color.white, cursor: detailNavigating ? "default" : "pointer", opacity: detailNavigating ? 0.6 : 1, fontSize: font.size.xs, fontFamily: "'Noto Sans JP'" }}>
                     {detailNavigating ? '検索中...' : '架電ページへ'}
                   </button>
                 )}
                 {!detailEditing ? (
                   <button onClick={() => { setDetailEditForm({ ...reportDetail, _idx: appoData.findIndex(a => a._supaId === reportDetail._supaId) }); setDetailEditing(true); }}
-                    style={{ padding: "4px 12px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.4)", background: "transparent", color: '#fff', cursor: "pointer", fontSize: 11, fontFamily: "'Noto Sans JP'" }}>
+                    style={{ padding: "4px 12px", borderRadius: radius.md, border: "1px solid rgba(255,255,255,0.4)", background: "transparent", color: color.white, cursor: "pointer", fontSize: font.size.xs, fontFamily: "'Noto Sans JP'" }}>
                     編集
                   </button>
                 ) : (
                   <>
                     <button onClick={() => { setDetailEditing(false); setDetailEditForm(null); }}
-                      style={{ padding: "4px 12px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.4)", background: "transparent", color: 'rgba(255,255,255,0.8)', cursor: "pointer", fontSize: 11, fontFamily: "'Noto Sans JP'" }}>
+                      style={{ padding: "4px 12px", borderRadius: radius.md, border: "1px solid rgba(255,255,255,0.4)", background: "transparent", color: 'rgba(255,255,255,0.8)', cursor: "pointer", fontSize: font.size.xs, fontFamily: "'Noto Sans JP'" }}>
                       キャンセル
                     </button>
                     <button disabled={detailSaving} onClick={async () => {
@@ -2085,154 +2019,155 @@ MASP 篠宮`}
                       setAppoData(prev => prev.map((a, i) => i === idx ? updated : a));
                       setReportDetail(updated);
                       setDetailEditing(false); setDetailEditForm(null);
-                    }} style={{ padding: "4px 14px", borderRadius: 4, border: "none", background: detailSaving ? C.border : '#1E40AF', color: '#fff', cursor: detailSaving ? "default" : "pointer", fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'" }}>
+                    }} style={{ padding: "4px 14px", borderRadius: radius.md, border: "none", background: detailSaving ? color.border : '#1E40AF', color: color.white, cursor: detailSaving ? "default" : "pointer", fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: "'Noto Sans JP'" }}>
                       {detailSaving ? '保存中…' : '保存'}
                     </button>
                   </>
                 )}
-                <button onClick={() => setReportDetail(null)} style={{ width: 28, height: 28, borderRadius: 4, background: 'rgba(255,255,255,0.15)', border: "none", color: '#fff', cursor: "pointer", fontSize: 14 }}>✕</button>
+                <button onClick={() => setReportDetail(null)} style={{ width: 28, height: 28, borderRadius: radius.md, background: 'rgba(255,255,255,0.15)', border: "none", color: color.white, cursor: "pointer", fontSize: 14 }}>✕</button>
               </div>
             </div>
             <div style={{ padding: 20 }}>
               {(() => {
                 const ef = detailEditForm;
-                const iS = { width: "100%", padding: "4px 8px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", background: C.white, boxSizing: "border-box" };
+                const iS = { width: "100%", padding: "4px 8px", borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: "none", background: color.white, boxSizing: "border-box" };
                 const u = (k, v) => setDetailEditForm(p => ({ ...p, [k]: v }));
                 return (
                   <>
                     {detailEditing
-                      ? <input value={ef.company} onChange={e => u("company", e.target.value)} style={{ ...iS, fontSize: 16, fontWeight: 700, marginBottom: 12, padding: "6px 10px" }} />
-                      : <div style={{ fontSize: 18, fontWeight: 800, color: '#0D2247', marginBottom: 12 }}>{reportDetail.company}</div>
+                      ? <input value={ef.company} onChange={e => u("company", e.target.value)} style={{ ...iS, fontSize: 16, fontWeight: font.weight.bold, marginBottom: 12, padding: "6px 10px" }} />
+                      : <div style={{ fontSize: 18, fontWeight: font.weight.black, color: color.navy, marginBottom: 12 }}>{reportDetail.company}</div>
                     }
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
                       {/* クライアント */}
-                      <div style={{ padding: "8px 12px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
-                        <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>クライアント</div>
+                      <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
+                        <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>クライアント</div>
                         {detailEditing
                           ? <select value={ef.client} onChange={e => { const name = e.target.value; const cl = clientOptions.find(c => c.company === name); const rr = cl?.rewardType ? rewardMaster.find(r => r.id === cl.rewardType) : null; u("client", name); if (name && rr) u("sales", rr.price); }} style={iS}>
                               <option value="">選択...</option>
                               {clientOptions.map(c => <option key={c._supaId || c.company} value={c.company}>{c.company}{c.status === "停止中" ? "（停止中）" : ""}</option>)}
                             </select>
-                          : <div style={{ fontSize: 12, fontWeight: 600, color: '#0D2247' }}>{reportDetail.client}</div>}
+                          : <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>{reportDetail.client}</div>}
                       </div>
                       {/* 取得者 */}
-                      <div style={{ padding: "8px 12px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
-                        <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>取得者</div>
+                      <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
+                        <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>取得者</div>
                         {detailEditing
                           ? <MemberSuggestInput value={ef.getter} onChange={v => u("getter", v)} members={members} style={iS} />
-                          : <div style={{ fontSize: 12, fontWeight: 600, color: '#0D2247' }}>{reportDetail.getter}</div>}
+                          : <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>{reportDetail.getter}</div>}
                       </div>
                       {/* 取得日 */}
-                      <div style={{ padding: "8px 12px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
-                        <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>取得日</div>
+                      <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
+                        <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>取得日</div>
                         {detailEditing
                           ? <input type="date" value={ef.getDate} onChange={e => u("getDate", e.target.value)} style={iS} />
-                          : <div style={{ fontSize: 12, fontWeight: 600, color: '#0D2247' }}>{reportDetail.getDate}</div>}
+                          : <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>{reportDetail.getDate}</div>}
                       </div>
                       {/* 面談日 */}
-                      <div style={{ padding: "8px 12px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
-                        <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>面談日</div>
+                      <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
+                        <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>面談日</div>
                         {detailEditing
                           ? <input type="date" value={ef.meetDate} onChange={e => u("meetDate", e.target.value)} style={iS} />
-                          : <div style={{ fontSize: 12, fontWeight: 600, color: '#0D2247' }}>{reportDetail.meetDate}</div>}
+                          : <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>{reportDetail.meetDate}</div>}
                       </div>
                       {/* ステータス */}
-                      <div style={{ padding: "8px 12px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
-                        <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>ステータス</div>
+                      <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
+                        <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>ステータス</div>
                         {detailEditing
                           ? <select value={ef.status} onChange={e => u("status", e.target.value)} style={iS}>
                               <option value="面談済">面談済</option><option value="事前確認済">事前確認済</option><option value="アポ取得">アポ取得</option><option value="リスケ中">リスケ中</option><option value="キャンセル">キャンセル</option>
                             </select>
-                          : <div style={{ fontSize: 12, fontWeight: 600, color: '#0D2247' }}>{reportDetail.status}</div>}
+                          : <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>{reportDetail.status}</div>}
                       </div>
                       {/* 月（読み取り専用） */}
-                      <div style={{ padding: "8px 12px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
-                        <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 2 }}>月</div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: '#0D2247' }}>
+                      <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
+                        <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>月</div>
+                        <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>
                           {(detailEditing ? ef.meetDate : reportDetail.meetDate) ? (parseInt((detailEditing ? ef.meetDate : reportDetail.meetDate).slice(5, 7), 10) + "月") : null}
                         </div>
                       </div>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
-                      <div style={{ padding: "10px 14px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
-                        <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>当社売上</div>
+                      <div style={{ padding: "10px 14px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
+                        <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>当社売上</div>
                         {detailEditing
                           ? <input type="number" value={ef.sales} onChange={e => u("sales", Number(e.target.value))} style={iS} />
-                          : <div style={{ fontSize: 20, fontWeight: 900, color: '#0D2247', fontFamily: "'JetBrains Mono'" }}>{reportDetail.sales > 0 ? "¥" + reportDetail.sales.toLocaleString() : "-"}</div>}
+                          : <div style={{ fontSize: 20, fontWeight: font.weight.black, color: color.navy, fontFamily: "'JetBrains Mono'" }}>{reportDetail.sales > 0 ? "¥" + reportDetail.sales.toLocaleString() : "-"}</div>}
                       </div>
-                      <div style={{ padding: "10px 14px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
-                        <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>インターン報酬</div>
+                      <div style={{ padding: "10px 14px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
+                        <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>インターン報酬</div>
                         {detailEditing
                           ? <input type="number" value={ef.reward} onChange={e => u("reward", Number(e.target.value))} style={iS} />
-                          : <div style={{ fontSize: 20, fontWeight: 900, color: '#1E40AF', fontFamily: "'JetBrains Mono'" }}>{reportDetail.reward > 0 ? "¥" + reportDetail.reward.toLocaleString() : "-"}</div>}
+                          : <div style={{ fontSize: 20, fontWeight: font.weight.black, color: '#1E40AF', fontFamily: "'JetBrains Mono'" }}>{reportDetail.reward > 0 ? "¥" + reportDetail.reward.toLocaleString() : "-"}</div>}
                       </div>
                     </div>
                     {detailEditing && (
                       <div style={{ marginBottom: 12, textAlign: "right" }}>
-                        <button onClick={async () => {
+                        <Button onClick={async () => {
                           if (!reportDetail._supaId) return;
                           if (!window.confirm('このアポを削除しますか？')) return;
                           const error = await deleteAppointment(reportDetail._supaId);
                           if (error) { alert('削除に失敗しました: ' + (error.message || '不明なエラー')); return; }
                           if (setAppoData) setAppoData(prev => prev.filter(a => a._supaId !== reportDetail._supaId));
                           setReportDetail(null);
-                        }} style={{ padding: "6px 16px", borderRadius: 4, border: "1px solid #DC2626", background: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500, color: "#DC2626", fontFamily: "'Noto Sans JP'" }}>
+                        }} variant="outline" size="sm" style={{ borderColor: color.danger, color: color.danger }}>
                           削除
-                        </button>
+                        </Button>
                       </div>
                     )}
                   </>
                 );
               })()}
               {/* ── 備考 ── */}
-              <div style={{ padding: "10px 14px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB", marginBottom: 12 }}>
-                <div style={{ fontSize: 9, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>備考</div>
+              <div style={{ padding: "10px 14px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}`, marginBottom: 12 }}>
+                <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>備考</div>
                 {detailEditing ? (
                   <textarea
                     value={detailEditForm.note || ''}
                     onChange={e => setDetailEditForm(f => ({ ...f, note: e.target.value }))}
                     rows={4}
-                    style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid " + C.borderLight,
-                      fontSize: 12, fontFamily: "'Noto Sans JP'", lineHeight: 1.7, resize: "vertical",
-                      outline: "none", background: C.white, color: C.textDark, boxSizing: "border-box" }}
+                    style={{ width: "100%", padding: "8px 10px", borderRadius: radius.lg, border: `1px solid ${color.borderLight}`,
+                      fontSize: font.size.sm, fontFamily: "'Noto Sans JP'", lineHeight: 1.7, resize: "vertical",
+                      outline: "none", background: color.white, color: color.textDark, boxSizing: "border-box" }}
                   />
                 ) : reportDetail.note ? (
-                  <div style={{ fontSize: 12, color: C.textDark, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{reportDetail.note}</div>
+                  <div style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{reportDetail.note}</div>
                 ) : (
-                  <div style={{ fontSize: 11, color: C.textLight }}>備考なし</div>
+                  <div style={{ fontSize: font.size.xs, color: color.textLight }}>備考なし</div>
                 )}
               </div>
               {/* ── アポ取得報告 ── */}
-              <div style={{ padding: "10px 14px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB", borderLeft: "3px solid #0D2247", marginBottom: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#0D2247', marginBottom: 6 }}>アポ取得報告</div>
+              <div style={{ padding: "10px 14px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}`, borderLeft: `3px solid ${color.navy}`, marginBottom: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.navy, marginBottom: 6 }}>アポ取得報告</div>
                 {detailEditing ? (
                   <textarea
                     value={detailEditForm.appoReport || ''}
                     onChange={e => setDetailEditForm(f => ({ ...f, appoReport: e.target.value }))}
                     rows={10}
-                    style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid " + C.borderLight,
-                      fontSize: 11, fontFamily: "'Noto Sans JP'", lineHeight: 1.7, resize: "vertical",
-                      outline: "none", background: C.white, color: C.textDark, boxSizing: "border-box" }}
+                    style={{ width: "100%", padding: "8px 10px", borderRadius: radius.lg, border: `1px solid ${color.borderLight}`,
+                      fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", lineHeight: 1.7, resize: "vertical",
+                      outline: "none", background: color.white, color: color.textDark, boxSizing: "border-box" }}
                   />
                 ) : reportDetail.appoReport ? (
-                  <div style={{ fontSize: 11, color: C.textDark, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{reportDetail.appoReport}</div>
+                  <div style={{ fontSize: font.size.xs, color: color.textDark, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{reportDetail.appoReport}</div>
                 ) : (
-                  <div style={{ fontSize: 11, color: C.textLight, textAlign: "center", padding: "8px 0" }}>
+                  <div style={{ fontSize: font.size.xs, color: color.textLight, textAlign: "center", padding: "8px 0" }}>
                     アポ取得報告はまだ登録されていません
                   </div>
                 )}
                 {detailEditing && (
-                  <button
+                  <Button
                     onClick={handleTranscribeDetail}
                     disabled={transcribeStep !== 'idle'}
-                    style={{ marginTop: 8, padding: '7px 14px', borderRadius: 4, border: '1px solid #0D2247', background: '#fff', cursor: transcribeStep !== 'idle' ? 'default' : 'pointer', fontSize: 13, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'", opacity: transcribeStep !== 'idle' ? 0.6 : 1 }}>
+                    variant="outline" size="sm"
+                    style={{ marginTop: 8 }}>
                     {transcribeStep === 'fetching'     && '録音を検索中...'}
                     {transcribeStep === 'transcribing' && '文字起こし中...'}
                     {transcribeStep === 'enhancing'    && 'AI添削中...'}
                     {transcribeStep === 'done'         && '添削完了'}
                     {transcribeStep === 'error'        && '録音データが見つかりませんでした'}
                     {transcribeStep === 'idle'         && '文字起こし＋AI添削'}
-                  </button>
+                  </Button>
                 )}
               </div>
               {(() => {
@@ -2241,23 +2176,22 @@ MASP 篠宮`}
                 const recUrl = reportDetail.recordingUrl || m?.[1]?.trim() || '';
                 return (
                   <div style={{ marginTop: 8 }}>
-                    <div style={{ padding: '5px 8px', borderRadius: 4, background: '#F8F9FA',
+                    <div style={{ padding: '5px 8px', borderRadius: radius.md, background: '#F8F9FA',
                       display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', whiteSpace: 'nowrap' }}>録音</span>
+                      <span style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, whiteSpace: 'nowrap' }}>録音</span>
                       {recUrl
                         ? <button onClick={() => setShowRecordingDetail(v => !v)}
                             title={showRecordingDetail ? "閉じる" : "録音を再生"}
-                            style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer',
-                              padding: 0, lineHeight: 1, color: showRecordingDetail ? C.red : 'inherit' }}>録音</button>
-                        : <span style={{ fontSize: 11, color: C.textLight }}>録音なし</span>
+                            style={{ fontSize: font.size.sm, background: 'none', border: 'none', cursor: 'pointer',
+                              padding: 0, lineHeight: 1, color: showRecordingDetail ? color.danger : 'inherit' }}>録音</button>
+                        : <span style={{ fontSize: font.size.xs, color: color.textLight }}>録音なし</span>
                       }
                       {!detailEditing && (
-                        <button onClick={() => { setShowReplaceUrl(v => !v); setReplaceUrl(''); setReplaceStep('idle'); }}
-                          style={{ marginLeft: 'auto', fontSize: 11, padding: '2px 10px', borderRadius: 4,
-                            border: '1px solid #0D2247', background: showReplaceUrl ? '#0D2247' : '#fff',
-                            color: showReplaceUrl ? '#fff' : '#0D2247', cursor: 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: 500 }}>
+                        <Button onClick={() => { setShowReplaceUrl(v => !v); setReplaceUrl(''); setReplaceStep('idle'); }}
+                          variant={showReplaceUrl ? 'primary' : 'outline'} size="sm"
+                          style={{ marginLeft: 'auto' }}>
                           {showReplaceUrl ? '閉じる' : '差し替え'}
-                        </button>
+                        </Button>
                       )}
                     </div>
                     {showRecordingDetail && recUrl && (
@@ -2276,16 +2210,16 @@ MASP 篠宮`}
                             alert('音声・動画ファイルを選択してください');
                           }
                         }}
-                        style={{ marginTop: 6, padding: '8px 10px', borderRadius: 4,
+                        style={{ marginTop: 6, padding: '8px 10px', borderRadius: radius.md,
                           background: dragOver ? '#E0E7FF' : '#F0F4FF',
-                          border: dragOver ? '2px dashed #0D2247' : '1px solid #CBD5E1',
+                          border: dragOver ? `2px dashed ${color.navy}` : '1px solid #CBD5E1',
                           transition: 'all 0.15s' }}>
                         {/* ドロップゾーン */}
-                        <div style={{ fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 6 }}>
+                        <div style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 6 }}>
                           URLを貼り付け、または音声ファイルをドラッグ&ドロップ
                         </div>
                         {droppedFileName && replaceStep !== 'idle' && (
-                          <div style={{ fontSize: 10, color: C.textMid, marginBottom: 4 }}>{droppedFileName}</div>
+                          <div style={{ fontSize: 10, color: color.textMid, marginBottom: 4 }}>{droppedFileName}</div>
                         )}
                         <input
                           type="text"
@@ -2293,18 +2227,15 @@ MASP 篠宮`}
                           onChange={e => setReplaceUrl(e.target.value)}
                           placeholder="https://..."
                           disabled={replaceStep !== 'idle'}
-                          style={{ width: '100%', padding: '5px 8px', borderRadius: 4, border: '1px solid ' + C.border,
-                            fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: replaceStep !== 'idle' ? '#f0f0f0' : '#fff',
+                          style={{ width: '100%', padding: '5px 8px', borderRadius: radius.md, border: `1px solid ${color.border}`,
+                            fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: 'none', background: replaceStep !== 'idle' ? '#f0f0f0' : color.white,
                             boxSizing: 'border-box' }}
                         />
                         <div style={{ display: 'flex', gap: 6, marginTop: 6, alignItems: 'center' }}>
-                          <button
+                          <Button
                             onClick={handleReplaceRecordingUrl}
                             disabled={!replaceUrl || replaceStep !== 'idle'}
-                            style={{ padding: '6px 14px', borderRadius: 4, border: 'none',
-                              background: (!replaceUrl || replaceStep !== 'idle') ? C.border : '#0D2247',
-                              color: '#fff', cursor: (!replaceUrl || replaceStep !== 'idle') ? 'default' : 'pointer',
-                              fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'" }}>
+                            variant="primary" size="sm">
                             {replaceStep === 'saving'       && '保存中...'}
                             {replaceStep === 'uploading'    && 'アップロード中...'}
                             {replaceStep === 'transcribing' && '文字起こし中...'}
@@ -2312,11 +2243,11 @@ MASP 篠宮`}
                             {replaceStep === 'done'         && '完了'}
                             {replaceStep === 'error'        && 'エラー（リトライ可）'}
                             {replaceStep === 'idle'         && '保存＋AI再分析'}
-                          </button>
+                          </Button>
                           {replaceStep === 'idle' && (
-                            <label style={{ padding: '6px 14px', borderRadius: 4, border: '1px solid #0D2247',
-                              background: '#fff', color: '#0D2247', cursor: 'pointer',
-                              fontSize: 11, fontWeight: 500, fontFamily: "'Noto Sans JP'" }}>
+                            <label style={{ padding: '6px 14px', borderRadius: radius.md, border: `1px solid ${color.navy}`,
+                              background: color.white, color: color.navy, cursor: 'pointer',
+                              fontSize: font.size.xs, fontWeight: font.weight.medium, fontFamily: "'Noto Sans JP'" }}>
                               ファイル選択
                               <input type="file" accept="audio/*,video/*,.mp3,.mp4,.m4a,.wav,.ogg,.webm"
                                 style={{ display: 'none' }}
