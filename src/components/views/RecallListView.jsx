@@ -99,7 +99,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
         description="再コール・社長お断り14日経過の管理"
         style={{ marginBottom: 24 }}
       />
-      <Card padding="none" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowX: 'auto', overflowY: 'hidden' }}>
+      <Card padding="none" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowX: 'auto', overflowY: 'hidden', minHeight: 0 }} bodyStyle={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div style={{
           padding: isMobile ? '8px 10px' : '10px 14px',
           borderBottom: `1px solid ${color.borderLight}`,
