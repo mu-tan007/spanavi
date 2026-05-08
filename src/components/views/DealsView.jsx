@@ -29,6 +29,24 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
   const handleImpersonate = async () => {
     if (!selectedClient?.id) return;
     setImpersonating(true);
+    // 代理ログイン後にクライアントセッションが localStorage を上書きするため、
+    // 先に現在の admin セッション (refresh_token) を退避しておく。
+    // ClientPortalApp の「社内に戻る」ボタンが setSession() で復元する。
+    try {
+      const { supabase } = await import('../../lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.refresh_token) {
+        localStorage.setItem('spanavi_admin_session_backup', JSON.stringify({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+          saved_at: Date.now(),
+          impersonating_client_id: selectedClient.id,
+          impersonating_client_name: selectedClient.name || '',
+        }));
+      }
+    } catch (e) {
+      console.warn('admin session backup failed', e);
+    }
     const { data, error } = await invokeAdminImpersonateClient(selectedClient.id, '/client');
     setImpersonating(false);
     if (error) {
@@ -37,7 +55,6 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
       return;
     }
     if (data?.error) {
-      // Edge Function 側からの拒否（権限なし、auth_user_id なし等）
       alert('代理ログインに失敗しました: ' + data.error);
       return;
     }
