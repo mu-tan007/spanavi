@@ -58,3 +58,99 @@
 - **Simplicity First**: Make every change as simple as possible. Impact minimal code.
 - **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.
 - **Minimal Impact**: Changes should only touch what's necessary. Avoid introducing bugs.
+
+---
+
+## UI 開発ルール（必読・新規UI実装時に毎回適用）
+
+Spanavi は 2026年5月にデザインシステム化が完了している。新しいページや機能を実装する際は、**必ず以下のルールに従うこと**。インライン style で適当に書くと、これまで磨き上げた統一感が崩れる。
+
+### 1. デザイントークンを使う（hardcode 禁止）
+
+- 色: `src/constants/design.js` の `color.*` トークンを使用
+  - `color.navy` / `color.navyDark` / `color.navyDeep` / `color.navyLight`
+  - `color.white` / `color.offWhite` / `color.cream` / `color.snow`
+  - `color.textDark` / `color.textMid` / `color.textLight`
+  - `color.border` / `color.borderLight`
+  - `color.gray50`〜`color.gray900` の8段階
+  - `color.success` / `color.warn` / `color.danger` / `color.info` ＋ Soft variant
+  - `color.gold` / `color.goldLight` / `color.goldDim`
+- 余白: `space.*`（8pxグリッド: 0/0.5/1/1.5/2/2.5/3/4/5/6/8/10/12/16/20/24）
+- 角丸: `radius.*`（none / sm(3) / md(4) / lg(6) / xl(8) / pill）
+- 影: `shadow.*`（xs / sm / md / lg / xl / ring / hoverLift）
+- 透明度: `alpha(color, 0.5)` ヘルパーで rgba 生成（hardcode rgba 禁止）
+- フォント: `font.family.*` / `font.size.*` / `font.weight.*` / `font.letterSpacing.*` / `font.lineHeight.*`
+- トランジション: `transition.fast` / `transition.base` / `transition.slow`
+
+**禁止例**:
+```jsx
+<div style={{ color: '#0D2247', padding: 16, borderRadius: 4 }}>
+```
+
+**正しい例**:
+```jsx
+import { color, space, radius } from '../../constants/design';
+<div style={{ color: color.navy, padding: space[4], borderRadius: radius.md }}>
+```
+
+### 2. 共通UIコンポーネントを使う
+
+`src/components/ui/` の既存部品を最優先で使う。インラインで `<button style={...}>` などは書かない。
+
+```jsx
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
+
+<Button variant="primary" size="md" loading={saving}>保存</Button>
+<Input label="氏名" required placeholder="例" />
+<Select options={[{value, label}]} />
+<Card padding="md" title="..." description="...">...</Card>
+<Badge variant="success" dot>稼働中</Badge>
+<Tag closable onClose={...}>東京</Tag>
+```
+
+**Button variant**: `primary` / `secondary` / `ghost` / `danger` / `outline`
+**Button size**: `sm` / `md` / `lg`
+**Badge variant**: `default` / `primary` / `success` / `warn` / `danger` / `info` / `neutral`
+
+### 3. モーダル・ドロワーの構造
+
+- 背景は `rgba(0,0,0,0.45)` 相当 → `alpha(color.navyDeep, 0.5)` を推奨
+- カード本体: `borderRadius: radius.lg`、`boxShadow: shadow.xl`、`background: color.white`
+- ヘッダー部に Navy bar を置く場合は `background: color.navy`、文字は `color.white`
+- ボタン群は `<Button>` で統一（キャンセル=outline、保存=primary、削除=danger）
+
+### 4. テーブルのスタイル
+
+- ヘッダー背景: `color.navy`、文字: `color.white`、フォントサイズ: `font.size.xs`〜`font.size.sm`
+- 行のホバー: `alpha(color.navyLight, 0.06)` 程度の薄い navy
+- ストライプ（zebra）: 偶数行 `color.white`、奇数行 `color.cream`
+- 選択行: `borderLeft: '3px solid ' + color.navy`、背景 `alpha(color.navyLight, 0.08)`
+- ステータス表示は `<Badge variant dot>` を使う（独自ピル禁止）
+
+### 5. プレビュー画面で確認
+
+新しいパターンを思いつき開発した場合は、`/design-preview` で見え方を確認できる（認証なしアクセス可）。
+
+```
+https://<本番URL>/design-preview
+```
+
+### 6. 例外（残してOK）
+
+以下は `color.*` トークンに置換しなくてOK（既存もそうなっている）：
+- **PDF出力系**（`InvoicePDF.jsx`, `ClientReportPDF.jsx`）の印刷用色 — 白背景・黒文字を維持
+- **Recharts等チャートライブラリ**の設定色 — カテゴリカルカラー
+- **branding.* 動的色**（SidebarShell, MobileSidebarOverlay）— Engagement毎に切り替わる
+- **特定ブランド色**（Zoom緑 `#1a7f5a` など）
+
+### 7. 必ず守ること
+
+- 新画面を作る前に既存の似た画面（PreCheckView / AppoListView など）を**参考実装**として確認する
+- インライン style に hardcoded な hex 値を直書きしない（必ず `color.*` 経由）
+- ボタンを `<button style={...}>` で自作しない（必ず `<Button>` を使う）
+- 入力欄を `<input style={...}>` で自作しない（必ず `<Input>` を使う）
+- `<textarea>` は Input 未対応なのでネイティブ可、ただし border/color/font は token 化
+
+### 8. 違反を見つけた場合
+
+既存コードに hardcode 色やインラインボタンを見つけたら、可能なら**ついでに直す**。修正範囲が大きすぎる場合は別タスクとして提案する。
