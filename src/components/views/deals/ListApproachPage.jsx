@@ -192,6 +192,14 @@ export default function ListApproachPage({ list, orgId, onBack }) {
                               </span>
                               <span style={{ color: statusColor(c.status), fontWeight: 500 }}>{c.status || '—'}</span>
                               {c.getter_name && <span style={{ fontSize: 9, color: C.textLight }}>{c.getter_name}</span>}
+                              {c.recording_url && (
+                                <audio
+                                  controls
+                                  preload="none"
+                                  src={c.recording_url}
+                                  style={{ width: 160, height: 28, marginTop: 2 }}
+                                />
+                              )}
                             </div>
                           </td>
                         );
