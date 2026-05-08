@@ -76,7 +76,10 @@ CREATE POLICY "own_saved_company_searches" ON saved_company_searches
 
 -- updated_at 自動更新トリガ（sessions のみ）
 CREATE OR REPLACE FUNCTION public.touch_database_chat_session()
-RETURNS trigger LANGUAGE plpgsql AS $$
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
 BEGIN
   NEW.updated_at = now();
   RETURN NEW;
