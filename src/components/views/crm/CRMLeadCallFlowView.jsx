@@ -5,6 +5,7 @@ import { dialPhone } from '../../../utils/phone';
 import {
   insertClientCallRecord, deleteClientCallRecordByRound,
   promoteLeadCompanyToClient, updateClient, updateClientNextContactAt,
+  invokeGetZoomRecording, updateClientCallRecordRecordingUrl,
 } from '../../../lib/supabaseWrite';
 import { NAVY, GRAY_200, GRAY_50, GOLD } from './utils';
 import CRMLeadAppoModal from './CRMLeadAppoModal';
@@ -72,7 +73,7 @@ function clientsRowToFE(c) {
   };
 }
 
-export default function CRMLeadCallFlowView({ list, companies, records, currentUser, setClientData, onClose }) {
+export default function CRMLeadCallFlowView({ list, companies, records, currentUser, members = [], setClientData, onClose }) {
   const queryClient = useQueryClient();
 
   const [selectedIdx, setSelectedIdx] = useState(null);
@@ -91,6 +92,45 @@ export default function CRMLeadCallFlowView({ list, companies, records, currentU
   const [isMinimized, setIsMinimized] = useState(false);
   const [autoDial, setAutoDial] = useState(false);
   const [rightTab, setRightTab] = useState('script'); // 'script' | 'qa' | 'history'
+
+  // 録音URLをZoom APIから取得
+  const fetchRecordingUrl = async (phone, calledAt, prevCalledAt = null) => {
+    try {
+      const member = members.find(m => (typeof m === 'string' ? m : m.name) === currentUser);
+      const zoomUserId = typeof member === 'object' ? member?.zoomUserId : null;
+      if (!zoomUserId || !phone) return null;
+      const normalizedPhone = phone.replace(/[^\d]/g, '');
+      const { data } = await invokeGetZoomRecording({
+        zoom_user_id: zoomUserId,
+        callee_phone: normalizedPhone,
+        called_at: calledAt,
+        prev_called_at: prevCalledAt,
+      });
+      return data?.recording_url || null;
+    } catch (e) {
+      console.error('[CRM Lead Flow fetchRecordingUrl] error:', e);
+      return null;
+    }
+  };
+
+  const attachRecordingInBackground = (recId, phone, calledAt, prevCalledAt) => {
+    if (!recId || !phone) return;
+    setTimeout(async () => {
+      let url = await fetchRecordingUrl(phone, calledAt, prevCalledAt);
+      if (!url) {
+        setTimeout(async () => {
+          const url2 = await fetchRecordingUrl(phone, calledAt, prevCalledAt);
+          if (url2) {
+            await updateClientCallRecordRecordingUrl(recId, url2);
+            setLocalRecords(prev => prev.map(r => r.id === recId ? { ...r, recording_url: url2 } : r));
+          }
+        }, 60_000);
+        return;
+      }
+      await updateClientCallRecordRecordingUrl(recId, url);
+      setLocalRecords(prev => prev.map(r => r.id === recId ? { ...r, recording_url: url } : r));
+    }, 30_000);
+  };
 
   // 各企業の records をローカル状態でも保持（即時反映用）
   const [localRecords, setLocalRecords] = useState(records);
@@ -200,6 +240,12 @@ export default function CRMLeadCallFlowView({ list, companies, records, currentU
     }
 
     const round = getNextRound(company.id);
+    const calledAt = new Date().toISOString();
+    const prevRounds = recordsByCompany[company.id] || {};
+    const prevRoundKeys = Object.keys(prevRounds).map(Number);
+    const prevRec = prevRoundKeys.length > 0 ? prevRounds[Math.max(...prevRoundKeys)] : null;
+    const prevCalledAt = prevRec?.called_at || null;
+
     const { data: rec, error } = await insertClientCallRecord({
       listId: list.id,
       leadCompanyId: company.id,
@@ -213,6 +259,7 @@ export default function CRMLeadCallFlowView({ list, companies, records, currentU
       return;
     }
     setLocalRecords(prev => [...prev, rec]);
+    attachRecordingInBackground(rec.id, company.phone, calledAt, prevCalledAt);
     setMemo('');
     moveToNextCallable();
   };
@@ -237,6 +284,12 @@ export default function CRMLeadCallFlowView({ list, companies, records, currentU
       details.contactName ? `[キーマン] ${details.contactName}${details.contactRole ? '（' + details.contactRole + '）' : ''}` : '',
     ].filter(Boolean).join('\n');
 
+    const calledAt = new Date().toISOString();
+    const prevRoundsAppo = recordsByCompany[company.id] || {};
+    const prevRoundKeysAppo = Object.keys(prevRoundsAppo).map(Number);
+    const prevRecAppo = prevRoundKeysAppo.length > 0 ? prevRoundsAppo[Math.max(...prevRoundKeysAppo)] : null;
+    const prevCalledAtAppo = prevRecAppo?.called_at || null;
+
     const { data: rec, error } = await insertClientCallRecord({
       listId: list.id,
       leadCompanyId: company.id,
@@ -250,6 +303,7 @@ export default function CRMLeadCallFlowView({ list, companies, records, currentU
       return;
     }
     setLocalRecords(prev => [...prev, rec]);
+    attachRecordingInBackground(rec.id, company.phone, calledAt, prevCalledAtAppo);
 
     // 2) clients への新規登録 or 既存の更新
     if (!company.promoted_to_client_id) {
@@ -304,6 +358,11 @@ export default function CRMLeadCallFlowView({ list, companies, records, currentU
     if (!recallModal) return;
     const { company, statusId } = recallModal;
     const round = getNextRound(company.id);
+    const calledAt = new Date().toISOString();
+    const prevRoundsRecall = recordsByCompany[company.id] || {};
+    const prevRoundKeysRecall = Object.keys(prevRoundsRecall).map(Number);
+    const prevRecRecall = prevRoundKeysRecall.length > 0 ? prevRoundsRecall[Math.max(...prevRoundKeysRecall)] : null;
+    const prevCalledAtRecall = prevRecRecall?.called_at || null;
 
     const fullMemo = [
       memo,
@@ -324,6 +383,7 @@ export default function CRMLeadCallFlowView({ list, companies, records, currentU
       return;
     }
     setLocalRecords(prev => [...prev, rec]);
+    attachRecordingInBackground(rec.id, company.phone, calledAt, prevCalledAtRecall);
     setMemo('');
     setRecallModal(null);
     moveToNextCallable();
@@ -866,8 +926,23 @@ export default function CRMLeadCallFlowView({ list, companies, records, currentU
                     const sd = getStatus(rec.status);
                     return (
                       <div key={r} style={{ marginBottom: 10, paddingBottom: 8, borderBottom: '1px dashed ' + GRAY_200 }}>
-                        <div style={{ fontSize: 9, color: C.textLight, marginBottom: 2 }}>
-                          {r} 周目 ・ {new Date(rec.called_at).toLocaleString('ja-JP')}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                          <div style={{ fontSize: 9, color: C.textLight }}>
+                            {r} 周目 ・ {new Date(rec.called_at).toLocaleString('ja-JP')}
+                          </div>
+                          {rec.recording_url && (
+                            <a
+                              href={rec.recording_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={e => e.stopPropagation()}
+                              style={{
+                                fontSize: 9, fontWeight: 700, color: NAVY,
+                                border: '1px solid ' + NAVY, borderRadius: 2,
+                                padding: '1px 5px', textDecoration: 'none',
+                              }}
+                            >録音</a>
+                          )}
                         </div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: sd?.color || '#9CA3AF', marginBottom: 4 }}>
                           {sd?.label || rec.status}

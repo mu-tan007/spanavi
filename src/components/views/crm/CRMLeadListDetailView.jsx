@@ -167,7 +167,7 @@ export default function CRMLeadListDetailView({ list, currentUser, members = [],
       queryClient.invalidateQueries({ queryKey: ['crm-lead-records', list.id] });
       queryClient.invalidateQueries({ queryKey: ['crm-lead-companies', list.id] });
     };
-    const props = { list, companies, records, currentUser, setClientData, onClose: handleClose };
+    const props = { list, companies, records, currentUser, members, setClientData, onClose: handleClose };
     return callingMode === 'flow'
       ? <CRMLeadCallFlowView {...props} />
       : <CRMLeadCallingScreen {...props} />;

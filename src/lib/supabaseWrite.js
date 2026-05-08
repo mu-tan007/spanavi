@@ -3197,6 +3197,16 @@ export async function insertClientCallRecord({ listId, leadCompanyId, round, sta
   return { data, error }
 }
 
+export async function updateClientCallRecordRecordingUrl(id, recordingUrl) {
+  if (!id) { console.warn('[DB] updateClientCallRecordRecordingUrl: no id'); return null }
+  const { error } = await supabase
+    .from('client_call_records')
+    .update({ recording_url: recordingUrl })
+    .eq('id', id)
+  if (error) console.error('[DB] updateClientCallRecordRecordingUrl error:', error)
+  return error
+}
+
 export async function deleteClientCallRecordByRound(leadCompanyId, round) {
   if (!leadCompanyId || round == null) return { error: new Error('missing args') }
   const { error } = await supabase
