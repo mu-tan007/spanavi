@@ -3218,6 +3218,18 @@ export async function deleteClientCallRecordByRound(leadCompanyId, round) {
   return { error }
 }
 
+// 管理者がクライアントの代理ログイン用 magic link を発行
+//   - Edge Function 側で email ベースの権限チェックあり（篠宮のみ）
+//   - 結果: { url, client_name, client_email_masked } または { error }
+export async function invokeAdminImpersonateClient(clientId, redirectPath = '/client') {
+  if (!clientId) return { data: null, error: new Error('clientId required') }
+  const { data, error } = await supabase.functions.invoke('admin-impersonate-client', {
+    body: { client_id: clientId, redirect_path: redirectPath },
+  })
+  if (error) console.error('[Edge] admin-impersonate-client error:', error)
+  return { data, error }
+}
+
 // 全リスト横断で「最新ラウンドが再コール待ち」の企業を抽出
 //   memo の "[再コール予定: ...]" から予定日時を取り出して付加
 export async function fetchAllPendingRecalls() {
