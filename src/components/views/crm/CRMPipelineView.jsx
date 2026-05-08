@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { C } from '../../../constants/colors';
 import { updateClient } from '../../../lib/supabaseWrite';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 import {
   NAVY, GRAY_200, GRAY_50, GOLD,
   STATUS_LIST, statusStyle,
@@ -216,6 +217,8 @@ export default function CRMPipelineView({
   onCardClick,
 }) {
   const [statusMenuFor, setStatusMenuFor] = useState(null);
+  const isMobile = useIsMobile();
+  const [mobileFocusStatus, setMobileFocusStatus] = useState('面談予定');
 
   // ステータスごとにグループ化
   const groupByStatus = useMemo(() => {
@@ -282,8 +285,8 @@ export default function CRMPipelineView({
 
   return (
     <div>
-      {/* ファネル: メイン3段階 */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+      {/* ファネル: メイン3段階（モバイルは縦積み） */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         {FUNNEL_STAGES.map(st => {
           const sc = statusStyle(st);
           return (
@@ -298,7 +301,7 @@ export default function CRMPipelineView({
         })}
       </div>
 
-      {/* 副次集計: 保留/中期フォロー/停止中 */}
+      {/* 副次集計: 保留/中期フォロー/停止中（モバイルも横並び維持、小さく） */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         {SECONDARY_STAGES.map(st => {
           const sc = statusStyle(st);
@@ -323,14 +326,47 @@ export default function CRMPipelineView({
         })}
       </div>
 
-      {/* カンバン: 全ステータス横並び */}
+      {/* モバイル時のステータス選択タブ */}
+      {isMobile && (
+        <div style={{
+          display: 'flex', gap: 4, marginBottom: 12,
+          overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 4,
+        }}>
+          {STATUS_LIST.map(st => {
+            const sc = statusStyle(st);
+            const active = mobileFocusStatus === st;
+            const count = (groupByStatus[st] || []).length;
+            return (
+              <button
+                key={st}
+                onClick={() => setMobileFocusStatus(st)}
+                style={{
+                  flexShrink: 0,
+                  padding: '6px 10px', borderRadius: 4,
+                  border: '1px solid ' + (active ? sc.color : GRAY_200),
+                  background: active ? sc.bg : '#fff',
+                  color: active ? sc.color : C.textMid,
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
+                  display: 'flex', alignItems: 'center', gap: 4,
+                }}
+              >
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: sc.dot }}></span>
+                {st} <span style={{ opacity: 0.7 }}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* カンバン: PCは全ステータス横並び、モバイルは選択ステータスのみ */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: `repeat(${STATUS_LIST.length}, 1fr)`,
+        gridTemplateColumns: isMobile ? '1fr' : `repeat(${STATUS_LIST.length}, 1fr)`,
         gap: 8,
         overflowX: 'auto',
       }}>
-        {STATUS_LIST.map(st => {
+        {(isMobile ? [mobileFocusStatus] : STATUS_LIST).map(st => {
           const sc = statusStyle(st);
           const list = groupByStatus[st] || [];
           return (

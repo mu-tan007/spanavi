@@ -5,6 +5,7 @@ import {
   fetchClientMonthlyTargets,
   upsertClientMonthlyTarget,
 } from '../../../lib/supabaseWrite';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 import {
   NAVY, GRAY_200, GRAY_50,
   currentYearMonth, getMonthRange, formatMonthLabel,
@@ -45,7 +46,9 @@ function CellInput({ value, isCurrent, onSave }) {
 
 export default function MonthlyTargetsView({ clientData = [] }) {
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
+  const [mobileSelectedYM, setMobileSelectedYM] = useState(null);
 
   const currentYM = useMemo(() => currentYearMonth(), []);
   // 前月 〜 11ヶ月先までの13ヶ月を表示
@@ -120,7 +123,80 @@ export default function MonthlyTargetsView({ clientData = [] }) {
         </div>
       </div>
 
-      {/* テーブル */}
+      {/* モバイル時: 月選択 + クライアントカード */}
+      {isMobile ? (() => {
+        const currentSel = mobileSelectedYM || currentYM;
+        const monthlyTotal = monthTotals[currentSel] || 0;
+        return (
+          <div>
+            {/* 月セレクタ（横スクロール） */}
+            <div style={{
+              display: 'flex', gap: 4, marginBottom: 12,
+              overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 4,
+            }}>
+              {months.map((ym, i) => {
+                const active = currentSel === ym;
+                const isCur = ym === currentYM;
+                return (
+                  <button
+                    key={ym}
+                    onClick={() => setMobileSelectedYM(ym)}
+                    style={{
+                      flexShrink: 0, padding: '6px 12px', borderRadius: 4,
+                      border: '1px solid ' + (active ? NAVY : GRAY_200),
+                      background: active ? NAVY : (isCur ? '#FFFBEB' : '#fff'),
+                      color: active ? '#fff' : (isCur ? C.gold : C.textMid),
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                      fontFamily: "'JetBrains Mono'", whiteSpace: 'nowrap',
+                    }}
+                  >{formatMonthLabel(ym, i > 0 ? months[i - 1] : null)}</button>
+                );
+              })}
+            </div>
+            {/* 月合計 */}
+            <div style={{
+              padding: '10px 14px', marginBottom: 8,
+              background: NAVY, color: '#fff', borderRadius: 4,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <span style={{ fontSize: 11, fontWeight: 600 }}>{currentSel} の月合計</span>
+              <span style={{
+                fontSize: 18, fontWeight: 700,
+                fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums',
+              }}>{monthlyTotal} 件</span>
+            </div>
+            {/* クライアントカード */}
+            {filtered.length === 0 ? (
+              <div style={{
+                padding: '40px 0', textAlign: 'center', color: C.textLight, fontSize: 12,
+                background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
+              }}>
+                対象クライアントがありません
+              </div>
+            ) : filtered.map(c => {
+              const key = `${c._supaId}_${currentSel}`;
+              const value = targetMap[key] ?? '';
+              return (
+                <div key={c._supaId} style={{
+                  background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
+                  padding: '10px 12px', marginBottom: 6,
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}>
+                  <span style={{
+                    fontSize: 12, fontWeight: 600, color: NAVY,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: 8,
+                  }}>{c.company}</span>
+                  <CellInput
+                    value={value}
+                    isCurrent={currentSel === currentYM}
+                    onSave={v => handleSave(c._supaId, currentSel, v)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        );
+      })() : (
       <div style={{ border: '1px solid ' + GRAY_200, borderRadius: 4, overflowX: 'auto', overflowY: 'hidden', background: '#fff' }}>
         {/* ヘッダー行 */}
         <div style={{
@@ -209,10 +285,13 @@ export default function MonthlyTargetsView({ clientData = [] }) {
           </div>
         )}
       </div>
+      )}
 
-      <div style={{ marginTop: 12, fontSize: 10, color: C.textLight }}>
-        セルをクリックして数値を入力 → Enter キー or 別セルへフォーカス移動で保存。当月は黄色背景で強調表示。
-      </div>
+      {!isMobile && (
+        <div style={{ marginTop: 12, fontSize: 10, color: C.textLight }}>
+          セルをクリックして数値を入力 → Enter キー or 別セルへフォーカス移動で保存。当月は黄色背景で強調表示。
+        </div>
+      )}
     </div>
   );
 }

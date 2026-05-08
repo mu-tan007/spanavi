@@ -5,6 +5,7 @@ import {
   fetchClientLeadLists, fetchClientLeadCompanies, fetchClientCallRecords,
   deleteClientLeadList, updateClientLeadList, fetchAllPendingRecalls,
 } from '../../../lib/supabaseWrite';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 import CRMLeadListImportModal from './CRMLeadListImportModal';
 import CRMLeadListDetailView from './CRMLeadListDetailView';
 import CRMLeadListEditModal from './CRMLeadListEditModal';
@@ -34,6 +35,72 @@ function MiniIcon({ label, hint, color, onClick }) {
     >{label}</button>
   );
 }
+
+function ListsCardMobile({ lists, onSelect, onEdit, onArchive, onUnarchive, onDelete }) {
+  return (
+    <div>
+      {lists.map(l => (
+        <div
+          key={l.id}
+          onClick={() => onSelect(l)}
+          style={{
+            background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
+            padding: '12px 14px', marginBottom: 8, cursor: 'pointer',
+            opacity: l.is_archived ? 0.55 : 1,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+            {l.is_archived && (
+              <span style={{ fontSize: 8, fontWeight: 700, color: C.textLight, border: '1px solid ' + C.textLight, borderRadius: 2, padding: '1px 4px' }}>
+                アーカイブ
+              </span>
+            )}
+            <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>{l.name}</span>
+          </div>
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: 8, fontSize: 10, color: C.textMid, marginBottom: 8,
+          }}>
+            <div>
+              <div style={{ color: C.textLight, fontSize: 9 }}>業界</div>
+              <div>{l.industry || '—'}</div>
+            </div>
+            <div>
+              <div style={{ color: C.textLight, fontSize: 9 }}>件数</div>
+              <div style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: NAVY }}>{l.companyCount ?? '...'}</div>
+            </div>
+            <div>
+              <div style={{ color: C.textLight, fontSize: 9 }}>架電済</div>
+              <div style={{ fontFamily: "'JetBrains Mono'", color: C.textMid }}>{l.callsCount != null ? `${l.callsCount}周` : '...'}</div>
+            </div>
+          </div>
+          <div style={{
+            paddingTop: 8, borderTop: '1px dashed ' + GRAY_200,
+            display: 'flex', gap: 4, justifyContent: 'flex-end',
+          }}>
+            <button onClick={e => { e.stopPropagation(); onEdit(l); }} style={miniBtn(NAVY)}>編集</button>
+            {l.is_archived ? (
+              <button onClick={e => { e.stopPropagation(); onUnarchive(l); }} style={miniBtn('#16A34A')}>戻す</button>
+            ) : (
+              <button onClick={e => { e.stopPropagation(); onArchive(l); }} style={miniBtn('#B8860B')}>アーカイブ</button>
+            )}
+            <button onClick={e => {
+              e.stopPropagation();
+              if (confirm(`「${l.name}」を削除しますか？`)) onDelete(l);
+            }} style={miniBtn('#DC2626')}>削除</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const miniBtn = (color) => ({
+  padding: '4px 10px', borderRadius: 3,
+  border: '1px solid ' + color, background: '#fff',
+  color, fontSize: 10, fontWeight: 600,
+  cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+});
 
 function ListsTable({ lists, onSelect, onEdit, onArchive, onUnarchive, onDelete, showingArchived }) {
   if (lists.length === 0) {
@@ -151,6 +218,7 @@ function ListsTable({ lists, onSelect, onEdit, onArchive, onUnarchive, onDelete,
 
 export default function CRMLeadGenView({ currentUser, members = [], setClientData }) {
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [importOpen, setImportOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [selectedListId, setSelectedListId] = useState(null);
@@ -280,15 +348,36 @@ export default function CRMLeadGenView({ currentUser, members = [], setClientDat
         </div>
       </div>
 
-      <ListsTable
-        lists={visibleLists}
-        onSelect={l => setSelectedListId(l.id)}
-        onEdit={l => setEditTarget(l)}
-        onArchive={handleArchive}
-        onUnarchive={handleUnarchive}
-        onDelete={handleDelete}
-        showingArchived={showArchived}
-      />
+      {visibleLists.length === 0 ? (
+        <div style={{
+          padding: '40px 20px', textAlign: 'center', color: C.textLight, fontSize: 12,
+          background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
+        }}>
+          {showArchived
+            ? 'アーカイブ済みのリストはありません'
+            : 'まだ開拓リストがありません。「+ 新規リスト」から CSV を取り込んでください。'
+          }
+        </div>
+      ) : isMobile ? (
+        <ListsCardMobile
+          lists={visibleLists}
+          onSelect={l => setSelectedListId(l.id)}
+          onEdit={l => setEditTarget(l)}
+          onArchive={handleArchive}
+          onUnarchive={handleUnarchive}
+          onDelete={handleDelete}
+        />
+      ) : (
+        <ListsTable
+          lists={visibleLists}
+          onSelect={l => setSelectedListId(l.id)}
+          onEdit={l => setEditTarget(l)}
+          onArchive={handleArchive}
+          onUnarchive={handleUnarchive}
+          onDelete={handleDelete}
+          showingArchived={showArchived}
+        />
+      )}
 
       {importOpen && (
         <CRMLeadListImportModal

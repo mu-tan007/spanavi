@@ -7,6 +7,7 @@ import {
   promoteLeadCompanyToClient, updateClient, updateClientNextContactAt,
   invokeGetZoomRecording, updateClientCallRecordRecordingUrl,
 } from '../../../lib/supabaseWrite';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 import { NAVY, GRAY_200, GRAY_50, GOLD } from './utils';
 import CRMLeadAppoModal from './CRMLeadAppoModal';
 import CRMLeadRecallModal from './CRMLeadRecallModal';
@@ -75,6 +76,33 @@ function clientsRowToFE(c) {
 
 export default function CRMLeadCallFlowView({ list, companies, records, currentUser, members = [], setClientData, onClose }) {
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        background: '#fff', zIndex: 10000, padding: 24,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 8, textAlign: 'center' }}>
+          集中モードはPCでご利用ください
+        </div>
+        <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 20, textAlign: 'center', lineHeight: 1.6 }}>
+          1社フォーカスのレイアウトとオートコール機能を<br />
+          快適に使うために、PCでの操作を推奨しています。
+        </div>
+        <button
+          onClick={onClose}
+          style={{
+            padding: '10px 24px', borderRadius: 4, border: '1px solid ' + NAVY,
+            background: '#fff', color: NAVY,
+            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+          }}
+        >← 戻る</button>
+      </div>
+    );
+  }
 
   const [selectedIdx, setSelectedIdx] = useState(null);
   const [memo, setMemo] = useState('');
