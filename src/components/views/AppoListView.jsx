@@ -2344,73 +2344,81 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
       />
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
-        padding: isMobile ? "10px 12px" : "14px 18px", background: '#fff', borderRadius: 4,
-        border: "1px solid #E5E7EB",
+        padding: isMobile ? "10px 12px" : "14px 18px", background: color.white, borderRadius: radius.md,
+        border: `1px solid ${color.border}`,
         overflowX: isMobile ? 'auto' : undefined, WebkitOverflowScrolling: 'touch',
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#0D2247' }}>メンバー一覧</span>
-          <span style={{ fontSize: 11, color: '#9CA3AF' }}>{members.length}名</span>
+          <span style={{ fontSize: font.size.base, fontWeight: 700, color: color.navy }}>メンバー一覧</span>
+          <span style={{ fontSize: font.size.xs, color: color.textLight }}>{members.length}名</span>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="名前・大学で検索..."
-            style={{ padding: "6px 12px", borderRadius: 4, border: "1px solid #E5E7EB", fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", width: 180 }} />
-          {setMembers && <button
-            onClick={() => setAddForm({ name: "", university: "", year: 1, team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, referrerName: "" })}
-            style={{
-              padding: "6px 12px", borderRadius: 4, border: "none", fontSize: 11, fontWeight: 600,
-              background: "#0D2247",
-              color: '#fff', cursor: "pointer", fontFamily: "'Noto Sans JP'",
-            }}>+ 追加</button>}
-          {setMembers && <button
-            disabled={syncLoading}
-            onClick={async () => {
-              setSyncLoading(true);
-              setSyncResult(null);
-              const { data, error } = await invokeSyncZoomUsers();
-              setSyncLoading(false);
-              if (error || !data) {
-                setSyncResult({ error: error?.message || '通信エラーが発生しました' });
-              } else {
-                setSyncResult(data);
-                // ページのmembersステートを更新（zoom_user_idをsetMembersで反映）
-                if (data.updated?.length > 0) {
-                  setMembers(prev => prev.map(m => {
-                    const matched = data._updatedMap?.[m._supaId];
-                    return matched ? { ...m, zoomUserId: matched } : m;
-                  }));
+          <Input
+            size="sm"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="名前・大学で検索..."
+            fullWidth={false}
+            containerStyle={{ width: 180 }}
+          />
+          {setMembers && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setAddForm({ name: "", university: "", year: 1, team: "成尾", role: "メンバー", rank: "トレーニー", rate: 0.22, referrerName: "" })}
+            >
+              + 追加
+            </Button>
+          )}
+          {setMembers && (
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={syncLoading}
+              onClick={async () => {
+                setSyncLoading(true);
+                setSyncResult(null);
+                const { data, error } = await invokeSyncZoomUsers();
+                setSyncLoading(false);
+                if (error || !data) {
+                  setSyncResult({ error: error?.message || '通信エラーが発生しました' });
+                } else {
+                  setSyncResult(data);
+                  // ページのmembersステートを更新（zoom_user_idをsetMembersで反映）
+                  if (data.updated?.length > 0) {
+                    setMembers(prev => prev.map(m => {
+                      const matched = data._updatedMap?.[m._supaId];
+                      return matched ? { ...m, zoomUserId: matched } : m;
+                    }));
+                  }
                 }
-              }
-            }}
-            style={{
-              padding: "6px 12px", borderRadius: 4, border: "none", fontSize: 11, fontWeight: 600,
-              background: syncLoading ? "#9CA3AF" : "#1a7f5a",
-              color: '#fff', cursor: syncLoading ? "not-allowed" : "pointer",
-              fontFamily: "'Noto Sans JP'", whiteSpace: "nowrap",
-            }}>
-            {syncLoading ? "同期中..." : "Zoom ID同期"}
-          </button>}
+              }}
+              style={{ background: syncLoading ? color.gray400 : '#1a7f5a', whiteSpace: 'nowrap' }}
+            >
+              {syncLoading ? "同期中..." : "Zoom ID同期"}
+            </Button>
+          )}
         </div>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {sortedTeams.map(team => (
           <div key={team} style={{
-            background: '#fff', borderRadius: 4, overflowX: "auto", overflowY: "hidden",
-            border: "1px solid #E5E7EB",
+            background: color.white, borderRadius: radius.md, overflowX: "auto", overflowY: "hidden",
+            border: `1px solid ${color.border}`,
           }}>
             <div style={{ minWidth: memMinW }}>
             <div style={{
-              padding: "10px 16px", background: "#0D2247",
+              padding: "10px 16px", background: color.navy,
               display: "flex", alignItems: "center", gap: 8,
             }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{(team === "営業統括" || team === "代表取締役") ? team : team + "チーム"}</span>
-              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)' }}>{grouped[team].length}名</span>
+              <span style={{ fontSize: font.size.base, fontWeight: 700, color: color.white }}>{(team === "営業統括" || team === "代表取締役") ? team : team + "チーム"}</span>
+              <span style={{ fontSize: 10, color: alpha(color.white, 0.65) }}>{grouped[team].length}名</span>
             </div>
             <div style={{
               display: "grid", gridTemplateColumns: memGrid,
-              padding: "8px 16px", background: "#0D2247", borderBottom: "1px solid #0D2247",
-              fontSize: 11, fontWeight: 600, color: '#fff',
+              padding: "8px 16px", background: color.navy, borderBottom: `1px solid ${color.navy}`,
+              fontSize: font.size.xs, fontWeight: 600, color: color.white,
             }}>
               {['No', '氏名', '大学名', '学年', '役職', 'ランク', '累計売上', 'インセンティブ率', '入社日', ...(setMembers ? [''] : [])].map((label, i) => (
                 <span key={i} style={{ textAlign: memCols[i]?.align || 'left', position: 'relative', userSelect: 'none' }}>
@@ -2425,25 +2433,30 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
             }).map((m, idx) => (
               <div key={m.id} style={{
                 display: "grid", gridTemplateColumns: memGrid,
-                padding: "8px 16px", fontSize: 11, alignItems: "center",
-                borderBottom: "1px solid #E5E7EB",
-                background: idx % 2 === 0 ? '#fff' : '#F8F9FA',
+                padding: "8px 16px", fontSize: font.size.xs, alignItems: "center",
+                borderBottom: `1px solid ${color.border}`,
+                background: idx % 2 === 0 ? color.white : color.cream,
               }}>
-                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: '#9CA3AF', textAlign: memCols[0]?.align }}>{idx + 1}</span>
-                <span style={{ fontWeight: 600, color: '#0D2247', textAlign: memCols[1]?.align }}>{m.name}</span>
-                <span style={{ color: '#6B7280', fontSize: 10, textAlign: memCols[2]?.align }}>{m.university}</span>
-                <span style={{ fontFamily: "'JetBrains Mono'", color: '#9CA3AF', textAlign: memCols[3]?.align }}>{m.year}</span>
-                <span style={{
-                  fontSize: 9, padding: "1px 5px", borderRadius: 3, textAlign: memCols[4]?.align,
-                  background: m.role === "チームリーダー" ? '#0D224715' : m.role === "副リーダー" ? '#1E40AF15' : m.role === "営業統括" ? '#05966915' : 'transparent',
-                  color: m.role === "チームリーダー" ? '#0D2247' : m.role === "副リーダー" ? '#1E40AF' : m.role === "営業統括" ? '#059669' : '#9CA3AF',
-                  fontWeight: 600,
-                }}>{m.role || "メンバー"}</span>
-                <span style={{ fontSize: 10, textAlign: memCols[5]?.align, color: '#6B7280' }}>{m.rank || "-"}</span>
-                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: 500, textAlign: memCols[6]?.align, fontVariantNumeric: 'tabular-nums', color: m.totalSales > 0 ? '#0D2247' : '#9CA3AF' }}>{formatCurrency(m.totalSales)}</span>
-                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, textAlign: memCols[7]?.align, fontVariantNumeric: 'tabular-nums', color: m.rate > 0 ? '#059669' : '#9CA3AF' }}>{m.rate > 0 ? (m.rate * 100).toFixed(0) + "%" : "-"}</span>
-                <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 9, textAlign: memCols[8]?.align, color: C.textLight }}>{(m.joinDate || '').slice(2)}</span>
-                {setMembers && <span style={{ textAlign: memCols[9]?.align }}><button onClick={() => setEditForm({ ...m })} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, padding: 2 }}>&#9998;</button></span>}
+                <span style={{ fontFamily: font.family.mono, fontSize: 10, color: color.textLight, textAlign: memCols[0]?.align }}>{idx + 1}</span>
+                <span style={{ fontWeight: 600, color: color.navy, textAlign: memCols[1]?.align }}>{m.name}</span>
+                <span style={{ color: color.textMid, fontSize: 10, textAlign: memCols[2]?.align }}>{m.university}</span>
+                <span style={{ fontFamily: font.family.mono, color: color.textLight, textAlign: memCols[3]?.align }}>{m.year}</span>
+                <span style={{ textAlign: memCols[4]?.align }}>
+                  {m.role === "チームリーダー" ? (
+                    <Badge variant="primary" size="sm">チームリーダー</Badge>
+                  ) : m.role === "副リーダー" ? (
+                    <Badge variant="info" size="sm">副リーダー</Badge>
+                  ) : m.role === "営業統括" ? (
+                    <Badge variant="success" size="sm">営業統括</Badge>
+                  ) : (
+                    <span style={{ fontSize: 9, color: color.textLight, fontWeight: 600 }}>{m.role || "メンバー"}</span>
+                  )}
+                </span>
+                <span style={{ fontSize: 10, textAlign: memCols[5]?.align, color: color.textMid }}>{m.rank || "-"}</span>
+                <span style={{ fontFamily: font.family.mono, fontSize: 10, fontWeight: 500, textAlign: memCols[6]?.align, fontVariantNumeric: 'tabular-nums', color: m.totalSales > 0 ? color.navy : color.textLight }}>{formatCurrency(m.totalSales)}</span>
+                <span style={{ fontFamily: font.family.mono, fontSize: 10, textAlign: memCols[7]?.align, fontVariantNumeric: 'tabular-nums', color: m.rate > 0 ? color.success : color.textLight }}>{m.rate > 0 ? (m.rate * 100).toFixed(0) + "%" : "-"}</span>
+                <span style={{ fontFamily: font.family.mono, fontSize: 9, textAlign: memCols[8]?.align, color: color.textLight }}>{(m.joinDate || '').slice(2)}</span>
+                {setMembers && <span style={{ textAlign: memCols[9]?.align }}><button onClick={() => setEditForm({ ...m })} style={{ background: "none", border: "none", cursor: "pointer", fontSize: font.size.base, padding: 2 }}>&#9998;</button></span>}
               </div>
             ))}
             </div>
@@ -2458,41 +2471,41 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
           onClick={() => setSyncResult(null)}
           style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}
         >
-          <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 12, width: 480, maxWidth: '95vw', maxHeight: "80vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
-            <div style={{ padding: "14px 20px", background: "linear-gradient(135deg, #1a7f5a, #2da57a)", borderRadius: "12px 12px 0 0", color: C.white }}>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>Zoom ID同期結果</div>
+          <div onClick={e => e.stopPropagation()} style={{ background: color.white, borderRadius: 12, width: 480, maxWidth: '95vw', maxHeight: "80vh", overflow: "auto", boxShadow: shadow.xl }}>
+            <div style={{ padding: "14px 20px", background: "linear-gradient(135deg, #1a7f5a, #2da57a)", borderRadius: "12px 12px 0 0", color: color.white }}>
+              <div style={{ fontSize: font.size.md, fontWeight: 700 }}>Zoom ID同期結果</div>
             </div>
             <div style={{ padding: "20px 24px" }}>
               {syncResult.error ? (
-                <div style={{ color: "#c0392b", fontSize: 13, padding: "12px 16px", background: "#fdf0ef", borderRadius: 8, border: "1px solid #e8b4b0" }}>
+                <div style={{ color: "#c0392b", fontSize: font.size.base, padding: "12px 16px", background: "#fdf0ef", borderRadius: 8, border: "1px solid #e8b4b0" }}>
                   エラー：{syncResult.error}
                 </div>
               ) : (
                 <>
                   <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
                     <div style={{ padding: "10px 14px", background: "#f0faf5", borderRadius: 8, border: "1px solid #a8dfc5" }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "#1a7f5a" }}>
+                      <span style={{ fontSize: font.size.base, fontWeight: 700, color: "#1a7f5a" }}>
                         更新成功：{syncResult.updated?.length ?? 0}名
                       </span>
                       {syncResult.updated?.length > 0 && (
-                        <div style={{ marginTop: 6, fontSize: 11, color: "#2d6a4f", lineHeight: 1.8 }}>
+                        <div style={{ marginTop: 6, fontSize: font.size.xs, color: "#2d6a4f", lineHeight: 1.8 }}>
                           {syncResult.updated.join('　/　')}
                         </div>
                       )}
                     </div>
                     {syncResult.skipped?.length > 0 && (
-                      <div style={{ padding: "10px 14px", background: "#f8f9fa", borderRadius: 8, border: "1px solid " + C.borderLight }}>
-                        <span style={{ fontSize: 12, color: C.textMid }}>
-                          ✔ 登録済みスキップ：{syncResult.skipped.length}名
+                      <div style={{ padding: "10px 14px", background: color.cream, borderRadius: 8, border: `1px solid ${color.borderLight}` }}>
+                        <span style={{ fontSize: font.size.sm, color: color.textMid }}>
+                          登録済みスキップ：{syncResult.skipped.length}名
                         </span>
                       </div>
                     )}
                     {syncResult.unmatched?.length > 0 && (
                       <div style={{ padding: "10px 14px", background: "#fff8f0", borderRadius: 8, border: "1px solid #f5c99a" }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "#b05e00" }}>
-                          ✗ 未マッチ：{syncResult.unmatched.length}名
+                        <span style={{ fontSize: font.size.sm, fontWeight: 700, color: "#b05e00" }}>
+                          未マッチ：{syncResult.unmatched.length}名
                         </span>
-                        <div style={{ marginTop: 6, fontSize: 11, color: "#7a4200", lineHeight: 1.8 }}>
+                        <div style={{ marginTop: 6, fontSize: font.size.xs, color: "#7a4200", lineHeight: 1.8 }}>
                           {syncResult.unmatched.map(u => (
                             <div key={u.email}>{u.name}（{u.email}）</div>
                           ))}
@@ -2501,14 +2514,14 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
                     )}
                     {syncResult.errors?.length > 0 && (
                       <div style={{ padding: "10px 14px", background: "#fdf0ef", borderRadius: 8, border: "1px solid #e8b4b0" }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "#c0392b" }}>
+                        <span style={{ fontSize: font.size.sm, fontWeight: 700, color: "#c0392b" }}>
                           更新エラー：{syncResult.errors.length}名
                         </span>
-                        <div style={{ marginTop: 6, fontSize: 11, color: "#7b241c" }}>{syncResult.errors.join('、')}</div>
+                        <div style={{ marginTop: 6, fontSize: font.size.xs, color: "#7b241c" }}>{syncResult.errors.join('、')}</div>
                       </div>
                     )}
                   </div>
-                  <div style={{ fontSize: 11, color: C.textLight, textAlign: "center" }}>クリックで閉じる</div>
+                  <div style={{ fontSize: font.size.xs, color: color.textLight, textAlign: "center" }}>クリックで閉じる</div>
                 </>
               )}
             </div>
@@ -2518,91 +2531,107 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
 
       {/* Edit Member Modal */}
       {editForm && setMembers && (() => {
-        const inputStyle = {
-          width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid " + C.border,
-          fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", background: C.offWhite,
+        const labelStyle = { fontSize: 10, fontWeight: 600, color: color.navy, marginBottom: 2, display: "block" };
+        const readOnlyInputStyle = {
+          width: "100%", padding: "6px 10px", borderRadius: radius.md, border: `1px solid ${color.border}`,
+          fontSize: font.size.xs, fontFamily: font.family.sans, outline: "none",
+          background: '#f0f4f8', color: color.navy, fontWeight: 600,
         };
-        const labelStyle = { fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 2, display: "block" };
         const u = (k, v) => setEditForm(p => ({ ...p, [k]: v }));
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: C.white, borderRadius: 12, width: 440, boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
-              <div style={{ padding: "14px 20px", background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")", borderRadius: "12px 12px 0 0", color: C.white }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>{editForm.name} を編集</div>
+            <div style={{ background: color.white, borderRadius: 12, width: 440, boxShadow: shadow.xl }}>
+              <div style={{ padding: "14px 20px", background: `linear-gradient(135deg, ${color.navyDeep}, ${color.navy})`, borderRadius: "12px 12px 0 0", color: color.white }}>
+                <div style={{ fontSize: font.size.md, fontWeight: 700 }}>{editForm.name} を編集</div>
               </div>
               <div style={{ padding: "16px 20px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div><label style={labelStyle}>氏名 *</label><input value={editForm.name} onChange={e => u("name", e.target.value)} style={inputStyle} /></div>
-                  <div><label style={labelStyle}>大学名</label><input value={editForm.university || ""} onChange={e => u("university", e.target.value)} style={inputStyle} /></div>
-                  <div><label style={labelStyle}>学年</label><input type="number" value={editForm.year} onChange={e => u("year", Number(e.target.value))} style={inputStyle} /></div>
-                  <div><label style={labelStyle}>チーム</label>
-                    <select value={editForm.team} onChange={e => u("team", e.target.value)} style={inputStyle}>
-                      <option value="成尾">成尾</option><option value="高橋">高橋</option><option value="クライアント開拓">クライアント開拓</option><option value="">営業統括</option>
-                    </select>
+                  <div><label style={labelStyle}>氏名 *</label><Input size="sm" value={editForm.name} onChange={e => u("name", e.target.value)} /></div>
+                  <div><label style={labelStyle}>大学名</label><Input size="sm" value={editForm.university || ""} onChange={e => u("university", e.target.value)} /></div>
+                  <div><label style={labelStyle}>学年</label><Input size="sm" type="number" value={editForm.year} onChange={e => u("year", Number(e.target.value))} /></div>
+                  <div>
+                    <label style={labelStyle}>チーム</label>
+                    <Select size="sm" value={editForm.team} onChange={e => u("team", e.target.value)} options={[
+                      { value: "成尾", label: "成尾" },
+                      { value: "高橋", label: "高橋" },
+                      { value: "クライアント開拓", label: "クライアント開拓" },
+                      { value: "", label: "営業統括" },
+                    ]} />
                   </div>
-                  <div><label style={labelStyle}>役職</label>
-                    <select value={editForm.role} onChange={e => u("role", e.target.value)} style={inputStyle}>
-                      <option value="メンバー">メンバー</option><option value="副リーダー">副リーダー</option><option value="チームリーダー">チームリーダー</option><option value="営業統括">営業統括</option>
-                    </select>
+                  <div>
+                    <label style={labelStyle}>役職</label>
+                    <Select size="sm" value={editForm.role} onChange={e => u("role", e.target.value)} options={[
+                      { value: "メンバー", label: "メンバー" },
+                      { value: "副リーダー", label: "副リーダー" },
+                      { value: "チームリーダー", label: "チームリーダー" },
+                      { value: "営業統括", label: "営業統括" },
+                    ]} />
                   </div>
-                  <div><label style={labelStyle}>累計売上 (¥)</label><input type="number" value={editForm.totalSales || 0} onChange={e => { const s = Number(e.target.value); const { rank, rate } = calcRankAndRate(s); setEditForm(p => ({ ...p, totalSales: s, rank, rate })); }} style={inputStyle} /></div>
-                  <div><label style={labelStyle}>ランク <span style={{ fontWeight: 400, color: C.textLight }}>(自動)</span></label><input value={editForm.rank || 'トレーニー'} readOnly style={{ ...inputStyle, background: '#f0f4f8', color: C.navy, fontWeight: 600 }} /></div>
-                  <div><label style={labelStyle}>内定先</label><input value={editForm.offer || ""} onChange={e => u("offer", e.target.value)} style={inputStyle} /></div>
-                  <div><label style={labelStyle}>インセンティブ率 <span style={{ fontWeight: 400, color: C.textLight }}>(自動)</span></label><input value={((editForm.rate || 0) * 100).toFixed(0) + '%'} readOnly style={{ ...inputStyle, background: '#f0f4f8', color: C.navy, fontWeight: 600 }} /></div>
-                  <div><label style={labelStyle}>入社日</label><input type="date" value={editForm.joinDate || ""} onChange={e => u("joinDate", e.target.value)} style={inputStyle} /></div>
+                  <div><label style={labelStyle}>累計売上 (¥)</label><Input size="sm" type="number" value={editForm.totalSales || 0} onChange={e => { const s = Number(e.target.value); const { rank, rate } = calcRankAndRate(s); setEditForm(p => ({ ...p, totalSales: s, rank, rate })); }} /></div>
+                  <div><label style={labelStyle}>ランク <span style={{ fontWeight: 400, color: color.textLight }}>(自動)</span></label><input value={editForm.rank || 'トレーニー'} readOnly style={readOnlyInputStyle} /></div>
+                  <div><label style={labelStyle}>内定先</label><Input size="sm" value={editForm.offer || ""} onChange={e => u("offer", e.target.value)} /></div>
+                  <div><label style={labelStyle}>インセンティブ率 <span style={{ fontWeight: 400, color: color.textLight }}>(自動)</span></label><input value={((editForm.rate || 0) * 100).toFixed(0) + '%'} readOnly style={readOnlyInputStyle} /></div>
+                  <div><label style={labelStyle}>入社日</label><Input size="sm" type="date" value={editForm.joinDate || ""} onChange={e => u("joinDate", e.target.value)} /></div>
                   <div>
                     <label style={labelStyle}>稼働開始日</label>
-                    <input type="date" value={editForm.operationStartDate || ""} onChange={e => u("operationStartDate", e.target.value)} style={inputStyle} />
+                    <Input size="sm" type="date" value={editForm.operationStartDate || ""} onChange={e => u("operationStartDate", e.target.value)} />
                   </div>
-                  <div><label style={labelStyle}>紹介者</label>
-                    <select value={editForm.referrerName || ""} onChange={e => u("referrerName", e.target.value)} style={inputStyle}>
-                      <option value="">（なし）</option>
-                      {members.filter(m => m.id !== editForm.id).map(m => <option key={m.id || m.name} value={m.name}>{m.name}</option>)}
-                    </select>
+                  <div>
+                    <label style={labelStyle}>紹介者</label>
+                    <Select size="sm" value={editForm.referrerName || ""} onChange={e => u("referrerName", e.target.value)} options={[
+                      { value: "", label: "（なし）" },
+                      ...members.filter(m => m.id !== editForm.id).map(m => ({ value: m.name, label: m.name })),
+                    ]} />
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
-                    <label style={{ ...labelStyle, color: C.gold }}>Zoom User ID <span style={{ fontWeight: 400, color: C.textLight }}>（管理者専用）</span></label>
-                    <input value={editForm.zoomUserId || ""} onChange={e => u("zoomUserId", e.target.value)} style={inputStyle} placeholder="例: lXsqw8miT5iHmX7cKz0R5w" />
+                    <label style={{ ...labelStyle, color: color.gold }}>Zoom User ID <span style={{ fontWeight: 400, color: color.textLight }}>（管理者専用）</span></label>
+                    <Input size="sm" value={editForm.zoomUserId || ""} onChange={e => u("zoomUserId", e.target.value)} placeholder="例: lXsqw8miT5iHmX7cKz0R5w" />
                   </div>
                 </div>
               </div>
-              <div style={{ padding: "10px 20px", borderTop: "1px solid " + C.borderLight }}>
-                {deleteError && <div style={{ fontSize: 11, color: "#e53835", marginBottom: 8, padding: "6px 10px", background: "#fde8e8", borderRadius: 4 }}>削除エラー: {deleteError}</div>}
+              <div style={{ padding: "10px 20px", borderTop: `1px solid ${color.borderLight}` }}>
+                {deleteError && <div style={{ fontSize: font.size.xs, color: color.danger, marginBottom: 8, padding: "6px 10px", background: color.dangerSoft, borderRadius: radius.md }}>削除エラー: {deleteError}</div>}
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <button onClick={async () => {
-                  if (!editForm._supaId) { setDeleteError('IDが見つかりません。ページを再読み込みしてください。'); return; }
-                  if (!window.confirm(`「${editForm.name}」を削除しますか？`)) return;
-                  setDeleteSaving(true);
-                  setDeleteError(null);
-                  const error = await deleteMember(editForm._supaId);
-                  setDeleteSaving(false);
-                  if (error) { setDeleteError(error.message || 'DBからの削除に失敗しました。'); return; }
-                  setMembers(prev => prev.filter(x => x.id !== editForm.id));
-                  setEditForm(null);
-                  setDeleteError(null);
-                  if (onDataRefetch) onDataRefetch();
-                }} disabled={deleteSaving} style={{
-                  padding: "8px 16px", borderRadius: 6, border: "1px solid #e5383530",
-                  background: C.white, cursor: deleteSaving ? "default" : "pointer", fontSize: 11, fontWeight: 600, color: "#e53835", fontFamily: "'Noto Sans JP'",
-                }}>{deleteSaving ? '削除中...' : '削除'}</button>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => { setEditForm(null); setDeleteError(null); }} style={{ padding: "8px 20px", borderRadius: 6, border: "1px solid " + C.border, background: C.white, cursor: "pointer", fontSize: 11, fontWeight: 600, color: C.textMid, fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
-                  <button onClick={async () => {
-                    if (!editForm.name.trim()) return;
-                    if (editForm._supaId) {
-                      const error = await updateMember(editForm._supaId, editForm);
-                      if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
-                      await updateMemberReward(editForm._supaId, { cumulativeSales: editForm.totalSales || 0, rank: editForm.rank, incentiveRate: editForm.rate });
-                    }
-                    setMembers(prev => prev.map(m => m.id === editForm.id ? { ...m, ...editForm } : m));
-                    setEditForm(null);
-                  }} style={{
-                    padding: "8px 24px", borderRadius: 6, border: "none",
-                    background: "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")",
-                    cursor: "pointer", fontSize: 11, fontWeight: 700, color: C.white, fontFamily: "'Noto Sans JP'",
-                  }}>保存</button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    disabled={deleteSaving}
+                    onClick={async () => {
+                      if (!editForm._supaId) { setDeleteError('IDが見つかりません。ページを再読み込みしてください。'); return; }
+                      if (!window.confirm(`「${editForm.name}」を削除しますか？`)) return;
+                      setDeleteSaving(true);
+                      setDeleteError(null);
+                      const error = await deleteMember(editForm._supaId);
+                      setDeleteSaving(false);
+                      if (error) { setDeleteError(error.message || 'DBからの削除に失敗しました。'); return; }
+                      setMembers(prev => prev.filter(x => x.id !== editForm.id));
+                      setEditForm(null);
+                      setDeleteError(null);
+                      if (onDataRefetch) onDataRefetch();
+                    }}
+                  >
+                    {deleteSaving ? '削除中...' : '削除'}
+                  </Button>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <Button variant="outline" size="sm" onClick={() => { setEditForm(null); setDeleteError(null); }}>キャンセル</Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={async () => {
+                        if (!editForm.name.trim()) return;
+                        if (editForm._supaId) {
+                          const error = await updateMember(editForm._supaId, editForm);
+                          if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
+                          await updateMemberReward(editForm._supaId, { cumulativeSales: editForm.totalSales || 0, rank: editForm.rank, incentiveRate: editForm.rate });
+                        }
+                        setMembers(prev => prev.map(m => m.id === editForm.id ? { ...m, ...editForm } : m));
+                        setEditForm(null);
+                      }}
+                    >
+                      保存
+                    </Button>
+                  </div>
                 </div>
-              </div>
               </div>
             </div>
           </div>
@@ -2611,77 +2640,87 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
 
       {/* Add Member Modal */}
       {addForm && setMembers && (() => {
-        const inputStyle = {
-          width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid " + C.border,
-          fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", background: C.offWhite,
-        };
-        const labelStyle = { fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 2, display: "block" };
+        const labelStyle = { fontSize: 10, fontWeight: 600, color: color.navy, marginBottom: 2, display: "block" };
         const u = (k, v) => setAddForm(p => ({ ...p, [k]: v }));
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: C.white, borderRadius: 12, width: 440, boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
-              <div style={{ padding: "14px 20px", background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")", borderRadius: "12px 12px 0 0", color: C.white }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>従業員を追加</div>
+            <div style={{ background: color.white, borderRadius: 12, width: 440, boxShadow: shadow.xl }}>
+              <div style={{ padding: "14px 20px", background: `linear-gradient(135deg, ${color.navyDeep}, ${color.navy})`, borderRadius: "12px 12px 0 0", color: color.white }}>
+                <div style={{ fontSize: font.size.md, fontWeight: 700 }}>従業員を追加</div>
               </div>
               <div style={{ padding: "16px 20px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div><label style={labelStyle}>氏名 *</label><input value={addForm.name} onChange={e => u("name", e.target.value)} style={inputStyle} /></div>
-                  <div><label style={labelStyle}>大学名</label><input value={addForm.university || ""} onChange={e => u("university", e.target.value)} style={inputStyle} /></div>
-                  <div><label style={labelStyle}>学年</label><input type="number" value={addForm.year} onChange={e => u("year", Number(e.target.value))} style={inputStyle} /></div>
-                  <div><label style={labelStyle}>チーム</label>
-                    <select value={addForm.team} onChange={e => u("team", e.target.value)} style={inputStyle}>
-                      <option value="成尾">成尾</option><option value="高橋">高橋</option><option value="クライアント開拓">クライアント開拓</option><option value="">営業統括</option>
-                    </select>
+                  <div><label style={labelStyle}>氏名 *</label><Input size="sm" value={addForm.name} onChange={e => u("name", e.target.value)} /></div>
+                  <div><label style={labelStyle}>大学名</label><Input size="sm" value={addForm.university || ""} onChange={e => u("university", e.target.value)} /></div>
+                  <div><label style={labelStyle}>学年</label><Input size="sm" type="number" value={addForm.year} onChange={e => u("year", Number(e.target.value))} /></div>
+                  <div>
+                    <label style={labelStyle}>チーム</label>
+                    <Select size="sm" value={addForm.team} onChange={e => u("team", e.target.value)} options={[
+                      { value: "成尾", label: "成尾" },
+                      { value: "高橋", label: "高橋" },
+                      { value: "クライアント開拓", label: "クライアント開拓" },
+                      { value: "", label: "営業統括" },
+                    ]} />
                   </div>
-                  <div><label style={labelStyle}>役職</label>
-                    <select value={addForm.role} onChange={e => u("role", e.target.value)} style={inputStyle}>
-                      <option value="メンバー">メンバー</option><option value="副リーダー">副リーダー</option><option value="チームリーダー">チームリーダー</option><option value="営業統括">営業統括</option>
-                    </select>
+                  <div>
+                    <label style={labelStyle}>役職</label>
+                    <Select size="sm" value={addForm.role} onChange={e => u("role", e.target.value)} options={[
+                      { value: "メンバー", label: "メンバー" },
+                      { value: "副リーダー", label: "副リーダー" },
+                      { value: "チームリーダー", label: "チームリーダー" },
+                      { value: "営業統括", label: "営業統括" },
+                    ]} />
                   </div>
-                  <div><label style={labelStyle}>ランク</label>
-                    <select value={addForm.rank} onChange={e => u("rank", e.target.value)} style={inputStyle}>
-                      <option value="トレーニー">トレーニー</option><option value="プレイヤー">プレイヤー</option>
-                    </select>
+                  <div>
+                    <label style={labelStyle}>ランク</label>
+                    <Select size="sm" value={addForm.rank} onChange={e => u("rank", e.target.value)} options={[
+                      { value: "トレーニー", label: "トレーニー" },
+                      { value: "プレイヤー", label: "プレイヤー" },
+                    ]} />
                   </div>
-                  <div><label style={labelStyle}>紹介者</label>
-                    <select value={addForm.referrerName || ""} onChange={e => u("referrerName", e.target.value)} style={inputStyle}>
-                      <option value="">（なし）</option>
-                      {members.map(m => <option key={m.id || m.name} value={m.name}>{m.name}</option>)}
-                    </select>
+                  <div>
+                    <label style={labelStyle}>紹介者</label>
+                    <Select size="sm" value={addForm.referrerName || ""} onChange={e => u("referrerName", e.target.value)} options={[
+                      { value: "", label: "（なし）" },
+                      ...members.map(m => ({ value: m.name, label: m.name })),
+                    ]} />
                   </div>
                 </div>
               </div>
-              <div style={{ padding: "10px 20px", borderTop: "1px solid " + C.borderLight }}>
-                {addError && <div style={{ fontSize: 11, color: "#e53835", marginBottom: 8, padding: "6px 10px", background: "#fde8e8", borderRadius: 4 }}>エラー: {addError}</div>}
+              <div style={{ padding: "10px 20px", borderTop: `1px solid ${color.borderLight}` }}>
+                {addError && <div style={{ fontSize: font.size.xs, color: color.danger, marginBottom: 8, padding: "6px 10px", background: color.dangerSoft, borderRadius: radius.md }}>エラー: {addError}</div>}
                 <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                  <button onClick={() => { setAddForm(null); setAddError(null); }} style={{ padding: "8px 20px", borderRadius: 6, border: "1px solid " + C.border, background: C.white, cursor: "pointer", fontSize: 11, fontWeight: 600, color: C.textMid, fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
-                  <button onClick={async () => {
-                    if (!addForm.name.trim()) return;
-                    setAddSaving(true);
-                    setAddError(null);
-                    const today = new Date().toISOString().slice(0, 10);
-                    const { result, error } = await insertMember(addForm);
-                    setAddSaving(false);
-                    if (error || !result) {
-                      setAddError(error?.message || 'DBへの保存に失敗しました。RLSポリシーを確認してください。');
-                      return;
-                    }
-                    setMembers(prev => [...prev, {
-                      ...addForm,
-                      id: result.id,
-                      _supaId: result.id,
-                      offer: addForm.offer || "",
-                      totalSales: 0,
-                      joinDate: today,
-                    }]);
-                    setAddForm(null);
-                    setAddError(null);
-                    if (onDataRefetch) onDataRefetch();
-                  }} disabled={!addForm.name.trim() || addSaving} style={{
-                    padding: "8px 24px", borderRadius: 6, border: "none",
-                    background: addForm.name.trim() && !addSaving ? "linear-gradient(135deg, " + C.navy + ", " + C.navyLight + ")" : C.border,
-                    cursor: addForm.name.trim() && !addSaving ? "pointer" : "default", fontSize: 11, fontWeight: 700, color: C.white, fontFamily: "'Noto Sans JP'",
-                  }}>{addSaving ? '保存中...' : '追加'}</button>
+                  <Button variant="outline" size="sm" onClick={() => { setAddForm(null); setAddError(null); }}>キャンセル</Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={!addForm.name.trim() || addSaving}
+                    onClick={async () => {
+                      if (!addForm.name.trim()) return;
+                      setAddSaving(true);
+                      setAddError(null);
+                      const today = new Date().toISOString().slice(0, 10);
+                      const { result, error } = await insertMember(addForm);
+                      setAddSaving(false);
+                      if (error || !result) {
+                        setAddError(error?.message || 'DBへの保存に失敗しました。RLSポリシーを確認してください。');
+                        return;
+                      }
+                      setMembers(prev => [...prev, {
+                        ...addForm,
+                        id: result.id,
+                        _supaId: result.id,
+                        offer: addForm.offer || "",
+                        totalSales: 0,
+                        joinDate: today,
+                      }]);
+                      setAddForm(null);
+                      setAddError(null);
+                      if (onDataRefetch) onDataRefetch();
+                    }}
+                  >
+                    {addSaving ? '保存中...' : '追加'}
+                  </Button>
                 </div>
               </div>
             </div>
