@@ -1163,10 +1163,22 @@ export async function fetchAllRecallRecords() {
   // フィルタ2: アーカイブ済みリストの再コールは除外
   const listAlive = memoFiltered.filter(r => listMap[r.list_id]?.is_archived !== true)
 
-  // フィルタ3: 同一 item_id で複数レコードがある場合は最大 round のみ残す
+  // フィルタ3: call_list_items.call_status（その企業の直近架電結果）が
+  // 受付再コール / 社長再コール でないものは除外。
+  // 過去に再コールを記録 → 別画面（CallingScreen 等）から非再コール結果で上書きしたが、
+  // その時に call_records 側の recall_completed フラグが立たなかった「取り残し」を排除する。
+  // call_list_items が取得できなかったレコードは安全側で残す（fetch失敗時の取りこぼし防止）。
+  const RECALL_LATEST_STATUSES = new Set(['受付再コール', '社長再コール'])
+  const statusFresh = listAlive.filter(r => {
+    const item = itemMap[r.item_id]
+    if (!item) return true
+    return RECALL_LATEST_STATUSES.has(item.call_status)
+  })
+
+  // フィルタ4: 同一 item_id で複数レコードがある場合は最大 round のみ残す
   // （同一企業への再コールが重複して表示されないようにする）
   const latestPerItem = new Map()
-  listAlive.forEach(r => {
+  statusFresh.forEach(r => {
     const existing = latestPerItem.get(r.item_id)
     if (!existing || r.round > existing.round) {
       latestPerItem.set(r.item_id, r)
