@@ -3,12 +3,6 @@ import { useSpanaviData } from './hooks/useSpanaviData'
 import LoginPage from './components/LoginPage'
 import ResetPasswordPage from './components/ResetPasswordPage'
 import SpanaviApp from './components/SpanaviApp'
-import LandingPage from './components/public/LandingPage'
-import SignupPage from './components/public/SignupPage'
-import SignupCompletePage from './components/public/SignupCompletePage'
-import SignupCanceledPage from './components/public/SignupCanceledPage'
-import TokushohoPage from './components/public/TokushohoPage'
-import SubscriptionGuard from './components/common/SubscriptionGuard'
 import ClientLoginPage from './components/client/ClientLoginPage'
 import ClientPortalApp from './components/client/ClientPortalApp'
 import { useState, useEffect, useRef } from 'react'
@@ -136,23 +130,21 @@ function MainApp() {
   }
 
   return (
-    <SubscriptionGuard>
-      <SpanaviApp
-        userName={profile?.name || session.user.user_metadata?.name || '不明'}
-        userId={session.user.id}
-        isAdmin={isAdmin}
-        onLogout={handleLogout}
-        supabaseData={supabaseData}
-        onDataRefetch={onDataRefetch}
-        orgId={orgId}
-      />
-    </SubscriptionGuard>
+    <SpanaviApp
+      userName={profile?.name || session.user.user_metadata?.name || '不明'}
+      userId={session.user.id}
+      isAdmin={isAdmin}
+      onLogout={handleLogout}
+      supabaseData={supabaseData}
+      onDataRefetch={onDataRefetch}
+      orgId={orgId}
+    />
   )
 }
 
 export default function App() {
-  // パスワードリカバリーは全ルートに優先（Supabase recovery メールは Site URL "/" に着地するが
-  // "/" は LandingPage で、LandingPage は recoveryMode を検出しないためパスワード再設定画面に到達できない）
+  // パスワードリカバリーは全ルートに優先
+  // (Supabase recovery メールは Site URL "/" に着地するため、ルート要素より先に recoveryMode を捕捉する必要がある)
   const { recoveryMode, session, clearRecoveryMode } = useAuth()
   if (recoveryMode && session) {
     return <ResetPasswordPage onComplete={() => {
@@ -163,12 +155,8 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
-      <Route path="/signup/complete" element={<SignupCompletePage />} />
-      <Route path="/signup/canceled" element={<SignupCanceledPage />} />
-      <Route path="/tokushoho" element={<TokushohoPage />} />
       <Route path="/client/login" element={<ClientLoginPage />} />
       <Route path="/client/*" element={<ClientPortalApp />} />
       <Route path="/*" element={<MainApp />} />
