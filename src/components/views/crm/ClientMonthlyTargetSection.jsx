@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C } from '../../../constants/colors';
+import { color, space, radius, font } from '../../../constants/design';
 import {
   fetchClientMonthlyTargets,
   upsertClientMonthlyTarget,
@@ -23,14 +24,14 @@ function CellInput({ value, isCurrent, onSave }) {
       onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); }}
       style={{
         width: 60, height: 26, textAlign: 'center',
-        border: '1px solid ' + (dirty ? C.gold : GRAY_200),
-        borderRadius: 3,
-        fontSize: 11,
-        fontFamily: "'JetBrains Mono', monospace",
+        border: `1px solid ${dirty ? color.gold : color.border}`,
+        borderRadius: radius.sm,
+        fontSize: font.size.xs,
+        fontFamily: font.family.mono,
         fontVariantNumeric: 'tabular-nums',
         outline: 'none',
-        background: isCurrent ? '#FFFBEB' : '#fff',
-        color: NAVY,
+        background: isCurrent ? '#FFFBEB' : color.white,
+        color: color.navy,
       }}
     />
   );
@@ -82,11 +83,11 @@ export default function ClientMonthlyTargetSection({ clientId }) {
           return (
             <div key={ym} style={{ display: 'contents' }}>
               <span style={{
-                fontSize: 11,
-                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: font.size.xs,
+                fontFamily: font.family.mono,
                 fontVariantNumeric: 'tabular-nums',
-                color: isCurrent ? C.gold : C.textMid,
-                fontWeight: isCurrent ? 700 : 400,
+                color: isCurrent ? color.gold : color.textMid,
+                fontWeight: isCurrent ? font.weight.bold : font.weight.normal,
                 textAlign: 'right',
               }}>
                 {formatMonthLabel(ym, i > 0 ? months[i - 1] : null)}
@@ -97,13 +98,13 @@ export default function ClientMonthlyTargetSection({ clientId }) {
                   isCurrent={isCurrent}
                   onSave={v => handleSave(ym, v)}
                 />
-                <span style={{ fontSize: 10, color: C.textLight }}>件</span>
+                <span style={{ fontSize: 10, color: color.textLight }}>件</span>
               </span>
             </div>
           );
         })}
       </div>
-      <div style={{ marginTop: 8, fontSize: 9, color: C.textLight }}>
+      <div style={{ marginTop: 8, fontSize: 9, color: color.textLight }}>
         さらに先の月は CRM &gt; 月別目標タブで一括管理できます
       </div>
     </div>

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { C } from '../../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Input } from '../../ui';
 import { updateClientNextContactAt, insertContactMemoEvent } from '../../../lib/supabaseWrite';
 import { NAVY, GRAY_200, GRAY_50 } from './utils';
 
@@ -64,13 +66,17 @@ export default function CRMQuickScheduleModal({
     onClose();
   };
 
-  const inputStyle = {
-    width: '100%', padding: '8px 10px', borderRadius: 4,
-    border: '1px solid ' + GRAY_200,
-    fontSize: 12, fontFamily: "'Noto Sans JP'",
-    outline: 'none', background: GRAY_50,
+  const textareaStyle = {
+    width: '100%', padding: '8px 10px', borderRadius: radius.md,
+    border: `1px solid ${color.border}`,
+    fontSize: font.size.sm, fontFamily: font.family.sans,
+    outline: 'none', background: color.gray50, color: color.textDark,
+    boxSizing: 'border-box',
   };
-  const labelStyle = { fontSize: 10, fontWeight: 600, color: NAVY, marginBottom: 4, display: 'block' };
+  const labelStyle = {
+    fontSize: font.size.xs - 1, fontWeight: font.weight.semibold,
+    color: color.navy, marginBottom: 4, display: 'block',
+  };
 
   return (
     <div
@@ -84,13 +90,19 @@ export default function CRMQuickScheduleModal({
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
-          width: 420, boxShadow: '0 8px 32px rgba(0,0,0,0.3)', overflow: 'hidden',
+          background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
+          width: 420, boxShadow: shadow.xl, overflow: 'hidden',
         }}
       >
-        <div style={{ padding: '12px 20px', background: NAVY, color: '#fff', fontWeight: 600, fontSize: 14 }}>
+        <div style={{
+          padding: '12px 20px', background: color.navy, color: color.white,
+          fontWeight: font.weight.semibold, fontSize: font.size.md,
+        }}>
           商談予定を入れる
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)', fontWeight: 400, marginTop: 2 }}>
+          <div style={{
+            fontSize: font.size.xs - 1, color: alpha(color.white, 0.75),
+            fontWeight: font.weight.normal, marginTop: 2,
+          }}>
             {client.company}
           </div>
         </div>
@@ -98,11 +110,11 @@ export default function CRMQuickScheduleModal({
         <div style={{ padding: '16px 20px' }}>
           <div style={{ marginBottom: 12 }}>
             <label style={labelStyle}>次回接点予定日</label>
-            <input
+            <Input
+              size="sm"
               type="date"
               value={date}
               onChange={e => setDate(e.target.value)}
-              style={inputStyle}
             />
           </div>
 
@@ -110,7 +122,7 @@ export default function CRMQuickScheduleModal({
             <label style={labelStyle}>
               メモ（任意）
               {!primaryContact?.id && (
-                <span style={{ color: C.textLight, fontWeight: 400, marginLeft: 6 }}>
+                <span style={{ color: color.textLight, fontWeight: font.weight.normal, marginLeft: 6 }}>
                   ※ 担当者未登録のためタイムラインには残りません
                 </span>
               )}
@@ -120,37 +132,28 @@ export default function CRMQuickScheduleModal({
               onChange={e => setMemo(e.target.value)}
               rows={4}
               placeholder="商談の趣旨・先方の状況など"
-              style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
+              style={{ ...textareaStyle, resize: 'vertical', lineHeight: 1.5 }}
             />
           </div>
         </div>
 
         <div style={{
-          padding: '10px 20px', borderTop: '1px solid ' + GRAY_200,
-          display: 'flex', justifyContent: 'flex-end', gap: 8,
+          padding: '10px 20px', borderTop: `1px solid ${color.border}`,
+          display: 'flex', justifyContent: 'flex-end', gap: space[2],
         }}>
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={onClose}
             disabled={saving}
-            style={{
-              padding: '8px 16px', borderRadius: 4,
-              border: '1px solid ' + NAVY, background: '#fff',
-              color: NAVY, fontSize: 12, fontWeight: 500,
-              cursor: saving ? 'not-allowed' : 'pointer',
-              fontFamily: "'Noto Sans JP'",
-            }}
-          >キャンセル</button>
-          <button
+          >キャンセル</Button>
+          <Button
+            variant="primary"
+            size="sm"
             onClick={handleSave}
+            loading={saving}
             disabled={saving}
-            style={{
-              padding: '8px 16px', borderRadius: 4, border: 'none',
-              background: saving ? C.textLight : NAVY,
-              color: '#fff', fontSize: 12, fontWeight: 500,
-              cursor: saving ? 'not-allowed' : 'pointer',
-              fontFamily: "'Noto Sans JP'",
-            }}
-          >{saving ? '保存中...' : '保存'}</button>
+          >{saving ? '保存中...' : '保存'}</Button>
         </div>
       </div>
     </div>

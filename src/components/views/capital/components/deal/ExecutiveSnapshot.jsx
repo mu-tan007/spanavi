@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
+import { color, space, radius, font, shadow, alpha } from '../../../../../constants/design'
+import { Button, Input, Select, Card, Badge } from '../../../../ui'
 
 // エグゼクティブ・スナップショット
 // Deal Stage ゲート進捗 + KPI (IRR/MoIC/投資額/ホールド) + 次マイルストーン
@@ -64,9 +66,9 @@ export default function ExecutiveSnapshot({ deal, company, valuation, intermedia
   const score = deal?.score || {}
 
   return (
-    <div style={{ background: 'linear-gradient(135deg, #032D60 0%, #E5E5E5 100%)', color: '#181818', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: '20px 24px', marginBottom: 14 }}>
+    <div style={{ background: `linear-gradient(135deg, ${color.navy} 0%, ${color.border} 100%)`, color: color.textDark, border: `0.5px solid ${color.border}`, borderRadius: radius.xl, padding: '20px 24px', marginBottom: 14 }}>
       {/* Stage Gate bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: space[5] }}>
         {STAGES.map((s, i) => {
           const done = i <= currentIdx
           const current = i === currentIdx + 1
@@ -75,19 +77,19 @@ export default function ExecutiveSnapshot({ deal, company, valuation, intermedia
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                 <div style={{
                   width: 28, height: 28, borderRadius: '50%',
-                  background: done ? '#032D60' : current ? '#FFFFFF' : '#FFFFFF',
-                  border: '1.5px solid ' + (done ? '#4a8cd0' : current ? '#032D60' : '#E5E5E5'),
+                  background: done ? color.navy : current ? color.white : color.white,
+                  border: '1.5px solid ' + (done ? '#4a8cd0' : current ? color.navy : color.border),
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 12, fontWeight: 600, color: done ? '#fff' : current ? '#6a8aaa' : '#2a4a6a',
+                  fontSize: font.size.sm, fontWeight: font.weight.semibold, color: done ? color.white : current ? '#6a8aaa' : '#2a4a6a',
                 }}>
                   {done ? '✓' : i + 1}
                 </div>
-                <div style={{ fontSize: 10, color: done ? '#cedbea' : current ? '#6a8aaa' : '#2a4a6a', letterSpacing: 0.5 }}>
+                <div style={{ fontSize: font.size.xs - 1, color: done ? '#cedbea' : current ? '#6a8aaa' : '#2a4a6a', letterSpacing: 0.5 }}>
                   {s.short}
                 </div>
               </div>
               {i < STAGES.length - 1 && (
-                <div style={{ flex: 1, height: 1.5, background: i < currentIdx ? '#032D60' : '#E5E5E5', margin: '0 -10px', marginTop: -14 }} />
+                <div style={{ flex: 1, height: 1.5, background: i < currentIdx ? color.navy : color.border, margin: '0 -10px', marginTop: -14 }} />
               )}
             </div>
           )
@@ -116,12 +118,12 @@ export default function ExecutiveSnapshot({ deal, company, valuation, intermedia
 }
 
 function KPICell({ label, value, hint, tone = 'gray' }) {
-  const toneColor = { green: '#6ad095', blue: '#6aa0d0', red: '#d08080', gray: '#181818' }[tone]
+  const toneColor = { green: '#6ad095', blue: '#6aa0d0', red: '#d08080', gray: color.textDark }[tone]
   return (
-    <div style={{ padding: 14, background: 'rgba(255,255,255,0.04)', border: '0.5px solid #E5E5E5', borderRadius: 8 }}>
-      <div style={{ fontSize: 10, color: '#6a8aaa', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 600, color: toneColor, lineHeight: 1.2 }}>{value}</div>
-      {hint && <div style={{ fontSize: 10, color: '#706E6B', marginTop: 4 }}>{hint}</div>}
+    <div style={{ padding: 14, background: alpha(color.white, 0.04), border: `0.5px solid ${color.border}`, borderRadius: radius.xl }}>
+      <div style={{ fontSize: font.size.xs - 1, color: '#6a8aaa', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: font.weight.semibold, color: toneColor, lineHeight: font.lineHeight.tight }}>{value}</div>
+      {hint && <div style={{ fontSize: font.size.xs - 1, color: color.textMid, marginTop: 4 }}>{hint}</div>}
     </div>
   )
 }

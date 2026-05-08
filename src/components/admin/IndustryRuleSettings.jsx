@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
+import { color, space, radius, font, alpha } from '../../constants/design';
+import { Button, Input, Card } from '../ui';
 
-const NAVY = '#0D2247';
+const NAVY = color.navy;
 const DAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 
 const DEFAULT_RULES = [
@@ -80,86 +82,100 @@ export default function IndustryRuleSettings({ onToast }) {
     setEditIdx(null);
   };
 
-  if (loading) return <div style={{ padding: 20, color: '#9CA3AF', fontSize: 13 }}>読み込み中...</div>;
+  if (loading) return <div style={{ padding: space[5], color: color.gray400, fontSize: font.size.base }}>読み込み中...</div>;
+
+  const labelStyle = { fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.gray700, width: 80 };
+  const dayBtn = (active, kind) => {
+    const accent = kind === 'good' ? color.success : color.danger;
+    const bg = kind === 'good' ? alpha(color.success, 0.10) : alpha(color.danger, 0.08);
+    return {
+      width: 28, height: 24, borderRadius: radius.sm, fontSize: 10, fontWeight: font.weight.semibold, cursor: 'pointer',
+      border: `1px solid ${active ? accent : color.border}`,
+      background: active ? bg : color.white,
+      color: active ? accent : color.gray400,
+    };
+  };
 
   return (
     <div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 16, paddingBottom: 10, borderBottom: `2px solid ${NAVY}`, display: 'inline-block' }}>
+      <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: NAVY, marginBottom: space[4], paddingBottom: space[2.5], borderBottom: `2px solid ${NAVY}`, display: 'inline-block' }}>
         業種別架電ルール
       </div>
-      <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 16 }}>業種ごとの推奨架電時間帯・定休日を設定します。おすすめ度スコアの計算に使用されます。</p>
+      <p style={{ fontSize: font.size.xs, color: color.gray600, marginBottom: space[4] }}>業種ごとの推奨架電時間帯・定休日を設定します。おすすめ度スコアの計算に使用されます。</p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
         {rules.map((rule, idx) => (
-          <div key={idx} style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: 4, padding: '14px 18px' }}>
+          <Card key={idx} variant="default" padding="none" style={{ padding: `14px 18px` }}>
             {editIdx === idx ? (
               /* 編集モード */
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', width: 80 }}>業種名</label>
-                  <input type="text" value={rule.industry} onChange={e => updateRule(idx, 'industry', e.target.value)}
-                    style={{ flex: 1, padding: '4px 8px', border: '1px solid #E5E5E5', borderRadius: 4, fontSize: 12 }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
+                  <label style={labelStyle}>業種名</label>
+                  <div style={{ flex: 1 }}>
+                    <Input size="sm" type="text" value={rule.industry} onChange={e => updateRule(idx, 'industry', e.target.value)} />
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', width: 80 }}>推奨曜日</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
+                  <label style={labelStyle}>推奨曜日</label>
                   <div style={{ display: 'flex', gap: 4 }}>
                     {DAY_LABELS.map((d, di) => (
                       <button key={di} onClick={() => toggleDay(idx, di, 'goodDays')}
-                        style={{ width: 28, height: 24, borderRadius: 3, fontSize: 10, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (rule.goodDays.includes(di) ? '#2E844A' : '#E5E5E5'), background: rule.goodDays.includes(di) ? '#ECFDF5' : '#fff', color: rule.goodDays.includes(di) ? '#2E844A' : '#9CA3AF' }}>
+                        style={dayBtn(rule.goodDays.includes(di), 'good')}>
                         {d}
                       </button>
                     ))}
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', width: 80 }}>定休日</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
+                  <label style={labelStyle}>定休日</label>
                   <div style={{ display: 'flex', gap: 4 }}>
                     {DAY_LABELS.map((d, di) => (
                       <button key={di} onClick={() => toggleDay(idx, di, 'badDays')}
-                        style={{ width: 28, height: 24, borderRadius: 3, fontSize: 10, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (rule.badDays.includes(di) ? '#EA001E' : '#E5E5E5'), background: rule.badDays.includes(di) ? '#FEF2F2' : '#fff', color: rule.badDays.includes(di) ? '#EA001E' : '#9CA3AF' }}>
+                        style={dayBtn(rule.badDays.includes(di), 'bad')}>
                         {d}
                       </button>
                     ))}
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', width: 80 }}>推奨時間帯</label>
-                  <input type="text" value={rule.goodHours} onChange={e => updateRule(idx, 'goodHours', e.target.value)} placeholder="例: 8:00〜10:00, 16:00〜18:00"
-                    style={{ flex: 1, padding: '4px 8px', border: '1px solid #E5E5E5', borderRadius: 4, fontSize: 12 }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
+                  <label style={labelStyle}>推奨時間帯</label>
+                  <div style={{ flex: 1 }}>
+                    <Input size="sm" type="text" value={rule.goodHours} onChange={e => updateRule(idx, 'goodHours', e.target.value)} placeholder="例: 8:00〜10:00, 16:00〜18:00" />
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', width: 80 }}>非推奨時間帯</label>
-                  <input type="text" value={rule.badHours} onChange={e => updateRule(idx, 'badHours', e.target.value)} placeholder="例: 10:00〜16:00"
-                    style={{ flex: 1, padding: '4px 8px', border: '1px solid #E5E5E5', borderRadius: 4, fontSize: 12 }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
+                  <label style={labelStyle}>非推奨時間帯</label>
+                  <div style={{ flex: 1 }}>
+                    <Input size="sm" type="text" value={rule.badHours} onChange={e => updateRule(idx, 'badHours', e.target.value)} placeholder="例: 10:00〜16:00" />
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  <button onClick={() => removeRule(idx)} style={{ padding: '4px 12px', border: '1px solid #fca5a5', background: 'transparent', color: '#dc2626', borderRadius: 4, fontSize: 11, cursor: 'pointer' }}>削除</button>
-                  <button onClick={() => setEditIdx(null)} style={{ padding: '4px 12px', border: '1px solid #E5E5E5', background: '#fff', borderRadius: 4, fontSize: 11, cursor: 'pointer' }}>閉じる</button>
+                <div style={{ display: 'flex', gap: space[2], justifyContent: 'flex-end' }}>
+                  <Button variant="danger" size="sm" onClick={() => removeRule(idx)}>削除</Button>
+                  <Button variant="secondary" size="sm" onClick={() => setEditIdx(null)}>閉じる</Button>
                 </div>
               </div>
             ) : (
               /* 表示モード */
               <div onClick={() => setEditIdx(idx)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: NAVY }}>{rule.industry || '(未設定)'}</span>
-                  <span style={{ fontSize: 11, color: '#6B7280', marginLeft: 12 }}>
+                  <span style={{ fontSize: font.size.base, fontWeight: font.weight.semibold, color: NAVY }}>{rule.industry || '(未設定)'}</span>
+                  <span style={{ fontSize: font.size.xs, color: color.gray600, marginLeft: space[3] }}>
                     推奨: {rule.goodDays.map(d => DAY_LABELS[d]).join('')}
                     {rule.goodHours ? ` / ${rule.goodHours}` : ''}
                   </span>
                 </div>
-                <span style={{ fontSize: 10, color: '#9CA3AF' }}>クリックで編集</span>
+                <span style={{ fontSize: 10, color: color.gray400 }}>クリックで編集</span>
               </div>
             )}
-          </div>
+          </Card>
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 10, marginTop: 16, justifyContent: 'space-between' }}>
-        <button onClick={addRule} style={{ padding: '6px 16px', border: '1px dashed #9CA3AF', background: 'transparent', borderRadius: 4, fontSize: 12, color: '#6B7280', cursor: 'pointer' }}>+ 業種を追加</button>
-        <button onClick={save} disabled={saving}
-          style={{ padding: '9px 28px', borderRadius: 4, fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', border: 'none', background: saving ? '#9CA3AF' : NAVY, color: '#fff' }}>
+      <div style={{ display: 'flex', gap: space[2.5], marginTop: space[4], justifyContent: 'space-between' }}>
+        <button onClick={addRule} style={{ padding: `6px ${space[4]}px`, border: `1px dashed ${color.gray400}`, background: 'transparent', borderRadius: radius.md, fontSize: font.size.sm, color: color.gray600, cursor: 'pointer' }}>+ 業種を追加</button>
+        <Button variant="primary" onClick={save} disabled={saving} loading={saving}>
           {saving ? '保存中...' : '保存する'}
-        </button>
+        </Button>
       </div>
     </div>
   );

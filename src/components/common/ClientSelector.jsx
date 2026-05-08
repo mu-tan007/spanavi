@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow } from '../../constants/design';
 
 export default function ClientSelector({ clients, selectedClientId, onSelect }) {
   const [query, setQuery] = useState('');
@@ -61,22 +62,22 @@ export default function ClientSelector({ clients, selectedClientId, onSelect }) 
 
   return (
     <div style={{
-      padding: '10px 20px',
-      background: C.white,
-      borderBottom: `1px solid ${C.border}`,
-      display: 'flex', alignItems: 'center', gap: 12,
+      padding: `${space[2.5]}px ${space[5]}px`,
+      background: color.white,
+      borderBottom: `1px solid ${color.border}`,
+      display: 'flex', alignItems: 'center', gap: space[3],
     }}>
       <span style={{
-        fontSize: 10, color: C.textLight, fontWeight: 700,
-        letterSpacing: '0.12em', textTransform: 'uppercase',
-        fontFamily: "'Outfit','Noto Sans JP',sans-serif",
+        fontSize: font.size.xs - 1, color: color.textLight, fontWeight: font.weight.bold,
+        letterSpacing: font.letterSpacing.wider, textTransform: 'uppercase',
+        fontFamily: font.family.display + ',' + font.family.sans,
       }}>CLIENT</span>
 
       <div ref={wrapRef} style={{ position: 'relative', flex: '0 1 360px', minWidth: 220 }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6,
-          border: `1px solid ${C.border}`, borderRadius: 3,
-          padding: '4px 8px', background: C.white,
+          border: `1px solid ${color.border}`, borderRadius: radius.sm,
+          padding: '4px 8px', background: color.white,
         }}>
           <input
             type="text"
@@ -87,8 +88,8 @@ export default function ClientSelector({ clients, selectedClientId, onSelect }) 
             placeholder={placeholder}
             style={{
               flex: 1, border: 'none', outline: 'none',
-              fontSize: 12, fontFamily: "'Noto Sans JP',sans-serif",
-              color: C.textDark, background: 'transparent',
+              fontSize: font.size.sm, fontFamily: font.family.sans,
+              color: color.textDark, background: 'transparent',
             }}
           />
           {selectedClient && (
@@ -98,7 +99,7 @@ export default function ClientSelector({ clients, selectedClientId, onSelect }) 
               title="選択解除"
               style={{
                 border: 'none', background: 'transparent', cursor: 'pointer',
-                color: C.textLight, fontSize: 14, padding: '0 4px',
+                color: color.textLight, fontSize: font.size.md, padding: '0 4px',
               }}
             >×</button>
           )}
@@ -107,8 +108,8 @@ export default function ClientSelector({ clients, selectedClientId, onSelect }) 
         {open && (
           <div style={{
             position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0,
-            background: C.white, border: `1px solid ${C.border}`, borderRadius: 3,
-            boxShadow: '0 6px 20px rgba(13,34,71,0.08)',
+            background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.sm,
+            boxShadow: shadow.md,
             maxHeight: 280, overflowY: 'auto', zIndex: 50,
           }}>
             <Item
@@ -119,7 +120,7 @@ export default function ClientSelector({ clients, selectedClientId, onSelect }) 
               onClick={() => pick(null)}
             />
             {matches.length === 0 && (
-              <div style={{ padding: '10px 12px', fontSize: 11, color: C.textLight, fontStyle: 'italic' }}>
+              <div style={{ padding: `${space[2.5]}px ${space[3]}px`, fontSize: font.size.xs, color: color.textLight, fontStyle: 'italic' }}>
                 該当なし
               </div>
             )}
@@ -139,7 +140,7 @@ export default function ClientSelector({ clients, selectedClientId, onSelect }) 
       </div>
 
       {clients.length === 0 && (
-        <span style={{ fontSize: 11, color: C.textLight, fontStyle: 'italic' }}>
+        <span style={{ fontSize: font.size.xs, color: color.textLight, fontStyle: 'italic' }}>
           対象クライアントがありません
         </span>
       )}
@@ -148,22 +149,22 @@ export default function ClientSelector({ clients, selectedClientId, onSelect }) 
 }
 
 function Item({ label, active, highlighted, onHover, onClick, query }) {
-  const bg = highlighted ? C.offWhite : (active ? '#F5F7FB' : C.white);
+  const bg = highlighted ? color.offWhite : (active ? '#F5F7FB' : color.white);
   return (
     <div
       onMouseEnter={onHover}
       onClick={onClick}
       style={{
-        padding: '8px 12px', fontSize: 12, cursor: 'pointer',
+        padding: `${space[2]}px ${space[3]}px`, fontSize: font.size.sm, cursor: 'pointer',
         background: bg,
-        color: active ? C.navy : C.textDark,
-        fontWeight: active ? 600 : 400,
-        fontFamily: "'Noto Sans JP',sans-serif",
+        color: active ? color.navy : color.textDark,
+        fontWeight: active ? font.weight.semibold : font.weight.normal,
+        fontFamily: font.family.sans,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}
     >
       <span>{query ? highlightMatch(label, query) : label}</span>
-      {active && <span style={{ fontSize: 11, color: C.gold }}>●</span>}
+      {active && <span style={{ fontSize: font.size.xs, color: color.gold }}>●</span>}
     </div>
   );
 }
@@ -177,7 +178,7 @@ function highlightMatch(text, query) {
   return (
     <>
       {text.slice(0, idx)}
-      <span style={{ background: '#FEF3C7', fontWeight: 700 }}>
+      <span style={{ background: '#FEF3C7', fontWeight: font.weight.bold }}>
         {text.slice(idx, idx + query.length)}
       </span>
       {text.slice(idx + query.length)}

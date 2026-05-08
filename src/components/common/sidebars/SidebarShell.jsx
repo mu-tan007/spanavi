@@ -1,4 +1,6 @@
 import React from 'react';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../../ui';
 
 // 既存 Seller Sourcing サイドバーのビジュアル (ロゴ・ユーザー・ログアウト) を
 // 他 engagement 用サイドバーで再利用するための薄い殻。
@@ -12,6 +14,7 @@ export default function SidebarShell({
   onLogout,
   children,
 }) {
+  // 注: branding props 由来の動的色 (primary/accent/highlight) は維持する
   const primary = branding?.primaryColor || '#032D60';
   const accent = branding?.accentColor || '#0176D3';
   const highlight = branding?.highlightColor || '#C8A84B';
@@ -25,9 +28,9 @@ export default function SidebarShell({
       display: 'flex', flexDirection: 'column',
     }}>
       <div style={{
-        padding: '16px 20px', cursor: 'default',
-        borderBottom: '1px solid rgba(255,255,255,0.1)',
-        display: 'flex', alignItems: 'center', gap: 10,
+        padding: `${space[4]}px ${space[5]}px`, cursor: 'default',
+        borderBottom: `1px solid ${alpha(color.white, 0.1)}`,
+        display: 'flex', alignItems: 'center', gap: space[2.5],
       }}>
         {branding?.logoUrl ? (
           <img src={branding.logoUrl} alt={orgName} style={{ width: 28, height: 32, objectFit: 'contain' }} />
@@ -58,7 +61,10 @@ export default function SidebarShell({
             </g>
           </svg>
         )}
-        <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 800, letterSpacing: 2, lineHeight: 1 }}>
+        <div style={{
+          fontFamily: font.family.display, fontSize: font.size.xl,
+          fontWeight: font.weight.black, letterSpacing: 2, lineHeight: 1,
+        }}>
           {/* 分割位置を Sourcing サイドバーと揃える (Math.floor) */}
           <span style={{ color: accent }}>{orgName.slice(0, Math.floor(orgName.length / 2))}</span>
           <span style={{ color: highlight }}>{orgName.slice(Math.floor(orgName.length / 2))}</span>
@@ -69,43 +75,50 @@ export default function SidebarShell({
         <div
           onClick={onUserClick}
           style={{
-            padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)',
-            display: 'flex', alignItems: 'center', gap: 8,
+            padding: `${space[2.5]}px ${space[5]}px`,
+            borderBottom: `1px solid ${alpha(color.white, 0.1)}`,
+            display: 'flex', alignItems: 'center', gap: space[2],
             cursor: onUserClick ? 'pointer' : 'default',
-            background: userHighlighted ? 'rgba(255,255,255,0.12)' : 'transparent',
+            background: userHighlighted ? alpha(color.white, 0.12) : 'transparent',
             borderLeft: '3px solid transparent', boxSizing: 'border-box',
           }}
         >
           <div style={{
-            width: 28, height: 28, borderRadius: '50%', background: '#0176D3',
+            width: 28, height: 28, borderRadius: '50%', background: color.navyLight,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden',
+            fontSize: font.size.sm, fontWeight: font.weight.bold,
+            color: color.white, flexShrink: 0, overflow: 'hidden',
           }}>
             {currentMemberAvatar
               ? <img src={currentMemberAvatar} alt={currentUser} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : (currentUser || '?')[0]}
           </div>
           <span style={{
-            fontSize: 13, color: userHighlighted ? '#FFFFFF' : 'rgba(255,255,255,0.75)',
-            fontWeight: userHighlighted ? 600 : 400,
+            fontSize: font.size.base,
+            color: userHighlighted ? color.white : alpha(color.white, 0.75),
+            fontWeight: userHighlighted ? font.weight.semibold : font.weight.normal,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>{currentUser}</span>
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: space[2] }}>
         {children}
       </div>
 
       {onLogout && (
-        <div style={{ position: 'sticky', bottom: 0, background: '#021d47', padding: '12px 20px' }}>
+        <div style={{
+          position: 'sticky', bottom: 0,
+          background: '#021d47',
+          padding: `${space[3]}px ${space[5]}px`,
+        }}>
           <button
             onClick={onLogout}
             style={{
-              width: '100%', padding: '8px', borderRadius: 6,
-              border: '1px solid rgba(255,255,255,0.2)', background: 'transparent',
-              color: '#fff', fontSize: 12, fontWeight: 600,
-              fontFamily: "'Noto Sans JP', sans-serif", cursor: 'pointer',
+              width: '100%', padding: space[2], borderRadius: radius.lg,
+              border: `1px solid ${alpha(color.white, 0.2)}`, background: 'transparent',
+              color: color.white, fontSize: font.size.sm, fontWeight: font.weight.semibold,
+              fontFamily: font.family.sans, cursor: 'pointer',
             }}
           >ログアウト</button>
         </div>
@@ -118,10 +131,10 @@ export default function SidebarShell({
 export function DisabledItem({ label, badge = '準備中' }) {
   return (
     <div style={{
-      display: 'block', width: '100%', padding: '8px 20px 8px 28px',
+      width: '100%', padding: `${space[2]}px ${space[5]}px ${space[2]}px 28px`,
       background: 'transparent', borderLeft: '3px solid transparent',
-      color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: 400,
-      fontFamily: "'Noto Sans JP', sans-serif", cursor: 'not-allowed',
+      color: alpha(color.white, 0.45), fontSize: font.size.base, fontWeight: font.weight.normal,
+      fontFamily: font.family.sans, cursor: 'not-allowed',
       textAlign: 'left', boxSizing: 'border-box',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     }}>
@@ -138,15 +151,16 @@ export function ActiveItem({ label, active, onClick }) {
       type="button"
       onClick={onClick}
       style={{
-        display: 'block', width: '100%', padding: '8px 20px 8px 28px',
-        background: active ? 'rgba(255,255,255,0.12)' : 'transparent',
+        display: 'block', width: '100%',
+        padding: `${space[2]}px ${space[5]}px ${space[2]}px 28px`,
+        background: active ? alpha(color.white, 0.12) : 'transparent',
         border: 'none', borderLeft: '3px solid transparent',
-        color: active ? '#FFFFFF' : 'rgba(255,255,255,0.75)',
-        fontSize: 13, fontWeight: active ? 600 : 400,
-        fontFamily: "'Noto Sans JP', sans-serif",
+        color: active ? color.white : alpha(color.white, 0.75),
+        fontSize: font.size.base, fontWeight: active ? font.weight.semibold : font.weight.normal,
+        fontFamily: font.family.sans,
         cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box',
       }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; }}
+      onMouseEnter={e => { if (!active) e.currentTarget.style.background = alpha(color.white, 0.07); }}
       onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
     >
       {label}
@@ -157,10 +171,11 @@ export function ActiveItem({ label, active, onClick }) {
 export function SectionHeader({ label, Icon }) {
   return (
     <div style={{
-      padding: '16px 20px 6px', fontSize: 9, fontWeight: 700,
-      color: 'rgba(255,255,255,0.45)', letterSpacing: '0.12em',
+      padding: `${space[4]}px ${space[5]}px ${space[1.5]}px`,
+      fontSize: 9, fontWeight: font.weight.bold,
+      color: alpha(color.white, 0.45), letterSpacing: '0.12em',
       textTransform: 'uppercase',
-      display: 'flex', alignItems: 'center', gap: 6,
+      display: 'flex', alignItems: 'center', gap: space[1.5],
     }}>
       {Icon && <Icon size={12} />}
       {label}

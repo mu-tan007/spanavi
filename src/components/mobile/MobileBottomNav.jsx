@@ -1,4 +1,6 @@
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 import { capitalNavigate, useCapitalPathname } from '../views/capital/lib/capitalNav';
 
 // 事業別の下部タブ構成（最大3項目 + その他）
@@ -67,11 +69,13 @@ export default function MobileBottomNav({ currentTab, setCurrentTab, onMorePress
     setCurrentTab?.(item.id);
   };
 
+  const activeColor = color.navy || '#0D2247';
+
   return (
     <nav
       style={{
         position: 'fixed', bottom: 0, left: 0, right: 0, height: 56,
-        background: '#fff', borderTop: '1px solid #E5E7EB',
+        background: color.white, borderTop: `1px solid ${color.gray200}`,
         display: 'flex', alignItems: 'stretch', justifyContent: 'space-around',
         zIndex: 200, paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
@@ -86,19 +90,19 @@ export default function MobileBottomNav({ currentTab, setCurrentTab, onMorePress
               flex: 1,
               display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center',
-              gap: 4,
+              gap: space[1],
               border: 'none', background: 'none', cursor: 'pointer',
-              padding: '8px 4px',
-              color: active ? (C.navy || '#0D2247') : '#6B7280',
-              borderTop: active ? '2px solid ' + (C.navy || '#0D2247') : '2px solid transparent',
-              fontFamily: "'Noto Sans JP'",
+              padding: `${space[2]}px ${space[1]}px`,
+              color: active ? activeColor : color.gray500,
+              borderTop: active ? `2px solid ${activeColor}` : '2px solid transparent',
+              fontFamily: font.family.sans,
               minWidth: 0,
             }}
           >
             <span
               style={{
-                fontSize: 12,
-                fontWeight: active ? 700 : 500,
+                fontSize: font.size.sm,
+                fontWeight: active ? font.weight.bold : font.weight.medium,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',

@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { color, space, radius, font, shadow } from '../../constants/design';
+import { Button, Select } from '../ui';
 
-const NAVY = '#0D2247';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -86,60 +87,62 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10010, fontFamily: "'Noto Sans JP'" }}
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10010, fontFamily: font.family.sans }}
       onClick={onClose}>
-      <div style={{ background: '#fff', borderRadius: 8, padding: 24, width: 400, maxWidth: '90vw', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}
+      <div style={{ background: color.white, borderRadius: radius.xl, padding: space[6], width: 400, maxWidth: '90vw', boxShadow: shadow.xl }}
         onClick={e => e.stopPropagation()}>
-        <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: NAVY }}>アポイント登録</h3>
+        <h3 style={{ margin: `0 0 ${space[4]}px`, fontSize: font.size.md + 1, fontWeight: font.weight.bold, color: color.navy }}>アポイント登録</h3>
 
         {/* 企業名 */}
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: '#6B7280', display: 'block', marginBottom: 2 }}>架電先企業</label>
-          <div style={{ fontSize: 13, fontWeight: 600, color: NAVY }}>{row?.company || '-'}</div>
+        <div style={{ marginBottom: space[3] }}>
+          <label style={{ fontSize: font.size.xs, color: color.gray500, display: 'block', marginBottom: 2 }}>架電先企業</label>
+          <div style={{ fontSize: font.size.base, fontWeight: font.weight.semibold, color: color.navy }}>{row?.company || '-'}</div>
         </div>
 
         {/* 面談日 */}
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: '#6B7280', display: 'block', marginBottom: 2 }}>面談日</label>
-          <div style={{ fontSize: 13, fontWeight: 600, color: NAVY }}>{dateLabel}</div>
+        <div style={{ marginBottom: space[3] }}>
+          <label style={{ fontSize: font.size.xs, color: color.gray500, display: 'block', marginBottom: 2 }}>面談日</label>
+          <div style={{ fontSize: font.size.base, fontWeight: font.weight.semibold, color: color.navy }}>{dateLabel}</div>
         </div>
 
         {/* 面談時間 */}
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: '#6B7280', display: 'block', marginBottom: 2 }}>面談時間</label>
-          <select value={meetTime} onChange={e => setMeetTime(e.target.value)}
-            style={{ width: '100%', padding: '6px 8px', fontSize: 13, border: '1px solid #D1D5DB', borderRadius: 4 }}>
-            {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
+        <div style={{ marginBottom: space[3] }}>
+          <label style={{ fontSize: font.size.xs, color: color.gray500, display: 'block', marginBottom: 2 }}>面談時間</label>
+          <Select
+            size="sm"
+            value={meetTime}
+            onChange={e => setMeetTime(e.target.value)}
+            options={TIME_OPTIONS.map(t => ({ value: t, label: t }))}
+          />
         </div>
 
         {/* 場所 */}
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: '#6B7280', display: 'block', marginBottom: 2 }}>場所</label>
-          <select value={location} onChange={e => setLocation(e.target.value)}
-            style={{ width: '100%', padding: '6px 8px', fontSize: 13, border: '1px solid #D1D5DB', borderRadius: 4 }}>
-            {PREFS.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
+        <div style={{ marginBottom: space[3] }}>
+          <label style={{ fontSize: font.size.xs, color: color.gray500, display: 'block', marginBottom: 2 }}>場所</label>
+          <Select
+            size="sm"
+            value={location}
+            onChange={e => setLocation(e.target.value)}
+            options={PREFS.map(p => ({ value: p, label: p }))}
+          />
         </div>
 
         {/* 取得者 */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 11, color: '#6B7280', display: 'block', marginBottom: 2 }}>アポ取得者</label>
-          <div style={{ fontSize: 13, color: NAVY }}>{currentUser}</div>
+        <div style={{ marginBottom: space[4] }}>
+          <label style={{ fontSize: font.size.xs, color: color.gray500, display: 'block', marginBottom: 2 }}>アポ取得者</label>
+          <div style={{ fontSize: font.size.base, color: color.navy }}>{currentUser}</div>
         </div>
 
-        {error && <div style={{ color: '#DC2626', fontSize: 11, marginBottom: 8 }}>{error}</div>}
+        {error && <div style={{ color: color.danger, fontSize: font.size.xs, marginBottom: space[2] }}>{error}</div>}
 
         {/* ボタン */}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button onClick={onClose} disabled={saving}
-            style={{ padding: '8px 20px', fontSize: 13, border: '1px solid #D1D5DB', borderRadius: 4, background: '#fff', cursor: 'pointer' }}>
+        <div style={{ display: 'flex', gap: space[2], justifyContent: 'flex-end' }}>
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>
             キャンセル
-          </button>
-          <button onClick={handleSave} disabled={saving}
-            style={{ padding: '8px 20px', fontSize: 13, fontWeight: 600, border: 'none', borderRadius: 4, background: NAVY, color: '#fff', cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1 }}>
+          </Button>
+          <Button size="sm" onClick={handleSave} loading={saving} disabled={saving}>
             {saving ? '保存中...' : '登録'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

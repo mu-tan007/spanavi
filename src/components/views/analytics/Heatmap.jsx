@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { C } from '../../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../../ui';
 
-const NAVY = '#0D2247';
 const WEEKDAYS = ['月', '火', '水', '木', '金', '土', '日'];
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 8); // 8〜19時
 
@@ -42,11 +42,11 @@ export default function Heatmap({
   }, [grid]);
 
   const colorFor = (cell) => {
-    if (cell.calls < 5) return '#F9FAFB';
+    if (cell.calls < 5) return color.gray50;
     const r = cell.connects / cell.calls;
     const norm = Math.min(r / maxRate, 1);
-    const alpha = 0.12 + norm * 0.78;
-    return `rgba(13, 34, 71, ${alpha.toFixed(3)})`;
+    const a = 0.12 + norm * 0.78;
+    return `rgba(13, 34, 71, ${a.toFixed(3)})`;
   };
 
   const bestCell = useMemo(() => {
@@ -64,40 +64,60 @@ export default function Heatmap({
 
   return (
     <section style={{ marginBottom: 32 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid ' + NAVY, paddingBottom: 6, marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', letterSpacing: '0.02em' }}>
-        <span>時間帯 × 曜日 ヒートマップ <span style={{ fontSize: 10, fontWeight: 500, color: C.textLight, marginLeft: 8 }}>（色=社長接続率）{listName ? ` / ${listName}` : ''}</span></span>
+      <div style={{
+        fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy,
+        borderBottom: `2px solid ${color.navy}`, paddingBottom: 6, marginBottom: 14,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
+        letterSpacing: '0.02em',
+      }}>
+        <span>時間帯 × 曜日 ヒートマップ <span style={{ fontSize: 10, fontWeight: font.weight.medium, color: color.textLight, marginLeft: 8 }}>（色=社長接続率）{listName ? ` / ${listName}` : ''}</span></span>
       </div>
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: C.textLight, fontSize: 12 }}>読込中…</div>
+        <div style={{ padding: 40, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>読込中…</div>
       ) : (
         <>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ borderCollapse: 'collapse', fontSize: 11, fontFamily: "'JetBrains Mono'", width: '100%', tableLayout: 'fixed' }}>
+            <table style={{
+              borderCollapse: 'collapse', fontSize: font.size.xs,
+              fontFamily: font.family.mono, width: '100%', tableLayout: 'fixed',
+            }}>
               <colgroup>
                 <col style={{ width: 36 }} />
                 {HOURS.map(h => <col key={h} />)}
               </colgroup>
               <thead>
                 <tr>
-                  <th style={{ padding: '4px 8px', color: C.textLight, fontWeight: 700 }}></th>
-                  {HOURS.map(h => <th key={h} style={{ padding: '4px 6px', color: C.textLight, fontWeight: 700, textAlign: 'center' }}>{h}</th>)}
+                  <th style={{ padding: '4px 8px', color: color.textLight, fontWeight: font.weight.bold }}></th>
+                  {HOURS.map(h => (
+                    <th key={h} style={{
+                      padding: '4px 6px', color: color.textLight,
+                      fontWeight: font.weight.bold, textAlign: 'center',
+                    }}>{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {WEEKDAYS.map((wd, wi) => (
                   <tr key={wd}>
-                    <td style={{ padding: '4px 8px', color: C.textMid, fontWeight: 700, fontFamily: "'Noto Sans JP'", textAlign: 'center' }}>{wd}</td>
+                    <td style={{
+                      padding: '4px 8px', color: color.textMid,
+                      fontWeight: font.weight.bold, fontFamily: font.family.sans, textAlign: 'center',
+                    }}>{wd}</td>
                     {HOURS.map(h => {
                       const cell = grid[wi + '_' + h];
                       const rate = cell.calls >= 5 ? (cell.connects / cell.calls * 100) : null;
                       const bg = colorFor(cell);
-                      const textColor = cell.calls >= 5 && (cell.connects / cell.calls / maxRate) > 0.5 ? '#fff' : '#374151';
+                      const textColor = cell.calls >= 5 && (cell.connects / cell.calls / maxRate) > 0.5 ? color.white : color.gray700;
                       return (
                         <td
                           key={h}
                           title={`${wd} ${h}時台\n架電 ${cell.calls}件 / 社長接続 ${cell.connects}件${rate != null ? ` / ${rate.toFixed(1)}%` : ''}`}
-                          style={{ padding: '14px 4px', background: bg, textAlign: 'center', border: '2px solid #fff', color: textColor, fontWeight: rate != null ? 700 : 400, cursor: 'help' }}
+                          style={{
+                            padding: '14px 4px', background: bg, textAlign: 'center',
+                            border: `2px solid ${color.white}`, color: textColor,
+                            fontWeight: rate != null ? font.weight.bold : font.weight.normal, cursor: 'help',
+                          }}
                         >
                           {rate != null ? rate.toFixed(0) + '%' : '-'}
                         </td>
@@ -110,12 +130,17 @@ export default function Heatmap({
           </div>
 
           {bestCell && (
-            <div style={{ marginTop: 12, padding: '8px 14px', background: '#F9FAFB', borderLeft: '3px solid ' + NAVY, borderRadius: 2, fontSize: 11, color: C.textDark }}>
-              最も社長接続率が高い時間帯: <b>{WEEKDAYS[bestCell.w]} {bestCell.h}時台</b> ー {bestCell.connects}/{bestCell.calls}件 / <b style={{ color: NAVY }}>{(bestCell.rate * 100).toFixed(1)}%</b>
+            <div style={{
+              marginTop: 12, padding: '8px 14px',
+              background: color.gray50,
+              borderLeft: `3px solid ${color.navy}`,
+              borderRadius: 2, fontSize: font.size.xs, color: color.textDark,
+            }}>
+              最も社長接続率が高い時間帯: <b>{WEEKDAYS[bestCell.w]} {bestCell.h}時台</b> ー {bestCell.connects}/{bestCell.calls}件 / <b style={{ color: color.navy }}>{(bestCell.rate * 100).toFixed(1)}%</b>
             </div>
           )}
 
-          <div style={{ marginTop: 10, fontSize: 10, color: C.textLight }}>
+          <div style={{ marginTop: 10, fontSize: 10, color: color.textLight }}>
             ※ 架電5件未満のセルは信頼性の観点から灰色表示（率は計算しない）
           </div>
         </>

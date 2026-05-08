@@ -4,6 +4,8 @@ import { supabase } from '../../lib/supabase'
 import { logAudit } from '../../lib/audit'
 import { invokeFn } from '../../lib/invokeFn'
 import MarkdownBody from '../ui/MarkdownBody'
+import { color, space, radius, font, shadow, alpha } from '../../../../../constants/design'
+import { Button, Input, Select, Card, Badge } from '../../../../ui'
 
 // 案件詳細タブ — IM/ノンネーム/QA回答/議事録等を AI が総合した売り手企業サマリー
 async function readFnError(fnErr) {
@@ -52,38 +54,32 @@ export default function DealSummaryTab({ dealId }) {
   const updatedAt = company?.detailed_summary_updated_at
 
   return (
-    <div style={{ background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 0, overflow: 'hidden' }}>
+    <div style={{ background: color.white, border: `0.5px solid ${color.border}`, borderRadius: radius.xl, padding: 0, overflow: 'hidden' }}>
       {/* Header */}
-      <div style={{ padding: '14px 20px', borderBottom: '0.5px solid #E5E5E5', background: '#FAFAFA', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ padding: '14px 20px', borderBottom: `0.5px solid ${color.border}`, background: color.gray50, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#032D60' }}>案件詳細サマリー</div>
-          <div style={{ fontSize: 11, color: '#706E6B', marginTop: 2 }}>
+          <div style={{ fontSize: font.size.base, fontWeight: font.weight.medium, color: color.navy }}>案件詳細サマリー</div>
+          <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: 2 }}>
             AIチャットに投入された IM / ノンネーム / Q&A回答 / 議事録 / 財務 / 追加資料 を総合して AI が作成
             {updatedAt && ` · 最終更新 ${new Date(updatedAt).toLocaleString('ja-JP')}`}
           </div>
         </div>
-        <button onClick={generateSummary} disabled={generating}
-          style={{
-            height: 34, padding: '0 18px',
-            background: generating ? '#A0A0A0' : '#032D60', color: '#fff',
-            border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500,
-            cursor: generating ? 'default' : 'pointer', letterSpacing: 0.5,
-          }}>
+        <Button size="sm" loading={generating} onClick={generateSummary}>
           {generating ? '生成中…' : hasSummary ? '再生成' : 'AI生成'}
-        </button>
+        </Button>
       </div>
 
       {/* Body */}
       <div style={{ padding: '24px 28px', minHeight: 400 }}>
         {error && (
-          <div style={{ marginBottom: 16, padding: '10px 14px', background: '#FAECE7', border: '0.5px solid #e0c0c0', borderRadius: 6, fontSize: 12, color: '#EA001E' }}>
+          <div style={{ marginBottom: space[4], padding: '10px 14px', background: '#FAECE7', border: `0.5px solid #e0c0c0`, borderRadius: radius.lg, fontSize: font.size.sm, color: color.danger }}>
             {error}
           </div>
         )}
         {!hasSummary ? (
-          <div style={{ textAlign: 'center', padding: '60px 24px', color: '#706E6B' }}>
-            <div style={{ fontSize: 14, marginBottom: 10, color: '#706E6B' }}>まだサマリーが生成されていません</div>
-            <div style={{ fontSize: 12, lineHeight: 1.8, marginBottom: 24 }}>
+          <div style={{ textAlign: 'center', padding: '60px 24px', color: color.textMid }}>
+            <div style={{ fontSize: font.size.md, marginBottom: 10, color: color.textMid }}>まだサマリーが生成されていません</div>
+            <div style={{ fontSize: font.size.sm, lineHeight: 1.8, marginBottom: space[6] }}>
               AIチャットに資料 (IM / ノンネーム / Q&A回答 など) をアップロードした後、<br/>
               右上の「AI生成」ボタンを押すと、売り手企業の詳細サマリーが作成されます。
             </div>

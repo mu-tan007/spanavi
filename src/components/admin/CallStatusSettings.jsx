@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import { CALL_RESULTS } from '../../constants/callResults';
+import { color, space, radius, font } from '../../constants/design';
+import { Button } from '../ui';
 
-const NAVY = '#0D2247';
+const NAVY = color.navy;
 
 const DEFAULT_STATUSES = CALL_RESULTS;
 
@@ -65,18 +67,23 @@ export default function CallStatusSettings({ onToast }) {
     });
   };
 
-  if (loading) return <div style={{ padding: 20, color: '#9CA3AF', fontSize: 13 }}>読み込み中...</div>;
+  if (loading) return <div style={{ padding: space[5], color: color.gray400, fontSize: font.size.base }}>読み込み中...</div>;
+
+  const cellInputStyle = { padding: `3px 6px`, border: `1px solid ${color.border}`, borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.mono };
+  const cellTextInputStyle = { padding: `3px 6px`, border: `1px solid ${color.border}`, borderRadius: radius.sm, fontSize: font.size.sm };
+  const moveBtnStyle = (disabled) => ({ border: `1px solid ${color.border}`, background: color.white, borderRadius: radius.sm, cursor: 'pointer', padding: '1px 5px', fontSize: 10, color: disabled ? color.gray300 : color.gray700 });
+  const removeBtnStyle = { border: `1px solid ${color.danger}`, background: 'transparent', color: color.danger, borderRadius: radius.sm, cursor: 'pointer', padding: '1px 5px', fontSize: 10 };
 
   return (
     <div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 16, paddingBottom: 10, borderBottom: `2px solid ${NAVY}`, display: 'inline-block' }}>
+      <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: NAVY, marginBottom: space[4], paddingBottom: space[2.5], borderBottom: `2px solid ${NAVY}`, display: 'inline-block' }}>
         架電ステータス定義
       </div>
-      <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 16 }}>架電結果のステータス一覧を定義します。順序はキーボードショートカット（F1〜F8）の割り当て順になります。</p>
+      <p style={{ fontSize: font.size.xs, color: color.gray600, marginBottom: space[4] }}>架電結果のステータス一覧を定義します。順序はキーボードショートカット（F1〜F8）の割り当て順になります。</p>
 
-      <div style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: 4, overflow: 'hidden' }}>
+      <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, overflow: 'hidden' }}>
         {/* ヘッダー */}
-        <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 180px 80px 70px 60px', padding: '8px 14px', background: NAVY, fontSize: 11, fontWeight: 600, color: '#fff', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 180px 80px 70px 60px', padding: `${space[2]}px 14px`, background: NAVY, fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.white, gap: space[2] }}>
           <span>#</span>
           <span>ステータスID</span>
           <span>表示ラベル</span>
@@ -86,34 +93,33 @@ export default function CallStatusSettings({ onToast }) {
         </div>
 
         {statuses.map((status, idx) => (
-          <div key={status.id + idx} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 180px 80px 70px 60px', padding: '8px 14px', borderBottom: '1px solid #F0F0F0', fontSize: 12, alignItems: 'center', gap: 8, background: idx % 2 === 0 ? '#fff' : '#FAFAFA' }}>
-            <span style={{ color: '#9CA3AF', fontSize: 11 }}>{idx + 1}</span>
+          <div key={status.id + idx} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 180px 80px 70px 60px', padding: `${space[2]}px 14px`, borderBottom: `1px solid ${color.gray100}`, fontSize: font.size.sm, alignItems: 'center', gap: space[2], background: idx % 2 === 0 ? color.white : color.gray50 }}>
+            <span style={{ color: color.gray400, fontSize: font.size.xs }}>{idx + 1}</span>
             <input type="text" value={status.id} onChange={e => updateStatus(idx, 'id', e.target.value)}
-              style={{ padding: '3px 6px', border: '1px solid #E5E5E5', borderRadius: 3, fontSize: 11, fontFamily: "'JetBrains Mono'" }} />
+              style={cellInputStyle} />
             <input type="text" value={status.label} onChange={e => updateStatus(idx, 'label', e.target.value)}
-              style={{ padding: '3px 6px', border: '1px solid #E5E5E5', borderRadius: 3, fontSize: 12 }} />
+              style={cellTextInputStyle} />
             <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
               <input type="checkbox" checked={status.excluded} onChange={e => updateStatus(idx, 'excluded', e.target.checked)} />
-              <span style={{ fontSize: 11, color: '#6B7280' }}>{status.excluded ? 'はい' : 'いいえ'}</span>
+              <span style={{ fontSize: font.size.xs, color: color.gray600 }}>{status.excluded ? 'はい' : 'いいえ'}</span>
             </label>
-            <span style={{ fontSize: 10, color: '#9CA3AF', fontFamily: "'JetBrains Mono'" }}>
+            <span style={{ fontSize: 10, color: color.gray400, fontFamily: font.family.mono }}>
               {idx < 8 ? `F${idx + 1}` : '-'}
             </span>
             <div style={{ display: 'flex', gap: 2 }}>
-              <button onClick={() => moveStatus(idx, -1)} disabled={idx === 0} style={{ border: '1px solid #E5E5E5', background: '#fff', borderRadius: 3, cursor: 'pointer', padding: '1px 5px', fontSize: 10, color: idx === 0 ? '#D1D5DB' : '#374151' }}>↑</button>
-              <button onClick={() => moveStatus(idx, 1)} disabled={idx === statuses.length - 1} style={{ border: '1px solid #E5E5E5', background: '#fff', borderRadius: 3, cursor: 'pointer', padding: '1px 5px', fontSize: 10, color: idx === statuses.length - 1 ? '#D1D5DB' : '#374151' }}>↓</button>
-              <button onClick={() => removeStatus(idx)} style={{ border: '1px solid #fca5a5', background: 'transparent', color: '#dc2626', borderRadius: 3, cursor: 'pointer', padding: '1px 5px', fontSize: 10 }}>×</button>
+              <button onClick={() => moveStatus(idx, -1)} disabled={idx === 0} style={moveBtnStyle(idx === 0)}>↑</button>
+              <button onClick={() => moveStatus(idx, 1)} disabled={idx === statuses.length - 1} style={moveBtnStyle(idx === statuses.length - 1)}>↓</button>
+              <button onClick={() => removeStatus(idx)} style={removeBtnStyle}>×</button>
             </div>
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 10, marginTop: 16, justifyContent: 'space-between' }}>
-        <button onClick={addStatus} style={{ padding: '6px 16px', border: '1px dashed #9CA3AF', background: 'transparent', borderRadius: 4, fontSize: 12, color: '#6B7280', cursor: 'pointer' }}>+ ステータスを追加</button>
-        <button onClick={save} disabled={saving}
-          style={{ padding: '9px 28px', borderRadius: 4, fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', border: 'none', background: saving ? '#9CA3AF' : NAVY, color: '#fff' }}>
+      <div style={{ display: 'flex', gap: space[2.5], marginTop: space[4], justifyContent: 'space-between' }}>
+        <button onClick={addStatus} style={{ padding: `6px ${space[4]}px`, border: `1px dashed ${color.gray400}`, background: 'transparent', borderRadius: radius.md, fontSize: font.size.sm, color: color.gray600, cursor: 'pointer' }}>+ ステータスを追加</button>
+        <Button variant="primary" onClick={save} disabled={saving} loading={saving}>
           {saving ? '保存中...' : '保存する'}
-        </button>
+        </Button>
       </div>
     </div>
   );

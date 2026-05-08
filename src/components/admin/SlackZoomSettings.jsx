@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 
 import { getOrgId } from '../../lib/orgContext';
+import { color, space, radius, font } from '../../constants/design';
+import { Button, Card } from '../ui';
 
-const NAVY = '#0D2247';
-const GOLD = '#C8A84B';
+const NAVY = color.navy;
 
 const SETTING_GROUPS = [
   {
@@ -41,7 +42,7 @@ function MaskedInput({ value, onSave, placeholder }) {
 
   if (editing) {
     return (
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1 }}>
+      <div style={{ display: 'flex', gap: space[2], alignItems: 'center', flex: 1 }}>
         <input
           type="text"
           value={draft}
@@ -49,20 +50,20 @@ function MaskedInput({ value, onSave, placeholder }) {
           onChange={e => setDraft(e.target.value)}
           autoFocus
           onKeyDown={e => { if (e.key === 'Enter') confirm(); if (e.key === 'Escape') cancel(); }}
-          style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #6366F1', fontSize: 12, fontFamily: "'JetBrains Mono'" }}
+          style={{ flex: 1, padding: `6px ${space[2.5]}px`, borderRadius: radius.lg, border: `1px solid ${color.navyLight}`, fontSize: font.size.sm, fontFamily: font.family.mono }}
         />
-        <button onClick={confirm} style={sBtnStyle('primary')}>保存</button>
-        <button onClick={cancel} style={sBtnStyle()}>✕</button>
+        <Button variant="primary" size="sm" onClick={confirm}>保存</Button>
+        <Button variant="secondary" size="sm" onClick={cancel}>✕</Button>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1 }}>
-      <div style={{ flex: 1, padding: '6px 10px', background: '#FFFFFF', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12, fontFamily: "'JetBrains Mono'", color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {value ? maskValue(value) : <span style={{ color: '#D1D5DB' }}>未設定</span>}
+    <div style={{ display: 'flex', gap: space[2], alignItems: 'center', flex: 1 }}>
+      <div style={{ flex: 1, padding: `6px ${space[2.5]}px`, background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.sm, fontFamily: font.family.mono, color: color.gray600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {value ? maskValue(value) : <span style={{ color: color.gray300 }}>未設定</span>}
       </div>
-      <button onClick={startEdit} style={sBtnStyle()}>編集</button>
+      <Button variant="secondary" size="sm" onClick={startEdit}>編集</Button>
     </div>
   );
 }
@@ -72,14 +73,6 @@ function maskValue(v) {
   if (v.length <= 8) return '••••••••';
   return v.slice(0, 12) + '••••••••' + v.slice(-4);
 }
-
-const sBtnStyle = (variant = 'default') => ({
-  padding: '5px 12px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-  cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
-  border: variant === 'primary' ? 'none' : '1px solid #E5E5E5',
-  background: variant === 'primary' ? NAVY : '#fff',
-  color: variant === 'primary' ? '#fff' : '#374151',
-});
 
 export default function SlackZoomSettings({ onToast }) {
   const [values, setValues] = useState({});
@@ -114,18 +107,18 @@ export default function SlackZoomSettings({ onToast }) {
     onToast('保存しました ✓');
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>読み込み中...</div>;
+  if (loading) return <div style={{ padding: space[10], textAlign: 'center', color: color.gray400 }}>読み込み中...</div>;
 
   return (
     <div style={{ maxWidth: 640 }}>
       {SETTING_GROUPS.map(group => (
-        <div key={group.title} style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', padding: '20px 24px', marginBottom: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 16, paddingBottom: 10, borderBottom: `2px solid ${NAVY}`, display: 'inline-block' }}>
+        <Card key={group.title} variant="default" padding="none" style={{ padding: `${space[5]}px ${space[6]}px`, marginBottom: space[5] }}>
+          <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: NAVY, marginBottom: space[4], paddingBottom: space[2.5], borderBottom: `2px solid ${NAVY}`, display: 'inline-block' }}>
             {group.title}
           </div>
           {group.items.map(item => (
             <div key={item.key} style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>{item.label}</div>
+              <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.gray700, marginBottom: 6 }}>{item.label}</div>
               <MaskedInput
                 value={values[item.key] || ''}
                 placeholder={item.placeholder}
@@ -133,7 +126,7 @@ export default function SlackZoomSettings({ onToast }) {
               />
             </div>
           ))}
-        </div>
+        </Card>
       ))}
     </div>
   );

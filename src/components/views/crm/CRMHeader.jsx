@@ -1,4 +1,6 @@
 import { C } from '../../../constants/colors';
+import { color, space, radius, font, alpha } from '../../../constants/design';
+import { Button, Input } from '../../ui';
 import { NAVY, GRAY_200 } from './utils';
 
 const ADD_FORM_DEFAULT = {
@@ -22,19 +24,19 @@ const ADD_FORM_DEFAULT = {
   chatworkRoomId: '',
 };
 
-function AlertBadge({ count, label, color, active, onClick }) {
+function AlertBadge({ count, label, color: btnColor, active, onClick }) {
   if (!count) return null;
   return (
     <button
       onClick={onClick}
       style={{
-        padding: '5px 10px', borderRadius: 4,
-        border: '1px solid ' + color,
-        background: active ? color : color + '15',
-        color: active ? '#fff' : color,
-        fontSize: 10, fontWeight: 700,
+        padding: '5px 10px', borderRadius: radius.md,
+        border: `1px solid ${btnColor}`,
+        background: active ? btnColor : alpha(btnColor, 0.08),
+        color: active ? color.white : btnColor,
+        fontSize: 10, fontWeight: font.weight.bold,
         cursor: 'pointer',
-        fontFamily: "'Noto Sans JP'",
+        fontFamily: font.family.sans,
         whiteSpace: 'nowrap',
         display: 'inline-flex', alignItems: 'center', gap: 4,
       }}
@@ -57,19 +59,19 @@ export default function CRMHeader({
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16,
-      padding: '14px 18px', background: '#fff', borderRadius: 4,
-      border: '1px solid ' + GRAY_200,
-      gap: 8, flexWrap: 'wrap',
+      padding: '14px 18px', background: color.white, borderRadius: radius.md,
+      border: `1px solid ${color.border}`,
+      gap: space[2], flexWrap: 'wrap',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>顧客管理（CRM）</span>
-        <span style={{ fontSize: 11, color: C.textLight }}>{filteredCount}社</span>
+        <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>顧客管理（CRM）</span>
+        <span style={{ fontSize: font.size.xs, color: color.textLight }}>{filteredCount}社</span>
       </div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
         <AlertBadge
           count={overdueCount}
           label="フォロー漏れ"
-          color="#DC2626"
+          color={color.danger}
           active={alertFilter === 'overdue'}
           onClick={() => setAlertFilter(alertFilter === 'overdue' ? null : 'overdue')}
         />
@@ -80,19 +82,22 @@ export default function CRMHeader({
           active={alertFilter === 'expired'}
           onClick={() => setAlertFilter(alertFilter === 'expired' ? null : 'expired')}
         />
-        <input
+        <Input
+          size="sm"
+          fullWidth={false}
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="企業名・業界..."
-          style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid ' + GRAY_200, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', width: 180 }}
+          containerStyle={{ width: 180 }}
         />
         {isEditable && (
-          <button
+          <Button
+            variant="primary"
+            size="md"
             onClick={() => onAddClient({ ...ADD_FORM_DEFAULT })}
-            style={{ padding: '8px 16px', borderRadius: 4, border: 'none', background: NAVY, color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap' }}
           >
             ＋ 新規顧客追加
-          </button>
+          </Button>
         )}
       </div>
     </div>

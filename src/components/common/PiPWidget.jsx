@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { color, radius, font, shadow, alpha } from '../../constants/design';
 
 /**
  * PiP（ピクチャーインピクチャー）フローティングミニウィンドウ
@@ -42,11 +43,11 @@ export default function PiPWidget({ title, subtitle, onMaximize, onClose }) {
         ...posStyle,
         width: 320,
         zIndex: 10050,
-        background: '#0D2247',
+        background: color.navy,
         borderRadius: 12,
-        border: '1px solid rgba(200, 168, 75, 0.4)',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
-        fontFamily: "'Noto Sans JP', sans-serif",
+        border: `1px solid ${alpha(color.gold, 0.4)}`,
+        boxShadow: shadow.xl,
+        fontFamily: font.family.sans,
         animation: 'pipSlideIn 0.25s ease-out',
         userSelect: 'none',
       }}
@@ -71,14 +72,14 @@ export default function PiPWidget({ title, subtitle, onMaximize, onClose }) {
         }}
       >
         {/* ドラッグインジケータ */}
-        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 14, flexShrink: 0, lineHeight: 1 }}>⠿</span>
+        <span style={{ color: alpha(color.white, 0.3), fontSize: font.size.md, flexShrink: 0, lineHeight: 1 }}>⠿</span>
 
         {/* タイトル */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontSize: 13,
-            fontWeight: 700,
-            color: '#fff',
+            fontSize: font.size.base,
+            fontWeight: font.weight.bold,
+            color: color.white,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -92,11 +93,11 @@ export default function PiPWidget({ title, subtitle, onMaximize, onClose }) {
           onClick={onMaximize}
           title="元に戻す"
           style={{
-            width: 28, height: 28, borderRadius: 6,
-            background: 'rgba(255,255,255,0.1)',
-            border: '1px solid rgba(255,255,255,0.2)',
-            color: '#fff', cursor: 'pointer',
-            fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 28, height: 28, borderRadius: radius.lg,
+            background: alpha(color.white, 0.1),
+            border: `1px solid ${alpha(color.white, 0.2)}`,
+            color: color.white, cursor: 'pointer',
+            fontSize: font.size.md, display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
           }}
         >
@@ -108,11 +109,11 @@ export default function PiPWidget({ title, subtitle, onMaximize, onClose }) {
           onClick={onClose}
           title="架電終了"
           style={{
-            width: 28, height: 28, borderRadius: 6,
-            background: 'rgba(234,0,30,0.15)',
-            border: '1px solid rgba(234,0,30,0.3)',
+            width: 28, height: 28, borderRadius: radius.lg,
+            background: alpha(color.danger, 0.15),
+            border: `1px solid ${alpha(color.danger, 0.3)}`,
             color: '#ff6b6b', cursor: 'pointer',
-            fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: font.size.md, display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
           }}
         >
@@ -124,8 +125,8 @@ export default function PiPWidget({ title, subtitle, onMaximize, onClose }) {
       {subtitle && (
         <div style={{
           padding: '0 14px 10px 36px',
-          fontSize: 11,
-          color: 'rgba(255,255,255,0.55)',
+          fontSize: font.size.xs,
+          color: alpha(color.white, 0.55),
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',

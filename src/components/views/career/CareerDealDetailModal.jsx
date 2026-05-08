@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { C } from '../../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import { useEngagements } from '../../../hooks/useEngagements';
@@ -101,86 +103,116 @@ export default function CareerDealDetailModal({ deal, stages, teams, onClose, on
     <div
       onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, background: 'rgba(3,45,96,0.55)', backdropFilter: 'blur(3px)',
+        position: 'fixed', inset: 0, background: alpha(color.navy, 0.55), backdropFilter: 'blur(3px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100,
       }}
     >
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: C.white, borderRadius: 6, width: '94%', maxWidth: 820,
-          maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 20px 60px rgba(3,45,96,0.3)',
+          background: color.white, borderRadius: radius.lg, width: '94%', maxWidth: 820,
+          maxHeight: '90vh', overflow: 'hidden', boxShadow: shadow.xl,
           display: 'flex', flexDirection: 'column',
-          borderTop: `3px solid ${C.gold}`,
+          borderTop: `3px solid ${color.gold}`,
         }}
       >
         <div style={{
-          padding: '14px 24px', borderBottom: `1px solid ${C.border}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.navy,
+          padding: '14px 24px', borderBottom: `1px solid ${color.border}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: color.navy,
         }}>
           <div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.12em', marginBottom: 2 }}>スパキャリ</div>
-            <h2 style={{ fontSize: 16, fontWeight: 600, color: C.white, margin: 0, fontFamily: "'Outfit','Noto Sans JP',sans-serif" }}>
+            <div style={{ fontSize: font.size.xs - 1, color: alpha(color.white, 0.55), letterSpacing: font.letterSpacing.wider, marginBottom: 2 }}>スパキャリ</div>
+            <h2 style={{ fontSize: font.size.lg, fontWeight: font.weight.semibold, color: color.white, margin: 0, fontFamily: font.family.display }}>
               Deal 詳細
             </h2>
           </div>
           <button onClick={onClose} style={{
-            background: 'transparent', border: '1px solid rgba(255,255,255,0.3)', color: C.white,
-            width: 28, height: 28, borderRadius: 4, cursor: 'pointer', fontSize: 16,
+            background: 'transparent', border: `1px solid ${alpha(color.white, 0.3)}`, color: color.white,
+            width: 28, height: 28, borderRadius: radius.md, cursor: 'pointer', fontSize: font.size.lg,
           }}>×</button>
         </div>
 
-        <div style={{ padding: 20, overflow: 'auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-          <Field label="氏名 *"><input type="text" value={form.prospect_name} onChange={e => setForm({ ...form, prospect_name: e.target.value })} style={inputStyle} /></Field>
-          <Field label="年齢"><input type="number" value={form.prospect_age} onChange={e => setForm({ ...form, prospect_age: e.target.value })} style={inputStyle} /></Field>
-          <Field label="電話"><input type="text" value={form.prospect_phone} onChange={e => setForm({ ...form, prospect_phone: e.target.value })} style={inputStyle} /></Field>
-          <Field label="メール"><input type="email" value={form.prospect_email} onChange={e => setForm({ ...form, prospect_email: e.target.value })} style={inputStyle} /></Field>
-          <Field label="LINE ID"><input type="text" value={form.prospect_line_id} onChange={e => setForm({ ...form, prospect_line_id: e.target.value })} style={inputStyle} /></Field>
-          <Field label="応募経路">
-            <select value={form.source_channel} onChange={e => setForm({ ...form, source_channel: e.target.value })} style={inputStyle}>
-              {SOURCE_CHANNELS.map(ch => <option key={ch.value} value={ch.value}>{ch.label}</option>)}
-            </select>
+        <div style={{ padding: space[5], overflow: 'auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <Field label="氏名 *">
+            <Input size="sm" type="text" value={form.prospect_name} onChange={e => setForm({ ...form, prospect_name: e.target.value })} />
           </Field>
-          <Field label="現在年収(円)"><input type="number" value={form.current_annual_income} onChange={e => setForm({ ...form, current_annual_income: e.target.value })} style={inputStyle} /></Field>
-          <Field label="目標年収(円)"><input type="number" value={form.target_annual_income} onChange={e => setForm({ ...form, target_annual_income: e.target.value })} style={inputStyle} /></Field>
-          <Field label="CWプロフィールURL" span={2}><input type="url" value={form.crowdworks_profile_url} onChange={e => setForm({ ...form, crowdworks_profile_url: e.target.value })} style={inputStyle} /></Field>
+          <Field label="年齢">
+            <Input size="sm" type="number" value={form.prospect_age} onChange={e => setForm({ ...form, prospect_age: e.target.value })} />
+          </Field>
+          <Field label="電話">
+            <Input size="sm" type="text" value={form.prospect_phone} onChange={e => setForm({ ...form, prospect_phone: e.target.value })} />
+          </Field>
+          <Field label="メール">
+            <Input size="sm" type="email" value={form.prospect_email} onChange={e => setForm({ ...form, prospect_email: e.target.value })} />
+          </Field>
+          <Field label="LINE ID">
+            <Input size="sm" type="text" value={form.prospect_line_id} onChange={e => setForm({ ...form, prospect_line_id: e.target.value })} />
+          </Field>
+          <Field label="応募経路">
+            <Select size="sm" value={form.source_channel} onChange={e => setForm({ ...form, source_channel: e.target.value })} options={SOURCE_CHANNELS} />
+          </Field>
+          <Field label="現在年収(円)">
+            <Input size="sm" type="number" value={form.current_annual_income} onChange={e => setForm({ ...form, current_annual_income: e.target.value })} />
+          </Field>
+          <Field label="目標年収(円)">
+            <Input size="sm" type="number" value={form.target_annual_income} onChange={e => setForm({ ...form, target_annual_income: e.target.value })} />
+          </Field>
+          <Field label="CWプロフィールURL" span={2}>
+            <Input size="sm" type="url" value={form.crowdworks_profile_url} onChange={e => setForm({ ...form, crowdworks_profile_url: e.target.value })} />
+          </Field>
           <Field label="チーム">
-            <select value={form.team_id} onChange={e => setForm({ ...form, team_id: e.target.value, sourcer_member_id: '', closer_member_id: '', trainer_member_id: '' })} style={inputStyle}>
-              <option value="">—</option>
-              {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
+            <Select
+              size="sm"
+              value={form.team_id}
+              onChange={e => setForm({ ...form, team_id: e.target.value, sourcer_member_id: '', closer_member_id: '', trainer_member_id: '' })}
+              options={[{ value: '', label: '—' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
+            />
           </Field>
           <Field label="希望プラン">
-            <select value={form.selected_plan_id} onChange={e => setForm({ ...form, selected_plan_id: e.target.value })} style={inputStyle}>
-              <option value="">—</option>
-              {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            <Select
+              size="sm"
+              value={form.selected_plan_id}
+              onChange={e => setForm({ ...form, selected_plan_id: e.target.value })}
+              options={[{ value: '', label: '—' }, ...plans.map(p => ({ value: p.id, label: p.name }))]}
+            />
           </Field>
           <Field label="担当 (sourcer)">
-            <select value={form.sourcer_member_id} onChange={e => setForm({ ...form, sourcer_member_id: e.target.value })} style={inputStyle} disabled={!form.team_id}>
-              <option value="">—</option>
-              {sourcerCandidates.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
+            <Select
+              size="sm"
+              value={form.sourcer_member_id}
+              onChange={e => setForm({ ...form, sourcer_member_id: e.target.value })}
+              disabled={!form.team_id}
+              options={[{ value: '', label: '—' }, ...sourcerCandidates.map(m => ({ value: m.id, label: m.name }))]}
+            />
           </Field>
           <Field label="担当 (closer)">
-            <select value={form.closer_member_id} onChange={e => setForm({ ...form, closer_member_id: e.target.value })} style={inputStyle} disabled={!form.team_id}>
-              <option value="">—</option>
-              {closerCandidates.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
+            <Select
+              size="sm"
+              value={form.closer_member_id}
+              onChange={e => setForm({ ...form, closer_member_id: e.target.value })}
+              disabled={!form.team_id}
+              options={[{ value: '', label: '—' }, ...closerCandidates.map(m => ({ value: m.id, label: m.name }))]}
+            />
           </Field>
           <Field label="担当 (trainer)">
-            <select value={form.trainer_member_id} onChange={e => setForm({ ...form, trainer_member_id: e.target.value })} style={inputStyle} disabled={!form.team_id}>
-              <option value="">—</option>
-              {trainerCandidates.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
+            <Select
+              size="sm"
+              value={form.trainer_member_id}
+              onChange={e => setForm({ ...form, trainer_member_id: e.target.value })}
+              disabled={!form.team_id}
+              options={[{ value: '', label: '—' }, ...trainerCandidates.map(m => ({ value: m.id, label: m.name }))]}
+            />
           </Field>
           <Field label="ステージ">
-            <select value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value })} style={inputStyle}>
-              {stages.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-            </select>
+            <Select
+              size="sm"
+              value={form.stage}
+              onChange={e => setForm({ ...form, stage: e.target.value })}
+              options={stages.map(s => ({ value: s.id, label: s.label }))}
+            />
           </Field>
           <Field label="有効応募">
-            <div style={{ display: 'flex', gap: 16, paddingTop: 6, fontSize: 12 }}>
+            <div style={{ display: 'flex', gap: space[4], paddingTop: 6, fontSize: font.size.sm }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
                 <input type="radio" checked={form.is_qualified} onChange={() => setForm({ ...form, is_qualified: true, qualification_reason: '' })} />有効
               </label>
@@ -191,43 +223,54 @@ export default function CareerDealDetailModal({ deal, stages, teams, onClose, on
           </Field>
           {!form.is_qualified && (
             <Field label="無効理由">
-              <select value={form.qualification_reason} onChange={e => setForm({ ...form, qualification_reason: e.target.value })} style={inputStyle}>
-                <option value="">—</option>
-                {DISQUAL_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
+              <Select
+                size="sm"
+                value={form.qualification_reason}
+                onChange={e => setForm({ ...form, qualification_reason: e.target.value })}
+                options={[{ value: '', label: '—' }, ...DISQUAL_REASONS.map(r => ({ value: r, label: r }))]}
+              />
             </Field>
           )}
-          <Field label="確度 (%)"><input type="number" min={0} max={100} value={form.probability} onChange={e => setForm({ ...form, probability: e.target.value })} style={inputStyle} /></Field>
-          <Field label="想定金額(円)"><input type="number" value={form.deal_value} onChange={e => setForm({ ...form, deal_value: e.target.value })} style={inputStyle} /></Field>
-          <Field label="成約予定日"><input type="date" value={form.expected_close_date || ''} onChange={e => setForm({ ...form, expected_close_date: e.target.value })} style={inputStyle} /></Field>
+          <Field label="確度 (%)">
+            <Input size="sm" type="number" min={0} max={100} value={form.probability} onChange={e => setForm({ ...form, probability: e.target.value })} />
+          </Field>
+          <Field label="想定金額(円)">
+            <Input size="sm" type="number" value={form.deal_value} onChange={e => setForm({ ...form, deal_value: e.target.value })} />
+          </Field>
+          <Field label="成約予定日">
+            <Input size="sm" type="date" value={form.expected_close_date || ''} onChange={e => setForm({ ...form, expected_close_date: e.target.value })} />
+          </Field>
           {form.stage === 'closed_lost' && (
             <Field label="失注理由" span={2}>
-              <select value={form.lost_reason} onChange={e => setForm({ ...form, lost_reason: e.target.value })} style={inputStyle}>
-                <option value="">選択してください</option>
-                {LOST_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
+              <Select
+                size="sm"
+                value={form.lost_reason}
+                onChange={e => setForm({ ...form, lost_reason: e.target.value })}
+                options={[{ value: '', label: '選択してください' }, ...LOST_REASONS.map(r => ({ value: r, label: r }))]}
+              />
             </Field>
           )}
           <Field label="メモ" span={2}>
-            <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={4} style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />
+            <textarea
+              value={form.notes}
+              onChange={e => setForm({ ...form, notes: e.target.value })}
+              rows={4}
+              style={{
+                width: '100%', padding: '7px 10px', fontSize: font.size.sm,
+                border: `1px solid ${color.border}`, borderRadius: radius.md, boxSizing: 'border-box',
+                color: color.textDark, fontFamily: font.family.sans, resize: 'vertical', outline: 'none',
+                background: color.white,
+              }}
+            />
           </Field>
         </div>
 
         <div style={{
-          padding: '12px 20px', borderTop: `1px solid ${C.border}`,
-          display: 'flex', justifyContent: 'flex-end', gap: 8, background: C.cream,
+          padding: '12px 20px', borderTop: `1px solid ${color.border}`,
+          display: 'flex', justifyContent: 'flex-end', gap: space[2], background: color.cream,
         }}>
-          <button onClick={onClose} style={{
-            padding: '7px 16px', fontSize: 12, background: C.white,
-            color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer',
-            fontFamily: "'Noto Sans JP',sans-serif",
-          }}>キャンセル</button>
-          <button onClick={handleSave} disabled={saving} style={{
-            padding: '7px 20px', fontSize: 12, fontWeight: 600, background: C.navy,
-            color: C.white, border: 'none', borderRadius: 4,
-            cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
-            fontFamily: "'Noto Sans JP',sans-serif",
-          }}>{saving ? '保存中...' : '保存'}</button>
+          <Button variant="outline" size="sm" onClick={onClose}>キャンセル</Button>
+          <Button size="sm" loading={saving} onClick={handleSave}>{saving ? '保存中...' : '保存'}</Button>
         </div>
       </div>
     </div>
@@ -238,16 +281,10 @@ function Field({ label, children, span = 1 }) {
   return (
     <div style={{ gridColumn: span === 2 ? 'span 2' : 'span 1' }}>
       <label style={{
-        display: 'block', fontSize: 10, color: C.textMid,
-        marginBottom: 4, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase',
+        display: 'block', fontSize: font.size.xs - 1, color: color.textMid,
+        marginBottom: 4, fontWeight: font.weight.semibold, letterSpacing: font.letterSpacing.wide, textTransform: 'uppercase',
       }}>{label}</label>
       {children}
     </div>
   );
 }
-
-const inputStyle = {
-  width: '100%', padding: '7px 10px', fontSize: 12,
-  border: `1px solid ${C.border}`, borderRadius: 4, boxSizing: 'border-box',
-  color: C.textDark, fontFamily: "'Noto Sans JP',sans-serif",
-};

@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 
 export default function AIAssistantView({ appoData, members, callListData, industryRules, currentUser }) {
   const [messages, setMessages] = useState([]);
@@ -103,56 +105,53 @@ ${rulesText}
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 130px)", animation: "fadeIn 0.3s ease" }}>
       {/* Header */}
-      <div style={{
-        background: C.white, borderRadius: 10, padding: "14px 20px", marginBottom: 12,
-        border: "1px solid " + C.borderLight,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 8,
-            background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 16, color: C.white, fontWeight: 900,
-          }}>AI</div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>MASP AI アシスタント</div>
-            <div style={{ fontSize: 10, color: C.textLight }}>架電アドバイス・社内ルール・業務サポート</div>
+      <Card padding="none" style={{ marginBottom: 12 }}>
+        <div style={{
+          padding: "14px 20px",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: radius.xl,
+              background: "linear-gradient(135deg, " + color.navyDeep + ", " + color.navy + ")",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: font.size.lg, color: color.white, fontWeight: font.weight.black,
+            }}>AI</div>
+            <div>
+              <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>MASP AI アシスタント</div>
+              <div style={{ fontSize: font.size.xs - 1, color: color.textLight }}>架電アドバイス・社内ルール・業務サポート</div>
+            </div>
           </div>
+          {messages.length > 0 && (
+            <Button size="sm" variant="secondary" onClick={() => setMessages([])}>チャットをクリア</Button>
+          )}
         </div>
-        {messages.length > 0 && (
-          <button onClick={() => setMessages([])} style={{
-            padding: "4px 12px", borderRadius: 6, border: "1px solid " + C.borderLight,
-            background: C.white, cursor: "pointer", fontSize: 10, color: C.textMid,
-            fontFamily: "'Noto Sans JP'", fontWeight: 600,
-          }}>チャットをクリア</button>
-        )}
-      </div>
+      </Card>
 
       {/* Chat area */}
-      <div style={{
-        flex: 1, overflowY: "auto", background: C.white, borderRadius: 10,
-        border: "1px solid " + C.borderLight, padding: 16,
-        display: "flex", flexDirection: "column", gap: 12,
-      }}>
+      <Card padding="none" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{
+          flex: 1, overflowY: "auto", padding: 16,
+          display: "flex", flexDirection: "column", gap: 12,
+        }}>
         {messages.length === 0 ? (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 20 }}>
             <div style={{
               width: 60, height: 60, borderRadius: 16,
-              background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")",
+              background: "linear-gradient(135deg, " + color.navyDeep + ", " + color.navy + ")",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 24, color: C.white, fontWeight: 900,
+              fontSize: 24, color: color.white, fontWeight: font.weight.black,
             }}>AI</div>
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 4 }}>MASP AI アシスタント</div>
-              <div style={{ fontSize: 12, color: C.textLight }}>架電のコツや社内ルールなど、何でも聞いてください</div>
+              <div style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: color.navy, marginBottom: 4 }}>MASP AI アシスタント</div>
+              <div style={{ fontSize: font.size.sm, color: color.textLight }}>架電のコツや社内ルールなど、何でも聞いてください</div>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", maxWidth: 500 }}>
               {quickQuestions.map((q, i) => (
                 <button key={i} onClick={() => { setInput(q); }} style={{
-                  padding: "6px 12px", borderRadius: 16, border: "1px solid " + C.borderLight,
-                  background: C.offWhite, cursor: "pointer", fontSize: 11, color: C.navy,
-                  fontFamily: "'Noto Sans JP'", fontWeight: 500, transition: "all 0.15s",
+                  padding: "6px 12px", borderRadius: 16, border: "1px solid " + color.borderLight,
+                  background: color.offWhite, cursor: "pointer", fontSize: font.size.xs, color: color.navy,
+                  fontFamily: font.family.sans, fontWeight: font.weight.medium, transition: "all 0.15s",
                 }}>{q}</button>
               ))}
             </div>
@@ -164,26 +163,26 @@ ${rulesText}
             }}>
               {msg.role === "assistant" && (
                 <div style={{
-                  width: 28, height: 28, borderRadius: 6, flexShrink: 0,
-                  background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")",
+                  width: 28, height: 28, borderRadius: radius.lg, flexShrink: 0,
+                  background: "linear-gradient(135deg, " + color.navyDeep + ", " + color.navy + ")",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 9, color: C.white, fontWeight: 900,
+                  fontSize: 9, color: color.white, fontWeight: font.weight.black,
                 }}>AI</div>
               )}
               <div style={{
                 maxWidth: "75%", padding: "10px 14px", borderRadius: 12,
-                background: msg.role === "user" ? C.navy : C.offWhite,
-                color: msg.role === "user" ? C.white : C.textDark,
-                fontSize: 13, lineHeight: 1.7, whiteSpace: "pre-wrap",
+                background: msg.role === "user" ? color.navy : color.offWhite,
+                color: msg.role === "user" ? color.white : color.textDark,
+                fontSize: font.size.base, lineHeight: font.lineHeight.relaxed, whiteSpace: "pre-wrap",
                 borderBottomRightRadius: msg.role === "user" ? 4 : 12,
                 borderBottomLeftRadius: msg.role === "assistant" ? 4 : 12,
               }}>{msg.content}</div>
               {msg.role === "user" && (
                 <div style={{
-                  width: 28, height: 28, borderRadius: 6, flexShrink: 0,
-                  background: C.gold + "20", border: "1px solid " + C.gold + "40",
+                  width: 28, height: 28, borderRadius: radius.lg, flexShrink: 0,
+                  background: alpha(color.gold, 0.125), border: "1px solid " + alpha(color.gold, 0.25),
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 9, color: C.navy, fontWeight: 700,
+                  fontSize: 9, color: color.navy, fontWeight: font.weight.bold,
                 }}>{(currentUser || "?").slice(0, 1)}</div>
               )}
             </div>
@@ -192,45 +191,43 @@ ${rulesText}
         {loading && (
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <div style={{
-              width: 28, height: 28, borderRadius: 6, flexShrink: 0,
-              background: "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")",
+              width: 28, height: 28, borderRadius: radius.lg, flexShrink: 0,
+              background: "linear-gradient(135deg, " + color.navyDeep + ", " + color.navy + ")",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 9, color: C.white, fontWeight: 900,
+              fontSize: 9, color: color.white, fontWeight: font.weight.black,
             }}>AI</div>
             <div style={{
-              padding: "10px 14px", borderRadius: 12, background: C.offWhite,
-              fontSize: 13, color: C.textLight, animation: "pulse 1.5s infinite",
+              padding: "10px 14px", borderRadius: 12, background: color.offWhite,
+              fontSize: font.size.base, color: color.textLight, animation: "pulse 1.5s infinite",
             }}>考え中...</div>
           </div>
         )}
         <div ref={chatEndRef} />
-      </div>
+        </div>
+      </Card>
 
       {/* Input area */}
-      <div style={{
-        display: "flex", gap: 8, marginTop: 12, padding: "12px 16px",
-        background: C.white, borderRadius: 10, border: "1px solid " + C.borderLight,
-      }}>
-        <input
-          type="text" value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-          placeholder="質問を入力... (Enter で送信)"
-          style={{
-            flex: 1, padding: "10px 14px", borderRadius: 8, border: "1px solid " + C.border,
-            background: C.offWhite, fontSize: 13, color: C.textDark,
-            fontFamily: "'Noto Sans JP'", outline: "none",
-          }}
-        />
-        <button onClick={sendMessage} disabled={loading || !input.trim()} style={{
-          padding: "10px 20px", borderRadius: 8,
-          background: loading || !input.trim() ? C.borderLight : "linear-gradient(135deg, " + C.navyDeep + ", " + C.navy + ")",
-          border: "none", color: C.white, cursor: loading || !input.trim() ? "default" : "pointer",
-          fontSize: 13, fontWeight: 700, fontFamily: "'Noto Sans JP'",
-          opacity: loading || !input.trim() ? 0.5 : 1,
-          transition: "all 0.15s",
-        }}>送信</button>
-      </div>
+      <Card padding="none" style={{ marginTop: 12 }}>
+        <div style={{
+          display: "flex", gap: 8, padding: "12px 16px",
+        }}>
+          <Input
+            type="text"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+            placeholder="質問を入力... (Enter で送信)"
+            fullWidth
+          />
+          <Button
+            onClick={sendMessage}
+            disabled={loading || !input.trim()}
+            loading={loading}
+          >
+            送信
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 }

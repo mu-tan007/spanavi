@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { C } from '../../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../../ui';
 import { useEngagements } from '../../../hooks/useEngagements';
 import { useTeams } from '../../../hooks/useTeams';
 import { useCareerDeals } from '../../../hooks/useCareerDeals';
@@ -80,65 +82,84 @@ export default function ApplicationsView() {
   };
 
   return (
-    <div style={{ background: C.offWhite, margin: -28, marginTop: 0, marginBottom: 0, minHeight: 'calc(100vh - 120px)' }}>
-      <div style={{ padding: '14px 20px 16px', background: C.white, borderBottom: `1px solid ${C.border}` }}>
-        <div style={{ fontSize: 10, color: C.textLight, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>
+    <div style={{ background: color.offWhite, margin: -28, marginTop: 0, marginBottom: 0, minHeight: 'calc(100vh - 120px)' }}>
+      <div style={{ padding: '14px 20px 16px', background: color.white, borderBottom: `1px solid ${color.border}` }}>
+        <div style={{ fontSize: font.size.xs - 1, color: color.textLight, letterSpacing: font.letterSpacing.widest, textTransform: 'uppercase', marginBottom: 2 }}>
           スパキャリ · Applications
         </div>
-        <h1 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 2px', color: C.navy, fontFamily: "'Outfit','Noto Sans JP',sans-serif" }}>
+        <h1 style={{ fontSize: font.size.xl, fontWeight: font.weight.semibold, margin: '0 0 2px', color: color.navy, fontFamily: font.family.display }}>
           応募管理
         </h1>
-        <p style={{ fontSize: 11, color: C.textMid, margin: 0 }}>
+        <p style={{ fontSize: font.size.xs, color: color.textMid, margin: 0 }}>
           クラウドワークスからの応募・スカウト反応を登録すると Deal が自動作成されます
         </p>
       </div>
 
-      <div style={{ padding: 20, maxWidth: 840 }}>
+      <div style={{ padding: space[5], maxWidth: 840 }}>
         {message && (
           <div style={{
-            padding: '10px 14px', marginBottom: 16, borderRadius: 4, fontSize: 12,
-            background: message.type === 'error' ? 'rgba(234,0,30,0.08)' : C.greenLight,
-            color: message.type === 'error' ? C.red : C.green,
-            border: `1px solid ${message.type === 'error' ? C.red : C.green}`,
+            padding: '10px 14px', marginBottom: space[4], borderRadius: radius.md, fontSize: font.size.sm,
+            background: message.type === 'error' ? alpha(color.danger, 0.08) : color.successSoft,
+            color: message.type === 'error' ? color.danger : color.success,
+            border: `1px solid ${message.type === 'error' ? color.danger : color.success}`,
           }}>
             {message.text}
           </div>
         )}
 
-        <div style={{
-          background: C.white, border: `1px solid ${C.border}`,
-          borderRadius: 6, padding: 20,
-        }}>
+        <Card padding="md">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <Field label="氏名 *"><input type="text" value={form.prospect_name} onChange={e => setForm({ ...form, prospect_name: e.target.value })} style={inputStyle} /></Field>
-            <Field label="年齢"><input type="number" value={form.prospect_age} onChange={e => setForm({ ...form, prospect_age: e.target.value })} style={inputStyle} /></Field>
-            <Field label="電話"><input type="text" value={form.prospect_phone} onChange={e => setForm({ ...form, prospect_phone: e.target.value })} style={inputStyle} /></Field>
-            <Field label="メール"><input type="email" value={form.prospect_email} onChange={e => setForm({ ...form, prospect_email: e.target.value })} style={inputStyle} /></Field>
-            <Field label="LINE ID"><input type="text" value={form.prospect_line_id} onChange={e => setForm({ ...form, prospect_line_id: e.target.value })} style={inputStyle} /></Field>
-            <Field label="現在年収(円)"><input type="number" value={form.current_annual_income} onChange={e => setForm({ ...form, current_annual_income: e.target.value })} style={inputStyle} /></Field>
-            <Field label="目標年収(円)"><input type="number" value={form.target_annual_income} onChange={e => setForm({ ...form, target_annual_income: e.target.value })} style={inputStyle} /></Field>
+            <Field label="氏名 *">
+              <Input size="sm" type="text" value={form.prospect_name} onChange={e => setForm({ ...form, prospect_name: e.target.value })} />
+            </Field>
+            <Field label="年齢">
+              <Input size="sm" type="number" value={form.prospect_age} onChange={e => setForm({ ...form, prospect_age: e.target.value })} />
+            </Field>
+            <Field label="電話">
+              <Input size="sm" type="text" value={form.prospect_phone} onChange={e => setForm({ ...form, prospect_phone: e.target.value })} />
+            </Field>
+            <Field label="メール">
+              <Input size="sm" type="email" value={form.prospect_email} onChange={e => setForm({ ...form, prospect_email: e.target.value })} />
+            </Field>
+            <Field label="LINE ID">
+              <Input size="sm" type="text" value={form.prospect_line_id} onChange={e => setForm({ ...form, prospect_line_id: e.target.value })} />
+            </Field>
+            <Field label="現在年収(円)">
+              <Input size="sm" type="number" value={form.current_annual_income} onChange={e => setForm({ ...form, current_annual_income: e.target.value })} />
+            </Field>
+            <Field label="目標年収(円)">
+              <Input size="sm" type="number" value={form.target_annual_income} onChange={e => setForm({ ...form, target_annual_income: e.target.value })} />
+            </Field>
             <Field label="応募経路">
-              <select value={form.source_channel} onChange={e => setForm({ ...form, source_channel: e.target.value })} style={inputStyle}>
-                {SOURCE_CHANNELS.map(ch => <option key={ch.value} value={ch.value}>{ch.label}</option>)}
-              </select>
+              <Select
+                size="sm"
+                value={form.source_channel}
+                onChange={e => setForm({ ...form, source_channel: e.target.value })}
+                options={SOURCE_CHANNELS}
+              />
             </Field>
             <Field label="CWプロフィールURL" span={2}>
-              <input type="url" value={form.crowdworks_profile_url} onChange={e => setForm({ ...form, crowdworks_profile_url: e.target.value })} style={inputStyle} />
+              <Input size="sm" type="url" value={form.crowdworks_profile_url} onChange={e => setForm({ ...form, crowdworks_profile_url: e.target.value })} />
             </Field>
             <Field label="チーム *">
-              <select value={form.team_id} onChange={e => setForm({ ...form, team_id: e.target.value, sourcer_member_id: '' })} style={inputStyle}>
-                <option value="">選択してください</option>
-                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
+              <Select
+                size="sm"
+                value={form.team_id}
+                onChange={e => setForm({ ...form, team_id: e.target.value, sourcer_member_id: '' })}
+                options={[{ value: '', label: '選択してください' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
+              />
             </Field>
             <Field label="担当 (sourcer) *">
-              <select value={form.sourcer_member_id} onChange={e => setForm({ ...form, sourcer_member_id: e.target.value })} style={inputStyle} disabled={!form.team_id}>
-                <option value="">選択してください</option>
-                {sourcers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-              </select>
+              <Select
+                size="sm"
+                value={form.sourcer_member_id}
+                onChange={e => setForm({ ...form, sourcer_member_id: e.target.value })}
+                disabled={!form.team_id}
+                options={[{ value: '', label: '選択してください' }, ...sourcers.map(m => ({ value: m.id, label: m.name }))]}
+              />
             </Field>
             <Field label="有効応募">
-              <div style={{ display: 'flex', gap: 16, paddingTop: 6, fontSize: 12 }}>
+              <div style={{ display: 'flex', gap: space[4], paddingTop: 6, fontSize: font.size.sm }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
                   <input type="radio" checked={form.is_qualified} onChange={() => setForm({ ...form, is_qualified: true, qualification_reason: '' })} />有効
                 </label>
@@ -149,40 +170,36 @@ export default function ApplicationsView() {
             </Field>
             {!form.is_qualified && (
               <Field label="無効理由">
-                <select value={form.qualification_reason} onChange={e => setForm({ ...form, qualification_reason: e.target.value })} style={inputStyle}>
-                  <option value="">選択してください</option>
-                  {DISQUAL_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
+                <Select
+                  size="sm"
+                  value={form.qualification_reason}
+                  onChange={e => setForm({ ...form, qualification_reason: e.target.value })}
+                  options={[{ value: '', label: '選択してください' }, ...DISQUAL_REASONS.map(r => ({ value: r, label: r }))]}
+                />
               </Field>
             )}
             <Field label="メモ" span={2}>
-              <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={3} style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />
+              <textarea
+                value={form.notes}
+                onChange={e => setForm({ ...form, notes: e.target.value })}
+                rows={3}
+                style={{
+                  width: '100%', padding: '7px 10px', fontSize: font.size.sm,
+                  border: `1px solid ${color.border}`, borderRadius: radius.md, boxSizing: 'border-box',
+                  color: color.textDark, fontFamily: font.family.sans, resize: 'vertical', outline: 'none',
+                  background: color.white,
+                }}
+              />
             </Field>
           </div>
 
-          <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => { setForm(EMPTY); setMessage(null); }}
-              style={{
-                padding: '8px 16px', fontSize: 12, background: C.white,
-                color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer',
-                fontFamily: "'Noto Sans JP',sans-serif",
-              }}
-            >クリア</button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={saving}
-              style={{
-                padding: '8px 24px', fontSize: 12, fontWeight: 600, background: C.navy,
-                color: C.white, border: 'none', borderRadius: 4,
-                cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
-                fontFamily: "'Noto Sans JP',sans-serif",
-              }}
-            >{saving ? '登録中...' : '登録 (Deal作成)'}</button>
+          <div style={{ marginTop: space[5], display: 'flex', justifyContent: 'flex-end', gap: space[2] }}>
+            <Button variant="outline" size="sm" onClick={() => { setForm(EMPTY); setMessage(null); }}>クリア</Button>
+            <Button size="sm" loading={saving} onClick={handleSubmit}>
+              {saving ? '登録中...' : '登録 (Deal作成)'}
+            </Button>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );
@@ -192,16 +209,10 @@ function Field({ label, children, span = 1 }) {
   return (
     <div style={{ gridColumn: span === 2 ? 'span 2' : 'span 1' }}>
       <label style={{
-        display: 'block', fontSize: 10, color: C.textMid,
-        marginBottom: 4, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase',
+        display: 'block', fontSize: font.size.xs - 1, color: color.textMid,
+        marginBottom: 4, fontWeight: font.weight.semibold, letterSpacing: font.letterSpacing.wide, textTransform: 'uppercase',
       }}>{label}</label>
       {children}
     </div>
   );
 }
-
-const inputStyle = {
-  width: '100%', padding: '7px 10px', fontSize: 12,
-  border: `1px solid ${C.border}`, borderRadius: 4, boxSizing: 'border-box',
-  color: C.textDark, fontFamily: "'Noto Sans JP',sans-serif",
-};

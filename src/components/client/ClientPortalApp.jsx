@@ -2,14 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
-import { C } from '../../constants/colors';
+import { color, space, radius, font, alpha } from '../../constants/design';
+import { Button } from '../ui';
 import ClientDealsView from './ClientDealsView';
 import ClientSetPasswordPage from './ClientSetPasswordPage';
 import SpanaviLogo from '../common/SpanaviLogo';
 import { RecordingPlayerProvider } from '../common/RecordingPlayerProvider';
 
 // クライアントポータル: 社内SpanaviAppと同じ世界観に揃える。
-// - 背景: #F3F2F2 (社内と同じ薄グレー)
+// - 背景: 薄グレー (社内と同じ)
 // - ヘッダー: 高さ・余白・色を社内寄りに
 // - 「社内に戻る」ボタン: 代理ログイン中のみ表示（管理者がDealsから入った場合）
 const ADMIN_BACKUP_KEY = 'spanavi_admin_session_backup';
@@ -114,36 +115,45 @@ export default function ClientPortalApp() {
     return (
       <CenteredMessage>
         クライアント情報が取得できませんでした。管理者にお問い合わせください。
-        <button onClick={async () => { await signOut(); window.location.href = '/client/login'; }}
-          style={logoutBtn}>ログアウト</button>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={async () => { await signOut(); window.location.href = '/client/login'; }}
+          style={{ marginTop: space[2] }}
+        >ログアウト</Button>
       </CenteredMessage>
     );
   }
 
   return (
     <RecordingPlayerProvider>
-    <div style={{ minHeight: '100vh', background: '#F3F2F2', fontFamily: "'Noto Sans JP', sans-serif" }}>
+    <div style={{ minHeight: '100vh', background: color.offWhite, fontFamily: font.family.sans }}>
       {/* 代理ログイン中バナー: 通常ログインなら表示しない */}
       {adminBackup && (
         <div style={{
-          background: 'linear-gradient(90deg, #1456C7 0%, #0D2247 100%)',
-          color: '#fff',
-          padding: '8px 24px',
-          fontSize: 12,
+          background: `linear-gradient(90deg, ${color.navyLight} 0%, ${color.navyDark} 100%)`,
+          color: color.white,
+          padding: `${space[2]}px ${space[6]}px`,
+          fontSize: font.size.sm,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          gap: 12, flexWrap: 'wrap',
+          gap: space[3], flexWrap: 'wrap',
         }}>
-          <span style={{ letterSpacing: '0.04em' }}>
+          <span style={{ letterSpacing: font.letterSpacing.wide }}>
             管理者として「{adminBackup.impersonating_client_name || client.name}」を代理表示中
           </span>
           <button
             onClick={handleReturnToAdmin}
             disabled={restoring}
             style={{
-              padding: '5px 14px', fontSize: 11, fontWeight: 600,
-              background: '#fff', color: '#0D2247',
-              border: 'none', borderRadius: 3,
-              cursor: restoring ? 'not-allowed' : 'pointer', letterSpacing: '0.04em',
+              padding: `5px ${space[3] + 2}px`,
+              fontSize: font.size.xs,
+              fontWeight: font.weight.semibold,
+              background: color.white,
+              color: color.navyDark,
+              border: 'none',
+              borderRadius: radius.sm,
+              cursor: restoring ? 'not-allowed' : 'pointer',
+              letterSpacing: font.letterSpacing.wide,
               opacity: restoring ? 0.6 : 1,
             }}
           >
@@ -155,34 +165,41 @@ export default function ClientPortalApp() {
       {/* トップバー: 社内SpanaviAppのヘッダー寄り */}
       <header style={{
         position: 'sticky', top: 0, zIndex: 10,
-        height: 56, background: C.white, borderBottom: `1px solid ${C.border}`,
+        height: 56,
+        background: color.white,
+        borderBottom: `1px solid ${color.border}`,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 24px',
+        padding: `0 ${space[6]}px`,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: space[3] }}>
           <SpanaviLogo size={28} textSize={18} gap={9} uidSuffix="portal-hdr" />
           <span style={{
-            fontSize: 10, color: C.textLight, letterSpacing: '0.18em',
-            textTransform: 'uppercase', borderLeft: `1px solid ${C.border}`,
-            paddingLeft: 12, marginLeft: 4,
+            fontSize: font.size.xs - 1,
+            color: color.textLight,
+            letterSpacing: font.letterSpacing.widest,
+            textTransform: 'uppercase',
+            borderLeft: `1px solid ${color.border}`,
+            paddingLeft: space[3],
+            marginLeft: space[1],
           }}>
             Client Portal
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ fontSize: 12, color: C.textMid, fontWeight: 600 }}>{client.name}</span>
-          <button
+        <div style={{ display: 'flex', alignItems: 'center', gap: space[4] }}>
+          <span style={{
+            fontSize: font.size.sm,
+            color: color.textMid,
+            fontWeight: font.weight.semibold,
+          }}>{client.name}</span>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={async () => { await signOut(); window.location.href = '/client/login'; }}
-            style={{
-              padding: '5px 12px', fontSize: 11, fontWeight: 600,
-              background: C.white, color: C.navy,
-              border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer',
-            }}
-          >ログアウト</button>
+          >ログアウト</Button>
         </div>
       </header>
 
-      <main style={{ padding: 16 }}>
+      <main style={{ padding: space[4] }}>
         <ClientDealsView client={client} />
       </main>
     </div>
@@ -193,18 +210,20 @@ export default function ClientPortalApp() {
 function CenteredMessage({ children }) {
   return (
     <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: '#F3F2F2', fontFamily: "'Noto Sans JP', sans-serif",
-      textAlign: 'center', padding: 24, color: C.textMid, fontSize: 13,
-      flexDirection: 'column', gap: 12,
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: color.offWhite,
+      fontFamily: font.family.sans,
+      textAlign: 'center',
+      padding: space[6],
+      color: color.textMid,
+      fontSize: font.size.base,
+      flexDirection: 'column',
+      gap: space[3],
     }}>
       {children}
     </div>
   );
 }
-
-const logoutBtn = {
-  padding: '7px 14px', fontSize: 12, fontWeight: 600,
-  background: '#032D60', color: '#fff', border: 'none', borderRadius: 4,
-  cursor: 'pointer', marginTop: 8,
-};

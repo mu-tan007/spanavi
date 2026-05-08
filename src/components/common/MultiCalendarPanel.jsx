@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import ClientCalendarPanel from './ClientCalendarPanel';
-
-const NAVY = '#0D2247';
+import { color, radius, font, alpha } from '../../constants/design';
 
 /**
  * 複数担当者のカレンダーをタブ切替で表示するラッパー
@@ -61,25 +60,26 @@ export default function MultiCalendarPanel({
   const surname = (name) => (name || '').split(/\s+/)[0] || name;
 
   return (
-    <div style={{ fontFamily: "'Noto Sans JP'" }}>
+    <div style={{ fontFamily: font.family.sans }}>
       {/* タブ */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #E5E7EB', marginBottom: 6 }}>
+      <div style={{ display: 'flex', gap: 0, borderBottom: `2px solid ${color.border}`, marginBottom: 6 }}>
         {contacts.map((ct, i) => (
           <button
             key={ct.id}
             onClick={() => setActiveTab(i)}
             style={{
               padding: '6px 16px',
-              fontSize: 11,
-              fontWeight: activeTab === i ? 700 : 400,
-              color: activeTab === i ? NAVY : '#6B7280',
-              background: activeTab === i ? '#EFF6FF' : 'transparent',
+              fontSize: font.size.xs,
+              fontWeight: activeTab === i ? font.weight.bold : font.weight.normal,
+              color: activeTab === i ? color.navy : color.gray500,
+              background: activeTab === i ? alpha(color.navyLight, 0.08) : 'transparent',
               border: 'none',
-              borderBottom: activeTab === i ? `2px solid ${NAVY}` : '2px solid transparent',
+              borderBottom: activeTab === i ? `2px solid ${color.navy}` : '2px solid transparent',
               marginBottom: -2,
               cursor: 'pointer',
-              fontFamily: "'Noto Sans JP'",
+              fontFamily: font.family.sans,
               transition: 'all 0.15s',
+              borderRadius: `${radius.sm}px ${radius.sm}px 0 0`,
             }}
           >
             {surname(ct.name)}

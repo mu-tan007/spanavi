@@ -1,11 +1,15 @@
 // ============================================================
 // 請求書PDF レンダリングコンポーネント（html2canvas + jsPDF 用）
+// 印刷用PDFのため、白背景・黒文字を維持。トークン経由で色値は変えない。
 // ============================================================
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 
 const PAGE_W = 794;
 const PAGE_H = 1123;
 
 const fontFamily = "'Noto Sans JP', 'Hiragino Sans', 'Meiryo', sans-serif";
+const monoFamily = font.family.mono;
 
 const fmt = (n) => Number(n).toLocaleString('ja-JP');
 
@@ -43,7 +47,10 @@ export default function InvoicePDF({
       </div>
 
       {/* タイトル */}
-      <div style={{ textAlign: 'center', fontSize: 28, fontWeight: 700, color: '#111', marginTop: 24, letterSpacing: 6 }}>
+      <div style={{
+        textAlign: 'center', fontSize: 28, fontWeight: font.weight.bold,
+        color: '#111', marginTop: 24, letterSpacing: 6,
+      }}>
         請求書
       </div>
 
@@ -51,7 +58,11 @@ export default function InvoicePDF({
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 32 }}>
         {/* 左: 宛先 */}
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#111', borderBottom: '2px solid #111', paddingBottom: 4, display: 'inline-block' }}>
+          <div style={{
+            fontSize: 15, fontWeight: font.weight.bold,
+            color: '#111', borderBottom: '2px solid #111',
+            paddingBottom: 4, display: 'inline-block',
+          }}>
             {clientName} 様
           </div>
           <div style={{ fontSize: 11, color: '#333', marginTop: 12, lineHeight: 1.8 }}>
@@ -59,8 +70,11 @@ export default function InvoicePDF({
             <div style={{ marginTop: 4 }}>下記のとおりご請求申し上げます。</div>
           </div>
           <div style={{ marginTop: 16, display: 'flex', alignItems: 'baseline', gap: 16 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>ご請求金額</span>
-            <span style={{ fontSize: 22, fontWeight: 700, color: '#111', fontFamily: "'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize: 13, fontWeight: font.weight.bold, color: '#111' }}>ご請求金額</span>
+            <span style={{
+              fontSize: 22, fontWeight: font.weight.bold,
+              color: '#111', fontFamily: monoFamily,
+            }}>
               ¥ {fmt(total)} -
             </span>
           </div>
@@ -71,7 +85,7 @@ export default function InvoicePDF({
 
         {/* 右: 発行元 */}
         <div style={{ width: 260, fontSize: 11, color: '#333', lineHeight: 1.7, textAlign: 'left' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: font.weight.bold, color: '#111', marginBottom: 6 }}>
             M&Aソーシングパートナーズ株式会社
           </div>
           <div>〒106-0031</div>
@@ -87,11 +101,11 @@ export default function InvoicePDF({
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
           <thead>
             <tr style={{ backgroundColor: '#f0f0f0', borderTop: '2px solid #222', borderBottom: '2px solid #222' }}>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, width: '36%', color: '#111' }}>品番・品名</th>
-              <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, width: '10%', color: '#111' }}>数量</th>
-              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, width: '17%', color: '#111' }}>単価</th>
-              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, width: '17%', color: '#111' }}>金額</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, width: '20%', color: '#111' }}>備考</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: font.weight.semibold, width: '36%', color: '#111' }}>品番・品名</th>
+              <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: font.weight.semibold, width: '10%', color: '#111' }}>数量</th>
+              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: font.weight.semibold, width: '17%', color: '#111' }}>単価</th>
+              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: font.weight.semibold, width: '17%', color: '#111' }}>金額</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: font.weight.semibold, width: '20%', color: '#111' }}>備考</th>
             </tr>
           </thead>
           <tbody>
@@ -99,8 +113,8 @@ export default function InvoicePDF({
               <tr key={i} style={{ borderBottom: '1px solid #e0e0e0' }}>
                 <td style={{ padding: '10px 12px', color: '#222' }}>{item.company}</td>
                 <td style={{ padding: '10px 12px', textAlign: 'center', color: '#222' }}>{item.quantity}</td>
-                <td style={{ padding: '10px 12px', textAlign: 'right', color: '#222', fontFamily: "'JetBrains Mono', monospace" }}>{fmt(item.unitPrice)}</td>
-                <td style={{ padding: '10px 12px', textAlign: 'right', color: '#222', fontFamily: "'JetBrains Mono', monospace" }}>{fmt(item.amount)}</td>
+                <td style={{ padding: '10px 12px', textAlign: 'right', color: '#222', fontFamily: monoFamily }}>{fmt(item.unitPrice)}</td>
+                <td style={{ padding: '10px 12px', textAlign: 'right', color: '#222', fontFamily: monoFamily }}>{fmt(item.amount)}</td>
                 <td style={{ padding: '10px 12px', color: '#222', fontSize: 10 }}>{item.note || ''}</td>
               </tr>
             ))}
@@ -124,23 +138,23 @@ export default function InvoicePDF({
               {taxType === '税別' ? (
                 <>
                   <tr style={{ borderBottom: '1px solid #e0e0e0' }}>
-                    <td style={{ padding: '8px 12px', fontWeight: 600, color: '#111' }}>小計</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'right', color: '#111', fontFamily: "'JetBrains Mono', monospace" }}>{fmt(subtotal)}</td>
+                    <td style={{ padding: '8px 12px', fontWeight: font.weight.semibold, color: '#111' }}>小計</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', color: '#111', fontFamily: monoFamily }}>{fmt(subtotal)}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #e0e0e0' }}>
-                    <td style={{ padding: '8px 12px', fontWeight: 600, color: '#111' }}>消費税 (10%)</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'right', color: '#111', fontFamily: "'JetBrains Mono', monospace" }}>{fmt(tax)}</td>
+                    <td style={{ padding: '8px 12px', fontWeight: font.weight.semibold, color: '#111' }}>消費税 (10%)</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', color: '#111', fontFamily: monoFamily }}>{fmt(tax)}</td>
                   </tr>
                   <tr style={{ borderBottom: '2px solid #222' }}>
-                    <td style={{ padding: '8px 12px', fontWeight: 700, color: '#111' }}>合計</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#111', fontFamily: "'JetBrains Mono', monospace" }}>{fmt(total)}</td>
+                    <td style={{ padding: '8px 12px', fontWeight: font.weight.bold, color: '#111' }}>合計</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: font.weight.bold, color: '#111', fontFamily: monoFamily }}>{fmt(total)}</td>
                   </tr>
                 </>
               ) : (
                 <>
                   <tr style={{ borderBottom: '2px solid #222' }}>
-                    <td style={{ padding: '8px 12px', fontWeight: 700, color: '#111' }}>合計（税込）</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#111', fontFamily: "'JetBrains Mono', monospace" }}>{fmt(total)}</td>
+                    <td style={{ padding: '8px 12px', fontWeight: font.weight.bold, color: '#111' }}>合計（税込）</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: font.weight.bold, color: '#111', fontFamily: monoFamily }}>{fmt(total)}</td>
                   </tr>
                   <tr>
                     <td colSpan={2} style={{ padding: '6px 12px', fontSize: 10, color: '#666', textAlign: 'right' }}>
@@ -160,7 +174,7 @@ export default function InvoicePDF({
         fontSize: 11, color: '#222', lineHeight: 1.8,
         borderTop: '1px solid #ccc', paddingTop: 12,
       }}>
-        <span style={{ fontWeight: 700 }}>お振込先：</span><br />
+        <span style={{ fontWeight: font.weight.bold }}>お振込先：</span><br />
         GMOあおぞらネット銀行　法人営業部(101)　普通預金　2370528　M&Aソーシングパートナーズ株式会社
       </div>
     </div>

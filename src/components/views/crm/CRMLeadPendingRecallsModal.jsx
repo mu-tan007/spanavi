@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { C } from '../../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Badge } from '../../ui';
 import { fetchAllPendingRecalls } from '../../../lib/supabaseWrite';
 import { NAVY, GRAY_200, GRAY_50 } from './utils';
 
@@ -68,50 +70,58 @@ export default function CRMLeadPendingRecallsModal({ onClose }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
+        background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
         width: 880, maxHeight: '85vh', overflow: 'hidden',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+        boxShadow: shadow.xl,
         display: 'flex', flexDirection: 'column',
       }}>
         <div style={{
-          padding: '12px 20px', background: NAVY, color: '#fff',
-          fontWeight: 700, fontSize: 14,
+          padding: '12px 20px', background: color.navy, color: color.white,
+          fontWeight: font.weight.bold, fontSize: font.size.md,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
             再コール予定の企業
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.85)', fontWeight: 400, marginTop: 2 }}>
+            <div style={{
+              fontSize: font.size.xs - 1, color: alpha(color.white, 0.85),
+              fontWeight: font.weight.normal, marginTop: 2,
+            }}>
               全リスト横断 ・ {sorted.length} 件
               {overdueCount > 0 && (
-                <span style={{ color: '#FFD66B', fontWeight: 700, marginLeft: 8 }}>
+                <span style={{ color: '#FFD66B', fontWeight: font.weight.bold, marginLeft: 8 }}>
                   予定日超過 {overdueCount} 件
                 </span>
               )}
             </div>
           </div>
-          <button onClick={onClose} style={{
-            padding: '5px 12px', borderRadius: 3,
-            border: '1px solid #fff', background: 'transparent',
-            color: '#fff', fontSize: 11, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-          }}>閉じる</button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onClose}
+            style={{
+              borderColor: color.white,
+              color: color.white,
+              background: 'transparent',
+            }}
+          >閉じる</Button>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {isLoading ? (
-            <div style={{ padding: 40, textAlign: 'center', color: C.textLight, fontSize: 12 }}>
+            <div style={{ padding: 40, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
               読み込み中...
             </div>
           ) : sorted.length === 0 ? (
-            <div style={{ padding: 40, textAlign: 'center', color: C.textLight, fontSize: 12 }}>
+            <div style={{ padding: 40, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
               再コール予定の企業はありません
             </div>
           ) : (
             <>
               <div style={{
                 display: 'grid', gridTemplateColumns: cols,
-                padding: '8px 16px', background: GRAY_50,
-                fontSize: 11, fontWeight: 700, color: NAVY,
-                borderBottom: '1px solid ' + GRAY_200,
+                padding: '8px 16px', background: color.gray50,
+                fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy,
+                borderBottom: `1px solid ${color.border}`,
                 position: 'sticky', top: 0, zIndex: 1,
               }}>
                 <span>予定日時</span>
@@ -128,44 +138,44 @@ export default function CRMLeadPendingRecallsModal({ onClose }) {
                     key={r.id}
                     style={{
                       display: 'grid', gridTemplateColumns: cols,
-                      padding: '10px 16px', fontSize: 11, alignItems: 'center',
-                      borderBottom: '1px solid ' + GRAY_200,
-                      background: isOverdue ? '#FEE2E230' : '#fff',
+                      padding: '10px 16px', fontSize: font.size.xs, alignItems: 'center',
+                      borderBottom: `1px solid ${color.border}`,
+                      background: isOverdue ? alpha(color.danger, 0.08) : color.white,
                     }}
                   >
                     <span style={{
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: font.family.mono,
                       fontVariantNumeric: 'tabular-nums',
-                      color: isOverdue ? '#DC2626' : NAVY,
-                      fontWeight: isOverdue ? 700 : 600,
+                      color: isOverdue ? color.danger : color.navy,
+                      fontWeight: isOverdue ? font.weight.bold : font.weight.semibold,
                     }}>
                       {formatRecallAt(r.recall_at_raw)}
                       {isOverdue && (
-                        <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, color: '#DC2626' }}>超過</span>
+                        <Badge variant="danger" size="sm" style={{ marginLeft: 6 }}>超過</Badge>
                       )}
                     </span>
-                    <span style={{ fontWeight: 600, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontWeight: font.weight.semibold, color: color.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {r.company?.company || '(企業名不明)'}
                       {r.company?.representative && (
-                        <span style={{ marginLeft: 6, fontSize: 9, color: C.textLight, fontWeight: 400 }}>
+                        <span style={{ marginLeft: 6, fontSize: 9, color: color.textLight, fontWeight: font.weight.normal }}>
                           {r.company.representative}
                         </span>
                       )}
                     </span>
-                    <span style={{ color: C.textMid, fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ color: color.textMid, fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {r.list?.name || '(リスト不明)'}
                     </span>
                     <span style={{
-                      fontSize: 10, fontWeight: 700,
+                      fontSize: 10, fontWeight: font.weight.bold,
                       color: r.status === 'reception_recall' ? '#B8860B' : '#1E40AF',
                     }}>
                       {STATUS_LABEL[r.status] || r.status}
                     </span>
                     <span style={{
                       textAlign: 'center',
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: font.family.mono,
                       fontVariantNumeric: 'tabular-nums',
-                      color: C.textMid, fontSize: 10,
+                      color: color.textMid, fontSize: 10,
                     }}>{r.round}周目</span>
                   </div>
                 );
@@ -175,8 +185,8 @@ export default function CRMLeadPendingRecallsModal({ onClose }) {
         </div>
 
         <div style={{
-          padding: '8px 16px', borderTop: '1px solid ' + GRAY_200,
-          fontSize: 10, color: C.textLight,
+          padding: '8px 16px', borderTop: `1px solid ${color.border}`,
+          fontSize: 10, color: color.textLight,
         }}>
           ※「最新ラウンドが受付再コール／キーマン再コール」の企業のみを表示。
           memo の予定日時はそのレコード作成時に入力された値を使用。

@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 import { Database, Upload } from 'lucide-react';
 import DatabaseFilterPanel from '../database/DatabaseFilterPanel';
 import DatabaseResultTable from '../database/DatabaseResultTable';
@@ -53,7 +55,7 @@ export default function DatabaseView({ isAdmin }) {
         csvRows.push(vals.join(','));
       }
 
-      const bom = '\uFEFF';
+      const bom = '﻿';
       const blob = new Blob([bom + csvRows.join('\n')], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -75,18 +77,13 @@ export default function DatabaseView({ isAdmin }) {
         style={{ marginBottom: 24 }}
         right={
           <>
-            <button onClick={() => setShowTsrModal(true)}
-              style={{ padding: '6px 14px', borderRadius: 4, border: `1px solid ${C.border}`, background: C.white, cursor: 'pointer', fontSize: 11, fontWeight: 600, color: C.navy, fontFamily: "'Noto Sans JP'" }}>
+            <Button variant="secondary" size="sm" onClick={() => setShowTsrModal(true)}>
               TSR業種分類一覧
-            </button>
+            </Button>
             {isAdmin && (
-              <button onClick={() => setShowImport(true)} style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                background: C.navy, color: C.white, border: 'none',
-                borderRadius: 4, padding: '7px 14px', fontWeight: 600, fontSize: 12, cursor: 'pointer',
-              }}>
-                <Upload size={14} /> リストインポート
-              </button>
+              <Button size="sm" iconLeft={<Upload size={14} />} onClick={() => setShowImport(true)}>
+                リストインポート
+              </Button>
             )}
           </>
         }
@@ -106,9 +103,11 @@ export default function DatabaseView({ isAdmin }) {
 
       {/* Error */}
       {error && (
-        <div style={{ padding: 12, background: '#FEE', borderRadius: 8, color: '#C00', fontSize: 13, marginBottom: 12 }}>
-          エラー: {error}
-        </div>
+        <Card padding="sm" style={{ background: color.dangerSoft, borderColor: alpha(color.danger, 0.25), marginBottom: 12 }}>
+          <div style={{ color: color.danger, fontSize: font.size.base }}>
+            エラー: {error}
+          </div>
+        </Card>
       )}
 
       {/* Results */}
@@ -133,14 +132,11 @@ export default function DatabaseView({ isAdmin }) {
 
       {/* Initial state */}
       {!hasSearched && !loading && (
-        <div style={{
-          textAlign: 'center', padding: '60px 20px', color: C.textLight,
-          background: C.white, borderRadius: 10, border: `1px solid ${C.border}`,
-        }}>
-          <Database size={48} color={C.border} style={{ marginBottom: 12 }} />
-          <div style={{ fontSize: 15, marginBottom: 6 }}>条件を指定して検索してください</div>
-          <div style={{ fontSize: 12 }}>業種・エリア・売上高・従業員数・代表者年齢・電話番号などで絞り込めます</div>
-        </div>
+        <Card padding="none" style={{ textAlign: 'center', padding: '60px 20px', color: color.textLight }}>
+          <Database size={48} color={color.border} style={{ marginBottom: 12 }} />
+          <div style={{ fontSize: font.size.md + 1, marginBottom: 6 }}>条件を指定して検索してください</div>
+          <div style={{ fontSize: font.size.sm }}>業種・エリア・売上高・従業員数・代表者年齢・電話番号などで絞り込めます</div>
+        </Card>
       )}
 
       {showTsrModal && <TsrIndustryModal onClose={() => setShowTsrModal(false)} />}

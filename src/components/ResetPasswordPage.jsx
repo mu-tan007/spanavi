@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { supabase, isInviteFlow } from '../lib/supabase'
+import { color, space, radius, font, shadow, alpha } from '../constants/design';
+import { Button, Input, Select, Card, Badge } from './ui';
 
 const C = {
   navy: '#0D2247',
@@ -46,38 +48,38 @@ export default function ResetPasswordPage({ onComplete }) {
   }
 
   const inputStyle = {
-    width: '100%', padding: '10px 14px', borderRadius: 4,
-    border: '1px solid ' + C.gray200, fontSize: 14, color: C.textDark,
-    fontFamily: "'Noto Sans JP'", outline: 'none',
+    width: '100%', padding: '10px 14px', borderRadius: radius.md,
+    border: '1px solid ' + C.gray200, fontSize: font.size.md, color: C.textDark,
+    fontFamily: font.family.sans, outline: 'none',
     transition: 'border-color 0.2s, box-shadow 0.2s',
     boxSizing: 'border-box', background: C.white,
   }
 
-  const labelStyle = { fontSize: 12, fontWeight: 600, color: C.labelColor, marginBottom: 4 }
+  const labelStyle = { fontSize: font.size.sm, fontWeight: font.weight.semibold, color: C.labelColor, marginBottom: 4 }
 
   const btnStyle = {
-    width: '100%', padding: '10px 16px', borderRadius: 4, border: 'none',
+    width: '100%', padding: '10px 16px', borderRadius: radius.md, border: 'none',
     cursor: loading ? 'not-allowed' : 'pointer',
-    background: C.navy, color: C.white, fontSize: 14, fontWeight: 600,
-    fontFamily: "'Noto Sans JP'", opacity: loading ? 0.6 : 1,
+    background: C.navy, color: C.white, fontSize: font.size.md, fontWeight: font.weight.semibold,
+    fontFamily: font.family.sans, opacity: loading ? 0.6 : 1,
   }
 
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: C.navy, fontFamily: "'Noto Sans JP', sans-serif", padding: '20px',
+      background: C.navy, fontFamily: font.family.sans, padding: '20px',
     }}>
       <div style={{
-        background: C.white, border: '1px solid ' + C.gray200, borderRadius: 4,
+        background: C.white, border: '1px solid ' + C.gray200, borderRadius: radius.md,
         padding: '40px', width: '100%', maxWidth: 400,
         boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
       }}>
         {done ? (
           <div style={{ textAlign: 'center', padding: '10px 0' }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: C.navy, marginBottom: 12 }}>
+            <div style={{ fontSize: font.size.xl, fontWeight: font.weight.bold, color: C.navy, marginBottom: 12 }}>
               パスワードを更新しました
             </div>
-            <div style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.8, marginBottom: 24 }}>
+            <div style={{ fontSize: font.size.base, color: C.textMuted, lineHeight: 1.8, marginBottom: 24 }}>
               新しいパスワードでログインできます。
             </div>
             <button
@@ -92,10 +94,10 @@ export default function ResetPasswordPage({ onComplete }) {
         ) : (
           <>
             <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <div style={{ fontSize: 20, fontWeight: 700, color: C.navy, marginBottom: 4 }}>
+              <div style={{ fontSize: font.size.xl, fontWeight: font.weight.bold, color: C.navy, marginBottom: 4 }}>
                 {isInviteFlow ? 'パスワード初期設定' : 'パスワード再設定'}
               </div>
-              <div style={{ fontSize: 13, color: C.textMuted }}>
+              <div style={{ fontSize: font.size.base, color: C.textMuted }}>
                 {isInviteFlow
                   ? 'Spanavi へようこそ。ログイン用のパスワードを設定してください'
                   : '新しいパスワードを入力してください'}
@@ -136,7 +138,7 @@ export default function ResetPasswordPage({ onComplete }) {
               </div>
 
               {error && (
-                <div style={{ marginBottom: 12, fontSize: 12, color: C.errorRed }}>
+                <div style={{ marginBottom: 12, fontSize: font.size.sm, color: C.errorRed }}>
                   {error}
                 </div>
               )}

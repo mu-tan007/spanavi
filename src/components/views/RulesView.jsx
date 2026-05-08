@@ -1,4 +1,6 @@
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 import PageHeader from '../common/PageHeader';
 
 const NAVY = '#0D2247';
@@ -93,72 +95,78 @@ function resolveCategory(industry) {
 
 function IndustryCard({ name, rule, highlight }) {
   return (
-    <div style={{
-      background: '#fff',
-      borderRadius: 4,
-      border: '1px solid ' + (highlight ? NAVY : '#E5E7EB'),
-      borderLeft: '3px solid ' + (highlight ? NAVY : '#E5E7EB'),
-      padding: '16px 20px',
-      animation: 'fadeIn 0.3s ease',
-    }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: NAVY }}>{name}</span>
-          <span style={{ fontSize: 10, fontWeight: 600, color: '#6B7280' }}>{rule.label}</span>
+    <Card
+      padding="none"
+      style={{
+        borderColor: highlight ? NAVY : color.border,
+        borderLeft: '3px solid ' + (highlight ? NAVY : color.border),
+        animation: 'fadeIn 0.3s ease',
+      }}
+    >
+      <div style={{ padding: '16px 20px' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{ fontSize: font.size.md + 1, fontWeight: font.weight.bold, color: NAVY }}>{name}</span>
+            <span style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, color: color.gray500 }}>{rule.label}</span>
+          </div>
+          {highlight && (
+            <span style={{ borderLeft: '3px solid ' + NAVY, paddingLeft: 8, color: NAVY, fontSize: font.size.sm }}>
+              現在のリスト
+            </span>
+          )}
         </div>
-        {highlight && (
-          <span style={{ borderLeft: '3px solid ' + NAVY, paddingLeft: 8, color: NAVY, fontSize: 12 }}>
-            現在のリスト
-          </span>
-        )}
+
+        {/* Success Rate */}
+        <div style={{
+          fontSize: font.size.xs, color: color.gray700,
+          background: color.gray50, border: '1px solid ' + color.border, borderRadius: radius.md,
+          padding: '5px 10px', marginBottom: 12, fontWeight: font.weight.medium,
+        }}>
+          {rule.successRate}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          {/* Golden Time */}
+          <div>
+            <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: NAVY, borderBottom: '2px solid ' + NAVY, paddingBottom: 6, marginBottom: 12 }}>
+              Golden Time
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {rule.goldenTime.map((t, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 5 }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#1E40AF', flexShrink: 0, marginTop: 5 }} />
+                  <span style={{ fontSize: font.size.xs, color: color.textDark, lineHeight: font.lineHeight.normal }}>{t}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* President Pattern */}
+          <div>
+            <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: NAVY, borderBottom: '2px solid ' + NAVY, paddingBottom: 6, marginBottom: 12 }}>
+              President Pattern
+            </div>
+            <p style={{ fontSize: font.size.xs, color: color.textMid, lineHeight: 1.6, margin: 0 }}>{rule.presidentPattern}</p>
+          </div>
+
+          {/* Pain Points */}
+          <div>
+            <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: NAVY, borderBottom: '2px solid ' + NAVY, paddingBottom: 6, marginBottom: 12 }}>
+              Pain Points
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {rule.painPoints.map((p, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 5 }}>
+                  <span style={{ width: 5, height: 5, borderRadius: 1, background: color.gray500, flexShrink: 0, marginTop: 5 }} />
+                  <span style={{ fontSize: font.size.xs, color: color.textDark, lineHeight: font.lineHeight.normal }}>{p}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
-
-      {/* Success Rate */}
-      <div style={{ fontSize: 11, color: '#374151', background: '#F8F9FA', border: '1px solid #E5E7EB', borderRadius: 4, padding: '5px 10px', marginBottom: 12, fontWeight: 500 }}>
-        {rule.successRate}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-        {/* Golden Time */}
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid #0D2247', paddingBottom: 6, marginBottom: 12 }}>
-            Golden Time
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {rule.goldenTime.map((t, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 5 }}>
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#1E40AF', flexShrink: 0, marginTop: 5 }} />
-                <span style={{ fontSize: 11, color: C.textDark, lineHeight: 1.5 }}>{t}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* President Pattern */}
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid #0D2247', paddingBottom: 6, marginBottom: 12 }}>
-            President Pattern
-          </div>
-          <p style={{ fontSize: 11, color: C.textMid, lineHeight: 1.6, margin: 0 }}>{rule.presidentPattern}</p>
-        </div>
-
-        {/* Pain Points */}
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid #0D2247', paddingBottom: 6, marginBottom: 12 }}>
-            Pain Points
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {rule.painPoints.map((p, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 5 }}>
-                <span style={{ width: 5, height: 5, borderRadius: 1, background: '#6B7280', flexShrink: 0, marginTop: 5 }} />
-                <span style={{ fontSize: 11, color: C.textDark, lineHeight: 1.5 }}>{p}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
+    </Card>
   );
 }
 
@@ -173,25 +181,17 @@ export default function RulesView({ currentIndustry, onBack }) {
         description="業種別対応ルール・注意事項"
         style={{ marginBottom: 24 }}
         right={onBack ? (
-          <button
-            onClick={onBack}
-            style={{
-              padding: '7px 14px', fontSize: 12, fontWeight: 600,
-              background: C.white, color: C.navy,
-              border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer',
-              fontFamily: "'Noto Sans JP',sans-serif",
-            }}
-          >← Lists に戻る</button>
+          <Button variant="secondary" size="sm" onClick={onBack}>← Lists に戻る</Button>
         ) : null}
       />
 
       {/* Active category notice */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 13, color: C.textMid }}>
+        <div style={{ fontSize: font.size.base, color: color.textMid }}>
           業種別の架電ゴールデンタイム・社長の行動パターン・刺さる痛点
         </div>
         {activeCategory && (
-          <div style={{ marginTop: 8, fontSize: 11, color: NAVY, fontWeight: 600, borderLeft: '3px solid ' + NAVY, paddingLeft: 8 }}>
+          <div style={{ marginTop: 8, fontSize: font.size.xs, color: NAVY, fontWeight: font.weight.semibold, borderLeft: '3px solid ' + NAVY, paddingLeft: 8 }}>
             現在のリスト業種「{currentIndustry}」→ {activeCategory} カテゴリを強調表示中
           </div>
         )}

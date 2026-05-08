@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { C } from '../../constants/colors';
 import { X } from 'lucide-react';
+import { color, space, radius, font, shadow } from '../../constants/design';
+import { Input, Badge } from '../ui';
 
 /**
  * 複数選択対応インクリメンタルサーチ
@@ -91,42 +92,41 @@ export default function CategorySearchInput({ items, value = [], onChange, place
       {value.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: 4 }}>
           {value.map((v, i) => (
-            <span key={i} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 2,
-              padding: '2px 7px', fontSize: 11, borderRadius: 4,
-              background: C.navy, color: C.white, whiteSpace: 'nowrap',
-            }}>
+            <Badge
+              key={i}
+              variant="primary"
+              solid
+              size="sm"
+              style={{ background: color.navy, gap: 2 }}
+            >
               {v}
               <X size={11} style={{ cursor: 'pointer', opacity: 0.8 }} onClick={() => handleRemove(v)} />
-            </span>
+            </Badge>
           ))}
           <button onClick={handleClearAll} style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            color: C.textLight, fontSize: 10, padding: '2px 4px',
+            color: color.textLight, fontSize: 10, padding: '2px 4px',
           }}>全解除</button>
         </div>
       )}
 
       {/* Input */}
-      <input
+      <Input
+        size="sm"
         type="text"
         value={input}
         onChange={handleInputChange}
         onPaste={handlePaste}
         onFocus={() => setOpen(true)}
         placeholder={value.length > 0 ? '追加...' : placeholder}
-        style={{
-          width: '100%', padding: '6px 8px', border: `1px solid ${C.border}`,
-          borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box',
-        }}
       />
 
       {/* Dropdown */}
       {open && filtered.length > 0 && (
         <div style={{
           position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999,
-          background: C.white, border: `1px solid ${C.border}`, borderRadius: 6,
-          maxHeight: 240, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+          background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.lg,
+          maxHeight: 240, overflowY: 'auto', boxShadow: shadow.md,
           marginTop: 2,
         }}>
           {filtered.map((item, i) => (
@@ -134,10 +134,10 @@ export default function CategorySearchInput({ items, value = [], onChange, place
               key={i}
               onClick={() => handleSelect(item)}
               style={{
-                padding: '7px 10px', cursor: 'pointer', fontSize: 13,
-                borderBottom: i < filtered.length - 1 ? `1px solid ${C.borderLight}` : 'none',
+                padding: `7px ${space[2.5]}px`, cursor: 'pointer', fontSize: font.size.base,
+                borderBottom: i < filtered.length - 1 ? `1px solid ${color.borderLight}` : 'none',
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = C.offWhite}
+              onMouseEnter={(e) => e.currentTarget.style.background = color.offWhite}
               onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
             >
               {item}

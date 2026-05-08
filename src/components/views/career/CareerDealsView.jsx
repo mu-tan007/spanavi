@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { C } from '../../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../../ui';
 import { useEngagements } from '../../../hooks/useEngagements';
 import { useDealStages } from '../../../hooks/useDealStages';
 import { useCareerDeals } from '../../../hooks/useCareerDeals';
@@ -34,28 +36,28 @@ export default function CareerDealsView() {
 
   if (!currentEngagement) return null;
   if (stagesLoading || dealsLoading) {
-    return <div style={{ padding: 40, textAlign: 'center', color: C.textMid }}>読み込み中...</div>;
+    return <div style={{ padding: space[10], textAlign: 'center', color: color.textMid }}>読み込み中...</div>;
   }
 
   const openDeals = deals.filter(d => d.closed_status !== 'lost');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', background: C.offWhite, margin: -28, marginTop: 0, marginBottom: 0 }}>
-      <div style={{ padding: '14px 20px 0', background: C.white }}>
-        <div style={{ fontSize: 10, color: C.textLight, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', background: color.offWhite, margin: -28, marginTop: 0, marginBottom: 0 }}>
+      <div style={{ padding: '14px 20px 0', background: color.white }}>
+        <div style={{ fontSize: font.size.xs - 1, color: color.textLight, letterSpacing: font.letterSpacing.widest, textTransform: 'uppercase', marginBottom: 2 }}>
           スパキャリ · Pipeline
         </div>
-        <h1 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 2px', color: C.navy, fontFamily: "'Outfit','Noto Sans JP',sans-serif" }}>
+        <h1 style={{ fontSize: font.size.xl, fontWeight: font.weight.semibold, margin: '0 0 2px', color: color.navy, fontFamily: font.family.display }}>
           Deals
         </h1>
-        <p style={{ fontSize: 11, color: C.textMid, margin: '0 0 12px' }}>
+        <p style={{ fontSize: font.size.xs, color: color.textMid, margin: '0 0 12px' }}>
           商談パイプライン — 応募獲得〜契約成立まで
         </p>
       </div>
 
       <div style={{
-        display: 'flex', padding: '0 20px', borderBottom: `1px solid ${C.border}`,
-        background: C.white, gap: 0,
+        display: 'flex', padding: '0 20px', borderBottom: `1px solid ${color.border}`,
+        background: color.white, gap: 0,
       }}>
         {TABS.map(tab => {
           const active = activeTab === tab.id;
@@ -65,15 +67,15 @@ export default function CareerDealsView() {
               type="button"
               onClick={() => setActiveTab(tab.id)}
               style={{
-                fontSize: 12, padding: '10px 16px',
+                fontSize: font.size.sm, padding: '10px 16px',
                 background: 'transparent', border: 'none',
-                borderBottom: active ? `2px solid ${C.gold}` : '2px solid transparent',
-                color: active ? C.navy : C.textMid,
-                fontWeight: active ? 600 : 400, marginBottom: -1,
-                cursor: 'pointer', fontFamily: "'Noto Sans JP',sans-serif",
+                borderBottom: active ? `2px solid ${color.gold}` : '2px solid transparent',
+                color: active ? color.navy : color.textMid,
+                fontWeight: active ? font.weight.semibold : font.weight.normal, marginBottom: -1,
+                cursor: 'pointer', fontFamily: font.family.sans,
               }}
-              onMouseEnter={e => { if (!active) e.currentTarget.style.color = C.navy; }}
-              onMouseLeave={e => { if (!active) e.currentTarget.style.color = C.textMid; }}
+              onMouseEnter={e => { if (!active) e.currentTarget.style.color = color.navy; }}
+              onMouseLeave={e => { if (!active) e.currentTarget.style.color = color.textMid; }}
             >{tab.label}</button>
           );
         })}

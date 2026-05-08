@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 import { CALL_RESULTS } from '../../constants/callResults';
-import { Badge } from '../common/Badge';
+import { Badge as CommonBadge } from '../common/Badge';
 import PageHeader from '../common/PageHeader';
 
 const INTERNS = [
@@ -27,8 +29,6 @@ export default function LogView({ callLogs, logFormOpen, setLogFormOpen, addCall
     setFormData({ listId: "", caller: "", startNum: "", endNum: "", memo: "" });
   };
 
-  const inputStyle = { padding: "10px 14px", borderRadius: 6, background: C.offWhite, border: "1px solid " + C.border, color: C.textDark, fontSize: 13, fontFamily: "'Noto Sans JP'", outline: "none", width: "100%" };
-
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
       <PageHeader
@@ -37,83 +37,110 @@ export default function LogView({ callLogs, logFormOpen, setLogFormOpen, addCall
         description="日次架電の記録と重複チェック"
         style={{ marginBottom: 24 }}
         right={
-          <button onClick={() => setLogFormOpen(!logFormOpen)} style={{
-            padding: "7px 14px", borderRadius: 4,
-            background: logFormOpen ? C.white : C.navy,
-            border: logFormOpen ? "1px solid " + C.border : "none",
-            color: logFormOpen ? C.textDark : C.white, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-          }}>{logFormOpen ? "✕ 閉じる" : "＋ ログを記録"}</button>
+          <Button
+            variant={logFormOpen ? 'secondary' : 'primary'}
+            size="sm"
+            onClick={() => setLogFormOpen(!logFormOpen)}
+          >{logFormOpen ? "✕ 閉じる" : "＋ ログを記録"}</Button>
         }
       />
 
       {logFormOpen && (
-        <div style={{ background: C.white, border: "1px solid " + C.gold + "40", borderRadius: 12, padding: 24, marginBottom: 24, animation: "fadeIn 0.3s ease", borderLeft: "2px solid " + C.gold }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16, color: C.navy }}>新しい架電ログ</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <div>
-              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>リスト *</label>
-              <select value={formData.listId} onChange={e => setFormData(p => ({ ...p, listId: e.target.value }))} style={inputStyle}>
-                <option value="">選択してください</option>
-                {availableLists.map(l => <option key={l.id} value={l.id}>{l.company} - {l.industry}（{l.count.toLocaleString()}社）</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>架電者 *</label>
-              <select value={formData.caller} onChange={e => setFormData(p => ({ ...p, caller: e.target.value }))} style={inputStyle}>
-                <option value="">選択してください</option>
-                {INTERNS.map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>開始番号</label>
-              <input type="number" placeholder="" value={formData.startNum} onChange={e => setFormData(p => ({ ...p, startNum: e.target.value }))} style={inputStyle} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>終了番号</label>
-              <input type="number" placeholder="" value={formData.endNum} onChange={e => setFormData(p => ({ ...p, endNum: e.target.value }))} style={inputStyle} />
-            </div>
-            <div style={{ gridColumn: "span 2" }}>
-              <label style={{ fontSize: 11, color: C.textLight, display: "block", marginBottom: 4, fontWeight: 600 }}>メモ</label>
-              <textarea value={formData.memo} onChange={e => setFormData(p => ({ ...p, memo: e.target.value }))} style={{ ...inputStyle, minHeight: 60, resize: "vertical" }} placeholder="特記事項があれば..." />
-            </div>
-          </div>
-          {formData.listId && formData.startNum && (() => {
-            const conflicts = callLogs.filter(l => {
-              if (l.listId !== parseInt(formData.listId)) return false;
-              const daysDiff = (now - new Date(l.date)) / (1000*60*60*24);
-              if (daysDiff > 2) return false;
-              const s = parseInt(formData.startNum), e = parseInt(formData.endNum) || s;
-              return l.startNum && l.endNum && !(e < l.startNum || s > l.endNum);
-            });
-            if (conflicts.length > 0) return (
-              <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 6, background: C.redLight, border: "1px solid " + C.red + "30", fontSize: 12, color: C.red }}>
-                直近2日以内にこの番号範囲で架電記録があります：{conflicts.map(c => c.caller + "（" + c.startNum + "〜" + c.endNum + "番）").join("、")}
+        <Card
+          padding="none"
+          style={{
+            border: "1px solid " + alpha(color.gold, 0.25),
+            borderLeft: "2px solid " + color.gold,
+            marginBottom: 24,
+            animation: "fadeIn 0.3s ease",
+          }}
+        >
+          <div style={{ padding: 24 }}>
+            <div style={{ fontSize: font.size.md, fontWeight: font.weight.semibold, marginBottom: 16, color: color.navy }}>新しい架電ログ</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <Select
+                label="リスト *"
+                value={formData.listId}
+                onChange={e => setFormData(p => ({ ...p, listId: e.target.value }))}
+                options={[
+                  { value: "", label: "選択してください" },
+                  ...availableLists.map(l => ({ value: l.id, label: `${l.company} - ${l.industry}（${l.count.toLocaleString()}社）` })),
+                ]}
+              />
+              <Select
+                label="架電者 *"
+                value={formData.caller}
+                onChange={e => setFormData(p => ({ ...p, caller: e.target.value }))}
+                options={[
+                  { value: "", label: "選択してください" },
+                  ...INTERNS.map(n => ({ value: n, label: n })),
+                ]}
+              />
+              <Input
+                label="開始番号"
+                type="number"
+                value={formData.startNum}
+                onChange={e => setFormData(p => ({ ...p, startNum: e.target.value }))}
+              />
+              <Input
+                label="終了番号"
+                type="number"
+                value={formData.endNum}
+                onChange={e => setFormData(p => ({ ...p, endNum: e.target.value }))}
+              />
+              <div style={{ gridColumn: "span 2" }}>
+                <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>メモ</label>
+                <textarea
+                  value={formData.memo}
+                  onChange={e => setFormData(p => ({ ...p, memo: e.target.value }))}
+                  style={{
+                    padding: "10px 14px", borderRadius: radius.lg, background: color.offWhite,
+                    border: "1px solid " + color.border, color: color.textDark,
+                    fontSize: font.size.base, fontFamily: font.family.sans, outline: "none",
+                    width: "100%", minHeight: 60, resize: "vertical",
+                    boxSizing: "border-box",
+                  }}
+                  placeholder="特記事項があれば..."
+                />
               </div>
-            );
-            return null;
-          })()}
-          <div style={{ marginTop: 16 }}>
-            <button onClick={handleSubmit} disabled={!formData.listId || !formData.caller} style={{
-              padding: "10px 28px", borderRadius: 8,
-              background: formData.listId && formData.caller ? C.navy : C.border,
-              border: "none", color: C.white, cursor: formData.listId && formData.caller ? "pointer" : "not-allowed",
-              fontSize: 13, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-            }}>記録する</button>
+            </div>
+            {formData.listId && formData.startNum && (() => {
+              const conflicts = callLogs.filter(l => {
+                if (l.listId !== parseInt(formData.listId)) return false;
+                const daysDiff = (now - new Date(l.date)) / (1000*60*60*24);
+                if (daysDiff > 2) return false;
+                const s = parseInt(formData.startNum), e = parseInt(formData.endNum) || s;
+                return l.startNum && l.endNum && !(e < l.startNum || s > l.endNum);
+              });
+              if (conflicts.length > 0) return (
+                <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: radius.lg, background: color.dangerSoft, border: "1px solid " + alpha(color.danger, 0.2), fontSize: font.size.sm, color: color.danger }}>
+                  直近2日以内にこの番号範囲で架電記録があります：{conflicts.map(c => c.caller + "（" + c.startNum + "〜" + c.endNum + "番）").join("、")}
+                </div>
+              );
+              return null;
+            })()}
+            <div style={{ marginTop: 16 }}>
+              <Button
+                onClick={handleSubmit}
+                disabled={!formData.listId || !formData.caller}
+                size="lg"
+              >記録する</Button>
+            </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {todayLogs.length > 0 && (
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: C.textMid }}>本日の架電ログ（{todayLogs.length}件）</div>
+          <div style={{ fontSize: font.size.base, fontWeight: font.weight.semibold, marginBottom: 10, color: color.textMid }}>本日の架電ログ（{todayLogs.length}件）</div>
           {todayLogs.map(log => { const list = callListData.find(l => l.id === log.listId); return (
-            <div key={log.id} style={{ background: C.white, border: "1px solid " + C.borderLight, borderRadius: 8, padding: "10px 16px", display: "flex", alignItems: "center", gap: 12, fontSize: 12, marginBottom: 6 }}>
-              <span style={{ fontWeight: 600, color: C.navy }}>{log.caller}</span>
-              <span style={{ color: C.textLight }}>→</span>
-              <span style={{ fontWeight: 500 }}>{list?.company}</span>
-              <Badge color={C.textLight} small>{list?.industry}</Badge>
-              {log.startNum && log.endNum && <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.green }}>#{log.startNum}〜{log.endNum}</span>}
-              <span style={{ fontSize: 10, color: C.textLight, marginLeft: "auto" }}>{new Date(log.date).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}</span>
+            <div key={log.id} style={{ background: color.white, border: "1px solid " + color.borderLight, borderRadius: radius.xl, padding: "10px 16px", display: "flex", alignItems: "center", gap: 12, fontSize: font.size.sm, marginBottom: 6 }}>
+              <span style={{ fontWeight: font.weight.semibold, color: color.navy }}>{log.caller}</span>
+              <span style={{ color: color.textLight }}>→</span>
+              <span style={{ fontWeight: font.weight.medium }}>{list?.company}</span>
+              <CommonBadge color={color.textLight} small>{list?.industry}</CommonBadge>
+              {log.startNum && log.endNum && <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.success }}>#{log.startNum}〜{log.endNum}</span>}
+              <span style={{ fontSize: font.size.xs - 1, color: color.textLight, marginLeft: "auto" }}>{new Date(log.date).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}</span>
             </div>
           ); })}
         </div>
@@ -121,22 +148,22 @@ export default function LogView({ callLogs, logFormOpen, setLogFormOpen, addCall
 
       {recentLogs.length > 0 && (
         <div>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: C.textMid }}>直近の架電ログ</div>
+          <div style={{ fontSize: font.size.base, fontWeight: font.weight.semibold, marginBottom: 10, color: color.textMid }}>直近の架電ログ</div>
           {recentLogs.map(log => { const list = callListData.find(l => l.id === log.listId); return (
-            <div key={log.id} style={{ background: C.white, border: "1px solid " + C.borderLight, borderRadius: 6, padding: "8px 14px", display: "flex", alignItems: "center", gap: 10, fontSize: 11, marginBottom: 4 }}>
-              <span style={{ fontFamily: "'JetBrains Mono'", color: C.textLight, minWidth: 50, fontSize: 10 }}>{new Date(log.date).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}</span>
-              <span style={{ fontWeight: 600, color: C.navy, minWidth: 70 }}>{log.caller}</span>
-              <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list?.company} - {list?.industry}</span>
-              {log.startNum && <span style={{ color: C.green, fontFamily: "'JetBrains Mono'", fontSize: 10 }}>#{log.startNum}〜{log.endNum}</span>}
+            <div key={log.id} style={{ background: color.white, border: "1px solid " + color.borderLight, borderRadius: radius.lg, padding: "8px 14px", display: "flex", alignItems: "center", gap: 10, fontSize: font.size.xs, marginBottom: 4 }}>
+              <span style={{ fontFamily: font.family.mono, color: color.textLight, minWidth: 50, fontSize: font.size.xs - 1 }}>{new Date(log.date).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}</span>
+              <span style={{ fontWeight: font.weight.semibold, color: color.navy, minWidth: 70 }}>{log.caller}</span>
+              <span style={{ color: color.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list?.company} - {list?.industry}</span>
+              {log.startNum && <span style={{ color: color.success, fontFamily: font.family.mono, fontSize: font.size.xs - 1 }}>#{log.startNum}〜{log.endNum}</span>}
             </div>
           ); })}
         </div>
       )}
 
       {callLogs.length === 0 && !logFormOpen && (
-        <div style={{ textAlign: "center", padding: "60px 0", color: C.textLight }}>
-<div style={{ fontSize: 14 }}>まだ架電ログがありません</div>
-          <div style={{ fontSize: 12, marginTop: 4 }}>「＋ ログを記録」ボタンから始めましょう</div>
+        <div style={{ textAlign: "center", padding: "60px 0", color: color.textLight }}>
+          <div style={{ fontSize: font.size.md }}>まだ架電ログがありません</div>
+          <div style={{ fontSize: font.size.sm, marginTop: 4 }}>「＋ ログを記録」ボタンから始めましょう</div>
         </div>
       )}
     </div>

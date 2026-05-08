@@ -1,5 +1,5 @@
 import React from 'react';
-import { C } from '../../constants/colors';
+import { color, font } from '../../constants/design';
 
 // Spanavi ブランドロゴ。シールド + 2層の装飾ライン + 分割カラーの "Spanavi" テキスト。
 // size: アイコンの幅 (px)。高さは size * (60/52) で自動。
@@ -23,8 +23,8 @@ export default function SpanaviLogo({
       <svg width={size} height={h} viewBox="0 0 52 60" aria-hidden="true">
         <defs>
           <linearGradient id={shieldId} x1="0" y1="0" x2="0.3" y2="1">
-            <stop offset="0%" stopColor={C.navyLight}/>
-            <stop offset="100%" stopColor={C.navy}/>
+            <stop offset="0%" stopColor={color.navyLight}/>
+            <stop offset="100%" stopColor={color.navy}/>
           </linearGradient>
           <clipPath id={clipId}>
             <path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z" />
@@ -48,12 +48,12 @@ export default function SpanaviLogo({
       </svg>
       {!hideText && (
         <div style={{
-          fontFamily: "'Outfit', sans-serif", fontSize: ts, fontWeight: 800,
+          fontFamily: font.family.display, fontSize: ts, fontWeight: font.weight.black,
           // サイドバーと同じ固定 2px。サイズが変わっても間隔を広げない (詰まって見える方を優先)
           letterSpacing: '2px', lineHeight: 1,
         }}>
-          <span style={{ color: C.navyLight }}>Spa</span>
-          <span style={{ color: C.gold }}>navi</span>
+          <span style={{ color: color.navyLight }}>Spa</span>
+          <span style={{ color: color.gold }}>navi</span>
         </div>
       )}
     </div>

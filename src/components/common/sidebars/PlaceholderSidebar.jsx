@@ -1,4 +1,5 @@
 import React from 'react';
+import { color, font } from '../../../constants/design';
 import SidebarShell from './SidebarShell';
 
 export default function PlaceholderSidebar({
@@ -19,7 +20,7 @@ export default function PlaceholderSidebar({
     >
       <div style={{ padding: '40px 20px', textAlign: 'center' }}>
         <div style={{
-          fontSize: 14, fontWeight: 500, color: '#FFFFFF',
+          fontSize: font.size.md, fontWeight: font.weight.medium, color: color.white,
           fontFamily: "'Outfit','Noto Sans JP',sans-serif", marginBottom: 10,
           letterSpacing: '0.04em',
         }}>

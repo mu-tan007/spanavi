@@ -2,9 +2,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from 'recharts';
-import { C } from '../../constants/colors';
-
-const NAVY = '#0D2247';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
@@ -12,8 +11,11 @@ function CustomTooltip({ active, payload, label }) {
   const connect = payload.find(p => p.dataKey === 'connectOnly')?.value || 0;
   const appo = payload.find(p => p.dataKey === 'appo')?.value || 0;
   return (
-    <div style={{ background: NAVY, borderRadius: 4, padding: '8px 12px', color: '#fff', fontSize: 11 }}>
-      <div style={{ fontWeight: 700, marginBottom: 4 }}>{label}</div>
+    <div style={{
+      background: color.navy, borderRadius: radius.md,
+      padding: '8px 12px', color: color.white, fontSize: font.size.xs,
+    }}>
+      <div style={{ fontWeight: font.weight.bold, marginBottom: 4 }}>{label}</div>
       <div>架電合計: {call + connect + appo}件</div>
       <div style={{ color: '#93C5FD' }}>うち接続: {connect + appo}件</div>
       <div style={{ color: '#10B981' }}>うちアポ: {appo}件</div>
@@ -40,50 +42,46 @@ export default function HourlyActivityChart({ chartData: chartDataProp, selected
 
   const bestAppoSlot = chartData.reduce((best, d) => d.appo > (best?.appo ?? -1) ? d : best, chartData[0]);
 
-  const navBtnStyle = {
-    padding: '8px 16px', borderRadius: 4, fontSize: 13, fontWeight: 500, cursor: 'pointer',
-    fontFamily: "'Noto Sans JP'", border: '1px solid #0D2247',
-    background: '#fff', color: NAVY,
-  };
-  const dateInputStyle = {
-    padding: '4px 8px', borderRadius: 4, border: '1px solid #E5E7EB',
-    fontSize: 12, color: NAVY, outline: 'none', fontFamily: "'Noto Sans JP'",
-    fontWeight: 600, cursor: 'pointer',
-  };
-
   return (
-    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: '14px 16px', marginBottom: 20 }}>
+    <Card padding="none" style={{ marginBottom: 20, padding: '14px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid ' + NAVY, paddingBottom: 8, marginBottom: 12 }}>時間帯別活動グラフ</span>
-          {loading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
+          <span style={{
+            fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy,
+            borderBottom: `2px solid ${color.navy}`, paddingBottom: 8, marginBottom: 12,
+          }}>時間帯別活動グラフ</span>
+          {loading && <span style={{ fontSize: 10, color: color.textLight }}>読込中…</span>}
           {bestAppoSlot && bestAppoSlot.appo > 0 && (
-            <span style={{ fontSize: 11, color: NAVY, fontWeight: 700 }}>
+            <span style={{ fontSize: font.size.xs, color: color.navy, fontWeight: font.weight.bold }}>
               最もアポが取れた時間帯：{bestAppoSlot.label}（{bestAppoSlot.appo}件）
             </span>
           )}
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <button style={navBtnStyle} onClick={() => setSelectedDate(addDays(selectedDate, -1))}>◀ 前日</button>
+          <Button variant="outline" size="md" onClick={() => setSelectedDate(addDays(selectedDate, -1))}>◀ 前日</Button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <input
+            <Input
+              size="sm"
               type='date'
               value={selectedDate}
               max={todayStr}
               onChange={e => setSelectedDate(e.target.value)}
-              style={dateInputStyle}
+              fullWidth={false}
+              containerStyle={{ width: 'auto' }}
+              style={{ color: color.navy, fontWeight: font.weight.semibold }}
             />
           </div>
-          <button
-            style={{ ...navBtnStyle, opacity: selectedDate >= todayStr ? 0.4 : 1, cursor: selectedDate >= todayStr ? 'not-allowed' : 'pointer' }}
-            onClick={() => { if (selectedDate < todayStr) setSelectedDate(addDays(selectedDate, 1)); }}
+          <Button
+            variant="outline"
+            size="md"
             disabled={selectedDate >= todayStr}
-          >翌日 ▶</button>
+            onClick={() => { if (selectedDate < todayStr) setSelectedDate(addDays(selectedDate, 1)); }}
+          >翌日 ▶</Button>
         </div>
       </div>
 
       {/* 凡例 */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: 11, color: C.textMid }}>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: font.size.xs, color: color.textMid }}>
         <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#0D2247', marginRight: 4 }} />架電（接続なし）</span>
         <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#1E40AF', marginRight: 4 }} />社長接続</span>
         <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#6B7280', marginRight: 4 }} />アポ取得</span>
@@ -97,7 +95,7 @@ export default function HourlyActivityChart({ chartData: chartDataProp, selected
             const isCurrent = selectedDate === todayStr && item?.hour === nowHour;
             return (
               <text x={x} y={y + 12} textAnchor='middle' fontSize={9}
-                fill={isCurrent ? NAVY : '#374151'}
+                fill={isCurrent ? color.navy : '#374151'}
                 fontWeight={isCurrent ? 700 : 400}>{payload.value}</text>
             );
           }} />
@@ -114,6 +112,6 @@ export default function HourlyActivityChart({ chartData: chartDataProp, selected
           <Bar dataKey='appo' stackId='a' fill='#6B7280' name='アポ取得' radius={[2, 2, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
-    </div>
+    </Card>
   );
 }

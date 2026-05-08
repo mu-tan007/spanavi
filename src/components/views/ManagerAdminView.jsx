@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react';
 import MyPageView from './MyPageView';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 import PageHeader from '../common/PageHeader';
 
 const NAVY = '#0D2247';
-const GRAY_200 = '#E5E7EB';
+const GRAY_200 = color.gray200;
 
 export default function ManagerAdminView({ currentUser, members = [], appoData = [], now }) {
   const [selectedMember, setSelectedMember] = useState(null);
@@ -30,7 +32,7 @@ export default function ManagerAdminView({ currentUser, members = [], appoData =
 
   if (role !== 'チームリーダー' && role !== '営業統括') {
     return (
-      <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}>
+      <div style={{ padding: 40, textAlign: 'center', color: color.gray400, fontSize: font.size.md }}>
         アクセス権限がありません。
       </div>
     );
@@ -50,14 +52,14 @@ export default function ManagerAdminView({ currentUser, members = [], appoData =
         {/* Member list sidebar */}
         <div style={{
           width: 210, flexShrink: 0,
-          background: '#fff', borderRight: '1px solid ' + GRAY_200,
+          background: color.white, borderRight: '1px solid ' + GRAY_200,
           overflowY: 'auto', display: 'flex', flexDirection: 'column',
         }}>
           <div style={{ padding: '14px 16px 10px', borderBottom: '1px solid ' + GRAY_200, flexShrink: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: NAVY }}>
+            <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: NAVY }}>
               {role === '営業統括' ? '全メンバー' : `${currentMemberInfo?.team}チーム`}
             </div>
-            <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 2 }}>{accessibleMembers.length}名</div>
+            <div style={{ fontSize: font.size.xs - 1, color: color.gray400, marginTop: 2 }}>{accessibleMembers.length}名</div>
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {accessibleMembers.map(m => (
@@ -67,15 +69,15 @@ export default function ManagerAdminView({ currentUser, members = [], appoData =
                 style={{
                   display: 'block', width: '100%', padding: '10px 16px',
                   border: 'none', borderBottom: '1px solid ' + GRAY_200,
-                  background: selectedMember === m.name ? NAVY + '08' : '#fff',
+                  background: selectedMember === m.name ? NAVY + '08' : color.white,
                   borderLeft: selectedMember === m.name ? `3px solid ${NAVY}` : '3px solid transparent',
                   textAlign: 'left', cursor: 'pointer', transition: 'all 0.1s',
                 }}
               >
-                <div style={{ fontSize: 12, fontWeight: selectedMember === m.name ? 700 : 500, color: NAVY }}>
+                <div style={{ fontSize: font.size.sm, fontWeight: selectedMember === m.name ? font.weight.bold : font.weight.medium, color: NAVY }}>
                   {m.name}
                 </div>
-                <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 1 }}>
+                <div style={{ fontSize: font.size.xs - 1, color: color.gray400, marginTop: 1 }}>
                   {m.team ? m.team + 'チーム' : ''}{m.rank ? ' · ' + m.rank : ''}
                 </div>
               </button>
@@ -97,7 +99,7 @@ export default function ManagerAdminView({ currentUser, members = [], appoData =
           ) : (
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              height: 300, color: '#9CA3AF', fontSize: 14, flexDirection: 'column', gap: 8,
+              height: 300, color: color.gray400, fontSize: font.size.md, flexDirection: 'column', gap: 8,
             }}>
               <span style={{ fontSize: 32 }}>👤</span>
               左のリストからメンバーを選択してください

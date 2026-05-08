@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { C } from '../../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Input, Select } from '../../ui';
 import { NAVY, GRAY_200, GRAY_50 } from './utils';
 
 // アポ獲得時に表示する詳細記入モーダル
@@ -41,12 +43,16 @@ export default function CRMLeadAppoModal({ company, defaultGetterName, onSubmit,
     });
   };
 
-  const inputStyle = {
-    width: '100%', padding: '7px 10px', borderRadius: 4,
-    border: '1px solid ' + GRAY_200, fontSize: 12, fontFamily: "'Noto Sans JP'",
-    outline: 'none', background: GRAY_50, boxSizing: 'border-box',
+  const textareaStyle = {
+    width: '100%', padding: '7px 10px', borderRadius: radius.md,
+    border: `1px solid ${color.border}`, fontSize: font.size.sm, fontFamily: font.family.sans,
+    outline: 'none', background: color.gray50, color: color.textDark,
+    boxSizing: 'border-box',
   };
-  const labelStyle = { fontSize: 10, fontWeight: 600, color: NAVY, marginBottom: 3, display: 'block' };
+  const labelStyle = {
+    fontSize: font.size.xs - 1, fontWeight: font.weight.semibold,
+    color: color.navy, marginBottom: 3, display: 'block',
+  };
 
   return (
     <div onClick={onCancel} style={{
@@ -55,13 +61,19 @@ export default function CRMLeadAppoModal({ company, defaultGetterName, onSubmit,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
+        background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
         width: 560, maxHeight: '92vh', overflow: 'auto',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        boxShadow: shadow.xl,
       }}>
-        <div style={{ padding: '12px 20px', background: '#16A34A', color: '#fff', fontWeight: 700, fontSize: 14 }}>
+        <div style={{
+          padding: '12px 20px', background: color.success, color: color.white,
+          fontWeight: font.weight.bold, fontSize: font.size.md,
+        }}>
           アポ獲得 — 詳細記入
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.85)', fontWeight: 400, marginTop: 2 }}>
+          <div style={{
+            fontSize: font.size.xs - 1, color: alpha(color.white, 0.85),
+            fontWeight: font.weight.normal, marginTop: 2,
+          }}>
             {company.company}（{company.business || ''}）
           </div>
         </div>
@@ -70,61 +82,79 @@ export default function CRMLeadAppoModal({ company, defaultGetterName, onSubmit,
           {/* 面談日時・形式 */}
           <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 10, marginBottom: 10 }}>
             <div>
-              <label style={labelStyle}>面談日時 <span style={{ color: C.red }}>*</span></label>
-              <input type="datetime-local" value={meetingAt} onChange={e => setMeetingAt(e.target.value)} style={inputStyle} />
+              <label style={labelStyle}>面談日時 <span style={{ color: color.danger }}>*</span></label>
+              <Input
+                size="sm"
+                type="datetime-local"
+                value={meetingAt}
+                onChange={e => setMeetingAt(e.target.value)}
+              />
             </div>
             <div>
               <label style={labelStyle}>形式</label>
-              <select value={meetingMode} onChange={e => setMeetingMode(e.target.value)} style={inputStyle}>
-                <option value="online">オンライン</option>
-                <option value="in_person">対面（先方訪問）</option>
-                <option value="our_office">対面（弊社来訪）</option>
-                <option value="phone">電話</option>
-              </select>
+              <Select
+                size="sm"
+                value={meetingMode}
+                onChange={e => setMeetingMode(e.target.value)}
+                options={[
+                  { value: 'online', label: 'オンライン' },
+                  { value: 'in_person', label: '対面（先方訪問）' },
+                  { value: 'our_office', label: '対面（弊社来訪）' },
+                  { value: 'phone', label: '電話' },
+                ]}
+              />
             </div>
           </div>
 
           {meetingMode === 'in_person' && (
             <div style={{ marginBottom: 10 }}>
               <label style={labelStyle}>訪問先住所</label>
-              <input value={meetingPlace} onChange={e => setMeetingPlace(e.target.value)} placeholder={company.address || ''} style={inputStyle} />
+              <Input
+                size="sm"
+                value={meetingPlace}
+                onChange={e => setMeetingPlace(e.target.value)}
+                placeholder={company.address || ''}
+              />
             </div>
           )}
 
           {/* キーマン担当者情報 */}
-          <div style={{ borderTop: '1px solid ' + GRAY_200, paddingTop: 10, marginTop: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: NAVY, marginBottom: 8, letterSpacing: 0.5 }}>
+          <div style={{ borderTop: `1px solid ${color.border}`, paddingTop: 10, marginTop: 10 }}>
+            <div style={{
+              fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy,
+              marginBottom: 8, letterSpacing: font.letterSpacing.wide,
+            }}>
               キーマン情報
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
                 <label style={labelStyle}>担当者名</label>
-                <input value={contactName} onChange={e => setContactName(e.target.value)} placeholder="例: 山田 太郎" style={inputStyle} />
+                <Input size="sm" value={contactName} onChange={e => setContactName(e.target.value)} placeholder="例: 山田 太郎" />
               </div>
               <div>
                 <label style={labelStyle}>役職</label>
-                <input value={contactRole} onChange={e => setContactRole(e.target.value)} placeholder="例: 代表取締役" style={inputStyle} />
+                <Input size="sm" value={contactRole} onChange={e => setContactRole(e.target.value)} placeholder="例: 代表取締役" />
               </div>
               <div>
                 <label style={labelStyle}>メール</label>
-                <input value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="example@..." style={inputStyle} />
+                <Input size="sm" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="example@..." />
               </div>
               <div>
                 <label style={labelStyle}>電話番号</label>
-                <input value={contactPhone} onChange={e => setContactPhone(e.target.value)} style={inputStyle} />
+                <Input size="sm" value={contactPhone} onChange={e => setContactPhone(e.target.value)} />
               </div>
             </div>
           </div>
 
           {/* 先方の所感 */}
-          <div style={{ borderTop: '1px solid ' + GRAY_200, paddingTop: 10, marginTop: 4 }}>
+          <div style={{ borderTop: `1px solid ${color.border}`, paddingTop: 10, marginTop: 4 }}>
             <label style={labelStyle}>先方の所感・トーン</label>
             <textarea
               value={impression}
               onChange={e => setImpression(e.target.value)}
               rows={3}
               placeholder="興味の度合い・課題感・予算感・決裁ライン・温度感など"
-              style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
+              style={{ ...textareaStyle, resize: 'vertical', lineHeight: 1.5 }}
             />
           </div>
 
@@ -136,14 +166,14 @@ export default function CRMLeadAppoModal({ company, defaultGetterName, onSubmit,
               onChange={e => setInternalMemo(e.target.value)}
               rows={2}
               placeholder="今回の架電で気になった点、引き継ぎメモ等"
-              style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
+              style={{ ...textareaStyle, resize: 'vertical', lineHeight: 1.5 }}
             />
           </div>
 
           <div style={{
             marginTop: 12, padding: '8px 10px',
-            background: '#FFFBEB', border: '1px solid ' + C.gold + '60', borderRadius: 3,
-            fontSize: 10, color: NAVY,
+            background: '#FFFBEB', border: `1px solid ${alpha(color.gold, 0.4)}`, borderRadius: radius.sm,
+            fontSize: 10, color: color.navy,
           }}>
             保存すると CRM の「面談予定」タブにこのクライアントが自動で登録されます。
             あとから面談予定タブで内容の編集・商談結果の記録ができます。
@@ -151,20 +181,16 @@ export default function CRMLeadAppoModal({ company, defaultGetterName, onSubmit,
         </div>
 
         <div style={{
-          padding: '10px 20px', borderTop: '1px solid ' + GRAY_200,
-          display: 'flex', justifyContent: 'flex-end', gap: 8,
+          padding: '10px 20px', borderTop: `1px solid ${color.border}`,
+          display: 'flex', justifyContent: 'flex-end', gap: space[2],
         }}>
-          <button onClick={onCancel} style={{
-            padding: '8px 16px', borderRadius: 4,
-            border: '1px solid ' + NAVY, background: '#fff',
-            color: NAVY, fontSize: 12, fontWeight: 500, cursor: 'pointer',
-            fontFamily: "'Noto Sans JP'",
-          }}>キャンセル</button>
-          <button onClick={handleSave} style={{
-            padding: '8px 18px', borderRadius: 4, border: 'none',
-            background: '#16A34A', color: '#fff', fontSize: 12, fontWeight: 700,
-            cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-          }}>アポ獲得を保存 → CRM登録</button>
+          <Button variant="outline" size="sm" onClick={onCancel}>キャンセル</Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleSave}
+            style={{ background: color.success, borderColor: color.success }}
+          >アポ獲得を保存 → CRM登録</Button>
         </div>
       </div>
     </div>

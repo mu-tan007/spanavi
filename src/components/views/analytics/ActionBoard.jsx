@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
-import { C } from '../../../constants/colors';
-
-const NAVY = '#0D2247';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../../ui';
 
 const WEEKDAYS = ['月', '火', '水', '木', '金', '土', '日'];
 
@@ -113,20 +112,41 @@ export default function ActionBoard({ heatmapData, orgStats, callListData, rankB
 
   return (
     <section style={{ marginBottom: 32 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid ' + NAVY, paddingBottom: 6, marginBottom: 14 }}>
-        今週の打ち手（Action Items）<span style={{ fontSize: 10, fontWeight: 500, color: C.textLight, marginLeft: 8 }}>データから自動生成</span>
+      <div style={{
+        fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy,
+        borderBottom: `2px solid ${color.navy}`, paddingBottom: 6, marginBottom: 14,
+      }}>
+        今週の打ち手（Action Items）<span style={{ fontSize: 10, fontWeight: font.weight.medium, color: color.textLight, marginLeft: 8 }}>データから自動生成</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 10 }}>
         {actions.map((a, i) => {
           const c = colorFor(a.type);
           return (
-            <div key={i} style={{ background: c.bg, border: '1px solid ' + c.border, borderLeft: '4px solid ' + c.border, borderRadius: 4, padding: '12px 14px' }}>
+            <div key={i} style={{
+              background: c.bg,
+              border: `1px solid ${c.border}`,
+              borderLeft: `4px solid ${c.border}`,
+              borderRadius: radius.md,
+              padding: '12px 14px',
+            }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, color: c.border, background: '#fff', padding: '2px 6px', borderRadius: 2, letterSpacing: '0.04em' }}>{c.label}</span>
-                {a.priority === 1 && <span style={{ fontSize: 9, fontWeight: 700, color: '#B91C1C', background: '#fff', padding: '2px 6px', borderRadius: 2 }}>最優先</span>}
+                <span style={{
+                  fontSize: 9, fontWeight: font.weight.bold, color: c.border,
+                  background: color.white, padding: '2px 6px', borderRadius: 2,
+                  letterSpacing: font.letterSpacing.wide,
+                }}>{c.label}</span>
+                {a.priority === 1 && (
+                  <span style={{
+                    fontSize: 9, fontWeight: font.weight.bold, color: '#B91C1C',
+                    background: color.white, padding: '2px 6px', borderRadius: 2,
+                  }}>最優先</span>
+                )}
               </div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 4, lineHeight: 1.45 }}>{a.title}</div>
-              <div style={{ fontSize: 11, color: C.textDark, lineHeight: 1.6 }}>{a.body}</div>
+              <div style={{
+                fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy,
+                marginBottom: 4, lineHeight: 1.45,
+              }}>{a.title}</div>
+              <div style={{ fontSize: font.size.xs, color: color.textDark, lineHeight: 1.6 }}>{a.body}</div>
             </div>
           );
         })}

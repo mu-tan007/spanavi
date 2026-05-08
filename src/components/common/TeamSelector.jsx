@@ -1,17 +1,17 @@
 import React from 'react';
-import { C } from '../../constants/colors';
+import { color, font, radius } from '../../constants/design';
 
 export default function TeamSelector({ teams, selectedTeamId, onSelect }) {
   return (
     <div style={{
       padding: '10px 20px',
-      background: C.white,
-      borderBottom: `1px solid ${C.border}`,
+      background: color.white,
+      borderBottom: `1px solid ${color.border}`,
       display: 'flex', alignItems: 'center', gap: 12,
       flexWrap: 'wrap',
     }}>
       <span style={{
-        fontSize: 10, color: C.textLight, fontWeight: 700,
+        fontSize: 10, color: color.textLight, fontWeight: font.weight.bold,
         letterSpacing: '0.12em', textTransform: 'uppercase',
         fontFamily: "'Outfit','Noto Sans JP',sans-serif",
       }}>TEAM</span>
@@ -37,15 +37,15 @@ function Chip({ active, label, onClick }) {
       onClick={onClick}
       style={{
         fontSize: 11, padding: '4px 10px',
-        background: active ? C.navy : 'transparent',
-        color: active ? C.white : C.textMid,
-        border: `1px solid ${active ? C.navy : C.border}`,
-        borderRadius: 3,
-        fontWeight: active ? 600 : 400,
+        background: active ? color.navy : 'transparent',
+        color: active ? color.white : color.textMid,
+        border: `1px solid ${active ? color.navy : color.border}`,
+        borderRadius: radius.sm,
+        fontWeight: active ? font.weight.semibold : font.weight.normal,
         cursor: 'pointer',
-        fontFamily: "'Noto Sans JP',sans-serif",
+        fontFamily: font.family.sans,
       }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.background = C.offWhite; }}
+      onMouseEnter={e => { if (!active) e.currentTarget.style.background = color.offWhite; }}
       onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
     >
       {label}

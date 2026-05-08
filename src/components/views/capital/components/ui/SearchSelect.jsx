@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
+import { color, space, radius, font, shadow, alpha } from '../../../../../constants/design'
+import { Button, Input, Select, Card, Badge } from '../../../../ui'
 
 /**
  * インクリメンタルサーチ付きセレクト（複数選択対応）
@@ -81,16 +83,16 @@ export default function SearchSelect({ items, value = [], onChange, placeholder 
           {value.map((v, i) => (
             <span key={i} style={{
               display: 'inline-flex', alignItems: 'center', gap: 3,
-              padding: '2px 8px', fontSize: 11, borderRadius: 4,
-              background: '#032D60', color: '#FFFFFF', whiteSpace: 'nowrap',
+              padding: '2px 8px', fontSize: font.size.xs, borderRadius: radius.md,
+              background: color.navy, color: color.white, whiteSpace: 'nowrap',
             }}>
               {v}
-              <span onClick={() => handleRemove(v)} style={{ cursor: 'pointer', opacity: 0.7, fontSize: 13, lineHeight: 1 }}>×</span>
+              <span onClick={() => handleRemove(v)} style={{ cursor: 'pointer', opacity: 0.7, fontSize: font.size.base, lineHeight: 1 }}>×</span>
             </span>
           ))}
           <button onClick={handleClearAll} style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            color: '#706E6B', fontSize: 10, padding: '2px 4px',
+            color: color.textMid, fontSize: font.size.xs - 1, padding: '2px 4px',
           }}>全解除</button>
         </div>
       )}
@@ -105,9 +107,9 @@ export default function SearchSelect({ items, value = [], onChange, placeholder 
         placeholder={value.length > 0 ? '追加...' : placeholder}
         style={{
           width: '100%', padding: '6px 10px',
-          border: '0.5px solid #E5E5E5', borderRadius: 5,
-          fontSize: 12, outline: 'none', color: '#032D60',
-          background: '#fff',
+          border: `0.5px solid ${color.border}`, borderRadius: radius.md,
+          fontSize: font.size.sm, outline: 'none', color: color.navy,
+          background: color.white,
         }}
       />
 
@@ -115,15 +117,15 @@ export default function SearchSelect({ items, value = [], onChange, placeholder 
       {open && filtered.length > 0 && (
         <div style={{
           position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999,
-          background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 6,
+          background: color.white, border: `0.5px solid ${color.border}`, borderRadius: radius.lg,
           maxHeight: 240, overflowY: 'auto',
-          boxShadow: '0 4px 16px rgba(10,30,60,0.12)', marginTop: 2,
+          boxShadow: shadow.md, marginTop: 2,
         }}>
           {filtered.map((item, i) => (
             <div key={i} onClick={() => handleSelect(item)}
               style={{
-                padding: '7px 10px', cursor: 'pointer', fontSize: 12, color: '#032D60',
-                borderBottom: i < filtered.length - 1 ? '0.5px solid #F8F8F8' : 'none',
+                padding: '7px 10px', cursor: 'pointer', fontSize: font.size.sm, color: color.navy,
+                borderBottom: i < filtered.length - 1 ? `0.5px solid ${color.gray50}` : 'none',
               }}
               onMouseEnter={e => e.currentTarget.style.background = '#f0f6ff'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}

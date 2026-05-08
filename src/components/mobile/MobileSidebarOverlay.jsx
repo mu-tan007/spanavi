@@ -1,4 +1,6 @@
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 import { useBranding } from '../../hooks/useBranding';
 
 export default function MobileSidebarOverlay({ navGroups = [], currentTab, setCurrentTab, onClose, userName }) {
@@ -21,41 +23,50 @@ export default function MobileSidebarOverlay({ navGroups = [], currentTab, setCu
       {/* サイドメニュー */}
       <div style={{
         position: 'relative', width: 280, maxWidth: '80vw', height: '100%',
-        background: branding.primaryColor || C.navyDeep || '#011226',
+        background: branding.primaryColor || color.navyDeep || '#011226',
         overflowY: 'auto', WebkitOverflowScrolling: 'touch',
         animation: 'slideInLeft 0.2s ease',
       }}>
         {/* ヘッダー */}
         <div style={{
-          padding: '20px 16px 12px', display: 'flex', alignItems: 'center',
-          justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)',
+          padding: `${space[5]}px ${space[4]}px ${space[3]}px`,
+          display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: `1px solid ${alpha(color.white, 0.1)}`,
         }}>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', fontFamily: "'Noto Sans JP'" }}>
+            <div style={{
+              fontSize: 18, fontWeight: font.weight.black,
+              color: color.white, fontFamily: font.family.sans,
+            }}>
               {branding.orgName || 'Spanavi'}
             </div>
             {userName && (
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>{userName}</div>
+              <div style={{
+                fontSize: font.size.xs, color: alpha(color.white, 0.6), marginTop: space[1],
+              }}>{userName}</div>
             )}
           </div>
           <button
             onClick={onClose}
             style={{
-              width: 32, height: 32, borderRadius: 6, border: 'none',
-              background: 'rgba(255,255,255,0.1)', color: '#fff',
-              fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 32, height: 32, borderRadius: radius.lg, border: 'none',
+              background: alpha(color.white, 0.1), color: color.white,
+              fontSize: font.size.lg, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
           >✕</button>
         </div>
 
         {/* ナビゲーション */}
-        <div style={{ padding: '8px 0' }}>
+        <div style={{ padding: `${space[2]}px 0` }}>
           {(navGroups || []).map((group, gi) => (
-            <div key={gi} style={{ marginBottom: 8 }}>
+            <div key={gi} style={{ marginBottom: space[2] }}>
               {group.label && (
                 <div style={{
-                  padding: '8px 16px 4px', fontSize: 9, fontWeight: 700,
-                  color: 'rgba(255,255,255,0.4)', letterSpacing: 1.5, textTransform: 'uppercase',
+                  padding: `${space[2]}px ${space[4]}px ${space[1]}px`,
+                  fontSize: 9, fontWeight: font.weight.bold,
+                  color: alpha(color.white, 0.4), letterSpacing: 1.5, textTransform: 'uppercase',
                 }}>{group.label}</div>
               )}
               {(group.items || []).map(item => {
@@ -66,12 +77,15 @@ export default function MobileSidebarOverlay({ navGroups = [], currentTab, setCu
                     onClick={() => { setCurrentTab(item.id); onClose(); }}
                     style={{
                       display: 'block', width: '100%', textAlign: 'left',
-                      padding: '12px 16px', border: 'none', cursor: 'pointer',
-                      background: isActive ? 'rgba(255,255,255,0.12)' : 'transparent',
-                      color: isActive ? '#fff' : 'rgba(255,255,255,0.7)',
-                      fontSize: 13, fontWeight: isActive ? 700 : 500,
-                      fontFamily: "'Noto Sans JP'",
-                      borderLeft: isActive ? '3px solid ' + (branding.accentColor || '#C8A84B') : '3px solid transparent',
+                      padding: `${space[3]}px ${space[4]}px`, border: 'none', cursor: 'pointer',
+                      background: isActive ? alpha(color.white, 0.12) : 'transparent',
+                      color: isActive ? color.white : alpha(color.white, 0.7),
+                      fontSize: font.size.base,
+                      fontWeight: isActive ? font.weight.bold : font.weight.medium,
+                      fontFamily: font.family.sans,
+                      borderLeft: isActive
+                        ? `3px solid ${branding.accentColor || color.gold}`
+                        : '3px solid transparent',
                     }}
                   >
                     {item.label}

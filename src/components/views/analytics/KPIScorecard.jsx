@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
-import { C } from '../../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../../ui';
 import { formatCurrency } from '../../../utils/formatters';
 
-const NAVY = '#0D2247';
 const COUNTABLE = new Set(['面談済', '事前確認済', 'アポ取得']);
 
 function pacingInfo(period, todayStr, range) {
@@ -24,28 +24,45 @@ function pacingInfo(period, todayStr, range) {
   return { ratio, elapsedDays: Math.max(Math.floor(elapsedMs / 86400000), 0), totalDays: Math.floor(totalMs / 86400000) + 1 };
 }
 
-function Card({ label, value, unit, sub, predicted, deltaPct, isMoney, accent, small }) {
+function MetricCard({ label, value, unit, sub, predicted, deltaPct, isMoney, accent, small }) {
   const gain = deltaPct != null && deltaPct >= 0;
   return (
-    <div style={{ background: '#fff', border: '1px solid ' + C.border, borderRadius: 4, padding: '14px 16px', minWidth: 0 }}>
-      <div style={{ fontSize: 10, color: C.textLight, fontWeight: 700, letterSpacing: '0.04em', marginBottom: 6, textTransform: 'uppercase' }}>{label}</div>
+    <div style={{
+      background: color.white, border: `1px solid ${color.border}`,
+      borderRadius: radius.md, padding: '14px 16px', minWidth: 0,
+    }}>
+      <div style={{
+        fontSize: 10, color: color.textLight, fontWeight: font.weight.bold,
+        letterSpacing: font.letterSpacing.wide, marginBottom: 6, textTransform: 'uppercase',
+      }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-        <div style={{ fontSize: small ? 18 : 22, fontWeight: 900, color: accent || NAVY, fontFamily: "'JetBrains Mono'", letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums' }}>
+        <div style={{
+          fontSize: small ? 18 : 22, fontWeight: 900,
+          color: accent || color.navy, fontFamily: font.family.mono,
+          letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums',
+        }}>
           {isMoney ? formatCurrency(value || 0) : (value || 0).toLocaleString()}
         </div>
-        {unit && <div style={{ fontSize: 11, fontWeight: 600, color: C.textMid }}>{unit}</div>}
+        {unit && <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid }}>{unit}</div>}
       </div>
       <div style={{ display: 'flex', gap: 10, marginTop: 6, flexWrap: 'wrap', alignItems: 'center', fontSize: 10 }}>
         {deltaPct != null && (
-          <span style={{ color: gain ? '#16a34a' : '#dc2626', fontWeight: 700, fontFamily: "'JetBrains Mono'" }}>
+          <span style={{
+            color: gain ? color.success : color.danger,
+            fontWeight: font.weight.bold, fontFamily: font.family.mono,
+          }}>
             {gain ? '▲' : '▼'} {Math.abs(deltaPct).toFixed(1)}%
           </span>
         )}
-        {sub && <span style={{ color: C.textLight }}>{sub}</span>}
+        {sub && <span style={{ color: color.textLight }}>{sub}</span>}
       </div>
       {predicted != null && (
-        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed ' + C.border, fontSize: 10, color: C.textMid }}>
-          着地予測: <b style={{ color: NAVY, fontFamily: "'JetBrains Mono'" }}>{isMoney ? formatCurrency(predicted) : Math.round(predicted).toLocaleString() + (unit || '')}</b>
+        <div style={{
+          marginTop: 8, paddingTop: 8,
+          borderTop: `1px dashed ${color.border}`,
+          fontSize: 10, color: color.textMid,
+        }}>
+          着地予測: <b style={{ color: color.navy, fontFamily: font.family.mono }}>{isMoney ? formatCurrency(predicted) : Math.round(predicted).toLocaleString() + (unit || '')}</b>
         </div>
       )}
     </div>
@@ -105,26 +122,30 @@ export default function KPIScorecard({
   }, [stats, prevStats, appoData, range, prevRange, pacing]);
 
   if (loading) {
-    return <div style={{ padding: 40, textAlign: 'center', color: C.textLight, fontSize: 12 }}>読込中…</div>;
+    return <div style={{ padding: 40, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>読込中…</div>;
   }
 
   return (
     <section style={{ marginBottom: 32 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid ' + NAVY, paddingBottom: 6, marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div style={{
+        fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy,
+        borderBottom: `2px solid ${color.navy}`, paddingBottom: 6, marginBottom: 14,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
+      }}>
         <span>KPIスコアカード</span>
         {pacing && (
-          <span style={{ fontSize: 10, color: C.textLight, fontWeight: 500 }}>
+          <span style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.medium }}>
             期間経過: {pacing.elapsedDays}/{pacing.totalDays}日 ({(pacing.ratio * 100).toFixed(0)}%)
           </span>
         )}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
-        <Card label="売上" value={metrics.sales.value} isMoney predicted={metrics.sales.predicted} deltaPct={metrics.sales.delta} sub="前期比" />
-        <Card label="アポ数" value={metrics.appo.value} unit="件" predicted={metrics.appo.predicted} deltaPct={metrics.appo.delta} sub="前期比" />
-        <Card label="架電数" value={metrics.calls.value} unit="件" predicted={metrics.calls.predicted} deltaPct={metrics.calls.delta} sub="前期比" />
-        <Card label="アポ率" value={metrics.appoRate.value.toFixed(1)} unit="%" deltaPct={null} sub={metrics.appoRate.deltaPt != null ? `前期比 ${metrics.appoRate.deltaPt >= 0 ? '+' : ''}${metrics.appoRate.deltaPt.toFixed(1)}pt` : null} small />
-        <Card label="社長接続率" value={metrics.connectRate.value.toFixed(1)} unit="%" deltaPct={null} sub={metrics.connectRate.deltaPt != null ? `前期比 ${metrics.connectRate.deltaPt >= 0 ? '+' : ''}${metrics.connectRate.deltaPt.toFixed(1)}pt` : null} small />
-        <Card label="リスケ+キャンセル率" value={metrics.badRate.value.toFixed(1)} unit="%" accent={metrics.badRate.value > 20 ? '#EF4444' : NAVY} sub={`リスケ${metrics.badRate.resched}/キャンセル${metrics.badRate.cancel} / アポ計${metrics.badRate.total}`} small />
+        <MetricCard label="売上" value={metrics.sales.value} isMoney predicted={metrics.sales.predicted} deltaPct={metrics.sales.delta} sub="前期比" />
+        <MetricCard label="アポ数" value={metrics.appo.value} unit="件" predicted={metrics.appo.predicted} deltaPct={metrics.appo.delta} sub="前期比" />
+        <MetricCard label="架電数" value={metrics.calls.value} unit="件" predicted={metrics.calls.predicted} deltaPct={metrics.calls.delta} sub="前期比" />
+        <MetricCard label="アポ率" value={metrics.appoRate.value.toFixed(1)} unit="%" deltaPct={null} sub={metrics.appoRate.deltaPt != null ? `前期比 ${metrics.appoRate.deltaPt >= 0 ? '+' : ''}${metrics.appoRate.deltaPt.toFixed(1)}pt` : null} small />
+        <MetricCard label="社長接続率" value={metrics.connectRate.value.toFixed(1)} unit="%" deltaPct={null} sub={metrics.connectRate.deltaPt != null ? `前期比 ${metrics.connectRate.deltaPt >= 0 ? '+' : ''}${metrics.connectRate.deltaPt.toFixed(1)}pt` : null} small />
+        <MetricCard label="リスケ+キャンセル率" value={metrics.badRate.value.toFixed(1)} unit="%" accent={metrics.badRate.value > 20 ? color.danger : color.navy} sub={`リスケ${metrics.badRate.resched}/キャンセル${metrics.badRate.cancel} / アポ計${metrics.badRate.total}`} small />
       </div>
     </section>
   );

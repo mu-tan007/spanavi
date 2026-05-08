@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { zoomPhone } from '../lib/zoomPhoneStore';
 import { supabase } from '../lib/supabase';
 import { getOrgId } from '../lib/orgContext';
+import { color, radius, font, shadow } from '../constants/design';
 
 const ZOOM_EMBED_URL = 'https://applications.zoom.us/integration/phone/embeddablephone/home';
 const ZOOM_ORIGIN   = 'https://applications.zoom.us';
@@ -115,22 +116,22 @@ export default function ZoomPhoneEmbed({ currentUser = '' }) {
     <div style={{
       position: 'fixed', bottom: 16, right: 16, zIndex: 100000,
       borderRadius: 12, overflow: 'hidden',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-      border: '1px solid #E5E7EB',
+      boxShadow: shadow.xl,
+      border: `1px solid ${color.border}`,
       width: minimized ? 200 : 320,
       height: minimized ? 40 : 480,
-      background: '#fff',
+      background: color.white,
       transition: 'width 0.2s, height 0.2s',
     }}>
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 10px', height: 40, background: '#0D2247', color: '#fff',
+        padding: '0 10px', height: 40, background: color.navy, color: color.white,
         cursor: 'pointer', userSelect: 'none', flexShrink: 0,
       }} onClick={() => setMinimized(m => !m)}>
-        <span style={{ fontSize: 12, fontWeight: 600 }}>
+        <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold }}>
           Zoom Phone{ready ? ' ✓' : ''}
         </span>
-        <span style={{ fontSize: 14 }}>{minimized ? '▲' : '▼'}</span>
+        <span style={{ fontSize: font.size.md }}>{minimized ? '▲' : '▼'}</span>
       </div>
       <iframe
         ref={iframeRef}

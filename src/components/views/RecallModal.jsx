@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { C } from '../../constants/colors';
+import { color, font, radius } from '../../constants/design';
 import { useIsMobile } from '../../hooks/useIsMobile';
+
+const NAVY = '#0D2247';
 
 export default function RecallModal({ row, statusId, onSubmit, onCancel, members = [], currentUser = '' }) {
   const isMobile = useIsMobile();
@@ -16,10 +18,10 @@ export default function RecallModal({ row, statusId, onSubmit, onCancel, members
   const [showSuggestions, setShowSuggestions] = useState(false);
   const u = (k, v) => setForm(p => ({ ...p, [k]: v }));
   const inputStyle = {
-    width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid " + C.border,
-    fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none", background: C.offWhite,
+    width: "100%", padding: "6px 10px", borderRadius: radius.md, border: `1px solid ${color.border}`,
+    fontSize: 11, fontFamily: font.family.sans, outline: "none", background: color.offWhite,
   };
-  const labelStyle = { fontSize: 10, fontWeight: 600, color: '#0D2247', marginBottom: 2, display: "block" };
+  const labelStyle = { fontSize: 10, fontWeight: font.weight.semibold, color: NAVY, marginBottom: 2, display: "block" };
 
   const handleAssigneeChange = (v) => {
     u("assignee", v);
@@ -30,9 +32,9 @@ export default function RecallModal({ row, statusId, onSubmit, onCancel, members
 
   return (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: isMobile ? '95vw' : 400, maxHeight: isMobile ? '90vh' : undefined, boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
-        <div style={{ padding: "12px 24px", background: '#0D2247', borderRadius: '4px 4px 0 0', color: '#fff', fontWeight: 600, fontSize: 15 }}>
-          <div style={{ fontSize: 15, fontWeight: 600 }}>再コール設定</div>
+      <div style={{ background: color.white, border: `1px solid ${color.gray200}`, borderRadius: radius.md, width: isMobile ? '95vw' : 400, maxHeight: isMobile ? '90vh' : undefined, boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+        <div style={{ padding: "12px 24px", background: NAVY, borderRadius: `${radius.md}px ${radius.md}px 0 0`, color: color.white, fontWeight: font.weight.semibold, fontSize: 15 }}>
+          <div style={{ fontSize: 15, fontWeight: font.weight.semibold }}>再コール設定</div>
           <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>{row.company}　{statusId === "ceo_recall" ? "（社長再コール）" : "（受付再コール）"}</div>
         </div>
         <div style={{ padding: "16px 20px" }}>
@@ -58,12 +60,12 @@ export default function RecallModal({ row, statusId, onSubmit, onCancel, members
                 placeholder="架電担当者名"
               />
               {showSuggestions && (
-                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: C.white, border: "1px solid " + C.border, borderRadius: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.15)", zIndex: 100, maxHeight: 160, overflowY: "auto" }}>
+                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, boxShadow: "0 4px 12px rgba(0,0,0,0.15)", zIndex: 100, maxHeight: 160, overflowY: "auto" }}>
                   {suggestions.map((m, i) => (
                     <div key={i} onMouseDown={() => { u("assignee", m); setShowSuggestions(false); }}
-                      style={{ padding: "6px 10px", fontSize: 11, cursor: "pointer", color: C.textDark, fontFamily: "'Noto Sans JP'" }}
-                      onMouseEnter={e => e.currentTarget.style.background = C.offWhite}
-                      onMouseLeave={e => e.currentTarget.style.background = C.white}
+                      style={{ padding: "6px 10px", fontSize: 11, cursor: "pointer", color: color.textDark, fontFamily: font.family.sans }}
+                      onMouseEnter={e => e.currentTarget.style.background = color.offWhite}
+                      onMouseLeave={e => e.currentTarget.style.background = color.white}
                     >{m}</div>
                   ))}
                 </div>
@@ -75,15 +77,15 @@ export default function RecallModal({ row, statusId, onSubmit, onCancel, members
             </div>
           </div>
         </div>
-        <div style={{ padding: "10px 20px", borderTop: "1px solid #E5E7EB", display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <div style={{ padding: "10px 20px", borderTop: `1px solid ${color.gray200}`, display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button onClick={onCancel} style={{
-            padding: "8px 16px", borderRadius: 4, border: "1px solid #0D2247",
-            background: '#fff', cursor: "pointer", fontSize: 13, fontWeight: 500, color: '#0D2247', fontFamily: "'Noto Sans JP'",
+            padding: "8px 16px", borderRadius: radius.md, border: `1px solid ${NAVY}`,
+            background: color.white, cursor: "pointer", fontSize: 13, fontWeight: font.weight.medium, color: NAVY, fontFamily: font.family.sans,
           }}>キャンセル</button>
           <button onClick={() => onSubmit(form)} style={{
-            padding: "8px 16px", borderRadius: 4, border: "none",
-            background: '#0D2247',
-            cursor: "pointer", fontSize: 11, fontWeight: 500, color: '#fff', fontFamily: "'Noto Sans JP'",
+            padding: "8px 16px", borderRadius: radius.md, border: "none",
+            background: NAVY,
+            cursor: "pointer", fontSize: 11, fontWeight: font.weight.medium, color: color.white, fontFamily: font.family.sans,
           }}>保存</button>
         </div>
       </div>

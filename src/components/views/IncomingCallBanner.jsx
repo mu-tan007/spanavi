@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 
 import { getOrgId } from '../../lib/orgContext';
 
@@ -62,28 +63,28 @@ export default function IncomingCallBanner({ onNavigateToIncoming, onOpenCompany
   return (
     <div style={{
       position: 'fixed', bottom: 24, right: 24,
-      display: 'flex', flexDirection: 'column', gap: 10,
+      display: 'flex', flexDirection: 'column', gap: space[2.5],
       zIndex: 9999,
     }}>
       {banners.map(b => (
         <div key={b.id} style={{
-          background: C.navyDeep,
+          background: color.navyDeep,
           borderRadius: 12,
-          padding: '14px 18px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+          padding: `${space[3] + 2}px ${space[4] + 2}px`,
+          boxShadow: shadow.xl,
           minWidth: 300,
           animation: 'slideIn 0.3s ease',
-          border: '1px solid ' + C.gold + '60',
+          border: `1px solid ${alpha(color.gold, 0.4)}`,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: space[3] }}>
             <div>
-              <div style={{ fontSize: 11, color: C.goldLight, fontWeight: 700, marginBottom: 4 }}>
+              <div style={{ fontSize: font.size.xs, color: color.goldLight, fontWeight: font.weight.bold, marginBottom: 4 }}>
                 着信
               </div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.white, marginBottom: 2 }}>
+              <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.white, marginBottom: 2 }}>
                 {b.company_name}
               </div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontFamily: "'JetBrains Mono'" }}>
+              <div style={{ fontSize: font.size.xs, color: alpha(color.white, 0.6), fontFamily: font.family.mono }}>
                 {b.caller_number}
               </div>
             </div>
@@ -91,10 +92,10 @@ export default function IncomingCallBanner({ onNavigateToIncoming, onOpenCompany
               <button
                 onClick={() => dismiss(b.id, b.recordId)}
                 style={{
-                  padding: '5px 12px', borderRadius: 6, border: 'none',
-                  background: C.gold, color: C.navyDeep,
-                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                  fontFamily: "'Noto Sans JP'",
+                  padding: '5px 12px', borderRadius: radius.lg, border: 'none',
+                  background: color.gold, color: color.navyDeep,
+                  fontSize: font.size.xs, fontWeight: font.weight.bold, cursor: 'pointer',
+                  fontFamily: font.family.sans,
                 }}
               >
                 対応済み
@@ -103,11 +104,11 @@ export default function IncomingCallBanner({ onNavigateToIncoming, onOpenCompany
                 <button
                   onClick={() => { onOpenCompany(b.item_id); dismiss(b.id, b.recordId); }}
                   style={{
-                    padding: '5px 12px', borderRadius: 6,
-                    border: '1px solid ' + C.gold + '80',
-                    background: 'transparent', color: C.goldLight,
-                    fontSize: 10, fontWeight: 600, cursor: 'pointer',
-                    fontFamily: "'Noto Sans JP'",
+                    padding: '5px 12px', borderRadius: radius.lg,
+                    border: `1px solid ${alpha(color.gold, 0.5)}`,
+                    background: 'transparent', color: color.goldLight,
+                    fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, cursor: 'pointer',
+                    fontFamily: font.family.sans,
                   }}
                 >
                   企業ページを開く
@@ -117,11 +118,11 @@ export default function IncomingCallBanner({ onNavigateToIncoming, onOpenCompany
                 <button
                   onClick={() => { onNavigateToIncoming(); dismiss(b.id, b.recordId); }}
                   style={{
-                    padding: '5px 12px', borderRadius: 6,
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    background: 'transparent', color: 'rgba(255,255,255,0.7)',
-                    fontSize: 10, fontWeight: 600, cursor: 'pointer',
-                    fontFamily: "'Noto Sans JP'",
+                    padding: '5px 12px', borderRadius: radius.lg,
+                    border: `1px solid ${alpha(color.white, 0.2)}`,
+                    background: 'transparent', color: alpha(color.white, 0.7),
+                    fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, cursor: 'pointer',
+                    fontFamily: font.family.sans,
                   }}
                 >
                   履歴を見る

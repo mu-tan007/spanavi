@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { C } from '../../constants/colors';
+import { color, space, radius, font } from '../../constants/design';
 import PageHeader from '../common/PageHeader';
 import CallResultsTab from '../views/deals/CallResultsTab';
 import AppointmentsTab from '../views/deals/AppointmentsTab';
@@ -18,7 +18,14 @@ export default function ClientDealsView({ client }) {
   if (!client) return null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', background: C.offWhite, animation: 'fadeIn 0.3s ease', borderRadius: 4, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+    <div style={{
+      display: 'flex', flexDirection: 'column',
+      background: color.offWhite,
+      animation: 'fadeIn 0.3s ease',
+      borderRadius: radius.md,
+      border: `1px solid ${color.border}`,
+      overflow: 'hidden',
+    }}>
       <PageHeader
         bleed={false}
         title="Deals"
@@ -26,27 +33,34 @@ export default function ClientDealsView({ client }) {
       />
 
       <div style={{
-        display: 'flex', padding: '0 20px', borderBottom: `1px solid ${C.border}`,
-        background: C.white, gap: 0,
+        display: 'flex',
+        padding: `0 ${space[5]}px`,
+        borderBottom: `1px solid ${color.border}`,
+        background: color.white,
+        gap: 0,
       }}>
         {TABS.map(tab => {
           const active = activeTab === tab.id;
           return (
             <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
               style={{
-                fontSize: 12, padding: '10px 16px',
-                background: 'transparent', border: 'none',
-                borderBottom: active ? `2px solid ${C.gold}` : '2px solid transparent',
-                color: active ? C.navy : C.textMid,
-                fontWeight: active ? 600 : 400, marginBottom: -1,
-                cursor: 'pointer', fontFamily: "'Noto Sans JP',sans-serif",
+                fontSize: font.size.sm,
+                padding: `${space[2] + 2}px ${space[4]}px`,
+                background: 'transparent',
+                border: 'none',
+                borderBottom: active ? `2px solid ${color.gold}` : '2px solid transparent',
+                color: active ? color.navy : color.textMid,
+                fontWeight: active ? font.weight.semibold : font.weight.normal,
+                marginBottom: -1,
+                cursor: 'pointer',
+                fontFamily: font.family.sans,
               }}
             >{tab.label}</button>
           );
         })}
       </div>
 
-      <div style={{ padding: '16px 20px', minHeight: 'calc(100vh - 220px)' }}>
+      <div style={{ padding: `${space[4]}px ${space[5]}px`, minHeight: 'calc(100vh - 220px)' }}>
         {activeTab === 'calls' && <CallResultsTab client={{ id: client.id, name: client.name }} />}
         {activeTab === 'appos' && <AppointmentsTab client={{ id: client.id, name: client.name }} />}
       </div>
