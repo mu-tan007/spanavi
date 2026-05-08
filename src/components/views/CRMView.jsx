@@ -35,7 +35,7 @@ export default function CRMView(props) {
   );
 }
 
-function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient, callListData = [], currentUser = '' }) {
+function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient, callListData = [], currentUser = '', members = [] }) {
   const [statusFilter, setStatusFilter] = useState("支援中");
   const [search, setSearch] = useState("");
   const [showRewardDetail, setShowRewardDetail] = useState(null);
@@ -443,7 +443,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
 
       {/* 新規開拓ボード */}
       {view === 'leadgen' && (
-        <CRMLeadGenView currentUser={currentUser} setClientData={setClientData} />
+        <CRMLeadGenView currentUser={currentUser} members={members} setClientData={setClientData} />
       )}
 
       {/* 詳細ページモード */}
