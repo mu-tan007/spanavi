@@ -26,9 +26,38 @@ export function pickPersistableFilters(filters) {
 }
 
 /**
+ * AI が指定した daibunrui 値を、実DB上の値（例: "E 製造業"）に解決する
+ *  - 完全一致 → そのまま
+ *  - 1文字英字（例 "E"） → "E " で始まる項目
+ *  - 名称のみ（例 "製造業"） → 各項目の末尾名称が一致 or 含む
+ */
+function resolveDaibunrui(aiVals, actualDaibunruiList) {
+  if (!Array.isArray(aiVals) || aiVals.length === 0) return [];
+  const out = new Set();
+  for (const raw of aiVals) {
+    const v = String(raw || '').trim();
+    if (!v) continue;
+    // 1) 完全一致
+    if (actualDaibunruiList.includes(v)) { out.add(v); continue; }
+    // 2) 1文字英字 → "X " で始まる
+    if (/^[A-Z]$/i.test(v)) {
+      const prefix = v.toUpperCase() + ' ';
+      const m = actualDaibunruiList.find(d => d.startsWith(prefix));
+      if (m) { out.add(m); continue; }
+    }
+    // 3) 名称が含まれる（"製造業" → "E 製造業"）
+    const cand = actualDaibunruiList.filter(d => d.includes(v));
+    if (cand.length === 1) { out.add(cand[0]); continue; }
+    if (cand.length > 1) { cand.forEach(c => out.add(c)); continue; }
+    // どれにも該当しなければ無視（誤爆を避ける）
+  }
+  return [...out];
+}
+
+/**
  * AI が返した filters（industryHint含む）を、useCompanySearch が使うシェイプにマージ
  * - industryHint があれば fetchCategories の saibunrui に対し部分一致で saibunrui[] を埋める
- * - daibunrui が AI から指定されていればそのまま採用
+ * - daibunrui は実DB値（"E 製造業" 等）に正規化してからセット
  * - 数値フィールドは null/'' を空文字に正規化
  */
 export async function applyAiFiltersToBase(baseFilters, aiFilters) {
@@ -59,20 +88,25 @@ export async function applyAiFiltersToBase(baseFilters, aiFilters) {
   merged.repShareholderMatch = aiFilters.repShareholderMatch === true;
   if (!merged.logic) merged.logic = 'AND';
 
+  // カテゴリ解決のため一度 fetchCategories
+  let cats = null;
+  try { cats = await fetchCategories(); } catch (e) { console.warn('fetchCategories failed', e); }
+
+  // daibunrui を実DB値に正規化
+  if (cats && Array.isArray(merged.daibunrui) && merged.daibunrui.length > 0) {
+    const actualList = [...new Set(cats.map(c => c.daibunrui))];
+    merged.daibunrui = resolveDaibunrui(merged.daibunrui, actualList);
+  }
+
   // industryHint → saibunrui 部分一致で展開
   const hint = (aiFilters.industryHint || '').trim();
-  if (hint) {
-    try {
-      const cats = await fetchCategories();
-      const matched = cats
-        .filter(c => c.saibunrui && c.saibunrui.includes(hint))
-        .map(c => c.saibunrui);
-      const dedup = [...new Set([...(merged.saibunrui || []), ...matched])];
-      // ただし 100 件超になる場合は AND/OR で broad すぎるので無視（誤爆防止）
-      if (dedup.length > 0 && dedup.length <= 80) merged.saibunrui = dedup;
-    } catch (e) {
-      console.warn('[databaseChatApi] industryHint expansion failed', e);
-    }
+  if (hint && cats) {
+    const matched = cats
+      .filter(c => c.saibunrui && c.saibunrui.includes(hint))
+      .map(c => c.saibunrui);
+    const dedup = [...new Set([...(merged.saibunrui || []), ...matched])];
+    // 100 件超になる場合は broad すぎるので無視（誤爆防止）
+    if (dedup.length > 0 && dedup.length <= 80) merged.saibunrui = dedup;
   }
 
   // page リセット
