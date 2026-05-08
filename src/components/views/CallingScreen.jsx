@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Card, Badge } from '../ui';
 import { dialPhone } from '../../utils/phone';
 import { zoomPhone } from '../../lib/zoomPhoneStore';
 import { getCallListItemId, clearCallListItemIdCache, insertCallRecord, updateCallListItem, deleteCallRecordByItemRound, invokeGetZoomRecording, updateCallRecordRecordingUrl } from '../../lib/supabaseWrite';
@@ -422,77 +424,71 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
   return (
     <div style={{
       position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-      background: C.offWhite, zIndex: 10000,
+      background: color.offWhite, zIndex: 10000,
       display: "flex", flexDirection: "column",
-      fontFamily: "'Noto Sans JP', sans-serif",
+      fontFamily: font.family.sans,
     }}>
       {/* Range Input Modal */}
       {csvData.length > 0 && !rangeConfirmed && (
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(26,58,92,0.6)", zIndex: 10001,
+          background: alpha(color.navyDeep, 0.6), zIndex: 10001,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <div style={{
-            background: C.white, borderRadius: 4, width: 400, overflow: "hidden",
-            border: "1px solid #E5E7EB",
+            background: color.white, borderRadius: radius.lg, width: 400, overflow: "hidden",
+            border: `1px solid ${color.border}`, boxShadow: shadow.xl,
           }}>
             <div style={{
-              background: '#0D2247',
-              padding: "16px 20px", color: C.white,
+              background: color.navy,
+              padding: "16px 20px", color: color.white,
             }}>
-              <div style={{ fontSize: 15, fontWeight: 700 }}>架電範囲の指定</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
+              <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold }}>架電範囲の指定</div>
+              <div style={{ fontSize: font.size.xs, color: alpha(color.white, 0.7), marginTop: 2 }}>
                 {list?.company || ""} ─ {list?.industry || ""} （全{csvData.length}件）
               </div>
             </div>
             <div style={{ padding: 20 }}>
-              <div style={{ fontSize: 12, color: C.textMid, marginBottom: 12 }}>
+              <div style={{ fontSize: font.size.sm, color: color.textMid, marginBottom: 12 }}>
                 架電する番号の範囲を入力してください
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 10, fontWeight: 600, color: C.textLight, marginBottom: 4, display: "block" }}>開始番号</label>
+                  <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.textLight, letterSpacing: font.letterSpacing.wide, marginBottom: 4, display: "block" }}>開始番号</label>
                   <input type="number" value={rangeStart} onChange={e => setRangeStart(e.target.value)}
                     placeholder="1" min={1} max={csvData.length}
                     style={{
-                      width: "100%", padding: "10px 14px", borderRadius: 6, border: "1px solid " + C.border,
-                      fontSize: 16, fontWeight: 700, fontFamily: "'JetBrains Mono'", textAlign: "center",
-                      color: C.navy, outline: "none",
+                      width: "100%", padding: "10px 14px", borderRadius: radius.md, border: `1px solid ${color.border}`,
+                      fontSize: 16, fontWeight: font.weight.bold, fontFamily: font.family.mono, textAlign: "center",
+                      color: color.navy, outline: "none",
                     }}
                   />
                 </div>
-                <span style={{ fontSize: 16, color: C.textLight, marginTop: 14 }}>〜</span>
+                <span style={{ fontSize: 16, color: color.textLight, marginTop: 14 }}>〜</span>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 10, fontWeight: 600, color: C.textLight, marginBottom: 4, display: "block" }}>終了番号</label>
+                  <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.textLight, letterSpacing: font.letterSpacing.wide, marginBottom: 4, display: "block" }}>終了番号</label>
                   <input type="number" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)}
                     placeholder={String(csvData.length)} min={1} max={csvData.length}
                     style={{
-                      width: "100%", padding: "10px 14px", borderRadius: 6, border: "1px solid " + C.border,
-                      fontSize: 16, fontWeight: 700, fontFamily: "'JetBrains Mono'", textAlign: "center",
-                      color: C.navy, outline: "none",
+                      width: "100%", padding: "10px 14px", borderRadius: radius.md, border: `1px solid ${color.border}`,
+                      fontSize: 16, fontWeight: font.weight.bold, fontFamily: font.family.mono, textAlign: "center",
+                      color: color.navy, outline: "none",
                     }}
                   />
                 </div>
               </div>
               {rangeError && (!rangeStart || !rangeEnd) && (
-                <div style={{ fontSize: 11, color: C.red, marginBottom: 10 }}>番号を入力してください</div>
+                <div style={{ fontSize: font.size.xs, color: color.danger, marginBottom: 10 }}>番号を入力してください</div>
               )}
-              <button
+              <Button
+                fullWidth
                 disabled={!rangeStart || !rangeEnd}
                 onClick={() => {
                   if (!rangeStart || !rangeEnd) { setRangeError(true); return; }
                   setRangeConfirmed(true);
                   updateLiveStatus();
                 }}
-                style={{
-                  width: "100%", padding: "6px 12px", borderRadius: 4, border: "none",
-                  background: rangeStart && rangeEnd ? "#0D2247" : C.border,
-                  cursor: rangeStart && rangeEnd ? "pointer" : "not-allowed",
-                  fontSize: 12, fontWeight: 500,
-                  color: C.white, fontFamily: "'Noto Sans JP'",
-                }}
-              >この範囲で開始</button>
+              >この範囲で開始</Button>
             </div>
           </div>
         </div>
@@ -500,50 +496,50 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
 
       {/* Header */}
       <div style={{
-        background: '#0D2247',
+        background: color.navy,
         padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "space-between",
         flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.white }}>{list.company}</div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>{list.industry}　担当: {list.manager}{rangeConfirmed && rangeStartNum && rangeEndNum ? "　No." + rangeStartNum + " 〜 " + rangeEndNum : ""}</div>
+            <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.white }}>{list.company}</div>
+            <div style={{ fontSize: 10, color: alpha(color.white, 0.7) }}>{list.industry}　担当: {list.manager}{rangeConfirmed && rangeStartNum && rangeEndNum ? "　No." + rangeStartNum + " 〜 " + rangeEndNum : ""}</div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {/* Stats */}
           <div style={{ display: "flex", gap: 10 }}>
             {[
-              { label: "総数", val: totalCount, color: C.white },
-              { label: "架電可能", val: callableCount, color: 'rgba(255,255,255,0.85)' },
+              { label: "総数", val: totalCount, color: color.white },
+              { label: "架電可能", val: callableCount, color: alpha(color.white, 0.85) },
               { label: currentRound + "周目済", val: roundDoneCount, color: "#90EE90" },
               { label: "除外", val: excludedCount, color: "#ff9999" },
-              { label: "アポ", val: appoCount, color: C.green },
+              { label: "アポ", val: appoCount, color: color.success },
             ].map((s, i) => (
               <div key={i} style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.55)', letterSpacing: 0.3 }}>{s.label}</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: s.color, fontFamily: "'JetBrains Mono'" }}>{s.val}</div>
+                <div style={{ fontSize: 8, color: alpha(color.white, 0.55), letterSpacing: 0.3 }}>{s.label}</div>
+                <div style={{ fontSize: font.size.md, fontWeight: font.weight.black, color: s.color, fontFamily: font.family.mono }}>{s.val}</div>
               </div>
             ))}
           </div>
           {/* Progress */}
           <div style={{ width: 100 }}>
-            <div style={{ height: 5, background: 'rgba(255,255,255,0.2)', borderRadius: 3, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: ((roundDoneCount + excludedCount) / Math.max(totalCount, 1) * 100) + "%", background: "#1E40AF", borderRadius: 3, transition: "width 0.3s" }} />
+            <div style={{ height: 5, background: alpha(color.white, 0.2), borderRadius: radius.sm, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: ((roundDoneCount + excludedCount) / Math.max(totalCount, 1) * 100) + "%", background: color.blue, borderRadius: radius.sm, transition: "width 0.3s" }} />
             </div>
-            <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.75)', textAlign: "right", marginTop: 1 }}>{Math.round((roundDoneCount + excludedCount) / Math.max(totalCount, 1) * 100)}%</div>
+            <div style={{ fontSize: 8, color: alpha(color.white, 0.75), textAlign: "right", marginTop: 1 }}>{Math.round((roundDoneCount + excludedCount) / Math.max(totalCount, 1) * 100)}%</div>
           </div>
           {onMinimize && (
             <button onClick={onMinimize} style={{
-              padding: "5px 14px", borderRadius: 6, background: C.white + "15",
-              border: "1px solid " + C.white + "30", color: C.white, cursor: "pointer",
-              fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+              padding: "5px 14px", borderRadius: radius.lg, background: alpha(color.white, 0.10),
+              border: `1px solid ${alpha(color.white, 0.30)}`, color: color.white, cursor: "pointer",
+              fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
             }}>⊟ 最小化</button>
           )}
           <button onClick={handleClose} style={{
-            padding: "5px 14px", borderRadius: 6, background: C.white + "15",
-            border: "1px solid " + C.white + "30", color: C.white, cursor: "pointer",
-            fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
+            padding: "5px 14px", borderRadius: radius.lg, background: alpha(color.white, 0.10),
+            border: `1px solid ${alpha(color.white, 0.30)}`, color: color.white, cursor: "pointer",
+            fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
           }}>✕ 終了</button>
         </div>
       </div>
@@ -551,18 +547,18 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
       {/* Main Content */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         {/* Left: List */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", borderRight: "1px solid #E5E7EB" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", borderRight: `1px solid ${color.border}` }}>
           {/* Search + filter */}
-          <div style={{ padding: "6px 12px", background: '#fff', borderBottom: "1px solid #E5E7EB", display: "flex", gap: 6, alignItems: "center" }}>
+          <div style={{ padding: "6px 12px", background: color.white, borderBottom: `1px solid ${color.border}`, display: "flex", gap: 6, alignItems: "center" }}>
             <input type="text" placeholder="番号・企業名・代表者で検索..." value={searchTerm}
               onChange={e => { setSearchTerm(e.target.value); setPageStart(0); }}
-              style={{ flex: 1, padding: "5px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none" }} />
+              style={{ flex: 1, padding: "5px 10px", borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: font.family.sans, outline: "none" }} />
             {["callable", "all", "excluded"].map(m => (
               <button key={m} onClick={() => { setFilterMode(m); setPageStart(0); }} style={{
-                padding: "4px 8px", borderRadius: 4, fontSize: 9, fontWeight: 600,
-                border: "1px solid " + (filterMode === m ? '#0D2247' : C.border),
-                background: filterMode === m ? '#0D2247' : C.white,
-                color: filterMode === m ? '#FFFFFF' : C.textLight, cursor: "pointer",
+                padding: "4px 8px", borderRadius: radius.md, fontSize: 9, fontWeight: font.weight.semibold,
+                border: `1px solid ${filterMode === m ? color.navy : color.border}`,
+                background: filterMode === m ? color.navy : color.white,
+                color: filterMode === m ? color.white : color.textLight, cursor: "pointer",
               }}>{m === "callable" ? "架電可能" : m === "all" ? "全件" : "除外"}</button>
             ))}
             {prefOptions.length > 1 && (
@@ -571,32 +567,32 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                   <div onClick={() => setPrefDropOpen(false)} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 }} />
                 )}
                 <button onClick={() => setPrefDropOpen(v => !v)} style={{
-                  padding: "4px 8px", borderRadius: 4,
-                  border: "1px solid " + (prefFilters.length > 0 ? C.navy : C.border),
-                  background: prefFilters.length > 0 ? C.navy + "10" : C.white,
-                  fontSize: 9, fontFamily: "'Noto Sans JP'", cursor: "pointer",
-                  color: prefFilters.length > 0 ? C.navy : C.textDark, whiteSpace: "nowrap",
+                  padding: "4px 8px", borderRadius: radius.md,
+                  border: `1px solid ${prefFilters.length > 0 ? color.navy : color.border}`,
+                  background: prefFilters.length > 0 ? alpha(color.navy, 0.06) : color.white,
+                  fontSize: 9, fontFamily: font.family.sans, cursor: "pointer",
+                  color: prefFilters.length > 0 ? color.navy : color.textDark, whiteSpace: "nowrap",
                 }}>
                   {prefFilters.length > 0 ? `都道府県(${prefFilters.length})▼` : "都道府県▼"}
                 </button>
                 {prefDropOpen && (
                   <div style={{
                     position: "absolute", top: "100%", left: 0, zIndex: 10101,
-                    background: C.white, border: "1px solid " + C.border,
-                    borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+                    background: color.white, border: `1px solid ${color.border}`,
+                    borderRadius: radius.lg, boxShadow: shadow.md,
                     minWidth: 120, maxHeight: 220, overflowY: "auto", padding: "4px 0",
                   }}>
                     {prefFilters.length > 0 && (
                       <div onClick={() => { setPrefFilters([]); setPageStart(0); }} style={{
-                        padding: "4px 10px", fontSize: 9, color: C.navy, cursor: "pointer",
-                        borderBottom: "1px solid " + C.borderLight, fontWeight: 600,
+                        padding: "4px 10px", fontSize: 9, color: color.navy, cursor: "pointer",
+                        borderBottom: `1px solid ${color.borderLight}`, fontWeight: font.weight.semibold,
                       }}>クリア</div>
                     )}
                     {prefOptions.map(p => (
                       <label key={p} style={{
                         display: "flex", alignItems: "center", gap: 6,
                         padding: "4px 10px", cursor: "pointer", fontSize: 9,
-                        fontFamily: "'Noto Sans JP'", color: C.textDark,
+                        fontFamily: font.family.sans, color: color.textDark,
                       }}>
                         <input type="checkbox" checked={prefFilters.includes(p)}
                           onChange={() => {
@@ -612,7 +608,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                 )}
               </div>
             )}
-            <span style={{ fontSize: 9, color: C.textLight, whiteSpace: "nowrap", fontFamily: "'JetBrains Mono'" }}>
+            <span style={{ fontSize: 9, color: color.textLight, whiteSpace: "nowrap", fontFamily: font.family.mono }}>
               {filtered.length}件
             </span>
           </div>
@@ -620,15 +616,15 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
           {/* Table header */}
           <div style={{
             display: "grid", gridTemplateColumns: `32px 1.4fr 0.6fr 0.7fr 0.6fr 85px 68px repeat(${displayRounds}, 46px)`,
-            padding: "5px 10px", background: '#0D2247', flexShrink: 0,
-            fontSize: 9, fontWeight: 600, color: '#fff', letterSpacing: 0.5,
+            padding: "5px 10px", background: color.navy, flexShrink: 0,
+            fontSize: 9, fontWeight: font.weight.semibold, color: color.white, letterSpacing: font.letterSpacing.wide,
           }}>
             {[["no","No"],["company","企業名"],["business","事業内容"],["address","住所"],["representative","代表者"],["phone","電話番号"],["lastCall","最終発信"]].map(([key, label]) => (
               <span key={key} onClick={() => { if (listSortBy === key) { setListSortBy(null); setListSortDir("asc"); } else { setListSortBy(key); setListSortDir("desc"); } setPageStart(0); }} style={{ cursor: "pointer", userSelect: "none" }}>
                 {label}{listSortBy === key ? " ▲" : " ▽"}
               </span>
             ))}
-            {Array.from({length: displayRounds}, (_, i) => i + 1).map(w => <span key={w} style={{ textAlign: "center", color: w === currentRound ? '#C8A84B' : 'rgba(255,255,255,0.55)' }}>{w}周</span>)}
+            {Array.from({length: displayRounds}, (_, i) => i + 1).map(w => <span key={w} style={{ textAlign: "center", color: w === currentRound ? color.gold : alpha(color.white, 0.55) }}>{w}周</span>)}
           </div>
 
           {/* Table body */}
@@ -644,32 +640,32 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                 <div key={row.no} onClick={() => { setSelectedRow(globalIdx); setMemo(csvData[globalIdx]?.memo || ""); setShowScript(false); }}
                   style={{
                     display: "grid", gridTemplateColumns: `32px 1.4fr 0.6fr 0.7fr 0.6fr 85px 68px repeat(${displayRounds}, 46px)`,
-                    padding: "6px 10px", fontSize: 11, alignItems: "center", cursor: "pointer",
-                    borderBottom: "1px solid #E5E7EB",
-                    background: isSelected ? '#EFF6FF' : excluded ? "#fee2e240" : roundData ? '#F8F9FA' : '#fff',
-                    borderLeft: isSelected ? "3px solid #0D2247" : "3px solid transparent",
+                    padding: "6px 10px", fontSize: font.size.xs, alignItems: "center", cursor: "pointer",
+                    borderBottom: `1px solid ${color.border}`,
+                    background: isSelected ? alpha(color.navyLight, 0.08) : excluded ? alpha(color.danger, 0.06) : roundData ? color.cream : color.white,
+                    borderLeft: isSelected ? `3px solid ${color.navy}` : "3px solid transparent",
                     opacity: excluded ? 0.5 : 1,
                     transition: "all 0.1s",
                   }}>
-                  <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight }}>{row.no}</span>
-                  <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.company}</span>
-                  <span style={{ color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 10 }}>{row.business}</span>
-                  <span style={{ color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 9 }}>{row.address || row.pref || '—'}</span>
-                  <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.representative}</span>
+                  <span style={{ fontFamily: font.family.mono, fontSize: 10, color: color.textLight }}>{row.no}</span>
+                  <span style={{ fontWeight: font.weight.medium, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.company}</span>
+                  <span style={{ color: color.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 10 }}>{row.business}</span>
+                  <span style={{ color: color.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 9 }}>{row.address || row.pref || '—'}</span>
+                  <span style={{ color: color.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.representative}</span>
                   <span>
                     {row.phone && !excluded ? (
                       <span onClick={e => { e.stopPropagation(); dialPhone(row.phone); setSelectedRow(globalIdx); setMemo(csvData[globalIdx]?.memo || ""); }} style={{
-                        color: C.navy, fontWeight: 600, fontSize: 10,
-                        fontFamily: "'JetBrains Mono'",
-                        padding: "2px 5px", borderRadius: 4, cursor: "pointer",
-                        background: '#0D224715',
-                        border: "1px solid #0D224730",
+                        color: color.navy, fontWeight: font.weight.semibold, fontSize: 10,
+                        fontFamily: font.family.mono,
+                        padding: "2px 5px", borderRadius: radius.md, cursor: "pointer",
+                        background: alpha(color.navy, 0.08),
+                        border: `1px solid ${alpha(color.navy, 0.18)}`,
                       }}>{row.phone}</span>
                     ) : (
-                      <span style={{ fontSize: 10, color: C.textLight, fontFamily: "'JetBrains Mono'" }}>{row.phone || "-"}</span>
+                      <span style={{ fontSize: 10, color: color.textLight, fontFamily: font.family.mono }}>{row.phone || "-"}</span>
                     )}
                   </span>
-                  <span style={{ fontSize: 9, color: C.textLight, fontFamily: "'JetBrains Mono'", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: 9, color: color.textLight, fontFamily: font.family.mono, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {(() => { const lcd = getLastCallDate(row); return lcd ? lcd.replace(/T/, " ").slice(5, 16) : "-"; })()}
                   </span>
                   {Array.from({length: displayRounds}, (_, i) => i + 1).map(w => {
@@ -678,14 +674,14 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                     return (
                       <span key={w} style={{ textAlign: "center" }} title={wd?.caller ? "担当: " + wd.caller : ""}>
                         {excluded && EXCLUDED_IDS.includes(wd?.status) ? (
-                          <span style={{ fontSize: 7, padding: "1px 3px", borderRadius: 3, background: "#e5383510", color: "#e53835", fontWeight: 600 }}>除外</span>
+                          <span style={{ fontSize: 7, padding: "1px 3px", borderRadius: radius.sm, background: alpha(color.danger, 0.08), color: color.danger, fontWeight: font.weight.semibold }}>除外</span>
                         ) : wsd ? (
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
-                            <span style={{ fontSize: 7, padding: "1px 3px", borderRadius: 3, background: wsd.bg, color: wsd.color, fontWeight: 600 }}>{wsd.label}</span>
-                            {wd.caller && <span style={{ fontSize: 6, color: C.textLight, lineHeight: 1, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 48 }}>{wd.caller}</span>}
+                            <span style={{ fontSize: 7, padding: "1px 3px", borderRadius: radius.sm, background: wsd.bg, color: wsd.color, fontWeight: font.weight.semibold }}>{wsd.label}</span>
+                            {wd.caller && <span style={{ fontSize: 6, color: color.textLight, lineHeight: 1, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 48 }}>{wd.caller}</span>}
                           </div>
                         ) : (
-                          <span style={{ fontSize: 8, color: C.textLight + "60" }}>-</span>
+                          <span style={{ fontSize: 8, color: alpha(color.textLight, 0.4) }}>-</span>
                         )}
                       </span>
                     );
@@ -697,21 +693,9 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
 
           {/* Pagination */}
           {filtered.length > PAGE_SIZE && (
-            <div style={{ display: "flex", justifyContent: "center", gap: 8, padding: "5px 0", background: '#fff', borderTop: "1px solid #E5E7EB", flexShrink: 0 }}>
-              <button disabled={pageStart === 0} onClick={() => setPageStart(Math.max(0, pageStart - PAGE_SIZE))} style={{
-                padding: "3px 14px", borderRadius: 4,
-                border: "1px solid " + (pageStart === 0 ? "#E5E7EB" : "#0D2247"),
-                background: pageStart === 0 ? "#F8F9FA" : "white",
-                cursor: pageStart === 0 ? "default" : "pointer",
-                fontSize: 11, color: pageStart === 0 ? "#9CA3AF" : "#0D2247",
-              }}>← 前</button>
-              <button disabled={pageStart + PAGE_SIZE >= filtered.length} onClick={() => setPageStart(pageStart + PAGE_SIZE)} style={{
-                padding: "3px 14px", borderRadius: 4,
-                border: "1px solid " + (pageStart + PAGE_SIZE >= filtered.length ? "#E5E7EB" : "#0D2247"),
-                background: pageStart + PAGE_SIZE >= filtered.length ? "#F8F9FA" : "white",
-                cursor: pageStart + PAGE_SIZE >= filtered.length ? "default" : "pointer",
-                fontSize: 11, color: pageStart + PAGE_SIZE >= filtered.length ? "#9CA3AF" : "#0D2247",
-              }}>次 →</button>
+            <div style={{ display: "flex", justifyContent: "center", gap: 8, padding: "5px 0", background: color.white, borderTop: `1px solid ${color.border}`, flexShrink: 0 }}>
+              <Button size="sm" variant="outline" disabled={pageStart === 0} onClick={() => setPageStart(Math.max(0, pageStart - PAGE_SIZE))}>← 前</Button>
+              <Button size="sm" variant="outline" disabled={pageStart + PAGE_SIZE >= filtered.length} onClick={() => setPageStart(pageStart + PAGE_SIZE)}>次 →</Button>
             </div>
           )}
         </div>
@@ -752,11 +736,11 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: '#fff', borderRadius: 4, padding: 28, width: 380,
-            border: '1px solid #E5E7EB', fontFamily: "'Noto Sans JP'",
+            background: color.white, borderRadius: radius.lg, padding: 28, width: 380,
+            border: `1px solid ${color.border}`, fontFamily: font.family.sans, boxShadow: shadow.xl,
           }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#0D2247', marginBottom: 16 }}>キーボードショートカット</div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginBottom: 16 }}>キーボードショートカット</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
               <tbody>
                 {[
                   ...(IS_MAC
@@ -768,24 +752,20 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                        ['F7', '社長お断り'], ['F8', '除外']]),
                   ['← →', '前後の企業に移動'], ['Esc', 'モーダルを閉じる'], ['?', 'このヘルプを表示'],
                 ].map(([key, desc]) => (
-                  <tr key={key} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <tr key={key} style={{ borderBottom: `1px solid ${color.borderLight}` }}>
                     <td style={{ padding: '6px 10px', width: 90 }}>
                       <kbd style={{
-                        display: 'inline-block', padding: '2px 8px', borderRadius: 4,
-                        background: '#f3f4f6', border: '1px solid #d1d5db',
-                        fontFamily: "'JetBrains Mono'", fontSize: 11, fontWeight: 700, color: '#374151',
+                        display: 'inline-block', padding: '2px 8px', borderRadius: radius.md,
+                        background: color.gray100, border: `1px solid ${color.gray300}`,
+                        fontFamily: font.family.mono, fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.gray700,
                       }}>{key}</kbd>
                     </td>
-                    <td style={{ padding: '6px 10px', color: '#374151' }}>{desc}</td>
+                    <td style={{ padding: '6px 10px', color: color.gray700 }}>{desc}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <button onClick={() => setShowShortcutHelp(false)} style={{
-              marginTop: 16, width: '100%', padding: '6px 12px', borderRadius: 4,
-              border: 'none', background: '#0D2247', color: '#fff',
-              fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-            }}>閉じる</button>
+            <Button fullWidth style={{ marginTop: 16 }} onClick={() => setShowShortcutHelp(false)}>閉じる</Button>
           </div>
         </div>
       )}

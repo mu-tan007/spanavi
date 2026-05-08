@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { C } from '../../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Badge } from '../../ui';
 import { dialPhone } from '../../../utils/phone';
 import {
   insertClientCallRecord, deleteClientCallRecordByRound,
@@ -8,7 +9,6 @@ import {
   invokeGetZoomRecording, updateClientCallRecordRecordingUrl,
 } from '../../../lib/supabaseWrite';
 import { useIsMobile } from '../../../hooks/useIsMobile';
-import { NAVY, GRAY_200, GRAY_50, GOLD } from './utils';
 import CRMLeadAppoModal from './CRMLeadAppoModal';
 import CRMLeadRecallModal from './CRMLeadRecallModal';
 
@@ -83,24 +83,18 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
     return (
       <div style={{
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        background: '#fff', zIndex: 10000, padding: 24,
+        background: color.white, zIndex: 10000, padding: space[6],
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        fontFamily: font.family.sans,
       }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 8, textAlign: 'center' }}>
+        <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginBottom: space[1], textAlign: 'center' }}>
           架電画面はPCでご利用ください
         </div>
-        <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 20, textAlign: 'center', lineHeight: 1.6 }}>
+        <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[5], textAlign: 'center', lineHeight: font.lineHeight.relaxed }}>
           ステータス記録・周回管理・録音保存などの機能を<br />
           快適に使うために、PCでの操作を推奨しています。
         </div>
-        <button
-          onClick={onClose}
-          style={{
-            padding: '10px 24px', borderRadius: 4, border: '1px solid ' + NAVY,
-            background: '#fff', color: NAVY,
-            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-          }}
-        >← 戻る</button>
+        <Button variant="outline" size="md" onClick={onClose}>← 戻る</Button>
       </div>
     );
   }
@@ -512,56 +506,57 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
     }).length;
     return (
       <div style={{
-        position: 'fixed', bottom: 16, right: 16, zIndex: 10000,
-        width: 300, background: '#fff',
-        border: '1px solid ' + GRAY_200, borderRadius: 6,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+        position: 'fixed', bottom: space[4], right: space[4], zIndex: 10000,
+        width: 300, background: color.white,
+        border: `1px solid ${color.border}`, borderRadius: radius.lg,
+        boxShadow: shadow.lg,
         overflow: 'hidden',
+        fontFamily: font.family.sans,
       }}>
         <div style={{
-          background: NAVY, color: '#fff',
-          padding: '8px 12px',
+          background: color.navy, color: color.white,
+          padding: `${space[2]}px ${space[3]}px`,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          gap: 8,
+          gap: space[2],
         }}>
           <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            <div style={{ fontSize: 12, fontWeight: 700 }}>{list.name}</div>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.75)' }}>
+            <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold }}>{list.name}</div>
+            <div style={{ fontSize: 9, color: alpha(color.white, 0.75) }}>
               架電中（CRM新規開拓）
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div style={{ display: 'flex', gap: space[1] }}>
             <button
               onClick={() => setIsMinimized(false)}
               title="最大化"
               style={{
-                width: 24, height: 22, borderRadius: 2,
-                border: '1px solid #fff', background: 'transparent',
-                color: '#fff', fontSize: 12, cursor: 'pointer', padding: 0,
+                width: 24, height: 22, borderRadius: radius.sm,
+                border: `1px solid ${color.white}`, background: 'transparent',
+                color: color.white, fontSize: font.size.sm, cursor: 'pointer', padding: 0,
               }}
             >□</button>
             <button
               onClick={onClose}
               title="閉じる"
               style={{
-                width: 24, height: 22, borderRadius: 2,
-                border: '1px solid #fff', background: 'transparent',
-                color: '#fff', fontSize: 14, cursor: 'pointer', padding: 0, lineHeight: 1,
+                width: 24, height: 22, borderRadius: radius.sm,
+                border: `1px solid ${color.white}`, background: 'transparent',
+                color: color.white, fontSize: font.size.md, cursor: 'pointer', padding: 0, lineHeight: 1,
               }}
             >×</button>
           </div>
         </div>
-        <div style={{ padding: '10px 12px', fontSize: 11 }}>
-          <div style={{ color: C.textMid, marginBottom: 4 }}>
-            選択中: <strong style={{ color: NAVY }}>{selected?.company || '—'}</strong>
+        <div style={{ padding: `${space[2.5]}px ${space[3]}px`, fontSize: font.size.xs }}>
+          <div style={{ color: color.textMid, marginBottom: space[1] }}>
+            選択中: <strong style={{ color: color.navy }}>{selected?.company || '—'}</strong>
           </div>
           <div style={{
-            display: 'flex', justifyContent: 'space-between', gap: 6,
-            fontSize: 10, color: C.textLight,
+            display: 'flex', justifyContent: 'space-between', gap: space[1.5],
+            fontSize: 10, color: color.textLight,
           }}>
             <span>件数 {companies.length}</span>
             <span>架電済 {calledCount}</span>
-            <span style={{ color: '#16A34A', fontWeight: 600 }}>アポ {apptCount}</span>
+            <span style={{ color: color.success, fontWeight: font.weight.semibold }}>アポ {apptCount}</span>
           </div>
         </div>
       </div>
@@ -571,19 +566,20 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      background: GRAY_50, zIndex: 10000, overflow: 'hidden',
+      background: color.offWhite, zIndex: 10000, overflow: 'hidden',
       display: 'flex', flexDirection: 'column',
+      fontFamily: font.family.sans,
     }}>
       {/* ヘッダー */}
       <div style={{
-        background: NAVY, padding: '8px 24px',
+        background: color.navy, padding: `${space[2]}px ${space[6]}px`,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         flexShrink: 0,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: space[4] }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{list.name}</div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>
+            <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.white }}>{list.name}</div>
+            <div style={{ fontSize: 10, color: alpha(color.white, 0.7) }}>
               {list.industry || '業界未設定'}
               {searchTerm && (
                 <span> ・ 表示 {visibleCompanies.length} 件</span>
@@ -591,34 +587,34 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
             </div>
           </div>
           {/* 統計バッジ */}
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: space[3], alignItems: 'center' }}>
             {[
-              { label: '件数', val: stats.total, color: '#fff' },
-              { label: '架電可能', val: stats.callable, color: 'rgba(255,255,255,0.85)' },
+              { label: '件数', val: stats.total, color: color.white },
+              { label: '架電可能', val: stats.callable, color: alpha(color.white, 0.85) },
               { label: '架電済', val: stats.called, color: '#90EE90' },
               { label: 'アポ', val: stats.appo, color: '#FFD66B' },
             ].map(s => (
               <div key={s.label} style={{ textAlign: 'center', minWidth: 36 }}>
-                <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.6)', letterSpacing: 0.5 }}>{s.label}</div>
+                <div style={{ fontSize: 8, color: alpha(color.white, 0.6), letterSpacing: 0.5 }}>{s.label}</div>
                 <div style={{
-                  fontSize: 16, fontWeight: 700, color: s.color,
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: font.size.lg, fontWeight: font.weight.bold, color: s.color,
+                  fontFamily: font.family.mono,
                   fontVariantNumeric: 'tabular-nums', lineHeight: 1.1,
                 }}>{s.val}</div>
               </div>
             ))}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: space[2], alignItems: 'center' }}>
           <input
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             placeholder="企業名・事業内容..."
             style={{
-              padding: '5px 10px', borderRadius: 3,
-              border: '1px solid rgba(255,255,255,0.4)',
-              background: 'rgba(255,255,255,0.1)', color: '#fff',
-              fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none',
+              padding: '5px 10px', borderRadius: radius.sm,
+              border: `1px solid ${alpha(color.white, 0.4)}`,
+              background: alpha(color.white, 0.1), color: color.white,
+              fontSize: font.size.xs, fontFamily: font.family.sans, outline: 'none',
               width: 180,
             }}
           />
@@ -626,9 +622,9 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
             onClick={() => setShowHelp(h => !h)}
             title="ショートカット一覧"
             style={{
-              padding: '5px 10px', borderRadius: 3,
-              border: '1px solid #fff', background: 'transparent',
-              color: '#fff', fontSize: 11, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+              padding: '5px 10px', borderRadius: radius.sm,
+              border: `1px solid ${color.white}`, background: 'transparent',
+              color: color.white, fontSize: font.size.xs, cursor: 'pointer', fontFamily: font.family.sans,
               minWidth: 28,
             }}
           >?</button>
@@ -636,9 +632,9 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
             onClick={() => setIsMinimized(true)}
             title="最小化（他画面を操作できる小ウィンドウへ）"
             style={{
-              padding: '5px 10px', borderRadius: 3,
-              border: '1px solid #fff', background: 'transparent',
-              color: '#fff', fontSize: 11, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+              padding: '5px 10px', borderRadius: radius.sm,
+              border: `1px solid ${color.white}`, background: 'transparent',
+              color: color.white, fontSize: font.size.xs, cursor: 'pointer', fontFamily: font.family.sans,
               minWidth: 28,
             }}
           >−</button>
@@ -646,19 +642,19 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
             onClick={() => setShowScript(s => !s)}
             disabled={!list.script_body}
             style={{
-              padding: '5px 12px', borderRadius: 3,
-              border: '1px solid ' + (list.script_body ? '#fff' : 'rgba(255,255,255,0.3)'),
-              background: 'transparent', color: list.script_body ? '#fff' : 'rgba(255,255,255,0.3)',
-              fontSize: 11, fontWeight: 500, cursor: list.script_body ? 'pointer' : 'not-allowed',
-              fontFamily: "'Noto Sans JP'",
+              padding: '5px 12px', borderRadius: radius.sm,
+              border: `1px solid ${list.script_body ? color.white : alpha(color.white, 0.3)}`,
+              background: 'transparent', color: list.script_body ? color.white : alpha(color.white, 0.3),
+              fontSize: font.size.xs, fontWeight: font.weight.medium, cursor: list.script_body ? 'pointer' : 'not-allowed',
+              fontFamily: font.family.sans,
             }}
           >{showScript ? 'スクリプトを閉じる' : 'スクリプト'}</button>
           <button
             onClick={onClose}
             style={{
-              padding: '5px 12px', borderRadius: 3,
-              border: '1px solid #fff', background: 'transparent',
-              color: '#fff', fontSize: 11, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+              padding: '5px 12px', borderRadius: radius.sm,
+              border: `1px solid ${color.white}`, background: 'transparent',
+              color: color.white, fontSize: font.size.xs, cursor: 'pointer', fontFamily: font.family.sans,
             }}
           >閉じる</button>
         </div>
@@ -666,12 +662,12 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
 
       {/* 範囲指定バー */}
       <div style={{
-        background: '#fff', borderBottom: '1px solid ' + GRAY_200,
-        padding: '6px 24px',
-        display: 'flex', alignItems: 'center', gap: 8,
-        fontSize: 11, color: C.textMid, flexShrink: 0,
+        background: color.white, borderBottom: `1px solid ${color.border}`,
+        padding: `${space[1.5]}px ${space[6]}px`,
+        display: 'flex', alignItems: 'center', gap: space[2],
+        fontSize: font.size.xs, color: color.textMid, flexShrink: 0,
       }}>
-        <span style={{ fontWeight: 600 }}>範囲指定</span>
+        <span style={{ fontWeight: font.weight.semibold }}>範囲指定</span>
         <span>No.</span>
         <input
           type="number"
@@ -680,9 +676,9 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
           placeholder="1"
           min={1}
           style={{
-            width: 70, padding: '4px 8px', borderRadius: 3,
-            border: '1px solid ' + GRAY_200, fontSize: 11,
-            fontFamily: "'JetBrains Mono'", textAlign: 'center', outline: 'none',
+            width: 70, padding: '4px 8px', borderRadius: radius.sm,
+            border: `1px solid ${color.border}`, fontSize: font.size.xs,
+            fontFamily: font.family.mono, textAlign: 'center', outline: 'none',
           }}
         />
         <span>〜</span>
@@ -693,39 +689,35 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
           placeholder={String(companies.length)}
           min={1}
           style={{
-            width: 70, padding: '4px 8px', borderRadius: 3,
-            border: '1px solid ' + GRAY_200, fontSize: 11,
-            fontFamily: "'JetBrains Mono'", textAlign: 'center', outline: 'none',
+            width: 70, padding: '4px 8px', borderRadius: radius.sm,
+            border: `1px solid ${color.border}`, fontSize: font.size.xs,
+            fontFamily: font.family.mono, textAlign: 'center', outline: 'none',
           }}
         />
-        <button
+        <Button
+          variant="primary"
+          size="sm"
           onClick={() => {
             if (!rangeStart && !rangeEnd) { alert('範囲を入力してください'); return; }
             setRangeApplied(true);
             setSelectedIdx(null);
           }}
-          style={{
-            padding: '4px 12px', borderRadius: 3, border: 'none',
-            background: NAVY, color: '#fff', fontSize: 11, fontWeight: 500,
-            cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-          }}
-        >適用</button>
+          style={{ minHeight: 0, padding: '4px 12px', fontSize: font.size.xs, fontWeight: font.weight.medium }}
+        >適用</Button>
         {rangeApplied && (
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => {
               setRangeApplied(false);
               setRangeStart(''); setRangeEnd('');
               setSelectedIdx(null);
             }}
-            style={{
-              padding: '4px 12px', borderRadius: 3,
-              border: '1px solid ' + GRAY_200, background: '#fff',
-              color: C.textMid, fontSize: 11, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-            }}
-          >解除</button>
+            style={{ minHeight: 0, padding: '4px 12px', fontSize: font.size.xs }}
+          >解除</Button>
         )}
         {rangeApplied && (
-          <span style={{ fontSize: 10, color: C.textLight }}>
+          <span style={{ fontSize: 10, color: color.textLight }}>
             （範囲適用中: {visibleCompanies.length} 件）
           </span>
         )}
@@ -734,9 +726,9 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
       {/* スクリプト表示 */}
       {showScript && list.script_body && (
         <div style={{
-          background: '#FFFBEB', borderBottom: '1px solid ' + GOLD + '80',
-          padding: '12px 24px', maxHeight: 200, overflowY: 'auto',
-          fontSize: 12, lineHeight: 1.7, color: C.textDark,
+          background: '#FFFBEB', borderBottom: `1px solid ${alpha(color.gold, 0.5)}`,
+          padding: `${space[3]}px ${space[6]}px`, maxHeight: 200, overflowY: 'auto',
+          fontSize: font.size.sm, lineHeight: font.lineHeight.relaxed, color: color.textDark,
           whiteSpace: 'pre-wrap', flexShrink: 0,
         }}>
           {list.script_body}
@@ -746,22 +738,20 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
       {/* 企業選択時のステータスバー */}
       {selected && (
         <div style={{
-          background: '#fff', borderBottom: '1px solid ' + GRAY_200,
-          padding: '10px 24px',
+          background: color.white, borderBottom: `1px solid ${color.border}`,
+          padding: `${space[2.5]}px ${space[6]}px`,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           flexShrink: 0,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: space[4] }}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>
+              <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>
                 {selected.company}
                 {selected.promoted_to_client_id && (
-                  <span style={{ marginLeft: 8, fontSize: 9, color: '#16A34A', border: '1px solid #16A34A', borderRadius: 2, padding: '1px 5px', fontWeight: 700 }}>
-                    CRM登録済
-                  </span>
+                  <Badge variant="success" size="sm" style={{ marginLeft: space[2] }}>CRM登録済</Badge>
                 )}
               </div>
-              <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>
+              <div style={{ fontSize: 10, color: color.textLight, marginTop: 2 }}>
                 {selected.business || ''} {selected.representative ? '・ ' + selected.representative : ''}
               </div>
             </div>
@@ -769,14 +759,14 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
               <button
                 onClick={() => dialPhone(selected.phone)}
                 style={{
-                  padding: '6px 14px', borderRadius: 4,
-                  border: '1px solid ' + NAVY, background: NAVY + '15',
-                  color: NAVY, fontSize: 13, fontWeight: 700,
-                  fontFamily: "'JetBrains Mono'", cursor: 'pointer',
+                  padding: '6px 14px', borderRadius: radius.md,
+                  border: `1px solid ${color.navy}`, background: alpha(color.navy, 0.08),
+                  color: color.navy, fontSize: font.size.base, fontWeight: font.weight.bold,
+                  fontFamily: font.family.mono, cursor: 'pointer',
                 }}
               >{selected.phone}</button>
             )}
-            <span style={{ fontSize: 11, color: C.textMid }}>
+            <span style={{ fontSize: font.size.xs, color: color.textMid }}>
               次は {editRound} 周目
             </span>
           </div>
@@ -785,9 +775,9 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
             onChange={e => setMemo(e.target.value)}
             placeholder="メモ（任意）"
             style={{
-              width: 280, padding: '6px 10px', borderRadius: 3,
-              border: '1px solid ' + GRAY_200, fontSize: 11,
-              fontFamily: "'Noto Sans JP'", outline: 'none',
+              width: 280, padding: '6px 10px', borderRadius: radius.sm,
+              border: `1px solid ${color.border}`, fontSize: font.size.xs,
+              fontFamily: font.family.sans, outline: 'none',
             }}
           />
         </div>
@@ -795,12 +785,12 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
 
       {/* メイン: 企業一覧テーブル */}
       <div style={{ flex: 1, overflow: 'auto', padding: '0 0' }}>
-        <div style={{ background: '#fff', minHeight: '100%' }}>
+        <div style={{ background: color.white, minHeight: '100%' }}>
           <div style={{
             display: 'grid',
             gridTemplateColumns: `40px 1.4fr 1fr 100px ${'40px '.repeat(displayRounds).trim()}`,
-            padding: '8px 16px', background: NAVY,
-            fontSize: 10, fontWeight: 600, color: '#fff',
+            padding: '8px 16px', background: color.navy,
+            fontSize: 10, fontWeight: font.weight.semibold, color: color.white,
             position: 'sticky', top: 0, zIndex: 1,
           }}>
             {[
@@ -845,25 +835,25 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
                   display: 'grid',
                   gridTemplateColumns: `40px 1.4fr 1fr 100px ${'40px '.repeat(displayRounds).trim()}`,
                   padding: '6px 16px', fontSize: 10, alignItems: 'center',
-                  borderBottom: '1px solid ' + GRAY_200,
-                  background: isSelected ? '#EFF6FF' : (excluded ? '#FEE2E230' : (i % 2 === 0 ? '#fff' : GRAY_50)),
-                  borderLeft: isSelected ? '3px solid ' + NAVY : '3px solid transparent',
+                  borderBottom: `1px solid ${color.border}`,
+                  background: isSelected ? '#EFF6FF' : (excluded ? '#FEE2E230' : (i % 2 === 0 ? color.white : color.offWhite)),
+                  borderLeft: isSelected ? `3px solid ${color.navy}` : '3px solid transparent',
                   opacity: excluded ? 0.5 : 1,
                   cursor: 'pointer',
                 }}
               >
-                <span style={{ color: C.textLight, fontFamily: "'JetBrains Mono'" }}>{c.no}</span>
-                <span style={{ fontWeight: 600, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ color: color.textLight, fontFamily: font.family.mono }}>{c.no}</span>
+                <span style={{ fontWeight: font.weight.semibold, color: color.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {c.company}
                   {c.promoted_to_client_id && (
-                    <span style={{ marginLeft: 4, fontSize: 7, color: '#16A34A', border: '1px solid #16A34A', borderRadius: 2, padding: '0px 3px', fontWeight: 700 }}>CRM</span>
+                    <span style={{ marginLeft: 4, fontSize: 7, color: color.success, border: `1px solid ${color.success}`, borderRadius: radius.sm, padding: '0px 3px', fontWeight: font.weight.bold }}>CRM</span>
                   )}
                 </span>
-                <span style={{ color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.business || '-'}</span>
-                <span style={{ fontFamily: "'JetBrains Mono'", color: C.textMid }}>{c.phone || '-'}</span>
+                <span style={{ color: color.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.business || '-'}</span>
+                <span style={{ fontFamily: font.family.mono, color: color.textMid }}>{c.phone || '-'}</span>
                 {Array.from({ length: displayRounds }, (_, k) => {
                   const r = rounds[k + 1];
-                  if (!r) return <span key={k} style={{ textAlign: 'center', color: C.textLight + '60' }}>-</span>;
+                  if (!r) return <span key={k} style={{ textAlign: 'center', color: alpha(color.textLight, 0.4) }}>-</span>;
                   const sd = getStatus(r.status);
                   return (
                     <span
@@ -872,9 +862,9 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
                       title={`${sd?.label || r.status}（クリックで取消）`}
                       style={{
                         textAlign: 'center', cursor: 'pointer',
-                        fontSize: 7, fontWeight: 700, padding: '1px 2px',
-                        borderRadius: 2,
-                        background: (sd?.color || '#9CA3AF') + '20',
+                        fontSize: 7, fontWeight: font.weight.bold, padding: '1px 2px',
+                        borderRadius: radius.sm,
+                        background: alpha(sd?.color || '#9CA3AF', 0.12),
                         color: sd?.color || '#9CA3AF',
                       }}
                     >
@@ -891,9 +881,9 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
       {/* フッター: ステータスボタン群 */}
       {selected && (
         <div style={{
-          background: '#fff', borderTop: '1px solid ' + GRAY_200,
-          padding: '10px 16px',
-          display: 'flex', flexWrap: 'wrap', gap: 6,
+          background: color.white, borderTop: `1px solid ${color.border}`,
+          padding: `${space[2.5]}px ${space[4]}px`,
+          display: 'flex', flexWrap: 'wrap', gap: space[1.5],
           justifyContent: 'center', flexShrink: 0,
         }}>
           {STATUSES.map(s => (
@@ -901,18 +891,18 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
               key={s.id}
               onClick={() => recordStatus(s.id)}
               style={{
-                padding: '8px 14px', borderRadius: 4,
-                border: '1px solid ' + s.color,
-                background: s.color + '12', color: s.color,
-                fontSize: 12, fontWeight: 700,
-                cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                padding: '8px 14px', borderRadius: radius.md,
+                border: `1px solid ${s.color}`,
+                background: alpha(s.color, 0.07), color: s.color,
+                fontSize: font.size.sm, fontWeight: font.weight.bold,
+                cursor: 'pointer', fontFamily: font.family.sans,
                 display: 'inline-flex', alignItems: 'center', gap: 6,
               }}
             >
               <kbd style={{
-                fontSize: 9, fontWeight: 700, padding: '1px 4px',
-                border: '1px solid ' + s.color, borderRadius: 2,
-                fontFamily: "'JetBrains Mono'",
+                fontSize: 9, fontWeight: font.weight.bold, padding: '1px 4px',
+                border: `1px solid ${s.color}`, borderRadius: radius.sm,
+                fontFamily: font.family.mono,
               }}>{shortcutLabel(s.order)}</kbd>
               {s.label}
             </button>
@@ -922,8 +912,8 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
 
       {!selected && (
         <div style={{
-          background: '#fff', borderTop: '1px solid ' + GRAY_200,
-          padding: '14px', textAlign: 'center', fontSize: 11, color: C.textLight,
+          background: color.white, borderTop: `1px solid ${color.border}`,
+          padding: 14, textAlign: 'center', fontSize: font.size.xs, color: color.textLight,
           flexShrink: 0,
         }}>
           企業を選択するとショートカット（{IS_MAC ? '1〜0' : 'F1〜F10'}）でステータスを記録できます
@@ -954,28 +944,28 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
       {showHelp && (
         <div onClick={() => setShowHelp(false)} style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.55)', zIndex: 20004,
+          background: alpha(color.navyDeep, 0.55), zIndex: 20004,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
-            width: 440, padding: 24, boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
+            width: 440, padding: space[6], boxShadow: shadow.xl,
           }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 14 }}>
+            <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginBottom: 14 }}>
               キーボードショートカット
             </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
               <tbody>
                 {STATUSES.map(s => (
-                  <tr key={s.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <tr key={s.id} style={{ borderBottom: `1px solid ${color.gray100}` }}>
                     <td style={{ padding: '5px 8px', width: 80 }}>
                       <kbd style={{
-                        display: 'inline-block', padding: '2px 8px', borderRadius: 3,
-                        background: '#f3f4f6', border: '1px solid #d1d5db',
-                        fontFamily: "'JetBrains Mono'", fontSize: 11, fontWeight: 700, color: '#374151',
+                        display: 'inline-block', padding: '2px 8px', borderRadius: radius.sm,
+                        background: color.gray100, border: `1px solid ${color.gray300}`,
+                        fontFamily: font.family.mono, fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.gray700,
                       }}>{shortcutLabel(s.order)}</kbd>
                     </td>
-                    <td style={{ padding: '5px 8px', color: '#374151' }}>{s.label}</td>
+                    <td style={{ padding: '5px 8px', color: color.gray700 }}>{s.label}</td>
                   </tr>
                 ))}
                 {[
@@ -983,24 +973,26 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
                   ['Esc', '画面を閉じる / モーダルを閉じる'],
                   ['?', 'このヘルプを表示／非表示'],
                 ].map(([key, desc]) => (
-                  <tr key={key} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <tr key={key} style={{ borderBottom: `1px solid ${color.gray100}` }}>
                     <td style={{ padding: '5px 8px', width: 80 }}>
                       <kbd style={{
-                        display: 'inline-block', padding: '2px 8px', borderRadius: 3,
-                        background: '#f3f4f6', border: '1px solid #d1d5db',
-                        fontFamily: "'JetBrains Mono'", fontSize: 11, fontWeight: 700, color: '#374151',
+                        display: 'inline-block', padding: '2px 8px', borderRadius: radius.sm,
+                        background: color.gray100, border: `1px solid ${color.gray300}`,
+                        fontFamily: font.family.mono, fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.gray700,
                       }}>{key}</kbd>
                     </td>
-                    <td style={{ padding: '5px 8px', color: '#374151' }}>{desc}</td>
+                    <td style={{ padding: '5px 8px', color: color.gray700 }}>{desc}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <button onClick={() => setShowHelp(false)} style={{
-              marginTop: 14, width: '100%', padding: '6px 12px', borderRadius: 3,
-              border: 'none', background: NAVY, color: '#fff',
-              fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-            }}>閉じる</button>
+            <Button
+              variant="primary"
+              size="sm"
+              fullWidth
+              onClick={() => setShowHelp(false)}
+              style={{ marginTop: 14, minHeight: 0, padding: '6px 12px', fontSize: font.size.sm, fontWeight: font.weight.medium }}
+            >閉じる</Button>
           </div>
         </div>
       )}
