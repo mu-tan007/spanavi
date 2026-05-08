@@ -5,6 +5,7 @@ import { Button, Input, Select, Card, Badge } from '../ui';
 import { Database, Upload } from 'lucide-react';
 import DatabaseFilterPanel from '../database/DatabaseFilterPanel';
 import DatabaseResultTable from '../database/DatabaseResultTable';
+import DatabaseChatPanel from '../database/DatabaseChatPanel';
 import ImportModal from '../database/ImportModal';
 import TsrIndustryModal from '../TsrIndustryModal';
 import { useCompanySearch } from '../../hooks/useCompanySearch';
@@ -14,10 +15,16 @@ import PageHeader from '../common/PageHeader';
 
 export default function DatabaseView({ isAdmin }) {
   const {
-    filters, setFilter, resetFilters,
+    filters, setFilter, setFilters, resetFilters,
     results, totalCount, loading, error, hasSearched,
     doSearch, setPage,
   } = useCompanySearch();
+
+  // AIチャットパネルから渡された filters を一括反映 → 即検索
+  const handleApplyFromChat = useCallback((newFilters) => {
+    setFilters(() => ({ ...newFilters, page: 0 }));
+    doSearch({ ...newFilters, page: 0 });
+  }, [setFilters, doSearch]);
   const [showImport, setShowImport] = useState(false);
   const [showTsrModal, setShowTsrModal] = useState(false);
   const [dbTotal, setDbTotal] = useState(null);
@@ -87,6 +94,12 @@ export default function DatabaseView({ isAdmin }) {
             )}
           </>
         }
+      />
+
+      {/* AIチャット検索パネル */}
+      <DatabaseChatPanel
+        baseFilters={filters}
+        onApplyFilters={handleApplyFromChat}
       />
 
       {/* Filters */}
