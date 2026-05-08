@@ -33,27 +33,34 @@ function BackgroundLayer() {
       }}
     >
       <style>{`
-        /* レーダー針: 規則的な360度スキャン (整数秒で1周) */
-        @keyframes spLoginRadarSweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        /* ターゲットリング: 順次明るくなって規律的に拍動 */
-        @keyframes spLoginRingPulse {
-          0%, 70%, 100% { opacity: 0.18; }
-          15%, 25%      { opacity: 0.65; }
-        }
-        /* ファランクス縦バー: 順次発光 → 消える */
+        /* 案C: ファランクス陣形 — シールド静止、陣形側に動きを集中 */
+        /* ファランクス縦バー: ドミノ倒しのように順次発光 (整列の波) */
         @keyframes spLoginBarFlash {
-          0%, 8%   { opacity: 0; transform: scaleY(0.4); }
-          12%      { opacity: 0.85; transform: scaleY(1); }
-          22%      { opacity: 0.85; transform: scaleY(1); }
-          32%      { opacity: 0; transform: scaleY(0.4); }
-          100%     { opacity: 0; transform: scaleY(0.4); }
+          0%, 6%   { opacity: 0; transform: scaleY(0.3); }
+          10%      { opacity: 0.95; transform: scaleY(1); }
+          22%      { opacity: 0.95; transform: scaleY(1); }
+          32%      { opacity: 0; transform: scaleY(0.3); }
+          100%     { opacity: 0; transform: scaleY(0.3); }
         }
-        /* 水平スキャンライン: 上から下へ規則的に走査 */
+        /* 水平バー (上下の整列線): 同様にドミノ倒し */
+        @keyframes spLoginHBarFlash {
+          0%, 8%   { opacity: 0; transform: scaleX(0.3); }
+          12%      { opacity: 0.7; transform: scaleX(1); }
+          24%      { opacity: 0.7; transform: scaleX(1); }
+          34%      { opacity: 0; transform: scaleX(0.3); }
+          100%     { opacity: 0; transform: scaleX(0.3); }
+        }
+        /* 水平スキャンライン: 上から下へ */
         @keyframes spLoginScanLine {
           0%   { transform: translateY(-2vh); opacity: 0; }
-          5%   { opacity: 0.55; }
-          95%  { opacity: 0.55; }
+          5%   { opacity: 0.65; }
+          95%  { opacity: 0.65; }
           100% { transform: translateY(102vh); opacity: 0; }
+        }
+        /* ターゲットリング: ごく薄い静的呼吸 (シールドが死んで見えないように) */
+        @keyframes spLoginRingBreathe {
+          0%, 100% { opacity: 0.16; }
+          50%      { opacity: 0.26; }
         }
         @keyframes spLoginCardEnter {
           from { opacity: 0; transform: translateY(8px); }
@@ -94,11 +101,18 @@ function BackgroundLayer() {
           transform-origin: center;
           will-change: opacity, transform;
         }
+        /* ファランクス水平バー (上下隊列) */
+        .sp-login-hbar {
+          position: absolute; left: 14%; right: 14%; height: 1.5px;
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.75) 50%, transparent 100%);
+          transform-origin: center;
+          will-change: opacity, transform;
+        }
         /* 水平スキャンライン */
         .sp-login-scan {
           position: absolute; left: 0; right: 0; height: 1px;
-          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
-          box-shadow: 0 0 8px rgba(255,255,255,0.25);
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.65) 50%, transparent 100%);
+          box-shadow: 0 0 10px rgba(255,255,255,0.30);
           will-change: transform, opacity;
         }
         @media (max-width: 600px) {
@@ -118,20 +132,41 @@ function BackgroundLayer() {
           WebkitMaskImage: 'radial-gradient(ellipse at center, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 75%)',
         }}
       />
-      {/* ファランクス: 整列した縦バー隊列 (8本、左→右へ順次発光、5秒周期) */}
-      {Array.from({ length: 8 }).map((_, i) => (
+      {/* ファランクス縦バー隊列 (10本、左→右へドミノ倒し、6秒周期、0.3sずつ位相差) */}
+      {Array.from({ length: 10 }).map((_, i) => (
         <div
           key={`bar-${i}`}
           className="sp-login-bar"
           style={{
-            left: `${10 + i * 11}%`,
-            animation: `spLoginBarFlash 5s linear ${i * 0.4}s infinite`,
+            left: `${6 + i * 9.5}%`,
+            animation: `spLoginBarFlash 6s linear ${i * 0.3}s infinite`,
           }}
         />
       ))}
-      {/* 水平スキャンライン: 上→下に走査 (8秒周期、太線+細線で重ね) */}
-      <div className="sp-login-scan" style={{ animation: 'spLoginScanLine 8s linear infinite' }} />
-      <div className="sp-login-scan" style={{ animation: 'spLoginScanLine 8s linear 4s infinite', opacity: 0.5 }} />
+      {/* ファランクス水平バー隊列 (上3本、下3本、上→下/下→上にドミノ倒し) */}
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div
+          key={`hbar-top-${i}`}
+          className="sp-login-hbar"
+          style={{
+            top: `${6 + i * 4}%`,
+            animation: `spLoginHBarFlash 6s linear ${i * 0.4 + 1.5}s infinite`,
+          }}
+        />
+      ))}
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div
+          key={`hbar-bot-${i}`}
+          className="sp-login-hbar"
+          style={{
+            bottom: `${6 + i * 4}%`,
+            animation: `spLoginHBarFlash 6s linear ${i * 0.4 + 1.5}s infinite`,
+          }}
+        />
+      ))}
+      {/* 水平スキャンライン: 上→下に走査 (10秒周期、2本重ね) */}
+      <div className="sp-login-scan" style={{ animation: 'spLoginScanLine 10s linear infinite' }} />
+      <div className="sp-login-scan" style={{ animation: 'spLoginScanLine 10s linear 5s infinite', opacity: 0.5 }} />
       {/* 巨大シールド + レーダーHUD (中央) */}
       <svg
         viewBox="0 0 52 60"
@@ -149,15 +184,10 @@ function BackgroundLayer() {
             <stop offset="100%" stopColor="#03132E" stopOpacity="0.05"/>
           </linearGradient>
           <clipPath id="spLoginShieldClip"><path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z"/></clipPath>
-          {/* レーダー針の軌跡 (扇形グラデ) */}
-          <linearGradient id="spLoginRadarTrail" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0"/>
-            <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.35"/>
-          </linearGradient>
         </defs>
         <path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z" fill="url(#spLoginShieldBg)"/>
         <g clipPath="url(#spLoginShieldClip)">
-          {/* 静的な放射光線 (16方向、薄く・規則的) */}
+          {/* 静的な放射光線 (16方向、規則的) — シールドは完全静止 */}
           <g stroke="#FFFFFF" fill="none" strokeWidth="0.10" opacity="0.22">
             <line x1="26" y1="30" x2="26" y2="-10"/><line x1="26" y1="30" x2="60" y2="30"/>
             <line x1="26" y1="30" x2="26" y2="70"/><line x1="26" y1="30" x2="-8" y2="30"/>
@@ -168,27 +198,21 @@ function BackgroundLayer() {
             <line x1="26" y1="30" x2="12" y2="66"/><line x1="26" y1="30" x2="-6" y2="46"/>
             <line x1="26" y1="30" x2="-6" y2="14"/><line x1="26" y1="30" x2="12" y2="-6"/>
           </g>
-          {/* ターゲットリング 4層 (常時表示、順次パルス) */}
-          {[8, 14, 20, 26].map((r, i) => (
-            <circle
-              key={`ring-${i}`}
-              cx="26" cy="30" r={r}
-              fill="none" stroke="#FFFFFF" strokeWidth="0.16"
-              style={{ animation: `spLoginRingPulse 4s ease-in-out ${i * 1}s infinite` }}
-            />
-          ))}
+          {/* ターゲットリング 4層 (静止 + ごく緩やかな呼吸) */}
+          <g style={{ animation: 'spLoginRingBreathe 6s ease-in-out infinite' }}>
+            {[8, 14, 20, 26].map((r, i) => (
+              <circle
+                key={`ring-${i}`}
+                cx="26" cy="30" r={r}
+                fill="none" stroke="#FFFFFF" strokeWidth="0.16"
+                opacity="0.85"
+              />
+            ))}
+          </g>
           {/* 十字基準線 */}
           <g stroke="#FFFFFF" fill="none" strokeWidth="0.10" opacity="0.30">
             <line x1="26" y1="-2" x2="26" y2="62"/>
             <line x1="-6" y1="30" x2="58" y2="30"/>
-          </g>
-          {/* レーダー針 — 中心(26,30)から12時方向に伸び、時計回り12秒で1周 */}
-          <g style={{ transformOrigin: '26px 30px', transformBox: 'fill-box', animation: 'spLoginRadarSweep 12s linear infinite' }}>
-            {/* 軌跡 (扇形、針の後ろ) */}
-            <path d="M 26 30 L 26 -2 A 32 32 0 0 0 -2.3 18 Z" fill="url(#spLoginRadarTrail)" opacity="0.6"/>
-            {/* 針本体 */}
-            <line x1="26" y1="30" x2="26" y2="-2" stroke="#FFFFFF" strokeWidth="0.45" opacity="0.95"/>
-            <circle cx="26" cy="30" r="0.6" fill="#FFFFFF"/>
           </g>
         </g>
       </svg>
