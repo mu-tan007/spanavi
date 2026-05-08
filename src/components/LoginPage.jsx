@@ -338,7 +338,7 @@ function MemberNameSelect({ members, selected, onSelect }) {
         autoComplete="off"
         style={{
           width: '100%', padding: '10px 14px', borderRadius: 4,
-          fontSize: 14,
+          fontSize: 14, color: '#FFFFFF',
           fontFamily: "'Noto Sans JP'", outline: 'none',
           transition: 'border-color 0.2s, box-shadow 0.2s, background 0.2s', boxSizing: 'border-box',
         }}
@@ -512,7 +512,7 @@ export default function LoginPage() {
   // 暗HUD用: 実際のbg/border/textはCSS class .sp-login-input が上書きするので JS は構造のみ
   const inputStyle = {
     width: '100%', padding: '10px 14px', borderRadius: 4,
-    fontSize: 14,
+    fontSize: 14, color: C.textOnDark,
     fontFamily: "'Noto Sans JP'", outline: 'none',
     transition: 'border-color 0.2s, box-shadow 0.2s, background 0.2s', marginBottom: 0,
     boxSizing: 'border-box',
