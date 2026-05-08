@@ -4,24 +4,38 @@ import { C } from '../../../constants/colors';
 import { dialPhone } from '../../../utils/phone';
 import {
   insertClientCallRecord, deleteClientCallRecordByRound,
-  promoteLeadCompanyToClient,
+  promoteLeadCompanyToClient, updateClient, updateClientNextContactAt,
 } from '../../../lib/supabaseWrite';
 import { NAVY, GRAY_200, GRAY_50, GOLD } from './utils';
+import CRMLeadAppoModal from './CRMLeadAppoModal';
+import CRMLeadRecallModal from './CRMLeadRecallModal';
 
 // ステータス定義（CRM新規開拓 専用）
 //   既存3画面の「社長接続」ではなく「キーマン接続」、加えて「問い合わせフォーム」を新設
+//   ショートカットは既存ソーシング側と同じく Mac=数字キー / Win=Fキー（order 1〜10）
 const STATUSES = [
-  { id: 'absent',           label: '不通',             shortcut: '1', color: '#6B7280', excluded: false },
-  { id: 'keyman_absent',    label: 'キーマン不在',     shortcut: '2', color: '#6B7280', excluded: false },
-  { id: 'keyman_connect',   label: 'キーマン接続',     shortcut: '3', color: '#1E40AF', excluded: false },
-  { id: 'appointment',      label: 'アポ獲得',         shortcut: '4', color: '#16A34A', excluded: false },
-  { id: 'reception_block',  label: '受付ブロック',     shortcut: '5', color: '#DC2626', excluded: false },
-  { id: 'reception_recall', label: '受付再コール',     shortcut: '6', color: '#B8860B', excluded: false },
-  { id: 'keyman_recall',    label: 'キーマン再コール', shortcut: '7', color: '#B8860B', excluded: false },
-  { id: 'rejected',         label: 'お断り',           shortcut: '8', color: '#DC2626', excluded: true  },
-  { id: 'inquiry_form',     label: '問い合わせフォーム', shortcut: '9', color: '#7c3aed', excluded: false },
-  { id: 'excluded',         label: '除外',             shortcut: '0', color: '#9CA3AF', excluded: true  },
+  { id: 'absent',           label: '不通',             order: 1,  color: '#6B7280', excluded: false, recall: false, isAppo: false },
+  { id: 'keyman_absent',    label: 'キーマン不在',     order: 2,  color: '#6B7280', excluded: false, recall: false, isAppo: false },
+  { id: 'keyman_connect',   label: 'キーマン接続',     order: 3,  color: '#1E40AF', excluded: false, recall: false, isAppo: false },
+  { id: 'appointment',      label: 'アポ獲得',         order: 4,  color: '#16A34A', excluded: false, recall: false, isAppo: true  },
+  { id: 'reception_block',  label: '受付ブロック',     order: 5,  color: '#DC2626', excluded: false, recall: false, isAppo: false },
+  { id: 'reception_recall', label: '受付再コール',     order: 6,  color: '#B8860B', excluded: false, recall: true,  isAppo: false },
+  { id: 'keyman_recall',    label: 'キーマン再コール', order: 7,  color: '#B8860B', excluded: false, recall: true,  isAppo: false },
+  { id: 'rejected',         label: 'お断り',           order: 8,  color: '#DC2626', excluded: true,  recall: false, isAppo: false },
+  { id: 'inquiry_form',     label: '問い合わせフォーム', order: 9,  color: '#7c3aed', excluded: false, recall: false, isAppo: false },
+  { id: 'excluded',         label: '除外',             order: 10, color: '#9CA3AF', excluded: true,  recall: false, isAppo: false },
 ];
+
+const IS_MAC = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
+function shortcutLabel(order) {
+  // 10番目は Mac で '0', Win で 'F10'
+  if (IS_MAC) return order === 10 ? '0' : String(order);
+  return `F${order}`;
+}
+function matchShortcut(eventKey, order) {
+  if (IS_MAC) return eventKey === (order === 10 ? '0' : String(order));
+  return eventKey === `F${order}`;
+}
 
 const EXCLUDED_IDS = STATUSES.filter(s => s.excluded).map(s => s.id);
 
@@ -64,6 +78,17 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
   const [selectedIdx, setSelectedIdx] = useState(null);
   const [memo, setMemo] = useState('');
   const [showScript, setShowScript] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState(null);  // 'no' | 'lastCall' | 'status' | null
+  const [sortDir, setSortDir] = useState('asc');
+  const [appoModalCompany, setAppoModalCompany] = useState(null);
+  const [pendingAppoMemo, setPendingAppoMemo] = useState('');
+  const [recallModal, setRecallModal] = useState(null);  // { company, statusId, statusLabel } or null
+  const [rangeStart, setRangeStart] = useState('');
+  const [rangeEnd, setRangeEnd] = useState('');
+  const [rangeApplied, setRangeApplied] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
 
   // 各企業の records をローカル状態でも保持（即時反映用）
   const [localRecords, setLocalRecords] = useState(records);
@@ -109,17 +134,70 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
 
   const displayRounds = Math.max(maxRound, 5);
 
-  const selected = selectedIdx != null ? companies[selectedIdx] : null;
+  // 検索＋範囲＋ソート適用後の表示用 companies
+  const visibleCompanies = useMemo(() => {
+    let arr = companies;
+    if (rangeApplied) {
+      const s = parseInt(rangeStart) || 1;
+      const e = parseInt(rangeEnd) || companies.length;
+      arr = arr.filter(c => (c.no || 0) >= s && (c.no || 0) <= e);
+    }
+    if (searchTerm.trim()) {
+      const q = searchTerm.trim().toLowerCase();
+      arr = arr.filter(c =>
+        (c.company || '').toLowerCase().includes(q) ||
+        (c.business || '').toLowerCase().includes(q) ||
+        (c.representative || '').toLowerCase().includes(q)
+      );
+    }
+    if (sortBy) {
+      const sign = sortDir === 'asc' ? 1 : -1;
+      arr = [...arr].sort((a, b) => {
+        if (sortBy === 'no') return sign * ((a.no || 0) - (b.no || 0));
+        if (sortBy === 'company') return sign * (a.company || '').localeCompare(b.company || '', 'ja');
+        if (sortBy === 'lastCall') {
+          const ar = recordsByCompany[a.id] || {};
+          const br = recordsByCompany[b.id] || {};
+          const aLast = Object.values(ar).map(x => x.called_at).sort().pop() || '';
+          const bLast = Object.values(br).map(x => x.called_at).sort().pop() || '';
+          return sign * (aLast > bLast ? 1 : aLast < bLast ? -1 : 0);
+        }
+        if (sortBy === 'status') {
+          const aSt = getLatestStatus(a.id) || '~';
+          const bSt = getLatestStatus(b.id) || '~';
+          return sign * (aSt > bSt ? 1 : aSt < bSt ? -1 : 0);
+        }
+        return 0;
+      });
+    }
+    return arr;
+  }, [companies, searchTerm, sortBy, sortDir, recordsByCompany, rangeApplied, rangeStart, rangeEnd]);
+
+  // selectedIdx は visibleCompanies 上の index（フィルタや並び替えに追随）
+  const selected = selectedIdx != null ? visibleCompanies[selectedIdx] : null;
   const editRound = selected ? getNextRound(selected.id) : 1;
 
-  // ステータス記録
+  // ステータス記録（アポ獲得は詳細モーダル経由、それ以外は即時記録）
   const recordStatus = async (statusId) => {
     if (!selected) return;
     const company = selected;
-    const round = getNextRound(company.id);
     const status = getStatus(statusId);
     if (!status) return;
 
+    // アポ獲得は詳細モーダル経由で別ハンドラへ
+    if (statusId === 'appointment') {
+      setPendingAppoMemo(memo);
+      setAppoModalCompany(company);
+      return;
+    }
+
+    // 受付再コール / キーマン再コール は再コールモーダル経由
+    if (status.recall) {
+      setRecallModal({ company, statusId, statusLabel: status.label });
+      return;
+    }
+
+    const round = getNextRound(company.id);
     const { data: rec, error } = await insertClientCallRecord({
       listId: list.id,
       leadCompanyId: company.id,
@@ -134,32 +212,125 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
     }
     setLocalRecords(prev => [...prev, rec]);
     setMemo('');
+    moveToNextCallable();
+  };
 
-    // 「アポ獲得」 → CRM の clients に新規登録、面談予定タブへ自動遷移
-    if (statusId === 'appointment' && !company.promoted_to_client_id) {
-      const { data: client, error: e2 } = await promoteLeadCompanyToClient(company);
+  // アポ獲得モーダルからの詳細保存
+  const handleAppoSubmit = async (details) => {
+    const company = appoModalCompany;
+    if (!company) return;
+    const round = getNextRound(company.id);
+
+    // 1) call_record にメモ＋詳細を JSON で保存
+    const recordMemo = [
+      pendingAppoMemo,
+      details.internalMemo,
+      details.impression ? `[先方所感] ${details.impression}` : '',
+      `[面談予定] ${new Date(details.meetingAt).toLocaleString('ja-JP')} / ${({
+        online: 'オンライン',
+        in_person: '対面（先方訪問）',
+        our_office: '対面（弊社来訪）',
+        phone: '電話',
+      }[details.meetingMode] || details.meetingMode)}`,
+      details.contactName ? `[キーマン] ${details.contactName}${details.contactRole ? '（' + details.contactRole + '）' : ''}` : '',
+    ].filter(Boolean).join('\n');
+
+    const { data: rec, error } = await insertClientCallRecord({
+      listId: list.id,
+      leadCompanyId: company.id,
+      round,
+      status: 'appointment',
+      memo: recordMemo,
+      getterName: currentUser || null,
+    });
+    if (error) {
+      alert('アポ獲得の保存に失敗しました: ' + (error.message || ''));
+      return;
+    }
+    setLocalRecords(prev => [...prev, rec]);
+
+    // 2) clients への新規登録 or 既存の更新
+    if (!company.promoted_to_client_id) {
+      const { data: client, error: e2 } = await promoteLeadCompanyToClient(company, {
+        contactPerson: details.contactName || null,
+      });
       if (e2) {
         console.warn('[CRM Lead] promote failed', e2);
       } else if (client) {
-        // ローカル状態の company に promoted_to_client_id をセット
         company.promoted_to_client_id = client.id;
         company.promoted_at = new Date().toISOString();
-        // 親 clientData にも追加 → CRM「面談予定」タブで即見える
+
+        // 詳細を反映: 面談予定日時と先方所感をクライアントに保存
+        await updateClient(client.id, {
+          company: client.name,
+          status: '面談予定',
+          contract: '未',
+          industry: client.industry || '',
+          rewardType: '', paySite: '', payNote: '',
+          listSrc: '', calendar: '', contact: '',
+          noteFirst: details.impression || '',
+          clientEmail: details.contactEmail || null,
+          slackWebhookUrl: null, slackWebhookUrlInternal: null,
+          chatworkRoomId: null, googleCalendarId: null, schedulingUrl: null,
+          nextContactAt: details.meetingAt,
+          statusChangedAt: new Date().toISOString(),
+        });
+
         if (setClientData) {
-          setClientData(prev => [clientsRowToFE(client), ...prev]);
+          const fe = clientsRowToFE(client);
+          fe.noteFirst = details.impression || '';
+          fe.nextContactAt = details.meetingAt;
+          fe.contactPhone = details.contactPhone || '';
+          fe.clientEmail = details.contactEmail || '';
+          setClientData(prev => [fe, ...prev]);
         }
         queryClient.invalidateQueries({ queryKey: ['crm-lead-companies', list.id] });
       }
+    } else {
+      // 既に転記済みの場合は next_contact_at を更新
+      await updateClientNextContactAt(company.promoted_to_client_id, details.meetingAt);
     }
 
-    // 次の架電可能企業に自動移動
+    setMemo('');
+    setPendingAppoMemo('');
+    setAppoModalCompany(null);
+    moveToNextCallable();
+  };
+
+  // 再コールモーダルからの保存
+  const handleRecallSubmit = async ({ recallAt, memo: recallMemo }) => {
+    if (!recallModal) return;
+    const { company, statusId } = recallModal;
+    const round = getNextRound(company.id);
+
+    const fullMemo = [
+      memo,
+      recallMemo,
+      `[再コール予定: ${new Date(recallAt).toLocaleString('ja-JP')}]`,
+    ].filter(Boolean).join('\n');
+
+    const { data: rec, error } = await insertClientCallRecord({
+      listId: list.id,
+      leadCompanyId: company.id,
+      round,
+      status: statusId,
+      memo: fullMemo,
+      getterName: currentUser || null,
+    });
+    if (error) {
+      alert('再コール記録に失敗しました: ' + (error.message || ''));
+      return;
+    }
+    setLocalRecords(prev => [...prev, rec]);
+    setMemo('');
+    setRecallModal(null);
     moveToNextCallable();
   };
 
   const moveToNextCallable = () => {
     if (selectedIdx == null) return;
-    for (let j = selectedIdx + 1; j < companies.length; j++) {
-      const c = companies[j];
+    for (let j = selectedIdx + 1; j < visibleCompanies.length; j++) {
+      const c = visibleCompanies[j];
       if (isExcluded(c.id)) continue;
       const latest = getLatestStatus(c.id);
       if (latest === 'reception_recall' || latest === 'keyman_recall') continue;
@@ -180,7 +351,7 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
 
   // キーボードショートカット
   const stableRef = useRef({});
-  stableRef.current = { selected, memo };
+  stableRef.current = { selected, memo, showHelp, appoModalOpen: !!appoModalCompany, recallModalOpen: !!recallModal };
 
   useEffect(() => {
     const handler = (e) => {
@@ -190,11 +361,18 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
       if (!cur.selected) {
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
           e.preventDefault();
-          if (companies.length > 0) setSelectedIdx(0);
+          if (visibleCompanies.length > 0) setSelectedIdx(0);
         }
         return;
       }
-      if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
+      // モーダル系が開いていればショートカットは無効
+      if (cur.appoModalOpen || cur.recallModalOpen) return;
+      if (e.key === '?') { e.preventDefault(); setShowHelp(h => !h); return; }
+      if (e.key === 'Escape') {
+        if (cur.showHelp) { e.preventDefault(); setShowHelp(false); return; }
+        e.preventDefault(); onClose(); return;
+      }
+      if (cur.showHelp) return;
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault();
         setSelectedIdx(i => (i > 0 ? i - 1 : i));
@@ -202,10 +380,10 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
       }
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedIdx(i => (i < companies.length - 1 ? i + 1 : i));
+        setSelectedIdx(i => (i < visibleCompanies.length - 1 ? i + 1 : i));
         return;
       }
-      const sc = STATUSES.find(s => s.shortcut === e.key);
+      const sc = STATUSES.find(s => matchShortcut(e.key, s.order));
       if (sc) {
         e.preventDefault();
         recordStatus(sc.id);
@@ -213,7 +391,73 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [companies, list.id]); // recordStatus などは閉包だが selectedIdx 等は state 経由で参照される
+  }, [visibleCompanies, list.id]);
+
+  // 最小化中の小型UI
+  if (isMinimized) {
+    const calledCount = Object.keys(recordsByCompany).length;
+    const apptCount = Object.values(recordsByCompany).filter(rounds => {
+      const ks = Object.keys(rounds).map(Number);
+      const latest = ks.length > 0 ? rounds[Math.max(...ks)] : null;
+      return latest?.status === 'appointment';
+    }).length;
+    return (
+      <div style={{
+        position: 'fixed', bottom: 16, right: 16, zIndex: 10000,
+        width: 300, background: '#fff',
+        border: '1px solid ' + GRAY_200, borderRadius: 6,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          background: NAVY, color: '#fff',
+          padding: '8px 12px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 8,
+        }}>
+          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 12, fontWeight: 700 }}>{list.name}</div>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.75)' }}>
+              架電中（CRM新規開拓）
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button
+              onClick={() => setIsMinimized(false)}
+              title="最大化"
+              style={{
+                width: 24, height: 22, borderRadius: 2,
+                border: '1px solid #fff', background: 'transparent',
+                color: '#fff', fontSize: 12, cursor: 'pointer', padding: 0,
+              }}
+            >□</button>
+            <button
+              onClick={onClose}
+              title="閉じる"
+              style={{
+                width: 24, height: 22, borderRadius: 2,
+                border: '1px solid #fff', background: 'transparent',
+                color: '#fff', fontSize: 14, cursor: 'pointer', padding: 0, lineHeight: 1,
+              }}
+            >×</button>
+          </div>
+        </div>
+        <div style={{ padding: '10px 12px', fontSize: 11 }}>
+          <div style={{ color: C.textMid, marginBottom: 4 }}>
+            選択中: <strong style={{ color: NAVY }}>{selected?.company || '—'}</strong>
+          </div>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', gap: 6,
+            fontSize: 10, color: C.textLight,
+          }}>
+            <span>件数 {companies.length}</span>
+            <span>架電済 {calledCount}</span>
+            <span style={{ color: '#16A34A', fontWeight: 600 }}>アポ {apptCount}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -231,9 +475,44 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
           <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{list.name}</div>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>
             {list.industry || ''} ・ {companies.length} 件
+            {searchTerm && (
+              <span> ・ 表示 {visibleCompanies.length} 件</span>
+            )}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="企業名・事業内容..."
+            style={{
+              padding: '5px 10px', borderRadius: 3,
+              border: '1px solid rgba(255,255,255,0.4)',
+              background: 'rgba(255,255,255,0.1)', color: '#fff',
+              fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none',
+              width: 180,
+            }}
+          />
+          <button
+            onClick={() => setShowHelp(h => !h)}
+            title="ショートカット一覧"
+            style={{
+              padding: '5px 10px', borderRadius: 3,
+              border: '1px solid #fff', background: 'transparent',
+              color: '#fff', fontSize: 11, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+              minWidth: 28,
+            }}
+          >?</button>
+          <button
+            onClick={() => setIsMinimized(true)}
+            title="最小化（他画面を操作できる小ウィンドウへ）"
+            style={{
+              padding: '5px 10px', borderRadius: 3,
+              border: '1px solid #fff', background: 'transparent',
+              color: '#fff', fontSize: 11, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+              minWidth: 28,
+            }}
+          >−</button>
           <button
             onClick={() => setShowScript(s => !s)}
             disabled={!list.script_body}
@@ -254,6 +533,73 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
             }}
           >閉じる</button>
         </div>
+      </div>
+
+      {/* 範囲指定バー */}
+      <div style={{
+        background: '#fff', borderBottom: '1px solid ' + GRAY_200,
+        padding: '6px 24px',
+        display: 'flex', alignItems: 'center', gap: 8,
+        fontSize: 11, color: C.textMid, flexShrink: 0,
+      }}>
+        <span style={{ fontWeight: 600 }}>範囲指定</span>
+        <span>No.</span>
+        <input
+          type="number"
+          value={rangeStart}
+          onChange={e => setRangeStart(e.target.value)}
+          placeholder="1"
+          min={1}
+          style={{
+            width: 70, padding: '4px 8px', borderRadius: 3,
+            border: '1px solid ' + GRAY_200, fontSize: 11,
+            fontFamily: "'JetBrains Mono'", textAlign: 'center', outline: 'none',
+          }}
+        />
+        <span>〜</span>
+        <input
+          type="number"
+          value={rangeEnd}
+          onChange={e => setRangeEnd(e.target.value)}
+          placeholder={String(companies.length)}
+          min={1}
+          style={{
+            width: 70, padding: '4px 8px', borderRadius: 3,
+            border: '1px solid ' + GRAY_200, fontSize: 11,
+            fontFamily: "'JetBrains Mono'", textAlign: 'center', outline: 'none',
+          }}
+        />
+        <button
+          onClick={() => {
+            if (!rangeStart && !rangeEnd) { alert('範囲を入力してください'); return; }
+            setRangeApplied(true);
+            setSelectedIdx(null);
+          }}
+          style={{
+            padding: '4px 12px', borderRadius: 3, border: 'none',
+            background: NAVY, color: '#fff', fontSize: 11, fontWeight: 500,
+            cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+          }}
+        >適用</button>
+        {rangeApplied && (
+          <button
+            onClick={() => {
+              setRangeApplied(false);
+              setRangeStart(''); setRangeEnd('');
+              setSelectedIdx(null);
+            }}
+            style={{
+              padding: '4px 12px', borderRadius: 3,
+              border: '1px solid ' + GRAY_200, background: '#fff',
+              color: C.textMid, fontSize: 11, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+            }}
+          >解除</button>
+        )}
+        {rangeApplied && (
+          <span style={{ fontSize: 10, color: C.textLight }}>
+            （範囲適用中: {visibleCompanies.length} 件）
+          </span>
+        )}
       </div>
 
       {/* スクリプト表示 */}
@@ -328,15 +674,37 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
             fontSize: 10, fontWeight: 600, color: '#fff',
             position: 'sticky', top: 0, zIndex: 1,
           }}>
-            <span>No</span>
-            <span>企業名</span>
-            <span>事業内容</span>
-            <span>電話番号</span>
+            {[
+              { key: 'no', label: 'No' },
+              { key: 'company', label: '企業名' },
+              { key: 'business', label: '事業内容', sortable: false },
+              { key: 'lastCall', label: '電話番号', sortLabel: '最終発信日' },
+            ].map(col => {
+              const sortable = col.sortable !== false;
+              const active = sortBy === col.key;
+              const arrow = active ? (sortDir === 'asc' ? ' ▲' : ' ▼') : (sortable ? ' ▽' : '');
+              return (
+                <span
+                  key={col.key}
+                  onClick={() => {
+                    if (!sortable) return;
+                    if (sortBy === col.key) {
+                      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortBy(col.key);
+                      setSortDir('asc');
+                    }
+                  }}
+                  style={{ cursor: sortable ? 'pointer' : 'default', userSelect: 'none' }}
+                  title={col.sortLabel || col.label}
+                >{col.label}{arrow}</span>
+              );
+            })}
             {Array.from({ length: displayRounds }, (_, i) => (
               <span key={i} style={{ textAlign: 'center' }}>{i + 1}</span>
             ))}
           </div>
-          {companies.map((c, i) => {
+          {visibleCompanies.map((c, i) => {
             const isSelected = i === selectedIdx;
             const excluded = isExcluded(c.id);
             const rounds = recordsByCompany[c.id] || {};
@@ -416,7 +784,7 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
                 fontSize: 9, fontWeight: 700, padding: '1px 4px',
                 border: '1px solid ' + s.color, borderRadius: 2,
                 fontFamily: "'JetBrains Mono'",
-              }}>{s.shortcut}</kbd>
+              }}>{shortcutLabel(s.order)}</kbd>
               {s.label}
             </button>
           ))}
@@ -429,7 +797,82 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
           padding: '14px', textAlign: 'center', fontSize: 11, color: C.textLight,
           flexShrink: 0,
         }}>
-          企業を選択するとショートカット（1〜0）でステータスを記録できます
+          企業を選択するとショートカット（{IS_MAC ? '1〜0' : 'F1〜F10'}）でステータスを記録できます
+        </div>
+      )}
+
+      {/* アポ獲得詳細モーダル */}
+      {appoModalCompany && (
+        <CRMLeadAppoModal
+          company={appoModalCompany}
+          defaultGetterName={currentUser}
+          onSubmit={handleAppoSubmit}
+          onCancel={() => { setAppoModalCompany(null); setPendingAppoMemo(''); }}
+        />
+      )}
+
+      {/* 再コール予定モーダル */}
+      {recallModal && (
+        <CRMLeadRecallModal
+          company={recallModal.company}
+          statusLabel={recallModal.statusLabel}
+          onSubmit={handleRecallSubmit}
+          onCancel={() => setRecallModal(null)}
+        />
+      )}
+
+      {/* ヘルプ（ショートカット一覧） */}
+      {showHelp && (
+        <div onClick={() => setShowHelp(false)} style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.55)', zIndex: 20004,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
+            width: 440, padding: 24, boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 14 }}>
+              キーボードショートカット
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <tbody>
+                {STATUSES.map(s => (
+                  <tr key={s.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '5px 8px', width: 80 }}>
+                      <kbd style={{
+                        display: 'inline-block', padding: '2px 8px', borderRadius: 3,
+                        background: '#f3f4f6', border: '1px solid #d1d5db',
+                        fontFamily: "'JetBrains Mono'", fontSize: 11, fontWeight: 700, color: '#374151',
+                      }}>{shortcutLabel(s.order)}</kbd>
+                    </td>
+                    <td style={{ padding: '5px 8px', color: '#374151' }}>{s.label}</td>
+                  </tr>
+                ))}
+                {[
+                  ['← →  /  ↑ ↓', '前後の企業に移動'],
+                  ['Esc', '画面を閉じる / モーダルを閉じる'],
+                  ['?', 'このヘルプを表示／非表示'],
+                ].map(([key, desc]) => (
+                  <tr key={key} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '5px 8px', width: 80 }}>
+                      <kbd style={{
+                        display: 'inline-block', padding: '2px 8px', borderRadius: 3,
+                        background: '#f3f4f6', border: '1px solid #d1d5db',
+                        fontFamily: "'JetBrains Mono'", fontSize: 11, fontWeight: 700, color: '#374151',
+                      }}>{key}</kbd>
+                    </td>
+                    <td style={{ padding: '5px 8px', color: '#374151' }}>{desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <button onClick={() => setShowHelp(false)} style={{
+              marginTop: 14, width: '100%', padding: '6px 12px', borderRadius: 3,
+              border: 'none', background: NAVY, color: '#fff',
+              fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+            }}>閉じる</button>
+          </div>
         </div>
       )}
     </div>
