@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { getIndustryCategory } from '../../utils/industry';
@@ -239,110 +241,110 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
   return (
     <div onClick={onClose} style={{
       position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-      background: "rgba(10,25,41,0.6)", backdropFilter: "blur(4px)",
+      background: alpha('#0A1929', 0.6), backdropFilter: "blur(4px)",
       display: "flex", alignItems: "center", justifyContent: "center",
       zIndex: 200, animation: "fadeIn 0.2s ease",
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: '#fff', border: "1px solid #E5E7EB",
-        borderRadius: isMobile ? 0 : 4, width: isMobile ? '100vw' : "90%", maxWidth: isMobile ? 'none' : 820, height: isMobile ? '100vh' : undefined, maxHeight: isMobile ? '100vh' : "85vh",
-        overflowY: "auto", padding: isMobile ? 16 : 28,
-        boxShadow: "0 20px 60px rgba(10,25,41,0.25)",
+        background: color.white, border: `1px solid ${color.border}`,
+        borderRadius: isMobile ? 0 : radius.md, width: isMobile ? '100vw' : "90%", maxWidth: isMobile ? 'none' : 820, height: isMobile ? '100vh' : undefined, maxHeight: isMobile ? '100vh' : "85vh",
+        overflowY: "auto", padding: isMobile ? space[4] : 28,
+        boxShadow: shadow.xl,
       }}>
 
         {/* ── タイトル行 ── */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: space[5] }}>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: '#0D2247', marginBottom: 6, fontFamily: "'Noto Serif JP', serif" }}>{list.company}</div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <Badge color={'#0D2247'} glow>{list.type}</Badge>
-              <Badge color={list.status === "架電可能" ? '#1E40AF' : C.red} glow>{list.status}</Badge>
+            <div style={{ fontSize: font.size.lg + 2, fontWeight: font.weight.black, color: color.navy, marginBottom: space[1.5], fontFamily: "'Noto Serif JP', serif" }}>{list.company}</div>
+            <div style={{ display: "flex", gap: space[1.5], flexWrap: "wrap" }}>
+              <Badge color={color.navy} glow>{list.type}</Badge>
+              <Badge color={list.status === "架電可能" ? '#1E40AF' : color.danger} glow>{list.status}</Badge>
               <Badge color={'#1E40AF'} glow>{list.industry}</Badge>
             </div>
           </div>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB", color: '#6B7280', cursor: "pointer", fontSize: 16, flexShrink: 0 }}>✕</button>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: radius.md, background: color.offWhite, border: `1px solid ${color.border}`, color: color.gray500, cursor: "pointer", fontSize: font.size.lg, flexShrink: 0 }}>✕</button>
         </div>
 
         {/* (a) おすすめ度合い・総合スコア */}
         {isOutsideHours ? (
-          <div style={{ padding: "12px 16px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 12, color: C.textMid, fontWeight: 600 }}>この時間帯は架電時間外です</span>
-            <span style={{ fontSize: 10, color: C.textLight }}>（7:00〜20:00が架電推奨時間帯）</span>
+          <div style={{ padding: `${space[3]}px ${space[4]}px`, borderRadius: radius.md, background: color.offWhite, border: `1px solid ${color.border}`, marginBottom: space[4], display: "flex", alignItems: "center", gap: space[2] }}>
+            <span style={{ fontSize: font.size.sm, color: color.textMid, fontWeight: font.weight.semibold }}>この時間帯は架電時間外です</span>
+            <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>（7:00〜20:00が架電推奨時間帯）</span>
           </div>
         ) : (
-          <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-            <div style={{ flex: 1.2, padding: "14px 18px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
-              <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6, fontWeight: 600 }}>総合スコア</div>
+          <div style={{ display: "flex", gap: space[2.5], marginBottom: space[4] }}>
+            <div style={{ flex: 1.2, padding: "14px 18px", borderRadius: radius.md, background: color.offWhite, border: `1px solid ${color.border}` }}>
+              <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginBottom: space[1.5], fontWeight: font.weight.semibold }}>総合スコア</div>
               <ScorePill score={list.recommendation.score} label={list.recommendation.label} color={list.recommendation.color} />
             </div>
-            <div style={{ flex: 1, padding: "14px 18px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
-              <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6, fontWeight: 600 }}>時間帯スコア（30%）</div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                <span style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: '#0D2247' }}>{list.recommendation.timeScore}</span>
-                <span style={{ fontSize: 11, color: C.textLight }}>{list.recommendation.timeLabel}</span>
+            <div style={{ flex: 1, padding: "14px 18px", borderRadius: radius.md, background: color.offWhite, border: `1px solid ${color.border}` }}>
+              <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginBottom: space[1.5], fontWeight: font.weight.semibold }}>時間帯スコア（30%）</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: space[1.5] }}>
+                <span style={{ fontSize: font.size.xl, fontWeight: font.weight.black, fontFamily: font.family.mono, color: color.navy }}>{list.recommendation.timeScore}</span>
+                <span style={{ fontSize: font.size.xs, color: color.textLight }}>{list.recommendation.timeLabel}</span>
               </div>
             </div>
-            <div style={{ flex: 1, padding: "14px 18px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
-              <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6, fontWeight: 600 }}>架電頻度スコア（70%）</div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                <span style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: '#0D2247' }}>{list.recommendation.recencyScore}</span>
-                <span style={{ fontSize: 11, color: C.textLight }}>{list.recommendation.recencyLabel || "未架電"}</span>
+            <div style={{ flex: 1, padding: "14px 18px", borderRadius: radius.md, background: color.offWhite, border: `1px solid ${color.border}` }}>
+              <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginBottom: space[1.5], fontWeight: font.weight.semibold }}>架電頻度スコア（70%）</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: space[1.5] }}>
+                <span style={{ fontSize: font.size.xl, fontWeight: font.weight.black, fontFamily: font.family.mono, color: color.navy }}>{list.recommendation.recencyScore}</span>
+                <span style={{ fontSize: font.size.xs, color: color.textLight }}>{list.recommendation.recencyLabel || "未架電"}</span>
               </div>
             </div>
-            <div style={{ flex: 0.7, padding: "14px 18px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
-              <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6, fontWeight: 600 }}>リスト企業数</div>
-              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'JetBrains Mono'", color: '#0D2247' }}>{list.count.toLocaleString()}</div>
+            <div style={{ flex: 0.7, padding: "14px 18px", borderRadius: radius.md, background: color.offWhite, border: `1px solid ${color.border}` }}>
+              <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginBottom: space[1.5], fontWeight: font.weight.semibold }}>リスト企業数</div>
+              <div style={{ fontSize: font.size.xl, fontWeight: font.weight.black, fontFamily: font.family.mono, color: color.navy }}>{list.count.toLocaleString()}</div>
             </div>
           </div>
         )}
 
         {/* (b) クライアント情報 | 注意事項 — 横並び */}
-        <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-          <div style={{ flex: 1, padding: "12px 16px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#0D2247', marginBottom: 10 }}>クライアント情報</div>
-            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 12px", fontSize: 11 }}>
+        <div style={{ display: "flex", gap: space[3], marginBottom: space[4] }}>
+          <div style={{ flex: 1, padding: `${space[3]}px ${space[4]}px`, borderRadius: radius.md, background: color.offWhite, border: `1px solid ${color.border}` }}>
+            <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, marginBottom: space[2.5] }}>クライアント情報</div>
+            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 12px", fontSize: font.size.xs }}>
               {[
                 ["担当者", list.manager],
                 ["業種",   list.industry],
                 ["企業数", list.count.toLocaleString() + "社"],
                 ["リストタイプ", list.type],
               ].map(([k, v]) => v ? [
-                <span key={k + "_k"} style={{ color: C.textLight, whiteSpace: "nowrap" }}>{k}</span>,
-                <span key={k + "_v"} style={{ color: C.textDark, fontWeight: 600 }}>{v}</span>,
+                <span key={k + "_k"} style={{ color: color.textLight, whiteSpace: "nowrap" }}>{k}</span>,
+                <span key={k + "_v"} style={{ color: color.textDark, fontWeight: font.weight.semibold }}>{v}</span>,
               ] : null)}
             </div>
             {list.companyInfo && (
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #E5E7EB" }}>
-                <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>企業概要</div>
-                <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{list.companyInfo}</div>
+              <div style={{ marginTop: space[2.5], paddingTop: space[2.5], borderTop: `1px solid ${color.border}` }}>
+                <div style={{ fontSize: font.size.xs - 1, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>企業概要</div>
+                <div style={{ fontSize: font.size.xs, color: color.textMid, lineHeight: font.lineHeight.normal + 0.1, whiteSpace: "pre-wrap" }}>{list.companyInfo}</div>
               </div>
             )}
           </div>
-          <div style={{ flex: 1, padding: "12px 16px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#0D2247', marginBottom: 8 }}>注意事項</div>
+          <div style={{ flex: 1, padding: `${space[3]}px ${space[4]}px`, borderRadius: radius.md, background: color.offWhite, border: `1px solid ${color.border}` }}>
+            <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, marginBottom: space[2] }}>注意事項</div>
             {list.cautions
-              ? <div style={{ fontSize: 11, color: C.textDark, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{list.cautions}</div>
-              : <div style={{ fontSize: 11, color: C.textLight }}>注意事項はありません</div>
+              ? <div style={{ fontSize: font.size.xs, color: color.textDark, lineHeight: font.lineHeight.relaxed, whiteSpace: "pre-wrap" }}>{list.cautions}</div>
+              : <div style={{ fontSize: font.size.xs, color: color.textLight }}>注意事項はありません</div>
             }
           </div>
         </div>
 
         {/* (c) 業界架電ルール */}
         {rule && (
-          <div style={{ padding: "12px 16px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB", marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2247', marginBottom: 6 }}>{cat}の架電ルール</div>
-            <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 8, color: C.textDark }}>{rule.rule}</div>
-            <div style={{ display: "flex", gap: 16, fontSize: 11, marginBottom: 8 }}>
-              {rule.goodHours && <div><span style={{ color: C.textLight }}>推奨: </span><span style={{ color: '#0D2247', fontWeight: 600 }}>{rule.goodHours}</span></div>}
-              {rule.badHours && <div><span style={{ color: C.textLight }}>非推奨: </span><span style={{ color: C.red }}>{rule.badHours}</span></div>}
+          <div style={{ padding: `${space[3]}px ${space[4]}px`, borderRadius: radius.md, background: color.offWhite, border: `1px solid ${color.border}`, marginBottom: space[4] }}>
+            <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy, marginBottom: space[1.5] }}>{cat}の架電ルール</div>
+            <div style={{ fontSize: font.size.sm, fontWeight: font.weight.medium, marginBottom: space[2], color: color.textDark }}>{rule.rule}</div>
+            <div style={{ display: "flex", gap: space[4], fontSize: font.size.xs, marginBottom: space[2] }}>
+              {rule.goodHours && <div><span style={{ color: color.textLight }}>推奨: </span><span style={{ color: color.navy, fontWeight: font.weight.semibold }}>{rule.goodHours}</span></div>}
+              {rule.badHours && <div><span style={{ color: color.textLight }}>非推奨: </span><span style={{ color: color.danger }}>{rule.badHours}</span></div>}
             </div>
             <div style={{ display: "flex", gap: 3 }}>
               {DAY_NAMES.map((d, i) => (
                 <span key={i} style={{
-                  padding: "2px 8px", borderRadius: 3, fontSize: 10, fontWeight: 600,
-                  background: rule.badDays.includes(i) ? C.red + "15" : rule.goodDays.includes(i) ? '#1E40AF1a' : '#F8F9FA',
-                  color: rule.badDays.includes(i) ? C.red : rule.goodDays.includes(i) ? '#0D2247' : C.textLight,
-                  border: "1px solid " + (rule.badDays.includes(i) ? C.red + "30" : rule.goodDays.includes(i) ? '#1E40AF40' : C.border),
+                  padding: "2px 8px", borderRadius: radius.sm, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold,
+                  background: rule.badDays.includes(i) ? alpha(color.danger, 0.08) : rule.goodDays.includes(i) ? alpha('#1E40AF', 0.10) : color.offWhite,
+                  color: rule.badDays.includes(i) ? color.danger : rule.goodDays.includes(i) ? color.navy : color.textLight,
+                  border: `1px solid ${rule.badDays.includes(i) ? alpha(color.danger, 0.18) : rule.goodDays.includes(i) ? alpha('#1E40AF', 0.25) : color.border}`,
                 }}>{d}</span>
               ))}
             </div>
@@ -350,41 +352,48 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
         )}
 
         {list.notes && (
-          <div style={{ padding: "10px 14px", borderRadius: 4, background: '#F8F9FA', border: "1px solid #E5E7EB", fontSize: 12, color: C.textMid, marginBottom: 12 }}>
-            <span style={{ fontWeight: 600, color: '#0D2247' }}>備考: </span>{list.notes}
+          <div style={{ padding: `${space[2.5]}px ${space[3] + 2}px`, borderRadius: radius.md, background: color.offWhite, border: `1px solid ${color.border}`, fontSize: font.size.sm, color: color.textMid, marginBottom: space[3] }}>
+            <span style={{ fontWeight: font.weight.semibold, color: color.navy }}>備考: </span>{list.notes}
           </div>
         )}
 
         <CallHistoryPanel listSupaId={list._supaId} />
 
         {/* 架電開始 + CSV取込 */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 11, color: C.textMid, whiteSpace: "nowrap" }}>No.</span>
-          <input
-            type="number" value={flowStartNo} onChange={e => setFlowStartNo(e.target.value)} placeholder="開始"
-            style={{ width: 64, padding: "5px 8px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'JetBrains Mono'", textAlign: "center", outline: "none" }}
+        <div style={{ display: "flex", alignItems: "center", gap: space[2], marginBottom: space[2.5], flexWrap: "wrap" }}>
+          <span style={{ fontSize: font.size.xs, color: color.textMid, whiteSpace: "nowrap" }}>No.</span>
+          <Input
+            type="number"
+            size="sm"
+            value={flowStartNo}
+            onChange={e => setFlowStartNo(e.target.value)}
+            placeholder="開始"
+            fullWidth={false}
+            containerStyle={{ width: 64 }}
+            style={{ fontFamily: font.family.mono, textAlign: 'center' }}
           />
-          <span style={{ fontSize: 11, color: C.textMid }}>〜</span>
-          <input
-            type="number" value={flowEndNo} onChange={e => setFlowEndNo(e.target.value)} placeholder="終了"
-            style={{ width: 64, padding: "5px 8px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'JetBrains Mono'", textAlign: "center", outline: "none" }}
+          <span style={{ fontSize: font.size.xs, color: color.textMid }}>〜</span>
+          <Input
+            type="number"
+            size="sm"
+            value={flowEndNo}
+            onChange={e => setFlowEndNo(e.target.value)}
+            placeholder="終了"
+            fullWidth={false}
+            containerStyle={{ width: 64 }}
+            style={{ fontFamily: font.family.mono, textAlign: 'center' }}
           />
-          <button
+          <Button
+            size="sm"
+            variant="primary"
             disabled={!flowStartNo || !flowEndNo}
             onClick={() => {
               const sf = selectedStatuses.length > 0 ? selectedStatuses : null;
               setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null });
             }}
-            style={{
-              padding: "6px 20px", borderRadius: 6,
-              background: flowStartNo && flowEndNo ? '#0D2247' : C.border,
-              color: C.white, cursor: flowStartNo && flowEndNo ? "pointer" : "not-allowed",
-              fontSize: 11, fontWeight: 700, fontFamily: "'Noto Sans JP'",
-              border: "none",
-            }}
-          >検索</button>
+          >検索</Button>
           {itemCount !== null && (
-            <span style={{ fontSize: 10, color: C.textLight }}>
+            <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>
               リスト: {itemCount.toLocaleString()}件
             </span>
           )}
@@ -407,7 +416,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             });
           };
           return (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: space[2.5] }}>
               {['全ステータス', ...STATUS_LABELS].map(label => {
                 const isActive = label === '全ステータス' ? isAll : selectedStatuses.includes(label);
                 return (
@@ -415,11 +424,11 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
                     key={label}
                     onClick={() => toggleStatus(label)}
                     style={{
-                      padding: '3px 9px', borderRadius: 4, cursor: 'pointer',
-                      fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-                      background: isActive ? '#0D2247' : '#F8F9FA',
-                      color: isActive ? '#fff' : C.textMid,
-                      border: '1px solid ' + (isActive ? '#0D2247' : C.border),
+                      padding: '3px 9px', borderRadius: radius.md, cursor: 'pointer',
+                      fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
+                      background: isActive ? color.navy : color.offWhite,
+                      color: isActive ? color.white : color.textMid,
+                      border: `1px solid ${isActive ? color.navy : color.border}`,
                       transition: 'all 0.12s',
                     }}
                   >{label}</button>
@@ -430,7 +439,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
         })()}
 
         {/* 売上高フィルター + 都道府県フィルター（同一行） */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#706E6B', marginBottom: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: font.size.xs, color: '#706E6B', marginBottom: space[2.5], flexWrap: 'wrap' }}>
           <span style={{ whiteSpace: 'nowrap' }}>売上高</span>
           {[
             { value: revenueMin, setter: setRevenueMin, isMax: false },
@@ -439,7 +448,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             <React.Fragment key={idx}>
               {idx === 1 && <span>〜</span>}
               <select value={value} onChange={e => setter(e.target.value)}
-                style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", background: value ? '#EAF4FF' : '#fff', color: '#0D2247', cursor: 'pointer' }}>
+                style={{ padding: '4px 6px', borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: font.family.sans, background: value ? '#EAF4FF' : color.white, color: color.navy, cursor: 'pointer' }}>
                 <option value="">指定なし</option>
                 {[['1億円',100000],['2億円',200000],['3億円',300000],['4億円',400000],['5億円',500000],
                   ['6億円',600000],['7億円',700000],['8億円',800000],['9億円',900000],['10億円',1000000],
@@ -453,37 +462,37 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
 
           {/* 都道府県フィルター（売上高の右隣） */}
           {availablePrefs.length > 0 && (
-            <div style={{ position: 'relative', marginLeft: 12 }}>
+            <div style={{ position: 'relative', marginLeft: space[3] }}>
               {prefDropOpen && (
                 <div onClick={() => setPrefDropOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 }} />
               )}
               <button onClick={() => setPrefDropOpen(v => !v)} style={{
-                padding: '4px 8px', borderRadius: 4,
-                border: '1px solid ' + (prefFilters.length > 0 ? '#0D2247' : C.border),
-                background: prefFilters.length > 0 ? '#EAF4FF' : '#fff',
-                fontSize: 11, fontFamily: "'Noto Sans JP'", cursor: 'pointer',
-                color: '#0D2247', whiteSpace: 'nowrap',
+                padding: '4px 8px', borderRadius: radius.md,
+                border: `1px solid ${prefFilters.length > 0 ? color.navy : color.border}`,
+                background: prefFilters.length > 0 ? '#EAF4FF' : color.white,
+                fontSize: font.size.xs, fontFamily: font.family.sans, cursor: 'pointer',
+                color: color.navy, whiteSpace: 'nowrap',
               }}>
                 {prefFilters.length > 0 ? `都道府県(${prefFilters.length})▼` : '都道府県▼'}
               </button>
               {prefDropOpen && (
                 <div style={{
                   position: 'absolute', top: '100%', left: 0, zIndex: 101,
-                  background: C.white, border: '1px solid ' + C.border,
-                  borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                  background: color.white, border: `1px solid ${color.border}`,
+                  borderRadius: radius.lg, boxShadow: shadow.md,
                   minWidth: 130, maxHeight: 220, overflowY: 'auto', padding: '4px 0',
                 }}>
                   {prefFilters.length > 0 && (
                     <div onClick={() => setPrefFilters([])} style={{
-                      padding: '4px 10px', fontSize: 10, color: '#0D2247', cursor: 'pointer',
-                      borderBottom: '1px solid #E5E7EB', fontWeight: 600,
+                      padding: '4px 10px', fontSize: font.size.xs - 1, color: color.navy, cursor: 'pointer',
+                      borderBottom: `1px solid ${color.border}`, fontWeight: font.weight.semibold,
                     }}>クリア</div>
                   )}
                   {availablePrefs.map(p => (
                     <label key={p} style={{
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      padding: '4px 10px', cursor: 'pointer', fontSize: 11,
-                      fontFamily: "'Noto Sans JP'", color: '#0D2247',
+                      display: 'flex', alignItems: 'center', gap: space[1.5],
+                      padding: '4px 10px', cursor: 'pointer', fontSize: font.size.xs,
+                      fontFamily: font.family.sans, color: color.navy,
                     }}>
                       <input type="checkbox" checked={prefFilters.includes(p)}
                         onChange={() => setPrefFilters(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])}
@@ -499,14 +508,14 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
         </div>
 
         {/* CSV取込 / リスト削除（管理者のみ） */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: space[2.5], marginTop: 4, flexWrap: "wrap" }}>
           {isAdmin && (
             <label style={{
               display: "inline-block",
-              padding: "6px 16px", borderRadius: 6,
-              background: '#F8F9FA', color: '#0D2247', cursor: "pointer",
-              fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-              border: "1px solid " + C.border,
+              padding: `${space[1.5]}px ${space[4]}px`, borderRadius: radius.lg,
+              background: color.offWhite, color: color.navy, cursor: "pointer",
+              fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
+              border: `1px solid ${color.border}`,
               opacity: csvImporting ? 0.6 : 1,
               pointerEvents: csvImporting ? "none" : "auto",
             }}>
@@ -515,26 +524,21 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             </label>
           )}
           {isAdmin && (
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant="danger"
               onClick={handleDeleteList}
               disabled={deleting}
-              style={{
-                padding: "6px 16px", borderRadius: 6, border: "none",
-                background: deleting ? "#ccc" : "#e53835",
-                color: "#fff", cursor: deleting ? "default" : "pointer",
-                fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-                opacity: deleting ? 0.6 : 1,
-              }}
-            >{deleting ? "クリア中..." : "CSVクリア"}</button>
+              loading={deleting}
+            >{deleting ? "クリア中..." : "CSVクリア"}</Button>
           )}
           {csvImported && (
-            <span style={{ fontSize: 11, color: C.green, fontWeight: 600 }}>
-              ✓ {csvImported}件をSupabaseに保存しました
+            <span style={{ fontSize: font.size.xs, color: color.success, fontWeight: font.weight.semibold }}>
+              {csvImported}件をSupabaseに保存しました
             </span>
           )}
           {!list._supaId && (
-            <span style={{ fontSize: 10, color: C.textLight }}>※ Supabase IDが未設定のためインポートできません</span>
+            <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>※ Supabase IDが未設定のためインポートできません</span>
           )}
         </div>
       </div>

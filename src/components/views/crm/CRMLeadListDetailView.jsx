@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { C } from '../../../constants/colors';
+import { color, space, radius, font, alpha } from '../../../constants/design';
+import { Button, Badge } from '../../ui';
 import {
   fetchClientLeadCompanies, fetchClientCallRecords,
   updateClientLeadList,
@@ -10,40 +11,40 @@ import { useIsMobile } from '../../../hooks/useIsMobile';
 import CRMLeadCallingScreen from './CRMLeadCallingScreen';
 import CRMLeadCallFlowView from './CRMLeadCallFlowView';
 
+const STATUS_LABELS = {
+  absent: '不通',
+  keyman_absent: 'キーマン不在',
+  keyman_connect: 'キーマン接続',
+  appointment: 'アポ獲得',
+  reception_block: '受付ブロック',
+  reception_recall: '受付再コール',
+  keyman_recall: 'キーマン再コール',
+  rejected: 'お断り',
+  inquiry_form: '問い合わせフォーム',
+  excluded: '除外',
+};
+
+const STATUS_VARIANT = {
+  appointment: 'success',
+  keyman_connect: 'primary',
+  inquiry_form: 'info',
+  reception_recall: 'warn',
+  keyman_recall: 'warn',
+  rejected: 'danger',
+  reception_block: 'danger',
+  excluded: 'neutral',
+  absent: 'neutral',
+  keyman_absent: 'neutral',
+};
+
 function StatusBadge({ status }) {
-  if (!status) return <span style={{ color: C.textLight, fontSize: 10 }}>—</span>;
-  const STATUS_LABELS = {
-    absent: '不通',
-    keyman_absent: 'キーマン不在',
-    keyman_connect: 'キーマン接続',
-    appointment: 'アポ獲得',
-    reception_block: '受付ブロック',
-    reception_recall: '受付再コール',
-    keyman_recall: 'キーマン再コール',
-    rejected: 'お断り',
-    inquiry_form: '問い合わせフォーム',
-    excluded: '除外',
-  };
-  const STATUS_COLORS = {
-    appointment: '#16A34A',
-    keyman_connect: '#1E40AF',
-    inquiry_form: '#7c3aed',
-    reception_recall: '#B8860B',
-    keyman_recall: '#B8860B',
-    rejected: '#DC2626',
-    reception_block: '#DC2626',
-    excluded: '#9CA3AF',
-    absent: '#6B7280',
-    keyman_absent: '#6B7280',
-  };
-  const color = STATUS_COLORS[status] || '#6B7280';
+  if (!status) return <span style={{ color: color.textLight, fontSize: font.size.xs - 1 }}>—</span>;
+  const variant = STATUS_VARIANT[status] || 'neutral';
+  const label = STATUS_LABELS[status] || status;
   return (
-    <span style={{
-      fontSize: 9, fontWeight: 700, padding: '2px 6px',
-      borderRadius: 2, background: color + '15', color,
-    }}>
-      {STATUS_LABELS[status] || status}
-    </span>
+    <Badge variant={variant} size="sm">
+      {label}
+    </Badge>
   );
 }
 
@@ -62,12 +63,14 @@ function ScriptEditor({ list }) {
     queryClient.invalidateQueries({ queryKey: ['crm-lead-lists'] });
   };
 
+  const isUnchanged = body === (list?.script_body || '');
+
   return (
     <div style={{
-      marginBottom: 16,
-      background: '#fff',
+      marginBottom: space[4],
+      background: color.white,
       border: '1px solid ' + GRAY_200,
-      borderRadius: 4,
+      borderRadius: radius.md,
     }}>
       <button
         onClick={() => setOpen(o => !o)}
@@ -76,12 +79,12 @@ function ScriptEditor({ list }) {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '10px 16px',
           background: 'transparent', border: 'none',
-          cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-          fontSize: 12, fontWeight: 700, color: NAVY,
+          cursor: 'pointer', fontFamily: font.family.sans,
+          fontSize: font.size.sm, fontWeight: font.weight.bold, color: NAVY,
         }}
       >
         <span>架電トークスクリプト{body ? '' : '（未設定）'}</span>
-        <span style={{ fontSize: 14, color: C.textLight }}>{open ? '−' : '+'}</span>
+        <span style={{ fontSize: font.size.md, color: color.textLight }}>{open ? '−' : '+'}</span>
       </button>
       {open && (
         <div style={{ padding: '0 16px 12px' }}>
@@ -92,24 +95,21 @@ function ScriptEditor({ list }) {
             placeholder="このリスト向けの営業トーク台本を入力"
             style={{
               width: '100%', padding: '10px',
-              borderRadius: 4, border: '1px solid ' + GRAY_200,
-              fontSize: 12, fontFamily: "'Noto Sans JP'", lineHeight: 1.6,
+              borderRadius: radius.md, border: '1px solid ' + GRAY_200,
+              fontSize: font.size.sm, fontFamily: font.family.sans, lineHeight: 1.6,
               outline: 'none', resize: 'vertical',
-              background: GRAY_50,
+              background: GRAY_50, color: color.textDark,
             }}
           />
-          <div style={{ marginTop: 6, textAlign: 'right' }}>
-            <button
+          <div style={{ marginTop: space[1.5], textAlign: 'right' }}>
+            <Button
+              variant="primary"
+              size="sm"
               onClick={handleSave}
-              disabled={saving || body === (list?.script_body || '')}
-              style={{
-                padding: '6px 14px', borderRadius: 3, border: 'none',
-                background: (saving || body === (list?.script_body || '')) ? C.textLight : NAVY,
-                color: '#fff', fontSize: 11, fontWeight: 500,
-                cursor: (saving || body === (list?.script_body || '')) ? 'not-allowed' : 'pointer',
-                fontFamily: "'Noto Sans JP'",
-              }}
-            >{saving ? '保存中...' : 'スクリプトを保存'}</button>
+              disabled={isUnchanged}
+              loading={saving}
+              style={{ background: (saving || isUnchanged) ? color.textLight : NAVY }}
+            >{saving ? '保存中...' : 'スクリプトを保存'}</Button>
           </div>
         </div>
       )}
@@ -156,9 +156,9 @@ export default function CRMLeadListDetailView({ list, currentUser, members = [],
 
   if (!list) {
     return (
-      <div style={{ padding: 20 }}>
-        <button onClick={onBack}>← 戻る</button>
-        <div style={{ marginTop: 12, color: C.textLight }}>リストが見つかりません</div>
+      <div style={{ padding: space[5] }}>
+        <Button variant="secondary" size="sm" onClick={onBack}>← 戻る</Button>
+        <div style={{ marginTop: space[3], color: color.textLight }}>リストが見つかりません</div>
       </div>
     );
   }
@@ -187,23 +187,19 @@ export default function CRMLeadListDetailView({ list, currentUser, members = [],
     <div>
       {/* ヘッダー */}
       <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16,
-        padding: '14px 18px', background: '#fff', borderRadius: 4,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[4],
+        padding: '14px 18px', background: color.white, borderRadius: radius.md,
         border: '1px solid ' + GRAY_200,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button
+        <div style={{ display: 'flex', alignItems: 'center', gap: space[3] }}>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={onBack}
-            style={{
-              padding: '6px 12px', borderRadius: 3,
-              border: '1px solid ' + GRAY_200, background: '#fff',
-              color: C.textMid, fontSize: 11, cursor: 'pointer',
-              fontFamily: "'Noto Sans JP'",
-            }}
-          >← リスト一覧</button>
+          >← リスト一覧</Button>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>{list.name}</div>
-            <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>
+            <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: NAVY }}>{list.name}</div>
+            <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 2 }}>
               {list.industry ? list.industry + ' / ' : ''}{total} 件
               {' '}・ 架電済 {calledCount} 件
               {' '}・ アポ {apptCount} 件
@@ -211,33 +207,23 @@ export default function CRMLeadListDetailView({ list, currentUser, members = [],
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button
+        <div style={{ display: 'flex', gap: space[1.5] }}>
+          <Button
+            variant="outline"
+            size="md"
             onClick={() => setCallingMode('list')}
             disabled={total === 0}
             title="一覧モードで起動（複数企業を一覧で見ながら効率的に架電）"
-            style={{
-              padding: '8px 14px', borderRadius: 4,
-              border: '1px solid ' + (total === 0 ? C.textLight : NAVY),
-              background: total === 0 ? '#F8F9FA' : '#fff',
-              color: total === 0 ? C.textLight : NAVY,
-              fontSize: 12, fontWeight: 600,
-              cursor: total === 0 ? 'not-allowed' : 'pointer',
-              fontFamily: "'Noto Sans JP'",
-            }}
-          >一覧モードで開始</button>
-          <button
+            style={{ borderColor: total === 0 ? color.textLight : NAVY, color: total === 0 ? color.textLight : NAVY }}
+          >一覧モードで開始</Button>
+          <Button
+            variant="primary"
+            size="md"
             onClick={() => setCallingMode('flow')}
             disabled={total === 0}
             title="集中モードで起動（1社ずつフォーカスしてじっくり架電）"
-            style={{
-              padding: '8px 18px', borderRadius: 4, border: 'none',
-              background: total === 0 ? C.textLight : NAVY,
-              color: '#fff', fontSize: 13, fontWeight: 700,
-              cursor: total === 0 ? 'not-allowed' : 'pointer',
-              fontFamily: "'Noto Sans JP'",
-            }}
-          >集中モードで開始</button>
+            style={{ background: total === 0 ? color.textLight : NAVY }}
+          >集中モードで開始</Button>
         </div>
       </div>
 
@@ -249,40 +235,38 @@ export default function CRMLeadListDetailView({ list, currentUser, members = [],
         <div>
           {companies.length === 0 ? (
             <div style={{
-              padding: '30px 0', textAlign: 'center', color: C.textLight, fontSize: 12,
-              background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
+              padding: '30px 0', textAlign: 'center', color: color.textLight, fontSize: font.size.sm,
+              background: color.white, border: '1px solid ' + GRAY_200, borderRadius: radius.md,
             }}>
               企業データがありません
             </div>
           ) : (
             companies.map(c => (
               <div key={c.id} style={{
-                background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
-                padding: '10px 12px', marginBottom: 6,
+                background: color.white, border: '1px solid ' + GRAY_200, borderRadius: radius.md,
+                padding: '10px 12px', marginBottom: space[1.5],
                 opacity: c.is_excluded ? 0.55 : 1,
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontSize: 9, color: C.textLight, fontFamily: "'JetBrains Mono'" }}>No.{c.no}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: space[1.5], marginBottom: space[1] }}>
+                  <span style={{ fontSize: 9, color: color.textLight, fontFamily: font.family.mono }}>No.{c.no}</span>
                   <StatusBadge status={lastStatusByCompany[c.id]} />
                   {c.promoted_to_client_id && (
-                    <span style={{ fontSize: 8, fontWeight: 700, color: '#16A34A', border: '1px solid #16A34A', borderRadius: 2, padding: '1px 4px' }}>
-                      CRM登録済
-                    </span>
+                    <Badge variant="success" size="sm">CRM登録済</Badge>
                   )}
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 4 }}>
+                <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: NAVY, marginBottom: space[1] }}>
                   {c.company}
                 </div>
-                <div style={{ fontSize: 10, color: C.textMid, marginBottom: 2 }}>
+                <div style={{ fontSize: font.size.xs - 1, color: color.textMid, marginBottom: 2 }}>
                   {c.business || '事業内容なし'}
                 </div>
-                <div style={{ fontSize: 10, color: C.textMid, display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: font.size.xs - 1, color: color.textMid, display: 'flex', justifyContent: 'space-between' }}>
                   <span>{c.representative || '代表者不明'}</span>
                   {c.phone && (
                     <a href={`tel:${c.phone}`} style={{
-                      fontFamily: "'JetBrains Mono'", color: NAVY, fontWeight: 600,
+                      fontFamily: font.family.mono, color: NAVY, fontWeight: font.weight.semibold,
                       textDecoration: 'none', border: '1px solid ' + NAVY,
-                      borderRadius: 2, padding: '1px 6px',
+                      borderRadius: radius.sm, padding: '1px 6px',
                     }} onClick={e => e.stopPropagation()}>
                       {c.phone}
                     </a>
@@ -293,11 +277,11 @@ export default function CRMLeadListDetailView({ list, currentUser, members = [],
           )}
         </div>
       ) : (
-      <div style={{ border: '1px solid ' + GRAY_200, borderRadius: 4, background: '#fff', overflow: 'auto' }}>
+      <div style={{ border: '1px solid ' + GRAY_200, borderRadius: radius.md, background: color.white, overflow: 'auto' }}>
         <div style={{
           display: 'grid', gridTemplateColumns: cols,
           padding: '8px 16px', background: NAVY,
-          fontSize: 11, fontWeight: 600, color: '#fff',
+          fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.white,
         }}>
           <span>No</span>
           <span>企業名</span>
@@ -307,28 +291,30 @@ export default function CRMLeadListDetailView({ list, currentUser, members = [],
           <span style={{ textAlign: 'center' }}>最新状況</span>
         </div>
         {companies.length === 0 ? (
-          <div style={{ padding: '30px 0', textAlign: 'center', color: C.textLight, fontSize: 12 }}>
+          <div style={{ padding: '30px 0', textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
             企業データがありません
           </div>
         ) : (
           companies.map((c, i) => (
             <div key={c.id} style={{
               display: 'grid', gridTemplateColumns: cols,
-              padding: '7px 16px', fontSize: 11, alignItems: 'center',
+              padding: '7px 16px', fontSize: font.size.xs, alignItems: 'center',
               borderBottom: '1px solid ' + GRAY_200,
-              background: i % 2 === 0 ? '#fff' : GRAY_50,
+              background: i % 2 === 0 ? color.white : GRAY_50,
               opacity: c.is_excluded ? 0.5 : 1,
             }}>
-              <span style={{ color: C.textLight, fontFamily: "'JetBrains Mono'", fontSize: 10 }}>{c.no}</span>
-              <span style={{ fontWeight: 600, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ color: color.textLight, fontFamily: font.family.mono, fontSize: font.size.xs - 1 }}>{c.no}</span>
+              <span style={{ fontWeight: font.weight.semibold, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {c.company}
                 {c.promoted_to_client_id && (
-                  <span style={{ marginLeft: 6, fontSize: 8, fontWeight: 700, color: '#16A34A', border: '1px solid #16A34A', borderRadius: 2, padding: '1px 4px' }}>CRM登録済</span>
+                  <span style={{ marginLeft: 6, display: 'inline-block' }}>
+                    <Badge variant="success" size="sm">CRM登録済</Badge>
+                  </span>
                 )}
               </span>
-              <span style={{ color: C.textMid, fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.business || '-'}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textMid }}>{c.phone || '-'}</span>
-              <span style={{ color: C.textMid, fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.representative || '-'}</span>
+              <span style={{ color: color.textMid, fontSize: font.size.xs - 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.business || '-'}</span>
+              <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs - 1, color: color.textMid }}>{c.phone || '-'}</span>
+              <span style={{ color: color.textMid, fontSize: font.size.xs - 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.representative || '-'}</span>
               <span style={{ textAlign: 'center' }}>
                 <StatusBadge status={lastStatusByCompany[c.id]} />
               </span>

@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { C } from '../../../constants/colors';
+import { color, space, radius, font, alpha } from '../../../constants/design';
 import VoiceRecorderInline from '../contacts/VoiceRecorderInline';
 import { insertContactMemoEvent } from '../../../lib/supabaseWrite';
 import CRMQuickScheduleModal from './CRMQuickScheduleModal';
 import CRMMeetingReportModal from './CRMMeetingReportModal';
 import { NAVY, GRAY_200, composeEmailDraft } from './utils';
 
-function ActionButton({ label, hint, onClick, disabled, color = NAVY, children }) {
+function ActionButton({ label, hint, onClick, disabled, color: btnColor = NAVY, children }) {
   return (
     <button
       onClick={onClick}
@@ -16,22 +16,22 @@ function ActionButton({ label, hint, onClick, disabled, color = NAVY, children }
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         width: '100%',
         padding: '10px 12px',
-        borderRadius: 4,
-        border: '1px solid ' + (disabled ? GRAY_200 : color),
-        background: disabled ? '#F8F9FA' : '#fff',
-        color: disabled ? C.textLight : color,
-        fontSize: 12, fontWeight: 600,
+        borderRadius: radius.md,
+        border: '1px solid ' + (disabled ? GRAY_200 : btnColor),
+        background: disabled ? color.gray50 : color.white,
+        color: disabled ? color.textLight : btnColor,
+        fontSize: font.size.sm, fontWeight: font.weight.semibold,
         cursor: disabled ? 'not-allowed' : 'pointer',
-        fontFamily: "'Noto Sans JP'",
+        fontFamily: font.family.sans,
         transition: 'background 0.12s',
       }}
-      onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = color + '0a'; }}
-      onMouseLeave={e => { e.currentTarget.style.background = disabled ? '#F8F9FA' : '#fff'; }}
+      onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = alpha(btnColor, 0.04); }}
+      onMouseLeave={e => { e.currentTarget.style.background = disabled ? color.gray50 : color.white; }}
     >
-      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
         {children}
       </span>
-      <span style={{ fontSize: 14, fontWeight: 400, opacity: 0.5 }}>›</span>
+      <span style={{ fontSize: font.size.md, fontWeight: font.weight.normal, opacity: 0.5 }}>›</span>
     </button>
   );
 }
@@ -90,18 +90,18 @@ export default function CRMActionPanel({
   return (
     <>
       <div style={{
-        marginBottom: 12,
-        padding: '12px',
-        background: '#FAFAFA',
+        marginBottom: space[3],
+        padding: space[3],
+        background: color.gray50,
         border: '1px solid ' + GRAY_200,
-        borderRadius: 4,
+        borderRadius: radius.md,
       }}>
         <div style={{
-          fontSize: 10, fontWeight: 700, color: NAVY, letterSpacing: 1,
-          marginBottom: 8,
+          fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: NAVY, letterSpacing: 1,
+          marginBottom: space[2],
         }}>アクション</div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: space[1.5] }}>
           <ActionButton
             label="メール送信"
             hint={canEmail ? `宛先: ${draft.to}` : '主担当のメールアドレス未登録'}
@@ -109,9 +109,9 @@ export default function CRMActionPanel({
             onClick={handleEmail}
           >
             <span style={{
-              fontSize: 11, fontWeight: 700, color: canEmail ? NAVY : C.textLight,
-              border: '1px solid ' + (canEmail ? NAVY : C.textLight),
-              borderRadius: 2, padding: '1px 6px', minWidth: 28, textAlign: 'center',
+              fontSize: font.size.xs, fontWeight: font.weight.bold, color: canEmail ? NAVY : color.textLight,
+              border: '1px solid ' + (canEmail ? NAVY : color.textLight),
+              borderRadius: radius.sm, padding: '1px 6px', minWidth: 28, textAlign: 'center',
             }}>@</span>
             メール送信
           </ActionButton>
@@ -122,9 +122,9 @@ export default function CRMActionPanel({
             onClick={() => setScheduleOpen(true)}
           >
             <span style={{
-              fontSize: 11, fontWeight: 700, color: NAVY,
+              fontSize: font.size.xs, fontWeight: font.weight.bold, color: NAVY,
               border: '1px solid ' + NAVY,
-              borderRadius: 2, padding: '1px 6px', minWidth: 28, textAlign: 'center',
+              borderRadius: radius.sm, padding: '1px 6px', minWidth: 28, textAlign: 'center',
             }}>予</span>
             商談予定を入れる
           </ActionButton>
@@ -134,13 +134,13 @@ export default function CRMActionPanel({
             <ActionButton
               label="商談結果を記録"
               hint="受注/保留/ブレイクを選んで議事録を残す"
-              color="#16A34A"
+              color={color.success}
               onClick={() => setReportOpen(true)}
             >
               <span style={{
-                fontSize: 11, fontWeight: 700, color: '#16A34A',
-                border: '1px solid #16A34A',
-                borderRadius: 2, padding: '1px 6px', minWidth: 28, textAlign: 'center',
+                fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.success,
+                border: '1px solid ' + color.success,
+                borderRadius: radius.sm, padding: '1px 6px', minWidth: 28, textAlign: 'center',
               }}>結</span>
               商談結果を記録
             </ActionButton>
@@ -150,18 +150,18 @@ export default function CRMActionPanel({
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '10px 12px',
-            borderRadius: 4,
+            borderRadius: radius.md,
             border: '1px solid ' + NAVY,
-            background: '#fff',
+            background: color.white,
             color: NAVY,
-            fontSize: 12, fontWeight: 600,
-            fontFamily: "'Noto Sans JP'",
+            fontSize: font.size.sm, fontWeight: font.weight.semibold,
+            fontFamily: font.family.sans,
           }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
               <span style={{
-                fontSize: 11, fontWeight: 700, color: NAVY,
+                fontSize: font.size.xs, fontWeight: font.weight.bold, color: NAVY,
                 border: '1px solid ' + NAVY,
-                borderRadius: 2, padding: '1px 6px', minWidth: 28, textAlign: 'center',
+                borderRadius: radius.sm, padding: '1px 6px', minWidth: 28, textAlign: 'center',
               }}>録</span>
               メモ録音
             </span>
@@ -177,9 +177,9 @@ export default function CRMActionPanel({
 
         {memoToast && (
           <div style={{
-            marginTop: 8, fontSize: 10, color: NAVY,
+            marginTop: space[2], fontSize: font.size.xs - 1, color: NAVY,
             padding: '6px 10px', background: '#FFFBEB',
-            border: '1px solid ' + C.gold + '60', borderRadius: 3,
+            border: '1px solid ' + alpha(color.gold, 0.4), borderRadius: radius.sm,
           }}>{memoToast}</div>
         )}
       </div>

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useEngagements } from '../../hooks/useEngagements';
 import { useKpiGoals, KPI_TYPES, PERIOD_TYPES } from '../../hooks/useKpiGoals';
@@ -330,14 +332,14 @@ export default function SourcingDashboardView({
         right={(
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {scopeOptions.map((s, i) => (
-              <button key={i} onClick={() => setScopeIdx(i)}
-                style={{
-                  padding: '6px 12px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-                  cursor: 'pointer', fontFamily: "'Noto Sans JP',sans-serif",
-                  border: `1px solid ${scopeIdx === i ? C.navy : C.border}`,
-                  background: scopeIdx === i ? C.navy : C.white,
-                  color: scopeIdx === i ? C.white : C.navy,
-                }}>{s.label}</button>
+              <Button
+                key={i}
+                size="sm"
+                variant={scopeIdx === i ? 'primary' : 'outline'}
+                onClick={() => setScopeIdx(i)}
+              >
+                {s.label}
+              </Button>
             ))}
           </div>
         )}
@@ -347,19 +349,11 @@ export default function SourcingDashboardView({
       <PushNotificationBanner userId={userId} />
 
       {/* 本日の目標 vs 実績 */}
-      <div style={{
-        background: C.white, border: '1px solid #E5E7EB', borderRadius: 4,
-        padding: '16px 20px', marginBottom: 12,
-      }}>
+      <Card padding="md" style={{ marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>本日の実績 / 目標</div>
+          <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>本日の実績 / 目標</div>
           {canEditGoal && (
-            <button onClick={() => setGoalModalOpen(true)}
-              style={{
-                padding: '6px 14px', fontSize: 11, fontWeight: 600,
-                background: C.navy, color: C.white, border: 'none', borderRadius: 4,
-                cursor: 'pointer',
-              }}>目標入力はこちら</button>
+            <Button size="sm" onClick={() => setGoalModalOpen(true)}>目標入力はこちら</Button>
           )}
         </div>
         <div style={{
@@ -369,14 +363,11 @@ export default function SourcingDashboardView({
           <TodayCard label="社長接続数" actual={todayAgg.ceoConnect} goal={getGoal('connections', 'daily')} unit="件" />
           <TodayCard label="アポ獲得数" actual={todayAgg.appo} goal={getGoal('appointments', 'daily')} unit="件" />
         </div>
-      </div>
+      </Card>
 
       {/* 週次・月次 進捗 */}
-      <div style={{
-        background: C.white, border: '1px solid #E5E7EB', borderRadius: 4,
-        padding: '16px 20px', marginBottom: 12,
-      }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>週次・月次 進捗率</div>
+      <Card padding="md" style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy, marginBottom: 12 }}>週次・月次 進捗率</div>
         <ProgressTable
           periods={[
             { id: 'weekly', label: '週次' },
@@ -391,18 +382,15 @@ export default function SourcingDashboardView({
           ]}
           getGoal={getGoal}
         />
-      </div>
+      </Card>
 
       {/* おすすめリスト TOP4 */}
-      <div style={{
-        background: C.white, border: '1px solid #E5E7EB', borderRadius: 4,
-        padding: '16px 20px', marginBottom: 12,
-      }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>
+      <Card padding="md" style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy, marginBottom: 12 }}>
           現在のおすすめリスト TOP4
         </div>
         {topLists.length === 0 ? (
-          <div style={{ padding: 16, textAlign: 'center', color: C.textLight, fontSize: 12 }}>
+          <div style={{ padding: 16, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
             架電可能なリストがありません。
           </div>
         ) : (
@@ -418,7 +406,7 @@ export default function SourcingDashboardView({
             ))}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* 社長再コール超過 */}
       <CollapsibleList
@@ -429,17 +417,17 @@ export default function SourcingDashboardView({
         render={(r, i) => (
           <div key={r.id || i} style={rowStyle}>
             <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-              <div style={{ fontWeight: 700, color: C.navy, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontWeight: font.weight.bold, color: color.navy, fontSize: font.size.sm, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {r.company || '—'}
               </div>
-              <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>
+              <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 2 }}>
                 {r.list_name || ''}
               </div>
             </div>
-            <div style={{ fontSize: 10, color: C.red, minWidth: 120 }}>
+            <div style={{ fontSize: font.size.xs - 1, color: color.danger, minWidth: 120 }}>
               再コール予定: {r.recall_date} {r.recall_time || ''}
             </div>
-            <div style={{ fontSize: 10, color: C.textMid, minWidth: 80 }}>
+            <div style={{ fontSize: font.size.xs - 1, color: color.textMid, minWidth: 80 }}>
               担当: {r.assignee || r.getter_name || '—'}
             </div>
             <CallButton
@@ -459,17 +447,17 @@ export default function SourcingDashboardView({
         render={(r, i) => (
           <div key={r.id || i} style={rowStyle}>
             <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-              <div style={{ fontWeight: 700, color: C.navy, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontWeight: font.weight.bold, color: color.navy, fontSize: font.size.sm, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {r.company}
               </div>
-              <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>
+              <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 2 }}>
                 {r.list_name || ''}
               </div>
             </div>
-            <div style={{ fontSize: 10, color: C.textMid, minWidth: 110 }}>
+            <div style={{ fontSize: font.size.xs - 1, color: color.textMid, minWidth: 110 }}>
               最終架電: {r.called_at?.slice(0, 10)}
             </div>
-            <div style={{ fontSize: 10, color: C.textMid, minWidth: 80 }}>
+            <div style={{ fontSize: font.size.xs - 1, color: color.textMid, minWidth: 80 }}>
               担当: {r.getter_name || '—'}
             </div>
             <CallButton
@@ -489,20 +477,20 @@ export default function SourcingDashboardView({
         render={(r, i) => (
           <div key={r.id || i} style={rowStyle}>
             <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-              <div style={{ fontWeight: 700, color: C.navy, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontWeight: font.weight.bold, color: color.navy, fontSize: font.size.sm, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {r.company}
               </div>
-              <div style={{ fontSize: 10, color: C.textLight, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {r.list_name || ''}{r.client_name ? ` / ${r.client_name}` : ''}
               </div>
             </div>
-            <div style={{ fontSize: 10, color: C.textMid, width: 110, flexShrink: 0, whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: font.size.xs - 1, color: color.textMid, width: 110, flexShrink: 0, whiteSpace: 'nowrap' }}>
               過去アポ: {r.past_date || '—'}
             </div>
-            <div style={{ fontSize: 10, color: C.textMid, width: 110, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: font.size.xs - 1, color: color.textMid, width: 110, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               取得者: {r.past_getter || '—'}
             </div>
-            <div style={{ fontSize: 10, color: C.textMid, width: 200, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: font.size.xs - 1, color: color.textMid, width: 200, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               名義: {r.past_client || '—'}
             </div>
             <CallButton
@@ -530,37 +518,34 @@ export default function SourcingDashboardView({
 // ============================================================
 const rowStyle = {
   display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0',
-  borderBottom: '1px solid #F3F4F6', fontSize: 12,
+  borderBottom: `1px solid ${color.borderLight}`, fontSize: font.size.sm,
 };
 
 function TodayCard({ label, actual, goal, unit }) {
   const pct = progressPct(actual, goal);
-  const color = pct >= 100 ? C.green : pct >= 60 ? C.gold : pct >= 30 ? C.navy : C.textLight;
+  const barColor = pct >= 100 ? color.success : pct >= 60 ? color.gold : pct >= 30 ? color.navy : color.textLight;
   return (
-    <div style={{
-      background: '#F8F9FA', border: '1px solid #E5E7EB',
-      borderRadius: 6, padding: '14px 16px',
-    }}>
-      <div style={{ fontSize: 10, fontWeight: 600, color: C.textLight, marginBottom: 6, letterSpacing: '0.04em' }}>{label}</div>
+    <Card variant="subtle" padding="none" style={{ padding: '14px 16px' }}>
+      <div style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, color: color.textLight, marginBottom: 6, letterSpacing: font.letterSpacing.wide }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-        <span style={{ fontSize: 24, fontWeight: 800, color: C.navy, fontFamily: "'JetBrains Mono'" }}>
+        <span style={{ fontSize: 24, fontWeight: font.weight.black, color: color.navy, fontFamily: font.family.mono }}>
           {actual}
         </span>
-        <span style={{ fontSize: 11, color: C.textLight }}>/ {goal || '—'} {unit}</span>
+        <span style={{ fontSize: font.size.xs, color: color.textLight }}>/ {goal || '—'} {unit}</span>
       </div>
-      <div style={{ height: 6, background: '#E5E7EB', borderRadius: 3, marginTop: 8, overflow: 'hidden' }}>
-        <div style={{ width: `${Math.min(100, pct)}%`, background: color, height: '100%', transition: 'width 0.3s' }} />
+      <div style={{ height: 6, background: color.gray200, borderRadius: 3, marginTop: 8, overflow: 'hidden' }}>
+        <div style={{ width: `${Math.min(100, pct)}%`, background: barColor, height: '100%', transition: 'width 0.3s' }} />
       </div>
-      <div style={{ fontSize: 10, color, fontWeight: 600, marginTop: 4, textAlign: 'right' }}>
+      <div style={{ fontSize: font.size.xs - 1, color: barColor, fontWeight: font.weight.semibold, marginTop: 4, textAlign: 'right' }}>
         {goal > 0 ? fmtPct(pct) : '目標未設定'}
       </div>
-    </div>
+    </Card>
   );
 }
 
 function ProgressTable({ periods, rows, getGoal }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr repeat(2, 2fr)', gap: 0, fontSize: 11 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr repeat(2, 2fr)', gap: 0, fontSize: font.size.xs }}>
       <div style={cellHeader}>指標</div>
       {periods.map(p => <div key={p.id} style={cellHeader}>{p.label}</div>)}
       {rows.map((row, i) => {
@@ -570,7 +555,7 @@ function ProgressTable({ periods, rows, getGoal }) {
         const monthPct = progressPct(row.monthActual, monthGoal);
         return (
           <React.Fragment key={row.kpi}>
-            <div style={{ ...cellBase, fontWeight: 600, color: C.navy }}>{row.label}</div>
+            <div style={{ ...cellBase, fontWeight: font.weight.semibold, color: color.navy }}>{row.label}</div>
             <div style={cellBase}>
               <ProgressBar actual={row.weekActual} goal={weekGoal} pct={weekPct} money={row.money} />
             </div>
@@ -585,26 +570,26 @@ function ProgressTable({ periods, rows, getGoal }) {
 }
 
 const cellHeader = {
-  padding: '8px 12px', background: '#0D2247', color: '#fff', fontSize: 11, fontWeight: 600,
+  padding: '8px 12px', background: color.navy, color: color.white, fontSize: font.size.xs, fontWeight: font.weight.semibold,
 };
 const cellBase = {
-  padding: '10px 12px', borderBottom: '1px solid #F3F4F6',
+  padding: '10px 12px', borderBottom: `1px solid ${color.borderLight}`,
 };
 
 function ProgressBar({ actual, goal, pct, money }) {
-  const color = pct >= 100 ? C.green : pct >= 60 ? C.gold : pct >= 30 ? C.navy : C.textLight;
+  const barColor = pct >= 100 ? color.success : pct >= 60 ? color.gold : pct >= 30 ? color.navy : color.textLight;
   const disp = money ? fmtYen(actual) : Math.round(actual || 0);
   const goalDisp = money ? fmtYen(goal) : (goal || '—');
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 3 }}>
-        <span style={{ color: C.navy, fontWeight: 600, fontFamily: "'JetBrains Mono'" }}>{disp}</span>
-        <span style={{ color: C.textLight, fontSize: 10 }}>/ {goalDisp}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: font.size.xs, marginBottom: 3 }}>
+        <span style={{ color: color.navy, fontWeight: font.weight.semibold, fontFamily: font.family.mono }}>{disp}</span>
+        <span style={{ color: color.textLight, fontSize: font.size.xs - 1 }}>/ {goalDisp}</span>
       </div>
-      <div style={{ height: 5, background: '#E5E7EB', borderRadius: 3, overflow: 'hidden' }}>
-        <div style={{ width: `${Math.min(100, pct)}%`, background: color, height: '100%' }} />
+      <div style={{ height: 5, background: color.gray200, borderRadius: 3, overflow: 'hidden' }}>
+        <div style={{ width: `${Math.min(100, pct)}%`, background: barColor, height: '100%' }} />
       </div>
-      <div style={{ fontSize: 9, color, fontWeight: 600, textAlign: 'right', marginTop: 2 }}>
+      <div style={{ fontSize: font.size.xs - 2, color: barColor, fontWeight: font.weight.semibold, textAlign: 'right', marginTop: 2 }}>
         {goal > 0 ? fmtPct(pct) : '—'}
       </div>
     </div>
@@ -613,20 +598,15 @@ function ProgressBar({ actual, goal, pct, money }) {
 
 function CallButton({ onClick, disabled }) {
   return (
-    <button
-      onClick={onClick}
+    <Button
+      size="sm"
       disabled={disabled}
+      onClick={onClick}
       title="架電集中画面を開く"
-      style={{
-        padding: '5px 10px', fontSize: 11, fontWeight: 600,
-        background: disabled ? '#E5E7EB' : C.navy,
-        color: disabled ? C.textLight : C.white,
-        border: 'none', borderRadius: 3,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        whiteSpace: 'nowrap',
-        display: 'inline-flex', alignItems: 'center', gap: 5,
-      }}
-    ><Phone size={12} strokeWidth={2} /> 架電</button>
+      iconLeft={<Phone size={12} strokeWidth={2} />}
+    >
+      架電
+    </Button>
   );
 }
 
@@ -635,35 +615,32 @@ function CollapsibleList({ title, items, emptyText, render, loading }) {
   const initial = 15;
   const shown = open ? items : items.slice(0, initial);
   return (
-    <div style={{ background: C.white, border: '1px solid #E5E7EB', borderRadius: 4, marginBottom: 12, padding: '14px 20px' }}>
+    <Card padding="none" style={{ marginBottom: 12, padding: '14px 20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>
+        <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>
           {title}{' '}
-          <span style={{ fontSize: 11, fontWeight: 400, color: C.textLight, marginLeft: 6 }}>
+          <span style={{ fontSize: font.size.xs, fontWeight: font.weight.normal, color: color.textLight, marginLeft: 6 }}>
             {loading ? '読み込み中…' : `${items.length}件`}
           </span>
         </div>
         {!loading && items.length > initial && (
-          <button onClick={() => setOpen(v => !v)}
-            style={{
-              padding: '4px 10px', fontSize: 11, fontWeight: 600,
-              background: 'transparent', border: `1px solid ${C.border}`,
-              color: C.navy, borderRadius: 3, cursor: 'pointer',
-            }}>{open ? '閉じる' : `さらに${items.length - initial}件表示`}</button>
+          <Button size="sm" variant="outline" onClick={() => setOpen(v => !v)}>
+            {open ? '閉じる' : `さらに${items.length - initial}件表示`}
+          </Button>
         )}
       </div>
       {loading ? (
-        <div style={{ padding: 12, textAlign: 'center', color: C.textLight, fontSize: 12 }}>
+        <div style={{ padding: 12, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
           読み込み中…
         </div>
       ) : items.length === 0 ? (
-        <div style={{ padding: 12, textAlign: 'center', color: C.textLight, fontSize: 12 }}>
+        <div style={{ padding: 12, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
           {emptyText}
         </div>
       ) : (
         shown.map(render)
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -698,39 +675,37 @@ function GoalInputModal({ scope, currentGoals, onClose, onSave }) {
 
   return (
     <div onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(3,45,96,0.5)',
+      position: 'fixed', inset: 0, background: alpha(color.navy, 0.5),
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: C.white, borderRadius: 8, padding: '24px 28px',
+        background: color.white, borderRadius: radius.xl, padding: '24px 28px',
         width: 680, maxWidth: 'calc(100% - 32px)', maxHeight: '80vh', overflowY: 'auto',
-        boxShadow: '0 20px 60px rgba(3,45,96,0.25)', borderTop: `3px solid ${C.gold}`,
+        boxShadow: shadow.xl, borderTop: `3px solid ${color.gold}`,
       }}>
-        <div style={{ fontSize: 16, fontWeight: 800, color: C.navy, marginBottom: 4 }}>目標入力</div>
-        <div style={{ fontSize: 11, color: C.textLight, marginBottom: 16 }}>対象: {scopeLabel}</div>
+        <div style={{ fontSize: font.size.lg, fontWeight: font.weight.black, color: color.navy, marginBottom: 4 }}>目標入力</div>
+        <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 16 }}>対象: {scopeLabel}</div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '120px repeat(3, 1fr)', gap: 10, fontSize: 12 }}>
-          <div style={{ fontWeight: 700, color: C.navy }}>指標</div>
-          <div style={{ fontWeight: 700, color: C.navy, textAlign: 'center' }}>日次</div>
-          <div style={{ fontWeight: 700, color: C.navy, textAlign: 'center' }}>週次</div>
-          <div style={{ fontWeight: 700, color: C.navy, textAlign: 'center' }}>月次</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '120px repeat(3, 1fr)', gap: 10, fontSize: font.size.sm }}>
+          <div style={{ fontWeight: font.weight.bold, color: color.navy }}>指標</div>
+          <div style={{ fontWeight: font.weight.bold, color: color.navy, textAlign: 'center' }}>日次</div>
+          <div style={{ fontWeight: font.weight.bold, color: color.navy, textAlign: 'center' }}>週次</div>
+          <div style={{ fontWeight: font.weight.bold, color: color.navy, textAlign: 'center' }}>月次</div>
           {KPI_TYPES.filter(k => !k.isRate).map(k => (
             <React.Fragment key={k.id}>
-              <div style={{ alignSelf: 'center', fontWeight: 600, color: C.textDark }}>
+              <div style={{ alignSelf: 'center', fontWeight: font.weight.semibold, color: color.textDark }}>
                 {k.label}
-                <span style={{ fontSize: 10, color: C.textLight, marginLeft: 4 }}>({k.unit})</span>
+                <span style={{ fontSize: font.size.xs - 1, color: color.textLight, marginLeft: 4 }}>({k.unit})</span>
               </div>
               {PERIOD_TYPES.map(p => (
-                <input
+                <Input
                   key={p.id}
+                  size="sm"
                   type="number"
                   value={values[`${k.id}_${p.id}`] ?? ''}
                   onChange={e => setV(k.id, p.id, e.target.value)}
                   placeholder="—"
-                  style={{
-                    padding: '6px 10px', border: `1px solid ${C.border}`, borderRadius: 3,
-                    fontSize: 12, fontFamily: "'JetBrains Mono'", textAlign: 'right',
-                  }}
+                  style={{ fontFamily: font.family.mono, textAlign: 'right' }}
                 />
               ))}
             </React.Fragment>
@@ -738,14 +713,8 @@ function GoalInputModal({ scope, currentGoals, onClose, onSave }) {
         </div>
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
-          <button onClick={onClose} style={{
-            padding: '8px 16px', background: C.white, color: C.navy,
-            border: `1px solid ${C.border}`, borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-          }}>キャンセル</button>
-          <button onClick={handleSave} style={{
-            padding: '8px 20px', background: C.navy, color: C.white,
-            border: 'none', borderRadius: 4, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-          }}>保存</button>
+          <Button variant="outline" onClick={onClose}>キャンセル</Button>
+          <Button onClick={handleSave}>保存</Button>
         </div>
       </div>
     </div>

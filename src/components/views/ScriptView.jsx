@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { DEFAULT_BASIC_SCRIPT } from '../../constants/scripts';
 import { fetchSetting, saveSetting, updateCallListRebuttal, updateCallListScript, uploadScriptPdf, deleteScriptPdfObject, updateCallListScriptPdfs, getScriptPdfSignedUrl } from '../../lib/supabaseWrite';
 import { renderMarkedScript, toHtml, fromHtml, isSelectionMarked, applyMarker, removeMarker } from '../../utils/scriptMarker';
@@ -237,51 +239,56 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
       {/* 基本スクリプト */}
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-          <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0D2247', borderBottom: '2px solid #0D2247', paddingBottom: 6 }}>基本スクリプト</h2>
-          <button onClick={() => setQaOpen(true)} style={{ background: '#0D2247', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontSize: 11, fontWeight: 500, cursor: 'pointer' }}>想定問答を見る</button>
+          <h2 style={{
+            margin: 0, fontSize: font.size.base, fontWeight: font.weight.bold,
+            color: color.navy, borderBottom: `2px solid ${color.navy}`, paddingBottom: 6,
+          }}>基本スクリプト</h2>
+          <Button size="sm" onClick={() => setQaOpen(true)}>想定問答を見る</Button>
         </div>
 
-        <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: "16px 20px" }}>
+        <Card padding="md">
           {isAdmin ? (
             <>
-              <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 6 }}>テキストを選択して右クリックでマーカーを付けられます</div>
+              <div style={{ fontSize: font.size.xs - 1, color: color.gray400, marginBottom: 6 }}>テキストを選択して右クリックでマーカーを付けられます</div>
               <div
                 ref={editorRef}
                 contentEditable
                 suppressContentEditableWarning
                 onInput={() => setBasicScriptEdit(fromHtml(editorRef.current?.innerHTML || ''))}
                 onContextMenu={e => handleContextMenu(e, editorRef.current)}
-                style={{ width: "100%", border: "none", outline: "none", minHeight: 180,
-                  fontSize: 13, color: C.textDark, fontFamily: "'Noto Sans JP', sans-serif",
+                style={{
+                  width: "100%", border: "none", outline: "none", minHeight: 180,
+                  fontSize: font.size.base, color: color.textDark, fontFamily: font.family.sans,
                   background: "transparent", lineHeight: 1.8, boxSizing: "border-box",
-                  whiteSpace: "pre-wrap", overflowY: "auto" }}
+                  whiteSpace: "pre-wrap", overflowY: "auto",
+                }}
               />
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
-                <button
-                  onClick={handleSaveBasicScript}
-                  disabled={saving}
-                  style={{ background: '#0D2247', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontSize: 11, fontWeight: 500, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+                <Button size="sm" onClick={handleSaveBasicScript} loading={saving}>
                   {saving ? "保存中..." : "保存"}
-                </button>
-                {savedOk && <span style={{ fontSize: 12, color: "#27ae60" }}>保存しました</span>}
+                </Button>
+                {savedOk && <span style={{ fontSize: font.size.sm, color: color.success }}>保存しました</span>}
               </div>
             </>
           ) : (
             <div style={{ minHeight: 120 }}>
               {basicScript
-                ? renderMarkedScript(basicScript, { fontSize: 13, color: C.textDark, lineHeight: 1.8 })
-                : <span style={{ color: C.textLight, fontStyle: "italic" }}>（スクリプト未設定）</span>}
+                ? renderMarkedScript(basicScript, { fontSize: font.size.base, color: color.textDark, lineHeight: 1.8 })
+                : <span style={{ color: color.textLight, fontStyle: "italic" }}>（スクリプト未設定）</span>}
             </div>
           )}
-        </div>
+        </Card>
 
       </div>
 
       {/* クライアント別スクリプト */}
       <div>
-        <h2 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: '#0D2247', borderBottom: '2px solid #0D2247', paddingBottom: 6 }}>クライアント別スクリプト</h2>
+        <h2 style={{
+          margin: "0 0 14px", fontSize: font.size.base, fontWeight: font.weight.bold,
+          color: color.navy, borderBottom: `2px solid ${color.navy}`, paddingBottom: 6,
+        }}>クライアント別スクリプト</h2>
         {activeClients.length === 0 ? (
-          <div style={{ color: C.textLight, fontSize: 13, padding: "20px 0" }}>支援中のクライアントがありません</div>
+          <div style={{ color: color.textLight, fontSize: font.size.base, padding: "20px 0" }}>支援中のクライアントがありません</div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             {activeClients.map((client, cIdx) => {
@@ -290,23 +297,25 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
               const activeTab = clientTabs[cIdx] ?? 0;
               const activeList = clientLists.find(l => l.industry === allIndustries[activeTab]) ?? clientLists[0];
               return (
-                <div key={client._supaId || cIdx}
-                  style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, overflow: "hidden" }}>
-                  <div style={{ background: '#0D2247', padding: "10px 16px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', wordBreak: "break-all" }}>{client.company}</div>
-                    <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 2 }}>{client.industry || ''}</div>
+                <Card key={client._supaId || cIdx} padding="none" style={{ overflow: "hidden" }}>
+                  <div style={{ background: color.navy, padding: "10px 16px" }}>
+                    <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.white, wordBreak: "break-all" }}>{client.company}</div>
+                    <div style={{ fontSize: font.size.xs - 1, color: color.gray400, marginTop: 2 }}>{client.industry || ''}</div>
                   </div>
                   {allIndustries.length > 1 && (
-                    <div style={{ display: "flex", overflowX: "auto", borderBottom: "1px solid #E5E7EB", background: '#F8F9FA' }}>
+                    <div style={{ display: "flex", overflowX: "auto", borderBottom: `1px solid ${color.border}`, background: color.gray50 }}>
                       {allIndustries.map((ind, iIdx) => (
                         <button key={iIdx}
                           onClick={() => setClientTabs(prev => ({ ...prev, [cIdx]: iIdx }))}
-                          style={{ padding: "5px 12px", border: "none", cursor: "pointer",
-                            fontSize: 10, fontWeight: activeTab === iIdx ? 700 : 400,
+                          style={{
+                            padding: "5px 12px", border: "none", cursor: "pointer",
+                            fontSize: font.size.xs - 1,
+                            fontWeight: activeTab === iIdx ? font.weight.bold : font.weight.normal,
                             background: "transparent",
-                            color: activeTab === iIdx ? '#0D2247' : '#9CA3AF',
-                            borderBottom: "2px solid " + (activeTab === iIdx ? '#0D2247' : "transparent"),
-                            whiteSpace: "nowrap", fontFamily: "'Noto Sans JP'" }}>
+                            color: activeTab === iIdx ? color.navy : color.gray400,
+                            borderBottom: "2px solid " + (activeTab === iIdx ? color.navy : "transparent"),
+                            whiteSpace: "nowrap", fontFamily: font.family.sans,
+                          }}>
                           {ind}
                         </button>
                       ))}
@@ -329,12 +338,16 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                           contentEditable
                           suppressContentEditableWarning
                           onContextMenu={e => activeList?._supaId && handleContextMenu(e, clientEditorRefs.current[activeList._supaId])}
-                          style={{ fontSize: 12, color: C.textDark, lineHeight: 1.8, whiteSpace: "pre-wrap",
-                            outline: "none", minHeight: 40, fontFamily: "'Noto Sans JP', sans-serif" }}
+                          style={{
+                            fontSize: font.size.sm, color: color.textDark, lineHeight: 1.8,
+                            whiteSpace: "pre-wrap", outline: "none", minHeight: 40,
+                            fontFamily: font.family.sans,
+                          }}
                         />
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                          <button
-                            disabled={clientScriptSaving === activeList?._supaId}
+                          <Button
+                            size="sm"
+                            loading={clientScriptSaving === activeList?._supaId}
                             onClick={async () => {
                               const listId = activeList?._supaId;
                               if (!listId) return;
@@ -348,17 +361,19 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                               setClientScriptSaved(listId);
                               setTimeout(() => setClientScriptSaved(null), 2000);
                             }}
-                            style={{ background: '#0D2247', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 12px', fontSize: 10, fontWeight: 500, cursor: clientScriptSaving === activeList?._supaId ? 'not-allowed' : 'pointer', opacity: clientScriptSaving === activeList?._supaId ? 0.6 : 1 }}>
+                            style={{ fontSize: font.size.xs - 1 }}>
                             {clientScriptSaving === activeList?._supaId ? '保存中...' : '保存'}
-                          </button>
-                          {clientScriptSaved === activeList?._supaId && <span style={{ fontSize: 10, color: '#27ae60' }}>保存しました</span>}
+                          </Button>
+                          {clientScriptSaved === activeList?._supaId && (
+                            <span style={{ fontSize: font.size.xs - 1, color: color.success }}>保存しました</span>
+                          )}
                         </div>
                       </>
                     ) : (
                       activeList?.scriptBody ? (
-                        renderMarkedScript(activeList.scriptBody, { fontSize: 12, color: C.textDark, lineHeight: 1.8 })
+                        renderMarkedScript(activeList.scriptBody, { fontSize: font.size.sm, color: color.textDark, lineHeight: 1.8 })
                       ) : (
-                        <div style={{ fontSize: 12, color: C.textLight, fontStyle: "italic" }}>スクリプト未設定</div>
+                        <div style={{ fontSize: font.size.sm, color: color.textLight, fontStyle: "italic" }}>スクリプト未設定</div>
                       )
                     )}
                   </div>
@@ -368,9 +383,12 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                     const pdfs = Array.isArray(activeList.scriptPdfs) ? activeList.scriptPdfs : [];
                     const isUploading = pdfUploadingListId === listId;
                     return (
-                      <div style={{ borderTop: '1px solid #E5E7EB' }}>
-                        <div style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FAFBFC' }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#0D2247' }}>添付PDF</span>
+                      <div style={{ borderTop: `1px solid ${color.border}` }}>
+                        <div style={{
+                          padding: '8px 16px', display: 'flex', alignItems: 'center',
+                          justifyContent: 'space-between', background: color.gray50,
+                        }}>
+                          <span style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy }}>添付PDF</span>
                           {isAdmin && (
                             <>
                               <input
@@ -384,36 +402,55 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                                   e.target.value = '';
                                 }}
                               />
-                              <button
-                                disabled={isUploading}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                loading={isUploading}
                                 onClick={() => pdfFileInputRefs.current[listId]?.click()}
-                                style={{ fontSize: 10, padding: '2px 10px', border: '1px solid #0D2247', background: 'transparent', color: '#0D2247', borderRadius: 4, cursor: isUploading ? 'not-allowed' : 'pointer', fontWeight: 500, opacity: isUploading ? 0.6 : 1 }}>
+                                style={{ fontSize: font.size.xs - 1 }}>
                                 {isUploading ? 'アップロード中...' : '＋ 追加'}
-                              </button>
+                              </Button>
                             </>
                           )}
                         </div>
                         {pdfs.length === 0 ? (
-                          <div style={{ padding: '6px 16px 12px', fontSize: 11, color: C.textLight, fontStyle: 'italic' }}>未添付</div>
+                          <div style={{ padding: '6px 16px 12px', fontSize: font.size.xs, color: color.textLight, fontStyle: 'italic' }}>未添付</div>
                         ) : (
                           <div style={{ padding: '6px 16px 12px' }}>
                             {pdfs.map((pdf, i) => (
-                              <div key={pdf.path || i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', borderRadius: 3, background: '#F8F9FA', borderLeft: '2px solid #0D2247', marginBottom: 4 }}>
+                              <div key={pdf.path || i} style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                padding: '5px 8px', borderRadius: radius.sm,
+                                background: color.gray50, borderLeft: `2px solid ${color.navy}`,
+                                marginBottom: 4,
+                              }}>
                                 <button
                                   onClick={() => handleOpenPdf(pdf)}
-                                  style={{ flex: 1, textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontSize: 11, color: '#0D2247', fontWeight: 500, textDecoration: 'underline', fontFamily: "'Noto Sans JP'", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                  style={{
+                                    flex: 1, textAlign: 'left', background: 'transparent',
+                                    border: 'none', cursor: 'pointer', padding: 0,
+                                    fontSize: font.size.xs, color: color.navy,
+                                    fontWeight: font.weight.medium, textDecoration: 'underline',
+                                    fontFamily: font.family.sans,
+                                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                  }}
                                   title={pdf.name}
                                 >
                                   {pdf.name}
                                 </button>
-                                <span style={{ fontSize: 10, color: '#9CA3AF', flexShrink: 0 }}>{formatFileSize(pdf.size)}</span>
+                                <span style={{ fontSize: font.size.xs - 1, color: color.gray400, flexShrink: 0 }}>{formatFileSize(pdf.size)}</span>
                                 {isAdmin && (
-                                  <button
-                                    disabled={pdfDeletingPath === pdf.path}
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    loading={pdfDeletingPath === pdf.path}
                                     onClick={() => handleDeletePdf(listId, pdf)}
-                                    style={{ border: '1px solid #fca5a5', background: 'transparent', color: '#dc2626', borderRadius: 3, padding: '1px 6px', fontSize: 10, cursor: pdfDeletingPath === pdf.path ? 'not-allowed' : 'pointer', flexShrink: 0 }}>
+                                    style={{
+                                      borderColor: '#fca5a5', color: color.danger,
+                                      fontSize: font.size.xs - 1, flexShrink: 0,
+                                    }}>
                                     {pdfDeletingPath === pdf.path ? '...' : '削除'}
-                                  </button>
+                                  </Button>
                                 )}
                               </div>
                             ))}
@@ -429,50 +466,70 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                     const parsed = (() => { try { return activeList.rebuttalData ? JSON.parse(activeList.rebuttalData) : null; } catch { return null; } })();
                     const isEditing = rebuttalEditListId === listId;
                     return (
-                      <div style={{ borderTop: '1px solid #E5E7EB' }}>
-                        <div style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FAFBFC' }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#0D2247' }}>アウト返し</span>
+                      <div style={{ borderTop: `1px solid ${color.border}` }}>
+                        <div style={{
+                          padding: '8px 16px', display: 'flex', alignItems: 'center',
+                          justifyContent: 'space-between', background: color.gray50,
+                        }}>
+                          <span style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy }}>アウト返し</span>
                           {isAdmin && !isEditing && (
-                            <button onClick={() => {
+                            <Button size="sm" variant="outline" onClick={() => {
                               setRebuttalEditListId(listId);
                               setRebuttalEditData(parsed || { reception: [{ q: '', a: '' }], president: [{ q: '', a: '' }] });
                               setRebuttalEditTab('reception');
-                            }} style={{ fontSize: 10, padding: '2px 10px', border: '1px solid #0D2247', background: 'transparent', color: '#0D2247', borderRadius: 4, cursor: 'pointer', fontWeight: 500 }}>
+                            }} style={{ fontSize: font.size.xs - 1 }}>
                               {parsed ? '編集' : '設定する'}
-                            </button>
+                            </Button>
                           )}
                         </div>
                         {isEditing ? (
                           <div style={{ padding: '10px 16px 14px' }}>
                             <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
                               {[['reception', '受付対応'], ['president', '社長対応']].map(([k, l]) => (
-                                <button key={k} onClick={() => setRebuttalEditTab(k)}
-                                  style={{ fontSize: 10, padding: '3px 12px', borderRadius: 4, border: 'none', background: rebuttalEditTab === k ? '#0D2247' : '#F3F4F6', color: rebuttalEditTab === k ? '#fff' : '#6B7280', cursor: 'pointer', fontWeight: rebuttalEditTab === k ? 600 : 400 }}>
+                                <Button key={k} size="sm"
+                                  variant={rebuttalEditTab === k ? 'primary' : 'secondary'}
+                                  onClick={() => setRebuttalEditTab(k)}
+                                  style={{ fontSize: font.size.xs - 1 }}>
                                   {l}
-                                </button>
+                                </Button>
                               ))}
                             </div>
                             {(rebuttalEditData[rebuttalEditTab] || []).map((item, i) => (
-                              <div key={i} style={{ marginBottom: 10, padding: '8px 10px', borderRadius: 4, background: '#F8F9FA', borderLeft: '3px solid #0D2247' }}>
+                              <div key={i} style={{
+                                marginBottom: 10, padding: '8px 10px',
+                                borderRadius: radius.md, background: color.gray50,
+                                borderLeft: `3px solid ${color.navy}`,
+                              }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                  <span style={{ fontSize: 10, fontWeight: 700, color: '#374151' }}>Q:</span>
-                                  <input type="text" value={item.q} onChange={e => {
-                                    setRebuttalEditData(prev => {
-                                      const updated = { ...prev };
-                                      updated[rebuttalEditTab] = [...prev[rebuttalEditTab]];
-                                      updated[rebuttalEditTab][i] = { ...updated[rebuttalEditTab][i], q: e.target.value };
-                                      return updated;
-                                    });
-                                  }} style={{ flex: 1, padding: '3px 6px', border: '1px solid #E5E5E5', borderRadius: 4, fontSize: 11 }} />
-                                  <button onClick={() => {
+                                  <span style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: color.gray700 }}>Q:</span>
+                                  <Input
+                                    size="sm"
+                                    fullWidth
+                                    type="text"
+                                    value={item.q}
+                                    onChange={e => {
+                                      setRebuttalEditData(prev => {
+                                        const updated = { ...prev };
+                                        updated[rebuttalEditTab] = [...prev[rebuttalEditTab]];
+                                        updated[rebuttalEditTab][i] = { ...updated[rebuttalEditTab][i], q: e.target.value };
+                                        return updated;
+                                      });
+                                    }}
+                                    containerStyle={{ flex: 1 }}
+                                    style={{ fontSize: font.size.xs }}
+                                  />
+                                  <Button size="sm" variant="outline" onClick={() => {
                                     setRebuttalEditData(prev => ({
                                       ...prev,
                                       [rebuttalEditTab]: prev[rebuttalEditTab].filter((_, idx) => idx !== i),
                                     }));
-                                  }} style={{ border: '1px solid #fca5a5', background: 'transparent', color: '#dc2626', borderRadius: 4, padding: '1px 6px', fontSize: 10, cursor: 'pointer' }}>削除</button>
+                                  }} style={{
+                                    borderColor: '#fca5a5', color: color.danger,
+                                    fontSize: font.size.xs - 1,
+                                  }}>削除</Button>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                                  <span style={{ fontSize: 10, fontWeight: 700, color: '#0D2247', marginTop: 3 }}>A:</span>
+                                  <span style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: color.navy, marginTop: 3 }}>A:</span>
                                   <textarea value={item.a} onChange={e => {
                                     setRebuttalEditData(prev => {
                                       const updated = { ...prev };
@@ -480,19 +537,30 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                                       updated[rebuttalEditTab][i] = { ...updated[rebuttalEditTab][i], a: e.target.value };
                                       return updated;
                                     });
-                                  }} rows={2} style={{ flex: 1, padding: '3px 6px', border: '1px solid #E5E5E5', borderRadius: 4, fontSize: 11, resize: 'vertical', lineHeight: 1.5 }} />
+                                  }} rows={2} style={{
+                                    flex: 1, padding: '3px 6px', border: `1px solid ${color.border}`,
+                                    borderRadius: radius.md, fontSize: font.size.xs,
+                                    resize: 'vertical', lineHeight: 1.5,
+                                    color: color.textDark, background: color.white,
+                                    fontFamily: font.family.sans, outline: 'none',
+                                    boxSizing: 'border-box',
+                                  }} />
                                 </div>
                               </div>
                             ))}
-                            <button onClick={() => {
+                            <Button variant="ghost" size="sm" onClick={() => {
                               setRebuttalEditData(prev => ({
                                 ...prev,
                                 [rebuttalEditTab]: [...prev[rebuttalEditTab], { q: '', a: '' }],
                               }));
-                            }} style={{ padding: '4px 0', border: '1px dashed #9CA3AF', background: 'transparent', borderRadius: 4, fontSize: 10, color: '#6B7280', cursor: 'pointer', width: '100%' }}>+ 項目を追加</button>
+                            }} fullWidth style={{
+                              border: `1px dashed ${color.gray400}`, color: color.textMid,
+                              fontSize: font.size.xs - 1,
+                            }}>+ 項目を追加</Button>
                             <div style={{ display: 'flex', gap: 6, marginTop: 10, justifyContent: 'flex-end' }}>
-                              <button onClick={() => setRebuttalEditListId(null)} style={{ padding: '4px 12px', border: '1px solid #E5E5E5', background: '#fff', borderRadius: 4, fontSize: 10, cursor: 'pointer' }}>キャンセル</button>
-                              <button disabled={rebuttalSaving} onClick={async () => {
+                              <Button size="sm" variant="secondary" onClick={() => setRebuttalEditListId(null)}
+                                style={{ fontSize: font.size.xs - 1 }}>キャンセル</Button>
+                              <Button size="sm" loading={rebuttalSaving} onClick={async () => {
                                 setRebuttalSaving(true);
                                 const jsonStr = JSON.stringify(rebuttalEditData);
                                 const err = await updateCallListRebuttal(listId, jsonStr);
@@ -502,43 +570,51 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                                 if (setCallListData) {
                                   setCallListData(prev => prev.map(l => l._supaId === listId ? { ...l, rebuttalData: jsonStr } : l));
                                 }
-                              }} style={{ padding: '4px 12px', border: 'none', background: '#0D2247', color: '#fff', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: rebuttalSaving ? 'not-allowed' : 'pointer' }}>
+                              }} style={{ fontSize: font.size.xs - 1 }}>
                                 {rebuttalSaving ? '保存中...' : '保存'}
-                              </button>
+                              </Button>
                             </div>
                           </div>
                         ) : parsed ? (
                           <div style={{ padding: '6px 16px 12px', maxHeight: 150, overflowY: 'auto' }}>
                             {(parsed.reception || []).length > 0 && (
                               <div style={{ marginBottom: 6 }}>
-                                <div style={{ fontSize: 9, fontWeight: 600, color: '#9CA3AF', marginBottom: 4 }}>受付対応</div>
+                                <div style={{ fontSize: 9, fontWeight: font.weight.semibold, color: color.gray400, marginBottom: 4 }}>受付対応</div>
                                 {parsed.reception.map((item, i) => (
-                                  <div key={i} style={{ marginBottom: 6, padding: '4px 8px', borderRadius: 3, background: '#F8F9FA', borderLeft: '2px solid #0D2247' }}>
-                                    <div style={{ fontSize: 10, fontWeight: 600, color: '#374151' }}>Q: {item.q}</div>
-                                    <div style={{ fontSize: 10, color: '#0D2247', lineHeight: 1.5 }}>A: {item.a}</div>
+                                  <div key={i} style={{
+                                    marginBottom: 6, padding: '4px 8px',
+                                    borderRadius: radius.sm, background: color.gray50,
+                                    borderLeft: `2px solid ${color.navy}`,
+                                  }}>
+                                    <div style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, color: color.gray700 }}>Q: {item.q}</div>
+                                    <div style={{ fontSize: font.size.xs - 1, color: color.navy, lineHeight: 1.5 }}>A: {item.a}</div>
                                   </div>
                                 ))}
                               </div>
                             )}
                             {(parsed.president || []).length > 0 && (
                               <div>
-                                <div style={{ fontSize: 9, fontWeight: 600, color: '#9CA3AF', marginBottom: 4 }}>社長対応</div>
+                                <div style={{ fontSize: 9, fontWeight: font.weight.semibold, color: color.gray400, marginBottom: 4 }}>社長対応</div>
                                 {parsed.president.map((item, i) => (
-                                  <div key={i} style={{ marginBottom: 6, padding: '4px 8px', borderRadius: 3, background: '#F8F9FA', borderLeft: '2px solid #0D2247' }}>
-                                    <div style={{ fontSize: 10, fontWeight: 600, color: '#374151' }}>Q: {item.q}</div>
-                                    <div style={{ fontSize: 10, color: '#0D2247', lineHeight: 1.5 }}>A: {item.a}</div>
+                                  <div key={i} style={{
+                                    marginBottom: 6, padding: '4px 8px',
+                                    borderRadius: radius.sm, background: color.gray50,
+                                    borderLeft: `2px solid ${color.navy}`,
+                                  }}>
+                                    <div style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, color: color.gray700 }}>Q: {item.q}</div>
+                                    <div style={{ fontSize: font.size.xs - 1, color: color.navy, lineHeight: 1.5 }}>A: {item.a}</div>
                                   </div>
                                 ))}
                               </div>
                             )}
                           </div>
                         ) : (
-                          <div style={{ padding: '6px 16px 12px', fontSize: 11, color: C.textLight, fontStyle: 'italic' }}>未設定</div>
+                          <div style={{ padding: '6px 16px 12px', fontSize: font.size.xs, color: color.textLight, fontStyle: 'italic' }}>未設定</div>
                         )}
                       </div>
                     );
                   })()}
-                </div>
+                </Card>
               );
             })}
           </div>
@@ -548,18 +624,39 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
       {/* 想定問答モーダル */}
       {qaOpen && (
         <div onClick={() => setQaOpen(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9400,
-            display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9400,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ width: '90vw', maxWidth: 640, maxHeight: '80vh', borderRadius: 4,
-              background: '#fff', border: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ background: '#0D2247', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, fontWeight: 600, fontSize: 15, color: '#fff' }}>
+            style={{
+              width: '90vw', maxWidth: 640, maxHeight: '80vh', borderRadius: radius.md,
+              background: color.white, border: `1px solid ${color.border}`,
+              display: 'flex', flexDirection: 'column', overflow: 'hidden',
+              boxShadow: shadow.xl,
+            }}>
+            <div style={{
+              background: color.navy, padding: '12px 24px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              flexShrink: 0, fontWeight: font.weight.semibold,
+              fontSize: font.size.lg - 1, color: color.white,
+            }}>
               <span>想定問答集</span>
-              <button onClick={() => setQaOpen(false)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+              <button onClick={() => setQaOpen(false)} style={{
+                background: 'none', border: 'none', color: color.white,
+                fontSize: 18, cursor: 'pointer', lineHeight: 1,
+              }}>✕</button>
             </div>
-            <div style={{ display: 'flex', borderBottom: '1px solid #E5E7EB', flexShrink: 0 }}>
+            <div style={{ display: 'flex', borderBottom: `1px solid ${color.border}`, flexShrink: 0 }}>
               {[['reception', '受付対応'], ['president', '社長対応']].map(([k, l]) => (
-                <button key={k} onClick={() => setQaTab(k)} style={{ flex: 1, padding: '10px', border: 'none', background: 'transparent', fontWeight: qaTab === k ? 600 : 400, fontSize: 12, color: qaTab === k ? '#0D2247' : '#9CA3AF', borderBottom: qaTab === k ? '2px solid #0D2247' : '2px solid transparent', cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                <button key={k} onClick={() => setQaTab(k)} style={{
+                  flex: 1, padding: '10px', border: 'none', background: 'transparent',
+                  fontWeight: qaTab === k ? font.weight.semibold : font.weight.normal,
+                  fontSize: font.size.sm,
+                  color: qaTab === k ? color.navy : color.gray400,
+                  borderBottom: qaTab === k ? `2px solid ${color.navy}` : '2px solid transparent',
+                  cursor: 'pointer', fontFamily: font.family.sans,
+                }}>
                   {l}
                 </button>
               ))}
@@ -568,34 +665,60 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
               {qaEditing ? (
                 <>
                   {qaEditData[qaTab].map((item, i) => (
-                    <div key={i} style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 4, background: '#F8F9FA', borderLeft: '3px solid #0D2247' }}>
+                    <div key={i} style={{
+                      marginBottom: 16, padding: '12px 14px',
+                      borderRadius: radius.md, background: color.gray50,
+                      borderLeft: `3px solid ${color.navy}`,
+                    }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#374151' }}>Q:</span>
-                        <input type="text" value={item.q} onChange={e => updateQAItem(qaTab, i, 'q', e.target.value)} style={{ flex: 1, padding: '4px 8px', border: '1px solid #E5E5E5', borderRadius: 4, fontSize: 12 }} />
-                        <button onClick={() => removeQAItem(qaTab, i)} style={{ border: '1px solid #fca5a5', background: 'transparent', color: '#dc2626', borderRadius: 4, padding: '2px 8px', fontSize: 11, cursor: 'pointer' }}>削除</button>
+                        <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.gray700 }}>Q:</span>
+                        <Input
+                          size="sm"
+                          fullWidth
+                          type="text"
+                          value={item.q}
+                          onChange={e => updateQAItem(qaTab, i, 'q', e.target.value)}
+                          containerStyle={{ flex: 1 }}
+                        />
+                        <Button size="sm" variant="outline" onClick={() => removeQAItem(qaTab, i)} style={{
+                          borderColor: '#fca5a5', color: color.danger, fontSize: font.size.xs,
+                        }}>削除</Button>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#0D2247', marginTop: 4 }}>A:</span>
-                        <textarea value={item.a} onChange={e => updateQAItem(qaTab, i, 'a', e.target.value)} rows={2} style={{ flex: 1, padding: '4px 8px', border: '1px solid #E5E5E5', borderRadius: 4, fontSize: 12, resize: 'vertical', lineHeight: 1.6 }} />
+                        <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, marginTop: 4 }}>A:</span>
+                        <textarea value={item.a} onChange={e => updateQAItem(qaTab, i, 'a', e.target.value)} rows={2} style={{
+                          flex: 1, padding: '4px 8px', border: `1px solid ${color.border}`,
+                          borderRadius: radius.md, fontSize: font.size.sm,
+                          resize: 'vertical', lineHeight: 1.6,
+                          color: color.textDark, background: color.white,
+                          fontFamily: font.family.sans, outline: 'none',
+                          boxSizing: 'border-box',
+                        }} />
                       </div>
                     </div>
                   ))}
-                  <button onClick={() => addQAItem(qaTab)} style={{ padding: '6px 14px', border: '1px dashed #9CA3AF', background: 'transparent', borderRadius: 4, fontSize: 11, color: '#6B7280', cursor: 'pointer', width: '100%' }}>+ 項目を追加</button>
+                  <Button variant="ghost" size="sm" onClick={() => addQAItem(qaTab)} fullWidth style={{
+                    border: `1px dashed ${color.gray400}`, color: color.textMid,
+                  }}>+ 項目を追加</Button>
                   <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
-                    <button onClick={() => { setQaEditData(qaData); setQaEditing(false); }} style={{ padding: '6px 16px', border: '1px solid #E5E5E5', background: '#fff', borderRadius: 4, fontSize: 11, cursor: 'pointer' }}>キャンセル</button>
-                    <button onClick={handleSaveQA} disabled={qaSaving} style={{ padding: '6px 16px', border: 'none', background: '#0D2247', color: '#fff', borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: qaSaving ? 'not-allowed' : 'pointer' }}>{qaSaving ? '保存中...' : '保存'}</button>
+                    <Button size="sm" variant="secondary" onClick={() => { setQaEditData(qaData); setQaEditing(false); }}>キャンセル</Button>
+                    <Button size="sm" onClick={handleSaveQA} loading={qaSaving}>{qaSaving ? '保存中...' : '保存'}</Button>
                   </div>
                 </>
               ) : (
                 <>
                   {qaData[qaTab].map((item, i) => (
-                    <div key={i} style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 4, background: '#F8F9FA', borderLeft: '3px solid #0D2247' }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>Q: {item.q}</div>
-                      <div style={{ fontSize: 12, color: '#0D2247', lineHeight: 1.7 }}>A: {item.a}</div>
+                    <div key={i} style={{
+                      marginBottom: 16, padding: '12px 14px',
+                      borderRadius: radius.md, background: color.gray50,
+                      borderLeft: `3px solid ${color.navy}`,
+                    }}>
+                      <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.gray700, marginBottom: 6 }}>Q: {item.q}</div>
+                      <div style={{ fontSize: font.size.sm, color: color.navy, lineHeight: 1.7 }}>A: {item.a}</div>
                     </div>
                   ))}
                   {isAdmin && (
-                    <button onClick={() => { setQaEditData(qaData); setQaEditing(true); }} style={{ padding: '6px 16px', border: '1px solid #0D2247', background: 'transparent', color: '#0D2247', borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}>編集する</button>
+                    <Button size="sm" variant="outline" onClick={() => { setQaEditData(qaData); setQaEditing(true); }} style={{ marginTop: 8 }}>編集する</Button>
                   )}
                 </>
               )}
@@ -606,7 +729,11 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
 
       {/* PDFプレビューローディング */}
       {pdfPreviewLoading && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13 }}>
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+          zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: color.white, fontSize: font.size.base,
+        }}>
           PDFを読み込み中...
         </div>
       )}
@@ -614,14 +741,31 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
       {/* PDFプレビューモーダル */}
       {pdfPreview && (
         <div onClick={() => setPdfPreview(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9600, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
+            zIndex: 9600, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 20,
+          }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ width: '95vw', height: '92vh', maxWidth: 1200, borderRadius: 4, background: '#fff', border: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ background: '#0D2247', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, fontWeight: 600, fontSize: 13, color: '#fff' }}>
+            style={{
+              width: '95vw', height: '92vh', maxWidth: 1200, borderRadius: radius.md,
+              background: color.white, border: `1px solid ${color.border}`,
+              display: 'flex', flexDirection: 'column', overflow: 'hidden',
+              boxShadow: shadow.xl,
+            }}>
+            <div style={{
+              background: color.navy, padding: '10px 20px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              flexShrink: 0, fontWeight: font.weight.semibold,
+              fontSize: font.size.base, color: color.white,
+            }}>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pdfPreview.name}</span>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-                <a href={pdfPreview.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#fff', textDecoration: 'underline' }}>新規タブで開く</a>
-                <button onClick={() => setPdfPreview(null)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+                <a href={pdfPreview.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: font.size.xs, color: color.white, textDecoration: 'underline' }}>新規タブで開く</a>
+                <button onClick={() => setPdfPreview(null)} style={{
+                  background: 'none', border: 'none', color: color.white,
+                  fontSize: 18, cursor: 'pointer', lineHeight: 1,
+                }}>✕</button>
               </div>
             </div>
             <iframe
@@ -637,8 +781,8 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
       {ctxMenu && (
         <div style={{
           position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 99999,
-          background: '#fff', border: '1px solid #E5E7EB', borderRadius: 6,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.15)', padding: '4px 0', minWidth: 140,
+          background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.lg,
+          boxShadow: shadow.lg, padding: '4px 0', minWidth: 140,
         }}>
           {ctxMenu.isMarked ? (
             <button onClick={() => {
@@ -648,8 +792,13 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                 setBasicScriptEdit(fromHtml(editorRef.current.innerHTML));
               }
               setCtxMenu(null);
-            }} style={{ display: 'block', width: '100%', padding: '8px 16px', border: 'none', background: 'transparent', textAlign: 'left', fontSize: 12, color: '#374151', cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}
-              onMouseEnter={e => e.target.style.background = '#F3F4F6'}
+            }} style={{
+              display: 'block', width: '100%', padding: '8px 16px',
+              border: 'none', background: 'transparent', textAlign: 'left',
+              fontSize: font.size.sm, color: color.gray700, cursor: 'pointer',
+              fontFamily: font.family.sans,
+            }}
+              onMouseEnter={e => e.target.style.background = color.gray100}
               onMouseLeave={e => e.target.style.background = 'transparent'}>
               取り消す
             </button>
@@ -661,10 +810,15 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                 setBasicScriptEdit(fromHtml(editorRef.current.innerHTML));
               }
               setCtxMenu(null);
-            }} style={{ display: 'block', width: '100%', padding: '8px 16px', border: 'none', background: 'transparent', textAlign: 'left', fontSize: 12, color: '#374151', cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}
-              onMouseEnter={e => e.target.style.background = '#F3F4F6'}
+            }} style={{
+              display: 'block', width: '100%', padding: '8px 16px',
+              border: 'none', background: 'transparent', textAlign: 'left',
+              fontSize: font.size.sm, color: color.gray700, cursor: 'pointer',
+              fontFamily: font.family.sans,
+            }}
+              onMouseEnter={e => e.target.style.background = color.gray100}
               onMouseLeave={e => e.target.style.background = 'transparent'}>
-              <span style={{ background: 'linear-gradient(transparent 60%, #FFE066 60%)', fontWeight: 700, padding: '0 2px', marginRight: 6 }}>A</span>強調する
+              <span style={{ background: 'linear-gradient(transparent 60%, #FFE066 60%)', fontWeight: font.weight.bold, padding: '0 2px', marginRight: 6 }}>A</span>強調する
             </button>
           )}
         </div>

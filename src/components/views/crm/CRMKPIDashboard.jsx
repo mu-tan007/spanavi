@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { C } from '../../../constants/colors';
+import { color, space, radius, font } from '../../../constants/design';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import { fetchClientMonthlyTargets } from '../../../lib/supabaseWrite';
@@ -28,23 +28,23 @@ function KPICard({ label, value, hint, valueColor = NAVY, hintColor }) {
     <div style={{
       flex: 1, minWidth: 180,
       padding: '14px 18px',
-      background: '#fff',
+      background: color.white,
       border: '1px solid ' + GRAY_200,
-      borderRadius: 4,
+      borderRadius: radius.md,
     }}>
-      <div style={{ fontSize: 10, fontWeight: 600, color: C.textLight, letterSpacing: 0.5, marginBottom: 8 }}>
+      <div style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, color: color.textLight, letterSpacing: 0.5, marginBottom: space[2] }}>
         {label}
       </div>
       <div style={{
-        fontSize: 24, fontWeight: 700, color: valueColor,
-        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: font.size['2xl'], fontWeight: font.weight.bold, color: valueColor,
+        fontFamily: font.family.mono,
         fontVariantNumeric: 'tabular-nums',
         lineHeight: 1.1,
       }}>
         {value}
       </div>
       {hint && (
-        <div style={{ fontSize: 10, color: hintColor || C.textLight, marginTop: 6 }}>
+        <div style={{ fontSize: font.size.xs - 1, color: hintColor || color.textLight, marginTop: space[1.5] }}>
           {hint}
         </div>
       )}
@@ -147,14 +147,14 @@ export default function CRMKPIDashboard({ clientData = [], statusCounts = {} }) 
   const closureHint = closureDiff === 0
     ? '前月比 ±0 件'
     : (closureDiff > 0 ? `前月比 +${closureDiff} 件` : `前月比 ${closureDiff} 件`);
-  const closureHintColor = closureDiff > 0 ? C.green : closureDiff < 0 ? C.red : C.textLight;
+  const closureHintColor = closureDiff > 0 ? color.success : closureDiff < 0 ? color.danger : color.textLight;
 
   // 目標対比 色分け
-  let targetColor = C.textLight;
+  let targetColor = color.textLight;
   if (targetRatio != null) {
-    if (targetRatio >= 100) targetColor = C.green;
-    else if (targetRatio >= 70) targetColor = C.gold;
-    else targetColor = C.red;
+    if (targetRatio >= 100) targetColor = color.success;
+    else if (targetRatio >= 70) targetColor = color.gold;
+    else targetColor = color.danger;
   }
 
   // ステータス別件数（横棒グラフ）
@@ -167,7 +167,7 @@ export default function CRMKPIDashboard({ clientData = [], statusCounts = {} }) 
   });
 
   return (
-    <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', gap: space[3], marginBottom: space[4], flexWrap: 'wrap' }}>
       <KPICard
         label="今月成約数"
         value={`${thisMonthClosures} 社`}
@@ -189,21 +189,21 @@ export default function CRMKPIDashboard({ clientData = [], statusCounts = {} }) 
       <div style={{
         flex: 1.5, minWidth: 280,
         padding: '14px 18px',
-        background: '#fff',
+        background: color.white,
         border: '1px solid ' + GRAY_200,
-        borderRadius: 4,
+        borderRadius: radius.md,
       }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: C.textLight, letterSpacing: 0.5, marginBottom: 8 }}>
+        <div style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, color: color.textLight, letterSpacing: 0.5, marginBottom: space[2] }}>
           ステータス別件数
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: space[1] }}>
           {statusBars.map(b => (
-            <div key={b.st} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 28px', alignItems: 'center', gap: 6, fontSize: 10 }}>
-              <span style={{ color: C.textMid, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div key={b.st} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 28px', alignItems: 'center', gap: space[1.5], fontSize: font.size.xs - 1 }}>
+              <span style={{ color: color.textMid, display: 'flex', alignItems: 'center', gap: space[1] }}>
                 <span style={{ width: 5, height: 5, borderRadius: '50%', background: b.dot }}></span>
                 {b.st}
               </span>
-              <span style={{ height: 6, background: '#F3F4F6', borderRadius: 3, overflow: 'hidden' }}>
+              <span style={{ height: 6, background: color.gray100, borderRadius: 3, overflow: 'hidden' }}>
                 <span style={{
                   display: 'block', height: '100%',
                   width: `${b.pct}%`, background: b.color,
@@ -212,9 +212,9 @@ export default function CRMKPIDashboard({ clientData = [], statusCounts = {} }) 
               </span>
               <span style={{
                 textAlign: 'right',
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: font.family.mono,
                 fontVariantNumeric: 'tabular-nums',
-                color: NAVY, fontWeight: 600,
+                color: NAVY, fontWeight: font.weight.semibold,
               }}>{b.count}</span>
             </div>
           ))}

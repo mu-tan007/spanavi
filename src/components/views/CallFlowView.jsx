@@ -5,6 +5,8 @@ import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
 import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getScriptPdfSignedUrl, updateCallListCautions } from '../../lib/supabaseWrite';
@@ -1659,45 +1661,45 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   });
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#F8F9FA', zIndex: 10000, display: 'flex', flexDirection: 'column', fontFamily: "'Noto Sans JP'" }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: color.offWhite, zIndex: 10000, display: 'flex', flexDirection: 'column', fontFamily: font.family.sans }}>
 
       {/* ── ヘッダーバー（height:48px） ── */}
-      <div style={{ height: 48, background: '#0D2247', display: 'flex', alignItems: 'center', padding: '0 14px', gap: 10, flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+      <div style={{ height: 48, background: color.navyDeep, display: 'flex', alignItems: 'center', padding: `0 ${space[4] - 2}px`, gap: space[2] + 2, flexShrink: 0, borderBottom: `1px solid ${alpha('#FFFFFF', 0.08)}` }}>
 
         {/* 左: リストに戻る（集中モード時のみ表示） */}
         {!listMode && (
           <button onClick={() => setListMode(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 6, flexShrink: 0,
-              border: '1px solid rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-              background: 'rgba(255,255,255,0.07)', color: '#fff' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: radius.lg, flexShrink: 0,
+              border: `1px solid ${alpha('#FFFFFF', 0.25)}`, cursor: 'pointer', fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
+              background: alpha('#FFFFFF', 0.07), color: color.white }}>
             {isMobile ? '◀' : '◀ リストに戻る'}
           </button>
         )}
 
 
         {/* 中央: 位置表示 + 前へ/次へ。通常モードはリスト内、singleItemMode+queue 指定時はキュー内で遷移 */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: space[2] + 2 }}>
           {!singleItemMode && (<>
           <button
             onClick={() => { if (currentIdx > 0) { setSelectedRow(sorted[currentIdx - 1]); setListMode(false); } }}
             disabled={currentIdx <= 0}
-            style={{ padding: '4px 14px', borderRadius: 6, fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-              border: currentIdx <= 0 ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.5)',
-              background: currentIdx <= 0 ? 'transparent' : 'rgba(255,255,255,0.1)',
-              color: currentIdx <= 0 ? 'rgba(255,255,255,0.3)' : '#ffffff',
+            style={{ padding: '4px 14px', borderRadius: radius.lg, fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
+              border: currentIdx <= 0 ? `1px solid ${alpha('#FFFFFF', 0.15)}` : `1px solid ${alpha('#FFFFFF', 0.5)}`,
+              background: currentIdx <= 0 ? 'transparent' : alpha('#FFFFFF', 0.1),
+              color: currentIdx <= 0 ? alpha('#FFFFFF', 0.3) : color.white,
               cursor: currentIdx <= 0 ? 'default' : 'pointer' }}>
             ◀ 前へ
           </button>
-          <span style={{ fontSize: 12, color: '#fff', fontWeight: 700, minWidth: 90, textAlign: 'center', fontFamily: "'JetBrains Mono'" }}>
+          <span style={{ fontSize: font.size.sm, color: color.white, fontWeight: font.weight.bold, minWidth: 90, textAlign: 'center', fontFamily: font.family.mono }}>
             {currentIdx >= 0 ? `${currentIdx + 1} / ${sorted.length}` : `- / ${sorted.length}`}件
           </span>
           <button
             onClick={() => { if (currentIdx < sorted.length - 1) { setSelectedRow(sorted[currentIdx + 1]); setListMode(false); } }}
             disabled={currentIdx >= sorted.length - 1}
-            style={{ padding: '4px 14px', borderRadius: 6, fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-              border: currentIdx >= sorted.length - 1 ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.5)',
-              background: currentIdx >= sorted.length - 1 ? 'transparent' : 'rgba(255,255,255,0.1)',
-              color: currentIdx >= sorted.length - 1 ? 'rgba(255,255,255,0.3)' : '#ffffff',
+            style={{ padding: '4px 14px', borderRadius: radius.lg, fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
+              border: currentIdx >= sorted.length - 1 ? `1px solid ${alpha('#FFFFFF', 0.15)}` : `1px solid ${alpha('#FFFFFF', 0.5)}`,
+              background: currentIdx >= sorted.length - 1 ? 'transparent' : alpha('#FFFFFF', 0.1),
+              color: currentIdx >= sorted.length - 1 ? alpha('#FFFFFF', 0.3) : color.white,
               cursor: currentIdx >= sorted.length - 1 ? 'default' : 'pointer' }}>
             次へ ▶
           </button>
@@ -1706,23 +1708,23 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           <button
             onClick={() => onQueuePrev && onQueuePrev()}
             disabled={!onQueuePrev}
-            style={{ padding: '4px 14px', borderRadius: 6, fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-              border: !onQueuePrev ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.5)',
-              background: !onQueuePrev ? 'transparent' : 'rgba(255,255,255,0.1)',
-              color: !onQueuePrev ? 'rgba(255,255,255,0.3)' : '#ffffff',
+            style={{ padding: '4px 14px', borderRadius: radius.lg, fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
+              border: !onQueuePrev ? `1px solid ${alpha('#FFFFFF', 0.15)}` : `1px solid ${alpha('#FFFFFF', 0.5)}`,
+              background: !onQueuePrev ? 'transparent' : alpha('#FFFFFF', 0.1),
+              color: !onQueuePrev ? alpha('#FFFFFF', 0.3) : color.white,
               cursor: !onQueuePrev ? 'default' : 'pointer' }}>
             ◀ 前へ
           </button>
-          <span style={{ fontSize: 12, color: '#fff', fontWeight: 700, minWidth: 90, textAlign: 'center', fontFamily: "'JetBrains Mono'" }}>
+          <span style={{ fontSize: font.size.sm, color: color.white, fontWeight: font.weight.bold, minWidth: 90, textAlign: 'center', fontFamily: font.family.mono }}>
             {queuePos || ''}
           </span>
           <button
             onClick={() => onQueueNext && onQueueNext()}
             disabled={!onQueueNext}
-            style={{ padding: '4px 14px', borderRadius: 6, fontSize: 11, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-              border: !onQueueNext ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.5)',
-              background: !onQueueNext ? 'transparent' : 'rgba(255,255,255,0.1)',
-              color: !onQueueNext ? 'rgba(255,255,255,0.3)' : '#ffffff',
+            style={{ padding: '4px 14px', borderRadius: radius.lg, fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
+              border: !onQueueNext ? `1px solid ${alpha('#FFFFFF', 0.15)}` : `1px solid ${alpha('#FFFFFF', 0.5)}`,
+              background: !onQueueNext ? 'transparent' : alpha('#FFFFFF', 0.1),
+              color: !onQueueNext ? alpha('#FFFFFF', 0.3) : color.white,
               cursor: !onQueueNext ? 'default' : 'pointer' }}>
             次へ ▶
           </button>
@@ -1731,22 +1733,22 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
         {/* 右: オートコール + 閉じる */}
         <button onClick={toggleAutoDial}
-          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 6, cursor: 'pointer', flexShrink: 0,
-            border: '1px solid ' + (autoDial ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.2)'),
-            background: autoDial ? 'rgba(255,255,255,0.85)' : 'transparent',
-            color: autoDial ? '#0D2247' : 'rgba(255,255,255,0.45)',
-            fontSize: 10, fontWeight: 700, fontFamily: "'Noto Sans JP'" }}>
+          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: radius.lg, cursor: 'pointer', flexShrink: 0,
+            border: `1px solid ${autoDial ? alpha('#FFFFFF', 0.7) : alpha('#FFFFFF', 0.2)}`,
+            background: autoDial ? alpha('#FFFFFF', 0.85) : 'transparent',
+            color: autoDial ? color.navyDeep : alpha('#FFFFFF', 0.45),
+            fontSize: font.size.xs - 1, fontWeight: font.weight.bold, fontFamily: font.family.sans }}>
           <span>{autoDial ? '↻' : '▶'}</span>
           オートコール {autoDial ? 'ON' : 'OFF'}
         </button>
         {onMinimize && (
           <button onClick={onMinimize} title="最小化"
-            style={{ width: 32, height: 32, borderRadius: 6, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>
+            style={{ width: 32, height: 32, borderRadius: radius.lg, background: alpha('#FFFFFF', 0.08), border: `1px solid ${alpha('#FFFFFF', 0.2)}`, color: color.white, cursor: 'pointer', fontSize: font.size.md, flexShrink: 0 }}>
             ⊟
           </button>
         )}
         <button onClick={handleClose}
-          style={{ width: 32, height: 32, borderRadius: 6, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer', fontSize: 16, flexShrink: 0 }}>
+          style={{ width: 32, height: 32, borderRadius: radius.lg, background: alpha('#FFFFFF', 0.08), border: `1px solid ${alpha('#FFFFFF', 0.2)}`, color: color.white, cursor: 'pointer', fontSize: font.size.lg, flexShrink: 0 }}>
           ✕
         </button>
       </div>
@@ -1759,22 +1761,22 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
           {listMode ? (
             /* ────────────── リスト表示モード ────────────── */
-            <div style={{ background: '#fff', borderRadius: 4, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
+            <div style={{ background: color.white, borderRadius: radius.md, overflow: 'hidden', border: `1px solid ${color.gray200}` }}>
               {/* 検索バー + 架電開始ボタン */}
-              <div style={{ padding: '8px 12px', borderBottom: '1px solid #E5E7EB', display: 'flex', gap: 6, alignItems: 'center', background: '#F8F9FA', flexWrap: 'wrap' }}>
+              <div style={{ padding: `${space[2]}px ${space[3]}px`, borderBottom: `1px solid ${color.gray200}`, display: 'flex', gap: 6, alignItems: 'center', background: color.offWhite, flexWrap: 'wrap' }}>
                 <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} placeholder="検索..."
-                  style={{ width: 180, minWidth: 120, padding: '6px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', boxSizing: 'border-box' }} />
+                  style={{ width: 180, minWidth: 120, padding: '6px 10px', borderRadius: radius.md, border: `1px solid ${color.gray200}`, fontSize: font.size.xs, fontFamily: font.family.sans, outline: 'none', boxSizing: 'border-box' }} />
                 {[['callable','架電可能'],['all','全件'],['excluded','架電不可']].map(([mode, label]) => (
                   <button key={mode} onClick={() => { setFilterMode(mode); setStatusFilterLocal([]); setPage(0); }}
-                    style={{ padding: '4px 10px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
-                      background: filterMode === mode && statusFilterLocal.length === 0 ? '#0D2247' : 'transparent',
-                      color: filterMode === mode && statusFilterLocal.length === 0 ? '#fff' : '#9CA3AF',
-                      border: '1px solid ' + (filterMode === mode && statusFilterLocal.length === 0 ? '#0D2247' : '#E5E7EB') }}>
+                    style={{ padding: '4px 10px', borderRadius: radius.md, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, cursor: 'pointer', fontFamily: font.family.sans, whiteSpace: 'nowrap',
+                      background: filterMode === mode && statusFilterLocal.length === 0 ? color.navyDeep : 'transparent',
+                      color: filterMode === mode && statusFilterLocal.length === 0 ? color.white : color.gray400,
+                      border: `1px solid ${filterMode === mode && statusFilterLocal.length === 0 ? color.navyDeep : color.gray200}` }}>
                     {label}
                   </button>
                 ))}
                 {/* ステータスフィルタ（複数選択対応） */}
-                <span style={{ color: '#D1D5DB', fontSize: 10 }}>|</span>
+                <span style={{ color: color.gray300, fontSize: font.size.xs - 1 }}>|</span>
                 {['全ステータス', '未架電', ...callStatuses.map(s => s.label)].map(st => {
                   const isAll = st === '全ステータス';
                   const isActive = isAll ? statusFilterLocal.length === 0 : statusFilterLocal.includes(st);
@@ -1787,17 +1789,17 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     }
                     setPage(0);
                   }}
-                    style={{ padding: '3px 8px', borderRadius: 4, fontSize: 9, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
-                      background: isActive ? '#0D2247' : 'transparent',
-                      color: isActive ? '#fff' : '#9CA3AF',
-                      border: '1px solid ' + (isActive ? '#0D2247' : '#E5E7EB') }}>
+                    style={{ padding: '3px 8px', borderRadius: radius.md, fontSize: 9, fontWeight: font.weight.semibold, cursor: 'pointer', fontFamily: font.family.sans, whiteSpace: 'nowrap',
+                      background: isActive ? color.navyDeep : 'transparent',
+                      color: isActive ? color.white : color.gray400,
+                      border: `1px solid ${isActive ? color.navyDeep : color.gray200}` }}>
                     {st}
                   </button>
                   );
                 })}
-                <span style={{ color: '#D1D5DB', fontSize: 10 }}>|</span>
+                <span style={{ color: color.gray300, fontSize: font.size.xs - 1 }}>|</span>
                 {/* 売上高フィルター */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#706E6B', whiteSpace: 'nowrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: font.size.xs - 1, color: color.textMid, whiteSpace: 'nowrap' }}>
                   <span>売上高</span>
                   {[
                     { value: revenueMin, setter: (v) => { setRevenueMin(v); setPage(0); }, isMax: false },
@@ -1806,7 +1808,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     <React.Fragment key={idx}>
                       {idx === 1 && <span>〜</span>}
                       <select value={value} onChange={e => setter(e.target.value)}
-                        style={{ padding: '3px 4px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 10, fontFamily: "'Noto Sans JP'", background: value ? '#EFF6FF' : '#fff', color: '#0D2247', cursor: 'pointer' }}>
+                        style={{ padding: '3px 4px', borderRadius: radius.md, border: `1px solid ${color.gray200}`, fontSize: font.size.xs - 1, fontFamily: font.family.sans, background: value ? alpha(color.navyLight, 0.08) : color.white, color: color.navyDeep, cursor: 'pointer' }}>
                         <option value="">指定なし</option>
                         {[['1億円',100000],['2億円',200000],['3億円',300000],['4億円',400000],['5億円',500000],
                           ['6億円',600000],['7億円',700000],['8億円',800000],['9億円',900000],['10億円',1000000],
@@ -1818,39 +1820,39 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     </React.Fragment>
                   ))}
                 </div>
-                <span style={{ color: '#D1D5DB', fontSize: 10 }}>|</span>
+                <span style={{ color: color.gray300, fontSize: font.size.xs - 1 }}>|</span>
                 {prefOptions.length > 0 && (
                   <div style={{ position: 'relative' }}>
                     {prefDropOpen && (
                       <div onClick={() => setPrefDropOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 }} />
                     )}
                     <button onClick={() => setPrefDropOpen(v => !v)} style={{
-                      padding: '3px 8px', borderRadius: 4,
-                      border: '1px solid ' + (prefFilters.length > 0 ? '#0D2247' : '#E5E7EB'),
-                      background: prefFilters.length > 0 ? '#EFF6FF' : '#fff',
-                      fontSize: 10, fontFamily: "'Noto Sans JP'", cursor: 'pointer',
-                      color: '#0D2247', whiteSpace: 'nowrap',
+                      padding: '3px 8px', borderRadius: radius.md,
+                      border: `1px solid ${prefFilters.length > 0 ? color.navyDeep : color.gray200}`,
+                      background: prefFilters.length > 0 ? alpha(color.navyLight, 0.08) : color.white,
+                      fontSize: font.size.xs - 1, fontFamily: font.family.sans, cursor: 'pointer',
+                      color: color.navyDeep, whiteSpace: 'nowrap',
                     }}>
                       {prefFilters.length > 0 ? `都道府県(${prefFilters.length})▼` : '都道府県▼'}
                     </button>
                     {prefDropOpen && (
                       <div style={{
                         position: 'absolute', top: '100%', left: 0, zIndex: 101,
-                        background: '#fff', border: '1px solid #E5E7EB',
-                        borderRadius: 4, boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                        background: color.white, border: `1px solid ${color.gray200}`,
+                        borderRadius: radius.md, boxShadow: shadow.md,
                         minWidth: 130, maxHeight: 220, overflowY: 'auto', padding: '4px 0',
                       }}>
                         {prefFilters.length > 0 && (
                           <div onClick={() => { setPrefFilters([]); setPage(0); }} style={{
-                            padding: '4px 10px', fontSize: 10, color: '#0D2247', cursor: 'pointer',
-                            borderBottom: '1px solid #E5E7EB', fontWeight: 600,
+                            padding: '4px 10px', fontSize: font.size.xs - 1, color: color.navyDeep, cursor: 'pointer',
+                            borderBottom: `1px solid ${color.gray200}`, fontWeight: font.weight.semibold,
                           }}>クリア</div>
                         )}
                         {prefOptions.map(p => (
                           <label key={p} style={{
                             display: 'flex', alignItems: 'center', gap: 6,
-                            padding: '4px 10px', cursor: 'pointer', fontSize: 10,
-                            fontFamily: "'Noto Sans JP'", color: '#0D2247',
+                            padding: '4px 10px', cursor: 'pointer', fontSize: font.size.xs - 1,
+                            fontFamily: font.family.sans, color: color.navyDeep,
                           }}>
                             <input type="checkbox" checked={prefFilters.includes(p)}
                               onChange={() => {
@@ -1867,29 +1869,33 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   </div>
                 )}
                 {/* 架電開始ボタン（右端） */}
-                <div style={{ marginLeft: 'auto', paddingLeft: 24 }}>
-                  <button onClick={handleStartCalling} disabled={sessionStarted || sorted.length === 0}
-                    style={{ padding: '6px 20px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: sessionStarted ? 'default' : 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
-                      background: sessionStarted ? '#6B7280' : '#0D2247', color: '#fff', border: 'none', opacity: sessionStarted ? 0.6 : 1 }}>
+                <div style={{ marginLeft: 'auto', paddingLeft: space[6] }}>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleStartCalling}
+                    disabled={sessionStarted || sorted.length === 0}
+                    style={{ padding: '6px 20px', fontSize: font.size.xs, fontWeight: font.weight.bold, whiteSpace: 'nowrap', borderRadius: radius.md }}
+                  >
                     {sessionStarted ? '架電中' : '架電開始'}
-                  </button>
+                  </Button>
                 </div>
               </div>
               {/* テーブル */}
               <div style={{ overflow: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
                 {loading ? (
-                  <div style={{ textAlign: 'center', padding: '60px 0', color: '#706E6B', fontSize: 13 }}>読み込み中...</div>
+                  <div style={{ textAlign: 'center', padding: '60px 0', color: color.textMid, fontSize: font.size.base }}>読み込み中...</div>
                 ) : !list._supaId ? (
-                  <div style={{ textAlign: 'center', padding: '60px 0', color: '#706E6B', fontSize: 13 }}>Supabase未登録リストです</div>
+                  <div style={{ textAlign: 'center', padding: '60px 0', color: color.textMid, fontSize: font.size.base }}>Supabase未登録リストです</div>
                 ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.xs }}>
                     <thead>
-                      <tr style={{ background: '#0D2247', position: 'sticky', top: 0, zIndex: 1 }}>
+                      <tr style={{ background: color.navyDeep, position: 'sticky', top: 0, zIndex: 1 }}>
                         {[['No', '52px'], ['企業名', null], ['事業内容', null], ['住所', '90px'], ['売上高', '90px'], ['代表者', '90px'], ['電話番号', '112px'], ['最終架電日', '80px'], ['担当者', '70px'], ['結果', '80px']].map(([h, w]) => {
                           const dir = sortState.column === h ? sortState.direction : null;
                           return (
                             <th key={h} onClick={() => handleSort(h)}
-                              style={{ padding: '8px 8px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#fff', letterSpacing: '0.05em', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none', ...(w ? { width: w } : {}) }}>
+                              style={{ padding: '8px 8px', textAlign: 'left', fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.white, letterSpacing: '0.05em', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none', ...(w ? { width: w } : {}) }}>
                               {h}{dir === 'desc' ? ' ▼' : dir === 'asc' ? ' ▲' : ''}
                             </th>
                           );
@@ -1903,33 +1909,33 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                         return (
                           <tr key={item.id}
                             onClick={() => { setSelectedRow(item); setListMode(false); }}
-                            style={{ cursor: 'pointer', background: isSelected ? '#EFF6FF' : i % 2 === 0 ? '#fff' : '#F8F9FA', borderBottom: '1px solid #E5E7EB', transition: 'background 0.12s', borderLeft: isSelected ? '3px solid #0D2247' : '3px solid transparent' }}
-                            onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#EFF6FF'; }}
-                            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#F8F9FA'; }}>
-                            <td style={{ padding: '7px 8px', fontFamily: "'JetBrains Mono'", fontSize: 9, color: '#6B7280', textAlign: 'right', whiteSpace: 'nowrap' }}>{item.no}</td>
-                            <td style={{ padding: '7px 8px', fontWeight: 600, color: '#0D2247', maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</td>
-                            <td style={{ padding: '7px 8px', color: '#6B7280', fontSize: 10, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.business}</td>
-                            <td style={{ padding: '7px 8px', color: '#6B7280', fontSize: 9, width: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.address || '—'}</td>
-                            <td style={{ padding: '7px 8px', fontFamily: "'JetBrains Mono'", fontSize: 9, color: '#6B7280', whiteSpace: 'nowrap', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                              {item.revenue != null ? `${Number(item.revenue).toLocaleString()}千円` : <span style={{ color: '#9CA3AF' }}>-</span>}
+                            style={{ cursor: 'pointer', background: isSelected ? alpha(color.navyLight, 0.08) : i % 2 === 0 ? color.white : color.offWhite, borderBottom: `1px solid ${color.gray200}`, transition: 'background 0.12s', borderLeft: isSelected ? `3px solid ${color.navyDeep}` : '3px solid transparent' }}
+                            onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = alpha(color.navyLight, 0.08); }}
+                            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = i % 2 === 0 ? color.white : color.offWhite; }}>
+                            <td style={{ padding: '7px 8px', fontFamily: font.family.mono, fontSize: 9, color: color.gray500, textAlign: 'right', whiteSpace: 'nowrap' }}>{item.no}</td>
+                            <td style={{ padding: '7px 8px', fontWeight: font.weight.semibold, color: color.navyDeep, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</td>
+                            <td style={{ padding: '7px 8px', color: color.gray500, fontSize: font.size.xs - 1, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.business}</td>
+                            <td style={{ padding: '7px 8px', color: color.gray500, fontSize: 9, width: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.address || '—'}</td>
+                            <td style={{ padding: '7px 8px', fontFamily: font.family.mono, fontSize: 9, color: color.gray500, whiteSpace: 'nowrap', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                              {item.revenue != null ? `${Number(item.revenue).toLocaleString()}千円` : <span style={{ color: color.gray400 }}>-</span>}
                             </td>
-                            <td style={{ padding: '7px 8px', color: '#6B7280', fontSize: 10, whiteSpace: 'nowrap' }}>{item.representative}</td>
+                            <td style={{ padding: '7px 8px', color: color.gray500, fontSize: font.size.xs - 1, whiteSpace: 'nowrap' }}>{item.representative}</td>
                             <td style={{ padding: '7px 8px' }}>
                               {item.phone
                                 ? <span onClick={e => { e.stopPropagation(); dialPhone(item.phone); setSelectedRow(item); setListMode(false); setLastDialedPhone(item.phone); }}
-                                    style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: '#0D2247', fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: '#0D224715', border: '1px solid #0D224730', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                                    style={{ fontFamily: font.family.mono, fontSize: font.size.xs - 1, color: color.navyDeep, fontWeight: font.weight.semibold, padding: '2px 6px', borderRadius: radius.md, background: alpha(color.navyDeep, 0.08), border: `1px solid ${alpha(color.navyDeep, 0.18)}`, whiteSpace: 'nowrap', cursor: 'pointer' }}>
                                     {item.phone}
                                   </span>
-                                : <span style={{ color: '#9CA3AF', fontSize: 10 }}>-</span>}
+                                : <span style={{ color: color.gray400, fontSize: font.size.xs - 1 }}>-</span>}
                             </td>
-                            <td style={{ padding: '7px 8px', fontSize: 9, color: '#6B7280', whiteSpace: 'nowrap' }}>
-                              {(() => { const recs = getRecordsForItem(item.id); if (!recs.length) return <span style={{ color: '#9CA3AF' }}>-</span>; const latest = recs.reduce((a, b) => new Date(a.called_at || 0) > new Date(b.called_at || 0) ? a : b); return formatJST(latest.called_at); })()}
+                            <td style={{ padding: '7px 8px', fontSize: 9, color: color.gray500, whiteSpace: 'nowrap' }}>
+                              {(() => { const recs = getRecordsForItem(item.id); if (!recs.length) return <span style={{ color: color.gray400 }}>-</span>; const latest = recs.reduce((a, b) => new Date(a.called_at || 0) > new Date(b.called_at || 0) ? a : b); return formatJST(latest.called_at); })()}
                             </td>
-                            <td style={{ padding: '7px 8px', fontSize: 9, color: '#6B7280', whiteSpace: 'nowrap' }}>
-                              {(() => { const recs = getRecordsForItem(item.id); if (!recs.length) return <span style={{ color: '#9CA3AF' }}>-</span>; const latest = recs.reduce((a, b) => new Date(a.called_at || 0) > new Date(b.called_at || 0) ? a : b); return latest.getter_name || <span style={{ color: '#9CA3AF' }}>-</span>; })()}
+                            <td style={{ padding: '7px 8px', fontSize: 9, color: color.gray500, whiteSpace: 'nowrap' }}>
+                              {(() => { const recs = getRecordsForItem(item.id); if (!recs.length) return <span style={{ color: color.gray400 }}>-</span>; const latest = recs.reduce((a, b) => new Date(a.called_at || 0) > new Date(b.called_at || 0) ? a : b); return latest.getter_name || <span style={{ color: color.gray400 }}>-</span>; })()}
                             </td>
                             <td style={{ padding: '7px 8px' }}>
-                              <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, fontWeight: 600, background: sc.bg, color: sc.color, whiteSpace: 'nowrap' }}>
+                              <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: radius.sm, fontWeight: font.weight.semibold, background: sc.bg, color: sc.color, whiteSpace: 'nowrap' }}>
                                 {getRecordsForItem(item.id).length > 0
                                   ? (() => {
                                       const recs = getRecordsForItem(item.id);
@@ -1948,12 +1954,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               </div>
               {/* ページネーション */}
               {totalPages > 1 && (
-                <div style={{ padding: '8px 12px', borderTop: '1px solid #E5E7EB', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ padding: `${space[2]}px ${space[3]}px`, borderTop: `1px solid ${color.gray200}`, background: color.white, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                    style={{ padding: '4px 12px', borderRadius: 4, border: page === 0 ? '1px solid #E5E7EB' : '1px solid #0D2247', background: page === 0 ? '#F8F9FA' : 'white', cursor: page === 0 ? 'default' : 'pointer', fontSize: 11, color: page === 0 ? '#9CA3AF' : '#0D2247', fontFamily: "'Noto Sans JP'" }}>← 前</button>
-                  <span style={{ fontSize: 11, color: '#6B7280' }}>{page + 1} / {totalPages}（{sorted.length}件）</span>
+                    style={{ padding: '4px 12px', borderRadius: radius.md, border: page === 0 ? `1px solid ${color.gray200}` : `1px solid ${color.navyDeep}`, background: page === 0 ? color.offWhite : color.white, cursor: page === 0 ? 'default' : 'pointer', fontSize: font.size.xs, color: page === 0 ? color.gray400 : color.navyDeep, fontFamily: font.family.sans }}>← 前</button>
+                  <span style={{ fontSize: font.size.xs, color: color.gray500 }}>{page + 1} / {totalPages}（{sorted.length}件）</span>
                   <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}
-                    style={{ padding: '4px 12px', borderRadius: 4, border: page === totalPages - 1 ? '1px solid #E5E7EB' : '1px solid #0D2247', background: page === totalPages - 1 ? '#F8F9FA' : 'white', cursor: page === totalPages - 1 ? 'default' : 'pointer', fontSize: 11, color: page === totalPages - 1 ? '#9CA3AF' : '#0D2247', fontFamily: "'Noto Sans JP'" }}>次 →</button>
+                    style={{ padding: '4px 12px', borderRadius: radius.md, border: page === totalPages - 1 ? `1px solid ${color.gray200}` : `1px solid ${color.navyDeep}`, background: page === totalPages - 1 ? color.offWhite : color.white, cursor: page === totalPages - 1 ? 'default' : 'pointer', fontSize: font.size.xs, color: page === totalPages - 1 ? color.gray400 : color.navyDeep, fontFamily: font.family.sans }}>次 →</button>
                 </div>
               )}
             </div>
@@ -1967,20 +1973,20 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 const latest = recs.length > 0 ? recs.reduce((a, b) => a.round >= b.round ? a : b) : null;
                 const lastResult = latest ? latest.status : (selectedRow.call_status || '未架電');
                 const prevBadgeStyle = (() => {
-                  if (!latest) return { bg: '#F3F2F2', color: '#706E6B' };
+                  if (!latest) return { bg: color.gray100, color: color.textMid };
                   const s = latest.status;
-                  if (s === '不通' || s === '受付ブロック') return { bg: '#FEF1EE', color: '#EA001E' };
-                  if (s === '社長不在' || s === '受付再コール' || s === '社長再コール') return { bg: '#FFF8ED', color: '#C07600' };
-                  if (s === 'アポ獲得') return { bg: '#EEF7EE', color: '#2E844A' };
-                  return { bg: '#F3F2F2', color: '#706E6B' };
+                  if (s === '不通' || s === '受付ブロック') return { bg: color.dangerSoft, color: color.danger };
+                  if (s === '社長不在' || s === '受付再コール' || s === '社長再コール') return { bg: color.warnSoft, color: '#C07600' };
+                  if (s === 'アポ獲得') return { bg: color.successSoft, color: color.success };
+                  return { bg: color.gray100, color: color.textMid };
                 })();
                 let parsedMemo = null;
                 if (selectedRow.memo) { try { parsedMemo = JSON.parse(selectedRow.memo); } catch {} }
                 return (
-                  <div style={{ padding: 20, background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, gap: 12 }}>
-                      <div style={{ fontSize: 22, fontWeight: 700, color: '#0D2247', flex: 1, lineHeight: 1.3 }}>{selectedRow.company}</div>
-                      <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 3, fontWeight: 600, background: prevBadgeStyle.bg, color: prevBadgeStyle.color, flexShrink: 0 }}>
+                  <div style={{ padding: space[5], background: color.white, borderRadius: radius.md, border: `1px solid ${color.gray200}` }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, gap: space[3] }}>
+                      <div style={{ fontSize: font.size.xl + 2, fontWeight: font.weight.bold, color: color.navyDeep, flex: 1, lineHeight: 1.3 }}>{selectedRow.company}</div>
+                      <span style={{ fontSize: font.size.xs, padding: '1px 6px', borderRadius: radius.sm, fontWeight: font.weight.semibold, background: prevBadgeStyle.bg, color: prevBadgeStyle.color, flexShrink: 0 }}>
                         {lastResult}
                       </span>
                     </div>
@@ -1991,29 +1997,29 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                         { label: '住所', value: (selectedRow.address || '').replace(/\/\s*$/, '') },
                         { label: '売上', value: selectedRow.revenue != null ? Number(selectedRow.revenue).toLocaleString() + ' 千円' : null },
                       ].filter(x => x.value).map(({ label, value }) => (
-                        <div key={label} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                          <span style={{ fontSize: 10, color: '#a0a0a0', flexShrink: 0, paddingTop: 2, minWidth: 56 }}>{label}</span>
-                          <span style={{ fontSize: 12, color: '#0D2247', fontWeight: 500, wordBreak: 'break-all' }}>{value}</span>
+                        <div key={label} style={{ display: 'flex', gap: space[2], alignItems: 'flex-start' }}>
+                          <span style={{ fontSize: font.size.xs - 1, color: color.gray400, flexShrink: 0, paddingTop: 2, minWidth: 56 }}>{label}</span>
+                          <span style={{ fontSize: font.size.sm, color: color.navyDeep, fontWeight: font.weight.medium, wordBreak: 'break-all' }}>{value}</span>
                         </div>
                       ))}
                     </div>
                     <div>
-                      <div style={{ fontSize: 10, color: '#a0a0a0', marginBottom: 4 }}>
-                        メモ{savingMemo && <span style={{ marginLeft: 6, fontSize: 9, color: '#b0b0b0' }}>保存中...</span>}
+                      <div style={{ fontSize: font.size.xs - 1, color: color.gray400, marginBottom: 4 }}>
+                        メモ{savingMemo && <span style={{ marginLeft: 6, fontSize: 9, color: color.gray400 }}>保存中...</span>}
                       </div>
                       <textarea value={localMemo} onChange={e => setLocalMemo(e.target.value)} onBlur={handleMemoBlur}
                         placeholder="架電メモ（フォーカスを外すと自動保存）"
-                        style={{ width: '100%', minHeight: 52, padding: '7px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', resize: 'vertical', boxSizing: 'border-box', background: '#F8F9FA' }} />
+                        style={{ width: '100%', minHeight: 52, padding: '7px 10px', borderRadius: radius.md, border: `1px solid ${color.gray200}`, fontSize: font.size.xs, fontFamily: font.family.sans, outline: 'none', resize: 'vertical', boxSizing: 'border-box', background: color.offWhite, color: color.textDark }} />
                     </div>
                   </div>
                 );
               })()}
 
               {/* ② 架電エリア */}
-              <div style={{ padding: 16, background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB' }}>
+              <div style={{ padding: space[4], background: color.white, borderRadius: radius.md, border: `1px solid ${color.gray200}` }}>
                 {/* 電話番号 */}
-                <div style={{ textAlign: 'center', marginBottom: 12 }}>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: '#0D2247', fontFamily: "'JetBrains Mono'", letterSpacing: 2, fontVariantNumeric: 'tabular-nums' }}>
+                <div style={{ textAlign: 'center', marginBottom: space[3] }}>
+                  <div style={{ fontSize: 28, fontWeight: font.weight.bold, color: color.navyDeep, fontFamily: font.family.mono, letterSpacing: 2, fontVariantNumeric: 'tabular-nums' }}>
                     {selectedRow.phone || '電話番号なし'}
                   </div>
                 </div>
@@ -2028,10 +2034,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     const isSelectedR = r === selectedRound;
                     return (
                       <button key={r} disabled={isFuture} onClick={() => !isFuture && setSelectedRound(r)}
-                        style={{ width: 36, height: 36, borderRadius: 4, fontSize: 13, fontWeight: 700, fontFamily: "'JetBrains Mono'",
-                          background: isCompleted ? '#e8e8e8' : isCurrent ? '#C07600' : 'transparent',
-                          color: isCompleted ? '#999' : isCurrent ? '#fff' : '#b0b0b0',
-                          border: isSelectedR ? '2px solid #0D2247' : isCompleted ? '1px solid #d0d0d0' : isFuture ? '1px dashed #e0e0e0' : '1px solid #C07600',
+                        style={{ width: 36, height: 36, borderRadius: radius.md, fontSize: font.size.base, fontWeight: font.weight.bold, fontFamily: font.family.mono,
+                          background: isCompleted ? color.gray200 : isCurrent ? '#C07600' : 'transparent',
+                          color: isCompleted ? color.gray500 : isCurrent ? color.white : color.gray400,
+                          border: isSelectedR ? `2px solid ${color.navyDeep}` : isCompleted ? `1px solid ${color.gray300}` : isFuture ? `1px dashed ${color.gray200}` : '1px solid #C07600',
                           cursor: isFuture ? 'default' : 'pointer', opacity: isFuture ? 0.3 : 1 }}>
                         {r}
                       </button>
@@ -2040,19 +2046,27 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 </div>
                 {/* 電話ボタン */}
                 {selectedRow.phone && (
-                  <button onClick={() => { dialPhone(selectedRow.phone); setLastDialedPhone(selectedRow.phone); }}
-                    style={{ display: 'block', width: '100%', height: 56, borderRadius: 4, background: '#0D2247', border: 'none', color: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'", letterSpacing: 1 }}>
+                  <Button
+                    variant="primary"
+                    onClick={() => { dialPhone(selectedRow.phone); setLastDialedPhone(selectedRow.phone); }}
+                    fullWidth
+                    style={{ height: 56, borderRadius: radius.md, fontSize: font.size.lg + 2, fontWeight: font.weight.bold, letterSpacing: 1 }}
+                  >
                     電話をかける
-                  </button>
+                  </Button>
                 )}
                 {/* サブ電話番号 */}
                 <div style={{ display: 'flex', gap: 6, marginTop: 10, alignItems: 'center' }}>
                   <input type="tel" value={subPhone} onChange={e => setSubPhone(e.target.value)} onBlur={handleSubPhoneBlur}
                     placeholder="別番号に架電"
-                    style={{ flex: 1, padding: '7px 10px', borderRadius: 4, border: '1px solid #E5E7EB', fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: '#F8F9FA' }} />
-                  <button onClick={() => { if (!subPhone.trim()) return; dialPhone(subPhone.trim()); setLastDialedPhone(subPhone.trim()); }}
+                    style={{ flex: 1, padding: '7px 10px', borderRadius: radius.md, border: `1px solid ${color.gray200}`, fontSize: font.size.xs, fontFamily: font.family.sans, outline: 'none', background: color.offWhite, color: color.textDark }} />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => { if (!subPhone.trim()) return; dialPhone(subPhone.trim()); setLastDialedPhone(subPhone.trim()); }}
                     disabled={!subPhone.trim()}
-                    style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #E5E7EB', background: '#fff', cursor: subPhone.trim() ? 'pointer' : 'default', fontSize: 12, fontWeight: 500, opacity: subPhone.trim() ? 1 : 0.4 }}>発信</button>
+                    style={{ padding: '6px 12px', fontSize: font.size.sm, fontWeight: font.weight.medium }}
+                  >発信</Button>
                 </div>
               </div>
 
@@ -2062,25 +2076,29 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 const sc = roundRec ? callStatusColor(roundRec.status) : null;
                 if (roundRec) {
                   return (
-                    <div style={{ padding: 16, background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: sc.color }}>{selectedRound}回目の結果：{roundRec.status}</span>
-                      <button onClick={() => handleDeleteRecord(roundRec)}
-                        style={{ fontSize: 11, padding: '6px 12px', borderRadius: 4, border: '1px solid #E5E7EB', background: '#fff', cursor: 'pointer', color: '#6B7280', fontFamily: "'Noto Sans JP'", fontWeight: 500 }}>取消</button>
+                    <div style={{ padding: space[4], background: color.white, borderRadius: radius.md, border: `1px solid ${color.gray200}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: sc.color }}>{selectedRound}回目の結果：{roundRec.status}</span>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleDeleteRecord(roundRec)}
+                        style={{ fontSize: font.size.xs, padding: '6px 12px', fontWeight: font.weight.medium }}
+                      >取消</Button>
                     </div>
                   );
                 }
                 return (
-                  <div style={{ padding: 16, background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB' }}>
+                  <div style={{ padding: space[4], background: color.white, borderRadius: radius.md, border: `1px solid ${color.gray200}` }}>
                     {/* 大ボタン3つ: 不通・社長不在・アポ獲得 */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: space[2] + 2, marginBottom: space[2] + 2 }}>
                       {callStatuses.filter(s => ['missed', 'absent', 'appointment'].includes(s.id)).map(st => {
                         const isAppo = st.id === 'appointment';
                         const sc = cfvShortcuts.find(s => s.id === st.id);
                         return (
                           <button key={st.id} onClick={() => handleResult(st.label)}
-                            style={{ height: 56, borderRadius: 4, border: isAppo ? 'none' : '1px solid #E5E7EB', background: isAppo ? '#0D2247' : st.id === 'absent' ? '#F8F9FA' : '#fff', color: isAppo ? '#fff' : '#6B7280', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Noto Sans JP'", position: 'relative' }}>
+                            style={{ height: 56, borderRadius: radius.md, border: isAppo ? 'none' : `1px solid ${color.gray200}`, background: isAppo ? color.navyDeep : st.id === 'absent' ? color.offWhite : color.white, color: isAppo ? color.white : color.gray500, fontSize: 15, fontWeight: font.weight.bold, cursor: 'pointer', fontFamily: font.family.sans, position: 'relative' }}>
                             {st.label}
-                            {sc && <span style={{ position: 'absolute', bottom: 4, right: 7, fontSize: 9, opacity: isAppo ? 0.55 : 0.5, fontFamily: "'JetBrains Mono'", color: isAppo ? '#fff' : undefined }}>{sc.key}</span>}
+                            {sc && <span style={{ position: 'absolute', bottom: 4, right: 7, fontSize: 9, opacity: isAppo ? 0.55 : 0.5, fontFamily: font.family.mono, color: isAppo ? color.white : undefined }}>{sc.key}</span>}
                           </button>
                         );
                       })}
@@ -2091,9 +2109,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                         const sc = cfvShortcuts.find(s => s.id === st.id);
                         return (
                           <button key={st.id} onClick={() => handleResult(st.label)}
-                            style={{ height: 40, borderRadius: 4, border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'", position: 'relative' }}>
+                            style={{ height: 40, borderRadius: radius.md, border: `1px solid ${color.gray200}`, background: color.white, color: color.gray500, fontSize: font.size.sm, fontWeight: font.weight.semibold, cursor: 'pointer', fontFamily: font.family.sans, position: 'relative' }}>
                             {st.label}
-                            {sc && <span style={{ position: 'absolute', bottom: 3, right: 5, fontSize: 8, opacity: 0.45, fontFamily: "'JetBrains Mono'" }}>{sc.key}</span>}
+                            {sc && <span style={{ position: 'absolute', bottom: 3, right: 5, fontSize: 8, opacity: 0.45, fontFamily: font.family.mono }}>{sc.key}</span>}
                           </button>
                         );
                       })}
@@ -2108,13 +2126,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 const genAt = selectedRow.ai_generated_at ? new Date(selectedRow.ai_generated_at) : null;
                 const genLabel = genAt ? `${genAt.getMonth() + 1}/${genAt.getDate()} ${genAt.getHours()}:${String(genAt.getMinutes()).padStart(2, '0')}` : '';
                 return (
-                  <div style={{ padding: '12px 14px', borderRadius: 4, border: '1px solid ' + (hasAi ? '#3B82F620' : '#E5E7EB'), background: hasAi ? '#EFF6FF' : '#fff' }}>
+                  <div style={{ padding: '12px 14px', borderRadius: radius.md, border: `1px solid ${hasAi ? alpha('#3B82F6', 0.13) : color.gray200}`, background: hasAi ? alpha(color.navyLight, 0.08) : color.white }}>
                     <div style={{ display: 'flex', alignItems: 'center', marginBottom: hasAi ? 8 : 0 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#0D2247' }}>AI企業分析</span>
-                      {hasAi && genLabel && <span style={{ fontSize: 9, color: '#9CA3AF', marginLeft: 6 }}>{genLabel}生成</span>}
+                      <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navyDeep }}>AI企業分析</span>
+                      {hasAi && genLabel && <span style={{ fontSize: 9, color: color.gray400, marginLeft: 6 }}>{genLabel}生成</span>}
                       <span style={{ marginLeft: 'auto' }}>
                         {aiGenerating ? (
-                          <span style={{ fontSize: 10, color: '#3B82F6', fontWeight: 600 }}>生成中...</span>
+                          <span style={{ fontSize: font.size.xs - 1, color: '#3B82F6', fontWeight: font.weight.semibold }}>生成中...</span>
                         ) : (
                           <button onClick={async () => {
                             setAiGenerating(true);
@@ -2128,26 +2146,26 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                             } catch (e) { console.error('[AI企業分析] error:', e); }
                             setAiGenerating(false);
                           }}
-                            style={{ fontSize: 10, fontWeight: 600, color: '#3B82F6', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: "'Noto Sans JP'" }}>
+                            style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, color: '#3B82F6', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: font.family.sans }}>
                             {hasAi ? '再生成' : '生成する'}
                           </button>
                         )}
                       </span>
                     </div>
                     {!hasAi && !aiGenerating && (
-                      <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 4 }}>企業HPをもとに概要・特徴を自動生成します</div>
+                      <div style={{ fontSize: font.size.xs - 1, color: color.gray400, marginTop: 4 }}>企業HPをもとに概要・特徴を自動生成します</div>
                     )}
                     {hasAi && (
-                      <div style={{ fontSize: 11, color: '#1E293B', lineHeight: 1.7, fontFamily: "'Noto Sans JP'" }}>
+                      <div style={{ fontSize: font.size.xs, color: color.textDark, lineHeight: 1.7, fontFamily: font.family.sans }}>
                         {selectedRow.ai_overview && (
                           <>
-                            <div style={{ fontWeight: 700, fontSize: 10, color: '#0D2247', marginBottom: 2 }}>企業概要</div>
+                            <div style={{ fontWeight: font.weight.bold, fontSize: font.size.xs - 1, color: color.navyDeep, marginBottom: 2 }}>企業概要</div>
                             <div style={{ marginBottom: 8 }}>{selectedRow.ai_overview}</div>
                           </>
                         )}
                         {selectedRow.ai_strengths && (
                           <>
-                            <div style={{ fontWeight: 700, fontSize: 10, color: '#0D2247', marginBottom: 2 }}>特徴・強み</div>
+                            <div style={{ fontWeight: font.weight.bold, fontSize: font.size.xs - 1, color: color.navyDeep, marginBottom: 2 }}>特徴・強み</div>
                             <div style={{ whiteSpace: 'pre-line' }}>{selectedRow.ai_strengths}</div>
                           </>
                         )}
@@ -2162,23 +2180,23 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 const recs = getRecordsForItem(selectedRow.id).slice().sort((a, b) => a.round - b.round);
                 if (recs.length === 0) return null;
                 return (
-                  <div style={{ padding: 16, background: '#fff', borderRadius: 4, border: '1px solid #E5E7EB' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#0D2247', marginBottom: 8 }}>架電履歴</div>
+                  <div style={{ padding: space[4], background: color.white, borderRadius: radius.md, border: `1px solid ${color.gray200}` }}>
+                    <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navyDeep, marginBottom: 8 }}>架電履歴</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                       {recs.map(rec => {
                         const sc = callStatusColor(rec.status);
                         const dtStr = formatJST(rec.called_at);
                         return (
                           <div key={rec.id}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 4, background: '#F8F9FA', fontSize: 11, border: '1px solid #E5E7EB' }}>
-                              <span style={{ fontWeight: 700, color: '#0D2247', minWidth: 40, fontFamily: "'JetBrains Mono'", fontSize: 10 }}>{rec.round}回目</span>
-                              <span style={{ flex: 1, color: sc.color, fontWeight: 600 }}>{rec.status}</span>
-                              <span style={{ color: '#b0b0b0', fontSize: 10 }}>{dtStr}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: radius.md, background: color.offWhite, fontSize: font.size.xs, border: `1px solid ${color.gray200}` }}>
+                              <span style={{ fontWeight: font.weight.bold, color: color.navyDeep, minWidth: 40, fontFamily: font.family.mono, fontSize: font.size.xs - 1 }}>{rec.round}回目</span>
+                              <span style={{ flex: 1, color: sc.color, fontWeight: font.weight.semibold }}>{rec.status}</span>
+                              <span style={{ color: color.gray400, fontSize: font.size.xs - 1 }}>{dtStr}</span>
                               {rec.recording_url
                                 ? <button onClick={() => setActiveRecordingId(activeRecordingId === rec.id ? null : rec.id)}
-                                    style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: activeRecordingId === rec.id ? '#e53e3e' : 'inherit' }}>録音</button>
+                                    style={{ fontSize: font.size.base, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: activeRecordingId === rec.id ? color.danger : 'inherit' }}>録音</button>
                                 : <button onClick={() => handleFetchRecording(rec)}
-                                    style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>更新</button>
+                                    style={{ fontSize: font.size.base, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>更新</button>
                               }
                             </div>
                             {activeRecordingId === rec.id && rec.recording_url && (
@@ -2194,7 +2212,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             </>
           ) : (
             /* フォーカスモードで企業未選択 */
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#b0b0b0', fontSize: 14, flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: color.gray400, fontSize: font.size.md, flexDirection: 'column', gap: space[2] }}>
               リストから企業を選択してください
             </div>
           )}
@@ -2206,44 +2224,44 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         <div style={isMobile ? {
           position: 'absolute', bottom: 0, left: 0, right: 0,
           height: mobileScriptOpen ? '60vh' : 44,
-          background: '#fff', borderTop: '1px solid #E5E7EB',
+          background: color.white, borderTop: `1px solid ${color.gray200}`,
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
           transition: 'height 0.25s ease', zIndex: 10,
-          boxShadow: mobileScriptOpen ? '0 -4px 20px rgba(0,0,0,0.15)' : 'none',
+          boxShadow: mobileScriptOpen ? shadow.lg : 'none',
         } : {
-          width: '40%', background: '#fff', borderLeft: '1px solid #E5E7EB',
+          width: '40%', background: color.white, borderLeft: `1px solid ${color.gray200}`,
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
         }}>
           {/* タブヘッダー */}
-          <div onClick={() => isMobile && setMobileScriptOpen(o => !o)} style={{ display: 'flex', borderBottom: '2px solid #E5E7EB', background: '#F8F9FA', flexShrink: 0, cursor: isMobile ? 'pointer' : 'default' }}>
-            {isMobile && <span style={{ display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: 14, color: '#9CA3AF' }}>{mobileScriptOpen ? '▼' : '▲'}</span>}
+          <div onClick={() => isMobile && setMobileScriptOpen(o => !o)} style={{ display: 'flex', borderBottom: `2px solid ${color.gray200}`, background: color.offWhite, flexShrink: 0, cursor: isMobile ? 'pointer' : 'default' }}>
+            {isMobile && <span style={{ display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: font.size.md, color: color.gray400 }}>{mobileScriptOpen ? '▼' : '▲'}</span>}
             {[{ key: 'script', label: 'スクリプト' }, { key: 'rebuttal', label: 'アウト返し' }, { key: 'info', label: '企業概要' }, { key: 'cautions', label: '注意事項' }, { key: 'calendar', label: 'カレンダー' }].map(tab => (
               <button key={tab.key} onClick={(e) => { e.stopPropagation(); setScriptTab(tab.key); if (isMobile) setMobileScriptOpen(true); }}
-                style={{ flex: 1, padding: isMobile ? '12px 4px' : '11px 4px', border: 'none', borderBottom: scriptTab === tab.key ? '2px solid #0D2247' : '2px solid transparent',
-                  background: 'transparent', color: scriptTab === tab.key ? '#0D2247' : '#9CA3AF',
-                  fontSize: isMobile ? 12 : 11, fontWeight: scriptTab === tab.key ? 600 : 400, cursor: 'pointer',
-                  fontFamily: "'Noto Sans JP'", marginBottom: -2, transition: 'color 0.15s' }}>
+                style={{ flex: 1, padding: isMobile ? '12px 4px' : '11px 4px', border: 'none', borderBottom: scriptTab === tab.key ? `2px solid ${color.navyDeep}` : '2px solid transparent',
+                  background: 'transparent', color: scriptTab === tab.key ? color.navyDeep : color.gray400,
+                  fontSize: isMobile ? font.size.sm : font.size.xs, fontWeight: scriptTab === tab.key ? font.weight.semibold : font.weight.normal, cursor: 'pointer',
+                  fontFamily: font.family.sans, marginBottom: -2, transition: 'color 0.15s' }}>
                 {tab.label}
               </button>
             ))}
           </div>
           {/* タブコンテンツ */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: space[5] }}>
             {scriptTab === 'script' && (() => {
               const pdfs = Array.isArray(list.scriptPdfs) ? list.scriptPdfs : [];
               return (
                 <>
                   {list.scriptBody
-                    ? renderMarkedScript(list.scriptBody, { fontSize: 12, color: '#0D2247', lineHeight: 1.8 })
-                    : <div style={{ color: '#9CA3AF', fontSize: 12 }}>スクリプト未設定</div>}
+                    ? renderMarkedScript(list.scriptBody, { fontSize: font.size.sm, color: color.navyDeep, lineHeight: 1.8 })
+                    : <div style={{ color: color.gray400, fontSize: font.size.sm }}>スクリプト未設定</div>}
                   {pdfs.length > 0 && (
-                    <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px dashed #E5E7EB' }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2247', marginBottom: 6 }}>添付PDF</div>
+                    <div style={{ marginTop: 14, paddingTop: 10, borderTop: `1px dashed ${color.gray200}` }}>
+                      <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navyDeep, marginBottom: 6 }}>添付PDF</div>
                       {pdfs.map((pdf, i) => (
                         <button key={pdf.path || i}
                           onClick={() => handleOpenScriptPdf(pdf)}
                           title={pdf.name}
-                          style={{ display: 'block', width: '100%', textAlign: 'left', background: '#F8F9FA', border: '1px solid #E5E7EB', borderLeft: '3px solid #0D2247', borderRadius: 4, padding: '6px 10px', fontSize: 12, color: '#0D2247', fontWeight: 500, cursor: 'pointer', marginBottom: 5, textDecoration: 'underline', fontFamily: "'Noto Sans JP'", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          style={{ display: 'block', width: '100%', textAlign: 'left', background: color.offWhite, border: `1px solid ${color.gray200}`, borderLeft: `3px solid ${color.navyDeep}`, borderRadius: radius.md, padding: '6px 10px', fontSize: font.size.sm, color: color.navyDeep, fontWeight: font.weight.medium, cursor: 'pointer', marginBottom: 5, textDecoration: 'underline', fontFamily: font.family.sans, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {pdf.name}
                         </button>
                       ))}
@@ -2256,22 +2274,22 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               let rd = null;
               try { rd = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
               const data = rd || qaData;
-              if (!data) return <div style={{ color: '#9CA3AF', fontSize: 12 }}>アウト返し未設定（Scriptsページで設定できます）</div>;
+              if (!data) return <div style={{ color: color.gray400, fontSize: font.size.sm }}>アウト返し未設定（Scriptsページで設定できます）</div>;
               return (
                 <div>
-                  {!rd && qaData && <div style={{ fontSize: 10, color: '#D4A017', marginBottom: 8, fontWeight: 500 }}>共通のアウト返しを表示中（リスト別はScriptsページで設定できます）</div>}
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                  {!rd && qaData && <div style={{ fontSize: font.size.xs - 1, color: '#D4A017', marginBottom: 8, fontWeight: font.weight.medium }}>共通のアウト返しを表示中（リスト別はScriptsページで設定できます）</div>}
+                  <div style={{ display: 'flex', gap: space[2], marginBottom: space[3] }}>
                     {[['reception', '受付対応'], ['president', '社長対応']].map(([k, l]) => (
                       <button key={k} onClick={() => setQaSubTab(k)}
-                        style={{ fontSize: 11, padding: '4px 14px', borderRadius: 4, border: 'none', background: qaSubTab === k ? '#0D2247' : '#F3F4F6', color: qaSubTab === k ? '#fff' : '#6B7280', cursor: 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: qaSubTab === k ? 600 : 400 }}>
+                        style={{ fontSize: font.size.xs, padding: '4px 14px', borderRadius: radius.md, border: 'none', background: qaSubTab === k ? color.navyDeep : color.gray100, color: qaSubTab === k ? color.white : color.gray500, cursor: 'pointer', fontFamily: font.family.sans, fontWeight: qaSubTab === k ? font.weight.semibold : font.weight.normal }}>
                         {l}
                       </button>
                     ))}
                   </div>
                   {(data[qaSubTab] || []).map((item, i) => (
-                    <div key={i} style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 4, background: '#F8F9FA', borderLeft: '3px solid #0D2247' }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 4 }}>Q: {item.q}</div>
-                      <div style={{ fontSize: 12, color: '#0D2247', lineHeight: 1.7 }}>A: {item.a}</div>
+                    <div key={i} style={{ marginBottom: space[3], padding: '10px 14px', borderRadius: radius.md, background: color.offWhite, borderLeft: `3px solid ${color.navyDeep}` }}>
+                      <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.gray700, marginBottom: 4 }}>Q: {item.q}</div>
+                      <div style={{ fontSize: font.size.sm, color: color.navyDeep, lineHeight: 1.7 }}>A: {item.a}</div>
                     </div>
                   ))}
                 </div>
@@ -2279,13 +2297,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             })()}
             {scriptTab === 'info' && (
               list.companyInfo
-                ? <pre style={{ fontSize: 12, color: '#4a4a4a', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.companyInfo}</pre>
-                : <div style={{ color: '#b0b0b0', fontSize: 12 }}>企業概要未設定</div>
+                ? <pre style={{ fontSize: font.size.sm, color: '#4a4a4a', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: font.family.sans }}>{list.companyInfo}</pre>
+                : <div style={{ color: color.gray400, fontSize: font.size.sm }}>企業概要未設定</div>
             )}
             {scriptTab === 'cautions' && (
               list.cautions
                 ? <CautionsCards text={list.cautions} fontSize={12} filter="non-calendar" />
-                : <div style={{ color: '#b0b0b0', fontSize: 12 }}>注意事項未設定</div>
+                : <div style={{ color: color.gray400, fontSize: font.size.sm }}>注意事項未設定</div>
             )}
             {scriptTab === 'calendar' && (() => {
               const cl = (clientData || []).find(c => c.company === list.company);
@@ -2364,15 +2382,15 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       {showShortcutHelp && (
         <div onClick={() => setShowShortcutHelp(false)} style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.45)', zIndex: 10003,
+          background: alpha('#000000', 0.45), zIndex: 10003,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: '#fff', borderRadius: 4, padding: 28, width: 380,
-            border: '1px solid #E5E7EB', fontFamily: "'Noto Sans JP'",
+            background: color.white, borderRadius: radius.md, padding: 28, width: 380,
+            border: `1px solid ${color.gray200}`, fontFamily: font.family.sans,
           }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#0D2247', marginBottom: 16 }}>キーボードショートカット</div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <div style={{ fontSize: 15, fontWeight: font.weight.bold, color: color.navyDeep, marginBottom: space[4] }}>キーボードショートカット</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
               <tbody>
                 {[
                   ...(IS_MAC
@@ -2384,24 +2402,25 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                        ['F7', '社長お断り'], ['F8', '除外']]),
                   ['← →', '前後の企業に移動'], ['Esc', 'モーダルを閉じる'], ['?', 'このヘルプを表示'],
                 ].map(([key, desc]) => (
-                  <tr key={key} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <tr key={key} style={{ borderBottom: `1px solid ${color.gray100}` }}>
                     <td style={{ padding: '6px 10px', width: 90 }}>
                       <kbd style={{
-                        display: 'inline-block', padding: '2px 8px', borderRadius: 4,
-                        background: '#f3f4f6', border: '1px solid #d1d5db',
-                        fontFamily: "'JetBrains Mono'", fontSize: 11, fontWeight: 700, color: '#374151',
+                        display: 'inline-block', padding: '2px 8px', borderRadius: radius.md,
+                        background: color.gray100, border: `1px solid ${color.gray300}`,
+                        fontFamily: font.family.mono, fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.gray700,
                       }}>{key}</kbd>
                     </td>
-                    <td style={{ padding: '6px 10px', color: '#374151' }}>{desc}</td>
+                    <td style={{ padding: '6px 10px', color: color.gray700 }}>{desc}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <button onClick={() => setShowShortcutHelp(false)} style={{
-              marginTop: 16, width: '100%', padding: '6px 12px', borderRadius: 4,
-              border: 'none', background: '#0D2247', color: '#fff',
-              fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-            }}>閉じる</button>
+            <Button
+              variant="primary"
+              fullWidth
+              onClick={() => setShowShortcutHelp(false)}
+              style={{ marginTop: space[4], padding: '6px 12px', fontSize: font.size.sm, fontWeight: font.weight.medium, borderRadius: radius.md }}
+            >閉じる</Button>
           </div>
         </div>
       )}
@@ -2428,21 +2447,21 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       })()}
 
       {pdfPreviewLoading && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13 }}>
+        <div style={{ position: 'fixed', inset: 0, background: alpha('#000000', 0.4), zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color.white, fontSize: font.size.base }}>
           PDFを読み込み中...
         </div>
       )}
 
       {pdfPreview && (
         <div onClick={() => setPdfPreview(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9600, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          style={{ position: 'fixed', inset: 0, background: alpha('#000000', 0.75), zIndex: 9600, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: space[5] }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ width: '95vw', height: '92vh', maxWidth: 1200, borderRadius: 4, background: '#fff', border: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ background: '#0D2247', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, fontWeight: 600, fontSize: 13, color: '#fff' }}>
+            style={{ width: '95vw', height: '92vh', maxWidth: 1200, borderRadius: radius.md, background: color.white, border: `1px solid ${color.gray200}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ background: color.navyDeep, padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, fontWeight: font.weight.semibold, fontSize: font.size.base, color: color.white }}>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pdfPreview.name}</span>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-                <a href={pdfPreview.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#fff', textDecoration: 'underline' }}>新規タブで開く</a>
-                <button onClick={() => setPdfPreview(null)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+              <div style={{ display: 'flex', gap: space[2], alignItems: 'center', flexShrink: 0 }}>
+                <a href={pdfPreview.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: font.size.xs, color: color.white, textDecoration: 'underline' }}>新規タブで開く</a>
+                <button onClick={() => setPdfPreview(null)} style={{ background: 'none', border: 'none', color: color.white, fontSize: font.size.lg + 2, cursor: 'pointer', lineHeight: 1 }}>✕</button>
               </div>
             </div>
             <iframe

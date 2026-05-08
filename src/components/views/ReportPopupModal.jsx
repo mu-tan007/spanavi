@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Card } from '../ui';
 import { updateAppointmentReport, updateCallRecordReport, invokeGenerateCallReport } from '../../lib/supabaseWrite';
 
 // 通話レポート（スタイル/補足）を確認・編集するポップアップ
@@ -70,41 +71,64 @@ export default function ReportPopupModal({ appo, mode = 'callRecord', onClose, o
 
   const STYLES = ['スムーズ', '説得'];
 
+  const sectionLabel = {
+    fontSize: font.size.xs,
+    fontWeight: font.weight.semibold,
+    color: color.navy,
+    marginBottom: 4,
+  };
+
+  const codeBlock = {
+    background: color.gray100,
+    border: `1px solid ${color.border}`,
+    borderRadius: radius.md,
+    padding: space[2.5],
+    fontSize: font.size.xs,
+    whiteSpace: 'pre-wrap',
+    lineHeight: font.lineHeight.relaxed,
+    color: color.textDark,
+    margin: 0,
+    fontFamily: font.family.sans,
+  };
+
   return (
     <div onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 20000,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Noto Sans JP'" }}>
+      style={{ position: 'fixed', inset: 0, background: alpha('#000', 0.5), zIndex: 20000,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: font.family.sans }}>
       <div onClick={e => e.stopPropagation()}
-        style={{ background: '#fff', borderRadius: 6, width: 560, maxWidth: '92vw',
-          maxHeight: '88vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
-        <div style={{ padding: '12px 20px', background: '#0D2247', color: '#fff', borderRadius: '6px 6px 0 0' }}>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>通話レポート{isAppo ? '（アポ獲得）' : isReject ? '（社長お断り）' : ''}</div>
-          <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>
+        style={{ background: color.white, borderRadius: radius.lg, width: 560, maxWidth: '92vw',
+          maxHeight: '88vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
+        <div style={{ padding: `${space[3]}px ${space[5]}px`, background: color.navy, color: color.white, borderRadius: `${radius.lg}px ${radius.lg}px 0 0` }}>
+          <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold }}>通話レポート{isAppo ? '（アポ獲得）' : isReject ? '（社長お断り）' : ''}</div>
+          <div style={{ fontSize: font.size.xs, color: alpha(color.white, 0.7), marginTop: 2 }}>
             {appo.company_name} / {appo.getter_name || '—'} / {status}
           </div>
         </div>
-        <div style={{ padding: 18, overflowY: 'auto', flex: 1 }}>
+        <div style={{ padding: space[4] + 2, overflowY: 'auto', flex: 1 }}>
           {/* AI生成ボタン */}
-          <div style={{ marginBottom: 14, padding: 10, background: '#F3F4F6', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button onClick={handleGenerateAI} disabled={aiStep === 'running' || !appo.recording_url}
-              style={{ padding: '8px 14px', borderRadius: 4, border: 'none', background: '#0D2247', color: '#fff',
-                cursor: (aiStep === 'running' || !appo.recording_url) ? 'default' : 'pointer',
-                fontSize: 12, fontWeight: 600, opacity: (aiStep === 'running' || !appo.recording_url) ? 0.6 : 1 }}>
+          <div style={{ marginBottom: space[3] + 2, padding: space[2.5], background: color.gray100, borderRadius: radius.md, display: 'flex', alignItems: 'center', gap: space[2.5] }}>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={handleGenerateAI}
+              disabled={!appo.recording_url}
+              loading={aiStep === 'running'}
+            >
               {aiStep === 'running' ? 'AI生成中...' : '録音から自動生成'}
-            </button>
-            <div style={{ fontSize: 10, color: C.textMid, flex: 1 }}>
+            </Button>
+            <div style={{ fontSize: font.size.xs - 1, color: color.textMid, flex: 1 }}>
               {!appo.recording_url && '録音URL未取得'}
               {aiStep === 'idle' && appo.recording_url && '録音をWhisper→Claudeで分析しレポートを生成します'}
-              {aiStep === 'done' && <span style={{ color: '#0a0' }}>✓ 生成しました（保存ボタンで確定）</span>}
-              {aiStep === 'error' && <span style={{ color: '#c00' }}>エラー: {aiError}</span>}
+              {aiStep === 'done' && <span style={{ color: color.success }}>生成しました（保存ボタンで確定）</span>}
+              {aiStep === 'error' && <span style={{ color: color.danger }}>エラー: {aiError}</span>}
             </div>
           </div>
 
           {/* スタイルラジオ（アポ獲得のみ） */}
           {isAppo && (
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2247', marginBottom: 4 }}>取得スタイル</div>
-              <div style={{ display: 'flex', gap: 14, fontSize: 12 }}>
+            <div style={{ marginBottom: space[3] }}>
+              <div style={sectionLabel}>取得スタイル</div>
+              <div style={{ display: 'flex', gap: space[3] + 2, fontSize: font.size.sm }}>
                 {STYLES.map(s => (
                   <label key={s} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
                     <input type="radio" name="rps" value={s}
@@ -114,52 +138,48 @@ export default function ReportPopupModal({ appo, mode = 'callRecord', onClose, o
                 ))}
                 {style && (
                   <button onClick={() => setStyle('')}
-                    style={{ marginLeft: 'auto', background: 'none', border: 'none', color: C.textLight, cursor: 'pointer', fontSize: 11 }}>クリア</button>
+                    style={{ marginLeft: 'auto', background: 'none', border: 'none', color: color.textLight, cursor: 'pointer', fontSize: font.size.xs }}>クリア</button>
                 )}
               </div>
             </div>
           )}
 
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2247', marginBottom: 4 }}>{supplementLabel}</div>
+          <div style={{ marginBottom: space[3] }}>
+            <div style={sectionLabel}>{supplementLabel}</div>
             <textarea value={supplement} onChange={e => setSupplement(e.target.value)}
               placeholder={supplementPlaceholder}
-              style={{ width: '100%', minHeight: 140, padding: 10, borderRadius: 4,
-                border: '1px solid ' + C.border, fontSize: 12, background: C.offWhite,
-                resize: 'vertical', boxSizing: 'border-box', fontFamily: "'Noto Sans JP'", lineHeight: 1.6 }} />
+              style={{ width: '100%', minHeight: 140, padding: space[2.5], borderRadius: radius.md,
+                border: `1px solid ${color.border}`, fontSize: font.size.sm, background: color.offWhite,
+                resize: 'vertical', boxSizing: 'border-box', fontFamily: font.family.sans, lineHeight: font.lineHeight.relaxed,
+                color: color.textDark, outline: 'none' }} />
           </div>
 
           {appo.memo && (
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2247', marginBottom: 4 }}>架電メモ（架電時の入力）</div>
-              <pre style={{ background: '#F8F9FA', border: '1px solid #E5E7EB', borderRadius: 4,
-                padding: 10, fontSize: 11, whiteSpace: 'pre-wrap', lineHeight: 1.6,
-                color: C.textDark, margin: 0, fontFamily: "'Noto Sans JP'" }}>{appo.memo}</pre>
+            <div style={{ marginBottom: space[3] }}>
+              <div style={sectionLabel}>架電メモ（架電時の入力）</div>
+              <pre style={codeBlock}>{appo.memo}</pre>
             </div>
           )}
           {appo.appo_report && (
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#0D2247', marginBottom: 4 }}>アポ取得時の元レポート</div>
-              <pre style={{ background: '#F8F9FA', border: '1px solid #E5E7EB', borderRadius: 4,
-                padding: 10, fontSize: 10, whiteSpace: 'pre-wrap', lineHeight: 1.6,
-                color: C.textDark, margin: 0, maxHeight: 240, overflowY: 'auto',
-                fontFamily: "'JetBrains Mono', monospace" }}>{appo.appo_report}</pre>
+              <div style={sectionLabel}>アポ取得時の元レポート</div>
+              <pre style={{
+                ...codeBlock,
+                fontSize: font.size.xs - 1,
+                maxHeight: 240, overflowY: 'auto',
+                fontFamily: font.family.mono,
+              }}>{appo.appo_report}</pre>
             </div>
           )}
         </div>
-        <div style={{ padding: '10px 20px', borderTop: '1px solid #E5E7EB',
-          display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center' }}>
-          {savedAt && <span style={{ fontSize: 11, color: '#0a0', marginRight: 'auto' }}>保存しました</span>}
-          {saveError && <span style={{ fontSize: 11, color: '#c00', marginRight: 'auto' }}>エラー: {saveError}</span>}
-          <button onClick={onClose}
-            style={{ padding: '8px 16px', borderRadius: 4, border: '1px solid #0D2247',
-              background: '#fff', cursor: 'pointer', fontSize: 12, color: '#0D2247' }}>閉じる</button>
-          <button onClick={handleSave} disabled={saving}
-            style={{ padding: '8px 16px', borderRadius: 4, border: 'none',
-              background: '#0D2247', cursor: saving ? 'default' : 'pointer',
-              fontSize: 12, color: '#fff', opacity: saving ? 0.7 : 1 }}>
+        <div style={{ padding: `${space[2.5]}px ${space[5]}px`, borderTop: `1px solid ${color.border}`,
+          display: 'flex', justifyContent: 'flex-end', gap: space[2], alignItems: 'center' }}>
+          {savedAt && <span style={{ fontSize: font.size.xs, color: color.success, marginRight: 'auto' }}>保存しました</span>}
+          {saveError && <span style={{ fontSize: font.size.xs, color: color.danger, marginRight: 'auto' }}>エラー: {saveError}</span>}
+          <Button variant="outline" onClick={onClose}>閉じる</Button>
+          <Button onClick={handleSave} loading={saving}>
             {saving ? '保存中...' : '保存'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

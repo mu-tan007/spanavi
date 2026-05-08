@@ -5,6 +5,8 @@ import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import PageHeader from '../common/PageHeader';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import ClientDetailPage from './contacts/ClientDetailPage';
 import { dbFieldsToFe } from '../../utils/clientFieldsMap';
 import { insertClientContact as insertClientContactFn } from '../../lib/supabaseWrite';
@@ -406,13 +408,14 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
                 onClick={() => setView(t.key)}
                 style={{
                   padding: '8px 18px',
-                  borderRadius: 4,
-                  border: '1px solid ' + (active ? NAVY : '#E5E7EB'),
-                  background: active ? NAVY : '#fff',
-                  color: active ? '#fff' : '#6B7280',
-                  fontSize: 12, fontWeight: 600,
+                  borderRadius: radius.md,
+                  border: `1px solid ${active ? NAVY : color.gray200}`,
+                  background: active ? NAVY : color.white,
+                  color: active ? color.white : color.gray500,
+                  fontSize: font.size.sm,
+                  fontWeight: font.weight.semibold,
                   cursor: 'pointer',
-                  fontFamily: "'Noto Sans JP'",
+                  fontFamily: font.family.sans,
                 }}
               >
                 {t.label}
@@ -507,7 +510,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
 
       {/* Toast */}
       {addToast && (
-        <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: NAVY, color: '#fff', padding: "10px 20px", borderRadius: 4, fontSize: 12, fontWeight: 600, zIndex: 30000, boxShadow: "0 4px 16px rgba(0,0,0,0.2)", fontFamily: "'Noto Sans JP'" }}>
+        <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: color.navy, color: color.white, padding: "10px 20px", borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold, zIndex: 30000, boxShadow: shadow.lg, fontFamily: font.family.sans }}>
           {addToast}
         </div>
       )}

@@ -3,6 +3,8 @@ import React from 'react';
 import { supabase } from '../../lib/supabase';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import {
   getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl,
   updateMember, updateMemberProfile,
@@ -362,18 +364,20 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       {/* プロフィールカード */}
       <div style={{
-        background: `linear-gradient(135deg, ${C.navyDeep}, ${C.navy})`, borderRadius: 12,
-        padding: isMobile ? '20px 18px' : '28px 32px', marginBottom: 16,
-        color: C.white, display: 'flex',
+        background: `linear-gradient(135deg, ${color.navyDeep}, ${color.navy})`,
+        borderRadius: radius.xl,
+        padding: isMobile ? '20px 18px' : '28px 32px', marginBottom: space[4],
+        color: color.white, display: 'flex',
         alignItems: isMobile ? 'flex-start' : 'center',
-        gap: isMobile ? 14 : 24, flexDirection: isMobile ? 'column' : 'row',
+        gap: isMobile ? space[3.5] || 14 : space[6], flexDirection: isMobile ? 'column' : 'row',
       }}>
         <div style={{ position: 'relative' }}>
           <div style={{
             width: 84, height: 84, borderRadius: '50%',
-            background: `${C.white}20`, border: `2px solid ${C.gold}60`,
+            background: alpha(color.white, 0.12),
+            border: `2px solid ${alpha(color.gold, 0.38)}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 32, fontWeight: 800, color: C.white,
+            fontSize: font.size['3xl'], fontWeight: font.weight.black, color: color.white,
             overflow: 'hidden', flexShrink: 0,
           }}>
             {profileImage
@@ -382,8 +386,10 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
           </div>
           <label style={{
             position: 'absolute', bottom: -2, right: -2,
-            padding: '3px 7px', borderRadius: 10, background: C.gold, color: C.navyDeep,
-            fontSize: 9, fontWeight: 700, cursor: uploading ? 'wait' : 'pointer',
+            padding: '3px 7px', borderRadius: radius.lg,
+            background: color.gold, color: color.navyDeep,
+            fontSize: 9, fontWeight: font.weight.bold,
+            cursor: uploading ? 'wait' : 'pointer',
           }}>
             {uploading ? '…' : '編集'}
             <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} disabled={uploading} />
@@ -391,11 +397,11 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
         </div>
 
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>{currentUser}</div>
-          <div style={{ display: 'flex', gap: 14, fontSize: 11, color: C.goldLight, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: font.size['2xl'] - 2, fontWeight: font.weight.black, marginBottom: 6 }}>{currentUser}</div>
+          <div style={{ display: 'flex', gap: 14, fontSize: font.size.xs, color: color.goldLight, flexWrap: 'wrap' }}>
             {memberInfo?.position && <span>{memberInfo.position}</span>}
           </div>
-          {uploadError && <div style={{ marginTop: 6, fontSize: 10, color: '#FCA5A5' }}>{uploadError}</div>}
+          {uploadError && <div style={{ marginTop: 6, fontSize: font.size.xs - 1, color: '#FCA5A5' }}>{uploadError}</div>}
         </div>
       </div>
 
@@ -403,50 +409,57 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
       <InfoCard
         title="基本情報"
         right={!profileEditing && supaId ? (
-          <button onClick={() => setProfileEditing(true)} style={secondaryBtn}>編集</button>
+          <Button size="sm" variant="secondary" onClick={() => setProfileEditing(true)}>編集</Button>
         ) : null}
       >
         {profileEditing ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <EditRow label="氏名">
-              <input
+              <Input
+                size="sm"
                 value={profileForm.name}
                 onChange={e => setProfileForm(s => ({ ...s, name: e.target.value }))}
-                style={inputStyle}
+                containerStyle={{ maxWidth: 320 }}
               />
             </EditRow>
             <EditRow label="メールアドレス">
-              <input
+              <Input
+                size="sm"
                 type="email"
                 value={profileForm.email}
                 onChange={e => setProfileForm(s => ({ ...s, email: e.target.value }))}
-                style={{ ...inputStyle, fontFamily: "'JetBrains Mono', monospace" }}
+                style={{ fontFamily: font.family.mono }}
                 placeholder="example@example.com"
+                containerStyle={{ maxWidth: 320 }}
               />
             </EditRow>
             <EditRow label="携帯番号">
-              <input
+              <Input
+                size="sm"
                 type="tel"
                 value={profileForm.phone_number}
                 onChange={e => setProfileForm(s => ({ ...s, phone_number: e.target.value }))}
-                style={{ ...inputStyle, fontFamily: "'JetBrains Mono', monospace" }}
+                style={{ fontFamily: font.family.mono }}
                 placeholder="090-1234-5678"
+                containerStyle={{ maxWidth: 320 }}
               />
             </EditRow>
             <EditRow label="入社日">
-              <input
+              <Input
+                size="sm"
                 type="date"
                 value={profileForm.start_date || ''}
                 onChange={e => setProfileForm(s => ({ ...s, start_date: e.target.value }))}
-                style={{ ...inputStyle, fontFamily: "'JetBrains Mono', monospace" }}
+                style={{ fontFamily: font.family.mono }}
+                containerStyle={{ maxWidth: 320 }}
               />
             </EditRow>
-            {profileError && <div style={{ fontSize: 11, color: '#DC2626', padding: '4px 0' }}>{profileError}</div>}
+            {profileError && <div style={{ fontSize: font.size.xs, color: color.danger, padding: '4px 0' }}>{profileError}</div>}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-              <button onClick={handleCancelProfile} disabled={profileSaving} style={secondaryBtn}>キャンセル</button>
-              <button onClick={handleSaveProfile} disabled={profileSaving} style={primaryBtn}>
+              <Button size="sm" variant="secondary" onClick={handleCancelProfile} disabled={profileSaving}>キャンセル</Button>
+              <Button size="sm" onClick={handleSaveProfile} loading={profileSaving}>
                 {profileSaving ? '保存中…' : '保存'}
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
@@ -456,7 +469,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
             <InfoRow label="携帯番号" value={memberInfo?.phone_number || '—'} mono />
             <InfoRow label="入社日" value={memberInfo?.start_date || memberInfo?.joinDate || '—'} mono />
             {profileSavedAt && Date.now() - profileSavedAt < 4000 && (
-              <div style={{ marginTop: 8, fontSize: 10, color: '#10B981', fontWeight: 600 }}>✓ 保存しました</div>
+              <div style={{ marginTop: 8, fontSize: font.size.xs - 1, color: color.success, fontWeight: font.weight.semibold }}>✓ 保存しました</div>
             )}
           </>
         )}
@@ -467,44 +480,49 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontSize: 12, color: C.textDark, fontWeight: 600 }}>Zoom Phone 番号</div>
-              <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>架電時に相手に表示される番号</div>
+              <div style={{ fontSize: font.size.sm, color: color.textDark, fontWeight: font.weight.semibold }}>Zoom Phone 番号</div>
+              <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 2 }}>架電時に相手に表示される番号</div>
             </div>
             {zoomPhoneEditing ? (
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input
+                <Input
+                  size="sm"
+                  fullWidth={false}
                   value={zoomPhone}
                   onChange={e => setZoomPhone(e.target.value)}
                   placeholder="例: 0312345678"
-                  style={{
-                    padding: '6px 10px', borderRadius: 4, border: `1px solid ${C.border}`,
-                    fontSize: 12, fontFamily: "'JetBrains Mono', monospace", width: 180,
-                  }}
+                  style={{ fontFamily: font.family.mono }}
+                  containerStyle={{ width: 180 }}
                 />
-                <button onClick={handleSaveZoomPhone} disabled={zoomPhoneSaving} style={primaryBtn}>
+                <Button size="sm" onClick={handleSaveZoomPhone} loading={zoomPhoneSaving}>
                   {zoomPhoneSaving ? '保存中...' : '保存'}
-                </button>
-                <button onClick={() => setZoomPhoneEditing(false)} style={secondaryBtn}>キャンセル</button>
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => setZoomPhoneEditing(false)}>キャンセル</Button>
               </div>
             ) : (
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: C.navy, fontWeight: 600 }}>
+                <span style={{ fontFamily: font.family.mono, fontSize: font.size.base, color: color.navy, fontWeight: font.weight.semibold }}>
                   {zoomPhone || '未設定'}
                 </span>
-                {isAdmin && <button onClick={() => setZoomPhoneEditing(true)} style={secondaryBtn}>編集</button>}
+                {isAdmin && <Button size="sm" variant="secondary" onClick={() => setZoomPhoneEditing(true)}>編集</Button>}
               </div>
             )}
           </div>
 
-          <div style={{ height: 1, background: C.borderLight }} />
+          <div style={{ height: 1, background: color.borderLight }} />
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontSize: 12, color: C.textDark, fontWeight: 600 }}>プッシュ通知</div>
-              <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>
+              <div style={{ fontSize: font.size.sm, color: color.textDark, fontWeight: font.weight.semibold }}>プッシュ通知</div>
+              <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 2 }}>
                 アポ獲得・日次レポートなどをブラウザで受け取る
                 {typeof Notification !== 'undefined' && (
-                  <span style={{ marginLeft: 6, fontFamily: "'JetBrains Mono', monospace", color: Notification.permission === 'granted' ? '#10B981' : Notification.permission === 'denied' ? '#DC2626' : C.textLight }}>
+                  <span style={{
+                    marginLeft: 6, fontFamily: font.family.mono,
+                    color: Notification.permission === 'granted' ? color.success
+                      : Notification.permission === 'denied' ? color.danger
+                      : color.textLight,
+                  }}>
                     [permission: {Notification.permission}]
                   </span>
                 )}
@@ -513,48 +531,59 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               {pushEnabled && (
                 <>
-                  <button
+                  <Button
+                    size="sm"
+                    variant="secondary"
                     onClick={handleLocalNotificationTest}
-                    style={{ ...secondaryBtn, fontSize: 10 }}
+                    style={{ fontSize: font.size.xs - 1 }}
                     title="サーバー経由せず、ブラウザ/OS の通知UI が出るか直接テスト"
-                  >ローカル通知</button>
-                  <button
+                  >ローカル通知</Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
                     onClick={handleResetPush}
-                    disabled={pushLoading}
-                    style={{ ...secondaryBtn, fontSize: 10 }}
+                    loading={pushLoading}
+                    style={{ fontSize: font.size.xs - 1 }}
                     title="古いService Workerを削除して通知を再設定"
-                  >{pushLoading ? '処理中…' : 'リセット'}</button>
-                  <button
+                  >{pushLoading ? '処理中…' : 'リセット'}</Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
                     onClick={handleTestPush}
-                    disabled={pushTestSending}
-                    style={{ ...secondaryBtn, fontSize: 10 }}
+                    loading={pushTestSending}
+                    style={{ fontSize: font.size.xs - 1 }}
                     title="このデバイスにテスト通知を送信（サーバー経由）"
-                  >{pushTestSending ? '送信中…' : 'テスト送信'}</button>
+                  >{pushTestSending ? '送信中…' : 'テスト送信'}</Button>
                 </>
               )}
               <button
                 onClick={handleTogglePush}
                 disabled={pushLoading}
                 style={{
-                  padding: '6px 16px', borderRadius: 14, border: 'none',
-                  background: pushEnabled ? C.navy : C.border,
-                  color: pushEnabled ? '#fff' : C.textLight,
-                  fontSize: 11, fontWeight: 700, cursor: pushLoading ? 'wait' : 'pointer',
+                  padding: '6px 16px', borderRadius: radius.pill, border: 'none',
+                  background: pushEnabled ? color.navy : color.border,
+                  color: pushEnabled ? color.white : color.textLight,
+                  fontSize: font.size.xs, fontWeight: font.weight.bold,
+                  cursor: pushLoading ? 'wait' : 'pointer',
                 }}
               >{pushLoading ? '処理中...' : pushEnabled ? 'ON' : 'OFF'}</button>
             </div>
           </div>
           {pushTestResult && (
-            <div style={{ fontSize: 10, color: pushTestResult.startsWith('✓') ? '#10B981' : '#DC2626', textAlign: 'right', lineHeight: 1.5 }}>
+            <div style={{
+              fontSize: font.size.xs - 1,
+              color: pushTestResult.startsWith('✓') ? color.success : color.danger,
+              textAlign: 'right', lineHeight: 1.5,
+            }}>
               {pushTestResult}
             </div>
           )}
 
           {pushEnabled && userEngagements.length > 0 && (
             <>
-              <div style={{ height: 1, background: C.borderLight, marginTop: 4 }} />
+              <div style={{ height: 1, background: color.borderLight, marginTop: 4 }} />
               <div>
-                <div style={{ fontSize: 11, color: C.textMid, fontWeight: 600, marginBottom: 8 }}>
+                <div style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, marginBottom: 8 }}>
                   事業ごとの通知 ON/OFF
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -565,15 +594,16 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
                       <div key={e.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         {/* 事業全体マスター */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
-                          <div style={{ fontSize: 12, color: C.textDark, fontWeight: 600 }}>{e.name}</div>
+                          <div style={{ fontSize: font.size.sm, color: color.textDark, fontWeight: font.weight.semibold }}>{e.name}</div>
                           <button
                             onClick={() => upsertPref(e.id, '_all', !e.masterEnabled)}
                             disabled={masterBusy}
                             style={{
-                              padding: '4px 14px', borderRadius: 12, border: 'none',
-                              background: e.masterEnabled ? C.navy : C.border,
-                              color: e.masterEnabled ? '#fff' : C.textLight,
-                              fontSize: 10, fontWeight: 700, cursor: masterBusy ? 'wait' : 'pointer',
+                              padding: '4px 14px', borderRadius: radius.pill, border: 'none',
+                              background: e.masterEnabled ? color.navy : color.border,
+                              color: e.masterEnabled ? color.white : color.textLight,
+                              fontSize: font.size.xs - 1, fontWeight: font.weight.bold,
+                              cursor: masterBusy ? 'wait' : 'pointer',
                               opacity: masterBusy ? 0.6 : 1,
                               minWidth: 56,
                             }}
@@ -582,21 +612,22 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
 
                         {/* 通知種類別 ON/OFF（マスター ON のときのみ表示） */}
                         {e.masterEnabled && e.types.length > 0 && (
-                          <div style={{ paddingLeft: 14, display: 'flex', flexDirection: 'column', gap: 4, borderLeft: `2px solid ${C.borderLight}` }}>
+                          <div style={{ paddingLeft: 14, display: 'flex', flexDirection: 'column', gap: 4, borderLeft: `2px solid ${color.borderLight}` }}>
                             {e.types.map(t => {
                               const tKey = `${e.id}:${t.typeId}`;
                               const tBusy = prefSaving === tKey;
                               return (
                                 <div key={t.typeId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 0 2px 8px' }}>
-                                  <div style={{ fontSize: 11, color: C.textMid }}>{t.label}</div>
+                                  <div style={{ fontSize: font.size.xs, color: color.textMid }}>{t.label}</div>
                                   <button
                                     onClick={() => upsertPref(e.id, t.typeId, !t.userEnabled)}
                                     disabled={tBusy}
                                     style={{
-                                      padding: '2px 10px', borderRadius: 10, border: 'none',
-                                      background: t.userEnabled ? C.navy : C.border,
-                                      color: t.userEnabled ? '#fff' : C.textLight,
-                                      fontSize: 9, fontWeight: 700, cursor: tBusy ? 'wait' : 'pointer',
+                                      padding: '2px 10px', borderRadius: radius.pill, border: 'none',
+                                      background: t.userEnabled ? color.navy : color.border,
+                                      color: t.userEnabled ? color.white : color.textLight,
+                                      fontSize: 9, fontWeight: font.weight.bold,
+                                      cursor: tBusy ? 'wait' : 'pointer',
                                       opacity: tBusy ? 0.6 : 1,
                                       minWidth: 48,
                                     }}
@@ -616,7 +647,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
         </div>
       </InfoCard>
 
-      <div style={{ fontSize: 10, color: C.textLight, marginTop: 20, textAlign: 'center' }}>
+      <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 20, textAlign: 'center' }}>
         日々の実績や KPI の入力は、各事業タブの「Dashboard」からご確認ください。
       </div>
     </div>
@@ -625,26 +656,28 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
 
 function InfoCard({ title, children, right }) {
   return (
-    <div style={{
-      background: C.white, borderRadius: 4, border: `1px solid ${C.border}`,
-      padding: '16px 20px', marginBottom: 16,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, letterSpacing: '0.04em' }}>{title}</div>
-        {right}
+    <Card padding="none" style={{ marginBottom: space[4] }}>
+      <div style={{ padding: '16px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{
+            fontSize: font.size.sm, fontWeight: font.weight.bold,
+            color: color.navy, letterSpacing: font.letterSpacing.wide,
+          }}>{title}</div>
+          {right}
+        </div>
+        {children}
       </div>
-      {children}
-    </div>
+    </Card>
   );
 }
 
 function InfoRow({ label, value, mono = false }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${C.borderLight}` }}>
-      <div style={{ minWidth: 120, fontSize: 11, color: C.textMid, fontWeight: 600 }}>{label}</div>
+    <div style={{ display: 'flex', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${color.borderLight}` }}>
+      <div style={{ minWidth: 120, fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>{label}</div>
       <div style={{
-        fontSize: 12, color: C.textDark,
-        fontFamily: mono ? "'JetBrains Mono', monospace" : "'Noto Sans JP', sans-serif",
+        fontSize: font.size.sm, color: color.textDark,
+        fontFamily: mono ? font.family.mono : font.family.sans,
       }}>{value}</div>
     </div>
   );
@@ -653,23 +686,8 @@ function InfoRow({ label, value, mono = false }) {
 function EditRow({ label, children }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 0' }}>
-      <div style={{ minWidth: 120, fontSize: 11, color: C.textMid, fontWeight: 600 }}>{label}</div>
+      <div style={{ minWidth: 120, fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>{label}</div>
       <div style={{ flex: 1 }}>{children}</div>
     </div>
   );
 }
-
-const inputStyle = {
-  width: '100%', maxWidth: 320,
-  padding: '6px 10px', borderRadius: 4, border: `1px solid ${C.border}`,
-  fontSize: 12, color: C.textDark,
-  fontFamily: "'Noto Sans JP', sans-serif",
-};
-const primaryBtn = {
-  padding: '6px 14px', fontSize: 11, fontWeight: 600,
-  background: C.navy, color: C.white, border: 'none', borderRadius: 4, cursor: 'pointer',
-};
-const secondaryBtn = {
-  padding: '5px 12px', fontSize: 11, fontWeight: 600,
-  background: C.white, color: C.navy, border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer',
-};

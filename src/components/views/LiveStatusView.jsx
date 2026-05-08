@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { fetchAllCallSessionsWithClients, fetchCalledCountForSession, updateSessionRange, deleteSession } from '../../lib/supabaseWrite';
 import PageHeader from '../common/PageHeader';
 
@@ -115,16 +117,16 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
 
   return (
     <div style={{
-      background: C.white,
-      borderRadius: 4,
-      border: '1px solid ' + (hasActive ? '#2e8b5766' : C.borderLight),
+      background: color.white,
+      borderRadius: radius.md,
+      border: '1px solid ' + (hasActive ? '#2e8b5766' : color.borderLight),
       overflow: 'hidden',
     }}>
       {/* ── カードヘッダー ── */}
       <div style={{
         padding: '10px 16px',
-        background: hasActive ? 'rgba(46,139,87,0.04)' : C.white,
-        borderBottom: '1px solid ' + C.borderLight,
+        background: hasActive ? 'rgba(46,139,87,0.04)' : color.white,
+        borderBottom: '1px solid ' + color.borderLight,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
       }}>
         <div style={{ minWidth: 0 }}>
@@ -132,32 +134,32 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
             {hasActive && (
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 3,
-                fontSize: 9, fontWeight: 700,
-                background: 'rgba(46,139,87,0.12)', color: C.green,
+                fontSize: 9, fontWeight: font.weight.bold,
+                background: 'rgba(46,139,87,0.12)', color: color.success,
                 padding: '2px 7px', borderRadius: 10, flexShrink: 0,
               }}>
                 <span style={{
-                  width: 5, height: 5, borderRadius: '50%', background: C.green,
+                  width: 5, height: 5, borderRadius: '50%', background: color.success,
                   display: 'inline-block', animation: 'pulse 1.5s infinite',
                 }} />
                 稼働中
               </span>
             )}
             <span style={{
-              fontSize: 14, fontWeight: 700, color: C.navy,
+              fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
               {listName}
             </span>
           </div>
-          <div style={{ fontSize: 11, color: C.textLight, marginTop: 2 }}>{clientName}</div>
+          <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 2 }}>{clientName}</div>
         </div>
         <div style={{
-          fontSize: 15, fontWeight: 700, color: C.navy, flexShrink: 0,
-          fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap',
+          fontSize: 15, fontWeight: font.weight.bold, color: color.navy, flexShrink: 0,
+          fontFamily: font.family.mono, whiteSpace: 'nowrap',
         }}>
           {totalCount > 0 ? totalCount.toLocaleString() : '—'}
-          <span style={{ fontSize: 10, fontWeight: 400, color: C.textLight, marginLeft: 2 }}>社</span>
+          <span style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.normal, color: color.textLight, marginLeft: 2 }}>社</span>
         </div>
       </div>
 
@@ -165,7 +167,7 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
       <div style={{ padding: '12px 16px 8px' }}>
         <div style={{
           position: 'relative', height: 26, borderRadius: 5,
-          background: C.offWhite, border: '1px solid ' + C.borderLight,
+          background: color.offWhite, border: '1px solid ' + color.borderLight,
           overflow: 'hidden',
         }}>
           {/* 範囲あり: セッションごとに選択範囲(薄)+架電済み範囲(濃)の2レイヤー */}
@@ -217,7 +219,7 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
           {barsessions.length === 0 && (
             <div style={{
               position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
-              justifyContent: 'center', fontSize: 10, color: C.textLight,
+              justifyContent: 'center', fontSize: font.size.xs - 1, color: color.textLight,
             }}>
               範囲データなし
             </div>
@@ -233,7 +235,6 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
             arr.findIndex(x => x.id === s.id) === idx
           ).map(s => {
             const name      = s.resolvedName;
-            const color     = callerColorMap[name];
             const active    = isActiveSession(s, todayStr);
             const dispStart = s.start_no ?? 1;
             const dispEnd   = s.end_no ?? totalCount;
@@ -282,13 +283,13 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
                   background: `linear-gradient(to right, ${colors.dark} 50%, ${colors.light} 50%)`,
                   opacity: active ? 1 : 0.6,
                 }} />
-                <span style={{ fontSize: 10, color: C.textMid, whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: font.size.xs - 1, color: color.textMid, whiteSpace: 'nowrap' }}>
                   {name}
                   {!isEditing && (
-                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: C.textLight, marginLeft: 3 }}>
+                    <span style={{ fontFamily: font.family.mono, fontSize: 9, color: color.textLight, marginLeft: 3 }}>
                       {dispStart.toLocaleString()}〜{dispEnd.toLocaleString()}
                       {s.last_called_no != null && (
-                        <span style={{ color: C.navy, fontWeight: 600, marginLeft: 3 }}>
+                        <span style={{ color: color.navy, fontWeight: font.weight.semibold, marginLeft: 3 }}>
                           → {s.last_called_no}番まで架電済
                         </span>
                       )}
@@ -297,7 +298,7 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
                   {active && (
                     <span style={{
                       display: 'inline-block', width: 5, height: 5, borderRadius: '50%',
-                      background: C.green, marginLeft: 4, verticalAlign: 'middle',
+                      background: color.success, marginLeft: 4, verticalAlign: 'middle',
                       animation: 'pulse 1.5s infinite',
                     }} />
                   )}
@@ -307,37 +308,37 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
                   <>
                     <button onClick={handleEdit} title="範囲を編集" style={{
                       background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 10, padding: '0 2px', lineHeight: 1,
+                      fontSize: font.size.xs - 1, padding: '0 2px', lineHeight: 1,
                     }}>編集</button>
                     <button onClick={handleDelete} title="セッションを削除" style={{
                       background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 10, padding: '0 2px', lineHeight: 1,
+                      fontSize: font.size.xs - 1, padding: '0 2px', lineHeight: 1,
                     }}>削除</button>
                   </>
                 )}
                 {/* インライン編集UI */}
                 {isEditing && (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 9, color: C.textLight }}>開始:</span>
+                    <span style={{ fontSize: 9, color: color.textLight }}>開始:</span>
                     <input
                       type="number" value={editStart} onChange={e => setEditStart(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') handleCancel(); }}
                       autoFocus
-                      style={{ width: 56, padding: '2px 4px', borderRadius: 4, border: '1px solid ' + C.navy, fontSize: 10, fontFamily: "'JetBrains Mono'", textAlign: 'center', outline: 'none' }}
+                      style={{ width: 56, padding: '2px 4px', borderRadius: radius.md, border: '1px solid ' + color.navy, fontSize: font.size.xs - 1, fontFamily: font.family.mono, textAlign: 'center', outline: 'none' }}
                     />
-                    <span style={{ fontSize: 9, color: C.textLight }}>〜 終了:</span>
+                    <span style={{ fontSize: 9, color: color.textLight }}>〜 終了:</span>
                     <input
                       type="number" value={editEnd} onChange={e => setEditEnd(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') handleCancel(); }}
-                      style={{ width: 56, padding: '2px 4px', borderRadius: 4, border: '1px solid ' + C.navy, fontSize: 10, fontFamily: "'JetBrains Mono'", textAlign: 'center', outline: 'none' }}
+                      style={{ width: 56, padding: '2px 4px', borderRadius: radius.md, border: '1px solid ' + color.navy, fontSize: font.size.xs - 1, fontFamily: font.family.mono, textAlign: 'center', outline: 'none' }}
                     />
                     <button onClick={handleSave} disabled={saving} style={{
-                      padding: '2px 7px', borderRadius: 4, border: 'none', cursor: saving ? 'default' : 'pointer',
-                      background: C.navy, color: C.white, fontSize: 9, fontWeight: 700,
+                      padding: '2px 7px', borderRadius: radius.md, border: 'none', cursor: saving ? 'default' : 'pointer',
+                      background: color.navy, color: color.white, fontSize: 9, fontWeight: font.weight.bold,
                     }}>{saving ? '...' : '保存'}</button>
                     <button onClick={handleCancel} disabled={saving} style={{
-                      padding: '2px 6px', borderRadius: 4, border: '1px solid ' + C.border,
-                      background: C.white, color: C.textMid, fontSize: 9, cursor: 'pointer',
+                      padding: '2px 6px', borderRadius: radius.md, border: '1px solid ' + color.border,
+                      background: color.white, color: color.textMid, fontSize: 9, cursor: 'pointer',
                     }}>✕</button>
                   </span>
                 )}
@@ -350,21 +351,21 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
       {/* ── フッター ── */}
       <div style={{
         padding: '7px 16px',
-        borderTop: '1px solid ' + C.borderLight,
-        background: C.offWhite,
+        borderTop: '1px solid ' + color.borderLight,
+        background: color.offWhite,
         display: 'flex', alignItems: 'center', gap: 20,
-        fontSize: 11, color: C.textLight,
+        fontSize: font.size.xs, color: color.textLight,
       }}>
         <span>
           架電済{' '}
-          <span style={{ fontWeight: 700, color: C.navy, fontFamily: "'JetBrains Mono', monospace" }}>
+          <span style={{ fontWeight: font.weight.bold, color: color.navy, fontFamily: font.family.mono }}>
             {totalCalled > 0 ? totalCalled.toLocaleString() : '—'}
           </span>
           {' '}件
         </span>
         <span>
           最終架電{' '}
-          <span style={{ fontWeight: 700, color: C.navy }}>{toMDHM(latestCalledAt)}</span>
+          <span style={{ fontWeight: font.weight.bold, color: color.navy }}>{toMDHM(latestCalledAt)}</span>
         </span>
       </div>
     </div>
@@ -469,10 +470,10 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
         eyebrow="Sourcing · ライブ"
         title="Live Status"
         description="リアルタイム架電状況"
-        style={{ marginBottom: isMobile ? 16 : 24 }}
+        style={{ marginBottom: isMobile ? space[4] : space[6] }}
       />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: space[6] }}>
         {dayGroups.map(({ key, label, date, cards }) => {
           const isToday     = key === 0;
           const isCollapsed = !!collapsed[key];
@@ -487,22 +488,22 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
                   width: '100%', display: 'flex', alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '0 0 8px', background: 'none', border: 'none',
-                  borderBottom: '2px solid ' + (isToday ? C.navy + '28' : C.borderLight),
+                  borderBottom: '2px solid ' + (isToday ? alpha(color.navy, 0.16) : color.borderLight),
                   marginBottom: isCollapsed ? 0 : 14,
-                  cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                  cursor: 'pointer', fontFamily: font.family.sans,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{
-                    fontSize: isToday ? 15 : 13,
-                    fontWeight: 700,
-                    color: isToday ? C.navy : C.textMid,
+                    fontSize: isToday ? 15 : font.size.base,
+                    fontWeight: font.weight.bold,
+                    color: isToday ? color.navy : color.textMid,
                   }}>
                     {label} — {formatSectionLabel(date)}
                   </span>
                   {cards.length > 0 && (
                     <span style={{
-                      fontSize: 10, background: C.borderLight, color: C.textMid,
+                      fontSize: font.size.xs - 1, background: color.borderLight, color: color.textMid,
                       padding: '1px 8px', borderRadius: 10,
                     }}>
                       {cards.length}リスト
@@ -510,12 +511,12 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
                   )}
                   {isToday && activeCards.length > 0 && (
                     <span style={{
-                      fontSize: 10, background: 'rgba(46,139,87,0.12)', color: C.green,
-                      padding: '2px 8px', borderRadius: 10, fontWeight: 700,
+                      fontSize: font.size.xs - 1, background: 'rgba(46,139,87,0.12)', color: color.success,
+                      padding: '2px 8px', borderRadius: 10, fontWeight: font.weight.bold,
                       display: 'inline-flex', alignItems: 'center', gap: 4,
                     }}>
                       <span style={{
-                        width: 5, height: 5, borderRadius: '50%', background: C.green,
+                        width: 5, height: 5, borderRadius: '50%', background: color.success,
                         display: 'inline-block', animation: 'pulse 1.5s infinite',
                       }} />
                       稼働中 {activeCards.length}件
@@ -523,7 +524,7 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
                   )}
                 </div>
                 <span style={{
-                  fontSize: 9, color: C.textLight, display: 'inline-block',
+                  fontSize: 9, color: color.textLight, display: 'inline-block',
                   transform: isCollapsed ? 'rotate(0deg)' : 'rotate(180deg)',
                   transition: 'transform 0.2s',
                 }}>▼</span>
@@ -554,10 +555,10 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
                   </div>
                 ) : (
                   <div style={{
-                    padding: '24px', textAlign: 'center',
-                    color: C.textLight, fontSize: 12,
-                    background: C.white, borderRadius: 4,
-                    border: '1px solid #E5E7EB',
+                    padding: space[6], textAlign: 'center',
+                    color: color.textLight, fontSize: font.size.sm,
+                    background: color.white, borderRadius: radius.md,
+                    border: `1px solid ${color.gray200}`,
                   }}>
                     この日の架電記録はありません
                   </div>

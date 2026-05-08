@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { formatCurrency } from '../../utils/formatters';
 import { fetchCallRecordsByRange, fetchCallListsMeta } from '../../lib/supabaseWrite';
@@ -442,21 +444,21 @@ export default function StatsView({ callListData, currentUser, appoData, members
 
   // ── 共通スタイル ──────────────────────────────────────────────────────────
   const tabBtn = (active) => ({
-    padding: '6px 12px', fontSize: 11, fontWeight: active ? 600 : 400, cursor: 'pointer',
+    padding: '6px 12px', fontSize: font.size.xs, fontWeight: active ? font.weight.semibold : font.weight.normal, cursor: 'pointer',
     background: 'transparent', border: 'none', borderBottom: '2px solid ' + (active ? NAVY : 'transparent'),
-    color: active ? NAVY : '#9CA3AF', borderRadius: 0, fontFamily: "'Noto Sans JP'",
+    color: active ? NAVY : color.gray400, borderRadius: 0, fontFamily: font.family.sans,
     transition: 'all 0.15s',
   });
-  const monthSelectStyle = { padding: '3px 6px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, color: C.textDark, outline: 'none', fontFamily: "'Noto Sans JP'" };
-  const dateInputStyle = { padding: '3px 6px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, color: C.textDark, outline: 'none', fontFamily: "'Noto Sans JP'" };
+  const monthSelectStyle = { padding: '3px 6px', borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.xs, color: color.textDark, outline: 'none', fontFamily: font.family.sans };
+  const dateInputStyle = { padding: '3px 6px', borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.xs, color: color.textDark, outline: 'none', fontFamily: font.family.sans };
   const rankBadge = (rank) => ({
     width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: rank <= 3 ? 12 : 9, fontWeight: 700, flexShrink: 0,
-    background: rank === 1 ? C.gold : rank === 2 ? '#C0C0C0' : rank === 3 ? '#cd7f32' : C.offWhite,
-    color: rank <= 3 ? C.white : C.textLight,
-    border: rank <= 3 ? 'none' : '1px solid ' + C.borderLight,
+    fontSize: rank <= 3 ? font.size.sm : font.size.xs - 2, fontWeight: font.weight.bold, flexShrink: 0,
+    background: rank === 1 ? color.gold : rank === 2 ? '#C0C0C0' : rank === 3 ? '#cd7f32' : color.offWhite,
+    color: rank <= 3 ? color.white : color.textLight,
+    border: rank <= 3 ? 'none' : `1px solid ${color.borderLight}`,
   });
-  const cardStyle = { background: C.white, borderRadius: 4, padding: '16px 18px', border: '1px solid #E5E7EB' };
+  const cardStyle = { background: color.white, borderRadius: radius.md, padding: '16px 18px', border: `1px solid ${color.gray200}` };
 
   // 日付入力付きセクション独立フィルタ (日/週/月/期間指定)
   const simplePeriodSelector = (period, setPeriod, from, setFrom, to, setTo, accent) => (
@@ -906,7 +908,14 @@ export default function StatsView({ callListData, currentUser, appoData, members
             </div>
             <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
               {[['all', '全て表示'], ['active', 'アクティブのみ'], ['archived', 'アーカイブのみ']].map(([k, l]) => (
-                <button key={k} onClick={() => setListFilter(k)} style={listFilter === k ? { background: '#0D2247', color: '#FFFFFF', border: '1px solid #0D2247', borderRadius: 4, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'Noto Sans JP'" } : { background: '#FFFFFF', color: '#6B7280', border: '1px solid #E5E7EB', borderRadius: 4, padding: '5px 12px', fontSize: 11, fontWeight: 400, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>{l}</button>
+                <Button
+                  key={k}
+                  size="sm"
+                  variant={listFilter === k ? 'primary' : 'outline'}
+                  onClick={() => setListFilter(k)}
+                >
+                  {l}
+                </Button>
               ))}
             </div>
             <div style={{ borderRadius: 4, border: '1px solid #E5E7EB', overflowX: 'auto', overflowY: 'hidden' }}>
@@ -930,9 +939,9 @@ export default function StatsView({ callListData, currentUser, appoData, members
                 return (
                   <div key={row.listId} style={{ display: 'grid', gridTemplateColumns: listCol.gridTemplateColumns, padding: '8px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #E5E7EB', background: isTop3 ? NAVY + '0F' : idx % 2 === 0 ? 'transparent' : '#F8F9FA', borderLeft: isTop3 ? '3px solid ' + NAVY : '3px solid transparent', minWidth: 1170 }}>
                     <span style={{ fontSize: 11, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: listCol.columns[0].align }}>{row.clientName}</span>
-                    <span style={{ fontWeight: 600, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5, textAlign: listCol.columns[1].align }}>
+                    <span style={{ fontWeight: font.weight.semibold, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5, textAlign: listCol.columns[1].align }}>
                       {row.name.includes(' - ') ? row.name.split(' - ').slice(1).join(' - ') : row.name}
-                      {row.isArchived && <span style={{ fontSize: 9, background: '#F3F2F2', borderRadius: 3, padding: '1px 4px', color: C.textLight, flexShrink: 0 }}>Arc</span>}
+                      {row.isArchived && <Tag size="sm">Arc</Tag>}
                     </span>
                     <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: NAVY, textAlign: listCol.columns[2].align }}>{row.calls}</span>
                     <span style={{ fontFamily: "'JetBrains Mono'", textAlign: listCol.columns[3].align }}>{row.connect}</span>

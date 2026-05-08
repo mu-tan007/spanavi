@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select } from '../ui';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 
 import { getOrgId } from '../../lib/orgContext';
 
-const NAVY = '#0D2247';
+const NAVY = color.navy;
 
 // Stripe席数同期（メンバー追加/削除後に呼ぶ）
 async function syncSeatCount(newCount) {
@@ -42,20 +44,21 @@ const MEMBER_COLS = [
   { key: 'actions', width: 150, align: 'center' },
 ];
 
+// 既存の編集行内インラインボタン用ヘルパー（Button部品で代替できる箇所は Button に移行済）
 const btn = (variant = 'default', extra = {}) => ({
-  padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
-  cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-  border: variant === 'danger'  ? '1px solid #dc2626'
+  padding: `${space[1]}px ${space[3]}px`, borderRadius: radius.lg, fontSize: font.size.sm, fontWeight: font.weight.semibold,
+  cursor: 'pointer', fontFamily: font.family.sans,
+  border: variant === 'danger'  ? `1px solid ${color.danger}`
         : variant === 'primary' ? 'none'
-        : variant === 'ghost'   ? `1px solid ${NAVY}40`
-        : '1px solid #E5E5E5',
+        : variant === 'ghost'   ? `1px solid ${alpha(NAVY, 0.25)}`
+        : `1px solid ${color.border}`,
   background: variant === 'danger'  ? 'transparent'
             : variant === 'primary' ? NAVY
             : 'transparent',
-  color: variant === 'danger'  ? '#dc2626'
-       : variant === 'primary' ? '#fff'
+  color: variant === 'danger'  ? color.danger
+       : variant === 'primary' ? color.white
        : variant === 'ghost'   ? NAVY
-       : '#374151',
+       : color.gray700,
   ...extra,
 });
 
@@ -249,41 +252,41 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
   })();
 
   // Sourcing Members ページとデザイン統一: クリーム背景の header + ネイビー文字
-  const th = { padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: NAVY, background: '#F8F8F8', letterSpacing: '0.04em' };
+  const th = { padding: `${space[2.5]}px ${space[4]}px`, textAlign: 'left', fontSize: font.size.xs, fontWeight: font.weight.semibold, color: NAVY, background: '#F8F8F8', letterSpacing: font.letterSpacing.wide };
   const thPad  = { 'ランク': '10px 6px', '入社日': '10px 6px' };
-  const td = { padding: '8px 16px', fontSize: 12, color: '#181818', borderBottom: '1px solid #F0F0F0', verticalAlign: 'middle' };
+  const td = { padding: `${space[2]}px ${space[4]}px`, fontSize: font.size.sm, color: '#181818', borderBottom: `1px solid ${color.gray100}`, verticalAlign: 'middle' };
   const COLS = ['氏名', '役職', 'ランク', '入社日', 'ステータス', 'マイページ', '操作'];
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>メンバー一覧（{members.length}名）</div>
-        <button onClick={() => setAddModal(true)} style={{ ...btn('primary'), padding: '7px 16px', fontSize: 13 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: space[4] }}>
+        <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: NAVY }}>メンバー一覧（{members.length}名）</div>
+        <Button variant="primary" onClick={() => setAddModal(true)}>
           ＋ 新規追加
-        </button>
+        </Button>
       </div>
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>読み込み中...</div>
+        <div style={{ padding: space[10], textAlign: 'center', color: color.gray400 }}>読み込み中...</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: space[5] }}>
           {grouped.map(([team, teamMembers]) => (
-            <div key={team} style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', overflowX: 'auto', overflowY: 'hidden' }}>
+            <div key={team} style={{ background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}`, overflowX: 'auto', overflowY: 'hidden' }}>
               <div style={{ minWidth: memMinW }}>
               {/* チームヘッダー */}
               <div style={{
-                padding: '10px 16px',
+                padding: `${space[2.5]}px ${space[4]}px`,
                 background: NAVY,
-                borderLeft: '3px solid rgba(255,255,255,0.3)',
-                color: '#fff',
-                fontSize: 13,
-                fontWeight: 700,
+                borderLeft: `3px solid ${alpha(color.white, 0.3)}`,
+                color: color.white,
+                fontSize: font.size.sm + 1,
+                fontWeight: font.weight.bold,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
+                gap: space[2],
               }}>
                 {team}
-                <span style={{ fontSize: 11, fontWeight: 400, opacity: 0.8 }}>({teamMembers.length}名)</span>
+                <span style={{ fontSize: font.size.xs, fontWeight: font.weight.normal, opacity: 0.8 }}>({teamMembers.length}名)</span>
               </div>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -295,6 +298,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                   <tbody>
                     {teamMembers.map((m, idx) => {
                       const isEditing = editId === m.id;
+                      const compactSelect = { padding: `3px ${space[1.5]}px`, borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.sm, fontFamily: font.family.sans, color: color.textDark, background: color.white };
                       return (
                         <tr
                           key={m.id}
@@ -302,48 +306,48 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                           onMouseLeave={() => setHoveredRow(null)}
                           style={{
                             // Sourcing Members と同じ白背景 + ホバーのみ薄色
-                            background: isEditing ? NAVY + '06' : hoveredRow === m.id ? '#F8F8F8' : '#fff',
+                            background: isEditing ? alpha(NAVY, 0.025) : hoveredRow === m.id ? '#F8F8F8' : color.white,
                             transition: 'background 0.12s',
                           }}
                         >
-                          <td style={{ ...td, textAlign: memCols[0].align, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><span style={{ fontWeight: 600 }}>{m.name}</span></td>
+                          <td style={{ ...td, textAlign: memCols[0].align, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><span style={{ fontWeight: font.weight.semibold }}>{m.name}</span></td>
                           <td style={{ ...td, textAlign: memCols[1].align, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {isEditing ? (
                               <select value={editForm.position} onChange={e => setEditForm(p => ({ ...p, position: e.target.value }))}
-                                style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
+                                style={compactSelect}>
                                 {POSITIONS.map(p => <option key={p}>{p}</option>)}
                               </select>
                             ) : m.position || '—'}
                           </td>
-                          <td style={{ ...td, textAlign: memCols[2].align, padding: '8px 2px 8px 6px' }}>
+                          <td style={{ ...td, textAlign: memCols[2].align, padding: `${space[2]}px 2px ${space[2]}px ${space[1.5]}px` }}>
                             {isEditing ? (
                               <select value={editForm.rank} onChange={e => setEditForm(p => ({ ...p, rank: e.target.value }))}
-                                style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
+                                style={compactSelect}>
                                 {RANKS.map(r => <option key={r}>{r}</option>)}
                               </select>
                             ) : (
-                              <span style={{ fontSize: 11, fontWeight: 600,
-                                color: m.rank === 'スーパースパルタン' ? '#b7791f' : m.rank === 'スパルタン' ? '#2E844A' : m.rank === 'プレイヤー' ? '#0176D3' : '#374151', background: 'transparent',
+                              <span style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold,
+                                color: m.rank === 'スーパースパルタン' ? '#b7791f' : m.rank === 'スパルタン' ? color.success : m.rank === 'プレイヤー' ? color.navyLight : color.gray700, background: 'transparent',
                               }}>{m.rank || 'トレーニー'}</span>
                             )}
                           </td>
-                          <td style={{ ...td, padding: '8px 6px 8px 2px', textAlign: memCols[3].align }}>
+                          <td style={{ ...td, padding: `${space[2]}px ${space[1.5]}px ${space[2]}px 2px`, textAlign: memCols[3].align }}>
                             {isEditing ? (
                               <input type="date" value={editForm.operation_start_date} onChange={e => setEditForm(p => ({ ...p, operation_start_date: e.target.value }))}
-                                style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }} />
+                                style={compactSelect} />
                             ) : (m.operation_start_date || m.start_date || '—')}
                           </td>
                           <td style={{ ...td, textAlign: memCols[4].align }}>
                             {isEditing ? (
                               <select value={editForm.is_active ? 'active' : 'inactive'} onChange={e => setEditForm(p => ({ ...p, is_active: e.target.value === 'active' }))}
-                                style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid #E5E5E5', fontSize: 12 }}>
+                                style={compactSelect}>
                                 <option value="active">稼働中</option>
                                 <option value="inactive">停止</option>
                               </select>
                             ) : (
-                              <span style={{ fontSize: 11, fontWeight: 600,
-                                borderLeft: `3px solid ${m.is_active !== false ? '#2E844A' : '#DC2626'}`, paddingLeft: 8,
-                                color: m.is_active !== false ? '#2E844A' : '#DC2626', background: 'transparent', border: 'none' }}>
+                              <span style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold,
+                                borderLeft: `3px solid ${m.is_active !== false ? color.success : color.danger}`, paddingLeft: space[2],
+                                color: m.is_active !== false ? color.success : color.danger, background: 'transparent', border: 'none' }}>
                                 {m.is_active !== false ? '稼働中' : '停止'}
                               </span>
                             )}
@@ -352,7 +356,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                             {onViewMyPage && (
                               <button
                                 onClick={() => onViewMyPage(m.name)}
-                                style={btn('default', { fontSize: 11, padding: '3px 10px', color: NAVY, borderColor: NAVY + '40' })}
+                                style={btn('default', { fontSize: font.size.xs, padding: `3px ${space[2.5]}px`, color: NAVY, borderColor: alpha(NAVY, 0.25) })}
                               >
                                 表示 →
                               </button>
@@ -360,12 +364,12 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                           </td>
                           <td style={{ ...td, textAlign: memCols[6].align, whiteSpace: 'nowrap' }}>
                             {isEditing ? (
-                              <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                              <div style={{ display: 'flex', gap: space[1.5], justifyContent: 'center' }}>
                                 <button onClick={() => saveEdit(m.id)} disabled={saving} style={btn('primary')}>保存</button>
                                 <button onClick={() => setEditId(null)} style={btn()}>✕</button>
                               </div>
                             ) : (
-                              <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                              <div style={{ display: 'flex', gap: space[1.5], justifyContent: 'center' }}>
                                 <button onClick={() => startEdit(m)} style={btn('ghost')}>編集</button>
                                 {m.email && !m.email.includes('.spanavi.internal') && (
                                   <button onClick={() => resendInvite(m)} disabled={saving} style={btn('ghost')}>招待</button>
@@ -388,18 +392,21 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
 
       {/* 新規追加モーダル */}
       {addModal && (
-        <div onClick={() => setAddModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, padding: '28px 32px', width: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 20 }}>新規メンバー追加</div>
+        <div onClick={() => setAddModal(false)} style={{ position: 'fixed', inset: 0, background: alpha('#000', 0.4), display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: color.white, borderRadius: radius.md, padding: `${space[8] - 4}px ${space[8]}px`, width: 400, boxShadow: shadow.lg }}>
+            <div style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: NAVY, marginBottom: space[5] }}>新規メンバー追加</div>
             {[
               { label: '氏名 *', key: 'name', type: 'text', placeholder: '例：山田太郎' },
               { label: 'メールアドレス *', key: 'email', type: 'email', placeholder: '例：user@example.com' },
             ].map(f => (
-              <div key={f.key} style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>{f.label}</label>
-                <input type={f.type} value={addForm[f.key]} placeholder={f.placeholder}
+              <div key={f.key} style={{ marginBottom: space[3] + 2 }}>
+                <Input
+                  label={f.label}
+                  type={f.type}
+                  value={addForm[f.key]}
+                  placeholder={f.placeholder}
                   onChange={e => setAddForm(p => ({ ...p, [f.key]: e.target.value }))}
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 13 }} />
+                />
               </div>
             ))}
             {[
@@ -407,47 +414,59 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
               { label: '役職', key: 'position', options: POSITIONS },
               { label: 'ランク', key: 'rank', options: RANKS },
             ].map(f => (
-              <div key={f.key} style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>{f.label}</label>
-                <select value={addForm[f.key]} onChange={e => setAddForm(p => ({ ...p, [f.key]: e.target.value }))}
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 13 }}>
-                  <option value="">選択してください</option>
-                  {f.options.map(o => <option key={o}>{o}</option>)}
-                </select>
+              <div key={f.key} style={{ marginBottom: space[3] + 2 }}>
+                <Select
+                  label={f.label}
+                  value={addForm[f.key]}
+                  onChange={e => setAddForm(p => ({ ...p, [f.key]: e.target.value }))}
+                  options={[
+                    { value: '', label: '選択してください' },
+                    ...f.options.map(o => ({ value: o, label: o })),
+                  ]}
+                />
               </div>
             ))}
             {[
               { label: '大学名', key: 'university', type: 'text', placeholder: '例：東京大学' },
               { label: '学年', key: 'grade', type: 'number', placeholder: '例：2' },
             ].map(f => (
-              <div key={f.key} style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>{f.label}</label>
-                <input type={f.type} value={addForm[f.key]} placeholder={f.placeholder}
+              <div key={f.key} style={{ marginBottom: space[3] + 2 }}>
+                <Input
+                  label={f.label}
+                  type={f.type}
+                  value={addForm[f.key]}
+                  placeholder={f.placeholder}
                   onChange={e => setAddForm(p => ({ ...p, [f.key]: e.target.value }))}
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 13 }} />
+                />
               </div>
             ))}
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>紹介者</label>
-              <select value={addForm.referrer_name} onChange={e => setAddForm(p => ({ ...p, referrer_name: e.target.value }))}
-                style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 13 }}>
-                <option value="">選択してください</option>
-                {members.filter(m => m.name).map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
-              </select>
+            <div style={{ marginBottom: space[3] + 2 }}>
+              <Select
+                label="紹介者"
+                value={addForm.referrer_name}
+                onChange={e => setAddForm(p => ({ ...p, referrer_name: e.target.value }))}
+                options={[
+                  { value: '', label: '選択してください' },
+                  ...members.filter(m => m.name).map(m => ({ value: m.name, label: m.name })),
+                ]}
+              />
             </div>
             {[
               { label: '入社日', key: 'operation_start_date', type: 'date' },
             ].map(f => (
-              <div key={f.key} style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>{f.label}</label>
-                <input type={f.type} value={addForm[f.key]} placeholder={f.placeholder}
+              <div key={f.key} style={{ marginBottom: space[3] + 2 }}>
+                <Input
+                  label={f.label}
+                  type={f.type}
+                  value={addForm[f.key]}
+                  placeholder={f.placeholder}
                   onChange={e => setAddForm(p => ({ ...p, [f.key]: e.target.value }))}
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 13 }} />
+                />
               </div>
             ))}
             {addForm.email.trim() && (
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151', cursor: 'pointer' }}>
+              <div style={{ marginBottom: space[3] + 2 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: space[2], fontSize: font.size.sm + 1, color: color.gray700, cursor: 'pointer' }}>
                   <input
                     type="checkbox"
                     checked={sendInvite}
@@ -456,14 +475,14 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                   />
                   招待メールを送信する
                 </label>
-                <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4, marginLeft: 24 }}>
+                <div style={{ fontSize: font.size.xs, color: color.gray400, marginTop: 4, marginLeft: space[6] }}>
                   パスワード設定用のリンクがメールで届きます
                 </div>
               </div>
             )}
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button onClick={() => setAddModal(false)} style={btn()}>キャンセル</button>
-              <button onClick={addMember} disabled={saving} style={btn('primary', { padding: '7px 20px' })}>{saving ? '処理中...' : sendInvite && addForm.email.trim() ? '招待する' : '追加する'}</button>
+            <div style={{ display: 'flex', gap: space[2.5], justifyContent: 'flex-end', marginTop: space[5] }}>
+              <Button variant="outline" onClick={() => setAddModal(false)}>キャンセル</Button>
+              <Button variant="primary" onClick={addMember} loading={saving} disabled={saving}>{saving ? '処理中...' : sendInvite && addForm.email.trim() ? '招待する' : '追加する'}</Button>
             </div>
           </div>
         </div>
@@ -471,15 +490,15 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
 
       {/* 削除確認モーダル */}
       {deleteConfirm && (
-        <div onClick={() => setDeleteConfirm(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, padding: '28px 32px', width: 360, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#DC2626', marginBottom: 12 }}>メンバー削除の確認</div>
-            <p style={{ fontSize: 13, color: '#374151', marginBottom: 20 }}>
+        <div onClick={() => setDeleteConfirm(null)} style={{ position: 'fixed', inset: 0, background: alpha('#000', 0.4), display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: color.white, borderRadius: radius.md, padding: `${space[8] - 4}px ${space[8]}px`, width: 360, boxShadow: shadow.lg }}>
+            <div style={{ fontSize: font.size.md + 1, fontWeight: font.weight.bold, color: color.danger, marginBottom: space[3] }}>メンバー削除の確認</div>
+            <p style={{ fontSize: font.size.sm + 1, color: color.gray700, marginBottom: space[5] }}>
               「{deleteConfirm.name}」を削除しますか？この操作は元に戻せません。
             </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={() => setDeleteConfirm(null)} style={btn()}>キャンセル</button>
-              <button onClick={() => deleteMember(deleteConfirm.id)} style={btn('danger', { padding: '7px 20px' })}>削除する</button>
+            <div style={{ display: 'flex', gap: space[2.5], justifyContent: 'flex-end' }}>
+              <Button variant="outline" onClick={() => setDeleteConfirm(null)}>キャンセル</Button>
+              <Button variant="danger" onClick={() => deleteMember(deleteConfirm.id)}>削除する</Button>
             </div>
           </div>
         </div>

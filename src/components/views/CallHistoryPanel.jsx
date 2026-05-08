@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { fetchCallSessionsByList } from '../../lib/supabaseWrite';
 
 const DEFAULT_VISIBLE = 5;
@@ -75,15 +77,15 @@ export default function CallHistoryPanel({ listSupaId }) {
   return (
     <div style={{
       padding: '10px 14px',
-      borderRadius: 4,
-      background: '#F8F9FA',
-      border: '1px solid #E5E7EB',
-      fontSize: 12,
-      color: C.textMid,
+      borderRadius: radius.md,
+      background: color.gray50,
+      border: `1px solid ${color.gray200}`,
+      fontSize: font.size.sm,
+      color: color.textMid,
       marginBottom: 12,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span style={{ fontWeight: 600, color: '#0D2247' }}>最近の架電履歴</span>
+        <span style={{ fontWeight: font.weight.semibold, color: '#0D2247' }}>最近の架電履歴</span>
         {hasMore && (
           <button
             type="button"
@@ -91,11 +93,11 @@ export default function CallHistoryPanel({ listSupaId }) {
             style={{
               background: 'transparent',
               border: 'none',
-              color: C.navyLight,
-              fontSize: 11,
+              color: color.navyLight,
+              fontSize: font.size.xs,
               cursor: 'pointer',
               padding: 0,
-              fontFamily: "'Noto Sans JP'",
+              fontFamily: font.family.sans,
             }}
           >
             {expanded ? '閉じる' : `すべて見る (${sessions.length}件)`}
@@ -114,25 +116,25 @@ export default function CallHistoryPanel({ listSupaId }) {
                 gap: 10,
                 alignItems: 'baseline',
                 padding: '4px 0',
-                borderBottom: '1px dashed #EEE',
-                fontSize: 11,
+                borderBottom: `1px dashed ${color.borderLight}`,
+                fontSize: font.size.xs,
                 lineHeight: 1.5,
               }}
             >
-              <span style={{ color: C.textDark, fontWeight: 600, whiteSpace: 'nowrap' }}>
+              <span style={{ color: color.textDark, fontWeight: font.weight.semibold, whiteSpace: 'nowrap' }}>
                 {formatDateLabel(s.started_at)}
               </span>
-              <span style={{ color: C.textDark, fontFamily: "'JetBrains Mono'", whiteSpace: 'nowrap' }}>
+              <span style={{ color: color.textDark, fontFamily: font.family.mono, whiteSpace: 'nowrap' }}>
                 範囲 {s.start_no}〜{s.end_no}
               </span>
               <span style={{
-                color: filter.dimmed ? C.textLight : C.textMid,
+                color: filter.dimmed ? color.textLight : color.textMid,
                 fontStyle: filter.dimmed ? 'italic' : 'normal',
                 wordBreak: 'break-word',
               }}>
                 {filter.text}
               </span>
-              <span style={{ color: C.textMid, whiteSpace: 'nowrap' }}>
+              <span style={{ color: color.textMid, whiteSpace: 'nowrap' }}>
                 {s.caller_name || '—'}
               </span>
             </div>

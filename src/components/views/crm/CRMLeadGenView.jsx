@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { C } from '../../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Card, Badge } from '../../ui';
 import {
   fetchClientLeadLists, fetchClientLeadCompanies, fetchClientCallRecords,
   deleteClientLeadList, updateClientLeadList, fetchAllPendingRecalls,
@@ -19,17 +20,17 @@ function fmtDate(ts) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-function MiniIcon({ label, hint, color, onClick }) {
+function MiniIcon({ label, hint, color: btnColor, onClick }) {
   return (
     <button
       onClick={e => { e.stopPropagation(); onClick(); }}
       title={hint}
       style={{
-        width: 22, height: 20, borderRadius: 2,
-        border: '1px solid ' + color,
-        background: '#fff', color,
-        fontSize: 10, fontWeight: 600, padding: 0,
-        cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+        width: 22, height: 20, borderRadius: radius.sm,
+        border: '1px solid ' + btnColor,
+        background: color.white, color: btnColor,
+        fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, padding: 0,
+        cursor: 'pointer', fontFamily: font.family.sans,
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       }}
     >{label}</button>
@@ -44,50 +45,48 @@ function ListsCardMobile({ lists, onSelect, onEdit, onArchive, onUnarchive, onDe
           key={l.id}
           onClick={() => onSelect(l)}
           style={{
-            background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
-            padding: '12px 14px', marginBottom: 8, cursor: 'pointer',
+            background: color.white, border: '1px solid ' + GRAY_200, borderRadius: radius.md,
+            padding: '12px 14px', marginBottom: space[2], cursor: 'pointer',
             opacity: l.is_archived ? 0.55 : 1,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: space[1.5], marginBottom: space[1.5] }}>
             {l.is_archived && (
-              <span style={{ fontSize: 8, fontWeight: 700, color: C.textLight, border: '1px solid ' + C.textLight, borderRadius: 2, padding: '1px 4px' }}>
-                アーカイブ
-              </span>
+              <Badge variant="neutral" size="sm">アーカイブ</Badge>
             )}
-            <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>{l.name}</span>
+            <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: NAVY }}>{l.name}</span>
           </div>
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 8, fontSize: 10, color: C.textMid, marginBottom: 8,
+            gap: space[2], fontSize: font.size.xs - 1, color: color.textMid, marginBottom: space[2],
           }}>
             <div>
-              <div style={{ color: C.textLight, fontSize: 9 }}>業界</div>
+              <div style={{ color: color.textLight, fontSize: 9 }}>業界</div>
               <div>{l.industry || '—'}</div>
             </div>
             <div>
-              <div style={{ color: C.textLight, fontSize: 9 }}>件数</div>
-              <div style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: NAVY }}>{l.companyCount ?? '...'}</div>
+              <div style={{ color: color.textLight, fontSize: 9 }}>件数</div>
+              <div style={{ fontFamily: font.family.mono, fontWeight: font.weight.bold, color: NAVY }}>{l.companyCount ?? '...'}</div>
             </div>
             <div>
-              <div style={{ color: C.textLight, fontSize: 9 }}>架電済</div>
-              <div style={{ fontFamily: "'JetBrains Mono'", color: C.textMid }}>{l.callsCount != null ? `${l.callsCount}周` : '...'}</div>
+              <div style={{ color: color.textLight, fontSize: 9 }}>架電済</div>
+              <div style={{ fontFamily: font.family.mono, color: color.textMid }}>{l.callsCount != null ? `${l.callsCount}周` : '...'}</div>
             </div>
           </div>
           <div style={{
-            paddingTop: 8, borderTop: '1px dashed ' + GRAY_200,
-            display: 'flex', gap: 4, justifyContent: 'flex-end',
+            paddingTop: space[2], borderTop: '1px dashed ' + GRAY_200,
+            display: 'flex', gap: space[1], justifyContent: 'flex-end',
           }}>
             <button onClick={e => { e.stopPropagation(); onEdit(l); }} style={miniBtn(NAVY)}>編集</button>
             {l.is_archived ? (
-              <button onClick={e => { e.stopPropagation(); onUnarchive(l); }} style={miniBtn('#16A34A')}>戻す</button>
+              <button onClick={e => { e.stopPropagation(); onUnarchive(l); }} style={miniBtn(color.success)}>戻す</button>
             ) : (
               <button onClick={e => { e.stopPropagation(); onArchive(l); }} style={miniBtn('#B8860B')}>アーカイブ</button>
             )}
             <button onClick={e => {
               e.stopPropagation();
               if (confirm(`「${l.name}」を削除しますか？`)) onDelete(l);
-            }} style={miniBtn('#DC2626')}>削除</button>
+            }} style={miniBtn(color.danger)}>削除</button>
           </div>
         </div>
       ))}
@@ -95,19 +94,19 @@ function ListsCardMobile({ lists, onSelect, onEdit, onArchive, onUnarchive, onDe
   );
 }
 
-const miniBtn = (color) => ({
-  padding: '4px 10px', borderRadius: 3,
-  border: '1px solid ' + color, background: '#fff',
-  color, fontSize: 10, fontWeight: 600,
-  cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+const miniBtn = (btnColor) => ({
+  padding: '4px 10px', borderRadius: radius.sm,
+  border: '1px solid ' + btnColor, background: color.white,
+  color: btnColor, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold,
+  cursor: 'pointer', fontFamily: font.family.sans,
 });
 
 function ListsTable({ lists, onSelect, onEdit, onArchive, onUnarchive, onDelete, showingArchived }) {
   if (lists.length === 0) {
     return (
       <div style={{
-        padding: '40px 0', textAlign: 'center', color: C.textLight, fontSize: 12,
-        background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
+        padding: '40px 0', textAlign: 'center', color: color.textLight, fontSize: font.size.sm,
+        background: color.white, border: '1px solid ' + GRAY_200, borderRadius: radius.md,
       }}>
         {showingArchived
           ? 'アーカイブ済みのリストはありません'
@@ -120,11 +119,11 @@ function ListsTable({ lists, onSelect, onEdit, onArchive, onUnarchive, onDelete,
   const cols = '1.4fr 0.6fr 0.6fr 0.6fr 0.5fr 100px';
 
   return (
-    <div style={{ border: '1px solid ' + GRAY_200, borderRadius: 4, background: '#fff' }}>
+    <div style={{ border: '1px solid ' + GRAY_200, borderRadius: radius.md, background: color.white }}>
       <div style={{
         display: 'grid', gridTemplateColumns: cols,
         padding: '8px 16px', background: NAVY,
-        fontSize: 11, fontWeight: 600, color: '#fff',
+        fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.white,
       }}>
         <span>リスト名</span>
         <span>業界</span>
@@ -139,45 +138,45 @@ function ListsTable({ lists, onSelect, onEdit, onArchive, onUnarchive, onDelete,
           onClick={() => onSelect(l)}
           style={{
             display: 'grid', gridTemplateColumns: cols,
-            padding: '10px 16px', fontSize: 12, alignItems: 'center',
+            padding: '10px 16px', fontSize: font.size.sm, alignItems: 'center',
             borderBottom: '1px solid ' + GRAY_200,
-            background: i % 2 === 0 ? '#fff' : GRAY_50,
+            background: i % 2 === 0 ? color.white : GRAY_50,
             cursor: 'pointer',
             opacity: l.is_archived ? 0.55 : 1,
           }}
           onMouseEnter={e => { e.currentTarget.style.background = '#EAF4FF'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 0 ? '#fff' : GRAY_50; }}
+          onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 0 ? color.white : GRAY_50; }}
         >
-          <span style={{ fontWeight: 600, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{ fontWeight: font.weight.semibold, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {l.is_archived && (
-              <span style={{ fontSize: 8, fontWeight: 700, color: C.textLight, border: '1px solid ' + C.textLight, borderRadius: 2, padding: '1px 4px', marginRight: 6 }}>
-                アーカイブ
+              <span style={{ marginRight: 6, display: 'inline-block' }}>
+                <Badge variant="neutral" size="sm">アーカイブ</Badge>
               </span>
             )}
             {l.name}
           </span>
-          <span style={{ color: C.textMid, fontSize: 11 }}>{l.industry || '-'}</span>
+          <span style={{ color: color.textMid, fontSize: font.size.xs }}>{l.industry || '-'}</span>
           <span style={{
             textAlign: 'right',
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: font.family.mono,
             fontVariantNumeric: 'tabular-nums',
-            color: NAVY, fontWeight: 600,
+            color: NAVY, fontWeight: font.weight.semibold,
           }}>{l.companyCount ?? '...'}</span>
           <span style={{
             textAlign: 'right',
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: font.family.mono,
             fontVariantNumeric: 'tabular-nums',
-            color: C.textMid,
+            color: color.textMid,
           }}>
             {l.callsCount != null ? `${l.callsCount} 周` : '...'}
           </span>
           <span style={{
             textAlign: 'right',
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 10,
-            color: C.textLight,
+            fontFamily: font.family.mono,
+            fontSize: font.size.xs - 1,
+            color: color.textLight,
           }}>{fmtDate(l.imported_at)}</span>
-          <span style={{ textAlign: 'center', display: 'inline-flex', gap: 4, justifyContent: 'center' }}>
+          <span style={{ textAlign: 'center', display: 'inline-flex', gap: space[1], justifyContent: 'center' }}>
             <MiniIcon
               label="編集"
               hint="リスト名・業界を編集"
@@ -188,7 +187,7 @@ function ListsTable({ lists, onSelect, onEdit, onArchive, onUnarchive, onDelete,
               <MiniIcon
                 label="戻す"
                 hint="アーカイブから戻す"
-                color="#16A34A"
+                color={color.success}
                 onClick={() => onUnarchive(l)}
               />
             ) : (
@@ -202,7 +201,7 @@ function ListsTable({ lists, onSelect, onEdit, onArchive, onUnarchive, onDelete,
             <MiniIcon
               label="×"
               hint="完全に削除"
-              color="#DC2626"
+              color={color.danger}
               onClick={() => {
                 if (confirm(`「${l.name}」を削除しますか？\n（リスト内の企業データ・架電履歴も全て削除されます）`)) {
                   onDelete(l);
@@ -296,17 +295,17 @@ export default function CRMLeadGenView({ currentUser, members = [], setClientDat
   return (
     <div>
       <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16,
-        padding: '14px 18px', background: '#fff', borderRadius: 4,
-        border: '1px solid ' + GRAY_200, flexWrap: 'wrap', gap: 8,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[4],
+        padding: '14px 18px', background: color.white, borderRadius: radius.md,
+        border: '1px solid ' + GRAY_200, flexWrap: 'wrap', gap: space[2],
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>新規開拓ボード</span>
-          <span style={{ fontSize: 11, color: C.textLight }}>{visibleLists.length} リスト</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: space[2.5] }}>
+          <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: NAVY }}>新規開拓ボード</span>
+          <span style={{ fontSize: font.size.xs, color: color.textLight }}>{visibleLists.length} リスト</span>
           {archivedCount > 0 && (
             <label style={{
-              fontSize: 11, color: C.textMid, marginLeft: 8,
-              display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+              fontSize: font.size.xs, color: color.textMid, marginLeft: space[2],
+              display: 'inline-flex', alignItems: 'center', gap: space[1], cursor: 'pointer',
             }}>
               <input
                 type="checkbox"
@@ -317,17 +316,16 @@ export default function CRMLeadGenView({ currentUser, members = [], setClientDat
             </label>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center' }}>
           {pendingRecalls.length > 0 && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setRecallsOpen(true)}
               style={{
-                padding: '6px 12px', borderRadius: 4,
-                border: '1px solid ' + (overdueRecallCount > 0 ? '#DC2626' : '#B8860B'),
-                background: (overdueRecallCount > 0 ? '#DC2626' : '#B8860B') + '15',
-                color: overdueRecallCount > 0 ? '#DC2626' : '#B8860B',
-                fontSize: 11, fontWeight: 700,
-                cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                border: '1px solid ' + (overdueRecallCount > 0 ? color.danger : '#B8860B'),
+                background: alpha(overdueRecallCount > 0 ? color.danger : '#B8860B', 0.08),
+                color: overdueRecallCount > 0 ? color.danger : '#B8860B',
                 whiteSpace: 'nowrap',
               }}
             >
@@ -335,23 +333,21 @@ export default function CRMLeadGenView({ currentUser, members = [], setClientDat
               {overdueRecallCount > 0 && (
                 <span style={{ marginLeft: 4 }}>（超過 {overdueRecallCount}）</span>
               )}
-            </button>
+            </Button>
           )}
-          <button
+          <Button
+            variant="primary"
+            size="md"
             onClick={() => setImportOpen(true)}
-            style={{
-              padding: '8px 16px', borderRadius: 4, border: 'none',
-              background: NAVY, color: '#fff', fontSize: 13, fontWeight: 500,
-              cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-            }}
-          >＋ 新規リスト（CSVインポート）</button>
+            style={{ background: NAVY }}
+          >＋ 新規リスト（CSVインポート）</Button>
         </div>
       </div>
 
       {visibleLists.length === 0 ? (
         <div style={{
-          padding: '40px 20px', textAlign: 'center', color: C.textLight, fontSize: 12,
-          background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
+          padding: '40px 20px', textAlign: 'center', color: color.textLight, fontSize: font.size.sm,
+          background: color.white, border: '1px solid ' + GRAY_200, borderRadius: radius.md,
         }}>
           {showArchived
             ? 'アーカイブ済みのリストはありません'

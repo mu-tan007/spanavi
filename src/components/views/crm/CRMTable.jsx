@@ -1,4 +1,5 @@
-import { C } from '../../../constants/colors';
+import { color, space, radius, font } from '../../../constants/design';
+import { Button } from '../../ui';
 import ColumnResizeHandle from '../../common/ColumnResizeHandle';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import {
@@ -22,13 +23,13 @@ function MobileCard({
   const monthAppoCount = monthAppoCountByClient[c._supaId] || 0;
   const monthTarget = monthTargetByClient[c._supaId] || 0;
   let ratioDisplay = '—';
-  let ratioColor = C.textLight;
+  let ratioColor = color.textLight;
   if (monthTarget > 0) {
     const ratio = Math.round((monthAppoCount / monthTarget) * 100);
     ratioDisplay = `${ratio}% (${monthAppoCount}/${monthTarget})`;
-    if (ratio >= 100) ratioColor = '#16A34A';
+    if (ratio >= 100) ratioColor = color.success;
     else if (ratio >= 70) ratioColor = GOLD;
-    else ratioColor = '#DC2626';
+    else ratioColor = color.danger;
   }
 
   const score = priorityScore(c, {
@@ -46,66 +47,63 @@ function MobileCard({
     <div
       onClick={() => onRowClick(c)}
       style={{
-        background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
-        padding: '12px 14px', marginBottom: 8, cursor: 'pointer',
+        background: color.white, border: '1px solid ' + GRAY_200, borderRadius: radius.md,
+        padding: '12px 14px', marginBottom: space[2], cursor: 'pointer',
         borderLeft: '4px solid ' + sc.color,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: space[1.5], marginBottom: space[1.5] }}>
         <span style={{
-          fontSize: 9, fontWeight: 700, color: rank.color,
-          border: '1px solid ' + rank.color, borderRadius: 2,
-          padding: '1px 5px', fontFamily: "'JetBrains Mono'",
+          fontSize: 9, fontWeight: font.weight.bold, color: rank.color,
+          border: '1px solid ' + rank.color, borderRadius: radius.sm,
+          padding: '1px 5px', fontFamily: font.family.mono,
           fontVariantNumeric: 'tabular-nums', minWidth: 22, textAlign: 'center',
         }}>{score}</span>
-        <span style={{ fontSize: 11, color: sc.color, fontWeight: 700 }}>{c.status}</span>
+        <span style={{ fontSize: font.size.xs, color: sc.color, fontWeight: font.weight.bold }}>{c.status}</span>
         <span style={{
-          fontSize: 9, color: lt.stale ? GOLD : C.textLight,
-          fontWeight: lt.stale ? 700 : 400, marginLeft: 'auto',
-          fontFamily: "'JetBrains Mono'",
+          fontSize: 9, color: lt.stale ? GOLD : color.textLight,
+          fontWeight: lt.stale ? font.weight.bold : font.weight.normal, marginLeft: 'auto',
+          fontFamily: font.family.mono,
         }}>{lt.label}</span>
       </div>
-      <div style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 6, lineHeight: 1.3 }}>
+      <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: NAVY, marginBottom: space[1.5], lineHeight: 1.3 }}>
         {c.company}
       </div>
       <div style={{
         display: 'grid', gridTemplateColumns: '1fr 1fr',
-        gap: 4, fontSize: 10, color: C.textMid,
+        gap: space[1], fontSize: font.size.xs - 1, color: color.textMid,
       }}>
         <div>
-          <span style={{ color: C.textLight }}>主担当: </span>
+          <span style={{ color: color.textLight }}>主担当: </span>
           {primary ? (
-            <span style={{ fontWeight: 500 }}>
+            <span style={{ fontWeight: font.weight.medium }}>
               {primary.isPrimary ? '主 ' : ''}{primary.name}
             </span>
           ) : '—'}
         </div>
         <div style={{ textAlign: 'right' }}>
-          <span style={{ color: C.textLight }}>達成: </span>
-          <span style={{ color: ratioColor, fontWeight: 700, fontFamily: "'JetBrains Mono'" }}>
+          <span style={{ color: color.textLight }}>達成: </span>
+          <span style={{ color: ratioColor, fontWeight: font.weight.bold, fontFamily: font.family.mono }}>
             {ratioDisplay}
           </span>
         </div>
       </div>
       <div style={{
-        marginTop: 8, paddingTop: 8, borderTop: '1px dashed ' + GRAY_200,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6,
+        marginTop: space[2], paddingTop: space[2], borderTop: '1px dashed ' + GRAY_200,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: space[1.5],
       }}>
         <span style={{
-          fontSize: 10, fontWeight: 600,
+          fontSize: font.size.xs - 1, fontWeight: font.weight.semibold,
           color: action.color, padding: '2px 6px',
-          borderRadius: 3,
+          borderRadius: radius.sm,
           background: action.color === '#9CA3AF' ? 'transparent' : action.color + '15',
         }}>{action.label}</span>
         {isEditable && (
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={e => { e.stopPropagation(); onEditRow(c, globalIdx); }}
-            style={{
-              padding: '4px 10px', borderRadius: 3,
-              border: '1px solid ' + GRAY_200, background: '#fff',
-              color: C.textMid, fontSize: 10, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-            }}
-          >編集</button>
+          >編集</Button>
         )}
       </div>
     </div>
@@ -135,8 +133,8 @@ export default function CRMTable({
     if (filtered.length === 0) {
       return (
         <div style={{
-          padding: '40px 20px', textAlign: 'center', color: C.textLight, fontSize: 12,
-          background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
+          padding: '40px 20px', textAlign: 'center', color: color.textLight, fontSize: font.size.sm,
+          background: color.white, border: '1px solid ' + GRAY_200, borderRadius: radius.md,
         }}>
           データがありません
         </div>
@@ -164,13 +162,13 @@ export default function CRMTable({
   }
 
   return (
-    <div style={{ border: '1px solid ' + GRAY_200, borderRadius: 4, overflowX: 'auto', overflowY: 'hidden' }}>
+    <div style={{ border: '1px solid ' + GRAY_200, borderRadius: radius.md, overflowX: 'auto', overflowY: 'hidden' }}>
       <div style={{ minWidth: crmMinW }}>
         {/* Header */}
         <div style={{
           display: 'grid', gridTemplateColumns: crmGrid,
           padding: '8px 16px', background: NAVY,
-          fontSize: 11, fontWeight: 600, color: '#fff',
+          fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.white,
           verticalAlign: 'middle',
         }}>
           {CRM_COL_LABELS.map((label, idx) => (
@@ -190,7 +188,7 @@ export default function CRMTable({
 
         {/* Body */}
         {filtered.length === 0 ? (
-          <div style={{ padding: '30px 0', textAlign: 'center', color: C.textLight, fontSize: 12 }}>
+          <div style={{ padding: '30px 0', textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
             データがありません
           </div>
         ) : (

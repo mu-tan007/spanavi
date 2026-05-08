@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { supabase } from '../../lib/supabase';
 import PageHeader from '../common/PageHeader';
 import TrainingRoleplaySection from './TrainingRoleplaySection';
@@ -254,38 +256,38 @@ export default function RoleplayView({ currentUser, userId, members = [], isAdmi
 
         {/* 左 (8): 週グリッドカレンダー */}
         <div style={{ flex: 8, minWidth: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-          <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: `2px solid ${NAVY}`, paddingBottom: 6 }}>
+          <h2 style={{
+            margin: 0, fontSize: font.size.base, fontWeight: font.weight.bold,
+            color: NAVY, borderBottom: `2px solid ${NAVY}`, paddingBottom: 6,
+          }}>
             代表とのロープレ予約
           </h2>
 
           {gcalError && (
-            <div style={{ fontSize: 11, color: '#DC2626', background: '#DC26261a', padding: "6px 10px", borderRadius: 4 }}>
+            <div style={{
+              fontSize: font.size.xs, color: color.danger, background: alpha(color.danger, 0.10),
+              padding: "6px 10px", borderRadius: radius.md,
+            }}>
               {gcalError}
             </div>
           )}
 
           {/* 週ナビ + 凡例 */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: "'Noto Sans JP'" }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: font.family.sans }}>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <button onClick={() => setWeekOffset(w => w - 1)}
-                style={{ background: '#fff', border: '1px solid #D1D5DB', borderRadius: 3, cursor: 'pointer', padding: '3px 10px', fontSize: 12, color: NAVY, fontWeight: 600 }}>
-                &lt;
-              </button>
-              <span style={{ fontSize: 13, fontWeight: 700, color: NAVY, minWidth: 110, textAlign: 'center' }}>
+              <Button size="sm" variant="secondary" onClick={() => setWeekOffset(w => w - 1)}>&lt;</Button>
+              <span style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: NAVY, minWidth: 110, textAlign: 'center' }}>
                 {days[0]?.label} ~ {days[6]?.label}
               </span>
-              <button onClick={() => setWeekOffset(w => w + 1)}
-                style={{ background: '#fff', border: '1px solid #D1D5DB', borderRadius: 3, cursor: 'pointer', padding: '3px 10px', fontSize: 12, color: NAVY, fontWeight: 600 }}>
-                &gt;
-              </button>
+              <Button size="sm" variant="secondary" onClick={() => setWeekOffset(w => w + 1)}>&gt;</Button>
               {weekOffset !== 0 && (
-                <button onClick={() => setWeekOffset(0)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#6B7280', textDecoration: 'underline', marginLeft: 4 }}>
+                <Button size="sm" variant="ghost" onClick={() => setWeekOffset(0)}
+                  style={{ textDecoration: 'underline', marginLeft: 4, color: color.textMid }}>
                   今週
-                </button>
+                </Button>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 10, fontSize: 10, alignItems: 'center', color: C.textMid }}>
+            <div style={{ display: 'flex', gap: 10, fontSize: font.size.xs - 1, alignItems: 'center', color: color.textMid }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 10, height: 10, background: FREE_BG, border: '1px solid #D0D8E8', borderRadius: 2 }} />空き
               </span>
@@ -298,22 +300,29 @@ export default function RoleplayView({ currentUser, userId, members = [], isAdmi
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 10, height: 10, background: NAVY, opacity: 0.15, borderRadius: 2 }} />予定あり
               </span>
-              <button onClick={fetchBusy} disabled={loadingBusy}
-                style={{ fontSize: 10, padding: '3px 8px', borderRadius: 4, border: '1px solid #E5E7EB', background: 'transparent', color: C.textMid, cursor: 'pointer', fontFamily: "'Noto Sans JP'", marginLeft: 6 }}>
+              <Button size="sm" variant="ghost" onClick={fetchBusy} loading={loadingBusy}
+                style={{ marginLeft: 6, color: color.textMid, fontSize: font.size.xs - 1 }}>
                 {loadingBusy ? '読込中...' : '更新'}
-              </button>
+              </Button>
             </div>
           </div>
 
           {/* 週グリッド */}
-          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden', fontFamily: "'Noto Sans JP'" }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '56px repeat(7, 1fr)', fontSize: 10 }}>
+          <div style={{
+            background: color.white, border: `1px solid ${color.border}`,
+            borderRadius: radius.md, overflow: 'hidden', fontFamily: font.family.sans,
+          }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '56px repeat(7, 1fr)', fontSize: font.size.xs - 1 }}>
               {/* ヘッダ行 */}
               <div style={{ background: NAVY, padding: '6px 2px' }} />
               {days.map(d => (
                 <div key={d.dateStr}
-                  style={{ background: NAVY, color: d.isWeekend ? '#FCA5A5' : '#fff', padding: '6px 2px', textAlign: 'center', fontWeight: 600, borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ fontSize: 11 }}>{d.label}</div>
+                  style={{
+                    background: NAVY, color: d.isWeekend ? '#FCA5A5' : color.white,
+                    padding: '6px 2px', textAlign: 'center', fontWeight: font.weight.semibold,
+                    borderLeft: `1px solid ${alpha(color.white, 0.1)}`,
+                  }}>
+                  <div style={{ fontSize: font.size.xs }}>{d.label}</div>
                   <div style={{ fontSize: 9, opacity: 0.8 }}>{d.dayLabel}</div>
                 </div>
               ))}
@@ -327,12 +336,12 @@ export default function RoleplayView({ currentUser, userId, members = [], isAdmi
                     <div style={{
                       padding: '0 6px',
                       textAlign: 'right',
-                      color: '#6B7280',
-                      fontSize: 10,
-                      fontFamily: "'JetBrains Mono', monospace",
-                      borderBottom: '1px solid #F3F4F6',
-                      borderRight: '1px solid #E5E7EB',
-                      background: '#FAFBFC',
+                      color: color.textMid,
+                      fontSize: font.size.xs - 1,
+                      fontFamily: font.family.mono,
+                      borderBottom: `1px solid ${color.gray100}`,
+                      borderRight: `1px solid ${color.border}`,
+                      background: color.gray50,
                       height: 22,
                       display: 'flex',
                       alignItems: 'center',
@@ -393,7 +402,7 @@ export default function RoleplayView({ currentUser, userId, members = [], isAdmi
                             background: bg,
                             height: 22,
                             cursor,
-                            borderBottom: onHour ? '1px solid #E5E7EB' : '1px solid #F3F4F6',
+                            borderBottom: onHour ? `1px solid ${color.border}` : `1px solid ${color.gray100}`,
                             borderLeft: '1px solid #E8EDF5',
                             position: 'relative',
                             overflow: 'hidden',
@@ -407,7 +416,7 @@ export default function RoleplayView({ currentUser, userId, members = [], isAdmi
                               alignItems: 'center',
                               justifyContent: 'center',
                               fontSize: 9,
-                              fontWeight: 700,
+                              fontWeight: font.weight.bold,
                               color: labelColor,
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
@@ -427,8 +436,11 @@ export default function RoleplayView({ currentUser, userId, members = [], isAdmi
           </div>
 
           {bookingSuccessMsg && (
-            <div style={{ background: "#f0faf4", border: "1px solid #34a853", borderRadius: 4,
-              padding: "10px 14px", fontSize: 12, fontWeight: 600, color: C.green }}>
+            <div style={{
+              background: alpha(color.success, 0.08), border: `1px solid ${color.success}`,
+              borderRadius: radius.md,
+              padding: "10px 14px", fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.success,
+            }}>
               {bookingSuccessMsg}
             </div>
           )}
@@ -436,86 +448,105 @@ export default function RoleplayView({ currentUser, userId, members = [], isAdmi
 
         {/* 右 (2): 予約済み一覧 */}
         <div style={{ flex: 2, minWidth: 220, display: "flex", flexDirection: "column", gap: 10 }}>
-          <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: `2px solid ${NAVY}`, paddingBottom: 6 }}>
-            予約済み一覧 {allBookings.length > 0 && <span style={{ fontWeight: 400, color: C.textMid, fontSize: 11 }}>({allBookings.length}件)</span>}
+          <h2 style={{
+            margin: 0, fontSize: font.size.base, fontWeight: font.weight.bold,
+            color: NAVY, borderBottom: `2px solid ${NAVY}`, paddingBottom: 6,
+          }}>
+            予約済み一覧 {allBookings.length > 0 && (
+              <span style={{ fontWeight: font.weight.normal, color: color.textMid, fontSize: font.size.xs }}>
+                ({allBookings.length}件)
+              </span>
+            )}
           </h2>
 
-          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, overflow: "hidden" }}>
+          <Card padding="none" variant="default" style={{ overflow: 'hidden' }}>
             {allBookings.length === 0 ? (
-              <div style={{ padding: "16px 14px", textAlign: "center", color: C.textLight, fontSize: 12 }}>予約はありません</div>
+              <div style={{ padding: "16px 14px", textAlign: "center", color: color.textLight, fontSize: font.size.sm }}>予約はありません</div>
             ) : (
               <div style={{ maxHeight: 640, overflowY: "auto" }}>
                 {allBookings.map(b => {
                   const isOwn = b.userId === userId;
                   return (
-                    <div key={b.id} style={{ padding: "10px 14px", borderBottom: "1px solid #E5E7EB",
+                    <div key={b.id} style={{
+                      padding: "10px 14px", borderBottom: `1px solid ${color.border}`,
                       display: "flex", justifyContent: "space-between", alignItems: "center",
-                      background: isOwn ? '#F0F4FF' : 'transparent' }}>
+                      background: isOwn ? alpha(color.navyLight, 0.06) : 'transparent',
+                    }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: NAVY }}>{b.dayLabel}</div>
-                        <div style={{ fontSize: 10, color: C.textMid, fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
+                        <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: NAVY }}>{b.dayLabel}</div>
+                        <div style={{ fontSize: font.size.xs - 1, color: color.textMid, fontFamily: font.family.mono, marginTop: 1 }}>
                           {b.startLabel} – {b.endLabel}
                         </div>
-                        <div style={{ fontSize: 10, color: isOwn ? '#1E40AF' : '#6B7280', fontWeight: isOwn ? 600 : 400, marginTop: 2 }}>
+                        <div style={{
+                          fontSize: font.size.xs - 1,
+                          color: isOwn ? '#1E40AF' : color.textMid,
+                          fontWeight: isOwn ? font.weight.semibold : font.weight.normal,
+                          marginTop: 2,
+                        }}>
                           {b.userName || '不明'}{isOwn ? '（自分）' : ''}
                         </div>
                       </div>
                       {isOwn && (
-                        <button onClick={() => handleCancel(b)}
-                          style={{ background: '#fff', color: '#DC2626', border: '1px solid #DC2626', borderRadius: 4, padding: '4px 10px', fontSize: 10, fontWeight: 500, cursor: "pointer", fontFamily: "'Noto Sans JP'", flexShrink: 0 }}>
+                        <Button size="sm" variant="outline" onClick={() => handleCancel(b)}
+                          style={{
+                            color: color.danger, borderColor: color.danger,
+                            fontSize: font.size.xs - 1, flexShrink: 0,
+                          }}>
                           キャンセル
-                        </button>
+                        </Button>
                       )}
                     </div>
                   );
                 })}
               </div>
             )}
-          </div>
+          </Card>
         </div>
 
         {/* 予約確認モーダル */}
         {confirmSlot && (
           <div onClick={() => setConfirmSlot(null)}
-            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 9000,
-              display: "flex", alignItems: "center", justifyContent: "center" }}>
+            style={{
+              position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 9000,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
             <div onClick={e => e.stopPropagation()}
-              style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: "28px 32px", width: 340 }}>
-              <div style={{ background: NAVY, color: '#fff', padding: '12px 24px', fontWeight: 600, fontSize: 15, borderRadius: '4px 4px 0 0', margin: '-28px -32px 20px -32px' }}>ロープレを予約する</div>
-              <div style={{ fontSize: 13, color: C.textMid, marginBottom: 16, lineHeight: 1.7 }}>
+              style={{
+                background: color.white, border: `1px solid ${color.border}`,
+                borderRadius: radius.md, padding: "28px 32px", width: 340,
+                boxShadow: shadow.xl,
+              }}>
+              <div style={{
+                background: NAVY, color: color.white, padding: '12px 24px',
+                fontWeight: font.weight.semibold, fontSize: font.size.lg - 1,
+                borderRadius: `${radius.md}px ${radius.md}px 0 0`,
+                margin: '-28px -32px 20px -32px',
+              }}>ロープレを予約する</div>
+              <div style={{ fontSize: font.size.base, color: color.textMid, marginBottom: 16, lineHeight: 1.7 }}>
                 <strong style={{ color: NAVY }}>{confirmSlot.dayLabel}</strong>
                 {'　'}
-                <strong style={{ color: NAVY, fontFamily: "'JetBrains Mono', monospace" }}>
+                <strong style={{ color: NAVY, fontFamily: font.family.mono }}>
                   {confirmSlot.startLabel} – {confirmSlot.endLabel}
                 </strong>
               </div>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 10, fontWeight: 600, color: C.textMid, display: "block", marginBottom: 5 }}>
-                  メールアドレス（通知送付先）
-                </label>
-                <input
+                <Input
+                  size="sm"
                   type="email"
+                  label="メールアドレス（通知送付先）"
                   value={modalEmail}
                   onChange={e => setModalEmail(e.target.value)}
                   placeholder="your@email.com"
-                  style={{ width: "100%", padding: "7px 10px", borderRadius: 4,
-                    border: "1px solid #E5E7EB", fontSize: 12, outline: "none",
-                    fontFamily: "'Noto Sans JP'", boxSizing: "border-box" }}
+                  hint="予約30分前にメール・10分前にポップアップ通知が届きます"
                 />
-                <div style={{ fontSize: 9, color: C.textLight, marginTop: 4 }}>
-                  予約30分前にメール・10分前にポップアップ通知が届きます
-                </div>
               </div>
               <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={handleBook} disabled={bookingLoading}
-                  style={{ flex: 1, background: bookingLoading ? '#E5E7EB' : NAVY, color: bookingLoading ? '#9CA3AF' : '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: bookingLoading ? "default" : "pointer",
-                    fontFamily: "'Noto Sans JP'" }}>
+                <Button onClick={handleBook} loading={bookingLoading} fullWidth>
                   {bookingLoading ? '予約中...' : '予約する'}
-                </button>
-                <button onClick={() => setConfirmSlot(null)}
-                  style={{ flex: 1, background: '#fff', color: NAVY, border: `1px solid ${NAVY}`, borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
+                </Button>
+                <Button variant="outline" onClick={() => setConfirmSlot(null)} fullWidth>
                   キャンセル
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -532,20 +563,20 @@ export default function RoleplayView({ currentUser, userId, members = [], isAdmi
 function RoleplayHistorySection({ currentUser, userId, members, isAdmin }) {
   const [open, setOpen] = useState(true);
   return (
-    <div style={{ background: C.white, border: '1px solid #E5E7EB', borderRadius: 4, marginTop: 8 }}>
+    <Card padding="none" variant="default" style={{ marginTop: 8 }}>
       <button
         onClick={() => setOpen(!open)}
         style={{
           width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '14px 20px', background: 'transparent', border: 'none', cursor: 'pointer',
-          fontSize: 14, fontWeight: 700, color: NAVY, textAlign: 'left',
+          fontSize: font.size.md, fontWeight: font.weight.bold, color: NAVY, textAlign: 'left',
         }}
       >
         <span>ロープレ履歴</span>
-        <span style={{ fontSize: 11, color: '#9CA3AF' }}>{open ? '▲' : '▼'}</span>
+        <span style={{ fontSize: font.size.xs, color: color.gray400 }}>{open ? '▲' : '▼'}</span>
       </button>
       {open && (
-        <div style={{ padding: '16px 20px 20px', borderTop: '1px solid #F3F4F6' }}>
+        <div style={{ padding: '16px 20px 20px', borderTop: `1px solid ${color.gray100}` }}>
           <TrainingRoleplaySection
             currentUser={currentUser}
             userId={userId}
@@ -554,6 +585,6 @@ function RoleplayHistorySection({ currentUser, userId, members, isAdmin }) {
           />
         </div>
       )}
-    </div>
+    </Card>
   );
 }

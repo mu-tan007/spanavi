@@ -1,5 +1,5 @@
 import React from 'react';
-import { C } from '../../constants/colors';
+import { color, space, font } from '../../constants/design';
 
 // Spanavi 全ページ共通のヘッダー帯。タイトル + 副題 (青文字) のシンプル構成。
 // - title:   メインタイトル (Outfit, 20/600, navy)
@@ -24,9 +24,9 @@ export default function PageHeader({
   return (
     <div
       style={{
-        padding: compact ? '14px 20px 0' : '14px 20px 16px',
-        background: C.white,
-        borderBottom: compact ? 'none' : `1px solid ${C.border}`,
+        padding: compact ? `${space[3] + 2}px ${space[5]}px 0` : `${space[3] + 2}px ${space[5]}px ${space[4]}px`,
+        background: color.white,
+        borderBottom: compact ? 'none' : `1px solid ${color.border}`,
         marginTop: marginTop ?? 0,
         marginRight: marginRight ?? (bleed ? -28 : 0),
         marginBottom: marginBottom ?? 0,
@@ -34,23 +34,23 @@ export default function PageHeader({
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
-        gap: 16,
+        gap: space[4],
         flexWrap: 'wrap',
         ...restStyle,
       }}
     >
       <div style={{ minWidth: 0, flex: '1 1 auto' }}>
         <h1 style={{
-          fontSize: 20, fontWeight: 600, margin: '0 0 2px',
-          color: C.navy,
-          fontFamily: "'Outfit','Noto Sans JP',sans-serif",
+          fontSize: font.size.xl, fontWeight: font.weight.semibold, margin: '0 0 2px',
+          color: color.navy,
+          fontFamily: `${font.family.display}, 'Noto Sans JP', sans-serif`,
         }}>
           {title}
         </h1>
         {description && (
           <p style={{
-            fontSize: 11, color: C.textMid,
-            margin: compact ? '0 0 12px' : '0 0 0',
+            fontSize: font.size.xs, color: color.textMid,
+            margin: compact ? `0 0 ${space[3]}px` : '0 0 0',
           }}>
             {description}
           </p>
@@ -58,7 +58,7 @@ export default function PageHeader({
         {children}
       </div>
       {right && (
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: space[2] }}>
           {right}
         </div>
       )}

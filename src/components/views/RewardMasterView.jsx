@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import {
   fetchRewardTypes, insertRewardType, updateRewardType, deleteRewardType,
   insertRewardTier, updateRewardTier, deleteRewardTier,
@@ -123,48 +125,47 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
     await refreshMaster();
   };
 
-  const inputStyle = { padding: '5px 8px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', width: '100%' };
-  const btnPrimary = { padding: '5px 14px', borderRadius: 4, background: C.navy, color: C.white, border: 'none', cursor: 'pointer', fontSize: 11, fontFamily: "'Noto Sans JP'" };
-  const btnDanger  = { padding: '3px 10px', borderRadius: 4, background: 'transparent', color: '#DC2626', border: '1px solid #DC2626', cursor: 'pointer', fontSize: 10, fontFamily: "'Noto Sans JP'" };
-  const btnGhost   = { padding: '3px 10px', borderRadius: 4, background: 'transparent', color: C.navy, border: '1px solid ' + C.border, cursor: 'pointer', fontSize: 10, fontFamily: "'Noto Sans JP'" };
-
   return (
-    <div style={{ animation: 'fadeIn 0.3s ease', paddingBottom: 40 }}>
-      <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div style={{ animation: 'fadeIn 0.3s ease', paddingBottom: space[10] }}>
+      <div style={{ marginBottom: space[5], display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: C.navy, margin: 0 }}>料金テーブル管理</h2>
-          <div style={{ fontSize: 11, color: C.textLight, marginTop: 2 }}>報酬タイプと階段単価を管理します</div>
+          <h2 style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: color.navy, margin: 0 }}>料金テーブル管理</h2>
+          <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 2 }}>報酬タイプと階段単価を管理します</div>
         </div>
-        <button onClick={() => setAddTypeForm({ type_id: '', name: '', timing: '面談実施', basis: '売上高', tax: '税別' })} style={btnPrimary}>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => setAddTypeForm({ type_id: '', name: '', timing: '面談実施', basis: '売上高', tax: '税別' })}
+        >
           ＋ 新規タイプ追加
-        </button>
+        </Button>
       </div>
 
-      {loading && <div style={{ color: C.textLight, fontSize: 13 }}>読み込み中...</div>}
+      {loading && <div style={{ color: color.textLight, fontSize: font.size.base }}>読み込み中...</div>}
 
-      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: space[5], alignItems: 'flex-start' }}>
         {/* ── 左: タイプ一覧 ── */}
         <div style={{ width: 280, flexShrink: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.textMid, marginBottom: 8 }}>報酬タイプ一覧</div>
+          <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.textMid, marginBottom: space[2] }}>報酬タイプ一覧</div>
           {(types || []).map(t => (
             <div key={t.type_id}
               onClick={() => setSelectedTypeId(t.type_id)}
               style={{
-                padding: '10px 14px', marginBottom: 6, borderRadius: 4, cursor: 'pointer',
-                border: '1px solid ' + (selectedTypeId === t.type_id ? C.navy : C.borderLight),
-                background: selectedTypeId === t.type_id ? C.navy + '0f' : C.white,
+                padding: '10px 14px', marginBottom: 6, borderRadius: radius.md, cursor: 'pointer',
+                border: '1px solid ' + (selectedTypeId === t.type_id ? color.navy : color.borderLight),
+                background: selectedTypeId === t.type_id ? alpha(color.navy, 0.06) : color.white,
               }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginRight: 8 }}>{t.type_id}</span>
-                  <span style={{ fontSize: 11, color: C.textDark }}>{t.name}</span>
+                  <span style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy, marginRight: 8 }}>{t.type_id}</span>
+                  <span style={{ fontSize: font.size.xs, color: color.textDark }}>{t.name}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 4 }}>
-                  <button onClick={e => { e.stopPropagation(); setEditTypeForm({ ...t }); }} style={btnGhost}>編集</button>
-                  <button onClick={e => { e.stopPropagation(); handleDeleteType(t.type_id); }} style={btnDanger}>削除</button>
+                  <Button variant="secondary" size="sm" onClick={e => { e.stopPropagation(); setEditTypeForm({ ...t }); }}>編集</Button>
+                  <Button variant="danger" size="sm" onClick={e => { e.stopPropagation(); handleDeleteType(t.type_id); }}>削除</Button>
                 </div>
               </div>
-              <div style={{ fontSize: 10, color: C.textLight, marginTop: 4 }}>
+              <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 4 }}>
                 {t.timing} / {t.basis} / {t.tax} / {t.reward_tiers?.length || 0}段階
               </div>
             </div>
@@ -174,24 +175,24 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
         {/* ── 右: ティア一覧 ── */}
         <div style={{ flex: 1 }}>
           {!selectedType ? (
-            <div style={{ color: C.textLight, fontSize: 13, paddingTop: 20 }}>左のタイプを選択してください</div>
+            <div style={{ color: color.textLight, fontSize: font.size.base, paddingTop: space[5] }}>左のタイプを選択してください</div>
           ) : (
             <>
-              <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ marginBottom: space[3], display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{selectedType.type_id} — {selectedType.name}</span>
-                  <span style={{ fontSize: 11, color: C.textLight, marginLeft: 10 }}>{selectedType.timing} / {selectedType.basis} / {selectedType.tax}</span>
+                  <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>{selectedType.type_id} — {selectedType.name}</span>
+                  <span style={{ fontSize: font.size.xs, color: color.textLight, marginLeft: 10 }}>{selectedType.timing} / {selectedType.basis} / {selectedType.tax}</span>
                 </div>
-                <button onClick={() => setAddTierForm({ lo: '', hi: '', price: '', memo: '' })} style={btnPrimary}>
+                <Button variant="primary" size="sm" onClick={() => setAddTierForm({ lo: '', hi: '', price: '', memo: '' })}>
                   ＋ 段階を追加
-                </button>
+                </Button>
               </div>
 
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
                 <thead>
                   <tr style={{ background: '#0D2247' }}>
                     {['下限（円）', '上限（円）', '単価（円）', 'メモ', ''].map(h => (
-                      <th key={h} style={{ padding: '8px 16px', textAlign: 'left', fontSize: 11, color: '#ffffff', fontWeight: 600, borderBottom: '2px solid #0D2247' }}>{h}</th>
+                      <th key={h} style={{ padding: '8px 16px', textAlign: 'left', fontSize: font.size.xs, color: color.white, fontWeight: font.weight.semibold, borderBottom: '2px solid #0D2247' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -200,25 +201,25 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
                     .sort((a, b) => a.sort_order - b.sort_order || a.lo - b.lo)
                     .map(tier => (
                       editTierId === tier.id ? (
-                        <tr key={tier.id} style={{ background: '#F8F9FA' }}>
-                          <td style={{ padding: '8px 8px' }}><input type="number" value={editTierForm.lo} onChange={e => setEditTierForm(p => ({ ...p, lo: e.target.value }))} style={{ ...inputStyle, width: 120 }} /></td>
-                          <td style={{ padding: '8px 8px' }}><input type="number" value={editTierForm.hi} onChange={e => setEditTierForm(p => ({ ...p, hi: e.target.value }))} style={{ ...inputStyle, width: 120 }} /></td>
-                          <td style={{ padding: '8px 8px' }}><input type="number" value={editTierForm.price} onChange={e => setEditTierForm(p => ({ ...p, price: e.target.value }))} style={{ ...inputStyle, width: 100 }} /></td>
-                          <td style={{ padding: '8px 8px' }}><input type="text" value={editTierForm.memo} onChange={e => setEditTierForm(p => ({ ...p, memo: e.target.value }))} style={{ ...inputStyle, width: '100%' }} /></td>
+                        <tr key={tier.id} style={{ background: color.gray50 }}>
+                          <td style={{ padding: '8px 8px' }}><Input type="number" size="sm" value={editTierForm.lo} onChange={e => setEditTierForm(p => ({ ...p, lo: e.target.value }))} containerStyle={{ width: 120 }} /></td>
+                          <td style={{ padding: '8px 8px' }}><Input type="number" size="sm" value={editTierForm.hi} onChange={e => setEditTierForm(p => ({ ...p, hi: e.target.value }))} containerStyle={{ width: 120 }} /></td>
+                          <td style={{ padding: '8px 8px' }}><Input type="number" size="sm" value={editTierForm.price} onChange={e => setEditTierForm(p => ({ ...p, price: e.target.value }))} containerStyle={{ width: 100 }} /></td>
+                          <td style={{ padding: '8px 8px' }}><Input type="text" size="sm" value={editTierForm.memo} onChange={e => setEditTierForm(p => ({ ...p, memo: e.target.value }))} /></td>
                           <td style={{ padding: '8px 8px', whiteSpace: 'nowrap' }}>
-                            <button onClick={handleUpdateTier} style={{ ...btnPrimary, marginRight: 4 }}>保存</button>
-                            <button onClick={() => { setEditTierId(null); setEditTierForm(null); }} style={btnGhost}>キャンセル</button>
+                            <Button variant="primary" size="sm" onClick={handleUpdateTier} style={{ marginRight: 4 }}>保存</Button>
+                            <Button variant="secondary" size="sm" onClick={() => { setEditTierId(null); setEditTierForm(null); }}>キャンセル</Button>
                           </td>
                         </tr>
                       ) : (
-                        <tr key={tier.id} style={{ borderBottom: '1px solid #E5E7EB' }}>
-                          <td style={{ padding: '8px 16px', fontFamily: "'JetBrains Mono'" }}>{fmt(tier.lo)}</td>
-                          <td style={{ padding: '8px 16px', fontFamily: "'JetBrains Mono'" }}>{tier.hi >= 999999999999 ? '上限なし' : fmt(tier.hi)}</td>
-                          <td style={{ padding: '8px 16px', fontWeight: 600, color: C.navy, fontFamily: "'JetBrains Mono'" }}>{fmt(tier.price)}</td>
-                          <td style={{ padding: '8px 16px', color: C.textMid }}>{tier.memo}</td>
+                        <tr key={tier.id} style={{ borderBottom: `1px solid ${color.gray200}` }}>
+                          <td style={{ padding: '8px 16px', fontFamily: font.family.mono }}>{fmt(tier.lo)}</td>
+                          <td style={{ padding: '8px 16px', fontFamily: font.family.mono }}>{tier.hi >= 999999999999 ? '上限なし' : fmt(tier.hi)}</td>
+                          <td style={{ padding: '8px 16px', fontWeight: font.weight.semibold, color: color.navy, fontFamily: font.family.mono }}>{fmt(tier.price)}</td>
+                          <td style={{ padding: '8px 16px', color: color.textMid }}>{tier.memo}</td>
                           <td style={{ padding: '8px 16px', whiteSpace: 'nowrap' }}>
-                            <button onClick={() => { setEditTierId(tier.id); setEditTierForm({ lo: tier.lo, hi: tier.hi, price: tier.price, memo: tier.memo }); }} style={{ ...btnGhost, marginRight: 4 }}>編集</button>
-                            <button onClick={() => handleDeleteTier(tier.id)} style={btnDanger}>削除</button>
+                            <Button variant="secondary" size="sm" onClick={() => { setEditTierId(tier.id); setEditTierForm({ lo: tier.lo, hi: tier.hi, price: tier.price, memo: tier.memo }); }} style={{ marginRight: 4 }}>編集</Button>
+                            <Button variant="danger" size="sm" onClick={() => handleDeleteTier(tier.id)}>削除</Button>
                           </td>
                         </tr>
                       )
@@ -228,19 +229,19 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
 
               {/* 段階追加フォーム */}
               {addTierForm && (
-                <div style={{ marginTop: 12, padding: '12px 14px', background: '#F8F9FA', borderRadius: 4, border: '1px solid #E5E7EB' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 8 }}>新しい段階を追加</div>
+                <Card variant="subtle" padding="sm" style={{ marginTop: space[3] }}>
+                  <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, marginBottom: space[2] }}>新しい段階を追加</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: 8, marginBottom: 8 }}>
-                    <div><label style={{ fontSize: 10, color: C.textMid, display: 'block', marginBottom: 2 }}>下限（円）</label><input type="number" placeholder="0" value={addTierForm.lo} onChange={e => setAddTierForm(p => ({ ...p, lo: e.target.value }))} style={inputStyle} /></div>
-                    <div><label style={{ fontSize: 10, color: C.textMid, display: 'block', marginBottom: 2 }}>上限（円）</label><input type="number" placeholder="999999999999" value={addTierForm.hi} onChange={e => setAddTierForm(p => ({ ...p, hi: e.target.value }))} style={inputStyle} /></div>
-                    <div><label style={{ fontSize: 10, color: C.textMid, display: 'block', marginBottom: 2 }}>単価（円）</label><input type="number" placeholder="100000" value={addTierForm.price} onChange={e => setAddTierForm(p => ({ ...p, price: e.target.value }))} style={inputStyle} /></div>
-                    <div><label style={{ fontSize: 10, color: C.textMid, display: 'block', marginBottom: 2 }}>メモ</label><input type="text" placeholder="例: 30億未満：10万円" value={addTierForm.memo} onChange={e => setAddTierForm(p => ({ ...p, memo: e.target.value }))} style={inputStyle} /></div>
+                    <Input type="number" size="sm" label="下限（円）" placeholder="0" value={addTierForm.lo} onChange={e => setAddTierForm(p => ({ ...p, lo: e.target.value }))} />
+                    <Input type="number" size="sm" label="上限（円）" placeholder="999999999999" value={addTierForm.hi} onChange={e => setAddTierForm(p => ({ ...p, hi: e.target.value }))} />
+                    <Input type="number" size="sm" label="単価（円）" placeholder="100000" value={addTierForm.price} onChange={e => setAddTierForm(p => ({ ...p, price: e.target.value }))} />
+                    <Input type="text" size="sm" label="メモ" placeholder="例: 30億未満：10万円" value={addTierForm.memo} onChange={e => setAddTierForm(p => ({ ...p, memo: e.target.value }))} />
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={handleAddTier} style={btnPrimary}>追加</button>
-                    <button onClick={() => setAddTierForm(null)} style={btnGhost}>キャンセル</button>
+                    <Button variant="primary" size="sm" onClick={handleAddTier}>追加</Button>
+                    <Button variant="secondary" size="sm" onClick={() => setAddTierForm(null)}>キャンセル</Button>
                   </div>
-                </div>
+                </Card>
               )}
             </>
           )}
@@ -250,32 +251,20 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
       {/* タイプ追加モーダル */}
       {addTypeForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: C.white, borderRadius: 4, width: 420, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 16 }}>新規タイプ追加</div>
+          <div style={{ background: color.white, borderRadius: radius.lg, width: 420, padding: space[6], boxShadow: shadow.lg }}>
+            <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginBottom: space[4] }}>新規タイプ追加</div>
             <div style={{ display: 'grid', gap: 10 }}>
-              <div><label style={{ fontSize: 10, color: C.textMid, display: 'block', marginBottom: 2 }}>タイプID（英大文字1〜3文字）</label><input type="text" maxLength={3} placeholder="例: O" value={addTypeForm.type_id} onChange={e => setAddTypeForm(p => ({ ...p, type_id: e.target.value }))} style={inputStyle} /></div>
-              <div><label style={{ fontSize: 10, color: C.textMid, display: 'block', marginBottom: 2 }}>名称</label><input type="text" placeholder="例: 固定20万円" value={addTypeForm.name} onChange={e => setAddTypeForm(p => ({ ...p, name: e.target.value }))} style={inputStyle} /></div>
+              <Input type="text" size="sm" label="タイプID（英大文字1〜3文字）" maxLength={3} placeholder="例: O" value={addTypeForm.type_id} onChange={e => setAddTypeForm(p => ({ ...p, type_id: e.target.value }))} />
+              <Input type="text" size="sm" label="名称" placeholder="例: 固定20万円" value={addTypeForm.name} onChange={e => setAddTypeForm(p => ({ ...p, name: e.target.value }))} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                <div><label style={{ fontSize: 10, color: C.textMid, display: 'block', marginBottom: 2 }}>タイミング</label>
-                  <select value={addTypeForm.timing} onChange={e => setAddTypeForm(p => ({ ...p, timing: e.target.value }))} style={inputStyle}>
-                    {TIMING_OPTIONS.map(o => <option key={o}>{o}</option>)}
-                  </select>
-                </div>
-                <div><label style={{ fontSize: 10, color: C.textMid, display: 'block', marginBottom: 2 }}>基準</label>
-                  <select value={addTypeForm.basis} onChange={e => setAddTypeForm(p => ({ ...p, basis: e.target.value }))} style={inputStyle}>
-                    {BASIS_OPTIONS.map(o => <option key={o}>{o}</option>)}
-                  </select>
-                </div>
-                <div><label style={{ fontSize: 10, color: C.textMid, display: 'block', marginBottom: 2 }}>税</label>
-                  <select value={addTypeForm.tax} onChange={e => setAddTypeForm(p => ({ ...p, tax: e.target.value }))} style={inputStyle}>
-                    {TAX_OPTIONS.map(o => <option key={o}>{o}</option>)}
-                  </select>
-                </div>
+                <Select size="sm" label="タイミング" value={addTypeForm.timing} onChange={e => setAddTypeForm(p => ({ ...p, timing: e.target.value }))} options={TIMING_OPTIONS.map(o => ({ value: o, label: o }))} />
+                <Select size="sm" label="基準" value={addTypeForm.basis} onChange={e => setAddTypeForm(p => ({ ...p, basis: e.target.value }))} options={BASIS_OPTIONS.map(o => ({ value: o, label: o }))} />
+                <Select size="sm" label="税" value={addTypeForm.tax} onChange={e => setAddTypeForm(p => ({ ...p, tax: e.target.value }))} options={TAX_OPTIONS.map(o => ({ value: o, label: o }))} />
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
-              <button onClick={() => setAddTypeForm(null)} style={btnGhost}>キャンセル</button>
-              <button onClick={handleAddType} style={btnPrimary}>追加</button>
+            <div style={{ display: 'flex', gap: 8, marginTop: space[4], justifyContent: 'flex-end' }}>
+              <Button variant="secondary" size="sm" onClick={() => setAddTypeForm(null)}>キャンセル</Button>
+              <Button variant="primary" size="sm" onClick={handleAddType}>追加</Button>
             </div>
           </div>
         </div>
@@ -284,32 +273,20 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
       {/* タイプ編集モーダル */}
       {editTypeForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: C.white, borderRadius: 4, width: 420, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 4 }}>タイプ編集 — {editTypeForm.type_id}</div>
-            <div style={{ fontSize: 11, color: C.textLight, marginBottom: 16 }}>※ タイプIDは変更できません</div>
+          <div style={{ background: color.white, borderRadius: radius.lg, width: 420, padding: space[6], boxShadow: shadow.lg }}>
+            <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginBottom: 4 }}>タイプ編集 — {editTypeForm.type_id}</div>
+            <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: space[4] }}>※ タイプIDは変更できません</div>
             <div style={{ display: 'grid', gap: 10 }}>
-              <div><label style={{ fontSize: 10, color: C.textMid, display: 'block', marginBottom: 2 }}>名称</label><input type="text" value={editTypeForm.name} onChange={e => setEditTypeForm(p => ({ ...p, name: e.target.value }))} style={inputStyle} /></div>
+              <Input type="text" size="sm" label="名称" value={editTypeForm.name} onChange={e => setEditTypeForm(p => ({ ...p, name: e.target.value }))} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                <div><label style={{ fontSize: 10, color: C.textMid, display: 'block', marginBottom: 2 }}>タイミング</label>
-                  <select value={editTypeForm.timing} onChange={e => setEditTypeForm(p => ({ ...p, timing: e.target.value }))} style={inputStyle}>
-                    {TIMING_OPTIONS.map(o => <option key={o}>{o}</option>)}
-                  </select>
-                </div>
-                <div><label style={{ fontSize: 10, color: C.textMid, display: 'block', marginBottom: 2 }}>基準</label>
-                  <select value={editTypeForm.basis} onChange={e => setEditTypeForm(p => ({ ...p, basis: e.target.value }))} style={inputStyle}>
-                    {BASIS_OPTIONS.map(o => <option key={o}>{o}</option>)}
-                  </select>
-                </div>
-                <div><label style={{ fontSize: 10, color: C.textMid, display: 'block', marginBottom: 2 }}>税</label>
-                  <select value={editTypeForm.tax} onChange={e => setEditTypeForm(p => ({ ...p, tax: e.target.value }))} style={inputStyle}>
-                    {TAX_OPTIONS.map(o => <option key={o}>{o}</option>)}
-                  </select>
-                </div>
+                <Select size="sm" label="タイミング" value={editTypeForm.timing} onChange={e => setEditTypeForm(p => ({ ...p, timing: e.target.value }))} options={TIMING_OPTIONS.map(o => ({ value: o, label: o }))} />
+                <Select size="sm" label="基準" value={editTypeForm.basis} onChange={e => setEditTypeForm(p => ({ ...p, basis: e.target.value }))} options={BASIS_OPTIONS.map(o => ({ value: o, label: o }))} />
+                <Select size="sm" label="税" value={editTypeForm.tax} onChange={e => setEditTypeForm(p => ({ ...p, tax: e.target.value }))} options={TAX_OPTIONS.map(o => ({ value: o, label: o }))} />
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
-              <button onClick={() => setEditTypeForm(null)} style={btnGhost}>キャンセル</button>
-              <button onClick={handleUpdateType} style={btnPrimary}>保存</button>
+            <div style={{ display: 'flex', gap: 8, marginTop: space[4], justifyContent: 'flex-end' }}>
+              <Button variant="secondary" size="sm" onClick={() => setEditTypeForm(null)}>キャンセル</Button>
+              <Button variant="primary" size="sm" onClick={handleUpdateType}>保存</Button>
             </div>
           </div>
         </div>

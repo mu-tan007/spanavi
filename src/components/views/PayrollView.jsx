@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { calcRankAndRate } from '../../utils/calculations';
 import { supabase } from '../../lib/supabase';
 import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, fetchPayrollAdjustment, upsertPayrollAdjustment } from '../../lib/supabaseWrite';
@@ -410,10 +412,6 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
   const gridCols = colGridTemplate;
   const cellPad = "8px 16px";
 
-  // ボタンスタイル
-  const btnPrimary = { padding: "5px 14px", borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'", background: TH_BG, color: "#fff", border: "none" };
-  const btnSecondary = { padding: "5px 14px", borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'", background: "#fff", color: TH_BG, border: `1px solid ${TH_BG}` };
-
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
 
@@ -421,82 +419,80 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
         eyebrow="Admin · 報酬"
         title="Payroll"
         description="月次インセンティブ・支給額の管理"
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: space[6] }}
       />
 
       {/* ── Summary cards ────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: space[5] }}>
         {[
           { label: "総支給額",   value: fmt(grandTotal), color: TH_BG },
           { label: "総売上",     value: fmt(grandSales), color: TH_BG },
           { label: "支給対象者", value: paidCount + "名", color: TH_BG },
           { label: "対象月",     value: monthTab,         color: TH_BG },
         ].map((s, i) => (
-          <div key={i} style={{ background: "#fff", borderRadius: 4, padding: "14px 18px", border: `1px solid ${GRAY_200}` }}>
-            <div style={{ fontSize: 10, color: C.textLight, fontWeight: 600, marginBottom: 4 }}>{s.label}</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: s.color, fontFamily: MONO, fontVariantNumeric: "tabular-nums" }}>{s.value}</div>
-          </div>
+          <Card key={i} variant="default" padding="none" style={{ padding: "14px 18px" }}>
+            <div style={{ fontSize: font.size.xs - 1, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>{s.label}</div>
+            <div style={{ fontSize: 22, fontWeight: font.weight.black, color: s.color, fontFamily: MONO, fontVariantNumeric: "tabular-nums" }}>{s.value}</div>
+          </Card>
         ))}
       </div>
 
       {/* ── 調整（ディスカウント）──────────────────────────────────── */}
       {(salesDisc > 0 || incDisc > 0) && !showAdjustForm && (
-        <div style={{ marginBottom: 12, padding: '8px 16px', borderRadius: 4, background: '#FEF3C7', border: '1px solid #FDE68A', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#92400E' }}>調整適用中:</span>
-          {salesDisc > 0 && <span style={{ fontSize: 11, color: '#92400E' }}>売上 -¥{salesDisc.toLocaleString()}</span>}
-          {incDisc > 0 && <span style={{ fontSize: 11, color: '#92400E' }}>インセンティブ -¥{incDisc.toLocaleString()}</span>}
-          {adjustment.note && <span style={{ fontSize: 10, color: '#B45309' }}>({adjustment.note})</span>}
-          {isAdmin && <button onClick={() => setShowAdjustForm(true)} style={{ fontSize: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#92400E', textDecoration: 'underline', padding: 0 }}>編集</button>}
+        <div style={{ marginBottom: space[3], padding: '8px 16px', borderRadius: radius.md, background: '#FEF3C7', border: '1px solid #FDE68A', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: '#92400E' }}>調整適用中:</span>
+          {salesDisc > 0 && <span style={{ fontSize: font.size.xs, color: '#92400E' }}>売上 -¥{salesDisc.toLocaleString()}</span>}
+          {incDisc > 0 && <span style={{ fontSize: font.size.xs, color: '#92400E' }}>インセンティブ -¥{incDisc.toLocaleString()}</span>}
+          {adjustment.note && <span style={{ fontSize: font.size.xs - 1, color: '#B45309' }}>({adjustment.note})</span>}
+          {isAdmin && <button onClick={() => setShowAdjustForm(true)} style={{ fontSize: font.size.xs - 1, background: 'none', border: 'none', cursor: 'pointer', color: '#92400E', textDecoration: 'underline', padding: 0 }}>編集</button>}
         </div>
       )}
       {isAdmin && showAdjustForm && (
-        <div style={{ marginBottom: 12, padding: '12px 16px', borderRadius: 4, background: '#FEF3C7', border: '1px solid #FDE68A' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#92400E', marginBottom: 8 }}>Payroll調整（ディスカウント）</div>
+        <div style={{ marginBottom: space[3], padding: '12px 16px', borderRadius: radius.md, background: '#FEF3C7', border: '1px solid #FDE68A' }}>
+          <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: '#92400E', marginBottom: 8 }}>Payroll調整（ディスカウント）</div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <label style={{ fontSize: 10, color: '#92400E' }}>
+            <label style={{ fontSize: font.size.xs - 1, color: '#92400E' }}>
               売上ディスカウント
               <input type="number" value={adjForm.sales} onChange={e => setAdjForm(p => ({ ...p, sales: e.target.value }))}
-                style={{ marginLeft: 6, width: 110, padding: '4px 8px', borderRadius: 4, border: '1px solid #FDE68A', fontSize: 11, fontFamily: MONO }} />
+                style={{ marginLeft: 6, width: 110, padding: '4px 8px', borderRadius: radius.md, border: '1px solid #FDE68A', fontSize: font.size.xs, fontFamily: MONO }} />
             </label>
-            <label style={{ fontSize: 10, color: '#92400E' }}>
+            <label style={{ fontSize: font.size.xs - 1, color: '#92400E' }}>
               インセンティブディスカウント
               <input type="number" value={adjForm.incentive} onChange={e => setAdjForm(p => ({ ...p, incentive: e.target.value }))}
-                style={{ marginLeft: 6, width: 110, padding: '4px 8px', borderRadius: 4, border: '1px solid #FDE68A', fontSize: 11, fontFamily: MONO }} />
+                style={{ marginLeft: 6, width: 110, padding: '4px 8px', borderRadius: radius.md, border: '1px solid #FDE68A', fontSize: font.size.xs, fontFamily: MONO }} />
             </label>
-            <label style={{ fontSize: 10, color: '#92400E' }}>
+            <label style={{ fontSize: font.size.xs - 1, color: '#92400E' }}>
               備考
               <input value={adjForm.note} onChange={e => setAdjForm(p => ({ ...p, note: e.target.value }))}
-                style={{ marginLeft: 6, width: 160, padding: '4px 8px', borderRadius: 4, border: '1px solid #FDE68A', fontSize: 11 }} />
+                style={{ marginLeft: 6, width: 160, padding: '4px 8px', borderRadius: radius.md, border: '1px solid #FDE68A', fontSize: font.size.xs }} />
             </label>
-            <button onClick={handleSaveAdjustment} disabled={adjSaving}
-              style={{ padding: '4px 14px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: '#0D2247', color: '#fff', border: 'none', cursor: adjSaving ? 'default' : 'pointer', opacity: adjSaving ? 0.6 : 1 }}>
+            <Button variant="primary" size="sm" loading={adjSaving} onClick={handleSaveAdjustment} style={{ background: TH_BG }}>
               {adjSaving ? '保存中...' : '保存'}
-            </button>
-            <button onClick={() => setShowAdjustForm(false)}
-              style={{ padding: '4px 14px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: '#fff', color: '#0D2247', border: '1px solid #0D2247', cursor: 'pointer' }}>
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowAdjustForm(false)} style={{ borderColor: TH_BG, color: TH_BG }}>
               キャンセル
-            </button>
+            </Button>
           </div>
         </div>
       )}
       {isAdmin && !showAdjustForm && salesDisc === 0 && incDisc === 0 && (
         <div style={{ marginBottom: 8 }}>
           <button onClick={() => setShowAdjustForm(true)}
-            style={{ fontSize: 10, background: 'none', border: 'none', cursor: 'pointer', color: C.textLight, textDecoration: 'underline', padding: 0 }}>
+            style={{ fontSize: font.size.xs - 1, background: 'none', border: 'none', cursor: 'pointer', color: color.textLight, textDecoration: 'underline', padding: 0 }}>
             + 調整（ディスカウント）を追加
           </button>
         </div>
       )}
 
       {/* ── Filters + 確定ボタン ──────────────────────────────────── */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: space[3], alignItems: "center", flexWrap: "wrap" }}>
         {/* 月タブ */}
         <div style={{ display: "flex", gap: 4 }}>
           {payrollMonths.map(({ label }) => (
             <button key={label} onClick={() => setMonthTab(label)} style={{
-              padding: "5px 14px", borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'",
-              background: monthTab === label ? TH_BG : "#fff",
-              color: monthTab === label ? "#fff" : C.textMid,
+              padding: "5px 14px", borderRadius: radius.md, fontSize: font.size.xs, fontWeight: font.weight.semibold, cursor: "pointer", fontFamily: font.family.sans,
+              background: monthTab === label ? TH_BG : color.white,
+              color: monthTab === label ? color.white : color.textMid,
               border: `1px solid ${monthTab === label ? TH_BG : GRAY_200}`,
             }}>{label}</button>
           ))}
@@ -506,9 +502,9 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
         <div style={{ display: "flex", gap: 4, marginLeft: 12 }}>
           {["all", ...teams].map(t => (
             <button key={t} onClick={() => setTeamFilter(t)} style={{
-              padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'",
-              background: teamFilter === t ? TH_BG : "#fff",
-              color: teamFilter === t ? "#fff" : C.textMid,
+              padding: "4px 10px", borderRadius: radius.md, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, cursor: "pointer", fontFamily: font.family.sans,
+              background: teamFilter === t ? TH_BG : color.white,
+              color: teamFilter === t ? color.white : color.textMid,
               border: `1px solid ${teamFilter === t ? TH_BG : GRAY_200}`,
             }}>{t === "all" ? "全チーム" : t + "チーム"}</button>
           ))}
@@ -519,27 +515,24 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
             {isConfirmed ? (
               <>
-                <span style={{ fontSize: 10, fontWeight: 700, color: C.green, borderLeft: `3px solid ${C.green}`, paddingLeft: 8 }}>
+                <span style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: color.success, borderLeft: `3px solid ${color.success}`, paddingLeft: 8 }}>
                   ✓ 確定済 {confirmedAt}
                 </span>
-                <button onClick={handleUnconfirm} disabled={unconfirming}
-                  style={{ ...btnSecondary, opacity: unconfirming ? 0.6 : 1, cursor: unconfirming ? "default" : "pointer" }}>
+                <Button variant="secondary" size="sm" loading={unconfirming} onClick={handleUnconfirm} style={{ borderColor: TH_BG, color: TH_BG }}>
                   {unconfirming ? '解除中...' : '確定解除'}
-                </button>
+                </Button>
               </>
             ) : (
               <>
                 {uncountedCount > 0 && (
-                  <span style={{ fontSize: 10, color: C.textMid, fontWeight: 600 }}>未加算: {uncountedCount}件</span>
+                  <span style={{ fontSize: font.size.xs - 1, color: color.textMid, fontWeight: font.weight.semibold }}>未加算: {uncountedCount}件</span>
                 )}
-                <button onClick={handleSync} disabled={syncing}
-                  style={{ ...btnSecondary, opacity: syncing ? 0.6 : 1, cursor: syncing ? "default" : "pointer" }}>
+                <Button variant="secondary" size="sm" loading={syncing} onClick={handleSync} style={{ borderColor: TH_BG, color: TH_BG }}>
                   {syncing ? '同期中...' : '累計同期'}
-                </button>
-                <button onClick={handleConfirm} disabled={confirming || snapshotLoading}
-                  style={{ ...btnPrimary, opacity: (confirming || snapshotLoading) ? 0.6 : 1, cursor: (confirming || snapshotLoading) ? "default" : "pointer" }}>
+                </Button>
+                <Button variant="primary" size="sm" loading={confirming || snapshotLoading} onClick={handleConfirm} style={{ background: TH_BG }}>
                   {confirming ? '確定中...' : '報酬確定'}
-                </button>
+                </Button>
               </>
             )}
           </div>
@@ -551,10 +544,10 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
         const msg = syncMsg || actionMsg;
         const isErr = msg.includes('失敗') || msg.includes('エラー');
         return (
-          <div style={{ marginBottom: 10, padding: "8px 16px", borderRadius: 4, fontSize: 11, fontWeight: 600,
-            borderLeft: `3px solid ${isErr ? C.red : C.green}`,
+          <div style={{ marginBottom: 10, padding: "8px 16px", borderRadius: radius.md, fontSize: font.size.xs, fontWeight: font.weight.semibold,
+            borderLeft: `3px solid ${isErr ? color.danger : color.success}`,
             background: isErr ? "#fff5f5" : "#f0faf4",
-            color: isErr ? C.red : C.green }}>
+            color: isErr ? color.danger : color.success }}>
             {msg}
           </div>
         );
@@ -562,13 +555,13 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
 
       {/* 未確定注記 */}
       {!isConfirmed && !snapshotLoading && (
-        <div style={{ marginBottom: 8, fontSize: 10, color: C.textLight }}>
+        <div style={{ marginBottom: 8, fontSize: font.size.xs - 1, color: color.textLight }}>
           ※ 未確定（リアルタイム計算）。月末に「報酬確定」を押すとスナップショットとして保存されます。
         </div>
       )}
 
       {/* ── Table ────────────────────────────────────────────────── */}
-      <div style={{ background: "#fff", borderRadius: 4, border: `1px solid ${GRAY_200}`, overflowX: "auto", overflowY: "hidden" }}>
+      <div style={{ background: color.white, borderRadius: radius.md, border: `1px solid ${GRAY_200}`, overflowX: "auto", overflowY: "hidden" }}>
         <div style={{ minWidth: contentMinWidth }}>
 
         {/* ヘッダー行 */}
@@ -580,7 +573,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
             <span key={i}
               onClick={() => { if (col.sk) setSortKey(col.sk); }}
               style={{
-                padding: cellPad, fontSize: 11, fontWeight: 600, color: "#fff",
+                padding: cellPad, fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.white,
                 textAlign: colCfg[i]?.align || col.align,
                 cursor: col.sk ? "pointer" : "default",
                 userSelect: "none",
@@ -594,14 +587,14 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
 
         {/* データ行 */}
         {filtered.length === 0 ? (
-          <div style={{ padding: "24px 16px", textAlign: "left", color: C.textLight, fontSize: 12 }}>
+          <div style={{ padding: "24px 16px", textAlign: "left", color: color.textLight, fontSize: font.size.sm }}>
             {snapshotLoading ? '読み込み中...' : '該当データがありません'}
           </div>
         ) : filtered.map((p, i) => {
           const rankStyle = RANK_COLORS[p.rank] || RANK_COLORS['トレーニー'];
           const refBonus = activeReferralMap[p.name] || 0;
           const isHovered = hoveredRow === i;
-          const rowBg = isHovered ? "#F3F4F6" : (i % 2 === 0 ? "#fff" : GRAY_50);
+          const rowBg = isHovered ? color.gray100 : (i % 2 === 0 ? color.white : GRAY_50);
           return (
             <div key={i}
               onMouseEnter={() => setHoveredRow(i)}
@@ -614,41 +607,41 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
               }}>
               {/* 名前 */}
               <div style={{ padding: cellPad, textAlign: colCfg[0]?.align || "left" }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: TH_BG }}>{p.name}</div>
-                {p.role && <div style={{ fontSize: 10, color: C.textLight }}>{p.role}</div>}
+                <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: TH_BG }}>{p.name}</div>
+                {p.role && <div style={{ fontSize: font.size.xs - 1, color: color.textLight }}>{p.role}</div>}
               </div>
               {/* チーム */}
-              <div style={{ padding: cellPad, fontSize: 11, color: C.textMid, textAlign: colCfg[1]?.align || "left" }}>{p.team}</div>
+              <div style={{ padding: cellPad, fontSize: font.size.xs, color: color.textMid, textAlign: colCfg[1]?.align || "left" }}>{p.team}</div>
               {/* ランク */}
               <div style={{ padding: cellPad, textAlign: colCfg[2]?.align || "left" }}>
                 <span style={{
-                  fontSize: 10, fontWeight: 600,
+                  fontSize: font.size.xs - 1, fontWeight: font.weight.semibold,
                   borderLeft: `3px solid ${rankStyle.color}`,
                   paddingLeft: 6, color: rankStyle.color,
                 }}>{p.rank || "-"}</span>
               </div>
               {/* 率 */}
-              <div style={{ padding: cellPad, fontSize: 11, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: C.textMid, textAlign: colCfg[3]?.align || "right" }}>
+              <div style={{ padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: color.textMid, textAlign: colCfg[3]?.align || "right" }}>
                 {p.rate ? (p.rate * 100).toFixed(0) + "%" : "-"}
               </div>
               {/* 今月売上 */}
-              <div style={{ padding: cellPad, fontSize: 11, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 600, color: TH_BG, textAlign: colCfg[4]?.align || "right" }}>
+              <div style={{ padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: font.weight.semibold, color: TH_BG, textAlign: colCfg[4]?.align || "right" }}>
                 {fmt(p.sales)}
               </div>
               {/* ①インセンティブ */}
-              <div style={{ padding: cellPad, fontSize: 11, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: C.green, textAlign: colCfg[5]?.align || "right" }}>
+              <div style={{ padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: color.success, textAlign: colCfg[5]?.align || "right" }}>
                 {fmt(p.incentive)}
               </div>
               {/* ②役職ボーナス */}
-              <div style={{ padding: cellPad, fontSize: 11, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: p.teamBonus > 0 ? TH_BG : C.textMid, textAlign: colCfg[6]?.align || "right" }}>
+              <div style={{ padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: p.teamBonus > 0 ? TH_BG : color.textMid, textAlign: colCfg[6]?.align || "right" }}>
                 {fmt(p.teamBonus)}
               </div>
               {/* ③紹介 */}
-              <div style={{ padding: cellPad, fontSize: 11, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: refBonus > 0 ? C.green : C.textMid, textAlign: colCfg[7]?.align || "right" }}>
+              <div style={{ padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: refBonus > 0 ? color.success : color.textMid, textAlign: colCfg[7]?.align || "right" }}>
                 {fmt(refBonus)}
               </div>
               {/* 合計支給額 */}
-              <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 800, color: TH_BG, textAlign: colCfg[8]?.align || "right" }}>
+              <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: font.weight.black, color: TH_BG, textAlign: colCfg[8]?.align || "right" }}>
                 {fmt(p.total + refBonus)}
               </div>
             </div>
@@ -660,25 +653,25 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
           <div style={{
             display: "grid", gridTemplateColumns: gridCols, alignItems: "center",
             borderTop: `2px solid ${TH_BG}`,
-            background: "#fff",
+            background: color.white,
           }}>
-            <div style={{ padding: cellPad, fontSize: 12, fontWeight: 700, color: TH_BG, textAlign: colCfg[0]?.align || "left" }}>合計</div>
+            <div style={{ padding: cellPad, fontSize: font.size.sm, fontWeight: font.weight.bold, color: TH_BG, textAlign: colCfg[0]?.align || "left" }}>合計</div>
             <div style={{ padding: cellPad }} />
             <div style={{ padding: cellPad }} />
             <div style={{ padding: cellPad }} />
-            <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: TH_BG, textAlign: colCfg[4]?.align || "right" }}>
+            <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: font.weight.bold, color: TH_BG, textAlign: colCfg[4]?.align || "right" }}>
               {(() => { const v = filtered.reduce((s, p) => s + p.sales, 0) - salesDisc; return v > 0 ? "¥" + v.toLocaleString() : "-"; })()}
             </div>
-            <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.green, textAlign: colCfg[5]?.align || "right" }}>
+            <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: font.weight.bold, color: color.success, textAlign: colCfg[5]?.align || "right" }}>
               {(() => { const v = filtered.reduce((s, p) => s + p.incentive, 0) - incDisc; return v > 0 ? "¥" + v.toLocaleString() : "-"; })()}
             </div>
-            <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: TH_BG, textAlign: colCfg[6]?.align || "right" }}>
+            <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: font.weight.bold, color: TH_BG, textAlign: colCfg[6]?.align || "right" }}>
               {filtered.reduce((s, p) => s + p.teamBonus, 0) > 0 ? "¥" + filtered.reduce((s, p) => s + p.teamBonus, 0).toLocaleString() : "-"}
             </div>
-            <div style={{ padding: cellPad, fontSize: 12, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.green, textAlign: colCfg[7]?.align || "right" }}>
+            <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: font.weight.bold, color: color.success, textAlign: colCfg[7]?.align || "right" }}>
               {filtered.reduce((s, p) => s + (activeReferralMap[p.name] || 0), 0) > 0 ? "¥" + filtered.reduce((s, p) => s + (activeReferralMap[p.name] || 0), 0).toLocaleString() : "-"}
             </div>
-            <div style={{ padding: cellPad, fontSize: 13, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: 900, color: TH_BG, textAlign: colCfg[8]?.align || "right" }}>
+            <div style={{ padding: cellPad, fontSize: font.size.base, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: font.weight.black, color: TH_BG, textAlign: colCfg[8]?.align || "right" }}>
               {"¥" + (filtered.reduce((s, p) => s + p.total + (activeReferralMap[p.name] || 0), 0) - incDisc).toLocaleString()}
             </div>
           </div>

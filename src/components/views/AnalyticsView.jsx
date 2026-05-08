@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import PageHeader from '../common/PageHeader';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import {
@@ -216,7 +218,7 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
         teamMap={teamMap}
       />
 
-      <div style={{ fontSize: 11, color: C.textLight, marginBottom: 16, padding: '0 4px' }}>
+      <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 16, padding: '0 4px' }}>
         対象: <b style={{ color: NAVY }}>{scopeLabel}</b>
         {selectedListName && <> / リスト: <b style={{ color: NAVY }}>{selectedListName}</b></>}
         {' '}・ 期間: <b style={{ color: NAVY }}>{range.from} 〜 {range.to}</b>
@@ -273,9 +275,9 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
         />
       )}
 
-      <div style={{ margin: '28px 0 20px', borderTop: '1px solid ' + C.border, paddingTop: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: C.textLight, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>売上・クライアント・リスト別分析</div>
-        <div style={{ fontSize: 11, color: C.textLight }}>（以下のセクションは独自の期間/絞込を持ちます）</div>
+      <div style={{ margin: '28px 0 20px', borderTop: `1px solid ${color.border}`, paddingTop: 20 }}>
+        <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.textLight, letterSpacing: font.letterSpacing.wider, textTransform: 'uppercase', marginBottom: 4 }}>売上・クライアント・リスト別分析</div>
+        <div style={{ fontSize: font.size.xs, color: color.textLight }}>（以下のセクションは独自の期間/絞込を持ちます）</div>
       </div>
 
       <StatsView

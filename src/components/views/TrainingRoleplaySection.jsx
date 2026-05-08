@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { prepareAudioForWhisper, needsConversion, isVideoFile } from '../../lib/convertAudio';
 import {
   fetchTrainingProgress,
@@ -504,44 +506,48 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
     const saving = savingStage === stageKey;
     return (
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 12,
-        padding: '10px 14px', borderRadius: 8,
-        background: completed ? C.green + '0a' : '#F8F9FA',
-        border: '1px solid ' + (completed ? C.green + '30' : '#E5E7EB'),
-        marginBottom: 8,
+        display: 'flex', alignItems: 'center', gap: space[3],
+        padding: '10px 14px', borderRadius: radius.xl,
+        background: completed ? alpha(color.success, 0.04) : color.gray50,
+        border: `1px solid ${completed ? alpha(color.success, 0.19) : color.gray200}`,
+        marginBottom: space[2],
       }}>
         <div style={{
-          width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
-          background: completed ? C.green : C.borderLight,
+          width: 24, height: 24, borderRadius: radius.pill, flexShrink: 0,
+          background: completed ? color.success : color.borderLight,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 13, color: C.white, fontWeight: 700,
+          fontSize: font.size.base, color: color.white, fontWeight: font.weight.bold,
         }}>
           {completed ? '✓' : ''}
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: completed ? C.green : C.textMid }}>{label}</div>
-          <div style={{ fontSize: 10, color: C.textLight, marginTop: 2 }}>{desc}</div>
+          <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: completed ? color.success : color.textMid }}>{label}</div>
+          <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 2 }}>{desc}</div>
           {completed && p?.completed_at && (
-            <div style={{ fontSize: 9, color: C.textLight, marginTop: 2 }}>
+            <div style={{ fontSize: 9, color: color.textLight, marginTop: 2 }}>
               {p.completed_by ? `${p.completed_by} が完了マーク` : ''} {new Date(p.completed_at).toLocaleDateString('ja-JP')}
             </div>
           )}
         </div>
         {isAdmin && (
-          <button
+          <Button
+            variant={completed ? 'danger' : 'primary'}
+            size="sm"
             onClick={() => handleToggleStage(stageKey, completed)}
             disabled={saving}
+            loading={saving}
             style={{
-              padding: '4px 10px', borderRadius: 5, fontSize: 10, fontWeight: 600,
-              border: '1px solid ' + (completed ? C.red + '50' : C.green + '50'),
-              background: completed ? C.red + '0a' : C.green + '0a',
-              color: completed ? C.red : C.green,
-              cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1,
-              fontFamily: "'Noto Sans JP'",
+              padding: '4px 10px',
+              borderRadius: radius.sm + 2,
+              fontSize: font.size.xs - 1,
+              minHeight: 0,
+              border: `1px solid ${completed ? alpha(color.danger, 0.31) : alpha(color.success, 0.31)}`,
+              background: completed ? alpha(color.danger, 0.04) : alpha(color.success, 0.04),
+              color: completed ? color.danger : color.success,
             }}
           >
             {saving ? '...' : completed ? '取消' : '完了'}
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -559,9 +565,9 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
     return (
       <div style={{
-        border: '1px solid ' + (isExpanded ? C.navy + '30' : C.borderLight),
-        borderRadius: 8, marginBottom: 8, overflow: 'hidden',
-        background: hasFeedback ? C.navy + '04' : C.white,
+        border: `1px solid ${isExpanded ? alpha(color.navy, 0.19) : color.borderLight}`,
+        borderRadius: radius.xl, marginBottom: space[2], overflow: 'hidden',
+        background: hasFeedback ? alpha(color.navy, 0.015) : color.white,
         transition: 'border-color 0.15s',
       }}>
         {/* ── クリックで開閉するヘッダー行 ── */}
@@ -575,7 +581,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         >
           {/* 開閉シェブロン */}
           <span style={{
-            fontSize: 10, color: C.textLight, flexShrink: 0,
+            fontSize: font.size.xs - 1, color: color.textLight, flexShrink: 0,
             transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
             transition: 'transform 0.2s',
             display: 'inline-block',
@@ -583,28 +589,25 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: C.navy }}>
+              <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy }}>
                 {session.session_date || '日付未設定'}
               </span>
               {session.partner_name && (
-                <span style={{ fontSize: 10, color: C.textMid }}>
+                <span style={{ fontSize: font.size.xs - 1, color: color.textMid }}>
                   {session.partner_name} とのロープレ
                 </span>
               )}
-              <span style={{
-                fontSize: 9, padding: '1px 6px', borderRadius: 3,
-                background: C.navy + '10', color: C.navy, fontWeight: 600,
-              }}>
+              <Badge variant="primary" size="sm">
                 {SESSION_TYPE_LABEL[session.session_type] || session.session_type}
-              </span>
+              </Badge>
               {session.passed === true && (
-                <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, background: C.green + '15', color: C.green, fontWeight: 700 }}>合格</span>
+                <Badge variant="success" size="sm">合格</Badge>
               )}
               {session.passed === false && (
-                <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, background: C.red + '15', color: C.red, fontWeight: 700 }}>不合格</span>
+                <Badge variant="danger" size="sm">不合格</Badge>
               )}
               {session.ai_status === 'processing' && (
-                <span style={{ fontSize: 9, color: C.textLight }}>分析中...</span>
+                <span style={{ fontSize: 9, color: color.textLight }}>分析中...</span>
               )}
             </div>
           </div>
@@ -612,7 +615,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
         {/* ── 展開パネル ── */}
         {isExpanded && (
-          <div style={{ borderTop: '1px solid ' + C.borderLight }}>
+          <div style={{ borderTop: `1px solid ${color.borderLight}` }}>
             {/* 動画サムネイル（Google Drive） */}
             {driveId && (
               <div style={{ padding: '10px 14px 0' }}>
@@ -625,20 +628,20 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                     alt="ロープレ動画"
                     style={{
                       display: 'block', width: 200, height: 113,
-                      objectFit: 'cover', borderRadius: 6,
+                      objectFit: 'cover', borderRadius: radius.lg,
                       background: '#000',
                     }}
                   />
                   <div style={{
                     position: 'absolute', inset: 0, display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
-                    borderRadius: 6, background: 'rgba(0,0,0,0.25)',
+                    borderRadius: radius.lg, background: 'rgba(0,0,0,0.25)',
                   }}>
                     <div style={{
-                      width: 36, height: 36, borderRadius: '50%',
+                      width: 36, height: 36, borderRadius: radius.pill,
                       background: 'rgba(255,255,255,0.9)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 16,
+                      fontSize: font.size.lg,
                     }}>▶</div>
                   </div>
                 </div>
@@ -649,20 +652,23 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             <div style={{ display: 'flex', gap: 6, padding: '8px 14px', alignItems: 'center' }}>
               {/* 録音アップロード（未録音時のみ表示） */}
               {!session.recording_url && (
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={e => { e.stopPropagation(); fileTargetSessionId.current = session.id; fileInputRef.current?.click(); }}
                   disabled={isUploading}
+                  loading={isUploading}
                   title="録音をアップロード"
                   style={{
-                    padding: '4px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600,
-                    border: '1px solid ' + C.borderLight,
-                    background: C.white, color: C.textLight,
-                    cursor: isUploading ? 'default' : 'pointer', opacity: isUploading ? 0.6 : 1,
-                    fontFamily: "'Noto Sans JP'",
+                    padding: '4px 8px',
+                    minHeight: 0,
+                    fontSize: font.size.xs - 1,
+                    background: color.white,
+                    color: color.textLight,
                   }}
                 >
                   {isUploading ? '...' : '録音↑'}
-                </button>
+                </Button>
               )}
 
               {/* Google Drive URL 入力（動画未設定時のみ表示） */}
@@ -674,47 +680,66 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                     onChange={e => setDriveInputVal(e.target.value)}
                     placeholder="Google Drive 共有URL"
                     style={{
-                      flex: 1, padding: '3px 7px', borderRadius: 4, fontSize: 10,
-                      border: '1px solid ' + C.navy + '40', fontFamily: "'Noto Sans JP'",
+                      flex: 1, padding: '3px 7px', borderRadius: radius.md, fontSize: font.size.xs - 1,
+                      border: `1px solid ${alpha(color.navy, 0.25)}`, fontFamily: font.family.sans,
                       minWidth: 0,
                     }}
                   />
-                  <button
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={e => { e.stopPropagation(); handleSaveDriveUrl(session.id); }}
-                    style={{ padding: '3px 8px', borderRadius: 4, fontSize: 10, fontWeight: 600, border: 'none', background: C.navy, color: C.white, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap' }}
-                  >保存</button>
-                  <button
+                    style={{
+                      padding: '3px 8px',
+                      minHeight: 0,
+                      fontSize: font.size.xs - 1,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >保存</Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={e => { e.stopPropagation(); setDriveInputId(null); setDriveInputVal(''); }}
-                    style={{ padding: '3px 6px', borderRadius: 4, fontSize: 10, border: '1px solid ' + C.borderLight, background: 'transparent', color: C.textLight, cursor: 'pointer' }}
-                  >✕</button>
+                    style={{
+                      padding: '3px 6px',
+                      minHeight: 0,
+                      fontSize: font.size.xs - 1,
+                      border: `1px solid ${color.borderLight}`,
+                      color: color.textLight,
+                    }}
+                  >✕</Button>
                 </div>
               ) : !driveId ? (
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={e => { e.stopPropagation(); setDriveInputId(session.id); setDriveInputVal(''); }}
                   title="Google Drive URLを設定"
                   style={{
-                    padding: '4px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600,
-                    border: '1px solid ' + C.borderLight,
-                    background: C.white, color: C.textLight,
-                    cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                    padding: '4px 8px',
+                    minHeight: 0,
+                    fontSize: font.size.xs - 1,
+                    background: color.white,
+                    color: color.textLight,
                   }}
                 >
                   🎬 Drive URL
-                </button>
+                </Button>
               ) : null}
 
               {/* AI 分析（分析済み以外のみ表示） */}
               {(session.recording_url || session.recording_path) && session.ai_status !== 'done' && (
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={e => { e.stopPropagation(); handleAnalyze(session); }}
                   disabled={isAnalyzing || session.ai_status === 'processing'}
                   style={{
-                    padding: '4px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600,
-                    border: '1px solid ' + C.borderLight,
-                    background: C.white, color: C.textMid,
-                    cursor: (isAnalyzing || session.ai_status === 'processing') ? 'default' : 'pointer',
-                    opacity: (isAnalyzing || session.ai_status === 'processing') ? 0.6 : 1,
-                    fontFamily: "'Noto Sans JP'",
+                    padding: '4px 8px',
+                    minHeight: 0,
+                    fontSize: font.size.xs - 1,
+                    background: color.white,
+                    color: color.textMid,
                   }}
                 >
                   {session.ai_status === 'processing' || isAnalyzing
@@ -722,35 +747,39 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                     : session.ai_status === 'error'
                     ? '再分析'
                     : '✨ AI分析'}
-                </button>
+                </Button>
               )}
 
               {/* 削除（管理者のみ） */}
               {isAdmin && (
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={e => { e.stopPropagation(); handleDeleteSession(session.id); }}
                   disabled={isDeleting}
                   style={{
-                    padding: '4px 8px', borderRadius: 5, fontSize: 10,
-                    border: '1px solid ' + C.borderLight,
-                    background: 'transparent', color: C.red,
-                    cursor: isDeleting ? 'default' : 'pointer', opacity: isDeleting ? 0.6 : 1,
-                    fontFamily: "'Noto Sans JP'",
+                    padding: '4px 8px',
+                    minHeight: 0,
+                    fontSize: font.size.xs - 1,
+                    fontWeight: font.weight.normal,
+                    border: `1px solid ${color.borderLight}`,
+                    background: 'transparent',
+                    color: color.danger,
                     marginLeft: 'auto',
                   }}
                 >
                   削除
-                </button>
+                </Button>
               )}
             </div>
 
         {/* AI エラー表示 */}
         {isExpanded && session.ai_status === 'error' && (
           <div style={{
-            borderTop: '1px solid #fecaca',
+            borderTop: `1px solid ${alpha(color.danger, 0.25)}`,
             padding: '10px 16px',
-            background: '#fff5f5',
-            fontSize: 11,
+            background: color.dangerSoft,
+            fontSize: font.size.xs,
             color: '#c0392b',
           }}>
             ⚠️ {analyzeErrors[session.id] || 'AI分析でエラーが発生しました。'}
@@ -760,22 +789,22 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         {/* AI フィードバック */}
         {isExpanded && fb && (
           <div style={{
-            borderTop: '1px solid ' + C.borderLight,
-            background: '#fff',
+            borderTop: `1px solid ${color.borderLight}`,
+            background: color.white,
             padding: '16px 18px',
           }}>
             {/* ヘッダー */}
             <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
+              display: 'flex', alignItems: 'center', gap: space[2],
               paddingBottom: 10, marginBottom: 14,
-              borderBottom: '1px solid ' + C.border,
+              borderBottom: `1px solid ${color.border}`,
             }}>
-              <div style={{ width: 3, height: 13, background: C.navy, borderRadius: 1, flexShrink: 0 }} />
-              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: C.navy, textTransform: 'uppercase' }}>
+              <div style={{ width: 3, height: 13, background: color.navy, borderRadius: 1, flexShrink: 0 }} />
+              <span style={{ fontSize: 9, fontWeight: font.weight.bold, letterSpacing: '0.12em', color: color.navy, textTransform: 'uppercase' }}>
                 AI Analysis Report
               </span>
               {session.session_date && (
-                <span style={{ marginLeft: 'auto', fontSize: 9, color: C.textLight, fontFamily: 'monospace' }}>
+                <span style={{ marginLeft: 'auto', fontSize: 9, color: color.textLight, fontFamily: font.family.mono }}>
                   {session.session_date}
                 </span>
               )}
@@ -784,12 +813,12 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             {/* 総評 */}
             {fb.overall && (
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 9, letterSpacing: '0.1em', color: C.navy, fontWeight: 700, textTransform: 'uppercase', marginBottom: 7 }}>
+                <div style={{ fontSize: 9, letterSpacing: '0.1em', color: color.navy, fontWeight: font.weight.bold, textTransform: 'uppercase', marginBottom: 7 }}>
                   Executive Summary
                 </div>
                 <div style={{
-                  fontSize: 11, color: C.textMid, lineHeight: 1.85,
-                  borderLeft: '2px solid ' + C.navy + '30', paddingLeft: 10,
+                  fontSize: font.size.xs, color: color.textMid, lineHeight: 1.85,
+                  borderLeft: `2px solid ${alpha(color.navy, 0.19)}`, paddingLeft: 10,
                   whiteSpace: 'pre-wrap',
                 }}>
                   {fb.overall}
@@ -800,15 +829,15 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             {/* 課題点 */}
             {fb.issues?.length > 0 && (
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 9, letterSpacing: '0.1em', color: C.navy, fontWeight: 700, textTransform: 'uppercase', marginBottom: 7 }}>
+                <div style={{ fontSize: 9, letterSpacing: '0.1em', color: color.navy, fontWeight: font.weight.bold, textTransform: 'uppercase', marginBottom: 7 }}>
                   Key Issues
                 </div>
                 {fb.issues.map((item, i) => (
                   <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 6, alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: 9, color: C.navy, fontFamily: 'monospace', fontWeight: 700, minWidth: 22, flexShrink: 0, marginTop: 2, opacity: 0.6 }}>
+                    <span style={{ fontSize: 9, color: color.navy, fontFamily: font.family.mono, fontWeight: font.weight.bold, minWidth: 22, flexShrink: 0, marginTop: 2, opacity: 0.6 }}>
                       {String(i + 1).padStart(2, '0')}
                     </span>
-                    <span style={{ fontSize: 11, color: C.textMid, lineHeight: 1.75 }}>{item}</span>
+                    <span style={{ fontSize: font.size.xs, color: color.textMid, lineHeight: 1.75 }}>{item}</span>
                   </div>
                 ))}
               </div>
@@ -817,7 +846,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             {/* Action Plan（新形式: 課題ごとに方針 + ドリルを統合） */}
             {fb.actionPlan?.length > 0 && (
               <div style={{ marginBottom: 4 }}>
-                <div style={{ fontSize: 9, letterSpacing: '0.1em', color: C.navy, fontWeight: 700, textTransform: 'uppercase', marginBottom: 7 }}>
+                <div style={{ fontSize: 9, letterSpacing: '0.1em', color: color.navy, fontWeight: font.weight.bold, textTransform: 'uppercase', marginBottom: 7 }}>
                   Action Plan
                 </div>
                 {fb.actionPlan.map((item, i) => {
@@ -825,14 +854,14 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                   const drill = typeof item === 'string' ? '' : (item?.drill || '');
                   return (
                     <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 10, alignItems: 'flex-start' }}>
-                      <span style={{ fontSize: 9, color: C.navy, fontFamily: 'monospace', fontWeight: 700, minWidth: 22, flexShrink: 0, marginTop: 2, opacity: 0.6 }}>
+                      <span style={{ fontSize: 9, color: color.navy, fontFamily: font.family.mono, fontWeight: font.weight.bold, minWidth: 22, flexShrink: 0, marginTop: 2, opacity: 0.6 }}>
                         {String(i + 1).padStart(2, '0')}
                       </span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.75 }}>{principle}</div>
+                        <div style={{ fontSize: font.size.xs, color: color.textMid, lineHeight: 1.75 }}>{principle}</div>
                         {drill && (
-                          <div style={{ marginTop: 4, fontSize: 10.5, color: C.textLight, lineHeight: 1.75, paddingLeft: 10, borderLeft: '2px solid ' + C.navy + '20' }}>
-                            <span style={{ fontWeight: 700, color: C.navy + 'dd', marginRight: 6 }}>実践</span>
+                          <div style={{ marginTop: 4, fontSize: 10.5, color: color.textLight, lineHeight: 1.75, paddingLeft: 10, borderLeft: `2px solid ${alpha(color.navy, 0.13)}` }}>
+                            <span style={{ fontWeight: font.weight.bold, color: alpha(color.navy, 0.87), marginRight: 6 }}>実践</span>
                             {drill}
                           </div>
                         )}
@@ -846,30 +875,30 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             {/* 旧形式 fallback: solutions / practice（後方互換） */}
             {!fb.actionPlan?.length && fb.solutions?.length > 0 && (
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 9, letterSpacing: '0.1em', color: C.navy, fontWeight: 700, textTransform: 'uppercase', marginBottom: 7 }}>
+                <div style={{ fontSize: 9, letterSpacing: '0.1em', color: color.navy, fontWeight: font.weight.bold, textTransform: 'uppercase', marginBottom: 7 }}>
                   Recommendations
                 </div>
                 {fb.solutions.map((item, i) => (
                   <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 6, alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: 9, color: C.navy, fontFamily: 'monospace', fontWeight: 700, minWidth: 22, flexShrink: 0, marginTop: 2, opacity: 0.6 }}>
+                    <span style={{ fontSize: 9, color: color.navy, fontFamily: font.family.mono, fontWeight: font.weight.bold, minWidth: 22, flexShrink: 0, marginTop: 2, opacity: 0.6 }}>
                       {String(i + 1).padStart(2, '0')}
                     </span>
-                    <span style={{ fontSize: 11, color: C.textMid, lineHeight: 1.75 }}>{item}</span>
+                    <span style={{ fontSize: font.size.xs, color: color.textMid, lineHeight: 1.75 }}>{item}</span>
                   </div>
                 ))}
               </div>
             )}
             {!fb.actionPlan?.length && fb.practice?.length > 0 && (
               <div style={{ marginBottom: 4 }}>
-                <div style={{ fontSize: 9, letterSpacing: '0.1em', color: C.navy, fontWeight: 700, textTransform: 'uppercase', marginBottom: 7 }}>
+                <div style={{ fontSize: 9, letterSpacing: '0.1em', color: color.navy, fontWeight: font.weight.bold, textTransform: 'uppercase', marginBottom: 7 }}>
                   Training Protocol
                 </div>
                 {fb.practice.map((item, i) => (
                   <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 6, alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: 9, color: C.navy, fontFamily: 'monospace', fontWeight: 700, minWidth: 22, flexShrink: 0, marginTop: 2, opacity: 0.6 }}>
+                    <span style={{ fontSize: 9, color: color.navy, fontFamily: font.family.mono, fontWeight: font.weight.bold, minWidth: 22, flexShrink: 0, marginTop: 2, opacity: 0.6 }}>
                       {String(i + 1).padStart(2, '0')}
                     </span>
-                    <span style={{ fontSize: 11, color: C.textMid, lineHeight: 1.75 }}>{item}</span>
+                    <span style={{ fontSize: font.size.xs, color: color.textMid, lineHeight: 1.75 }}>{item}</span>
                   </div>
                 ))}
               </div>
@@ -878,15 +907,15 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             {/* 文字起こし */}
             {session.transcript && (
               <details style={{ marginTop: 12 }}>
-                <summary style={{ fontSize: 9, color: C.textLight, cursor: 'pointer', letterSpacing: '0.08em', textTransform: 'uppercase', userSelect: 'none' }}>
+                <summary style={{ fontSize: 9, color: color.textLight, cursor: 'pointer', letterSpacing: '0.08em', textTransform: 'uppercase', userSelect: 'none' }}>
                   Transcript ▾
                 </summary>
                 <div style={{
-                  fontSize: 10, color: C.textLight, lineHeight: 1.75,
+                  fontSize: font.size.xs - 1, color: color.textLight, lineHeight: 1.75,
                   marginTop: 8, whiteSpace: 'pre-wrap',
                   maxHeight: 200, overflowY: 'auto',
-                  background: C.cream, padding: '10px 12px', borderRadius: 4,
-                  border: '1px solid ' + C.borderLight,
+                  background: color.cream, padding: '10px 12px', borderRadius: radius.md,
+                  border: `1px solid ${color.borderLight}`,
                 }}>
                   {session.transcript}
                 </div>
@@ -916,7 +945,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '24px 0', color: C.textLight, fontSize: 12 }}>
+      <div style={{ textAlign: 'center', padding: '24px 0', color: color.textLight, fontSize: font.size.sm }}>
         読み込み中...
       </div>
     );
@@ -944,21 +973,25 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       )}
 
       {/* タブ */}
-      <div style={{ display: 'flex', gap: 2, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 2, marginBottom: space[4] }}>
         {TABS.map(tab => (
-          <button
+          <Button
             key={tab.id}
+            variant={activeTab === tab.id ? 'primary' : 'secondary'}
+            size="sm"
             onClick={() => setActiveTab(tab.id)}
             style={{
-              padding: '6px 16px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-              border: '1px solid ' + C.borderLight,
-              background: activeTab === tab.id ? C.navy : C.white,
-              color: activeTab === tab.id ? C.white : C.textMid,
-              cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+              padding: '6px 16px',
+              minHeight: 0,
+              fontSize: font.size.xs,
+              borderRadius: radius.lg,
+              border: `1px solid ${color.borderLight}`,
+              background: activeTab === tab.id ? color.navy : color.white,
+              color: activeTab === tab.id ? color.white : color.textMid,
             }}
           >
             {tab.label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -966,16 +999,16 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       {activeTab === 'training' && (
         <div>
           {/* Day 1 */}
-          <div style={{ marginBottom: 20 }}>
+          <div style={{ marginBottom: space[5] }}>
             <div style={{
-              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10,
+              display: 'flex', alignItems: 'center', gap: space[2], marginBottom: 10,
             }}>
               <div style={{
-                width: 28, height: 28, borderRadius: 6, background: C.navy,
+                width: 28, height: 28, borderRadius: radius.lg, background: color.navy,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, fontWeight: 800, color: C.white, flexShrink: 0,
+                fontSize: font.size.xs, fontWeight: font.weight.black, color: color.white, flexShrink: 0,
               }}>D1</div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: C.navy }}>Day 1 — 座学・ツール習得</span>
+              <span style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy }}>Day 1 — 座学・ツール習得</span>
             </div>
             {DAY1_STAGES.map(s => (
               <StageRow key={s.key} stageKey={s.key} label={s.label} desc={s.desc} />
@@ -985,48 +1018,52 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
           {/* Day 2 */}
           <div>
             <div style={{
-              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10,
+              display: 'flex', alignItems: 'center', gap: space[2], marginBottom: 10,
             }}>
               <div style={{
-                width: 28, height: 28, borderRadius: 4, background: C.navy,
+                width: 28, height: 28, borderRadius: radius.md, background: color.navy,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, fontWeight: 800, color: C.white, flexShrink: 0,
+                fontSize: font.size.xs, fontWeight: font.weight.black, color: color.white, flexShrink: 0,
               }}>D2</div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: C.navy }}>Day 2 — ロープレ実施</span>
+              <span style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy }}>Day 2 — ロープレ実施</span>
             </div>
 
             {/* (a) メンバーとのロープレ */}
             <div style={{
-              padding: '12px 14px', borderRadius: 8,
-              border: '1px solid ' + C.borderLight,
-              background: C.white, marginBottom: 12,
+              padding: '12px 14px', borderRadius: radius.xl,
+              border: `1px solid ${color.borderLight}`,
+              background: color.white, marginBottom: space[3],
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[2] }}>
                 <div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: C.navy }}>(a) メンバーとのロープレ</span>
-                  <span style={{ fontSize: 10, color: C.textLight, marginLeft: 8 }}>
+                  <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy }}>(a) メンバーとのロープレ</span>
+                  <span style={{ fontSize: font.size.xs - 1, color: color.textLight, marginLeft: space[2] }}>
                     {day2MemberSessions.length} 件実施済み
                   </span>
                 </div>
                 {isAdmin && (
-                  <button
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => {
                       setAddForm({ partner_name: '', session_type: 'training_day2_member', session_date: new Date().toISOString().slice(0, 10), notes: '' });
                       setAddModalOpen(true);
                     }}
                     style={{
-                      padding: '4px 10px', borderRadius: 5, fontSize: 10, fontWeight: 600,
-                      border: '1px solid ' + C.navy + '40',
-                      background: C.navy + '08', color: C.navy,
-                      cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                      padding: '4px 10px',
+                      minHeight: 0,
+                      fontSize: font.size.xs - 1,
+                      border: `1px solid ${alpha(color.navy, 0.25)}`,
+                      background: alpha(color.navy, 0.03),
+                      color: color.navy,
                     }}
                   >
                     + 追加
-                  </button>
+                  </Button>
                 )}
               </div>
               {day2MemberSessions.length === 0 ? (
-                <div style={{ fontSize: 11, color: C.textLight, padding: '8px 0' }}>まだ実施記録がありません</div>
+                <div style={{ fontSize: font.size.xs, color: color.textLight, padding: '8px 0' }}>まだ実施記録がありません</div>
               ) : (
                 day2MemberSessions.map(s => <SessionRow key={s.id} session={s} />)
               )}
@@ -1034,46 +1071,58 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
             {/* (b) チームリーダー合否ロープレ */}
             <div style={{
-              padding: '12px 14px', borderRadius: 8,
-              border: '1px solid ' + (day2FinalSession?.passed === true ? C.green + '40' : day2FinalSession?.passed === false ? C.red + '40' : C.borderLight),
-              background: day2FinalSession?.passed === true ? C.green + '06' : day2FinalSession?.passed === false ? C.red + '04' : C.white,
+              padding: '12px 14px', borderRadius: radius.xl,
+              border: `1px solid ${day2FinalSession?.passed === true ? alpha(color.success, 0.25) : day2FinalSession?.passed === false ? alpha(color.danger, 0.25) : color.borderLight}`,
+              background: day2FinalSession?.passed === true ? alpha(color.success, 0.024) : day2FinalSession?.passed === false ? alpha(color.danger, 0.015) : color.white,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.navy }}>(b) チームリーダー 合否ロープレ</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[2] }}>
+                <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy }}>(b) チームリーダー 合否ロープレ</span>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {day2FinalSession?.passed === true && (
-                    <span style={{ fontSize: 11, fontWeight: 800, color: C.green }}>✓ 合格</span>
+                    <span style={{ fontSize: font.size.xs, fontWeight: font.weight.black, color: color.success }}>✓ 合格</span>
                   )}
                   {day2FinalSession?.passed === false && (
-                    <span style={{ fontSize: 11, fontWeight: 800, color: C.red }}>✗ 不合格</span>
+                    <span style={{ fontSize: font.size.xs, fontWeight: font.weight.black, color: color.danger }}>✗ 不合格</span>
                   )}
                   {!day2FinalSession && (
-                    <span style={{ fontSize: 10, color: C.textLight }}>未実施</span>
+                    <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>未実施</span>
                   )}
                   {isAdmin && (
                     <>
-                      <button
+                      <Button
+                        variant="primary"
+                        size="sm"
                         onClick={() => handleDay2Final(true)}
                         disabled={savingStage === 'day2_final'}
                         style={{
-                          padding: '4px 10px', borderRadius: 5, fontSize: 10, fontWeight: 700,
-                          border: '1px solid ' + C.green + '50', background: C.green + '0a',
-                          color: C.green, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                          padding: '4px 10px',
+                          minHeight: 0,
+                          fontSize: font.size.xs - 1,
+                          fontWeight: font.weight.bold,
+                          border: `1px solid ${alpha(color.success, 0.31)}`,
+                          background: alpha(color.success, 0.04),
+                          color: color.success,
                         }}
                       >
                         合格
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
                         onClick={() => handleDay2Final(false)}
                         disabled={savingStage === 'day2_final'}
                         style={{
-                          padding: '4px 10px', borderRadius: 5, fontSize: 10, fontWeight: 700,
-                          border: '1px solid ' + C.red + '50', background: C.red + '0a',
-                          color: C.red, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                          padding: '4px 10px',
+                          minHeight: 0,
+                          fontSize: font.size.xs - 1,
+                          fontWeight: font.weight.bold,
+                          border: `1px solid ${alpha(color.danger, 0.31)}`,
+                          background: alpha(color.danger, 0.04),
+                          color: color.danger,
                         }}
                       >
                         不合格
-                      </button>
+                      </Button>
                     </>
                   )}
                 </div>
@@ -1082,7 +1131,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                 <SessionRow session={day2FinalSession} />
               )}
               {day2FinalSession?.passed === true && (
-                <div style={{ fontSize: 10, color: C.green, marginTop: 4, fontWeight: 600 }}>
+                <div style={{ fontSize: font.size.xs - 1, color: color.success, marginTop: 4, fontWeight: font.weight.semibold }}>
                   次の稼働日から現場に立つことができます
                 </div>
               )}
@@ -1096,24 +1145,24 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
         <div>
           {/* 今週の状況バナー（役職がメンバーの人のみ表示） */}
           {memberInfo?.role === 'メンバー' && <div style={{
-            padding: '12px 16px', borderRadius: 8, marginBottom: 16,
-            background: thisWeekDone ? C.green + '0a' : '#FFF7ED',
-            border: '1px solid ' + (thisWeekDone ? C.green + '30' : '#FED7AA'),
+            padding: '12px 16px', borderRadius: radius.xl, marginBottom: space[4],
+            background: thisWeekDone ? alpha(color.success, 0.04) : '#FFF7ED',
+            border: `1px solid ${thisWeekDone ? alpha(color.success, 0.19) : '#FED7AA'}`,
             display: 'flex', alignItems: 'center', gap: 10,
           }}>
             <div style={{
-              width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-              background: thisWeekDone ? C.green : '#F59E0B',
+              width: 32, height: 32, borderRadius: radius.pill, flexShrink: 0,
+              background: thisWeekDone ? color.success : '#F59E0B',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 16, color: C.white,
+              fontSize: font.size.lg, color: color.white,
             }}>
               {thisWeekDone ? '✓' : '!'}
             </div>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: thisWeekDone ? C.green : '#92400E' }}>
+              <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: thisWeekDone ? color.success : '#92400E' }}>
                 今週のロープレ: {thisWeekDone ? '実施済み' : '未実施'}
               </div>
-              <div style={{ fontSize: 10, color: C.textLight }}>
+              <div style={{ fontSize: font.size.xs - 1, color: color.textLight }}>
                 {thisWeekDone
                   ? '今週のロープレは完了しています'
                   : '毎週1回、篠宮とのロープレが必要です'}
@@ -1123,29 +1172,33 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
           {/* セッション一覧 */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: C.navy }}>
+            <span style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy }}>
               セッション履歴 ({weeklySessions.length}件)
             </span>
             {isAdmin && (
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => {
                   setAddForm({ partner_name: currentUser, session_type: 'weekly', session_date: new Date().toISOString().slice(0, 10), notes: '' });
                   setAddModalOpen(true);
                 }}
                 style={{
-                  padding: '5px 12px', borderRadius: 5, fontSize: 10, fontWeight: 600,
-                  border: '1px solid ' + C.navy + '40',
-                  background: C.navy + '08', color: C.navy,
-                  cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                  padding: '5px 12px',
+                  minHeight: 0,
+                  fontSize: font.size.xs - 1,
+                  border: `1px solid ${alpha(color.navy, 0.25)}`,
+                  background: alpha(color.navy, 0.03),
+                  color: color.navy,
                 }}
               >
                 + 新規追加
-              </button>
+              </Button>
             )}
           </div>
 
           {weeklySessions.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '20px 0', color: C.textLight, fontSize: 12 }}>
+            <div style={{ textAlign: 'center', padding: '20px 0', color: color.textLight, fontSize: font.size.sm }}>
               まだセッションの記録がありません
             </div>
           ) : (
@@ -1166,51 +1219,45 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: C.white, borderRadius: 4, padding: '24px 28px',
-              width: 360, boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              background: color.white, borderRadius: radius.md, padding: '24px 28px',
+              width: 360, boxShadow: shadow.lg,
             }}
           >
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 16 }}>
+            <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginBottom: space[4] }}>
               ロープレセッションを追加
             </div>
 
             {/* 日付 */}
-            <label style={{ fontSize: 10, fontWeight: 600, color: C.textMid, display: 'block', marginBottom: 4 }}>
-              実施日 <span style={{ color: C.red }}>*</span>
+            <label style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, color: color.textMid, display: 'block', marginBottom: 4 }}>
+              実施日 <span style={{ color: color.danger }}>*</span>
             </label>
-            <input
+            <Input
               type="date"
+              size="sm"
               value={addForm.session_date}
               onChange={e => setAddForm(f => ({ ...f, session_date: e.target.value }))}
-              style={{
-                width: '100%', padding: '7px 10px', borderRadius: 6,
-                border: '1px solid ' + C.borderLight, fontSize: 12, marginBottom: 12,
-                boxSizing: 'border-box', fontFamily: "'Noto Sans JP'",
-              }}
+              containerStyle={{ marginBottom: space[3] }}
             />
 
             {/* 相手名 */}
-            <label style={{ fontSize: 10, fontWeight: 600, color: C.textMid, display: 'block', marginBottom: 4 }}>
+            <label style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, color: color.textMid, display: 'block', marginBottom: 4 }}>
               相手の名前
             </label>
-            <input
+            <Input
               type="text"
+              size="sm"
               value={addForm.partner_name}
               onChange={e => setAddForm(f => ({ ...f, partner_name: e.target.value }))}
               placeholder="例: 篠宮"
               list="member-list"
-              style={{
-                width: '100%', padding: '7px 10px', borderRadius: 6,
-                border: '1px solid ' + C.borderLight, fontSize: 12, marginBottom: 12,
-                boxSizing: 'border-box', fontFamily: "'Noto Sans JP'",
-              }}
+              containerStyle={{ marginBottom: space[3] }}
             />
             <datalist id="member-list">
               {(members || []).map(m => <option key={m._supaId || m.name} value={m.name} />)}
             </datalist>
 
             {/* 録音ファイル */}
-            <label style={{ fontSize: 10, fontWeight: 600, color: C.textMid, display: 'block', marginBottom: 4 }}>
+            <label style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, color: color.textMid, display: 'block', marginBottom: 4 }}>
               録音ファイル（任意）
             </label>
             <input
@@ -1236,11 +1283,11 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                 if (url && url.startsWith('http')) { setAddRecordingUrl(url.trim()); setAddRecordingFile(null); }
               }}
               style={{
-                padding: '14px 12px', borderRadius: 6, marginBottom: 12,
-                border: '1.5px dashed ' + (dragOver ? C.gold : (addRecordingFile || addRecordingUrl) ? C.navy + '60' : C.borderLight),
-                background: dragOver ? C.gold + '10' : (addRecordingFile || addRecordingUrl) ? C.navy + '06' : C.offWhite,
-                cursor: 'pointer', fontSize: 11,
-                color: dragOver ? '#c8860a' : (addRecordingFile || addRecordingUrl) ? C.navy : C.textLight,
+                padding: '14px 12px', borderRadius: radius.lg, marginBottom: space[3],
+                border: `1.5px dashed ${dragOver ? color.gold : (addRecordingFile || addRecordingUrl) ? alpha(color.navy, 0.38) : color.borderLight}`,
+                background: dragOver ? alpha(color.gold, 0.06) : (addRecordingFile || addRecordingUrl) ? alpha(color.navy, 0.024) : color.offWhite,
+                cursor: 'pointer', fontSize: font.size.xs,
+                color: dragOver ? '#c8860a' : (addRecordingFile || addRecordingUrl) ? color.navy : color.textLight,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
                 transition: 'border-color 0.15s, background 0.15s',
                 textAlign: 'center',
@@ -1249,51 +1296,48 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
               <span style={{ fontSize: 22 }}>{dragOver ? '📂' : (addRecordingFile || addRecordingUrl) ? '🎵' : '🎙️'}</span>
               {addRecordingFile ? (
                 <div style={{ textAlign: 'center' }}>
-                  <span style={{ fontWeight: 600, fontSize: 11 }}>{addRecordingFile.name}</span>
+                  <span style={{ fontWeight: font.weight.semibold, fontSize: font.size.xs }}>{addRecordingFile.name}</span>
                   {needsConversion(addRecordingFile) && (
-                    <div style={{ fontSize: 10, color: '#c8860a', marginTop: 3 }}>
+                    <div style={{ fontSize: font.size.xs - 1, color: '#c8860a', marginTop: 3 }}>
                       🔄 アップロード時に自動でMP3へ変換されます
                     </div>
                   )}
                 </div>
               ) : addRecordingUrl ? (
-                <span style={{ fontWeight: 600, fontSize: 11, wordBreak: 'break-all', maxWidth: '100%' }}>
+                <span style={{ fontWeight: font.weight.semibold, fontSize: font.size.xs, wordBreak: 'break-all', maxWidth: '100%' }}>
                   {addRecordingUrl.length > 60 ? addRecordingUrl.slice(0, 60) + '…' : addRecordingUrl}
                 </span>
               ) : (
                 <>
-                  <span style={{ fontWeight: 600, fontSize: 11 }}>
+                  <span style={{ fontWeight: font.weight.semibold, fontSize: font.size.xs }}>
                     {dragOver ? 'ここにドロップ' : 'ドラッグ＆ドロップ、またはクリックして選択'}
                   </span>
-                  <span style={{ fontSize: 10, color: C.textLight }}>MP3 / MP4 / M4A / WAV / MOV など対応 / 25MB超・MOV は自動でMP3に変換</span>
+                  <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>MP3 / MP4 / M4A / WAV / MOV など対応 / 25MB超・MOV は自動でMP3に変換</span>
                 </>
               )}
               {(addRecordingFile || addRecordingUrl) && (
                 <button
                   onClick={e => { e.stopPropagation(); setAddRecordingFile(null); setAddRecordingUrl(''); setAddDriveUrl(''); if (addFileInputRef.current) addFileInputRef.current.value = ''; }}
-                  style={{ background: 'none', border: 'none', color: C.red, cursor: 'pointer', fontSize: 11, marginTop: 2 }}
+                  style={{ background: 'none', border: 'none', color: color.danger, cursor: 'pointer', fontSize: font.size.xs, marginTop: 2 }}
                 >✕ 取り消す</button>
               )}
             </div>
 
             {/* Google Drive URL */}
-            <label style={{ fontSize: 10, fontWeight: 600, color: C.textMid, display: 'block', marginBottom: 4 }}>
+            <label style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, color: color.textMid, display: 'block', marginBottom: 4 }}>
               動画（Google Drive 共有URL）（任意）
             </label>
-            <input
+            <Input
               type="text"
+              size="sm"
               value={addDriveUrl}
               onChange={e => setAddDriveUrl(e.target.value)}
               placeholder="https://drive.google.com/file/d/..."
-              style={{
-                width: '100%', padding: '7px 10px', borderRadius: 6,
-                border: '1px solid ' + C.borderLight, fontSize: 12, marginBottom: 12,
-                boxSizing: 'border-box', fontFamily: "'Noto Sans JP'",
-              }}
+              containerStyle={{ marginBottom: space[3] }}
             />
 
             {/* メモ */}
-            <label style={{ fontSize: 10, fontWeight: 600, color: C.textMid, display: 'block', marginBottom: 4 }}>
+            <label style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, color: color.textMid, display: 'block', marginBottom: 4 }}>
               メモ
             </label>
             <textarea
@@ -1302,28 +1346,32 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
               placeholder="備考・所感など"
               rows={2}
               style={{
-                width: '100%', padding: '7px 10px', borderRadius: 6,
-                border: '1px solid ' + C.borderLight, fontSize: 12, marginBottom: 16,
-                boxSizing: 'border-box', resize: 'vertical', fontFamily: "'Noto Sans JP'",
+                width: '100%', padding: '7px 10px', borderRadius: radius.lg,
+                border: `1px solid ${color.borderLight}`, fontSize: font.size.sm, marginBottom: space[4],
+                boxSizing: 'border-box', resize: 'vertical', fontFamily: font.family.sans,
+                color: color.textDark, background: color.white,
               }}
             />
 
             {errorMsg && (
-              <div style={{ marginBottom: 12, padding: '8px 10px', borderRadius: 6, background: '#fff0f0', border: '1px solid #f5c6c6', fontSize: 11, color: '#c0392b' }}>
+              <div style={{ marginBottom: space[3], padding: '8px 10px', borderRadius: radius.lg, background: color.dangerSoft, border: `1px solid ${alpha(color.danger, 0.31)}`, fontSize: font.size.xs, color: '#c0392b' }}>
                 {errorMsg}
               </div>
             )}
             <div style={{ display: 'flex', gap: 10 }}>
-              <button
+              <Button
+                variant="primary"
                 onClick={handleAddSession}
                 disabled={addingSess || !addForm.session_date}
+                fullWidth
                 style={{
-                  flex: 1, padding: '9px', borderRadius: 8, border: 'none',
-                  background: addingSess || !addForm.session_date ? C.borderLight : C.navy,
-                  color: addingSess || !addForm.session_date ? C.textLight : C.white,
-                  fontSize: 12, fontWeight: 700,
-                  cursor: (addingSess || !addForm.session_date) ? 'default' : 'pointer',
-                  fontFamily: "'Noto Sans JP'",
+                  flex: 1,
+                  padding: '9px',
+                  borderRadius: radius.xl,
+                  fontSize: font.size.sm,
+                  fontWeight: font.weight.bold,
+                  background: addingSess || !addForm.session_date ? color.borderLight : color.navy,
+                  color: addingSess || !addForm.session_date ? color.textLight : color.white,
                 }}
               >
                 {driveUploadProgress != null
@@ -1338,18 +1386,24 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                             ? '追加してAI分析する（動画から自動変換）'
                             : '追加する')
                 }
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="secondary"
                 onClick={() => { setAddModalOpen(false); setAddRecordingFile(null); setAddRecordingUrl(''); setAddDriveUrl(''); }}
+                fullWidth
                 style={{
-                  flex: 1, padding: '9px', borderRadius: 8,
-                  border: '1px solid ' + C.borderLight, background: 'transparent',
-                  color: C.textMid, fontSize: 12, cursor: 'pointer',
-                  fontFamily: "'Noto Sans JP'",
+                  flex: 1,
+                  padding: '9px',
+                  borderRadius: radius.xl,
+                  fontSize: font.size.sm,
+                  fontWeight: font.weight.normal,
+                  border: `1px solid ${color.borderLight}`,
+                  background: 'transparent',
+                  color: color.textMid,
                 }}
               >
                 キャンセル
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -1370,17 +1424,17 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
               width="100%"
               height="500"
               allow="autoplay"
-              style={{ border: 'none', borderRadius: 8, display: 'block' }}
+              style={{ border: 'none', borderRadius: radius.xl, display: 'block' }}
             />
             <button
               onClick={() => setVideoModal(null)}
               style={{
                 position: 'absolute', top: -14, right: -14,
-                width: 30, height: 30, borderRadius: '50%',
-                background: '#fff', border: 'none', cursor: 'pointer',
-                fontSize: 16, fontWeight: 700, color: '#333',
+                width: 30, height: 30, borderRadius: radius.pill,
+                background: color.white, border: 'none', cursor: 'pointer',
+                fontSize: font.size.lg, fontWeight: font.weight.bold, color: color.textDark,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                boxShadow: shadow.lg,
               }}
             >✕</button>
           </div>
@@ -1451,16 +1505,16 @@ function TargetMemberPicker({ members, value, onChange, fallbackLabel }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
-      padding: '10px 12px', background: '#F8F9FA', border: '1px solid ' + C.borderLight, borderRadius: 6,
+      padding: '10px 12px', background: color.gray50, border: `1px solid ${color.borderLight}`, borderRadius: radius.lg,
     }}>
-      <span style={{ fontSize: 10, color: C.textLight, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+      <span style={{ fontSize: font.size.xs - 1, color: color.textLight, fontWeight: font.weight.bold, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
         対象メンバー
       </span>
       <div ref={wrapRef} style={{ position: 'relative', flex: '0 1 280px', minWidth: 200 }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6,
-          border: '1px solid ' + C.border, borderRadius: 3,
-          padding: '4px 8px', background: C.white,
+          border: `1px solid ${color.border}`, borderRadius: radius.sm,
+          padding: '4px 8px', background: color.white,
         }}>
           <input
             type="text"
@@ -1471,21 +1525,21 @@ function TargetMemberPicker({ members, value, onChange, fallbackLabel }) {
             placeholder={placeholder}
             style={{
               flex: 1, border: 'none', outline: 'none',
-              fontSize: 12, fontFamily: "'Noto Sans JP',sans-serif",
-              color: C.textDark, background: 'transparent',
+              fontSize: font.size.sm, fontFamily: font.family.sans,
+              color: color.textDark, background: 'transparent',
             }}
           />
           {value && (
             <button type="button" onClick={() => pick(null)} title="自分に戻す"
               style={{ border: 'none', background: 'transparent', cursor: 'pointer',
-                color: C.textLight, fontSize: 14, padding: '0 4px' }}
+                color: color.textLight, fontSize: font.size.md, padding: '0 4px' }}
             >×</button>
           )}
         </div>
         {open && (
           <div style={{
             position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0,
-            background: C.white, border: '1px solid ' + C.border, borderRadius: 3,
+            background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.sm,
             boxShadow: '0 6px 20px rgba(13,34,71,0.08)',
             maxHeight: 280, overflowY: 'auto', zIndex: 50,
           }}>
@@ -1497,7 +1551,7 @@ function TargetMemberPicker({ members, value, onChange, fallbackLabel }) {
               onClick={() => pick(null)}
             />
             {matches.length === 0 && (
-              <div style={{ padding: '10px 12px', fontSize: 11, color: C.textLight, fontStyle: 'italic' }}>
+              <div style={{ padding: '10px 12px', fontSize: font.size.xs, color: color.textLight, fontStyle: 'italic' }}>
                 該当なし
               </div>
             )}
@@ -1520,20 +1574,20 @@ function TargetMemberPicker({ members, value, onChange, fallbackLabel }) {
 }
 
 function PickerItem({ label, active, highlighted, onHover, onClick, query }) {
-  const bg = highlighted ? '#F3F4F6' : (active ? '#F5F7FB' : '#fff');
+  const bg = highlighted ? color.gray100 : (active ? '#F5F7FB' : color.white);
   return (
     <div
       onMouseEnter={onHover}
       onClick={onClick}
       style={{
-        padding: '8px 12px', fontSize: 12, cursor: 'pointer',
-        background: bg, color: active ? C.navy : C.textDark,
-        fontWeight: active ? 600 : 400, fontFamily: "'Noto Sans JP', sans-serif",
+        padding: '8px 12px', fontSize: font.size.sm, cursor: 'pointer',
+        background: bg, color: active ? color.navy : color.textDark,
+        fontWeight: active ? font.weight.semibold : font.weight.normal, fontFamily: font.family.sans,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}
     >
       <span>{query ? highlightMatch(label, query) : label}</span>
-      {active && <span style={{ fontSize: 11, color: C.gold }}>●</span>}
+      {active && <span style={{ fontSize: font.size.xs, color: color.gold }}>●</span>}
     </div>
   );
 }
@@ -1547,7 +1601,7 @@ function highlightMatch(text, query) {
   return (
     <>
       {text.slice(0, idx)}
-      <span style={{ background: '#FEF3C7', fontWeight: 700 }}>
+      <span style={{ background: '#FEF3C7', fontWeight: font.weight.bold }}>
         {text.slice(idx, idx + query.length)}
       </span>
       {text.slice(idx + query.length)}

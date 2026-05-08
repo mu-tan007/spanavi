@@ -1,5 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { supabase } from '../../lib/supabase';
 import { useEngagements } from '../../hooks/useEngagements';
 import { useAllMembersWithEngagements } from '../../hooks/useMemberEngagements';
@@ -186,9 +188,9 @@ export default function MASPMembersView({ isAdmin }) {
       if (!res.ok) {
         setResendResult({ type: 'error', message: result.error || '送信失敗' });
       } else if (result.existingUser) {
-        setResendResult({ type: 'ok', message: `✓ ${m.name} にパスワード再設定メールを送信しました` });
+        setResendResult({ type: 'ok', message: `${m.name} にパスワード再設定メールを送信しました` });
       } else {
-        setResendResult({ type: 'ok', message: `✓ ${m.name} に招待メールを再送しました` });
+        setResendResult({ type: 'ok', message: `${m.name} に招待メールを再送しました` });
       }
     } catch (err) {
       setResendResult({ type: 'error', message: err.message || '送信失敗' });
@@ -258,13 +260,13 @@ export default function MASPMembersView({ isAdmin }) {
         if (result.existingUser) {
           setResendResult({
             type: 'ok',
-            message: `✓ ${addForm.email.trim()} は登録済みのため、パスワード再設定メールを送信しました`,
+            message: `${addForm.email.trim()} は登録済みのため、パスワード再設定メールを送信しました`,
           });
           setTimeout(() => setResendResult(null), 6000);
         } else {
           setResendResult({
             type: 'ok',
-            message: `✓ ${addForm.email.trim()} に招待メールを送信しました`,
+            message: `${addForm.email.trim()} に招待メールを送信しました`,
           });
           setTimeout(() => setResendResult(null), 6000);
         }
@@ -318,44 +320,42 @@ export default function MASPMembersView({ isAdmin }) {
   };
 
   if (loading) {
-    return <div style={{ padding: 40, textAlign: 'center', color: C.textMid }}>読み込み中…</div>;
+    return <div style={{ padding: 40, textAlign: 'center', color: color.textMid }}>読み込み中…</div>;
   }
 
+  const positionSelectOptions = [
+    { value: '', label: '（なし）' },
+    ...positionOptions.map(p => ({ value: p, label: p })),
+  ];
+
   return (
-    <div style={{ background: C.offWhite, minHeight: 'calc(100vh - 120px)', animation: 'fadeIn 0.3s ease' }}>
+    <div style={{ background: color.offWhite, minHeight: 'calc(100vh - 120px)', animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         eyebrow="MASP · 全社従業員"
         title="Members"
         description={`全従業員 ${members.length} 名 (入社日順)。${isAdmin ? '編集ボタンで個別編集' : '閲覧のみ'}`}
         right={isAdmin ? (
-          <button onClick={openAddModal}
-            style={{ padding: '7px 16px', fontSize: 12, fontWeight: 600, background: C.navy, color: C.white, border: 'none', borderRadius: 4, cursor: 'pointer', fontFamily: "'Noto Sans JP',sans-serif" }}>
-            + 新規追加
-          </button>
+          <Button size="sm" onClick={openAddModal}>+ 新規追加</Button>
         ) : null}
       >
-        <input
-          type="text"
+        <Input
+          size="sm"
           value={filter}
           onChange={e => setFilter(e.target.value)}
           placeholder="氏名 / メール / 役職 / チームで検索"
-          style={{
-            width: 320, padding: '7px 10px', fontSize: 12,
-            border: `1px solid ${C.border}`, borderRadius: 4,
-            fontFamily: "'Noto Sans JP',sans-serif",
-            marginTop: 12,
-          }}
+          fullWidth={false}
+          containerStyle={{ width: 320, marginTop: 12 }}
         />
       </PageHeader>
 
       <div style={{ padding: '24px 16px 16px', overflowX: 'auto' }}>
         <table style={{
           width: '100%', borderCollapse: 'collapse', minWidth: 1100,
-          background: C.white, border: `1px solid ${C.border}`, borderRadius: 4,
-          fontSize: 12,
+          background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
+          fontSize: font.size.sm,
         }}>
           <thead>
-            <tr style={{ borderBottom: `1px solid ${C.border}`, background: C.cream }}>
+            <tr style={{ borderBottom: `1px solid ${color.border}`, background: color.cream }}>
               <th style={th}>入社日</th>
               <th style={{ ...th, textAlign: 'left' }}>氏名</th>
               <th style={{ ...th, textAlign: 'left' }}>役職</th>
@@ -372,33 +372,35 @@ export default function MASPMembersView({ isAdmin }) {
               const set = assignments[m.id] || new Set();
               const isEditing = editingId === m.id;
               return (
-                <tr key={m.id} style={{ borderBottom: `1px solid ${C.borderLight}`, background: isEditing ? '#FFFBEA' : 'transparent' }}>
-                  <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", color: C.textMid, whiteSpace: 'nowrap' }}>
+                <tr key={m.id} style={{ borderBottom: `1px solid ${color.borderLight}`, background: isEditing ? '#FFFBEA' : 'transparent' }}>
+                  <td style={{ ...td, fontFamily: font.family.mono, color: color.textMid, whiteSpace: 'nowrap' }}>
                     {isEditing ? (
-                      <input type="date" value={editForm.start_date || ''} onChange={e => setEditForm(s => ({ ...s, start_date: e.target.value }))} style={editInput} />
+                      <Input size="sm" type="date" value={editForm.start_date || ''} onChange={e => setEditForm(s => ({ ...s, start_date: e.target.value }))} />
                     ) : (m.start_date ? formatDate(m.start_date) : '—')}
                   </td>
-                  <td style={{ ...td, textAlign: 'left', fontWeight: 500, color: C.navy }}>
+                  <td style={{ ...td, textAlign: 'left', fontWeight: font.weight.medium, color: color.navy }}>
                     {isEditing
-                      ? <input value={editForm.name} onChange={e => setEditForm(s => ({ ...s, name: e.target.value }))} style={editInput} />
+                      ? <Input size="sm" value={editForm.name} onChange={e => setEditForm(s => ({ ...s, name: e.target.value }))} />
                       : <span onClick={() => openProfile(m.id)} style={{ cursor: 'pointer' }} title="プロフィールを開く">{m.name}</span>}
                   </td>
-                  <td style={{ ...td, textAlign: 'left', color: C.textDark, fontWeight: m.position ? 600 : 400 }}>
+                  <td style={{ ...td, textAlign: 'left', color: color.textDark, fontWeight: m.position ? font.weight.semibold : font.weight.normal }}>
                     {isEditing ? (
-                      <select value={editForm.position} onChange={e => setEditForm(s => ({ ...s, position: e.target.value }))} style={editInput}>
-                        <option value="">（なし）</option>
-                        {positionOptions.map(p => <option key={p} value={p}>{p}</option>)}
-                      </select>
+                      <Select
+                        size="sm"
+                        value={editForm.position}
+                        onChange={e => setEditForm(s => ({ ...s, position: e.target.value }))}
+                        options={positionSelectOptions}
+                      />
                     ) : (m.position || '—')}
                   </td>
-                  <td style={{ ...td, textAlign: 'left', fontFamily: "'JetBrains Mono',monospace", color: C.textMid }}>
+                  <td style={{ ...td, textAlign: 'left', fontFamily: font.family.mono, color: color.textMid }}>
                     {isEditing
-                      ? <input type="email" value={editForm.email} onChange={e => setEditForm(s => ({ ...s, email: e.target.value }))} style={editInput} />
+                      ? <Input size="sm" type="email" value={editForm.email} onChange={e => setEditForm(s => ({ ...s, email: e.target.value }))} />
                       : (m.email || '—')}
                   </td>
-                  <td style={{ ...td, textAlign: 'left', fontFamily: "'JetBrains Mono',monospace", color: C.textMid }}>
+                  <td style={{ ...td, textAlign: 'left', fontFamily: font.family.mono, color: color.textMid }}>
                     {isEditing
-                      ? <input type="tel" value={editForm.phone_number} onChange={e => setEditForm(s => ({ ...s, phone_number: e.target.value }))} style={editInput} />
+                      ? <Input size="sm" type="tel" value={editForm.phone_number} onChange={e => setEditForm(s => ({ ...s, phone_number: e.target.value }))} />
                       : (m.phone_number || '—')}
                   </td>
                   {engagementCols.map(e => (
@@ -422,8 +424,8 @@ export default function MASPMembersView({ isAdmin }) {
                     <td style={{ ...td, textAlign: 'center', width: 36, padding: '4px 4px' }}>
                       {isEditing ? (
                         <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                          <button onClick={saveEdit} disabled={saving} style={primarySmallBtn}>{saving ? '…' : '保存'}</button>
-                          <button onClick={cancelEdit} disabled={saving} style={secondarySmallBtn}>取消</button>
+                          <Button size="sm" loading={saving} onClick={saveEdit}>{saving ? '…' : '保存'}</Button>
+                          <Button size="sm" variant="secondary" disabled={saving} onClick={cancelEdit}>取消</Button>
                         </div>
                       ) : (
                         <div data-action-menu-root style={{ position: 'relative', display: 'inline-block' }}>
@@ -432,20 +434,20 @@ export default function MASPMembersView({ isAdmin }) {
                             title="編集メニュー"
                             style={{
                               width: 24, height: 24, padding: 0, fontSize: 13,
-                              background: actionMenuId === m.id ? C.navy + '12' : 'transparent',
-                              color: C.textMid, border: 'none', borderRadius: 3,
-                              cursor: 'pointer', fontFamily: "'Noto Sans JP'", lineHeight: 1,
+                              background: actionMenuId === m.id ? alpha(color.navy, 0.07) : 'transparent',
+                              color: color.textMid, border: 'none', borderRadius: radius.sm,
+                              cursor: 'pointer', fontFamily: font.family.sans, lineHeight: 1,
                               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                             }}
-                            onMouseEnter={e => { e.currentTarget.style.background = C.navy + '12'; e.currentTarget.style.color = C.navy; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = actionMenuId === m.id ? C.navy + '12' : 'transparent'; e.currentTarget.style.color = actionMenuId === m.id ? C.navy : C.textMid; }}
+                            onMouseEnter={e => { e.currentTarget.style.background = alpha(color.navy, 0.07); e.currentTarget.style.color = color.navy; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = actionMenuId === m.id ? alpha(color.navy, 0.07) : 'transparent'; e.currentTarget.style.color = actionMenuId === m.id ? color.navy : color.textMid; }}
                           >✎</button>
                           {actionMenuId === m.id && (
                             <div style={{
                               position: 'absolute', right: 0, top: 'calc(100% + 4px)',
                               minWidth: 130, zIndex: 50,
-                              background: C.white, border: `1px solid ${C.border}`, borderRadius: 4,
-                              boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+                              background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
+                              boxShadow: shadow.md,
                               padding: 4, display: 'flex', flexDirection: 'column', gap: 2,
                             }}>
                               <button
@@ -461,7 +463,7 @@ export default function MASPMembersView({ isAdmin }) {
                               )}
                               <button
                                 onClick={() => { setActionMenuId(null); setDeleteTarget(m); }}
-                                style={{ ...menuItemStyle, color: '#B91C1C' }}>削除</button>
+                                style={{ ...menuItemStyle, color: color.danger }}>削除</button>
                             </div>
                           )}
                         </div>
@@ -473,21 +475,21 @@ export default function MASPMembersView({ isAdmin }) {
             })}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={5 + engagementCols.length + (isAdmin ? 1 : 0)} style={{ padding: '40px 12px', textAlign: 'center', color: C.textLight }}>
+                <td colSpan={5 + engagementCols.length + (isAdmin ? 1 : 0)} style={{ padding: '40px 12px', textAlign: 'center', color: color.textLight }}>
                   該当するメンバーがいません
                 </td>
               </tr>
             )}
           </tbody>
         </table>
-        {saveError && <div style={{ marginTop: 8, fontSize: 11, color: '#DC2626' }}>{saveError}</div>}
+        {saveError && <div style={{ marginTop: 8, fontSize: font.size.xs, color: color.danger }}>{saveError}</div>}
         {resendResult && (
           <div style={{
             position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
-            padding: '10px 18px', borderRadius: 4, fontSize: 12, fontWeight: 600,
-            background: resendResult.type === 'error' ? '#FEF2F2' : '#ECFDF5',
-            color: resendResult.type === 'error' ? '#DC2626' : '#065F46',
-            border: `1px solid ${resendResult.type === 'error' ? '#FECACA' : '#A7F3D0'}`,
+            padding: '10px 18px', borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold,
+            background: resendResult.type === 'error' ? alpha(color.danger, 0.06) : alpha(color.success, 0.08),
+            color: resendResult.type === 'error' ? color.danger : '#065F46',
+            border: `1px solid ${resendResult.type === 'error' ? alpha(color.danger, 0.25) : alpha(color.success, 0.3)}`,
           }}>{resendResult.message}</div>
         )}
       </div>
@@ -499,38 +501,57 @@ export default function MASPMembersView({ isAdmin }) {
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 4, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', padding: 28, fontFamily: "'Noto Sans JP',sans-serif" }}
+            style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.lg, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', padding: 28, fontFamily: font.family.sans, boxShadow: shadow.xl }}
           >
-            <div style={{ fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 18 }}>新規メンバーを追加</div>
+            <div style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: color.navy, marginBottom: 18 }}>新規メンバーを追加</div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <FormRow label="氏名 *">
-                <input value={addForm.name} onChange={e => setAddForm(s => ({ ...s, name: e.target.value }))} style={fieldStyle} />
+                <Input size="sm" value={addForm.name} onChange={e => setAddForm(s => ({ ...s, name: e.target.value }))} />
               </FormRow>
               <FormRow label="メールアドレス">
-                <input type="email" value={addForm.email} onChange={e => setAddForm(s => ({ ...s, email: e.target.value }))}
-                  placeholder="例: example@ma-sp.co" style={{ ...fieldStyle, fontFamily: "'JetBrains Mono', monospace" }} />
+                <Input
+                  size="sm"
+                  type="email"
+                  value={addForm.email}
+                  onChange={e => setAddForm(s => ({ ...s, email: e.target.value }))}
+                  placeholder="例: example@ma-sp.co"
+                  style={{ fontFamily: font.family.mono }}
+                />
               </FormRow>
               <FormRow label="携帯番号">
-                <input type="tel" value={addForm.phone_number} onChange={e => setAddForm(s => ({ ...s, phone_number: e.target.value }))}
-                  placeholder="090-1234-5678" style={{ ...fieldStyle, fontFamily: "'JetBrains Mono', monospace" }} />
+                <Input
+                  size="sm"
+                  type="tel"
+                  value={addForm.phone_number}
+                  onChange={e => setAddForm(s => ({ ...s, phone_number: e.target.value }))}
+                  placeholder="090-1234-5678"
+                  style={{ fontFamily: font.family.mono }}
+                />
               </FormRow>
               <FormRow label="役職">
-                <select value={addForm.position} onChange={e => setAddForm(s => ({ ...s, position: e.target.value }))} style={fieldStyle}>
-                  <option value="">（なし）</option>
-                  {positionOptions.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+                <Select
+                  size="sm"
+                  value={addForm.position}
+                  onChange={e => setAddForm(s => ({ ...s, position: e.target.value }))}
+                  options={positionSelectOptions}
+                />
               </FormRow>
               <FormRow label="入社日">
-                <input type="date" value={addForm.start_date} onChange={e => setAddForm(s => ({ ...s, start_date: e.target.value }))}
-                  style={{ ...fieldStyle, fontFamily: "'JetBrains Mono', monospace" }} />
+                <Input
+                  size="sm"
+                  type="date"
+                  value={addForm.start_date}
+                  onChange={e => setAddForm(s => ({ ...s, start_date: e.target.value }))}
+                  style={{ fontFamily: font.family.mono }}
+                />
               </FormRow>
 
-              <div style={{ marginTop: 8, padding: '12px 14px', background: '#F8F9FA', border: `1px solid ${C.border}`, borderRadius: 4 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 8 }}>所属事業</div>
+              <div style={{ marginTop: 8, padding: '12px 14px', background: color.gray50, border: `1px solid ${color.border}`, borderRadius: radius.md }}>
+                <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, marginBottom: 8 }}>所属事業</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {engagementCols.map(e => (
-                    <label key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: C.textDark, cursor: 'pointer' }}>
+                    <label key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: font.size.sm, color: color.textDark, cursor: 'pointer' }}>
                       <input type="checkbox" checked={addEngagementIds.has(e.id)} onChange={() => toggleAddEngagement(e.id)} />
                       {e.name}
                     </label>
@@ -538,29 +559,25 @@ export default function MASPMembersView({ isAdmin }) {
                 </div>
               </div>
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: C.textDark, cursor: 'pointer', marginTop: 6 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: font.size.sm, color: color.textDark, cursor: 'pointer', marginTop: 6 }}>
                 <input type="checkbox" checked={addSendInvite} onChange={e => setAddSendInvite(e.target.checked)} />
                 招待メールを送信する（推奨）
               </label>
-              <div style={{ fontSize: 10, color: C.textLight, marginLeft: 22, marginTop: -4, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 10, color: color.textLight, marginLeft: 22, marginTop: -4, lineHeight: 1.5 }}>
                 ON: メールに招待リンクを送信、本人がパスワード設定して初回ログイン<br />
                 OFF: メンバー追加のみ。後でログインさせる場合は別途招待が必要
               </div>
 
               {addError && (
-                <div style={{ fontSize: 11, color: '#B91C1C', background: '#FEF2F2', border: '1px solid #FCA5A5', padding: '8px 10px', borderRadius: 3 }}>
+                <div style={{ fontSize: font.size.xs, color: color.danger, background: alpha(color.danger, 0.06), border: `1px solid ${alpha(color.danger, 0.3)}`, padding: '8px 10px', borderRadius: radius.sm }}>
                   {addError}
                 </div>
               )}
             </div>
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 24 }}>
-              <button onClick={() => setAddModal(false)} disabled={adding}
-                style={{ padding: '8px 18px', fontSize: 12, fontWeight: 600, background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer' }}>キャンセル</button>
-              <button onClick={handleAdd} disabled={adding}
-                style={{ padding: '8px 22px', fontSize: 12, fontWeight: 700, background: C.navy, color: C.white, border: 'none', borderRadius: 4, cursor: adding ? 'default' : 'pointer', opacity: adding ? 0.6 : 1 }}>
-                {adding ? '追加中…' : '追加する'}
-              </button>
+              <Button variant="secondary" disabled={adding} onClick={() => setAddModal(false)}>キャンセル</Button>
+              <Button loading={adding} onClick={handleAdd}>{adding ? '追加中…' : '追加する'}</Button>
             </div>
           </div>
         </div>
@@ -573,23 +590,21 @@ export default function MASPMembersView({ isAdmin }) {
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 4, width: '100%', maxWidth: 480, padding: 24, fontFamily: "'Noto Sans JP',sans-serif" }}
+            style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.lg, width: '100%', maxWidth: 480, padding: 24, fontFamily: font.family.sans, boxShadow: shadow.xl }}
           >
-            <div style={{ fontSize: 15, fontWeight: 700, color: C.navy, marginBottom: 12 }}>メンバーを削除しますか？</div>
-            <div style={{ fontSize: 13, color: C.textDark, marginBottom: 8, lineHeight: 1.6 }}>
+            <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginBottom: 12 }}>メンバーを削除しますか？</div>
+            <div style={{ fontSize: font.size.base, color: color.textDark, marginBottom: 8, lineHeight: font.lineHeight.relaxed }}>
               <b>{deleteTarget.name}</b> さんを削除します。
             </div>
-            <div style={{ fontSize: 11, color: C.textMid, marginBottom: 18, lineHeight: 1.6, padding: '10px 12px', background: '#F8F9FA', borderRadius: 3, border: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 18, lineHeight: font.lineHeight.relaxed, padding: '10px 12px', background: color.gray50, borderRadius: radius.sm, border: `1px solid ${color.border}` }}>
               ・過去の架電履歴・アポ・売上データは <b>保持</b> されます<br />
               ・本人ログイン・各画面のメンバー一覧から非表示になります
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setDeleteTarget(null)} disabled={deleting}
-                style={{ padding: '7px 16px', fontSize: 12, fontWeight: 600, background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 3, cursor: 'pointer' }}>キャンセル</button>
-              <button onClick={handleConfirmDelete} disabled={deleting}
-                style={{ padding: '7px 18px', fontSize: 12, fontWeight: 700, background: '#DC2626', color: C.white, border: 'none', borderRadius: 3, cursor: deleting ? 'default' : 'pointer', opacity: deleting ? 0.6 : 1 }}>
+              <Button size="sm" variant="secondary" disabled={deleting} onClick={() => setDeleteTarget(null)}>キャンセル</Button>
+              <Button size="sm" variant="danger" loading={deleting} onClick={handleConfirmDelete}>
                 {deleting ? '削除中…' : '削除する'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -598,31 +613,12 @@ export default function MASPMembersView({ isAdmin }) {
   );
 }
 
-const th = { padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: C.navy, fontSize: 11, letterSpacing: '0.04em' };
-const td = { padding: '8px 12px', fontSize: 12, color: C.textDark };
-const editInput = {
-  width: '100%', padding: '4px 6px', borderRadius: 3, border: `1px solid ${C.border}`,
-  fontSize: 12, fontFamily: "'Noto Sans JP',sans-serif",
-};
-const primarySmallBtn = {
-  padding: '4px 10px', fontSize: 11, fontWeight: 600,
-  background: C.navy, color: C.white, border: 'none', borderRadius: 3, cursor: 'pointer',
-  whiteSpace: 'nowrap', fontFamily: "'Noto Sans JP',sans-serif",
-};
-const secondarySmallBtn = {
-  padding: '4px 10px', fontSize: 11, fontWeight: 600,
-  background: C.white, color: C.navy, border: `1px solid ${C.border}`, borderRadius: 3, cursor: 'pointer',
-  whiteSpace: 'nowrap', fontFamily: "'Noto Sans JP',sans-serif",
-};
-const dangerSmallBtn = {
-  padding: '4px 10px', fontSize: 11, fontWeight: 600,
-  background: C.white, color: '#B91C1C', border: '1px solid #FCA5A5', borderRadius: 3, cursor: 'pointer',
-  whiteSpace: 'nowrap', fontFamily: "'Noto Sans JP',sans-serif",
-};
+const th = { padding: '10px 12px', textAlign: 'center', fontWeight: font.weight.semibold, color: color.navy, fontSize: font.size.xs, letterSpacing: font.letterSpacing.wide };
+const td = { padding: '8px 12px', fontSize: font.size.sm, color: color.textDark };
 const menuItemStyle = {
-  padding: '6px 10px', fontSize: 11, fontWeight: 500,
-  background: 'transparent', color: C.navy, border: 'none', borderRadius: 3, cursor: 'pointer',
-  textAlign: 'left', whiteSpace: 'nowrap', fontFamily: "'Noto Sans JP',sans-serif",
+  padding: '6px 10px', fontSize: font.size.xs, fontWeight: font.weight.medium,
+  background: 'transparent', color: color.navy, border: 'none', borderRadius: radius.sm, cursor: 'pointer',
+  textAlign: 'left', whiteSpace: 'nowrap', fontFamily: font.family.sans,
 };
 
 function formatDate(d) {
@@ -635,15 +631,8 @@ function formatDate(d) {
 function FormRow({ label, children }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-      <div style={{ minWidth: 120, fontSize: 11, color: C.textMid, fontWeight: 600 }}>{label}</div>
+      <div style={{ minWidth: 120, fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>{label}</div>
       <div style={{ flex: 1 }}>{children}</div>
     </div>
   );
 }
-
-const fieldStyle = {
-  width: '100%',
-  padding: '7px 10px', borderRadius: 4, border: `1px solid ${C.border}`,
-  fontSize: 12, color: C.textDark,
-  fontFamily: "'Noto Sans JP', sans-serif",
-};
