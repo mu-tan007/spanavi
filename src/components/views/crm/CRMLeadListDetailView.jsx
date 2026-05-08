@@ -7,6 +7,7 @@ import {
 } from '../../../lib/supabaseWrite';
 import { NAVY, GRAY_200, GRAY_50 } from './utils';
 import CRMLeadCallingScreen from './CRMLeadCallingScreen';
+import CRMLeadCallFlowView from './CRMLeadCallFlowView';
 
 function StatusBadge({ status }) {
   if (!status) return <span style={{ color: C.textLight, fontSize: 10 }}>—</span>;
@@ -117,7 +118,7 @@ function ScriptEditor({ list }) {
 
 export default function CRMLeadListDetailView({ list, currentUser, members = [], setClientData, onBack }) {
   const queryClient = useQueryClient();
-  const [callingOpen, setCallingOpen] = useState(false);
+  const [callingMode, setCallingMode] = useState(null); // 'list' | 'flow' | null
 
   const { data: companies = [] } = useQuery({
     queryKey: ['crm-lead-companies', list?.id],
@@ -160,21 +161,16 @@ export default function CRMLeadListDetailView({ list, currentUser, members = [],
     );
   }
 
-  if (callingOpen) {
-    return (
-      <CRMLeadCallingScreen
-        list={list}
-        companies={companies}
-        records={records}
-        currentUser={currentUser}
-        setClientData={setClientData}
-        onClose={() => {
-          setCallingOpen(false);
-          queryClient.invalidateQueries({ queryKey: ['crm-lead-records', list.id] });
-          queryClient.invalidateQueries({ queryKey: ['crm-lead-companies', list.id] });
-        }}
-      />
-    );
+  if (callingMode) {
+    const handleClose = () => {
+      setCallingMode(null);
+      queryClient.invalidateQueries({ queryKey: ['crm-lead-records', list.id] });
+      queryClient.invalidateQueries({ queryKey: ['crm-lead-companies', list.id] });
+    };
+    const props = { list, companies, records, currentUser, setClientData, onClose: handleClose };
+    return callingMode === 'flow'
+      ? <CRMLeadCallFlowView {...props} />
+      : <CRMLeadCallingScreen {...props} />;
   }
 
   // 集計
@@ -213,17 +209,34 @@ export default function CRMLeadListDetailView({ list, currentUser, members = [],
             </div>
           </div>
         </div>
-        <button
-          onClick={() => setCallingOpen(true)}
-          disabled={total === 0}
-          style={{
-            padding: '8px 18px', borderRadius: 4, border: 'none',
-            background: total === 0 ? C.textLight : NAVY,
-            color: '#fff', fontSize: 13, fontWeight: 600,
-            cursor: total === 0 ? 'not-allowed' : 'pointer',
-            fontFamily: "'Noto Sans JP'",
-          }}
-        >架電を開始</button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            onClick={() => setCallingMode('list')}
+            disabled={total === 0}
+            title="一覧モードで起動（複数企業を一覧で見ながら効率的に架電）"
+            style={{
+              padding: '8px 14px', borderRadius: 4,
+              border: '1px solid ' + (total === 0 ? C.textLight : NAVY),
+              background: total === 0 ? '#F8F9FA' : '#fff',
+              color: total === 0 ? C.textLight : NAVY,
+              fontSize: 12, fontWeight: 600,
+              cursor: total === 0 ? 'not-allowed' : 'pointer',
+              fontFamily: "'Noto Sans JP'",
+            }}
+          >一覧モードで開始</button>
+          <button
+            onClick={() => setCallingMode('flow')}
+            disabled={total === 0}
+            title="集中モードで起動（1社ずつフォーカスしてじっくり架電）"
+            style={{
+              padding: '8px 18px', borderRadius: 4, border: 'none',
+              background: total === 0 ? C.textLight : NAVY,
+              color: '#fff', fontSize: 13, fontWeight: 700,
+              cursor: total === 0 ? 'not-allowed' : 'pointer',
+              fontFamily: "'Noto Sans JP'",
+            }}
+          >集中モードで開始</button>
+        </div>
       </div>
 
       {/* スクリプト編集 */}
