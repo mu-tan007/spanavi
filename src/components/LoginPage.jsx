@@ -100,13 +100,18 @@ function BackgroundLayer() {
         .sp-login-corner.tr { top: -1px; right: -1px; border-top-width: 1.5px;    border-right-width: 1.5px; }
         .sp-login-corner.bl { bottom: -1px; left: -1px;  border-bottom-width: 1.5px; border-left-width: 1.5px;  }
         .sp-login-corner.br { bottom: -1px; right: -1px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
-        /* 暗カード用 input */
+        /* 暗カード用 input — 黒文字回避のため text-fill-color も全状態で white に強制 */
         .sp-login-input {
           background: ${C.inputBg} !important;
           border: 1px solid ${C.inputBorder} !important;
           color: ${C.textOnDark} !important;
+          -webkit-text-fill-color: ${C.textOnDark} !important;
+          caret-color: ${C.textOnDark};
         }
-        .sp-login-input::placeholder { color: rgba(255,255,255,0.32); }
+        .sp-login-input::placeholder {
+          color: rgba(255,255,255,0.32) !important;
+          -webkit-text-fill-color: rgba(255,255,255,0.32) !important;
+        }
         .sp-login-input:focus {
           border-color: rgba(255,255,255,0.55) !important;
           box-shadow: 0 0 0 3px rgba(255,255,255,0.10) !important;
@@ -115,7 +120,8 @@ function BackgroundLayer() {
         /* Chrome autofill のNavy維持 */
         .sp-login-input:-webkit-autofill,
         .sp-login-input:-webkit-autofill:hover,
-        .sp-login-input:-webkit-autofill:focus {
+        .sp-login-input:-webkit-autofill:focus,
+        .sp-login-input:-internal-autofill-selected {
           -webkit-text-fill-color: ${C.textOnDark} !important;
           -webkit-box-shadow: 0 0 0 1000px rgba(8,22,54,0.85) inset !important;
           caret-color: ${C.textOnDark};
