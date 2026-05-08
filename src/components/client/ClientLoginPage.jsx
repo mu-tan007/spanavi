@@ -49,7 +49,7 @@ export default function ClientLoginPage() {
             type="text"
             value={username}
             onChange={e => setUsername(e.target.value)}
-            placeholder="例: fullerene2026"
+            placeholder="半角英数字"
             required
             autoCapitalize="none"
             autoComplete="username"
