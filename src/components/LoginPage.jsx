@@ -28,7 +28,8 @@ function BackgroundLayer() {
       aria-hidden
       style={{
         position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none',
-        background: `radial-gradient(ellipse at center, ${C.navy} 0%, ${C.navyDeep} 100%)`,
+        // Navy → Blue の斜めグラデーション (左上が明るめroyal blue、右下にかけてdeep navy)
+        background: `linear-gradient(135deg, #1456C7 0%, #1E3A8A 30%, ${C.navy} 60%, ${C.navyDeep} 100%)`,
       }}
     >
       <style>{`
