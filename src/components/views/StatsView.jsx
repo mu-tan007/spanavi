@@ -14,7 +14,6 @@ import {
 } from 'recharts';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
-import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import PageHeader from '../common/PageHeader';
 
 const NAVY = '#0D2247';
@@ -791,7 +790,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
                 <div style={{ minWidth: clientCol.contentMinWidth }}>
                 <div style={{ display: 'grid', gridTemplateColumns: clientCol.gridTemplateColumns, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247' }}>
                   {[['クライアント名',0],['アポ数',1],['売上合計',2],['平均単価',3]].map(([label, ci]) => (
-                    <span key={ci} style={{ position: 'relative', textAlign: clientCol.columns[ci].align }} onContextMenu={e => clientCol.onHeaderContextMenu(e, ci)}>
+                    <span key={ci} style={{ position: 'relative', textAlign: clientCol.columns[ci].align }}>
                       {label}
                       <ColumnResizeHandle colIndex={ci} onResizeStart={clientCol.onResizeStart} />
                     </span>
@@ -890,7 +889,6 @@ export default function StatsView({ callListData, currentUser, appoData, members
         const SortHdr = ({ label, sk, colIndex }) => (
           <span
             onClick={() => { if (listSortKey === sk) setListSortDir(d => d === 'desc' ? 'asc' : 'desc'); else { setListSortKey(sk); setListSortDir('desc'); } }}
-            onContextMenu={e => listCol.onHeaderContextMenu(e, colIndex)}
             style={{ position: 'relative', cursor: 'pointer', userSelect: 'none', color: listSortKey === sk ? '#ffffff' : 'rgba(255,255,255,0.65)', whiteSpace: 'nowrap', textAlign: listCol.columns[colIndex].align }}>
             {label}{listSortKey === sk ? (listSortDir === 'asc' ? ' ▲' : ' ▼') : ''}
             <ColumnResizeHandle colIndex={colIndex} onResizeStart={listCol.onResizeStart} />
@@ -963,7 +961,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
           <div style={{ minWidth: reschedCol.contentMinWidth }}>
           <div style={{ display: 'grid', gridTemplateColumns: reschedCol.gridTemplateColumns, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247' }}>
             {[['クライアント名',0],['アポ数',1],['リスケ数',2],['リスケ率',3],['キャンセル数',4],['キャンセル率',5]].map(([label, ci]) => (
-              <span key={ci} style={{ position: 'relative', textAlign: reschedCol.columns[ci].align }} onContextMenu={e => reschedCol.onHeaderContextMenu(e, ci)}>
+              <span key={ci} style={{ position: 'relative', textAlign: reschedCol.columns[ci].align }}>
                 {label}
                 <ColumnResizeHandle colIndex={ci} onResizeStart={reschedCol.onResizeStart} />
               </span>
@@ -993,34 +991,6 @@ export default function StatsView({ callListData, currentUser, appoData, members
         </div>
       </div>
 
-      {/* AlignmentContextMenu for all 3 tables */}
-      {clientCol.contextMenu.visible && (
-        <AlignmentContextMenu
-          x={clientCol.contextMenu.x} y={clientCol.contextMenu.y}
-          currentAlign={clientCol.columns[clientCol.contextMenu.colIndex]?.align}
-          onSelect={align => clientCol.setAlign(clientCol.contextMenu.colIndex, align)}
-          onReset={clientCol.resetAll}
-          onClose={clientCol.closeMenu}
-        />
-      )}
-      {listCol.contextMenu.visible && (
-        <AlignmentContextMenu
-          x={listCol.contextMenu.x} y={listCol.contextMenu.y}
-          currentAlign={listCol.columns[listCol.contextMenu.colIndex]?.align}
-          onSelect={align => listCol.setAlign(listCol.contextMenu.colIndex, align)}
-          onReset={listCol.resetAll}
-          onClose={listCol.closeMenu}
-        />
-      )}
-      {reschedCol.contextMenu.visible && (
-        <AlignmentContextMenu
-          x={reschedCol.contextMenu.x} y={reschedCol.contextMenu.y}
-          currentAlign={reschedCol.columns[reschedCol.contextMenu.colIndex]?.align}
-          onSelect={align => reschedCol.setAlign(reschedCol.contextMenu.colIndex, align)}
-          onReset={reschedCol.resetAll}
-          onClose={reschedCol.closeMenu}
-        />
-      )}
 
     </div>
   );

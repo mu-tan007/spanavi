@@ -8,7 +8,6 @@ import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCoun
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
-import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
@@ -520,7 +519,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     return { bg: C.textLight + "10", color: C.textLight };
   };
 
-  const { columns: appoCols, gridTemplateColumns: appoGrid, contentMinWidth: appoMinW, onResizeStart: appoResize, onHeaderContextMenu: appoCtxMenu, contextMenu: appoCtx, setAlign: appoSetAlign, resetAll: appoReset, closeMenu: appoClose } = useColumnConfig('appoList', APPO_COLS, { padding: 22, gap: 2 });
+  const { columns: appoCols, gridTemplateColumns: appoGrid, contentMinWidth: appoMinW, onResizeStart: appoResize } = useColumnConfig('appoList', APPO_COLS, { padding: 22, gap: 2 });
 
   // チェックボックス列を先頭に追加（useColumnConfigには影響しない）
   const appoGridWithCheckbox = setAppoData ? `28px ${appoGrid}` : appoGrid;
@@ -1317,7 +1316,6 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           ].map(({ label, key }, i) => (
             <span key={label}
               onClick={key ? () => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); } } : undefined}
-              onContextMenu={e => appoCtxMenu(e, i)}
               style={{ position: 'relative', textAlign: appoCols[i]?.align || 'left', whiteSpace: 'nowrap', cursor: key ? 'pointer' : 'default', userSelect: 'none', minWidth: 0 }}>
               {label}
               {key && (
@@ -2346,15 +2344,6 @@ MASP 篠宮`}
           </div>
         </div>
       )}
-      {appoCtx.visible && (
-        <AlignmentContextMenu
-          x={appoCtx.x} y={appoCtx.y}
-          currentAlign={appoCols[appoCtx.colIndex]?.align || 'left'}
-          onSelect={align => appoSetAlign(appoCtx.colIndex, align)}
-          onReset={appoReset}
-          onClose={appoClose}
-        />
-      )}
       </>
     </div>
   );
@@ -2412,7 +2401,7 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
     { key: 'joinDate', width: 100, align: 'center' },
   ];
   const MEMBER_COLS_EDIT = [...MEMBER_COLS_BASE, { key: 'edit', width: 50, align: 'center' }];
-  const { columns: memCols, gridTemplateColumns: memGrid, contentMinWidth: memMinW, onResizeStart: memResize, onHeaderContextMenu: memCtxMenu, contextMenu: memCtx, setAlign: memSetAlign, resetAll: memReset, closeMenu: memClose } = useColumnConfig(setMembers ? 'membersEdit' : 'members', setMembers ? MEMBER_COLS_EDIT : MEMBER_COLS_BASE);
+  const { columns: memCols, gridTemplateColumns: memGrid, contentMinWidth: memMinW, onResizeStart: memResize } = useColumnConfig(setMembers ? 'membersEdit' : 'members', setMembers ? MEMBER_COLS_EDIT : MEMBER_COLS_BASE);
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
@@ -2493,7 +2482,7 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
               fontSize: 11, fontWeight: 600, color: '#fff',
             }}>
               {['No', '氏名', '大学名', '学年', '役職', 'ランク', '累計売上', 'インセンティブ率', '入社日', ...(setMembers ? [''] : [])].map((label, i) => (
-                <span key={i} onContextMenu={e => memCtxMenu(e, i)} style={{ textAlign: memCols[i]?.align || 'left', position: 'relative', userSelect: 'none' }}>
+                <span key={i} style={{ textAlign: memCols[i]?.align || 'left', position: 'relative', userSelect: 'none' }}>
                   {label}
                   <ColumnResizeHandle colIndex={i} onResizeStart={memResize} />
                 </span>
@@ -2531,15 +2520,6 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
         ))}
       </div>
 
-      {memCtx.visible && (
-        <AlignmentContextMenu
-          x={memCtx.x} y={memCtx.y}
-          currentAlign={memCols[memCtx.colIndex]?.align || 'left'}
-          onSelect={align => memSetAlign(memCtx.colIndex, align)}
-          onReset={memReset}
-          onClose={memClose}
-        />
-      )}
 
       {/* Zoom ID Sync Result Modal */}
       {syncResult && (

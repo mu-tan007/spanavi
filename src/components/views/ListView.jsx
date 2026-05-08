@@ -4,7 +4,6 @@ import { updateCallList, insertCallList, archiveCallList, restoreCallList } from
 import { supabase } from '../../lib/supabase';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
-import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import PageHeader from '../common/PageHeader';
 import TopListCard, { ProgressPill } from '../common/TopListCard';
@@ -64,8 +63,8 @@ const LISTVIEW_ARCHIVE_COLS = [
 
 export default function ListView({ filteredLists, allLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [], contactsByClient = {}, onOpenIndustryRules }) {
   const isMobile = useIsMobile();
-  const { columns: lvCols, gridTemplateColumns: lvGrid, contentMinWidth: lvMinW, onResizeStart: lvResize, onHeaderContextMenu: lvCtxMenu, contextMenu: lvCtx, setAlign: lvSetAlign, resetAll: lvReset, closeMenu: lvClose } = useColumnConfig('listView', LISTVIEW_COLS);
-  const { columns: arCols, gridTemplateColumns: arGrid, contentMinWidth: arMinW, onResizeStart: arResize, onHeaderContextMenu: arCtxMenu, contextMenu: arCtx, setAlign: arSetAlign, resetAll: arReset, closeMenu: arClose } = useColumnConfig('listViewArchive', LISTVIEW_ARCHIVE_COLS);
+  const { columns: lvCols, gridTemplateColumns: lvGrid, contentMinWidth: lvMinW, onResizeStart: lvResize } = useColumnConfig('listView', LISTVIEW_COLS);
+  const { columns: arCols, gridTemplateColumns: arGrid, contentMinWidth: arMinW, onResizeStart: arResize } = useColumnConfig('listViewArchive', LISTVIEW_ARCHIVE_COLS);
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
 
   // 担当者名を苗字のみで表示（CRMの同一クライアント担当者内で苗字被りがあれば名の頭文字付き）
@@ -411,7 +410,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
           fontSize: isMobile ? 10 : 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
         }}>
           {['クライアント', '種別', '業種', '社数', '担当者', '架電進捗率', 'おすすめ度', ''].map((label, i) => (
-            <span key={i} onContextMenu={e => lvCtxMenu(e, i)} style={{ position: 'relative', textAlign: lvCols[i]?.align || 'left', minWidth: 0, cursor: 'default', userSelect: 'none' }}>
+            <span key={i} style={{ position: 'relative', textAlign: lvCols[i]?.align || 'left', minWidth: 0, cursor: 'default', userSelect: 'none' }}>
               {label}
               {i < 7 && <ColumnResizeHandle colIndex={i} onResizeStart={lvResize} />}
             </span>
@@ -523,24 +522,6 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         })()}
         </div>
       </div>
-      {lvCtx.visible && (
-        <AlignmentContextMenu
-          x={lvCtx.x} y={lvCtx.y}
-          currentAlign={lvCols[lvCtx.colIndex]?.align || 'left'}
-          onSelect={align => lvSetAlign(lvCtx.colIndex, align)}
-          onReset={lvReset}
-          onClose={lvClose}
-        />
-      )}
-      {arCtx.visible && (
-        <AlignmentContextMenu
-          x={arCtx.x} y={arCtx.y}
-          currentAlign={arCols[arCtx.colIndex]?.align || 'left'}
-          onSelect={align => arSetAlign(arCtx.colIndex, align)}
-          onReset={arReset}
-          onClose={arClose}
-        />
-      )}
     </div>
   );
 }

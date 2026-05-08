@@ -3,7 +3,6 @@ import { C } from '../../constants/colors';
 import { dialPhone } from '../../utils/phone';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
-import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import PageHeader from '../common/PageHeader';
 
@@ -31,11 +30,6 @@ export default function RecallListView({ callListData, supaRecalls = [], members
     gridTemplateColumns,
     contentMinWidth,
     onResizeStart,
-    onHeaderContextMenu,
-    contextMenu,
-    setAlign,
-    resetAll,
-    closeMenu,
   } = useColumnConfig('recall', RECALL_COLS, { padding: 28 });
 
   const assigneeSuggestions = members.filter(m =>
@@ -201,7 +195,6 @@ export default function RecallListView({ callListData, supaRecalls = [], members
                 {headerLabels.map((label, idx) => (
                   <span
                     key={columns[idx].key}
-                    onContextMenu={e => onHeaderContextMenu(e, idx)}
                     style={{ position: 'relative', textAlign: columns[idx].align, paddingRight: 6 }}
                   >
                     {label}
@@ -255,16 +248,6 @@ export default function RecallListView({ callListData, supaRecalls = [], members
           </div>
         </div>
       </div>
-      {contextMenu.visible && (
-        <AlignmentContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          currentAlign={columns[contextMenu.colIndex]?.align || 'left'}
-          onSelect={align => setAlign(contextMenu.colIndex, align)}
-          onReset={resetAll}
-          onClose={closeMenu}
-        />
-      )}
     </div>
   );
 }

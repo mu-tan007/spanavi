@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { C } from '../../constants/colors';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
-import AlignmentContextMenu from '../common/AlignmentContextMenu';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
@@ -25,7 +24,7 @@ const TEAM_PERF_COLS = [
 ];
 
 export default function TeamPerformanceTable({ byPerson: byPersonProp = [], loading, teamMap, sessionMap = {}, reschedAppoData = [], members = [] }) {
-  const { columns: perfCols, gridTemplateColumns: perfGrid, contentMinWidth: perfMinW, onResizeStart: perfResize, onHeaderContextMenu: perfCtxMenu, contextMenu: perfCtx, setAlign: perfSetAlign, resetAll: perfReset, closeMenu: perfClose } = useColumnConfig('teamPerf', TEAM_PERF_COLS);
+  const { columns: perfCols, gridTemplateColumns: perfGrid, contentMinWidth: perfMinW, onResizeStart: perfResize } = useColumnConfig('teamPerf', TEAM_PERF_COLS);
 
   const { teamData, memberData, reschedMap } = useMemo(() => {
     const EXCLUDED_TEAMS = new Set(['営業統括', 'その他']);
@@ -99,7 +98,6 @@ export default function TeamPerformanceTable({ byPerson: byPersonProp = [], load
           <div style={{ display: 'grid', gridTemplateColumns: perfGrid, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#fff', borderBottom: '1px solid #E5E7EB', verticalAlign: 'middle' }}>
             <span
               style={{ padding: '0', verticalAlign: 'middle', textAlign: perfCols[0].align, position: 'relative' }}
-              onContextMenu={(e) => perfCtxMenu(e, 0)}
             >
               チーム / メンバー
               <ColumnResizeHandle colIndex={0} onResizeStart={perfResize} />
@@ -108,7 +106,6 @@ export default function TeamPerformanceTable({ byPerson: byPersonProp = [], load
               <span
                 key={c}
                 style={{ padding: '0', verticalAlign: 'middle', textAlign: perfCols[i + 1].align, display: 'block', position: 'relative' }}
-                onContextMenu={(e) => perfCtxMenu(e, i + 1)}
               >
                 {c}
                 <ColumnResizeHandle colIndex={i + 1} onResizeStart={perfResize} />
@@ -190,16 +187,6 @@ export default function TeamPerformanceTable({ byPerson: byPersonProp = [], load
         </div>
       )}
 
-      {perfCtx.visible && (
-        <AlignmentContextMenu
-          x={perfCtx.x}
-          y={perfCtx.y}
-          currentAlign={perfCols[perfCtx.colIndex]?.align || 'left'}
-          onSelect={(align) => perfSetAlign(perfCtx.colIndex, align)}
-          onReset={perfReset}
-          onClose={perfClose}
-        />
-      )}
     </div>
   );
 }

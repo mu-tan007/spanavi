@@ -4,7 +4,6 @@ import { updateClient, insertClient, deleteClient } from '../../lib/supabaseWrit
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import useColumnConfig from '../../hooks/useColumnConfig';
-import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import PageHeader from '../common/PageHeader';
 import ClientDetailPage from './contacts/ClientDetailPage';
 import { dbFieldsToFe } from '../../utils/clientFieldsMap';
@@ -188,7 +187,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   });
 
   const crmDefaultCols = setClientData ? CRM_COLS_EDIT : CRM_COLS_BASE;
-  const { columns: crmCols, gridTemplateColumns: crmGrid, contentMinWidth: crmMinW, onResizeStart: crmResize, onHeaderContextMenu: crmCtxMenu, contextMenu: crmCtx, setAlign: crmSetAlign, resetAll: crmReset, closeMenu: crmClose } = useColumnConfig(setClientData ? 'crmViewEdit' : 'crmView', crmDefaultCols);
+  const { columns: crmCols, gridTemplateColumns: crmGrid, contentMinWidth: crmMinW, onResizeStart: crmResize } = useColumnConfig(setClientData ? 'crmViewEdit' : 'crmView', crmDefaultCols);
 
   const handleSaveEdit = async () => {
     if (!editForm || !setClientData) return;
@@ -494,7 +493,6 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
             crmCols={crmCols}
             crmGrid={crmGrid}
             crmMinW={crmMinW}
-            crmCtxMenu={crmCtxMenu}
             crmResize={crmResize}
             lastTouchByClient={lastTouchByClient}
             contactsByClient={contactsByClient}
@@ -564,16 +562,6 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
         onClose={() => setShowRewardDetail(null)}
       />
 
-      {crmCtx.visible && (
-        <AlignmentContextMenu
-          x={crmCtx.x}
-          y={crmCtx.y}
-          currentAlign={crmCols[crmCtx.colIndex]?.align || 'left'}
-          onSelect={align => crmSetAlign(crmCtx.colIndex, align)}
-          onReset={crmReset}
-          onClose={crmClose}
-        />
-      )}
 
     </div>
   );

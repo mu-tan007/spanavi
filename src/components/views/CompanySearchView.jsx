@@ -32,7 +32,6 @@ import { PlayRecordingButton } from '../common/RecordingPlayerProvider';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
-import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import PageHeader from '../common/PageHeader';
 
 const SEARCH_COMPANY_COLS = [
@@ -71,9 +70,9 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   const [clientSortDir, setClientSortDir] = useState("asc");
 
   // Column resize/alignment hooks
-  const { columns: scCols, gridTemplateColumns: scGrid, contentMinWidth: scMinW, onResizeStart: scResize, onHeaderContextMenu: scCtxMenu, contextMenu: scCtx, setAlign: scSetAlign, resetAll: scReset, closeMenu: scClose } = useColumnConfig('searchCompany', SEARCH_COMPANY_COLS);
-  const { columns: sliCols, gridTemplateColumns: sliGrid, contentMinWidth: sliMinW, onResizeStart: sliResize, onHeaderContextMenu: sliCtxMenu, contextMenu: sliCtx, setAlign: sliSetAlign, resetAll: sliReset, closeMenu: sliClose } = useColumnConfig('searchListItems', SEARCH_LIST_ITEMS_COLS);
-  const { columns: slCols, gridTemplateColumns: slGrid, contentMinWidth: slMinW, onResizeStart: slResize, onHeaderContextMenu: slCtxMenu, contextMenu: slCtx, setAlign: slSetAlign, resetAll: slReset, closeMenu: slClose } = useColumnConfig('searchLists', SEARCH_LISTS_COLS);
+  const { columns: scCols, gridTemplateColumns: scGrid, contentMinWidth: scMinW, onResizeStart: scResize } = useColumnConfig('searchCompany', SEARCH_COMPANY_COLS);
+  const { columns: sliCols, gridTemplateColumns: sliGrid, contentMinWidth: sliMinW, onResizeStart: sliResize } = useColumnConfig('searchListItems', SEARCH_LIST_ITEMS_COLS);
+  const { columns: slCols, gridTemplateColumns: slGrid, contentMinWidth: slMinW, onResizeStart: slResize } = useColumnConfig('searchLists', SEARCH_LISTS_COLS);
   const { statuses, ceoConnectLabels, getStatusColor, labelMap } = useCallStatuses();
 
   // List search state（リスト検索）
@@ -1082,7 +1081,6 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           {[["company","企業名"],["representative","代表者"],["phone","電話番号"],["list","クライアント名"],["industry","業種"],["lastCall","最終発信日"],["status","最終ステータス"]].map(([key, label], i) => (
             <span key={key}
               onClick={() => { if (clientSortBy === key) { setClientSortBy(null); setClientSortDir("asc"); } else { setClientSortBy(key); setClientSortDir("desc"); } }}
-              onContextMenu={e => scCtxMenu(e, i)}
               style={{ position: 'relative', cursor: "pointer", userSelect: "none", textAlign: scCols[i]?.align || 'left', whiteSpace: 'nowrap', minWidth: 0 }}>
               {label}{clientSortBy === key ? " ▲" : " ▽"}
               {i < 6 && <ColumnResizeHandle colIndex={i} onResizeStart={scResize} />}
@@ -1579,7 +1577,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: sliGrid, padding: "8px 16px", background: "#0D2247", fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle' }}>
                   {['企業名','代表者名','電話番号','最新ステータス','リスト名'].map((label, i) => (
-                    <span key={label} onContextMenu={e => sliCtxMenu(e, i)} style={{ position: 'relative', textAlign: sliCols[i]?.align || 'left', whiteSpace: 'nowrap', minWidth: 0 }}>
+                    <span key={label} style={{ position: 'relative', textAlign: sliCols[i]?.align || 'left', whiteSpace: 'nowrap', minWidth: 0 }}>
                       {label}
                       {i < 4 && <ColumnResizeHandle colIndex={i} onResizeStart={sliResize} />}
                     </span>
@@ -1620,7 +1618,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
               fontSize: 11, fontWeight: 600, color: "#fff", verticalAlign: 'middle',
             }}>
               {['リスト名','クライアント名','業種','企業数','架電済み','操作'].map((label, i) => (
-                <span key={label} onContextMenu={e => slCtxMenu(e, i)} style={{ position: 'relative', textAlign: slCols[i]?.align || 'left', whiteSpace: 'nowrap', minWidth: 0 }}>
+                <span key={label} style={{ position: 'relative', textAlign: slCols[i]?.align || 'left', whiteSpace: 'nowrap', minWidth: 0 }}>
                   {label}
                   {i < 5 && <ColumnResizeHandle colIndex={i} onResizeStart={slResize} />}
                 </span>
@@ -1803,33 +1801,6 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           onClose={() => setAppoModal(null)}
           onSave={handleAppoSave}
           onDone={() => setAppoModal(null)}
-        />
-      )}
-      {scCtx.visible && (
-        <AlignmentContextMenu
-          x={scCtx.x} y={scCtx.y}
-          currentAlign={scCols[scCtx.colIndex]?.align || 'left'}
-          onSelect={align => scSetAlign(scCtx.colIndex, align)}
-          onReset={scReset}
-          onClose={scClose}
-        />
-      )}
-      {sliCtx.visible && (
-        <AlignmentContextMenu
-          x={sliCtx.x} y={sliCtx.y}
-          currentAlign={sliCols[sliCtx.colIndex]?.align || 'left'}
-          onSelect={align => sliSetAlign(sliCtx.colIndex, align)}
-          onReset={sliReset}
-          onClose={sliClose}
-        />
-      )}
-      {slCtx.visible && (
-        <AlignmentContextMenu
-          x={slCtx.x} y={slCtx.y}
-          currentAlign={slCols[slCtx.colIndex]?.align || 'left'}
-          onSelect={align => slSetAlign(slCtx.colIndex, align)}
-          onReset={slReset}
-          onClose={slClose}
         />
       )}
     </div>

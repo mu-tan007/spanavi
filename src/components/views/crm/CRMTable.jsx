@@ -119,7 +119,6 @@ export default function CRMTable({
   crmCols,
   crmGrid,
   crmMinW,
-  crmCtxMenu,
   crmResize,
   lastTouchByClient,
   contactsByClient,
@@ -181,7 +180,6 @@ export default function CRMTable({
                 position: 'relative', verticalAlign: 'middle',
                 textAlign: crmCols[idx]?.align || 'left', paddingRight: 6,
               }}
-              onContextMenu={e => crmCtxMenu(e, idx)}
             >
               {label}
               <ColumnResizeHandle colIndex={idx} onResizeStart={crmResize} />

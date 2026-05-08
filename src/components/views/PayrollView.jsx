@@ -7,7 +7,6 @@ import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPay
 import { getOrgId } from '../../lib/orgContext';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
-import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import PageHeader from '../common/PageHeader';
 
 const PAYROLL_DATA = [];
@@ -67,7 +66,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
 
   const {
     columns: colCfg, gridTemplateColumns: colGridTemplate, contentMinWidth,
-    onResizeStart, onHeaderContextMenu, contextMenu, setAlign, resetAll, closeMenu,
+    onResizeStart,
   } = useColumnConfig('payroll', PAYROLL_COLS);
 
   useEffect(() => {
@@ -580,7 +579,6 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
           {COLS.map((col, i) => (
             <span key={i}
               onClick={() => { if (col.sk) setSortKey(col.sk); }}
-              onContextMenu={(e) => onHeaderContextMenu(e, i)}
               style={{
                 padding: cellPad, fontSize: 11, fontWeight: 600, color: "#fff",
                 textAlign: colCfg[i]?.align || col.align,
@@ -688,17 +686,6 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
         </div>
       </div>
 
-      {/* 揃え変更コンテキストメニュー */}
-      {contextMenu.visible && (
-        <AlignmentContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          currentAlign={colCfg[contextMenu.colIndex]?.align || 'left'}
-          onSelect={(align) => setAlign(contextMenu.colIndex, align)}
-          onReset={resetAll}
-          onClose={closeMenu}
-        />
-      )}
     </div>
   );
 }

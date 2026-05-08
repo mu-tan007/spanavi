@@ -4,7 +4,6 @@ import { supabase } from '../../lib/supabase';
 import { C } from '../../constants/colors';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
-import AlignmentContextMenu from '../common/AlignmentContextMenu';
 
 import { getOrgId } from '../../lib/orgContext';
 import PageHeader from '../common/PageHeader';
@@ -43,7 +42,7 @@ const INCOMING_COLS = [
 
 export default function IncomingCallsView({ setCallFlowScreen }) {
   const isMobile = useIsMobile();
-  const { columns, contentMinWidth, onResizeStart, onHeaderContextMenu, contextMenu, setAlign, resetAll, closeMenu } = useColumnConfig('incomingCalls', INCOMING_COLS);
+  const { columns, contentMinWidth, onResizeStart } = useColumnConfig('incomingCalls', INCOMING_COLS);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -175,7 +174,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
             <thead>
               <tr style={{ background: '#0D2247' }}>
                 {['受信日時', '企業名・リスト', '電話番号', 'ステータス', '対応者', '操作'].map((label, i) => (
-                  <th key={label} onContextMenu={e => onHeaderContextMenu(e, i)} style={{
+                  <th key={label} style={{
                     padding: i === 0 ? '8px 6px' : '8px 16px',
                     textAlign: columns[i].align, fontWeight: 600,
                     color: '#fff', fontSize: 11, verticalAlign: 'middle',
@@ -284,13 +283,6 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
         )}
         </div>
       </div>
-
-      <AlignmentContextMenu
-        contextMenu={contextMenu}
-        setAlign={setAlign}
-        resetAll={resetAll}
-        closeMenu={closeMenu}
-      />
 
       {/* リスト選択モーダル */}
       {selectModal && (

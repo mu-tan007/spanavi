@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
-import AlignmentContextMenu from '../common/AlignmentContextMenu';
 
 import { getOrgId } from '../../lib/orgContext';
 
@@ -71,7 +70,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [hoveredRow, setHoveredRow] = useState(null);
-  const { columns: memCols, contentMinWidth: memMinW, onResizeStart: memResize, onHeaderContextMenu: memCtxMenu, contextMenu: memCtx, setAlign: memSetAlign, resetAll: memReset, closeMenu: memClose } = useColumnConfig('memberMgmt', MEMBER_COLS);
+  const { columns: memCols, contentMinWidth: memMinW, onResizeStart: memResize } = useColumnConfig('memberMgmt', MEMBER_COLS);
 
   const load = async () => {
     setLoading(true);
@@ -290,7 +289,7 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
                 <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr>
-                      {COLS.map((h, i) => <th key={h} onContextMenu={e => memCtxMenu(e, i)} style={{ ...th, textAlign: memCols[i].align, width: memCols[i].width, maxWidth: memCols[i].width, ...(thPad[h] ? { padding: thPad[h] } : {}), position: 'relative' }}>{h}<ColumnResizeHandle colIndex={i} onResizeStart={memResize} /></th>)}
+                      {COLS.map((h, i) => <th key={h} style={{ ...th, textAlign: memCols[i].align, width: memCols[i].width, maxWidth: memCols[i].width, ...(thPad[h] ? { padding: thPad[h] } : {}), position: 'relative' }}>{h}<ColumnResizeHandle colIndex={i} onResizeStart={memResize} /></th>)}
                     </tr>
                   </thead>
                   <tbody>
@@ -486,12 +485,6 @@ export default function MemberManagement({ onToast, onViewMyPage, onDataRefetch 
         </div>
       )}
 
-      <AlignmentContextMenu
-        contextMenu={memCtx}
-        onAlign={memSetAlign}
-        onReset={memReset}
-        onClose={memClose}
-      />
     </div>
   );
 }

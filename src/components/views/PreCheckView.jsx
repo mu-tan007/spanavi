@@ -6,7 +6,6 @@ import { Badge } from '../common/Badge';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
-import AlignmentContextMenu from '../common/AlignmentContextMenu';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import PageHeader from '../common/PageHeader';
 
@@ -255,7 +254,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
   const [reportBody, setReportBody] = useState('');
   const [reportStep, setReportStep] = useState('idle');
   const [reportError, setReportError] = useState('');
-  const { columns, gridTemplateColumns, contentMinWidth, onResizeStart, onHeaderContextMenu, contextMenu, setAlign, resetAll, closeMenu } = useColumnConfig('preCheck', PRECHECK_COLS, { padding: 40 });
+  const { columns, gridTemplateColumns, contentMinWidth, onResizeStart } = useColumnConfig('preCheck', PRECHECK_COLS, { padding: 40 });
 
   const handlePreCheckNavigate = ({ listId, itemId }) => {
     setSelectedAppo(null);
@@ -443,7 +442,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
               borderBottom: "1px solid #E5E7EB",
             }}>
               {['企業名', 'クライアント', '取得者', '面談日', '確認状況'].map((label, i) => (
-                <span key={label} onContextMenu={e => onHeaderContextMenu(e, i)} style={{ position: 'relative', textAlign: columns[i].align, userSelect: 'none' }}>
+                <span key={label} style={{ position: 'relative', textAlign: columns[i].align, userSelect: 'none' }}>
                   {label}
                   <ColumnResizeHandle colIndex={i} onResizeStart={onResizeStart} />
                 </span>
@@ -514,15 +513,6 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
           onSave={handlePreCheckSave}
           onCancel={() => setSelectedAppo(null)}
           onNavigate={setCallFlowScreen ? handlePreCheckNavigate : undefined}
-        />
-      )}
-      {contextMenu.visible && (
-        <AlignmentContextMenu
-          x={contextMenu.x} y={contextMenu.y}
-          currentAlign={columns[contextMenu.colIndex]?.align || 'left'}
-          onSelect={align => setAlign(contextMenu.colIndex, align)}
-          onReset={resetAll}
-          onClose={closeMenu}
         />
       )}
 
