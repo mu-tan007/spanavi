@@ -1250,6 +1250,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
           currentTab={currentTab}
           setCurrentTab={setCurrentTab}
           onMorePress={() => setMobileMenuOpen(true)}
+          engSlug={engSlug}
         />
       )}
 
