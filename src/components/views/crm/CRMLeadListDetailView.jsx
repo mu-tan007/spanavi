@@ -6,6 +6,7 @@ import {
   updateClientLeadList,
 } from '../../../lib/supabaseWrite';
 import { NAVY, GRAY_200, GRAY_50 } from './utils';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 import CRMLeadCallingScreen from './CRMLeadCallingScreen';
 import CRMLeadCallFlowView from './CRMLeadCallFlowView';
 
@@ -118,6 +119,7 @@ function ScriptEditor({ list }) {
 
 export default function CRMLeadListDetailView({ list, currentUser, members = [], setClientData, onBack }) {
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [callingMode, setCallingMode] = useState(null); // 'list' | 'flow' | null
 
   const { data: companies = [] } = useQuery({
@@ -242,7 +244,55 @@ export default function CRMLeadListDetailView({ list, currentUser, members = [],
       {/* スクリプト編集 */}
       <ScriptEditor list={list} />
 
-      {/* 企業一覧 */}
+      {/* 企業一覧（モバイルはカード形式） */}
+      {isMobile ? (
+        <div>
+          {companies.length === 0 ? (
+            <div style={{
+              padding: '30px 0', textAlign: 'center', color: C.textLight, fontSize: 12,
+              background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
+            }}>
+              企業データがありません
+            </div>
+          ) : (
+            companies.map(c => (
+              <div key={c.id} style={{
+                background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
+                padding: '10px 12px', marginBottom: 6,
+                opacity: c.is_excluded ? 0.55 : 1,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 9, color: C.textLight, fontFamily: "'JetBrains Mono'" }}>No.{c.no}</span>
+                  <StatusBadge status={lastStatusByCompany[c.id]} />
+                  {c.promoted_to_client_id && (
+                    <span style={{ fontSize: 8, fontWeight: 700, color: '#16A34A', border: '1px solid #16A34A', borderRadius: 2, padding: '1px 4px' }}>
+                      CRM登録済
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 4 }}>
+                  {c.company}
+                </div>
+                <div style={{ fontSize: 10, color: C.textMid, marginBottom: 2 }}>
+                  {c.business || '事業内容なし'}
+                </div>
+                <div style={{ fontSize: 10, color: C.textMid, display: 'flex', justifyContent: 'space-between' }}>
+                  <span>{c.representative || '代表者不明'}</span>
+                  {c.phone && (
+                    <a href={`tel:${c.phone}`} style={{
+                      fontFamily: "'JetBrains Mono'", color: NAVY, fontWeight: 600,
+                      textDecoration: 'none', border: '1px solid ' + NAVY,
+                      borderRadius: 2, padding: '1px 6px',
+                    }} onClick={e => e.stopPropagation()}>
+                      {c.phone}
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      ) : (
       <div style={{ border: '1px solid ' + GRAY_200, borderRadius: 4, background: '#fff', overflow: 'auto' }}>
         <div style={{
           display: 'grid', gridTemplateColumns: cols,
@@ -286,6 +336,7 @@ export default function CRMLeadListDetailView({ list, currentUser, members = [],
           ))
         )}
       </div>
+      )}
     </div>
   );
 }

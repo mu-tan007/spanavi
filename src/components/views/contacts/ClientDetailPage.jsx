@@ -3,6 +3,7 @@ import { C } from '../../../constants/colors';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import { updateClientNextContactAt } from '../../../lib/supabaseWrite';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 import ContactDrawer from './ContactDrawer';
 import ActivityTimeline from './ActivityTimeline';
 import ClientMonthlyTargetSection from '../crm/ClientMonthlyTargetSection';
@@ -165,6 +166,9 @@ export default function ClientDetailPage({
   const [stats, setStats] = useState({ totalSales: 0, monthSales: 0, contractStart: null, loading: true });
   // 担当者ドロワー
   const [contactDrawer, setContactDrawer] = useState({ isOpen: false, mode: 'add', existingContact: null });
+  // モバイル時のタブ切替
+  const isMobile = useIsMobile();
+  const [mobileTab, setMobileTab] = useState('info'); // 'info' | 'timeline' | 'actions'
 
   useEffect(() => {
     let cancelled = false;
@@ -279,17 +283,47 @@ export default function ClientDetailPage({
         </div>
       </div>
 
-      {/* 3-pane layout */}
+      {/* モバイル時のタブ切替 */}
+      {isMobile && (
+        <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+          {[
+            { key: 'info',     label: '情報' },
+            { key: 'timeline', label: '履歴' },
+            { key: 'actions',  label: '操作' },
+          ].map(t => {
+            const active = mobileTab === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setMobileTab(t.key)}
+                style={{
+                  flex: 1, padding: '10px 8px',
+                  border: '1px solid ' + (active ? NAVY : GRAY_200),
+                  background: active ? NAVY : '#fff',
+                  color: active ? '#fff' : C.textMid,
+                  borderRadius: 4, fontSize: 12, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                }}
+              >{t.label}</button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 3-pane layout (モバイルでは選択タブのみ表示) */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '280px 1fr 320px',
+        gridTemplateColumns: isMobile ? '1fr' : '280px 1fr 320px',
         gap: 16,
         alignItems: 'start',
       }}>
         {/* Left pane: profile / contract / numbers / lists / notes */}
         <div style={{
           background: '#fff', border: `1px solid ${GRAY_200}`, borderRadius: 4,
-          padding: '14px 16px', maxHeight: 'calc(100vh - 200px)', overflowY: 'auto',
+          padding: '14px 16px',
+          maxHeight: isMobile ? 'none' : 'calc(100vh - 200px)',
+          overflowY: isMobile ? 'visible' : 'auto',
+          display: isMobile && mobileTab !== 'info' ? 'none' : 'block',
         }}>
           <SectionTitle>契約条件</SectionTitle>
           <NextContactRow client={c} setClientData={setClientData} />
@@ -385,7 +419,10 @@ export default function ClientDetailPage({
         {/* Center pane: Activity Timeline */}
         <div style={{
           background: '#fff', border: `1px solid ${GRAY_200}`, borderRadius: 4,
-          padding: '14px 16px', maxHeight: 'calc(100vh - 200px)', overflowY: 'auto',
+          padding: '14px 16px',
+          maxHeight: isMobile ? 'none' : 'calc(100vh - 200px)',
+          overflowY: isMobile ? 'visible' : 'auto',
+          display: isMobile && mobileTab !== 'timeline' ? 'none' : 'block',
         }}>
           <ActivityTimeline
             clientSupaId={c?._supaId}
@@ -396,7 +433,10 @@ export default function ClientDetailPage({
         {/* Right pane: actions + contacts */}
         <div style={{
           background: '#fff', border: `1px solid ${GRAY_200}`, borderRadius: 4,
-          padding: '14px 16px', maxHeight: 'calc(100vh - 200px)', overflowY: 'auto',
+          padding: '14px 16px',
+          maxHeight: isMobile ? 'none' : 'calc(100vh - 200px)',
+          overflowY: isMobile ? 'visible' : 'auto',
+          display: isMobile && mobileTab !== 'actions' ? 'none' : 'block',
         }}>
           {/* アクションパネル */}
           <CRMActionPanel
