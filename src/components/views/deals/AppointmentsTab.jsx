@@ -6,6 +6,7 @@ import {
   extractCeoMaIntent, extractPrefecture, parseRevenueOku,
   extractRevenueFromReport, extractAddressFromReport,
 } from '../../../utils/apppoReportParse';
+import { PlayRecordingButton } from '../../common/RecordingPlayerProvider';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -336,7 +337,7 @@ export default function AppointmentsTab({ client }) {
 
       <Card title="アポ一覧">
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', minWidth: 1200, borderCollapse: 'collapse', fontSize: 12 }}>
+          <table style={{ width: '100%', minWidth: 1100, borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: C.cream, borderBottom: `1px solid ${C.border}` }}>
                 <th style={{ ...th, textAlign: 'left' }}>企業名</th>
@@ -379,13 +380,12 @@ export default function AppointmentsTab({ client }) {
                         )}
                       </div>
                     </td>
-                    <td style={{ ...td, padding: '4px 6px', minWidth: 240 }}>
+                    <td style={{ ...td, padding: '4px 6px' }}>
                       {r.recording_url ? (
-                        <audio
-                          controls
-                          preload="none"
-                          src={r.recording_url}
-                          style={{ width: 230, height: 30, verticalAlign: 'middle' }}
+                        <PlayRecordingButton
+                          url={r.recording_url}
+                          title={r.company_name || 'アポ録音'}
+                          subtitle={r.meeting_date ? `面談日 ${String(r.meeting_date).slice(0, 10)}` : ''}
                         />
                       ) : (
                         <span style={{ fontSize: 10, color: C.textLight }}>—</span>

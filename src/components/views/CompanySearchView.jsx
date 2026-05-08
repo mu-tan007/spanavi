@@ -28,6 +28,7 @@ import {
 import AppoReportModal from './AppoReportModal';
 import ReportPopupModal from './ReportPopupModal';
 import InlineAudioPlayer from '../common/InlineAudioPlayer';
+import { PlayRecordingButton } from '../common/RecordingPlayerProvider';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -1359,16 +1360,17 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                                 <span style={{ color: C.textLight, fontSize: 10 }}>{rec.getter_name || '-'}</span>
                                 <span style={{ color: C.textLight, fontSize: 10 }}>{dtStr}</span>
                                 {rec.recording_url
-                                  ? <button onClick={() => setActiveRecordingId(activeRecordingId === rec.id ? null : rec.id)}
-                                      title={activeRecordingId === rec.id ? "閉じる" : "録音を再生"}
-                                      style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: activeRecordingId === rec.id ? C.red : 'inherit' }}>録音</button>
+                                  ? <PlayRecordingButton
+                                      url={rec.recording_url}
+                                      title={`${rec.round}回目 ${rec.status || ''}`}
+                                      subtitle={`${rec.getter_name || ''} ・ ${dtStr}`}
+                                      label="録音"
+                                      size="sm"
+                                    />
                                   : <button onClick={() => handleDetailFetchRecording(rec)} title="録音URLを手動取得"
                                       style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>更新</button>
                                 }
                               </div>
-                              {activeRecordingId === rec.id && rec.recording_url && (
-                                <InlineAudioPlayer url={rec.recording_url} onClose={() => setActiveRecordingId(null)} />
-                              )}
                             </div>
                           );
                         })}
@@ -1751,10 +1753,15 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                         {rec.report_style && <span style={{ padding: '1px 6px', background: '#0D2247', color: '#fff', borderRadius: 3, fontSize: 9 }}>{rec.report_style}</span>}
                       </div>
                     </div>
-                    <button onClick={() => setRecPlayingId(isPlaying ? null : rec.id)}
-                      style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #0D2247', background: isPlaying ? '#0D2247' : '#fff', color: isPlaying ? '#fff' : '#0D2247', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
-                      {isPlaying ? '■ 停止' : '▶ 録音'}
-                    </button>
+                    {rec.recording_url && (
+                      <PlayRecordingButton
+                        url={rec.recording_url}
+                        title={rec.company_name || '録音'}
+                        subtitle={`${rec.getter_name || ''} ・ ${rec.status || ''} ・ ${calledLabel}`}
+                        label="▶ 録音"
+                        size="md"
+                      />
+                    )}
                     <button onClick={() => setReportPopup(rec)}
                       style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #0D2247', background: '#fff', color: '#0D2247', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
                       レポート
@@ -1765,9 +1772,6 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                       {isBookmarked ? '★' : '☆'}
                     </button>
                   </div>
-                  {isPlaying && (
-                    <InlineAudioPlayer url={rec.recording_url} onClose={() => setRecPlayingId(null)} />
-                  )}
                 </div>
               );
             })}
