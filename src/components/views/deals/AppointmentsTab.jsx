@@ -183,20 +183,23 @@ export default function AppointmentsTab({ client }) {
         intent_is_derived: !r.ceo_ma_intent && intent !== 'unknown' ? !!extractCeoMaIntent(r.appo_report) : false,
       };
     });
-    // 面談日ソート: 直近の予定（未来で近い）が上、過去は新しい順で下に並ぶ
-    const now = Date.now();
+    // ソート: ステータス優先度 → 面談日 昇順
+    //   1. 事前確認済（面談直前）→ 2. アポ取得 → 3. リスケ中 → 4. 面談済 → 5. キャンセル
+    //   各グループ内は meeting_date 昇順（日付の若いもの＝直近予定が上）
+    const STATUS_ORDER = {
+      '事前確認済': 1,
+      'アポ取得':   2,
+      'リスケ中':   3,
+      '面談済':     4,
+      'キャンセル': 5,
+    };
     return mapped.sort((a, b) => {
-      const ta = a.meeting_date ? new Date(a.meeting_date).getTime() : null;
-      const tb = b.meeting_date ? new Date(b.meeting_date).getTime() : null;
-      if (ta == null && tb == null) return 0;
-      if (ta == null) return 1;
-      if (tb == null) return -1;
-      const futureA = ta >= now;
-      const futureB = tb >= now;
-      if (futureA && !futureB) return -1;
-      if (!futureA && futureB) return 1;
-      if (futureA && futureB) return ta - tb;   // 未来は直近順
-      return tb - ta;                            // 過去は新しい順
+      const sa = STATUS_ORDER[a.status] ?? 99;
+      const sb = STATUS_ORDER[b.status] ?? 99;
+      if (sa !== sb) return sa - sb;
+      const ta = a.meeting_date ? new Date(a.meeting_date).getTime() : Infinity;
+      const tb = b.meeting_date ? new Date(b.meeting_date).getTime() : Infinity;
+      return ta - tb;  // 昇順（早い日付＝若い日付が上）
     });
   }, [rows, extraByName]);
 
