@@ -9,4 +9,14 @@ export const isInviteFlow = _initialHash.includes('type=invite')
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// 認証セッションを localStorage に永続化し、access token を自動 refresh。
+// refresh token は Supabase 側で30日有効、毎日アクセスがあれば実質無期限。
+// storageKey と flowType はデフォルトを継承（変更すると既存セッション・招待リンクが壊れる）。
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+  },
+})

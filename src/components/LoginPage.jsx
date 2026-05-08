@@ -5,7 +5,10 @@ import { supabase } from '../lib/supabase'
 
 const C = {
   navy: '#0D2247',
+  navyDeep: '#081636',
   blue: '#1E40AF',
+  gold: '#C8A84B',
+  goldSoft: 'rgba(200,168,75,0.18)',
   gray200: '#E5E7EB',
   white: '#ffffff',
   textMuted: '#6B7280',
@@ -15,9 +18,118 @@ const C = {
   navyHover: '#1a3366',
 }
 
+// ログイン画面の背景アニメーションレイヤー。
+// - 巨大シールド + 放射状の光線が脈動
+// - 細かいドットグリッド（金融端末風）
+// - 上下のビネットで重厚感
+function BackgroundLayer() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none',
+        background: `radial-gradient(ellipse at center, ${C.navy} 0%, ${C.navyDeep} 100%)`,
+      }}
+    >
+      <style>{`
+        @keyframes spLoginRayPulse1 { 0%,100% { opacity: 0.10; } 50% { opacity: 0.28; } }
+        @keyframes spLoginRayPulse2 { 0%,100% { opacity: 0.06; } 50% { opacity: 0.18; } }
+        @keyframes spLoginShieldDrift { 0%,100% { transform: translate(-50%,-50%) scale(1); } 50% { transform: translate(-50%,-50%) scale(1.04); } }
+        @keyframes spLoginCardEnter {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes spLoginLogoBreathe {
+          0%,100% { filter: drop-shadow(0 0 6px rgba(200,168,75,0.18)); }
+          50%     { filter: drop-shadow(0 0 18px rgba(200,168,75,0.45)); }
+        }
+        @keyframes spLoginGridDrift {
+          from { background-position: 0 0; }
+          to   { background-position: 32px 32px; }
+        }
+        .sp-login-card { animation: spLoginCardEnter 0.55s ease-out; }
+        .sp-login-card:hover { box-shadow: 0 12px 40px rgba(0,0,0,0.32), 0 0 0 1px rgba(200,168,75,0.22); }
+        .sp-login-logo { animation: spLoginLogoBreathe 3.4s ease-in-out infinite; }
+        .sp-login-input:focus {
+          border-color: ${C.navy} !important;
+          box-shadow: 0 0 0 3px rgba(200,168,75,0.22) !important;
+        }
+        .sp-login-btn {
+          transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.18s ease !important;
+          letter-spacing: 1.5px !important;
+        }
+        .sp-login-btn:hover:not(:disabled) {
+          box-shadow: 0 8px 22px rgba(13,34,71,0.40), 0 0 0 1px rgba(200,168,75,0.32);
+          transform: translateY(-1px);
+        }
+        .sp-login-btn:active:not(:disabled) {
+          transform: translateY(0);
+          box-shadow: 0 2px 6px rgba(13,34,71,0.30);
+        }
+        @media (max-width: 600px) {
+          .sp-login-card { padding: 28px 22px !important; }
+          .sp-login-grid { background-size: 22px 22px !important; }
+        }
+      `}</style>
+      {/* 細かいドットグリッド */}
+      <div
+        className="sp-login-grid"
+        style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: 'radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)',
+          backgroundSize: '32px 32px',
+          animation: 'spLoginGridDrift 24s linear infinite',
+          maskImage: 'radial-gradient(ellipse at center, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 75%)',
+          WebkitMaskImage: 'radial-gradient(ellipse at center, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 75%)',
+        }}
+      />
+      {/* 巨大シールド（中央） */}
+      <svg
+        viewBox="0 0 52 60"
+        preserveAspectRatio="xMidYMid meet"
+        style={{
+          position: 'absolute', top: '50%', left: '50%',
+          width: 'min(900px, 95vh)', height: 'min(900px, 95vh)',
+          transform: 'translate(-50%,-50%)',
+          opacity: 0.22,
+          animation: 'spLoginShieldDrift 6s ease-in-out infinite',
+        }}
+      >
+        <defs>
+          <linearGradient id="spLoginShieldBg" x1="0" y1="0" x2="0.3" y2="1">
+            <stop offset="0%" stopColor="#0F3D7A" stopOpacity="0.55"/>
+            <stop offset="100%" stopColor="#03132E" stopOpacity="0.05"/>
+          </linearGradient>
+          <clipPath id="spLoginShieldClip"><path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z"/></clipPath>
+        </defs>
+        <path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z" fill="url(#spLoginShieldBg)"/>
+        <g clipPath="url(#spLoginShieldClip)" stroke={C.gold} fill="none">
+          <g strokeWidth="0.18" style={{ animation: 'spLoginRayPulse1 4s ease-in-out infinite' }}>
+            <line x1="26" y1="30" x2="26" y2="-10"/><line x1="26" y1="30" x2="60" y2="30"/>
+            <line x1="26" y1="30" x2="26" y2="70"/><line x1="26" y1="30" x2="-8" y2="30"/>
+            <line x1="26" y1="30" x2="50" y2="2"/><line x1="26" y1="30" x2="50" y2="58"/>
+            <line x1="26" y1="30" x2="2" y2="58"/><line x1="26" y1="30" x2="2" y2="2"/>
+          </g>
+          <g strokeWidth="0.12" style={{ animation: 'spLoginRayPulse2 4s ease-in-out infinite 0.6s' }}>
+            <line x1="26" y1="30" x2="40" y2="-6"/><line x1="26" y1="30" x2="58" y2="14"/>
+            <line x1="26" y1="30" x2="58" y2="46"/><line x1="26" y1="30" x2="40" y2="66"/>
+            <line x1="26" y1="30" x2="12" y2="66"/><line x1="26" y1="30" x2="-6" y2="46"/>
+            <line x1="26" y1="30" x2="-6" y2="14"/><line x1="26" y1="30" x2="12" y2="-6"/>
+          </g>
+        </g>
+      </svg>
+      {/* ビネット（上下） */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: `linear-gradient(180deg, rgba(8,22,54,0.55) 0%, rgba(8,22,54,0) 25%, rgba(8,22,54,0) 75%, rgba(8,22,54,0.55) 100%)`,
+      }}/>
+    </div>
+  )
+}
+
 function ShieldLogo() {
   return (
-    <svg width="72" height="82" viewBox="0 0 52 60" style={{ marginBottom: 16 }}>
+    <svg className="sp-login-logo" width="72" height="82" viewBox="0 0 52 60" style={{ marginBottom: 16 }}>
       <defs>
         <linearGradient id="spShieldBg" x1="0" y1="0" x2="0.3" y2="1">
           <stop offset="0%" stopColor="#0176D3"/>
@@ -81,6 +193,7 @@ function MemberNameSelect({ members, selected, onSelect }) {
         氏名<span style={{ color: C.errorRed, marginLeft: 2 }}>*</span>
       </div>
       <input
+        className="sp-login-input"
         type="text"
         value={query}
         onChange={e => { setQuery(e.target.value); setShowList(true); onSelect(null) }}
@@ -89,7 +202,6 @@ function MemberNameSelect({ members, selected, onSelect }) {
         style={{
           width: '100%', padding: '10px 14px', borderRadius: 4,
           border: `1px solid ${focused ? C.navy : C.gray200}`,
-          boxShadow: focused ? '0 0 0 2px rgba(13,34,71,0.1)' : 'none',
           fontSize: 14, color: C.textDark,
           fontFamily: "'Noto Sans JP'", outline: 'none',
           transition: 'border-color 0.2s, box-shadow 0.2s', boxSizing: 'border-box',
@@ -288,19 +400,26 @@ export default function LoginPage() {
 
   return (
     <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: C.navy,
-      fontFamily: "'Noto Sans JP', sans-serif", padding: '20px',
+      minHeight: '100vh', position: 'relative', overflow: 'hidden',
+      background: C.navyDeep,
+      fontFamily: "'Noto Sans JP', sans-serif",
     }}>
+      <BackgroundLayer />
       <div style={{
+        position: 'relative', zIndex: 1, minHeight: '100vh',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '20px',
+      }}>
+      <div className="sp-login-card" style={{
         background: C.white,
         border: '1px solid ' + C.gray200,
-        borderRadius: 4,
+        borderRadius: 6,
         padding: '40px',
         width: '100%',
         maxWidth: 400,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.28), 0 0 0 1px rgba(200,168,75,0.10)',
         position: 'relative',
+        transition: 'transform 0.25s ease, box-shadow 0.25s ease',
       }}>
         {/* ロゴ */}
         <div style={{ textAlign: 'center', marginBottom: 28, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -326,6 +445,7 @@ export default function LoginPage() {
                 パスワード<span style={{ color: C.errorRed, marginLeft: 2 }}>*</span>
               </div>
               <input
+                className="sp-login-input"
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
@@ -350,6 +470,7 @@ export default function LoginPage() {
             {errBlock}
             <button
               type="submit"
+              className="sp-login-btn"
               disabled={loading}
               style={btnStyle}
               onMouseEnter={e => { if (!loading) e.currentTarget.style.background = C.navyHover }}
@@ -381,6 +502,7 @@ export default function LoginPage() {
                 メールアドレス<span style={{ color: C.errorRed, marginLeft: 2 }}>*</span>
               </div>
               <input
+                className="sp-login-input"
                 type="email"
                 value={adminEmail}
                 onChange={e => setAdminEmail(e.target.value)}
@@ -398,6 +520,7 @@ export default function LoginPage() {
                 パスワード<span style={{ color: C.errorRed, marginLeft: 2 }}>*</span>
               </div>
               <input
+                className="sp-login-input"
                 type="password"
                 value={adminPassword}
                 onChange={e => setAdminPassword(e.target.value)}
@@ -422,6 +545,7 @@ export default function LoginPage() {
             {errBlock}
             <button
               type="submit"
+              className="sp-login-btn"
               disabled={loading}
               style={btnStyle}
               onMouseEnter={e => { if (!loading) e.currentTarget.style.background = C.navyHover }}
@@ -457,6 +581,7 @@ export default function LoginPage() {
             {errBlock}
             <button
               type="submit"
+              className="sp-login-btn"
               disabled={loading}
               style={btnStyle}
               onMouseEnter={e => { if (!loading) e.currentTarget.style.background = C.navyHover }}
@@ -504,6 +629,7 @@ export default function LoginPage() {
                 メールアドレス<span style={{ color: C.errorRed, marginLeft: 2 }}>*</span>
               </div>
               <input
+                className="sp-login-input"
                 type="email"
                 value={resetEmail}
                 onChange={e => setResetEmail(e.target.value)}
@@ -518,6 +644,7 @@ export default function LoginPage() {
             {errBlock}
             <button
               type="submit"
+              className="sp-login-btn"
               disabled={loading}
               style={btnStyle}
               onMouseEnter={e => { if (!loading) e.currentTarget.style.background = C.navyHover }}
@@ -556,6 +683,7 @@ export default function LoginPage() {
             © {new Date().getFullYear()} Spanavi
           </div>
         </div>
+      </div>
       </div>
     </div>
   )

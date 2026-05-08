@@ -46,7 +46,7 @@ function MainApp() {
       }}>
         <div style={{ textAlign: 'center' }}>
           <p style={{ color: '#c0392b', fontSize: 14, marginBottom: 16 }}>アカウント情報の取得に失敗しました。再ログインしてください。</p>
-          <button onClick={async () => { try { await signOut() } catch {} localStorage.clear(); window.location.reload(); }} style={{ padding: '8px 20px', borderRadius: 6, background: '#0176D3', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: "'Noto Sans JP', sans-serif" }}>
+          <button onClick={async () => { try { await signOut() } catch {} window.location.reload(); }} style={{ padding: '8px 20px', borderRadius: 6, background: '#0176D3', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: "'Noto Sans JP', sans-serif" }}>
             ログイン画面に戻る
           </button>
         </div>
@@ -119,13 +119,13 @@ function MainApp() {
   }
 
   // ログイン済み → 元のSpanaviをそのまま表示
+  // signOut() が auth トークンを消す。他の localStorage は次回ログインで再利用するので残す。
   const handleLogout = async () => {
     try {
       await signOut()
     } catch (e) {
       console.error('Logout error:', e)
     }
-    localStorage.clear()
     window.location.reload()
   }
 
