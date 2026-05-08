@@ -3,6 +3,7 @@ import { C } from '../../../constants/colors';
 import VoiceRecorderInline from '../contacts/VoiceRecorderInline';
 import { insertContactMemoEvent } from '../../../lib/supabaseWrite';
 import CRMQuickScheduleModal from './CRMQuickScheduleModal';
+import CRMMeetingReportModal from './CRMMeetingReportModal';
 import { NAVY, GRAY_200, composeEmailDraft } from './utils';
 
 function ActionButton({ label, hint, onClick, disabled, color = NAVY, children }) {
@@ -42,6 +43,7 @@ export default function CRMActionPanel({
   setClientData,
 }) {
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [memoToast, setMemoToast] = useState(null);
 
   if (!client) return null;
@@ -127,6 +129,23 @@ export default function CRMActionPanel({
             商談予定を入れる
           </ActionButton>
 
+          {/* 商談結果記録（面談予定のときのみ表示） */}
+          {client.status === '面談予定' && (
+            <ActionButton
+              label="商談結果を記録"
+              hint="受注/保留/ブレイクを選んで議事録を残す"
+              color="#16A34A"
+              onClick={() => setReportOpen(true)}
+            >
+              <span style={{
+                fontSize: 11, fontWeight: 700, color: '#16A34A',
+                border: '1px solid #16A34A',
+                borderRadius: 2, padding: '1px 6px', minWidth: 28, textAlign: 'center',
+              }}>結</span>
+              商談結果を記録
+            </ActionButton>
+          )}
+
           {/* メモ録音ボタン: VoiceRecorderInline を埋め込み */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -172,6 +191,17 @@ export default function CRMActionPanel({
           currentUser={currentUser}
           setClientData={setClientData}
           onClose={() => setScheduleOpen(false)}
+          onSaved={() => {}}
+        />
+      )}
+
+      {reportOpen && (
+        <CRMMeetingReportModal
+          client={client}
+          primaryContact={primaryContact}
+          currentUser={currentUser}
+          setClientData={setClientData}
+          onClose={() => setReportOpen(false)}
           onSaved={() => {}}
         />
       )}
