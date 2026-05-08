@@ -33,72 +33,72 @@ function BackgroundLayer() {
       }}
     >
       <style>{`
-        /* A: 光線回転 (時計回り 1周28秒、逆方向32秒) */
-        @keyframes spLoginRayRotate1 { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes spLoginRayRotate2 { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
-        @keyframes spLoginRayPulse1 { 0%,100% { opacity: 0.18; } 50% { opacity: 0.40; } }
-        @keyframes spLoginRayPulse2 { 0%,100% { opacity: 0.10; } 50% { opacity: 0.26; } }
-        /* B: 同心円リップル */
-        @keyframes spLoginRipple {
-          0%   { transform: scale(0.15); opacity: 0; }
-          15%  { opacity: 0.55; }
-          100% { transform: scale(7); opacity: 0; }
+        /* レーダー針: 規則的な360度スキャン (整数秒で1周) */
+        @keyframes spLoginRadarSweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        /* ターゲットリング: 順次明るくなって規律的に拍動 */
+        @keyframes spLoginRingPulse {
+          0%, 70%, 100% { opacity: 0.18; }
+          15%, 25%      { opacity: 0.65; }
         }
-        /* C: 縦の光ストリーム */
-        @keyframes spLoginStream {
-          0%   { transform: translateY(-60vh); opacity: 0; }
-          10%  { opacity: 0.85; }
-          90%  { opacity: 0.85; }
-          100% { transform: translateY(110vh); opacity: 0; }
+        /* ファランクス縦バー: 順次発光 → 消える */
+        @keyframes spLoginBarFlash {
+          0%, 8%   { opacity: 0; transform: scaleY(0.4); }
+          12%      { opacity: 0.85; transform: scaleY(1); }
+          22%      { opacity: 0.85; transform: scaleY(1); }
+          32%      { opacity: 0; transform: scaleY(0.4); }
+          100%     { opacity: 0; transform: scaleY(0.4); }
         }
-        /* E: 上昇粒子 */
-        @keyframes spLoginParticle {
-          0%   { transform: translateY(0) translateX(0); opacity: 0; }
-          10%  { opacity: 0.7; }
-          90%  { opacity: 0.7; }
-          100% { transform: translateY(-110vh) translateX(var(--sp-drift, 0px)); opacity: 0; }
+        /* 水平スキャンライン: 上から下へ規則的に走査 */
+        @keyframes spLoginScanLine {
+          0%   { transform: translateY(-2vh); opacity: 0; }
+          5%   { opacity: 0.55; }
+          95%  { opacity: 0.55; }
+          100% { transform: translateY(102vh); opacity: 0; }
         }
         @keyframes spLoginCardEnter {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes spLoginLogoBreathe {
-          0%,100% { filter: drop-shadow(0 0 6px rgba(200,168,75,0.18)); }
-          50%     { filter: drop-shadow(0 0 18px rgba(200,168,75,0.45)); }
+          0%,100% { filter: drop-shadow(0 0 6px rgba(255,255,255,0.18)); }
+          50%     { filter: drop-shadow(0 0 18px rgba(255,255,255,0.45)); }
         }
         @keyframes spLoginGridDrift {
           from { background-position: 0 0; }
           to   { background-position: 32px 32px; }
         }
         .sp-login-card { animation: spLoginCardEnter 0.55s ease-out; }
-        .sp-login-card:hover { box-shadow: 0 12px 40px rgba(0,0,0,0.32), 0 0 0 1px rgba(200,168,75,0.22); }
+        .sp-login-card:hover { box-shadow: 0 12px 40px rgba(0,0,0,0.32), 0 0 0 1px rgba(255,255,255,0.22); }
         .sp-login-logo { animation: spLoginLogoBreathe 3.4s ease-in-out infinite; }
         .sp-login-input:focus {
           border-color: ${C.navy} !important;
-          box-shadow: 0 0 0 3px rgba(200,168,75,0.22) !important;
+          box-shadow: 0 0 0 3px rgba(30,64,175,0.22) !important;
         }
         .sp-login-btn {
           transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.18s ease !important;
           letter-spacing: 1.5px !important;
         }
         .sp-login-btn:hover:not(:disabled) {
-          box-shadow: 0 8px 22px rgba(13,34,71,0.40), 0 0 0 1px rgba(200,168,75,0.32);
+          box-shadow: 0 8px 22px rgba(13,34,71,0.40), 0 0 0 1px rgba(255,255,255,0.32);
           transform: translateY(-1px);
         }
         .sp-login-btn:active:not(:disabled) {
           transform: translateY(0);
           box-shadow: 0 2px 6px rgba(13,34,71,0.30);
         }
-        .sp-login-stream {
-          position: absolute; top: 0; width: 1px; height: 38vh;
-          background: linear-gradient(180deg, transparent 0%, rgba(200,168,75,0.0) 5%, rgba(200,168,75,0.85) 50%, rgba(200,168,75,0.0) 95%, transparent 100%);
-          will-change: transform, opacity;
+        /* ファランクス縦バー */
+        .sp-login-bar {
+          position: absolute; top: 18vh; height: 64vh;
+          width: 1.5px;
+          background: linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.85) 50%, transparent 100%);
+          transform-origin: center;
+          will-change: opacity, transform;
         }
-        .sp-login-particle {
-          position: absolute; bottom: -4px;
-          width: 2px; height: 2px; border-radius: 50%;
-          background: rgba(200,168,75,0.75);
-          box-shadow: 0 0 6px rgba(200,168,75,0.45);
+        /* 水平スキャンライン */
+        .sp-login-scan {
+          position: absolute; left: 0; right: 0; height: 1px;
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
+          box-shadow: 0 0 8px rgba(255,255,255,0.25);
           will-change: transform, opacity;
         }
         @media (max-width: 600px) {
@@ -118,19 +118,21 @@ function BackgroundLayer() {
           WebkitMaskImage: 'radial-gradient(ellipse at center, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 75%)',
         }}
       />
-      {/* C: 縦の光ストリーム（複数本） */}
-      {STREAMS.map((s, i) => (
+      {/* ファランクス: 整列した縦バー隊列 (8本、左→右へ順次発光、5秒周期) */}
+      {Array.from({ length: 8 }).map((_, i) => (
         <div
-          key={`stream-${i}`}
-          className="sp-login-stream"
+          key={`bar-${i}`}
+          className="sp-login-bar"
           style={{
-            left: s.left,
-            animation: `spLoginStream ${s.dur}s linear ${s.delay}s infinite`,
-            opacity: s.opacity,
+            left: `${10 + i * 11}%`,
+            animation: `spLoginBarFlash 5s linear ${i * 0.4}s infinite`,
           }}
         />
       ))}
-      {/* 巨大シールド（中央、SVG内で光線回転 + リップル） */}
+      {/* 水平スキャンライン: 上→下に走査 (8秒周期、太線+細線で重ね) */}
+      <div className="sp-login-scan" style={{ animation: 'spLoginScanLine 8s linear infinite' }} />
+      <div className="sp-login-scan" style={{ animation: 'spLoginScanLine 8s linear 4s infinite', opacity: 0.5 }} />
+      {/* 巨大シールド + レーダーHUD (中央) */}
       <svg
         viewBox="0 0 52 60"
         preserveAspectRatio="xMidYMid meet"
@@ -138,62 +140,58 @@ function BackgroundLayer() {
           position: 'absolute', top: '50%', left: '50%',
           width: 'min(900px, 95vh)', height: 'min(900px, 95vh)',
           transform: 'translate(-50%,-50%)',
-          opacity: 0.30,
+          opacity: 0.35,
         }}
       >
         <defs>
           <linearGradient id="spLoginShieldBg" x1="0" y1="0" x2="0.3" y2="1">
-            <stop offset="0%" stopColor="#0F3D7A" stopOpacity="0.55"/>
+            <stop offset="0%" stopColor="#1456C7" stopOpacity="0.45"/>
             <stop offset="100%" stopColor="#03132E" stopOpacity="0.05"/>
           </linearGradient>
           <clipPath id="spLoginShieldClip"><path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z"/></clipPath>
+          {/* レーダー針の軌跡 (扇形グラデ) */}
+          <linearGradient id="spLoginRadarTrail" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0"/>
+            <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.35"/>
+          </linearGradient>
         </defs>
         <path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z" fill="url(#spLoginShieldBg)"/>
         <g clipPath="url(#spLoginShieldClip)">
-          {/* A: 光線群 — 中心(26,30)を軸にゆっくり回転、逆向き2レイヤー重ね */}
-          <g style={{ transformOrigin: '26px 30px', transformBox: 'fill-box', animation: 'spLoginRayRotate1 28s linear infinite' }}>
-            <g stroke={C.gold} fill="none" strokeWidth="0.22" style={{ animation: 'spLoginRayPulse1 5s ease-in-out infinite' }}>
-              <line x1="26" y1="30" x2="26" y2="-10"/><line x1="26" y1="30" x2="60" y2="30"/>
-              <line x1="26" y1="30" x2="26" y2="70"/><line x1="26" y1="30" x2="-8" y2="30"/>
-              <line x1="26" y1="30" x2="50" y2="2"/><line x1="26" y1="30" x2="50" y2="58"/>
-              <line x1="26" y1="30" x2="2" y2="58"/><line x1="26" y1="30" x2="2" y2="2"/>
-            </g>
+          {/* 静的な放射光線 (16方向、薄く・規則的) */}
+          <g stroke="#FFFFFF" fill="none" strokeWidth="0.10" opacity="0.22">
+            <line x1="26" y1="30" x2="26" y2="-10"/><line x1="26" y1="30" x2="60" y2="30"/>
+            <line x1="26" y1="30" x2="26" y2="70"/><line x1="26" y1="30" x2="-8" y2="30"/>
+            <line x1="26" y1="30" x2="50" y2="2"/><line x1="26" y1="30" x2="50" y2="58"/>
+            <line x1="26" y1="30" x2="2" y2="58"/><line x1="26" y1="30" x2="2" y2="2"/>
+            <line x1="26" y1="30" x2="40" y2="-6"/><line x1="26" y1="30" x2="58" y2="14"/>
+            <line x1="26" y1="30" x2="58" y2="46"/><line x1="26" y1="30" x2="40" y2="66"/>
+            <line x1="26" y1="30" x2="12" y2="66"/><line x1="26" y1="30" x2="-6" y2="46"/>
+            <line x1="26" y1="30" x2="-6" y2="14"/><line x1="26" y1="30" x2="12" y2="-6"/>
           </g>
-          <g style={{ transformOrigin: '26px 30px', transformBox: 'fill-box', animation: 'spLoginRayRotate2 32s linear infinite' }}>
-            <g stroke={C.gold} fill="none" strokeWidth="0.14" style={{ animation: 'spLoginRayPulse2 5s ease-in-out infinite 0.8s' }}>
-              <line x1="26" y1="30" x2="40" y2="-6"/><line x1="26" y1="30" x2="58" y2="14"/>
-              <line x1="26" y1="30" x2="58" y2="46"/><line x1="26" y1="30" x2="40" y2="66"/>
-              <line x1="26" y1="30" x2="12" y2="66"/><line x1="26" y1="30" x2="-6" y2="46"/>
-              <line x1="26" y1="30" x2="-6" y2="14"/><line x1="26" y1="30" x2="12" y2="-6"/>
-            </g>
-          </g>
-          {/* B: 同心円リップル（4波、時間差で連続発射） */}
-          {[0, 2.5, 5, 7.5].map((delay, i) => (
+          {/* ターゲットリング 4層 (常時表示、順次パルス) */}
+          {[8, 14, 20, 26].map((r, i) => (
             <circle
-              key={`ripple-${i}`}
-              cx="26" cy="30" r="4"
-              fill="none" stroke={C.gold} strokeWidth="0.18"
-              style={{
-                transformOrigin: '26px 30px',
-                transformBox: 'fill-box',
-                animation: `spLoginRipple 10s ease-out ${delay}s infinite`,
-              }}
+              key={`ring-${i}`}
+              cx="26" cy="30" r={r}
+              fill="none" stroke="#FFFFFF" strokeWidth="0.16"
+              style={{ animation: `spLoginRingPulse 4s ease-in-out ${i * 1}s infinite` }}
             />
           ))}
+          {/* 十字基準線 */}
+          <g stroke="#FFFFFF" fill="none" strokeWidth="0.10" opacity="0.30">
+            <line x1="26" y1="-2" x2="26" y2="62"/>
+            <line x1="-6" y1="30" x2="58" y2="30"/>
+          </g>
+          {/* レーダー針 — 中心(26,30)から12時方向に伸び、時計回り12秒で1周 */}
+          <g style={{ transformOrigin: '26px 30px', transformBox: 'fill-box', animation: 'spLoginRadarSweep 12s linear infinite' }}>
+            {/* 軌跡 (扇形、針の後ろ) */}
+            <path d="M 26 30 L 26 -2 A 32 32 0 0 0 -2.3 18 Z" fill="url(#spLoginRadarTrail)" opacity="0.6"/>
+            {/* 針本体 */}
+            <line x1="26" y1="30" x2="26" y2="-2" stroke="#FFFFFF" strokeWidth="0.45" opacity="0.95"/>
+            <circle cx="26" cy="30" r="0.6" fill="#FFFFFF"/>
+          </g>
         </g>
       </svg>
-      {/* E: 上昇粒子 */}
-      {PARTICLES.map((p, i) => (
-        <div
-          key={`p-${i}`}
-          className="sp-login-particle"
-          style={{
-            left: p.left,
-            animation: `spLoginParticle ${p.dur}s linear ${p.delay}s infinite`,
-            ['--sp-drift']: p.drift,
-          }}
-        />
-      ))}
       {/* ビネット（上下） */}
       <div style={{
         position: 'absolute', inset: 0,
@@ -202,23 +200,6 @@ function BackgroundLayer() {
     </div>
   )
 }
-
-// 縦の光ストリーム位置・速度（左右対称、軽く時間差）
-const STREAMS = [
-  { left: '7%',  dur: 8,  delay: 0,    opacity: 0.7 },
-  { left: '22%', dur: 11, delay: 2.5,  opacity: 0.45 },
-  { left: '78%', dur: 9,  delay: 1.2,  opacity: 0.6 },
-  { left: '93%', dur: 12, delay: 4.0,  opacity: 0.5 },
-]
-
-// 上昇粒子（位置・速度・横方向ドリフトをばらける）
-const PARTICLES = Array.from({ length: 18 }, (_, i) => {
-  const left = `${(i * 5.7 + 3) % 100}%`
-  const dur = 14 + ((i * 7) % 10)
-  const delay = (i * 1.3) % 14
-  const drift = `${((i * 11) % 60) - 30}px`
-  return { left, dur, delay, drift }
-})
 
 function ShieldLogo() {
   return (
