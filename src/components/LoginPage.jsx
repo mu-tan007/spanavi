@@ -32,9 +32,31 @@ function BackgroundLayer() {
       }}
     >
       <style>{`
-        @keyframes spLoginRayPulse1 { 0%,100% { opacity: 0.10; } 50% { opacity: 0.28; } }
-        @keyframes spLoginRayPulse2 { 0%,100% { opacity: 0.06; } 50% { opacity: 0.18; } }
-        @keyframes spLoginShieldDrift { 0%,100% { transform: translate(-50%,-50%) scale(1); } 50% { transform: translate(-50%,-50%) scale(1.04); } }
+        /* A: 光線回転 (時計回り 1周28秒、逆方向32秒) */
+        @keyframes spLoginRayRotate1 { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes spLoginRayRotate2 { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+        @keyframes spLoginRayPulse1 { 0%,100% { opacity: 0.18; } 50% { opacity: 0.40; } }
+        @keyframes spLoginRayPulse2 { 0%,100% { opacity: 0.10; } 50% { opacity: 0.26; } }
+        /* B: 同心円リップル */
+        @keyframes spLoginRipple {
+          0%   { transform: scale(0.15); opacity: 0; }
+          15%  { opacity: 0.55; }
+          100% { transform: scale(7); opacity: 0; }
+        }
+        /* C: 縦の光ストリーム */
+        @keyframes spLoginStream {
+          0%   { transform: translateY(-60vh); opacity: 0; }
+          10%  { opacity: 0.85; }
+          90%  { opacity: 0.85; }
+          100% { transform: translateY(110vh); opacity: 0; }
+        }
+        /* E: 上昇粒子 */
+        @keyframes spLoginParticle {
+          0%   { transform: translateY(0) translateX(0); opacity: 0; }
+          10%  { opacity: 0.7; }
+          90%  { opacity: 0.7; }
+          100% { transform: translateY(-110vh) translateX(var(--sp-drift, 0px)); opacity: 0; }
+        }
         @keyframes spLoginCardEnter {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
@@ -66,6 +88,18 @@ function BackgroundLayer() {
           transform: translateY(0);
           box-shadow: 0 2px 6px rgba(13,34,71,0.30);
         }
+        .sp-login-stream {
+          position: absolute; top: 0; width: 1px; height: 38vh;
+          background: linear-gradient(180deg, transparent 0%, rgba(200,168,75,0.0) 5%, rgba(200,168,75,0.85) 50%, rgba(200,168,75,0.0) 95%, transparent 100%);
+          will-change: transform, opacity;
+        }
+        .sp-login-particle {
+          position: absolute; bottom: -4px;
+          width: 2px; height: 2px; border-radius: 50%;
+          background: rgba(200,168,75,0.75);
+          box-shadow: 0 0 6px rgba(200,168,75,0.45);
+          will-change: transform, opacity;
+        }
         @media (max-width: 600px) {
           .sp-login-card { padding: 28px 22px !important; }
           .sp-login-grid { background-size: 22px 22px !important; }
@@ -83,7 +117,19 @@ function BackgroundLayer() {
           WebkitMaskImage: 'radial-gradient(ellipse at center, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 75%)',
         }}
       />
-      {/* 巨大シールド（中央） */}
+      {/* C: 縦の光ストリーム（複数本） */}
+      {STREAMS.map((s, i) => (
+        <div
+          key={`stream-${i}`}
+          className="sp-login-stream"
+          style={{
+            left: s.left,
+            animation: `spLoginStream ${s.dur}s linear ${s.delay}s infinite`,
+            opacity: s.opacity,
+          }}
+        />
+      ))}
+      {/* 巨大シールド（中央、SVG内で光線回転 + リップル） */}
       <svg
         viewBox="0 0 52 60"
         preserveAspectRatio="xMidYMid meet"
@@ -91,8 +137,7 @@ function BackgroundLayer() {
           position: 'absolute', top: '50%', left: '50%',
           width: 'min(900px, 95vh)', height: 'min(900px, 95vh)',
           transform: 'translate(-50%,-50%)',
-          opacity: 0.22,
-          animation: 'spLoginShieldDrift 6s ease-in-out infinite',
+          opacity: 0.30,
         }}
       >
         <defs>
@@ -103,21 +148,51 @@ function BackgroundLayer() {
           <clipPath id="spLoginShieldClip"><path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z"/></clipPath>
         </defs>
         <path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z" fill="url(#spLoginShieldBg)"/>
-        <g clipPath="url(#spLoginShieldClip)" stroke={C.gold} fill="none">
-          <g strokeWidth="0.18" style={{ animation: 'spLoginRayPulse1 4s ease-in-out infinite' }}>
-            <line x1="26" y1="30" x2="26" y2="-10"/><line x1="26" y1="30" x2="60" y2="30"/>
-            <line x1="26" y1="30" x2="26" y2="70"/><line x1="26" y1="30" x2="-8" y2="30"/>
-            <line x1="26" y1="30" x2="50" y2="2"/><line x1="26" y1="30" x2="50" y2="58"/>
-            <line x1="26" y1="30" x2="2" y2="58"/><line x1="26" y1="30" x2="2" y2="2"/>
+        <g clipPath="url(#spLoginShieldClip)">
+          {/* A: 光線群 — 中心(26,30)を軸にゆっくり回転、逆向き2レイヤー重ね */}
+          <g style={{ transformOrigin: '26px 30px', transformBox: 'fill-box', animation: 'spLoginRayRotate1 28s linear infinite' }}>
+            <g stroke={C.gold} fill="none" strokeWidth="0.22" style={{ animation: 'spLoginRayPulse1 5s ease-in-out infinite' }}>
+              <line x1="26" y1="30" x2="26" y2="-10"/><line x1="26" y1="30" x2="60" y2="30"/>
+              <line x1="26" y1="30" x2="26" y2="70"/><line x1="26" y1="30" x2="-8" y2="30"/>
+              <line x1="26" y1="30" x2="50" y2="2"/><line x1="26" y1="30" x2="50" y2="58"/>
+              <line x1="26" y1="30" x2="2" y2="58"/><line x1="26" y1="30" x2="2" y2="2"/>
+            </g>
           </g>
-          <g strokeWidth="0.12" style={{ animation: 'spLoginRayPulse2 4s ease-in-out infinite 0.6s' }}>
-            <line x1="26" y1="30" x2="40" y2="-6"/><line x1="26" y1="30" x2="58" y2="14"/>
-            <line x1="26" y1="30" x2="58" y2="46"/><line x1="26" y1="30" x2="40" y2="66"/>
-            <line x1="26" y1="30" x2="12" y2="66"/><line x1="26" y1="30" x2="-6" y2="46"/>
-            <line x1="26" y1="30" x2="-6" y2="14"/><line x1="26" y1="30" x2="12" y2="-6"/>
+          <g style={{ transformOrigin: '26px 30px', transformBox: 'fill-box', animation: 'spLoginRayRotate2 32s linear infinite' }}>
+            <g stroke={C.gold} fill="none" strokeWidth="0.14" style={{ animation: 'spLoginRayPulse2 5s ease-in-out infinite 0.8s' }}>
+              <line x1="26" y1="30" x2="40" y2="-6"/><line x1="26" y1="30" x2="58" y2="14"/>
+              <line x1="26" y1="30" x2="58" y2="46"/><line x1="26" y1="30" x2="40" y2="66"/>
+              <line x1="26" y1="30" x2="12" y2="66"/><line x1="26" y1="30" x2="-6" y2="46"/>
+              <line x1="26" y1="30" x2="-6" y2="14"/><line x1="26" y1="30" x2="12" y2="-6"/>
+            </g>
           </g>
+          {/* B: 同心円リップル（4波、時間差で連続発射） */}
+          {[0, 2.5, 5, 7.5].map((delay, i) => (
+            <circle
+              key={`ripple-${i}`}
+              cx="26" cy="30" r="4"
+              fill="none" stroke={C.gold} strokeWidth="0.18"
+              style={{
+                transformOrigin: '26px 30px',
+                transformBox: 'fill-box',
+                animation: `spLoginRipple 10s ease-out ${delay}s infinite`,
+              }}
+            />
+          ))}
         </g>
       </svg>
+      {/* E: 上昇粒子 */}
+      {PARTICLES.map((p, i) => (
+        <div
+          key={`p-${i}`}
+          className="sp-login-particle"
+          style={{
+            left: p.left,
+            animation: `spLoginParticle ${p.dur}s linear ${p.delay}s infinite`,
+            ['--sp-drift']: p.drift,
+          }}
+        />
+      ))}
       {/* ビネット（上下） */}
       <div style={{
         position: 'absolute', inset: 0,
@@ -126,6 +201,23 @@ function BackgroundLayer() {
     </div>
   )
 }
+
+// 縦の光ストリーム位置・速度（左右対称、軽く時間差）
+const STREAMS = [
+  { left: '7%',  dur: 8,  delay: 0,    opacity: 0.7 },
+  { left: '22%', dur: 11, delay: 2.5,  opacity: 0.45 },
+  { left: '78%', dur: 9,  delay: 1.2,  opacity: 0.6 },
+  { left: '93%', dur: 12, delay: 4.0,  opacity: 0.5 },
+]
+
+// 上昇粒子（位置・速度・横方向ドリフトをばらける）
+const PARTICLES = Array.from({ length: 18 }, (_, i) => {
+  const left = `${(i * 5.7 + 3) % 100}%`
+  const dur = 14 + ((i * 7) % 10)
+  const delay = (i * 1.3) % 14
+  const drift = `${((i * 11) % 60) - 30}px`
+  return { left, dur, delay, drift }
+})
 
 function ShieldLogo() {
   return (
