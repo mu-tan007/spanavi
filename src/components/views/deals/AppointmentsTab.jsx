@@ -110,12 +110,11 @@ export default function AppointmentsTab({ client }) {
       let q = supabase
         .from('appointments')
         .select(`
-          id, company_name, meeting_date, status, cancel_reason, ceo_ma_intent, sales_amount, appo_report,
+          id, company_name, meeting_date, status, cancel_reason, ceo_ma_intent, sales_amount, appo_report, recording_url,
           item:call_list_items(id, company, address, revenue, business)
         `)
         .eq('org_id', orgId)
-        .eq('client_id', client.id)
-        .order('meeting_date', { ascending: false });
+        .eq('client_id', client.id);
       // 期間フィルタ: 獲得日 (created_at) ベース。架電結果の集計と揃える。
       if (periodRange.from) q = q.gte('created_at', periodRange.from);
       if (periodRange.to)   q = q.lt('created_at', periodRange.to);
@@ -163,25 +162,42 @@ export default function AppointmentsTab({ client }) {
     return () => { cancelled = true; };
   }, [orgId, client?.id, periodRange.from, periodRange.to]);
 
-  const enriched = useMemo(() => (rows || []).map(r => {
-    const fallback = extraByName[r.company_name] || {};
-    // 住所 優先度: item → 同名リスト行 → company_master → appo_report
-    const address = r.item?.address || fallback.address || extractAddressFromReport(r.appo_report);
-    // 売上 同様
-    const revenueText = r.item?.revenue || fallback.revenue || null;
-    const revenue_oku = parseRevenueOku(revenueText) ?? extractRevenueFromReport(r.appo_report);
-    // 未入力 & 推定できずは 不明 に集約
-    const intent = r.ceo_ma_intent || extractCeoMaIntent(r.appo_report) || 'unknown';
-    return {
-      ...r,
-      address,
-      prefecture: extractPrefecture(address),
-      revenue_oku,
-      revenue_text: revenue_oku != null ? formatOku(revenue_oku) : (revenueText || null),
-      resolved_intent: intent,
-      intent_is_derived: !r.ceo_ma_intent && intent !== 'unknown' ? !!extractCeoMaIntent(r.appo_report) : false,
-    };
-  }), [rows, extraByName]);
+  const enriched = useMemo(() => {
+    const mapped = (rows || []).map(r => {
+      const fallback = extraByName[r.company_name] || {};
+      // 住所 優先度: item → 同名リスト行 → company_master → appo_report
+      const address = r.item?.address || fallback.address || extractAddressFromReport(r.appo_report);
+      // 売上 同様
+      const revenueText = r.item?.revenue || fallback.revenue || null;
+      const revenue_oku = parseRevenueOku(revenueText) ?? extractRevenueFromReport(r.appo_report);
+      // 未入力 & 推定できずは 不明 に集約
+      const intent = r.ceo_ma_intent || extractCeoMaIntent(r.appo_report) || 'unknown';
+      return {
+        ...r,
+        address,
+        prefecture: extractPrefecture(address),
+        revenue_oku,
+        revenue_text: revenue_oku != null ? formatOku(revenue_oku) : (revenueText || null),
+        resolved_intent: intent,
+        intent_is_derived: !r.ceo_ma_intent && intent !== 'unknown' ? !!extractCeoMaIntent(r.appo_report) : false,
+      };
+    });
+    // 面談日ソート: 直近の予定（未来で近い）が上、過去は新しい順で下に並ぶ
+    const now = Date.now();
+    return mapped.sort((a, b) => {
+      const ta = a.meeting_date ? new Date(a.meeting_date).getTime() : null;
+      const tb = b.meeting_date ? new Date(b.meeting_date).getTime() : null;
+      if (ta == null && tb == null) return 0;
+      if (ta == null) return 1;
+      if (tb == null) return -1;
+      const futureA = ta >= now;
+      const futureB = tb >= now;
+      if (futureA && !futureB) return -1;
+      if (!futureA && futureB) return 1;
+      if (futureA && futureB) return ta - tb;   // 未来は直近順
+      return tb - ta;                            // 過去は新しい順
+    });
+  }, [rows, extraByName]);
 
   const handleIntentChange = async (id, value) => {
     setUpdating(id);
@@ -330,6 +346,7 @@ export default function AppointmentsTab({ client }) {
                 <th style={th}>面談日</th>
                 <th style={th}>状態</th>
                 <th style={th}>社長のM&A意向</th>
+                <th style={th}>録音</th>
               </tr>
             </thead>
             <tbody>
@@ -361,6 +378,18 @@ export default function AppointmentsTab({ client }) {
                           <span title="議事録から自動推定" style={{ fontSize: 9, color: C.textLight }}>AI</span>
                         )}
                       </div>
+                    </td>
+                    <td style={{ ...td, padding: '4px 6px' }}>
+                      {r.recording_url ? (
+                        <audio
+                          controls
+                          preload="none"
+                          src={r.recording_url}
+                          style={{ width: 180, height: 28 }}
+                        />
+                      ) : (
+                        <span style={{ fontSize: 10, color: C.textLight }}>—</span>
+                      )}
                     </td>
                   </tr>
                 );
