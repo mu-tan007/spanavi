@@ -11,10 +11,20 @@ const C = {
   goldSoft: 'rgba(200,168,75,0.18)',
   gray200: '#E5E7EB',
   white: '#ffffff',
+  // 暗HUDカード用
+  cardBg: 'rgba(8,22,54,0.55)',
+  cardBorder: 'rgba(255,255,255,0.18)',
+  textOnDark: '#FFFFFF',
+  textMutedOnDark: 'rgba(255,255,255,0.65)',
+  labelOnDark: 'rgba(255,255,255,0.78)',
+  inputBg: 'rgba(255,255,255,0.04)',
+  inputBorder: 'rgba(255,255,255,0.20)',
+  linkOnDark: 'rgba(255,255,255,0.75)',
+  // 旧（互換のため残す）
   textMuted: '#6B7280',
   textDark: '#111827',
   labelColor: '#374151',
-  errorRed: '#DC2626',
+  errorRed: '#FF6B6B',
   navyHover: '#1a3366',
 }
 
@@ -74,12 +84,41 @@ function BackgroundLayer() {
           from { background-position: 0 0; }
           to   { background-position: 32px 32px; }
         }
-        .sp-login-card { animation: spLoginCardEnter 0.55s ease-out; }
-        .sp-login-card:hover { box-shadow: 0 12px 40px rgba(0,0,0,0.32), 0 0 0 1px rgba(255,255,255,0.22); }
+        .sp-login-card {
+          animation: spLoginCardEnter 0.55s ease-out;
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+        }
+        .sp-login-card:hover { box-shadow: 0 16px 48px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.28) !important; }
         .sp-login-logo { animation: spLoginLogoBreathe 3.4s ease-in-out infinite; }
+        /* HUDコーナーマーク (4隅のL字) */
+        .sp-login-corner {
+          position: absolute; width: 14px; height: 14px; pointer-events: none;
+          border-color: rgba(255,255,255,0.55); border-style: solid; border-width: 0;
+        }
+        .sp-login-corner.tl { top: -1px; left: -1px;  border-top-width: 1.5px;    border-left-width: 1.5px;  }
+        .sp-login-corner.tr { top: -1px; right: -1px; border-top-width: 1.5px;    border-right-width: 1.5px; }
+        .sp-login-corner.bl { bottom: -1px; left: -1px;  border-bottom-width: 1.5px; border-left-width: 1.5px;  }
+        .sp-login-corner.br { bottom: -1px; right: -1px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+        /* 暗カード用 input */
+        .sp-login-input {
+          background: ${C.inputBg} !important;
+          border: 1px solid ${C.inputBorder} !important;
+          color: ${C.textOnDark} !important;
+        }
+        .sp-login-input::placeholder { color: rgba(255,255,255,0.32); }
         .sp-login-input:focus {
-          border-color: ${C.navy} !important;
-          box-shadow: 0 0 0 3px rgba(30,64,175,0.22) !important;
+          border-color: rgba(255,255,255,0.55) !important;
+          box-shadow: 0 0 0 3px rgba(255,255,255,0.10) !important;
+          background: rgba(255,255,255,0.06) !important;
+        }
+        /* Chrome autofill のNavy維持 */
+        .sp-login-input:-webkit-autofill,
+        .sp-login-input:-webkit-autofill:hover,
+        .sp-login-input:-webkit-autofill:focus {
+          -webkit-text-fill-color: ${C.textOnDark} !important;
+          -webkit-box-shadow: 0 0 0 1000px rgba(8,22,54,0.85) inset !important;
+          caret-color: ${C.textOnDark};
         }
         .sp-login-btn {
           transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.18s ease !important;
@@ -287,7 +326,7 @@ function MemberNameSelect({ members, selected, onSelect }) {
 
   return (
     <div style={{ marginBottom: 14, position: 'relative' }} ref={wrapperRef}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: C.labelColor, marginBottom: 4 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: C.labelOnDark, letterSpacing: '0.04em', marginBottom: 4 }}>
         氏名<span style={{ color: C.errorRed, marginLeft: 2 }}>*</span>
       </div>
       <input
@@ -299,11 +338,9 @@ function MemberNameSelect({ members, selected, onSelect }) {
         autoComplete="off"
         style={{
           width: '100%', padding: '10px 14px', borderRadius: 4,
-          border: `1px solid ${focused ? C.navy : C.gray200}`,
-          fontSize: 14, color: C.textDark,
+          fontSize: 14,
           fontFamily: "'Noto Sans JP'", outline: 'none',
-          transition: 'border-color 0.2s, box-shadow 0.2s', boxSizing: 'border-box',
-          background: C.white,
+          transition: 'border-color 0.2s, box-shadow 0.2s, background 0.2s', boxSizing: 'border-box',
         }}
         onFocus={() => { setFocused(true); setShowList(true) }}
         onBlur={() => setFocused(false)}
@@ -472,16 +509,18 @@ export default function LoginPage() {
     }
   }
 
+  // 暗HUD用: 実際のbg/border/textはCSS class .sp-login-input が上書きするので JS は構造のみ
   const inputStyle = {
     width: '100%', padding: '10px 14px', borderRadius: 4,
-    border: '1px solid ' + C.gray200, fontSize: 14, color: C.textDark,
+    fontSize: 14,
     fontFamily: "'Noto Sans JP'", outline: 'none',
-    transition: 'border-color 0.2s, box-shadow 0.2s', marginBottom: 0,
-    boxSizing: 'border-box', background: C.white,
+    transition: 'border-color 0.2s, box-shadow 0.2s, background 0.2s', marginBottom: 0,
+    boxSizing: 'border-box',
   }
 
   const btnStyle = {
-    width: '100%', padding: '10px 16px', borderRadius: 4, border: 'none',
+    width: '100%', padding: '11px 16px', borderRadius: 4,
+    border: '1px solid rgba(255,255,255,0.30)',
     cursor: loading ? 'not-allowed' : 'pointer',
     background: C.navy,
     color: C.white, fontSize: 14, fontWeight: 600, fontFamily: "'Noto Sans JP'",
@@ -494,7 +533,7 @@ export default function LoginPage() {
     </div>
   )
 
-  const labelStyle = { fontSize: 12, fontWeight: 600, color: C.labelColor, marginBottom: 4 }
+  const labelStyle = { fontSize: 12, fontWeight: 600, color: C.labelOnDark, letterSpacing: '0.04em', marginBottom: 4 }
 
   return (
     <div style={{
@@ -509,16 +548,21 @@ export default function LoginPage() {
         padding: '20px',
       }}>
       <div className="sp-login-card" style={{
-        background: C.white,
-        border: '1px solid ' + C.gray200,
-        borderRadius: 6,
+        background: C.cardBg,
+        border: '1px solid ' + C.cardBorder,
+        borderRadius: 4,
         padding: '40px',
         width: '100%',
         maxWidth: 400,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.28), 0 0 0 1px rgba(200,168,75,0.10)',
+        boxShadow: '0 12px 36px rgba(0,0,0,0.40), 0 0 0 1px rgba(255,255,255,0.06)',
         position: 'relative',
         transition: 'transform 0.25s ease, box-shadow 0.25s ease',
       }}>
+        {/* HUDコーナーマーク (4隅) */}
+        <span className="sp-login-corner tl"/>
+        <span className="sp-login-corner tr"/>
+        <span className="sp-login-corner bl"/>
+        <span className="sp-login-corner br"/>
         {/* ロゴ */}
         <div style={{ textAlign: 'center', marginBottom: 28, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <ShieldLogo />
@@ -551,15 +595,13 @@ export default function LoginPage() {
                 required
                 autoComplete="off"
                 style={inputStyle}
-                onFocus={e => { e.target.style.borderColor = C.navy; e.target.style.boxShadow = '0 0 0 2px rgba(13,34,71,0.1)' }}
-                onBlur={e => { e.target.style.borderColor = C.gray200; e.target.style.boxShadow = 'none' }}
               />
             </div>
 
             <div style={{ textAlign: 'right', marginBottom: 16, marginTop: 6 }}>
               <span
                 onClick={() => { setMode('forgot'); setError('') }}
-                style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
+                style={{ fontSize: 12, color: C.linkOnDark, cursor: 'pointer', textDecoration: 'none' }}
               >
                 パスワードを忘れた方はこちら
               </span>
@@ -580,7 +622,7 @@ export default function LoginPage() {
             <div style={{ textAlign: 'center', marginTop: 20 }}>
               <span
                 onClick={() => { setMode('admin'); setError('') }}
-                style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
+                style={{ fontSize: 12, color: C.linkOnDark, cursor: 'pointer', textDecoration: 'none' }}
               >
                 ← メールアドレスでログイン
               </span>
@@ -591,7 +633,7 @@ export default function LoginPage() {
         {/* ── 管理者ログイン ── */}
         {mode === 'admin' && (
           <form onSubmit={handleAdminLogin} autoComplete="off">
-            <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 20, textAlign: 'center' }}>
+            <div style={{ fontSize: 13, color: C.textMutedOnDark, marginBottom: 20, textAlign: 'center' }}>
               メールアドレスとパスワードでサインイン
             </div>
 
@@ -608,8 +650,6 @@ export default function LoginPage() {
                 required
                 autoComplete="off"
                 style={inputStyle}
-                onFocus={e => { e.target.style.borderColor = C.navy; e.target.style.boxShadow = '0 0 0 2px rgba(13,34,71,0.1)' }}
-                onBlur={e => { e.target.style.borderColor = C.gray200; e.target.style.boxShadow = 'none' }}
               />
             </div>
 
@@ -626,15 +666,13 @@ export default function LoginPage() {
                 required
                 autoComplete="off"
                 style={inputStyle}
-                onFocus={e => { e.target.style.borderColor = C.navy; e.target.style.boxShadow = '0 0 0 2px rgba(13,34,71,0.1)' }}
-                onBlur={e => { e.target.style.borderColor = C.gray200; e.target.style.boxShadow = 'none' }}
               />
             </div>
 
             <div style={{ textAlign: 'right', marginBottom: 16, marginTop: -10 }}>
               <span
                 onClick={() => { setMode('forgotEmail'); setError(''); setResetEmail('') }}
-                style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
+                style={{ fontSize: 12, color: C.linkOnDark, cursor: 'pointer', textDecoration: 'none' }}
               >
                 パスワードを忘れた方はこちら
               </span>
@@ -656,7 +694,7 @@ export default function LoginPage() {
               <div style={{ textAlign: 'center', marginTop: 16 }}>
                 <span
                   onClick={() => { setMode('login'); setError(''); setAdminEmail(''); setAdminPassword('') }}
-                  style={{ fontSize: 12, color: C.textMuted, cursor: 'pointer', textDecoration: 'none' }}
+                  style={{ fontSize: 12, color: C.textMutedOnDark, cursor: 'pointer', textDecoration: 'none' }}
                 >
                   名前でログイン
                 </span>
@@ -668,7 +706,7 @@ export default function LoginPage() {
         {/* ── パスワードリセット ── */}
         {mode === 'forgot' && (
           <form onSubmit={handleForgotPassword}>
-            <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 20, lineHeight: 1.8 }}>
+            <div style={{ fontSize: 13, color: C.textMutedOnDark, marginBottom: 20, lineHeight: 1.8 }}>
               氏名を選択してください。<br />パスワード再設定のリンクをお送りします。
             </div>
             <MemberNameSelect
@@ -690,7 +728,7 @@ export default function LoginPage() {
             <div style={{ textAlign: 'center', marginTop: 16 }}>
               <span
                 onClick={() => { setMode('login'); setError('') }}
-                style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
+                style={{ fontSize: 12, color: C.linkOnDark, cursor: 'pointer', textDecoration: 'none' }}
               >
                 ログインに戻る
               </span>
@@ -700,13 +738,13 @@ export default function LoginPage() {
 
         {mode === 'forgotSent' && (
           <div style={{ textAlign: 'center', padding: '10px 0' }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: C.navy, marginBottom: 12 }}>メールを送信しました</div>
-            <div style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.8, marginBottom: 24 }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: C.textOnDark, marginBottom: 12 }}>メールを送信しました</div>
+            <div style={{ fontSize: 13, color: C.textMutedOnDark, lineHeight: 1.8, marginBottom: 24 }}>
               {resetSelected?.name} 宛に<br />パスワード再設定のリンクを送りました。<br />メールをご確認ください。
             </div>
             <span
               onClick={() => { setMode('login'); setError('') }}
-              style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
+              style={{ fontSize: 12, color: C.linkOnDark, cursor: 'pointer', textDecoration: 'none' }}
             >
               ログインに戻る
             </span>
@@ -716,10 +754,10 @@ export default function LoginPage() {
         {/* ── メールアドレスでパスワードリセット ── */}
         {mode === 'forgotEmail' && (
           <form onSubmit={handleForgotEmail}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: C.navy, marginBottom: 4, textAlign: 'center' }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: C.textOnDark, marginBottom: 4, textAlign: 'center' }}>
               パスワード再設定
             </div>
-            <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 20, textAlign: 'center', lineHeight: 1.8 }}>
+            <div style={{ fontSize: 13, color: C.textMutedOnDark, marginBottom: 20, textAlign: 'center', lineHeight: 1.8 }}>
               登録済みのメールアドレスを入力してください。<br />パスワード再設定のリンクをお送りします。
             </div>
             <div style={{ marginBottom: 16 }}>
@@ -735,8 +773,6 @@ export default function LoginPage() {
                 required
                 autoComplete="off"
                 style={inputStyle}
-                onFocus={e => { e.target.style.borderColor = C.navy; e.target.style.boxShadow = '0 0 0 2px rgba(13,34,71,0.1)' }}
-                onBlur={e => { e.target.style.borderColor = C.gray200; e.target.style.boxShadow = 'none' }}
               />
             </div>
             {errBlock}
@@ -753,7 +789,7 @@ export default function LoginPage() {
             <div style={{ textAlign: 'center', marginTop: 16 }}>
               <span
                 onClick={() => { setMode('admin'); setError('') }}
-                style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
+                style={{ fontSize: 12, color: C.linkOnDark, cursor: 'pointer', textDecoration: 'none' }}
               >
                 ← ログインに戻る
               </span>
@@ -763,13 +799,13 @@ export default function LoginPage() {
 
         {mode === 'forgotEmailSent' && (
           <div style={{ textAlign: 'center', padding: '10px 0' }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: C.navy, marginBottom: 12 }}>メールを送信しました</div>
-            <div style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.8, marginBottom: 24 }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: C.textOnDark, marginBottom: 12 }}>メールを送信しました</div>
+            <div style={{ fontSize: 13, color: C.textMutedOnDark, lineHeight: 1.8, marginBottom: 24 }}>
               {resetEmail} 宛に<br />パスワード再設定のリンクを送りました。<br />メールをご確認ください。
             </div>
             <span
               onClick={() => { setMode('admin'); setError('') }}
-              style={{ fontSize: 12, color: C.blue, cursor: 'pointer', textDecoration: 'none' }}
+              style={{ fontSize: 12, color: C.linkOnDark, cursor: 'pointer', textDecoration: 'none' }}
             >
               ログインに戻る
             </span>
@@ -777,7 +813,7 @@ export default function LoginPage() {
         )}
 
         <div style={{ marginTop: 20, textAlign: 'center' }}>
-          <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: 1 }}>
+          <div style={{ fontSize: 9, color: C.textMutedOnDark, letterSpacing: 1 }}>
             © {new Date().getFullYear()} Spanavi
           </div>
         </div>
