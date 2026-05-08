@@ -336,7 +336,7 @@ export default function AppointmentsTab({ client }) {
 
       <Card title="アポ一覧">
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <table style={{ width: '100%', minWidth: 1200, borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: C.cream, borderBottom: `1px solid ${C.border}` }}>
                 <th style={{ ...th, textAlign: 'left' }}>企業名</th>
@@ -354,8 +354,8 @@ export default function AppointmentsTab({ client }) {
                 const statusColor = r.status === 'キャンセル' ? '#EF4444' : r.status === 'リスケ中' ? '#F59E0B' : C.navy;
                 return (
                   <tr key={r.id} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
-                    <td style={{ ...td, textAlign: 'left', fontWeight: 500, color: C.navy }}>{r.company_name || '—'}</td>
-                    <td style={{ ...td, textAlign: 'left', color: C.textMid }}>{r.item?.business || '—'}</td>
+                    <td style={{ ...td, textAlign: 'left', fontWeight: 500, color: C.navy, whiteSpace: 'normal', minWidth: 180 }}>{r.company_name || '—'}</td>
+                    <td style={{ ...td, textAlign: 'left', color: C.textMid, whiteSpace: 'normal', minWidth: 220, maxWidth: 320 }}>{r.item?.business || '—'}</td>
                     <td style={td}>{r.revenue_text || '—'}</td>
                     <td style={td}>{r.prefecture}</td>
                     <td style={td}>{r.meeting_date ? String(r.meeting_date).slice(0, 10) : '—'}</td>
@@ -379,13 +379,13 @@ export default function AppointmentsTab({ client }) {
                         )}
                       </div>
                     </td>
-                    <td style={{ ...td, padding: '4px 6px' }}>
+                    <td style={{ ...td, padding: '4px 6px', minWidth: 240 }}>
                       {r.recording_url ? (
                         <audio
                           controls
                           preload="none"
                           src={r.recording_url}
-                          style={{ width: 180, height: 28 }}
+                          style={{ width: 230, height: 30, verticalAlign: 'middle' }}
                         />
                       ) : (
                         <span style={{ fontSize: 10, color: C.textLight }}>—</span>
@@ -427,5 +427,5 @@ function EmptyCard({ children }) {
   );
 }
 
-const th = { padding: '10px 12px', fontWeight: 600, color: C.navy, fontSize: 11, letterSpacing: '0.04em', textAlign: 'center' };
-const td = { padding: '8px 12px', fontSize: 12, color: C.textDark, textAlign: 'center' };
+const th = { padding: '10px 12px', fontWeight: 600, color: C.navy, fontSize: 11, letterSpacing: '0.04em', textAlign: 'center', whiteSpace: 'nowrap' };
+const td = { padding: '8px 12px', fontSize: 12, color: C.textDark, textAlign: 'center', whiteSpace: 'nowrap' };
