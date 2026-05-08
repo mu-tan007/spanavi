@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useIsMobile } from '../hooks/useIsMobile'
 import { supabase } from '../lib/supabase'
 
 const C = {
@@ -32,7 +33,10 @@ const C = {
 // - 巨大シールド + 放射状の光線が脈動
 // - 細かいドットグリッド（金融端末風）
 // - 上下のビネットで重厚感
-function BackgroundLayer() {
+function BackgroundLayer({ isMobile }) {
+  // モバイルでは陣形の密度を下げて、入力欄と被らないように調整
+  const verticalBarCount = isMobile ? 6 : 10
+  const horizontalBarCount = isMobile ? 2 : 3
   return (
     <div
       aria-hidden
@@ -160,9 +164,30 @@ function BackgroundLayer() {
           box-shadow: 0 0 10px rgba(255,255,255,0.30);
           will-change: transform, opacity;
         }
-        @media (max-width: 600px) {
-          .sp-login-card { padding: 28px 22px !important; }
+        @media (max-width: 768px) {
+          .sp-login-card {
+            padding: 26px 20px !important;
+            border-radius: 4px !important;
+          }
           .sp-login-grid { background-size: 22px 22px !important; }
+          /* iOS Safariのautozoom抑止 (16px未満だと自動でズームインする) */
+          .sp-login-input {
+            font-size: 16px !important;
+            padding: 12px 14px !important;
+          }
+          /* タップしやすい高さに */
+          .sp-login-btn {
+            font-size: 15px !important;
+            padding: 13px 16px !important;
+          }
+          /* HUDコーナーをやや小さく */
+          .sp-login-corner { width: 12px !important; height: 12px !important; }
+          /* 水平バーは横幅もう少し広く */
+          .sp-login-hbar { left: 8% !important; right: 8% !important; }
+        }
+        /* iPhone SE等の細幅向け */
+        @media (max-width: 380px) {
+          .sp-login-card { padding: 22px 16px !important; }
         }
       `}</style>
       {/* 細かいドットグリッド */}
@@ -177,19 +202,24 @@ function BackgroundLayer() {
           WebkitMaskImage: 'radial-gradient(ellipse at center, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 75%)',
         }}
       />
-      {/* ファランクス縦バー隊列 (10本、左→右へドミノ倒し、6秒周期、0.3sずつ位相差) */}
-      {Array.from({ length: 10 }).map((_, i) => (
-        <div
-          key={`bar-${i}`}
-          className="sp-login-bar"
-          style={{
-            left: `${6 + i * 9.5}%`,
-            animation: `spLoginBarFlash 6s linear ${i * 0.3}s infinite`,
-          }}
-        />
-      ))}
-      {/* ファランクス水平バー隊列 (上3本、下3本、上→下/下→上にドミノ倒し) */}
-      {Array.from({ length: 3 }).map((_, i) => (
+      {/* ファランクス縦バー隊列 (左→右へドミノ倒し、6秒周期、0.3sずつ位相差) */}
+      {Array.from({ length: verticalBarCount }).map((_, i) => {
+        // バーが画面幅に等間隔で並ぶように left% を計算
+        const span = 100 - 12 // 6%~94% に分布
+        const left = `${6 + (span / (verticalBarCount - 1)) * i}%`
+        return (
+          <div
+            key={`bar-${i}`}
+            className="sp-login-bar"
+            style={{
+              left,
+              animation: `spLoginBarFlash 6s linear ${i * 0.3}s infinite`,
+            }}
+          />
+        )
+      })}
+      {/* ファランクス水平バー隊列 (上下それぞれ、上→下/下→上にドミノ倒し) */}
+      {Array.from({ length: horizontalBarCount }).map((_, i) => (
         <div
           key={`hbar-top-${i}`}
           className="sp-login-hbar"
@@ -199,7 +229,7 @@ function BackgroundLayer() {
           }}
         />
       ))}
-      {Array.from({ length: 3 }).map((_, i) => (
+      {Array.from({ length: horizontalBarCount }).map((_, i) => (
         <div
           key={`hbar-bot-${i}`}
           className="sp-login-hbar"
@@ -385,6 +415,7 @@ const generateEmail = (id) =>
 export default function LoginPage() {
   const { signIn, session } = useAuth()
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   // mode: 'admin' | 'login' | 'forgot' | 'forgotSent' | 'forgotEmail' | 'forgotEmailSent'
   // デフォルトをメールアドレスログイン（admin）に変更
   const [mode, setMode] = useState('admin')
@@ -547,7 +578,7 @@ export default function LoginPage() {
       background: C.navyDeep,
       fontFamily: "'Noto Sans JP', sans-serif",
     }}>
-      <BackgroundLayer />
+      <BackgroundLayer isMobile={isMobile} />
       <div style={{
         position: 'relative', zIndex: 1, minHeight: '100vh',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
