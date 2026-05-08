@@ -1,6 +1,5 @@
 import { C } from '../../constants/colors';
-import { color, space, radius, font, shadow, alpha } from '../../constants/design';
-import { Button, Input, Select, Card, Badge } from '../ui';
+import { color, space, font } from '../../constants/design';
 import { capitalNavigate, useCapitalPathname } from '../views/capital/lib/capitalNav';
 
 // 事業別の下部タブ構成（最大3項目 + その他）
@@ -69,13 +68,13 @@ export default function MobileBottomNav({ currentTab, setCurrentTab, onMorePress
     setCurrentTab?.(item.id);
   };
 
-  const activeColor = color.navy || '#0D2247';
+  const activeColor = color.navy || C.navy || '#0D2247';
 
   return (
     <nav
       style={{
         position: 'fixed', bottom: 0, left: 0, right: 0, height: 56,
-        background: color.white, borderTop: `1px solid ${color.gray200}`,
+        background: color.white, borderTop: `1px solid ${color.gray200 || color.border}`,
         display: 'flex', alignItems: 'stretch', justifyContent: 'space-around',
         zIndex: 200, paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
@@ -93,10 +92,11 @@ export default function MobileBottomNav({ currentTab, setCurrentTab, onMorePress
               gap: space[1],
               border: 'none', background: 'none', cursor: 'pointer',
               padding: `${space[2]}px ${space[1]}px`,
-              color: active ? activeColor : color.gray500,
+              color: active ? activeColor : (color.gray500 || color.textMid),
               borderTop: active ? `2px solid ${activeColor}` : '2px solid transparent',
               fontFamily: font.family.sans,
               minWidth: 0,
+              minHeight: 44,
             }}
           >
             <span
