@@ -127,3 +127,16 @@ Database 画面（`src/components/views/DatabaseView.jsx` / 483K 社の `company
 - 過去会話と保存検索が次回ログインしても残っている
 - CSV 出力（権限見直し含む）が動く
 - main に push 済み、Vercel ビルド成功
+
+## レビュー (2026-05-09)
+
+実装・本番反映済み:
+- DB マイグレーション: 3 テーブル (`database_chat_sessions` / `database_chat_messages` / `saved_company_searches`) + RLS + トリガ。supabase advisor の `function_search_path_mutable` も修正済み。
+- Edge Function `chat-to-filter` (Anthropic claude-haiku-4-5) を本番に deploy、verify_jwt=true。
+- フロント: `DatabaseChatPanel.jsx` を `DatabaseView` の上に折りたたみ配置。AI が要約 → 「この条件で検索」「修正する」ボタン。Ctrl+Enter で送信。
+- 保存検索: 「現在の条件を保存」/ 「保存済みの条件を呼び出す」ドロップダウン + 削除ボタン。
+- main に commit & push 済み（d35ba90、59cd3f0）。Vercel が自動ビルド。
+
+未実施（要ユーザー側で動作確認）:
+- ブラウザでの実機検証（自然言語 → 要約 → 検索 → CSV 出力）
+- `ANTHROPIC_API_KEY` の Edge Function 環境変数（既存関数で使われているため設定済みのはず、未設定なら 500 を返すよう実装済み）
