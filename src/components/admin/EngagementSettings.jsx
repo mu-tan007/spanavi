@@ -8,23 +8,25 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 
-const NAVY = '#0D2247';
-const BORDER = '#E5E5E5';
-const TEXT_MID = '#706E6B';
+const NAVY = color.navy;
+const BORDER = color.border;
+const TEXT_MID = color.textMid;
 
 // engagementId は親（AdminView）の対象事業セレクタから受け取る
 export default function EngagementSettings({ engagementId, onToast }) {
   if (!engagementId) {
-    return <div style={{ padding: 40, textAlign: 'center', color: TEXT_MID, fontSize: 13 }}>対象事業を選択してください</div>;
+    return <div style={{ padding: space[10], textAlign: 'center', color: TEXT_MID, fontSize: font.size.base }}>対象事業を選択してください</div>;
   }
 
   return (
     <div>
       <RoleSection engagementId={engagementId} onToast={onToast} />
-      <div style={{ height: 32 }} />
+      <div style={{ height: space[8] }} />
       <RankSection engagementId={engagementId} onToast={onToast} />
-      <div style={{ height: 32 }} />
+      <div style={{ height: space[8] }} />
       <NotificationRulesSection engagementId={engagementId} onToast={onToast} />
     </div>
   );
@@ -185,15 +187,17 @@ function NotificationRulesSection({ engagementId, onToast }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: space[3], gap: space[3] }}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 4 }}>通知ルール</div>
-          <div style={{ fontSize: 11, color: TEXT_MID, lineHeight: 1.6 }}>
+          <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: NAVY, marginBottom: 4 }}>通知ルール</div>
+          <div style={{ fontSize: font.size.xs, color: TEXT_MID, lineHeight: 1.6 }}>
             この事業で送る通知の ON/OFF・受信者範囲・閾値を管理します。<br />
             設定変更は即時反映されます。個人ごとの ON/OFF は MyPage から行えます。
           </div>
         </div>
-        <button
+        <Button
+          variant="primary"
+          size="sm"
           onClick={() => setEditingType({
             isNew: true,
             label_jp: '',
@@ -202,12 +206,13 @@ function NotificationRulesSection({ engagementId, onToast }) {
             has_threshold: false,
             threshold_unit: '',
           })}
-          style={{ padding: '6px 14px', fontSize: 12, fontWeight: 600, background: NAVY, color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap' }}
-        >+ 通知種類を追加</button>
+        >
+          + 通知種類を追加
+        </Button>
       </div>
 
-      <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 4 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+      <Card variant="default" padding="none">
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
           <thead>
             <tr style={{ background: '#F8F8F8', borderBottom: `1px solid ${BORDER}` }}>
               <th style={{ ...thBase, textAlign: 'left' }}>通知種類</th>
@@ -219,19 +224,19 @@ function NotificationRulesSection({ engagementId, onToast }) {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} style={{ ...tdMid, padding: 20, textAlign: 'center' }}>読込中…</td></tr>
+              <tr><td colSpan={5} style={{ ...tdMid, padding: space[5], textAlign: 'center' }}>読込中…</td></tr>
             ) : catalog.length === 0 ? (
-              <tr><td colSpan={5} style={{ ...tdMid, padding: 20, textAlign: 'center' }}>通知種類がありません</td></tr>
+              <tr><td colSpan={5} style={{ ...tdMid, padding: space[5], textAlign: 'center' }}>通知種類がありません</td></tr>
             ) : catalog.map(cat => {
               const eff = getEffective(cat);
               const busy = savingId === cat.id;
               return (
                 <tr key={cat.id} style={{ borderTop: `1px solid ${BORDER}`, opacity: busy ? 0.6 : 1 }}>
                   <td style={tdBase}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 600, color: NAVY }}>{cat.label_jp}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: space[1.5], flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: font.weight.semibold, color: NAVY }}>{cat.label_jp}</span>
                       {cat.is_system && (
-                        <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 8, background: '#F3F4F6', color: TEXT_MID, fontWeight: 600 }}>システム</span>
+                        <Badge variant="neutral" size="sm">システム</Badge>
                       )}
                     </div>
                     {cat.description_jp && (
@@ -252,16 +257,16 @@ function NotificationRulesSection({ engagementId, onToast }) {
                     </label>
                   </td>
                   <td style={tdBase}>
-                    <select
-                      value={eff.recipients_scope}
-                      disabled={busy || !eff.enabled}
-                      onChange={e => upsert(cat.id, { recipients_scope: e.target.value })}
-                      style={{ padding: '4px 8px', borderRadius: 3, border: `1px solid ${BORDER}`, fontSize: 11, fontFamily: "'Noto Sans JP'", color: NAVY, width: '100%', maxWidth: 200 }}
-                    >
-                      {SCOPE_OPTIONS.map(o => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
+                    <div style={{ width: '100%', maxWidth: 200 }}>
+                      <Select
+                        size="sm"
+                        value={eff.recipients_scope}
+                        disabled={busy || !eff.enabled}
+                        onChange={e => upsert(cat.id, { recipients_scope: e.target.value })}
+                        options={SCOPE_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
+                        style={{ color: NAVY, fontSize: font.size.xs }}
+                      />
+                    </div>
                   </td>
                   <td style={{ ...tdBase, textAlign: 'right' }}>
                     {cat.has_threshold ? (
@@ -281,7 +286,7 @@ function NotificationRulesSection({ engagementId, onToast }) {
                             }));
                           }}
                           placeholder="未設定"
-                          style={{ padding: '4px 8px', borderRadius: 3, border: `1px solid ${BORDER}`, fontSize: 11, width: 110, textAlign: 'right', fontFamily: 'monospace' }}
+                          style={{ padding: `4px ${space[2]}px`, borderRadius: radius.sm, border: `1px solid ${BORDER}`, fontSize: font.size.xs, width: 110, textAlign: 'right', fontFamily: font.family.mono }}
                         />
                         {cat.threshold_unit && <span style={{ fontSize: 10.5, color: TEXT_MID }}>{cat.threshold_unit}</span>}
                       </div>
@@ -291,36 +296,49 @@ function NotificationRulesSection({ engagementId, onToast }) {
                   </td>
                   <td style={{ ...tdBase, textAlign: 'right' }}>
                     {!cat.is_system && (
-                      <button
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => setEditingType({ isNew: false, ...cat })}
-                        style={{ padding: '3px 10px', fontSize: 10.5, fontWeight: 600, background: '#fff', color: NAVY, border: `1px solid ${NAVY}`, borderRadius: 3, cursor: 'pointer', marginRight: 4, fontFamily: "'Noto Sans JP'" }}
-                      >編集</button>
+                        style={{ marginRight: 4, padding: '3px 10px', minHeight: 24, fontSize: 10.5 }}
+                      >
+                        編集
+                      </Button>
                     )}
-                    <button
+                    <Button
+                      variant="danger"
+                      size="sm"
                       onClick={() => handleDeleteType(cat)}
                       title={cat.is_system ? 'この組織から削除する（復元可能）' : '完全に削除する'}
-                      style={{ padding: '3px 10px', fontSize: 10.5, fontWeight: 600, background: '#fff', color: '#B91C1C', border: '1px solid #FCA5A5', borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}
-                    >削除</button>
+                      style={{ padding: '3px 10px', minHeight: 24, fontSize: 10.5 }}
+                    >
+                      削除
+                    </Button>
                   </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-      </div>
+      </Card>
 
       {hiddenList.length > 0 && (
-        <div style={{ marginTop: 12, padding: '10px 14px', background: '#F8F9FA', border: `1px solid ${BORDER}`, borderRadius: 4 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: TEXT_MID, marginBottom: 6 }}>削除済みの種類</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <Card variant="subtle" padding="none" style={{ marginTop: space[3], padding: `${space[2.5]}px ${space[3] + 2}px` }}>
+          <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: TEXT_MID, marginBottom: space[1.5] }}>削除済みの種類</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: space[1.5] }}>
             {hiddenList.map(h => (
-              <button key={h.id} onClick={() => restoreHidden(h.id)}
-                style={{ padding: '3px 10px', fontSize: 10.5, fontWeight: 600, background: '#fff', color: NAVY, border: `1px solid ${NAVY}`, borderRadius: 12, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+              <Button
+                key={h.id}
+                variant="outline"
+                size="sm"
+                onClick={() => restoreHidden(h.id)}
+                style={{ padding: '3px 10px', minHeight: 24, fontSize: 10.5, borderRadius: 12 }}
+              >
                 {h.label_jp} を復元
-              </button>
+              </Button>
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
       {editingType && (
@@ -340,55 +358,57 @@ function NotificationTypeFormModal({ form, onSave, onCancel }) {
   const u = (k, v) => setLocal(p => ({ ...p, [k]: v }));
   const isNew = local.isNew;
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 4, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', padding: 24, fontFamily: "'Noto Sans JP', sans-serif" }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 16 }}>
+    <div style={{ position: 'fixed', inset: 0, background: alpha('#000', 0.5), zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: space[5] }}>
+      <div style={{ background: color.white, border: `1px solid ${BORDER}`, borderRadius: radius.md, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', padding: space[6], fontFamily: font.family.sans, boxShadow: shadow.lg }}>
+        <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: NAVY, marginBottom: space[4] }}>
           {isNew ? '通知種類を追加' : '通知種類を編集'}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
+          <Input
+            label="名称 *"
+            size="sm"
+            value={local.label_jp || ''}
+            onChange={e => u('label_jp', e.target.value)}
+            placeholder="例: 大型受注セレブレーション"
+          />
           <div>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: TEXT_MID, marginBottom: 4 }}>名称 *</label>
-            <input value={local.label_jp || ''} onChange={e => u('label_jp', e.target.value)}
-              placeholder="例: 大型受注セレブレーション"
-              style={{ width: '100%', padding: '7px 10px', fontSize: 12, border: `1px solid ${BORDER}`, borderRadius: 3, fontFamily: "'Noto Sans JP'", boxSizing: 'border-box' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: TEXT_MID, marginBottom: 4 }}>説明</label>
+            <label style={{ display: 'block', fontSize: font.size.xs, fontWeight: font.weight.semibold, color: TEXT_MID, marginBottom: 4 }}>説明</label>
             <textarea value={local.description_jp || ''} onChange={e => u('description_jp', e.target.value)}
               rows={2}
               placeholder="どんな時に送る通知か"
-              style={{ width: '100%', padding: '7px 10px', fontSize: 12, border: `1px solid ${BORDER}`, borderRadius: 3, fontFamily: "'Noto Sans JP'", boxSizing: 'border-box', resize: 'vertical' }} />
+              style={{ width: '100%', padding: `7px ${space[2.5]}px`, fontSize: font.size.sm, border: `1px solid ${BORDER}`, borderRadius: radius.sm, fontFamily: font.family.sans, boxSizing: 'border-box', resize: 'vertical', color: color.textDark }} />
           </div>
-          <div>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: TEXT_MID, marginBottom: 4 }}>デフォルト受信者範囲</label>
-            <select value={local.default_recipients_scope || 'all_engagement_members'}
-              onChange={e => u('default_recipients_scope', e.target.value)}
-              style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: `1px solid ${BORDER}`, borderRadius: 3, fontFamily: "'Noto Sans JP'", color: NAVY, boxSizing: 'border-box' }}>
-              {SCOPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Select
+            label="デフォルト受信者範囲"
+            size="sm"
+            value={local.default_recipients_scope || 'all_engagement_members'}
+            onChange={e => u('default_recipients_scope', e.target.value)}
+            options={SCOPE_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
+            style={{ color: NAVY }}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
             <input id="hasThreshold" type="checkbox" checked={!!local.has_threshold}
               onChange={e => u('has_threshold', e.target.checked)}
               style={{ width: 16, height: 16, cursor: 'pointer' }} />
-            <label htmlFor="hasThreshold" style={{ fontSize: 12, color: NAVY, cursor: 'pointer' }}>閾値（数値）を持つ</label>
+            <label htmlFor="hasThreshold" style={{ fontSize: font.size.sm, color: NAVY, cursor: 'pointer' }}>閾値（数値）を持つ</label>
           </div>
           {local.has_threshold && (
-            <div>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: TEXT_MID, marginBottom: 4 }}>閾値の単位</label>
-              <input value={local.threshold_unit || ''} onChange={e => u('threshold_unit', e.target.value)}
+            <div style={{ width: 200 }}>
+              <Input
+                label="閾値の単位"
+                size="sm"
+                value={local.threshold_unit || ''}
+                onChange={e => u('threshold_unit', e.target.value)}
                 placeholder="例: 円 / 件"
-                style={{ width: 200, padding: '7px 10px', fontSize: 12, border: `1px solid ${BORDER}`, borderRadius: 3, fontFamily: "'Noto Sans JP'", boxSizing: 'border-box' }} />
+              />
             </div>
           )}
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
-          <button onClick={onCancel}
-            style={{ padding: '7px 16px', fontSize: 12, fontWeight: 600, background: '#fff', color: NAVY, border: `1px solid ${BORDER}`, borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
-          <button onClick={() => onSave(local)}
-            style={{ padding: '7px 16px', fontSize: 12, fontWeight: 600, background: NAVY, color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>{isNew ? '追加' : '保存'}</button>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: space[2], marginTop: space[5] }}>
+          <Button variant="secondary" size="sm" onClick={onCancel}>キャンセル</Button>
+          <Button variant="primary" size="sm" onClick={() => onSave(local)}>{isNew ? '追加' : '保存'}</Button>
         </div>
       </div>
     </div>
@@ -481,19 +501,19 @@ function RankSection({ engagementId, onToast }) {
 
   return (
     <div>
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 4 }}>ランク管理</div>
-        <div style={{ fontSize: 11, color: TEXT_MID }}>
+      <div style={{ marginBottom: space[3] }}>
+        <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: NAVY, marginBottom: 4 }}>ランク管理</div>
+        <div style={{ fontSize: font.size.xs, color: TEXT_MID }}>
           メンバーの階級と各ランクのデフォルトインセンティブ率を設定。行をドラッグで並び替え可。
         </div>
       </div>
-      {loading ? <div style={{ padding: 20, color: TEXT_MID, fontSize: 12 }}>読込中…</div> : (
+      {loading ? <div style={{ padding: space[5], color: TEXT_MID, fontSize: font.size.sm }}>読込中…</div> : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 4 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <Card variant="default" padding="none">
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
               <thead>
                 <tr style={{ background: '#F8F8F8', borderBottom: `1px solid ${BORDER}` }}>
-                  <th style={{ ...thBase, width: 18, padding: '10px 2px' }}></th>
+                  <th style={{ ...thBase, width: 18, padding: `${space[2.5]}px 2px` }}></th>
                   <th style={{ ...thBase, width: 60, textAlign: 'left' }}>順序</th>
                   <th style={{ ...thBase, textAlign: 'left' }}>ランク名</th>
                   <th style={{ ...thBase, textAlign: 'right' }}>デフォルト率</th>
@@ -524,22 +544,22 @@ function RankSection({ engagementId, onToast }) {
                     <td style={{ ...tdBase, textAlign: 'right' }}>
                       <input type="number" step="0.1" value={newForm.default_incentive_rate}
                         onChange={e => setNewForm(s => ({ ...s, default_incentive_rate: e.target.value }))}
-                        placeholder="例 24" style={{ ...inp80, fontFamily: "'JetBrains Mono'" }} />
+                        placeholder="例 24" style={{ ...inp80, fontFamily: font.family.mono }} />
                     </td>
                     <td style={{ ...tdBase, textAlign: 'right' }}>
-                      <button onClick={handleAdd} disabled={saving} style={primarySmallBtn}>{saving ? '…' : '追加'}</button>
-                      <button onClick={() => { setAdding(false); setNewForm({ name: '', default_incentive_rate: '' }); }} disabled={saving} style={secondarySmallBtn}>取消</button>
+                      <Button variant="primary" size="sm" onClick={handleAdd} disabled={saving} loading={saving} style={{ marginRight: 4 }}>{saving ? '…' : '追加'}</Button>
+                      <Button variant="secondary" size="sm" onClick={() => { setAdding(false); setNewForm({ name: '', default_incentive_rate: '' }); }} disabled={saving}>取消</Button>
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
-          </div>
+          </Card>
         </DndContext>
       )}
       {!adding && !loading && (
-        <div style={{ marginTop: 10 }}>
-          <button onClick={() => setAdding(true)} style={addBtn}>+ ランクを追加</button>
+        <div style={{ marginTop: space[2.5] }}>
+          <Button variant="primary" size="sm" onClick={() => setAdding(true)}>+ ランクを追加</Button>
         </div>
       )}
     </div>
@@ -557,30 +577,30 @@ function SortableRankRow({ r, index, isLast, isEditing, editForm, setEditForm, s
   };
   return (
     <tr ref={setNodeRef} style={style} {...attributes}>
-      <td style={{ ...tdBase, textAlign: 'center', width: 18, padding: '8px 2px', cursor: 'grab', color: TEXT_MID, userSelect: 'none' }} {...listeners}>⋮⋮</td>
-      <td style={{ ...tdMid, fontFamily: "'JetBrains Mono'" }}>{index + 1}</td>
-      <td style={{ ...tdBase, color: NAVY, fontWeight: 500 }}>
+      <td style={{ ...tdBase, textAlign: 'center', width: 18, padding: `${space[2]}px 2px`, cursor: 'grab', color: TEXT_MID, userSelect: 'none' }} {...listeners}>⋮⋮</td>
+      <td style={{ ...tdMid, fontFamily: font.family.mono }}>{index + 1}</td>
+      <td style={{ ...tdBase, color: NAVY, fontWeight: font.weight.medium }}>
         {isEditing
           ? <input value={editForm.name} onChange={e => setEditForm(s => ({ ...s, name: e.target.value }))} style={inp200} />
           : r.name}
       </td>
-      <td style={{ ...tdBase, textAlign: 'right', fontFamily: "'JetBrains Mono'", color: NAVY }}>
+      <td style={{ ...tdBase, textAlign: 'right', fontFamily: font.family.mono, color: NAVY }}>
         {isEditing
           ? <input type="number" step="0.1" value={editForm.default_incentive_rate}
               onChange={e => setEditForm(s => ({ ...s, default_incentive_rate: e.target.value }))}
-              placeholder="例 22" style={{ ...inp80, fontFamily: "'JetBrains Mono'" }} />
+              placeholder="例 22" style={{ ...inp80, fontFamily: font.family.mono }} />
           : (r.default_incentive_rate != null ? `${(Number(r.default_incentive_rate) * 100).toFixed(1).replace(/\.0$/, '')}%` : '—')}
       </td>
       <td style={{ ...tdBase, textAlign: 'right' }}>
         {isEditing ? (
           <>
-            <button onClick={handleSave} disabled={saving} style={primarySmallBtn}>保存</button>
-            <button onClick={() => { setEditingId(null); setEditForm({ name: '', default_incentive_rate: '' }); }} disabled={saving} style={secondarySmallBtn}>取消</button>
+            <Button variant="primary" size="sm" onClick={handleSave} disabled={saving} loading={saving} style={{ marginRight: 4 }}>保存</Button>
+            <Button variant="secondary" size="sm" onClick={() => { setEditingId(null); setEditForm({ name: '', default_incentive_rate: '' }); }} disabled={saving}>取消</Button>
           </>
         ) : (
           <>
-            <button onClick={() => { setEditingId(r.id); setEditForm({ name: r.name, default_incentive_rate: r.default_incentive_rate != null ? (Number(r.default_incentive_rate) * 100).toString() : '' }); }} style={secondarySmallBtn}>編集</button>
-            <button onClick={() => handleDelete(r.id, r.name)} style={dangerSmallBtn}>削除</button>
+            <Button variant="secondary" size="sm" onClick={() => { setEditingId(r.id); setEditForm({ name: r.name, default_incentive_rate: r.default_incentive_rate != null ? (Number(r.default_incentive_rate) * 100).toString() : '' }); }} style={{ marginRight: 4 }}>編集</Button>
+            <Button variant="danger" size="sm" onClick={() => handleDelete(r.id, r.name)}>削除</Button>
           </>
         )}
       </td>
@@ -671,19 +691,19 @@ function RoleSection({ engagementId, onToast }) {
 
   return (
     <div>
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 4 }}>ポジション管理</div>
-        <div style={{ fontSize: 11, color: TEXT_MID }}>
+      <div style={{ marginBottom: space[3] }}>
+        <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: NAVY, marginBottom: 4 }}>ポジション管理</div>
+        <div style={{ fontSize: font.size.xs, color: TEXT_MID }}>
           事業内のポジション（リーダー / 副リーダー / メンバーなど）。各事業の Members 画面のポジション dropdown に反映されます。事業ごとに独自の名称を設定可。行をドラッグで並び替え可。
         </div>
       </div>
-      {loading ? <div style={{ padding: 20, color: TEXT_MID, fontSize: 12 }}>読込中…</div> : (
+      {loading ? <div style={{ padding: space[5], color: TEXT_MID, fontSize: font.size.sm }}>読込中…</div> : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 4 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <Card variant="default" padding="none">
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
               <thead>
                 <tr style={{ background: '#F8F8F8', borderBottom: `1px solid ${BORDER}` }}>
-                  <th style={{ ...thBase, width: 18, padding: '10px 2px' }}></th>
+                  <th style={{ ...thBase, width: 18, padding: `${space[2.5]}px 2px` }}></th>
                   <th style={{ ...thBase, width: 60, textAlign: 'left' }}>順序</th>
                   <th style={{ ...thBase, textAlign: 'left' }}>ポジション名</th>
                   <th style={{ ...thBase, textAlign: 'right', width: 200 }}>操作</th>
@@ -711,19 +731,19 @@ function RoleSection({ engagementId, onToast }) {
                         placeholder="例 マネージャー" autoFocus style={inp200} />
                     </td>
                     <td style={{ ...tdBase, textAlign: 'right' }}>
-                      <button onClick={handleAdd} disabled={saving} style={primarySmallBtn}>{saving ? '…' : '追加'}</button>
-                      <button onClick={() => { setAdding(false); setNewName(''); }} disabled={saving} style={secondarySmallBtn}>取消</button>
+                      <Button variant="primary" size="sm" onClick={handleAdd} disabled={saving} loading={saving} style={{ marginRight: 4 }}>{saving ? '…' : '追加'}</Button>
+                      <Button variant="secondary" size="sm" onClick={() => { setAdding(false); setNewName(''); }} disabled={saving}>取消</Button>
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
-          </div>
+          </Card>
         </DndContext>
       )}
       {!adding && !loading && (
-        <div style={{ marginTop: 10 }}>
-          <button onClick={() => setAdding(true)} style={addBtn}>+ ポジションを追加</button>
+        <div style={{ marginTop: space[2.5] }}>
+          <Button variant="primary" size="sm" onClick={() => setAdding(true)}>+ ポジションを追加</Button>
         </div>
       )}
     </div>
@@ -741,9 +761,9 @@ function SortableRoleRow({ r, index, isLast, isEditing, editName, setEditName, s
   };
   return (
     <tr ref={setNodeRef} style={style} {...attributes}>
-      <td style={{ ...tdBase, textAlign: 'center', width: 18, padding: '8px 2px', cursor: 'grab', color: TEXT_MID, userSelect: 'none' }} {...listeners}>⋮⋮</td>
-      <td style={{ ...tdMid, fontFamily: "'JetBrains Mono'" }}>{index + 1}</td>
-      <td style={{ ...tdBase, color: NAVY, fontWeight: 500 }}>
+      <td style={{ ...tdBase, textAlign: 'center', width: 18, padding: `${space[2]}px 2px`, cursor: 'grab', color: TEXT_MID, userSelect: 'none' }} {...listeners}>⋮⋮</td>
+      <td style={{ ...tdMid, fontFamily: font.family.mono }}>{index + 1}</td>
+      <td style={{ ...tdBase, color: NAVY, fontWeight: font.weight.medium }}>
         {isEditing
           ? <input value={editName} onChange={e => setEditName(e.target.value)} autoFocus style={inp200} />
           : r.name}
@@ -751,13 +771,13 @@ function SortableRoleRow({ r, index, isLast, isEditing, editName, setEditName, s
       <td style={{ ...tdBase, textAlign: 'right' }}>
         {isEditing ? (
           <>
-            <button onClick={handleSave} disabled={saving} style={primarySmallBtn}>保存</button>
-            <button onClick={() => { setEditingId(null); setEditName(''); }} disabled={saving} style={secondarySmallBtn}>取消</button>
+            <Button variant="primary" size="sm" onClick={handleSave} disabled={saving} loading={saving} style={{ marginRight: 4 }}>保存</Button>
+            <Button variant="secondary" size="sm" onClick={() => { setEditingId(null); setEditName(''); }} disabled={saving}>取消</Button>
           </>
         ) : (
           <>
-            <button onClick={() => { setEditingId(r.id); setEditName(r.name); }} style={secondarySmallBtn}>編集</button>
-            <button onClick={() => handleDelete(r.id, r.name)} style={dangerSmallBtn}>削除</button>
+            <Button variant="secondary" size="sm" onClick={() => { setEditingId(r.id); setEditName(r.name); }} style={{ marginRight: 4 }}>編集</Button>
+            <Button variant="danger" size="sm" onClick={() => handleDelete(r.id, r.name)}>削除</Button>
           </>
         )}
       </td>
@@ -766,12 +786,8 @@ function SortableRoleRow({ r, index, isLast, isEditing, editName, setEditName, s
 }
 
 // styles
-const thBase = { padding: '10px 12px', fontSize: 11, fontWeight: 600, color: NAVY };
-const tdBase = { padding: '8px 12px' };
-const tdMid = { padding: '8px 12px', color: TEXT_MID };
-const inp200 = { padding: '5px 8px', borderRadius: 3, border: `1px solid ${NAVY}`, fontSize: 12, width: 220, fontFamily: "'Noto Sans JP'" };
-const inp80 = { padding: '5px 8px', borderRadius: 3, border: `1px solid ${NAVY}`, fontSize: 12, width: 80, textAlign: 'right' };
-const primarySmallBtn = { padding: '4px 12px', fontSize: 11, fontWeight: 600, background: NAVY, color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', marginRight: 4, fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap' };
-const secondarySmallBtn = { padding: '4px 12px', fontSize: 11, fontWeight: 600, background: '#fff', color: NAVY, border: `1px solid ${BORDER}`, borderRadius: 3, cursor: 'pointer', marginRight: 4, fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap' };
-const dangerSmallBtn = { padding: '4px 12px', fontSize: 11, fontWeight: 600, background: '#fff', color: '#B91C1C', border: '1px solid #FCA5A5', borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap' };
-const addBtn = { padding: '7px 16px', fontSize: 12, fontWeight: 600, background: NAVY, color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" };
+const thBase = { padding: `${space[2.5]}px ${space[3]}px`, fontSize: font.size.xs, fontWeight: font.weight.semibold, color: NAVY };
+const tdBase = { padding: `${space[2]}px ${space[3]}px` };
+const tdMid = { padding: `${space[2]}px ${space[3]}px`, color: TEXT_MID };
+const inp200 = { padding: `5px ${space[2]}px`, borderRadius: radius.sm, border: `1px solid ${NAVY}`, fontSize: font.size.sm, width: 220, fontFamily: font.family.sans };
+const inp80 = { padding: `5px ${space[2]}px`, borderRadius: radius.sm, border: `1px solid ${NAVY}`, fontSize: font.size.sm, width: 80, textAlign: 'right' };

@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Card, Badge } from '../ui';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const DAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
-const NAVY = '#0D2247';
-const CLIENT_COLOR = '#0D2247';    // クライアントのbusy: ネイビー
-const FREE_COLOR = '#E8EDF5';      // 空き: 薄いネイビー
-const APPO_COLOR = '#C9A96E';      // 登録済みアポ: ゴールド
+const NAVY = color.navy;
+const CLIENT_COLOR = color.navy;     // クライアントのbusy: ネイビー
+const FREE_COLOR = '#E8EDF5';        // 空き: 薄いネイビー
+const APPO_COLOR = color.gold;       // 登録済みアポ: ゴールド
 
 /**
  * クライアント＋自分のGoogleカレンダーを並べて表示するパネル
@@ -143,24 +145,25 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
   };
 
   const notesBlock = (
-    <div style={{ padding: '8px 12px', background: '#F0F3F8', borderRadius: 4, border: '1px solid #D0D8E8', fontSize: 11, marginTop: 6 }}>
-      <div style={{ fontWeight: 600, color: NAVY, marginBottom: 4 }}>注意事項</div>
+    <div style={{ padding: '8px 12px', background: '#F0F3F8', borderRadius: radius.md, border: '1px solid #D0D8E8', fontSize: font.size.xs, marginTop: 6 }}>
+      <div style={{ fontWeight: font.weight.semibold, color: NAVY, marginBottom: 4 }}>注意事項</div>
       {localNotes.map((note, i) => (
         <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 3 }}>
           <span style={{ fontSize: 10, color: NAVY, width: 14, flexShrink: 0 }}>{CIRCLE_NUMS[i] || `${i+1}.`}</span>
-          <input value={note} onChange={e => updateNote(i, e.target.value)}
-            style={{ flex: 1, padding: '3px 6px', fontSize: 10, border: '1px solid #D0D8E8', borderRadius: 3, background: '#fff', fontFamily: "'Noto Sans JP'", outline: 'none' }}
-            placeholder="注意事項を入力..." />
+          <Input size="sm" value={note} onChange={e => updateNote(i, e.target.value)}
+            placeholder="注意事項を入力..."
+            style={{ padding: '3px 6px', fontSize: 10, minHeight: 0 }}
+            containerStyle={{ flex: 1 }} />
           <button onClick={() => removeNote(i)}
-            style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 10, padding: 0, lineHeight: 1 }}>✕</button>
+            style={{ border: 'none', background: 'none', cursor: 'pointer', color: color.danger, fontSize: 10, padding: 0, lineHeight: 1 }}>✕</button>
         </div>
       ))}
       <div style={{ display: 'flex', gap: 6, marginTop: 2, alignItems: 'center' }}>
         <button onClick={addNote}
-          style={{ border: '1px dashed #B0BAC8', background: 'none', cursor: 'pointer', fontSize: 9, color: '#6B7280', padding: '2px 8px', borderRadius: 3 }}>+ 追加</button>
+          style={{ border: '1px dashed #B0BAC8', background: 'none', cursor: 'pointer', fontSize: 9, color: '#6B7280', padding: '2px 8px', borderRadius: radius.sm }}>+ 追加</button>
         {onUpdateCalendarLines && (
           <button onClick={handleSaveNotes} disabled={notesSaving}
-            style={{ padding: '2px 10px', fontSize: 9, fontWeight: 600, border: 'none', borderRadius: 3, background: notesSaved ? '#10B981' : NAVY, color: '#fff', cursor: notesSaving ? 'default' : 'pointer', opacity: notesSaving ? 0.6 : 1 }}>
+            style={{ padding: '2px 10px', fontSize: 9, fontWeight: font.weight.semibold, border: 'none', borderRadius: radius.sm, background: notesSaved ? color.success : NAVY, color: color.white, cursor: notesSaving ? 'default' : 'pointer', opacity: notesSaving ? 0.6 : 1 }}>
             {notesSaving ? '保存中...' : notesSaved ? '保存済み' : '保存'}
           </button>
         )}
@@ -172,19 +175,19 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
   // どちらの場合も list.cautions 由来の注意事項 (notesBlock) は必ず描画する。
   if (!clientCalendarId) {
     return (
-      <div style={{ fontFamily: "'Noto Sans JP'", padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ fontFamily: font.family.sans, padding: 16, display: 'flex', flexDirection: 'column', gap: space[2] }}>
         {schedulingLinks.length > 0 ? (
           schedulingLinks.map((link, i) => (
-            <div key={i} style={{ padding: '10px 12px', background: '#EFF6FF', borderRadius: 4, border: '1px solid #BFDBFE' }}>
-              <div style={{ fontSize: 11, color: '#1E40AF', marginBottom: 8, fontWeight: 600 }}>{link.label}</div>
+            <div key={i} style={{ padding: '10px 12px', background: '#EFF6FF', borderRadius: radius.md, border: '1px solid #BFDBFE' }}>
+              <div style={{ fontSize: font.size.xs, color: '#1E40AF', marginBottom: 8, fontWeight: font.weight.semibold }}>{link.label}</div>
               <a href={link.url} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'block', padding: '8px 16px', background: NAVY, color: '#fff', borderRadius: 4, fontSize: 12, fontWeight: 600, textDecoration: 'none', textAlign: 'center' }}>
+                style={{ display: 'block', padding: '8px 16px', background: NAVY, color: color.white, borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold, textDecoration: 'none', textAlign: 'center' }}>
                 {link.label}を開く
               </a>
             </div>
           ))
         ) : (
-          <div style={{ color: '#9CA3AF', fontSize: 12, textAlign: 'center' }}>カレンダー未連携です。CRMの担当者設定からカレンダーIDまたは日程調整URLを登録してください。</div>
+          <div style={{ color: '#9CA3AF', fontSize: font.size.sm, textAlign: 'center' }}>カレンダー未連携です。CRMの担当者設定からカレンダーIDまたは日程調整URLを登録してください。</div>
         )}
         {notesBlock}
       </div>
@@ -192,13 +195,13 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
   }
 
   return (
-    <div style={{ fontFamily: "'Noto Sans JP'" }}>
+    <div style={{ fontFamily: font.family.sans }}>
       {/* Googleカレンダー連携済みでも日程調整ツールがあればリンク表示 */}
       {schedulingLinks.map((link, i) => (
-        <div key={i} style={{ marginBottom: 6, padding: '6px 10px', background: '#EFF6FF', borderRadius: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 10, color: '#1E40AF', fontWeight: 600 }}>{link.label}</span>
+        <div key={i} style={{ marginBottom: 6, padding: '6px 10px', background: '#EFF6FF', borderRadius: radius.md, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 10, color: '#1E40AF', fontWeight: font.weight.semibold }}>{link.label}</span>
           <a href={link.url} target="_blank" rel="noopener noreferrer"
-            style={{ fontSize: 10, padding: '3px 10px', background: NAVY, color: '#fff', borderRadius: 3, textDecoration: 'none', fontWeight: 600 }}>
+            style={{ fontSize: 10, padding: '3px 10px', background: NAVY, color: color.white, borderRadius: radius.sm, textDecoration: 'none', fontWeight: font.weight.semibold }}>
             開く
           </a>
         </div>
@@ -206,7 +209,7 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
 
       {/* クライアントカレンダー未共有警告 */}
       {clientCalendarId && clientErrors.length > 0 && (
-        <div style={{ padding: '8px 12px', marginBottom: 8, background: '#FEE2E2', borderRadius: 4, fontSize: 11, color: '#991B1B' }}>
+        <div style={{ padding: '8px 12px', marginBottom: space[2], background: '#FEE2E2', borderRadius: radius.md, fontSize: font.size.xs, color: '#991B1B' }}>
           カレンダーが共有されていません。クライアント担当者にGoogleカレンダーの「予定の時間枠の表示（空き時間情報）」共有を依頼してください。
         </div>
       )}
@@ -214,29 +217,29 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
       {/* ヘッダー: 週送りナビ + 凡例 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', marginBottom: 4 }}>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: 'none', border: '1px solid #E5E7EB', borderRadius: 3, cursor: 'pointer', padding: '2px 8px', fontSize: 11 }}>&lt;</button>
-          <span style={{ fontSize: 11, fontWeight: 600, color: NAVY }}>{days[0]?.label} ~ {days[6]?.label}</span>
-          <button onClick={() => setWeekOffset(w => w + 1)} style={{ background: 'none', border: '1px solid #E5E7EB', borderRadius: 3, cursor: 'pointer', padding: '2px 8px', fontSize: 11 }}>&gt;</button>
+          <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: 'none', border: `1px solid ${color.gray200}`, borderRadius: radius.sm, cursor: 'pointer', padding: '2px 8px', fontSize: font.size.xs }}>&lt;</button>
+          <span style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: NAVY }}>{days[0]?.label} ~ {days[6]?.label}</span>
+          <button onClick={() => setWeekOffset(w => w + 1)} style={{ background: 'none', border: `1px solid ${color.gray200}`, borderRadius: radius.sm, cursor: 'pointer', padding: '2px 8px', fontSize: font.size.xs }}>&gt;</button>
           {weekOffset !== 0 && (
             <button onClick={() => setWeekOffset(0)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 10, color: '#6B7280', textDecoration: 'underline' }}>今週</button>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 8, fontSize: 9 }}>
+        <div style={{ display: 'flex', gap: space[2], fontSize: 9 }}>
           {clientCalendarId && <span><span style={{ display: 'inline-block', width: 8, height: 8, background: CLIENT_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle', opacity: 0.3 }}></span>予定あり</span>}
           <span><span style={{ display: 'inline-block', width: 8, height: 8, background: APPO_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle' }}></span>アポ済</span>
           {clientCalendarId && <span><span style={{ display: 'inline-block', width: 8, height: 8, background: FREE_COLOR, borderRadius: 2, marginRight: 2, verticalAlign: 'middle', border: '1px solid #D0D8E8' }}></span>空き</span>}
         </div>
       </div>
 
-      {loading && <div style={{ padding: 12, textAlign: 'center', fontSize: 11, color: '#6B7280' }}>読み込み中...</div>}
-      {error && <div style={{ padding: 12, textAlign: 'center', fontSize: 11, color: '#DC2626' }}>{error}</div>}
+      {loading && <div style={{ padding: space[3], textAlign: 'center', fontSize: font.size.xs, color: '#6B7280' }}>読み込み中...</div>}
+      {error && <div style={{ padding: space[3], textAlign: 'center', fontSize: font.size.xs, color: color.danger }}>{error}</div>}
 
       {!loading && !error && (
-        <div style={{ display: 'grid', gridTemplateColumns: `40px repeat(7, 1fr)`, fontSize: 10, border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `40px repeat(7, 1fr)`, fontSize: 10, border: `1px solid ${color.gray200}`, borderRadius: radius.md, overflow: 'hidden' }}>
           {/* ヘッダー行 */}
-          <div style={{ background: NAVY, color: '#fff', padding: '4px 2px', textAlign: 'center', fontWeight: 600 }}></div>
+          <div style={{ background: NAVY, color: color.white, padding: '4px 2px', textAlign: 'center', fontWeight: font.weight.semibold }}></div>
           {days.map(d => (
-            <div key={d.dateStr} style={{ background: NAVY, color: d.isWeekend ? '#FCA5A5' : '#fff', padding: '4px 2px', textAlign: 'center', fontWeight: 600 }}>
+            <div key={d.dateStr} style={{ background: NAVY, color: d.isWeekend ? '#FCA5A5' : color.white, padding: '4px 2px', textAlign: 'center', fontWeight: font.weight.semibold }}>
               {d.label}<br /><span style={{ fontSize: 9, opacity: 0.8 }}>{d.dayLabel}</span>
             </div>
           ))}
@@ -258,7 +261,7 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
                 const cBusy = isBusyIn(clientBusy, slot.startISO, slot.endISO);
                 const appo = existingAppointments.find(a => a.meetDate === d.dateStr && a.meetTime === slot.startLabel);
 
-                let bg = '#fff';
+                let bg = color.white;
                 let cursor = 'pointer';
                 if (past) { bg = '#F9FAFB'; cursor = 'default'; }
                 else if (appo) { bg = APPO_COLOR + '20'; cursor = 'default'; }
@@ -287,7 +290,7 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
                     {appo && (
                       <>
                         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: APPO_COLOR, opacity: 0.25 }} />
-                        <span style={{ position: 'absolute', top: 0, left: 2, fontSize: compact ? 6 : 7, color: '#8B6914', fontWeight: 700, lineHeight: compact ? '16px' : '20px', whiteSpace: 'nowrap' }}>
+                        <span style={{ position: 'absolute', top: 0, left: 2, fontSize: compact ? 6 : 7, color: '#8B6914', fontWeight: font.weight.bold, lineHeight: compact ? '16px' : '20px', whiteSpace: 'nowrap' }}>
                           {appo.isOnline ? 'オンライン' : (appo.meetLocation || '').replace(/[都府県]$/, '')}
                         </span>
                       </>

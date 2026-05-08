@@ -4,24 +4,24 @@ import { supabase } from '../lib/supabase'
 import { Link } from '../lib/miniRouter'
 import { useAuth } from '../hooks/useAuth'
 import PageHeader from '../../../common/PageHeader'
-
-const card = { background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 16 }
+import { color, space, radius, font, shadow, alpha } from '../../../../constants/design'
+import { Button, Input, Select, Card } from '../../../ui'
 
 const CONTRACT_TYPE_STYLE = {
-  nda: { bg: '#F8F8F8', color: '#032D60', label: 'NDA' },
-  advisory: { bg: '#E1F5EE', color: '#2E844A', label: 'アドバイザリー契約' },
-  loi: { bg: '#FAF3E0', color: '#A08040', label: 'LOI' },
-  mou: { bg: '#f4f0f8', color: '#5a2a8a', label: 'MOU' },
-  spa: { bg: '#032D60', color: '#fff', label: 'SPA' },
-  other: { bg: '#F3F2F2', color: '#706E6B', label: 'その他' },
+  nda:       { bg: color.gray50,            fg: color.navy,    label: 'NDA' },
+  advisory:  { bg: color.successSoft,       fg: color.success, label: 'アドバイザリー契約' },
+  loi:       { bg: '#FAF3E0',               fg: '#A08040',     label: 'LOI' },
+  mou:       { bg: '#f4f0f8',               fg: '#5a2a8a',     label: 'MOU' },
+  spa:       { bg: color.navy,              fg: color.white,   label: 'SPA' },
+  other:     { bg: color.gray100,           fg: color.textMid, label: 'その他' },
 }
 const FILE_TYPE_STYLE = {
-  im: { bg: '#032D60', color: '#fff', label: 'IM' },
-  financial: { bg: '#F8F8F8', color: '#032D60', label: '財務資料' },
-  nda: { bg: '#E1F5EE', color: '#2E844A', label: 'NDA' },
-  loi: { bg: '#FAF3E0', color: '#A08040', label: 'LOI' },
-  spa: { bg: '#f4f0f8', color: '#5a2a8a', label: 'SPA' },
-  other: { bg: '#F3F2F2', color: '#706E6B', label: 'その他' },
+  im:        { bg: color.navy,              fg: color.white,   label: 'IM' },
+  financial: { bg: color.gray50,            fg: color.navy,    label: '財務資料' },
+  nda:       { bg: color.successSoft,       fg: color.success, label: 'NDA' },
+  loi:       { bg: '#FAF3E0',               fg: '#A08040',     label: 'LOI' },
+  spa:       { bg: '#f4f0f8',               fg: '#5a2a8a',     label: 'SPA' },
+  other:     { bg: color.gray100,           fg: color.textMid, label: 'その他' },
 }
 const TEMPLATE_CATEGORIES = [
   { value: 'nonname', label: 'ノンネームシート' },
@@ -169,80 +169,83 @@ export default function DocumentsPage() {
         description={tab === 'files' ? `ファイル ${files.length}件` : tab === 'contracts' ? `契約書 ${contracts.length}件` : `テンプレート ${templates.length}件`}
         style={{ marginBottom: 20 }}
         right={tab === 'templates' ? (
-          <button onClick={() => setShowUpload(true)} style={{
-            height: 32, padding: '0 14px', background: '#032D60', border: 'none',
-            borderRadius: 4, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-          }}>+ テンプレート追加</button>
+          <Button size="sm" onClick={() => setShowUpload(true)} style={{ borderRadius: radius.md }}>
+            + テンプレート追加
+          </Button>
         ) : null}
       />
       <div style={{ padding: '0 24px' }}>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, borderBottom: '0.5px solid #E5E5E5' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, borderBottom: `0.5px solid ${color.border}` }}>
         <div style={{ display: 'flex' }}>
           {[['files','ファイル一覧'],['contracts','契約書'],['templates','テンプレート']].map(([k,l]) => (
             <button key={k} onClick={() => setTab(k)} style={{
-              padding: '7px 16px', border: 'none', background: 'transparent', fontSize: 13,
-              fontWeight: tab===k ? 500 : 400, color: tab===k ? '#032D60' : '#706E6B',
-              borderBottom: tab===k ? '2px solid #032D60' : '2px solid transparent', cursor: 'pointer',
+              padding: '7px 16px', border: 'none', background: 'transparent', fontSize: font.size.base,
+              fontWeight: tab===k ? font.weight.medium : font.weight.normal, color: tab===k ? color.navy : color.textMid,
+              borderBottom: tab===k ? `2px solid ${color.navy}` : '2px solid transparent', cursor: 'pointer',
             }}>{l}</button>
           ))}
         </div>
         {tab === 'files' && (
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ファイル名で検索..."
-            style={{ height: 32, padding: '0 12px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, outline: 'none', width: 200, marginBottom: 2 }} />
+          <Input
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="ファイル名で検索..."
+            fullWidth={false}
+            containerStyle={{ width: 200, marginBottom: 2 }}
+          />
         )}
       </div>
 
       {/* Files tab */}
       {tab === 'files' && (
-        <div style={card}>
-          {isLoading ? <div style={{ padding: 40, textAlign: 'center', color: '#706E6B', fontSize: 13 }}>読み込み中...</div>
-          : files.length === 0 ? <div style={{ padding: 40, textAlign: 'center', color: '#706E6B', fontSize: 13 }}>{search ? '該当するファイルがありません' : 'ファイルがありません'}</div>
+        <Card padding="md" style={{ borderRadius: 12 }}>
+          {isLoading ? <div style={{ padding: 40, textAlign: 'center', color: color.textMid, fontSize: font.size.base }}>読み込み中...</div>
+          : files.length === 0 ? <div style={{ padding: 40, textAlign: 'center', color: color.textMid, fontSize: font.size.base }}>{search ? '該当するファイルがありません' : 'ファイルがありません'}</div>
           : <>
             <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 160px 120px 100px', padding: '6px 12px', background: '#edf2fa', borderRadius: '6px 6px 0 0' }}>
-              {['種別','ファイル名','案件','アップロード元','日付'].map(h => <div key={h} style={{ fontSize: 10, color: '#706E6B', fontWeight: 500 }}>{h}</div>)}
+              {['種別','ファイル名','案件','アップロード元','日付'].map(h => <div key={h} style={{ fontSize: font.size.xs - 1, color: color.textMid, fontWeight: font.weight.medium }}>{h}</div>)}
             </div>
             {files.map((f, i) => {
               const ts = FILE_TYPE_STYLE[f.file_type] || FILE_TYPE_STYLE.other
               return (
-                <div key={f.id} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 160px 120px 100px', padding: '9px 12px', alignItems: 'center', borderTop: '0.5px solid #E5E5E5', background: i%2===0?'#fff':'#FAFAFA' }}>
-                  <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 3, background: ts.bg, color: ts.color, display: 'inline-block' }}>{ts.label}</span>
-                  <div style={{ fontSize: 12, color: '#032D60', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 12 }}>{f.file_name}</div>
-                  <div style={{ fontSize: 11, color: '#706E6B' }}>{f.deals ? <Link to={`/deals/${f.deals.id}`} style={{ color: '#032D60' }}>{f.deals.name}</Link> : '—'}</div>
-                  <div style={{ fontSize: 11, color: '#706E6B' }}>{f.uploaded_via === 'advisor_portal' ? '担当者' : f.uploaded_via === 'email' ? 'メール' : '内部'}</div>
-                  <div style={{ fontSize: 11, color: '#706E6B' }}>{new Date(f.uploaded_at).toLocaleDateString('ja-JP')}</div>
+                <div key={f.id} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 160px 120px 100px', padding: '9px 12px', alignItems: 'center', borderTop: `0.5px solid ${color.border}`, background: i%2===0 ? color.white : color.gray50 }}>
+                  <span style={{ fontSize: font.size.xs - 1, padding: '2px 6px', borderRadius: radius.sm, background: ts.bg, color: ts.fg, display: 'inline-block' }}>{ts.label}</span>
+                  <div style={{ fontSize: font.size.sm, color: color.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 12 }}>{f.file_name}</div>
+                  <div style={{ fontSize: font.size.xs, color: color.textMid }}>{f.deals ? <Link to={`/deals/${f.deals.id}`} style={{ color: color.navy }}>{f.deals.name}</Link> : '—'}</div>
+                  <div style={{ fontSize: font.size.xs, color: color.textMid }}>{f.uploaded_via === 'advisor_portal' ? '担当者' : f.uploaded_via === 'email' ? 'メール' : '内部'}</div>
+                  <div style={{ fontSize: font.size.xs, color: color.textMid }}>{new Date(f.uploaded_at).toLocaleDateString('ja-JP')}</div>
                 </div>
               )
             })}
           </>}
-        </div>
+        </Card>
       )}
 
       {/* Contracts tab */}
       {tab === 'contracts' && (
-        <div style={card}>
-          {isLoading ? <div style={{ padding: 40, textAlign: 'center', color: '#706E6B', fontSize: 13 }}>読み込み中...</div>
-          : contracts.length === 0 ? <div style={{ padding: 40, textAlign: 'center', color: '#706E6B', fontSize: 13 }}>契約書がありません</div>
+        <Card padding="md" style={{ borderRadius: 12 }}>
+          {isLoading ? <div style={{ padding: 40, textAlign: 'center', color: color.textMid, fontSize: font.size.base }}>読み込み中...</div>
+          : contracts.length === 0 ? <div style={{ padding: 40, textAlign: 'center', color: color.textMid, fontSize: font.size.base }}>契約書がありません</div>
           : <>
             <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 160px 120px 100px', padding: '6px 12px', background: '#edf2fa', borderRadius: '6px 6px 0 0' }}>
-              {['種別','案件','署名日','注意点','登録日'].map(h => <div key={h} style={{ fontSize: 10, color: '#706E6B', fontWeight: 500 }}>{h}</div>)}
+              {['種別','案件','署名日','注意点','登録日'].map(h => <div key={h} style={{ fontSize: font.size.xs - 1, color: color.textMid, fontWeight: font.weight.medium }}>{h}</div>)}
             </div>
             {contracts.map((c, i) => {
               const ts = CONTRACT_TYPE_STYLE[c.contract_type] || CONTRACT_TYPE_STYLE.other
               const cautions = Array.isArray(c.caution_points) ? c.caution_points : []
               return (
-                <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '140px 1fr 160px 120px 100px', padding: '9px 12px', alignItems: 'center', borderTop: '0.5px solid #E5E5E5', background: i%2===0?'#fff':'#FAFAFA' }}>
-                  <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 3, background: ts.bg, color: ts.color, display: 'inline-block' }}>{ts.label}</span>
-                  <div style={{ fontSize: 12, color: '#032D60', paddingRight: 12 }}>{c.deals ? <Link to={`/deals/${c.deals.id}`} style={{ color: '#032D60' }}>{c.deals.name}</Link> : '—'}</div>
-                  <div style={{ fontSize: 11, color: '#706E6B' }}>{c.signed_at ? new Date(c.signed_at).toLocaleDateString('ja-JP') : '未署名'}</div>
-                  <div style={{ fontSize: 11, color: cautions.length > 0 ? '#A08040' : '#706E6B' }}>{cautions.length > 0 ? `${cautions.length}件` : 'なし'}</div>
-                  <div style={{ fontSize: 11, color: '#706E6B' }}>{new Date(c.created_at).toLocaleDateString('ja-JP')}</div>
+                <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '140px 1fr 160px 120px 100px', padding: '9px 12px', alignItems: 'center', borderTop: `0.5px solid ${color.border}`, background: i%2===0 ? color.white : color.gray50 }}>
+                  <span style={{ fontSize: font.size.xs - 1, padding: '2px 7px', borderRadius: radius.sm, background: ts.bg, color: ts.fg, display: 'inline-block' }}>{ts.label}</span>
+                  <div style={{ fontSize: font.size.sm, color: color.navy, paddingRight: 12 }}>{c.deals ? <Link to={`/deals/${c.deals.id}`} style={{ color: color.navy }}>{c.deals.name}</Link> : '—'}</div>
+                  <div style={{ fontSize: font.size.xs, color: color.textMid }}>{c.signed_at ? new Date(c.signed_at).toLocaleDateString('ja-JP') : '未署名'}</div>
+                  <div style={{ fontSize: font.size.xs, color: cautions.length > 0 ? '#A08040' : color.textMid }}>{cautions.length > 0 ? `${cautions.length}件` : 'なし'}</div>
+                  <div style={{ fontSize: font.size.xs, color: color.textMid }}>{new Date(c.created_at).toLocaleDateString('ja-JP')}</div>
                 </div>
               )
             })}
           </>}
-        </div>
+        </Card>
       )}
 
       {/* Templates tab */}
@@ -250,35 +253,34 @@ export default function DocumentsPage() {
         <div>
           {/* 使い方ガイド */}
           {templates.length === 0 && !isLoading && (
-            <div style={{ ...card, textAlign: 'center', padding: '40px 24px' }}>
-              <div style={{ fontSize: 15, color: '#032D60', fontWeight: 500, marginBottom: 8 }}>テンプレートを登録してください</div>
-              <div style={{ fontSize: 12, color: '#706E6B', lineHeight: 1.8, marginBottom: 20 }}>
+            <Card padding="md" style={{ textAlign: 'center', padding: '40px 24px', borderRadius: 12 }}>
+              <div style={{ fontSize: 15, color: color.navy, fontWeight: font.weight.medium, marginBottom: 8 }}>テンプレートを登録してください</div>
+              <div style={{ fontSize: font.size.sm, color: color.textMid, lineHeight: 1.8, marginBottom: 20 }}>
                 自社のPPTX・PDFをアップロードすると、案件データを差し込んで資料を自動生成できます。<br/>
                 ノンネームシート、IM、LOI、バリュエーションレポートなど、買収プロセスで必要な資料に対応しています。
               </div>
-              <button onClick={() => setShowUpload(true)} style={{
-                height: 40, padding: '0 24px', background: '#032D60', border: 'none',
-                borderRadius: 6, color: '#FFFFFF', fontSize: 14, fontWeight: 500, cursor: 'pointer',
-              }}>+ テンプレートを追加</button>
-            </div>
+              <Button size="lg" onClick={() => setShowUpload(true)} style={{ borderRadius: radius.lg }}>
+                + テンプレートを追加
+              </Button>
+            </Card>
           )}
 
           {/* 差し込み変数リファレンス */}
           {templates.length === 0 && !isLoading && (
-            <div style={{ ...card, marginTop: 14 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#032D60', marginBottom: 12 }}>差し込み変数リファレンス</div>
-              <div style={{ fontSize: 12, color: '#706E6B', marginBottom: 10 }}>
+            <Card padding="md" style={{ marginTop: 14, borderRadius: 12 }}>
+              <div style={{ fontSize: font.size.base, fontWeight: font.weight.medium, color: color.navy, marginBottom: 12 }}>差し込み変数リファレンス</div>
+              <div style={{ fontSize: font.size.sm, color: color.textMid, marginBottom: 10 }}>
                 テンプレート内に以下の変数を記載すると、案件データに自動で置き換わります。
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px 16px' }}>
                 {VARIABLES.map(v => (
                   <div key={v.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
-                    <code style={{ fontSize: 11, background: '#F8F8F8', color: '#032D60', padding: '2px 6px', borderRadius: 3 }}>{v.key}</code>
-                    <span style={{ fontSize: 11, color: '#706E6B' }}>{v.label}</span>
+                    <code style={{ fontSize: font.size.xs, background: color.gray50, color: color.navy, padding: '2px 6px', borderRadius: radius.sm }}>{v.key}</code>
+                    <span style={{ fontSize: font.size.xs, color: color.textMid }}>{v.label}</span>
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
           )}
 
           {/* テンプレート一覧 */}
@@ -287,34 +289,36 @@ export default function DocumentsPage() {
               {templates.map(tpl => {
                 const cat = TEMPLATE_CATEGORIES.find(c => c.value === tpl.category)
                 return (
-                  <div key={tpl.id} style={card}>
+                  <Card key={tpl.id} padding="md" style={{ borderRadius: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
                       <div>
-                        <div style={{ fontSize: 14, fontWeight: 500, color: '#032D60', marginBottom: 4 }}>{tpl.name}</div>
-                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 3, background: '#F8F8F8', color: '#032D60' }}>
+                        <div style={{ fontSize: font.size.md, fontWeight: font.weight.medium, color: color.navy, marginBottom: 4 }}>{tpl.name}</div>
+                        <span style={{ fontSize: font.size.xs - 1, padding: '2px 7px', borderRadius: radius.sm, background: color.gray50, color: color.navy }}>
                           {cat?.label || tpl.category}
                         </span>
                       </div>
-                      <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 3, background: '#F3F2F2', color: '#706E6B', textTransform: 'uppercase' }}>
+                      <span style={{ fontSize: font.size.xs - 1, padding: '2px 6px', borderRadius: radius.sm, background: color.gray100, color: color.textMid, textTransform: 'uppercase' }}>
                         {tpl.file_type}
                       </span>
                     </div>
-                    {tpl.description && <div style={{ fontSize: 12, color: '#706E6B', lineHeight: 1.6, marginBottom: 10 }}>{tpl.description}</div>}
-                    <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 12 }}>
+                    {tpl.description && <div style={{ fontSize: font.size.sm, color: color.textMid, lineHeight: 1.6, marginBottom: 10 }}>{tpl.description}</div>}
+                    <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 12 }}>
                       {new Date(tpl.created_at).toLocaleDateString('ja-JP')} 登録
                       {tpl.file_size && ` · ${(tpl.file_size / 1024).toFixed(0)} KB`}
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={() => { setShowGenerate(tpl); setSelectedDeal(''); setGeneratedContent('') }} style={{
-                        flex: 1, height: 32, background: '#032D60', border: 'none', borderRadius: 5,
-                        color: '#FFFFFF', fontSize: 12, cursor: 'pointer', fontWeight: 500,
-                      }}>案件で使う</button>
-                      <button onClick={() => downloadTemplate(tpl)} style={{
-                        height: 32, padding: '0 12px', background: '#F3F2F2', border: '0.5px solid #E5E5E5',
-                        borderRadius: 5, color: '#706E6B', fontSize: 11, cursor: 'pointer',
-                      }}>DL</button>
+                      <Button
+                        fullWidth
+                        onClick={() => { setShowGenerate(tpl); setSelectedDeal(''); setGeneratedContent('') }}
+                        style={{ height: 32, fontSize: font.size.sm, borderRadius: radius.lg - 1 }}
+                      >案件で使う</Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => downloadTemplate(tpl)}
+                        style={{ height: 32, padding: '0 12px', fontSize: font.size.xs, borderRadius: radius.lg - 1 }}
+                      >DL</Button>
                     </div>
-                  </div>
+                  </Card>
                 )
               })}
             </div>
@@ -326,46 +330,44 @@ export default function DocumentsPage() {
       {showUpload && (
         <div onClick={e => { if (e.target === e.currentTarget) setShowUpload(false) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 480 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#032D60', marginBottom: 20 }}>テンプレートを追加</h2>
+          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 480 }}>
+            <h2 style={{ fontSize: 16, fontWeight: font.weight.medium, color: color.navy, marginBottom: 20 }}>テンプレートを追加</h2>
             <form onSubmit={uploadTemplate} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4 }}>テンプレート名 *</div>
-                <input value={tplName} onChange={e => setTplName(e.target.value)} required placeholder="例：ノンネームシート_v1"
-                  style={{ width: '100%', height: 36, padding: '0 12px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, outline: 'none' }} />
+                <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4 }}>テンプレート名 *</div>
+                <Input value={tplName} onChange={e => setTplName(e.target.value)} required placeholder="例：ノンネームシート_v1" />
               </div>
               <div>
-                <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4 }}>カテゴリ</div>
-                <select value={tplCategory} onChange={e => setTplCategory(e.target.value)}
-                  style={{ width: '100%', height: 36, padding: '0 10px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, outline: 'none' }}>
+                <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4 }}>カテゴリ</div>
+                <Select value={tplCategory} onChange={e => setTplCategory(e.target.value)}>
                   {TEMPLATE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                </select>
+                </Select>
               </div>
               <div>
-                <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4 }}>説明（任意）</div>
+                <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4 }}>説明（任意）</div>
                 <textarea value={tplDesc} onChange={e => setTplDesc(e.target.value)} rows={2} placeholder="使用用途やメモ"
-                  style={{ width: '100%', padding: '8px 12px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, outline: 'none', resize: 'vertical' }} />
+                  style={{ width: '100%', padding: '8px 12px', border: `0.5px solid ${color.border}`, borderRadius: radius.lg, fontSize: font.size.base, outline: 'none', resize: 'vertical', color: color.textDark, fontFamily: font.family.sans, boxSizing: 'border-box' }} />
               </div>
               <div>
-                <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4 }}>ファイル *（pptx / pdf / docx）</div>
+                <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4 }}>ファイル *（pptx / pdf / docx）</div>
                 <div
                   onClick={() => fileRef.current?.click()}
                   style={{
-                    border: '1.5px dashed #E5E5E5', borderRadius: 8, padding: '20px 16px',
-                    textAlign: 'center', cursor: 'pointer', background: '#FAFAFA',
+                    border: `1.5px dashed ${color.border}`, borderRadius: radius.xl, padding: '20px 16px',
+                    textAlign: 'center', cursor: 'pointer', background: color.gray50,
                   }}>
                   {tplFile ? (
-                    <div style={{ fontSize: 12, color: '#032D60' }}>{tplFile.name}</div>
+                    <div style={{ fontSize: font.size.sm, color: color.navy }}>{tplFile.name}</div>
                   ) : (
-                    <div style={{ fontSize: 12, color: '#706E6B' }}>クリックしてファイルを選択</div>
+                    <div style={{ fontSize: font.size.sm, color: color.textMid }}>クリックしてファイルを選択</div>
                   )}
                   <input ref={fileRef} type="file" accept=".pptx,.pdf,.docx,.xlsx" style={{ display: 'none' }}
                     onChange={e => setTplFile(e.target.files[0])} />
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                <button type="button" onClick={() => setShowUpload(false)} style={{ flex: 1, height: 36, background: '#F3F2F2', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, color: '#706E6B', cursor: 'pointer' }}>キャンセル</button>
-                <button type="submit" disabled={uploading} style={{ flex: 1, height: 36, background: '#032D60', border: 'none', borderRadius: 6, fontSize: 13, color: '#fff', fontWeight: 500, cursor: 'pointer' }}>{uploading ? 'アップロード中...' : '追加'}</button>
+                <Button type="button" variant="secondary" fullWidth onClick={() => setShowUpload(false)}>キャンセル</Button>
+                <Button type="submit" loading={uploading} disabled={uploading} fullWidth>{uploading ? 'アップロード中...' : '追加'}</Button>
               </div>
             </form>
           </div>
@@ -376,44 +378,42 @@ export default function DocumentsPage() {
       {showGenerate && (
         <div onClick={e => { if (e.target === e.currentTarget) { setShowGenerate(null); setGeneratedContent('') } }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 700, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#032D60', marginBottom: 4 }}>
+          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 700, maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 style={{ fontSize: 16, fontWeight: font.weight.medium, color: color.navy, marginBottom: 4 }}>
               {showGenerate.name} — 資料生成
             </h2>
-            <p style={{ fontSize: 12, color: '#706E6B', marginBottom: 16 }}>
+            <p style={{ fontSize: font.size.sm, color: color.textMid, marginBottom: 16 }}>
               案件を選択すると、テンプレートに案件データを差し込んで資料を生成します。
             </p>
 
             {!generatedContent ? (
               <>
                 <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4 }}>案件を選択 *</div>
-                  <select value={selectedDeal} onChange={e => setSelectedDeal(e.target.value)}
-                    style={{ width: '100%', height: 36, padding: '0 10px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, outline: 'none' }}>
+                  <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4 }}>案件を選択 *</div>
+                  <Select value={selectedDeal} onChange={e => setSelectedDeal(e.target.value)}>
                     <option value="">選択してください</option>
                     {deals.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
+                  </Select>
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => { setShowGenerate(null); setGeneratedContent('') }} style={{ flex: 1, height: 36, background: '#F3F2F2', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, color: '#706E6B', cursor: 'pointer' }}>キャンセル</button>
-                  <button onClick={generateFromTemplate} disabled={generating || !selectedDeal} style={{
-                    flex: 1, height: 36, background: '#032D60', border: 'none', borderRadius: 6, fontSize: 13, color: '#fff', fontWeight: 500, cursor: 'pointer',
-                    opacity: !selectedDeal ? 0.4 : 1,
-                  }}>{generating ? 'AI生成中...' : '生成する'}</button>
+                  <Button type="button" variant="secondary" fullWidth onClick={() => { setShowGenerate(null); setGeneratedContent('') }}>キャンセル</Button>
+                  <Button onClick={generateFromTemplate} loading={generating} disabled={generating || !selectedDeal} fullWidth>
+                    {generating ? 'AI生成中...' : '生成する'}
+                  </Button>
                 </div>
               </>
             ) : (
               <>
-                <div style={{ background: '#FAFAFA', border: '0.5px solid #E5E5E5', borderRadius: 8, padding: 16, marginBottom: 16, maxHeight: 400, overflowY: 'auto' }}>
-                  <pre style={{ fontSize: 13, color: '#032D60', lineHeight: 1.8, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                <div style={{ background: color.gray50, border: `0.5px solid ${color.border}`, borderRadius: radius.xl, padding: 16, marginBottom: 16, maxHeight: 400, overflowY: 'auto' }}>
+                  <pre style={{ fontSize: font.size.base, color: color.navy, lineHeight: 1.8, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
                     {generatedContent}
                   </pre>
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => setGeneratedContent('')} style={{ height: 36, padding: '0 16px', background: '#F3F2F2', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, color: '#706E6B', cursor: 'pointer' }}>別の案件で再生成</button>
-                  <button onClick={copyContent} style={{ height: 36, padding: '0 16px', background: '#F8F8F8', border: 'none', borderRadius: 6, fontSize: 13, color: '#032D60', cursor: 'pointer', fontWeight: 500 }}>コピー</button>
-                  <button onClick={downloadAsText} style={{ height: 36, padding: '0 16px', background: '#032D60', border: 'none', borderRadius: 6, fontSize: 13, color: '#fff', cursor: 'pointer', fontWeight: 500 }}>Markdownでダウンロード</button>
-                  <button onClick={() => { setShowGenerate(null); setGeneratedContent('') }} style={{ marginLeft: 'auto', height: 36, padding: '0 16px', background: '#F3F2F2', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, color: '#706E6B', cursor: 'pointer' }}>閉じる</button>
+                  <Button variant="secondary" onClick={() => setGeneratedContent('')} style={{ height: 36, padding: '0 16px' }}>別の案件で再生成</Button>
+                  <Button variant="secondary" onClick={copyContent} style={{ height: 36, padding: '0 16px', background: color.gray50, border: 'none', color: color.navy }}>コピー</Button>
+                  <Button onClick={downloadAsText} style={{ height: 36, padding: '0 16px' }}>Markdownでダウンロード</Button>
+                  <Button variant="secondary" onClick={() => { setShowGenerate(null); setGeneratedContent('') }} style={{ marginLeft: 'auto', height: 36, padding: '0 16px' }}>閉じる</Button>
                 </div>
               </>
             )}

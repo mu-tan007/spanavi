@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { color, space, radius, font } from '../../constants/design'
+import { Button, Card, Badge } from '../ui'
 
-const NAVY = '#0D2247'
+const NAVY = color.navy
 
-const statusLabels = {
-  active: { text: 'アクティブ', color: '#059669', bg: '#ECFDF5' },
-  past_due: { text: '支払い遅延', color: '#D97706', bg: '#FFFBEB' },
-  canceled: { text: 'キャンセル済', color: '#DC2626', bg: '#FEF2F2' },
-  trialing: { text: 'トライアル', color: '#2563EB', bg: '#EFF6FF' },
+const statusVariant = {
+  active:   'success',
+  past_due: 'warn',
+  canceled: 'danger',
+  trialing: 'info',
+}
+const statusText = {
+  active: 'アクティブ',
+  past_due: '支払い遅延',
+  canceled: 'キャンセル済',
+  trialing: 'トライアル',
 }
 
 export default function BillingSettings({ orgId }) {
@@ -64,129 +72,97 @@ export default function BillingSettings({ orgId }) {
   }
 
   if (loading) {
-    return <div style={{ padding: 24, color: '#6B7280', fontSize: 14 }}>読み込み中...</div>
+    return <div style={{ padding: space[6], color: color.textMid, fontSize: font.size.md }}>読み込み中...</div>
   }
 
   if (!org) {
-    return <div style={{ padding: 24, color: '#DC2626', fontSize: 14 }}>{error || '組織情報が見つかりません'}</div>
+    return <div style={{ padding: space[6], color: color.danger, fontSize: font.size.md }}>{error || '組織情報が見つかりません'}</div>
   }
 
   // カスタムプラン（stripe_customer_id が null）
   if (!org.stripe_customer_id) {
     return (
-      <div style={{ padding: 24 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, margin: '0 0 16px' }}>
+      <div style={{ padding: space[6] }}>
+        <h3 style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: NAVY, margin: `0 0 ${space[4]}px` }}>
           プラン・請求
         </h3>
-        <div style={{
-          background: '#f8f9fb',
-          borderRadius: 8,
-          padding: '20px 24px',
-          border: '1px solid #E5E7EB',
-        }}>
-          <p style={{ fontSize: 14, color: '#111827', fontWeight: 600, margin: 0 }}>
+        <Card variant="subtle" padding="md" style={{ borderRadius: radius.xl }}>
+          <p style={{ fontSize: font.size.md, color: color.gray900, fontWeight: font.weight.semibold, margin: 0 }}>
             カスタムプラン（個別契約）
           </p>
-          <p style={{ fontSize: 13, color: '#6B7280', margin: '8px 0 0' }}>
+          <p style={{ fontSize: font.size.base, color: color.textMid, margin: `${space[2]}px 0 0` }}>
             ご契約内容についてはお問い合わせください。
           </p>
-        </div>
+        </Card>
       </div>
     )
   }
 
-  const status = statusLabels[org.plan_status] || { text: org.plan_status || '不明', color: '#6B7280', bg: '#F3F4F6' }
+  const variant = statusVariant[org.plan_status] || 'default'
+  const statusLabel = statusText[org.plan_status] || org.plan_status || '不明'
   const monthlyTotal = (org.seat_count || 0) * 7700
 
   return (
-    <div style={{ padding: 24 }}>
-      <h3 style={{ fontSize: 16, fontWeight: 700, color: NAVY, margin: '0 0 20px' }}>
+    <div style={{ padding: space[6] }}>
+      <h3 style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: NAVY, margin: `0 0 ${space[5]}px` }}>
         プラン・請求
       </h3>
 
       {error && (
         <div style={{
-          background: '#FEF2F2',
-          border: '1px solid #FECACA',
-          borderRadius: 6,
-          padding: '10px 14px',
-          marginBottom: 16,
-          fontSize: 13,
-          color: '#DC2626',
+          background: color.dangerSoft,
+          border: `1px solid ${color.danger}`,
+          borderRadius: radius.lg,
+          padding: `${space[2.5]}px ${space[3] + 2}px`,
+          marginBottom: space[4],
+          fontSize: font.size.base,
+          color: color.danger,
         }}>
           {error}
         </div>
       )}
 
-      <div style={{
-        background: '#f8f9fb',
-        borderRadius: 8,
-        padding: '20px 24px',
-        border: '1px solid #E5E7EB',
-        marginBottom: 20,
-      }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+      <Card variant="subtle" padding="md" style={{ borderRadius: radius.xl, marginBottom: space[5] }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.md }}>
           <tbody>
             <tr>
-              <td style={{ padding: '8px 0', color: '#6B7280', width: 140 }}>プラン状態</td>
-              <td style={{ padding: '8px 0' }}>
-                <span style={{
-                  display: 'inline-block',
-                  padding: '2px 10px',
-                  borderRadius: 12,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: status.color,
-                  background: status.bg,
-                }}>
-                  {status.text}
-                </span>
+              <td style={{ padding: `${space[2]}px 0`, color: color.textMid, width: 140 }}>プラン状態</td>
+              <td style={{ padding: `${space[2]}px 0` }}>
+                <Badge variant={variant}>{statusLabel}</Badge>
               </td>
             </tr>
             <tr>
-              <td style={{ padding: '8px 0', color: '#6B7280' }}>席数</td>
-              <td style={{ padding: '8px 0', color: '#111827', fontWeight: 600 }}>
+              <td style={{ padding: `${space[2]}px 0`, color: color.textMid }}>席数</td>
+              <td style={{ padding: `${space[2]}px 0`, color: color.gray900, fontWeight: font.weight.semibold }}>
                 {org.seat_count || 0} ユーザー
               </td>
             </tr>
             <tr>
-              <td style={{ padding: '8px 0', color: '#6B7280' }}>月額料金</td>
-              <td style={{ padding: '8px 0', color: '#111827', fontWeight: 600 }}>
+              <td style={{ padding: `${space[2]}px 0`, color: color.textMid }}>月額料金</td>
+              <td style={{ padding: `${space[2]}px 0`, color: color.gray900, fontWeight: font.weight.semibold }}>
                 {monthlyTotal.toLocaleString()}円（税込）
               </td>
             </tr>
             {org.current_period_end && (
               <tr>
-                <td style={{ padding: '8px 0', color: '#6B7280' }}>次回請求日</td>
-                <td style={{ padding: '8px 0', color: '#111827' }}>
+                <td style={{ padding: `${space[2]}px 0`, color: color.textMid }}>次回請求日</td>
+                <td style={{ padding: `${space[2]}px 0`, color: color.gray900 }}>
                   {new Date(org.current_period_end).toLocaleDateString('ja-JP')}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
-      </div>
+      </Card>
 
-      <button
+      <Button
+        variant="primary"
         onClick={handlePortal}
+        loading={portalLoading}
         disabled={portalLoading}
-        style={{
-          padding: '10px 24px',
-          borderRadius: 6,
-          border: 'none',
-          background: portalLoading ? '#9CA3AF' : NAVY,
-          color: '#fff',
-          fontSize: 14,
-          fontWeight: 600,
-          fontFamily: "'Noto Sans JP', sans-serif",
-          cursor: portalLoading ? 'not-allowed' : 'pointer',
-          transition: 'background 0.2s',
-        }}
-        onMouseEnter={(e) => { if (!portalLoading) e.target.style.background = '#1a3366' }}
-        onMouseLeave={(e) => { if (!portalLoading) e.target.style.background = NAVY }}
       >
         {portalLoading ? '読み込み中...' : '請求情報を管理'}
-      </button>
+      </Button>
     </div>
   )
 }

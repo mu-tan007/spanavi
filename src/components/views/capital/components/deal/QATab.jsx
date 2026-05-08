@@ -5,22 +5,23 @@ import { useAuth } from '../../hooks/useAuth'
 import { logAudit } from '../../lib/audit'
 import { invokeFn } from '../../lib/invokeFn'
 import { onEnterSubmit } from '../../lib/keyboard'
+import { color, space, radius, font, shadow, alpha } from '../../../../../constants/design'
+import { Button, Card, Badge } from '../../../../ui'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-const card = { background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 20 }
-const inp = { width: '100%', padding: '8px 12px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, outline: 'none', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.7 }
+const inp = { width: '100%', padding: '8px 12px', border: `0.5px solid ${color.border}`, borderRadius: radius.lg, fontSize: font.size.base, outline: 'none', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.7, background: color.white, color: color.textDark }
 
 const SOURCE_LABEL = {
   manual: '手動',
   chat_extracted: 'チャット抽出',
   ai_suggested: 'AI提案',
 }
-const SOURCE_COLOR = {
-  manual: { bg: '#F3F2F2', color: '#706E6B' },
-  chat_extracted: { bg: '#F8F8F8', color: '#032D60' },
-  ai_suggested: { bg: '#f5ecf8', color: '#6830a0' },
+const SOURCE_VARIANT = {
+  manual: 'neutral',
+  chat_extracted: 'primary',
+  ai_suggested: 'info',
 }
 
 export default function QATab({ dealId }) {
@@ -95,105 +96,99 @@ export default function QATab({ dealId }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* Header */}
-      <div style={{ ...card, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      <Card padding="lg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 500, color: '#032D60' }}>Q&A シート ({items.length}件)</div>
-          <div style={{ fontSize: 11, color: '#706E6B', marginTop: 2, lineHeight: 1.7 }}>
+          <div style={{ fontSize: font.size.md, fontWeight: font.weight.medium, color: color.navy }}>Q&A シート ({items.length}件)</div>
+          <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 2, lineHeight: 1.7 }}>
             AIチャット履歴から抽出 / 追加で確認すべき質問を AI が提案 / 手動追加も可能
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => callFn('extract')} disabled={syncing || suggesting}
-            style={{ height: 32, padding: '0 14px', background: '#fff', color: '#032D60', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+          <Button variant="outline" size="sm" onClick={() => callFn('extract')} disabled={syncing || suggesting} loading={syncing}>
             {syncing ? '抽出中…' : 'チャットから抽出'}
-          </button>
-          <button onClick={() => callFn('suggest')} disabled={syncing || suggesting}
-            style={{ height: 32, padding: '0 14px', background: '#032D60', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+          </Button>
+          <Button size="sm" onClick={() => callFn('suggest')} disabled={syncing || suggesting} loading={suggesting}>
             {suggesting ? '提案中…' : '追加質問をAI提案'}
-          </button>
+          </Button>
         </div>
-      </div>
-      {syncMsg && <div style={{ padding: '8px 14px', background: '#E1F5EE', borderRadius: 6, fontSize: 12, color: '#2E844A' }}>{syncMsg}</div>}
+      </Card>
+      {syncMsg && <div style={{ padding: '8px 14px', background: color.successSoft, borderRadius: radius.lg, fontSize: font.size.sm, color: color.success }}>{syncMsg}</div>}
 
       {/* Add new */}
-      <div style={card}>
-        <div style={{ fontSize: 12, fontWeight: 500, color: '#706E6B', marginBottom: 10 }}>新規質問を追加</div>
+      <Card padding="lg">
+        <div style={{ fontSize: font.size.sm, fontWeight: font.weight.medium, color: color.textLight, marginBottom: 10 }}>新規質問を追加</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
           <textarea value={newQ} onChange={e => setNewQ(e.target.value)} rows={2}
             onKeyDown={onEnterSubmit(addManual)}
             placeholder="例: 過去3期の主要取引先トップ5の売上構成比は? (Enterで追加 / Shift+Enterで改行)"
             style={{ ...inp, flex: 1 }} />
-          <button onClick={addManual} disabled={!newQ.trim()}
-            style={{ height: 60, padding: '0 20px', background: newQ.trim() ? '#032D60' : '#A0A0A0', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}>
+          <Button onClick={addManual} disabled={!newQ.trim()} style={{ height: 60 }}>
             追加
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {/* List */}
       {isLoading ? (
-        <div style={{ ...card, textAlign: 'center', color: '#706E6B', fontSize: 12 }}>読み込み中...</div>
+        <Card padding="lg" style={{ textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>読み込み中...</Card>
       ) : items.length === 0 ? (
-        <div style={{ ...card, textAlign: 'center', color: '#706E6B', padding: '40px 20px' }}>
-          <div style={{ fontSize: 13, marginBottom: 8 }}>QAがまだありません</div>
-          <div style={{ fontSize: 11 }}>「チャットから抽出」または「追加質問をAI提案」で自動追加できます</div>
-        </div>
+        <Card padding="lg" style={{ textAlign: 'center', color: color.textLight, padding: '40px 20px' }}>
+          <div style={{ fontSize: font.size.base, marginBottom: 8 }}>QAがまだありません</div>
+          <div style={{ fontSize: font.size.xs }}>「チャットから抽出」または「追加質問をAI提案」で自動追加できます</div>
+        </Card>
       ) : items.map(q => (
-        <div key={q.id} style={card}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 11, color: '#706E6B' }}>
-            <span style={{ padding: '2px 8px', background: SOURCE_COLOR[q.source]?.bg || '#F3F2F2', color: SOURCE_COLOR[q.source]?.color || '#706E6B', borderRadius: 3, fontSize: 10 }}>
+        <Card key={q.id} padding="lg">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: font.size.xs, color: color.textLight }}>
+            <Badge variant={SOURCE_VARIANT[q.source] || 'neutral'} size="sm">
               {SOURCE_LABEL[q.source] || q.source || '—'}
-            </span>
+            </Badge>
             <span>質問日: {q.asked_at ? new Date(q.asked_at).toLocaleDateString('ja-JP') : '—'}</span>
             <span>回答日: {q.answered_at ? new Date(q.answered_at).toLocaleDateString('ja-JP') : '—'}</span>
-            <span style={{ marginLeft: 'auto', padding: '2px 8px', background: q.status === 'answered' ? '#E1F5EE' : '#FAF3E0', color: q.status === 'answered' ? '#2E844A' : '#A08040', borderRadius: 3, fontSize: 10 }}>
+            <Badge variant={q.status === 'answered' ? 'success' : 'warn'} size="sm" style={{ marginLeft: 'auto' }}>
               {q.status === 'answered' ? '回答済' : '未回答'}
-            </span>
-            <button onClick={() => { setEditing(q.id); setEditForm({ question: q.question, answer: q.answer || '', status: q.status }) }}
-              style={{ background: 'none', border: 'none', color: '#032D60', cursor: 'pointer', fontSize: 11 }}>
+            </Badge>
+            <Button variant="ghost" size="sm" onClick={() => { setEditing(q.id); setEditForm({ question: q.question, answer: q.answer || '', status: q.status }) }}>
               編集
-            </button>
-            <button onClick={() => deleteQA(q)} style={{ background: 'none', border: 'none', color: '#EA001E', cursor: 'pointer', fontSize: 11 }}>削除</button>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => deleteQA(q)} style={{ color: color.danger }}>削除</Button>
           </div>
 
           {editing === q.id ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
-                <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4 }}>質問</div>
+                <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 4 }}>質問</div>
                 <textarea value={editForm.question} onChange={e => setEditForm(f => ({ ...f, question: e.target.value }))} rows={2} style={inp} />
               </div>
               <div>
-                <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4 }}>回答</div>
+                <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 4 }}>回答</div>
                 <textarea value={editForm.answer} onChange={e => setEditForm(f => ({ ...f, answer: e.target.value }))} rows={3} style={inp} placeholder="回答を入力..." />
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button onClick={() => { setEditing(null); setEditForm({}) }}
-                  style={{ height: 32, padding: '0 14px', background: '#fff', color: '#706E6B', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 12, cursor: 'pointer' }}>
+                <Button variant="outline" size="sm" onClick={() => { setEditing(null); setEditForm({}) }}>
                   キャンセル
-                </button>
-                <button onClick={() => saveEdit(q)}
-                  style={{ height: 32, padding: '0 14px', background: '#032D60', color: '#fff', border: 'none', borderRadius: 5, fontSize: 12, cursor: 'pointer' }}>
+                </Button>
+                <Button size="sm" onClick={() => saveEdit(q)}>
                   保存
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
             <>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
-                <span style={{ fontSize: 11, padding: '3px 8px', background: '#F8F8F8', color: '#032D60', borderRadius: 3, flexShrink: 0 }}>Q</span>
-                <div style={{ fontSize: 13, color: '#032D60', lineHeight: 1.8, flex: 1 }}>{q.question}</div>
+                <Badge variant="primary" size="sm">Q</Badge>
+                <div style={{ fontSize: font.size.base, color: color.navy, lineHeight: 1.8, flex: 1 }}>{q.question}</div>
               </div>
               {q.answer ? (
                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 11, padding: '3px 8px', background: '#E1F5EE', color: '#2E844A', borderRadius: 3, flexShrink: 0 }}>A</span>
-                  <div style={{ fontSize: 13, color: '#706E6B', lineHeight: 1.8, flex: 1, whiteSpace: 'pre-wrap' }}>{q.answer}</div>
+                  <Badge variant="success" size="sm">A</Badge>
+                  <div style={{ fontSize: font.size.base, color: color.textLight, lineHeight: 1.8, flex: 1, whiteSpace: 'pre-wrap' }}>{q.answer}</div>
                 </div>
               ) : (
-                <div style={{ fontSize: 11, color: '#706E6B', paddingLeft: 32 }}>回答待ち</div>
+                <div style={{ fontSize: font.size.xs, color: color.textLight, paddingLeft: 32 }}>回答待ち</div>
               )}
             </>
           )}
-        </div>
+        </Card>
       ))}
     </div>
   )

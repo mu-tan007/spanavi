@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { C } from '../../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Input } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { insertContactMemoEvent } from '../../../lib/supabaseWrite';
 import { NAVY, GRAY_200, GRAY_50 } from './utils';
@@ -115,12 +117,17 @@ export default function CRMMeetingReportModal({
     onClose();
   };
 
-  const inputStyle = {
-    width: '100%', padding: '7px 10px', borderRadius: 4,
-    border: '1px solid ' + GRAY_200, fontSize: 12, fontFamily: "'Noto Sans JP'",
-    outline: 'none', background: GRAY_50, boxSizing: 'border-box',
+  const textareaStyle = {
+    width: '100%', padding: '7px 10px', borderRadius: radius.md,
+    border: `1px solid ${color.border}`, fontSize: font.size.sm, fontFamily: font.family.sans,
+    outline: 'none', background: color.gray50, color: color.textDark,
+    boxSizing: 'border-box',
   };
-  const labelStyle = { fontSize: 10, fontWeight: 600, color: NAVY, marginBottom: 3, display: 'block' };
+  const labelStyle = {
+    fontSize: font.size.xs, fontWeight: font.weight.semibold,
+    color: color.textMid, marginBottom: 3, display: 'block',
+    letterSpacing: font.letterSpacing.wide,
+  };
 
   return (
     <div onClick={onClose} style={{
@@ -129,28 +136,39 @@ export default function CRMMeetingReportModal({
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
+        background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
         width: 580, maxHeight: '92vh', overflow: 'auto',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        boxShadow: shadow.xl,
       }}>
-        <div style={{ padding: '12px 20px', background: NAVY, color: '#fff', fontWeight: 700, fontSize: 14 }}>
+        <div style={{
+          padding: '12px 20px', background: color.navy, color: color.white,
+          fontWeight: font.weight.bold, fontSize: font.size.md,
+        }}>
           商談結果を記録
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.85)', fontWeight: 400, marginTop: 2 }}>
+          <div style={{
+            fontSize: font.size.xs, color: alpha(color.white, 0.85),
+            fontWeight: font.weight.normal, marginTop: 2,
+          }}>
             {client.company}
           </div>
         </div>
 
         <div style={{ padding: '14px 20px' }}>
           {/* 商談実施日時 */}
-          <div style={{ marginBottom: 12 }}>
-            <label style={labelStyle}>商談実施日時 <span style={{ color: C.red }}>*</span></label>
-            <input type="datetime-local" value={meetingAt} onChange={e => setMeetingAt(e.target.value)} style={inputStyle} />
+          <div style={{ marginBottom: space[3] }}>
+            <label style={labelStyle}>商談実施日時 <span style={{ color: color.danger }}>*</span></label>
+            <Input
+              size="sm"
+              type="datetime-local"
+              value={meetingAt}
+              onChange={e => setMeetingAt(e.target.value)}
+            />
           </div>
 
           {/* 結果（3択） */}
-          <div style={{ marginBottom: 12 }}>
-            <label style={labelStyle}>商談結果 <span style={{ color: C.red }}>*</span></label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+          <div style={{ marginBottom: space[3] }}>
+            <label style={labelStyle}>商談結果 <span style={{ color: color.danger }}>*</span></label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: space[2] }}>
               {RESULT_OPTIONS.map(opt => {
                 const active = result === opt.id;
                 return (
@@ -158,19 +176,19 @@ export default function CRMMeetingReportModal({
                     key={opt.id}
                     onClick={() => setResult(opt.id)}
                     style={{
-                      padding: '12px', borderRadius: 4,
-                      border: '2px solid ' + (active ? opt.color : GRAY_200),
-                      background: active ? opt.color + '18' : '#fff',
-                      color: active ? opt.color : C.textMid,
-                      fontSize: 14, fontWeight: 700,
-                      cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                      padding: '12px', borderRadius: radius.md,
+                      border: `2px solid ${active ? opt.color : color.border}`,
+                      background: active ? opt.color + '18' : color.white,
+                      color: active ? opt.color : color.textMid,
+                      fontSize: font.size.md, fontWeight: font.weight.bold,
+                      cursor: 'pointer', fontFamily: font.family.sans,
                     }}
                   >{opt.label}</button>
                 );
               })}
             </div>
             {result && (
-              <div style={{ marginTop: 6, fontSize: 10, color: C.textLight }}>
+              <div style={{ marginTop: 6, fontSize: font.size.xs, color: color.textLight }}>
                 → ステータスは「{RESULT_OPTIONS.find(o => o.id === result).statusTo}」に変わります
               </div>
             )}
@@ -178,52 +196,52 @@ export default function CRMMeetingReportModal({
 
           {/* 受注額（受注時のみ） */}
           {result === 'won' && (
-            <div style={{ marginBottom: 12 }}>
+            <div style={{ marginBottom: space[3] }}>
               <label style={labelStyle}>受注額（円・任意）</label>
-              <input
+              <Input
+                size="sm"
                 type="number"
                 value={salesAmount}
                 onChange={e => setSalesAmount(e.target.value)}
                 placeholder="例: 500000"
                 min={0}
-                style={inputStyle}
               />
             </div>
           )}
 
           {/* 議題 */}
-          <div style={{ marginBottom: 12 }}>
+          <div style={{ marginBottom: space[3] }}>
             <label style={labelStyle}>商談で扱った議題</label>
             <textarea
               value={agenda}
               onChange={e => setAgenda(e.target.value)}
               rows={3}
               placeholder="例：サービス概要のご説明、料金体系、開始時期"
-              style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
+              style={{ ...textareaStyle, resize: 'vertical', lineHeight: 1.5 }}
             />
           </div>
 
           {/* 先方の最終判断 */}
-          <div style={{ marginBottom: 12 }}>
+          <div style={{ marginBottom: space[3] }}>
             <label style={labelStyle}>先方の最終判断・所感</label>
             <textarea
               value={outcome}
               onChange={e => setOutcome(e.target.value)}
               rows={3}
               placeholder="先方の温度感、決裁ライン、検討理由など"
-              style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
+              style={{ ...textareaStyle, resize: 'vertical', lineHeight: 1.5 }}
             />
           </div>
 
           {/* 次のアクション */}
-          <div style={{ marginBottom: 12 }}>
+          <div style={{ marginBottom: space[3] }}>
             <label style={labelStyle}>次のアクション（任意）</label>
             <textarea
               value={nextAction}
               onChange={e => setNextAction(e.target.value)}
               rows={2}
               placeholder="例：契約書送付、再提案、3ヶ月後再アプローチ"
-              style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
+              style={{ ...textareaStyle, resize: 'vertical', lineHeight: 1.5 }}
             />
           </div>
 
@@ -235,14 +253,14 @@ export default function CRMMeetingReportModal({
               onChange={e => setInternalMemo(e.target.value)}
               rows={2}
               placeholder="社内引き継ぎ用のメモ"
-              style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
+              style={{ ...textareaStyle, resize: 'vertical', lineHeight: 1.5 }}
             />
           </div>
 
           <div style={{
             marginTop: 14, padding: '8px 10px',
-            background: '#FFFBEB', border: '1px solid ' + C.gold + '60', borderRadius: 3,
-            fontSize: 10, color: NAVY, lineHeight: 1.5,
+            background: '#FFFBEB', border: `1px solid ${alpha(color.gold, 0.4)}`, borderRadius: radius.sm,
+            fontSize: font.size.xs, color: color.navy, lineHeight: 1.5,
           }}>
             保存すると以下が同時に実行されます:<br />
             ・ クライアントのステータスを自動遷移（受注→準備中 / 保留・ブレイク→中期フォロー）<br />
@@ -253,23 +271,19 @@ export default function CRMMeetingReportModal({
         </div>
 
         <div style={{
-          padding: '10px 20px', borderTop: '1px solid ' + GRAY_200,
-          display: 'flex', justifyContent: 'flex-end', gap: 8,
+          padding: '10px 20px', borderTop: `1px solid ${color.border}`,
+          display: 'flex', justifyContent: 'flex-end', gap: space[2],
         }}>
-          <button onClick={onClose} disabled={saving} style={{
-            padding: '8px 16px', borderRadius: 4,
-            border: '1px solid ' + NAVY, background: '#fff',
-            color: NAVY, fontSize: 12, fontWeight: 500,
-            cursor: saving ? 'not-allowed' : 'pointer',
-            fontFamily: "'Noto Sans JP'",
-          }}>キャンセル</button>
-          <button onClick={handleSave} disabled={saving || !result} style={{
-            padding: '8px 18px', borderRadius: 4, border: 'none',
-            background: (saving || !result) ? C.textLight : NAVY,
-            color: '#fff', fontSize: 12, fontWeight: 700,
-            cursor: (saving || !result) ? 'not-allowed' : 'pointer',
-            fontFamily: "'Noto Sans JP'",
-          }}>{saving ? '保存中...' : '商談結果を保存'}</button>
+          <Button variant="outline" size="sm" onClick={onClose} disabled={saving}>キャンセル</Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleSave}
+            loading={saving}
+            disabled={saving || !result}
+          >
+            {saving ? '保存中...' : '商談結果を保存'}
+          </Button>
         </div>
       </div>
     </div>

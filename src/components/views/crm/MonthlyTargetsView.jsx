@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C } from '../../../constants/colors';
+import { color, space, radius, font, alpha } from '../../../constants/design';
+import { Input } from '../../ui';
 import {
   fetchClientMonthlyTargets,
   upsertClientMonthlyTarget,
@@ -31,14 +33,14 @@ function CellInput({ value, isCurrent, onSave }) {
       }}
       style={{
         width: 50, height: 28, textAlign: 'center',
-        border: '1px solid ' + (dirty ? C.gold : GRAY_200),
-        borderRadius: 3,
-        fontSize: 11,
-        fontFamily: "'JetBrains Mono', monospace",
+        border: `1px solid ${dirty ? color.gold : color.border}`,
+        borderRadius: radius.sm,
+        fontSize: font.size.sm,
+        fontFamily: font.family.mono,
         fontVariantNumeric: 'tabular-nums',
         outline: 'none',
-        background: isCurrent ? '#FFFBEB' : '#fff',
-        color: NAVY,
+        background: isCurrent ? '#FFFBEB' : color.white,
+        color: color.navy,
       }}
     />
   );
@@ -105,20 +107,22 @@ export default function MonthlyTargetsView({ clientData = [] }) {
     <div>
       {/* ヘッダー */}
       <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16,
-        padding: '14px 18px', background: '#fff', borderRadius: 4,
-        border: '1px solid ' + GRAY_200,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[4],
+        padding: '14px 18px', background: color.white, borderRadius: radius.md,
+        border: `1px solid ${color.border}`,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>月別目標管理</span>
-          <span style={{ fontSize: 11, color: C.textLight }}>{filtered.length}社 ・ {months.length}ヶ月分</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: space[2.5] }}>
+          <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>月別目標管理</span>
+          <span style={{ fontSize: font.size.sm, color: color.textLight }}>{filtered.length}社 ・ {months.length}ヶ月分</span>
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <input
+          <Input
+            size="sm"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="企業名・業界..."
-            style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid ' + GRAY_200, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', width: 180 }}
+            fullWidth={false}
+            containerStyle={{ width: 180 }}
           />
         </div>
       </div>
@@ -131,7 +135,7 @@ export default function MonthlyTargetsView({ clientData = [] }) {
           <div>
             {/* 月セレクタ（横スクロール） */}
             <div style={{
-              display: 'flex', gap: 4, marginBottom: 12,
+              display: 'flex', gap: 4, marginBottom: space[3],
               overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 4,
             }}>
               {months.map((ym, i) => {
@@ -142,12 +146,12 @@ export default function MonthlyTargetsView({ clientData = [] }) {
                     key={ym}
                     onClick={() => setMobileSelectedYM(ym)}
                     style={{
-                      flexShrink: 0, padding: '6px 12px', borderRadius: 4,
-                      border: '1px solid ' + (active ? NAVY : GRAY_200),
-                      background: active ? NAVY : (isCur ? '#FFFBEB' : '#fff'),
-                      color: active ? '#fff' : (isCur ? C.gold : C.textMid),
-                      fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                      fontFamily: "'JetBrains Mono'", whiteSpace: 'nowrap',
+                      flexShrink: 0, padding: '6px 12px', borderRadius: radius.md,
+                      border: `1px solid ${active ? color.navy : color.border}`,
+                      background: active ? color.navy : (isCur ? '#FFFBEB' : color.white),
+                      color: active ? color.white : (isCur ? color.gold : color.textMid),
+                      fontSize: font.size.sm, fontWeight: font.weight.semibold, cursor: 'pointer',
+                      fontFamily: font.family.mono, whiteSpace: 'nowrap',
                     }}
                   >{formatMonthLabel(ym, i > 0 ? months[i - 1] : null)}</button>
                 );
@@ -155,21 +159,21 @@ export default function MonthlyTargetsView({ clientData = [] }) {
             </div>
             {/* 月合計 */}
             <div style={{
-              padding: '10px 14px', marginBottom: 8,
-              background: NAVY, color: '#fff', borderRadius: 4,
+              padding: '10px 14px', marginBottom: space[2],
+              background: color.navy, color: color.white, borderRadius: radius.md,
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
-              <span style={{ fontSize: 11, fontWeight: 600 }}>{currentSel} の月合計</span>
+              <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold }}>{currentSel} の月合計</span>
               <span style={{
-                fontSize: 18, fontWeight: 700,
-                fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums',
+                fontSize: font.size.lg, fontWeight: font.weight.bold,
+                fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums',
               }}>{monthlyTotal} 件</span>
             </div>
             {/* クライアントカード */}
             {filtered.length === 0 ? (
               <div style={{
-                padding: '40px 0', textAlign: 'center', color: C.textLight, fontSize: 12,
-                background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
+                padding: '40px 0', textAlign: 'center', color: color.textLight, fontSize: font.size.sm,
+                background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
               }}>
                 対象クライアントがありません
               </div>
@@ -178,12 +182,12 @@ export default function MonthlyTargetsView({ clientData = [] }) {
               const value = targetMap[key] ?? '';
               return (
                 <div key={c._supaId} style={{
-                  background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
+                  background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
                   padding: '10px 12px', marginBottom: 6,
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 }}>
                   <span style={{
-                    fontSize: 12, fontWeight: 600, color: NAVY,
+                    fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy,
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: 8,
                   }}>{c.company}</span>
                   <CellInput
@@ -197,12 +201,12 @@ export default function MonthlyTargetsView({ clientData = [] }) {
           </div>
         );
       })() : (
-      <div style={{ border: '1px solid ' + GRAY_200, borderRadius: 4, overflowX: 'auto', overflowY: 'hidden', background: '#fff' }}>
+      <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.md, overflowX: 'auto', overflowY: 'hidden', background: color.white }}>
         {/* ヘッダー行 */}
         <div style={{
           display: 'grid', gridTemplateColumns: gridCols,
-          padding: '8px 16px', background: NAVY,
-          fontSize: 11, fontWeight: 600, color: '#fff',
+          padding: '8px 16px', background: color.navy,
+          fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.white,
         }}>
           <span>企業名</span>
           {months.map((ym, i) => {
@@ -210,10 +214,10 @@ export default function MonthlyTargetsView({ clientData = [] }) {
             return (
               <span key={ym} style={{
                 textAlign: 'center',
-                color: isCurrent ? '#FFD66B' : '#fff',
-                fontWeight: isCurrent ? 700 : 600,
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 10,
+                color: isCurrent ? '#FFD66B' : color.white,
+                fontWeight: isCurrent ? font.weight.bold : font.weight.semibold,
+                fontFamily: font.family.mono,
+                fontSize: font.size.xs,
                 fontVariantNumeric: 'tabular-nums',
               }}>
                 {formatMonthLabel(ym, i > 0 ? months[i - 1] : null)}
@@ -224,19 +228,19 @@ export default function MonthlyTargetsView({ clientData = [] }) {
 
         {/* ボディ */}
         {filtered.length === 0 ? (
-          <div style={{ padding: '30px 0', textAlign: 'center', color: C.textLight, fontSize: 12 }}>
+          <div style={{ padding: '30px 0', textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
             データがありません
           </div>
         ) : (
           filtered.map((c, i) => (
             <div key={c._supaId || i} style={{
               display: 'grid', gridTemplateColumns: gridCols,
-              padding: '6px 16px', fontSize: 11, alignItems: 'center',
-              borderBottom: '1px solid ' + GRAY_200,
-              background: i % 2 === 0 ? '#fff' : GRAY_50,
+              padding: '6px 16px', fontSize: font.size.sm, alignItems: 'center',
+              borderBottom: `1px solid ${color.border}`,
+              background: i % 2 === 0 ? color.white : color.gray50,
             }}>
               <span style={{
-                fontWeight: 600, color: NAVY,
+                fontWeight: font.weight.semibold, color: color.navy,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
                 {c.company}
@@ -262,11 +266,11 @@ export default function MonthlyTargetsView({ clientData = [] }) {
         {filtered.length > 0 && (
           <div style={{
             display: 'grid', gridTemplateColumns: gridCols,
-            padding: '8px 16px', fontSize: 11, alignItems: 'center',
-            borderTop: '2px solid ' + NAVY,
+            padding: '8px 16px', fontSize: font.size.sm, alignItems: 'center',
+            borderTop: `2px solid ${color.navy}`,
             background: '#F0F4FA',
-            fontWeight: 700,
-            color: NAVY,
+            fontWeight: font.weight.bold,
+            color: color.navy,
           }}>
             <span>合計</span>
             {months.map(ym => {
@@ -274,9 +278,9 @@ export default function MonthlyTargetsView({ clientData = [] }) {
               return (
                 <span key={ym} style={{
                   textAlign: 'center',
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: font.family.mono,
                   fontVariantNumeric: 'tabular-nums',
-                  color: isCurrent ? C.gold : NAVY,
+                  color: isCurrent ? color.gold : color.navy,
                 }}>
                   {monthTotals[ym] || 0}
                 </span>
@@ -288,7 +292,7 @@ export default function MonthlyTargetsView({ clientData = [] }) {
       )}
 
       {!isMobile && (
-        <div style={{ marginTop: 12, fontSize: 10, color: C.textLight }}>
+        <div style={{ marginTop: space[3], fontSize: font.size.xs, color: color.textLight }}>
           セルをクリックして数値を入力 → Enter キー or 別セルへフォーカス移動で保存。当月は黄色背景で強調表示。
         </div>
       )}

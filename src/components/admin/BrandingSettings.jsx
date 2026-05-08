@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
+import { color, space, radius, font } from '../../constants/design';
+import { Button, Input, Card } from '../ui';
 
-const NAVY = '#0D2247';
+const NAVY = color.navy;
 
 const BRAND_KEYS = [
   { key: 'brand_org_name',        label: '組織名',           type: 'text',  defaultVal: 'Spanavi' },
@@ -94,117 +96,125 @@ export default function BrandingSettings({ onToast, onBrandingChange }) {
     if (onBrandingChange) onBrandingChange();
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>読み込み中...</div>;
+  if (loading) return <div style={{ padding: space[10], textAlign: 'center', color: color.gray400 }}>読み込み中...</div>;
 
   const previewPrimary = values.brand_color_primary || '#032D60';
   const previewAccent = values.brand_color_accent || '#0176D3';
   const previewHighlight = values.brand_color_highlight || '#C8A84B';
   const previewName = values.brand_org_name || 'Spanavi';
 
+  const sectionCardStyle = { padding: `${space[5]}px ${space[6]}px`, marginBottom: space[5] };
+  const sectionTitleStyle = {
+    fontSize: font.size.base,
+    fontWeight: font.weight.bold,
+    color: NAVY,
+    marginBottom: space[4],
+    paddingBottom: space[2.5],
+    borderBottom: `2px solid ${NAVY}`,
+    display: 'inline-block',
+  };
+  const labelStyle = { fontSize: font.size.base, color: color.gray700, fontWeight: font.weight.medium };
+  const rowStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[3] };
+
   return (
     <div style={{ maxWidth: 600 }}>
       {/* 組織名 */}
-      <div style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', padding: '20px 24px', marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 16, paddingBottom: 10, borderBottom: `2px solid ${NAVY}`, display: 'inline-block' }}>
+      <Card variant="default" padding="none" style={sectionCardStyle}>
+        <div style={sectionTitleStyle}>
           組織情報
         </div>
         {BRAND_KEYS.filter(k => k.type === 'text').map(item => (
-          <div key={item.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <label style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{item.label}</label>
-            <input
-              type="text"
-              value={values[item.key] ?? item.defaultVal}
-              onChange={e => handleChange(item.key, e.target.value)}
-              style={{ width: 240, padding: '6px 10px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 13 }}
-            />
-          </div>
-        ))}
-
-        {/* ロゴ */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 0 }}>
-          <label style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>ロゴ画像</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {logoUrl && (
-              <img src={logoUrl} alt="logo" style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 4, border: '1px solid #E5E5E5' }} />
-            )}
-            <button
-              onClick={() => fileRef.current?.click()}
-              disabled={uploading}
-              style={{ padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: '1px solid #E5E5E5', background: '#fff', color: '#374151', cursor: 'pointer' }}
-            >
-              {uploading ? 'アップロード中...' : logoUrl ? '変更' : 'アップロード'}
-            </button>
-            {logoUrl && (
-              <button
-                onClick={removeLogo}
-                style={{ padding: '4px 8px', borderRadius: 6, fontSize: 12, border: '1px solid #fca5a5', background: 'transparent', color: '#dc2626', cursor: 'pointer' }}
-              >
-                削除
-              </button>
-            )}
-            <input ref={fileRef} type="file" accept="image/*" onChange={handleLogoUpload} style={{ display: 'none' }} />
-          </div>
-        </div>
-      </div>
-
-      {/* テーマカラー */}
-      <div style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', padding: '20px 24px', marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 16, paddingBottom: 10, borderBottom: `2px solid ${NAVY}`, display: 'inline-block' }}>
-          テーマカラー
-        </div>
-        {BRAND_KEYS.filter(k => k.type === 'color').map(item => (
-          <div key={item.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <label style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{item.label}</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input
-                type="color"
-                value={values[item.key] || item.defaultVal}
-                onChange={e => handleChange(item.key, e.target.value)}
-                style={{ width: 36, height: 28, border: '1px solid #E5E5E5', borderRadius: 4, cursor: 'pointer', padding: 0 }}
-              />
-              <input
+          <div key={item.key} style={rowStyle}>
+            <label style={labelStyle}>{item.label}</label>
+            <div style={{ width: 240 }}>
+              <Input
+                size="sm"
                 type="text"
-                value={values[item.key] || item.defaultVal}
+                value={values[item.key] ?? item.defaultVal}
                 onChange={e => handleChange(item.key, e.target.value)}
-                style={{ width: 90, padding: '4px 8px', borderRadius: 6, border: '1px solid #E5E5E5', fontSize: 12, fontFamily: "'JetBrains Mono'" }}
               />
             </div>
           </div>
         ))}
-      </div>
+
+        {/* ロゴ */}
+        <div style={{ ...rowStyle, marginBottom: 0 }}>
+          <label style={labelStyle}>ロゴ画像</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: space[2.5] }}>
+            {logoUrl && (
+              <img src={logoUrl} alt="logo" style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: radius.md, border: `1px solid ${color.border}` }} />
+            )}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              loading={uploading}
+            >
+              {uploading ? 'アップロード中...' : logoUrl ? '変更' : 'アップロード'}
+            </Button>
+            {logoUrl && (
+              <Button variant="danger" size="sm" onClick={removeLogo}>
+                削除
+              </Button>
+            )}
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleLogoUpload} style={{ display: 'none' }} />
+          </div>
+        </div>
+      </Card>
+
+      {/* テーマカラー */}
+      <Card variant="default" padding="none" style={sectionCardStyle}>
+        <div style={sectionTitleStyle}>
+          テーマカラー
+        </div>
+        {BRAND_KEYS.filter(k => k.type === 'color').map(item => (
+          <div key={item.key} style={rowStyle}>
+            <label style={labelStyle}>{item.label}</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
+              <input
+                type="color"
+                value={values[item.key] || item.defaultVal}
+                onChange={e => handleChange(item.key, e.target.value)}
+                style={{ width: 36, height: 28, border: `1px solid ${color.border}`, borderRadius: radius.md, cursor: 'pointer', padding: 0 }}
+              />
+              <div style={{ width: 90 }}>
+                <Input
+                  size="sm"
+                  type="text"
+                  value={values[item.key] || item.defaultVal}
+                  onChange={e => handleChange(item.key, e.target.value)}
+                  style={{ fontFamily: font.family.mono, fontSize: font.size.sm }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </Card>
 
       {/* プレビュー */}
-      <div style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', padding: '20px 24px', marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 16, paddingBottom: 10, borderBottom: `2px solid ${NAVY}`, display: 'inline-block' }}>
+      <Card variant="default" padding="none" style={sectionCardStyle}>
+        <div style={sectionTitleStyle}>
           プレビュー
         </div>
-        <div style={{ background: previewPrimary, borderRadius: 6, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ background: previewPrimary, borderRadius: radius.lg, padding: `${space[4]}px ${space[5]}px`, display: 'flex', alignItems: 'center', gap: space[3] }}>
           {logoUrl ? (
             <img src={logoUrl} alt="logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
           ) : (
-            <div style={{ width: 28, height: 28, borderRadius: 4, background: previewAccent, opacity: 0.6 }} />
+            <div style={{ width: 28, height: 28, borderRadius: radius.md, background: previewAccent, opacity: 0.6 }} />
           )}
-          <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: 1.5 }}>
+          <span style={{ fontSize: 18, fontWeight: font.weight.black, letterSpacing: 1.5 }}>
             <span style={{ color: previewAccent }}>{previewName.slice(0, Math.ceil(previewName.length / 2))}</span>
             <span style={{ color: previewHighlight }}>{previewName.slice(Math.ceil(previewName.length / 2))}</span>
           </span>
         </div>
-      </div>
+      </Card>
 
       {/* 保存 */}
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button
-          onClick={save}
-          disabled={saving}
-          style={{
-            padding: '9px 28px', borderRadius: 4, fontSize: 13, fontWeight: 700,
-            cursor: saving ? 'not-allowed' : 'pointer', border: 'none',
-            background: saving ? '#9CA3AF' : NAVY, color: '#fff',
-            fontFamily: "'Noto Sans JP'",
-          }}
-        >
+        <Button variant="primary" onClick={save} disabled={saving} loading={saving}>
           {saving ? '保存中...' : '保存する'}
-        </button>
+        </Button>
       </div>
     </div>
   );

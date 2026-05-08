@@ -8,10 +8,12 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
+import { color, space, radius, font } from '../../constants/design';
+import { Button, Card } from '../ui';
 
-const NAVY = '#0D2247';
-const BORDER = '#E5E5E5';
-const TEXT_MID = '#706E6B';
+const NAVY = color.navy;
+const BORDER = color.border;
+const TEXT_MID = color.textMid;
 
 export default function OrganizationSettings({ onToast }) {
   const [positions, setPositions] = useState([]);
@@ -98,25 +100,25 @@ export default function OrganizationSettings({ onToast }) {
   };
 
   if (loading) {
-    return <div style={{ padding: 40, textAlign: 'center', color: TEXT_MID, fontSize: 13 }}>読込中…</div>;
+    return <div style={{ padding: space[10], textAlign: 'center', color: TEXT_MID, fontSize: font.size.base }}>読込中…</div>;
   }
 
   return (
     <div>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 16, fontWeight: 700, color: NAVY, marginBottom: 6 }}>会社の役職</div>
-        <div style={{ fontSize: 11, color: TEXT_MID, lineHeight: 1.6 }}>
+      <div style={{ marginBottom: space[5] }}>
+        <div style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: NAVY, marginBottom: space[1.5] }}>会社の役職</div>
+        <div style={{ fontSize: font.size.xs, color: TEXT_MID, lineHeight: 1.6 }}>
           MyPage や MASP {'>'} Members で選択できる役職一覧。代表取締役・取締役などの法人上の役職を管理します。<br />
           行をドラッグで並び替えできます。
         </div>
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 4 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <Card variant="default" padding="none">
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
             <thead>
               <tr style={{ background: '#F8F8F8', borderBottom: `1px solid ${BORDER}` }}>
-                <th style={{ ...thBase, width: 18, padding: '10px 2px' }}></th>
+                <th style={{ ...thBase, width: 18, padding: `${space[2.5]}px 2px` }}></th>
                 <th style={{ ...thBase, width: 60, textAlign: 'left' }}>順序</th>
                 <th style={{ ...thBase, textAlign: 'left' }}>役職名</th>
                 <th style={{ ...thBase, textAlign: 'right', width: 200 }}>操作</th>
@@ -144,25 +146,24 @@ export default function OrganizationSettings({ onToast }) {
                     <input value={newName} onChange={e => setNewName(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') { setAdding(false); setNewName(''); } }}
                       autoFocus placeholder="例: 顧問"
-                      style={{ padding: '5px 8px', borderRadius: 3, border: `1px solid ${NAVY}`, fontSize: 12, width: 200, fontFamily: "'Noto Sans JP'" }} />
+                      style={inlineInputStyle} />
                   </td>
                   <td style={{ ...tdBase, textAlign: 'right' }}>
-                    <button onClick={handleAdd} disabled={saving} style={primarySmallBtn}>{saving ? '…' : '追加'}</button>
-                    <button onClick={() => { setAdding(false); setNewName(''); }} disabled={saving} style={secondarySmallBtn}>取消</button>
+                    <Button variant="primary" size="sm" onClick={handleAdd} disabled={saving} loading={saving} style={{ marginRight: 4 }}>{saving ? '…' : '追加'}</Button>
+                    <Button variant="secondary" size="sm" onClick={() => { setAdding(false); setNewName(''); }} disabled={saving}>取消</Button>
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
-        </div>
+        </Card>
       </DndContext>
 
       {!adding && (
-        <div style={{ marginTop: 12 }}>
-          <button onClick={() => setAdding(true)}
-            style={{ padding: '7px 16px', fontSize: 12, fontWeight: 600, background: NAVY, color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+        <div style={{ marginTop: space[3] }}>
+          <Button variant="primary" size="sm" onClick={() => setAdding(true)}>
             + 役職を追加
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -180,28 +181,28 @@ function SortableRow({ p, index, isLast, isEditing, editName, setEditName, setEd
   };
   return (
     <tr ref={setNodeRef} style={style} {...attributes}>
-      <td style={{ ...tdBase, textAlign: 'center', width: 18, padding: '8px 2px', cursor: 'grab', color: TEXT_MID, userSelect: 'none' }} {...listeners}>
+      <td style={{ ...tdBase, textAlign: 'center', width: 18, padding: `${space[2]}px 2px`, cursor: 'grab', color: TEXT_MID, userSelect: 'none' }} {...listeners}>
         ⋮⋮
       </td>
-      <td style={{ ...tdMid, fontFamily: "'JetBrains Mono'" }}>{index + 1}</td>
-      <td style={{ ...tdBase, color: NAVY, fontWeight: 500 }}>
+      <td style={{ ...tdMid, fontFamily: font.family.mono }}>{index + 1}</td>
+      <td style={{ ...tdBase, color: NAVY, fontWeight: font.weight.medium }}>
         {isEditing ? (
           <input value={editName} onChange={e => setEditName(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleSaveEdit(); if (e.key === 'Escape') { setEditingId(null); setEditName(''); } }}
             autoFocus
-            style={{ padding: '5px 8px', borderRadius: 3, border: `1px solid ${NAVY}`, fontSize: 12, width: 200, fontFamily: "'Noto Sans JP'" }} />
+            style={inlineInputStyle} />
         ) : p.name}
       </td>
       <td style={{ ...tdBase, textAlign: 'right' }}>
         {isEditing ? (
           <>
-            <button onClick={handleSaveEdit} disabled={saving} style={primarySmallBtn}>保存</button>
-            <button onClick={() => { setEditingId(null); setEditName(''); }} disabled={saving} style={secondarySmallBtn}>取消</button>
+            <Button variant="primary" size="sm" onClick={handleSaveEdit} disabled={saving} loading={saving} style={{ marginRight: 4 }}>保存</Button>
+            <Button variant="secondary" size="sm" onClick={() => { setEditingId(null); setEditName(''); }} disabled={saving}>取消</Button>
           </>
         ) : (
           <>
-            <button onClick={() => { setEditingId(p.id); setEditName(p.name); }} style={secondarySmallBtn}>編集</button>
-            <button onClick={() => handleDelete(p.id, p.name)} style={dangerSmallBtn}>削除</button>
+            <Button variant="secondary" size="sm" onClick={() => { setEditingId(p.id); setEditName(p.name); }} style={{ marginRight: 4 }}>編集</Button>
+            <Button variant="danger" size="sm" onClick={() => handleDelete(p.id, p.name)}>削除</Button>
           </>
         )}
       </td>
@@ -209,9 +210,7 @@ function SortableRow({ p, index, isLast, isEditing, editName, setEditName, setEd
   );
 }
 
-const thBase = { padding: '10px 12px', fontSize: 11, fontWeight: 600, color: NAVY };
-const tdBase = { padding: '8px 12px' };
-const tdMid = { padding: '8px 12px', color: TEXT_MID };
-const primarySmallBtn = { padding: '4px 12px', fontSize: 11, fontWeight: 600, background: NAVY, color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', marginRight: 4, fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap' };
-const secondarySmallBtn = { padding: '4px 12px', fontSize: 11, fontWeight: 600, background: '#fff', color: NAVY, border: `1px solid ${BORDER}`, borderRadius: 3, cursor: 'pointer', marginRight: 4, fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap' };
-const dangerSmallBtn = { padding: '4px 12px', fontSize: 11, fontWeight: 600, background: '#fff', color: '#B91C1C', border: '1px solid #FCA5A5', borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap' };
+const thBase = { padding: `${space[2.5]}px ${space[3]}px`, fontSize: font.size.xs, fontWeight: font.weight.semibold, color: NAVY };
+const tdBase = { padding: `${space[2]}px ${space[3]}px` };
+const tdMid = { padding: `${space[2]}px ${space[3]}px`, color: TEXT_MID };
+const inlineInputStyle = { padding: `5px ${space[2]}px`, borderRadius: radius.sm, border: `1px solid ${NAVY}`, fontSize: font.size.sm, width: 200, fontFamily: font.family.sans };

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { C } from '../../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../../ui';
 import { fetchAllRpc } from '../../../lib/fetchAllRpc';
 import { PlayRecordingButton } from '../../common/RecordingPlayerProvider';
 
@@ -95,11 +97,11 @@ export default function ListApproachPage({ list, orgId, onBack }) {
       rows.push(row.map(esc).join(','));
     }
 
-    const bom = '\uFEFF';
+    const bom = '﻿';
     const blob = new Blob([bom + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const safeName = (list.list_name || 'list').replace(/[^\w\u3040-\u30ff\u4e00-\u9fff]/g, '_');
+    const safeName = (list.list_name || 'list').replace(/[^\w぀-ヿ一-鿿]/g, '_');
     a.href = url;
     a.download = `架電詳細_${safeName}_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(a);
@@ -109,61 +111,53 @@ export default function ListApproachPage({ list, orgId, onBack }) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
       {/* ヘッダー: 戻る / タイトル / 検索 / エクスポート */}
-      <div style={{
+      <Card padding="none" style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 16px', background: C.white, border: `1px solid ${C.border}`, borderRadius: 4,
-        flexWrap: 'wrap', gap: 10,
+        padding: '10px 16px', flexWrap: 'wrap', gap: 10,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={onBack}
-            style={{
-              padding: '5px 12px', fontSize: 11, fontWeight: 600,
-              background: C.white, color: C.navy,
-              border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer',
-            }}
-          >← 戻る</button>
+          <Button size="sm" variant="outline" onClick={onBack}>← 戻る</Button>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: C.navy }}>
+            <div style={{ fontSize: font.size.base, fontWeight: font.weight.semibold, color: color.navy }}>
               {list.list_name} — 各企業のアプローチ詳細
             </div>
-            <div style={{ fontSize: 10, color: C.textMid, marginTop: 2 }}>
+            <div style={{ fontSize: 10, color: color.textMid, marginTop: 2 }}>
               {filtered.length}社 (全 {items.length}社)
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input
-            value={filter} onChange={e => setFilter(e.target.value)}
+          <Input
+            size="sm"
+            fullWidth={false}
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
             placeholder="企業名で絞り込み"
-            style={{ padding: '6px 10px', fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 3, width: 200 }}
+            style={{ width: 200 }}
           />
-          <button onClick={handleExport} disabled={loading || items.length === 0}
-            style={{
-              fontSize: 11, fontWeight: 600, padding: '6px 12px',
-              background: (loading || items.length === 0) ? C.cream : C.navy,
-              color: (loading || items.length === 0) ? C.textLight : C.white,
-              border: 'none', borderRadius: 3,
-              cursor: (loading || items.length === 0) ? 'not-allowed' : 'pointer',
-            }}
-          >⬇ Excel 出力</button>
+          <Button
+            size="sm"
+            onClick={handleExport}
+            disabled={loading || items.length === 0}
+          >⬇ Excel 出力</Button>
         </div>
-      </div>
+      </Card>
 
       {/* テーブル */}
-      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 4 }}>
+      <Card padding="none">
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: C.textMid }}>読み込み中...</div>
+          <div style={{ padding: 40, textAlign: 'center', color: color.textMid }}>読み込み中...</div>
         ) : filtered.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: C.textLight }}>該当企業がありません</div>
+          <div style={{ padding: 40, textAlign: 'center', color: color.textLight }}>該当企業がありません</div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ borderCollapse: 'collapse', fontSize: 11, minWidth: '100%' }}>
+            <table style={{ borderCollapse: 'collapse', fontSize: font.size.xs, minWidth: '100%' }}>
               <thead>
-                <tr style={{ background: C.cream, borderBottom: `1px solid ${C.border}` }}>
+                <tr style={{ background: color.cream, borderBottom: `1px solid ${color.border}` }}>
                   <th style={{ ...th, width: 40 }}>#</th>
-                  <th style={{ ...th, textAlign: 'left', minWidth: 220, position: 'sticky', left: 0, background: C.cream, zIndex: 2 }}>企業名</th>
+                  <th style={{ ...th, textAlign: 'left', minWidth: 220, position: 'sticky', left: 0, background: color.cream, zIndex: 2 }}>企業名</th>
                   {Array.from({ length: maxCallCount }).map((_, i) => (
                     <th key={i} style={{ ...th, minWidth: 180 }}>{i + 1}回目</th>
                   ))}
@@ -173,26 +167,26 @@ export default function ListApproachPage({ list, orgId, onBack }) {
                 {pageItems.map(it => {
                   const calls = it._calls;
                   return (
-                    <tr key={it.item_id} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
-                      <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", color: C.textLight }}>{it.no ?? '—'}</td>
-                      <td style={{ ...td, textAlign: 'left', fontWeight: 500, color: C.navy, position: 'sticky', left: 0, background: C.white, zIndex: 1 }}>
+                    <tr key={it.item_id} style={{ borderBottom: `1px solid ${color.borderLight}` }}>
+                      <td style={{ ...td, fontFamily: font.family.mono, color: color.textLight }}>{it.no ?? '—'}</td>
+                      <td style={{ ...td, textAlign: 'left', fontWeight: font.weight.medium, color: color.navy, position: 'sticky', left: 0, background: color.white, zIndex: 1 }}>
                         {it.company || '—'}
                       </td>
                       {Array.from({ length: maxCallCount }).map((_, i) => {
                         const c = calls[i];
-                        if (!c) return <td key={i} style={{ ...td, color: C.textLight }}>—</td>;
+                        if (!c) return <td key={i} style={{ ...td, color: color.textLight }}>—</td>;
                         return (
                           <td key={i} style={{ ...td, textAlign: 'left', padding: '6px 10px' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                              <span style={{ fontFamily: "'JetBrains Mono',monospace", color: C.textMid, fontSize: 10 }}>
+                              <span style={{ fontFamily: font.family.mono, color: color.textMid, fontSize: 10 }}>
                                 {c.called_at
                                   ? new Date(c.called_at).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' }) +
                                     ' ' +
                                     new Date(c.called_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
                                   : '—'}
                               </span>
-                              <span style={{ color: statusColor(c.status), fontWeight: 500 }}>{c.status || '—'}</span>
-                              {c.getter_name && <span style={{ fontSize: 9, color: C.textLight }}>{c.getter_name}</span>}
+                              <span style={{ color: statusColor(c.status), fontWeight: font.weight.medium }}>{c.status || '—'}</span>
+                              {c.getter_name && <span style={{ fontSize: 9, color: color.textLight }}>{c.getter_name}</span>}
                               {c.recording_url && (
                                 <div style={{ marginTop: 2 }}>
                                   <PlayRecordingButton
@@ -213,18 +207,26 @@ export default function ListApproachPage({ list, orgId, onBack }) {
             </table>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* ページネーション */}
       {totalPages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, padding: '8px 0' }}>
-          <button disabled={currentPage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}
-            style={pagerBtn(currentPage <= 1)}>← 前の100件</button>
-          <span style={{ fontSize: 11, color: C.textMid, minWidth: 140, textAlign: 'center' }}>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={currentPage <= 1}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+          >← 前の100件</Button>
+          <span style={{ fontSize: font.size.xs, color: color.textMid, minWidth: 140, textAlign: 'center' }}>
             {currentPage} / {totalPages} ページ ({filtered.length.toLocaleString()}社)
           </span>
-          <button disabled={currentPage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            style={pagerBtn(currentPage >= totalPages)}>次の100件 →</button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={currentPage >= totalPages}
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+          >次の100件 →</Button>
         </div>
       )}
     </div>
@@ -232,21 +234,12 @@ export default function ListApproachPage({ list, orgId, onBack }) {
 }
 
 function statusColor(status) {
-  if (!status) return C.textMid;
-  if (status.includes('アポ')) return C.green;
-  if (status.includes('お断り') || status.includes('ブロック')) return '#C0392B';
-  if (status.includes('不在') || status.includes('再コール')) return C.gold;
-  return C.textMid;
+  if (!status) return color.textMid;
+  if (status.includes('アポ')) return color.success;
+  if (status.includes('お断り') || status.includes('ブロック')) return color.danger;
+  if (status.includes('不在') || status.includes('再コール')) return color.warn;
+  return color.textMid;
 }
 
-function pagerBtn(disabled) {
-  return {
-    padding: '6px 14px', fontSize: 11, fontWeight: 600,
-    background: disabled ? C.cream : C.white, color: disabled ? C.textLight : C.navy,
-    border: `1px solid ${disabled ? C.border : C.navy}`,
-    borderRadius: 4, cursor: disabled ? 'not-allowed' : 'pointer',
-  };
-}
-
-const th = { padding: '10px 12px', fontWeight: 600, color: C.navy, fontSize: 11, letterSpacing: '0.04em', textAlign: 'center' };
-const td = { padding: '8px 12px', fontSize: 11, color: C.textDark, textAlign: 'center', verticalAlign: 'top' };
+const th = { padding: '10px 12px', fontWeight: font.weight.semibold, color: color.navy, fontSize: font.size.xs, letterSpacing: font.letterSpacing.wide, textAlign: 'center' };
+const td = { padding: '8px 12px', fontSize: font.size.xs, color: color.textDark, textAlign: 'center', verticalAlign: 'top' };

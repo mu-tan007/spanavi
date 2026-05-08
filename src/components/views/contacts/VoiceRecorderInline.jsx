@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { Mic, Square, Loader2 } from 'lucide-react'
 import { C } from '../../../constants/colors'
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design'
+import { Button, Input, Select, Card, Badge } from '../../ui'
 import {
   insertContactVoiceInput,
   updateContactVoiceInput,
@@ -159,9 +161,9 @@ export default function VoiceRecorderInline({
   const baseBtn = {
     width: size,
     height: size,
-    borderRadius: 4,
+    borderRadius: radius.md,
     border: `1px solid ${GRAY_200}`,
-    background: '#fff',
+    background: color.white,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -169,13 +171,13 @@ export default function VoiceRecorderInline({
     color: NAVY,
     transition: 'background 0.12s, border-color 0.12s, color 0.12s',
     padding: 0,
-    fontFamily: "'Noto Sans JP', sans-serif",
+    fontFamily: font.family.sans,
   }
 
   if (processing) {
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        <span title="AI 整理中" style={{ ...baseBtn, color: C.textLight, cursor: 'progress' }}>
+        <span title="AI 整理中" style={{ ...baseBtn, color: color.textLight, cursor: 'progress' }}>
           <Loader2 size={Math.round(size * 0.5)} style={{ animation: 'voiceRecSpin 0.9s linear infinite' }} />
         </span>
         <style>{`@keyframes voiceRecSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
@@ -194,13 +196,13 @@ export default function VoiceRecorderInline({
             ...baseBtn,
             background: BLUE,
             borderColor: BLUE,
-            color: '#fff',
+            color: color.white,
           }}
         >
-          <Square size={Math.round(size * 0.42)} fill="#fff" />
+          <Square size={Math.round(size * 0.42)} fill={color.white} />
         </button>
         <span style={{
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: font.family.mono,
           fontSize: 10,
           color: BLUE,
           fontVariantNumeric: 'tabular-nums',
@@ -231,7 +233,7 @@ export default function VoiceRecorderInline({
         e.currentTarget.style.borderColor = NAVY
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = '#fff'
+        e.currentTarget.style.background = color.white
         e.currentTarget.style.borderColor = GRAY_200
       }}
     >

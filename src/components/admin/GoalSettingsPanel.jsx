@@ -3,6 +3,8 @@ import { C } from '../../constants/colors';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import { useKpiGoals, KPI_TYPES } from '../../hooks/useKpiGoals';
+import { color, space, radius, font } from '../../constants/design';
+import { Button, Select, Card } from '../ui';
 
 // 月次・週次のプリセット options を生成。日次は別途 date input で選ぶ。
 function buildMonthlyOptions(baseMonths = 6) {
@@ -204,9 +206,9 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 12, color: C.textMid, marginBottom: 4 }}>
+    <div style={{ padding: space[5] }}>
+      <div style={{ marginBottom: space[4] }}>
+        <div style={{ fontSize: font.size.sm, color: C.textMid, marginBottom: 4 }}>
           {readOnly
             ? 'Sourcing 事業の KPI 目標 (閲覧のみ)。編集はマイページから。'
             : '対象期間を選んで 5 つの KPI 目標を入力します。組織全体は admin のみ / チームはリーダー / メンバーは本人が編集可。'}
@@ -214,7 +216,7 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
       </div>
 
       {/* スコープ切替 */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+      <div style={{ display: 'flex', gap: space[1.5], marginBottom: space[3] }}>
         {[
           { id: 'org', label: '組織全体' },
           { id: 'team', label: 'チーム別' },
@@ -222,46 +224,54 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
         ].map(s => {
           const active = scopeType === s.id;
           return (
-            <button key={s.id} onClick={() => setScopeType(s.id)}
-              style={{
-                padding: '6px 14px', fontSize: 12,
-                background: active ? C.navy : C.white, color: active ? C.white : C.textMid,
-                border: `1px solid ${active ? C.navy : C.border}`,
-                borderRadius: 4, cursor: 'pointer', fontWeight: active ? 600 : 400,
-              }}
-            >{s.label}</button>
+            <Button
+              key={s.id}
+              variant={active ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setScopeType(s.id)}
+            >
+              {s.label}
+            </Button>
           );
         })}
       </div>
 
       {scopeType === 'team' && (
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: C.textMid, marginRight: 8 }}>チーム:</label>
-          <select value={selectedTeam} onChange={e => setSelectedTeam(e.target.value)}
-            style={selectStyle}>
-            <option value="">選択してください</option>
-            {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
+        <div style={{ marginBottom: space[3], display: 'flex', alignItems: 'center', gap: space[2] }}>
+          <label style={{ fontSize: font.size.xs, color: C.textMid }}>チーム:</label>
+          <div style={{ minWidth: 200 }}>
+            <Select
+              size="sm"
+              value={selectedTeam}
+              onChange={e => setSelectedTeam(e.target.value)}
+              options={[
+                { value: '', label: '選択してください' },
+                ...teams.map(t => ({ value: t.id, label: t.name })),
+              ]}
+            />
+          </div>
         </div>
       )}
       {scopeType === 'member' && (
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, color: C.textMid, marginRight: 8 }}>メンバー:</label>
-          <select value={selectedMember} onChange={e => setSelectedMember(e.target.value)}
-            style={{ ...selectStyle, minWidth: 240 }}>
-            <option value="">選択してください</option>
-            {members.map(m => (
-              <option key={m.id} value={m.id}>
-                {m.name}{m.position ? ` (${m.position})` : ''}
-              </option>
-            ))}
-          </select>
+        <div style={{ marginBottom: space[3], display: 'flex', alignItems: 'center', gap: space[2] }}>
+          <label style={{ fontSize: font.size.xs, color: C.textMid }}>メンバー:</label>
+          <div style={{ minWidth: 240 }}>
+            <Select
+              size="sm"
+              value={selectedMember}
+              onChange={e => setSelectedMember(e.target.value)}
+              options={[
+                { value: '', label: '選択してください' },
+                ...members.map(m => ({ value: m.id, label: `${m.name}${m.position ? ` (${m.position})` : ''}` })),
+              ]}
+            />
+          </div>
         </div>
       )}
 
       {/* 期間モード: 月次 / 週次 / 日次 */}
-      <div style={{ marginBottom: 10 }}>
-        <label style={{ fontSize: 11, color: C.textMid, marginRight: 8 }}>期間:</label>
+      <div style={{ marginBottom: space[2.5], display: 'flex', alignItems: 'center', gap: space[2] }}>
+        <label style={{ fontSize: font.size.xs, color: C.textMid }}>期間:</label>
         {[
           { id: 'monthly', label: '月次' },
           { id: 'weekly',  label: '週次' },
@@ -269,44 +279,53 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
         ].map(p => {
           const active = periodMode === p.id;
           return (
-            <button key={p.id} onClick={() => setPeriodMode(p.id)}
-              style={{
-                padding: '5px 12px', fontSize: 11, marginRight: 4,
-                background: active ? C.navy : C.white, color: active ? C.white : C.textMid,
-                border: `1px solid ${active ? C.navy : C.border}`,
-                borderRadius: 4, cursor: 'pointer', fontWeight: active ? 600 : 400,
-              }}
-            >{p.label}</button>
+            <Button
+              key={p.id}
+              variant={active ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setPeriodMode(p.id)}
+              style={{ minHeight: 26, padding: '4px 12px', fontSize: font.size.xs }}
+            >
+              {p.label}
+            </Button>
           );
         })}
       </div>
 
       {/* モード別の期間選択 */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: space[4], display: 'flex', alignItems: 'center', gap: space[2] }}>
         {periodMode === 'monthly' && (
           <>
-            <label style={{ fontSize: 11, color: C.textMid, marginRight: 8 }}>月:</label>
-            <select value={monthlyKey} onChange={e => setMonthlyKey(e.target.value)}
-              style={{ ...selectStyle, minWidth: 180 }}>
-              {monthlyOptions.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-            </select>
+            <label style={{ fontSize: font.size.xs, color: C.textMid }}>月:</label>
+            <div style={{ minWidth: 180 }}>
+              <Select
+                size="sm"
+                value={monthlyKey}
+                onChange={e => setMonthlyKey(e.target.value)}
+                options={monthlyOptions.map(p => ({ value: p.key, label: p.label }))}
+              />
+            </div>
           </>
         )}
         {periodMode === 'weekly' && (
           <>
-            <label style={{ fontSize: 11, color: C.textMid, marginRight: 8 }}>週:</label>
-            <select value={weeklyKey} onChange={e => setWeeklyKey(e.target.value)}
-              style={{ ...selectStyle, minWidth: 280 }}>
-              {weeklyOptions.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-            </select>
+            <label style={{ fontSize: font.size.xs, color: C.textMid }}>週:</label>
+            <div style={{ minWidth: 280 }}>
+              <Select
+                size="sm"
+                value={weeklyKey}
+                onChange={e => setWeeklyKey(e.target.value)}
+                options={weeklyOptions.map(p => ({ value: p.key, label: p.label }))}
+              />
+            </div>
           </>
         )}
         {periodMode === 'daily' && (
           <>
-            <label style={{ fontSize: 11, color: C.textMid, marginRight: 8 }}>日付:</label>
+            <label style={{ fontSize: font.size.xs, color: C.textMid }}>日付:</label>
             <input type="date" value={dailyDate} onChange={e => setDailyDate(e.target.value)}
-              style={{ ...selectStyle, minWidth: 160 }} />
-            <span style={{ fontSize: 10, color: C.textLight, marginLeft: 8 }}>
+              style={{ padding: `${space[1.5]}px ${space[2.5]}px`, fontSize: font.size.sm, border: `1px solid ${color.border}`, borderRadius: radius.md, minWidth: 160 }} />
+            <span style={{ fontSize: 10, color: C.textLight, marginLeft: space[2] }}>
               (その日ごとに目標を設定できます)
             </span>
           </>
@@ -314,11 +333,11 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
       </div>
 
       {/* 5 KPI 入力 */}
-      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 4, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+      <Card variant="default" padding="none" style={{ overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
           <thead>
             <tr style={{ background: C.cream, borderBottom: `1px solid ${C.border}` }}>
-              <th style={{ ...th, textAlign: 'left', paddingLeft: 16 }}>KPI</th>
+              <th style={{ ...th, textAlign: 'left', paddingLeft: space[4] }}>KPI</th>
               <th style={th}>目標値</th>
             </tr>
           </thead>
@@ -328,7 +347,7 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
               const disabled = !canEditThisScope || rateOnDaily;
               return (
                 <tr key={k.id} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
-                  <td style={{ ...td, textAlign: 'left', paddingLeft: 16, fontWeight: 500, color: C.navy }}>
+                  <td style={{ ...td, textAlign: 'left', paddingLeft: space[4], fontWeight: font.weight.medium, color: C.navy }}>
                     {k.label}
                     {rateOnDaily && (
                       <span style={{ fontSize: 9, marginLeft: 6, color: C.textLight }}>(日次不可)</span>
@@ -346,13 +365,13 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
                         onChange={e => setDraft(d => ({ ...d, [k.id]: e.target.value }))}
                         placeholder={disabled ? '—' : '未設定'}
                         style={{
-                          width: 120, padding: '5px 8px', fontSize: 12,
-                          border: `1px solid ${C.border}`, borderRadius: 3, textAlign: 'right',
+                          width: 120, padding: `5px ${space[2]}px`, fontSize: font.size.sm,
+                          border: `1px solid ${C.border}`, borderRadius: radius.sm, textAlign: 'right',
                           background: disabled ? C.cream : C.white,
                           color: disabled ? C.textLight : C.textDark,
                         }}
                       />
-                      <span style={{ fontSize: 11, color: C.textMid }}>{k.unit}</span>
+                      <span style={{ fontSize: font.size.xs, color: C.textMid }}>{k.unit}</span>
                     </div>
                   </td>
                 </tr>
@@ -360,23 +379,21 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
             })}
           </tbody>
         </table>
-      </div>
+      </Card>
 
       {canEditThisScope && (
-        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
-          <button onClick={handleSave}
+        <div style={{ marginTop: space[4], display: 'flex', justifyContent: 'flex-end' }}>
+          <Button
+            variant="primary"
+            onClick={handleSave}
             disabled={scopeType !== 'org' && !scopeId}
-            style={{
-              padding: '8px 24px', fontSize: 13, fontWeight: 600,
-              background: C.navy, color: C.white, border: 'none', borderRadius: 4,
-              cursor: (scopeType !== 'org' && !scopeId) ? 'not-allowed' : 'pointer',
-              opacity: (scopeType !== 'org' && !scopeId) ? 0.5 : 1,
-            }}
-          >保存</button>
+          >
+            保存
+          </Button>
         </div>
       )}
       {!canEditThisScope && (
-        <div style={{ marginTop: 12, fontSize: 11, color: C.textLight, textAlign: 'right' }}>
+        <div style={{ marginTop: space[3], fontSize: font.size.xs, color: C.textLight, textAlign: 'right' }}>
           ※ 閲覧のみ {isAdmin ? '' : '(自分の目標のみ編集可)'}
         </div>
       )}
@@ -384,9 +401,5 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
   );
 }
 
-const selectStyle = {
-  padding: '6px 10px', fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 4,
-  minWidth: 200,
-};
-const th = { padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: C.navy, fontSize: 11 };
-const td = { padding: '8px 12px', fontSize: 12, color: C.textDark, textAlign: 'center' };
+const th = { padding: `${space[2.5]}px ${space[3]}px`, textAlign: 'center', fontWeight: font.weight.semibold, color: C.navy, fontSize: font.size.xs };
+const td = { padding: `${space[2]}px ${space[3]}px`, fontSize: font.size.sm, color: C.textDark, textAlign: 'center' };

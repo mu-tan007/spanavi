@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { C } from '../../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import { updateClientNextContactAt } from '../../../lib/supabaseWrite';
@@ -54,7 +56,7 @@ const fmtJa = (ts) => {
 function SectionTitle({ children }) {
   return (
     <div style={{
-      fontSize: 10, fontWeight: 700, color: NAVY,
+      fontSize: 10, fontWeight: font.weight.bold, color: NAVY,
       letterSpacing: 1.5,
       borderBottom: `1px solid ${GRAY_200}`,
       paddingBottom: 6, marginBottom: 10, marginTop: 18,
@@ -84,7 +86,7 @@ function NextContactRow({ client, setClientData }) {
 
   return (
     <div style={{ marginBottom: 8 }}>
-      <div style={{ fontSize: 9, fontWeight: 600, color: C.textLight, marginBottom: 2 }}>次回接点予定日</div>
+      <div style={{ fontSize: 9, fontWeight: font.weight.semibold, color: C.textLight, marginBottom: 2 }}>次回接点予定日</div>
       <input
         type="date"
         value={val}
@@ -92,10 +94,10 @@ function NextContactRow({ client, setClientData }) {
         onBlur={handleSave}
         disabled={!setClientData}
         style={{
-          width: '100%', padding: '6px 8px', borderRadius: 3,
-          border: '1px solid ' + GRAY_200,
-          fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none',
-          background: setClientData ? '#fff' : GRAY_50,
+          width: '100%', padding: '6px 8px', borderRadius: radius.sm,
+          border: `1px solid ${GRAY_200}`,
+          fontSize: font.size.xs, fontFamily: font.family.sans, outline: 'none',
+          background: setClientData ? color.white : GRAY_50,
           color: C.textDark,
         }}
       />
@@ -106,10 +108,10 @@ function NextContactRow({ client, setClientData }) {
 function FieldRow({ label, value, mono = false, valueColor }) {
   return (
     <div style={{ marginBottom: 8 }}>
-      <div style={{ fontSize: 9, fontWeight: 600, color: C.textLight, marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 9, fontWeight: font.weight.semibold, color: C.textLight, marginBottom: 2 }}>{label}</div>
       <div style={{
-        fontSize: 11, color: valueColor || C.textDark, fontWeight: 500, lineHeight: 1.5,
-        fontFamily: mono ? "'JetBrains Mono', monospace" : "'Noto Sans JP', sans-serif",
+        fontSize: font.size.xs, color: valueColor || C.textDark, fontWeight: font.weight.medium, lineHeight: 1.5,
+        fontFamily: mono ? font.family.mono : font.family.sans,
         fontVariantNumeric: mono ? 'tabular-nums' : 'normal',
         wordBreak: 'break-word',
       }}>{value || '-'}</div>
@@ -224,44 +226,44 @@ export default function ClientDetailPage({
 
   if (!c) {
     return (
-      <div style={{ padding: 40, textAlign: 'center', color: C.textLight, fontFamily: "'Noto Sans JP', sans-serif" }}>
+      <div style={{ padding: 40, textAlign: 'center', color: C.textLight, fontFamily: font.family.sans }}>
         クライアントが選択されていません
       </div>
     );
   }
 
   return (
-    <div style={{ animation: 'fadeIn 0.2s ease', fontFamily: "'Noto Sans JP', sans-serif", color: C.textDark }}>
+    <div style={{ animation: 'fadeIn 0.2s ease', fontFamily: font.family.sans, color: C.textDark }}>
       {/* Top header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '14px 18px', background: '#fff',
-        border: `1px solid ${GRAY_200}`, borderRadius: 4, marginBottom: 16,
+        padding: '14px 18px', background: color.white,
+        border: `1px solid ${GRAY_200}`, borderRadius: radius.md, marginBottom: 16,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
             onClick={onBack}
             style={{
-              padding: '6px 12px', borderRadius: 4,
-              border: `1px solid ${GRAY_200}`, background: '#fff',
-              fontSize: 11, color: C.textMid,
-              cursor: 'pointer', fontFamily: "'Noto Sans JP', sans-serif",
+              padding: '6px 12px', borderRadius: radius.md,
+              border: `1px solid ${GRAY_200}`, background: color.white,
+              fontSize: font.size.xs, color: C.textMid,
+              cursor: 'pointer', fontFamily: font.family.sans,
             }}
           >‹ 一覧に戻る</button>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
             <span style={{
               borderLeft: `3px solid ${sc.color}`, paddingLeft: 8,
-              color: sc.color, fontSize: 11, fontWeight: 600,
+              color: sc.color, fontSize: font.size.xs, fontWeight: font.weight.semibold,
             }}>{c.status}</span>
             {c.contract === '済' && (
               <span style={{
-                fontSize: 9, padding: '2px 8px', borderRadius: 3,
-                background: NAVY + '12', color: NAVY, fontWeight: 600,
+                fontSize: 9, padding: '2px 8px', borderRadius: radius.sm,
+                background: NAVY + '12', color: NAVY, fontWeight: font.weight.semibold,
               }}>契約済</span>
             )}
-            <span style={{ fontSize: 17, fontWeight: 700, color: NAVY }}>{c.company}</span>
+            <span style={{ fontSize: 17, fontWeight: font.weight.bold, color: NAVY }}>{c.company}</span>
             {c.industry && (
-              <span style={{ fontSize: 11, color: C.textLight }}>{c.industry}</span>
+              <span style={{ fontSize: font.size.xs, color: C.textLight }}>{c.industry}</span>
             )}
           </div>
         </div>
@@ -271,10 +273,10 @@ export default function ClientDetailPage({
               onClick={() => onEdit(c)}
               title="顧客情報を編集"
               style={{
-                padding: '5px 12px', borderRadius: 4,
-                border: `1px solid ${GRAY_200}`, background: '#fff',
-                fontSize: 11, color: C.textMid, fontWeight: 500,
-                cursor: 'pointer', fontFamily: "'Noto Sans JP', sans-serif",
+                padding: '5px 12px', borderRadius: radius.md,
+                border: `1px solid ${GRAY_200}`, background: color.white,
+                fontSize: font.size.xs, color: C.textMid, fontWeight: font.weight.medium,
+                cursor: 'pointer', fontFamily: font.family.sans,
               }}
               onMouseEnter={(e) => { e.currentTarget.style.borderColor = NAVY; e.currentTarget.style.color = NAVY; }}
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = GRAY_200; e.currentTarget.style.color = C.textMid; }}
@@ -298,11 +300,11 @@ export default function ClientDetailPage({
                 onClick={() => setMobileTab(t.key)}
                 style={{
                   flex: 1, padding: '10px 8px',
-                  border: '1px solid ' + (active ? NAVY : GRAY_200),
-                  background: active ? NAVY : '#fff',
-                  color: active ? '#fff' : C.textMid,
-                  borderRadius: 4, fontSize: 12, fontWeight: 600,
-                  cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                  border: `1px solid ${active ? NAVY : GRAY_200}`,
+                  background: active ? NAVY : color.white,
+                  color: active ? color.white : C.textMid,
+                  borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold,
+                  cursor: 'pointer', fontFamily: font.family.sans,
                 }}
               >{t.label}</button>
             );
@@ -319,7 +321,7 @@ export default function ClientDetailPage({
       }}>
         {/* Left pane: profile / contract / numbers / lists / notes */}
         <div style={{
-          background: '#fff', border: `1px solid ${GRAY_200}`, borderRadius: 4,
+          background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
           padding: '14px 16px',
           maxHeight: isMobile ? 'none' : 'calc(100vh - 200px)',
           overflowY: isMobile ? 'visible' : 'auto',
@@ -354,7 +356,7 @@ export default function ClientDetailPage({
 
           <SectionTitle>数字</SectionTitle>
           {stats.loading ? (
-            <div style={{ fontSize: 11, color: C.textLight }}>読み込み中...</div>
+            <div style={{ fontSize: font.size.xs, color: C.textLight }}>読み込み中...</div>
           ) : (
             <>
               <FieldRow label="累計売上" value={yen(stats.totalSales)} mono valueColor={NAVY} />
@@ -365,11 +367,11 @@ export default function ClientDetailPage({
 
           <SectionTitle>関連リスト ({relatedLists.length})</SectionTitle>
           {relatedLists.length === 0 ? (
-            <div style={{ fontSize: 11, color: C.textLight }}>登録なし</div>
+            <div style={{ fontSize: font.size.xs, color: C.textLight }}>登録なし</div>
           ) : (
             relatedLists.slice(0, 8).map(l => (
               <div key={l._supaId || l.id} style={{
-                fontSize: 11, color: C.textDark,
+                fontSize: font.size.xs, color: C.textDark,
                 padding: '5px 0', borderBottom: `1px solid ${GRAY_100}`,
                 display: 'flex', justifyContent: 'space-between', gap: 6,
               }}>
@@ -377,7 +379,7 @@ export default function ClientDetailPage({
                   {l.industry || '(無題)'}
                 </span>
                 <span style={{
-                  fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
+                  fontFamily: font.family.mono, fontSize: 10,
                   color: C.textLight, fontVariantNumeric: 'tabular-nums', flexShrink: 0,
                 }}>{l.count || 0}件</span>
               </div>
@@ -397,14 +399,14 @@ export default function ClientDetailPage({
               ].filter(n => n.val).map((n, ni) => (
                 <div key={ni} style={{ marginBottom: 8 }}>
                   <div style={{
-                    fontSize: 9, fontWeight: 700, color: NAVY, marginBottom: 3,
+                    fontSize: 9, fontWeight: font.weight.bold, color: NAVY, marginBottom: 3,
                     display: 'flex', alignItems: 'center', gap: 4,
                   }}>
                     <span style={{ width: 4, height: 4, borderRadius: '50%', background: NAVY, display: 'inline-block' }} />
                     {n.label}
                   </div>
                   <div style={{
-                    fontSize: 11, color: C.textMid, whiteSpace: 'pre-wrap', lineHeight: 1.6,
+                    fontSize: font.size.xs, color: C.textMid, whiteSpace: 'pre-wrap', lineHeight: 1.6,
                     padding: '4px 0 4px 8px', borderLeft: `2px solid ${GRAY_200}`,
                     maxHeight: 180, overflow: 'auto',
                   }}>
@@ -418,7 +420,7 @@ export default function ClientDetailPage({
 
         {/* Center pane: Activity Timeline */}
         <div style={{
-          background: '#fff', border: `1px solid ${GRAY_200}`, borderRadius: 4,
+          background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
           padding: '14px 16px',
           maxHeight: isMobile ? 'none' : 'calc(100vh - 200px)',
           overflowY: isMobile ? 'visible' : 'auto',
@@ -432,7 +434,7 @@ export default function ClientDetailPage({
 
         {/* Right pane: actions + contacts */}
         <div style={{
-          background: '#fff', border: `1px solid ${GRAY_200}`, borderRadius: 4,
+          background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
           padding: '14px 16px',
           maxHeight: isMobile ? 'none' : 'calc(100vh - 200px)',
           overflowY: isMobile ? 'visible' : 'auto',
@@ -450,24 +452,24 @@ export default function ClientDetailPage({
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             borderBottom: `1px solid ${GRAY_200}`, paddingBottom: 8, marginBottom: 10,
           }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: NAVY, letterSpacing: 1 }}>
+            <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: NAVY, letterSpacing: 1 }}>
               担当者 ({sortedContacts.length})
             </div>
             {setContactsByClient && (
               <button
                 onClick={() => setContactDrawer({ isOpen: true, mode: 'add', existingContact: null })}
                 style={{
-                  padding: '4px 10px', borderRadius: 3,
-                  border: `1px solid ${NAVY}`, background: '#fff',
-                  color: NAVY, fontSize: 10, fontWeight: 500,
-                  cursor: 'pointer', fontFamily: "'Noto Sans JP', sans-serif",
+                  padding: '4px 10px', borderRadius: radius.sm,
+                  border: `1px solid ${NAVY}`, background: color.white,
+                  color: NAVY, fontSize: 10, fontWeight: font.weight.medium,
+                  cursor: 'pointer', fontFamily: font.family.sans,
                 }}
               >＋ 追加</button>
             )}
           </div>
 
           {sortedContacts.length === 0 ? (
-            <div style={{ fontSize: 11, color: C.textLight, padding: 12, textAlign: 'center' }}>
+            <div style={{ fontSize: font.size.xs, color: C.textLight, padding: 12, textAlign: 'center' }}>
               担当者が登録されていません
             </div>
           ) : (
@@ -486,12 +488,12 @@ export default function ClientDetailPage({
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                   {ct.isPrimary && (
                     <span style={{
-                      fontSize: 8, fontWeight: 700, letterSpacing: 1,
+                      fontSize: 8, fontWeight: font.weight.bold, letterSpacing: 1,
                       color: NAVY, border: `1px solid ${NAVY}`,
                       borderRadius: 2, padding: '1px 4px',
                     }}>主</span>
                   )}
-                  <span style={{ fontSize: 12, fontWeight: 600, color: NAVY }}>{ct.name}</span>
+                  <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: NAVY }}>{ct.name}</span>
                 </div>
                 {ct.email && (
                   <div style={{ fontSize: 10, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -502,7 +504,7 @@ export default function ClientDetailPage({
                   <div style={{ fontSize: 9, color: C.textLight, marginTop: 2 }}>@{ct.slackMemberId}</div>
                 )}
                 <div style={{
-                  marginTop: 4, fontSize: 10, color: NAVY, fontWeight: 500,
+                  marginTop: 4, fontSize: 10, color: NAVY, fontWeight: font.weight.medium,
                 }}>詳細を開く ›</div>
               </div>
             ))

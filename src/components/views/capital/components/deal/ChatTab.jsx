@@ -7,6 +7,8 @@ import { invokeFn, SessionExpiredError } from '../../lib/invokeFn'
 import MarkdownBody from '../ui/MarkdownBody'
 import { onEnterSubmit } from '../../lib/keyboard'
 import Icon from '../ui/Icon'
+import { color, space, radius, font, shadow, alpha } from '../../../../../constants/design'
+import { Button, Select, Card, Badge } from '../../../../ui'
 
 const MODELS = [
   { value: 'claude-opus-4-6', label: 'Opus 4.6（高品質・推奨）' },
@@ -252,80 +254,72 @@ export default function ChatTab({ dealId }) {
 
   return (
     <div onDragOver={onDragOver} onDrop={onDrop}
-      style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 280px)', minHeight: 500, background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, overflow: 'hidden' }}>
+      style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 280px)', minHeight: 500, background: color.white, border: `0.5px solid ${color.border}`, borderRadius: 12, overflow: 'hidden' }}>
 
       {/* Header */}
-      <div style={{ padding: '10px 16px', borderBottom: '0.5px solid #E5E5E5', background: '#FAFAFA', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: 12, color: '#706E6B' }}>
+      <div style={{ padding: '10px 16px', borderBottom: `0.5px solid ${color.border}`, background: color.gray50, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: font.size.sm, color: color.textLight }}>
           AIアシスタント — この案件の情報を踏まえて質問・ファイル解析ができます
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <select value={model} onChange={e => setModel(e.target.value)} style={{
-            height: 28, padding: '0 8px', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 11, outline: 'none',
-          }}>
-            {MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-          </select>
+          <Select size="sm" fullWidth={false} value={model} onChange={e => setModel(e.target.value)}
+            options={MODELS.map(m => ({ value: m.value, label: m.label }))} />
           {messages.length > 0 && (
-            <button onClick={clearChat} style={{
-              height: 28, padding: '0 10px', background: '#fff', border: '0.5px solid #e0c0c0',
-              borderRadius: 5, fontSize: 11, color: '#EA001E', cursor: 'pointer',
-            }}>履歴削除</button>
+            <Button variant="outline" size="sm" onClick={clearChat} style={{ color: color.danger, borderColor: '#e0c0c0' }}>履歴削除</Button>
           )}
         </div>
       </div>
 
       {sessionExpired && (
-        <div style={{ padding: '10px 16px', background: '#FAECE7', border: '0.5px solid #e0c0c0', borderBottom: '0.5px solid #e0c0c0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          <div style={{ fontSize: 12, color: '#EA001E' }}>
+        <div style={{ padding: '10px 16px', background: color.dangerSoft, border: `0.5px solid #e0c0c0`, borderBottom: `0.5px solid #e0c0c0`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <div style={{ fontSize: font.size.sm, color: color.danger }}>
             ⚠ セッションが切れています。入力内容は保持されています。再ログイン後、送信ボタンをもう一度押してください。
           </div>
-          <button onClick={() => { window.location.href = '/login' }}
-            style={{ height: 28, padding: '0 14px', background: '#EA001E', color: '#fff', border: 'none', borderRadius: 5, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+          <Button variant="danger" size="sm" onClick={() => { window.location.href = '/login' }}>
             再ログイン
-          </button>
+          </Button>
         </div>
       )}
 
       {/* 案件ファイル (資料棚) — collapsible */}
-      <div style={{ borderBottom: '0.5px solid #E5E5E5', background: '#FAFAFA' }}>
+      <div style={{ borderBottom: `0.5px solid ${color.border}`, background: color.gray50 }}>
         <button onClick={() => setShowFiles(s => !s)}
           style={{ width: '100%', padding: '8px 16px', background: 'transparent', border: 'none',
-            display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', color: '#706E6B', fontSize: 11,
+            display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', color: color.textLight, fontSize: font.size.xs,
           }}>
           <span style={{ transform: showFiles ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>▶</span>
           <span>案件ファイル ({files.length})</span>
-          <span style={{ fontSize: 10, color: '#706E6B', marginLeft: 8 }}>
+          <span style={{ fontSize: font.size.xs, color: color.textLight, marginLeft: 8 }}>
             IM/財務資料は自動解析されます
           </span>
         </button>
         {showFiles && (
           <div style={{ padding: '4px 16px 10px', maxHeight: 160, overflowY: 'auto' }}>
             {files.length === 0 ? (
-              <div style={{ fontSize: 11, color: '#706E6B', padding: '6px 0' }}>まだファイルはありません。下のクリップアイコンからアップロードするか、ドロップしてください。</div>
+              <div style={{ fontSize: font.size.xs, color: color.textLight, padding: '6px 0' }}>まだファイルはありません。下のクリップアイコンからアップロードするか、ドロップしてください。</div>
             ) : files.map(f => (
-              <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '0.5px solid #f0f2f5' }}>
-                <span style={{ fontSize: 10, padding: '2px 6px', background: '#F8F8F8', color: '#032D60', borderRadius: 3, flexShrink: 0 }}>
+              <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: `0.5px solid ${color.borderLight}` }}>
+                <Badge variant="primary" size="sm">
                   {FILE_TYPE_LABEL[f.file_type] || f.file_type || 'その他'}
-                </span>
-                <span style={{ flex: 1, fontSize: 11, color: '#032D60', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
+                </Badge>
+                <span style={{ flex: 1, fontSize: font.size.xs, color: color.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
                   onClick={() => downloadFile(f)} title="クリックでダウンロード">
                   {f.file_name}
                 </span>
                 {f.parsed_data && Object.keys(f.parsed_data).length > 0 && (
-                  <span style={{ fontSize: 10, color: '#2E844A', flexShrink: 0 }}>解析済</span>
+                  <span style={{ fontSize: font.size.xs, color: color.success, flexShrink: 0 }}>解析済</span>
                 )}
-                <span style={{ fontSize: 10, color: '#706E6B', flexShrink: 0 }}>
+                <span style={{ fontSize: font.size.xs, color: color.textLight, flexShrink: 0 }}>
                   {new Date(f.uploaded_at).toLocaleDateString('ja-JP')}
                 </span>
-                <button onClick={() => deleteFile(f)}
-                  style={{ background: 'none', border: 'none', color: '#EA001E', cursor: 'pointer', fontSize: 11, flexShrink: 0 }}>
+                <Button variant="ghost" size="sm" onClick={() => deleteFile(f)} style={{ color: color.danger, padding: '0 6px', minHeight: 0 }}>
                   ×
-                </button>
+                </Button>
               </div>
             ))}
             {uploadingFiles.map((u, i) => (
-              <div key={`up-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', fontSize: 11, color: u.status === 'error' ? '#EA001E' : '#032D60' }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: u.status === 'done' ? '#2E844A' : u.status === 'error' ? '#EA001E' : '#032D60' }} />
+              <div key={`up-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', fontSize: font.size.xs, color: u.status === 'error' ? color.danger : color.navy }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: u.status === 'done' ? color.success : u.status === 'error' ? color.danger : color.navy }} />
                 {u.name} — {u.status === 'done' ? '解析・反映完了 (案件詳細/財務/バリュエーション/QA を更新)' : u.status === 'error' ? 'エラー' : u.status === 'analyzing' ? 'AI解析中' : 'アップロード中'}
               </div>
             ))}
@@ -336,11 +330,11 @@ export default function ChatTab({ dealId }) {
       {/* Messages */}
       <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
         {isLoading ? (
-          <div style={{ textAlign: 'center', color: '#706E6B', fontSize: 12, padding: 40 }}>読み込み中...</div>
+          <div style={{ textAlign: 'center', color: color.textLight, fontSize: font.size.sm, padding: 40 }}>読み込み中...</div>
         ) : messages.length === 0 ? (
-          <div style={{ textAlign: 'center', color: '#706E6B', padding: '60px 24px' }}>
-            <div style={{ fontSize: 14, marginBottom: 8 }}>この案件についてAIに質問できます</div>
-            <div style={{ fontSize: 11, lineHeight: 1.7 }}>
+          <div style={{ textAlign: 'center', color: color.textLight, padding: '60px 24px' }}>
+            <div style={{ fontSize: font.size.md, marginBottom: 8 }}>この案件についてAIに質問できます</div>
+            <div style={{ fontSize: font.size.xs, lineHeight: 1.7 }}>
               例: 「この財務データから、買収価格の妥当性を評価して」<br/>
               「DDで重点的に確認すべき項目を10個提案して」<br/>
               「IM・財務資料をアップロードすると、財務データ/SWOT/スコアを自動抽出します」
@@ -354,14 +348,14 @@ export default function ChatTab({ dealId }) {
             }}>
               <div style={{
                 maxWidth: m.role === 'user' ? '78%' : '92%', padding: '12px 16px', borderRadius: 12,
-                background: m.role === 'user' ? '#032D60' : '#f0f6ff',
-                color: m.role === 'user' ? '#FFFFFF' : '#181818',
-                fontSize: 13, lineHeight: 1.7,
+                background: m.role === 'user' ? color.navy : '#f0f6ff',
+                color: m.role === 'user' ? color.white : '#181818',
+                fontSize: font.size.base, lineHeight: 1.7,
               }}>
                 {m.attachments && Array.isArray(m.attachments) && m.attachments.length > 0 && (
                   <div style={{ marginBottom: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {m.attachments.map((a, i) => (
-                      <span key={i} style={{ fontSize: 10, padding: '2px 6px', background: m.role === 'user' ? 'rgba(255,255,255,0.15)' : '#F8F8F8', color: m.role === 'user' ? '#181818' : '#032D60', borderRadius: 3, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <span key={i} style={{ fontSize: font.size.xs, padding: '2px 6px', background: m.role === 'user' ? alpha('#FFFFFF', 0.15) : color.gray100, color: m.role === 'user' ? '#181818' : color.navy, borderRadius: 3, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                         <Icon name="paperclip" size={10} /> {a.name}
                       </span>
                     ))}
@@ -371,7 +365,7 @@ export default function ChatTab({ dealId }) {
                   ? <MarkdownBody compact>{m.content}</MarkdownBody>
                   : <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{m.content}</div>}
                 {m.role === 'assistant' && m.model && (
-                  <div style={{ fontSize: 9, color: '#706E6B', marginTop: 6 }}>{m.model}</div>
+                  <div style={{ fontSize: 9, color: color.textLight, marginTop: 6 }}>{m.model}</div>
                 )}
               </div>
             </div>
@@ -379,7 +373,7 @@ export default function ChatTab({ dealId }) {
         )}
         {sending && (
           <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 14 }}>
-            <div style={{ padding: '10px 14px', borderRadius: 12, background: '#f0f6ff', color: '#706E6B', fontSize: 13 }}>
+            <div style={{ padding: '10px 14px', borderRadius: 12, background: '#f0f6ff', color: color.textLight, fontSize: font.size.base }}>
               <span style={{ display: 'inline-block', animation: 'pulse 1s infinite' }}>● ● ●</span>
             </div>
           </div>
@@ -387,29 +381,29 @@ export default function ChatTab({ dealId }) {
       </div>
 
       {/* Input */}
-      <div style={{ borderTop: '0.5px solid #E5E5E5', padding: 12, background: '#FAFAFA' }}>
+      <div style={{ borderTop: `0.5px solid ${color.border}`, padding: 12, background: color.gray50 }}>
         {attachments.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
             {attachments.map((a, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 5, padding: '5px 8px', fontSize: 11 }}>
-                <span style={{ color: '#706E6B', display: 'flex', alignItems: 'center' }}><Icon name="paperclip" size={12} /></span>
-                <span style={{ color: '#032D60', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</span>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: color.white, border: `0.5px solid ${color.border}`, borderRadius: radius.lg, padding: '5px 8px', fontSize: font.size.xs }}>
+                <span style={{ color: color.textLight, display: 'flex', alignItems: 'center' }}><Icon name="paperclip" size={12} /></span>
+                <span style={{ color: color.navy, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</span>
                 <select value={a.fileType} onChange={e => updateAttachmentType(i, e.target.value)}
-                  style={{ height: 22, padding: '0 6px', border: '0.5px solid #E5E5E5', borderRadius: 4, fontSize: 10, outline: 'none', background: '#fff' }}>
+                  style={{ height: 22, padding: '0 6px', border: `0.5px solid ${color.border}`, borderRadius: radius.md, fontSize: font.size.xs, outline: 'none', background: color.white }}>
                   {FILE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
-                <button onClick={() => removeAttachment(i)} style={{ background: 'none', border: 'none', color: '#EA001E', cursor: 'pointer', fontSize: 13 }}>×</button>
+                <Button variant="ghost" size="sm" onClick={() => removeAttachment(i)} style={{ color: color.danger, padding: '0 6px', minHeight: 0 }}>×</Button>
               </div>
             ))}
-            <div style={{ fontSize: 10, color: '#706E6B', paddingLeft: 4 }}>
+            <div style={{ fontSize: font.size.xs, color: color.textLight, paddingLeft: 4 }}>
               種別を選択: IM / 財務資料 は送信後に自動で財務データ・SWOT・スコアを抽出します
             </div>
           </div>
         )}
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
           <button onClick={() => fileRef.current?.click()} title="ファイルを添付 (最大30MB / PDF・画像)" style={{
-            width: 36, height: 36, background: '#fff', border: '0.5px solid #E5E5E5',
-            borderRadius: 6, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#706E6B',
+            width: 36, height: 36, background: color.white, border: `0.5px solid ${color.border}`,
+            borderRadius: 6, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color.textLight,
           }}>
             <Icon name="paperclip" size={16} />
           </button>
@@ -421,17 +415,14 @@ export default function ChatTab({ dealId }) {
             placeholder="質問を入力... (Enterで送信 / Shift+Enter で改行 / ドラッグ&ドロップでファイル添付)"
             rows={2}
             style={{
-              flex: 1, padding: '8px 12px', border: '0.5px solid #E5E5E5', borderRadius: 6,
-              fontSize: 13, outline: 'none', resize: 'none', lineHeight: 1.6,
-              fontFamily: 'inherit',
+              flex: 1, padding: '8px 12px', border: `0.5px solid ${color.border}`, borderRadius: 6,
+              fontSize: font.size.base, outline: 'none', resize: 'none', lineHeight: 1.6,
+              fontFamily: 'inherit', background: color.white, color: color.textDark,
             }}
           />
-          <button onClick={handleSend} disabled={sending || (!message.trim() && attachments.length === 0)} style={{
-            height: 36, padding: '0 18px', background: sending ? '#706E6B' : '#032D60', border: 'none',
-            borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer',
-            opacity: (!message.trim() && attachments.length === 0) ? 0.4 : 1,
-            flexShrink: 0,
-          }}>送信</button>
+          <Button onClick={handleSend} disabled={sending || (!message.trim() && attachments.length === 0)} loading={sending} style={{ height: 36, flexShrink: 0 }}>
+            送信
+          </Button>
         </div>
       </div>
     </div>

@@ -1,24 +1,25 @@
 import { C } from '../../../constants/colors';
+import { color, space, radius, font, alpha } from '../../../constants/design';
 import {
   NAVY, GRAY_200, GRAY_50, GOLD,
   statusStyle, lastTouchDisplay, nextActionFor,
   priorityScore, priorityRank, composeEmailDraft,
 } from './utils';
 
-function MiniIconBtn({ label, color = NAVY, disabled, onClick, hint }) {
+function MiniIconBtn({ label, color: btnColor = color.navy, disabled, onClick, hint }) {
   return (
     <button
       onClick={e => { e.stopPropagation(); if (!disabled) onClick(); }}
       title={hint}
       disabled={disabled}
       style={{
-        width: 24, height: 22, borderRadius: 3,
-        border: '1px solid ' + (disabled ? GRAY_200 : color),
-        background: disabled ? '#F8F9FA' : '#fff',
-        color: disabled ? C.textLight : color,
-        fontSize: 10, fontWeight: 700, padding: 0,
+        width: 24, height: 22, borderRadius: radius.sm,
+        border: `1px solid ${disabled ? color.border : btnColor}`,
+        background: disabled ? color.gray50 : color.white,
+        color: disabled ? color.textLight : btnColor,
+        fontSize: font.size.xs, fontWeight: font.weight.bold, padding: 0,
         cursor: disabled ? 'not-allowed' : 'pointer',
-        fontFamily: "'Noto Sans JP'",
+        fontFamily: font.family.sans,
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       }}
     >
@@ -29,16 +30,16 @@ function MiniIconBtn({ label, color = NAVY, disabled, onClick, hint }) {
 
 // 'YYYY-MM-DD' or ISO → 'M/D' / 過去なら赤
 function formatNextContact(ts) {
-  if (!ts) return { label: '—', color: C.textLight, bold: false };
+  if (!ts) return { label: '—', color: color.textLight, bold: false };
   const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return { label: '—', color: C.textLight, bold: false };
+  if (Number.isNaN(d.getTime())) return { label: '—', color: color.textLight, bold: false };
   const now = new Date();
   const isPast = d.getTime() < now.setHours(0, 0, 0, 0);
   const m = d.getMonth() + 1;
   const day = d.getDate();
   return {
     label: `${m}/${day}`,
-    color: isPast ? '#DC2626' : NAVY,
+    color: isPast ? color.danger : color.navy,
     bold: isPast,
   };
 }
@@ -60,7 +61,7 @@ export default function CRMTableRow({
 }) {
   const c = client;
   const sc = statusStyle(c.status);
-  const altBg = rowIndex % 2 === 0 ? '#fff' : GRAY_50;
+  const altBg = rowIndex % 2 === 0 ? color.white : color.gray50;
   const lt = lastTouchDisplay(lastTouchByClient[c._supaId]);
   const contactList = contactsByClient[c._supaId] || [];
   const primary = contactList.find(ct => ct.isPrimary) || contactList[0];
@@ -72,13 +73,13 @@ export default function CRMTableRow({
   const monthTarget = monthTargetByClient[c._supaId] || 0;
   let ratioDisplay;
   if (monthTarget === 0) {
-    ratioDisplay = { label: '—', color: C.textLight };
+    ratioDisplay = { label: '—', color: color.textLight };
   } else {
     const ratio = Math.round((monthAppoCount / monthTarget) * 100);
-    let color = '#DC2626';
-    if (ratio >= 100) color = '#16A34A';
-    else if (ratio >= 70) color = GOLD;
-    ratioDisplay = { label: `${ratio}%`, color, sub: `${monthAppoCount}/${monthTarget}` };
+    let ratioColor = color.danger;
+    if (ratio >= 100) ratioColor = color.success;
+    else if (ratio >= 70) ratioColor = color.gold;
+    ratioDisplay = { label: `${ratio}%`, color: ratioColor, sub: `${monthAppoCount}/${monthTarget}` };
   }
 
   // 次のアクション（自動判定）
@@ -100,8 +101,8 @@ export default function CRMTableRow({
     <div
       style={{
         display: 'grid', gridTemplateColumns: crmGrid,
-        padding: '8px 16px', fontSize: 11, alignItems: 'center',
-        borderBottom: '1px solid ' + GRAY_200,
+        padding: '8px 16px', fontSize: font.size.sm, alignItems: 'center',
+        borderBottom: `1px solid ${color.border}`,
         background: altBg,
         cursor: 'pointer', transition: 'background 0.15s',
       }}
@@ -111,7 +112,7 @@ export default function CRMTableRow({
     >
       {/* 1. ステータス */}
       <span style={{
-        borderLeft: '3px solid ' + sc.color, paddingLeft: 8, color: sc.color, fontSize: 12,
+        borderLeft: `3px solid ${sc.color}`, paddingLeft: 8, color: sc.color, fontSize: font.size.sm,
         display: 'inline-block', width: 'fit-content', textAlign: crmCols[0]?.align,
       }}>{c.status}</span>
 
@@ -124,12 +125,12 @@ export default function CRMTableRow({
         <span
           title={`優先度スコア ${score}（高80+ / 中50+ / 低<50）`}
           style={{
-            fontSize: 8, fontWeight: 700,
+            fontSize: 8, fontWeight: font.weight.bold,
             color: rank.color,
-            border: '1px solid ' + rank.color,
+            border: `1px solid ${rank.color}`,
             borderRadius: 2, padding: '1px 4px',
             flexShrink: 0,
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: font.family.mono,
             fontVariantNumeric: 'tabular-nums',
             minWidth: 22, textAlign: 'center',
           }}
@@ -137,48 +138,48 @@ export default function CRMTableRow({
           {score}
         </span>
         <span style={{
-          fontWeight: 600, color: NAVY,
+          fontWeight: font.weight.semibold, color: color.navy,
           overflow: 'hidden', textOverflow: 'ellipsis',
         }}>{c.company}</span>
       </span>
 
       {/* 3. 最終接点 */}
       <span style={{
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 10,
+        fontFamily: font.family.mono,
+        fontSize: font.size.xs,
         fontVariantNumeric: 'tabular-nums',
-        color: lt.stale ? GOLD : (lt.label === '-' ? C.textLight : C.textMid),
-        fontWeight: lt.stale ? 700 : 400,
+        color: lt.stale ? color.gold : (lt.label === '-' ? color.textLight : color.textMid),
+        fontWeight: lt.stale ? font.weight.bold : font.weight.normal,
         textAlign: crmCols[2]?.align,
       }}>{lt.label}</span>
 
       {/* 4. 主担当 */}
       {primary ? (
         <span style={{
-          fontSize: 10, color: NAVY, textAlign: crmCols[3]?.align,
+          fontSize: font.size.xs, color: color.navy, textAlign: crmCols[3]?.align,
           display: 'inline-flex', alignItems: 'center', gap: 4,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {primary.isPrimary && (
             <span style={{
-              fontSize: 8, fontWeight: 700, letterSpacing: 1,
-              color: NAVY, border: '1px solid ' + NAVY,
+              fontSize: 8, fontWeight: font.weight.bold, letterSpacing: 1,
+              color: color.navy, border: `1px solid ${color.navy}`,
               borderRadius: 2, padding: '1px 3px', flexShrink: 0,
             }}>主</span>
           )}
-          <span style={{ fontWeight: 500 }}>{primary.name}</span>
+          <span style={{ fontWeight: font.weight.medium }}>{primary.name}</span>
         </span>
       ) : (
-        <span style={{ fontSize: 10, color: C.textLight, textAlign: crmCols[3]?.align }}>-</span>
+        <span style={{ fontSize: font.size.xs, color: color.textLight, textAlign: crmCols[3]?.align }}>-</span>
       )}
 
       {/* 5. 次回接点予定 */}
       <span style={{
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 10,
+        fontFamily: font.family.mono,
+        fontSize: font.size.xs,
         fontVariantNumeric: 'tabular-nums',
         color: nextContact.color,
-        fontWeight: nextContact.bold ? 700 : 400,
+        fontWeight: nextContact.bold ? font.weight.bold : font.weight.normal,
         textAlign: crmCols[4]?.align,
       }}>{nextContact.label}</span>
 
@@ -186,17 +187,17 @@ export default function CRMTableRow({
       <span style={{ textAlign: crmCols[5]?.align }}>
         <span style={{
           display: 'inline-block',
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: font.family.mono,
           fontVariantNumeric: 'tabular-nums',
-          fontSize: 11, fontWeight: 700,
+          fontSize: font.size.sm, fontWeight: font.weight.bold,
           color: ratioDisplay.color,
         }}>
           {ratioDisplay.label}
         </span>
         {ratioDisplay.sub && (
           <div style={{
-            fontSize: 8, color: C.textLight,
-            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 8, color: color.textLight,
+            fontFamily: font.family.mono,
             fontVariantNumeric: 'tabular-nums',
             marginTop: 1,
           }}>{ratioDisplay.sub}</div>
@@ -206,10 +207,10 @@ export default function CRMTableRow({
       {/* 7. 次のアクション */}
       <span style={{ textAlign: crmCols[6]?.align }}>
         <span style={{
-          fontSize: 10, fontWeight: 600,
+          fontSize: font.size.xs, fontWeight: font.weight.semibold,
           color: action.color,
           padding: '2px 6px',
-          borderRadius: 3,
+          borderRadius: radius.sm,
           background: action.color === '#9CA3AF' ? 'transparent' : action.color + '15',
         }}>
           {action.label}
@@ -224,14 +225,14 @@ export default function CRMTableRow({
           <span style={{ display: 'inline-flex', gap: 4, justifyContent: 'center', alignItems: 'center' }}>
             <MiniIconBtn
               label="@"
-              color={NAVY}
+              color={color.navy}
               disabled={!draft.to}
               hint={draft.to ? `メール: ${draft.to}` : 'メールアドレス未登録'}
               onClick={() => window.open(draft.mailto, '_blank')}
             />
             <MiniIconBtn
               label="TEL"
-              color={NAVY}
+              color={color.navy}
               disabled={!phone}
               hint={phone ? `電話: ${phone}` : '電話番号未登録'}
               onClick={() => { window.location.href = 'tel:' + phone; }}
@@ -240,10 +241,10 @@ export default function CRMTableRow({
               onClick={e => { e.stopPropagation(); onEditRow(c, globalIdx); }}
               title="編集"
               style={{
-                width: 24, height: 22, borderRadius: 3,
-                border: '1px solid ' + GRAY_200, background: '#fff',
-                cursor: 'pointer', fontSize: 12, padding: 0,
-                color: C.textMid,
+                width: 24, height: 22, borderRadius: radius.sm,
+                border: `1px solid ${color.border}`, background: color.white,
+                cursor: 'pointer', fontSize: font.size.sm, padding: 0,
+                color: color.textMid,
               }}
             >
               &#9998;

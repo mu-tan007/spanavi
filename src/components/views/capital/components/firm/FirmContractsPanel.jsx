@@ -4,19 +4,19 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { logAudit } from '../../lib/audit'
 import Icon from '../ui/Icon'
+import { color, space, radius, font, shadow, alpha } from '../../../../../constants/design'
+import { Button, Input, Select, Card, Badge } from '../../../../ui'
 
 const CONTRACT_TYPES = [
   { value: 'nda',          label: '包括NDA' },
   { value: 'advisory',     label: 'アドバイザリー契約' },
   { value: 'other_master', label: 'その他マスター契約' },
 ]
-const TYPE_COLOR = {
-  nda:          { bg: '#F8F8F8', color: '#032D60' },
-  advisory:     { bg: '#E1F5EE', color: '#2E844A' },
-  other_master: { bg: '#f5ecf8', color: '#6830a0' },
+const TYPE_VARIANT = {
+  nda:          'primary',
+  advisory:     'success',
+  other_master: 'info',
 }
-
-const card = { background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 16 }
 
 export default function FirmContractsPanel({ intermediaryId, intermediaryName }) {
   const { tenantId } = useAuth()
@@ -95,89 +95,72 @@ export default function FirmContractsPanel({ intermediaryId, intermediaryName })
   }
 
   const today = new Date().toISOString().slice(0, 10)
-  const inp = { width: '100%', height: 32, padding: '0 10px', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 12, outline: 'none' }
 
   return (
-    <div style={card}>
+    <Card padding="md">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 500, color: '#706E6B' }}>包括契約 (NDA・アドバイザリー等)</div>
-          <div style={{ fontSize: 10, color: '#706E6B', marginTop: 2 }}>案件横断で有効なマスター契約</div>
+          <div style={{ fontSize: font.size.sm, fontWeight: font.weight.medium, color: color.textLight }}>包括契約 (NDA・アドバイザリー等)</div>
+          <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 2 }}>案件横断で有効なマスター契約</div>
         </div>
-        <button onClick={() => setShowForm(v => !v)}
-          style={{ height: 28, padding: '0 10px', background: '#032D60', border: 'none', borderRadius: 5, fontSize: 11, color: '#fff', cursor: 'pointer' }}>
+        <Button size="sm" onClick={() => setShowForm(v => !v)}>
           {showForm ? 'キャンセル' : '+ 契約を追加'}
-        </button>
+        </Button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 14, padding: 12, background: '#FAFAFA', borderRadius: 8 }}>
+        <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 14, padding: 12, background: color.gray50, borderRadius: radius.xl }}>
+          <Select size="sm" label="種別 *" value={form.contract_type} onChange={e => setForm(f => ({ ...f, contract_type: e.target.value }))}
+            options={CONTRACT_TYPES.map(t => ({ value: t.value, label: t.label }))} />
+          <Input size="sm" label="締結日" type="date" value={form.signed_at} max={today} onChange={e => setForm(f => ({ ...f, signed_at: e.target.value }))} />
+          <Input size="sm" label="有効期限 (無期限なら空)" type="date" value={form.expires_at} onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))} />
           <div>
-            <label style={{ fontSize: 10, color: '#706E6B', display: 'block', marginBottom: 4 }}>種別 *</label>
-            <select value={form.contract_type} onChange={e => setForm(f => ({ ...f, contract_type: e.target.value }))} style={inp}>
-              {CONTRACT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize: 10, color: '#706E6B', display: 'block', marginBottom: 4 }}>締結日</label>
-            <input type="date" value={form.signed_at} max={today} onChange={e => setForm(f => ({ ...f, signed_at: e.target.value }))} style={inp} />
-          </div>
-          <div>
-            <label style={{ fontSize: 10, color: '#706E6B', display: 'block', marginBottom: 4 }}>有効期限 (無期限なら空)</label>
-            <input type="date" value={form.expires_at} onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))} style={inp} />
-          </div>
-          <div>
-            <label style={{ fontSize: 10, color: '#706E6B', display: 'block', marginBottom: 4 }}>原本PDF</label>
+            <label style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textMid, letterSpacing: font.letterSpacing.wide, marginBottom: 4, display: 'block' }}>原本PDF</label>
             <input ref={fileRef} type="file" accept=".pdf" onChange={e => setPendingFile(e.target.files?.[0] || null)}
-              style={{ fontSize: 11 }} />
+              style={{ fontSize: font.size.xs }} />
           </div>
           <div style={{ gridColumn: '1 / -1' }}>
-            <label style={{ fontSize: 10, color: '#706E6B', display: 'block', marginBottom: 4 }}>メモ</label>
-            <input type="text" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={inp} placeholder="条件・特記事項" />
+            <Input size="sm" label="メモ" type="text" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="条件・特記事項" />
           </div>
           <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <button type="submit" disabled={saving}
-              style={{ height: 30, padding: '0 16px', background: '#032D60', border: 'none', borderRadius: 5, fontSize: 12, color: '#fff', cursor: 'pointer' }}>
+            <Button type="submit" size="sm" disabled={saving} loading={saving}>
               {saving ? '保存中…' : '保存'}
-            </button>
+            </Button>
           </div>
         </form>
       )}
 
       {contracts.length === 0 ? (
-        <div style={{ fontSize: 11, color: '#706E6B', textAlign: 'center', padding: '16px 0' }}>まだ契約がありません</div>
+        <div style={{ fontSize: font.size.xs, color: color.textLight, textAlign: 'center', padding: '16px 0' }}>まだ契約がありません</div>
       ) : (
         contracts.map((c, i) => {
           const expired = c.expires_at && c.expires_at < today
-          const tc = TYPE_COLOR[c.contract_type] || TYPE_COLOR.other_master
+          const variant = TYPE_VARIANT[c.contract_type] || 'info'
           return (
-            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < contracts.length - 1 ? '0.5px solid #f0f2f5' : 'none' }}>
-              <span style={{ fontSize: 10, padding: '2px 8px', background: tc.bg, color: tc.color, borderRadius: 3, flexShrink: 0 }}>
+            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < contracts.length - 1 ? `0.5px solid ${color.borderLight}` : 'none' }}>
+              <Badge variant={variant} size="sm">
                 {CONTRACT_TYPES.find(t => t.value === c.contract_type)?.label || c.contract_type}
-              </span>
-              <div style={{ flex: 1, fontSize: 11, color: '#032D60' }}>
+              </Badge>
+              <div style={{ flex: 1, fontSize: font.size.xs, color: color.navy }}>
                 {c.signed_at ? `${c.signed_at} 締結` : '日付未設定'}
-                {c.expires_at && <span style={{ color: expired ? '#EA001E' : '#706E6B', marginLeft: 10 }}>
+                {c.expires_at && <span style={{ color: expired ? color.danger : color.textLight, marginLeft: 10 }}>
                   {expired ? '⚠ 期限切れ ' : '有効期限 '}{c.expires_at}
                 </span>}
-                {c.notes && <div style={{ fontSize: 10, color: '#706E6B', marginTop: 2 }}>{c.notes}</div>}
+                {c.notes && <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 2 }}>{c.notes}</div>}
               </div>
               {c.file_name && (
-                <button onClick={() => download(c)}
-                  style={{ background: 'none', border: 'none', color: '#032D60', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
-                  title={c.file_name}>
+                <Button variant="ghost" size="sm" onClick={() => download(c)} title={c.file_name}>
                   <Icon name="download" size={11} /> DL
-                </button>
+                </Button>
               )}
-              <button onClick={() => deleteContract(c)}
-                style={{ background: 'none', border: 'none', color: '#EA001E', cursor: 'pointer', fontSize: 11 }}>
+              <Button variant="ghost" size="sm" onClick={() => deleteContract(c)} style={{ color: color.danger }}>
                 ×
-              </button>
+              </Button>
             </div>
           )
         })
       )}
-    </div>
+    </Card>
   )
 }
 
@@ -203,10 +186,10 @@ export function MasterContractBanner({ intermediaryId, intermediaryName }) {
 
   const Pill = ({ ok, label, signed }) => (
     <span style={{
-      fontSize: 11, padding: '4px 10px',
-      background: ok ? '#E1F5EE' : '#FAF3E0',
-      color: ok ? '#2E844A' : '#A08040',
-      border: '0.5px solid ' + (ok ? '#b8d4b8' : '#e8c8a0'),
+      fontSize: font.size.xs, padding: '4px 10px',
+      background: ok ? color.successSoft : color.warnSoft,
+      color: ok ? color.success : '#A08040',
+      border: `0.5px solid ${ok ? '#b8d4b8' : '#e8c8a0'}`,
       borderRadius: 20,
       display: 'inline-flex', alignItems: 'center', gap: 4,
     }}>
@@ -216,8 +199,8 @@ export function MasterContractBanner({ intermediaryId, intermediaryName }) {
   )
 
   return (
-    <div style={{ padding: '10px 16px', background: '#FAFAFA', border: '0.5px solid #E5E5E5', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 12, marginBottom: 14 }}>
-      <span style={{ color: '#706E6B' }}>仲介: <strong style={{ color: '#032D60' }}>{intermediaryName}</strong> — 包括契約:</span>
+    <div style={{ padding: '10px 16px', background: color.gray50, border: `0.5px solid ${color.border}`, borderRadius: radius.xl, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: font.size.sm, marginBottom: 14 }}>
+      <span style={{ color: color.textLight }}>仲介: <strong style={{ color: color.navy }}>{intermediaryName}</strong> — 包括契約:</span>
       <Pill ok={!!nda} label="包括NDA" signed={nda?.signed_at} />
       <Pill ok={!!aa} label="アドバイザリー契約" signed={aa?.signed_at} />
     </div>

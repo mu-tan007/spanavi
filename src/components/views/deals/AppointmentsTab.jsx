@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { C } from '../../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import {
@@ -237,10 +239,10 @@ export default function AppointmentsTab({ client }) {
     .filter(d => d.value > 0);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: space[4] }}>
       {/* 期間セレクタ */}
-      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 4, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, color: C.textMid, fontWeight: 600 }}>期間:</span>
+      <Card padding="none" style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>期間:</span>
         {[
           { id: 'total',   label: 'トータル' },
           { id: 'monthly', label: '月次' },
@@ -249,39 +251,50 @@ export default function AppointmentsTab({ client }) {
         ].map(p => {
           const active = periodMode === p.id;
           return (
-            <button key={p.id} onClick={() => setPeriodMode(p.id)}
-              style={{
-                padding: '5px 12px', fontSize: 11,
-                background: active ? C.navy : C.white, color: active ? C.white : C.textMid,
-                border: `1px solid ${active ? C.navy : C.border}`,
-                borderRadius: 4, cursor: 'pointer', fontWeight: active ? 600 : 400,
-              }}
-            >{p.label}</button>
+            <Button
+              key={p.id}
+              size="sm"
+              variant={active ? 'primary' : 'secondary'}
+              onClick={() => setPeriodMode(p.id)}
+            >{p.label}</Button>
           );
         })}
         {periodMode === 'monthly' && (
-          <select value={monthlyKey} onChange={e => setMonthlyKey(e.target.value)}
-            style={{ padding: '5px 10px', fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 4, minWidth: 140 }}>
-            {monthlyOpts.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-          </select>
+          <Select
+            size="sm"
+            fullWidth={false}
+            value={monthlyKey}
+            onChange={e => setMonthlyKey(e.target.value)}
+            options={monthlyOpts.map(o => ({ value: o.key, label: o.label }))}
+            style={{ minWidth: 140 }}
+          />
         )}
         {periodMode === 'weekly' && (
-          <select value={weeklyKey} onChange={e => setWeeklyKey(e.target.value)}
-            style={{ padding: '5px 10px', fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 4, minWidth: 160 }}>
-            {weeklyOpts.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-          </select>
+          <Select
+            size="sm"
+            fullWidth={false}
+            value={weeklyKey}
+            onChange={e => setWeeklyKey(e.target.value)}
+            options={weeklyOpts.map(o => ({ value: o.key, label: o.label }))}
+            style={{ minWidth: 160 }}
+          />
         )}
         {periodMode === 'daily' && (
-          <input type="date" value={dailyDate} onChange={e => setDailyDate(e.target.value)}
-            style={{ padding: '5px 10px', fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 4 }} />
+          <Input
+            size="sm"
+            fullWidth={false}
+            type="date"
+            value={dailyDate}
+            onChange={e => setDailyDate(e.target.value)}
+          />
         )}
-        <span style={{ fontSize: 10, color: C.textLight, marginLeft: 'auto' }}>
+        <span style={{ fontSize: 10, color: color.textLight, marginLeft: 'auto' }}>
           表示中: {periodRange.label} (獲得日ベース)
         </span>
-      </div>
+      </Card>
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: C.textMid }}>読み込み中...</div>
+        <div style={{ padding: 40, textAlign: 'center', color: color.textMid }}>読み込み中...</div>
       ) : enriched.length === 0 ? (
         <EmptyCard>
           {periodMode === 'total'
@@ -297,7 +310,7 @@ export default function AppointmentsTab({ client }) {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-        <Card title="社長のM&A意向">
+        <SectionCard title="社長のM&A意向">
           <div style={{ height: 200 }}>
             <ResponsiveContainer>
               <PieChart>
@@ -309,40 +322,40 @@ export default function AppointmentsTab({ client }) {
               </PieChart>
             </ResponsiveContainer>
           </div>
-        </Card>
-        <Card title="エリア分布 (都道府県)">
+        </SectionCard>
+        <SectionCard title="エリア分布 (都道府県)">
           <div style={{ height: 200 }}>
             <ResponsiveContainer>
               <BarChart data={prefChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: C.textMid }} />
-                <YAxis tick={{ fontSize: 10, fill: C.textMid }} />
+                <CartesianGrid strokeDasharray="3 3" stroke={color.border} />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: color.textMid }} />
+                <YAxis tick={{ fontSize: 10, fill: color.textMid }} />
                 <Tooltip />
-                <Bar dataKey="value" fill={C.navy} />
+                <Bar dataKey="value" fill={color.navy} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </Card>
-        <Card title="売上高分布 (億円)">
+        </SectionCard>
+        <SectionCard title="売上高分布 (億円)">
           <div style={{ height: 200 }}>
             <ResponsiveContainer>
               <BarChart data={revChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: C.textMid }} />
-                <YAxis tick={{ fontSize: 10, fill: C.textMid }} />
+                <CartesianGrid strokeDasharray="3 3" stroke={color.border} />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: color.textMid }} />
+                <YAxis tick={{ fontSize: 10, fill: color.textMid }} />
                 <Tooltip />
-                <Bar dataKey="value" fill={C.navy} />
+                <Bar dataKey="value" fill={color.navy} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </SectionCard>
       </div>
 
-      <Card title="アポ一覧">
+      <SectionCard title="アポ一覧">
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', minWidth: 1100, borderCollapse: 'collapse', fontSize: 12 }}>
+          <table style={{ width: '100%', minWidth: 1100, borderCollapse: 'collapse', fontSize: font.size.sm }}>
             <thead>
-              <tr style={{ background: C.cream, borderBottom: `1px solid ${C.border}` }}>
+              <tr style={{ background: color.cream, borderBottom: `1px solid ${color.border}` }}>
                 <th style={{ ...th, textAlign: 'left' }}>企業名</th>
                 <th style={{ ...th, textAlign: 'left' }}>業種</th>
                 <th style={th}>売上高</th>
@@ -355,31 +368,30 @@ export default function AppointmentsTab({ client }) {
             </thead>
             <tbody>
               {enriched.map(r => {
-                const statusColor = r.status === 'キャンセル' ? '#EF4444' : r.status === 'リスケ中' ? '#F59E0B' : C.navy;
+                const statusClr = r.status === 'キャンセル' ? color.danger : r.status === 'リスケ中' ? color.warn : color.navy;
                 return (
-                  <tr key={r.id} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
-                    <td style={{ ...td, textAlign: 'left', fontWeight: 500, color: C.navy, whiteSpace: 'normal', minWidth: 180 }}>{r.company_name || '—'}</td>
-                    <td style={{ ...td, textAlign: 'left', color: C.textMid, whiteSpace: 'normal', minWidth: 220, maxWidth: 320 }}>{r.item?.business || '—'}</td>
+                  <tr key={r.id} style={{ borderBottom: `1px solid ${color.borderLight}` }}>
+                    <td style={{ ...td, textAlign: 'left', fontWeight: font.weight.medium, color: color.navy, whiteSpace: 'normal', minWidth: 180 }}>{r.company_name || '—'}</td>
+                    <td style={{ ...td, textAlign: 'left', color: color.textMid, whiteSpace: 'normal', minWidth: 220, maxWidth: 320 }}>{r.item?.business || '—'}</td>
                     <td style={td}>{r.revenue_text || '—'}</td>
                     <td style={td}>{r.prefecture}</td>
                     <td style={td}>{r.meeting_date ? String(r.meeting_date).slice(0, 10) : '—'}</td>
-                    <td style={{ ...td, color: statusColor, fontWeight: 600 }}>{r.status || '—'}</td>
+                    <td style={{ ...td, color: statusClr, fontWeight: font.weight.semibold }}>{r.status || '—'}</td>
                     <td style={td}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                        <select
+                        <Select
+                          size="sm"
+                          fullWidth={false}
                           value={r.ceo_ma_intent || r.resolved_intent || ''}
                           disabled={updating === r.id}
                           onChange={e => handleIntentChange(r.id, e.target.value)}
-                          style={{
-                            fontSize: 11, padding: '3px 6px', border: `1px solid ${C.border}`,
-                            borderRadius: 3, background: C.white, color: C.textDark, cursor: 'pointer',
-                          }}
-                        >
-                          <option value="">—</option>
-                          {CEO_INTENT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
+                          options={[
+                            { value: '', label: '—' },
+                            ...CEO_INTENT_OPTIONS.map(o => ({ value: o.value, label: o.label })),
+                          ]}
+                        />
                         {r.intent_is_derived && (
-                          <span title="議事録から自動推定" style={{ fontSize: 9, color: C.textLight }}>AI</span>
+                          <span title="議事録から自動推定" style={{ fontSize: 9, color: color.textLight }}>AI</span>
                         )}
                       </div>
                     </td>
@@ -391,7 +403,7 @@ export default function AppointmentsTab({ client }) {
                           subtitle={r.meeting_date ? `面談日 ${String(r.meeting_date).slice(0, 10)}` : ''}
                         />
                       ) : (
-                        <span style={{ fontSize: 10, color: C.textLight }}>—</span>
+                        <span style={{ fontSize: 10, color: color.textLight }}>—</span>
                       )}
                     </td>
                   </tr>
@@ -400,7 +412,7 @@ export default function AppointmentsTab({ client }) {
             </tbody>
           </table>
         </div>
-      </Card>
+      </SectionCard>
       </>)}
     </div>
   );
@@ -408,27 +420,27 @@ export default function AppointmentsTab({ client }) {
 
 function SummaryCard({ label, value }) {
   return (
-    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 4, padding: '12px 14px' }}>
-      <div style={{ fontSize: 10, color: C.textLight, letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 600, color: C.navy, fontFamily: "'JetBrains Mono',monospace" }}>{value}</div>
-    </div>
+    <Card padding="none" style={{ padding: '12px 14px' }}>
+      <div style={{ fontSize: 10, color: color.textLight, letterSpacing: font.letterSpacing.wider, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: font.size.xl - 2, fontWeight: font.weight.semibold, color: color.navy, fontFamily: font.family.mono }}>{value}</div>
+    </Card>
   );
 }
-function Card({ title, children }) {
+function SectionCard({ title, children }) {
   return (
-    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 4, padding: '12px 16px' }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: C.navy, marginBottom: 10 }}>{title}</div>
+    <Card padding="none" style={{ padding: '12px 16px' }}>
+      <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 10 }}>{title}</div>
       {children}
-    </div>
+    </Card>
   );
 }
 function EmptyCard({ children }) {
   return (
-    <div style={{ padding: '40px 12px', textAlign: 'center', color: C.textLight, background: C.white, border: `1px solid ${C.border}`, borderRadius: 4 }}>
+    <Card padding="none" style={{ padding: '40px 12px', textAlign: 'center', color: color.textLight }}>
       {children}
-    </div>
+    </Card>
   );
 }
 
-const th = { padding: '10px 12px', fontWeight: 600, color: C.navy, fontSize: 11, letterSpacing: '0.04em', textAlign: 'center', whiteSpace: 'nowrap' };
-const td = { padding: '8px 12px', fontSize: 12, color: C.textDark, textAlign: 'center', whiteSpace: 'nowrap' };
+const th = { padding: '10px 12px', fontWeight: font.weight.semibold, color: color.navy, fontSize: font.size.xs, letterSpacing: font.letterSpacing.wide, textAlign: 'center', whiteSpace: 'nowrap' };
+const td = { padding: '8px 12px', fontSize: font.size.sm, color: color.textDark, textAlign: 'center', whiteSpace: 'nowrap' };

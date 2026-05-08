@@ -3,6 +3,8 @@ import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import { updateMemberProfile } from '../../lib/supabaseWrite';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Card, Badge } from '../ui';
 
 const STORAGE_KEY = 'spanavi_member_drawer_width';
 const DEFAULT_WIDTH = Math.round(typeof window !== 'undefined' ? window.innerWidth * 0.25 : 400);
@@ -169,10 +171,10 @@ function MemberProfileDrawer({ memberId, width, onResize, onClose, currentUserId
   return (
     <aside style={{
       position: 'fixed', top: 0, right: 0, height: '100vh', width,
-      background: C.white, borderLeft: `1px solid ${C.border}`,
+      background: color.white, borderLeft: `1px solid ${color.border}`,
       boxShadow: '-2px 0 12px rgba(0,0,0,0.06)', zIndex: 8500,
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
-      fontFamily: "'Noto Sans JP', sans-serif",
+      fontFamily: font.family.sans,
     }}>
       {/* 左端ドラッグハンドル */}
       <div
@@ -182,19 +184,19 @@ function MemberProfileDrawer({ memberId, width, onResize, onClose, currentUserId
           cursor: 'col-resize', zIndex: 1,
           // 視覚化: hover でラインが濃くなる
         }}
-        onMouseEnter={e => { e.currentTarget.style.background = C.navy + '20'; }}
+        onMouseEnter={e => { e.currentTarget.style.background = alpha(color.navy, 0.125); }}
         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
       />
 
       {/* ヘッダー */}
       <div style={{
-        padding: '14px 18px', borderBottom: `1px solid ${C.borderLight}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-        background: C.white,
+        padding: '14px 18px', borderBottom: `1px solid ${color.borderLight}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: space[2.5],
+        background: color.white,
       }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, letterSpacing: '0.06em' }}>プロフィール</div>
+        <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, letterSpacing: font.letterSpacing.wide }}>プロフィール</div>
         <button onClick={onClose} title="閉じる (Esc)"
-          style={{ width: 26, height: 26, borderRadius: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: C.textMid, fontSize: 18, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          style={{ width: 26, height: 26, borderRadius: radius.md, border: 'none', background: 'transparent', cursor: 'pointer', color: color.textMid, fontSize: 18, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           ×
         </button>
       </div>
@@ -202,68 +204,66 @@ function MemberProfileDrawer({ memberId, width, onResize, onClose, currentUserId
       {/* 本体 */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 22px' }}>
         {loading ? (
-          <div style={{ color: C.textLight, fontSize: 12, textAlign: 'center', padding: 40 }}>読込中…</div>
+          <div style={{ color: color.textLight, fontSize: font.size.sm, textAlign: 'center', padding: space[10] }}>読込中…</div>
         ) : !member ? (
-          <div style={{ color: C.textLight, fontSize: 12, textAlign: 'center', padding: 40 }}>メンバー情報が取得できませんでした</div>
+          <div style={{ color: color.textLight, fontSize: font.size.sm, textAlign: 'center', padding: space[10] }}>メンバー情報が取得できませんでした</div>
         ) : (
           <>
             {/* アバター + 氏名 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
               <div style={{
                 width: 56, height: 56, borderRadius: '50%',
-                background: C.navy, color: C.white,
+                background: color.navy, color: color.white,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 24, fontWeight: 700, flexShrink: 0, overflow: 'hidden',
+                fontSize: 24, fontWeight: font.weight.bold, flexShrink: 0, overflow: 'hidden',
               }}>
                 {member.avatar_url
                   ? <img src={member.avatar_url} alt={member.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : (member.name || '?')[0]}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 4 }}>{member.name}</div>
+                <div style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: color.navy, marginBottom: 4 }}>{member.name}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                   {member.position && (
-                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: C.navy + '12', color: C.navy, fontWeight: 600 }}>{member.position}</span>
+                    <Badge variant="primary" size="sm">{member.position}</Badge>
                   )}
                   {isOwn && (
-                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: '#10B98115', color: '#059669', fontWeight: 600 }}>あなた</span>
+                    <Badge variant="success" size="sm">あなた</Badge>
                   )}
                 </div>
               </div>
               {canEdit && !editing && (
-                <button onClick={() => setEditing(true)}
-                  style={{ padding: '4px 12px', fontSize: 11, fontWeight: 600, background: C.white, color: C.navy, border: `1px solid ${C.navy}`, borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
                   編集
-                </button>
+                </Button>
               )}
             </div>
 
             {/* 基本情報 */}
             <Section title="基本情報">
               {editing ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: space[2.5] }}>
                   <Field label="氏名">
-                    <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inp} />
+                    <Input size="sm" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
                   </Field>
                   <Field label="メールアドレス">
-                    <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} />
+                    <Input size="sm" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
                   </Field>
                   <Field label="携帯番号">
-                    <input value={form.phone_number} onChange={e => setForm(f => ({ ...f, phone_number: e.target.value }))} style={inp} />
+                    <Input size="sm" value={form.phone_number} onChange={e => setForm(f => ({ ...f, phone_number: e.target.value }))} />
                   </Field>
                   <Field label="入社日">
-                    <input type="date" value={form.start_date || ''} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} style={inp} />
+                    <Input size="sm" type="date" value={form.start_date || ''} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
                   </Field>
-                  {saveError && <div style={{ fontSize: 11, color: '#DC2626' }}>{saveError}</div>}
+                  {saveError && <div style={{ fontSize: font.size.xs, color: color.danger }}>{saveError}</div>}
                   <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                    <button onClick={handleSave} disabled={saving}
-                      style={{ padding: '6px 14px', fontSize: 11, fontWeight: 600, background: C.navy, color: C.white, border: 'none', borderRadius: 3, cursor: saving ? 'wait' : 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                    <Button variant="primary" size="sm" loading={saving} onClick={handleSave}>
                       {saving ? '保存中…' : '保存'}
-                    </button>
-                    <button onClick={() => { setEditing(false); setForm({ name: member.name || '', email: member.email || '', phone_number: member.phone_number || '', start_date: member.start_date || '' }); }} disabled={saving}
-                      style={{ padding: '6px 14px', fontSize: 11, fontWeight: 600, background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                    </Button>
+                    <Button variant="secondary" size="sm" disabled={saving}
+                      onClick={() => { setEditing(false); setForm({ name: member.name || '', email: member.email || '', phone_number: member.phone_number || '', start_date: member.start_date || '' }); }}>
                       キャンセル
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -279,29 +279,27 @@ function MemberProfileDrawer({ memberId, width, onResize, onClose, currentUserId
             {/* 事業ごとのポジション・ランク */}
             <Section title="事業内ポジション・ランク">
               {engagements.length === 0 ? (
-                <div style={{ fontSize: 11, color: C.textLight }}>所属事業はありません</div>
+                <div style={{ fontSize: font.size.xs, color: color.textLight }}>所属事業はありません</div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
                   {engagements.map(e => (
-                    <div key={e.engagement_id} style={{
-                      padding: '10px 12px', borderRadius: 4, border: `1px solid ${C.borderLight}`, background: C.cream,
-                    }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 6 }}>{e.engagement_name}</div>
+                    <Card key={e.engagement_id} variant="subtle" padding="none" style={{ padding: '10px 12px', borderRadius: radius.md, borderColor: color.borderLight, background: color.cream }}>
+                      <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy, marginBottom: 6 }}>{e.engagement_name}</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {e.role_name && <Tag color="#1E40AF">ポジション: {e.role_name}</Tag>}
                         {e.rank_name && <Tag color="#059669">ランク: {e.rank_name}</Tag>}
                         {e.override_rate != null
-                          ? <Tag color="#C8A84B">個別率: {(e.override_rate * 100).toFixed(1).replace(/\.0$/, '')}%</Tag>
+                          ? <Tag color={color.gold}>個別率: {(e.override_rate * 100).toFixed(1).replace(/\.0$/, '')}%</Tag>
                           : (e.default_rate != null && <Tag color="#6B7280">既定率: {(e.default_rate * 100).toFixed(1).replace(/\.0$/, '')}%</Tag>)
                         }
-                        {!e.role_name && !e.rank_name && <span style={{ fontSize: 10.5, color: C.textLight }}>未設定</span>}
+                        {!e.role_name && !e.rank_name && <span style={{ fontSize: 10.5, color: color.textLight }}>未設定</span>}
                       </div>
-                    </div>
+                    </Card>
                   ))}
                 </div>
               )}
               {(canEdit && !isOwn) && (
-                <div style={{ fontSize: 10.5, color: C.textLight, marginTop: 8 }}>
+                <div style={{ fontSize: 10.5, color: color.textLight, marginTop: space[2] }}>
                   ※ ポジション・ランクの編集は各事業の Members タブから行えます
                 </div>
               )}
@@ -326,7 +324,7 @@ function MemberProfileDrawer({ memberId, width, onResize, onClose, currentUserId
 function Section({ title, children }) {
   return (
     <div style={{ marginBottom: 22 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: C.textMid, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>{title}</div>
+      <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.textMid, letterSpacing: font.letterSpacing.wider, textTransform: 'uppercase', marginBottom: space[2.5] }}>{title}</div>
       {children}
     </div>
   );
@@ -335,7 +333,7 @@ function Section({ title, children }) {
 function Field({ label, children }) {
   return (
     <div>
-      <div style={{ fontSize: 10, color: C.textMid, fontWeight: 600, marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 10, color: color.textMid, fontWeight: font.weight.semibold, marginBottom: 3 }}>{label}</div>
       {children}
     </div>
   );
@@ -343,30 +341,23 @@ function Field({ label, children }) {
 
 function Row({ label, value, mono, small }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, fontSize: 12 }}>
-      <span style={{ fontSize: 10.5, color: C.textMid, fontWeight: 600, minWidth: 60 }}>{label}</span>
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: space[2.5], fontSize: font.size.sm }}>
+      <span style={{ fontSize: 10.5, color: color.textMid, fontWeight: font.weight.semibold, minWidth: 60 }}>{label}</span>
       <span style={{
-        color: value ? C.textDark : C.textLight,
-        fontFamily: mono ? "'JetBrains Mono', monospace" : undefined,
-        fontSize: small ? 10 : 12,
+        color: value ? color.textDark : color.textLight,
+        fontFamily: mono ? font.family.mono : undefined,
+        fontSize: small ? 10 : font.size.sm,
         wordBreak: 'break-all',
       }}>{value || '—'}</span>
     </div>
   );
 }
 
-function Tag({ children, color }) {
+function Tag({ children, color: tagColor }) {
   return (
     <span style={{
       fontSize: 10.5, padding: '2px 8px', borderRadius: 10,
-      background: color + '15', color, fontWeight: 600,
+      background: tagColor + '15', color: tagColor, fontWeight: font.weight.semibold,
     }}>{children}</span>
   );
 }
-
-const inp = {
-  width: '100%', padding: '6px 10px',
-  borderRadius: 3, border: `1px solid ${C.border}`,
-  fontSize: 12, fontFamily: "'Noto Sans JP', sans-serif",
-  outline: 'none', boxSizing: 'border-box',
-};

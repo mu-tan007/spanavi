@@ -5,23 +5,24 @@ import { useAuth } from '../../hooks/useAuth'
 import { logAudit } from '../../lib/audit'
 import { MasterContractBanner } from '../firm/FirmContractsPanel'
 import Icon from '../ui/Icon'
+import { color, space, radius, font, shadow, alpha } from '../../../../../constants/design'
+import { Button, Input, Select, Card } from '../../../../ui'
 
 // 案件契約書タブ — 進行順フォルダ構造
 const FOLDERS = [
-  { key: 'loi',              label: 'LOI (意向表明書)',   color: '#032D60', hint: '買収の意向・価格・条件の初期提示' },
-  { key: 'mou',              label: 'MOU (覚書)',          color: '#032D60', hint: '主要論点の合意・排他交渉期間等' },
+  { key: 'loi',              label: 'LOI (意向表明書)',   color: color.navy, hint: '買収の意向・価格・条件の初期提示' },
+  { key: 'mou',              label: 'MOU (覚書)',          color: color.navy, hint: '主要論点の合意・排他交渉期間等' },
   { key: 'basic_agreement',  label: '基本合意書',           color: '#0c6a80', hint: 'クロージングまでの工程・価格調整機構' },
-  { key: 'spa',              label: 'SPA (株式譲渡契約)',   color: '#032D60', hint: '最終契約・表明保証・前提条件' },
-  { key: 'other',            label: 'その他 (付属・エスクロー等)', color: '#706E6B', hint: '経営委任契約・エスクロー・競業避止' },
+  { key: 'spa',              label: 'SPA (株式譲渡契約)',   color: color.navy, hint: '最終契約・表明保証・前提条件' },
+  { key: 'other',            label: 'その他 (付属・エスクロー等)', color: color.textLight, hint: '経営委任契約・エスクロー・競業避止' },
 ]
 
-const card = { background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 20 }
 const STATUS_STYLE = {
-  drafting:  { bg: '#F3F2F2', color: '#706E6B', label: 'ドラフト中' },
-  review:    { bg: '#FAF3E0', color: '#A08040', label: 'レビュー中' },
-  negotiating:{ bg: '#F8F8F8', color: '#032D60', label: '交渉中' },
-  signed:    { bg: '#E1F5EE', color: '#2E844A', label: '締結済' },
-  terminated:{ bg: '#FAECE7', color: '#EA001E', label: '終了' },
+  drafting:  { bg: color.gray100, color: color.textLight, label: 'ドラフト中' },
+  review:    { bg: color.warnSoft, color: '#A08040', label: 'レビュー中' },
+  negotiating:{ bg: color.gray50, color: color.navy, label: '交渉中' },
+  signed:    { bg: color.successSoft, color: color.success, label: '締結済' },
+  terminated:{ bg: color.dangerSoft, color: color.danger, label: '終了' },
 }
 
 export default function ContractsTab({ dealId, intermediaryId, intermediaryName }) {
@@ -102,8 +103,6 @@ export default function ContractsTab({ dealId, intermediaryId, intermediaryName 
     qc.invalidateQueries({ queryKey: ['deal-contracts', dealId] })
   }
 
-  const inp = { width: '100%', height: 32, padding: '0 10px', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 12, outline: 'none' }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <MasterContractBanner intermediaryId={intermediaryId} intermediaryName={intermediaryName} />
@@ -111,95 +110,77 @@ export default function ContractsTab({ dealId, intermediaryId, intermediaryName 
       {FOLDERS.map(folder => {
         const list = contracts.filter(c => c.contract_type === folder.key)
         return (
-          <div key={folder.key} style={card}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingBottom: 10, borderBottom: '0.5px solid #E5E5E5' }}>
+          <Card key={folder.key} padding="lg">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingBottom: 10, borderBottom: `0.5px solid ${color.border}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 4, height: 28, background: folder.color, borderRadius: 2 }} />
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60' }}>
-                    {folder.label} <span style={{ fontSize: 11, fontWeight: 400, color: '#706E6B', marginLeft: 6 }}>({list.length})</span>
+                  <div style={{ fontSize: font.size.base, fontWeight: font.weight.semibold, color: color.navy }}>
+                    {folder.label} <span style={{ fontSize: font.size.xs, fontWeight: font.weight.normal, color: color.textLight, marginLeft: 6 }}>({list.length})</span>
                   </div>
-                  <div style={{ fontSize: 10, color: '#706E6B', marginTop: 2 }}>{folder.hint}</div>
+                  <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 2 }}>{folder.hint}</div>
                 </div>
               </div>
-              <button onClick={() => startAdd(folder.key)}
-                style={{ height: 28, padding: '0 12px', background: '#fff', border: '0.5px solid ' + folder.color, borderRadius: 5, fontSize: 11, color: folder.color, cursor: 'pointer' }}>
+              <Button variant="outline" size="sm" onClick={() => startAdd(folder.key)} style={{ color: folder.color, borderColor: folder.color }}>
                 + 追加
-              </button>
+              </Button>
             </div>
 
             {addingType === folder.key && (
-              <div style={{ padding: 12, background: '#FAFAFA', borderRadius: 6, marginBottom: 10, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+              <div style={{ padding: 12, background: color.gray50, borderRadius: radius.lg, marginBottom: 10, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                <Input size="sm" label="タイトル" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={folder.label} />
+                <Input size="sm" label="相手方" value={form.counterparty} onChange={e => setForm(f => ({ ...f, counterparty: e.target.value }))} />
+                <Select size="sm" label="ステータス" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                  options={Object.entries(STATUS_STYLE).map(([k, v]) => ({ value: k, label: v.label }))} />
+                <Input size="sm" label="締結日" type="date" value={form.signed_at} onChange={e => setForm(f => ({ ...f, signed_at: e.target.value }))} />
+                <Input size="sm" label="金額 (円)" type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="任意" />
                 <div>
-                  <label style={{ fontSize: 10, color: '#706E6B', display: 'block', marginBottom: 3 }}>タイトル</label>
-                  <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={folder.label} style={inp} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 10, color: '#706E6B', display: 'block', marginBottom: 3 }}>相手方</label>
-                  <input value={form.counterparty} onChange={e => setForm(f => ({ ...f, counterparty: e.target.value }))} style={inp} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 10, color: '#706E6B', display: 'block', marginBottom: 3 }}>ステータス</label>
-                  <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} style={inp}>
-                    {Object.entries(STATUS_STYLE).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 10, color: '#706E6B', display: 'block', marginBottom: 3 }}>締結日</label>
-                  <input type="date" value={form.signed_at} onChange={e => setForm(f => ({ ...f, signed_at: e.target.value }))} style={inp} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 10, color: '#706E6B', display: 'block', marginBottom: 3 }}>金額 (円)</label>
-                  <input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} style={inp} placeholder="任意" />
-                </div>
-                <div>
-                  <label style={{ fontSize: 10, color: '#706E6B', display: 'block', marginBottom: 3 }}>PDF (任意)</label>
-                  <input ref={fileRef} type="file" accept=".pdf" onChange={e => setPendingFile(e.target.files?.[0] || null)} style={{ fontSize: 11 }} />
+                  <label style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textMid, letterSpacing: font.letterSpacing.wide, marginBottom: 4, display: 'block' }}>PDF (任意)</label>
+                  <input ref={fileRef} type="file" accept=".pdf" onChange={e => setPendingFile(e.target.files?.[0] || null)} style={{ fontSize: font.size.xs }} />
                 </div>
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: 10, color: '#706E6B', display: 'block', marginBottom: 3 }}>メモ</label>
-                  <input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={inp} />
+                  <Input size="sm" label="メモ" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
                 </div>
                 <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                  <button onClick={() => setAddingType(null)} style={{ height: 30, padding: '0 12px', background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 11, color: '#706E6B', cursor: 'pointer' }}>キャンセル</button>
-                  <button onClick={save} disabled={saving} style={{ height: 30, padding: '0 14px', background: '#032D60', color: '#fff', border: 'none', borderRadius: 5, fontSize: 12, cursor: 'pointer' }}>{saving ? '保存中…' : '保存'}</button>
+                  <Button variant="outline" size="sm" onClick={() => setAddingType(null)}>キャンセル</Button>
+                  <Button size="sm" onClick={save} disabled={saving} loading={saving}>{saving ? '保存中…' : '保存'}</Button>
                 </div>
               </div>
             )}
 
             {list.length === 0 && addingType !== folder.key ? (
-              <div style={{ padding: '20px 16px', background: '#FAFAFA', border: '0.5px dashed #E5E5E5', borderRadius: 6, fontSize: 11, color: '#706E6B', textAlign: 'center' }}>
+              <div style={{ padding: '20px 16px', background: color.gray50, border: `0.5px dashed ${color.border}`, borderRadius: radius.lg, fontSize: font.size.xs, color: color.textLight, textAlign: 'center' }}>
                 この種別の契約書はまだありません
               </div>
             ) : (
               list.map((c, i) => {
                 const ss = STATUS_STYLE[c.status] || STATUS_STYLE.drafting
                 return (
-                  <div key={c.id} style={{ padding: '10px 0', borderBottom: i < list.length - 1 ? '0.5px solid #f0f2f5' : 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div key={c.id} style={{ padding: '10px 0', borderBottom: i < list.length - 1 ? `0.5px solid ${color.borderLight}` : 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, color: '#032D60', fontWeight: 500, marginBottom: 3 }}>{c.title || folder.label}</div>
-                      <div style={{ fontSize: 10, color: '#706E6B', display: 'flex', gap: 12 }}>
+                      <div style={{ fontSize: font.size.base, color: color.navy, fontWeight: font.weight.medium, marginBottom: 3 }}>{c.title || folder.label}</div>
+                      <div style={{ fontSize: font.size.xs, color: color.textLight, display: 'flex', gap: 12 }}>
                         {c.counterparty && <span>相手方: {c.counterparty}</span>}
                         {c.signed_at && <span>締結: {c.signed_at}</span>}
                         {c.amount && <span>金額: ¥{(c.amount / 100000000).toFixed(1)}億</span>}
                       </div>
-                      {c.notes && <div style={{ fontSize: 10, color: '#706E6B', marginTop: 3 }}>{c.notes}</div>}
+                      {c.notes && <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 3 }}>{c.notes}</div>}
                     </div>
                     <select value={c.status || 'drafting'} onChange={e => updateStatus(c, e.target.value)}
-                      style={{ height: 26, padding: '0 8px', background: ss.bg, color: ss.color, border: `0.5px solid ${ss.bg}`, borderRadius: 4, fontSize: 10, outline: 'none', cursor: 'pointer' }}>
+                      style={{ height: 26, padding: '0 8px', background: ss.bg, color: ss.color, border: `0.5px solid ${ss.bg}`, borderRadius: radius.md, fontSize: font.size.xs, outline: 'none', cursor: 'pointer' }}>
                       {Object.entries(STATUS_STYLE).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </select>
                     {c.storage_path && (
-                      <button onClick={() => download(c)} style={{ background: 'none', border: 'none', color: '#032D60', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Button variant="ghost" size="sm" onClick={() => download(c)}>
                         <Icon name="download" size={11} /> DL
-                      </button>
+                      </Button>
                     )}
-                    <button onClick={() => deleteContract(c)} style={{ background: 'none', border: 'none', color: '#EA001E', cursor: 'pointer', fontSize: 11 }}>×</button>
+                    <Button variant="ghost" size="sm" onClick={() => deleteContract(c)} style={{ color: color.danger }}>×</Button>
                   </div>
                 )
               })
             )}
-          </div>
+          </Card>
         )
       })}
     </div>

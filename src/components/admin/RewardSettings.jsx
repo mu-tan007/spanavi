@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
+import { color, space, radius, font } from '../../constants/design';
+import { Button, Input, Card } from '../ui';
 
-const NAVY = '#0D2247';
+const NAVY = color.navy;
 
 const FIELDS = [
   {
@@ -155,67 +157,84 @@ export default function RewardSettings({ onToast }) {
     onToast('保存しました');
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>読み込み中...</div>;
+  if (loading) return <div style={{ padding: space[10], textAlign: 'center', color: color.gray400 }}>読み込み中...</div>;
 
   // スコア配分の合計チェック
   const scoreTotal = ['score_weight_time', 'score_weight_import', 'score_weight_recency']
     .reduce((sum, k) => sum + (Number(values[k]) || 0), 0);
   const scoreWarning = values.score_weight_time != null && scoreTotal !== 100;
 
+  const sectionCardStyle = { padding: `${space[5]}px ${space[6]}px`, marginBottom: space[5] };
+  const sectionTitleStyle = (hasDesc) => ({
+    fontSize: font.size.base,
+    fontWeight: font.weight.bold,
+    color: NAVY,
+    marginBottom: hasDesc ? space[1.5] : space[4],
+    paddingBottom: space[2.5],
+    borderBottom: `2px solid ${NAVY}`,
+    display: 'inline-block',
+  });
+  const descStyle = { fontSize: font.size.xs, color: color.gray600, marginBottom: space[3] + 2 };
+  const labelStyle = { fontSize: font.size.base, color: color.gray700, fontWeight: font.weight.medium };
+  const rowStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[3] };
+  const tinyInpStyle = { padding: `5px ${space[2]}px`, border: `1px solid ${color.border}`, borderRadius: radius.md, fontSize: font.size.sm, fontFamily: font.family.mono };
+  const removeBtnStyle = { border: `1px solid ${color.danger}`, background: 'transparent', color: color.danger, borderRadius: radius.md, padding: `2px ${space[2]}px`, fontSize: font.size.xs, cursor: 'pointer' };
+  const addItemBtnStyle = { padding: `4px ${space[3] + 2}px`, border: `1px dashed ${color.gray400}`, background: 'transparent', borderRadius: radius.md, fontSize: font.size.xs, color: color.gray600, cursor: 'pointer', marginTop: 4 };
+
   return (
     <div style={{ maxWidth: 600 }}>
       {/* 既存のkey-valueセクション */}
       {FIELDS.map(section => (
-        <div key={section.section} style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', padding: '20px 24px', marginBottom: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: section.description ? 6 : 16, paddingBottom: 10, borderBottom: `2px solid ${NAVY}`, display: 'inline-block' }}>
+        <Card key={section.section} variant="default" padding="none" style={sectionCardStyle}>
+          <div style={sectionTitleStyle(!!section.description)}>
             {section.section}
           </div>
-          {section.description && <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 14 }}>{section.description}</p>}
+          {section.description && <p style={descStyle}>{section.description}</p>}
           {section.items.map(item => (
-            <div key={item.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <label style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{item.label}</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input
-                  type="number"
-                  value={values[item.key] ?? ''}
-                  min={item.min}
-                  max={item.max}
-                  onChange={e => handleChange(item.key, e.target.value)}
-                  style={{
-                    width: 90, padding: '6px 10px', borderRadius: 6, border: '1px solid #E5E5E5',
-                    fontSize: 14, textAlign: 'right', fontFamily: "'JetBrains Mono'",
-                  }}
-                />
-                <span style={{ fontSize: 12, color: '#6B7280', width: 16 }}>{item.suffix}</span>
+            <div key={item.key} style={rowStyle}>
+              <label style={labelStyle}>{item.label}</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: space[1.5] }}>
+                <div style={{ width: 90 }}>
+                  <Input
+                    size="sm"
+                    type="number"
+                    value={values[item.key] ?? ''}
+                    min={item.min}
+                    max={item.max}
+                    onChange={e => handleChange(item.key, e.target.value)}
+                    style={{ textAlign: 'right', fontFamily: font.family.mono }}
+                  />
+                </div>
+                <span style={{ fontSize: font.size.sm, color: color.gray600, width: 16 }}>{item.suffix}</span>
               </div>
             </div>
           ))}
           {section.section === 'おすすめ度スコア配分' && scoreWarning && (
-            <div style={{ fontSize: 11, color: '#dc2626', marginTop: 4 }}>合計が {scoreTotal}% です（100% にしてください）</div>
+            <div style={{ fontSize: font.size.xs, color: color.danger, marginTop: 4 }}>合計が {scoreTotal}% です（100% にしてください）</div>
           )}
-        </div>
+        </Card>
       ))}
 
       {/* リーダーボーナス段階料率セクション */}
-      <div style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', padding: '20px 24px', marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 6, paddingBottom: 10, borderBottom: `2px solid ${NAVY}`, display: 'inline-block' }}>
+      <Card variant="default" padding="none" style={sectionCardStyle}>
+        <div style={sectionTitleStyle(true)}>
           リーダーボーナス（段階料率）
         </div>
-        <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 14 }}>チーム売上に応じた料率を設定します。売上が該当する最も高い閾値の料率が適用されます。</p>
+        <p style={descStyle}>チーム売上に応じた料率を設定します。売上が該当する最も高い閾値の料率が適用されます。</p>
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 8, paddingLeft: 28 }}>
-          <span style={{ flex: 1, fontSize: 10, color: '#9CA3AF', fontWeight: 600 }}>売上閾値</span>
-          <span style={{ width: 80, fontSize: 10, color: '#9CA3AF', fontWeight: 600, textAlign: 'right' }}>料率</span>
+        <div style={{ display: 'flex', gap: space[2], marginBottom: space[2], paddingLeft: 28 }}>
+          <span style={{ flex: 1, fontSize: 10, color: color.gray400, fontWeight: font.weight.semibold }}>売上閾値</span>
+          <span style={{ width: 80, fontSize: 10, color: color.gray400, fontWeight: font.weight.semibold, textAlign: 'right' }}>料率</span>
           <span style={{ width: 30 }} />
         </div>
         {leaderTiers.map((tier, idx) => (
-          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <span style={{ fontSize: 11, color: '#9CA3AF', width: 20, textAlign: 'center' }}>{idx + 1}</span>
+          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: space[2] }}>
+            <span style={{ fontSize: font.size.xs, color: color.gray400, width: 20, textAlign: 'center' }}>{idx + 1}</span>
             <input
               type="number"
               value={tier.threshold}
               onChange={e => setLeaderTiers(prev => prev.map((t, i) => i === idx ? { ...t, threshold: Number(e.target.value) || 0 } : t))}
-              style={{ flex: 1, padding: '5px 8px', border: '1px solid #E5E5E5', borderRadius: 4, fontSize: 12, textAlign: 'right', fontFamily: "'JetBrains Mono'" }}
+              style={{ ...tinyInpStyle, flex: 1, textAlign: 'right' }}
             />
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <input
@@ -225,61 +244,52 @@ export default function RewardSettings({ onToast }) {
                 min="0"
                 max="100"
                 onChange={e => setLeaderTiers(prev => prev.map((t, i) => i === idx ? { ...t, rate: parseFloat(e.target.value) || 0 } : t))}
-                style={{ width: 70, padding: '5px 8px', border: '1px solid #E5E5E5', borderRadius: 4, fontSize: 12, textAlign: 'right', fontFamily: "'JetBrains Mono'" }}
+                style={{ ...tinyInpStyle, width: 70, textAlign: 'right' }}
               />
-              <span style={{ fontSize: 12, color: '#6B7280' }}>%</span>
+              <span style={{ fontSize: font.size.sm, color: color.gray600 }}>%</span>
             </div>
-            <button onClick={() => setLeaderTiers(prev => prev.filter((_, i) => i !== idx))} style={{ border: '1px solid #fca5a5', background: 'transparent', color: '#dc2626', borderRadius: 4, padding: '2px 8px', fontSize: 11, cursor: 'pointer' }}>×</button>
+            <button onClick={() => setLeaderTiers(prev => prev.filter((_, i) => i !== idx))} style={removeBtnStyle}>×</button>
           </div>
         ))}
-        <button onClick={() => setLeaderTiers(prev => [...prev, { threshold: 0, rate: 0 }])} style={{ padding: '4px 14px', border: '1px dashed #9CA3AF', background: 'transparent', borderRadius: 4, fontSize: 11, color: '#6B7280', cursor: 'pointer', marginTop: 4 }}>+ 段階を追加</button>
-      </div>
+        <button onClick={() => setLeaderTiers(prev => [...prev, { threshold: 0, rate: 0 }])} style={addItemBtnStyle}>+ 段階を追加</button>
+      </Card>
 
       {/* ランク定義セクション */}
-      <div style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', padding: '20px 24px', marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, marginBottom: 6, paddingBottom: 10, borderBottom: `2px solid ${NAVY}`, display: 'inline-block' }}>
+      <Card variant="default" padding="none" style={sectionCardStyle}>
+        <div style={sectionTitleStyle(true)}>
           ランク定義
         </div>
-        <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 14 }}>累計売上に基づくランク名と昇格閾値を設定します（上位ランクから順に）</p>
+        <p style={descStyle}>累計売上に基づくランク名と昇格閾値を設定します（上位ランクから順に）</p>
 
         {ranks.map((rank, idx) => (
-          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <span style={{ fontSize: 11, color: '#9CA3AF', width: 20, textAlign: 'center' }}>{idx + 1}</span>
+          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: space[2.5] }}>
+            <span style={{ fontSize: font.size.xs, color: color.gray400, width: 20, textAlign: 'center' }}>{idx + 1}</span>
             <input
               type="text"
               value={rank.name}
               onChange={e => updateRank(idx, 'name', e.target.value)}
               placeholder="ランク名"
-              style={{ flex: 1, padding: '5px 8px', border: '1px solid #E5E5E5', borderRadius: 4, fontSize: 12 }}
+              style={{ ...tinyInpStyle, flex: 1, fontFamily: font.family.sans }}
             />
             <input
               type="number"
               value={rank.threshold}
               onChange={e => updateRank(idx, 'threshold', e.target.value)}
               placeholder="閾値（円）"
-              style={{ width: 130, padding: '5px 8px', border: '1px solid #E5E5E5', borderRadius: 4, fontSize: 12, textAlign: 'right', fontFamily: "'JetBrains Mono'" }}
+              style={{ ...tinyInpStyle, width: 130, textAlign: 'right' }}
             />
-            <span style={{ fontSize: 10, color: '#9CA3AF', width: 60 }}>{rank.threshold > 0 ? fmtYen(rank.threshold) + '〜' : '基準なし'}</span>
-            <button onClick={() => removeRank(idx)} style={{ border: '1px solid #fca5a5', background: 'transparent', color: '#dc2626', borderRadius: 4, padding: '2px 8px', fontSize: 11, cursor: 'pointer' }}>×</button>
+            <span style={{ fontSize: 10, color: color.gray400, width: 60 }}>{rank.threshold > 0 ? fmtYen(rank.threshold) + '〜' : '基準なし'}</span>
+            <button onClick={() => removeRank(idx)} style={removeBtnStyle}>×</button>
           </div>
         ))}
 
-        <button onClick={addRank} style={{ padding: '4px 14px', border: '1px dashed #9CA3AF', background: 'transparent', borderRadius: 4, fontSize: 11, color: '#6B7280', cursor: 'pointer', marginTop: 4 }}>+ ランクを追加</button>
-      </div>
+        <button onClick={addRank} style={addItemBtnStyle}>+ ランクを追加</button>
+      </Card>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button
-          onClick={save}
-          disabled={saving}
-          style={{
-            padding: '9px 28px', borderRadius: 4, fontSize: 13, fontWeight: 700,
-            cursor: saving ? 'not-allowed' : 'pointer', border: 'none',
-            background: saving ? '#9CA3AF' : NAVY, color: '#fff',
-            fontFamily: "'Noto Sans JP'",
-          }}
-        >
+        <Button variant="primary" onClick={save} disabled={saving} loading={saving}>
           {saving ? '保存中...' : '保存する'}
-        </button>
+        </Button>
       </div>
     </div>
   );

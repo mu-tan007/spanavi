@@ -14,9 +14,11 @@ import MyPageView from './MyPageView';
 import GoalSettingsPanel from '../admin/GoalSettingsPanel';
 import PageHeader from '../common/PageHeader';
 import { useEngagements } from '../../hooks/useEngagements';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 
-const NAVY = '#0D2247';
-const GOLD = '#C8A84B';
+const NAVY = color.navy;
+const GOLD = color.gold;
 
 // メンバー管理は MASP > Members に統合済み（Phase 0-B で削除）
 const TABS = [
@@ -42,14 +44,15 @@ const ADMIN_ENGAGEMENT_SLUGS = ['seller_sourcing', 'spartia_career'];
 function ToastContainer({ toasts }) {
   if (toasts.length === 0) return null;
   return (
-    <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ position: 'fixed', bottom: space[6], right: space[6], zIndex: 9999, display: 'flex', flexDirection: 'column', gap: space[2] }}>
       {toasts.map(t => (
         <div key={t.id} style={{
-          padding: '12px 20px', borderRadius: 4, fontSize: 13, fontWeight: 600,
-          background: t.type === 'error' ? '#FEF2F2' : '#ECFDF5',
-          color: t.type === 'error' ? '#DC2626' : '#065F46',
-          border: `1px solid ${t.type === 'error' ? '#FECACA' : '#A7F3D0'}`,
+          padding: `${space[3]}px ${space[5]}px`, borderRadius: radius.md, fontSize: font.size.base, fontWeight: font.weight.semibold,
+          background: t.type === 'error' ? color.dangerSoft : color.successSoft,
+          color: t.type === 'error' ? color.danger : '#065F46',
+          border: `1px solid ${t.type === 'error' ? alpha(color.danger, 0.25) : alpha(color.success, 0.30)}`,
           animation: 'fadeIn 0.2s ease',
+          boxShadow: shadow.sm,
         }}>
           {t.message}
         </div>
@@ -157,7 +160,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
 
   if (!isAdmin) {
     return (
-      <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}>
+      <div style={{ padding: space[10], textAlign: 'center', color: color.gray400, fontSize: font.size.md }}>
         アクセス権限がありません。
       </div>
     );
@@ -169,23 +172,23 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
 
 
   return (
-    <div style={{ paddingBottom: 48, animation: 'fadeIn 0.3s ease' }}>
+    <div style={{ paddingBottom: space[12], animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         eyebrow="Admin · 設定"
         title="Admin Settings"
         description="管理者設定 — 代表のみアクセス可能"
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: space[6] }}
         right={
           <>
-            <span style={{ fontSize: 12, color: '#6B7280' }}>プッシュ通知</span>
+            <span style={{ fontSize: font.size.sm, color: color.textMid }}>プッシュ通知</span>
             <button
               onClick={handleTogglePush}
               disabled={pushLoading}
               style={{
-                padding: '5px 14px', borderRadius: 14, border: 'none',
-                background: pushEnabled ? GOLD : '#E5E5E5',
-                color: pushEnabled ? '#fff' : '#9CA3AF',
-                fontSize: 11, fontWeight: 700, cursor: pushLoading ? 'wait' : 'pointer',
+                padding: `5px ${space[3] + 2}px`, borderRadius: 14, border: 'none',
+                background: pushEnabled ? GOLD : color.border,
+                color: pushEnabled ? color.white : color.gray400,
+                fontSize: font.size.xs, fontWeight: font.weight.bold, cursor: pushLoading ? 'wait' : 'pointer',
                 transition: 'background 0.2s',
               }}
             >
@@ -198,11 +201,11 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
       {/* 事業セレクタ (設定は事業ごとに独立) */}
       {selectableEngagements.length > 0 && (
         <div style={{
-          background: '#fff', border: '1px solid #E5E5E5', borderRadius: 4,
-          padding: '10px 16px', marginBottom: 12,
-          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+          background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
+          padding: `${space[2.5]}px ${space[4]}px`, marginBottom: space[3],
+          display: 'flex', alignItems: 'center', gap: space[2.5], flexWrap: 'wrap',
         }}>
-          <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 600 }}>対象事業:</span>
+          <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>対象事業:</span>
           {selectableEngagements.map(e => {
             const active = selectedEngagementId === e.id;
             return (
@@ -210,24 +213,24 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
                 key={e.id}
                 onClick={() => handleSelectEngagement(e.id)}
                 style={{
-                  padding: '5px 14px', fontSize: 12,
-                  background: active ? NAVY : '#fff',
-                  color: active ? '#fff' : '#6B7280',
-                  border: `1px solid ${active ? NAVY : '#E5E5E5'}`,
-                  borderRadius: 4, cursor: 'pointer', fontWeight: active ? 600 : 400,
-                  fontFamily: "'Noto Sans JP',sans-serif",
+                  padding: `5px ${space[3] + 2}px`, fontSize: font.size.sm,
+                  background: active ? NAVY : color.white,
+                  color: active ? color.white : color.textMid,
+                  border: `1px solid ${active ? NAVY : color.border}`,
+                  borderRadius: radius.md, cursor: 'pointer', fontWeight: active ? font.weight.semibold : font.weight.normal,
+                  fontFamily: font.family.sans,
                 }}
               >{e.name}</button>
             );
           })}
-          <span style={{ fontSize: 10, color: '#9CA3AF', marginLeft: 'auto' }}>
+          <span style={{ fontSize: 10, color: color.gray400, marginLeft: 'auto' }}>
             ※ 各タブの設定はこの事業スコープで適用されます
           </span>
         </div>
       )}
 
       {/* タブバー */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #E5E5E5', background: '#fff', borderRadius: '4px 4px 0 0', overflow: isMobile ? 'auto' : 'hidden', marginBottom: 0 }}>
+      <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${color.border}`, background: color.white, borderRadius: `${radius.md}px ${radius.md}px 0 0`, overflow: isMobile ? 'auto' : 'hidden', marginBottom: 0 }}>
         {visibleTabs.map(tab => {
           const active = activeTab === tab.id;
           return (
@@ -235,15 +238,15 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
               key={tab.id}
               onClick={() => _setActiveTab(tab.id)}
               style={{
-                flex: isMobile ? 'none' : 1, padding: isMobile ? '10px 10px' : '13px 16px', border: 'none', cursor: 'pointer',
+                flex: isMobile ? 'none' : 1, padding: isMobile ? `${space[2.5]}px ${space[2.5]}px` : `13px ${space[4]}px`, border: 'none', cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 background: 'transparent',
-                color: active ? NAVY : '#9CA3AF',
-                fontWeight: active ? 700 : 400,
-                fontSize: 13, fontFamily: "'Noto Sans JP'",
+                color: active ? NAVY : color.gray400,
+                fontWeight: active ? font.weight.bold : font.weight.normal,
+                fontSize: font.size.base, fontFamily: font.family.sans,
                 borderBottom: active ? `2px solid ${NAVY}` : '2px solid transparent',
                 transition: 'all 0.15s',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: space[1.5],
               }}
             >
               <span>{tab.label}</span>
@@ -253,7 +256,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
       </div>
 
       {/* タブコンテンツ */}
-      <div style={{ background: '#fff', borderRadius: '0 0 4px 4px', border: '1px solid #E5E5E5', borderTop: 'none', padding: isMobile ? '16px 12px' : '24px 28px', marginBottom: 0 }}>
+      <div style={{ background: color.white, borderRadius: `0 0 ${radius.md}px ${radius.md}px`, border: `1px solid ${color.border}`, borderTop: 'none', padding: isMobile ? `${space[4]}px ${space[3]}px` : `${space[6]}px 28px`, marginBottom: 0 }}>
         {activeTab === 'org' && isCompanyWide && (
           <OrganizationSettings onToast={showToast} />
         )}
@@ -266,14 +269,14 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
         {activeTab === 'reward'  && (
           <>
             <RewardSettings onToast={showToast} />
-            <div style={{ height: 1, background: '#E5E5E5', margin: '28px 0' }} />
+            <div style={{ height: 1, background: color.border, margin: '28px 0' }} />
             <RewardMasterView rewardMaster={rewardMaster} setRewardMaster={setRewardMaster} />
           </>
         )}
         {activeTab === 'calling' && (
           <>
             <IndustryRuleSettings onToast={showToast} />
-            <div style={{ height: 1, background: '#E5E5E5', margin: '28px 0' }} />
+            <div style={{ height: 1, background: color.border, margin: '28px 0' }} />
             <CallStatusSettings onToast={showToast} />
           </>
         )}
@@ -286,37 +289,37 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
         <div
           onClick={() => setViewingMember(null)}
           style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            position: 'fixed', inset: 0, background: alpha('#000', 0.5),
             zIndex: 8000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-            overflowY: 'auto', padding: '24px 16px',
+            overflowY: 'auto', padding: `${space[6]}px ${space[4]}px`,
           }}
         >
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: '#ffffff', borderRadius: 4, width: '100%', maxWidth: 900,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.12)', position: 'relative',
+              background: color.white, borderRadius: radius.md, width: '100%', maxWidth: 900,
+              boxShadow: shadow.md, position: 'relative',
             }}
           >
             {/* モーダルヘッダー */}
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '16px 24px', borderBottom: '1px solid #E5E5E5',
-              background: '#fff', borderRadius: '4px 4px 0 0',
+              padding: `${space[4]}px ${space[6]}px`, borderBottom: `1px solid ${color.border}`,
+              background: color.white, borderRadius: `${radius.md}px ${radius.md}px 0 0`,
             }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>
+              <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: NAVY }}>
                 {viewingMember} のマイページ
               </div>
               <button
                 onClick={() => setViewingMember(null)}
                 style={{
-                  background: 'none', border: 'none', fontSize: 20, cursor: 'pointer',
-                  color: '#9CA3AF', lineHeight: 1, padding: '0 4px',
+                  background: 'none', border: 'none', fontSize: font.size.xl, cursor: 'pointer',
+                  color: color.gray400, lineHeight: 1, padding: `0 ${space[1]}px`,
                 }}
               >✕</button>
             </div>
             {/* マイページ本体 */}
-            <div style={{ padding: '0 0 24px' }}>
+            <div style={{ padding: `0 0 ${space[6]}px` }}>
               <MyPageView
                 currentUser={viewingMember}
                 userId={viewingMemberData?.user_id || viewingMember}

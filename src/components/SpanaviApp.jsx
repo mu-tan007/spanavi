@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import React from "react";
 import { C } from '../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../constants/design';
+import { Button, Input, Select, Card, Badge } from './ui';
 import { CALL_RESULTS } from '../constants/callResults';
 import { DEFAULT_BASIC_SCRIPT } from '../constants/scripts';
 import { calcRankAndRate, getCurrentRecommendation } from '../utils/calculations';
@@ -669,14 +671,14 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   // engagement async ロード中は描画しない（タブ誤遷移防止）
   if (engLoading || !engSlug) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F3F2F2', fontFamily: "'Noto Sans JP', sans-serif" }}>
-        <div style={{ color: '#8896a6', fontSize: 12, letterSpacing: 2 }}>読み込み中...</div>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F3F2F2', fontFamily: font.family.sans }}>
+        <div style={{ color: '#8896a6', fontSize: font.size.sm, letterSpacing: 2 }}>読み込み中...</div>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: '#F3F2F2', color: C.textDark, fontFamily: "'Noto Sans JP', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: '#F3F2F2', color: color.textDark, fontFamily: font.family.sans }}>
       <link href={FONT_URL} rel="stylesheet" />
       <style>{String.raw`
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -868,7 +870,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       {/* ===== NEW HEADER (engagement tabs + bell を 1 段に統合) ===== */}
       <header style={{
         position: 'fixed', top: 0, left: isMobile ? 0 : 220, right: 0, width: isMobile ? '100%' : 'calc(100% - 220px)', height: isMobile ? 48 : 54, zIndex: 150,
-        background: '#FFFFFF', borderBottom: '1px solid #E5E7EB',
+        background: color.white, borderBottom: `1px solid ${color.border}`,
         display: 'flex', alignItems: 'stretch', justifyContent: 'space-between',
         padding: isMobile ? '0 12px' : '0 24px', boxSizing: 'border-box',
       }} onClick={() => setShowBellDropdown(false)}>
@@ -876,7 +878,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
           {isMobile && (
             <button onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(true); }} style={{
               background: 'none', border: 'none', cursor: 'pointer', padding: 6,
-              fontSize: 20, color: C.navy, lineHeight: 1, minWidth: 44, minHeight: 44,
+              fontSize: font.size.lg, color: color.navy, lineHeight: 1, minWidth: 44, minHeight: 44,
               display: 'flex', alignItems: 'center', justifyContent: 'center', alignSelf: 'center',
             }}>☰</button>
           )}
@@ -885,12 +887,12 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 16 }}>
           <div style={{ position: "relative" }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowBellDropdown(p => !p)}
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: C.navy, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: color.navy, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
               <Bell size={18} />
             </button>
             {overdueCount > 0 && (
               <div style={{ position: "absolute", top: 0, right: 0, minWidth: 16, height: 16, borderRadius: 999,
-                background: "#e53e3e", color: "white", fontSize: 9, fontWeight: 700,
+                background: "#e53e3e", color: color.white, fontSize: 9, fontWeight: font.weight.bold,
                 display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px",
                 whiteSpace: "nowrap", lineHeight: 1, pointerEvents: "none" }}>
                 {overdueCount}
@@ -898,56 +900,56 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
             )}
             {showBellDropdown && (
               <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 320,
-                background: C.white, borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
-                border: "1px solid " + C.borderLight, zIndex: 300, overflow: "hidden" }}>
-                <div style={{ padding: "10px 14px", background: C.navy, color: C.white, fontSize: 11, fontWeight: 700, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                background: color.white, borderRadius: 10, boxShadow: shadow.lg,
+                border: `1px solid ${color.borderLight}`, zIndex: 300, overflow: "hidden" }}>
+                <div style={{ padding: "10px 14px", background: color.navy, color: color.white, fontSize: font.size.xs, fontWeight: font.weight.bold, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>通知（{overdueCount}件）</span>
                   {unreadInbox.length > 0 && (
                     <button onClick={markAllNotificationsRead}
-                      style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.4)', color: C.white, fontSize: 9, padding: '2px 8px', borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                      style={{ background: 'transparent', border: `1px solid ${alpha(color.white, 0.4)}`, color: color.white, fontSize: 9, padding: '2px 8px', borderRadius: radius.sm, cursor: 'pointer', fontFamily: font.family.sans }}>
                       全て既読
                     </button>
                   )}
                 </div>
                 <div style={{ maxHeight: 360, overflowY: "auto" }}>
                   {preCheckPendingAppos.length > 0 && (<>
-                    <div style={{ padding: "6px 14px", background: "#fff8ed", fontSize: 10, fontWeight: 700, color: C.orange, borderBottom: "1px solid " + C.borderLight }}>
+                    <div style={{ padding: "6px 14px", background: "#fff8ed", fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: C.orange, borderBottom: `1px solid ${color.borderLight}` }}>
                       事前確認が必要なアポ（{preCheckPendingAppos.length}件）
                     </div>
                     {preCheckPendingAppos.map((a, i) => (
                       <div key={i} onClick={() => { setCurrentTab("precheck"); setShowBellDropdown(false); }}
-                        onMouseEnter={e => { e.currentTarget.style.background = C.offWhite; }}
+                        onMouseEnter={e => { e.currentTarget.style.background = color.offWhite; }}
                         onMouseLeave={e => { e.currentTarget.style.background = ''; }}
-                        style={{ padding: "8px 14px", borderBottom: "1px solid " + C.borderLight, cursor: "pointer" }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: C.navy }}>{a.company}</div>
-                        <div style={{ fontSize: 9, color: C.textLight }}>{a.client} ／ 面談: {a.meetDate?.slice(5)} ／ {a.preCheckStatus || '未確認'}</div>
+                        style={{ padding: "8px 14px", borderBottom: `1px solid ${color.borderLight}`, cursor: "pointer" }}>
+                        <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy }}>{a.company}</div>
+                        <div style={{ fontSize: 9, color: color.textLight }}>{a.client} ／ 面談: {a.meetDate?.slice(5)} ／ {a.preCheckStatus || '未確認'}</div>
                       </div>
                     ))}
                   </>)}
                   {inboxNotifications.length > 0 && (<>
-                    <div style={{ padding: "6px 14px", background: C.offWhite, fontSize: 10, fontWeight: 700, color: C.navy, borderBottom: "1px solid " + C.borderLight }}>
+                    <div style={{ padding: "6px 14px", background: color.offWhite, fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: color.navy, borderBottom: `1px solid ${color.borderLight}` }}>
                       最新の通知（{unreadInbox.length}件未読 / {inboxNotifications.length}件）
                     </div>
                     {inboxNotifications.slice(0, 30).map(n => (
                       <div key={n.id} onClick={() => handleInboxClick(n)}
-                        onMouseEnter={e => { e.currentTarget.style.background = C.offWhite; }}
+                        onMouseEnter={e => { e.currentTarget.style.background = color.offWhite; }}
                         onMouseLeave={e => { e.currentTarget.style.background = n.read_at ? '' : '#F0F7FF'; }}
                         style={{
-                          padding: "8px 14px", borderBottom: "1px solid " + C.borderLight,
+                          padding: "8px 14px", borderBottom: `1px solid ${color.borderLight}`,
                           cursor: "pointer",
                           background: n.read_at ? '' : '#F0F7FF',
                         }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {!n.read_at && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#0D2247', flexShrink: 0 }} />}
-                          <div style={{ fontSize: 11, fontWeight: 600, color: C.navy, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {!n.read_at && <span style={{ width: 6, height: 6, borderRadius: '50%', background: color.navy, flexShrink: 0 }} />}
+                          <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {n.title}
                           </div>
-                          <span style={{ fontSize: 9, color: C.textLight, fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>
+                          <span style={{ fontSize: 9, color: color.textLight, fontFamily: font.family.mono, flexShrink: 0 }}>
                             {(n.created_at || '').slice(5, 16).replace('T', ' ')}
                           </span>
                         </div>
                         {n.body && (
-                          <div style={{ fontSize: 10, color: C.textMid, marginTop: 2, lineHeight: 1.5,
+                          <div style={{ fontSize: font.size.xs - 1, color: color.textMid, marginTop: 2, lineHeight: 1.5,
                             overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box',
                             WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                             {n.body}
@@ -957,7 +959,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
                     ))}
                   </>)}
                   {overdueCount === 0 && inboxNotifications.length === 0 && (
-                    <div style={{ padding: "20px 14px", textAlign: "center", color: C.textLight, fontSize: 11 }}>通知なし</div>
+                    <div style={{ padding: "20px 14px", textAlign: "center", color: color.textLight, fontSize: font.size.xs }}>通知なし</div>
                   )}
                 </div>
               </div>
@@ -1302,14 +1304,14 @@ function EngagementComingSoon({ title, subtitle }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      minHeight: 'calc(100vh - 160px)', color: C.textMid, textAlign: 'center', padding: 32,
+      minHeight: 'calc(100vh - 160px)', color: color.textMid, textAlign: 'center', padding: 32,
     }}>
-      <div style={{ fontSize: 10, color: C.textLight, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>MASP</div>
-      <h2 style={{ fontSize: 22, fontWeight: 600, color: C.navy, marginBottom: 10, fontFamily: "'Outfit','Noto Sans JP',sans-serif" }}>
+      <div style={{ fontSize: font.size.xs - 1, color: color.textLight, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>MASP</div>
+      <h2 style={{ fontSize: 22, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 10, fontFamily: "'Outfit','Noto Sans JP',sans-serif" }}>
         {title}
       </h2>
-      <div style={{ width: 48, height: 2, background: C.gold, marginBottom: 14 }} />
-      <p style={{ fontSize: 13, color: C.textMid, lineHeight: 1.7 }}>{subtitle}</p>
+      <div style={{ width: 48, height: 2, background: color.gold, marginBottom: 14 }} />
+      <p style={{ fontSize: font.size.base, color: color.textMid, lineHeight: font.lineHeight.relaxed }}>{subtitle}</p>
     </div>
   );
 }
@@ -1318,16 +1320,16 @@ function EngagementPlaceholder({ engagement }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      minHeight: 'calc(100vh - 160px)', color: C.textMid, textAlign: 'center', padding: 32,
+      minHeight: 'calc(100vh - 160px)', color: color.textMid, textAlign: 'center', padding: 32,
     }}>
-      <div style={{ fontSize: 10, color: C.textLight, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>Engagement</div>
-      <h2 style={{ fontSize: 26, fontWeight: 600, color: C.navy, marginBottom: 10, fontFamily: "'Outfit','Noto Sans JP',sans-serif" }}>
+      <div style={{ fontSize: font.size.xs - 1, color: color.textLight, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>Engagement</div>
+      <h2 style={{ fontSize: 26, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 10, fontFamily: "'Outfit','Noto Sans JP',sans-serif" }}>
         {engagement?.name || ''}
       </h2>
-      <div style={{ width: 48, height: 2, background: C.gold, marginBottom: 14 }} />
-      <p style={{ fontSize: 13, color: C.textMid, lineHeight: 1.7, marginBottom: 4 }}>この事業は準備中です</p>
+      <div style={{ width: 48, height: 2, background: color.gold, marginBottom: 14 }} />
+      <p style={{ fontSize: font.size.base, color: color.textMid, lineHeight: font.lineHeight.relaxed, marginBottom: 4 }}>この事業は準備中です</p>
       {engagement?.description && (
-        <p style={{ fontSize: 11, color: C.textLight }}>{engagement.description}</p>
+        <p style={{ fontSize: font.size.xs, color: color.textLight }}>{engagement.description}</p>
       )}
     </div>
   );

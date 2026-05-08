@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 import PageHeader from '../common/PageHeader';
 
-const NAVY = '#0D2247';
-const GOLD = '#C8A84B';
+const NAVY = color.navy;
+const GOLD = color.gold;
 
 const RULES = [
   {
@@ -126,10 +128,10 @@ function RuleCard({ rule, refCallback }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: '#ffffff',
-        borderRadius: 4,
-        border: '1px solid #E5E7EB',
-        borderLeft: `3px solid ${hovered ? NAVY : '#E5E7EB'}`,
+        background: color.white,
+        borderRadius: radius.md,
+        border: `1px solid ${color.border}`,
+        borderLeft: `3px solid ${hovered ? NAVY : color.border}`,
         padding: '20px 22px',
         display: 'flex',
         gap: 16,
@@ -144,12 +146,12 @@ function RuleCard({ rule, refCallback }) {
         minWidth: 40,
         borderRadius: '50%',
         background: NAVY,
-        color: rule.no === 1 ? GOLD : '#fff',
+        color: rule.no === 1 ? GOLD : color.white,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontWeight: 700,
-        fontSize: 13,
+        fontWeight: font.weight.bold,
+        fontSize: font.size.base,
         flexShrink: 0,
       }}>
         {rule.no}
@@ -158,17 +160,17 @@ function RuleCard({ rule, refCallback }) {
       {/* テキスト */}
       <div>
         <p style={{
-          fontWeight: 600,
-          color: '#1F2937',
-          fontSize: 15,
+          fontWeight: font.weight.semibold,
+          color: color.gray800,
+          fontSize: font.size.lg - 1,
           marginBottom: 8,
           lineHeight: 1.4,
         }}>
           {rule.title}
         </p>
         <p style={{
-          color: '#4B5563',
-          fontSize: 13,
+          color: color.gray600,
+          fontSize: font.size.base,
           lineHeight: 1.8,
         }}>
           {rule.body}
@@ -247,13 +249,13 @@ export default function InternRulesView({ embedded = false }) {
       {/* ヘッダーエリア */}
       <div
         ref={headerRef}
-        style={{ background: NAVY, border: '1px solid #E5E7EB', borderRadius: 4, padding: '36px 40px', marginBottom: 32 }}
+        style={{ background: NAVY, border: `1px solid ${color.border}`, borderRadius: radius.md, padding: '36px 40px', marginBottom: 32 }}
       >
         <div style={{ width: 48, height: 4, background: '#1E40AF', borderRadius: 2, marginBottom: 16 }} />
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: '#ffffff', marginBottom: 8, letterSpacing: '0.02em' }}>
+        <h1 style={{ fontSize: 28, fontWeight: font.weight.bold, color: color.white, marginBottom: 8, letterSpacing: '0.02em' }}>
           インターン22箇条
         </h1>
-        <p style={{ color: '#9CA3AF', fontSize: 13, fontWeight: 500 }}>
+        <p style={{ color: color.gray400, fontSize: font.size.base, fontWeight: font.weight.medium }}>
           M&amp;A Sourcing Partners, Inc.
         </p>
       </div>
@@ -278,13 +280,13 @@ export default function InternRulesView({ embedded = false }) {
         ref={footerRef}
         style={{ marginTop: 64, textAlign: 'center', padding: '0 16px' }}
       >
-        <p style={{ color: '#0D2247', fontSize: 22, fontWeight: 700, marginBottom: 12, letterSpacing: '0.04em' }}>
+        <p style={{ color: color.navy, fontSize: 22, fontWeight: font.weight.bold, marginBottom: 12, letterSpacing: '0.04em' }}>
           以上、22箇条。
         </p>
-        <p style={{ color: '#4B5563', fontSize: 15, marginBottom: 8 }}>
+        <p style={{ color: color.gray600, fontSize: font.size.lg - 1, marginBottom: 8 }}>
           これを胸に刻み、圧倒的な結果を出せ。
         </p>
-        <p style={{ color: '#6B7280', fontSize: 13, fontWeight: 500 }}>
+        <p style={{ color: color.gray500, fontSize: font.size.base, fontWeight: font.weight.medium }}>
           代表取締役 篠宮 拓武
         </p>
       </div>

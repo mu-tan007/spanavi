@@ -2,13 +2,13 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import PageHeader from '../../../common/PageHeader'
-
-const card = { background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 16 }
+import { color, space, radius, font, shadow, alpha } from '../../../../constants/design'
+import { Button, Input, Select, Card } from '../../../ui'
 
 const PRIORITY_STYLE = {
-  1: { bg: '#032D60', color: '#fff',    label: '高' },
-  2: { bg: '#F8F8F8', color: '#032D60', label: '中' },
-  3: { bg: '#F3F2F2', color: '#706E6B', label: '低' },
+  1: { bg: color.navy,    fg: color.white,   label: '高' },
+  2: { bg: color.gray50,  fg: color.navy,    label: '中' },
+  3: { bg: color.gray100, fg: color.textMid, label: '低' },
 }
 
 const INDUSTRY_OPTIONS = [
@@ -94,9 +94,8 @@ export default function NeedsPage() {
   }
 
   const inp = (key, type = 'text', placeholder = '') => (
-    <input type={type} value={form[key]} placeholder={placeholder}
-      onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-      style={{ width: '100%', height: 36, padding: '0 12px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, outline: 'none' }} />
+    <Input type={type} value={form[key]} placeholder={placeholder}
+      onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} />
   )
 
   return (
@@ -108,72 +107,71 @@ export default function NeedsPage() {
         description={`有効 ${needs.filter(n => n.is_active).length} 件 / 全 ${needs.length} 件`}
         style={{ marginBottom: 20 }}
         right={
-          <button onClick={() => setModal(true)}
-            style={{ height: 32, padding: '0 14px', background: '#032D60', border: 'none', borderRadius: 4, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+          <Button size="sm" onClick={() => setModal(true)} style={{ borderRadius: radius.md }}>
             + ニーズを追加
-          </button>
+          </Button>
         }
       />
       <div style={{ padding: '0 24px' }}>
 
       {isLoading ? (
-        <div style={{ fontSize: 13, color: '#706E6B', textAlign: 'center', padding: '40px 0' }}>読み込み中...</div>
+        <div style={{ fontSize: font.size.base, color: color.textMid, textAlign: 'center', padding: '40px 0' }}>読み込み中...</div>
       ) : needs.length === 0 ? (
-        <div style={{ ...card, textAlign: 'center', padding: '60px 24px' }}>
-          <div style={{ fontSize: 13, color: '#706E6B', marginBottom: 8 }}>買収ニーズが登録されていません</div>
-          <div style={{ fontSize: 12, color: '#706E6B' }}>「+ ニーズを追加」から登録してください</div>
-        </div>
+        <Card padding="md" style={{ textAlign: 'center', padding: '60px 24px', borderRadius: 12 }}>
+          <div style={{ fontSize: font.size.base, color: color.textMid, marginBottom: 8 }}>買収ニーズが登録されていません</div>
+          <div style={{ fontSize: font.size.sm, color: color.textMid }}>「+ ニーズを追加」から登録してください</div>
+        </Card>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {needs.map(need => {
             const ps = PRIORITY_STYLE[need.priority] || PRIORITY_STYLE[2]
             return (
-              <div key={need.id} style={{ ...card, opacity: need.is_active ? 1 : 0.5 }}>
+              <Card key={need.id} padding="md" style={{ opacity: need.is_active ? 1 : 0.5, borderRadius: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 3, fontWeight: 500, background: ps.bg, color: ps.color }}>
+                      <span style={{ fontSize: font.size.xs - 1, padding: '2px 7px', borderRadius: radius.sm, fontWeight: font.weight.medium, background: ps.bg, color: ps.fg }}>
                         優先度 {ps.label}
                       </span>
                       {!need.is_active && (
-                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 3, background: '#F3F2F2', color: '#706E6B' }}>無効</span>
+                        <span style={{ fontSize: font.size.xs - 1, padding: '2px 7px', borderRadius: radius.sm, background: color.gray100, color: color.textMid }}>無効</span>
                       )}
-                      <span style={{ fontSize: 14, fontWeight: 500, color: '#032D60' }}>{need.industry_label || '業種未指定'}</span>
+                      <span style={{ fontSize: font.size.md, fontWeight: font.weight.medium, color: color.navy }}>{need.industry_label || '業種未指定'}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
                       <div>
-                        <div style={{ fontSize: 10, color: '#706E6B', marginBottom: 2 }}>EV目安</div>
-                        <div style={{ fontSize: 13, color: '#032D60' }}>{fmt(need.ev_min)} 〜 {fmt(need.ev_max)}</div>
+                        <div style={{ fontSize: font.size.xs - 1, color: color.textMid, marginBottom: 2 }}>EV目安</div>
+                        <div style={{ fontSize: font.size.base, color: color.navy }}>{fmt(need.ev_min)} 〜 {fmt(need.ev_max)}</div>
                       </div>
                       {need.ebitda_multiple_max && (
                         <div>
-                          <div style={{ fontSize: 10, color: '#706E6B', marginBottom: 2 }}>EBITDA倍率上限</div>
-                          <div style={{ fontSize: 13, color: '#032D60' }}>{need.ebitda_multiple_max}x</div>
+                          <div style={{ fontSize: font.size.xs - 1, color: color.textMid, marginBottom: 2 }}>EBITDA倍率上限</div>
+                          <div style={{ fontSize: font.size.base, color: color.navy }}>{need.ebitda_multiple_max}x</div>
                         </div>
                       )}
                       {need.region && (
                         <div>
-                          <div style={{ fontSize: 10, color: '#706E6B', marginBottom: 2 }}>地域</div>
-                          <div style={{ fontSize: 13, color: '#032D60' }}>{need.region}</div>
+                          <div style={{ fontSize: font.size.xs - 1, color: color.textMid, marginBottom: 2 }}>地域</div>
+                          <div style={{ fontSize: font.size.base, color: color.navy }}>{need.region}</div>
                         </div>
                       )}
                     </div>
                     {need.notes && (
-                      <div style={{ fontSize: 12, color: '#706E6B', marginTop: 8, lineHeight: 1.6 }}>{need.notes}</div>
+                      <div style={{ fontSize: font.size.sm, color: color.textMid, marginTop: 8, lineHeight: 1.6 }}>{need.notes}</div>
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                     <button onClick={() => handleBroadcast(need)}
-                      style={{ height: 30, padding: '0 12px', background: '#F8F8F8', border: 'none', borderRadius: 5, fontSize: 11, color: '#032D60', cursor: 'pointer', fontWeight: 500 }}>
+                      style={{ height: 30, padding: '0 12px', background: color.gray50, border: 'none', borderRadius: radius.lg - 1, fontSize: font.size.xs, color: color.navy, cursor: 'pointer', fontWeight: font.weight.medium }}>
                       一斉配信
                     </button>
                     <button onClick={() => toggleActive(need)}
-                      style={{ height: 30, padding: '0 12px', background: '#F3F2F2', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 11, color: '#706E6B', cursor: 'pointer' }}>
+                      style={{ height: 30, padding: '0 12px', background: color.gray100, border: `0.5px solid ${color.border}`, borderRadius: radius.lg - 1, fontSize: font.size.xs, color: color.textMid, cursor: 'pointer' }}>
                       {need.is_active ? '無効化' : '有効化'}
                     </button>
                   </div>
                 </div>
-              </div>
+              </Card>
             )
           })}
         </div>
@@ -183,60 +181,56 @@ export default function NeedsPage() {
       {showModal && (
         <div onClick={e => { if (e.target === e.currentTarget) setModal(false) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 480, maxHeight: '80vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#032D60', marginBottom: 20 }}>買収ニーズを追加</h2>
+          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 480, maxHeight: '80vh', overflowY: 'auto' }}>
+            <h2 style={{ fontSize: 16, fontWeight: font.weight.medium, color: color.navy, marginBottom: 20 }}>買収ニーズを追加</h2>
             <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 4 }}>業種 *</label>
-                <select value={form.industry_label} onChange={e => setForm(f => ({ ...f, industry_label: e.target.value }))} required
-                  style={{ width: '100%', height: 36, padding: '0 12px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, outline: 'none' }}>
+                <label style={{ fontSize: font.size.xs, color: color.textMid, display: 'block', marginBottom: 4 }}>業種 *</label>
+                <Select value={form.industry_label} onChange={e => setForm(f => ({ ...f, industry_label: e.target.value }))} required>
                   <option value="">選択してください</option>
                   {INDUSTRY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
+                </Select>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
-                  <label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 4 }}>EV下限（円）</label>
+                  <label style={{ fontSize: font.size.xs, color: color.textMid, display: 'block', marginBottom: 4 }}>EV下限（円）</label>
                   {inp('ev_min', 'number', '例: 300000000')}
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 4 }}>EV上限（円）</label>
+                  <label style={{ fontSize: font.size.xs, color: color.textMid, display: 'block', marginBottom: 4 }}>EV上限（円）</label>
                   {inp('ev_max', 'number', '例: 1000000000')}
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
-                  <label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 4 }}>EBITDA倍率上限</label>
+                  <label style={{ fontSize: font.size.xs, color: color.textMid, display: 'block', marginBottom: 4 }}>EBITDA倍率上限</label>
                   {inp('ebitda_multiple_max', 'number', '例: 8')}
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 4 }}>優先度</label>
-                  <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
-                    style={{ width: '100%', height: 36, padding: '0 12px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, outline: 'none' }}>
+                  <label style={{ fontSize: font.size.xs, color: color.textMid, display: 'block', marginBottom: 4 }}>優先度</label>
+                  <Select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}>
                     <option value={1}>高</option>
                     <option value={2}>中</option>
                     <option value={3}>低</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
               <div>
-                <label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 4 }}>地域</label>
+                <label style={{ fontSize: font.size.xs, color: color.textMid, display: 'block', marginBottom: 4 }}>地域</label>
                 {inp('region', 'text', '例: 関東圏、全国可')}
               </div>
               <div>
-                <label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 4 }}>備考・詳細条件</label>
+                <label style={{ fontSize: font.size.xs, color: color.textMid, display: 'block', marginBottom: 4 }}>備考・詳細条件</label>
                 <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3}
-                  style={{ width: '100%', padding: '8px 12px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, outline: 'none', resize: 'vertical' }} />
+                  style={{ width: '100%', padding: '8px 12px', border: `0.5px solid ${color.border}`, borderRadius: radius.lg, fontSize: font.size.base, outline: 'none', resize: 'vertical', color: color.textDark, fontFamily: font.family.sans, boxSizing: 'border-box' }} />
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                <button type="button" onClick={() => setModal(false)}
-                  style={{ flex: 1, height: 36, background: '#F3F2F2', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, color: '#706E6B', cursor: 'pointer' }}>
+                <Button type="button" variant="secondary" fullWidth onClick={() => setModal(false)}>
                   キャンセル
-                </button>
-                <button type="submit" disabled={saving}
-                  style={{ flex: 1, height: 36, background: '#032D60', border: 'none', borderRadius: 6, fontSize: 13, color: '#fff', fontWeight: 500, cursor: 'pointer' }}>
+                </Button>
+                <Button type="submit" loading={saving} disabled={saving} fullWidth>
                   {saving ? '保存中...' : '追加'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -247,25 +241,23 @@ export default function NeedsPage() {
       {showBroadcast && (
         <div onClick={e => { if (e.target === e.currentTarget) setBroadcast(null) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 560 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#032D60', marginBottom: 4 }}>買収ニーズ一斉配信</h2>
-            <p style={{ fontSize: 12, color: '#706E6B', marginBottom: 16 }}>
+          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 560 }}>
+            <h2 style={{ fontSize: 16, fontWeight: font.weight.medium, color: color.navy, marginBottom: 4 }}>買収ニーズ一斉配信</h2>
+            <p style={{ fontSize: font.size.sm, color: color.textMid, marginBottom: 16 }}>
               登録済み担当者 {contacts.length} 名に送信されます
             </p>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 4 }}>メール本文</label>
+              <label style={{ fontSize: font.size.xs, color: color.textMid, display: 'block', marginBottom: 4 }}>メール本文</label>
               <textarea value={broadcastBody} onChange={e => setBroadcastBody(e.target.value)} rows={10}
-                style={{ width: '100%', padding: '10px 12px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 12, outline: 'none', resize: 'vertical', lineHeight: 1.8 }} />
+                style={{ width: '100%', padding: '10px 12px', border: `0.5px solid ${color.border}`, borderRadius: radius.lg, fontSize: font.size.sm, outline: 'none', resize: 'vertical', lineHeight: 1.8, color: color.textDark, fontFamily: font.family.sans, boxSizing: 'border-box' }} />
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button type="button" onClick={() => setBroadcast(null)}
-                style={{ flex: 1, height: 36, background: '#F3F2F2', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, color: '#706E6B', cursor: 'pointer' }}>
+              <Button type="button" variant="secondary" fullWidth onClick={() => setBroadcast(null)}>
                 キャンセル
-              </button>
-              <button onClick={handleSendBroadcast} disabled={saving}
-                style={{ flex: 1, height: 36, background: '#032D60', border: 'none', borderRadius: 6, fontSize: 13, color: '#fff', fontWeight: 500, cursor: 'pointer' }}>
+              </Button>
+              <Button onClick={handleSendBroadcast} loading={saving} disabled={saving} fullWidth>
                 {saving ? '送信中...' : `${contacts.length}件に送信`}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useQueryClient } from '@tanstack/react-query'
-
-const card = { background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 16 }
+import { color, space, radius, font, shadow, alpha } from '../../../../../constants/design'
+import { Button, Input, Card } from '../../../../ui'
 
 function fmt(v) {
   if (v == null) return '—'
@@ -60,7 +60,7 @@ export default function LBOTab({ dealId, lbo, financials }) {
   const inp = (key, type = 'number', step = 'any') => (
     <input type={type} step={step} value={form[key]}
       onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-      style={{ width: '100%', height: 32, padding: '0 8px', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 12, outline: 'none' }} />
+      style={{ width: '100%', height: 32, padding: '0 8px', border: `0.5px solid ${color.border}`, borderRadius: radius.lg, fontSize: font.size.sm, outline: 'none', background: color.white, color: color.textDark }} />
   )
 
   async function handleSave(e) {
@@ -87,8 +87,8 @@ export default function LBOTab({ dealId, lbo, financials }) {
       <form onSubmit={handleSave}>
 
         {/* 試算結果 */}
-        <div style={{ ...card, marginBottom: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 500, color: '#706E6B', marginBottom: 12 }}>試算結果</div>
+        <Card padding="md" style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: font.size.sm, fontWeight: font.weight.medium, color: color.textLight, marginBottom: 12 }}>試算結果</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
             {[
               ['エクイティ投資額', fmt(equity || null)],
@@ -96,75 +96,74 @@ export default function LBOTab({ dealId, lbo, financials }) {
               ['IRR', irr != null ? `${(irr*100).toFixed(1)}%` : '—'],
               ['MOIC', moic != null ? `${moic.toFixed(2)}x` : '—'],
             ].map(([l, v]) => (
-              <div key={l} style={{ background: '#FAFAFA', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
-                <div style={{ fontSize: 10, color: '#706E6B', marginBottom: 4 }}>{l}</div>
-                <div style={{ fontSize: 16, fontWeight: 500, color: '#032D60' }}>{v}</div>
+              <div key={l} style={{ background: color.gray50, borderRadius: radius.xl, padding: '10px 14px', textAlign: 'center' }}>
+                <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 4 }}>{l}</div>
+                <div style={{ fontSize: 16, fontWeight: font.weight.medium, color: color.navy }}>{v}</div>
               </div>
             ))}
           </div>
           {irr != null && (
-            <div style={{ marginTop: 10, padding: '8px 12px', background: irr >= 0.2 ? '#E1F5EE' : irr >= 0.15 ? '#F8F8F8' : '#FAF3E0', borderRadius: 6, fontSize: 12, color: irr >= 0.2 ? '#2E844A' : irr >= 0.15 ? '#032D60' : '#A08040' }}>
+            <div style={{ marginTop: 10, padding: '8px 12px', background: irr >= 0.2 ? color.successSoft : irr >= 0.15 ? color.gray50 : color.warnSoft, borderRadius: radius.lg, fontSize: font.size.sm, color: irr >= 0.2 ? color.success : irr >= 0.15 ? color.navy : '#A08040' }}>
               {irr >= 0.2 ? '高リターン案件（IRR 20%超）' : irr >= 0.15 ? '標準的なリターン（IRR 15〜20%）' : 'リターンが低い可能性あり（IRR 15%未満）'}
             </div>
           )}
-        </div>
+        </Card>
 
         {/* 入力パラメータ */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-          <div style={card}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: '#706E6B', marginBottom: 12 }}>ファイナンス条件</div>
+          <Card padding="md">
+            <div style={{ fontSize: font.size.sm, fontWeight: font.weight.medium, color: color.textLight, marginBottom: 12 }}>ファイナンス条件</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div><label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 3 }}>買収価格（円）</label>{inp('acquisition_price')}</div>
+              <div><label style={{ fontSize: font.size.xs, color: color.textLight, display: 'block', marginBottom: 3 }}>買収価格（円）</label>{inp('acquisition_price')}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <div><label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 3 }}>エクイティ比率</label>{inp('equity_ratio', 'number', '0.01')}</div>
-                <div><label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 3 }}>デット比率</label>{inp('debt_ratio', 'number', '0.01')}</div>
+                <div><label style={{ fontSize: font.size.xs, color: color.textLight, display: 'block', marginBottom: 3 }}>エクイティ比率</label>{inp('equity_ratio', 'number', '0.01')}</div>
+                <div><label style={{ fontSize: font.size.xs, color: color.textLight, display: 'block', marginBottom: 3 }}>デット比率</label>{inp('debt_ratio', 'number', '0.01')}</div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <div><label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 3 }}>金利</label>{inp('interest_rate', 'number', '0.001')}</div>
-                <div><label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 3 }}>返済年数</label>{inp('repayment_years')}</div>
+                <div><label style={{ fontSize: font.size.xs, color: color.textLight, display: 'block', marginBottom: 3 }}>金利</label>{inp('interest_rate', 'number', '0.001')}</div>
+                <div><label style={{ fontSize: font.size.xs, color: color.textLight, display: 'block', marginBottom: 3 }}>返済年数</label>{inp('repayment_years')}</div>
               </div>
             </div>
-          </div>
-          <div style={card}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: '#706E6B', marginBottom: 12 }}>エグジット条件</div>
+          </Card>
+          <Card padding="md">
+            <div style={{ fontSize: font.size.sm, fontWeight: font.weight.medium, color: color.textLight, marginBottom: 12 }}>エグジット条件</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <div><label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 3 }}>EXITマルチプル</label>{inp('exit_multiple', 'number', '0.5')}</div>
-                <div><label style={{ fontSize: 11, color: '#706E6B', display: 'block', marginBottom: 3 }}>EXIT年数</label>{inp('exit_year')}</div>
+                <div><label style={{ fontSize: font.size.xs, color: color.textLight, display: 'block', marginBottom: 3 }}>EXITマルチプル</label>{inp('exit_multiple', 'number', '0.5')}</div>
+                <div><label style={{ fontSize: font.size.xs, color: color.textLight, display: 'block', marginBottom: 3 }}>EXIT年数</label>{inp('exit_year')}</div>
               </div>
               <div>
-                <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4 }}>EBITDA（最新期）</div>
-                <div style={{ fontSize: 13, color: '#032D60', fontWeight: 500 }}>{fmt(latest.ebitda)}</div>
+                <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 4 }}>EBITDA（最新期）</div>
+                <div style={{ fontSize: font.size.base, color: color.navy, fontWeight: font.weight.medium }}>{fmt(latest.ebitda)}</div>
               </div>
               <div>
-                <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 2 }}>EXIT時EV想定</div>
-                <div style={{ fontSize: 13, color: '#032D60', fontWeight: 500 }}>{fmt(exitEV || null)}</div>
+                <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 2 }}>EXIT時EV想定</div>
+                <div style={{ fontSize: font.size.base, color: color.navy, fontWeight: font.weight.medium }}>{fmt(exitEV || null)}</div>
               </div>
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* 銀行提出メモ */}
-        <div style={{ ...card, marginBottom: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 500, color: '#706E6B', marginBottom: 8 }}>銀行提出用メモ</div>
+        <Card padding="md" style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: font.size.sm, fontWeight: font.weight.medium, color: color.textLight, marginBottom: 8 }}>銀行提出用メモ</div>
           <textarea value={form.bank_memo} onChange={e => setForm(f => ({ ...f, bank_memo: e.target.value }))}
             rows={5} placeholder="金融機関への説明資料に記載するメモを入力..."
-            style={{ width: '100%', padding: '10px 12px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 12, outline: 'none', resize: 'vertical', lineHeight: 1.7 }} />
-        </div>
+            style={{ width: '100%', padding: '10px 12px', border: `0.5px solid ${color.border}`, borderRadius: radius.lg, fontSize: font.size.sm, outline: 'none', resize: 'vertical', lineHeight: 1.7, background: color.white, color: color.textDark, fontFamily: 'inherit' }} />
+        </Card>
 
-        <button type="submit" disabled={saving}
-          style={{ height: 36, padding: '0 20px', background: saving ? '#A0A0A0' : '#032D60', border: 'none', borderRadius: 6, fontSize: 13, color: '#fff', fontWeight: 500, cursor: 'pointer' }}>
+        <Button type="submit" disabled={saving} loading={saving}>
           {saving ? '保存中...' : '保存'}
-        </button>
+        </Button>
       </form>
 
       {/* Sources & Uses */}
-      <div style={{ ...card, marginTop: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }}>Sources & Uses</div>
-        <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 14 }}>調達 (エクイティ/シニア/メザニン/sponsor loan) vs 使途 (株式取得/費用/運転資本)</div>
+      <Card padding="md" style={{ marginTop: 14 }}>
+        <div style={{ fontSize: font.size.base, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4 }}>Sources & Uses</div>
+        <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 14 }}>調達 (エクイティ/シニア/メザニン/sponsor loan) vs 使途 (株式取得/費用/運転資本)</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div>
-            <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 8, fontWeight: 500 }}>調達 (Sources)</div>
+            <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 8, fontWeight: font.weight.medium }}>調達 (Sources)</div>
             <SUEntry label="エクイティ (Sponsor)" value={fmt(equity || null)} pct={price ? Number(form.equity_ratio) * 100 : null} />
             <SUEntry label="シニア ローン" value={fmt(debt || null)} pct={price ? Number(form.debt_ratio) * 100 : null} />
             <SUEntry label="メザニン / 劣後" value="—" pct={null} hint="未設定" />
@@ -172,7 +171,7 @@ export default function LBOTab({ dealId, lbo, financials }) {
             <SUTotal label="調達合計" value={fmt(price || null)} />
           </div>
           <div>
-            <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 8, fontWeight: 500 }}>使途 (Uses)</div>
+            <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 8, fontWeight: font.weight.medium }}>使途 (Uses)</div>
             <SUEntry label="株式取得対価" value={fmt(price || null)} pct={100} />
             <SUEntry label="リファイナンス債務" value="—" pct={null} hint="既存有利子負債の返済分" />
             <SUEntry label="取引費用 (FA/法務)" value="—" pct={null} hint="見積 2-3%" />
@@ -180,69 +179,69 @@ export default function LBOTab({ dealId, lbo, financials }) {
             <SUTotal label="使途合計" value={fmt(price || null)} />
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Returns Waterfall */}
-      <div style={{ ...card, marginTop: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }}>リターン Waterfall</div>
-        <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 14 }}>LP / GP / 経営陣 への分配構造 (Preferred Return + Catch-up + Carry)</div>
-        <div style={{ padding: '20px 16px', background: '#FAFAFA', border: '0.5px dashed #E5E5E5', borderRadius: 6, fontSize: 12, color: '#706E6B', textAlign: 'center' }}>
+      <Card padding="md" style={{ marginTop: 14 }}>
+        <div style={{ fontSize: font.size.base, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4 }}>リターン Waterfall</div>
+        <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 14 }}>LP / GP / 経営陣 への分配構造 (Preferred Return + Catch-up + Carry)</div>
+        <div style={{ padding: '20px 16px', background: color.gray50, border: `0.5px dashed ${color.border}`, borderRadius: radius.lg, fontSize: font.size.sm, color: color.textLight, textAlign: 'center' }}>
           Preferred Return (8%) + GP Catch-up (100%) + Carried Interest (20%) の構造を定義します。次ビルドで UI 追加。
         </div>
-      </div>
+      </Card>
 
       {/* 感度分析 */}
-      <div style={{ ...card, marginTop: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }}>感度分析 (IRR マトリクス)</div>
-        <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 14 }}>EBITDA 成長率 × Exit マルチプル の 5x5 マトリクス</div>
+      <Card padding="md" style={{ marginTop: 14 }}>
+        <div style={{ fontSize: font.size.base, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4 }}>感度分析 (IRR マトリクス)</div>
+        <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 14 }}>EBITDA 成長率 × Exit マルチプル の 5x5 マトリクス</div>
         <SensitivityMatrix baseEbitda={exitEbitda} baseMultiple={Number(form.exit_multiple)} equity={equity} debt={debt} exitYear={Number(form.exit_year)} repayYears={Number(form.repayment_years)} />
-      </div>
+      </Card>
 
       {/* コベナンツ */}
-      <div style={{ ...card, marginTop: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60', marginBottom: 4 }}>財務コベナンツ</div>
-        <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 14 }}>DSCR / Leverage / Interest Coverage の基準値と現状</div>
+      <Card padding="md" style={{ marginTop: 14 }}>
+        <div style={{ fontSize: font.size.base, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4 }}>財務コベナンツ</div>
+        <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 14 }}>DSCR / Leverage / Interest Coverage の基準値と現状</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
           <CovenantCell label="DSCR" value="—" threshold="≥ 1.2x" />
           <CovenantCell label="Net Debt / EBITDA" value={exitEbitda && debt ? `${(debt / exitEbitda).toFixed(1)}x` : '—'} threshold="≤ 4.5x" />
           <CovenantCell label="Interest Coverage" value={exitEbitda && annualInterest ? `${(exitEbitda / annualInterest).toFixed(1)}x` : '—'} threshold="≥ 3.0x" />
         </div>
-      </div>
+      </Card>
     </div>
   )
 }
 
 function SUEntry({ label, value, pct, hint }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '0.5px solid #f0f2f5' }}>
-      <div style={{ fontSize: 11, color: '#706E6B' }}>{label}{hint && <span style={{ color: '#706E6B', marginLeft: 6, fontSize: 10 }}>({hint})</span>}</div>
-      <div style={{ fontSize: 12, color: '#032D60', fontWeight: 500 }}>
-        {value} {pct != null && <span style={{ fontSize: 10, color: '#706E6B', marginLeft: 4 }}>({pct.toFixed(0)}%)</span>}
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: `0.5px solid ${color.borderLight}` }}>
+      <div style={{ fontSize: font.size.xs, color: color.textLight }}>{label}{hint && <span style={{ color: color.textLight, marginLeft: 6, fontSize: font.size.xs }}>({hint})</span>}</div>
+      <div style={{ fontSize: font.size.sm, color: color.navy, fontWeight: font.weight.medium }}>
+        {value} {pct != null && <span style={{ fontSize: font.size.xs, color: color.textLight, marginLeft: 4 }}>({pct.toFixed(0)}%)</span>}
       </div>
     </div>
   )
 }
 function SUTotal({ label, value }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', marginTop: 4, background: '#FAFAFA', borderRadius: 5, padding: '8px 10px' }}>
-      <div style={{ fontSize: 11, color: '#032D60', fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: 13, color: '#032D60', fontWeight: 600 }}>{value}</div>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', marginTop: 4, background: color.gray50, borderRadius: radius.lg }}>
+      <div style={{ fontSize: font.size.xs, color: color.navy, fontWeight: font.weight.semibold }}>{label}</div>
+      <div style={{ fontSize: font.size.base, color: color.navy, fontWeight: font.weight.semibold }}>{value}</div>
     </div>
   )
 }
 function CovenantCell({ label, value, threshold }) {
   return (
-    <div style={{ padding: 12, background: '#FAFAFA', border: '0.5px solid #E5E5E5', borderRadius: 8 }}>
-      <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 600, color: '#032D60' }}>{value}</div>
-      <div style={{ fontSize: 10, color: '#706E6B', marginTop: 4 }}>基準: {threshold}</div>
+    <div style={{ padding: 12, background: color.gray50, border: `0.5px solid ${color.border}`, borderRadius: radius.xl }}>
+      <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 18, fontWeight: font.weight.semibold, color: color.navy }}>{value}</div>
+      <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 4 }}>基準: {threshold}</div>
     </div>
   )
 }
 function SensitivityMatrix({ baseEbitda, baseMultiple, equity, debt, exitYear, repayYears }) {
   if (!baseEbitda || !equity) {
     return (
-      <div style={{ padding: '20px 16px', background: '#FAFAFA', border: '0.5px dashed #E5E5E5', borderRadius: 6, fontSize: 12, color: '#706E6B', textAlign: 'center' }}>
+      <div style={{ padding: '20px 16px', background: color.gray50, border: `0.5px dashed ${color.border}`, borderRadius: radius.lg, fontSize: font.size.sm, color: color.textLight, textAlign: 'center' }}>
         買収価格・EBITDA が入力されると IRR 感度マトリクスが表示されます
       </div>
     )
@@ -251,11 +250,11 @@ function SensitivityMatrix({ baseEbitda, baseMultiple, equity, debt, exitYear, r
   const multDeltas = [-2, -1, 0, 1, 2]
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.xs }}>
         <thead>
-          <tr style={{ background: '#FAFAFA' }}>
-            <th style={{ padding: '6px 10px', fontSize: 10, color: '#706E6B', textAlign: 'center', fontWeight: 500 }}>EBITDA成長 \ マルチプル</th>
-            {multDeltas.map(d => <th key={d} style={{ padding: '6px 10px', fontSize: 10, color: '#706E6B', textAlign: 'center', fontWeight: 500 }}>{(baseMultiple + d).toFixed(1)}x</th>)}
+          <tr style={{ background: color.gray50 }}>
+            <th style={{ padding: '6px 10px', fontSize: font.size.xs, color: color.textLight, textAlign: 'center', fontWeight: font.weight.medium }}>EBITDA成長 \ マルチプル</th>
+            {multDeltas.map(d => <th key={d} style={{ padding: '6px 10px', fontSize: font.size.xs, color: color.textLight, textAlign: 'center', fontWeight: font.weight.medium }}>{(baseMultiple + d).toFixed(1)}x</th>)}
           </tr>
         </thead>
         <tbody>
@@ -263,15 +262,15 @@ function SensitivityMatrix({ baseEbitda, baseMultiple, equity, debt, exitYear, r
             const exitEb = baseEbitda * Math.pow(1 + g / 100, exitYear)
             return (
               <tr key={g}>
-                <td style={{ padding: '6px 10px', fontSize: 10, color: '#706E6B', fontWeight: 500 }}>{g > 0 ? '+' : ''}{g}%/年</td>
+                <td style={{ padding: '6px 10px', fontSize: font.size.xs, color: color.textLight, fontWeight: font.weight.medium }}>{g > 0 ? '+' : ''}{g}%/年</td>
                 {multDeltas.map(d => {
                   const exitEV = exitEb * (baseMultiple + d)
                   const debtRemain = Math.max(0, debt - (debt / repayYears) * exitYear)
                   const exitEq = exitEV - debtRemain
                   const irr = exitEq > 0 ? Math.pow(exitEq / equity, 1 / exitYear) - 1 : null
-                  const col = irr == null ? '#E5E5E5' : irr >= 0.25 ? '#2E844A' : irr >= 0.15 ? '#032D60' : irr >= 0.08 ? '#A08040' : '#EA001E'
-                  const bg = irr == null ? '#FAFAFA' : irr >= 0.25 ? '#E1F5EE' : irr >= 0.15 ? '#F8F8F8' : irr >= 0.08 ? '#FAF3E0' : '#FAECE7'
-                  return <td key={d} style={{ padding: '6px 10px', textAlign: 'center', background: bg, color: col, fontWeight: 500, fontSize: 11, borderBottom: '0.5px solid #fff' }}>{irr != null ? `${(irr * 100).toFixed(0)}%` : '—'}</td>
+                  const col = irr == null ? color.border : irr >= 0.25 ? color.success : irr >= 0.15 ? color.navy : irr >= 0.08 ? '#A08040' : color.danger
+                  const bg = irr == null ? color.gray50 : irr >= 0.25 ? color.successSoft : irr >= 0.15 ? color.gray50 : irr >= 0.08 ? color.warnSoft : color.dangerSoft
+                  return <td key={d} style={{ padding: '6px 10px', textAlign: 'center', background: bg, color: col, fontWeight: font.weight.medium, fontSize: font.size.xs, borderBottom: `0.5px solid ${color.white}` }}>{irr != null ? `${(irr * 100).toFixed(0)}%` : '—'}</td>
                 })}
               </tr>
             )

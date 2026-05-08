@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toRomaji } from 'wanakana';
 import { KATAKANA_LOANWORDS } from '../../utils/katakanaLoanwords';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 
 import { getOrgId } from '../../lib/orgContext';
 
@@ -15,17 +17,8 @@ function replaceLoanwords(text) {
   return out;
 }
 
-const NAVY = '#0D2247';
-const GOLD = '#C8A84B';
-
-const btn = (variant = 'default', extra = {}) => ({
-  padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
-  cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-  border: variant === 'danger' ? '1px solid #fca5a5' : '1px solid #E5E5E5',
-  background: variant === 'danger' ? 'transparent' : variant === 'primary' ? NAVY : '#fff',
-  color: variant === 'danger' ? '#dc2626' : variant === 'primary' ? '#fff' : '#374151',
-  ...extra,
-});
+const NAVY = color.navy;
+const GOLD = color.gold;
 
 export default function ClientManagement({ onToast }) {
   const [clients, setClients] = useState([]);
@@ -201,59 +194,64 @@ export default function ClientManagement({ onToast }) {
     setSheetCreating(null);
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>読み込み中...</div>;
+  if (loading) return <div style={{ padding: space[10], textAlign: 'center', color: color.gray400 }}>読み込み中...</div>;
 
   return (
     <div>
-      <div style={{ fontSize: 14, fontWeight: 700, color: NAVY, marginBottom: 16 }}>
+      <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: NAVY, marginBottom: space[4] }}>
         クライアント一覧（{clients.length}件）
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
         {clients.map(client => {
           const expanded = expandedIds.has(client.id);
           const isEditingName = editClientId === client.id;
           return (
-            <div key={client.id} style={{ background: '#fff', borderRadius: 4, border: '1px solid #E5E5E5', overflow: 'hidden' }}>
+            <Card key={client.id} padding="none" style={{ overflow: 'hidden', borderRadius: radius.md }}>
               {/* クライアント行 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer' }}
+              <div style={{ display: 'flex', alignItems: 'center', gap: space[3], padding: `${space[3]}px ${space[4]}px`, cursor: 'pointer' }}
                 onClick={() => !isEditingName && toggleExpand(client.id)}>
-                <span style={{ color: expanded ? NAVY : '#9CA3AF', fontSize: 12, transition: 'transform 0.15s', transform: expanded ? 'rotate(90deg)' : 'none', display: 'inline-block', width: 16, flexShrink: 0 }}>▶</span>
+                <span style={{ color: expanded ? NAVY : color.gray400, fontSize: font.size.sm, transition: 'transform 0.15s', transform: expanded ? 'rotate(90deg)' : 'none', display: 'inline-block', width: 16, flexShrink: 0 }}>▶</span>
 
                 {isEditingName ? (
-                  <input
+                  <Input
+                    size="sm"
                     value={editClientName}
                     onClick={e => e.stopPropagation()}
                     onChange={e => setEditClientName(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') saveClientName(client.id); if (e.key === 'Escape') setEditClientId(null); }}
                     autoFocus
-                    style={{ flex: 1, padding: '4px 8px', borderRadius: 6, border: '1px solid #6366F1', fontSize: 13, fontWeight: 600 }}
+                    containerStyle={{ flex: 1 }}
+                    style={{ fontWeight: font.weight.semibold }}
                   />
                 ) : (
-                  <span style={{ flex: 1, fontWeight: 700, fontSize: 14, color: '#111827' }}>{client.name}</span>
+                  <span style={{ flex: 1, fontWeight: font.weight.bold, fontSize: font.size.md, color: color.gray900 }}>{client.name}</span>
                 )}
 
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 'auto' }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', gap: space[1.5], flexShrink: 0, marginLeft: 'auto' }} onClick={e => e.stopPropagation()}>
                   {isEditingName ? (
                     <>
-                      <button onClick={() => saveClientName(client.id)} style={btn('primary')}>保存</button>
-                      <button onClick={() => setEditClientId(null)} style={btn()}>✕</button>
+                      <Button size="sm" variant="primary" onClick={() => saveClientName(client.id)}>保存</Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditClientId(null)}>✕</Button>
                     </>
                   ) : (
                     <>
                       {client.auth_user_id ? (
-                        <button
+                        <Button
+                          size="sm"
+                          variant="outline"
                           onClick={() => setCredentialsModal({ client, mode: 'reset' })}
-                          style={btn()}
                           title={`ID: ${client.portal_username || '(設定なし)'}`}
-                        >パスワード再発行</button>
+                        >パスワード再発行</Button>
                       ) : (
-                        <button
+                        <Button
+                          size="sm"
+                          variant="primary"
                           onClick={() => setCredentialsModal({ client, mode: 'create' })}
-                          style={btn('primary', { background: GOLD })}
-                        >ポータル発行</button>
+                          style={{ background: GOLD, borderColor: GOLD }}
+                        >ポータル発行</Button>
                       )}
-                      <button onClick={() => setDeleteConfirm({ type: 'client', item: client })} style={btn('danger')}>削除</button>
+                      <Button size="sm" variant="danger" onClick={() => setDeleteConfirm({ type: 'client', item: client })}>削除</Button>
                     </>
                   )}
                 </div>
@@ -261,60 +259,63 @@ export default function ClientManagement({ onToast }) {
 
               {/* リスト展開 */}
               {expanded && (
-                <div style={{ borderTop: '1px solid #F3F4F6', background: '#F8F9FA' }}>
+                <div style={{ borderTop: `1px solid ${color.borderLight}`, background: color.snow }}>
                   {client.lists.length === 0 ? (
-                    <div style={{ padding: '12px 44px', fontSize: 12, color: '#9CA3AF' }}>リストなし</div>
+                    <div style={{ padding: `${space[3]}px 44px`, fontSize: font.size.sm, color: color.gray400 }}>リストなし</div>
                   ) : (
                     client.lists.map(list => (
-                      <div key={list.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 44px', borderBottom: '1px solid #F3F4F6' }}>
-                        <span style={{ flex: 1, fontSize: 13, color: '#374151' }}>{list.name}</span>
-                        <span style={{ fontSize: 11, color: '#6B7280' }}>{list.itemCount.toLocaleString()}社</span>
-                        <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                      <div key={list.id} style={{ display: 'flex', alignItems: 'center', gap: space[3], padding: `${space[2.5]}px 44px`, borderBottom: `1px solid ${color.borderLight}` }}>
+                        <span style={{ flex: 1, fontSize: font.size.base, color: color.gray700 }}>{list.name}</span>
+                        <span style={{ fontSize: font.size.xs, color: color.textMid }}>{list.itemCount.toLocaleString()}社</span>
+                        <span style={{ fontSize: font.size.xs, color: color.gray400 }}>
                           {list.created_at ? new Date(list.created_at).toLocaleDateString('ja-JP') : '—'}
                         </span>
-                        <button
+                        <Button
+                          size="sm"
+                          variant="danger"
                           onClick={() => setDeleteConfirm({ type: 'list', item: { ...list, client_id: client.id } })}
-                          style={btn('danger')}
                         >
                           削除
-                        </button>
+                        </Button>
                       </div>
                     ))
                   )}
                 </div>
               )}
-            </div>
+            </Card>
           );
         })}
       </div>
 
       {/* Sheets連携モーダル */}
       {shareModal && (
-        <div onClick={() => setShareModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, padding: '28px 32px', width: 460, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: NAVY, marginBottom: 12 }}>
-              📊 Google Sheets 連携を作成
+        <div onClick={() => setShareModal(null)} style={{ position: 'fixed', inset: 0, background: alpha('#000', 0.45), display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: color.white, borderRadius: radius.md, padding: `28px ${space[8]}px`, width: 460, boxShadow: shadow.lg }}>
+            <div style={{ fontSize: font.size.md + 1, fontWeight: font.weight.bold, color: NAVY, marginBottom: space[3] }}>
+              Google Sheets 連携を作成
             </div>
-            <p style={{ fontSize: 13, color: '#374151', marginBottom: 8 }}>
+            <p style={{ fontSize: font.size.base, color: color.gray700, marginBottom: space[2] }}>
               「{shareModal.client.name}」用のスプレッドシートを作成し、下記メールアドレスに <b>閲覧者（コメント可）</b> で共有します。
             </p>
-            <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>
+            <p style={{ fontSize: font.size.sm, color: color.textMid, marginBottom: space[4] }}>
               架電結果の更新は約30秒以内にスプレッドシートへ自動反映されます。
             </p>
-            <input
-              type="email"
-              value={shareModal.defaultEmail}
-              onChange={e => setShareModal({ ...shareModal, defaultEmail: e.target.value })}
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #D1D5DB', fontSize: 13, marginBottom: 20 }}
-              placeholder="共有先メールアドレス"
-            />
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShareModal(null)} style={btn()}>キャンセル</button>
-              <button
+            <div style={{ marginBottom: space[5] }}>
+              <Input
+                type="email"
+                value={shareModal.defaultEmail}
+                onChange={e => setShareModal({ ...shareModal, defaultEmail: e.target.value })}
+                placeholder="共有先メールアドレス"
+              />
+            </div>
+            <div style={{ display: 'flex', gap: space[2.5], justifyContent: 'flex-end' }}>
+              <Button variant="outline" onClick={() => setShareModal(null)}>キャンセル</Button>
+              <Button
+                variant="primary"
                 onClick={() => handleCreateSheet(shareModal.client, shareModal.defaultEmail)}
-                style={btn('primary', { padding: '7px 20px' })}
+                loading={sheetCreating === shareModal.client.id}
                 disabled={sheetCreating === shareModal.client.id}
-              >{sheetCreating === shareModal.client.id ? '作成中...' : '作成して共有'}</button>
+              >{sheetCreating === shareModal.client.id ? '作成中...' : '作成して共有'}</Button>
             </div>
           </div>
         </div>
@@ -322,20 +323,20 @@ export default function ClientManagement({ onToast }) {
 
       {/* 削除確認モーダル */}
       {deleteConfirm && (
-        <div onClick={() => setDeleteConfirm(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, padding: '28px 32px', width: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#DC2626', marginBottom: 12 }}>
+        <div onClick={() => setDeleteConfirm(null)} style={{ position: 'fixed', inset: 0, background: alpha('#000', 0.45), display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: color.white, borderRadius: radius.md, padding: `28px ${space[8]}px`, width: 400, boxShadow: shadow.lg }}>
+            <div style={{ fontSize: font.size.md + 1, fontWeight: font.weight.bold, color: color.danger, marginBottom: space[3] }}>
               {deleteConfirm.type === 'list' ? 'リスト削除の確認' : 'クライアント削除の確認'}
             </div>
-            <p style={{ fontSize: 13, color: '#374151', marginBottom: 8 }}>
+            <p style={{ fontSize: font.size.base, color: color.gray700, marginBottom: space[2] }}>
               「{deleteConfirm.item.name}」を削除しますか？
             </p>
-            <p style={{ fontSize: 12, color: '#EF4444', background: '#FEF2F2', padding: '8px 12px', borderRadius: 4, marginBottom: 20 }}>
+            <p style={{ fontSize: font.size.sm, color: '#EF4444', background: color.dangerSoft, padding: `${space[2]}px ${space[3]}px`, borderRadius: radius.md, marginBottom: space[5] }}>
               ⚠ このリストに紐づく架電データも全て削除されます。この操作は元に戻せません。
             </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={() => setDeleteConfirm(null)} style={btn()}>キャンセル</button>
-              <button onClick={confirmDelete} style={btn('danger', { padding: '7px 20px' })}>削除する</button>
+            <div style={{ display: 'flex', gap: space[2.5], justifyContent: 'flex-end' }}>
+              <Button variant="outline" onClick={() => setDeleteConfirm(null)}>キャンセル</Button>
+              <Button variant="danger" onClick={confirmDelete}>削除する</Button>
             </div>
           </div>
         </div>
@@ -387,80 +388,71 @@ function CredentialsModal({ client, mode, suggestUsername, onClose, onIssue, iss
 
   return (
     <div onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+      position: 'fixed', inset: 0, background: alpha('#000', 0.5), zIndex: 9000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: space[6],
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: '#fff', borderRadius: 4, width: '100%', maxWidth: 480,
-        boxShadow: '0 12px 40px rgba(0,0,0,0.25)',
+        background: color.white, borderRadius: radius.md, width: '100%', maxWidth: 480,
+        boxShadow: shadow.xl,
       }}>
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid #E5E5E5' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#0D2247' }}>
+        <div style={{ padding: `14px ${space[5]}px`, borderBottom: `1px solid ${color.border}` }}>
+          <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>
             {mode === 'create' ? 'ポータル・アカウント発行' : 'パスワード再発行'}
           </div>
-          <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{client.name}</div>
+          <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: 2 }}>{client.name}</div>
         </div>
 
         {!issued ? (
-          <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ fontSize: 11, color: '#6B7280' }}>
+          <div style={{ padding: space[5], display: 'flex', flexDirection: 'column', gap: space[3] }}>
+            <div style={{ fontSize: font.size.xs, color: color.textMid }}>
               {mode === 'create'
                 ? 'ユーザー ID とパスワードを発行します。発行後の画面でコピーし、クライアントにお伝えください (メールは送信されません)。'
                 : `現在の ID「${client.portal_username || '(未設定)'}」はそのままで、新しいパスワードを発行します。`}
             </div>
 
             {mode === 'create' && (
-              <label style={{ fontSize: 11, color: '#374151' }}>
-                ユーザー ID (半角英小文字+数字+ . _ -)
+              <div style={{ fontSize: font.size.xs, color: color.gray700 }}>
+                <div style={{ marginBottom: 4 }}>ユーザー ID (半角英小文字+数字+ . _ -)</div>
                 {!username && (
-                  <span style={{ display: 'block', marginTop: 4, fontSize: 10, color: '#B45309', background: '#FFFBEB', padding: '4px 8px', borderRadius: 3, border: '1px solid #FCD34D' }}>
+                  <span style={{ display: 'block', marginTop: 4, marginBottom: 4, fontSize: 10, color: '#B45309', background: '#FFFBEB', padding: `${space[1]}px ${space[2]}px`, borderRadius: radius.sm, border: '1px solid #FCD34D' }}>
                     社名のローマ字表記を入力してください (例: {suggestUsername('フラーレン') || 'fullerene'}2026)
                   </span>
                 )}
-                <input
+                <Input
+                  size="sm"
                   value={username}
                   onChange={e => setUsername(e.target.value.toLowerCase())}
                   placeholder="例: fullerene2026"
-                  style={{
-                    display: 'block', width: '100%', marginTop: 4,
-                    padding: '8px 10px', fontSize: 13,
-                    border: '1px solid #E5E5E5', borderRadius: 3, fontFamily: "'JetBrains Mono',monospace",
-                    boxSizing: 'border-box',
-                  }}
+                  style={{ fontFamily: font.family.mono }}
                 />
-              </label>
+              </div>
             )}
 
-            <label style={{ fontSize: 11, color: '#374151' }}>
-              パスワード (空欄なら自動生成・推奨)
-              <input
+            <div style={{ fontSize: font.size.xs, color: color.gray700 }}>
+              <div style={{ marginBottom: 4 }}>パスワード (空欄なら自動生成・推奨)</div>
+              <Input
+                size="sm"
                 type="text"
                 value={customPw}
                 onChange={e => setCustomPw(e.target.value)}
                 placeholder="自動生成する場合は空欄のまま"
-                style={{
-                  display: 'block', width: '100%', marginTop: 4,
-                  padding: '8px 10px', fontSize: 13,
-                  border: '1px solid #E5E5E5', borderRadius: 3, fontFamily: "'JetBrains Mono',monospace",
-                  boxSizing: 'border-box',
-                }}
+                style={{ fontFamily: font.family.mono }}
               />
-            </label>
+            </div>
 
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-              <button onClick={onClose} disabled={submitting}
-                style={{ padding: '7px 14px', border: '1px solid #E5E5E5', background: '#fff', color: '#374151', borderRadius: 4, fontSize: 12, cursor: 'pointer' }}>
+            <div style={{ display: 'flex', gap: space[2], justifyContent: 'flex-end', marginTop: space[1] }}>
+              <Button size="sm" variant="outline" onClick={onClose} disabled={submitting}>
                 キャンセル
-              </button>
-              <button onClick={handleSubmit} disabled={submitting || (mode === 'create' && !username)}
-                style={{
-                  padding: '7px 18px', border: 'none', background: '#0D2247', color: '#fff',
-                  borderRadius: 4, fontSize: 12, fontWeight: 600,
-                  cursor: submitting ? 'default' : 'pointer',
-                  opacity: submitting || (mode === 'create' && !username) ? 0.5 : 1,
-                }}>
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={handleSubmit}
+                loading={submitting}
+                disabled={submitting || (mode === 'create' && !username)}
+              >
                 {submitting ? '処理中...' : mode === 'create' ? '発行' : 'パスワード再発行'}
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
@@ -498,8 +490,8 @@ function IssuedCredentialsView({ issued, clientName, onClose, onCopy }) {
   const mailtoHref = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
   return (
-    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ fontSize: 12, color: '#065F46', background: '#ECFDF5', padding: '8px 12px', borderRadius: 4, border: '1px solid #A7F3D0' }}>
+    <div style={{ padding: space[5], display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ fontSize: font.size.sm, color: '#065F46', background: color.successSoft, padding: `${space[2]}px ${space[3]}px`, borderRadius: radius.md, border: `1px solid ${alpha(color.success, 0.30)}` }}>
         ✓ {issued.mode === 'create' ? 'アカウントを発行しました' : 'パスワードを更新しました'}。以下をクライアントへお伝えください。この画面を閉じた後は再表示できません (再発行は可能)。
       </div>
       <CopyRow label="ログイン URL" value={portalUrl} onCopy={onCopy} />
@@ -507,52 +499,48 @@ function IssuedCredentialsView({ issued, clientName, onClose, onCopy }) {
       <CopyRow label="パスワード"  value={issued.password} onCopy={onCopy} />
 
       {showMail && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
-          <div style={{ fontSize: 10, color: '#6B7280' }}>
-            件名: <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>{subject}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: space[1.5], marginTop: space[1] }}>
+          <div style={{ fontSize: 10, color: color.textMid }}>
+            件名: <span style={{ fontFamily: font.family.mono }}>{subject}</span>
           </div>
           <textarea
             readOnly
             value={body}
             rows={16}
             style={{
-              width: '100%', padding: 10, fontSize: 11,
-              fontFamily: "'Noto Sans JP', 'JetBrains Mono', monospace",
-              border: '1px solid #E5E5E5', borderRadius: 3, background: '#F9FAFB',
+              width: '100%', padding: space[2.5], fontSize: font.size.xs,
+              fontFamily: `${font.family.sans}, ${font.family.mono}`,
+              border: `1px solid ${color.border}`, borderRadius: radius.sm, background: color.snow,
               resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6,
+              color: color.textDark,
             }}
           />
-          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-start' }}>
+          <div style={{ display: 'flex', gap: space[1.5], justifyContent: 'flex-start' }}>
             <button onClick={handleCopyMail}
               style={{
-                padding: '6px 12px', fontSize: 11, fontWeight: 600,
-                background: mailCopied ? '#10B981' : '#0D2247', color: '#fff',
-                border: 'none', borderRadius: 3, cursor: 'pointer',
+                padding: `${space[1.5]}px ${space[3]}px`, fontSize: font.size.xs, fontWeight: font.weight.semibold,
+                background: mailCopied ? '#10B981' : color.navy, color: color.white,
+                border: 'none', borderRadius: radius.sm, cursor: 'pointer',
               }}>{mailCopied ? '✓ コピーしました' : '本文をコピー'}</button>
             <a href={mailtoHref}
               style={{
-                padding: '6px 12px', fontSize: 11, fontWeight: 600,
-                background: '#fff', color: '#0D2247',
-                border: '1px solid #E5E5E5', borderRadius: 3, cursor: 'pointer',
+                padding: `${space[1.5]}px ${space[3]}px`, fontSize: font.size.xs, fontWeight: font.weight.semibold,
+                background: color.white, color: color.navy,
+                border: `1px solid ${color.border}`, borderRadius: radius.sm, cursor: 'pointer',
                 textDecoration: 'none',
               }}>メーラーで開く</a>
           </div>
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-        <button onClick={() => setShowMail(v => !v)}
-          style={{
-            padding: '7px 14px', fontSize: 11, fontWeight: 600,
-            background: showMail ? '#F3F4F6' : '#fff', color: '#0D2247',
-            border: '1px solid #E5E5E5', borderRadius: 4, cursor: 'pointer',
-          }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: space[1] }}>
+        <Button size="sm" variant="outline" onClick={() => setShowMail(v => !v)}
+          style={{ background: showMail ? color.gray100 : color.white }}>
           {showMail ? '閉じる' : 'メール文案を自動生成'}
-        </button>
-        <button onClick={onClose}
-          style={{ padding: '7px 18px', border: 'none', background: '#0D2247', color: '#fff', borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+        </Button>
+        <Button size="sm" variant="primary" onClick={onClose}>
           閉じる
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -628,20 +616,21 @@ function CopyRow({ label, value, onCopy }) {
   const [copied, setCopied] = useState(false);
   return (
     <div>
-      <div style={{ fontSize: 10, color: '#6B7280', marginBottom: 4 }}>{label}</div>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'stretch' }}>
+      <div style={{ fontSize: 10, color: color.textMid, marginBottom: space[1] }}>{label}</div>
+      <div style={{ display: 'flex', gap: space[1.5], alignItems: 'stretch' }}>
         <input readOnly value={value}
           onClick={e => e.currentTarget.select()}
           style={{
-            flex: 1, padding: '7px 10px', fontSize: 12, fontFamily: "'JetBrains Mono',monospace",
-            border: '1px solid #E5E5E5', borderRadius: 3, background: '#F9FAFB', boxSizing: 'border-box',
+            flex: 1, padding: `7px ${space[2.5]}px`, fontSize: font.size.sm, fontFamily: font.family.mono,
+            border: `1px solid ${color.border}`, borderRadius: radius.sm, background: color.snow, boxSizing: 'border-box',
+            color: color.textDark,
           }} />
         <button onClick={() => { onCopy(value); setCopied(true); setTimeout(() => setCopied(false), 1200); }}
           style={{
-            padding: '0 12px', fontSize: 11, fontWeight: 600,
-            background: copied ? '#10B981' : '#fff', color: copied ? '#fff' : '#374151',
-            border: '1px solid ' + (copied ? '#10B981' : '#E5E5E5'),
-            borderRadius: 3, cursor: 'pointer',
+            padding: `0 ${space[3]}px`, fontSize: font.size.xs, fontWeight: font.weight.semibold,
+            background: copied ? '#10B981' : color.white, color: copied ? color.white : color.gray700,
+            border: '1px solid ' + (copied ? '#10B981' : color.border),
+            borderRadius: radius.sm, cursor: 'pointer',
           }}>{copied ? '✓ コピー済' : 'コピー'}</button>
       </div>
     </div>

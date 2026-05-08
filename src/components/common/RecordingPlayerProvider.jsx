@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 
 // 画面下部固定の録音プレイヤー
 //   一覧テーブル等から useRecordingPlayer().play(url, title, subtitle) で起動
@@ -147,7 +148,7 @@ export function RecordingPlayerProvider({ children }) {
   );
 }
 
-const NAVY = '#0D2247';
+const NAVY = color.navy;
 
 function fmtTime(sec) {
   if (!sec || !isFinite(sec)) return '0:00';
@@ -171,16 +172,16 @@ function PlayerBar({
     <div style={{
       position: 'fixed', bottom: 0, left: 0, right: 0,
       zIndex: 9000,
-      background: '#fff',
-      borderTop: '1px solid #E5E7EB',
+      background: color.white,
+      borderTop: `1px solid ${color.gray200}`,
       boxShadow: '0 -4px 16px rgba(0,0,0,0.08)',
       paddingBottom: 'env(safe-area-inset-bottom, 0px)',
     }}>
       {/* 進捗バー（画面幅いっぱい） */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px', paddingTop: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: space[2.5], padding: '0 16px', paddingTop: 6 }}>
         <span style={{
-          fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
-          fontVariantNumeric: 'tabular-nums', color: C.textMid, minWidth: 40, textAlign: 'right',
+          fontSize: font.size.xs, fontFamily: font.family.mono,
+          fontVariantNumeric: 'tabular-nums', color: color.textMid, minWidth: 40, textAlign: 'right',
         }}>{fmtTime(position)}</span>
         <input
           type="range"
@@ -199,26 +200,26 @@ function PlayerBar({
           }}
         />
         <span style={{
-          fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
-          fontVariantNumeric: 'tabular-nums', color: C.textMid, minWidth: 40,
+          fontSize: font.size.xs, fontFamily: font.family.mono,
+          fontVariantNumeric: 'tabular-nums', color: color.textMid, minWidth: 40,
         }}>{fmtTime(duration)}</span>
       </div>
 
       {/* 操作行 */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 12,
+        display: 'flex', alignItems: 'center', gap: space[3],
         padding: '6px 16px 10px',
         flexWrap: 'wrap',
       }}>
         {/* 左: タイトル */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontSize: 12, fontWeight: 700, color: NAVY,
+            fontSize: font.size.sm, fontWeight: font.weight.bold, color: NAVY,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>{title || '録音再生中'}</div>
           {subtitle && (
             <div style={{
-              fontSize: 10, color: C.textLight,
+              fontSize: 10, color: color.textLight,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{subtitle}</div>
           )}
@@ -237,8 +238,8 @@ function PlayerBar({
             style={{
               ...ctrlBtn,
               width: 38, height: 38,
-              background: NAVY, color: '#fff',
-              fontSize: 14, fontWeight: 700,
+              background: NAVY, color: color.white,
+              fontSize: font.size.md, fontWeight: font.weight.bold,
             }}
           >{playing ? '❚❚' : '▶'}</button>
           <button
@@ -254,7 +255,7 @@ function PlayerBar({
             <button
               onClick={() => setSpeedMenuOpen(o => !o)}
               title="再生速度"
-              style={{ ...ctrlBtn, minWidth: 48, fontSize: 11 }}
+              style={{ ...ctrlBtn, minWidth: 48, fontSize: font.size.xs }}
             >{speed.toFixed(2).replace(/\.?0+$/, '')}x</button>
             {speedMenuOpen && (
               <>
@@ -266,8 +267,8 @@ function PlayerBar({
                 />
                 <div style={{
                   position: 'absolute', bottom: '100%', right: 0, marginBottom: 4,
-                  background: '#fff', border: '1px solid #E5E7EB',
-                  borderRadius: 4, boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                  background: color.white, border: `1px solid ${color.gray200}`,
+                  borderRadius: radius.md, boxShadow: shadow.md,
                   zIndex: 9002, minWidth: 80,
                 }}>
                   {SPEED_OPTIONS.map(s => (
@@ -277,11 +278,11 @@ function PlayerBar({
                       style={{
                         display: 'block', width: '100%',
                         padding: '6px 12px', border: 'none',
-                        background: s === speed ? NAVY + '15' : 'transparent',
-                        color: s === speed ? NAVY : C.textDark,
-                        fontWeight: s === speed ? 700 : 500,
-                        textAlign: 'left', cursor: 'pointer', fontSize: 11,
-                        fontFamily: "'Noto Sans JP'",
+                        background: s === speed ? alpha(NAVY, 0.082) : 'transparent',
+                        color: s === speed ? NAVY : color.textDark,
+                        fontWeight: s === speed ? font.weight.bold : font.weight.medium,
+                        textAlign: 'left', cursor: 'pointer', fontSize: font.size.xs,
+                        fontFamily: font.family.sans,
                       }}
                     >{s}x</button>
                   ))}
@@ -295,8 +296,8 @@ function PlayerBar({
             style={{
               ...ctrlBtn,
               fontSize: 10,
-              color: muted || volume === 0 ? '#DC2626' : NAVY,
-              borderColor: muted || volume === 0 ? '#DC2626' : '#E5E7EB',
+              color: muted || volume === 0 ? color.danger : NAVY,
+              borderColor: muted || volume === 0 ? color.danger : color.gray200,
             }}
           >{muted || volume === 0 ? '消' : '音'}</button>
           <input
@@ -311,7 +312,7 @@ function PlayerBar({
           <button
             onClick={onClose}
             title="閉じる"
-            style={{ ...ctrlBtn, color: '#DC2626', borderColor: '#DC2626' }}
+            style={{ ...ctrlBtn, color: color.danger, borderColor: color.danger }}
           >×</button>
         </div>
       </div>
@@ -322,9 +323,9 @@ function PlayerBar({
 const ctrlBtn = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
   width: 36, height: 30,
-  border: '1px solid #E5E7EB', background: '#fff',
-  color: '#0D2247', borderRadius: 4, cursor: 'pointer',
-  fontFamily: "'Noto Sans JP'", fontWeight: 600, fontSize: 11,
+  border: `1px solid ${color.gray200}`, background: color.white,
+  color: color.navy, borderRadius: radius.md, cursor: 'pointer',
+  fontFamily: font.family.sans, fontWeight: font.weight.semibold, fontSize: font.size.xs,
   padding: 0,
 };
 
@@ -334,9 +335,9 @@ export function PlayRecordingButton({ url, title, subtitle, label = '▶ 録音�
   if (!url) return null;
   const isPlaying = isCurrent(url);
   const btnStyle = size === 'sm' ? {
-    padding: '4px 10px', fontSize: 11, height: 26,
+    padding: '4px 10px', fontSize: font.size.xs, height: 26,
   } : {
-    padding: '6px 14px', fontSize: 12, height: 32,
+    padding: '6px 14px', fontSize: font.size.sm, height: 32,
   };
   return (
     <button
@@ -344,10 +345,10 @@ export function PlayRecordingButton({ url, title, subtitle, label = '▶ 録音�
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 4,
         border: '1px solid ' + (isPlaying ? NAVY : '#9CA3AF'),
-        background: isPlaying ? NAVY : '#fff',
-        color: isPlaying ? '#fff' : NAVY,
-        borderRadius: 3, cursor: 'pointer',
-        fontFamily: "'Noto Sans JP'", fontWeight: 600,
+        background: isPlaying ? NAVY : color.white,
+        color: isPlaying ? color.white : NAVY,
+        borderRadius: radius.sm, cursor: 'pointer',
+        fontFamily: font.family.sans, fontWeight: font.weight.semibold,
         whiteSpace: 'nowrap',
         ...btnStyle,
       }}

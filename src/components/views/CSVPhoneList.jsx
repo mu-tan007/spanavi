@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 import { CALL_RESULTS } from '../../constants/callResults';
 import { insertCallListItems } from '../../lib/supabaseWrite';
 import { dialPhone } from '../../utils/phone';
@@ -237,15 +239,15 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
       <div onClick={() => csvData.length > 0 && setExpanded(!expanded)} style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         cursor: csvData.length > 0 ? "pointer" : "default",
-        padding: "10px 14px", borderRadius: expanded ? "4px 4px 0 0" : 4,
-        background: '#fff',
-        border: "1px solid #E5E7EB",
+        padding: "10px 14px", borderRadius: expanded ? `${radius.md}px ${radius.md}px 0 0` : radius.md,
+        background: color.white,
+        border: `1px solid ${color.border}`,
         borderBottom: expanded ? "none" : undefined,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-<span style={{ fontSize: 12, fontWeight: 700, color: C.navy }}>架電リスト</span>
+<span style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy }}>架電リスト</span>
           {csvData.length > 0 && (
-            <span style={{ fontSize: 10, color: C.green, fontWeight: 600 }}>
+            <span style={{ fontSize: font.size.xs - 1, color: C.green, fontWeight: font.weight.semibold }}>
               {csvData.length}件（架電済: {calledCount}）
             </span>
           )}
@@ -253,90 +255,80 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {setCallFlowScreen && (
             <div style={{ display: "flex", alignItems: "center", gap: 4 }} onClick={e => e.stopPropagation()}>
-              <span style={{ fontSize: 10, color: C.textMid, whiteSpace: "nowrap" }}>No.</span>
+              <span style={{ fontSize: font.size.xs - 1, color: color.textMid, whiteSpace: "nowrap" }}>No.</span>
               <input type="number" value={flowStartNo} onChange={e => setFlowStartNo(e.target.value)} placeholder="開始"
-                style={{ width: 52, padding: "3px 5px", borderRadius: 4, border: "1px solid #E5E7EB", fontSize: 10, fontFamily: "'JetBrains Mono'", textAlign: "center", outline: "none" }} />
-              <span style={{ fontSize: 10, color: C.textMid }}>〜</span>
+                style={{ width: 52, padding: "3px 5px", borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.xs - 1, fontFamily: font.family.mono, textAlign: "center", outline: "none" }} />
+              <span style={{ fontSize: font.size.xs - 1, color: color.textMid }}>〜</span>
               <input type="number" value={flowEndNo} onChange={e => setFlowEndNo(e.target.value)} placeholder="終了"
-                style={{ width: 52, padding: "3px 5px", borderRadius: 4, border: "1px solid #E5E7EB", fontSize: 10, fontFamily: "'JetBrains Mono'", textAlign: "center", outline: "none" }} />
-              <button
+                style={{ width: 52, padding: "3px 5px", borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.xs - 1, fontFamily: font.family.mono, textAlign: "center", outline: "none" }} />
+              <Button
+                size="sm"
                 disabled={!flowStartNo || !flowEndNo}
                 onClick={() => setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null })}
-                style={{
-                  padding: "6px 12px", borderRadius: 4,
-                  background: flowStartNo && flowEndNo ? '#0D2247' : C.border,
-                  color: '#fff', cursor: flowStartNo && flowEndNo ? "pointer" : "not-allowed",
-                  fontSize: 12, fontWeight: 500, fontFamily: "'Noto Sans JP'",
-                  border: "none",
-                }}>架電開始</button>
+              >架電開始</Button>
             </div>
           )}
           {csvData.length > 0 && (
-            <button onClick={() => setCallingScreen({ listId, list })} style={{
-              padding: "6px 12px", borderRadius: 4,
-              background: '#0D2247', color: '#fff', cursor: "pointer",
-              fontSize: 12, fontWeight: 500, fontFamily: "'Noto Sans JP'",
-              border: "none",
-            }}>CSV架電</button>
+            <Button size="sm" onClick={() => setCallingScreen({ listId, list })}>CSV架電</Button>
           )}
           <label style={{
-            padding: "6px 12px", borderRadius: 4,
-            background: '#fff', color: '#0D2247', cursor: "pointer",
-            fontSize: 12, fontWeight: 500, fontFamily: "'Noto Sans JP'",
-            border: "1px solid #0D2247",
+            padding: "6px 12px", borderRadius: radius.md,
+            background: color.white, color: color.navy, cursor: "pointer",
+            fontSize: font.size.sm, fontWeight: font.weight.medium, fontFamily: font.family.sans,
+            border: `1px solid ${color.navy}`,
           }}>
             CSV取込
             <input type="file" accept=".csv" onChange={handleCSVImport} style={{ display: "none" }} />
           </label>
           {csvData.length > 0 && (
-            <span style={{ fontSize: 11, color: C.textLight, transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
+            <span style={{ fontSize: font.size.xs, color: color.textLight, transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
           )}
         </div>
       </div>
 
       {expanded && csvData.length > 0 && (
         <div style={{
-          background: '#fff', border: "1px solid #E5E7EB",
-          borderTop: "none", borderRadius: "0 0 4px 4px",
+          background: color.white, border: `1px solid ${color.border}`,
+          borderTop: "none", borderRadius: `0 0 ${radius.md}px ${radius.md}px`,
           padding: "10px 14px", animation: "fadeIn 0.2s ease",
         }}>
           {/* Search + pagination */}
           <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
             <input type="text" placeholder="番号・企業名・代表者で検索..." value={searchTerm}
               onChange={e => { setSearchTerm(e.target.value); setPageStart(0); }}
-              style={{ flex: 1, padding: "6px 10px", borderRadius: 4, border: "1px solid " + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: "none" }} />
+              style={{ flex: 1, padding: "6px 10px", borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: font.family.sans, outline: "none" }} />
             {prefOptions.length > 0 && (
               <div style={{ position: "relative" }}>
                 {prefDropOpen && (
                   <div onClick={() => setPrefDropOpen(false)} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 }} />
                 )}
                 <button onClick={() => setPrefDropOpen(v => !v)} style={{
-                  padding: "5px 8px", borderRadius: 4,
-                  border: "1px solid " + (prefFilters.length > 0 ? C.navy : C.border),
-                  background: prefFilters.length > 0 ? C.navy + "10" : C.white,
-                  fontSize: 10, fontFamily: "'Noto Sans JP'", cursor: "pointer",
-                  color: prefFilters.length > 0 ? C.navy : C.textDark, whiteSpace: "nowrap",
+                  padding: "5px 8px", borderRadius: radius.md,
+                  border: `1px solid ${prefFilters.length > 0 ? color.navy : color.border}`,
+                  background: prefFilters.length > 0 ? alpha(color.navy, 0.06) : color.white,
+                  fontSize: font.size.xs - 1, fontFamily: font.family.sans, cursor: "pointer",
+                  color: prefFilters.length > 0 ? color.navy : color.textDark, whiteSpace: "nowrap",
                 }}>
                   {prefFilters.length > 0 ? `都道府県(${prefFilters.length})▼` : "都道府県▼"}
                 </button>
                 {prefDropOpen && (
                   <div style={{
                     position: "absolute", top: "100%", left: 0, zIndex: 101,
-                    background: '#fff', border: "1px solid #E5E7EB",
-                    borderRadius: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+                    background: color.white, border: `1px solid ${color.border}`,
+                    borderRadius: radius.md, boxShadow: shadow.md,
                     minWidth: 120, maxHeight: 220, overflowY: "auto", padding: "4px 0",
                   }}>
                     {prefFilters.length > 0 && (
                       <div onClick={() => { setPrefFilters([]); setPageStart(0); }} style={{
-                        padding: "4px 10px", fontSize: 9, color: C.navy, cursor: "pointer",
-                        borderBottom: "1px solid " + C.borderLight, fontWeight: 600,
+                        padding: "4px 10px", fontSize: 9, color: color.navy, cursor: "pointer",
+                        borderBottom: `1px solid ${color.borderLight}`, fontWeight: font.weight.semibold,
                       }}>クリア</div>
                     )}
                     {prefOptions.map(p => (
                       <label key={p} style={{
                         display: "flex", alignItems: "center", gap: 6,
-                        padding: "4px 10px", cursor: "pointer", fontSize: 10,
-                        fontFamily: "'Noto Sans JP'", color: C.textDark,
+                        padding: "4px 10px", cursor: "pointer", fontSize: font.size.xs - 1,
+                        fontFamily: font.family.sans, color: color.textDark,
                       }}>
                         <input type="checkbox" checked={prefFilters.includes(p)}
                           onChange={() => {
@@ -352,7 +344,7 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
                 )}
               </div>
             )}
-            <span style={{ fontSize: 10, color: C.textLight, whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: font.size.xs - 1, color: color.textLight, whiteSpace: "nowrap" }}>
               {pageStart + 1}〜{Math.min(pageStart + PAGE_SIZE, filtered.length)} / {filtered.length}件
             </span>
           </div>
@@ -361,8 +353,8 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
           <div style={{ overflowX: "auto" }}>
             <div style={{
               display: "grid", gridTemplateColumns: "40px 1.5fr 1fr 0.7fr 0.8fr 100px 60px",
-              padding: "6px 8px", background: '#0D2247', borderRadius: "4px 4px 0 0",
-              fontSize: 9, fontWeight: 600, color: '#fff', letterSpacing: 0.5,
+              padding: "6px 8px", background: color.navy, borderRadius: `${radius.md}px ${radius.md}px 0 0`,
+              fontSize: 9, fontWeight: font.weight.semibold, color: color.white, letterSpacing: 0.5,
             }}>
               <span>No</span><span>企業名</span><span>事業内容</span><span>住所</span><span>代表者</span><span>電話番号</span><span>状態</span>
             </div>
@@ -371,48 +363,48 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
               return (
                 <div key={row.no} style={{
                   display: "grid", gridTemplateColumns: "40px 1.5fr 1fr 0.7fr 0.8fr 100px 60px",
-                  padding: "6px 8px", fontSize: 11, alignItems: "center",
-                  borderBottom: "1px solid #E5E7EB",
-                  background: row.called ? (row.result === "アポ" ? C.green + "08" : '#F8F9FA') : (i % 2 === 0 ? '#fff' : '#F8F9FA'),
+                  padding: "6px 8px", fontSize: font.size.xs, alignItems: "center",
+                  borderBottom: `1px solid ${color.border}`,
+                  background: row.called ? (row.result === "アポ" ? alpha(C.green, 0.03) : '#F8F9FA') : (i % 2 === 0 ? color.white : '#F8F9FA'),
                   opacity: row.called ? 0.6 : 1,
                 }}>
-                  <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.textLight }}>{row.no}</span>
-                  <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.company}</span>
-                  <span style={{ color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 10 }}>{row.business}</span>
-                  <span style={{ color: C.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 9 }}>{row.address || row.pref || '—'}</span>
-                  <span style={{ color: C.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.representative}</span>
+                  <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs - 1, color: color.textLight }}>{row.no}</span>
+                  <span style={{ fontWeight: font.weight.medium, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.company}</span>
+                  <span style={{ color: color.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: font.size.xs - 1 }}>{row.business}</span>
+                  <span style={{ color: color.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 9 }}>{row.address || row.pref || '—'}</span>
+                  <span style={{ color: color.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.representative}</span>
                   <span>
                     {row.phone ? (
                       <span onClick={() => dialPhone(row.phone)} style={{
-                        color: '#0D2247', fontWeight: 600, fontSize: 11,
-                        fontFamily: "'JetBrains Mono'", cursor: "pointer",
-                        padding: "2px 6px", borderRadius: 4,
-                        background: '#0D224715',
-                        border: "1px solid #0D224730",
+                        color: color.navy, fontWeight: font.weight.semibold, fontSize: font.size.xs,
+                        fontFamily: font.family.mono, cursor: "pointer",
+                        padding: "2px 6px", borderRadius: radius.md,
+                        background: alpha(color.navy, 0.08),
+                        border: `1px solid ${alpha(color.navy, 0.18)}`,
                       }}>{row.phone}</span>
                     ) : "-"}
                   </span>
                   <span>
                     {row.called ? (
                       <span style={{
-                        fontSize: 9, padding: "2px 6px", borderRadius: 3,
-                        background: row.result === "アポ" ? C.green + "20" : C.border,
-                        color: row.result === "アポ" ? C.green : C.textLight,
-                        fontWeight: 600,
+                        fontSize: 9, padding: "2px 6px", borderRadius: radius.sm,
+                        background: row.result === "アポ" ? alpha(C.green, 0.12) : color.border,
+                        color: row.result === "アポ" ? C.green : color.textLight,
+                        fontWeight: font.weight.semibold,
                       }}>{row.result || "済"}</span>
                     ) : (
                       <div style={{ display: "flex", gap: 2 }}>
                         <button onClick={() => markCalled(globalIdx, "不通")} title="不通" style={{
-                          width: 20, height: 20, borderRadius: 3, border: "1px solid " + C.border,
-                          background: C.offWhite, cursor: "pointer", fontSize: 8, color: C.textLight,
+                          width: 20, height: 20, borderRadius: radius.sm, border: `1px solid ${color.border}`,
+                          background: color.offWhite, cursor: "pointer", fontSize: 8, color: color.textLight,
                         }}>✕</button>
                         <button onClick={() => markCalled(globalIdx, "通電")} title="通電" style={{
-                          width: 20, height: 20, borderRadius: 3, border: "1px solid " + C.navy + "30",
-                          background: C.navy + "10", cursor: "pointer", fontSize: 8, color: C.navy,
+                          width: 20, height: 20, borderRadius: radius.sm, border: `1px solid ${alpha(color.navy, 0.18)}`,
+                          background: alpha(color.navy, 0.06), cursor: "pointer", fontSize: 8, color: color.navy,
                         }}>○</button>
                         <button onClick={() => markCalled(globalIdx, "アポ")} title="アポ" style={{
-                          width: 20, height: 20, borderRadius: 3, border: "1px solid " + C.green + "30",
-                          background: C.green + "10", cursor: "pointer", fontSize: 8, color: C.green,
+                          width: 20, height: 20, borderRadius: radius.sm, border: `1px solid ${alpha(C.green, 0.18)}`,
+                          background: alpha(C.green, 0.06), cursor: "pointer", fontSize: 8, color: C.green,
                         }}>◎</button>
                       </div>
                     )}
@@ -425,20 +417,8 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
           {/* Pagination */}
           {filtered.length > PAGE_SIZE && (
             <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 8 }}>
-              <button disabled={pageStart === 0} onClick={() => setPageStart(Math.max(0, pageStart - PAGE_SIZE))} style={{
-                padding: "4px 12px", borderRadius: 4,
-                border: "1px solid " + (pageStart === 0 ? "#E5E7EB" : "#0D2247"),
-                background: pageStart === 0 ? '#F8F9FA' : '#fff',
-                cursor: pageStart === 0 ? "default" : "pointer",
-                fontSize: 11, color: pageStart === 0 ? "#9CA3AF" : "#0D2247", fontFamily: "'Noto Sans JP'",
-              }}>← 前</button>
-              <button disabled={pageStart + PAGE_SIZE >= filtered.length} onClick={() => setPageStart(pageStart + PAGE_SIZE)} style={{
-                padding: "4px 12px", borderRadius: 4,
-                border: "1px solid " + (pageStart + PAGE_SIZE >= filtered.length ? "#E5E7EB" : "#0D2247"),
-                background: pageStart + PAGE_SIZE >= filtered.length ? '#F8F9FA' : '#fff',
-                cursor: pageStart + PAGE_SIZE >= filtered.length ? "default" : "pointer",
-                fontSize: 11, color: pageStart + PAGE_SIZE >= filtered.length ? "#9CA3AF" : "#0D2247", fontFamily: "'Noto Sans JP'",
-              }}>次 →</button>
+              <Button size="sm" variant="outline" disabled={pageStart === 0} onClick={() => setPageStart(Math.max(0, pageStart - PAGE_SIZE))}>← 前</Button>
+              <Button size="sm" variant="outline" disabled={pageStart + PAGE_SIZE >= filtered.length} onClick={() => setPageStart(pageStart + PAGE_SIZE)}>次 →</Button>
             </div>
           )}
         </div>

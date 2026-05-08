@@ -4,10 +4,12 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { logAudit } from '../lib/audit'
 import PageHeader from '../../../common/PageHeader'
+import { color, space, radius, font, shadow, alpha } from '../../../../constants/design'
+import { Button, Input, Select, Card, Badge } from '../../../ui'
 
 const STATUS_STYLE = {
-  not_contacted: { bg: '#F8F8F8', color: '#706E6B', label: '未接触' },
-  contacted:     { bg: '#E1F5EE', color: '#2E844A', label: '接触済' },
+  not_contacted: { bg: color.gray50,      fg: color.textMid, label: '未接触' },
+  contacted:     { bg: color.successSoft, fg: color.success, label: '接触済' },
 }
 
 const SORT_OPTIONS = [
@@ -202,25 +204,27 @@ export default function AgencyRegistryPage() {
     setEditingContact(null)
   }
 
-  const selectStyle = { height: 32, padding: '0 8px', background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 12, outline: 'none', color: '#032D60' }
+  // 既存と同寸を維持: ネイティブ select 用 inline スタイル (テーブル/フィルタ内に多数存在するため)
+  const selectStyle = { height: 32, padding: '0 8px', background: color.white, border: `0.5px solid ${color.border}`, borderRadius: 5, fontSize: font.size.sm, outline: 'none', color: color.navy }
   // color は <tr> の背景に合わせて親から継承させる (navy bg → 白、grey bg → dark)
-  const th = { fontSize: 10, fontWeight: 500, padding: '6px 4px', textAlign: 'center', lineHeight: 1.3 }
-  const td = { fontSize: 11, color: '#032D60', padding: '6px 4px', textAlign: 'center', borderBottom: '0.5px solid #e0e8f4' }
+  const th = { fontSize: 10, fontWeight: font.weight.medium, padding: '6px 4px', textAlign: 'center', lineHeight: 1.3 }
+  const td = { fontSize: font.size.xs, color: color.navy, padding: '6px 4px', textAlign: 'center', borderBottom: '0.5px solid #e0e8f4' }
 
   function Pager() {
+    const pBtn = { padding: '3px 7px', border: `0.5px solid ${color.border}`, borderRadius: 4, background: color.white, fontSize: font.size.xs, cursor: 'pointer', color: color.textMid }
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
-        <button onClick={() => setPage(1)} disabled={page===1} style={{ padding: '3px 7px', border: '0.5px solid #E5E5E5', borderRadius: 4, background: '#fff', fontSize: 11, cursor: 'pointer', color: '#706E6B' }}>«</button>
-        <button onClick={() => setPage(p => Math.max(1,p-1))} disabled={page===1} style={{ padding: '3px 7px', border: '0.5px solid #E5E5E5', borderRadius: 4, background: '#fff', fontSize: 11, cursor: 'pointer', color: '#706E6B' }}>‹</button>
+        <button onClick={() => setPage(1)} disabled={page===1} style={pBtn}>«</button>
+        <button onClick={() => setPage(p => Math.max(1,p-1))} disabled={page===1} style={pBtn}>‹</button>
         {Array.from({length: Math.min(7, totalPages)}, (_, i) => {
           let p = page <= 4 ? i+1 : page >= totalPages-3 ? totalPages-6+i : page-3+i
           if (p < 1 || p > totalPages) return null
-          return <button key={p} onClick={() => setPage(p)} style={{ padding: '3px 9px', border: p===page ? 'none' : '0.5px solid #E5E5E5', borderRadius: 4, background: p===page ? '#032D60' : '#fff', color: p===page ? '#fff' : '#706E6B', fontSize: 11, cursor: 'pointer', fontWeight: p===page ? 600 : 400 }}>{p}</button>
+          return <button key={p} onClick={() => setPage(p)} style={{ padding: '3px 9px', border: p===page ? 'none' : `0.5px solid ${color.border}`, borderRadius: 4, background: p===page ? color.navy : color.white, color: p===page ? color.white : color.textMid, fontSize: font.size.xs, cursor: 'pointer', fontWeight: p===page ? font.weight.semibold : font.weight.normal }}>{p}</button>
         })}
-        {totalPages > 7 && page < totalPages - 3 && <span style={{ color: '#706E6B', fontSize: 11 }}>…</span>}
-        {totalPages > 7 && page < totalPages - 3 && <button onClick={() => setPage(totalPages)} style={{ padding: '3px 9px', border: '0.5px solid #E5E5E5', borderRadius: 4, background: '#fff', fontSize: 11, cursor: 'pointer', color: '#706E6B' }}>{totalPages}</button>}
-        <button onClick={() => setPage(p => Math.min(totalPages,p+1))} disabled={page===totalPages||totalPages===0} style={{ padding: '3px 7px', border: '0.5px solid #E5E5E5', borderRadius: 4, background: '#fff', fontSize: 11, cursor: 'pointer', color: '#706E6B' }}>›</button>
-        <button onClick={() => setPage(totalPages)} disabled={page===totalPages||totalPages===0} style={{ padding: '3px 7px', border: '0.5px solid #E5E5E5', borderRadius: 4, background: '#fff', fontSize: 11, cursor: 'pointer', color: '#706E6B' }}>»</button>
+        {totalPages > 7 && page < totalPages - 3 && <span style={{ color: color.textMid, fontSize: font.size.xs }}>…</span>}
+        {totalPages > 7 && page < totalPages - 3 && <button onClick={() => setPage(totalPages)} style={{ padding: '3px 9px', border: `0.5px solid ${color.border}`, borderRadius: 4, background: color.white, fontSize: font.size.xs, cursor: 'pointer', color: color.textMid }}>{totalPages}</button>}
+        <button onClick={() => setPage(p => Math.min(totalPages,p+1))} disabled={page===totalPages||totalPages===0} style={pBtn}>›</button>
+        <button onClick={() => setPage(totalPages)} disabled={page===totalPages||totalPages===0} style={pBtn}>»</button>
       </div>
     )
   }
@@ -243,14 +247,13 @@ export default function AgencyRegistryPage() {
         style={{ marginBottom: 16 }}
         right={selectedIds.size > 0 ? (
           <>
-            <button onClick={lookupContacts} disabled={lookingUp} style={{
-              height: 32, padding: '0 12px', background: '#fff', border: '0.5px solid #E5E5E5',
-              borderRadius: 4, color: '#032D60', fontSize: 12, cursor: 'pointer',
-            }}>{lookingUp ? 'AI取得中...' : `${selectedIds.size}社の連絡先を取得`}</button>
-            <button onClick={openBroadcast} style={{
-              height: 32, padding: '0 14px', background: '#032D60', border: 'none',
-              borderRadius: 4, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-            }}>{selectedIds.size}社に配信</button>
+            <Button variant="secondary" size="sm" onClick={lookupContacts} loading={lookingUp} disabled={lookingUp}
+              style={{ height: 32, padding: '0 12px', fontSize: font.size.sm, color: color.navy, borderRadius: radius.md }}>
+              {lookingUp ? 'AI取得中...' : `${selectedIds.size}社の連絡先を取得`}
+            </Button>
+            <Button size="sm" onClick={openBroadcast} style={{ height: 32, padding: '0 14px', borderRadius: radius.md }}>
+              {selectedIds.size}社に配信
+            </Button>
           </>
         ) : null}
       />
@@ -261,15 +264,15 @@ export default function AgencyRegistryPage() {
         <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="企業名/事業所名"
           style={{ ...selectStyle, width: 220 }} />
         <button onClick={() => setShowAdvanced(!showAdvanced)} style={{
-          height: 32, padding: '0 14px', background: showAdvanced ? '#032D60' : '#fff',
-          border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 12, cursor: 'pointer',
-          color: showAdvanced ? '#FFFFFF' : '#706E6B',
+          height: 32, padding: '0 14px', background: showAdvanced ? color.navy : color.white,
+          border: `0.5px solid ${color.border}`, borderRadius: 5, fontSize: font.size.sm, cursor: 'pointer',
+          color: showAdvanced ? color.white : color.textMid,
         }}>{showAdvanced ? '✕ 詳細検索を閉じる' : '詳細検索'}</button>
         {(filterStatus || filterPref || filterInfoSharing || filterFeeType || filterStaffMin || filterStaffMax) && (
-          <button onClick={clearFilters} style={{ height: 32, padding: '0 12px', background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 12, cursor: 'pointer', color: '#F0B4B4' }}>クリア</button>
+          <button onClick={clearFilters} style={{ height: 32, padding: '0 12px', background: color.white, border: `0.5px solid ${color.border}`, borderRadius: 5, fontSize: font.size.sm, cursor: 'pointer', color: '#F0B4B4' }}>クリア</button>
         )}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 11, color: '#706E6B' }}>並び替え</span>
+          <span style={{ fontSize: font.size.xs, color: color.textMid }}>並び替え</span>
           <select value={sortKey} onChange={e => { setSortKey(e.target.value); setPage(1) }} style={selectStyle}>
             {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
@@ -278,40 +281,40 @@ export default function AgencyRegistryPage() {
 
       {/* 詳細検索 */}
       {showAdvanced && (
-        <div style={{ background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 10, padding: 20, marginBottom: 14 }}>
+        <div style={{ background: color.white, border: `0.5px solid ${color.border}`, borderRadius: 10, padding: 20, marginBottom: 14 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px 20px' }}>
             <div>
-              <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4, fontWeight: 500 }}>ステータス</div>
+              <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4, fontWeight: font.weight.medium }}>ステータス</div>
               <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1) }} style={{ ...selectStyle, width: '100%' }}>
                 <option value="">すべて</option><option value="not_contacted">未接触</option><option value="contacted">接触済</option>
               </select>
             </div>
             <div>
-              <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4, fontWeight: 500 }}>本店所在都道府県</div>
+              <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4, fontWeight: font.weight.medium }}>本店所在都道府県</div>
               <select value={filterPref} onChange={e => { setFilterPref(e.target.value); setPage(1) }} style={{ ...selectStyle, width: '100%' }}>
                 <option value="">すべて</option>{PREFS.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
             <div>
-              <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4, fontWeight: 500 }}>FA/仲介業務の別</div>
+              <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4, fontWeight: font.weight.medium }}>FA/仲介業務の別</div>
               <select value={filterFeeType} onChange={e => { setFilterFeeType(e.target.value); setPage(1) }} style={{ ...selectStyle, width: '100%' }}>
                 <option value="">すべて</option><option value="fa">FA業務あり</option><option value="broker">仲介業務あり</option>
               </select>
             </div>
             <div>
-              <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4, fontWeight: 500 }}>情報共有の仕組みへの加盟</div>
+              <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4, fontWeight: font.weight.medium }}>情報共有の仕組みへの加盟</div>
               <select value={filterInfoSharing} onChange={e => { setFilterInfoSharing(e.target.value); setPage(1) }} style={{ ...selectStyle, width: '100%' }}>
                 <option value="">すべて</option><option value="yes">加盟有り</option><option value="no">加盟無し</option>
               </select>
             </div>
             <div>
-              <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4, fontWeight: 500 }}>M&A専従者数（下限）</div>
+              <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4, fontWeight: font.weight.medium }}>M&A専従者数（下限）</div>
               <select value={filterStaffMin} onChange={e => { setFilterStaffMin(e.target.value); setPage(1) }} style={{ ...selectStyle, width: '100%' }}>
                 <option value="">下限なし</option>{[1,2,3,5,10,20,50,100].map(n => <option key={n} value={n}>{n}人以上</option>)}
               </select>
             </div>
             <div>
-              <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4, fontWeight: 500 }}>M&A専従者数（上限）</div>
+              <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4, fontWeight: font.weight.medium }}>M&A専従者数（上限）</div>
               <select value={filterStaffMax} onChange={e => { setFilterStaffMax(e.target.value); setPage(1) }} style={{ ...selectStyle, width: '100%' }}>
                 <option value="">上限なし</option>{[1,2,3,5,10,20,50,100,200].map(n => <option key={n} value={n}>{n}人以下</option>)}
               </select>
@@ -323,52 +326,52 @@ export default function AgencyRegistryPage() {
       <div style={{ marginBottom: 10 }}><Pager /></div>
 
       {/* Table */}
-      <div style={{ overflowX: 'auto', border: '1px solid #E5E5E5', borderRadius: 4 }}>
+      <div style={{ overflowX: 'auto', border: `1px solid ${color.border}`, borderRadius: radius.md }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1400 }}>
           <thead>
-            <tr style={{ background: '#032D60', color: '#FFFFFF' }}>
+            <tr style={{ background: color.navy, color: color.white }}>
               <th rowSpan={3} style={{ ...th, width: 32 }}><input type="checkbox" checked={selectAll} onChange={toggleSelectAll} style={{ width: 13, height: 13 }} /></th>
               <th rowSpan={3} style={{ ...th, width: 36 }}>No</th>
-              <th colSpan={4} style={{ ...th, borderBottom: '1px solid #E5E5E5', borderRight: '1px solid #E5E5E5' }}>基本情報</th>
-              <th colSpan={6} style={{ ...th, borderBottom: '1px solid #E5E5E5', borderRight: '1px solid #E5E5E5' }}>手数料体系 — FA</th>
-              <th colSpan={6} style={{ ...th, borderBottom: '1px solid #E5E5E5', borderRight: '1px solid #E5E5E5' }}>手数料体系 — 仲介</th>
+              <th colSpan={4} style={{ ...th, borderBottom: `1px solid ${color.border}`, borderRight: `1px solid ${color.border}` }}>基本情報</th>
+              <th colSpan={6} style={{ ...th, borderBottom: `1px solid ${color.border}`, borderRight: `1px solid ${color.border}` }}>手数料体系 — FA</th>
+              <th colSpan={6} style={{ ...th, borderBottom: `1px solid ${color.border}`, borderRight: `1px solid ${color.border}` }}>手数料体系 — 仲介</th>
               <th rowSpan={3} style={{ ...th, width: 90 }}>連絡先</th>
               <th rowSpan={3} style={{ ...th, width: 70 }}>ステータス</th>
             </tr>
-            <tr style={{ background: '#032D60', color: '#FFFFFF' }}>
+            <tr style={{ background: color.navy, color: color.white }}>
               <th rowSpan={2} style={{ ...th, minWidth: 180, textAlign: 'left', paddingLeft: 8 }}>支援機関名</th>
               <th rowSpan={2} style={{ ...th, width: 56 }}>本店<br/>所在地</th>
               <th rowSpan={2} style={{ ...th, width: 48 }}>M&A<br/>専従<br/>者数</th>
-              <th rowSpan={2} style={{ ...th, width: 68, borderRight: '1px solid #E5E5E5' }}>情報共有<br/>加盟有無</th>
-              <th colSpan={4} style={{ ...th, borderBottom: '1px solid #E5E5E5', fontSize: 9 }}>譲渡側</th>
-              <th colSpan={2} style={{ ...th, borderBottom: '1px solid #E5E5E5', borderRight: '1px solid #E5E5E5', fontSize: 9 }}>譲受側</th>
-              <th colSpan={4} style={{ ...th, borderBottom: '1px solid #E5E5E5', fontSize: 9 }}>譲渡側</th>
-              <th colSpan={2} style={{ ...th, borderBottom: '1px solid #E5E5E5', borderRight: '1px solid #E5E5E5', fontSize: 9 }}>譲受側</th>
+              <th rowSpan={2} style={{ ...th, width: 68, borderRight: `1px solid ${color.border}` }}>情報共有<br/>加盟有無</th>
+              <th colSpan={4} style={{ ...th, borderBottom: `1px solid ${color.border}`, fontSize: 9 }}>譲渡側</th>
+              <th colSpan={2} style={{ ...th, borderBottom: `1px solid ${color.border}`, borderRight: `1px solid ${color.border}`, fontSize: 9 }}>譲受側</th>
+              <th colSpan={4} style={{ ...th, borderBottom: `1px solid ${color.border}`, fontSize: 9 }}>譲渡側</th>
+              <th colSpan={2} style={{ ...th, borderBottom: `1px solid ${color.border}`, borderRight: `1px solid ${color.border}`, fontSize: 9 }}>譲受側</th>
             </tr>
-            <tr style={{ background: '#E5E5E5', color: '#181818' }}>
+            <tr style={{ background: color.border, color: '#181818' }}>
               <th style={{ ...th, width: 40 }}>成功<br/>報酬</th><th style={{ ...th, width: 50 }}>算定<br/>方式</th>
               <th style={{ ...th, width: 52 }}>最低<br/>手数料</th><th style={{ ...th, width: 40 }}>その他</th>
-              <th style={{ ...th, width: 40 }}>成功<br/>報酬</th><th style={{ ...th, width: 50, borderRight: '1px solid #E5E5E5' }}>算定<br/>方式</th>
+              <th style={{ ...th, width: 40 }}>成功<br/>報酬</th><th style={{ ...th, width: 50, borderRight: `1px solid ${color.border}` }}>算定<br/>方式</th>
               <th style={{ ...th, width: 40 }}>成功<br/>報酬</th><th style={{ ...th, width: 50 }}>算定<br/>方式</th>
               <th style={{ ...th, width: 52 }}>最低<br/>手数料</th><th style={{ ...th, width: 40 }}>その他</th>
-              <th style={{ ...th, width: 40 }}>成功<br/>報酬</th><th style={{ ...th, width: 50, borderRight: '1px solid #E5E5E5' }}>算定<br/>方式</th>
+              <th style={{ ...th, width: 40 }}>成功<br/>報酬</th><th style={{ ...th, width: 50, borderRight: `1px solid ${color.border}` }}>算定<br/>方式</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={20} style={{ ...td, padding: 40, color: '#706E6B' }}>読み込み中...</td></tr>
+              <tr><td colSpan={20} style={{ ...td, padding: 40, color: color.textMid }}>読み込み中...</td></tr>
             ) : paged.length === 0 ? (
-              <tr><td colSpan={20} style={{ ...td, padding: 40, color: '#706E6B' }}>該当する機関がありません</td></tr>
+              <tr><td colSpan={20} style={{ ...td, padding: 40, color: color.textMid }}>該当する機関がありません</td></tr>
             ) : paged.map((a, i) => {
               const ss = STATUS_STYLE[a.status] || STATUS_STYLE.not_contacted
               const rowNum = (page - 1) * PAGE_SIZE + i + 1
               const hasEmail = !!a.contact_email
               const hasForm = !!a.contact_form_url
               return (
-                <tr key={a.id} style={{ background: selectedIds.has(a.id) ? '#e8f0ff' : i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
+                <tr key={a.id} style={{ background: selectedIds.has(a.id) ? '#e8f0ff' : i % 2 === 0 ? color.white : color.gray50 }}>
                   <td style={td}><input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleSelect(a.id)} style={{ width: 13, height: 13 }} /></td>
-                  <td style={{ ...td, color: '#706E6B' }}>{rowNum}</td>
-                  <td style={{ ...td, textAlign: 'left', paddingLeft: 8, fontWeight: 500, color: '#032D60', cursor: 'pointer' }}
+                  <td style={{ ...td, color: color.textMid }}>{rowNum}</td>
+                  <td style={{ ...td, textAlign: 'left', paddingLeft: 8, fontWeight: font.weight.medium, color: color.navy, cursor: 'pointer' }}
                     onClick={() => {
                       if (a.website) window.open(a.website, '_blank')
                       else window.open(`https://ma-shienkikan.go.jp/search?sort=corporate_name_kana&corporate_name=${encodeURIComponent(a.name)}`, '_blank')
@@ -392,18 +395,18 @@ export default function AgencyRegistryPage() {
                   <td style={{ ...td, borderRight: '1px solid #dce8f8' }}>{a.broker_buyer_calc_method || ''}</td>
                   <td style={td}>
                     <div style={{ display: 'flex', gap: 3, justifyContent: 'center', alignItems: 'center' }}>
-                      {hasEmail && <span title={a.contact_email} style={{ fontSize: 9, background: '#E1F5EE', color: '#2E844A', padding: '1px 4px', borderRadius: 2, cursor: 'pointer' }}
+                      {hasEmail && <span title={a.contact_email} style={{ fontSize: 9, background: color.successSoft, color: color.success, padding: '1px 4px', borderRadius: 2, cursor: 'pointer' }}
                         onClick={() => window.open(`mailto:${a.contact_email}`, '_blank')}>Mail</span>}
-                      {hasForm && <span title={a.contact_form_url} style={{ fontSize: 9, background: '#F8F8F8', color: '#032D60', padding: '1px 4px', borderRadius: 2, cursor: 'pointer' }}
+                      {hasForm && <span title={a.contact_form_url} style={{ fontSize: 9, background: color.gray50, color: color.navy, padding: '1px 4px', borderRadius: 2, cursor: 'pointer' }}
                         onClick={() => window.open(a.contact_form_url, '_blank')}>Form</span>}
-                      <span style={{ fontSize: 9, color: '#706E6B', cursor: 'pointer', padding: '1px 3px' }}
+                      <span style={{ fontSize: 9, color: color.textMid, cursor: 'pointer', padding: '1px 3px' }}
                         onClick={() => { setEditingContact(a.id); setEditForm({ email: a.contact_email || '', form_url: a.contact_form_url || '', website: a.website || '', contact_name: a.contact_name || '' }) }}
                         title="編集">✎</span>
                     </div>
                   </td>
                   <td style={td}>
                     <select value={a.status} onChange={e => updateStatus(a.id, e.target.value)}
-                      style={{ height: 24, padding: '0 4px', fontSize: 10, border: `0.5px solid ${ss.bg}`, borderRadius: 3, background: ss.bg, color: ss.color, outline: 'none', cursor: 'pointer' }}>
+                      style={{ height: 24, padding: '0 4px', fontSize: 10, border: `0.5px solid ${ss.bg}`, borderRadius: 3, background: ss.bg, color: ss.fg, outline: 'none', cursor: 'pointer' }}>
                       <option value="not_contacted">未接触</option><option value="contacted">接触済</option>
                     </select>
                   </td>
@@ -420,18 +423,17 @@ export default function AgencyRegistryPage() {
       {editingContact && (
         <div onClick={e => { if (e.target === e.currentTarget) setEditingContact(null) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 420 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 500, color: '#032D60', marginBottom: 16 }}>連絡先を編集</h3>
+          <div style={{ background: color.white, borderRadius: 12, padding: 24, width: 420 }}>
+            <h3 style={{ fontSize: 15, fontWeight: font.weight.medium, color: color.navy, marginBottom: 16 }}>連絡先を編集</h3>
             {[['担当者名', 'contact_name', 'text'], ['メールアドレス', 'email', 'email'], ['問い合わせフォームURL', 'form_url', 'url'], ['ウェブサイト', 'website', 'url']].map(([label, key, type]) => (
               <div key={key} style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 3 }}>{label}</div>
-                <input type={type} value={editForm[key] || ''} onChange={e => setEditForm({ ...editForm, [key]: e.target.value })}
-                  style={{ width: '100%', height: 34, padding: '0 10px', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 13, outline: 'none' }} />
+                <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 3 }}>{label}</div>
+                <Input type={type} value={editForm[key] || ''} onChange={e => setEditForm({ ...editForm, [key]: e.target.value })} />
               </div>
             ))}
             <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-              <button onClick={() => setEditingContact(null)} style={{ flex: 1, height: 36, background: '#F3F2F2', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, color: '#706E6B', cursor: 'pointer' }}>キャンセル</button>
-              <button onClick={saveContact} style={{ flex: 1, height: 36, background: '#FFFFFF', border: 'none', borderRadius: 6, fontSize: 13, color: '#181818', fontWeight: 500, cursor: 'pointer' }}>保存</button>
+              <Button variant="secondary" fullWidth onClick={() => setEditingContact(null)}>キャンセル</Button>
+              <Button fullWidth onClick={saveContact} style={{ background: color.white, color: '#181818', border: 'none' }}>保存</Button>
             </div>
           </div>
         </div>
@@ -441,33 +443,33 @@ export default function AgencyRegistryPage() {
       {showBroadcast && (
         <div onClick={e => { if (e.target === e.currentTarget) setShowBroadcast(false) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 620, maxHeight: '85vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: 16, fontWeight: 500, color: '#032D60', marginBottom: 4 }}>買収ニーズ配信</h2>
-            <p style={{ fontSize: 12, color: '#706E6B', marginBottom: 16 }}>選択した {selectedIds.size} 社に配信します</p>
+          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 620, maxHeight: '85vh', overflowY: 'auto' }}>
+            <h2 style={{ fontSize: 16, fontWeight: font.weight.medium, color: color.navy, marginBottom: 4 }}>買収ニーズ配信</h2>
+            <p style={{ fontSize: font.size.sm, color: color.textMid, marginBottom: 16 }}>選択した {selectedIds.size} 社に配信します</p>
 
             {/* 配信方法の内訳 */}
-            <div style={{ background: '#FAFAFA', border: '0.5px solid #E5E5E5', borderRadius: 8, padding: 14, marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: '#032D60', marginBottom: 8 }}>配信方法の内訳</div>
-              <div style={{ display: 'flex', gap: 16, fontSize: 12 }}>
-                <div style={{ color: '#2E844A' }}>メール送信: {selWithEmail.length}社</div>
-                <div style={{ color: '#032D60' }}>フォーム: {selWithForm.length}社</div>
+            <div style={{ background: color.gray50, border: `0.5px solid ${color.border}`, borderRadius: radius.xl, padding: 14, marginBottom: 16 }}>
+              <div style={{ fontSize: font.size.sm, fontWeight: font.weight.medium, color: color.navy, marginBottom: 8 }}>配信方法の内訳</div>
+              <div style={{ display: 'flex', gap: 16, fontSize: font.size.sm }}>
+                <div style={{ color: color.success }}>メール送信: {selWithEmail.length}社</div>
+                <div style={{ color: color.navy }}>フォーム: {selWithForm.length}社</div>
                 {selNoContact.length > 0 && <div style={{ color: '#F0B4B4' }}>連絡先なし: {selNoContact.length}社</div>}
               </div>
               {selNoContact.length > 0 && (
-                <div style={{ fontSize: 11, color: '#A08040', marginTop: 6, background: '#FAF3E0', padding: '6px 10px', borderRadius: 4 }}>
+                <div style={{ fontSize: font.size.xs, color: '#A08040', marginTop: 6, background: '#FAF3E0', padding: '6px 10px', borderRadius: radius.md }}>
                   連絡先未取得の{selNoContact.length}社は配信されません。先に「連絡先を取得」ボタンでAI取得してください。
                 </div>
               )}
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4 }}>メール本文（メール送信・フォーム入力用）</div>
+              <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4 }}>メール本文（メール送信・フォーム入力用）</div>
               <textarea value={broadcastBody} onChange={e => setBroadcastBody(e.target.value)} rows={10}
-                style={{ width: '100%', padding: '10px 12px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, outline: 'none', resize: 'vertical', lineHeight: 1.8 }} />
+                style={{ width: '100%', padding: '10px 12px', border: `0.5px solid ${color.border}`, borderRadius: radius.lg, fontSize: font.size.base, outline: 'none', resize: 'vertical', lineHeight: 1.8, color: color.textDark, fontFamily: font.family.sans, boxSizing: 'border-box' }} />
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setShowBroadcast(false)} style={{ flex: 1, height: 36, background: '#F3F2F2', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, color: '#706E6B', cursor: 'pointer' }}>キャンセル</button>
-              <button onClick={sendBroadcast} style={{ flex: 1, height: 36, background: '#FFFFFF', border: 'none', borderRadius: 6, fontSize: 13, color: '#181818', fontWeight: 500, cursor: 'pointer' }}>配信する</button>
+              <Button variant="secondary" fullWidth onClick={() => setShowBroadcast(false)}>キャンセル</Button>
+              <Button fullWidth onClick={sendBroadcast} style={{ background: color.white, color: '#181818', border: 'none' }}>配信する</Button>
             </div>
           </div>
         </div>

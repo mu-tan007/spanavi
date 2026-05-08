@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { color, space, radius, font, shadow, alpha } from '../../../../../constants/design'
+import { Button, Input, Card } from '../../../../ui'
 
 const CATEGORIES = [
   { key: 'commercial', label: '商業DD',     hint: '市場/競合/顧客/成長ドライバー' },
@@ -13,11 +15,11 @@ const CATEGORIES = [
 ]
 
 const STATUS_STYLE = {
-  pending:      { bg: '#F3F2F2', color: '#706E6B', label: '未対応' },
-  requested:    { bg: '#F8F8F8', color: '#032D60', label: '依頼済' },
-  received:     { bg: '#E1F5EE', color: '#2E844A', label: '受領済' },
-  issue_found:  { bg: '#FAF3E0', color: '#A08040', label: '要確認' },
-  cleared:      { bg: '#032D60', color: '#fff',    label: '完了' },
+  pending:      { bg: color.gray100, color: color.textLight, label: '未対応' },
+  requested:    { bg: color.gray50, color: color.navy, label: '依頼済' },
+  received:     { bg: color.successSoft, color: color.success, label: '受領済' },
+  issue_found:  { bg: color.warnSoft, color: '#A08040', label: '要確認' },
+  cleared:      { bg: color.navy, color: color.white, label: '完了' },
 }
 
 const DD_TEMPLATES = {
@@ -139,30 +141,30 @@ export default function DDTab({ dealId }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
       {/* Progress */}
-      <div style={{ background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 16 }}>
+      <Card padding="md">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <div style={{ fontSize: 12, fontWeight: 500, color: '#706E6B' }}>DD進捗</div>
-          <div style={{ fontSize: 12, color: '#032D60', fontWeight: 500 }}>{cleared} / {total} 完了</div>
+          <div style={{ fontSize: font.size.sm, fontWeight: font.weight.medium, color: color.textLight }}>DD進捗</div>
+          <div style={{ fontSize: font.size.sm, color: color.navy, fontWeight: font.weight.medium }}>{cleared} / {total} 完了</div>
         </div>
-        <div style={{ height: 6, background: '#F3F2F2', borderRadius: 3, overflow: 'hidden' }}>
-          <div style={{ width: total > 0 ? `${(cleared/total)*100}%` : '0%', height: '100%', background: '#032D60', borderRadius: 3, transition: 'width 0.3s' }} />
+        <div style={{ height: 6, background: color.gray100, borderRadius: 3, overflow: 'hidden' }}>
+          <div style={{ width: total > 0 ? `${(cleared/total)*100}%` : '0%', height: '100%', background: color.navy, borderRadius: 3, transition: 'width 0.3s' }} />
         </div>
         <div style={{ display: 'flex', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
           {Object.entries(STATUS_STYLE).map(([k, s]) => {
             const count = items.filter(i => i.status === k).length
             return count > 0 ? (
-              <span key={k} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 3, background: s.bg, color: s.color }}>
+              <span key={k} style={{ fontSize: font.size.xs, padding: '2px 7px', borderRadius: radius.sm, background: s.bg, color: s.color }}>
                 {s.label} {count}
               </span>
             ) : null
           })}
         </div>
-      </div>
+      </Card>
 
       <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 14 }}>
 
         {/* Category sidebar */}
-        <div style={{ background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: '8px 0', height: 'fit-content' }}>
+        <Card padding="none" style={{ height: 'fit-content', padding: '8px 0' }}>
           {CATEGORIES.map(c => {
             const count = items.filter(i => i.category === c.key).length
             const done  = items.filter(i => i.category === c.key && i.status === 'cleared').length
@@ -170,45 +172,43 @@ export default function DDTab({ dealId }) {
               <div key={c.key} onClick={() => setActiveCat(c.key)}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '8px 14px', cursor: 'pointer', fontSize: 12,
-                  color: activeCategory === c.key ? '#032D60' : '#706E6B',
-                  background: activeCategory === c.key ? '#F3F2F2' : 'transparent',
-                  fontWeight: activeCategory === c.key ? 500 : 400,
+                  padding: '8px 14px', cursor: 'pointer', fontSize: font.size.sm,
+                  color: activeCategory === c.key ? color.navy : color.textLight,
+                  background: activeCategory === c.key ? color.gray100 : 'transparent',
+                  fontWeight: activeCategory === c.key ? font.weight.medium : font.weight.normal,
                 }}>
                 <span>{c.label}</span>
-                {count > 0 && <span style={{ fontSize: 10, color: done === count ? '#2E844A' : '#A0A0A0' }}>{done}/{count}</span>}
+                {count > 0 && <span style={{ fontSize: font.size.xs, color: done === count ? color.success : color.gray400 }}>{done}/{count}</span>}
               </div>
             )
           })}
-        </div>
+        </Card>
 
         {/* Items */}
-        <div style={{ background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 16 }}>
+        <Card padding="md">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#032D60' }}>
+              <div style={{ fontSize: font.size.base, fontWeight: font.weight.semibold, color: color.navy }}>
                 {CATEGORIES.find(c => c.key === activeCategory)?.label}
               </div>
-              <div style={{ fontSize: 10, color: '#706E6B', marginTop: 2 }}>
+              <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 2 }}>
                 {CATEGORIES.find(c => c.key === activeCategory)?.hint}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={addFromTemplate}
-                style={{ height: 28, padding: '0 10px', background: '#F3F2F2', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 11, color: '#706E6B', cursor: 'pointer' }}>
+              <Button variant="secondary" size="sm" onClick={addFromTemplate}>
                 テンプレから追加
-              </button>
-              <button onClick={() => setAdding(true)}
-                style={{ height: 28, padding: '0 10px', background: '#032D60', border: 'none', borderRadius: 5, fontSize: 11, color: '#fff', cursor: 'pointer' }}>
+              </Button>
+              <Button size="sm" onClick={() => setAdding(true)}>
                 + 追加
-              </button>
+              </Button>
             </div>
           </div>
 
           {isLoading ? (
-            <div style={{ fontSize: 12, color: '#706E6B', textAlign: 'center', padding: '20px 0' }}>読み込み中...</div>
+            <div style={{ fontSize: font.size.sm, color: color.textLight, textAlign: 'center', padding: '20px 0' }}>読み込み中...</div>
           ) : filtered.length === 0 && !adding ? (
-            <div style={{ fontSize: 12, color: '#706E6B', textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ fontSize: font.size.sm, color: color.textLight, textAlign: 'center', padding: '20px 0' }}>
               項目がありません。テンプレートから追加してください。
             </div>
           ) : (
@@ -216,18 +216,18 @@ export default function DDTab({ dealId }) {
               {filtered.map((item, i) => {
                 const ss = STATUS_STYLE[item.status] || STATUS_STYLE.pending
                 return (
-                  <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '0.5px solid #f0f2f5' }}>
-                    <div style={{ flex: 1, fontSize: 12, color: item.status === 'cleared' ? '#E5E5E5' : '#FFFFFF',
+                  <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `0.5px solid ${color.borderLight}` }}>
+                    <div style={{ flex: 1, fontSize: font.size.sm, color: item.status === 'cleared' ? color.border : color.white,
                       textDecoration: item.status === 'cleared' ? 'line-through' : 'none' }}>
                       {item.item}
                     </div>
                     {item.risk_note && (
-                      <div style={{ fontSize: 10, color: '#A08040', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: font.size.xs, color: '#A08040', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         ⚠ {item.risk_note}
                       </div>
                     )}
                     <select value={item.status} onChange={e => updateStatus(item.id, e.target.value)}
-                      style={{ height: 26, padding: '0 6px', border: `0.5px solid ${ss.bg === '#F3F2F2' ? '#E5E5E5' : ss.bg}`, borderRadius: 4, fontSize: 10, background: ss.bg, color: ss.color, cursor: 'pointer', outline: 'none' }}>
+                      style={{ height: 26, padding: '0 6px', border: `0.5px solid ${ss.bg === color.gray100 ? color.border : ss.bg}`, borderRadius: radius.md, fontSize: font.size.xs, background: ss.bg, color: ss.color, cursor: 'pointer', outline: 'none' }}>
                       {Object.entries(STATUS_STYLE).map(([v, s]) => (
                         <option key={v} value={v}>{s.label}</option>
                       ))}
@@ -240,15 +240,14 @@ export default function DDTab({ dealId }) {
 
           {adding && (
             <form onSubmit={addCustom} style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-              <input autoFocus value={newItem} onChange={e => setNewItem(e.target.value)}
+              <Input size="sm" autoFocus value={newItem} onChange={e => setNewItem(e.target.value)}
                 placeholder="確認項目を入力..."
-                style={{ flex: 1, height: 32, padding: '0 10px', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 12, outline: 'none' }} />
-              <button type="submit" style={{ height: 32, padding: '0 12px', background: '#032D60', border: 'none', borderRadius: 5, fontSize: 12, color: '#fff', cursor: 'pointer' }}>追加</button>
-              <button type="button" onClick={() => setAdding(false)}
-                style={{ height: 32, padding: '0 10px', background: '#F3F2F2', border: '0.5px solid #E5E5E5', borderRadius: 5, fontSize: 12, color: '#706E6B', cursor: 'pointer' }}>×</button>
+                containerStyle={{ flex: 1 }} />
+              <Button type="submit" size="sm">追加</Button>
+              <Button type="button" variant="secondary" size="sm" onClick={() => setAdding(false)}>×</Button>
             </form>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   )

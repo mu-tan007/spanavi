@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import { C } from '../../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../../ui';
 import InlineAudioPlayer from '../../common/InlineAudioPlayer';
 import { useEngagements } from '../../../hooks/useEngagements';
 import { useMemberProfile } from '../../common/MemberProfileDrawer';
@@ -127,25 +129,42 @@ export default function DailyReportPanel({ currentUser, userId, isAdmin }) {
   return (
     <div>
       {/* 日付ナビゲーション */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
-        <button onClick={goPrevDate} disabled={dateIdx >= dates.length - 1} title="前の日付"
-          style={navBtnStyle(dateIdx >= dates.length - 1)}>‹</button>
-        <input type="date" value={selectedDate || ''} onChange={e => onDateInput(e.target.value)}
-          style={{ padding: '5px 10px', fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 3, fontFamily: "'JetBrains Mono', monospace", color: C.navy, fontWeight: 600 }} />
-        <button onClick={goNextDate} disabled={dateIdx <= 0} title="後の日付"
-          style={navBtnStyle(dateIdx <= 0)}>›</button>
+      <div style={{ display: 'flex', gap: space[2], alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={goPrevDate}
+          disabled={dateIdx >= dates.length - 1}
+          title="前の日付"
+          style={{ minHeight: 28, padding: 0, width: 28, fontSize: 16 }}
+        >‹</Button>
+        <Input
+          type="date"
+          size="sm"
+          value={selectedDate || ''}
+          onChange={e => onDateInput(e.target.value)}
+          fullWidth={false}
+          style={{ fontFamily: font.family.mono, color: color.navy, fontWeight: font.weight.semibold }}
+        />
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={goNextDate}
+          disabled={dateIdx <= 0}
+          title="後の日付"
+          style={{ minHeight: 28, padding: 0, width: 28, fontSize: 16 }}
+        >›</Button>
 
-        <span style={{ fontSize: 11, color: C.textMid, fontWeight: 600, marginLeft: 12 }}>チーム:</span>
+        <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, marginLeft: 12 }}>チーム:</span>
         <div style={{ display: 'flex', gap: 4 }}>
           {teamsForDate.map(t => (
-            <button key={t.team_id || 'org'} onClick={() => setSelectedTeamId(t.team_id)}
-              style={{
-                padding: '4px 12px', fontSize: 11, fontWeight: 600,
-                border: `1px solid ${selectedTeamId === t.team_id ? C.navy : C.border}`,
-                background: selectedTeamId === t.team_id ? C.navy : C.white,
-                color: selectedTeamId === t.team_id ? C.white : C.navy,
-                borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-              }}>{t.team_name || 'チーム未設定'}</button>
+            <Button
+              key={t.team_id || 'org'}
+              size="sm"
+              variant={selectedTeamId === t.team_id ? 'primary' : 'outline'}
+              onClick={() => setSelectedTeamId(t.team_id)}
+              style={{ minHeight: 26, padding: '4px 12px', fontSize: 11 }}
+            >{t.team_name || 'チーム未設定'}</Button>
           ))}
         </div>
 
@@ -195,7 +214,7 @@ function downloadCsv(report) {
   for (const l of (p.list_breakdown || [])) {
     lines.push(`${l.list_name},${l.calls},${l.connects},${l.appointments},${l.connect_rate}%,${l.appointment_rate}%`);
   }
-  const csv = '\uFEFF' + lines.join('\n');
+  const csv = '﻿' + lines.join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -289,10 +308,10 @@ function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, curren
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
       {/* 1. ヘッダー（前日比 delta 付き） */}
       <div>
-        <div style={{ fontSize: 11, color: C.textLight, fontWeight: 600, letterSpacing: '0.06em' }}>
+        <div style={{ fontSize: font.size.xs, color: color.textLight, fontWeight: font.weight.semibold, letterSpacing: '0.06em' }}>
           {report.team_name} ・ {report.report_date}
         </div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: C.navy, marginTop: 4, display: 'flex', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 18, fontWeight: font.weight.bold, color: color.navy, marginTop: 4, display: 'flex', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
           <SummaryNum label="架電" cur={kpi.calls} prev={ykpi?.calls} />
           <SummaryNum label="接続" cur={kpi.ceo_connects} prev={ykpi?.ceo_connects} />
           <SummaryNum label="アポ" cur={kpi.appointments} prev={ykpi?.appointments} suffix="件" />
@@ -302,7 +321,7 @@ function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, curren
 
       {/* 2. KPI スコアボード（チーム比較に ▲/▼ delta） */}
       <Section title="KPI スコアボード（他チーム比較）">
-        <div style={{ overflowX: 'auto', borderRadius: 4, border: `1px solid ${C.border}` }}>
+        <div style={{ overflowX: 'auto', borderRadius: radius.md, border: `1px solid ${color.border}` }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5, minWidth: 520 }}>
             <thead>
               <tr style={{ background: '#0D2247' }}>
@@ -328,29 +347,30 @@ function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, curren
 
       {/* 3. メンバー別ボード（ソート付き） */}
       <Section title={`メンバー別ボード（稼働 ${members.length}名）`}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: 11 }}>
-          <span style={{ color: C.textMid, fontWeight: 600 }}>並び替え:</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: space[2], fontSize: font.size.xs }}>
+          <span style={{ color: color.textMid, fontWeight: font.weight.semibold }}>並び替え:</span>
           {[
             { k: 'appointments', label: 'アポ獲得' },
             { k: 'connect_rate', label: '接続率' },
             { k: 'calls', label: '架電数' },
             { k: 'sales', label: '売上' },
           ].map(({ k, label }) => (
-            <button key={k} onClick={() => {
-              if (sortKey === k) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
-              else { setSortKey(k); setSortDir('desc'); }
-            }}
-              style={{ padding: '3px 10px', fontSize: 10.5, fontWeight: 600,
-                background: sortKey === k ? C.navy : C.white,
-                color: sortKey === k ? C.white : C.navy,
-                border: `1px solid ${sortKey === k ? C.navy : C.border}`,
-                borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+            <Button
+              key={k}
+              size="sm"
+              variant={sortKey === k ? 'primary' : 'outline'}
+              onClick={() => {
+                if (sortKey === k) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
+                else { setSortKey(k); setSortDir('desc'); }
+              }}
+              style={{ minHeight: 24, padding: '3px 10px', fontSize: 10.5 }}
+            >
               {label} {sortKey === k ? (sortDir === 'desc' ? '↓' : '↑') : ''}
-            </button>
+            </Button>
           ))}
         </div>
         {members.length === 0 ? <Empty>本日稼働したメンバーはいません</Empty> : (
-          <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))' }}>
+          <div style={{ display: 'grid', gap: space[2.5], gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))' }}>
             {sortedMembers.map(m => <MemberCard key={m.member_id} m={m} report={report} isAdmin={isAdmin}
               openProfile={openProfile} currentUser={currentUser}
               globalPlayingId={globalPlayingId} setGlobalPlayingId={setGlobalPlayingId} />)}
@@ -360,7 +380,7 @@ function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, curren
 
       {/* 4. コーチングピック（チーム平均値の根拠を表示） */}
       <Section title="コーチングピック（自動抽出）">
-        <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
+        <div style={{ display: 'grid', gap: space[2.5], gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
           <PickList
             title="① 時間あたり架電数 < 平均 70%"
             sub={coaching.team_call_per_hour_avg != null
@@ -408,13 +428,13 @@ function SummaryNum({ label, cur = 0, prev = null, prefix = '', suffix = '', for
   const delta = prev != null ? cur - prev : null;
   const pct = (prev != null && prev > 0) ? ((cur - prev) / prev * 100) : null;
   const arrow = delta == null || delta === 0 ? '' : (delta > 0 ? '▲' : '▼');
-  const color = delta == null || delta === 0 ? C.textLight : (delta > 0 ? '#059669' : '#DC2626');
+  const deltaColor = delta == null || delta === 0 ? color.textLight : (delta > 0 ? '#059669' : '#DC2626');
   return (
     <span>
-      <span style={{ fontSize: 11, color: C.textMid, fontWeight: 600, letterSpacing: '0.06em', marginRight: 4 }}>{label}</span>
+      <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, letterSpacing: '0.06em', marginRight: 4 }}>{label}</span>
       <span>{prefix}{fmt(cur || 0)}{suffix}</span>
       {delta != null && (
-        <span style={{ fontSize: 11, color, fontWeight: 700, marginLeft: 6 }}>
+        <span style={{ fontSize: font.size.xs, color: deltaColor, fontWeight: font.weight.bold, marginLeft: 6 }}>
           {arrow}{Math.abs(delta).toLocaleString()}{pct != null ? ` (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)` : ''}
         </span>
       )}
@@ -427,12 +447,12 @@ function KpiRow({ label, value, others, compare = true, suffix = '', formatter }
   const v = typeof value === 'number' ? value : null;
   const num = (x) => typeof x === 'number' ? x : null;
   return (
-    <tr style={{ borderTop: `1px solid ${C.borderLight}` }}>
-      <td style={{ ...td, textAlign: 'left', fontWeight: 600, color: C.textMid }}>{label}</td>
-      <td style={{ ...td, fontWeight: 700, color: C.navy }}>{typeof value === 'number' ? `${fmt(value)}${suffix}` : value}</td>
+    <tr style={{ borderTop: `1px solid ${color.borderLight}` }}>
+      <td style={{ ...td, textAlign: 'left', fontWeight: font.weight.semibold, color: color.textMid }}>{label}</td>
+      <td style={{ ...td, fontWeight: font.weight.bold, color: color.navy }}>{typeof value === 'number' ? `${fmt(value)}${suffix}` : value}</td>
       {others.map((o, i) => {
         const ov = num(o);
-        let arrow = '', col = C.textDark;
+        let arrow = '', col = color.textDark;
         if (compare && v != null && ov != null && v !== ov) {
           if (v > ov) { arrow = '▲'; col = '#059669'; } else { arrow = '▼'; col = '#DC2626'; }
         }
@@ -459,7 +479,7 @@ function ListBreakdownTable({ lists, sortKey, sortDir, onSort }) {
     </th>
   );
   return (
-    <div style={{ overflowX: 'auto', borderRadius: 4, border: `1px solid ${C.border}` }}>
+    <div style={{ overflowX: 'auto', borderRadius: radius.md, border: `1px solid ${color.border}` }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5, minWidth: 600 }}>
         <thead>
           <tr style={{ background: '#0D2247' }}>
@@ -475,10 +495,10 @@ function ListBreakdownTable({ lists, sortKey, sortDir, onSort }) {
         </thead>
         <tbody>
           {lists.length === 0 ? (
-            <tr><td colSpan={6} style={{ padding: 16, textAlign: 'center', color: C.textLight, fontSize: 12 }}>データなし</td></tr>
+            <tr><td colSpan={6} style={{ padding: 16, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>データなし</td></tr>
           ) : lists.map(l => (
-            <tr key={l.list_id} style={{ borderTop: `1px solid ${C.borderLight}`, background: heat(l.calls || 0) }}>
-              <td style={{ ...td, textAlign: 'left', fontWeight: 600, color: C.navy }}>{l.list_name}</td>
+            <tr key={l.list_id} style={{ borderTop: `1px solid ${color.borderLight}`, background: heat(l.calls || 0) }}>
+              <td style={{ ...td, textAlign: 'left', fontWeight: font.weight.semibold, color: color.navy }}>{l.list_name}</td>
               <td style={td}>{l.calls}</td>
               <td style={td}>{l.connects}</td>
               <td style={td}>{l.appointments}</td>
@@ -518,20 +538,24 @@ function ShiftNoCallList({ items, report, currentUser }) {
       {items.map(s => {
         const r = reasons[s.member_id];
         return (
-          <div key={s.member_id} style={{ padding: '8px 12px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 4 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5 }}>
-              <span style={{ fontWeight: 700, color: '#B91C1C' }}>{s.name}</span>
+          <div key={s.member_id} style={{ padding: '8px 12px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: radius.md }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: space[2], fontSize: 11.5 }}>
+              <span style={{ fontWeight: font.weight.bold, color: '#B91C1C' }}>{s.name}</span>
               {s.shift_start && (
-                <span style={{ color: C.textMid, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>
+                <span style={{ color: color.textMid, fontSize: 10, fontFamily: font.family.mono }}>
                   {s.shift_start.slice(0, 5)}–{s.shift_end?.slice(0, 5) || ''}
                 </span>
               )}
               <span style={{ marginLeft: 'auto' }}>
                 {editing === s.member_id ? null : (
-                  <button onClick={() => { setEditing(s.member_id); setDraft(r?.reason || ''); }}
-                    style={{ padding: '2px 8px', fontSize: 10, fontWeight: 600, background: C.white, color: '#B91C1C', border: '1px solid #FCA5A5', borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => { setEditing(s.member_id); setDraft(r?.reason || ''); }}
+                    style={{ minHeight: 22, padding: '2px 8px', fontSize: 10, color: '#B91C1C', border: '1px solid #FCA5A5', background: color.white }}
+                  >
                     {r?.reason ? '理由を編集' : '理由を入力'}
-                  </button>
+                  </Button>
                 )}
               </span>
             </div>
@@ -539,20 +563,31 @@ function ShiftNoCallList({ items, report, currentUser }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
                 <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={2}
                   placeholder="例: 体調不良で休み"
-                  style={{ width: '100%', padding: '5px 8px', fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 3, fontFamily: "'Noto Sans JP'", boxSizing: 'border-box', resize: 'vertical' }} />
+                  style={{ width: '100%', padding: '5px 8px', fontSize: 11, border: `1px solid ${color.border}`, borderRadius: radius.sm, fontFamily: font.family.sans, boxSizing: 'border-box', resize: 'vertical', color: color.textDark }} />
                 <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                  <button onClick={() => setEditing(null)} disabled={saving}
-                    style={{ padding: '3px 10px', fontSize: 10, fontWeight: 600, background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'" }}>キャンセル</button>
-                  <button onClick={() => save(s.member_id)} disabled={saving}
-                    style={{ padding: '3px 10px', fontSize: 10, fontWeight: 600, background: C.navy, color: C.white, border: 'none', borderRadius: 3, cursor: saving ? 'wait' : 'pointer', fontFamily: "'Noto Sans JP'" }}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setEditing(null)}
+                    disabled={saving}
+                    style={{ minHeight: 24, padding: '3px 10px', fontSize: 10 }}
+                  >キャンセル</Button>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => save(s.member_id)}
+                    loading={saving}
+                    disabled={saving}
+                    style={{ minHeight: 24, padding: '3px 10px', fontSize: 10 }}
+                  >
                     {saving ? '保存中…' : '保存'}
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : r?.reason && (
-              <div style={{ fontSize: 11, color: C.textMid, marginTop: 4, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 11, color: color.textMid, marginTop: 4, lineHeight: 1.6 }}>
                 {r.reason}
-                <span style={{ fontSize: 9, color: C.textLight, marginLeft: 8 }}>
+                <span style={{ fontSize: 9, color: color.textLight, marginLeft: space[2] }}>
                   ({r.by || '不明'} / {(r.at || '').slice(0, 16).replace('T', ' ')})
                 </span>
               </div>
@@ -608,22 +643,27 @@ function MemberCard({ m, report, openProfile, currentUser, globalPlayingId, setG
   const hiddenRangeCount = (m.call_ranges?.length || 0) - (visibleRanges?.length || 0);
 
   return (
-    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 4, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <Card
+      variant="default"
+      padding="none"
+      style={{ borderRadius: radius.md }}
+      bodyStyle={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}
+    >
       {/* ヘッダー: アバター + 名前 + 売上 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: space[2.5] }}>
         <div style={{
-          width: 36, height: 36, borderRadius: '50%', background: C.navy, color: C.white,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, overflow: 'hidden', flexShrink: 0,
+          width: 36, height: 36, borderRadius: '50%', background: color.navy, color: color.white,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: font.weight.bold, overflow: 'hidden', flexShrink: 0,
         }}>
           {m.avatar_url ? <img src={m.avatar_url} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (m.name || '?')[0]}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div onClick={() => openProfile?.(m.member_id)}
-            style={{ fontSize: 13, fontWeight: 700, color: C.navy, cursor: openProfile ? 'pointer' : 'default', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy, cursor: openProfile ? 'pointer' : 'default', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {m.name}
           </div>
           {m.sales > 0 && (
-            <div style={{ fontSize: 10, color: C.textMid, fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
+            <div style={{ fontSize: 10, color: color.textMid, fontFamily: font.family.mono, marginTop: 1 }}>
               売上 ¥{m.sales.toLocaleString()}
             </div>
           )}
@@ -645,23 +685,23 @@ function MemberCard({ m, report, openProfile, currentUser, globalPlayingId, setG
             {visibleRanges.map((r, i) => (
               <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'baseline', gap: 6, fontSize: 11 }}>
                 <span title={r.list_name}
-                  style={{ color: C.navy, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  style={{ color: color.navy, fontWeight: font.weight.medium, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {r.list_name}
                 </span>
-                <span style={{ color: C.textMid, fontSize: 10, fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap' }}>
-                  {r.start_no}–{r.end_no} <span style={{ color: C.textLight }}>({r.count})</span>
+                <span style={{ color: color.textMid, fontSize: 10, fontFamily: font.family.mono, whiteSpace: 'nowrap' }}>
+                  {r.start_no}–{r.end_no} <span style={{ color: color.textLight }}>({r.count})</span>
                 </span>
               </div>
             ))}
             {hiddenRangeCount > 0 && (
               <button onClick={() => setShowAllRanges(true)}
-                style={{ background: 'none', border: 'none', color: C.textMid, cursor: 'pointer', fontSize: 10, padding: 0, textAlign: 'left', textDecoration: 'underline', alignSelf: 'flex-start' }}>
+                style={{ background: 'none', border: 'none', color: color.textMid, cursor: 'pointer', fontSize: 10, padding: 0, textAlign: 'left', textDecoration: 'underline', alignSelf: 'flex-start' }}>
                 さらに {hiddenRangeCount} 件
               </button>
             )}
             {showAllRanges && m.call_ranges.length > RANGE_COLLAPSE_AT && (
               <button onClick={() => setShowAllRanges(false)}
-                style={{ background: 'none', border: 'none', color: C.textMid, cursor: 'pointer', fontSize: 10, padding: 0, textAlign: 'left', textDecoration: 'underline', alignSelf: 'flex-start' }}>
+                style={{ background: 'none', border: 'none', color: color.textMid, cursor: 'pointer', fontSize: 10, padding: 0, textAlign: 'left', textDecoration: 'underline', alignSelf: 'flex-start' }}>
                 折りたたむ
               </button>
             )}
@@ -671,7 +711,7 @@ function MemberCard({ m, report, openProfile, currentUser, globalPlayingId, setG
 
       {/* 録音（グローバル単一再生） */}
       {(m.appo_recordings?.length > 0 || m.rejection_recordings?.length > 0) && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: space[2.5] }}>
           {m.appo_recordings?.length > 0 && (
             <RecordingGroup
               label="アポ獲得録音" count={m.appo_recordings.length} accent="#059669"
@@ -693,33 +733,33 @@ function MemberCard({ m, report, openProfile, currentUser, globalPlayingId, setG
         <textarea
           value={feedback} onChange={e => setFeedback(e.target.value)} rows={2}
           placeholder="リーダーからのコメント"
-          style={{ width: '100%', padding: '6px 9px', fontSize: 11, border: `1px solid ${C.border}`, borderRadius: 3, fontFamily: "'Noto Sans JP'", boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.6 }}
+          style={{ width: '100%', padding: '6px 9px', fontSize: 11, border: `1px solid ${color.border}`, borderRadius: radius.sm, fontFamily: font.family.sans, boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.6, color: color.textDark }}
         />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 5, gap: 6 }}>
           {feedbackMeta?.at ? (
-            <span style={{ fontSize: 9, color: C.textLight }}>
+            <span style={{ fontSize: 9, color: color.textLight }}>
               {feedbackMeta.by || '不明'} / {(feedbackMeta.at || '').slice(0, 16).replace('T', ' ')}
             </span>
           ) : <span />}
-          <button onClick={saveFeedback} disabled={savingFb || feedback === feedbackSaved}
-            style={{
-              padding: '3px 12px', fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'",
-              background: feedback !== feedbackSaved ? C.navy : C.borderLight,
-              color: feedback !== feedbackSaved ? C.white : C.textLight,
-              border: 'none', borderRadius: 3,
-              cursor: (savingFb || feedback === feedbackSaved) ? 'default' : 'pointer',
-            }}>
+          <Button
+            size="sm"
+            variant={feedback !== feedbackSaved ? 'primary' : 'secondary'}
+            onClick={saveFeedback}
+            loading={savingFb}
+            disabled={savingFb || feedback === feedbackSaved}
+            style={{ minHeight: 24, padding: '3px 12px', fontSize: 10 }}
+          >
             {savingFb ? '保存中…' : (feedback === feedbackSaved ? '保存済' : '保存')}
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
 function CardEyebrow({ children }) {
   return (
-    <div style={{ fontSize: 9.5, fontWeight: 700, color: C.textMid, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+    <div style={{ fontSize: 9.5, fontWeight: font.weight.bold, color: color.textMid, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
       {children}
     </div>
   );
@@ -728,7 +768,7 @@ function CardEyebrow({ children }) {
 function RecordingGroup({ label, count, accent, records, playingId, setPlayingId }) {
   return (
     <div>
-      <div style={{ fontSize: 9.5, fontWeight: 700, color: accent, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+      <div style={{ fontSize: 9.5, fontWeight: font.weight.bold, color: accent, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
         {label} ({count})
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -745,20 +785,20 @@ function RecordingGroup({ label, count, accent, records, playingId, setPlayingId
 function RecordingRow({ r, accent, playing, onToggle }) {
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', alignItems: 'center', gap: 8, fontSize: 11, padding: '3px 0' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', alignItems: 'center', gap: space[2], fontSize: 11, padding: '3px 0' }}>
         <span title={r.company || '会社名不明'}
-          style={{ color: C.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          style={{ color: color.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {r.company || '会社名不明'}
         </span>
-        <span style={{ color: C.textLight, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>
+        <span style={{ color: color.textLight, fontSize: 10, fontFamily: font.family.mono }}>
           {(r.called_at || '').slice(11, 16)}
         </span>
         <button onClick={onToggle}
           style={{
-            width: 24, height: 22, padding: 0, fontSize: 10, fontWeight: 600,
-            background: playing ? (accent || C.navy) : C.white,
-            color: playing ? C.white : (accent || C.navy),
-            border: `1px solid ${accent || C.navy}`, borderRadius: 3, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+            width: 24, height: 22, padding: 0, fontSize: 10, fontWeight: font.weight.semibold,
+            background: playing ? (accent || color.navy) : color.white,
+            color: playing ? color.white : (accent || color.navy),
+            border: `1px solid ${accent || color.navy}`, borderRadius: radius.sm, cursor: 'pointer', fontFamily: font.family.sans,
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           }}>{playing ? '■' : '▶'}</button>
       </div>
@@ -769,15 +809,15 @@ function RecordingRow({ r, accent, playing, onToggle }) {
 
 function PickList({ title, sub, items }) {
   return (
-    <div style={{ background: '#FEF7E6', border: '1px solid #F4D589', borderRadius: 4, padding: 10 }}>
-      <div style={{ fontSize: 10.5, fontWeight: 700, color: '#92400E', marginBottom: 4 }}>{title}</div>
-      {sub && <div style={{ fontSize: 9.5, color: '#A16207', marginBottom: 6, fontFamily: "'JetBrains Mono', monospace" }}>{sub}</div>}
+    <div style={{ background: '#FEF7E6', border: '1px solid #F4D589', borderRadius: radius.md, padding: space[2.5] }}>
+      <div style={{ fontSize: 10.5, fontWeight: font.weight.bold, color: '#92400E', marginBottom: 4 }}>{title}</div>
+      {sub && <div style={{ fontSize: 9.5, color: '#A16207', marginBottom: 6, fontFamily: font.family.mono }}>{sub}</div>}
       {items.length === 0 ? (
-        <div style={{ fontSize: 10.5, color: C.textLight }}>該当なし</div>
+        <div style={{ fontSize: 10.5, color: color.textLight }}>該当なし</div>
       ) : items.map(i => (
         <div key={i.member_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 11, marginBottom: 2 }}>
-          <span style={{ color: C.navy, fontWeight: 600 }}>・{i.name}</span>
-          {i.hint && <span style={{ color: C.textMid, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>{i.hint}</span>}
+          <span style={{ color: color.navy, fontWeight: font.weight.semibold }}>・{i.name}</span>
+          {i.hint && <span style={{ color: color.textMid, fontSize: 10, fontFamily: font.family.mono }}>{i.hint}</span>}
         </div>
       ))}
     </div>
@@ -791,7 +831,7 @@ function HourlyChart({ data, peakHour }) {
   return (
     <div>
       <div style={{ position: 'relative' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 160, padding: '0 6px', borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 160, padding: '0 6px', borderBottom: `1px solid ${color.border}` }}>
           {data.map(d => {
             const totalH = Math.max(2, ((d.count || 0) / maxCount) * 130);
             const apposH = totalH * ((d.appointments || 0) / Math.max(1, d.count));
@@ -805,23 +845,23 @@ function HourlyChart({ data, peakHour }) {
                 onMouseEnter={() => setHoverHour(d.hour)}
                 onMouseLeave={() => setHoverHour(null)}
                 title={tooltip}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 24, cursor: 'default', background: isHovered ? '#0D224708' : 'transparent', borderRadius: 4 }}>
-                <div style={{ fontSize: 9, fontWeight: 700,
-                  color: isPeak ? '#DC2626' : C.textMid,
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 24, cursor: 'default', background: isHovered ? '#0D224708' : 'transparent', borderRadius: radius.md }}>
+                <div style={{ fontSize: 9, fontWeight: font.weight.bold,
+                  color: isPeak ? '#DC2626' : color.textMid,
                   display: 'flex', alignItems: 'center', gap: 2 }}>
                   {isPeak && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 2, background: '#FEF2F2', color: '#DC2626' }}>PEAK</span>}
                   {d.count || ''}
                 </div>
                 {d.count > 0 ? (
                   <div style={{ width: '100%', maxWidth: 28, height: totalH, display: 'flex', flexDirection: 'column-reverse', borderRadius: '3px 3px 0 0', overflow: 'hidden', boxShadow: isHovered ? '0 0 0 2px #0D224733' : 'none' }}>
-                    <div style={{ height: callsH, background: C.navy + '60' }} />
-                    <div style={{ height: connectsH, background: C.navy + 'cc' }} />
+                    <div style={{ height: callsH, background: color.navy + '60' }} />
+                    <div style={{ height: connectsH, background: color.navy + 'cc' }} />
                     <div style={{ height: apposH, background: '#059669' }} />
                   </div>
                 ) : (
-                  <div style={{ width: '100%', maxWidth: 28, height: 2, background: C.borderLight, borderRadius: '3px 3px 0 0' }} />
+                  <div style={{ width: '100%', maxWidth: 28, height: 2, background: color.borderLight, borderRadius: '3px 3px 0 0' }} />
                 )}
-                <div style={{ fontSize: 9, color: isPeak ? '#DC2626' : C.textLight, fontWeight: isPeak ? 700 : 400 }}>{d.hour}</div>
+                <div style={{ fontSize: 9, color: isPeak ? '#DC2626' : color.textLight, fontWeight: isPeak ? font.weight.bold : font.weight.normal }}>{d.hour}</div>
               </div>
             );
           })}
@@ -831,31 +871,31 @@ function HourlyChart({ data, peakHour }) {
         {hovered && (
           <div style={{
             position: 'absolute', top: 0, right: 0,
-            background: C.white, border: `1px solid ${C.border}`, borderRadius: 4,
-            padding: '6px 10px', fontSize: 10.5, color: C.textDark, lineHeight: 1.7,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.08)', minWidth: 140,
+            background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
+            padding: '6px 10px', fontSize: 10.5, color: color.textDark, lineHeight: 1.7,
+            boxShadow: shadow.sm, minWidth: 140,
           }}>
-            <div style={{ fontWeight: 700, color: C.navy, marginBottom: 2 }}>{hovered.hour}時台</div>
-            <div>架電件数 <span style={{ float: 'right', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>{hovered.count || 0}</span></div>
-            <div>社長接続数 <span style={{ float: 'right', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: C.navy }}>{hovered.connects || 0}</span></div>
-            <div>アポ獲得数 <span style={{ float: 'right', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: '#059669' }}>{hovered.appointments || 0}</span></div>
+            <div style={{ fontWeight: font.weight.bold, color: color.navy, marginBottom: 2 }}>{hovered.hour}時台</div>
+            <div>架電件数 <span style={{ float: 'right', fontFamily: font.family.mono, fontWeight: font.weight.bold }}>{hovered.count || 0}</span></div>
+            <div>社長接続数 <span style={{ float: 'right', fontFamily: font.family.mono, fontWeight: font.weight.bold, color: color.navy }}>{hovered.connects || 0}</span></div>
+            <div>アポ獲得数 <span style={{ float: 'right', fontFamily: font.family.mono, fontWeight: font.weight.bold, color: '#059669' }}>{hovered.appointments || 0}</span></div>
           </div>
         )}
       </div>
       {/* 凡例 */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 8, fontSize: 10, color: C.textMid }}>
-        <LegendDot color={C.navy + '60'} label="架電" />
-        <LegendDot color={C.navy + 'cc'} label="社長接続" />
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: space[2], fontSize: 10, color: color.textMid }}>
+        <LegendDot color={color.navy + '60'} label="架電" />
+        <LegendDot color={color.navy + 'cc'} label="社長接続" />
         <LegendDot color="#059669" label="アポ獲得" />
       </div>
     </div>
   );
 }
 
-function LegendDot({ color, label }) {
+function LegendDot({ color: dotColor, label }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      <span style={{ width: 10, height: 10, background: color, borderRadius: 2, display: 'inline-block' }} />
+      <span style={{ width: 10, height: 10, background: dotColor, borderRadius: 2, display: 'inline-block' }} />
       {label}
     </span>
   );
@@ -864,42 +904,42 @@ function LegendDot({ color, label }) {
 function Section({ title, children }) {
   return (
     <div>
-      <div style={{ fontSize: 10, fontWeight: 700, color: C.textMid, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>{title}</div>
+      <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.textMid, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: space[2] }}>{title}</div>
       {children}
     </div>
   );
 }
 function Stat({ label, value, sub }) {
   return (
-    <div style={{ background: C.cream, padding: '6px 8px', borderRadius: 3, textAlign: 'center' }}>
-      <div style={{ fontSize: 9, color: C.textMid, fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, fontFamily: "'JetBrains Mono', monospace" }}>{value ?? 0}</div>
-      {sub && <div style={{ fontSize: 9, color: C.textLight }}>{sub}</div>}
+    <div style={{ background: color.cream, padding: '6px 8px', borderRadius: radius.sm, textAlign: 'center' }}>
+      <div style={{ fontSize: 9, color: color.textMid, fontWeight: font.weight.semibold }}>{label}</div>
+      <div style={{ fontSize: 14, fontWeight: font.weight.bold, color: color.navy, fontFamily: font.family.mono }}>{value ?? 0}</div>
+      {sub && <div style={{ fontSize: 9, color: color.textLight }}>{sub}</div>}
     </div>
   );
 }
 function Empty({ children }) {
-  return <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>{children}</div>;
+  return <div style={{ padding: 24, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>{children}</div>;
 }
 
-const th = { padding: '8px 10px', fontSize: 10.5, fontWeight: 700, color: C.textMid, textAlign: 'center' };
-const thNavy = { padding: '9px 10px', fontSize: 10.5, fontWeight: 700, color: '#fff', textAlign: 'center', whiteSpace: 'nowrap' };
-const td = { padding: '6px 10px', fontSize: 11.5, color: C.textDark, textAlign: 'center', fontFamily: "'JetBrains Mono', monospace" };
+const th = { padding: '8px 10px', fontSize: 10.5, fontWeight: font.weight.bold, color: color.textMid, textAlign: 'center' };
+const thNavy = { padding: '9px 10px', fontSize: 10.5, fontWeight: font.weight.bold, color: '#fff', textAlign: 'center', whiteSpace: 'nowrap' };
+const td = { padding: '6px 10px', fontSize: 11.5, color: color.textDark, textAlign: 'center', fontFamily: font.family.mono };
 const selectStyle = {
-  padding: '5px 10px', fontSize: 12, border: `1px solid ${C.border}`, borderRadius: 3,
-  fontFamily: "'Noto Sans JP'", color: C.navy, fontWeight: 600,
+  padding: '5px 10px', fontSize: 12, border: `1px solid ${color.border}`, borderRadius: radius.sm,
+  fontFamily: font.family.sans, color: color.navy, fontWeight: font.weight.semibold,
 };
 const navBtnStyle = (disabled) => ({
-  width: 28, height: 28, padding: 0, fontSize: 16, fontWeight: 600,
-  background: disabled ? C.cream : C.white,
-  color: disabled ? C.textLight : C.navy,
-  border: `1px solid ${C.border}`, borderRadius: 3,
+  width: 28, height: 28, padding: 0, fontSize: 16, fontWeight: font.weight.semibold,
+  background: disabled ? color.cream : color.white,
+  color: disabled ? color.textLight : color.navy,
+  border: `1px solid ${color.border}`, borderRadius: radius.sm,
   cursor: disabled ? 'default' : 'pointer',
-  fontFamily: "'Noto Sans JP'", display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  fontFamily: font.family.sans, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
   opacity: disabled ? 0.5 : 1,
 });
 const iconBtnStyle = {
-  padding: '5px 10px', fontSize: 10.5, fontWeight: 600,
-  background: C.white, color: C.navy, border: `1px solid ${C.border}`, borderRadius: 3,
-  cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+  padding: '5px 10px', fontSize: 10.5, fontWeight: font.weight.semibold,
+  background: color.white, color: color.navy, border: `1px solid ${color.border}`, borderRadius: radius.sm,
+  cursor: 'pointer', fontFamily: font.family.sans,
 };

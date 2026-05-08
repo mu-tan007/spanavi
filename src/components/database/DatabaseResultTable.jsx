@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown, X } from 'lucide-react';
 
 const thStyle = {
-  padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700,
-  color: C.white, background: C.navy, whiteSpace: 'nowrap', position: 'sticky', top: 0,
+  padding: `${space[2]}px ${space[2.5]}px`, textAlign: 'left', fontSize: font.size.xs, fontWeight: font.weight.bold,
+  color: color.white, background: color.navy, whiteSpace: 'nowrap', position: 'sticky', top: 0,
   cursor: 'pointer', userSelect: 'none',
 };
 const tdStyle = {
-  padding: '7px 10px', fontSize: 12, borderBottom: `1px solid ${C.borderLight}`,
+  padding: `7px ${space[2.5]}px`, fontSize: font.size.sm, borderBottom: `1px solid ${color.borderLight}`,
   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220,
 };
 
@@ -80,27 +81,27 @@ export default function DatabaseResultTable({ results, totalCount, page, pageSiz
 
   return (
     <div style={{
-      background: C.white, borderRadius: 10, border: `1px solid ${C.border}`,
+      background: color.white, borderRadius: radius.lg + 4, border: `1px solid ${color.border}`,
       overflow: 'hidden',
     }}>
       {/* Header bar */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '10px 16px', borderBottom: `1px solid ${C.border}`, background: C.cream,
+        padding: `${space[2.5]}px ${space[4]}px`, borderBottom: `1px solid ${color.border}`, background: color.cream,
       }}>
-        <div style={{ fontSize: 13, color: C.textDark, fontWeight: 600 }}>
-          検索結果: <span style={{ color: C.navyLight }}>{totalCount.toLocaleString()}</span> 件
+        <div style={{ fontSize: font.size.base, color: color.textDark, fontWeight: font.weight.semibold }}>
+          検索結果: <span style={{ color: color.navyLight }}>{totalCount.toLocaleString()}</span> 件
         </div>
         {totalPages > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
             <button onClick={() => onPageChange(page - 1)} disabled={page === 0}
               style={{ background: 'none', border: 'none', cursor: page === 0 ? 'default' : 'pointer', opacity: page === 0 ? 0.3 : 1 }}>
-              <ChevronLeft size={18} color={C.navy} />
+              <ChevronLeft size={18} color={color.navy} />
             </button>
-            <span style={{ fontSize: 12, color: C.textMid }}>{page + 1} / {totalPages.toLocaleString()}</span>
+            <span style={{ fontSize: font.size.sm, color: color.textMid }}>{page + 1} / {totalPages.toLocaleString()}</span>
             <button onClick={() => onPageChange(page + 1)} disabled={page >= totalPages - 1}
               style={{ background: 'none', border: 'none', cursor: page >= totalPages - 1 ? 'default' : 'pointer', opacity: page >= totalPages - 1 ? 0.3 : 1 }}>
-              <ChevronRight size={18} color={C.navy} />
+              <ChevronRight size={18} color={color.navy} />
             </button>
           </div>
         )}
@@ -126,18 +127,18 @@ export default function DatabaseResultTable({ results, totalCount, page, pageSiz
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={COLUMNS.length} style={{ ...tdStyle, textAlign: 'center', padding: 40, color: C.textLight }}>
+              <tr><td colSpan={COLUMNS.length} style={{ ...tdStyle, textAlign: 'center', padding: space[10], color: color.textLight }}>
                 検索中...
               </td></tr>
             ) : results.length === 0 ? (
-              <tr><td colSpan={COLUMNS.length} style={{ ...tdStyle, textAlign: 'center', padding: 40, color: C.textLight }}>
+              <tr><td colSpan={COLUMNS.length} style={{ ...tdStyle, textAlign: 'center', padding: space[10], color: color.textLight }}>
                 該当する企業が見つかりませんでした
               </td></tr>
             ) : results.map((row, i) => (
-              <tr key={row.id} style={{ background: i % 2 === 0 ? C.white : C.snow, cursor: 'pointer' }}
+              <tr key={row.id} style={{ background: i % 2 === 0 ? color.white : color.snow, cursor: 'pointer' }}
                 onClick={() => setSelectedRow(row)}
-                onMouseEnter={(e) => e.currentTarget.style.background = C.goldGlow}
-                onMouseLeave={(e) => e.currentTarget.style.background = i % 2 === 0 ? C.white : C.snow}>
+                onMouseEnter={(e) => e.currentTarget.style.background = color.goldGlow}
+                onMouseLeave={(e) => e.currentTarget.style.background = i % 2 === 0 ? color.white : color.snow}>
                 {COLUMNS.map(col => (
                   <td key={col.key} style={{ ...tdStyle, maxWidth: col.width }} title={row[col.key] ?? ''}>
                     {col.key === 'revenue_k' || col.key === 'net_income_k' || col.key === 'employee_count' || col.key === 'representative_age' || col.key === 'established_year'
@@ -154,14 +155,14 @@ export default function DatabaseResultTable({ results, totalCount, page, pageSiz
       {/* Bottom pagination */}
       {totalPages > 1 && (
         <div style={{
-          display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8,
-          padding: '10px 16px', borderTop: `1px solid ${C.border}`, background: C.cream,
+          display: 'flex', justifyContent: 'center', alignItems: 'center', gap: space[2],
+          padding: `${space[2.5]}px ${space[4]}px`, borderTop: `1px solid ${color.border}`, background: color.cream,
         }}>
           <button onClick={() => onPageChange(0)} disabled={page === 0}
             style={paginBtn(page === 0)}>最初</button>
           <button onClick={() => onPageChange(page - 1)} disabled={page === 0}
             style={paginBtn(page === 0)}>前へ</button>
-          <span style={{ fontSize: 12, color: C.textMid, minWidth: 80, textAlign: 'center' }}>
+          <span style={{ fontSize: font.size.sm, color: color.textMid, minWidth: 80, textAlign: 'center' }}>
             {page + 1} / {totalPages.toLocaleString()} ページ
           </span>
           <button onClick={() => onPageChange(page + 1)} disabled={page >= totalPages - 1}
@@ -175,24 +176,24 @@ export default function DatabaseResultTable({ results, totalCount, page, pageSiz
       {selectedRow && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}
           onClick={() => setSelectedRow(null)}>
-          <div style={{ background: C.white, borderRadius: 12, width: Math.min(700, window.innerWidth - 40), maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}
+          <div style={{ background: color.white, borderRadius: radius.xl, width: Math.min(700, window.innerWidth - 40), maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}
             onClick={e => e.stopPropagation()}>
             {/* Modal header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: `1px solid ${C.border}`, background: C.navy, borderRadius: '12px 12px 0 0' }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: C.white }}>{selectedRow.company_name}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `${space[4]}px ${space[5]}px`, borderBottom: `1px solid ${color.border}`, background: color.navy, borderRadius: `${radius.xl}px ${radius.xl}px 0 0` }}>
+              <div style={{ fontSize: font.size.md + 1, fontWeight: font.weight.bold, color: color.white }}>{selectedRow.company_name}</div>
               <button onClick={() => setSelectedRow(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                <X size={20} color={C.white} />
+                <X size={20} color={color.white} />
               </button>
             </div>
             {/* Modal body */}
-            <div style={{ flex: 1, overflow: 'auto', padding: 20 }}>
+            <div style={{ flex: 1, overflow: 'auto', padding: space[5] }}>
               {DETAIL_FIELDS.map(f => {
                 const val = selectedRow[f.key];
                 if (val == null || val === '') return null;
                 return (
-                  <div key={f.key} style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.textLight, marginBottom: 2 }}>{f.label}</div>
-                    <div style={{ fontSize: 13, color: C.textDark, whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.6 }}>
+                  <div key={f.key} style={{ marginBottom: space[3] }}>
+                    <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.textLight, marginBottom: 2 }}>{f.label}</div>
+                    <div style={{ fontSize: font.size.base, color: color.textDark, whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.6 }}>
                       {f.fmt ? formatNumber(val) : val}
                     </div>
                   </div>
@@ -207,7 +208,7 @@ export default function DatabaseResultTable({ results, totalCount, page, pageSiz
 }
 
 const paginBtn = (disabled) => ({
-  padding: '4px 10px', fontSize: 12, borderRadius: 4,
-  border: `1px solid ${C.border}`, background: C.white,
+  padding: `4px ${space[2.5]}px`, fontSize: font.size.sm, borderRadius: radius.md,
+  border: `1px solid ${color.border}`, background: color.white,
   cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.3 : 1,
 });

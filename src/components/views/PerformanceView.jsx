@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { fetchCallActivity, fetchAppoActivity, fetchCallSessionsForRange, rpcPerfActivitySummary, rpcPerfHourlyChart, rpcPerfRanking, rpcPerfWeeklyTrend } from '../../lib/supabaseWrite';
 import {
@@ -12,8 +14,8 @@ import ActivityRankingSection from '../dashboard/ActivityRankingSection';
 import TeamPerformanceTable from '../dashboard/TeamPerformanceTable';
 import PageHeader from '../common/PageHeader';
 
-const NAVY = '#0D2247';
-const GOLD = '#C8A84B';
+const NAVY = color.navy;
+const GOLD = color.gold;
 
 const jstHourOf = (iso) => (new Date(iso).getUTCHours() + 9) % 24;
 const jstDateOf = (iso) => new Date(new Date(iso).getTime() + 9 * 3600000).toISOString().slice(0, 10);
@@ -93,25 +95,25 @@ export function PersonDetailModal({ person, callRecords, appoRecords, sessions, 
       onClick={onClose}
     >
       <div
-        style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, width: '100%', maxWidth: 700, maxHeight: '90vh', overflowY: 'auto' }}
+        style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: '100%', maxWidth: 700, maxHeight: '90vh', overflowY: 'auto' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ background: NAVY, borderRadius: '4px 4px 0 0', padding: '12px 24px', color: '#fff', display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#1E40AF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+        <div style={{ background: NAVY, borderRadius: `${radius.md}px ${radius.md}px 0 0`, padding: '12px 24px', color: color.white, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#1E40AF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: font.size.lg + 2, fontWeight: font.weight.bold, color: color.white, flexShrink: 0 }}>
             {person.charAt(0)}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>{person}</div>
-            {meta && <div style={{ fontSize: 11, color: '#93C5FD', marginTop: 2 }}>{meta}</div>}
+            <div style={{ fontSize: font.size.lg - 1, fontWeight: font.weight.semibold }}>{person}</div>
+            {meta && <div style={{ fontSize: font.size.xs, color: '#93C5FD', marginTop: 2 }}>{meta}</div>}
           </div>
           {dateLabel && (
             <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <div style={{ fontSize: 10, color: '#93C5FD' }}>集計期間</div>
-              <div style={{ fontSize: 11, fontWeight: 600 }}>{dateLabel}</div>
+              <div style={{ fontSize: font.size.xs - 1, color: '#93C5FD' }}>集計期間</div>
+              <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold }}>{dateLabel}</div>
             </div>
           )}
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 13, marginLeft: 8 }}>✕</button>
+          <button onClick={onClose} style={{ background: alpha(color.white, 0.15), border: 'none', color: color.white, borderRadius: radius.md, padding: '4px 10px', cursor: 'pointer', fontSize: font.size.base, marginLeft: 8 }}>✕</button>
         </div>
 
         {/* Body */}
@@ -124,10 +126,10 @@ export function PersonDetailModal({ person, callRecords, appoRecords, sessions, 
               { label: '社長接続',   value: totalConnect, sub: totalCalls > 0 ? `${(totalConnect / totalCalls * 100).toFixed(1)}%` : null },
               { label: 'アポ取得',   value: totalAppo,    sub: totalCalls > 0 ? `${(totalAppo / totalCalls * 100).toFixed(1)}%` : null },
             ].map(({ label, value, sub }) => (
-              <div key={label} style={{ background: '#F8F9FA', border: '1px solid #E5E7EB', borderRadius: 4, padding: '14px 16px' }}>
-                <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, marginBottom: 6 }}>{label}</div>
-                <div style={{ fontSize: 24, fontWeight: 900, color: NAVY, fontFamily: "'JetBrains Mono'", fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-                {sub && <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 2 }}>{sub}</div>}
+              <div key={label} style={{ background: '#F8F9FA', border: `1px solid ${color.border}`, borderRadius: radius.md, padding: '14px 16px' }}>
+                <div style={{ fontSize: font.size.xs - 1, color: color.gray500, fontWeight: font.weight.semibold, marginBottom: 6 }}>{label}</div>
+                <div style={{ fontSize: font.size['2xl'], fontWeight: font.weight.black, color: NAVY, fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+                {sub && <div style={{ fontSize: font.size.xs - 1, color: color.gray400, marginTop: 2 }}>{sub}</div>}
               </div>
             ))}
           </div>
@@ -135,7 +137,7 @@ export function PersonDetailModal({ person, callRecords, appoRecords, sessions, 
           {/* Hourly chart */}
           {hourlyChartData.length > 0 && (
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid #0D2247', paddingBottom: 6, marginBottom: 12 }}>時間帯別架電</div>
+              <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: NAVY, borderBottom: `2px solid ${color.navy}`, paddingBottom: 6, marginBottom: 12 }}>時間帯別架電</div>
               <ResponsiveContainer width='100%' height={170}>
                 <BarChart data={hourlyChartData} margin={{ top: 0, right: 8, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray='3 3' stroke='#f0f0f0' />
@@ -143,17 +145,17 @@ export function PersonDetailModal({ person, callRecords, appoRecords, sessions, 
                   <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
                   <Tooltip
                     formatter={(v, name) => [v, { normal: '架電（接続なし）', ceo: '社長接続', appo: 'アポ取得' }[name] || name]}
-                    contentStyle={{ background: '#0D2247', borderRadius: 4, color: '#fff', padding: '8px 12px', fontSize: 11, border: 'none' }}
-                    labelStyle={{ color: '#fff' }}
-                    itemStyle={{ color: '#fff' }}
+                    contentStyle={{ background: color.navy, borderRadius: radius.md, color: color.white, padding: '8px 12px', fontSize: font.size.xs, border: 'none' }}
+                    labelStyle={{ color: color.white }}
+                    itemStyle={{ color: color.white }}
                   />
                   <Bar dataKey='normal' stackId='a' fill={NAVY} name='normal' />
                   <Bar dataKey='ceo'    stackId='a' fill='#1E40AF' name='ceo' />
-                  <Bar dataKey='appo'   stackId='a' fill='#6B7280' name='appo' />
+                  <Bar dataKey='appo'   stackId='a' fill={color.gray500} name='appo' />
                 </BarChart>
               </ResponsiveContainer>
-              <div style={{ display: 'flex', gap: 16, justifyContent: 'center', fontSize: 10, color: '#6B7280', marginTop: 6 }}>
-                {[['#0D2247','架電（接続なし）'],['#1E40AF','社長接続'],['#6B7280','アポ取得']].map(([bg, label]) => (
+              <div style={{ display: 'flex', gap: 16, justifyContent: 'center', fontSize: font.size.xs - 1, color: color.gray500, marginTop: 6 }}>
+                {[[color.navy,'架電（接続なし）'],['#1E40AF','社長接続'],[color.gray500,'アポ取得']].map(([bg, label]) => (
                   <span key={label}><span style={{ display: 'inline-block', width: 10, height: 10, background: bg, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />{label}</span>
                 ))}
               </div>
@@ -163,22 +165,22 @@ export function PersonDetailModal({ person, callRecords, appoRecords, sessions, 
           {/* Session table */}
           {sessionRows.length > 0 ? (
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid #0D2247', paddingBottom: 6, marginBottom: 12 }}>セッション一覧</div>
-              <div style={{ border: '1px solid #E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr', background: '#0D2247', color: '#fff', fontSize: 11, fontWeight: 600, padding: '8px 16px', verticalAlign: 'middle' }}>
+              <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: NAVY, borderBottom: `2px solid ${color.navy}`, paddingBottom: 6, marginBottom: 12 }}>セッション一覧</div>
+              <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.md, overflow: 'hidden' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr', background: color.navy, color: color.white, fontSize: font.size.xs, fontWeight: font.weight.semibold, padding: '8px 16px', verticalAlign: 'middle' }}>
                   <span>開始</span><span>終了</span><span>架電数</span>
                 </div>
                 {sessionRows.map((row, i) => (
-                  <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr', padding: '8px 16px', fontSize: 11, borderBottom: i < sessionRows.length - 1 ? '1px solid #E5E7EB' : 'none', background: i % 2 === 0 ? '#fff' : '#F8F9FA' }}>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{row.startStr}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 12, fontVariantNumeric: 'tabular-nums', color: row.isLive ? '#10B981' : '#374151' }}>{row.endStr}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{row.sessionCalls}</span>
+                  <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr', padding: '8px 16px', fontSize: font.size.xs, borderBottom: i < sessionRows.length - 1 ? `1px solid ${color.border}` : 'none', background: i % 2 === 0 ? color.white : '#F8F9FA' }}>
+                    <span style={{ fontFamily: font.family.mono, fontSize: font.size.sm, fontVariantNumeric: 'tabular-nums' }}>{row.startStr}</span>
+                    <span style={{ fontFamily: font.family.mono, fontSize: font.size.sm, fontVariantNumeric: 'tabular-nums', color: row.isLive ? '#10B981' : color.gray700 }}>{row.endStr}</span>
+                    <span style={{ fontFamily: font.family.mono, fontWeight: font.weight.semibold, fontVariantNumeric: 'tabular-nums' }}>{row.sessionCalls}</span>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            <div style={{ textAlign: 'center', padding: 20, fontSize: 12, color: '#9CA3AF' }}>セッションデータなし</div>
+            <div style={{ textAlign: 'center', padding: 20, fontSize: font.size.sm, color: color.gray400 }}>セッションデータなし</div>
           )}
         </div>
       </div>
@@ -380,23 +382,23 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
   }, [appoData, rankDateRange]);
 
   const tabBtn = (active) => ({
-    padding: '6px 12px', fontSize: 11, fontWeight: active ? 600 : 400, cursor: 'pointer',
+    padding: '6px 12px', fontSize: font.size.xs, fontWeight: active ? font.weight.semibold : font.weight.normal, cursor: 'pointer',
     background: 'transparent', border: 'none',
-    borderBottom: '2px solid ' + (active ? '#0D2247' : 'transparent'),
-    color: active ? '#0D2247' : '#9CA3AF', borderRadius: 0, fontFamily: "'Noto Sans JP'",
+    borderBottom: `2px solid ${active ? color.navy : 'transparent'}`,
+    color: active ? color.navy : color.gray400, borderRadius: 0, fontFamily: font.family.sans,
     transition: 'all 0.15s',
   });
-  const dateInputStyle = { padding: '3px 6px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, color: C.textDark, outline: 'none', fontFamily: "'Noto Sans JP'" };
+  const dateInputStyle = { padding: '3px 6px', borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.xs, color: color.textDark, outline: 'none', fontFamily: font.family.sans };
 
   const simplePeriodSelector = (period, setPeriod, from, setFrom, to, setTo) => (
-    <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid #E5E7EB' }}>
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', borderBottom: `1px solid ${color.border}` }}>
       {[['day', '日'], ['week', '週'], ['month', '月'], ['custom', '期間指定']].map(([k, l]) => (
         <button key={k} onClick={() => setPeriod(k)} style={tabBtn(period === k)}>{l}</button>
       ))}
       {period === 'custom' && (
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           <input type='date' value={from} onChange={e => setFrom(e.target.value)} style={dateInputStyle} />
-          <span style={{ fontSize: 10, color: C.textLight }}>〜</span>
+          <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>〜</span>
           <input type='date' value={to} onChange={e => setTo(e.target.value)} style={dateInputStyle} />
         </div>
       )}
@@ -406,11 +408,11 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
   const TrendTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     return (
-      <div style={{ background: '#0D2247', borderRadius: 4, padding: '8px 12px', color: '#fff', fontSize: 11 }}>
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>{label}週</div>
+      <div style={{ background: color.navy, borderRadius: radius.md, padding: '8px 12px', color: color.white, fontSize: font.size.xs }}>
+        <div style={{ fontWeight: font.weight.bold, marginBottom: 4 }}>{label}週</div>
         <div>架電: {payload.find(p => p.dataKey === 'calls')?.value || 0}件</div>
         <div style={{ color: '#93C5FD' }}>接続: {payload.find(p => p.dataKey === 'connect')?.value || 0}件</div>
-        <div style={{ color: '#9CA3AF' }}>アポ: {payload.find(p => p.dataKey === 'appo')?.value || 0}件</div>
+        <div style={{ color: color.gray400 }}>アポ: {payload.find(p => p.dataKey === 'appo')?.value || 0}件</div>
       </div>
     );
   };
@@ -458,10 +460,10 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
       />
 
       {/* セクション4: 成長トレンド */}
-      <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: '18px 20px', marginBottom: 16 }}>
+      <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, padding: '18px 20px', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: NAVY, borderBottom: '2px solid #0D2247', paddingBottom: 6 }}>成長トレンド（週次推移）</span>
-          {trendLoading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
+          <span style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: NAVY, borderBottom: `2px solid ${color.navy}`, paddingBottom: 6 }}>成長トレンド（週次推移）</span>
+          {trendLoading && <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>読込中…</span>}
         </div>
         <ResponsiveContainer width='100%' height={200}>
           <LineChart data={trendData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
@@ -469,21 +471,21 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
             <XAxis dataKey='label' tick={{ fontSize: 9, fill: '#888' }} />
             <YAxis tick={{ fontSize: 9, fill: '#888' }} width={28} />
             <Tooltip content={<TrendTooltip />} />
-            <Legend wrapperStyle={{ fontSize: 10 }} />
-            <Line type='monotone' dataKey='calls' stroke='#0D2247' strokeWidth={2} dot={{ r: 3 }} name='架電数' />
+            <Legend wrapperStyle={{ fontSize: font.size.xs - 1 }} />
+            <Line type='monotone' dataKey='calls' stroke={color.navy} strokeWidth={2} dot={{ r: 3 }} name='架電数' />
             <Line type='monotone' dataKey='connect' stroke='#1E40AF' strokeWidth={2} dot={{ r: 3 }} name='社長接続' />
-            <Line type='monotone' dataKey='appo' stroke='#6B7280' strokeWidth={2} dot={{ r: 3 }} name='アポ' />
+            <Line type='monotone' dataKey='appo' stroke={color.gray500} strokeWidth={2} dot={{ r: 3 }} name='アポ' />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
 
       {/* セクション3+5: ランキング・チーム分析 */}
-      <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: '18px 20px', marginBottom: 20 }}>
+      <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, padding: '18px 20px', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>活動ランキング・チーム分析</span>
-            {rankLoading && <span style={{ fontSize: 10, color: C.textLight }}>読込中…</span>}
+            <span style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: NAVY }}>活動ランキング・チーム分析</span>
+            {rankLoading && <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>読込中…</span>}
           </div>
           {simplePeriodSelector(rankPeriod, setRankPeriod, rankFrom, setRankFrom, rankTo, setRankTo)}
         </div>

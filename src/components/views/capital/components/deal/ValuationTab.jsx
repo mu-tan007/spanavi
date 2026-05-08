@@ -3,13 +3,11 @@ import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { logAudit } from '../../lib/audit'
 import { invokeFn } from '../../lib/invokeFn'
+import { color, space, radius, font, shadow, alpha } from '../../../../../constants/design'
+import { Button, Input, Card } from '../../../../ui'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-const card = { background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: 12, padding: 20 }
-const label = { fontSize: 12, color: '#706E6B', marginBottom: 4, display: 'block' }
-const inp = { width: '100%', height: 36, padding: '0 12px', border: '0.5px solid #E5E5E5', borderRadius: 6, fontSize: 13, outline: 'none' }
 
 function formatYen(v) {
   if (v == null) return '—'
@@ -122,104 +120,84 @@ export default function ValuationTab({ dealId, valuation, financials }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ ...card, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Card padding="lg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 500, color: '#032D60', marginBottom: 4 }}>バリュエーション</div>
-          <div style={{ fontSize: 11, color: '#706E6B', lineHeight: 1.7 }}>
+          <div style={{ fontSize: font.size.md, fontWeight: font.weight.medium, color: color.navy, marginBottom: 4 }}>バリュエーション</div>
+          <div style={{ fontSize: font.size.xs, color: color.textLight, lineHeight: 1.7 }}>
             年倍方式 + EBITDA倍率方式で算定。AI 自動算定 (希望株価含む) も可能です。
           </div>
         </div>
-        <button onClick={autoCalc} disabled={autoCalcLoading}
-          style={{ height: 34, padding: '0 18px', background: autoCalcLoading ? '#A0A0A0' : '#032D60', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+        <Button onClick={autoCalc} disabled={autoCalcLoading} loading={autoCalcLoading}>
           {autoCalcLoading ? '算定中…' : 'AI自動算定'}
-        </button>
-      </div>
-      {autoCalcError && <div style={{ padding: '10px 14px', background: '#FAECE7', borderRadius: 6, fontSize: 12, color: '#EA001E' }}>{autoCalcError}</div>}
+        </Button>
+      </Card>
+      {autoCalcError && <div style={{ padding: '10px 14px', background: color.dangerSoft, borderRadius: radius.lg, fontSize: font.size.sm, color: color.danger }}>{autoCalcError}</div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-        <div style={card}>
-          <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4, letterSpacing: 1 }}>年倍方式</div>
-          <div style={{ fontSize: 22, fontWeight: 600, color: '#032D60' }}>{formatYen(nenKaiResult)}</div>
-          <div style={{ fontSize: 10, color: '#706E6B', marginTop: 4 }}>純資産 + 営業利益 × 年数</div>
-        </div>
-        <div style={card}>
-          <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4, letterSpacing: 1 }}>EBITDA倍率方式</div>
-          <div style={{ fontSize: 22, fontWeight: 600, color: '#032D60' }}>{formatYen(evEbitdaResult)}</div>
-          <div style={{ fontSize: 10, color: '#706E6B', marginTop: 4 }}>EBITDA × 倍率 − ネットデット</div>
-        </div>
-        <div style={{ ...card, background: '#FAFAFA', border: '0.5px solid #E5E5E5' }}>
-          <div style={{ fontSize: 11, color: '#706E6B', marginBottom: 4, letterSpacing: 1 }}>希望株価 (IM記載)</div>
-          <div style={{ fontSize: 22, fontWeight: 600, color: '#032D60' }}>{form.hope_price ? formatYen(Number(form.hope_price)) : '—'}</div>
-          {form.hope_price_note && <div style={{ fontSize: 10, color: '#706E6B', marginTop: 4 }}>{form.hope_price_note}</div>}
-        </div>
+        <Card padding="lg">
+          <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 4, letterSpacing: 1 }}>年倍方式</div>
+          <div style={{ fontSize: 22, fontWeight: font.weight.semibold, color: color.navy }}>{formatYen(nenKaiResult)}</div>
+          <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 4 }}>純資産 + 営業利益 × 年数</div>
+        </Card>
+        <Card padding="lg">
+          <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 4, letterSpacing: 1 }}>EBITDA倍率方式</div>
+          <div style={{ fontSize: 22, fontWeight: font.weight.semibold, color: color.navy }}>{formatYen(evEbitdaResult)}</div>
+          <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 4 }}>EBITDA × 倍率 − ネットデット</div>
+        </Card>
+        <Card padding="lg" variant="subtle">
+          <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 4, letterSpacing: 1 }}>希望株価 (IM記載)</div>
+          <div style={{ fontSize: 22, fontWeight: font.weight.semibold, color: color.navy }}>{form.hope_price ? formatYen(Number(form.hope_price)) : '—'}</div>
+          {form.hope_price_note && <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 4 }}>{form.hope_price_note}</div>}
+        </Card>
       </div>
 
-      <div style={card}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#032D60', marginBottom: 12 }}>① 純資産 + 営業権(のれん)年倍方式</div>
+      <Card padding="lg">
+        <div style={{ fontSize: font.size.base, fontWeight: font.weight.medium, color: color.navy, marginBottom: 12 }}>① 純資産 + 営業権(のれん)年倍方式</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr', gap: 14 }}>
-          <div>
-            <span style={label}>純資産 (円)</span>
-            <input type="number" value={form.nen_kai_net_assets} onChange={e => set('nen_kai_net_assets', e.target.value)} style={inp} placeholder="例: 150000000" />
-          </div>
-          <div>
-            <span style={label}>年数</span>
-            <input type="number" value={form.nen_kai_years} onChange={e => set('nen_kai_years', e.target.value)} style={inp} min={1} max={10} />
-          </div>
-          <div>
-            <span style={label}>営業利益 (年額, 円)</span>
-            <input type="number" value={form.nen_kai_annual_profit} onChange={e => set('nen_kai_annual_profit', e.target.value)} style={inp} placeholder="例: 30000000" />
-          </div>
+          <Input label="純資産 (円)" type="number" value={form.nen_kai_net_assets} onChange={e => set('nen_kai_net_assets', e.target.value)} placeholder="例: 150000000" />
+          <Input label="年数" type="number" value={form.nen_kai_years} onChange={e => set('nen_kai_years', e.target.value)} min={1} max={10} />
+          <Input label="営業利益 (年額, 円)" type="number" value={form.nen_kai_annual_profit} onChange={e => set('nen_kai_annual_profit', e.target.value)} placeholder="例: 30000000" />
         </div>
-        <div style={{ marginTop: 10, fontSize: 11, color: '#706E6B' }}>
-          算定式: {formatYen(Number(form.nen_kai_net_assets) || 0)} + {formatYen(Number(form.nen_kai_annual_profit) || 0)} × {form.nen_kai_years}年 = <strong style={{ color: '#032D60' }}>{formatYen(nenKaiResult)}</strong>
+        <div style={{ marginTop: 10, fontSize: font.size.xs, color: color.textLight }}>
+          算定式: {formatYen(Number(form.nen_kai_net_assets) || 0)} + {formatYen(Number(form.nen_kai_annual_profit) || 0)} × {form.nen_kai_years}年 = <strong style={{ color: color.navy }}>{formatYen(nenKaiResult)}</strong>
         </div>
-      </div>
+      </Card>
 
-      <div style={card}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#032D60', marginBottom: 12 }}>② EBITDA マルチプル方式</div>
+      <Card padding="lg">
+        <div style={{ fontSize: font.size.base, fontWeight: font.weight.medium, color: color.navy, marginBottom: 12 }}>② EBITDA マルチプル方式</div>
         <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 14 }}>
+          <Input label="倍率" type="number" step="0.5" value={form.ev_ebitda_multiple} onChange={e => set('ev_ebitda_multiple', e.target.value)} />
           <div>
-            <span style={label}>倍率</span>
-            <input type="number" step="0.5" value={form.ev_ebitda_multiple} onChange={e => set('ev_ebitda_multiple', e.target.value)} style={inp} />
-          </div>
-          <div>
-            <span style={label}>直近EBITDA (財務から自動)</span>
-            <div style={{ ...inp, display: 'flex', alignItems: 'center', color: '#706E6B', background: '#FAFAFA' }}>
+            <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textMid, letterSpacing: font.letterSpacing.wide, marginBottom: 4 }}>直近EBITDA (財務から自動)</div>
+            <div style={{ width: '100%', height: 36, padding: '0 12px', border: `1px solid ${color.border}`, borderRadius: radius.md, fontSize: font.size.md, display: 'flex', alignItems: 'center', color: color.textLight, background: color.gray50 }}>
               {latest?.ebitda ? formatYen(latest.ebitda) : '財務データなし'}
             </div>
           </div>
         </div>
-        <div style={{ marginTop: 10, fontSize: 11, color: '#706E6B' }}>
-          EV = {formatYen(latest?.ebitda || 0)} × {form.ev_ebitda_multiple} = {formatYen(ev)} / ネットデット控除 {formatYen(netDebt)} / <strong style={{ color: '#032D60' }}>Equity: {formatYen(evEbitdaResult)}</strong>
+        <div style={{ marginTop: 10, fontSize: font.size.xs, color: color.textLight }}>
+          EV = {formatYen(latest?.ebitda || 0)} × {form.ev_ebitda_multiple} = {formatYen(ev)} / ネットデット控除 {formatYen(netDebt)} / <strong style={{ color: color.navy }}>Equity: {formatYen(evEbitdaResult)}</strong>
         </div>
-      </div>
+      </Card>
 
-      <div style={card}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#032D60', marginBottom: 12 }}>③ 希望株価 (売り手側・IM記載)</div>
+      <Card padding="lg">
+        <div style={{ fontSize: font.size.base, fontWeight: font.weight.medium, color: color.navy, marginBottom: 12 }}>③ 希望株価 (売り手側・IM記載)</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 14 }}>
-          <div>
-            <span style={label}>希望株価 (円)</span>
-            <input type="number" value={form.hope_price} onChange={e => set('hope_price', e.target.value)} style={inp} placeholder="例: 200000000" />
-          </div>
-          <div>
-            <span style={label}>条件・根拠</span>
-            <input type="text" value={form.hope_price_note} onChange={e => set('hope_price_note', e.target.value)} style={inp} placeholder="例: 純資産+営業利益×3年、キーマン条件付き" />
-          </div>
+          <Input label="希望株価 (円)" type="number" value={form.hope_price} onChange={e => set('hope_price', e.target.value)} placeholder="例: 200000000" />
+          <Input label="条件・根拠" type="text" value={form.hope_price_note} onChange={e => set('hope_price_note', e.target.value)} placeholder="例: 純資産+営業利益×3年、キーマン条件付き" />
         </div>
-      </div>
+      </Card>
 
-      <div style={card}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#032D60', marginBottom: 10 }}>分析コメント</div>
+      <Card padding="lg">
+        <div style={{ fontSize: font.size.base, fontWeight: font.weight.medium, color: color.navy, marginBottom: 10 }}>分析コメント</div>
         <textarea value={form.analyst_comment} onChange={e => set('analyst_comment', e.target.value)} rows={4}
           placeholder="算定根拠・調整要因・リスク・推奨レンジ等"
-          style={{ ...inp, height: 'auto', padding: '8px 12px', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.7 }} />
-      </div>
+          style={{ width: '100%', padding: '8px 12px', border: `0.5px solid ${color.border}`, borderRadius: radius.lg, fontSize: font.size.base, outline: 'none', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.7, background: color.white, color: color.textDark }} />
+      </Card>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button onClick={save} disabled={saving}
-          style={{ height: 36, padding: '0 24px', background: saving ? '#A0A0A0' : '#032D60', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+        <Button onClick={save} disabled={saving} loading={saving}>
           {saving ? '保存中…' : '保存'}
-        </button>
+        </Button>
       </div>
     </div>
   )

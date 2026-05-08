@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { C } from '../../../constants/colors'
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design'
+import { Button, Input, Select, Card, Badge } from '../../ui'
 import {
   insertClientContact,
   updateClientContact,
@@ -21,14 +23,14 @@ const GOLD = '#B8860B'
 const inputStyle = {
   width: '100%',
   padding: '6px 10px',
-  borderRadius: 4,
+  borderRadius: radius.md,
   border: `1px solid ${GRAY_200}`,
-  fontSize: 12,
-  fontFamily: "'Noto Sans JP', sans-serif",
+  fontSize: font.size.sm,
+  fontFamily: font.family.sans,
   outline: 'none',
-  background: '#fff',
+  background: color.white,
 }
-const labelStyle = { fontSize: 10, fontWeight: 600, color: NAVY, marginBottom: 3, display: 'block' }
+const labelStyle = { fontSize: 10, fontWeight: font.weight.semibold, color: NAVY, marginBottom: 3, display: 'block' }
 
 function emptyContactForm() {
   return {
@@ -290,11 +292,11 @@ export default function ContactDrawer({
           position: 'fixed',
           top: 0, right: 0, bottom: 0,
           width: 'min(560px, 100vw)',
-          background: '#fff',
+          background: color.white,
           borderLeft: `1px solid ${GRAY_200}`,
           boxShadow: '-12px 0 32px rgba(0,0,0,0.18)',
           display: 'flex', flexDirection: 'column',
-          fontFamily: "'Noto Sans JP', sans-serif",
+          fontFamily: font.family.sans,
           animation: 'cdSlideIn 0.18s ease',
         }}
       >
@@ -302,28 +304,28 @@ export default function ContactDrawer({
         <div style={{
           padding: '14px 20px',
           background: NAVY,
-          color: '#fff',
+          color: color.white,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
-            <div style={{ fontSize: 11, opacity: 0.7, letterSpacing: 1.5 }}>
+            <div style={{ fontSize: font.size.xs, opacity: 0.7, letterSpacing: 1.5 }}>
               {mode === 'add' ? '担当者を追加' : '担当者の編集'}
             </div>
-            <div style={{ fontSize: 15, fontWeight: 700, marginTop: 2 }}>
+            <div style={{ fontSize: 15, fontWeight: font.weight.bold, marginTop: 2 }}>
               {mode === 'edit' ? (existingContact?.name || '担当者') : '新規担当者'}
             </div>
           </div>
           <button
             onClick={onClose}
             style={{
-              border: '1px solid rgba(255,255,255,0.3)',
+              border: `1px solid ${alpha('#FFFFFF', 0.3)}`,
               background: 'transparent',
-              color: '#fff',
-              fontSize: 12,
+              color: color.white,
+              fontSize: font.size.sm,
               padding: '4px 12px',
-              borderRadius: 4,
+              borderRadius: radius.md,
               cursor: 'pointer',
-              fontFamily: "'Noto Sans JP', sans-serif",
+              fontFamily: font.family.sans,
             }}
           >閉じる</button>
         </div>
@@ -332,7 +334,7 @@ export default function ContactDrawer({
         <div style={{
           display: 'flex',
           borderBottom: `1px solid ${GRAY_200}`,
-          background: '#fff',
+          background: color.white,
         }}>
           {[
             { id: 'basic', label: '基本' },
@@ -347,9 +349,9 @@ export default function ContactDrawer({
                 border: 'none',
                 background: 'transparent',
                 color: tab === t.id ? NAVY : (t.disabled ? '#ccc' : C.textLight),
-                fontSize: 12,
-                fontWeight: tab === t.id ? 700 : 500,
-                fontFamily: "'Noto Sans JP', sans-serif",
+                fontSize: font.size.sm,
+                fontWeight: tab === t.id ? font.weight.bold : font.weight.medium,
+                fontFamily: font.family.sans,
                 cursor: t.disabled ? 'not-allowed' : 'pointer',
                 borderBottom: tab === t.id ? `2px solid ${NAVY}` : '2px solid transparent',
                 marginBottom: -1,
@@ -367,8 +369,8 @@ export default function ContactDrawer({
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
           {errorMsg && (
             <div style={{
-              fontSize: 11, color: '#DC2626', background: '#FEF2F2',
-              border: '1px solid #FECACA', borderRadius: 4,
+              fontSize: font.size.xs, color: color.danger, background: color.dangerSoft,
+              border: `1px solid ${alpha(color.danger, 0.25)}`, borderRadius: radius.md,
               padding: '8px 12px', marginBottom: 12,
             }}>
               {errorMsg}
@@ -378,7 +380,7 @@ export default function ContactDrawer({
           {tab === 'basic' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div style={{ gridColumn: '1 / -1' }}>
-                <label style={labelStyle}>名前 <span style={{ color: '#DC2626' }}>*</span></label>
+                <label style={labelStyle}>名前 <span style={{ color: color.danger }}>*</span></label>
                 <input value={form.name} onChange={e => u('name', e.target.value)} style={inputStyle} placeholder="田中 一郎" />
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
@@ -419,14 +421,14 @@ export default function ContactDrawer({
                 <input value={form.schedulingNotes} onChange={e => u('schedulingNotes', e.target.value)} style={inputStyle} />
               </div>
 
-              <div style={{ gridColumn: '1 / -1', marginTop: 8, padding: '10px 12px', border: `1px solid ${GRAY_200}`, borderRadius: 4, background: GRAY_50 }}>
+              <div style={{ gridColumn: '1 / -1', marginTop: 8, padding: '10px 12px', border: `1px solid ${GRAY_200}`, borderRadius: radius.md, background: GRAY_50 }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                   <input
                     type="checkbox"
                     checked={form.isPrimary === true}
                     onChange={e => u('isPrimary', e.target.checked)}
                   />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: NAVY }}>この担当者を主担当に設定</span>
+                  <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: NAVY }}>この担当者を主担当に設定</span>
                 </label>
                 <div style={{ fontSize: 10, color: C.textLight, marginTop: 4, lineHeight: 1.5 }}>
                   CRM 一覧の「主担当」列にこの担当者が表示されます。1 クライアントに 1 名のみ。
@@ -464,7 +466,7 @@ export default function ContactDrawer({
                     paddingRight: 44,
                     resize: 'vertical',
                     lineHeight: 1.6,
-                    background: '#fff',
+                    background: color.white,
                   }}
                 />
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
@@ -472,12 +474,12 @@ export default function ContactDrawer({
                     onClick={handleAppendManualMemo}
                     disabled={!manualMemoText.trim() || manualMemoSaving}
                     style={{
-                      padding: '6px 14px', borderRadius: 4,
+                      padding: '6px 14px', borderRadius: radius.md,
                       border: `1px solid ${NAVY}`,
-                      background: '#fff', color: NAVY,
-                      fontSize: 11, fontWeight: 600,
+                      background: color.white, color: NAVY,
+                      fontSize: font.size.xs, fontWeight: font.weight.semibold,
                       cursor: (!manualMemoText.trim() || manualMemoSaving) ? 'not-allowed' : 'pointer',
-                      fontFamily: "'Noto Sans JP', sans-serif",
+                      fontFamily: font.family.sans,
                       opacity: (!manualMemoText.trim() || manualMemoSaving) ? 0.5 : 1,
                     }}
                   >{manualMemoSaving ? '追記中...' : '追記する'}</button>
@@ -488,25 +490,25 @@ export default function ContactDrawer({
                 <div style={{
                   border: `1px solid ${GOLD}`,
                   borderLeft: `3px solid ${GOLD}`,
-                  borderRadius: 4,
+                  borderRadius: radius.md,
                   padding: '12px 14px',
                   marginBottom: 12,
                   background: '#FFFBF0',
                 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: GOLD, letterSpacing: 1, marginBottom: 6 }}>
+                  <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: GOLD, letterSpacing: 1, marginBottom: 6 }}>
                     AI 整理プレビュー
                   </div>
                   <div style={{
-                    whiteSpace: 'pre-wrap', fontSize: 12, color: C.textDark, lineHeight: 1.7,
-                    background: '#fff', padding: 10, borderRadius: 3, border: `1px solid ${GRAY_200}`,
+                    whiteSpace: 'pre-wrap', fontSize: font.size.sm, color: C.textDark, lineHeight: 1.7,
+                    background: color.white, padding: 10, borderRadius: radius.sm, border: `1px solid ${GRAY_200}`,
                   }}>
                     {voicePending.ai_summary || '(AI から空の応答が返りました)'}
                   </div>
                   <details style={{ marginTop: 8 }}>
                     <summary style={{ fontSize: 10, color: C.textLight, cursor: 'pointer' }}>元の文字起こしを見る</summary>
                     <div style={{
-                      whiteSpace: 'pre-wrap', fontSize: 11, color: C.textMid, lineHeight: 1.6,
-                      background: GRAY_50, padding: 8, borderRadius: 3, border: `1px solid ${GRAY_200}`, marginTop: 6,
+                      whiteSpace: 'pre-wrap', fontSize: font.size.xs, color: C.textMid, lineHeight: 1.6,
+                      background: GRAY_50, padding: 8, borderRadius: radius.sm, border: `1px solid ${GRAY_200}`, marginTop: 6,
                     }}>
                       {voicePending.transcript || '(文字起こし空)'}
                     </div>
@@ -516,21 +518,21 @@ export default function ContactDrawer({
                       onClick={handleDiscardVoiceMemo}
                       disabled={manualMemoSaving}
                       style={{
-                        padding: '6px 14px', borderRadius: 4,
-                        border: `1px solid ${GRAY_200}`, background: '#fff',
-                        fontSize: 11, color: C.textMid, cursor: manualMemoSaving ? 'not-allowed' : 'pointer',
-                        fontFamily: "'Noto Sans JP', sans-serif",
+                        padding: '6px 14px', borderRadius: radius.md,
+                        border: `1px solid ${GRAY_200}`, background: color.white,
+                        fontSize: font.size.xs, color: C.textMid, cursor: manualMemoSaving ? 'not-allowed' : 'pointer',
+                        fontFamily: font.family.sans,
                       }}
                     >破棄</button>
                     <button
                       onClick={handleConfirmVoiceMemo}
                       disabled={manualMemoSaving}
                       style={{
-                        padding: '6px 14px', borderRadius: 4,
-                        border: 'none', background: NAVY, color: '#fff',
-                        fontSize: 11, fontWeight: 600,
+                        padding: '6px 14px', borderRadius: radius.md,
+                        border: 'none', background: NAVY, color: color.white,
+                        fontSize: font.size.xs, fontWeight: font.weight.semibold,
                         cursor: manualMemoSaving ? 'not-allowed' : 'pointer',
-                        fontFamily: "'Noto Sans JP', sans-serif",
+                        fontFamily: font.family.sans,
                         opacity: manualMemoSaving ? 0.6 : 1,
                       }}
                     >{manualMemoSaving ? '追記中...' : 'これで追記する'}</button>
@@ -540,15 +542,15 @@ export default function ContactDrawer({
 
               <div style={{
                 marginTop: 16, paddingTop: 12, borderTop: `1px solid ${GRAY_200}`,
-                fontSize: 11, fontWeight: 700, color: NAVY,
+                fontSize: font.size.xs, fontWeight: font.weight.bold, color: NAVY,
               }}>
                 これまでのメモ（{memoEvents.length}件）
               </div>
               {memosLoading && (
-                <div style={{ fontSize: 11, color: C.textLight, padding: 12 }}>読み込み中...</div>
+                <div style={{ fontSize: font.size.xs, color: C.textLight, padding: 12 }}>読み込み中...</div>
               )}
               {!memosLoading && memoEvents.length === 0 && (
-                <div style={{ fontSize: 11, color: C.textLight, padding: 12 }}>
+                <div style={{ fontSize: font.size.xs, color: C.textLight, padding: 12 }}>
                   まだメモはありません。
                 </div>
               )}
@@ -561,25 +563,25 @@ export default function ContactDrawer({
                 return (
                   <div key={ev.id} style={{
                     border: `1px solid ${GRAY_200}`,
-                    borderRadius: 4,
+                    borderRadius: radius.md,
                     padding: '10px 12px',
                     marginTop: 8,
-                    background: '#fff',
+                    background: color.white,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, color: C.textLight }}>
-                      <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{fmtDate(ev.created_at)}</span>
+                      <span style={{ fontFamily: font.family.mono }}>{fmtDate(ev.created_at)}</span>
                       <span>·</span>
                       <span>{ev.author_name || '不明'}</span>
                       <span style={{
                         marginLeft: 'auto',
-                        fontSize: 9, fontWeight: 700, letterSpacing: 1,
+                        fontSize: 9, fontWeight: font.weight.bold, letterSpacing: 1,
                         color: tagColor, padding: '1px 6px',
                         border: `1px solid ${tagColor}40`,
-                        borderRadius: 3,
+                        borderRadius: radius.sm,
                       }}>{tag}</span>
                     </div>
                     <div style={{
-                      whiteSpace: 'pre-wrap', fontSize: 12, color: C.textDark, lineHeight: 1.7,
+                      whiteSpace: 'pre-wrap', fontSize: font.size.sm, color: C.textDark, lineHeight: 1.7,
                       marginTop: 6,
                     }}>
                       {ev.body_md}
@@ -592,7 +594,7 @@ export default function ContactDrawer({
                         >元の文字起こしを見る</summary>
                         <div style={{
                           whiteSpace: 'pre-wrap', fontSize: 10, color: C.textMid, lineHeight: 1.6,
-                          background: GRAY_50, padding: 8, borderRadius: 3, border: `1px solid ${GRAY_200}`, marginTop: 4,
+                          background: GRAY_50, padding: 8, borderRadius: radius.sm, border: `1px solid ${GRAY_200}`, marginTop: 4,
                         }}>
                           {ev.raw_transcript}
                         </div>
@@ -611,7 +613,7 @@ export default function ContactDrawer({
           borderTop: `1px solid ${GRAY_200}`,
           display: 'flex',
           justifyContent: 'space-between',
-          background: '#fff',
+          background: color.white,
         }}>
           <div>
             {mode === 'edit' && (
@@ -619,12 +621,12 @@ export default function ContactDrawer({
                 onClick={handleDelete}
                 disabled={saving}
                 style={{
-                  padding: '8px 16px', borderRadius: 4,
-                  border: '1px solid #DC2626',
-                  background: '#fff', color: '#DC2626',
-                  fontSize: 12, fontWeight: 500,
+                  padding: '8px 16px', borderRadius: radius.md,
+                  border: `1px solid ${color.danger}`,
+                  background: color.white, color: color.danger,
+                  fontSize: font.size.sm, fontWeight: font.weight.medium,
                   cursor: saving ? 'not-allowed' : 'pointer',
-                  fontFamily: "'Noto Sans JP', sans-serif",
+                  fontFamily: font.family.sans,
                   opacity: saving ? 0.5 : 1,
                 }}
               >削除</button>
@@ -635,24 +637,24 @@ export default function ContactDrawer({
               onClick={onClose}
               disabled={saving}
               style={{
-                padding: '8px 16px', borderRadius: 4,
+                padding: '8px 16px', borderRadius: radius.md,
                 border: `1px solid ${NAVY}`,
-                background: '#fff', color: NAVY,
-                fontSize: 12, fontWeight: 500,
+                background: color.white, color: NAVY,
+                fontSize: font.size.sm, fontWeight: font.weight.medium,
                 cursor: saving ? 'not-allowed' : 'pointer',
-                fontFamily: "'Noto Sans JP', sans-serif",
+                fontFamily: font.family.sans,
               }}
             >キャンセル</button>
             <button
               onClick={handleSaveBasic}
               disabled={saving}
               style={{
-                padding: '8px 16px', borderRadius: 4,
+                padding: '8px 16px', borderRadius: radius.md,
                 border: 'none',
-                background: NAVY, color: '#fff',
-                fontSize: 12, fontWeight: 600,
+                background: NAVY, color: color.white,
+                fontSize: font.size.sm, fontWeight: font.weight.semibold,
                 cursor: saving ? 'not-allowed' : 'pointer',
-                fontFamily: "'Noto Sans JP', sans-serif",
+                fontFamily: font.family.sans,
                 opacity: saving ? 0.6 : 1,
               }}
             >{saving ? '保存中...' : (mode === 'add' ? '追加' : '保存')}</button>

@@ -1,4 +1,6 @@
 import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
@@ -15,7 +17,7 @@ const PAD = 24;
 const pageStyle = {
   width: PAGE_W,
   height: PAGE_H,
-  background: '#ffffff',
+  background: color.white,
   fontFamily: "'Noto Sans JP', 'Hiragino Sans', 'Meiryo', sans-serif",
   overflow: 'hidden',
   boxSizing: 'border-box',
@@ -29,31 +31,31 @@ function PageHeader({ clientName, listName, dateRange, pageTitle, pageNum }) {
   return (
     <div style={{
       height: HEADER_H,
-      background: `linear-gradient(135deg, ${C.navyDeep}, ${C.navy})`,
+      background: `linear-gradient(135deg, ${color.navyDeep}, ${color.navy})`,
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '0 24px',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div style={{ width: 4, height: 30, background: C.gold, borderRadius: 2 }} />
+        <div style={{ width: 4, height: 30, background: color.gold, borderRadius: 2 }} />
         <div>
-          <div style={{ color: C.goldLight, fontSize: 10, fontWeight: 600, letterSpacing: 0.5 }}>
+          <div style={{ color: color.goldLight, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, letterSpacing: 0.5 }}>
             {clientName}
           </div>
-          <div style={{ color: '#ffffff', fontSize: 13, fontWeight: 700, marginTop: 1 }}>
+          <div style={{ color: color.white, fontSize: font.size.base, fontWeight: font.weight.bold, marginTop: 1 }}>
             {listName}
           </div>
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-        <div style={{ color: C.goldLight, fontSize: 11 }}>{dateRange}</div>
+        <div style={{ color: color.goldLight, fontSize: font.size.xs }}>{dateRange}</div>
         <div style={{
-          background: C.gold, color: C.navy,
-          padding: '3px 14px', borderRadius: 4,
-          fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
+          background: color.gold, color: color.navy,
+          padding: '3px 14px', borderRadius: radius.md,
+          fontSize: font.size.xs, fontWeight: font.weight.bold, letterSpacing: 0.5,
         }}>
           {pageTitle}
         </div>
-        <div style={{ color: C.goldDim, fontSize: 10 }}>{pageNum} / 4</div>
+        <div style={{ color: color.goldDim, fontSize: font.size.xs - 1 }}>{pageNum} / 4</div>
       </div>
     </div>
   );
@@ -62,15 +64,15 @@ function PageHeader({ clientName, listName, dateRange, pageTitle, pageNum }) {
 function KpiCard({ label, value, sub, borderColor }) {
   return (
     <div style={{
-      flex: 1, background: '#ffffff',
-      border: `1px solid ${C.border}`,
+      flex: 1, background: color.white,
+      border: `1px solid ${color.border}`,
       borderTop: `4px solid ${borderColor}`,
-      borderRadius: 8, padding: '16px 20px',
+      borderRadius: radius.xl, padding: '16px 20px',
       boxShadow: '0 2px 6px rgba(0,0,0,0.07)',
     }}>
-      <div style={{ fontSize: 11, color: C.textMid, marginBottom: 10, fontWeight: 500 }}>{label}</div>
-      <div style={{ fontSize: 36, fontWeight: 700, color: borderColor, letterSpacing: -1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 10, color: C.textLight, marginTop: 6 }}>{sub}</div>}
+      <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 10, fontWeight: font.weight.medium }}>{label}</div>
+      <div style={{ fontSize: 36, fontWeight: font.weight.bold, color: borderColor, letterSpacing: -1 }}>{value}</div>
+      {sub && <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 6 }}>{sub}</div>}
     </div>
   );
 }
@@ -78,8 +80,8 @@ function KpiCard({ label, value, sub, borderColor }) {
 function SectionTitle({ children }) {
   return (
     <div style={{
-      fontSize: 12, fontWeight: 700, color: C.navy,
-      borderLeft: `3px solid ${C.gold}`, paddingLeft: 10,
+      fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy,
+      borderLeft: `3px solid ${color.gold}`, paddingLeft: 10,
       marginBottom: 12,
     }}>
       {children}
@@ -91,17 +93,17 @@ function ComboChart({ data, xKey, barKey, lineKey, barLabel, lineLabel, xFormatt
   return (
     <ResponsiveContainer width="100%" height={240}>
       <ComposedChart data={data} margin={{ top: 8, right: 60, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
+        <CartesianGrid strokeDasharray="3 3" stroke={color.border} />
         <XAxis
           dataKey={xKey}
-          tick={{ fontSize: 10, fill: C.textMid }}
+          tick={{ fontSize: font.size.xs - 1, fill: color.textMid }}
           tickFormatter={xFormatter}
           interval="preserveStartEnd"
         />
-        <YAxis yAxisId="left" orientation="left" tick={{ fontSize: 10, fill: C.textMid }} />
+        <YAxis yAxisId="left" orientation="left" tick={{ fontSize: font.size.xs - 1, fill: color.textMid }} />
         <YAxis
           yAxisId="right" orientation="right"
-          tick={{ fontSize: 10, fill: C.textMid }}
+          tick={{ fontSize: font.size.xs - 1, fill: color.textMid }}
           domain={[0, 100]} unit="%"
         />
         <Tooltip
@@ -109,11 +111,11 @@ function ComboChart({ data, xKey, barKey, lineKey, barLabel, lineLabel, xFormatt
             name === lineLabel ? `${value}%` : `${value}件`
           }
         />
-        <Legend wrapperStyle={{ fontSize: 11 }} />
-        <Bar yAxisId="left" dataKey={barKey} fill={C.navy} name={barLabel} radius={[2, 2, 0, 0]} />
+        <Legend wrapperStyle={{ fontSize: font.size.xs }} />
+        <Bar yAxisId="left" dataKey={barKey} fill={color.navy} name={barLabel} radius={[2, 2, 0, 0]} />
         <Line
           yAxisId="right" type="monotone" dataKey={lineKey}
-          stroke={C.gold} strokeWidth={2} dot={false} name={lineLabel}
+          stroke={color.gold} strokeWidth={2} dot={false} name={lineLabel}
         />
       </ComposedChart>
     </ResponsiveContainer>
@@ -127,8 +129,8 @@ function StatsTable({ rows, columns, labels }) {
     <div style={{ marginTop: 10, overflow: 'hidden' }}>
       <div style={{
         display: 'grid', gridTemplateColumns: gridCols,
-        background: C.navyDeep, color: C.goldLight,
-        fontSize: 10, fontWeight: 600, padding: '6px 12px',
+        background: color.navyDeep, color: color.goldLight,
+        fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, padding: '6px 12px',
       }}>
         {labels.map((l, i) => (
           <span key={i} style={{ textAlign: i > 0 ? 'center' : 'left' }}>{l}</span>
@@ -137,15 +139,15 @@ function StatsTable({ rows, columns, labels }) {
       {rows.map((row, i) => (
         <div key={i} style={{
           display: 'grid', gridTemplateColumns: gridCols,
-          padding: '5px 12px', fontSize: 10,
-          background: i % 2 === 0 ? '#ffffff' : C.offWhite,
-          borderBottom: `1px solid ${C.borderLight}`,
+          padding: '5px 12px', fontSize: font.size.xs - 1,
+          background: i % 2 === 0 ? color.white : color.offWhite,
+          borderBottom: `1px solid ${color.borderLight}`,
         }}>
           {columns.map((col, j) => (
             <span key={j} style={{
               textAlign: j > 0 ? 'center' : 'left',
-              color: C.textDark,
-              fontFamily: j > 0 ? "'JetBrains Mono', monospace" : 'inherit',
+              color: color.textDark,
+              fontFamily: j > 0 ? font.family.mono : 'inherit',
             }}>
               {row[col]}
             </span>
@@ -215,13 +217,13 @@ export default function ClientReportPDF({
               label="総架電数"
               value={`${totalCalls.toLocaleString()}件`}
               sub="架電レコード総数"
-              borderColor={C.navy}
+              borderColor={color.navy}
             />
             <KpiCard
               label="社長接続率"
               value={`${ceoConnectRate.toFixed(1)}%`}
               sub="社長再コール・お断り・アポ獲得の合計"
-              borderColor={C.navyLight}
+              borderColor={color.navyLight}
             />
             <KpiCard
               label="アポ取得率"
@@ -235,9 +237,9 @@ export default function ClientReportPDF({
           <SectionTitle>アポ取得企業一覧</SectionTitle>
           {appoList.length === 0 ? (
             <div style={{
-              padding: '16px 12px', color: C.textLight, fontSize: 11,
-              background: C.offWhite, borderRadius: 6,
-              border: `1px solid ${C.borderLight}`,
+              padding: '16px 12px', color: color.textLight, fontSize: font.size.xs,
+              background: color.offWhite, borderRadius: radius.lg,
+              border: `1px solid ${color.borderLight}`,
             }}>
               アポ取得なし
             </div>
@@ -245,8 +247,8 @@ export default function ClientReportPDF({
             <div style={{ overflow: 'hidden' }}>
               <div style={{
                 display: 'grid', gridTemplateColumns: '3fr 1fr 1fr',
-                background: C.navyDeep, color: C.goldLight,
-                fontSize: 10, fontWeight: 600, padding: '6px 12px',
+                background: color.navyDeep, color: color.goldLight,
+                fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, padding: '6px 12px',
               }}>
                 <span>企業名</span>
                 <span style={{ textAlign: 'center' }}>アポ取得日</span>
@@ -255,22 +257,22 @@ export default function ClientReportPDF({
               {appoList.map((a, i) => (
                 <div key={i} style={{
                   display: 'grid', gridTemplateColumns: '3fr 1fr 1fr',
-                  padding: '7px 12px', fontSize: 11,
-                  background: i % 2 === 0 ? '#ffffff' : C.offWhite,
-                  borderBottom: `1px solid ${C.borderLight}`,
+                  padding: '7px 12px', fontSize: font.size.xs,
+                  background: i % 2 === 0 ? color.white : color.offWhite,
+                  borderBottom: `1px solid ${color.borderLight}`,
                   alignItems: 'center',
                 }}>
-                  <span style={{ fontWeight: 500, color: C.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontWeight: font.weight.medium, color: color.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {a.company}
                   </span>
-                  <span style={{ textAlign: 'center', color: C.textMid, fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span style={{ textAlign: 'center', color: color.textMid, fontFamily: font.family.mono }}>
                     {a.date}
                   </span>
                   <span style={{ textAlign: 'center' }}>
                     <span style={{
-                      background: C.green + '15', color: C.green,
+                      background: alpha(C.green, 0.08), color: C.green,
                       padding: '2px 10px', borderRadius: 10,
-                      fontSize: 10, fontWeight: 700,
+                      fontSize: font.size.xs - 1, fontWeight: font.weight.bold,
                     }}>
                       {a.status}
                     </span>
@@ -284,7 +286,7 @@ export default function ClientReportPDF({
         {/* フッター */}
         <div style={{
           position: 'absolute', bottom: 14, right: 24,
-          fontSize: 9, color: C.textLight,
+          fontSize: 9, color: color.textLight,
         }}>
           Generated by spanavi — {generatedDate}
         </div>
@@ -298,7 +300,7 @@ export default function ClientReportPDF({
         <div style={{ padding: PAD, overflow: 'hidden', height: PAGE_H - HEADER_H - PAD * 2 }}>
           <SectionTitle>日次 架電数・社長接続率の推移</SectionTitle>
           {dailyStats.length === 0 ? (
-            <div style={{ color: C.textLight, fontSize: 11, padding: '12px 0' }}>データなし</div>
+            <div style={{ color: color.textLight, fontSize: font.size.xs, padding: '12px 0' }}>データなし</div>
           ) : (
             <>
               <ComboChart
@@ -310,7 +312,7 @@ export default function ClientReportPDF({
                 lineLabel="社長接続率"
               />
               {fmtDaily.length > 14 && (
-                <div style={{ fontSize: 10, color: C.textLight, textAlign: 'right', marginBottom: 4 }}>
+                <div style={{ fontSize: font.size.xs - 1, color: color.textLight, textAlign: 'right', marginBottom: 4 }}>
                   ※ 直近14日分を表示（全{fmtDaily.length}日）
                 </div>
               )}
@@ -322,7 +324,7 @@ export default function ClientReportPDF({
             </>
           )}
         </div>
-        <div style={{ position: 'absolute', bottom: 14, right: 24, fontSize: 9, color: C.textLight }}>
+        <div style={{ position: 'absolute', bottom: 14, right: 24, fontSize: 9, color: color.textLight }}>
           Generated by spanavi — {generatedDate}
         </div>
       </div>
@@ -335,7 +337,7 @@ export default function ClientReportPDF({
         <div style={{ padding: PAD, overflow: 'hidden', height: PAGE_H - HEADER_H - PAD * 2 }}>
           <SectionTitle>週次 架電数・社長接続率・アポ率の推移</SectionTitle>
           {weeklyStats.length === 0 ? (
-            <div style={{ color: C.textLight, fontSize: 11, padding: '12px 0' }}>データなし</div>
+            <div style={{ color: color.textLight, fontSize: font.size.xs, padding: '12px 0' }}>データなし</div>
           ) : (
             <>
               <ComboChart
@@ -354,7 +356,7 @@ export default function ClientReportPDF({
             </>
           )}
         </div>
-        <div style={{ position: 'absolute', bottom: 14, right: 24, fontSize: 9, color: C.textLight }}>
+        <div style={{ position: 'absolute', bottom: 14, right: 24, fontSize: 9, color: color.textLight }}>
           Generated by spanavi — {generatedDate}
         </div>
       </div>
@@ -380,25 +382,25 @@ export default function ClientReportPDF({
           {bestHour !== null ? (
             <div style={{
               marginTop: 20, padding: '16px 24px',
-              background: C.green + '08',
-              border: `1px solid ${C.green + '30'}`,
+              background: alpha(C.green, 0.04),
+              border: `1px solid ${alpha(C.green, 0.18)}`,
               borderLeft: `4px solid ${C.green}`,
-              borderRadius: 8,
+              borderRadius: radius.xl,
               display: 'flex', alignItems: 'center', gap: 20,
             }}>
               <div style={{
                 width: 48, height: 48, borderRadius: '50%',
                 background: C.green, display: 'flex',
                 alignItems: 'center', justifyContent: 'center',
-                color: '#ffffff', fontSize: 18, fontWeight: 700, flexShrink: 0,
+                color: color.white, fontSize: font.size.lg + 2, fontWeight: font.weight.bold, flexShrink: 0,
               }}>
                 {bestHour}
               </div>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 6 }}>
+                <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginBottom: 6 }}>
                   最も社長接続率が高い時間帯: {bestHour}時台
                 </div>
-                <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.6 }}>
+                <div style={{ fontSize: font.size.xs, color: color.textMid, lineHeight: 1.6 }}>
                   {bestHour}時〜{bestHour + 1}時の時間帯に架電を集中させることで、社長接続率の向上が期待できます。<br />
                   接続率: <strong style={{ color: C.green }}>
                     {(hourlyStats.find(h => h.hour === bestHour) || {}).connRate || 0}%
@@ -412,14 +414,14 @@ export default function ClientReportPDF({
           ) : (
             <div style={{
               marginTop: 20, padding: '16px 24px',
-              background: C.offWhite, border: `1px solid ${C.border}`,
-              borderRadius: 8, color: C.textMid, fontSize: 11,
+              background: color.offWhite, border: `1px solid ${color.border}`,
+              borderRadius: radius.xl, color: color.textMid, fontSize: font.size.xs,
             }}>
               時間帯データが不足しています（9〜19時以外の架電記録のみ、またはデータなし）
             </div>
           )}
         </div>
-        <div style={{ position: 'absolute', bottom: 14, right: 24, fontSize: 9, color: C.textLight }}>
+        <div style={{ position: 'absolute', bottom: 14, right: 24, fontSize: 9, color: color.textLight }}>
           Generated by spanavi — {generatedDate}
         </div>
       </div>

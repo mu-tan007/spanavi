@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { C } from '../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../ui';
 import { X, Upload, ArrowRight, Check, AlertTriangle } from 'lucide-react';
 import { checkDuplicates, executeImport } from '../../lib/companyMasterImport';
 
@@ -162,12 +163,12 @@ export default function ImportModal({ onClose, onImportComplete }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
-      <div style={{ background: C.white, borderRadius: 12, width: Math.min(900, window.innerWidth - 40), maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+      <div style={{ background: color.white, borderRadius: radius.xl, width: Math.min(900, window.innerWidth - 40), maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: C.navy }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `${space[4]}px ${space[5]}px`, borderBottom: `1px solid ${color.border}` }}>
+          <div style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: color.navy }}>
             リストインポート
-            <span style={{ fontSize: 12, color: C.textLight, marginLeft: 8 }}>
+            <span style={{ fontSize: font.size.sm, color: color.textLight, marginLeft: space[2] }}>
               {step === 1 && 'ファイル選択'}
               {step === 2 && 'カラムマッピング'}
               {step === 3 && '重複チェック結果'}
@@ -175,13 +176,13 @@ export default function ImportModal({ onClose, onImportComplete }) {
               {step === 5 && '完了'}
             </span>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} color={C.textMid} /></button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} color={color.textMid} /></button>
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflow: 'auto', padding: 20 }}>
+        <div style={{ flex: 1, overflow: 'auto', padding: space[5] }}>
           {error && (
-            <div style={{ padding: 10, background: '#FEE', borderRadius: 6, color: '#C00', fontSize: 13, marginBottom: 12 }}>
+            <div style={{ padding: space[2.5], background: color.dangerSoft, borderRadius: radius.lg, color: color.danger, fontSize: font.size.base, marginBottom: space[3] }}>
               {error}
             </div>
           )}
@@ -191,21 +192,21 @@ export default function ImportModal({ onClose, onImportComplete }) {
             <div
               onDrop={handleDrop} onDragOver={e => e.preventDefault()}
               style={{
-                border: `2px dashed ${C.border}`, borderRadius: 12, padding: '60px 20px',
+                border: `2px dashed ${color.border}`, borderRadius: radius.xl, padding: '60px 20px',
                 textAlign: 'center', cursor: 'pointer',
               }}
               onClick={() => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.csv,.tsv,.xlsx,.xls'; inp.onchange = e => { if (e.target.files[0]) handleFile(e.target.files[0]); }; inp.click(); }}
             >
-              <Upload size={40} color={C.textLight} style={{ marginBottom: 12 }} />
-              <div style={{ fontSize: 15, color: C.textDark, marginBottom: 6 }}>ファイルをドラッグ＆ドロップ</div>
-              <div style={{ fontSize: 12, color: C.textLight }}>またはクリックして選択（CSV / Excel）</div>
+              <Upload size={40} color={color.textLight} style={{ marginBottom: space[3] }} />
+              <div style={{ fontSize: font.size.md, color: color.textDark, marginBottom: space[1.5] }}>ファイルをドラッグ＆ドロップ</div>
+              <div style={{ fontSize: font.size.sm, color: color.textLight }}>またはクリックして選択（CSV / Excel）</div>
             </div>
           )}
 
           {/* Step 2: Column Mapping */}
           {step === 2 && (
             <div>
-              <div style={{ fontSize: 13, color: C.textMid, marginBottom: 12 }}>
+              <div style={{ fontSize: font.size.base, color: color.textMid, marginBottom: space[3] }}>
                 <strong>{fileName}</strong> — {rawRows.length.toLocaleString()}行 / {headers.length}列
               </div>
               <div style={{ maxHeight: 400, overflow: 'auto' }}>
@@ -221,17 +222,16 @@ export default function ImportModal({ onClose, onImportComplete }) {
                     {headers.map((h, i) => (
                       <tr key={i}>
                         <td style={tdS}>{h}</td>
-                        <td style={{ ...tdS, fontSize: 11, color: C.textMid, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <td style={{ ...tdS, fontSize: font.size.xs, color: color.textMid, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {rawRows[0]?.[i] || ''}
                         </td>
                         <td style={tdS}>
-                          <select
+                          <Select
+                            size="sm"
                             value={columnMap[i] || ''}
                             onChange={e => setColumnMap(prev => ({ ...prev, [i]: e.target.value }))}
-                            style={{ padding: '4px 6px', fontSize: 12, borderRadius: 4, border: `1px solid ${C.border}`, width: '100%' }}
-                          >
-                            {DB_COLUMNS.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-                          </select>
+                            options={DB_COLUMNS.map(c => ({ value: c.key, label: c.label }))}
+                          />
                         </td>
                       </tr>
                     ))}
@@ -244,17 +244,17 @@ export default function ImportModal({ onClose, onImportComplete }) {
           {/* Step 3: Dedup Preview */}
           {step === 3 && dedupResult && (
             <div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
-                <StatCard label="新規追加" count={dedupResult.newRows.length} color="#0B6E4F" />
-                <StatCard label="上書き更新（インポート側の情報が多い）" count={dedupResult.updateRows.length} color="#D97706" />
-                <StatCard label="スキップ（既存の情報が多い）" count={dedupResult.skipRows.length} color={C.textLight} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: space[3], marginBottom: space[4] }}>
+                <StatCard label="新規追加" count={dedupResult.newRows.length} statColor={color.success} />
+                <StatCard label="上書き更新（インポート側の情報が多い）" count={dedupResult.updateRows.length} statColor={color.warn} />
+                <StatCard label="スキップ（既存の情報が多い）" count={dedupResult.skipRows.length} statColor={color.textLight} />
               </div>
               {dedupResult.updateRows.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#D97706', marginBottom: 6 }}>上書き対象（先頭10件）</div>
-                  <div style={{ maxHeight: 150, overflow: 'auto', border: `1px solid ${C.border}`, borderRadius: 6 }}>
+                <div style={{ marginBottom: space[3] }}>
+                  <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.warn, marginBottom: space[1.5] }}>上書き対象（先頭10件）</div>
+                  <div style={{ maxHeight: 150, overflow: 'auto', border: `1px solid ${color.border}`, borderRadius: radius.lg }}>
                     {dedupResult.updateRows.slice(0, 10).map((r, i) => (
-                      <div key={i} style={{ padding: '6px 10px', fontSize: 12, borderBottom: `1px solid ${C.borderLight}` }}>
+                      <div key={i} style={{ padding: `${space[1.5]}px ${space[2.5]}px`, fontSize: font.size.sm, borderBottom: `1px solid ${color.borderLight}` }}>
                         <strong>{r.company_name}</strong> → 既存: {r.existingName}
                       </div>
                     ))}
@@ -263,10 +263,10 @@ export default function ImportModal({ onClose, onImportComplete }) {
               )}
               {dedupResult.skipRows.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>スキップ対象（先頭10件）</div>
-                  <div style={{ maxHeight: 150, overflow: 'auto', border: `1px solid ${C.border}`, borderRadius: 6 }}>
+                  <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.textMid, marginBottom: space[1.5] }}>スキップ対象（先頭10件）</div>
+                  <div style={{ maxHeight: 150, overflow: 'auto', border: `1px solid ${color.border}`, borderRadius: radius.lg }}>
                     {dedupResult.skipRows.slice(0, 10).map((r, i) => (
-                      <div key={i} style={{ padding: '6px 10px', fontSize: 12, borderBottom: `1px solid ${C.borderLight}` }}>
+                      <div key={i} style={{ padding: `${space[1.5]}px ${space[2.5]}px`, fontSize: font.size.sm, borderBottom: `1px solid ${color.borderLight}` }}>
                         {r.company_name}（既存: {r.existingName}）
                       </div>
                     ))}
@@ -278,14 +278,14 @@ export default function ImportModal({ onClose, onImportComplete }) {
 
           {/* Step 4: Importing */}
           {step === 4 && (
-            <div style={{ textAlign: 'center', padding: 40 }}>
-              <div style={{ fontSize: 16, color: C.navy, marginBottom: 12 }}>インポート中...</div>
+            <div style={{ textAlign: 'center', padding: space[10] }}>
+              <div style={{ fontSize: font.size.lg, color: color.navy, marginBottom: space[3] }}>インポート中...</div>
               {progress && (
                 <div>
-                  <div style={{ width: '100%', height: 8, background: C.offWhite, borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
-                    <div style={{ width: `${(progress.completedBatches / progress.totalBatches) * 100}%`, height: '100%', background: C.navyLight, borderRadius: 4, transition: 'width 0.3s' }} />
+                  <div style={{ width: '100%', height: 8, background: color.offWhite, borderRadius: radius.md, overflow: 'hidden', marginBottom: space[2] }}>
+                    <div style={{ width: `${(progress.completedBatches / progress.totalBatches) * 100}%`, height: '100%', background: color.navyLight, borderRadius: radius.md, transition: 'width 0.3s' }} />
                   </div>
-                  <div style={{ fontSize: 12, color: C.textMid }}>
+                  <div style={{ fontSize: font.size.sm, color: color.textMid }}>
                     {progress.totalInserted}件 追加 / {progress.totalUpdated}件 更新
                   </div>
                 </div>
@@ -295,10 +295,10 @@ export default function ImportModal({ onClose, onImportComplete }) {
 
           {/* Step 5: Done */}
           {step === 5 && finalResult && (
-            <div style={{ textAlign: 'center', padding: 40 }}>
-              <Check size={48} color="#0B6E4F" style={{ marginBottom: 12 }} />
-              <div style={{ fontSize: 18, fontWeight: 700, color: C.navy, marginBottom: 8 }}>インポート完了</div>
-              <div style={{ fontSize: 14, color: C.textMid }}>
+            <div style={{ textAlign: 'center', padding: space[10] }}>
+              <Check size={48} color={color.success} style={{ marginBottom: space[3] }} />
+              <div style={{ fontSize: font.size.xl - 2, fontWeight: font.weight.bold, color: color.navy, marginBottom: space[2] }}>インポート完了</div>
+              <div style={{ fontSize: font.size.md, color: color.textMid }}>
                 新規追加: <strong>{finalResult.totalInserted.toLocaleString()}</strong>件 /
                 上書き更新: <strong>{finalResult.totalUpdated.toLocaleString()}</strong>件
               </div>
@@ -307,25 +307,23 @@ export default function ImportModal({ onClose, onImportComplete }) {
         </div>
 
         {/* Footer */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '12px 20px', borderTop: `1px solid ${C.border}` }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: space[2], padding: `${space[3]}px ${space[5]}px`, borderTop: `1px solid ${color.border}` }}>
           {step === 2 && (
             <>
-              <button onClick={() => setStep(1)} style={btnSecondary}>戻る</button>
-              <button onClick={handleCheckDuplicates} disabled={checking} style={btnPrimary}>
-                {checking ? '重複チェック中...' : '重複チェック →'}
-              </button>
+              <Button variant="secondary" onClick={() => setStep(1)}>戻る</Button>
+              <Button onClick={handleCheckDuplicates} loading={checking} iconRight={<ArrowRight size={14} />}>
+                {checking ? '重複チェック中...' : '重複チェック'}
+              </Button>
             </>
           )}
           {step === 3 && (
             <>
-              <button onClick={() => setStep(2)} style={btnSecondary}>戻る</button>
-              <button onClick={handleExecute} style={btnPrimary}>
-                <Upload size={14} /> インポート実行
-              </button>
+              <Button variant="secondary" onClick={() => setStep(2)}>戻る</Button>
+              <Button onClick={handleExecute} iconLeft={<Upload size={14} />}>インポート実行</Button>
             </>
           )}
           {step === 5 && (
-            <button onClick={onClose} style={btnPrimary}>閉じる</button>
+            <Button onClick={onClose}>閉じる</Button>
           )}
         </div>
       </div>
@@ -333,12 +331,12 @@ export default function ImportModal({ onClose, onImportComplete }) {
   );
 }
 
-function StatCard({ label, count, color }) {
+function StatCard({ label, count, statColor }) {
   return (
-    <div style={{ padding: 14, background: C.cream, borderRadius: 8, border: `1px solid ${C.border}`, textAlign: 'center' }}>
-      <div style={{ fontSize: 24, fontWeight: 800, color }}>{count.toLocaleString()}</div>
-      <div style={{ fontSize: 11, color: C.textMid, marginTop: 2 }}>{label}</div>
-    </div>
+    <Card padding="sm" variant="subtle" style={{ textAlign: 'center' }}>
+      <div style={{ fontSize: font.size['2xl'], fontWeight: font.weight.black, color: statColor }}>{count.toLocaleString()}</div>
+      <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: 2 }}>{label}</div>
+    </Card>
   );
 }
 
@@ -361,7 +359,5 @@ function parseCSVLine(line, sep = ',') {
   return result;
 }
 
-const thS = { padding: '8px 10px', textAlign: 'left', fontSize: 12, fontWeight: 700, background: C.offWhite, borderBottom: `1px solid ${C.border}` };
-const tdS = { padding: '6px 10px', fontSize: 12, borderBottom: `1px solid ${C.borderLight}` };
-const btnPrimary = { display: 'flex', alignItems: 'center', gap: 6, background: C.navyLight, color: C.white, border: 'none', borderRadius: 8, padding: '8px 20px', fontWeight: 700, fontSize: 13, cursor: 'pointer' };
-const btnSecondary = { background: C.offWhite, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' };
+const thS = { padding: `${space[2]}px ${space[2.5]}px`, textAlign: 'left', fontSize: font.size.sm, fontWeight: font.weight.bold, background: color.offWhite, borderBottom: `1px solid ${color.border}` };
+const tdS = { padding: `${space[1.5]}px ${space[2.5]}px`, fontSize: font.size.sm, borderBottom: `1px solid ${color.borderLight}` };

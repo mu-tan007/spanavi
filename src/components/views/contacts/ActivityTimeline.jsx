@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { C } from '../../../constants/colors';
+import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { Button, Input, Select, Card, Badge } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 
@@ -180,12 +182,12 @@ export default function ActivityTimeline({ clientSupaId, contactsByClient = {} }
   );
 
   return (
-    <div style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
+    <div style={{ fontFamily: font.family.sans }}>
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         borderBottom: `1px solid ${GRAY_200}`, paddingBottom: 8, marginBottom: 12,
       }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: NAVY, letterSpacing: 1 }}>
+        <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: NAVY, letterSpacing: 1 }}>
           Activity Timeline
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
@@ -194,12 +196,12 @@ export default function ActivityTimeline({ clientSupaId, contactsByClient = {} }
               key={f.id}
               onClick={() => setFilter(f.id)}
               style={{
-                padding: '3px 10px', borderRadius: 3, fontSize: 10,
+                padding: '3px 10px', borderRadius: radius.sm, fontSize: 10,
                 border: `1px solid ${filter === f.id ? NAVY : GRAY_200}`,
-                background: filter === f.id ? NAVY : '#fff',
-                color: filter === f.id ? '#fff' : C.textMid,
-                cursor: 'pointer', fontFamily: "'Noto Sans JP', sans-serif",
-                fontWeight: filter === f.id ? 600 : 500,
+                background: filter === f.id ? NAVY : color.white,
+                color: filter === f.id ? color.white : C.textMid,
+                cursor: 'pointer', fontFamily: font.family.sans,
+                fontWeight: filter === f.id ? font.weight.semibold : font.weight.medium,
               }}
             >{f.label}</button>
           ))}
@@ -207,20 +209,20 @@ export default function ActivityTimeline({ clientSupaId, contactsByClient = {} }
       </div>
 
       {loading && (
-        <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 11 }}>読み込み中...</div>
+        <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: font.size.xs }}>読み込み中...</div>
       )}
 
       {!loading && error && (
         <div style={{
           padding: '10px 12px',
-          fontSize: 11, color: '#DC2626',
-          background: '#FEF2F2', border: '1px solid #FECACA',
-          borderRadius: 4,
+          fontSize: font.size.xs, color: color.danger,
+          background: color.dangerSoft, border: `1px solid ${alpha(color.danger, 0.25)}`,
+          borderRadius: radius.md,
         }}>{error}</div>
       )}
 
       {!loading && !error && filteredEvents.length === 0 && (
-        <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 11 }}>
+        <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: font.size.xs }}>
           まだイベントがありません
         </div>
       )}
@@ -235,8 +237,8 @@ export default function ActivityTimeline({ clientSupaId, contactsByClient = {} }
               onClick={() => setExpandOlder(v => !v)}
               style={{
                 background: 'none', border: 'none',
-                fontSize: 11, color: NAVY, cursor: 'pointer',
-                fontFamily: "'Noto Sans JP', sans-serif",
+                fontSize: font.size.xs, color: NAVY, cursor: 'pointer',
+                fontFamily: font.family.sans,
                 padding: '4px 12px',
               }}
             >{expandOlder ? '直近 30 日のみ表示' : `過去のログを見る (${olderEvents.length}件)`}</button>
@@ -248,22 +250,22 @@ export default function ActivityTimeline({ clientSupaId, contactsByClient = {} }
 }
 
 function EventCard({ ev }) {
-  const color = eventColor(ev.kind);
+  const accent = eventColor(ev.kind);
   return (
     <div style={{
       position: 'relative',
       padding: '10px 12px 10px 18px',
-      borderLeft: `2px solid ${color}`,
+      borderLeft: `2px solid ${accent}`,
       marginBottom: 8,
-      background: '#fff',
+      background: color.white,
       border: `1px solid ${GRAY_100}`,
-      borderRadius: 4,
+      borderRadius: radius.md,
     }}>
       <div style={{
         position: 'absolute', left: -5, top: 12,
         width: 8, height: 8, borderRadius: '50%',
-        background: color,
-        border: '2px solid #fff',
+        background: accent,
+        border: `2px solid ${color.white}`,
       }} />
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -271,21 +273,21 @@ function EventCard({ ev }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{
-            fontSize: 9, fontWeight: 700, letterSpacing: 1,
-            color: color, padding: '1px 6px',
-            border: `1px solid ${color}40`, borderRadius: 3,
+            fontSize: 9, fontWeight: font.weight.bold, letterSpacing: 1,
+            color: accent, padding: '1px 6px',
+            border: `1px solid ${accent}40`, borderRadius: radius.sm,
           }}>{kindLabel(ev.kind)}</span>
-          <span style={{ fontSize: 12, fontWeight: 600, color: NAVY }}>{ev.title}</span>
+          <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: NAVY }}>{ev.title}</span>
           {ev.target && (
-            <span style={{ fontSize: 11, color: C.textMid }}>{ev.target}</span>
+            <span style={{ fontSize: font.size.xs, color: C.textMid }}>{ev.target}</span>
           )}
           {ev.extra && (
-            <span style={{ fontSize: 11, color: NAVY, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>{ev.extra}</span>
+            <span style={{ fontSize: font.size.xs, color: NAVY, fontWeight: font.weight.semibold, fontFamily: font.family.mono }}>{ev.extra}</span>
           )}
         </div>
         <span style={{
           fontSize: 10, color: C.textLight,
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: font.family.mono,
           fontVariantNumeric: 'tabular-nums', flexShrink: 0,
         }}>{formatDateTime(ev.ts)}</span>
       </div>
@@ -294,9 +296,9 @@ function EventCard({ ev }) {
       )}
       {ev.body && (
         <div style={{
-          fontSize: 11, color: C.textDark, lineHeight: 1.6,
+          fontSize: font.size.xs, color: C.textDark, lineHeight: 1.6,
           whiteSpace: 'pre-wrap',
-          background: GRAY_50, borderRadius: 3,
+          background: GRAY_50, borderRadius: radius.sm,
           padding: '6px 8px', marginTop: 4,
           maxHeight: 160, overflow: 'auto',
         }}>{ev.body}</div>
