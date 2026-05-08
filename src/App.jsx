@@ -5,6 +5,7 @@ import ResetPasswordPage from './components/ResetPasswordPage'
 import SpanaviApp from './components/SpanaviApp'
 import ClientLoginPage from './components/client/ClientLoginPage'
 import ClientPortalApp from './components/client/ClientPortalApp'
+import DesignPreview from './components/views/DesignPreview'
 import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 
@@ -157,6 +158,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/design-preview" element={<DesignPreview />} />
       <Route path="/client/login" element={<ClientLoginPage />} />
       <Route path="/client/*" element={<ClientPortalApp />} />
       <Route path="/*" element={<MainApp />} />
