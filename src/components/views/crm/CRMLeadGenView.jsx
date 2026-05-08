@@ -3,11 +3,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C } from '../../../constants/colors';
 import {
   fetchClientLeadLists, fetchClientLeadCompanies, fetchClientCallRecords,
-  deleteClientLeadList, updateClientLeadList,
+  deleteClientLeadList, updateClientLeadList, fetchAllPendingRecalls,
 } from '../../../lib/supabaseWrite';
 import CRMLeadListImportModal from './CRMLeadListImportModal';
 import CRMLeadListDetailView from './CRMLeadListDetailView';
 import CRMLeadListEditModal from './CRMLeadListEditModal';
+import CRMLeadPendingRecallsModal from './CRMLeadPendingRecallsModal';
 import { NAVY, GRAY_200, GRAY_50 } from './utils';
 
 function fmtDate(ts) {
@@ -154,6 +155,22 @@ export default function CRMLeadGenView({ currentUser, members = [], setClientDat
   const [editTarget, setEditTarget] = useState(null);
   const [selectedListId, setSelectedListId] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [recallsOpen, setRecallsOpen] = useState(false);
+
+  // 全リスト横断の再コール予定件数（バッジ用）
+  const { data: pendingRecalls = [] } = useQuery({
+    queryKey: ['crm-lead-pending-recalls-count'],
+    queryFn: async () => {
+      const { data } = await fetchAllPendingRecalls();
+      return data;
+    },
+    staleTime: 60_000,
+  });
+  const overdueRecallCount = pendingRecalls.filter(r => {
+    if (!r.recall_at_raw) return false;
+    const t = new Date(r.recall_at_raw).getTime();
+    return !Number.isNaN(t) && t < Date.now();
+  }).length;
 
   const { data: lists = [] } = useQuery({
     queryKey: ['crm-lead-lists'],
@@ -232,14 +249,35 @@ export default function CRMLeadGenView({ currentUser, members = [], setClientDat
             </label>
           )}
         </div>
-        <button
-          onClick={() => setImportOpen(true)}
-          style={{
-            padding: '8px 16px', borderRadius: 4, border: 'none',
-            background: NAVY, color: '#fff', fontSize: 13, fontWeight: 500,
-            cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-          }}
-        >＋ 新規リスト（CSVインポート）</button>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {pendingRecalls.length > 0 && (
+            <button
+              onClick={() => setRecallsOpen(true)}
+              style={{
+                padding: '6px 12px', borderRadius: 4,
+                border: '1px solid ' + (overdueRecallCount > 0 ? '#DC2626' : '#B8860B'),
+                background: (overdueRecallCount > 0 ? '#DC2626' : '#B8860B') + '15',
+                color: overdueRecallCount > 0 ? '#DC2626' : '#B8860B',
+                fontSize: 11, fontWeight: 700,
+                cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                whiteSpace: 'nowrap',
+              }}
+            >
+              再コール予定 {pendingRecalls.length} 件
+              {overdueRecallCount > 0 && (
+                <span style={{ marginLeft: 4 }}>（超過 {overdueRecallCount}）</span>
+              )}
+            </button>
+          )}
+          <button
+            onClick={() => setImportOpen(true)}
+            style={{
+              padding: '8px 16px', borderRadius: 4, border: 'none',
+              background: NAVY, color: '#fff', fontSize: 13, fontWeight: 500,
+              cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+            }}
+          >＋ 新規リスト（CSVインポート）</button>
+        </div>
       </div>
 
       <ListsTable
@@ -266,6 +304,10 @@ export default function CRMLeadGenView({ currentUser, members = [], setClientDat
           onClose={() => setEditTarget(null)}
           onSaved={() => { queryClient.invalidateQueries({ queryKey: ['crm-lead-lists'] }); }}
         />
+      )}
+
+      {recallsOpen && (
+        <CRMLeadPendingRecallsModal onClose={() => setRecallsOpen(false)} />
       )}
     </div>
   );

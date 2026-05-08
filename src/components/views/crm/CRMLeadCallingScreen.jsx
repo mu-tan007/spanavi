@@ -176,6 +176,21 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
 
   const displayRounds = Math.max(maxRound, 5);
 
+  // 統計（ヘッダー表示用）
+  const stats = useMemo(() => {
+    const total = companies.length;
+    let callable = 0, called = 0, appo = 0;
+    companies.forEach(c => {
+      if (!isExcluded(c.id)) callable += 1;
+      const rounds = recordsByCompany[c.id] || {};
+      const ks = Object.keys(rounds);
+      if (ks.length > 0) called += 1;
+      const hasAppo = Object.values(rounds).some(r => r.status === 'appointment');
+      if (hasAppo) appo += 1;
+    });
+    return { total, callable, called, appo };
+  }, [companies, recordsByCompany]);
+
   // 検索＋範囲＋ソート適用後の表示用 companies
   const visibleCompanies = useMemo(() => {
     let arr = companies;
@@ -536,13 +551,33 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         flexShrink: 0,
       }}>
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{list.name}</div>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>
-            {list.industry || ''} ・ {companies.length} 件
-            {searchTerm && (
-              <span> ・ 表示 {visibleCompanies.length} 件</span>
-            )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{list.name}</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>
+              {list.industry || '業界未設定'}
+              {searchTerm && (
+                <span> ・ 表示 {visibleCompanies.length} 件</span>
+              )}
+            </div>
+          </div>
+          {/* 統計バッジ */}
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            {[
+              { label: '件数', val: stats.total, color: '#fff' },
+              { label: '架電可能', val: stats.callable, color: 'rgba(255,255,255,0.85)' },
+              { label: '架電済', val: stats.called, color: '#90EE90' },
+              { label: 'アポ', val: stats.appo, color: '#FFD66B' },
+            ].map(s => (
+              <div key={s.label} style={{ textAlign: 'center', minWidth: 36 }}>
+                <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.6)', letterSpacing: 0.5 }}>{s.label}</div>
+                <div style={{
+                  fontSize: 16, fontWeight: 700, color: s.color,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontVariantNumeric: 'tabular-nums', lineHeight: 1.1,
+                }}>{s.val}</div>
+              </div>
+            ))}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
