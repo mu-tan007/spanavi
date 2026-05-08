@@ -1,20 +1,22 @@
 -- =====================================================================
--- search_company_master RPC の本体 SELECT を CTE MATERIALIZED に変更
+-- search_company_master RPC のタイムアウト対策
 --
 -- 背景:
---   ヒット数が中規模（数千〜数万件）でデフォルトソート (id ASC) のとき、
+--   ヒット件数が中規模（数千〜数万件）でデフォルトソート (id ASC) のとき、
 --   Postgres planner が「PK index を id 順に走査しながら filter で絞る」
---   プランを誤選択し、14万行スキャン → 23 秒タイムアウト発生（chat検索の
---   実例: industry_major='E 製造業' AND 関東4都県 AND revenue_k>=500000、
---   実ヒット 9,312 件で 23.7 秒、statement_timeout に引っかかる）。
+--   プランを誤選択し、14万行スキャン → 16〜23 秒タイムアウト発生。
+--   chat検索の実例: industry_major='E 製造業' AND 関東4都県 AND revenue_k>=500000
+--   → 実ヒット 9,312 件で 16.6 秒、statement_timeout に引っかかる。
 --
 -- 対策:
---   フィルタを CTE MATERIALIZED で先に固定 → ID JOIN で安定プランに固定。
---   同条件で 23.7s → 1.07s（22倍）に短縮を確認済み。
+--   ヒット件数 <= 100K のとき、function スコープで一時的に
+--   enable_indexscan / enable_indexonlyscan を OFF にして、Bitmap Heap Scan
+--   を確実に選ばせる。これで 16.6s → 974ms（17倍）に短縮。
+--   Buffers: 148K → 14K に削減。
 --
---   ヒット件数が 100,000 を超える場合は CTE のマテリアライズコストが
---   逆効果になるため従来ロジック（PK 走査）にフォールバック。
+--   100K 超のヒットでは PK 走査が逆に有利なので index scan を許可（既存挙動維持）。
 --
+--   関数を STABLE → デフォルト (VOLATILE) に変更（set_config を安全に使うため）。
 --   呼び出し側 (companyMasterApi.js / RPC parameters) は変更なし。
 -- =====================================================================
 
@@ -63,7 +65,6 @@ RETURNS TABLE(
   clients text, total_count bigint
 )
 LANGUAGE plpgsql
-STABLE
 AS $function$
 DECLARE
   v_sort    TEXT := LOWER(COALESCE(p_sort_col, ''));
@@ -176,37 +177,24 @@ BEGIN
   EXECUTE 'SELECT count(*) FROM company_master cm WHERE ' || v_where INTO v_count;
   IF v_count = 0 THEN RETURN; END IF;
 
-  -- ヒット件数で本体クエリのプランを切り替え
-  IF v_count > 100000 THEN
-    -- 大量ヒット: PK 走査が有利。元のシンプルプラン
-    RETURN QUERY EXECUTE format(
-      $q$SELECT cm.id, cm.company_name, cm.business_description, cm.postal_code,
-        cm.prefecture, cm.city, cm.address, cm.full_address,
-        cm.revenue_k, cm.net_income_k, cm.ordinary_income_k, cm.capital_k,
-        cm.established_year, cm.representative, cm.representative_age,
-        cm.employee_count, cm.industry_major, cm.industry_sub, cm.phone,
-        cm.tsr_id, cm.remarks, cm.source_file, cm.shareholders, cm.officers,
-        cm.clients, %s::BIGINT AS total_count
-      FROM company_master cm WHERE %s ORDER BY %s LIMIT %s OFFSET %s * %s$q$,
-      v_count, v_where, v_order, p_page_size, p_page, p_page_size);
-  ELSE
-    -- 通常ヒット: フィルタを CTE で先にマテリアライズ → ID JOIN で安定プラン
-    RETURN QUERY EXECUTE format(
-      $q$
-      WITH filtered AS MATERIALIZED (
-        SELECT cm.id FROM company_master cm WHERE %s
-      )
-      SELECT cm.id, cm.company_name, cm.business_description, cm.postal_code,
-        cm.prefecture, cm.city, cm.address, cm.full_address,
-        cm.revenue_k, cm.net_income_k, cm.ordinary_income_k, cm.capital_k,
-        cm.established_year, cm.representative, cm.representative_age,
-        cm.employee_count, cm.industry_major, cm.industry_sub, cm.phone,
-        cm.tsr_id, cm.remarks, cm.source_file, cm.shareholders, cm.officers,
-        cm.clients, %s::BIGINT AS total_count
-      FROM company_master cm INNER JOIN filtered f USING (id)
-      ORDER BY %s LIMIT %s OFFSET %s * %s
-      $q$,
-      v_where, v_count, v_order, p_page_size, p_page, p_page_size);
+  -- 中規模ヒット (<=100K) では ORDER BY id ASC LIMIT N の planner 誤選択
+  -- (PK index walk + filter で14万行スキャン→16〜23秒タイムアウト) を回避するため、
+  -- index scan を function スコープで切って Bitmap Heap Scan を強制する。
+  -- 100K超は逆に bitmap マテリアライズコストが大きいので index scan を許可。
+  IF v_count <= 100000 THEN
+    PERFORM set_config('enable_indexscan', 'off', true);
+    PERFORM set_config('enable_indexonlyscan', 'off', true);
   END IF;
+
+  RETURN QUERY EXECUTE format(
+    $q$SELECT cm.id, cm.company_name, cm.business_description, cm.postal_code,
+      cm.prefecture, cm.city, cm.address, cm.full_address,
+      cm.revenue_k, cm.net_income_k, cm.ordinary_income_k, cm.capital_k,
+      cm.established_year, cm.representative, cm.representative_age,
+      cm.employee_count, cm.industry_major, cm.industry_sub, cm.phone,
+      cm.tsr_id, cm.remarks, cm.source_file, cm.shareholders, cm.officers,
+      cm.clients, %s::BIGINT AS total_count
+    FROM company_master cm WHERE %s ORDER BY %s LIMIT %s OFFSET %s * %s$q$,
+    v_count, v_where, v_order, p_page_size, p_page, p_page_size);
 END;
 $function$;
