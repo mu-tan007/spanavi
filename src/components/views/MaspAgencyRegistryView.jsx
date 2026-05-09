@@ -278,7 +278,7 @@ export default function MaspAgencyRegistryView() {
 
       {/* 詳細検索 */}
       {showAdvanced && (
-        <Card padding="md" style={{ marginBottom: space[3.5] }}>
+        <Card padding="md" style={{ marginBottom: space[4] }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px 20px' }}>
             <Select
               size="sm"
@@ -453,12 +453,12 @@ export default function MaspAgencyRegistryView() {
       {showBroadcast && (
         <div onClick={e => { if (e.target === e.currentTarget) setShowBroadcast(false) }}
           style={{ position: 'fixed', inset: 0, background: alpha(color.navyDeep, 0.5), display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: color.white, borderRadius: radius.lg, padding: space[7], width: 620, maxHeight: '85vh', overflowY: 'auto', boxShadow: shadow.xl }}>
+          <div style={{ background: color.white, borderRadius: radius.lg, padding: space[6], width: 620, maxHeight: '85vh', overflowY: 'auto', boxShadow: shadow.xl }}>
             <h2 style={{ fontSize: font.size.lg, fontWeight: font.weight.medium, color: color.navy, marginBottom: space[1] }}>買収ニーズ配信</h2>
             <p style={{ fontSize: font.size.sm, color: color.textMid, marginBottom: space[4] }}>選択した {selectedIds.size} 社に配信します</p>
 
             {/* 配信方法の内訳 */}
-            <div style={{ background: color.gray50, border: `0.5px solid ${color.border}`, borderRadius: radius.xl, padding: space[3.5], marginBottom: space[4] }}>
+            <div style={{ background: color.gray50, border: `0.5px solid ${color.border}`, borderRadius: radius.xl, padding: space[3], marginBottom: space[4] }}>
               <div style={{ fontSize: font.size.sm, fontWeight: font.weight.medium, color: color.navy, marginBottom: space[2] }}>配信方法の内訳</div>
               <div style={{ display: 'flex', gap: space[4], fontSize: font.size.sm }}>
                 <div style={{ color: color.success }}>メール送信: {selWithEmail.length}社</div>
