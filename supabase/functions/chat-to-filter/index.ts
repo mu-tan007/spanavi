@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 2000,
+        max_tokens: 4000,
         system: [
           {
             type: 'text',
@@ -166,13 +166,24 @@ Deno.serve(async (req) => {
     const data = await res.json();
     if (!res.ok) {
       console.error('[chat-to-filter] Anthropic error', data);
-      return json({ error: data.error?.message || 'Anthropic API error' }, res.status);
+      return json({ error: data.error?.message || 'Anthropic API error', detail: data }, res.status);
     }
 
     const text = (data.content || [])
       .filter((b: { type: string }) => b.type === 'text')
       .map((b: { text: string }) => b.text)
       .join('');
+
+    if (!text) {
+      console.error('[chat-to-filter] empty text from API', JSON.stringify(data).slice(0, 1000));
+      return json({
+        summary: 'AIからの応答が空でした。モデル設定を確認してください。',
+        filters: null,
+        needsClarification: true,
+        clarifyQuestion: 'もう一度お試しください。',
+        debug: { stop_reason: data.stop_reason, model: data.model, content_types: (data.content || []).map((b: { type: string }) => b.type) },
+      });
+    }
 
     let parsed: {
       summary?: string;
