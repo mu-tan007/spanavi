@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import React from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
-import { Button, Input, Select, Card, Badge, Tag } from '../ui';
+import { Button, Input, Select, Card, Badge, Tag, DataTable } from '../ui';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { formatCurrency } from '../../utils/formatters';
 import { fetchCallRecordsByRange, fetchCallListsMeta } from '../../lib/supabaseWrite';
@@ -14,8 +13,6 @@ import {
   ResponsiveContainer, Area, AreaChart, Cell,
   PieChart, Pie,
 } from 'recharts';
-import useColumnConfig from '../../hooks/useColumnConfig';
-import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import PageHeader from '../common/PageHeader';
 
 const NAVY = '#0D2247';
@@ -24,33 +21,6 @@ const GOLD_LIGHT = '#e0c97a';
 const COUNTABLE = new Set(['面談済', '事前確認済', 'アポ取得']);
 const fmt = (n) => formatCurrency(n);
 const fmtFull = (n) => '¥' + (n || 0).toLocaleString();
-
-const STATS_CLIENT_COLS = [
-  { key: 'clientName', width: 280, align: 'left' },
-  { key: 'count', width: 80, align: 'right' },
-  { key: 'total', width: 150, align: 'right' },
-  { key: 'avg', width: 130, align: 'right' },
-];
-
-const STATS_LIST_COLS = [
-  { key: 'clientName', width: 260, align: 'left' },
-  { key: 'name', width: 80, align: 'left' },
-  { key: 'calls', width: 100, align: 'right' },
-  { key: 'connect', width: 80, align: 'right' },
-  { key: 'connectRate', width: 180, align: 'left' },
-  { key: 'appo', width: 80, align: 'right' },
-  { key: 'appoRate', width: 180, align: 'left' },
-  { key: 'lastDate', width: 80, align: 'right' },
-];
-
-const STATS_RESCHED_COLS = [
-  { key: 'name', width: 250, align: 'left' },
-  { key: 'appoCount', width: 80, align: 'right' },
-  { key: 'reschedCount', width: 80, align: 'right' },
-  { key: 'reschedRate', width: 120, align: 'right' },
-  { key: 'cancelCount', width: 80, align: 'right' },
-  { key: 'cancelRate', width: 120, align: 'right' },
-];
 
 function getActivityDateRange(period, customFrom, customTo, todayStr, weekStartStr, monthStr) {
   if (period === 'day')  return { from: todayStr, to: todayStr };
@@ -135,11 +105,6 @@ export default function StatsView({ callListData, currentUser, appoData, members
   const [clientRescanPeriod, setClientRescanPeriod] = useState('month');
   const [clientRescanFrom, setClientRescanFrom] = useState('');
   const [clientRescanTo, setClientRescanTo] = useState('');
-
-  // ── カラムリサイズ・揃え ─────────────────────────────────────────────
-  const clientCol = useColumnConfig('stats_client', STATS_CLIENT_COLS);
-  const listCol = useColumnConfig('stats_list', STATS_LIST_COLS);
-  const reschedCol = useColumnConfig('stats_resched', STATS_RESCHED_COLS);
 
   const now = nowProp ? new Date(nowProp) : new Date();
   const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
@@ -787,57 +752,82 @@ export default function StatsView({ callListData, currentUser, appoData, members
               {simplePeriodSelector(rankClientPeriod, setRankClientPeriod, rankClientFrom, setRankClientFrom, rankClientTo, setRankClientTo, NAVY)}
             </div>
             <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-              {/* テーブル */}
-              <div style={{ flex: '1.5', minWidth: 0, borderRadius: 4, overflowX: 'auto', overflowY: 'hidden', border: '1px solid #E5E7EB' }}>
-                <div style={{ minWidth: clientCol.contentMinWidth }}>
-                <div style={{ display: 'grid', gridTemplateColumns: clientCol.gridTemplateColumns, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247' }}>
-                  {[['クライアント名',0],['アポ数',1],['売上合計',2],['平均単価',3]].map(([label, ci]) => (
-                    <span key={ci} style={{ position: 'relative', textAlign: clientCol.columns[ci].align }}>
-                      {label}
-                      <ColumnResizeHandle colIndex={ci} onResizeStart={clientCol.onResizeStart} />
-                    </span>
-                  ))}
-                </div>
-                {clientData.length === 0 ? (
-                  <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
-                ) : clientData.map(([key, d], idx) => {
-                  const isExpanded = expandedClient === key;
-                  const isPieSelected = selectedClientPie === key;
-                  const isHovered = hoveredClientPie === key;
-                  const isHighlighted = isPieSelected || isHovered;
-                  const avg = d.count > 0 ? Math.round(d.total / d.count) : 0;
+              {/* テーブル (DataTable + 月別内訳パネル) */}
+              <div style={{ flex: '1.5', minWidth: 0 }}>
+                <DataTable
+                  ariaLabel="クライアント別パフォーマンス"
+                  height="auto"
+                  showCount={false}
+                  rows={clientData.map(([key, d]) => ({ key, ...d, avg: d.count > 0 ? Math.round(d.total / d.count) : 0 }))}
+                  rowKey="key"
+                  emptyMessage="データがありません"
+                  onRowClick={(row) => {
+                    const isExpanded = expandedClient === row.key;
+                    const isPieSelected = selectedClientPie === row.key;
+                    setExpandedClient(isExpanded ? null : row.key);
+                    setSelectedClientPie(isPieSelected ? null : row.key);
+                  }}
+                  rowAccent={(row) => {
+                    const idx = clientData.findIndex(([k]) => k === row.key);
+                    return CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length];
+                  }}
+                  rowBackground={(row, idx) => {
+                    const isPieSelected = selectedClientPie === row.key;
+                    const isHovered = hoveredClientPie === row.key;
+                    const isExpanded = expandedClient === row.key;
+                    const isHighlighted = isPieSelected || isHovered;
+                    if (isHighlighted) return '#EFF6FF';
+                    if (isExpanded) return NAVY + '06';
+                    return idx % 2 === 1 ? color.cream : color.white;
+                  }}
+                  columns={[
+                    {
+                      key: 'name', label: 'クライアント名', width: 280, align: 'left',
+                      cellStyle: { fontWeight: 600, color: NAVY, whiteSpace: 'nowrap' },
+                      render: (row) => {
+                        const isExpanded = expandedClient === row.key;
+                        return (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 9, color: C.textLight, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▶</span>
+                            {row.name}
+                          </span>
+                        );
+                      },
+                    },
+                    {
+                      key: 'count', label: 'アポ数', width: 80, align: 'right',
+                      cellStyle: { fontFamily: "'JetBrains Mono'", fontWeight: 700 },
+                    },
+                    {
+                      key: 'total', label: '売上合計', width: 150, align: 'right',
+                      cellStyle: { fontFamily: "'JetBrains Mono'", fontSize: 13, fontWeight: 900, color: '#111827' },
+                      render: (row) => fmt(row.total),
+                    },
+                    {
+                      key: 'avg', label: '平均単価', width: 130, align: 'right',
+                      cellStyle: { fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textDark },
+                      render: (row) => fmt(row.avg),
+                    },
+                  ]}
+                />
+                {/* 展開時の月別内訳パネル */}
+                {expandedClient && (() => {
+                  const found = clientData.find(([k]) => k === expandedClient);
+                  if (!found) return null;
+                  const [, d] = found;
                   return (
-                    <React.Fragment key={key}>
-                      <div
-                        onClick={() => { setExpandedClient(isExpanded ? null : key); setSelectedClientPie(isPieSelected ? null : key); }}
-                        style={{ display: 'grid', gridTemplateColumns: clientCol.gridTemplateColumns, padding: '8px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #E5E7EB', cursor: 'pointer', background: isHighlighted ? '#EFF6FF' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#F8F9FA', transition: 'background 0.15s', borderLeft: `4px solid ${CLIENT_PIE_COLORS[idx % CLIENT_PIE_COLORS.length]}`, opacity: (selectedClientPie || hoveredClientPie) && !isHighlighted ? 0.55 : 1 }}
-                        onMouseEnter={e => { setHoveredClientPie(key); if (!isHighlighted) e.currentTarget.style.background = '#EAF4FF'; }}
-                        onMouseLeave={e => { setHoveredClientPie(null); e.currentTarget.style.background = isHighlighted ? '#EFF6FF' : isExpanded ? NAVY + '06' : idx % 2 === 0 ? 'transparent' : '#F8F9FA'; }}
-                      >
-                        <span style={{ fontWeight: 600, color: NAVY, display: 'flex', alignItems: 'center', gap: 6, textAlign: clientCol.columns[0].align }}>
-                          <span style={{ fontSize: 9, color: C.textLight, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▶</span>
-                          {d.name}
-                        </span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, textAlign: clientCol.columns[1].align }}>{d.count}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 13, fontWeight: 900, color: '#111827', textAlign: clientCol.columns[2].align }}>{fmt(d.total)}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 11, color: C.textDark, textAlign: clientCol.columns[3].align }}>{fmt(avg)}</span>
-                      </div>
-                      {isExpanded && (
-                        <div style={{ borderBottom: '1px solid #E5E5E5', background: NAVY + '04', padding: '8px 24px 12px' }}>
-                          <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6, fontWeight: 600 }}>月別内訳</div>
-                          {Object.entries(d.items).map(([listId, ld]) => (
-                            <div key={listId} style={{ display: 'flex', gap: 16, padding: '4px 0', borderBottom: '1px solid #f0f0f0', fontSize: 11 }}>
-                              <span style={{ flex: 1, color: C.textDark }}>{listId}</span>
-                              <span style={{ fontFamily: "'JetBrains Mono'", color: C.textMid }}>{ld.count}件</span>
-                              <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: '#111827' }}>{fmt(ld.total)}</span>
-                            </div>
-                          ))}
+                    <div style={{ marginTop: 8, border: '1px solid #E5E5E5', borderRadius: 4, background: NAVY + '04', padding: '10px 16px' }}>
+                      <div style={{ fontSize: 11, color: C.textMid, marginBottom: 6, fontWeight: 600 }}>{d.name} ・ 月別内訳</div>
+                      {Object.entries(d.items).map(([listId, ld]) => (
+                        <div key={listId} style={{ display: 'flex', gap: 16, padding: '4px 0', borderBottom: '1px solid #f0f0f0', fontSize: 11 }}>
+                          <span style={{ flex: 1, color: C.textDark }}>{listId}</span>
+                          <span style={{ fontFamily: "'JetBrains Mono'", color: C.textMid }}>{ld.count}件</span>
+                          <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: '#111827' }}>{fmt(ld.total)}</span>
                         </div>
-                      )}
-                    </React.Fragment>
+                      ))}
+                    </div>
                   );
-                })}
-                </div>
+                })()}
               </div>
               {/* 円グラフ */}
               <div style={{ flex: 1, minWidth: 260 }}>
@@ -888,12 +878,16 @@ export default function StatsView({ callListData, currentUser, appoData, members
             </div>
           </div>
         );
-        const SortHdr = ({ label, sk, colIndex }) => (
+        const handleSort = (sk) => {
+          if (listSortKey === sk) setListSortDir(d => d === 'desc' ? 'asc' : 'desc');
+          else { setListSortKey(sk); setListSortDir('desc'); }
+        };
+        const SortLabel = ({ label, sk }) => (
           <span
-            onClick={() => { if (listSortKey === sk) setListSortDir(d => d === 'desc' ? 'asc' : 'desc'); else { setListSortKey(sk); setListSortDir('desc'); } }}
-            style={{ position: 'relative', cursor: 'pointer', userSelect: 'none', color: listSortKey === sk ? '#ffffff' : 'rgba(255,255,255,0.65)', whiteSpace: 'nowrap', textAlign: listCol.columns[colIndex].align }}>
+            onClick={() => handleSort(sk)}
+            style={{ cursor: 'pointer', userSelect: 'none', color: listSortKey === sk ? color.white : 'rgba(255,255,255,0.65)' }}
+          >
             {label}{listSortKey === sk ? (listSortDir === 'asc' ? ' ▲' : ' ▼') : ''}
-            <ColumnResizeHandle colIndex={colIndex} onResizeStart={listCol.onResizeStart} />
           </span>
         );
         return (
@@ -918,42 +912,60 @@ export default function StatsView({ callListData, currentUser, appoData, members
                 </Button>
               ))}
             </div>
-            <div style={{ borderRadius: 4, border: '1px solid #E5E7EB', overflowX: 'auto', overflowY: 'hidden' }}>
-              <div style={{ minWidth: listCol.contentMinWidth }}>
-              <div style={{ display: 'grid', gridTemplateColumns: listCol.gridTemplateColumns, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247', minWidth: 1170 }}>
-                <SortHdr label='クライアント' sk='clientName' colIndex={0} />
-                <SortHdr label='業種' sk='name' colIndex={1} />
-                <SortHdr label='架電数' sk='calls' colIndex={2} />
-                <SortHdr label='接続数' sk='connect' colIndex={3} />
-                <SortHdr label='接続率' sk='connectRate' colIndex={4} />
-                <SortHdr label='アポ数' sk='appo' colIndex={5} />
-                <SortHdr label='アポ率' sk='appoRate' colIndex={6} />
-                <SortHdr label='最終架電日' sk='lastDate' colIndex={7} />
-              </div>
-              {listFiltered.length === 0 ? (
-                <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>
-                  {listLoading ? '読込中...' : '— No records —'}
-                </div>
-              ) : listFiltered.map((row, idx) => {
-                const isTop3 = listTop3Ids.has(row.listId);
-                return (
-                  <div key={row.listId} style={{ display: 'grid', gridTemplateColumns: listCol.gridTemplateColumns, padding: '8px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #E5E7EB', background: isTop3 ? NAVY + '0F' : idx % 2 === 0 ? 'transparent' : '#F8F9FA', borderLeft: isTop3 ? '3px solid ' + NAVY : '3px solid transparent', minWidth: 1170 }}>
-                    <span style={{ fontSize: 11, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: listCol.columns[0].align }}>{row.clientName}</span>
-                    <span style={{ fontWeight: font.weight.semibold, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5, textAlign: listCol.columns[1].align }}>
-                      {row.name.includes(' - ') ? row.name.split(' - ').slice(1).join(' - ') : row.name}
+            <DataTable
+              ariaLabel="リスト別パフォーマンス"
+              height="auto"
+              showCount={false}
+              loading={listLoading}
+              rows={listFiltered}
+              rowKey="listId"
+              emptyMessage="— No records —"
+              rowAccent={(row) => listTop3Ids.has(row.listId) ? NAVY : null}
+              rowBackground={(row, idx) => listTop3Ids.has(row.listId) ? (NAVY + '0F') : (idx % 2 === 1 ? color.cream : color.white)}
+              columns={[
+                {
+                  key: 'clientName', label: <SortLabel label='クライアント' sk='clientName' />, width: 260, align: 'left',
+                  cellStyle: { fontSize: 11, color: C.textMid },
+                },
+                {
+                  key: 'name', label: <SortLabel label='業種' sk='name' />, width: 80, align: 'left',
+                  cellStyle: { fontWeight: font.weight.semibold, color: NAVY },
+                  render: (row) => (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {row.name.includes(' - ') ? row.name.split(' - ').slice(1).join(' - ') : row.name}
+                      </span>
                       {row.isArchived && <Tag size="sm">Arc</Tag>}
                     </span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: NAVY, textAlign: listCol.columns[2].align }}>{row.calls}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono'", textAlign: listCol.columns[3].align }}>{row.connect}</span>
-                    <RateBar rate={row.connectRate} />
-                    <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: '#374151', textAlign: listCol.columns[5].align }}>{row.appo}</span>
-                    <RateBar rate={row.appoRate} />
-                    <span style={{ fontSize: 11, color: C.textMid, textAlign: listCol.columns[7].align }}>{row.lastDate || '—'}</span>
-                  </div>
-                );
-              })}
-              </div>
-            </div>
+                  ),
+                },
+                {
+                  key: 'calls', label: <SortLabel label='架電数' sk='calls' />, width: 100, align: 'right',
+                  cellStyle: { fontFamily: "'JetBrains Mono'", fontWeight: 700, color: NAVY },
+                },
+                {
+                  key: 'connect', label: <SortLabel label='接続数' sk='connect' />, width: 80, align: 'right',
+                  cellStyle: { fontFamily: "'JetBrains Mono'" },
+                },
+                {
+                  key: 'connectRate', label: <SortLabel label='接続率' sk='connectRate' />, width: 180, align: 'left',
+                  render: (row) => <RateBar rate={row.connectRate} />,
+                },
+                {
+                  key: 'appo', label: <SortLabel label='アポ数' sk='appo' />, width: 80, align: 'right',
+                  cellStyle: { fontFamily: "'JetBrains Mono'", fontWeight: 700, color: '#374151' },
+                },
+                {
+                  key: 'appoRate', label: <SortLabel label='アポ率' sk='appoRate' />, width: 180, align: 'left',
+                  render: (row) => <RateBar rate={row.appoRate} />,
+                },
+                {
+                  key: 'lastDate', label: <SortLabel label='最終架電日' sk='lastDate' />, width: 80, align: 'right',
+                  cellStyle: { fontSize: 11, color: C.textMid },
+                  render: (row) => row.lastDate || '—',
+                },
+              ]}
+            />
           </div>
         );
       })()}
@@ -966,38 +978,52 @@ export default function StatsView({ callListData, currentUser, appoData, members
           </div>
           {simplePeriodSelector(clientRescanPeriod, setClientRescanPeriod, clientRescanFrom, setClientRescanFrom, clientRescanTo, setClientRescanTo, NAVY)}
         </div>
-        <div style={{ borderRadius: 4, overflowX: 'auto', overflowY: 'hidden', border: '1px solid #E5E7EB' }}>
-          <div style={{ minWidth: reschedCol.contentMinWidth }}>
-          <div style={{ display: 'grid', gridTemplateColumns: reschedCol.gridTemplateColumns, padding: '8px 16px', background: '#0D2247', fontSize: 11, fontWeight: 600, color: '#ffffff', borderBottom: '1px solid #0D2247' }}>
-            {[['クライアント名',0],['アポ数',1],['リスケ数',2],['リスケ率',3],['キャンセル数',4],['キャンセル率',5]].map(([label, ci]) => (
-              <span key={ci} style={{ position: 'relative', textAlign: reschedCol.columns[ci].align }}>
-                {label}
-                <ColumnResizeHandle colIndex={ci} onResizeStart={reschedCol.onResizeStart} />
-              </span>
-            ))}
-          </div>
-          {clientReschedData.length === 0 ? (
-            <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
-          ) : clientReschedData.map((d, idx) => (
-            <div key={d.name} style={{ display: 'grid', gridTemplateColumns: reschedCol.gridTemplateColumns, padding: '8px 16px', fontSize: 12, alignItems: 'center', borderBottom: '1px solid #E5E7EB', background: idx % 2 === 0 ? 'transparent' : '#F8F9FA' }}>
-              <span style={{ fontWeight: 600, color: NAVY, textAlign: reschedCol.columns[0].align }}>{d.name}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", textAlign: reschedCol.columns[1].align }}>{d.appo}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", textAlign: reschedCol.columns[2].align, color: d.reschedule > 0 ? '#F59E0B' : C.textLight }}>{d.reschedule}</span>
-              <span style={{ textAlign: reschedCol.columns[3].align }}>
+        <DataTable
+          ariaLabel="クライアント別リスケ率・キャンセル率"
+          height="auto"
+          showCount={false}
+          rows={clientReschedData}
+          rowKey="name"
+          emptyMessage="— No records —"
+          columns={[
+            {
+              key: 'name', label: 'クライアント名', width: 250, align: 'left',
+              cellStyle: { fontWeight: 600, color: NAVY },
+            },
+            {
+              key: 'appo', label: 'アポ数', width: 80, align: 'right',
+              cellStyle: { fontFamily: "'JetBrains Mono'" },
+            },
+            {
+              key: 'reschedule', label: 'リスケ数', width: 80, align: 'right',
+              render: (d) => (
+                <span style={{ fontFamily: "'JetBrains Mono'", color: d.reschedule > 0 ? '#F59E0B' : C.textLight }}>{d.reschedule}</span>
+              ),
+            },
+            {
+              key: 'rescheduleRate', label: 'リスケ率', width: 120, align: 'right',
+              render: (d) => (
                 <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: d.rescheduleRate >= 20 ? '#DC2626' : d.rescheduleRate >= 10 ? '#F59E0B' : '#374151' }}>
                   {d.rescheduleRate.toFixed(1)}%
                 </span>
-              </span>
-              <span style={{ fontFamily: "'JetBrains Mono'", textAlign: reschedCol.columns[4].align, color: d.cancel > 0 ? '#EF4444' : C.textLight }}>{d.cancel}</span>
-              <span style={{ textAlign: reschedCol.columns[5].align }}>
+              ),
+            },
+            {
+              key: 'cancel', label: 'キャンセル数', width: 80, align: 'right',
+              render: (d) => (
+                <span style={{ fontFamily: "'JetBrains Mono'", color: d.cancel > 0 ? '#EF4444' : C.textLight }}>{d.cancel}</span>
+              ),
+            },
+            {
+              key: 'cancelRate', label: 'キャンセル率', width: 120, align: 'right',
+              render: (d) => (
                 <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, color: d.cancelRate >= 20 ? '#DC2626' : d.cancelRate >= 10 ? '#F59E0B' : '#374151' }}>
                   {d.cancelRate.toFixed(1)}%
                 </span>
-              </span>
-            </div>
-          ))}
-          </div>
-        </div>
+              ),
+            },
+          ]}
+        />
       </div>
 
 
