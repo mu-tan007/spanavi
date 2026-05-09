@@ -43,12 +43,12 @@ export function lastTouchDisplay(ts) {
 }
 
 export const CRM_COLS_BASE = [
-  { key: 'status',         width: 100, align: 'left' },
+  { key: 'status',         width: 100, align: 'center' },
   { key: 'company',        width: 220, align: 'left' },
-  { key: 'lastTouch',      width: 90,  align: 'center' },
+  { key: 'lastTouch',      width: 90,  align: 'right' },
   { key: 'primaryContact', width: 130, align: 'left' },
-  { key: 'nextContact',    width: 100, align: 'center' },
-  { key: 'targetRatio',    width: 100, align: 'center' },
+  { key: 'nextContact',    width: 100, align: 'right' },
+  { key: 'targetRatio',    width: 100, align: 'right' },
   { key: 'nextAction',     width: 150, align: 'left' },
 ];
 

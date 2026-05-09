@@ -32,7 +32,8 @@ function CellInput({ value, isCurrent, onSave }) {
         if (e.key === 'Enter') e.target.blur();
       }}
       style={{
-        width: 50, height: 28, textAlign: 'center',
+        width: 50, height: 28, textAlign: 'right',
+        padding: '0 8px',
         border: `1px solid ${dirty ? color.gold : color.border}`,
         borderRadius: radius.sm,
         fontSize: font.size.sm,
@@ -213,7 +214,8 @@ export default function MonthlyTargetsView({ clientData = [] }) {
             const isCurrent = ym === currentYM;
             return (
               <span key={ym} style={{
-                textAlign: 'center',
+                textAlign: 'right',
+                paddingRight: 8,
                 color: isCurrent ? '#FFD66B' : color.white,
                 fontWeight: isCurrent ? font.weight.bold : font.weight.semibold,
                 fontFamily: font.family.mono,
@@ -249,7 +251,7 @@ export default function MonthlyTargetsView({ clientData = [] }) {
                 const key = `${c._supaId}_${ym}`;
                 const value = targetMap[key] ?? '';
                 return (
-                  <span key={ym} style={{ textAlign: 'center' }}>
+                  <span key={ym} style={{ textAlign: 'right' }}>
                     <CellInput
                       value={value}
                       isCurrent={ym === currentYM}
@@ -277,7 +279,8 @@ export default function MonthlyTargetsView({ clientData = [] }) {
               const isCurrent = ym === currentYM;
               return (
                 <span key={ym} style={{
-                  textAlign: 'center',
+                  textAlign: 'right',
+                  paddingRight: 8,
                   fontFamily: font.family.mono,
                   fontVariantNumeric: 'tabular-nums',
                   color: isCurrent ? color.gold : color.navy,

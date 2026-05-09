@@ -50,7 +50,7 @@ const SEARCH_LIST_ITEMS_COLS = [
   { key: 'company', width: 280, align: 'left' },
   { key: 'rep', width: 140, align: 'left' },
   { key: 'phone', width: 160, align: 'left' },
-  { key: 'status', width: 140, align: 'left' },
+  { key: 'status', width: 140, align: 'center' },
   { key: 'listName', width: 210, align: 'left' },
 ];
 
