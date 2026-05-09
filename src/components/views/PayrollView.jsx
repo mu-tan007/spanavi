@@ -2,13 +2,12 @@ import { useState, useEffect } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
-import { Button, Input, Select, Card, Badge, Tag } from '../ui';
+import { Button, Input, Select, Card, Badge, Tag, DataTable } from '../ui';
 import { calcRankAndRate } from '../../utils/calculations';
 import { supabase } from '../../lib/supabase';
 import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, fetchPayrollAdjustment, upsertPayrollAdjustment } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
-import useColumnConfig from '../../hooks/useColumnConfig';
-import ColumnResizeHandle from '../common/ColumnResizeHandle';
+// 旧 useColumnConfig / ColumnResizeHandle は DataTable 移行で不要に
 import PageHeader from '../common/PageHeader';
 
 const PAYROLL_DATA = [];
@@ -64,12 +63,6 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
   const [orgSettings, setOrgSettings] = useState({});
-  const [hoveredRow, setHoveredRow] = useState(null);
-
-  const {
-    columns: colCfg, gridTemplateColumns: colGridTemplate, contentMinWidth,
-    onResizeStart,
-  } = useColumnConfig('payroll', PAYROLL_COLS);
 
   useEffect(() => {
     fetchOrgSettings().then(({ data }) => setOrgSettings(data || {}));
@@ -409,7 +402,6 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
     { h: "③紹介",         sk: null,         align: "right" },
     { h: "合計支給額",     sk: "total",      align: "right" },
   ];
-  const gridCols = colGridTemplate;
   const cellPad = "8px 16px";
 
   return (
@@ -561,123 +553,150 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
       )}
 
       {/* ── Table ────────────────────────────────────────────────── */}
-      <div style={{ background: color.white, borderRadius: radius.md, border: `1px solid ${GRAY_200}`, overflowX: "auto", overflowY: "hidden" }}>
-        <div style={{ minWidth: contentMinWidth }}>
+      {/* ヘッダー文字列をクリックで sortKey を切替できるラベル */}
+      {(() => {
+        const labelOf = (col) => col.sk ? (
+          <span
+            onClick={(e) => { e.stopPropagation(); setSortKey(col.sk); }}
+            style={{ cursor: 'pointer', userSelect: 'none' }}
+          >{col.h}{sortKey === col.sk ? ' ▼' : ''}</span>
+        ) : col.h;
 
-        {/* ヘッダー行 */}
-        <div style={{
-          display: "grid", gridTemplateColumns: gridCols,
-          background: TH_BG, borderBottom: `2px solid ${TH_BG}`,
-        }}>
-          {COLS.map((col, i) => (
-            <span key={i}
-              onClick={() => { if (col.sk) setSortKey(col.sk); }}
-              style={{
-                padding: cellPad, fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.white,
-                textAlign: colCfg[i]?.align || col.align,
-                cursor: col.sk ? "pointer" : "default",
-                userSelect: "none",
-                position: "relative",
-              }}>
-              {col.h}{sortKey === col.sk ? " ▼" : ""}
-              <ColumnResizeHandle colIndex={i} onResizeStart={onResizeStart} />
-            </span>
-          ))}
-        </div>
-
-        {/* データ行 */}
-        {filtered.length === 0 ? (
-          <div style={{ padding: "24px 16px", textAlign: "left", color: color.textLight, fontSize: font.size.sm }}>
-            {snapshotLoading ? '読み込み中...' : '該当データがありません'}
-          </div>
-        ) : filtered.map((p, i) => {
-          const rankStyle = RANK_COLORS[p.rank] || RANK_COLORS['トレーニー'];
-          const refBonus = activeReferralMap[p.name] || 0;
-          const isHovered = hoveredRow === i;
-          const rowBg = isHovered ? color.gray100 : (i % 2 === 0 ? color.white : GRAY_50);
-          return (
-            <div key={i}
-              onMouseEnter={() => setHoveredRow(i)}
-              onMouseLeave={() => setHoveredRow(null)}
-              style={{
-                display: "grid", gridTemplateColumns: gridCols, alignItems: "center",
-                borderBottom: `1px solid ${GRAY_200}`,
-                background: rowBg,
-                transition: "background 0.1s",
-              }}>
-              {/* 名前 */}
-              <div style={{ padding: cellPad, textAlign: colCfg[0]?.align || "left" }}>
+        const dataColumns = [
+          {
+            key: 'name', label: labelOf(COLS[0]), width: PAYROLL_COLS[0].width, align: PAYROLL_COLS[0].align,
+            cellStyle: { padding: cellPad },
+            render: (p) => (
+              <div>
                 <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: TH_BG }}>{p.name}</div>
                 {p.role && <div style={{ fontSize: font.size.xs - 1, color: color.textLight }}>{p.role}</div>}
               </div>
-              {/* チーム */}
-              <div style={{ padding: cellPad, fontSize: font.size.xs, color: color.textMid, textAlign: colCfg[1]?.align || "left" }}>{p.team}</div>
-              {/* ランク */}
-              <div style={{ padding: cellPad, textAlign: colCfg[2]?.align || "left" }}>
+            ),
+          },
+          {
+            key: 'team', label: labelOf(COLS[1]), width: PAYROLL_COLS[1].width, align: PAYROLL_COLS[1].align,
+            cellStyle: { padding: cellPad, fontSize: font.size.xs, color: color.textMid },
+            render: (p) => p.team,
+          },
+          {
+            key: 'rank', label: labelOf(COLS[2]), width: PAYROLL_COLS[2].width, align: PAYROLL_COLS[2].align,
+            cellStyle: { padding: cellPad, whiteSpace: 'normal', overflow: 'visible' },
+            render: (p) => {
+              const rs = RANK_COLORS[p.rank] || RANK_COLORS['トレーニー'];
+              return (
                 <span style={{
                   fontSize: font.size.xs - 1, fontWeight: font.weight.semibold,
-                  borderLeft: `3px solid ${rankStyle.color}`,
-                  paddingLeft: 6, color: rankStyle.color,
-                }}>{p.rank || "-"}</span>
-              </div>
-              {/* 率 */}
-              <div style={{ padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: color.textMid, textAlign: colCfg[3]?.align || "right" }}>
-                {p.rate ? (p.rate * 100).toFixed(0) + "%" : "-"}
-              </div>
-              {/* 今月売上 */}
-              <div style={{ padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: font.weight.semibold, color: TH_BG, textAlign: colCfg[4]?.align || "right" }}>
-                {fmt(p.sales)}
-              </div>
-              {/* ①インセンティブ */}
-              <div style={{ padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: color.success, textAlign: colCfg[5]?.align || "right" }}>
-                {fmt(p.incentive)}
-              </div>
-              {/* ②役職ボーナス */}
-              <div style={{ padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: p.teamBonus > 0 ? TH_BG : color.textMid, textAlign: colCfg[6]?.align || "right" }}>
-                {fmt(p.teamBonus)}
-              </div>
-              {/* ③紹介 */}
-              <div style={{ padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: "tabular-nums", color: refBonus > 0 ? color.success : color.textMid, textAlign: colCfg[7]?.align || "right" }}>
-                {fmt(refBonus)}
-              </div>
-              {/* 合計支給額 */}
-              <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: font.weight.black, color: TH_BG, textAlign: colCfg[8]?.align || "right" }}>
-                {fmt(p.total + refBonus)}
-              </div>
-            </div>
-          );
-        })}
+                  borderLeft: `3px solid ${rs.color}`, paddingLeft: 6, color: rs.color,
+                }}>{p.rank || '-'}</span>
+              );
+            },
+          },
+          {
+            key: 'rate', label: labelOf(COLS[3]), width: PAYROLL_COLS[3].width, align: PAYROLL_COLS[3].align,
+            cellStyle: { padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', color: color.textMid },
+            render: (p) => p.rate ? (p.rate * 100).toFixed(0) + '%' : '-',
+          },
+          {
+            key: 'sales', label: labelOf(COLS[4]), width: PAYROLL_COLS[4].width, align: PAYROLL_COLS[4].align,
+            cellStyle: { padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.semibold, color: TH_BG },
+            render: (p) => fmt(p.sales),
+          },
+          {
+            key: 'incentive', label: labelOf(COLS[5]), width: PAYROLL_COLS[5].width, align: PAYROLL_COLS[5].align,
+            cellStyle: { padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', color: color.success },
+            render: (p) => fmt(p.incentive),
+          },
+          {
+            key: 'teamBonus', label: labelOf(COLS[6]), width: PAYROLL_COLS[6].width, align: PAYROLL_COLS[6].align,
+            cellStyle: { padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' },
+            render: (p) => (
+              <span style={{ color: p.teamBonus > 0 ? TH_BG : color.textMid }}>{fmt(p.teamBonus)}</span>
+            ),
+          },
+          {
+            key: 'referral', label: labelOf(COLS[7]), width: PAYROLL_COLS[7].width, align: PAYROLL_COLS[7].align,
+            cellStyle: { padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' },
+            render: (p) => {
+              const refBonus = activeReferralMap[p.name] || 0;
+              return <span style={{ color: refBonus > 0 ? color.success : color.textMid }}>{fmt(refBonus)}</span>;
+            },
+          },
+          {
+            key: 'total', label: labelOf(COLS[8]), width: PAYROLL_COLS[8].width, align: PAYROLL_COLS[8].align,
+            cellStyle: { padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.black, color: TH_BG },
+            render: (p) => {
+              const refBonus = activeReferralMap[p.name] || 0;
+              return fmt(p.total + refBonus);
+            },
+          },
+        ];
 
-        {/* 合計行 */}
-        {filtered.length > 0 && (
-          <div style={{
-            display: "grid", gridTemplateColumns: gridCols, alignItems: "center",
-            borderTop: `2px solid ${TH_BG}`,
-            background: color.white,
-          }}>
-            <div style={{ padding: cellPad, fontSize: font.size.sm, fontWeight: font.weight.bold, color: TH_BG, textAlign: colCfg[0]?.align || "left" }}>合計</div>
-            <div style={{ padding: cellPad }} />
-            <div style={{ padding: cellPad }} />
-            <div style={{ padding: cellPad }} />
-            <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: font.weight.bold, color: TH_BG, textAlign: colCfg[4]?.align || "right" }}>
-              {(() => { const v = filtered.reduce((s, p) => s + p.sales, 0) - salesDisc; return v > 0 ? "¥" + v.toLocaleString() : "-"; })()}
-            </div>
-            <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: font.weight.bold, color: color.success, textAlign: colCfg[5]?.align || "right" }}>
-              {(() => { const v = filtered.reduce((s, p) => s + p.incentive, 0) - incDisc; return v > 0 ? "¥" + v.toLocaleString() : "-"; })()}
-            </div>
-            <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: font.weight.bold, color: TH_BG, textAlign: colCfg[6]?.align || "right" }}>
-              {filtered.reduce((s, p) => s + p.teamBonus, 0) > 0 ? "¥" + filtered.reduce((s, p) => s + p.teamBonus, 0).toLocaleString() : "-"}
-            </div>
-            <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: font.weight.bold, color: color.success, textAlign: colCfg[7]?.align || "right" }}>
-              {filtered.reduce((s, p) => s + (activeReferralMap[p.name] || 0), 0) > 0 ? "¥" + filtered.reduce((s, p) => s + (activeReferralMap[p.name] || 0), 0).toLocaleString() : "-"}
-            </div>
-            <div style={{ padding: cellPad, fontSize: font.size.base, fontFamily: MONO, fontVariantNumeric: "tabular-nums", fontWeight: font.weight.black, color: TH_BG, textAlign: colCfg[8]?.align || "right" }}>
-              {"¥" + (filtered.reduce((s, p) => s + p.total + (activeReferralMap[p.name] || 0), 0) - incDisc).toLocaleString()}
-            </div>
+        // 合計値の事前計算
+        const sumSales = filtered.reduce((s, p) => s + p.sales, 0) - salesDisc;
+        const sumIncentive = filtered.reduce((s, p) => s + p.incentive, 0) - incDisc;
+        const sumTeamBonus = filtered.reduce((s, p) => s + p.teamBonus, 0);
+        const sumReferral = filtered.reduce((s, p) => s + (activeReferralMap[p.name] || 0), 0);
+        const sumTotal = filtered.reduce((s, p) => s + p.total + (activeReferralMap[p.name] || 0), 0) - incDisc;
+
+        // 合計行の grid template (DataTable と同じ width で並べる)
+        const totalGrid = PAYROLL_COLS.map(c => `${c.width}px`).join(' ');
+        const totalMinWidth = PAYROLL_COLS.reduce((s, c) => s + c.width, 0);
+
+        return (
+          <div>
+            <DataTable
+              ariaLabel="給与支給テーブル"
+              height="auto"
+              showCount={false}
+              loading={snapshotLoading}
+              rows={filtered}
+              rowKey={(_, i) => i}
+              emptyMessage="該当データがありません"
+              zebra={false}
+              rowBackground={(_, i) => i % 2 === 0 ? color.white : GRAY_50}
+              style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}
+              columns={dataColumns}
+            />
+
+            {/* 合計行: DataTable の真下に同じ列幅で表示 */}
+            {filtered.length > 0 && (
+              <div style={{
+                background: color.white,
+                border: `1px solid ${GRAY_200}`,
+                borderTop: `2px solid ${TH_BG}`,
+                borderTopLeftRadius: 0, borderTopRightRadius: 0,
+                borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg,
+                overflowX: 'auto',
+              }}>
+                <div style={{
+                  display: 'grid', gridTemplateColumns: totalGrid, alignItems: 'center',
+                  minWidth: totalMinWidth,
+                }}>
+                  <div style={{ padding: cellPad, fontSize: font.size.sm, fontWeight: font.weight.bold, color: TH_BG, textAlign: PAYROLL_COLS[0].align }}>合計</div>
+                  <div style={{ padding: cellPad }} />
+                  <div style={{ padding: cellPad }} />
+                  <div style={{ padding: cellPad }} />
+                  <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.bold, color: TH_BG, textAlign: PAYROLL_COLS[4].align }}>
+                    {sumSales > 0 ? '¥' + sumSales.toLocaleString() : '-'}
+                  </div>
+                  <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.bold, color: color.success, textAlign: PAYROLL_COLS[5].align }}>
+                    {sumIncentive > 0 ? '¥' + sumIncentive.toLocaleString() : '-'}
+                  </div>
+                  <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.bold, color: TH_BG, textAlign: PAYROLL_COLS[6].align }}>
+                    {sumTeamBonus > 0 ? '¥' + sumTeamBonus.toLocaleString() : '-'}
+                  </div>
+                  <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.bold, color: color.success, textAlign: PAYROLL_COLS[7].align }}>
+                    {sumReferral > 0 ? '¥' + sumReferral.toLocaleString() : '-'}
+                  </div>
+                  <div style={{ padding: cellPad, fontSize: font.size.base, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.black, color: TH_BG, textAlign: PAYROLL_COLS[8].align }}>
+                    {'¥' + sumTotal.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-        </div>
-      </div>
+        );
+      })()}
 
     </div>
   );
