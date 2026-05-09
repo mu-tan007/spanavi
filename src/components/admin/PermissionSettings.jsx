@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
-import { Button, Input, Card, Badge } from '../ui';
+import { Button, Input, Card, Badge, DataTable } from '../ui';
 import { PAGE_REGISTRY, ENGAGEMENT_LABELS, ALL_ENGAGEMENT_SLUGS } from '../../constants/pageRegistry';
 
 // 一括権限管理: メンバーごとに「閲覧可能な事業タブ」と「事業タブ内の閲覧可能ページ」を編集する。
@@ -10,11 +10,17 @@ import { PAGE_REGISTRY, ENGAGEMENT_LABELS, ALL_ENGAGEMENT_SLUGS } from '../../co
 // - ページ権限: member_page_permissions (新規)。masp は member_page_permissions の masp 行のみで判定。
 // - admin (users.role='admin') は権限テーブル無視で全閲覧可。UIでは編集不可・バッジ表示。
 
+const TOTAL_PAGE_COUNT = ALL_ENGAGEMENT_SLUGS.reduce(
+  (sum, slug) => sum + PAGE_REGISTRY[slug].length,
+  0
+);
+
 export default function PermissionSettings({ onToast }) {
   const orgId = getOrgId();
   const [members, setMembers] = useState([]);
   const [adminUserIds, setAdminUserIds] = useState(new Set()); // role='admin' なメンバーの user_id
   const [engagementsByDb, setEngagementsByDb] = useState([]); // [{id, slug, name}]
+  const [permissionCounts, setPermissionCounts] = useState({}); // { member_id: count }
   const [search, setSearch] = useState('');
   const [selectedMemberId, setSelectedMemberId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -28,13 +34,13 @@ export default function PermissionSettings({ onToast }) {
   const [origEngagementIds, setOrigEngagementIds] = useState(new Set());
   const [saving, setSaving] = useState(false);
 
-  // ─── 初期ロード: メンバー一覧 + admin判定 + DB engagements
+  // ─── 初期ロード: メンバー一覧 + admin判定 + DB engagements + 全メンバーの権限件数
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!orgId) { setLoading(false); return; }
       setLoading(true);
-      const [m, e, u] = await Promise.all([
+      const [m, e, u, mpp] = await Promise.all([
         supabase.from('members')
           .select('id, name, email, position, rank, user_id, is_active, avatar_url')
           .eq('org_id', orgId)
@@ -48,11 +54,17 @@ export default function PermissionSettings({ onToast }) {
         supabase.from('users')
           .select('id, role')
           .eq('role', 'admin'),
+        supabase.from('member_page_permissions')
+          .select('member_id')
+          .eq('org_id', orgId),
       ]);
       if (cancelled) return;
       setMembers(m.data || []);
       setEngagementsByDb(e.data || []);
       setAdminUserIds(new Set((u.data || []).map(r => r.id)));
+      const counts = {};
+      (mpp.data || []).forEach(r => { counts[r.member_id] = (counts[r.member_id] || 0) + 1; });
+      setPermissionCounts(counts);
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -188,6 +200,7 @@ export default function PermissionSettings({ onToast }) {
       // ステート更新
       setOrigEngagementIds(new Set(desiredEngIds));
       setOrigPages(Object.fromEntries(Object.entries(selectedPages).map(([k, v]) => [k, new Set(v)])));
+      setPermissionCounts(prev => ({ ...prev, [selectedMemberId]: ppRows.length }));
       onToast?.({ type: 'success', message: '権限を保存しました' });
     } catch (err) {
       console.error('[PermissionSettings] save error', err);
@@ -222,19 +235,59 @@ export default function PermissionSettings({ onToast }) {
     return false;
   }, [selectedMemberId, selectedIsAdmin, selectedPages, origPages, origEngagementIds, engBySlug]);
 
-  // ─── レンダリング
-  if (loading) {
-    return (
-      <div style={{ padding: space[10], textAlign: 'center', color: color.textMid, fontSize: font.size.base }}>
-        読み込み中...
-      </div>
-    );
-  }
+  // ─── DataTable 用の列定義（揃え: 名前/役職=left, ロール=center, 権限ページ数=right）
+  const memberColumns = useMemo(() => [
+    {
+      key: 'name', label: 'メンバー', width: 140, align: 'left',
+      render: (m) => (
+        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: font.weight.semibold, color: color.textDark }}>
+          {m.name}
+        </div>
+      ),
+    },
+    {
+      key: 'position', label: '役職', width: 100, align: 'left',
+      render: (m) => (
+        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: color.textMid }}>
+          {m.position || '-'}
+        </div>
+      ),
+    },
+    {
+      key: 'role', label: 'ロール', width: 80, align: 'center',
+      render: (m) => {
+        const isAdminMember = m.user_id && adminUserIds.has(m.user_id);
+        return isAdminMember
+          ? <Badge variant="primary">admin</Badge>
+          : <span style={{ fontSize: font.size.xs, color: color.textLight }}>member</span>;
+      },
+    },
+    {
+      key: 'permCount', label: '権限ページ', width: 90, align: 'right',
+      render: (m) => {
+        const isAdminMember = m.user_id && adminUserIds.has(m.user_id);
+        if (isAdminMember) {
+          return <span style={{ fontSize: font.size.sm, color: color.textLight, fontFamily: font.family.mono }}>—</span>;
+        }
+        const count = permissionCounts[m.id] || 0;
+        return (
+          <span style={{
+            fontFamily: font.family.mono,
+            fontSize: font.size.sm,
+            color: count === 0 ? color.danger : color.textDark,
+            fontWeight: font.weight.medium,
+          }}>
+            {count} / {TOTAL_PAGE_COUNT}
+          </span>
+        );
+      },
+    },
+  ], [adminUserIds, permissionCounts]);
 
   return (
     <div style={{ display: 'flex', gap: space[5], minHeight: 600 }}>
-      {/* 左: メンバー一覧 */}
-      <div style={{ width: 280, flexShrink: 0 }}>
+      {/* 左: メンバー一覧 (DataTable) */}
+      <div style={{ width: 460, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
         <div style={{ marginBottom: space[3] }}>
           <Input
             placeholder="メンバー検索"
@@ -242,58 +295,28 @@ export default function PermissionSettings({ onToast }) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div style={{
-          border: `1px solid ${color.border}`,
-          borderRadius: radius.md,
-          background: color.white,
-          maxHeight: 600,
-          overflowY: 'auto',
-        }}>
-          {filteredMembers.map(m => {
-            const active = m.id === selectedMemberId;
-            const isAdminMember = m.user_id && adminUserIds.has(m.user_id);
-            return (
-              <div
-                key={m.id}
-                onClick={() => setSelectedMemberId(m.id)}
-                style={{
-                  padding: `${space[2]}px ${space[3]}px`,
-                  borderLeft: active ? `3px solid ${color.navy}` : '3px solid transparent',
-                  background: active ? alpha(color.navyLight, 0.08) : 'transparent',
-                  borderBottom: `1px solid ${color.borderLight}`,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: space[2],
-                }}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.background = alpha(color.navyLight, 0.04); }}
-                onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {m.name}
-                  </div>
-                  <div style={{ fontSize: font.size.xs, color: color.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {m.position || ''}
-                  </div>
-                </div>
-                {isAdminMember && <Badge variant="primary">admin</Badge>}
-              </div>
-            );
-          })}
-          {filteredMembers.length === 0 && (
-            <div style={{ padding: space[6], textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
-              メンバーがいません
-            </div>
-          )}
-        </div>
+        <DataTable
+          ariaLabel="権限管理メンバー一覧"
+          columns={memberColumns}
+          rows={filteredMembers}
+          rowKey="id"
+          loading={loading}
+          emptyMessage="メンバーがいません"
+          onRowClick={(m) => setSelectedMemberId(m.id)}
+          rowAccent={(m) => m.id === selectedMemberId ? 'primary' : null}
+          rowBackground={(m) => m.id === selectedMemberId ? alpha(color.navyLight, 0.08) : null}
+          height="calc(100vh - 320px)"
+          showCount
+        />
       </div>
 
       {/* 右: 権限編集 */}
       <div style={{ flex: 1, minWidth: 0 }}>
         {!selectedMemberId ? (
-          <div style={{ padding: space[10], textAlign: 'center', color: color.textMid, fontSize: font.size.base }}>
+          <div style={{
+            padding: space[10], textAlign: 'center', color: color.textMid, fontSize: font.size.base,
+            background: color.cream, border: `1px solid ${color.borderLight}`, borderRadius: radius.md,
+          }}>
             左のメンバー一覧から編集対象を選択してください
           </div>
         ) : memberLoading ? (
@@ -302,36 +325,24 @@ export default function PermissionSettings({ onToast }) {
           </div>
         ) : (
           <div>
-            {/* ヘッダー */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: space[3],
-              padding: space[3], marginBottom: space[4],
-              background: color.cream, borderRadius: radius.md,
-              border: `1px solid ${color.border}`,
-            }}>
-              <div style={{ fontSize: font.size.lg, fontWeight: font.weight.semibold, color: color.textDark }}>
-                {selectedMember?.name}
-              </div>
-              <div style={{ fontSize: font.size.sm, color: color.textMid }}>{selectedMember?.position}</div>
-              <div style={{ flex: 1 }} />
+            {/* ヘッダー Card */}
+            <Card
+              padding="md"
+              title={selectedMember?.name || ''}
+              description={selectedMember?.position || ''}
+              action={selectedIsAdmin ? <Badge variant="primary">管理者：全権限保有（編集不可）</Badge> : null}
+              style={{ marginBottom: space[4] }}
+            >
               {selectedIsAdmin && (
-                <Badge variant="primary">管理者：全権限保有（編集不可）</Badge>
+                <div style={{
+                  fontSize: font.size.sm,
+                  color: color.textMid,
+                  lineHeight: font.lineHeight.relaxed,
+                }}>
+                  管理者ロール（users.role = 'admin'）のメンバーは権限テーブルを無視して全画面を閲覧できます。権限を制限したい場合は、まずロールを admin から変更してください。
+                </div>
               )}
-            </div>
-
-            {selectedIsAdmin && (
-              <div style={{
-                padding: space[3],
-                marginBottom: space[4],
-                background: color.infoSoft || alpha(color.info, 0.08),
-                color: color.textDark,
-                fontSize: font.size.sm,
-                borderRadius: radius.md,
-                border: `1px solid ${alpha(color.info, 0.25)}`,
-              }}>
-                管理者ロール（users.role = 'admin'）のメンバーは権限テーブルを無視して全画面を閲覧できます。権限を制限したい場合は、まずロールを admin から変更してください。
-              </div>
-            )}
+            </Card>
 
             {/* 事業ごとのカード */}
             {ALL_ENGAGEMENT_SLUGS.map(slug => {
@@ -340,17 +351,26 @@ export default function PermissionSettings({ onToast }) {
               const allOn = pages.length > 0 && pages.every(p => set.has(p.key));
               const anyOn = set.size > 0;
               return (
-                <Card key={slug} padding="md" title={
-                  <div style={{ display: 'flex', alignItems: 'center', gap: space[3] }}>
-                    <span>{ENGAGEMENT_LABELS[slug]}</span>
-                    <Badge variant={anyOn ? 'success' : 'neutral'} dot>
-                      {anyOn ? '閲覧可' : '非表示'}
-                    </Badge>
-                    <span style={{ fontSize: font.size.xs, color: color.textLight }}>
-                      {set.size} / {pages.length} ページ
-                    </span>
-                  </div>
-                } style={{ marginBottom: space[4] }}>
+                <Card
+                  key={slug}
+                  padding="md"
+                  title={ENGAGEMENT_LABELS[slug]}
+                  action={
+                    <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
+                      <Badge variant={anyOn ? 'success' : 'neutral'} dot>
+                        {anyOn ? '閲覧可' : '非表示'}
+                      </Badge>
+                      <span style={{
+                        fontSize: font.size.xs,
+                        color: color.textLight,
+                        fontFamily: font.family.mono,
+                      }}>
+                        {set.size} / {pages.length}
+                      </span>
+                    </div>
+                  }
+                  style={{ marginBottom: space[4] }}
+                >
                   <div style={{ display: 'flex', gap: space[2], marginBottom: space[3] }}>
                     <Button
                       variant="outline"
