@@ -128,6 +128,12 @@ export async function applyAiFiltersToBase(baseFilters, aiFilters) {
   //    "鉛・亜鉛鉱業" が C 鉱業の細分類なのに daibunrui = E 製造業 と矛盾するケースが頻発）
   if (Array.isArray(merged.saibunrui) && merged.saibunrui.length > 0) {
     merged.daibunrui = [];
+
+    // saibunrui で業種は既に絞り込まれているので、keywords[] の AND 条件も外す
+    //   （業種カテゴリが選ばれてるのに「企業名/事業内容に同義語が含まれる」AND で
+    //    1/5 まで減る over-restriction を防ぐ）
+    merged.keywords = [];
+    merged.keyword = '';
   }
 
   // industryHints[] (複数) → saibunrui 部分一致で展開（追加）
