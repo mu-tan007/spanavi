@@ -117,7 +117,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
   const statusVariant = (s) => s === '対応済み' ? 'success' : 'danger';
 
   return (
-    <div style={{ animation: 'fadeIn 0.3s ease' }}>
+    <div style={{ animation: 'fadeIn 0.3s ease', height: 'calc(100vh - 130px)', display: 'flex', flexDirection: 'column' }}>
       <PageHeader
         title="Incoming Call"
         description="着信履歴"
@@ -149,7 +149,8 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
       {/* テーブル (DataTable 共通コンポーネント) */}
       <DataTable
         ariaLabel="着信履歴"
-        height="calc(100vh - 200px)"
+        height="100%"
+        style={{ flex: 1, minHeight: 0 }}
         loading={loading}
         rows={filtered}
         rowKey="id"

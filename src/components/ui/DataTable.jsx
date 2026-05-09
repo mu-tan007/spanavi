@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { color, radius, font, alpha } from '../../constants/design';
-import Card from './Card';
+import { color, radius, font, shadow, alpha } from '../../constants/design';
 
 /**
  * Spanavi 共通テーブル (Phase 1: スリム版)
@@ -68,22 +67,26 @@ export default function DataTable({
   };
 
   return (
-    <Card
-      padding="none"
+    <div
+      className={className}
       style={{
         display: 'flex',
         flexDirection: 'column',
         height,
+        minHeight: 0,
         overflow: 'hidden',
+        background: color.white,
+        border: `1px solid ${color.border}`,
+        borderRadius: radius.lg,
+        boxShadow: shadow.sm,
         ...style,
       }}
-      className={className}
     >
       <div
         role="grid"
         aria-label={ariaLabel}
         aria-rowcount={rows.length}
-        style={{ flex: 1, overflowY: 'auto', overflowX: 'auto' }}
+        style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto' }}
       >
         <div style={{ minWidth, position: 'relative' }}>
           {/* ヘッダー (sticky) */}
@@ -203,7 +206,7 @@ export default function DataTable({
           {rows.length.toLocaleString()} 件
         </div>
       )}
-    </Card>
+    </div>
   );
 }
 
