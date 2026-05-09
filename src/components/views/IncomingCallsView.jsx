@@ -157,7 +157,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
         emptyMessage="着信履歴がありません"
         columns={[
           {
-            key: 'receivedAt', label: '受信日時', width: 130, align: 'left',
+            key: 'receivedAt', label: '受信日時', width: 130, align: 'right',
             cellStyle: { color: color.textMid, fontFamily: font.family.mono, fontSize: font.size.xs },
             render: (r) => formatJST(r.received_at),
           },

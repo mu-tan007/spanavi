@@ -530,7 +530,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
                   cellStyle: { fontWeight: font.weight.semibold, color: color.textDark },
                 },
                 {
-                  key: 'meetDate', label: '面談日', width: 140, align: 'left',
+                  key: 'meetDate', label: '面談日', width: 140, align: 'right',
                   cellStyle: { fontFamily: font.family.mono, fontSize: 10, color: color.textLight },
                   render: (a) => a.meetDate?.slice(5),
                 },

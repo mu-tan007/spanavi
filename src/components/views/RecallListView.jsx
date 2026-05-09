@@ -206,11 +206,11 @@ export default function RecallListView({ callListData, supaRecalls = [], members
         }}
         columns={[
           {
-            key: 'datetime', label: '予定日時', width: 90, align: 'left',
+            key: 'datetime', label: '予定日時', width: 90, align: 'right',
             render: (item) => {
               const past = isOverdue(item.recallDate, item.recallTime);
               return (
-                <div>
+                <div style={{ textAlign: 'right' }}>
                   <div style={{ fontWeight: font.weight.bold, color: past ? color.danger : color.navy, fontFamily: font.family.mono, fontSize: font.size.xs }}>{item.recallTime || '--:--'}</div>
                   <div style={{ fontSize: 9, color: color.textLight }}>{item.recallDate ? item.recallDate.slice(5).replace('-', '/') : '日時未設定'}</div>
                 </div>
