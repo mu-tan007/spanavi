@@ -49,14 +49,25 @@ export default function DataTable({
   rowAccent,
   rowBackground,
   zebra = true,
+  fillWidth = false,
   className,
   style,
   ariaLabel,
 }) {
   const [hoverKey, setHoverKey] = useState(null);
 
+  // fillWidth=true: 列合計が画面幅未満なら、各列を比例して広げる (画面幅いっぱい使う)
+  // fillWidth=false (default): 固定 px 幅 (合計が画面より小さくても左寄せ、超えれば横スクロール)
+  const totalNumWidth = columns.reduce((s, c) => s + (typeof c.width === 'number' ? c.width : 0), 0);
   const gridTemplateColumns = columns
-    .map(c => typeof c.width === 'number' ? `${c.width}px` : (c.width || 'minmax(80px, 1fr)'))
+    .map(c => {
+      if (typeof c.width === 'number') {
+        return fillWidth
+          ? `minmax(${c.width}px, ${c.width}fr)`
+          : `${c.width}px`;
+      }
+      return c.width || 'minmax(80px, 1fr)';
+    })
     .join(' ');
   const minWidth = columns.reduce((sum, c) => sum + (typeof c.width === 'number' ? c.width : 80), 0);
 

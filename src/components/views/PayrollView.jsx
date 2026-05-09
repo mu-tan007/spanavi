@@ -638,8 +638,8 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
         const sumReferral = filtered.reduce((s, p) => s + (activeReferralMap[p.name] || 0), 0);
         const sumTotal = filtered.reduce((s, p) => s + p.total + (activeReferralMap[p.name] || 0), 0) - incDisc;
 
-        // 合計行の grid template (DataTable と同じ width で並べる)
-        const totalGrid = PAYROLL_COLS.map(c => `${c.width}px`).join(' ');
+        // 合計行の grid template (DataTable の fillWidth と同じ動きにする)
+        const totalGrid = PAYROLL_COLS.map(c => `minmax(${c.width}px, ${c.width}fr)`).join(' ');
         const totalMinWidth = PAYROLL_COLS.reduce((s, c) => s + c.width, 0);
 
         return (
@@ -648,6 +648,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
               ariaLabel="給与支給テーブル"
               height="auto"
               showCount={false}
+              fillWidth
               loading={snapshotLoading}
               rows={filtered}
               rowKey={(_, i) => i}
