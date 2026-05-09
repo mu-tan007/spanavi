@@ -1,12 +1,10 @@
 import { useState, useEffect } from "react";
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
-import { Button, Input, Select, Card, Badge } from '../ui';
+import { Button, Input, Select, Card, Badge, DataTable } from '../ui';
 import { CALL_RESULTS } from '../../constants/callResults';
 import { updatePreCheckResult, fetchCallListItemByAppo, invokeSendAppoReport, invokeSendEmail } from '../../lib/supabaseWrite';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
-import useColumnConfig from '../../hooks/useColumnConfig';
-import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import PageHeader from '../common/PageHeader';
 
@@ -329,7 +327,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
   const [reportBody, setReportBody] = useState('');
   const [reportStep, setReportStep] = useState('idle');
   const [reportError, setReportError] = useState('');
-  const { columns, gridTemplateColumns, contentMinWidth, onResizeStart } = useColumnConfig('preCheck', PRECHECK_COLS, { padding: 40 });
+  // PRECHECK_COLS は DataTable の columns へ移行（widthのみ参照）
 
   const handlePreCheckNavigate = ({ listId, itemId }) => {
     setSelectedAppo(null);
@@ -482,71 +480,67 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
           </Card>
         );
         return (
-          <Card key={g.key} padding="none" style={{ marginBottom: 12, overflow: 'hidden' }}>
-            <div style={{ overflowX: 'auto', overflowY: 'hidden' }}>
-              <div style={{ minWidth: contentMinWidth }}>
-                {/* グループヘッダー */}
-                <div style={{
-                  padding: isMobile ? '10px 14px' : '12px 20px',
-                  background: g.bg,
-                  borderBottom: `1px solid ${g.border}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ color: g.color }}>●</span>
-                    <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: g.color }}>{g.label}</span>
-                    <span style={{ fontSize: font.size.xs, color: color.textMid }}>─ 面談日: {dayLabel(g.date)}</span>
-                  </div>
-                  <span style={{
-                    fontSize: font.size.xs, color: g.color,
-                    background: alpha(g.color, 0.10), padding: '2px 10px', borderRadius: radius.sm,
-                    fontWeight: font.weight.semibold, letterSpacing: font.letterSpacing.wide,
-                  }}>{items.length}件</span>
-                </div>
+          <div key={g.key} style={{ marginBottom: 12 }}>
+            {/* グループヘッダー */}
+            <div style={{
+              padding: isMobile ? '10px 14px' : '12px 20px',
+              background: g.bg,
+              border: `1px solid ${g.border}`,
+              borderBottom: 'none',
+              borderTopLeftRadius: radius.lg,
+              borderTopRightRadius: radius.lg,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: g.color }}>●</span>
+                <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: g.color }}>{g.label}</span>
+                <span style={{ fontSize: font.size.xs, color: color.textMid }}>─ 面談日: {dayLabel(g.date)}</span>
+              </div>
+              <span style={{
+                fontSize: font.size.xs, color: g.color,
+                background: alpha(g.color, 0.10), padding: '2px 10px', borderRadius: radius.sm,
+                fontWeight: font.weight.semibold, letterSpacing: font.letterSpacing.wide,
+              }}>{items.length}件</span>
+            </div>
 
-                {/* テーブルヘッダー */}
-                <div style={{
-                  display: 'grid', gridTemplateColumns,
-                  padding: isMobile ? '8px 14px' : '10px 20px',
-                  background: color.navy,
-                  fontSize: isMobile ? 10 : font.size.xs,
-                  fontWeight: font.weight.semibold, color: color.white,
-                  letterSpacing: font.letterSpacing.wide,
-                }}>
-                  {['企業名', 'クライアント', '取得者', '面談日', '確認状況'].map((label, i) => (
-                    <span key={label} style={{ position: 'relative', textAlign: columns[i].align, userSelect: 'none' }}>
-                      {label}
-                      <ColumnResizeHandle colIndex={i} onResizeStart={onResizeStart} />
-                    </span>
-                  ))}
-                </div>
-
-                {/* 行 */}
-                {items.map((a, i) => {
-                  const pcs = a.preCheckStatus;
-                  return (
-                    <div key={i}
-                      onClick={() => setSelectedAppo(a)}
-                      onMouseEnter={e => { e.currentTarget.style.background = alpha(g.color, 0.04); }}
-                      onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 0 ? color.white : color.cream; }}
-                      style={{
-                        display: 'grid', gridTemplateColumns,
-                        padding: isMobile ? '8px 14px' : '10px 20px',
-                        fontSize: isMobile ? 11 : font.size.sm, alignItems: 'center',
-                        borderBottom: `1px solid ${color.borderLight}`,
-                        borderLeft: `3px solid ${g.color}`,
-                        background: i % 2 === 0 ? color.white : color.cream,
-                        cursor: 'pointer', transition: 'background 0.15s ease',
-                      }}>
-                      <span style={{ fontWeight: font.weight.semibold, color: color.navy, textAlign: columns[0].align }}>{a.company}</span>
-                      <span style={{ color: color.textMid, fontSize: font.size.xs, textAlign: columns[1].align }}>{a.client}</span>
-                      <span style={{ fontWeight: font.weight.semibold, color: color.textDark, textAlign: columns[2].align }}>{a.getter}</span>
-                      <span style={{ fontFamily: font.family.mono, fontSize: 10, color: color.textLight, textAlign: columns[3].align }}>{a.meetDate.slice(5)}</span>
-                      <span style={{
-                        textAlign: columns[4].align,
-                        display: 'flex', alignItems: 'center', gap: 6,
-                        justifyContent: columns[4].align === 'right' ? 'flex-end' : 'flex-start',
-                      }}>
+            {/* DataTable (height='auto' で自然伸縮、グループ色の左border) */}
+            <DataTable
+              ariaLabel={`${g.label} 事前確認対象`}
+              height="auto"
+              showCount={false}
+              rows={items}
+              rowKey={(_, i) => `${g.key}-${i}`}
+              onRowClick={(a) => setSelectedAppo(a)}
+              rowAccent={() => g.color}
+              style={{
+                borderTopLeftRadius: 0,
+                borderTopRightRadius: 0,
+              }}
+              columns={[
+                {
+                  key: 'company', label: '企業名', width: 280, align: 'left',
+                  cellStyle: { fontWeight: font.weight.semibold, color: color.navy },
+                },
+                {
+                  key: 'client', label: 'クライアント', width: 310, align: 'left',
+                  cellStyle: { color: color.textMid, fontSize: font.size.xs },
+                },
+                {
+                  key: 'getter', label: '取得者', width: 140, align: 'left',
+                  cellStyle: { fontWeight: font.weight.semibold, color: color.textDark },
+                },
+                {
+                  key: 'meetDate', label: '面談日', width: 140, align: 'left',
+                  cellStyle: { fontFamily: font.family.mono, fontSize: 10, color: color.textLight },
+                  render: (a) => a.meetDate?.slice(5),
+                },
+                {
+                  key: 'status', label: '確認状況', width: 200, align: 'left',
+                  cellStyle: { whiteSpace: 'normal', overflow: 'visible', textOverflow: 'clip' },
+                  render: (a) => {
+                    const pcs = a.preCheckStatus;
+                    return (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         {pcs
                           ? <Badge variant={preCheckBadgeVariant(pcs)} dot>{pcs}</Badge>
                           : <span style={{ fontSize: font.size.xs, color: color.textLight }}>未入力 →</span>
@@ -554,7 +548,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
                         {['確認完了', 'リスケ', 'キャンセル'].includes(pcs) && (
                           <Button
                             size="sm"
-                            onClick={e => {
+                            onClick={(e) => {
                               e.stopPropagation();
                               const cl = clientData.find(c => c.company === a.client);
                               const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
@@ -570,12 +564,12 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
                           </Button>
                         )}
                       </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </Card>
+                    );
+                  },
+                },
+              ]}
+            />
+          </div>
         );
       })}
 

@@ -66,15 +66,18 @@ export default function DataTable({
     return idx;
   };
 
+  // height='auto' の場合は flex/scroll を解除して自然伸縮 (グループ並列表示などに使用)
+  const isAuto = height === 'auto' || height === undefined;
+
   return (
     <div
       className={className}
       style={{
-        display: 'flex',
+        display: isAuto ? 'block' : 'flex',
         flexDirection: 'column',
-        height,
+        height: isAuto ? undefined : height,
         minHeight: 0,
-        overflow: 'hidden',
+        overflow: isAuto ? 'visible' : 'hidden',
         background: color.white,
         border: `1px solid ${color.border}`,
         borderRadius: radius.lg,
@@ -86,7 +89,12 @@ export default function DataTable({
         role="grid"
         aria-label={ariaLabel}
         aria-rowcount={rows.length}
-        style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto' }}
+        style={{
+          flex: isAuto ? undefined : 1,
+          minHeight: 0,
+          overflowY: isAuto ? 'visible' : 'auto',
+          overflowX: 'auto',
+        }}
       >
         <div style={{ minWidth, position: 'relative' }}>
           {/* ヘッダー (sticky) */}
