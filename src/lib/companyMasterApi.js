@@ -80,6 +80,8 @@ export async function searchCompanies(filters) {
   // 拡張パラメータ（A: 複数キーワード, C: 意味検索）
   if (filters.keywords?.length) params.p_keyword_arr = filters.keywords;
   if (filters.queryEmbedding) params.p_query_embedding = filters.queryEmbedding;
+  // 業種 OR キーワード モード: saibunrui[] と keywords[] を OR ブロックで結合
+  if (filters.industryOrMode) params.p_industry_or_mode = true;
 
   // リトライ付きRPC呼び出し（一時的なネットワークエラー対策）
   let lastError;
