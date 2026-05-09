@@ -1,11 +1,10 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '../lib/supabase'
-import { useAuth } from '../hooks/useAuth'
-import { logAudit } from '../lib/audit'
-import PageHeader from '../../../common/PageHeader'
-import { color, space, radius, font, shadow, alpha } from '../../../../constants/design'
-import { Button, Input, Select, Card, Badge } from '../../../ui'
+import { supabase } from '../../lib/supabase'
+import { logAudit } from './capital/lib/audit'
+import PageHeader from '../common/PageHeader'
+import { color, space, radius, font, shadow, alpha } from '../../constants/design'
+import { Button, Input, Select, Card, Badge } from '../ui'
 
 const STATUS_STYLE = {
   not_contacted: { bg: color.gray50,      fg: color.textMid, label: '未接触' },
@@ -33,9 +32,8 @@ const PREFS = [
 ]
 const PAGE_SIZE = 50
 
-export default function AgencyRegistryPage() {
+export default function MaspAgencyRegistryView() {
   const qc = useQueryClient()
-  const { tenantId } = useAuth()
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterPref, setFilterPref] = useState('')
@@ -108,13 +106,11 @@ export default function AgencyRegistryPage() {
   function toggleSelectAll() { if (selectAll) setSelectedIds(new Set()); else setSelectedIds(new Set(paged.map(a => a.id))); setSelectAll(!selectAll) }
   function clearFilters() { setSearch(''); setFilterStatus(''); setFilterPref(''); setFilterInfoSharing(''); setFilterFeeType(''); setFilterStaffMin(''); setFilterStaffMax(''); setPage(1) }
 
-  // AIで問い合わせフォームURLを自動取得
   async function lookupContacts() {
     const ids = [...selectedIds]
     if (ids.length === 0) return
     setLookingUp(true)
     try {
-      // 20件ずつバッチ処理
       for (let i = 0; i < ids.length; i += 20) {
         const batch = ids.slice(i, i + 20)
         await supabase.functions.invoke('lookup-agency-contact', { body: { agency_ids: batch } })
@@ -128,22 +124,18 @@ export default function AgencyRegistryPage() {
     }
   }
 
-  // 配信モーダルを開く
   function openBroadcast() {
-    const selected = allAgencies.filter(a => selectedIds.has(a.id))
     const needText = needs.length > 0 ? needs.map(n => `- ${n.industry_label || '業種未指定'}`).join('\n') : '（買収ニーズを登録してください）'
     setBroadcastBody(`お世話になっております。\nM&Aソーシングパートナーズ株式会社と申します。\n\n弊社では現在、以下の条件での買収案件を探しております。\n\n${needText}\n\nご案件がございましたら、ぜひご紹介いただけますと幸いです。\n何卒よろしくお願いいたします。`)
     setShowBroadcast(true)
   }
 
-  // 配信実行
   async function sendBroadcast() {
     const selected = allAgencies.filter(a => selectedIds.has(a.id))
     const withEmail = selected.filter(a => a.status === 'contacted' && a.contact_email)
     const withForm = selected.filter(a => a.status === 'not_contacted' && a.contact_form_url)
     const noContact = selected.filter(a => !a.contact_email && !a.contact_form_url)
 
-    // 記録保存
     await supabase.from('cap_need_broadcasts').insert({
       subject: `【買収ニーズ配信】${selected.length}社`,
       body: broadcastBody,
@@ -151,14 +143,12 @@ export default function AgencyRegistryPage() {
       sent_at: new Date().toISOString(),
     })
 
-    // 監査ログ
     logAudit({
       action: 'broadcast_send', resourceType: 'broadcast',
       resourceName: `買収ニーズ配信 ${selected.length}社`,
       metadata: { total: selected.length, with_email: withEmail.length, with_form: withForm.length, no_contact: noContact.length },
     })
 
-    // 接触済 → メール送信（mailto:一括）
     if (withEmail.length > 0) {
       const emails = withEmail.map(a => a.contact_email).join(',')
       const subject = encodeURIComponent('【買収ニーズのご案内】M&Aソーシングパートナーズ')
@@ -166,7 +156,6 @@ export default function AgencyRegistryPage() {
       window.open(`mailto:${emails}?subject=${subject}&body=${body}`, '_blank')
     }
 
-    // 未接触 → 問い合わせフォームをタブで開く（最大10件）
     if (withForm.length > 0) {
       const toOpen = withForm.slice(0, 10)
       for (const a of toOpen) {
@@ -177,7 +166,6 @@ export default function AgencyRegistryPage() {
       }
     }
 
-    // ステータス更新
     for (const a of selected) {
       if (a.status === 'not_contacted') await updateStatus(a.id, 'contacted')
     }
@@ -191,7 +179,6 @@ export default function AgencyRegistryPage() {
     alert(msg)
   }
 
-  // 連絡先手動編集
   async function saveContact() {
     if (!editingContact) return
     await supabase.from('cap_ma_agencies').update({
@@ -204,14 +191,12 @@ export default function AgencyRegistryPage() {
     setEditingContact(null)
   }
 
-  // 既存と同寸を維持: ネイティブ select 用 inline スタイル (テーブル/フィルタ内に多数存在するため)
-  const selectStyle = { height: 32, padding: '0 8px', background: color.white, border: `0.5px solid ${color.border}`, borderRadius: 5, fontSize: font.size.sm, outline: 'none', color: color.navy }
-  // color は <tr> の背景に合わせて親から継承させる (navy bg → 白、grey bg → dark)
+  const selectStyle = { height: 32, padding: '0 8px', background: color.white, border: `0.5px solid ${color.border}`, borderRadius: radius.lg, fontSize: font.size.sm, outline: 'none', color: color.navy }
   const th = { fontSize: 10, fontWeight: font.weight.medium, padding: '6px 4px', textAlign: 'center', lineHeight: 1.3 }
-  const td = { fontSize: font.size.xs, color: color.navy, padding: '6px 4px', textAlign: 'center', borderBottom: '0.5px solid #e0e8f4' }
+  const td = { fontSize: font.size.xs, color: color.navy, padding: '6px 4px', textAlign: 'center', borderBottom: `0.5px solid ${color.borderLight}` }
 
   function Pager() {
-    const pBtn = { padding: '3px 7px', border: `0.5px solid ${color.border}`, borderRadius: 4, background: color.white, fontSize: font.size.xs, cursor: 'pointer', color: color.textMid }
+    const pBtn = { padding: '3px 7px', border: `0.5px solid ${color.border}`, borderRadius: radius.md, background: color.white, fontSize: font.size.xs, cursor: 'pointer', color: color.textMid }
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
         <button onClick={() => setPage(1)} disabled={page===1} style={pBtn}>«</button>
@@ -219,17 +204,16 @@ export default function AgencyRegistryPage() {
         {Array.from({length: Math.min(7, totalPages)}, (_, i) => {
           let p = page <= 4 ? i+1 : page >= totalPages-3 ? totalPages-6+i : page-3+i
           if (p < 1 || p > totalPages) return null
-          return <button key={p} onClick={() => setPage(p)} style={{ padding: '3px 9px', border: p===page ? 'none' : `0.5px solid ${color.border}`, borderRadius: 4, background: p===page ? color.navy : color.white, color: p===page ? color.white : color.textMid, fontSize: font.size.xs, cursor: 'pointer', fontWeight: p===page ? font.weight.semibold : font.weight.normal }}>{p}</button>
+          return <button key={p} onClick={() => setPage(p)} style={{ padding: '3px 9px', border: p===page ? 'none' : `0.5px solid ${color.border}`, borderRadius: radius.md, background: p===page ? color.navy : color.white, color: p===page ? color.white : color.textMid, fontSize: font.size.xs, cursor: 'pointer', fontWeight: p===page ? font.weight.semibold : font.weight.normal }}>{p}</button>
         })}
         {totalPages > 7 && page < totalPages - 3 && <span style={{ color: color.textMid, fontSize: font.size.xs }}>…</span>}
-        {totalPages > 7 && page < totalPages - 3 && <button onClick={() => setPage(totalPages)} style={{ padding: '3px 9px', border: `0.5px solid ${color.border}`, borderRadius: 4, background: color.white, fontSize: font.size.xs, cursor: 'pointer', color: color.textMid }}>{totalPages}</button>}
+        {totalPages > 7 && page < totalPages - 3 && <button onClick={() => setPage(totalPages)} style={{ padding: '3px 9px', border: `0.5px solid ${color.border}`, borderRadius: radius.md, background: color.white, fontSize: font.size.xs, cursor: 'pointer', color: color.textMid }}>{totalPages}</button>}
         <button onClick={() => setPage(p => Math.min(totalPages,p+1))} disabled={page===totalPages||totalPages===0} style={pBtn}>›</button>
         <button onClick={() => setPage(totalPages)} disabled={page===totalPages||totalPages===0} style={pBtn}>»</button>
       </div>
     )
   }
 
-  // 選択中の企業の連絡先状況
   const selectedAgencies = allAgencies.filter(a => selectedIds.has(a.id))
   const selWithEmail = selectedAgencies.filter(a => a.contact_email)
   const selWithForm = selectedAgencies.filter(a => a.contact_form_url && !a.contact_email)
@@ -239,94 +223,113 @@ export default function AgencyRegistryPage() {
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         bleed={false}
-        eyebrow="Spartia Capital · Registry"
+        eyebrow="MASP · Database"
         title="登録支援機関データベース"
         description={`${filtered.length === stats.total
           ? `${(page-1)*PAGE_SIZE+1}〜${Math.min(page*PAGE_SIZE, filtered.length)}件を表示中（全${stats.total}件）`
           : `${filtered.length}件該当（全${stats.total}件）`}　接触済 ${stats.contacted}社　未接触 ${stats.notContacted}社`}
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: space[4] }}
         right={selectedIds.size > 0 ? (
           <>
-            <Button variant="secondary" size="sm" onClick={lookupContacts} loading={lookingUp} disabled={lookingUp}
-              style={{ height: 32, padding: '0 12px', fontSize: font.size.sm, color: color.navy, borderRadius: radius.md }}>
+            <Button variant="secondary" size="sm" onClick={lookupContacts} loading={lookingUp} disabled={lookingUp}>
               {lookingUp ? 'AI取得中...' : `${selectedIds.size}社の連絡先を取得`}
             </Button>
-            <Button size="sm" onClick={openBroadcast} style={{ height: 32, padding: '0 14px', borderRadius: radius.md }}>
+            <Button size="sm" onClick={openBroadcast}>
               {selectedIds.size}社に配信
             </Button>
           </>
         ) : null}
       />
-      <div style={{ padding: '0 24px' }}>
 
       {/* 検索バー */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="企業名/事業所名"
-          style={{ ...selectStyle, width: 220 }} />
-        <button onClick={() => setShowAdvanced(!showAdvanced)} style={{
-          height: 32, padding: '0 14px', background: showAdvanced ? color.navy : color.white,
-          border: `0.5px solid ${color.border}`, borderRadius: 5, fontSize: font.size.sm, cursor: 'pointer',
-          color: showAdvanced ? color.white : color.textMid,
-        }}>{showAdvanced ? '✕ 詳細検索を閉じる' : '詳細検索'}</button>
+      <div style={{ display: 'flex', gap: space[2], marginBottom: space[2.5], flexWrap: 'wrap', alignItems: 'center' }}>
+        <Input
+          size="sm"
+          value={search}
+          onChange={e => { setSearch(e.target.value); setPage(1) }}
+          placeholder="企業名/事業所名"
+          fullWidth={false}
+          containerStyle={{ width: 220 }}
+        />
+        <Button
+          variant={showAdvanced ? 'primary' : 'outline'}
+          size="sm"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+        >
+          {showAdvanced ? '✕ 詳細検索を閉じる' : '詳細検索'}
+        </Button>
         {(filterStatus || filterPref || filterInfoSharing || filterFeeType || filterStaffMin || filterStaffMax) && (
-          <button onClick={clearFilters} style={{ height: 32, padding: '0 12px', background: color.white, border: `0.5px solid ${color.border}`, borderRadius: 5, fontSize: font.size.sm, cursor: 'pointer', color: '#F0B4B4' }}>クリア</button>
+          <Button variant="ghost" size="sm" onClick={clearFilters} style={{ color: color.danger }}>
+            クリア
+          </Button>
         )}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: space[1.5] }}>
           <span style={{ fontSize: font.size.xs, color: color.textMid }}>並び替え</span>
-          <select value={sortKey} onChange={e => { setSortKey(e.target.value); setPage(1) }} style={selectStyle}>
-            {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+          <Select
+            size="sm"
+            value={sortKey}
+            onChange={e => { setSortKey(e.target.value); setPage(1) }}
+            options={SORT_OPTIONS}
+            fullWidth={false}
+            containerStyle={{ minWidth: 280 }}
+          />
         </div>
       </div>
 
       {/* 詳細検索 */}
       {showAdvanced && (
-        <div style={{ background: color.white, border: `0.5px solid ${color.border}`, borderRadius: 10, padding: 20, marginBottom: 14 }}>
+        <Card padding="md" style={{ marginBottom: space[3.5] }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px 20px' }}>
-            <div>
-              <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4, fontWeight: font.weight.medium }}>ステータス</div>
-              <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1) }} style={{ ...selectStyle, width: '100%' }}>
-                <option value="">すべて</option><option value="not_contacted">未接触</option><option value="contacted">接触済</option>
-              </select>
-            </div>
-            <div>
-              <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4, fontWeight: font.weight.medium }}>本店所在都道府県</div>
-              <select value={filterPref} onChange={e => { setFilterPref(e.target.value); setPage(1) }} style={{ ...selectStyle, width: '100%' }}>
-                <option value="">すべて</option>{PREFS.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-            <div>
-              <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4, fontWeight: font.weight.medium }}>FA/仲介業務の別</div>
-              <select value={filterFeeType} onChange={e => { setFilterFeeType(e.target.value); setPage(1) }} style={{ ...selectStyle, width: '100%' }}>
-                <option value="">すべて</option><option value="fa">FA業務あり</option><option value="broker">仲介業務あり</option>
-              </select>
-            </div>
-            <div>
-              <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4, fontWeight: font.weight.medium }}>情報共有の仕組みへの加盟</div>
-              <select value={filterInfoSharing} onChange={e => { setFilterInfoSharing(e.target.value); setPage(1) }} style={{ ...selectStyle, width: '100%' }}>
-                <option value="">すべて</option><option value="yes">加盟有り</option><option value="no">加盟無し</option>
-              </select>
-            </div>
-            <div>
-              <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4, fontWeight: font.weight.medium }}>M&A専従者数（下限）</div>
-              <select value={filterStaffMin} onChange={e => { setFilterStaffMin(e.target.value); setPage(1) }} style={{ ...selectStyle, width: '100%' }}>
-                <option value="">下限なし</option>{[1,2,3,5,10,20,50,100].map(n => <option key={n} value={n}>{n}人以上</option>)}
-              </select>
-            </div>
-            <div>
-              <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4, fontWeight: font.weight.medium }}>M&A専従者数（上限）</div>
-              <select value={filterStaffMax} onChange={e => { setFilterStaffMax(e.target.value); setPage(1) }} style={{ ...selectStyle, width: '100%' }}>
-                <option value="">上限なし</option>{[1,2,3,5,10,20,50,100,200].map(n => <option key={n} value={n}>{n}人以下</option>)}
-              </select>
-            </div>
+            <Select
+              size="sm"
+              label="ステータス"
+              value={filterStatus}
+              onChange={e => { setFilterStatus(e.target.value); setPage(1) }}
+              options={[{ value: '', label: 'すべて' }, { value: 'not_contacted', label: '未接触' }, { value: 'contacted', label: '接触済' }]}
+            />
+            <Select
+              size="sm"
+              label="本店所在都道府県"
+              value={filterPref}
+              onChange={e => { setFilterPref(e.target.value); setPage(1) }}
+              options={[{ value: '', label: 'すべて' }, ...PREFS.map(p => ({ value: p, label: p }))]}
+            />
+            <Select
+              size="sm"
+              label="FA/仲介業務の別"
+              value={filterFeeType}
+              onChange={e => { setFilterFeeType(e.target.value); setPage(1) }}
+              options={[{ value: '', label: 'すべて' }, { value: 'fa', label: 'FA業務あり' }, { value: 'broker', label: '仲介業務あり' }]}
+            />
+            <Select
+              size="sm"
+              label="情報共有の仕組みへの加盟"
+              value={filterInfoSharing}
+              onChange={e => { setFilterInfoSharing(e.target.value); setPage(1) }}
+              options={[{ value: '', label: 'すべて' }, { value: 'yes', label: '加盟有り' }, { value: 'no', label: '加盟無し' }]}
+            />
+            <Select
+              size="sm"
+              label="M&A専従者数（下限）"
+              value={filterStaffMin}
+              onChange={e => { setFilterStaffMin(e.target.value); setPage(1) }}
+              options={[{ value: '', label: '下限なし' }, ...[1,2,3,5,10,20,50,100].map(n => ({ value: String(n), label: `${n}人以上` }))]}
+            />
+            <Select
+              size="sm"
+              label="M&A専従者数（上限）"
+              value={filterStaffMax}
+              onChange={e => { setFilterStaffMax(e.target.value); setPage(1) }}
+              options={[{ value: '', label: '上限なし' }, ...[1,2,3,5,10,20,50,100,200].map(n => ({ value: String(n), label: `${n}人以下` }))]}
+            />
           </div>
-        </div>
+        </Card>
       )}
 
-      <div style={{ marginBottom: 10 }}><Pager /></div>
+      <div style={{ marginBottom: space[2.5] }}><Pager /></div>
 
       {/* Table */}
-      <div style={{ overflowX: 'auto', border: `1px solid ${color.border}`, borderRadius: radius.md }}>
+      <div style={{ overflowX: 'auto', border: `1px solid ${color.border}`, borderRadius: radius.md, background: color.white }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1400 }}>
           <thead>
             <tr style={{ background: color.navy, color: color.white }}>
@@ -348,7 +351,7 @@ export default function AgencyRegistryPage() {
               <th colSpan={4} style={{ ...th, borderBottom: `1px solid ${color.border}`, fontSize: 9 }}>譲渡側</th>
               <th colSpan={2} style={{ ...th, borderBottom: `1px solid ${color.border}`, borderRight: `1px solid ${color.border}`, fontSize: 9 }}>譲受側</th>
             </tr>
-            <tr style={{ background: color.border, color: '#181818' }}>
+            <tr style={{ background: color.border, color: color.textDark }}>
               <th style={{ ...th, width: 40 }}>成功<br/>報酬</th><th style={{ ...th, width: 50 }}>算定<br/>方式</th>
               <th style={{ ...th, width: 52 }}>最低<br/>手数料</th><th style={{ ...th, width: 40 }}>その他</th>
               <th style={{ ...th, width: 40 }}>成功<br/>報酬</th><th style={{ ...th, width: 50, borderRight: `1px solid ${color.border}` }}>算定<br/>方式</th>
@@ -368,7 +371,7 @@ export default function AgencyRegistryPage() {
               const hasEmail = !!a.contact_email
               const hasForm = !!a.contact_form_url
               return (
-                <tr key={a.id} style={{ background: selectedIds.has(a.id) ? '#e8f0ff' : i % 2 === 0 ? color.white : color.gray50 }}>
+                <tr key={a.id} style={{ background: selectedIds.has(a.id) ? alpha(color.navyLight, 0.08) : i % 2 === 0 ? color.white : color.cream }}>
                   <td style={td}><input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleSelect(a.id)} style={{ width: 13, height: 13 }} /></td>
                   <td style={{ ...td, color: color.textMid }}>{rowNum}</td>
                   <td style={{ ...td, textAlign: 'left', paddingLeft: 8, fontWeight: font.weight.medium, color: color.navy, cursor: 'pointer' }}
@@ -379,25 +382,27 @@ export default function AgencyRegistryPage() {
                     {a.name}
                   </td>
                   <td style={td}>{a.prefecture || ''}</td>
-                  <td style={td}>{a.staff_count != null ? `${a.staff_count}人` : ''}</td>
-                  <td style={{ ...td, borderRight: '1px solid #dce8f8' }}>{a.info_sharing ? '有り' : '無し'}</td>
+                  <td style={{ ...td, textAlign: 'right', paddingRight: 8 }}>{a.staff_count != null ? `${a.staff_count}人` : ''}</td>
+                  <td style={{ ...td, borderRight: `1px solid ${color.borderLight}` }}>
+                    {a.info_sharing ? <Badge variant="success" size="sm" dot>有り</Badge> : <Badge variant="neutral" size="sm">無し</Badge>}
+                  </td>
                   <td style={td}>{a.fa_seller_success_fee || ''}</td>
                   <td style={td}>{a.fa_seller_calc_method || ''}</td>
                   <td style={td}>{a.fa_seller_min_fee || ''}</td>
                   <td style={td}>{a.fa_seller_other_fee || ''}</td>
                   <td style={td}>{a.fa_buyer_success_fee || ''}</td>
-                  <td style={{ ...td, borderRight: '1px solid #dce8f8' }}>{a.fa_buyer_calc_method || ''}</td>
+                  <td style={{ ...td, borderRight: `1px solid ${color.borderLight}` }}>{a.fa_buyer_calc_method || ''}</td>
                   <td style={td}>{a.broker_seller_success_fee || ''}</td>
                   <td style={td}>{a.broker_seller_calc_method || ''}</td>
                   <td style={td}>{a.broker_seller_min_fee || ''}</td>
                   <td style={td}>{a.broker_seller_other_fee || ''}</td>
                   <td style={td}>{a.broker_buyer_success_fee || ''}</td>
-                  <td style={{ ...td, borderRight: '1px solid #dce8f8' }}>{a.broker_buyer_calc_method || ''}</td>
+                  <td style={{ ...td, borderRight: `1px solid ${color.borderLight}` }}>{a.broker_buyer_calc_method || ''}</td>
                   <td style={td}>
                     <div style={{ display: 'flex', gap: 3, justifyContent: 'center', alignItems: 'center' }}>
-                      {hasEmail && <span title={a.contact_email} style={{ fontSize: 9, background: color.successSoft, color: color.success, padding: '1px 4px', borderRadius: 2, cursor: 'pointer' }}
+                      {hasEmail && <span title={a.contact_email} style={{ fontSize: 9, background: color.successSoft, color: color.success, padding: '1px 4px', borderRadius: radius.sm, cursor: 'pointer' }}
                         onClick={() => window.open(`mailto:${a.contact_email}`, '_blank')}>Mail</span>}
-                      {hasForm && <span title={a.contact_form_url} style={{ fontSize: 9, background: color.gray50, color: color.navy, padding: '1px 4px', borderRadius: 2, cursor: 'pointer' }}
+                      {hasForm && <span title={a.contact_form_url} style={{ fontSize: 9, background: color.gray50, color: color.navy, padding: '1px 4px', borderRadius: radius.sm, cursor: 'pointer' }}
                         onClick={() => window.open(a.contact_form_url, '_blank')}>Form</span>}
                       <span style={{ fontSize: 9, color: color.textMid, cursor: 'pointer', padding: '1px 3px' }}
                         onClick={() => { setEditingContact(a.id); setEditForm({ email: a.contact_email || '', form_url: a.contact_form_url || '', website: a.website || '', contact_name: a.contact_name || '' }) }}
@@ -406,7 +411,7 @@ export default function AgencyRegistryPage() {
                   </td>
                   <td style={td}>
                     <select value={a.status} onChange={e => updateStatus(a.id, e.target.value)}
-                      style={{ height: 24, padding: '0 4px', fontSize: 10, border: `0.5px solid ${ss.bg}`, borderRadius: 3, background: ss.bg, color: ss.fg, outline: 'none', cursor: 'pointer' }}>
+                      style={{ height: 24, padding: '0 4px', fontSize: 10, border: `0.5px solid ${ss.bg}`, borderRadius: radius.sm, background: ss.bg, color: ss.fg, outline: 'none', cursor: 'pointer' }}>
                       <option value="not_contacted">未接触</option><option value="contacted">接触済</option>
                     </select>
                   </td>
@@ -417,23 +422,28 @@ export default function AgencyRegistryPage() {
         </table>
       </div>
 
-      <div style={{ marginTop: 10 }}><Pager /></div>
+      <div style={{ marginTop: space[2.5] }}><Pager /></div>
 
       {/* 連絡先編集モーダル */}
       {editingContact && (
         <div onClick={e => { if (e.target === e.currentTarget) setEditingContact(null) }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: color.white, borderRadius: 12, padding: 24, width: 420 }}>
-            <h3 style={{ fontSize: 15, fontWeight: font.weight.medium, color: color.navy, marginBottom: 16 }}>連絡先を編集</h3>
+          style={{ position: 'fixed', inset: 0, background: alpha(color.navyDeep, 0.5), display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: color.white, borderRadius: radius.lg, padding: space[6], width: 420, boxShadow: shadow.xl }}>
+            <h3 style={{ fontSize: font.size.md, fontWeight: font.weight.medium, color: color.navy, marginBottom: space[4] }}>連絡先を編集</h3>
             {[['担当者名', 'contact_name', 'text'], ['メールアドレス', 'email', 'email'], ['問い合わせフォームURL', 'form_url', 'url'], ['ウェブサイト', 'website', 'url']].map(([label, key, type]) => (
-              <div key={key} style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 3 }}>{label}</div>
-                <Input type={type} value={editForm[key] || ''} onChange={e => setEditForm({ ...editForm, [key]: e.target.value })} />
+              <div key={key} style={{ marginBottom: space[3] }}>
+                <Input
+                  size="sm"
+                  label={label}
+                  type={type}
+                  value={editForm[key] || ''}
+                  onChange={e => setEditForm({ ...editForm, [key]: e.target.value })}
+                />
               </div>
             ))}
-            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-              <Button variant="secondary" fullWidth onClick={() => setEditingContact(null)}>キャンセル</Button>
-              <Button fullWidth onClick={saveContact} style={{ background: color.white, color: '#181818', border: 'none' }}>保存</Button>
+            <div style={{ display: 'flex', gap: space[2.5], marginTop: space[4] }}>
+              <Button variant="outline" fullWidth onClick={() => setEditingContact(null)}>キャンセル</Button>
+              <Button variant="primary" fullWidth onClick={saveContact}>保存</Button>
             </div>
           </div>
         </div>
@@ -442,39 +452,38 @@ export default function AgencyRegistryPage() {
       {/* 配信モーダル */}
       {showBroadcast && (
         <div onClick={e => { if (e.target === e.currentTarget) setShowBroadcast(false) }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 620, maxHeight: '85vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: 16, fontWeight: font.weight.medium, color: color.navy, marginBottom: 4 }}>買収ニーズ配信</h2>
-            <p style={{ fontSize: font.size.sm, color: color.textMid, marginBottom: 16 }}>選択した {selectedIds.size} 社に配信します</p>
+          style={{ position: 'fixed', inset: 0, background: alpha(color.navyDeep, 0.5), display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: color.white, borderRadius: radius.lg, padding: space[7], width: 620, maxHeight: '85vh', overflowY: 'auto', boxShadow: shadow.xl }}>
+            <h2 style={{ fontSize: font.size.lg, fontWeight: font.weight.medium, color: color.navy, marginBottom: space[1] }}>買収ニーズ配信</h2>
+            <p style={{ fontSize: font.size.sm, color: color.textMid, marginBottom: space[4] }}>選択した {selectedIds.size} 社に配信します</p>
 
             {/* 配信方法の内訳 */}
-            <div style={{ background: color.gray50, border: `0.5px solid ${color.border}`, borderRadius: radius.xl, padding: 14, marginBottom: 16 }}>
-              <div style={{ fontSize: font.size.sm, fontWeight: font.weight.medium, color: color.navy, marginBottom: 8 }}>配信方法の内訳</div>
-              <div style={{ display: 'flex', gap: 16, fontSize: font.size.sm }}>
+            <div style={{ background: color.gray50, border: `0.5px solid ${color.border}`, borderRadius: radius.xl, padding: space[3.5], marginBottom: space[4] }}>
+              <div style={{ fontSize: font.size.sm, fontWeight: font.weight.medium, color: color.navy, marginBottom: space[2] }}>配信方法の内訳</div>
+              <div style={{ display: 'flex', gap: space[4], fontSize: font.size.sm }}>
                 <div style={{ color: color.success }}>メール送信: {selWithEmail.length}社</div>
                 <div style={{ color: color.navy }}>フォーム: {selWithForm.length}社</div>
-                {selNoContact.length > 0 && <div style={{ color: '#F0B4B4' }}>連絡先なし: {selNoContact.length}社</div>}
+                {selNoContact.length > 0 && <div style={{ color: color.danger }}>連絡先なし: {selNoContact.length}社</div>}
               </div>
               {selNoContact.length > 0 && (
-                <div style={{ fontSize: font.size.xs, color: '#A08040', marginTop: 6, background: '#FAF3E0', padding: '6px 10px', borderRadius: radius.md }}>
+                <div style={{ fontSize: font.size.xs, color: color.warn, marginTop: space[1.5], background: color.warnSoft, padding: '6px 10px', borderRadius: radius.md }}>
                   連絡先未取得の{selNoContact.length}社は配信されません。先に「連絡先を取得」ボタンでAI取得してください。
                 </div>
               )}
             </div>
 
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4 }}>メール本文（メール送信・フォーム入力用）</div>
+            <div style={{ marginBottom: space[3] }}>
+              <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[1] }}>メール本文（メール送信・フォーム入力用）</div>
               <textarea value={broadcastBody} onChange={e => setBroadcastBody(e.target.value)} rows={10}
                 style={{ width: '100%', padding: '10px 12px', border: `0.5px solid ${color.border}`, borderRadius: radius.lg, fontSize: font.size.base, outline: 'none', resize: 'vertical', lineHeight: 1.8, color: color.textDark, fontFamily: font.family.sans, boxSizing: 'border-box' }} />
             </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <Button variant="secondary" fullWidth onClick={() => setShowBroadcast(false)}>キャンセル</Button>
-              <Button fullWidth onClick={sendBroadcast} style={{ background: color.white, color: '#181818', border: 'none' }}>配信する</Button>
+            <div style={{ display: 'flex', gap: space[2.5] }}>
+              <Button variant="outline" fullWidth onClick={() => setShowBroadcast(false)}>キャンセル</Button>
+              <Button variant="primary" fullWidth onClick={sendBroadcast}>配信する</Button>
             </div>
           </div>
         </div>
       )}
-      </div>
     </div>
   )
 }

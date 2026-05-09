@@ -40,6 +40,7 @@ import DealsView from './views/DealsView';
 import ApplicationsView from './views/career/ApplicationsView';
 import CareerDealsView from './views/career/CareerDealsView';
 import MASPMembersView from './views/MASPMembersView';
+import MaspAgencyRegistryView from './views/MaspAgencyRegistryView';
 import EngagementMembersView from './views/EngagementMembersView';
 
 import { AVAILABLE_MONTHS } from '../constants/availableMonths';
@@ -322,7 +323,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
-  const _VALID_TABS = ["dashboard","live","incoming","lists","appo","precheck","deals","crm","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","applications","deals_career","all_members","members_career","admin_settings"];
+  const _VALID_TABS = ["dashboard","live","incoming","lists","appo","precheck","deals","crm","members","search","stats","recall","payroll","shift","rules","database","agency_registry","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","applications","deals_career","all_members","members_career","admin_settings"];
   const [currentTab, setCurrentTab] = useState(() => {
     try {
       const saved = localStorage.getItem("masp_v2_currentTab");
@@ -342,7 +343,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     // 初回（ロード完了直後）は currentTab を尊重する。タブが現エンゲージメントで
     // 有効ならそのまま、無効ならデフォルトに揃える。
     _prevEngSlugRef.current = engSlug;
-    const MASP_TABS = ['database', 'all_members', 'admin_settings', 'mypage'];
+    const MASP_TABS = ['database', 'agency_registry', 'all_members', 'admin_settings', 'mypage'];
     const SOURCING_TABS = ['dashboard','live','incoming','lists','appo','precheck','deals','crm','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','edu_performance','ai','manager_admin'];
     const CAREER_TABS = ['applications', 'deals_career', 'members_career', 'mypage'];
     if (engSlug === 'masp') {
@@ -650,7 +651,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         flatTabs.push('mypage');
         cycle(flatTabs, currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'masp') {
-        const tabs = ['database', 'all_members'];
+        const tabs = ['database', 'agency_registry', 'all_members'];
         if (isAdmin) tabs.push('admin_settings');
         tabs.push('mypage');
         cycle(tabs, currentTab, e.key, setCurrentTab);
@@ -1189,9 +1190,10 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {/* key で engSlug+currentTab が変わるたびに DOM を強制再マウント。
             各 View の fadeIn が (engagement 切替含め) 必ず再生される。 */}
         <div key={`${engSlug}:${currentTab}`}>
-        {engSlug === 'masp' && !['database','mypage','all_members','admin_settings'].includes(currentTab) && (
+        {engSlug === 'masp' && !['database','agency_registry','mypage','all_members','admin_settings'].includes(currentTab) && (
           <EngagementComingSoon title="MASP" subtitle="この画面は準備中です" />
         )}
+        {engSlug === 'masp' && currentTab === 'agency_registry' && <MaspAgencyRegistryView />}
         {engSlug === 'masp' && currentTab === 'all_members' && <MASPMembersView isAdmin={isAdmin} />}
         {engSlug === 'masp' && currentTab === 'admin_settings' && isAdmin && (
           <AdminView

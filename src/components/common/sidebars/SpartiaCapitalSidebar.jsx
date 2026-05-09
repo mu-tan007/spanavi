@@ -11,7 +11,6 @@ const NAV_SECTIONS = [
     { path: '/deals', label: 'Deals', basePath: '/deals' },
     { path: '/needs', label: 'Needs' },
     { path: '/firms', label: 'Firms' },
-    { path: '/registry', label: 'Registry' },
   ]},
   { label: 'WORKSPACE', items: [
     { path: '/documents', label: 'Documents' },
