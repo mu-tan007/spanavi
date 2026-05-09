@@ -282,12 +282,12 @@ export default function DatabaseChatPanel({ baseFilters, onApplyFilters }) {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => {
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
                   e.preventDefault();
                   handleSend();
                 }
               }}
-              placeholder="検索したい条件を入力（Ctrl+Enter で送信）"
+              placeholder="検索したい条件を入力（Enter で送信、Shift+Enter で改行）"
               rows={2}
               style={{
                 flex: 1, padding: `${space[2]}px ${space[3]}px`,
