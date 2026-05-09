@@ -2329,7 +2329,7 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
     { key: 'rank', width: 80, align: 'center' },
     { key: 'sales', width: 110, align: 'right' },
     { key: 'rate', width: 110, align: 'right' },
-    { key: 'joinDate', width: 100, align: 'center' },
+    { key: 'joinDate', width: 100, align: 'right' },
   ];
   const MEMBER_COLS_EDIT = [...MEMBER_COLS_BASE, { key: 'edit', width: 50, align: 'center' }];
   const { columns: memCols, gridTemplateColumns: memGrid, contentMinWidth: memMinW, onResizeStart: memResize } = useColumnConfig(setMembers ? 'membersEdit' : 'members', setMembers ? MEMBER_COLS_EDIT : MEMBER_COLS_BASE);

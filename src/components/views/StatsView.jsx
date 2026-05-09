@@ -37,9 +37,9 @@ const STATS_LIST_COLS = [
   { key: 'name', width: 80, align: 'left' },
   { key: 'calls', width: 100, align: 'right' },
   { key: 'connect', width: 80, align: 'right' },
-  { key: 'connectRate', width: 180, align: 'left' },
+  { key: 'connectRate', width: 180, align: 'right' },
   { key: 'appo', width: 80, align: 'right' },
-  { key: 'appoRate', width: 180, align: 'left' },
+  { key: 'appoRate', width: 180, align: 'right' },
   { key: 'lastDate', width: 80, align: 'right' },
 ];
 

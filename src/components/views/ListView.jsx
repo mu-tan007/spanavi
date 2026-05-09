@@ -59,7 +59,7 @@ const LISTVIEW_ARCHIVE_COLS = [
   { key: 'client', width: 280, align: 'left' },
   { key: 'type', width: 70, align: 'left' },
   { key: 'industry', width: 140, align: 'left' },
-  { key: 'count', width: 70, align: 'left' },
+  { key: 'count', width: 70, align: 'right' },
   { key: 'manager', width: 112, align: 'left' },
   { key: 'actions', width: 80, align: 'right' },
 ];
