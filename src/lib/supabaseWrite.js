@@ -2540,9 +2540,13 @@ export async function uploadWeeklyMeetingVideo({ file, title, meetingDate, uploa
       maxDurationSeconds: 7200,
     },
   });
-  if (duErr || !du?.uploadUrl || !du?.uid) {
-    console.error('[DB] uploadWeeklyMeetingVideo tus_create error:', duErr || du);
-    return { error: duErr || new Error('cf tus_create failed') };
+  if (duErr || du?.error || !du?.uploadUrl || !du?.uid) {
+    // Cloudflare からの詳細エラーを優先して表示
+    const cfErr = du?.error
+      ? (du.detail ? `${du.error}: ${du.detail}` : du.error)
+      : (duErr?.message || 'cf tus_create failed');
+    console.error('[DB] uploadWeeklyMeetingVideo tus_create error:', cfErr, { duErr, du });
+    return { error: new Error(cfErr) };
   }
   const uploadURL = du.uploadUrl;
   const uid = du.uid;
