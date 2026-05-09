@@ -396,7 +396,7 @@ function MemberRowCells({ m, ranks = [], roles = [], editable, onRankChange, onR
           />
         ) : (currentRank?.name || '—')}
       </td>
-      <td style={{ ...td, textAlign: 'center', color: color.textDark, fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums' }}>
+      <td style={{ ...td, textAlign: 'right', color: color.textDark, fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums' }}>
         {overrideEditing && editable ? (
           <Input
             size="sm"
