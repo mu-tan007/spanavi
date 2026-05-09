@@ -68,7 +68,17 @@ export async function searchCompanies(filters) {
   if (filters.employeeMax != null && filters.employeeMax !== '') params.p_employee_max = Number(filters.employeeMax);
   if (filters.employeeNullMode === 'include') params.p_employee_include_null = true;
   if (filters.employeeNullMode === 'exclude') params.p_employee_exclude_null = true;
-  if (filters.phonePattern) params.p_phone_pattern = filters.phonePattern;
+  // 電話番号: 単数 phonePattern または複数 phonePatterns（カンマ/空白区切りも自動分割）
+  if (filters.phonePatterns?.length) {
+    params.p_phone_patterns = filters.phonePatterns;
+  } else if (filters.phonePattern) {
+    const split = String(filters.phonePattern).split(/[,、\s]+/).map(s => s.trim()).filter(Boolean);
+    if (split.length > 1) {
+      params.p_phone_patterns = split;
+    } else {
+      params.p_phone_pattern = filters.phonePattern;
+    }
+  }
   if (filters.establishedMin != null && filters.establishedMin !== '') params.p_established_min = Number(filters.establishedMin);
   if (filters.establishedMax != null && filters.establishedMax !== '') params.p_established_max = Number(filters.establishedMax);
   if (filters.shareholderType?.length) params.p_shareholder_type_arr = filters.shareholderType;

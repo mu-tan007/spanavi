@@ -108,13 +108,13 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
           />
         </div>
         <div>
-          <div style={labelStyle}>電話番号（前方一致）</div>
+          <div style={labelStyle}>電話番号（前方一致・複数可）</div>
           <Input
             size="sm"
             type="text" value={filters.phonePattern}
             onChange={e => setFilter('phonePattern', e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="例: 090, 03..."
+            placeholder="例: 080, 090, 03（カンマ区切りで複数指定可）"
           />
         </div>
       </div>

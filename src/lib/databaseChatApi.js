@@ -15,7 +15,7 @@ const PERSIST_KEYS = [
   'netIncomeMin', 'netIncomeMax', 'netIncomeNullMode',
   'ageMin', 'ageMax', 'ageNullMode',
   'employeeMin', 'employeeMax', 'employeeNullMode',
-  'phonePattern', 'establishedMin', 'establishedMax',
+  'phonePattern', 'phonePatterns', 'establishedMin', 'establishedMax',
   'shareholderType', 'repShareholderMatch', 'logic',
 ];
 
@@ -88,7 +88,7 @@ export async function applyAiFiltersToBase(baseFilters, aiFilters) {
     'ageMin', 'ageMax', 'employeeMin', 'employeeMax',
     'establishedMin', 'establishedMax',
   ];
-  const arrKeys = ['daibunrui', 'saibunrui', 'prefecture', 'shareholderType', 'keywords', 'cities'];
+  const arrKeys = ['daibunrui', 'saibunrui', 'prefecture', 'shareholderType', 'keywords', 'cities', 'phonePatterns'];
   const strKeys = ['keyword', 'city', 'phonePattern', 'logic',
     'revenueNullMode', 'netIncomeNullMode', 'ageNullMode', 'employeeNullMode'];
 

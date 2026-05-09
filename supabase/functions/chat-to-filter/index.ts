@@ -51,7 +51,7 @@ ${categoryGroups.map(g => `### ${g.daibunrui}\n${g.saibunruis.join(', ')}`).join
 - 従業員数 (employeeMin / employeeMax): 整数
 - 代表者年齢 (ageMin / ageMax): 整数
 - 設立年 (establishedMin / establishedMax): 西暦4桁
-- 電話番号 (phonePattern): 前方一致パターン（例: "03"、"090"）
+- 電話番号 (phonePatterns): 前方一致パターンの配列（複数指定可、OR結合）。例: 「080または090」→ ["080","090"]、「東京の固定電話」→ ["03"]
 - 株主タイプ (shareholderType): "individual"(個人のみ)/"corporate"(法人のみ)/"mixed"(個人&法人)/"empty"(空欄) から複数可
 - 代表・株主一致 (repShareholderMatch): boolean
 - ロジック (logic): "AND" または "OR"（デフォルト AND）
@@ -98,7 +98,7 @@ ${categoryGroups.map(g => `### ${g.daibunrui}\n${g.saibunruis.join(', ')}`).join
     "employeeNullMode": "",
     "establishedMin": 数値 or null,
     "establishedMax": 数値 or null,
-    "phonePattern": "",
+    "phonePatterns": [],
     "shareholderType": [],
     "repShareholderMatch": false,
     "logic": "AND"

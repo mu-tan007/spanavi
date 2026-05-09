@@ -22,6 +22,7 @@ const INITIAL_FILTERS = {
   employeeMax: '',
   employeeNullMode: '',  // '' | 'include' | 'exclude'
   phonePattern: '',
+  phonePatterns: [],   // 複数前方一致パターン（カンマ区切り入力 → 配列）
   establishedMin: '',
   establishedMax: '',
   shareholderType: [],  // ['individual', 'corporate', 'mixed', 'empty']
