@@ -98,7 +98,7 @@ import { color, space, radius } from '../../constants/design';
 `src/components/ui/` の既存部品を最優先で使う。インラインで `<button style={...}>` などは書かない。
 
 ```jsx
-import { Button, Input, Select, Card, Badge, Tag } from '../ui';
+import { Button, Input, Select, Card, Badge, Tag, DataTable } from '../ui';
 
 <Button variant="primary" size="md" loading={saving}>保存</Button>
 <Input label="氏名" required placeholder="例" />
@@ -106,11 +106,32 @@ import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 <Card padding="md" title="..." description="...">...</Card>
 <Badge variant="success" dot>稼働中</Badge>
 <Tag closable onClose={...}>東京</Tag>
+
+// 一覧表示は DataTable を使う（独自テーブルは原則禁止）
+<DataTable
+  columns={[
+    { key: 'company', label: '企業名', width: 280, align: 'left' },
+    { key: 'phone', label: '電話番号', width: 130, align: 'left',
+      cellStyle: { fontFamily: font.family.mono } },
+    { key: 'status', label: 'ステータス', width: 120, align: 'center',
+      render: (row) => <Badge variant="success" dot>{row.status}</Badge> },
+  ]}
+  rows={data}
+  rowKey="id"
+  loading={isLoading}
+  emptyMessage="該当する企業がありません"
+  onRowClick={(row) => ...}
+  rowAccent={(row) => row.urgent ? 'danger' : null}  // 行の左border色
+  height="calc(100vh - 200px)"  // or 数値
+/>
 ```
 
 **Button variant**: `primary` / `secondary` / `ghost` / `danger` / `outline`
 **Button size**: `sm` / `md` / `lg`
 **Badge variant**: `default` / `primary` / `success` / `warn` / `danger` / `info` / `neutral`
+**DataTable rowAccent**: `'danger'` / `'warn'` / `'success'` / `'primary'` / `'info'` / カスタム色
+
+**新規一覧画面は必ず `<DataTable>` を使う**。独自実装の `<table>` や `<div display:grid>` で表を組まない。スクロール・ヘッダー sticky・空状態・ローディング・件数表示が全画面で統一される。
 
 ### 3. モーダル・ドロワーの構造
 

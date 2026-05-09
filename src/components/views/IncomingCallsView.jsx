@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../lib/supabase';
-import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
-import { Button, Card, Badge } from '../ui';
-import useColumnConfig from '../../hooks/useColumnConfig';
-import ColumnResizeHandle from '../common/ColumnResizeHandle';
+import { Button, Badge, DataTable } from '../ui';
 
 import { getOrgId } from '../../lib/orgContext';
 import PageHeader from '../common/PageHeader';
@@ -33,18 +30,8 @@ const normalizePhone = (n) => {
   return digits;
 };
 
-const INCOMING_COLS = [
-  { key: 'receivedAt', width: 50, align: 'right' },
-  { key: 'company', width: 210, align: 'left' },
-  { key: 'phone', width: 70, align: 'left' },
-  { key: 'status', width: 100, align: 'center' },
-  { key: 'handler', width: 120, align: 'left' },
-  { key: 'action', width: 130, align: 'center' },
-];
-
 export default function IncomingCallsView({ setCallFlowScreen }) {
   const isMobile = useIsMobile();
-  const { columns, contentMinWidth, onResizeStart } = useColumnConfig('incomingCalls', INCOMING_COLS);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -159,122 +146,98 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
         </div>
       </div>
 
-      {/* テーブル */}
-      <Card padding="none" style={{ overflowX: 'auto', overflowY: 'hidden' }}>
-        <div style={{ minWidth: contentMinWidth }}>
-        {loading ? (
-          <div style={{ padding: space[10], textAlign: 'center', color: color.textLight, fontSize: font.size.base }}>読み込み中...</div>
-        ) : filtered.length === 0 ? (
-          <div style={{ padding: space[10], textAlign: 'center', color: color.textLight, fontSize: font.size.base }}>着信履歴がありません</div>
-        ) : (
-          <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: isMobile ? font.size.xs : font.size.sm }}>
-            <thead>
-              <tr style={{ background: color.navy }}>
-                {['受信日時', '企業名・リスト', '電話番号', 'ステータス', '対応者', '操作'].map((label, i) => (
-                  <th key={label} style={{
-                    padding: i === 0 ? '8px 6px' : '8px 16px',
-                    textAlign: columns[i].align, fontWeight: font.weight.semibold,
-                    color: color.white, fontSize: font.size.xs, verticalAlign: 'middle',
-                    width: columns[i].width, position: 'relative',
-                  }}>
-                    {label}
-                    <ColumnResizeHandle colIndex={i} onResizeStart={onResizeStart} />
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r, i) => {
-                const phone = normalizePhone(r.caller_number);
-                const matches = phoneItemMap[phone] || [];
-                // 重複排除（同企業が複数リストに登録されている場合、itemIdで重複除去）
-                const uniqueMatches = matches.filter((m, idx, arr) =>
-                  arr.findIndex(x => x.itemId === m.itemId) === idx
-                );
-                const companyName = uniqueMatches[0]?.company || r.company_name || null;
-                const canNavigate = uniqueMatches.length > 0 && setCallFlowScreen;
-
-                return (
-                  <tr key={r.id} style={{
-                    borderBottom: `1px solid ${color.border}`,
-                    background: i % 2 === 0 ? color.white : color.cream,
-                  }}>
-                    <td style={{ padding: '8px 6px 8px 6px', textAlign: columns[0].align, color: color.textMid, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
-                      {formatJST(r.received_at)}
-                    </td>
-
-                    {/* 企業名・リスト列 */}
-                    <td style={{ padding: '8px 16px', textAlign: columns[1].align, verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {companyName ? (
-                        <div>
-                          {canNavigate ? (
-                            <span
-                              onClick={() => handleCompanyClick(uniqueMatches)}
-                              style={{ color: color.navy, fontWeight: font.weight.bold, cursor: 'pointer', textDecoration: 'underline', fontSize: font.size.sm }}
-                            >
-                              {companyName}
-                            </span>
-                          ) : (
-                            <span style={{ color: color.textDark, fontWeight: font.weight.bold, fontSize: font.size.sm }}>
-                              {companyName}
-                            </span>
-                          )}
-                          {/* 所属リスト一覧 */}
-                          {uniqueMatches.length > 0 && (
-                            <div style={{ marginTop: 3 }}>
-                              {uniqueMatches.map(m => (
-                                <div key={m.itemId} style={{
-                                  fontSize: 10, color: color.textLight,
-                                  display: 'flex', alignItems: 'center', gap: 3,
-                                }}>
-                                  <span style={{ color: color.textLight }}>└</span>
-                                  <span
-                                    onClick={() => setCallFlowScreen && navigateTo(m)}
-                                    style={{
-                                      cursor: setCallFlowScreen ? 'pointer' : 'default',
-                                      color: setCallFlowScreen ? alpha(color.navy, 0.8) : color.textLight,
-                                      textDecoration: setCallFlowScreen ? 'underline' : 'none',
-                                    }}
-                                  >
-                                    {listLabel(m)}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+      {/* テーブル (DataTable 共通コンポーネント) */}
+      <DataTable
+        ariaLabel="着信履歴"
+        height="calc(100vh - 200px)"
+        loading={loading}
+        rows={filtered}
+        rowKey="id"
+        emptyMessage="着信履歴がありません"
+        columns={[
+          {
+            key: 'receivedAt', label: '受信日時', width: 130, align: 'left',
+            cellStyle: { color: color.textMid, fontFamily: font.family.mono, fontSize: font.size.xs },
+            render: (r) => formatJST(r.received_at),
+          },
+          {
+            key: 'company', label: '企業名・リスト', width: 280, align: 'left',
+            cellStyle: { whiteSpace: 'normal', overflow: 'visible', textOverflow: 'clip' },
+            render: (r) => {
+              const phone = normalizePhone(r.caller_number);
+              const matches = phoneItemMap[phone] || [];
+              const uniqueMatches = matches.filter((m, idx, arr) =>
+                arr.findIndex(x => x.itemId === m.itemId) === idx
+              );
+              const companyName = uniqueMatches[0]?.company || r.company_name || null;
+              const canNavigate = uniqueMatches.length > 0 && setCallFlowScreen;
+              if (!companyName) return <span style={{ color: color.textLight }}>—</span>;
+              return (
+                <div>
+                  {canNavigate ? (
+                    <span
+                      onClick={(e) => { e.stopPropagation(); handleCompanyClick(uniqueMatches); }}
+                      style={{ color: color.navy, fontWeight: font.weight.bold, cursor: 'pointer', textDecoration: 'underline', fontSize: font.size.sm }}
+                    >
+                      {companyName}
+                    </span>
+                  ) : (
+                    <span style={{ color: color.textDark, fontWeight: font.weight.bold, fontSize: font.size.sm }}>
+                      {companyName}
+                    </span>
+                  )}
+                  {uniqueMatches.length > 0 && (
+                    <div style={{ marginTop: 3 }}>
+                      {uniqueMatches.map(m => (
+                        <div key={m.itemId} style={{
+                          fontSize: 10, color: color.textLight,
+                          display: 'flex', alignItems: 'center', gap: 3,
+                        }}>
+                          <span style={{ color: color.textLight }}>└</span>
+                          <span
+                            onClick={(e) => { e.stopPropagation(); setCallFlowScreen && navigateTo(m); }}
+                            style={{
+                              cursor: setCallFlowScreen ? 'pointer' : 'default',
+                              color: setCallFlowScreen ? alpha(color.navy, 0.8) : color.textLight,
+                              textDecoration: setCallFlowScreen ? 'underline' : 'none',
+                            }}
+                          >
+                            {listLabel(m)}
+                          </span>
                         </div>
-                      ) : (
-                        <span style={{ color: color.textLight }}>—</span>
-                      )}
-                    </td>
-
-                    <td style={{ padding: '8px 16px', textAlign: columns[2].align, fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums', color: color.textMid, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
-                      {r.caller_number || '-'}
-                    </td>
-                    <td style={{ padding: '8px 16px', textAlign: columns[3].align, verticalAlign: 'middle' }}>
-                      {r.status
-                        ? <Badge variant={statusVariant(r.status)} dot>{r.status}</Badge>
-                        : <span style={{ color: color.textLight, fontSize: font.size.sm }}>-</span>
-                      }
-                    </td>
-                    <td style={{ padding: '8px 16px', textAlign: columns[4].align, color: color.textMid, verticalAlign: 'middle' }}>
-                      {r.handled_by || '-'}
-                    </td>
-                    <td style={{ padding: '8px 16px', textAlign: columns[5].align, verticalAlign: 'middle' }}>
-                      {r.status !== '対応済み' && (
-                        <Button size="sm" variant="outline" onClick={() => markHandled(r.id)}>
-                          対応済みにする
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-        </div>
-      </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            },
+          },
+          {
+            key: 'phone', label: '電話番号', width: 130, align: 'left',
+            cellStyle: { fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums', color: color.textMid },
+            render: (r) => r.caller_number || '-',
+          },
+          {
+            key: 'status', label: 'ステータス', width: 120, align: 'center',
+            render: (r) => r.status
+              ? <Badge variant={statusVariant(r.status)} dot>{r.status}</Badge>
+              : '-'
+          },
+          {
+            key: 'handler', label: '対応者', width: 130, align: 'left',
+            cellStyle: { color: color.textMid },
+            render: (r) => r.handled_by || '-'
+          },
+          {
+            key: 'action', label: '操作', width: 140, align: 'center',
+            render: (r) => r.status !== '対応済み' ? (
+              <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); markHandled(r.id); }}>
+                対応済みにする
+              </Button>
+            ) : null
+          },
+        ]}
+      />
 
       {/* リスト選択モーダル */}
       {selectModal && (
