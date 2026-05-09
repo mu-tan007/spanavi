@@ -25,6 +25,23 @@ export function pickPersistableFilters(filters) {
   return out;
 }
 
+// embedding バックフィル進捗をキャッシュ付きで取得
+let _coverageCache = { value: null, ts: 0 };
+export async function getEmbeddingCoverage() {
+  const now = Date.now();
+  if (_coverageCache.value !== null && now - _coverageCache.ts < 5 * 60 * 1000) {
+    return _coverageCache.value;
+  }
+  const { count: totalCount } = await supabase
+    .from('company_master').select('id', { count: 'exact', head: true });
+  const { count: pendingCount } = await supabase
+    .from('company_master').select('id', { count: 'exact', head: true }).is('embedding', null);
+  if (!totalCount) return 0;
+  const coverage = (totalCount - (pendingCount || 0)) / totalCount;
+  _coverageCache = { value: coverage, ts: now };
+  return coverage;
+}
+
 /**
  * AI が指定した daibunrui 値を、実DB上の値（例: "E 製造業"）に解決する
  *  - 完全一致 → そのまま
@@ -130,21 +147,28 @@ export async function applyAiFiltersToBase(baseFilters, aiFilters) {
   }
 
   // C: semanticQuery → embed-query で 1536 次元 vector に変換
+  //    ただし embedding カバレッジが低い間（バックフィル進行中）は意味検索を抑制
+  //    （semantic 検索は cm.embedding IS NOT NULL を AND するため、未埋め込みの企業が
+  //     ヒット候補から除外され、結果が極端に少なくなる）
   const semQ = (aiFilters.semanticQuery || '').trim();
+  merged.queryEmbedding = null;
   if (semQ) {
-    try {
-      const { data, error } = await supabase.functions.invoke('embed-query', {
-        body: { query: semQ },
-      });
-      if (error) throw error;
-      if (data?.embedding && Array.isArray(data.embedding)) {
-        merged.queryEmbedding = data.embedding;
+    const coverage = await getEmbeddingCoverage().catch(() => 0);
+    if (coverage >= 0.9) {
+      try {
+        const { data, error } = await supabase.functions.invoke('embed-query', {
+          body: { query: semQ },
+        });
+        if (error) throw error;
+        if (data?.embedding && Array.isArray(data.embedding)) {
+          merged.queryEmbedding = data.embedding;
+        }
+      } catch (e) {
+        console.warn('[databaseChatApi] embed-query failed', e);
       }
-    } catch (e) {
-      console.warn('[databaseChatApi] embed-query failed', e);
+    } else {
+      console.info(`[databaseChatApi] semanticQuery skipped (coverage ${(coverage * 100).toFixed(1)}% < 90%)`);
     }
-  } else {
-    merged.queryEmbedding = null;
   }
 
   merged.page = 0;
