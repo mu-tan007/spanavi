@@ -40,7 +40,7 @@ function useContacts(intermediaryId) {
   })
 }
 
-export default function IntermediariesPage() {
+export default function PartnersPage() {
   const qc = useQueryClient()
   const { data: intermediaries = [], isLoading } = useIntermediaries()
   const [selected, setSelected] = useState(null)
@@ -84,8 +84,8 @@ export default function IntermediariesPage() {
     <div style={{ maxWidth: '100%', animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         bleed={false}
-        eyebrow="Spartia Capital · 仲介"
-        title="仲介会社・FA"
+        eyebrow="Spartia Capital · Partners"
+        title="業務提携先"
         description={`${intermediaries.length} 社登録中`}
         style={{ marginBottom: 20 }}
         right={

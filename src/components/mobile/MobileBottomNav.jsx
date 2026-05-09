@@ -28,7 +28,7 @@ const NAV_BY_ENGAGEMENT = {
   spartia_capital: [
     { capitalPath: '/dashboard', label: 'ダッシュ' },
     { capitalPath: '/deals',     label: 'ディール' },
-    { capitalPath: '/firms',     label: '仲介' },
+    { capitalPath: '/partners',  label: '提携' },
     { id: '_more',               label: 'その他' },
   ],
   spartia_recruitment: [

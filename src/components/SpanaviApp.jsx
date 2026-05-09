@@ -40,7 +40,7 @@ import DealsView from './views/DealsView';
 import ApplicationsView from './views/career/ApplicationsView';
 import CareerDealsView from './views/career/CareerDealsView';
 import MASPMembersView from './views/MASPMembersView';
-import MaspAgencyRegistryView from './views/MaspAgencyRegistryView';
+import MaspFirmsView from './views/MaspFirmsView';
 import EngagementMembersView from './views/EngagementMembersView';
 
 import { AVAILABLE_MONTHS } from '../constants/availableMonths';
@@ -64,6 +64,7 @@ import AdminView from './views/AdminView';
 import ManagerAdminView from './views/ManagerAdminView';
 import { Phone, Calendar, BarChart2, Settings, GraduationCap, User, Bot, Bell, Sparkles } from 'lucide-react';
 import { useBranding } from '../hooks/useBranding';
+import { useAccessControl } from '../hooks/useAccessControl';
 import { supabase } from '../lib/supabase';
 import { getOrgId } from '../lib/orgContext';
 import DetailModal from './views/DetailModal';
@@ -237,6 +238,7 @@ const CLIENT_DATA = [{"no": 1, "status": "支援中", "contract": "済", "compan
 // インライン録音プレーヤー（全画面共通）
 function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, supabaseData, onDataRefetch, orgId }) {
   const { engagements, currentEngagement, switchEngagement, loading: engLoading } = useEngagements();
+  const { canViewEngagement, canViewPage, loading: accessLoading } = useAccessControl();
   const engSlug = currentEngagement?.slug || null;
   // engagement の async ロード中はアプリ本体を描画しない（リロード時のタブ誤遷移防止）
   // App.jsx の loading 画面が引き続き表示されるよう、loading=true の間は null を返す
@@ -323,7 +325,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
-  const _VALID_TABS = ["dashboard","live","incoming","lists","appo","precheck","deals","crm","members","search","stats","recall","payroll","shift","rules","database","agency_registry","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","applications","deals_career","all_members","members_career","admin_settings"];
+  const _VALID_TABS = ["dashboard","live","incoming","lists","appo","precheck","deals","crm","members","search","stats","recall","payroll","shift","rules","database","firms","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","applications","deals_career","all_members","members_career","admin_settings"];
   const [currentTab, setCurrentTab] = useState(() => {
     try {
       const saved = localStorage.getItem("masp_v2_currentTab");
@@ -343,7 +345,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     // 初回（ロード完了直後）は currentTab を尊重する。タブが現エンゲージメントで
     // 有効ならそのまま、無効ならデフォルトに揃える。
     _prevEngSlugRef.current = engSlug;
-    const MASP_TABS = ['database', 'agency_registry', 'all_members', 'admin_settings', 'mypage'];
+    const MASP_TABS = ['database', 'firms', 'all_members', 'admin_settings', 'mypage'];
     const SOURCING_TABS = ['dashboard','live','incoming','lists','appo','precheck','deals','crm','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','edu_performance','ai','manager_admin'];
     const CAREER_TABS = ['applications', 'deals_career', 'members_career', 'mypage'];
     if (engSlug === 'masp') {
@@ -354,6 +356,42 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       if (!CAREER_TABS.includes(currentTab)) setCurrentTab('applications');
     }
   }, [engSlug, engLoading, currentTab]);
+
+  // 権限ガード: 現在の currentTab がそのエンゲージメントで閲覧不可の場合、見られる最初のページへ。
+  // adminは常に閲覧可なので影響なし。Capital は path ベースなので除外（capitalNav 側で別途ガードされる）。
+  useEffect(() => {
+    if (engLoading || accessLoading) return;
+    if (!engSlug) return;
+    if (engSlug === 'spartia_capital') return;
+    // mypage は権限テーブル外（自分のページなので常時閲覧可）
+    if (currentTab === 'mypage') return;
+    // admin_settings / manager_admin は admin/manager 判定で別管理
+    if (currentTab === 'admin_settings' || currentTab === 'manager_admin') return;
+    if (canViewPage(engSlug, currentTab)) return;
+    // 見えない → 同 engagement で見られる最初のページへ
+    // navGroups (Sourcing) を参照、それ以外は適切なフォールバックリスト
+    const fallback = (() => {
+      if (engSlug === 'masp') {
+        return ['database', 'firms', 'all_members'].find(k => canViewPage('masp', k));
+      }
+      if (engSlug === 'seller_sourcing') {
+        for (const g of navGroups) {
+          if (g.children) {
+            const c = g.children.find(c => canViewPage('seller_sourcing', c.id));
+            if (c) return c.id;
+          } else if (g.id !== 'manager_admin' && canViewPage('seller_sourcing', g.id)) {
+            return g.id;
+          }
+        }
+        return null;
+      }
+      if (engSlug === 'spartia_career') {
+        return ['applications', 'deals_career', 'members_career'].find(k => canViewPage('spartia_career', k));
+      }
+      return null;
+    })();
+    if (fallback) setCurrentTab(fallback);
+  }, [engSlug, engLoading, accessLoading, currentTab, canViewPage, navGroups]);
   const [now, setNow] = useState(new Date());
   const [lastUpdated, setLastUpdated] = useState(() => new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   // call_sessions ベースの「リストごと最終架電日時」マップ { [supaId]: ISO string }
@@ -573,7 +611,10 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     setSupaRecalls(prev => prev.filter(r => r.id !== item.id));
   };
 
-  const navGroups = [
+  // Sourcing サイドバーのナビ定義。canViewPage('seller_sourcing', ...) でフィルタ。
+  // 単独項目 (children=null) は本体 id を、グループは children の各 id を権限判定する。
+  // children が 0 になったグループは表示しない。
+  const _rawNavGroups = [
     { id: "dashboard", label: "Dashboard", children: null },
     { id: "g_call", label: "CALLING", children: [
       { id: "lists", label: "Lists" },
@@ -600,6 +641,17 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     ]},
     ...(isManagerRole ? [{ id: "manager_admin", label: "Admin", children: null }] : []),
   ];
+  const navGroups = _rawNavGroups
+    .map(g => {
+      if (!g.children) {
+        // 単独項目: id 自体が page_key。manager_admin は権限テーブル対象外（admin判定のみ）
+        if (g.id === 'manager_admin') return g;
+        return canViewPage('seller_sourcing', g.id) ? g : null;
+      }
+      const visibleChildren = g.children.filter(c => canViewPage('seller_sourcing', c.id));
+      return visibleChildren.length > 0 ? { ...g, children: visibleChildren } : null;
+    })
+    .filter(Boolean);
 
   const getActiveGroup = () => {
     for (const g of navGroups) {
@@ -651,14 +703,14 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         flatTabs.push('mypage');
         cycle(flatTabs, currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'masp') {
-        const tabs = ['database', 'agency_registry', 'all_members'];
+        const tabs = ['database', 'firms', 'all_members'];
         if (isAdmin) tabs.push('admin_settings');
         tabs.push('mypage');
         cycle(tabs, currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'spartia_career') {
         cycle(['applications', 'deals_career', 'mypage'], currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'spartia_capital') {
-        const paths = ['/dashboard', '/deals', '/needs', '/firms', '/registry', '/documents', '/members'];
+        const paths = ['/dashboard', '/deals', '/needs', '/partners', '/documents', '/members'];
         const cur = getCapitalPathname();
         // /deals/:id のような詳細ページは /deals にマッチさせる
         const normalized = paths.find(p => cur === p || cur.startsWith(p + '/')) || paths[0];
@@ -1190,10 +1242,10 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {/* key で engSlug+currentTab が変わるたびに DOM を強制再マウント。
             各 View の fadeIn が (engagement 切替含め) 必ず再生される。 */}
         <div key={`${engSlug}:${currentTab}`}>
-        {engSlug === 'masp' && !['database','agency_registry','mypage','all_members','admin_settings'].includes(currentTab) && (
+        {engSlug === 'masp' && !['database','firms','mypage','all_members','admin_settings'].includes(currentTab) && (
           <EngagementComingSoon title="MASP" subtitle="この画面は準備中です" />
         )}
-        {engSlug === 'masp' && currentTab === 'agency_registry' && <MaspAgencyRegistryView />}
+        {engSlug === 'masp' && currentTab === 'firms' && <MaspFirmsView />}
         {engSlug === 'masp' && currentTab === 'all_members' && <MASPMembersView isAdmin={isAdmin} />}
         {engSlug === 'masp' && currentTab === 'admin_settings' && isAdmin && (
           <AdminView

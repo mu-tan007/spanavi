@@ -32,7 +32,7 @@ const PREFS = [
 ]
 const PAGE_SIZE = 50
 
-export default function MaspAgencyRegistryView() {
+export default function MaspFirmsView() {
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
@@ -223,8 +223,8 @@ export default function MaspAgencyRegistryView() {
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         bleed={false}
-        eyebrow="MASP · Database"
-        title="登録支援機関データベース"
+        eyebrow="MASP · Firms"
+        title="M&A支援機関データベース"
         description={`${filtered.length === stats.total
           ? `${(page-1)*PAGE_SIZE+1}〜${Math.min(page*PAGE_SIZE, filtered.length)}件を表示中（全${stats.total}件）`
           : `${filtered.length}件該当（全${stats.total}件）`}　接触済 ${stats.contacted}社　未接触 ${stats.notContacted}社`}

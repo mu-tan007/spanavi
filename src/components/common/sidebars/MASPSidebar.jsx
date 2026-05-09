@@ -3,7 +3,7 @@ import { Building2, Settings } from 'lucide-react';
 import SidebarShell, { ActiveItem, DisabledItem, SectionHeader } from './SidebarShell';
 import { useAccessControl } from '../../../hooks/useAccessControl';
 
-const MASP_VIEW_IDS = new Set(['database', 'agency_registry', 'all_members', 'admin_settings']);
+const MASP_VIEW_IDS = new Set(['database', 'firms', 'all_members', 'admin_settings']);
 
 export default function MASPSidebar({
   currentTab,
@@ -19,7 +19,7 @@ export default function MASPSidebar({
 
   const companyItems = [
     { id: 'database', label: 'Database', enabled: true },
-    { id: 'agency_registry', label: 'Agency Registry', enabled: true },
+    { id: 'firms', label: 'Firms', enabled: true },
     { id: 'all_members', label: 'Members', enabled: true },
   ].filter(it => canViewPage('masp', it.id));
 

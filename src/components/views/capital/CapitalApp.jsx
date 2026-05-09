@@ -7,7 +7,7 @@ import DashboardPage from './pages/DashboardPage';
 import DealsPage from './pages/DealsPage';
 import DealDetailPage from './pages/DealDetailPage';
 import NeedsPage from './pages/NeedsPage';
-import IntermediariesPage from './pages/IntermediariesPage';
+import PartnersPage from './pages/PartnersPage';
 import DocumentsPage from './pages/DocumentsPage';
 import EngagementMembersView from '../EngagementMembersView';
 
@@ -48,7 +48,7 @@ export default function CapitalApp({ isAdmin = false }) {
               <Route path="/deals" element={<DealsPage />} />
               <Route path="/deals/:id" element={<DealDetailPage />} />
               <Route path="/needs" element={<NeedsPage />} />
-              <Route path="/firms" element={<IntermediariesPage />} />
+              <Route path="/partners" element={<PartnersPage />} />
               <Route path="/documents" element={<DocumentsPage />} />
               <Route path="/members" element={<EngagementMembersView bleed={false} isAdmin={isAdmin} />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
