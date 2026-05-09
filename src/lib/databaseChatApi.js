@@ -106,6 +106,13 @@ export async function applyAiFiltersToBase(baseFilters, aiFilters) {
     merged.saibunrui = merged.saibunrui.filter(s => actualSai.has(s));
   }
 
+  // saibunrui が指定されているときは daibunrui の AND 条件を外す
+  //   （AI が大分類を跨いで細分類を選んだとき、daibunrui との AND で 0件になる事故対策。
+  //    "鉛・亜鉛鉱業" が C 鉱業の細分類なのに daibunrui = E 製造業 と矛盾するケースが頻発）
+  if (Array.isArray(merged.saibunrui) && merged.saibunrui.length > 0) {
+    merged.daibunrui = [];
+  }
+
   // industryHints[] (複数) → saibunrui 部分一致で展開（追加）
   const hints = Array.isArray(aiFilters.industryHints) ? aiFilters.industryHints
     : (aiFilters.industryHint ? [aiFilters.industryHint] : []);
