@@ -130,11 +130,21 @@ export async function applyAiFiltersToBase(baseFilters, aiFilters) {
     merged.daibunrui = [];
   }
 
-  // 業種 OR キーワードモード: saibunrui[] と keywords[] が両方ある場合、
+  // saibunrui が十分多い（>=20）ときは keywords を捨てる
+  //   - keywords ILIKE は 2文字日本語が trigram に乗らず seq scan → タイムアウト原因
+  //   - saibunrui が大量にあれば既に recall は十分なので、ILIKE 拡張は不要
+  const SAIBUNRUI_LARGE_THRESHOLD = 20;
+  if (Array.isArray(merged.saibunrui) && merged.saibunrui.length >= SAIBUNRUI_LARGE_THRESHOLD) {
+    merged.keywords = [];
+    merged.keyword = '';
+  }
+
+  // 業種 OR キーワードモード: saibunrui[] が少なめ かつ keywords[] あるとき
   //   RPC で OR ブロックとして結合して recall を上げる
-  //   （「業種カテゴリ または 事業内容にキーワード」の和集合）
+  //   （saibunrui が少ない → keywords で漏れを救う価値が高い）
   merged.industryOrMode = (
     Array.isArray(merged.saibunrui) && merged.saibunrui.length > 0
+    && merged.saibunrui.length < SAIBUNRUI_LARGE_THRESHOLD
     && Array.isArray(merged.keywords) && merged.keywords.length > 0
   );
 
