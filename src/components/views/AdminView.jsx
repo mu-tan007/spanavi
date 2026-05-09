@@ -9,6 +9,7 @@ import SlackZoomSettings from '../admin/SlackZoomSettings';
 import ClientManagement from '../admin/ClientManagement';
 import IndustryRuleSettings from '../admin/IndustryRuleSettings';
 import CallStatusSettings from '../admin/CallStatusSettings';
+import PermissionSettings from '../admin/PermissionSettings';
 import RewardMasterView from './RewardMasterView';
 import MyPageView from './MyPageView';
 import GoalSettingsPanel from '../admin/GoalSettingsPanel';
@@ -22,14 +23,18 @@ const GOLD = color.gold;
 
 // メンバー管理は MASP > Members に統合済み（Phase 0-B で削除）
 const TABS = [
-  { id: 'org',      label: '組織設定',              icon: '' },
-  { id: 'engagement', label: '事業設定',           icon: '' },
-  { id: 'kpi',      label: 'KPI 目標',              icon: '' },
-  { id: 'reward',   label: '報酬・給与設定',         icon: '' },
-  { id: 'calling',  label: '架電設定',              icon: '' },
-  { id: 'slack',    label: 'Slack / Zoom設定',       icon: '' },
-  { id: 'clients',  label: 'クライアント・リスト管理', icon: '' },
+  { id: 'org',         label: '組織設定',              icon: '' },
+  { id: 'permissions', label: '権限管理',              icon: '' },
+  { id: 'engagement',  label: '事業設定',           icon: '' },
+  { id: 'kpi',         label: 'KPI 目標',              icon: '' },
+  { id: 'reward',      label: '報酬・給与設定',         icon: '' },
+  { id: 'calling',     label: '架電設定',              icon: '' },
+  { id: 'slack',       label: 'Slack / Zoom設定',       icon: '' },
+  { id: 'clients',     label: 'クライアント・リスト管理', icon: '' },
 ];
+
+// 全社スコープでのみ表示するタブ。事業セレクタを「全社」にしたときのみ並ぶ。
+const COMPANY_WIDE_TABS = new Set(['org', 'permissions']);
 
 // 「全社」スコープを表す UI 専用の仮想 engagement（DB には存在しない）。
 // 全社を選択しているときだけ「組織設定」タブを表示する。
@@ -105,16 +110,16 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
   };
   const selectedEngagement = selectableEngagements.find(e => e.id === selectedEngagementId) || null;
   const isCompanyWide = selectedEngagementId === COMPANY_WIDE_ID;
-  // 「全社」スコープでは組織設定タブのみ、個別事業ではそれ以外のタブのみ表示する。
+  // 「全社」スコープでは全社向けタブ(組織設定/権限管理)のみ、個別事業ではそれ以外のタブのみ表示する。
   const visibleTabs = useMemo(
-    () => TABS.filter(t => isCompanyWide ? t.id === 'org' : t.id !== 'org'),
+    () => TABS.filter(t => isCompanyWide ? COMPANY_WIDE_TABS.has(t.id) : !COMPANY_WIDE_TABS.has(t.id)),
     [isCompanyWide]
   );
   // スコープ切替時に表示外のタブが選ばれていたら自動で適切なタブに戻す
   useEffect(() => {
-    if (isCompanyWide && activeTab !== 'org') {
+    if (isCompanyWide && !COMPANY_WIDE_TABS.has(activeTab)) {
       _setActiveTab('org');
-    } else if (!isCompanyWide && activeTab === 'org') {
+    } else if (!isCompanyWide && COMPANY_WIDE_TABS.has(activeTab)) {
       _setActiveTab('kpi');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -259,6 +264,9 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
       <div style={{ background: color.white, borderRadius: `0 0 ${radius.md}px ${radius.md}px`, border: `1px solid ${color.border}`, borderTop: 'none', padding: isMobile ? `${space[4]}px ${space[3]}px` : `${space[6]}px 28px`, marginBottom: 0 }}>
         {activeTab === 'org' && isCompanyWide && (
           <OrganizationSettings onToast={showToast} />
+        )}
+        {activeTab === 'permissions' && isCompanyWide && (
+          <PermissionSettings onToast={(t) => showToast(t.message, t.type || 'success')} />
         )}
         {activeTab === 'engagement' && (
           <EngagementSettings engagementId={selectedEngagementId} onToast={showToast} />

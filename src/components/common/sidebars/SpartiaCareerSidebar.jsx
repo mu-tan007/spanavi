@@ -1,5 +1,6 @@
 import React from 'react';
 import SidebarShell, { ActiveItem, DisabledItem, SectionHeader } from './SidebarShell';
+import { useAccessControl } from '../../../hooks/useAccessControl';
 
 const ACTIVE_IDS = new Set(['applications', 'deals_career', 'members_career']);
 
@@ -12,7 +13,9 @@ export default function SpartiaCareerSidebar({
   onUserClick,
   onLogout,
 }) {
-  const sections = [
+  const { canViewPage } = useAccessControl();
+
+  const rawSections = [
     { label: 'APPLICATIONS', items: [
       { id: 'applications', label: '応募管理' },
       { id: 'cw_integration', label: 'CW連携' },
@@ -38,6 +41,15 @@ export default function SpartiaCareerSidebar({
       { id: 'stages', label: 'ステージ設定' },
     ]},
   ];
+
+  // 有効ページのみ抽出: 「Active かつ canViewPage」が true なページだけ表示。
+  // DisabledItem (機能未実装) は閲覧権限の有無に関わらず表示してロードマップ提示用に残す。
+  const sections = rawSections
+    .map(s => ({
+      ...s,
+      items: s.items.filter(it => !ACTIVE_IDS.has(it.id) || canViewPage('spartia_career', it.id)),
+    }))
+    .filter(s => s.items.length > 0);
 
   return (
     <SidebarShell

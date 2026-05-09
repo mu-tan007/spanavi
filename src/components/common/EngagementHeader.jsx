@@ -3,6 +3,7 @@ import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow } from '../../constants/design';
 import { Button } from '../ui';
 import { useEngagements } from '../../hooks/useEngagements';
+import { useAccessControl } from '../../hooks/useAccessControl';
 
 // タブ選択でサイドバーが切り替わる対象（実装済み or 枠だけ準備済み）
 const SWITCHABLE_SLUGS = new Set(['masp', 'seller_sourcing', 'spartia_career', 'spartia_capital']);
@@ -13,11 +14,17 @@ const READY_SLUGS = new Set(['masp', 'seller_sourcing', 'spartia_capital', 'spar
 // (SpanaviApp のトップヘッダー内に埋め込んで使う)
 export default function EngagementHeader({ isMobile = false, onEngagementChange, inline = false }) {
   const { engagements, currentEngagement, switchEngagement } = useEngagements();
+  const { canViewEngagement } = useAccessControl();
   const [comingSoon, setComingSoon] = useState(null);
 
   if (!engagements.length) return null;
 
-  const sorted = [...engagements].sort((a, b) => a.display_order - b.display_order);
+  // 自分が見られる事業タブのみ表示。adminバイパスは canViewEngagement 内で処理。
+  const sorted = [...engagements]
+    .filter(e => canViewEngagement(e.slug))
+    .sort((a, b) => a.display_order - b.display_order);
+
+  if (sorted.length === 0) return null;
 
   const handleTabClick = (eng) => {
     if (SWITCHABLE_SLUGS.has(eng.slug)) {
