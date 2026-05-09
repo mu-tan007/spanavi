@@ -1,11 +1,10 @@
-// Database 画面 自然言語チャット → 検索条件JSON への変換 Edge Function
-//   - Anthropic claude-haiku-4-5 を使用
-//   - 入力: 過去の会話履歴 + 最新ユーザー発話 + TSR 大分類リスト
-//   - 出力: 日本語要約 + INITIAL_FILTERS と同シェイプの filters JSON
-//   - DB保存はクライアント側で行う（このFnは推論のみ。RLSをユーザーJWTで通すため）
+// Database 画面 自然言語チャット → 検索条件JSON への変換 Edge Function (v3)
+//   - A: keywords[] / industryHints[] を複数返せる
+//   - B: 大分類 + 細分類1120個 全リストを system prompt に同梱（prompt caching で2回目以降90%割引）
+//   - C: semanticQuery を返せる（pgvector 意味検索用、クライアントが embed-query で埋め込み生成）
 //
-// 環境変数:
-//   ANTHROPIC_API_KEY (Required)
+// 入力: { messages, categoryGroups: [{daibunrui, saibunruis: string[]}], currentFilters? }
+// 出力: { summary, filters, needsClarification, clarifyQuestion }
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,45 +22,62 @@ interface ChatMessage {
   content: string;
 }
 
-interface RequestBody {
-  messages: ChatMessage[];          // 直近の会話（最新がユーザー発話）
-  daibunruiList: string[];          // クライアントから送られる大分類一覧
-  currentFilters?: Record<string, unknown>; // ユーザーが既に手動で入れている条件（参考）
+interface CategoryGroup {
+  daibunrui: string;
+  saibunruis: string[];
 }
 
-const SYSTEM_PROMPT = (daibunruiList: string[], currentFilters?: Record<string, unknown>) => `
-あなたは企業データベース検索アシスタントです。
-ユーザーの自然言語のリクエストから、検索条件を抽出してJSONで返します。
+interface RequestBody {
+  messages: ChatMessage[];
+  categoryGroups: CategoryGroup[];
+  currentFilters?: Record<string, unknown>;
+}
+
+const STATIC_SYSTEM_PROMPT = (categoryGroups: CategoryGroup[]) => `
+あなたは企業データベース検索アシスタントです。ユーザーの自然言語のリクエストから、検索条件を抽出してJSONで返します。
 
 【データベースのスキーマ】
-- 大分類 (daibunrui): 以下のリストから完全一致で選択（複数可）。値は必ず「コード文字＋スペース＋名称」の完全形（例: "E 製造業"）。コード文字単独（"E"）や名称単独（"製造業"）は禁止。
-${daibunruiList.map(d => '  - ' + d).join('\n')}
-- 細分類ヒント (industryHint): 細分類を絞り込むためのキーワード（部分一致用、例: "製造業", "ソフトウェア", "ガソリン"）
+
+## 業種カテゴリ（TSR分類）
+大分類は「コード文字＋空白＋名称」で完全形（例: "E 製造業"）。細分類も完全な文字列を使う。
+
+${categoryGroups.map(g => `### ${g.daibunrui}\n${g.saibunruis.join(', ')}`).join('\n\n')}
+
+## その他のフィールド
 - 都道府県 (prefecture): 47都道府県名から複数選択（必ず "東京都"・"大阪府"・"北海道" 等の正式名称）
 - 市区町村 (city): 市区郡名（部分一致、文字列）
-- キーワード (keyword): 企業名・事業内容を部分一致検索（例: "AI"、"半導体"）
-- 売上高 (revenueMin / revenueMax): 単位は千円。例: 1億円 → 100000、10億円 → 1000000、100億円 → 10000000
+- 売上高 (revenueMin / revenueMax): 単位は千円。例: 1億円→100000、10億円→1000000、100億円→10000000
 - 当期純利益 (netIncomeMin / netIncomeMax): 単位は千円
 - 従業員数 (employeeMin / employeeMax): 整数
 - 代表者年齢 (ageMin / ageMax): 整数
 - 設立年 (establishedMin / establishedMax): 西暦4桁
 - 電話番号 (phonePattern): 前方一致パターン（例: "03"、"090"）
-- 株主タイプ (shareholderType): 配列。値は "individual"(個人のみ)/"corporate"(法人のみ)/"mixed"(個人&法人)/"empty"(空欄) から複数可
-- 代表・株主一致 (repShareholderMatch): boolean。代表者名が株主欄に含まれる企業のみ
+- 株主タイプ (shareholderType): "individual"(個人のみ)/"corporate"(法人のみ)/"mixed"(個人&法人)/"empty"(空欄) から複数可
+- 代表・株主一致 (repShareholderMatch): boolean
 - ロジック (logic): "AND" または "OR"（デフォルト AND）
-- 空欄ハンドリング: revenueNullMode / netIncomeNullMode / employeeNullMode / ageNullMode は "" / "include" / "exclude" のいずれか
+- 空欄ハンドリング: revenueNullMode / netIncomeNullMode / employeeNullMode / ageNullMode は "" / "include" / "exclude"
 
-${currentFilters ? `\n【ユーザーが既に手動で入れている条件】\n${JSON.stringify(currentFilters, null, 2)}\n会話で言及されない条件は維持してください。\n` : ''}
+## 自由テキスト検索
+- keywords (string[]): 企業名 or 事業内容に含まれそうな単語を **複数** 抽出（OR検索）。例: 「素材・鉄鋼・樹脂」→ ["素材","鉄鋼","樹脂"]
+- semanticQuery (string | null): ユーザーの意図全体を1〜2文で要約した「意味検索クエリ」。具体的な業態・用途・ニュアンスが含まれているケースで設定（例: "上流工程の素材メーカー"、"自動車向け部品OEM"、"医療機器の研究開発に強い会社"）。単純なフィルタ条件だけのときは null。
+- industryHints (string[]): 細分類リストから絞り込む追加ヒント（部分一致用）。saibunrui を直接選べないが業界のニュアンスがあるとき。例: ["樹脂"], ["金属加工"]
 
-【返却フォーマット】
-必ず以下のJSON形式のみを返してください。マークダウンや説明文は不要、JSONのみ：
+## 業種選定の優先順位
+1. ユーザーが明示した業種が **大分類リストに完全一致**するなら daibunrui に入れる
+2. **細分類リストに具体的な細分類があれば直接 saibunrui に入れる**（最も精度高い）
+3. 細分類が複数候補ありそうなら industryHints に部分一致用キーワードで入れる（クライアントが展開）
+4. それでも捉えきれないニュアンス（「上流工程」「BtoB特化」「OEM中心」等）は semanticQuery で意味検索
+
+【返却フォーマット】必ず以下のJSONのみ返す:
 {
   "summary": "（日本語1〜2文で『〜で検索します』形式の要約）",
   "filters": {
-    "keyword": "...",
-    "daibunrui": [...],
-    "industryHint": "...",
-    "prefecture": [...],
+    "keywords": ["..."],
+    "semanticQuery": "..." or null,
+    "daibunrui": ["..."],
+    "saibunrui": ["..."],
+    "industryHints": ["..."],
+    "prefecture": ["..."],
     "city": "...",
     "revenueMin": 数値 or null,
     "revenueMax": 数値 or null,
@@ -87,23 +103,19 @@ ${currentFilters ? `\n【ユーザーが既に手動で入れている条件】\
 }
 
 【ルール】
-- 値が指定されていない項目は空文字 "" / 空配列 [] / null にする（フィールド自体は省略しない）
-- "社員50人以上" → employeeMin: 50（"以上" は inclusive）
-- "売上10億円以上" → revenueMin: 1000000（千円単位を厳守）
+- 値が指定されていない項目は空配列 [] / 空文字 "" / null で埋める（フィールド省略禁止）
+- "社員50人以上" → employeeMin: 50
+- "売上10億円以上" → revenueMin: 1000000（千円単位）
 - "60代" → ageMin: 60, ageMax: 69
 - "東京、大阪" → prefecture: ["東京都", "大阪府"]
-- 業種が不明確（例：「IT系」「製造業」のような幅広い表現）は industryHint に入れる
-- 業種が明らかに大分類リストにある場合は daibunrui にも入れる
-- ユーザーが「やっぱり〜も」「追加で〜」と言ったら、過去の会話で定まった条件に上書き／追加する
-- 文意が曖昧で確認が必要なときのみ needsClarification: true、clarifyQuestion に日本語で1文の質問を書く
-- 絵文字は使わない（プロフェッショナル用途）
-- summary は誇張せず、入った条件を正直に列挙
+- 過去会話で定まった条件はユーザーが明示的に変更しない限り維持
+- 文意が曖昧な時のみ needsClarification: true
+- 絵文字禁止
+- summary は誇張せず、入った条件を正直に列挙（semanticQuery を使ったときは「意味的に近い〜を上位表示します」のように明記）
 `.trim();
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
     const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
@@ -113,12 +125,16 @@ Deno.serve(async (req) => {
     if (!Array.isArray(body.messages) || body.messages.length === 0) {
       return json({ error: 'messages is required' }, 400);
     }
-    if (!Array.isArray(body.daibunruiList) || body.daibunruiList.length === 0) {
-      return json({ error: 'daibunruiList is required' }, 400);
+    if (!Array.isArray(body.categoryGroups) || body.categoryGroups.length === 0) {
+      return json({ error: 'categoryGroups is required' }, 400);
     }
 
-    // トークン節約のため直近10往復にトリム
     const recent = body.messages.slice(-20);
+
+    // 動的部分（currentFilters）は別 system block で短く
+    const dynamicSuffix = body.currentFilters
+      ? `\n\n【ユーザーが既に手動で入れている条件】\n${JSON.stringify(body.currentFilters, null, 2)}\n会話で言及されない条件は維持してください。`
+      : '';
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -129,8 +145,15 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1500,
-        system: SYSTEM_PROMPT(body.daibunruiList, body.currentFilters),
+        max_tokens: 2000,
+        system: [
+          {
+            type: 'text',
+            text: STATIC_SYSTEM_PROMPT(body.categoryGroups),
+            cache_control: { type: 'ephemeral' },  // ← 2回目以降90%割引
+          },
+          ...(dynamicSuffix ? [{ type: 'text', text: dynamicSuffix }] : []),
+        ],
         messages: recent.map(m => ({ role: m.role, content: m.content })),
       }),
     });
@@ -170,9 +193,10 @@ Deno.serve(async (req) => {
       filters: parsed.filters || null,
       needsClarification: parsed.needsClarification === true,
       clarifyQuestion: parsed.clarifyQuestion || null,
+      usage: data.usage || null,
     });
   } catch (err) {
-    console.error('[chat-to-filter] Error:', err);
+    console.error('[chat-to-filter] error', err);
     return json({ error: (err as Error).message }, 500);
   }
 });

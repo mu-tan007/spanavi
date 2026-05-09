@@ -6,11 +6,11 @@
 //   filters_json は INITIAL_FILTERS と同じシェイプを期待（page/pageSize/sort* は除外して保存）
 
 import { supabase } from './supabase';
-import { fetchCategories } from './companyMasterApi';
+import { fetchCategories, fetchCategoryGroups } from './companyMasterApi';
 
-// INITIAL_FILTERS の「保存対象」フィールド（UI状態は除く）
+// INITIAL_FILTERS の「保存対象」フィールド（UI状態は除く、queryEmbedding は揮発性なので除外）
 const PERSIST_KEYS = [
-  'keyword', 'daibunrui', 'saibunrui', 'prefecture', 'city',
+  'keyword', 'keywords', 'daibunrui', 'saibunrui', 'prefecture', 'city',
   'revenueMin', 'revenueMax', 'revenueNullMode',
   'netIncomeMin', 'netIncomeMax', 'netIncomeNullMode',
   'ageMin', 'ageMax', 'ageNullMode',
@@ -55,9 +55,11 @@ function resolveDaibunrui(aiVals, actualDaibunruiList) {
 }
 
 /**
- * AI が返した filters（industryHint含む）を、useCompanySearch が使うシェイプにマージ
- * - industryHint があれば fetchCategories の saibunrui に対し部分一致で saibunrui[] を埋める
- * - daibunrui は実DB値（"E 製造業" 等）に正規化してからセット
+ * AI が返した filters を useCompanySearch が使うシェイプにマージ
+ * - A: keywords[] / industryHints[] が複数化
+ * - B: AIが直接 saibunrui[] を選ぶ（既に実DB値で来る前提だが正規化はする）
+ * - C: semanticQuery があれば embed-query を呼んで queryEmbedding をセット
+ * - daibunrui は実DB値（"E 製造業" 等）に解決
  * - 数値フィールドは null/'' を空文字に正規化
  */
 export async function applyAiFiltersToBase(baseFilters, aiFilters) {
@@ -69,7 +71,7 @@ export async function applyAiFiltersToBase(baseFilters, aiFilters) {
     'ageMin', 'ageMax', 'employeeMin', 'employeeMax',
     'establishedMin', 'establishedMax',
   ];
-  const arrKeys = ['daibunrui', 'saibunrui', 'prefecture', 'shareholderType'];
+  const arrKeys = ['daibunrui', 'saibunrui', 'prefecture', 'shareholderType', 'keywords'];
   const strKeys = ['keyword', 'city', 'phonePattern', 'logic',
     'revenueNullMode', 'netIncomeNullMode', 'ageNullMode', 'employeeNullMode'];
 
@@ -98,18 +100,46 @@ export async function applyAiFiltersToBase(baseFilters, aiFilters) {
     merged.daibunrui = resolveDaibunrui(merged.daibunrui, actualList);
   }
 
-  // industryHint → saibunrui 部分一致で展開
-  const hint = (aiFilters.industryHint || '').trim();
-  if (hint && cats) {
-    const matched = cats
-      .filter(c => c.saibunrui && c.saibunrui.includes(hint))
-      .map(c => c.saibunrui);
-    const dedup = [...new Set([...(merged.saibunrui || []), ...matched])];
-    // 100 件超になる場合は broad すぎるので無視（誤爆防止）
-    if (dedup.length > 0 && dedup.length <= 80) merged.saibunrui = dedup;
+  // saibunrui も実DB値検証（AIが直接選んでも一応フィルタ）
+  if (cats && Array.isArray(merged.saibunrui) && merged.saibunrui.length > 0) {
+    const actualSai = new Set(cats.map(c => c.saibunrui));
+    merged.saibunrui = merged.saibunrui.filter(s => actualSai.has(s));
   }
 
-  // page リセット
+  // industryHints[] (複数) → saibunrui 部分一致で展開（追加）
+  const hints = Array.isArray(aiFilters.industryHints) ? aiFilters.industryHints
+    : (aiFilters.industryHint ? [aiFilters.industryHint] : []);
+  if (hints.length && cats) {
+    const matched = new Set(merged.saibunrui || []);
+    for (const hint of hints) {
+      const h = String(hint || '').trim();
+      if (!h) continue;
+      cats
+        .filter(c => c.saibunrui && c.saibunrui.includes(h))
+        .forEach(c => matched.add(c.saibunrui));
+    }
+    const arr = [...matched];
+    if (arr.length > 0 && arr.length <= 100) merged.saibunrui = arr;
+  }
+
+  // C: semanticQuery → embed-query で 1536 次元 vector に変換
+  const semQ = (aiFilters.semanticQuery || '').trim();
+  if (semQ) {
+    try {
+      const { data, error } = await supabase.functions.invoke('embed-query', {
+        body: { query: semQ },
+      });
+      if (error) throw error;
+      if (data?.embedding && Array.isArray(data.embedding)) {
+        merged.queryEmbedding = data.embedding;
+      }
+    } catch (e) {
+      console.warn('[databaseChatApi] embed-query failed', e);
+    }
+  } else {
+    merged.queryEmbedding = null;
+  }
+
   merged.page = 0;
   return merged;
 }
@@ -178,9 +208,10 @@ export async function deleteChatSession(sessionId) {
 
 // ========== AI 呼び出し ==========
 
-export async function sendChatToAi({ messages, daibunruiList, currentFilters }) {
+export async function sendChatToAi({ messages, currentFilters }) {
+  const categoryGroups = await fetchCategoryGroups();
   const { data, error } = await supabase.functions.invoke('chat-to-filter', {
-    body: { messages, daibunruiList, currentFilters },
+    body: { messages, categoryGroups, currentFilters },
   });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);

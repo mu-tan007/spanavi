@@ -3,6 +3,7 @@ import { searchCompanies } from '../lib/companyMasterApi';
 
 const INITIAL_FILTERS = {
   keyword: '',
+  keywords: [],     // AIチャット由来の複数キーワード
   daibunrui: [],    // 複数選択対応
   saibunrui: [],    // 複数選択対応
   prefecture: [],   // 複数選択対応
@@ -29,6 +30,7 @@ const INITIAL_FILTERS = {
   sortDir: 'asc',
   page: 0,
   pageSize: 50,
+  queryEmbedding: null,  // pgvector 意味検索用（数値配列 1536要素 or null）
 };
 
 export function useCompanySearch() {

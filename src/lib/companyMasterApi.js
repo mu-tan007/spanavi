@@ -14,6 +14,21 @@ export async function fetchCategories() {
   return data;
 }
 
+/** AIへ渡す形（大分類でグループ化された細分類リスト） */
+let _categoryGroupCache = null;
+export async function fetchCategoryGroups() {
+  if (_categoryGroupCache) return _categoryGroupCache;
+  const cats = await fetchCategories();
+  const map = new Map();
+  for (const c of cats) {
+    if (!c.daibunrui) continue;
+    if (!map.has(c.daibunrui)) map.set(c.daibunrui, []);
+    if (c.saibunrui) map.get(c.daibunrui).push(c.saibunrui);
+  }
+  _categoryGroupCache = [...map.entries()].map(([daibunrui, saibunruis]) => ({ daibunrui, saibunruis }));
+  return _categoryGroupCache;
+}
+
 /** 都道府県一覧（地理順：北→南） */
 const PREFECTURES = [
   '北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県',
@@ -62,6 +77,9 @@ export async function searchCompanies(filters) {
   if (filters.sortDir) params.p_sort_dir = filters.sortDir;
   params.p_page = filters.page || 0;
   params.p_page_size = filters.pageSize || 50;
+  // 拡張パラメータ（A: 複数キーワード, C: 意味検索）
+  if (filters.keywords?.length) params.p_keyword_arr = filters.keywords;
+  if (filters.queryEmbedding) params.p_query_embedding = filters.queryEmbedding;
 
   // リトライ付きRPC呼び出し（一時的なネットワークエラー対策）
   let lastError;

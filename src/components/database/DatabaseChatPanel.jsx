@@ -16,7 +16,6 @@ import { color, space, radius, font, shadow, alpha, transition } from '../../con
 import { Button, Input, Select, Card, Badge } from '../ui';
 import { MessageSquare, Send, Save, BookmarkCheck, Trash2, ChevronDown, ChevronUp, RotateCcw, Sparkles } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { fetchCategories } from '../../lib/companyMasterApi';
 import {
   createChatSession, listChatSessions, loadChatMessages, appendChatMessage, deleteChatSession,
   sendChatToAi, applyAiFiltersToBase,
@@ -35,7 +34,6 @@ export default function DatabaseChatPanel({ baseFilters, onApplyFilters }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const [daibunruiList, setDaibunruiList] = useState([]);
   const [savedSearches, setSavedSearches] = useState([]);
   const [showSaved, setShowSaved] = useState(false);
   const [saveName, setSaveName] = useState('');
@@ -43,13 +41,7 @@ export default function DatabaseChatPanel({ baseFilters, onApplyFilters }) {
 
   const scrollRef = useRef(null);
 
-  // 大分類リスト & 保存検索 を初回ロード
-  useEffect(() => {
-    fetchCategories()
-      .then(cats => setDaibunruiList([...new Set(cats.map(c => c.daibunrui))]))
-      .catch(e => console.warn('fetchCategories failed', e));
-  }, []);
-
+  // 保存検索 を初回ロード（カテゴリは sendChatToAi 内で fetch される）
   useEffect(() => {
     if (!userId) return;
     listSavedSearches(userId).then(setSavedSearches).catch(console.warn);
@@ -90,7 +82,6 @@ export default function DatabaseChatPanel({ baseFilters, onApplyFilters }) {
       const history = [...messages, userMsg].map(m => ({ role: m.role, content: m.content }));
       const ai = await sendChatToAi({
         messages: history,
-        daibunruiList,
         currentFilters: pickPersistableFilters(baseFilters),
       });
 
