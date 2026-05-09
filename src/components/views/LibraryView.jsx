@@ -239,7 +239,7 @@ export default function LibraryView({
 
             {activeCardId === 'meetings' && (
               <>
-                {isAdmin && <MeetingUploader currentUser={currentUser} onUploaded={refreshMeetings} isAdmin={isAdmin} />}
+                {isAdmin && <MeetingUploader currentUser={currentUser} onUploaded={refreshMeetings} />}
                 {wmLoading ? <Empty>読み込み中…</Empty>
                   : weeklyMeetings.length === 0 ? <Empty>動画はまだアップロードされていません。</Empty>
                   : weeklyMeetings.map((m, idx) => {
@@ -442,7 +442,7 @@ function Empty({ children }) {
 // ────────────────────────────────────────────────────────────
 // 週次ミーティング動画アップロード
 // ────────────────────────────────────────────────────────────
-function MeetingUploader({ currentUser, onUploaded, isAdmin }) {
+function MeetingUploader({ currentUser, onUploaded }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [title, setTitle] = useState('');
   const [meetingDate, setMeetingDate] = useState('');
@@ -450,39 +450,7 @@ function MeetingUploader({ currentUser, onUploaded, isAdmin }) {
   const [uploadPct, setUploadPct] = useState(0);
   const [error, setError] = useState('');
   const [dragOver, setDragOver] = useState(false);
-  const [cleanupRunning, setCleanupRunning] = useState(false);
-  const [cleanupResult, setCleanupResult] = useState(null);
   const inputRef = useRef(null);
-
-  // Cloudflare Stream の未完了アップロードを一括削除して容量を解放
-  const runCleanup = async () => {
-    if (!confirm('未完了のアップロード残骸 (pendingupload状態) を全削除します。業務動画には影響しません。実行しますか?')) return;
-    setCleanupRunning(true);
-    setCleanupResult(null);
-    try {
-      const { supabase } = await import('../../lib/supabase');
-      // まず現状確認
-      const { data: stats } = await supabase.functions.invoke('cf-stream', { body: { mode: 'list_stats' } });
-      // 削除実行
-      const { data: result, error } = await supabase.functions.invoke('cf-stream', { body: { mode: 'force_cleanup_pending' } });
-      if (error) {
-        setCleanupResult({ ok: false, message: error.message || String(error) });
-      } else if (result?.error) {
-        setCleanupResult({ ok: false, message: result.error });
-      } else {
-        setCleanupResult({
-          ok: true,
-          stats,
-          result,
-          message: `削除完了: ${result?.deleted || 0} 件 / 検出 ${result?.found || 0} 件 (失敗 ${result?.failed || 0})`,
-        });
-      }
-    } catch (e) {
-      setCleanupResult({ ok: false, message: String(e) });
-    } finally {
-      setCleanupRunning(false);
-    }
-  };
 
   const pickFile = (file) => {
     if (!file) return;
@@ -516,23 +484,6 @@ function MeetingUploader({ currentUser, onUploaded, isAdmin }) {
 
   return (
     <div style={{ marginBottom: space[4] }}>
-      {/* 管理者向け: Cloudflare Stream 容量整理 */}
-      {isAdmin && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: space[2], marginBottom: space[2], flexWrap: 'wrap' }}>
-          {cleanupResult && (
-            <span style={{
-              fontSize: font.size.xs,
-              color: cleanupResult.ok ? color.success : color.danger,
-              fontWeight: font.weight.semibold,
-            }}>
-              {cleanupResult.message}
-            </span>
-          )}
-          <Button size="sm" variant="outline" onClick={runCleanup} loading={cleanupRunning}>
-            未完了アップロード整理
-          </Button>
-        </div>
-      )}
       <div
         onDragOver={e => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
