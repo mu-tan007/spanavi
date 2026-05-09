@@ -45,7 +45,7 @@ ${categoryGroups.map(g => `### ${g.daibunrui}\n${g.saibunruis.join(', ')}`).join
 
 ## その他のフィールド
 - 都道府県 (prefecture): 47都道府県名から複数選択（必ず "東京都"・"大阪府"・"北海道" 等の正式名称）
-- 市区町村 (city): 市区郡名（部分一致、文字列）
+- 市区町村 (cities): 市区郡名の配列（複数指定可、各々前方一致）。例: 「東京23区」→ ["千代田区","中央区","港区","新宿区","文京区","台東区","墨田区","江東区","品川区","目黒区","大田区","世田谷区","渋谷区","中野区","杉並区","豊島区","北区","荒川区","板橋区","練馬区","足立区","葛飾区","江戸川区"]
 - 売上高 (revenueMin / revenueMax): 単位は千円。例: 1億円→100000、10億円→1000000、100億円→10000000
 - 当期純利益 (netIncomeMin / netIncomeMax): 単位は千円
 - 従業員数 (employeeMin / employeeMax): 整数
@@ -83,7 +83,7 @@ ${categoryGroups.map(g => `### ${g.daibunrui}\n${g.saibunruis.join(', ')}`).join
     "saibunrui": ["..."],
     "industryHints": ["..."],
     "prefecture": ["..."],
-    "city": "...",
+    "cities": ["..."],
     "revenueMin": 数値 or null,
     "revenueMax": 数値 or null,
     "revenueNullMode": "",

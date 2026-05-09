@@ -51,6 +51,7 @@ export async function searchCompanies(filters) {
   if (filters.saibunrui?.length) params.p_saibunrui_arr = filters.saibunrui;
   if (filters.prefecture?.length) params.p_prefecture_arr = filters.prefecture;
   if (filters.city) params.p_city = filters.city;
+  if (filters.cities?.length) params.p_city_arr = filters.cities;
   if (filters.revenueMin != null && filters.revenueMin !== '') params.p_revenue_min = Number(filters.revenueMin);
   if (filters.revenueMax != null && filters.revenueMax !== '') params.p_revenue_max = Number(filters.revenueMax);
   if (filters.revenueNullMode === 'include') params.p_revenue_include_null = true;

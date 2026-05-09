@@ -8,6 +8,7 @@ const INITIAL_FILTERS = {
   saibunrui: [],    // 複数選択対応
   prefecture: [],   // 複数選択対応
   city: '',
+  cities: [],       // AIチャット由来の複数市区町村
   revenueMin: '',
   revenueMax: '',
   revenueNullMode: '',   // '' | 'include' | 'exclude'

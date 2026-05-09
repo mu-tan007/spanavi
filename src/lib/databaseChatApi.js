@@ -88,7 +88,7 @@ export async function applyAiFiltersToBase(baseFilters, aiFilters) {
     'ageMin', 'ageMax', 'employeeMin', 'employeeMax',
     'establishedMin', 'establishedMax',
   ];
-  const arrKeys = ['daibunrui', 'saibunrui', 'prefecture', 'shareholderType', 'keywords'];
+  const arrKeys = ['daibunrui', 'saibunrui', 'prefecture', 'shareholderType', 'keywords', 'cities'];
   const strKeys = ['keyword', 'city', 'phonePattern', 'logic',
     'revenueNullMode', 'netIncomeNullMode', 'ageNullMode', 'employeeNullMode'];
 
@@ -106,6 +106,12 @@ export async function applyAiFiltersToBase(baseFilters, aiFilters) {
   }
   merged.repShareholderMatch = aiFilters.repShareholderMatch === true;
   if (!merged.logic) merged.logic = 'AND';
+
+  // city が空白区切りの複数都市文字列なら cities[] に分割（v6以前との互換）
+  if (typeof merged.city === 'string' && merged.city.includes(' ') && (!merged.cities || merged.cities.length === 0)) {
+    merged.cities = merged.city.split(/[\s　]+/).filter(Boolean);
+    merged.city = '';
+  }
 
   // カテゴリ解決のため一度 fetchCategories
   let cats = null;
