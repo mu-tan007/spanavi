@@ -3,17 +3,13 @@ import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Card, Badge, DataTable } from '../ui';
-import { PAGE_REGISTRY, ENGAGEMENT_LABELS, ALL_ENGAGEMENT_SLUGS } from '../../constants/pageRegistry';
+import { PAGE_REGISTRY, ENGAGEMENT_LABELS } from '../../constants/pageRegistry';
 
 // 一括権限管理: メンバーごとに「閲覧可能な事業タブ」と「事業タブ内の閲覧可能ページ」を編集する。
 // - 事業タブ閲覧権: member_engagements (既存)。masp は仮想 engagement のため除外。
 // - ページ権限: member_page_permissions (新規)。masp は member_page_permissions の masp 行のみで判定。
 // - admin (users.role='admin') は権限テーブル無視で全閲覧可。UIでは編集不可・バッジ表示。
-
-const TOTAL_PAGE_COUNT = ALL_ENGAGEMENT_SLUGS.reduce(
-  (sum, slug) => sum + PAGE_REGISTRY[slug].length,
-  0
-);
+// - 未設定メンバー（行が無い）は「現状見えているもの＝全部」を pre-check 状態とする。
 
 export default function PermissionSettings({ onToast }) {
   const orgId = getOrgId();
@@ -93,7 +89,52 @@ export default function PermissionSettings({ onToast }) {
     return map;
   }, [engagementsByDb]);
 
+  // 表示対象の事業slug: 'masp'（仮想・常時表示）+ DBに存在し PAGE_REGISTRY にも定義がある active engagement
+  // → DBから事業を archived/削除すれば自動的にこの画面からも消える
+  const displayedSlugs = useMemo(() => {
+    const dbSlugs = engagementsByDb.map(e => e.slug).filter(s => PAGE_REGISTRY[s]);
+    const arr = [];
+    if (PAGE_REGISTRY.masp) arr.push('masp');
+    dbSlugs.forEach(s => { if (s !== 'masp') arr.push(s); });
+    return arr;
+  }, [engagementsByDb]);
+
+  // 表示用ラベル: DB engagements.name を優先、無ければ ENGAGEMENT_LABELS フォールバック
+  const labelFor = useCallback((slug) => {
+    if (slug === 'masp') return ENGAGEMENT_LABELS.masp;
+    const eng = engBySlug[slug];
+    return eng?.name || ENGAGEMENT_LABELS[slug] || slug;
+  }, [engBySlug]);
+
+  // 表示対象事業の合計ページ数（権限カウント表示の分母）
+  const totalDisplayedPages = useMemo(
+    () => displayedSlugs.reduce((sum, slug) => sum + (PAGE_REGISTRY[slug]?.length || 0), 0),
+    [displayedSlugs]
+  );
+
+  // 「全部許可」のデフォルト状態を生成（displayedSlugs 全てのページを set に積む）
+  const buildAllAllowed = useCallback(() => {
+    const out = {};
+    displayedSlugs.forEach(slug => {
+      out[slug] = new Set((PAGE_REGISTRY[slug] || []).map(p => p.key));
+    });
+    return out;
+  }, [displayedSlugs]);
+
+  // 「全DB engagement に所属している」のデフォルト engagement_id Set
+  const buildAllEngagementIds = useCallback(() => {
+    const set = new Set();
+    displayedSlugs.forEach(slug => {
+      if (slug === 'masp') return;
+      if (engBySlug[slug]) set.add(engBySlug[slug].id);
+    });
+    return set;
+  }, [displayedSlugs, engBySlug]);
+
   // ─── 選択メンバーの権限を読み込み
+  // member_page_permissions に該当メンバーの行が0件なら「未設定 = 現状全部見える」と解釈し、
+  // displayedSlugs の全ページを pre-check した状態で UI を初期化する。
+  // 同様に member_engagements が0件なら全DB engagementに所属していると解釈する。
   const loadMemberPermissions = useCallback(async (memberId) => {
     if (!memberId) return;
     setMemberLoading(true);
@@ -105,21 +146,37 @@ export default function PermissionSettings({ onToast }) {
         .select('engagement_slug, page_key')
         .eq('member_id', memberId),
     ]);
-    const engIds = new Set((me.data || []).map(r => r.engagement_id));
-    const pages = {};
-    (mpp.data || []).forEach(r => {
-      if (!pages[r.engagement_slug]) pages[r.engagement_slug] = new Set();
-      pages[r.engagement_slug].add(r.page_key);
-    });
-    // 全 slug のキーを初期化
-    ALL_ENGAGEMENT_SLUGS.forEach(s => { if (!pages[s]) pages[s] = new Set(); });
+
+    // ── ページ権限
+    let pages;
+    if (!mpp.data || mpp.data.length === 0) {
+      // 未設定 → 全部許可で pre-check
+      pages = buildAllAllowed();
+    } else {
+      pages = {};
+      mpp.data.forEach(r => {
+        if (!pages[r.engagement_slug]) pages[r.engagement_slug] = new Set();
+        pages[r.engagement_slug].add(r.page_key);
+      });
+      // 表示対象 slug のキーを初期化（rows に無くても空 Set を用意）
+      displayedSlugs.forEach(s => { if (!pages[s]) pages[s] = new Set(); });
+    }
+
+    // ── 事業所属
+    let engIds;
+    if (!me.data || me.data.length === 0) {
+      // 未設定 → 全DB engagement に所属している扱い
+      engIds = buildAllEngagementIds();
+    } else {
+      engIds = new Set(me.data.map(r => r.engagement_id));
+    }
 
     setOrigEngagementIds(engIds);
     setOrigPages(pages);
     // ステートは Set のディープコピー
     setSelectedPages(Object.fromEntries(Object.entries(pages).map(([k, v]) => [k, new Set(v)])));
     setMemberLoading(false);
-  }, []);
+  }, [buildAllAllowed, buildAllEngagementIds, displayedSlugs]);
 
   useEffect(() => {
     if (selectedMemberId) loadMemberPermissions(selectedMemberId);
@@ -158,7 +215,7 @@ export default function PermissionSettings({ onToast }) {
     try {
       // 1) member_engagements を再構築（masp 以外）
       const desiredEngIds = new Set();
-      ALL_ENGAGEMENT_SLUGS.forEach(slug => {
+      displayedSlugs.forEach(slug => {
         if (slug === 'masp') return; // 仮想 engagement
         if (isEngagementOn(slug) && engBySlug[slug]) desiredEngIds.add(engBySlug[slug].id);
       });
@@ -186,7 +243,7 @@ export default function PermissionSettings({ onToast }) {
       if (delErr) throw delErr;
 
       const ppRows = [];
-      ALL_ENGAGEMENT_SLUGS.forEach(slug => {
+      displayedSlugs.forEach(slug => {
         const set = selectedPages[slug] || new Set();
         set.forEach(page_key => {
           ppRows.push({ org_id: orgId, member_id: selectedMemberId, engagement_slug: slug, page_key });
@@ -219,21 +276,21 @@ export default function PermissionSettings({ onToast }) {
     if (!selectedMemberId || selectedIsAdmin) return false;
     // engagement
     const desiredEngIds = new Set();
-    ALL_ENGAGEMENT_SLUGS.forEach(slug => {
+    displayedSlugs.forEach(slug => {
       if (slug === 'masp') return;
       if (isEngagementOn(slug) && engBySlug[slug]) desiredEngIds.add(engBySlug[slug].id);
     });
     if (desiredEngIds.size !== origEngagementIds.size) return true;
     for (const id of desiredEngIds) if (!origEngagementIds.has(id)) return true;
     // pages
-    for (const slug of ALL_ENGAGEMENT_SLUGS) {
+    for (const slug of displayedSlugs) {
       const cur = selectedPages[slug] || new Set();
       const orig = origPages[slug] || new Set();
       if (cur.size !== orig.size) return true;
       for (const k of cur) if (!orig.has(k)) return true;
     }
     return false;
-  }, [selectedMemberId, selectedIsAdmin, selectedPages, origPages, origEngagementIds, engBySlug]);
+  }, [selectedMemberId, selectedIsAdmin, selectedPages, origPages, origEngagementIds, engBySlug, displayedSlugs]);
 
   // ─── DataTable 用の列定義（揃え: 名前/役職=left, ロール=center, 権限ページ数=right）
   const memberColumns = useMemo(() => [
@@ -263,26 +320,30 @@ export default function PermissionSettings({ onToast }) {
       },
     },
     {
-      key: 'permCount', label: '権限ページ', width: 90, align: 'right',
+      key: 'permCount', label: '権限ページ', width: 110, align: 'right',
       render: (m) => {
         const isAdminMember = m.user_id && adminUserIds.has(m.user_id);
         if (isAdminMember) {
           return <span style={{ fontSize: font.size.sm, color: color.textLight, fontFamily: font.family.mono }}>—</span>;
         }
         const count = permissionCounts[m.id] || 0;
+        // 0件 = 未設定（現状全部見える状態）。そのことが分かるよう neutral バッジで明示。
+        if (count === 0) {
+          return <Badge variant="neutral">未設定</Badge>;
+        }
         return (
           <span style={{
             fontFamily: font.family.mono,
             fontSize: font.size.sm,
-            color: count === 0 ? color.danger : color.textDark,
+            color: color.textDark,
             fontWeight: font.weight.medium,
           }}>
-            {count} / {TOTAL_PAGE_COUNT}
+            {count} / {totalDisplayedPages}
           </span>
         );
       },
     },
-  ], [adminUserIds, permissionCounts]);
+  ], [adminUserIds, permissionCounts, totalDisplayedPages]);
 
   return (
     <div style={{ display: 'flex', gap: space[5], minHeight: 600 }}>
@@ -344,8 +405,8 @@ export default function PermissionSettings({ onToast }) {
               )}
             </Card>
 
-            {/* 事業ごとのカード */}
-            {ALL_ENGAGEMENT_SLUGS.map(slug => {
+            {/* 事業ごとのカード — DBに存在する active engagement のみ */}
+            {displayedSlugs.map(slug => {
               const pages = PAGE_REGISTRY[slug];
               const set = selectedPages[slug] || new Set();
               const allOn = pages.length > 0 && pages.every(p => set.has(p.key));
@@ -354,7 +415,7 @@ export default function PermissionSettings({ onToast }) {
                 <Card
                   key={slug}
                   padding="md"
-                  title={ENGAGEMENT_LABELS[slug]}
+                  title={labelFor(slug)}
                   action={
                     <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
                       <Badge variant={anyOn ? 'success' : 'neutral'} dot>

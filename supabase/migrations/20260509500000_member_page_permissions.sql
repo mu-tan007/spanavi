@@ -94,17 +94,10 @@ as $$
     ('seller_sourcing', 'crm'),
     ('seller_sourcing', 'payroll'),
     ('seller_sourcing', 'shift'),
-    -- spartia_career (現在 enabled のみ)
+    -- spartia_career / スパキャリ (現在 enabled のみ)
     ('spartia_career', 'applications'),
     ('spartia_career', 'deals_career'),
-    ('spartia_career', 'members_career'),
-    -- spartia_capital (path形式)
-    ('spartia_capital', '/dashboard'),
-    ('spartia_capital', '/deals'),
-    ('spartia_capital', '/needs'),
-    ('spartia_capital', '/partners'),
-    ('spartia_capital', '/documents'),
-    ('spartia_capital', '/members')
+    ('spartia_career', 'members_career')
 $$;
 
 -- ============================================================
