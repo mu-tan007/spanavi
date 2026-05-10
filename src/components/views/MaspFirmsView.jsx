@@ -30,7 +30,14 @@ const CSV_COLUMNS = [
   { header: 'メールアドレス', accessor: a => a.contact_email || '' },
   { header: '問い合わせフォームURL', accessor: a => a.contact_form_url || '' },
   { header: 'ウェブサイト', accessor: a => a.website || '' },
-  { header: 'ステータス', accessor: a => a.status === 'contacted' ? '接触済' : '未接触' },
+  { header: 'ステータス', accessor: a => {
+    const ds = deriveStatus(a)
+    if (ds === 'partner') return '取引先'
+    if (ds === 'contacted' || ds === 'crm_contacted') return '接触済'
+    return '未接触'
+  } },
+  { header: 'CRMリンククライアント', accessor: a => a.linked_client?.name || '' },
+  { header: 'CRMステータス', accessor: a => a.linked_client?.status || '' },
 ]
 
 // SpanaviApp 配下には QueryClientProvider が無いため、このページ専用に QueryClient を持つ。
@@ -41,9 +48,29 @@ const firmsQueryClient = new QueryClient({
   },
 })
 
+// 派生ステータス。CRM clients のリンクから「取引先 / 接触済」を計算する。
+// - partner       : リンク先 client が 支援中/準備中/停止中/保留 (= 取引先)
+// - crm_contacted : リンク先 client が 中期フォロー/面談予定 (= 接触済 CRM由来)
+// - contacted     : cap_ma_agencies.status が 'contacted' (= 接触済 直接)
+// - not_contacted : それ以外
 const STATUS_STYLE = {
-  not_contacted: { bg: color.gray50,      fg: color.textMid, label: '未接触' },
-  contacted:     { bg: color.successSoft, fg: color.success, label: '接触済' },
+  partner:       { bg: '#E8F0FF',          fg: color.navy,    label: '取引先', dot: color.navy },
+  crm_contacted: { bg: color.successSoft,  fg: color.success, label: '接触済', dot: color.success },
+  contacted:     { bg: color.successSoft,  fg: color.success, label: '接触済', dot: color.success },
+  not_contacted: { bg: color.gray50,       fg: color.textMid, label: '未接触', dot: color.textMid },
+}
+
+// CRM clients.status → 派生ステータス
+const CRM_PARTNER_STATUSES = new Set(['支援中', '準備中', '停止中', '保留'])
+const CRM_CONTACTED_STATUSES = new Set(['中期フォロー', '面談予定'])
+
+// 1機関について、CRM リンクと cap_ma_agencies.status から派生ステータスを返す。
+function deriveStatus(agency) {
+  const cs = agency?.linked_client?.status
+  if (cs && CRM_PARTNER_STATUSES.has(cs)) return 'partner'
+  if (cs && CRM_CONTACTED_STATUSES.has(cs)) return 'crm_contacted'
+  if (agency?.status === 'contacted') return 'contacted'
+  return 'not_contacted'
 }
 
 const SORT_OPTIONS = [
@@ -139,7 +166,11 @@ function MaspFirmsViewInner() {
     queryFn: async () => {
       let all = []; let from = 0; const step = 1000
       while (true) {
-        const { data } = await supabase.from('cap_ma_agencies').select('*').range(from, from + step - 1).order('name')
+        const { data } = await supabase
+          .from('cap_ma_agencies')
+          .select('*, linked_client:clients(id, name, status)')
+          .range(from, from + step - 1)
+          .order('name')
         if (!data || data.length === 0) break; all = all.concat(data)
         if (data.length < step) break; from += step
       }
@@ -164,7 +195,19 @@ function MaspFirmsViewInner() {
         return lower.some(k => hay.includes(k))
       })
     }
-    if (filterStatus) list = list.filter(a => a.status === filterStatus)
+    if (filterStatus) {
+      // filterStatus は派生ステータス基準
+      // partner → リンク先 client が 取引先カテゴリ
+      // contacted → 派生 contacted または crm_contacted (どちらも UI 上「接触済」)
+      // not_contacted → 派生で not_contacted
+      list = list.filter(a => {
+        const ds = deriveStatus(a)
+        if (filterStatus === 'partner') return ds === 'partner'
+        if (filterStatus === 'contacted') return ds === 'contacted' || ds === 'crm_contacted'
+        if (filterStatus === 'not_contacted') return ds === 'not_contacted'
+        return true
+      })
+    }
     if (filterPrefs.length > 0) {
       const set = new Set(filterPrefs)
       list = list.filter(a => set.has(a.prefecture))
@@ -204,7 +247,16 @@ function MaspFirmsViewInner() {
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  const stats = { total: allAgencies.length, contacted: allAgencies.filter(a => a.status === 'contacted').length, notContacted: allAgencies.filter(a => a.status === 'not_contacted').length }
+  const stats = (() => {
+    let partner = 0, contacted = 0, notContacted = 0
+    for (const a of allAgencies) {
+      const ds = deriveStatus(a)
+      if (ds === 'partner') partner++
+      else if (ds === 'contacted' || ds === 'crm_contacted') contacted++
+      else notContacted++
+    }
+    return { total: allAgencies.length, partner, contacted, notContacted }
+  })()
 
   async function updateStatus(id, status) {
     await supabase.from('cap_ma_agencies').update({ status, contacted_at: status !== 'not_contacted' ? new Date().toISOString() : null }).eq('id', id)
@@ -472,7 +524,7 @@ function MaspFirmsViewInner() {
         title="M&A支援機関データベース"
         description={`${filtered.length === stats.total
           ? `${(page-1)*PAGE_SIZE+1}〜${Math.min(page*PAGE_SIZE, filtered.length)}件を表示中（全${stats.total}件）`
-          : `${filtered.length}件該当（全${stats.total}件）`}　接触済 ${stats.contacted}社　未接触 ${stats.notContacted}社`}
+          : `${filtered.length}件該当（全${stats.total}件）`}　取引先 ${stats.partner}社　接触済 ${stats.contacted}社　未接触 ${stats.notContacted}社`}
         style={{ marginBottom: space[4] }}
         right={
           <>
@@ -586,7 +638,12 @@ function MaspFirmsViewInner() {
               label="ステータス"
               value={filterStatus}
               onChange={e => { setFilterStatus(e.target.value); setPage(1) }}
-              options={[{ value: '', label: 'すべて' }, { value: 'not_contacted', label: '未接触' }, { value: 'contacted', label: '接触済' }]}
+              options={[
+                { value: '', label: 'すべて' },
+                { value: 'not_contacted', label: '未接触' },
+                { value: 'contacted', label: '接触済' },
+                { value: 'partner', label: '取引先 (CRM連携)' },
+              ]}
             />
             <div style={{ gridColumn: '1 / -1' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -788,7 +845,11 @@ function MaspFirmsViewInner() {
             ) : paged.length === 0 ? (
               <tr><td colSpan={20} style={{ ...td, padding: 40, color: color.textMid }}>該当する機関がありません</td></tr>
             ) : paged.map((a, i) => {
-              const ss = STATUS_STYLE[a.status] || STATUS_STYLE.not_contacted
+              const derivedSt = deriveStatus(a)
+              const ss = STATUS_STYLE[derivedSt] || STATUS_STYLE.not_contacted
+              const linkedName = a.linked_client?.name
+              const linkedRawStatus = a.linked_client?.status
+              const isCrmDerived = derivedSt === 'partner' || derivedSt === 'crm_contacted'
               const rowNum = (page - 1) * PAGE_SIZE + i + 1
               const hasEmail = !!a.contact_email
               const hasForm = !!a.contact_form_url
@@ -832,10 +893,21 @@ function MaspFirmsViewInner() {
                     </div>
                   </td>
                   <td style={td}>
-                    <select value={a.status} onChange={e => updateStatus(a.id, e.target.value)}
-                      style={{ height: 24, padding: '0 4px', fontSize: 10, border: `0.5px solid ${ss.bg}`, borderRadius: radius.sm, background: ss.bg, color: ss.fg, outline: 'none', cursor: 'pointer' }}>
-                      <option value="not_contacted">未接触</option><option value="contacted">接触済</option>
-                    </select>
+                    {isCrmDerived ? (
+                      <span
+                        title={`CRM: ${linkedName || '(unknown)'} / ${linkedRawStatus || ''}`}
+                        style={{
+                          display: 'inline-block', padding: '2px 8px', fontSize: 10,
+                          border: `0.5px solid ${ss.fg}`, borderRadius: radius.sm,
+                          background: ss.bg, color: ss.fg, fontWeight: font.weight.semibold,
+                        }}
+                      >{ss.label}</span>
+                    ) : (
+                      <select value={a.status} onChange={e => updateStatus(a.id, e.target.value)}
+                        style={{ height: 24, padding: '0 4px', fontSize: 10, border: `0.5px solid ${ss.bg}`, borderRadius: radius.sm, background: ss.bg, color: ss.fg, outline: 'none', cursor: 'pointer' }}>
+                        <option value="not_contacted">未接触</option><option value="contacted">接触済</option>
+                      </select>
+                    )}
                   </td>
                 </tr>
               )

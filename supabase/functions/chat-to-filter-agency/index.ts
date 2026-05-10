@@ -58,7 +58,7 @@ const SYSTEM_PROMPT = `
 - 手数料体系 - FA譲受側 (feeFaBuyer): "" / "yes" / "no"
 - 手数料体系 - 仲介譲渡側 (feeBrokerSeller): "" / "yes" / "no"
 - 手数料体系 - 仲介譲受側 (feeBrokerBuyer): "" / "yes" / "no"
-- 接触ステータス (status): "" / "not_contacted"(未接触) / "contacted"(接触済)
+- 接触ステータス (status): "" / "not_contacted"(未接触) / "contacted"(接触済) / "partner"(取引先 = 当社の CRM clients に支援中/準備中/停止中/保留 として登録されている機関)
 - 連絡先有無 (contact): "" / "any"(メールorフォームあり) / "email"(メアドあり) / "form"(フォームのみ・メアド無) / "none"(連絡先なし)
 - 自由テキスト (keywords): 機関名や所在地に含まれそうな単語の配列。OR/AND は logic で指定
 - ロジック (logic): "AND" または "OR" (デフォルト AND)
@@ -104,8 +104,10 @@ const SYSTEM_PROMPT = `
 - 「事業承継特化」「事業承継支援」 → 譲渡側 (feeFaSeller / feeBrokerSeller) を "yes" + keywords に「事業承継」を入れない (機関名にあまり含まれない)。手数料体系で表現する。
 
 ### 接触ステータス (status)
-- 「未接触」「まだアプローチしてない」「これから接触する機関」 → status: "not_contacted"
-- 「接触済み」「すでに連絡した」 → status: "contacted"
+- 「未接触」「まだアプローチしてない」「これから接触する機関」「新規開拓候補」「未開拓」 → status: "not_contacted"
+- 「接触済み」「すでに連絡した」「アプローチ済み」 → status: "contacted"
+- 「取引先」「うちのクライアント」「契約のある機関」「支援中の機関」「自社が支援している機関」 → status: "partner"
+- 「取引先と接触済みを除いて」「未接触のみ」「新規開拓リスト」 → status: "not_contacted" (取引先と接触済みは含まない)
 
 ### 連絡先有無 (contact)
 - 「メアドあり」「メールアドレスがある機関」「すぐメール送れる機関」 → contact: "email"

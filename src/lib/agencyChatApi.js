@@ -33,7 +33,7 @@ const PREFS = [
 const PREF_SET = new Set(PREFS);
 
 const YES_NO = (v) => (v === 'yes' || v === 'no' ? v : '');
-const STATUS_OK = (v) => (v === 'not_contacted' || v === 'contacted' ? v : '');
+const STATUS_OK = (v) => (['not_contacted', 'contacted', 'partner'].includes(v) ? v : '');
 const CONTACT_OK = (v) => (['email', 'form', 'any', 'none'].includes(v) ? v : '');
 
 /**
