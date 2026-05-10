@@ -357,6 +357,16 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     }
   }, [engSlug, engLoading, currentTab]);
 
+  // 事業ガード: localStorage 復元時に「閲覧不可な engagement」に居る場合、見られる最初の事業へ。
+  // 例: 一般メンバーが旧 localStorage に 'masp' を持っていた場合 → seller_sourcing 等へ自動遷移。
+  useEffect(() => {
+    if (engLoading || accessLoading) return;
+    if (!engSlug) return;
+    if (canViewEngagement(engSlug)) return;
+    const fallback = (engagements || []).find(e => canViewEngagement(e.slug));
+    if (fallback) switchEngagement(fallback.slug);
+  }, [engSlug, engLoading, accessLoading, canViewEngagement, engagements, switchEngagement]);
+
   // 権限ガード本体は navGroups 宣言後に置くため、この位置では先に変数を確保するだけ。
   const [now, setNow] = useState(new Date());
   const [lastUpdated, setLastUpdated] = useState(() => new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', second: '2-digit' }));

@@ -5,17 +5,22 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Card, Badge, DataTable } from '../ui';
 import { PAGE_REGISTRY, ENGAGEMENT_LABELS } from '../../constants/pageRegistry';
 
-// 一括権限管理: メンバーごとに「閲覧可能な事業タブ」と「事業タブ内の閲覧可能ページ」を編集する。
-// - 事業タブ閲覧権: member_engagements (既存)。masp は仮想 engagement のため除外。
-// - ページ権限: member_page_permissions (新規)。masp は member_page_permissions の masp 行のみで判定。
-// - admin (users.role='admin') は権限テーブル無視で全閲覧可。UIでは編集不可・バッジ表示。
-// - 未設定メンバー（行が無い）は「現状見えているもの＝全部」を pre-check 状態とする。
+// 一括権限管理: メンバーごとに「事業タブ内の閲覧可能ページ」をホワイトリスト方式で編集する。
+//
+// 役割分担：
+// - 事業タブ閲覧権 = MASP > Members の所属チェックボックス（member_engagements）が唯一のソース
+//   → この画面では事業のON/OFFは扱わない（所属している事業のみページ単位で編集可能）
+// - ページ権限 = この画面で編集（member_page_permissions）
+// - MASP（全社） = admin 専用ハードコード。一般メンバー設定の対象外
+// - admin (users.role='admin') は権限テーブル無視で全閲覧可。UIでは編集不可・バッジ表示
+// - 未設定メンバー（行が無い）は「現状見えているもの＝所属事業の全ページ」を pre-check で表示
 
 export default function PermissionSettings({ onToast }) {
   const orgId = getOrgId();
   const [members, setMembers] = useState([]);
   const [adminUserIds, setAdminUserIds] = useState(new Set()); // role='admin' なメンバーの user_id
   const [engagementsByDb, setEngagementsByDb] = useState([]); // [{id, slug, name}]
+  const [memberEngagementMap, setMemberEngagementMap] = useState(new Map()); // member_id -> Set<engagement_id>
   const [permissionCounts, setPermissionCounts] = useState({}); // { member_id: count }
   const [search, setSearch] = useState('');
   const [selectedMemberId, setSelectedMemberId] = useState(null);
@@ -23,20 +28,19 @@ export default function PermissionSettings({ onToast }) {
 
   // 編集対象メンバーの権限ステート
   const [memberLoading, setMemberLoading] = useState(false);
-  // 選択中: { 'masp': Set<page_key>, 'seller_sourcing': Set<page_key>, ... }
+  // 選択中: { 'seller_sourcing': Set<page_key>, ... }（所属事業のみ）
   const [selectedPages, setSelectedPages] = useState({});
   // 元の状態（差分検出用）
   const [origPages, setOrigPages] = useState({});
-  const [origEngagementIds, setOrigEngagementIds] = useState(new Set());
   const [saving, setSaving] = useState(false);
 
-  // ─── 初期ロード: メンバー一覧 + admin判定 + DB engagements + 全メンバーの権限件数
+  // ─── 初期ロード: メンバー一覧 + admin判定 + DB engagements + 全メンバーの所属 + 権限件数
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!orgId) { setLoading(false); return; }
       setLoading(true);
-      const [m, e, u, mpp] = await Promise.all([
+      const [m, e, u, me, mpp] = await Promise.all([
         supabase.from('members')
           .select('id, name, email, position, rank, user_id, is_active, avatar_url')
           .eq('org_id', orgId)
@@ -50,6 +54,9 @@ export default function PermissionSettings({ onToast }) {
         supabase.from('users')
           .select('id, role')
           .eq('role', 'admin'),
+        supabase.from('member_engagements')
+          .select('member_id, engagement_id')
+          .eq('org_id', orgId),
         supabase.from('member_page_permissions')
           .select('member_id')
           .eq('org_id', orgId),
@@ -58,6 +65,14 @@ export default function PermissionSettings({ onToast }) {
       setMembers(m.data || []);
       setEngagementsByDb(e.data || []);
       setAdminUserIds(new Set((u.data || []).map(r => r.id)));
+
+      const meMap = new Map();
+      (me.data || []).forEach(r => {
+        if (!meMap.has(r.member_id)) meMap.set(r.member_id, new Set());
+        meMap.get(r.member_id).add(r.engagement_id);
+      });
+      setMemberEngagementMap(meMap);
+
       const counts = {};
       (mpp.data || []).forEach(r => { counts[r.member_id] = (counts[r.member_id] || 0) + 1; });
       setPermissionCounts(counts);
@@ -89,94 +104,64 @@ export default function PermissionSettings({ onToast }) {
     return map;
   }, [engagementsByDb]);
 
-  // 表示対象の事業slug: 'masp'（仮想・常時表示）+ DBに存在し PAGE_REGISTRY にも定義がある active engagement
-  // → DBから事業を archived/削除すれば自動的にこの画面からも消える
+  // 表示対象の事業slug: 「選択中メンバーが所属している事業（member_engagements）」 ∩
+  // 「DBに存在 active」 ∩ 「PAGE_REGISTRY 定義済み」、masp は admin 専用なので必ず除外。
+  // メンバー未選択のときは空配列（右ペインは空状態を表示）。
   const displayedSlugs = useMemo(() => {
-    const dbSlugs = engagementsByDb.map(e => e.slug).filter(s => PAGE_REGISTRY[s]);
-    const arr = [];
-    if (PAGE_REGISTRY.masp) arr.push('masp');
-    dbSlugs.forEach(s => { if (s !== 'masp') arr.push(s); });
-    return arr;
-  }, [engagementsByDb]);
+    if (!selectedMemberId) return [];
+    const memberEngs = memberEngagementMap.get(selectedMemberId) || new Set();
+    return engagementsByDb
+      .filter(e => e.slug !== 'masp')
+      .filter(e => PAGE_REGISTRY[e.slug])
+      .filter(e => memberEngs.has(e.id))
+      .map(e => e.slug);
+  }, [selectedMemberId, memberEngagementMap, engagementsByDb]);
 
   // 表示用ラベル: DB engagements.name を優先、無ければ ENGAGEMENT_LABELS フォールバック
   const labelFor = useCallback((slug) => {
-    if (slug === 'masp') return ENGAGEMENT_LABELS.masp;
     const eng = engBySlug[slug];
     return eng?.name || ENGAGEMENT_LABELS[slug] || slug;
   }, [engBySlug]);
 
-  // 表示対象事業の合計ページ数（権限カウント表示の分母）
-  const totalDisplayedPages = useMemo(
-    () => displayedSlugs.reduce((sum, slug) => sum + (PAGE_REGISTRY[slug]?.length || 0), 0),
-    [displayedSlugs]
-  );
-
-  // 「全部許可」のデフォルト状態を生成（displayedSlugs 全てのページを set に積む）
-  const buildAllAllowed = useCallback(() => {
+  // 「所属事業の全ページ許可」のデフォルト状態を生成
+  const buildAllAllowedForMember = useCallback((memberId) => {
     const out = {};
-    displayedSlugs.forEach(slug => {
-      out[slug] = new Set((PAGE_REGISTRY[slug] || []).map(p => p.key));
-    });
+    const memberEngs = memberEngagementMap.get(memberId) || new Set();
+    engagementsByDb
+      .filter(e => e.slug !== 'masp' && PAGE_REGISTRY[e.slug] && memberEngs.has(e.id))
+      .forEach(e => {
+        out[e.slug] = new Set((PAGE_REGISTRY[e.slug] || []).map(p => p.key));
+      });
     return out;
-  }, [displayedSlugs]);
-
-  // 「全DB engagement に所属している」のデフォルト engagement_id Set
-  const buildAllEngagementIds = useCallback(() => {
-    const set = new Set();
-    displayedSlugs.forEach(slug => {
-      if (slug === 'masp') return;
-      if (engBySlug[slug]) set.add(engBySlug[slug].id);
-    });
-    return set;
-  }, [displayedSlugs, engBySlug]);
+  }, [memberEngagementMap, engagementsByDb]);
 
   // ─── 選択メンバーの権限を読み込み
-  // member_page_permissions に該当メンバーの行が0件なら「未設定 = 現状全部見える」と解釈し、
-  // displayedSlugs の全ページを pre-check した状態で UI を初期化する。
-  // 同様に member_engagements が0件なら全DB engagementに所属していると解釈する。
+  // 事業所属は MASP > Members で管理されるため取得不要。ページ権限のみフェッチ。
+  // member_page_permissions に行が0件のメンバーは「未設定 = 所属事業の全ページ見える」状態。
   const loadMemberPermissions = useCallback(async (memberId) => {
     if (!memberId) return;
     setMemberLoading(true);
-    const [me, mpp] = await Promise.all([
-      supabase.from('member_engagements')
-        .select('engagement_id')
-        .eq('member_id', memberId),
-      supabase.from('member_page_permissions')
-        .select('engagement_slug, page_key')
-        .eq('member_id', memberId),
-    ]);
+    const { data: mppData } = await supabase
+      .from('member_page_permissions')
+      .select('engagement_slug, page_key')
+      .eq('member_id', memberId);
 
-    // ── ページ権限
     let pages;
-    if (!mpp.data || mpp.data.length === 0) {
-      // 未設定 → 全部許可で pre-check
-      pages = buildAllAllowed();
+    if (!mppData || mppData.length === 0) {
+      // 未設定 → 所属事業の全ページを pre-check
+      pages = buildAllAllowedForMember(memberId);
     } else {
       pages = {};
-      mpp.data.forEach(r => {
+      mppData.forEach(r => {
         if (!pages[r.engagement_slug]) pages[r.engagement_slug] = new Set();
         pages[r.engagement_slug].add(r.page_key);
       });
-      // 表示対象 slug のキーを初期化（rows に無くても空 Set を用意）
-      displayedSlugs.forEach(s => { if (!pages[s]) pages[s] = new Set(); });
     }
 
-    // ── 事業所属
-    let engIds;
-    if (!me.data || me.data.length === 0) {
-      // 未設定 → 全DB engagement に所属している扱い
-      engIds = buildAllEngagementIds();
-    } else {
-      engIds = new Set(me.data.map(r => r.engagement_id));
-    }
-
-    setOrigEngagementIds(engIds);
     setOrigPages(pages);
-    // ステートは Set のディープコピー
     setSelectedPages(Object.fromEntries(Object.entries(pages).map(([k, v]) => [k, new Set(v)])));
     setMemberLoading(false);
-  }, [buildAllAllowed, buildAllEngagementIds, displayedSlugs]);
+  }, [buildAllAllowedForMember]);
 
   useEffect(() => {
     if (selectedMemberId) loadMemberPermissions(selectedMemberId);
@@ -202,41 +187,12 @@ export default function PermissionSettings({ onToast }) {
     });
   };
 
-  // 事業タブ閲覧可否は「その事業のページが1つでも選択されているか」で判定
-  const isEngagementOn = (slug) => {
-    const set = selectedPages[slug];
-    return !!(set && set.size > 0);
-  };
-
-  // ─── 保存
+  // ─── 保存（ページ権限のみ。事業所属は MASP > Members 側で管理）
   const onSave = async () => {
     if (!selectedMemberId || selectedIsAdmin) return;
     setSaving(true);
     try {
-      // 1) member_engagements を再構築（masp 以外）
-      const desiredEngIds = new Set();
-      displayedSlugs.forEach(slug => {
-        if (slug === 'masp') return; // 仮想 engagement
-        if (isEngagementOn(slug) && engBySlug[slug]) desiredEngIds.add(engBySlug[slug].id);
-      });
-      const toInsert = [...desiredEngIds].filter(id => !origEngagementIds.has(id));
-      const toDelete = [...origEngagementIds].filter(id => !desiredEngIds.has(id));
-
-      if (toDelete.length > 0) {
-        const { error } = await supabase.from('member_engagements')
-          .delete()
-          .eq('member_id', selectedMemberId)
-          .in('engagement_id', toDelete);
-        if (error) throw error;
-      }
-      if (toInsert.length > 0) {
-        const rows = toInsert.map(eid => ({ org_id: orgId, member_id: selectedMemberId, engagement_id: eid }));
-        const { error } = await supabase.from('member_engagements').insert(rows);
-        // 23505 は同時挿入時の重複（無視）
-        if (error && error.code !== '23505') throw error;
-      }
-
-      // 2) member_page_permissions を再構築（全削除→insert で差分計算をシンプルに）
+      // 全削除 → insert（差分計算をシンプルに）
       const { error: delErr } = await supabase.from('member_page_permissions')
         .delete()
         .eq('member_id', selectedMemberId);
@@ -255,7 +211,6 @@ export default function PermissionSettings({ onToast }) {
       }
 
       // ステート更新
-      setOrigEngagementIds(new Set(desiredEngIds));
       setOrigPages(Object.fromEntries(Object.entries(selectedPages).map(([k, v]) => [k, new Set(v)])));
       setPermissionCounts(prev => ({ ...prev, [selectedMemberId]: ppRows.length }));
       onToast?.({ type: 'success', message: '権限を保存しました' });
@@ -271,18 +226,9 @@ export default function PermissionSettings({ onToast }) {
     setSelectedPages(Object.fromEntries(Object.entries(origPages).map(([k, v]) => [k, new Set(v)])));
   };
 
-  // 差分検出
+  // 差分検出（ページのみ）
   const isDirty = useMemo(() => {
     if (!selectedMemberId || selectedIsAdmin) return false;
-    // engagement
-    const desiredEngIds = new Set();
-    displayedSlugs.forEach(slug => {
-      if (slug === 'masp') return;
-      if (isEngagementOn(slug) && engBySlug[slug]) desiredEngIds.add(engBySlug[slug].id);
-    });
-    if (desiredEngIds.size !== origEngagementIds.size) return true;
-    for (const id of desiredEngIds) if (!origEngagementIds.has(id)) return true;
-    // pages
     for (const slug of displayedSlugs) {
       const cur = selectedPages[slug] || new Set();
       const orig = origPages[slug] || new Set();
@@ -290,7 +236,7 @@ export default function PermissionSettings({ onToast }) {
       for (const k of cur) if (!orig.has(k)) return true;
     }
     return false;
-  }, [selectedMemberId, selectedIsAdmin, selectedPages, origPages, origEngagementIds, engBySlug, displayedSlugs]);
+  }, [selectedMemberId, selectedIsAdmin, selectedPages, origPages, displayedSlugs]);
 
   // ─── DataTable 用の列定義（揃え: 名前/役職=left, ロール=center, 権限ページ数=right）
   const memberColumns = useMemo(() => [
@@ -326,9 +272,18 @@ export default function PermissionSettings({ onToast }) {
         if (isAdminMember) {
           return <span style={{ fontSize: font.size.sm, color: color.textLight, fontFamily: font.family.mono }}>—</span>;
         }
+        // 分母: そのメンバーが所属している事業の合計ページ数
+        const memberEngs = memberEngagementMap.get(m.id) || new Set();
+        const denom = engagementsByDb
+          .filter(e => e.slug !== 'masp' && PAGE_REGISTRY[e.slug] && memberEngs.has(e.id))
+          .reduce((sum, e) => sum + PAGE_REGISTRY[e.slug].length, 0);
         const count = permissionCounts[m.id] || 0;
-        // 0件 = 未設定（現状全部見える状態）。そのことが分かるよう neutral バッジで明示。
+        if (denom === 0) {
+          // 所属事業ゼロ
+          return <Badge variant="neutral">所属なし</Badge>;
+        }
         if (count === 0) {
+          // 行が無い = 未設定 = 所属事業の全ページ見える状態
           return <Badge variant="neutral">未設定</Badge>;
         }
         return (
@@ -338,12 +293,12 @@ export default function PermissionSettings({ onToast }) {
             color: color.textDark,
             fontWeight: font.weight.medium,
           }}>
-            {count} / {totalDisplayedPages}
+            {count} / {denom}
           </span>
         );
       },
     },
-  ], [adminUserIds, permissionCounts, totalDisplayedPages]);
+  ], [adminUserIds, permissionCounts, memberEngagementMap, engagementsByDb]);
 
   return (
     <div style={{ display: 'flex', gap: space[5], minHeight: 600 }}>
@@ -394,7 +349,7 @@ export default function PermissionSettings({ onToast }) {
               action={selectedIsAdmin ? <Badge variant="primary">管理者：全権限保有（編集不可）</Badge> : null}
               style={{ marginBottom: space[4] }}
             >
-              {selectedIsAdmin && (
+              {selectedIsAdmin ? (
                 <div style={{
                   fontSize: font.size.sm,
                   color: color.textMid,
@@ -402,10 +357,32 @@ export default function PermissionSettings({ onToast }) {
                 }}>
                   管理者ロール（users.role = 'admin'）のメンバーは権限テーブルを無視して全画面を閲覧できます。権限を制限したい場合は、まずロールを admin から変更してください。
                 </div>
+              ) : (
+                <div style={{
+                  fontSize: font.size.sm,
+                  color: color.textMid,
+                  lineHeight: font.lineHeight.relaxed,
+                }}>
+                  この画面で操作するのは <strong>ページ単位の閲覧権限</strong>のみ。事業タブ自体のON/OFFは <strong>MASP &gt; Members の所属事業チェックボックス</strong> で管理されています（このメンバーが所属している事業だけが下に表示されます）。MASP（全社）は admin 専用のため設定対象外です。
+                </div>
               )}
             </Card>
 
-            {/* 事業ごとのカード — DBに存在する active engagement のみ */}
+            {/* 所属事業ゼロの空状態 */}
+            {!selectedIsAdmin && displayedSlugs.length === 0 && (
+              <div style={{
+                padding: space[8], textAlign: 'center',
+                background: color.cream, border: `1px solid ${color.borderLight}`, borderRadius: radius.md,
+                color: color.textMid, fontSize: font.size.base, lineHeight: font.lineHeight.relaxed,
+              }}>
+                このメンバーはまだ事業に所属していません。<br />
+                <span style={{ fontSize: font.size.sm, color: color.textLight }}>
+                  MASP &gt; Members 画面で所属事業をチェックすると、ここに事業ごとのページ権限が表示されます。
+                </span>
+              </div>
+            )}
+
+            {/* 事業ごとのカード — メンバーが所属している事業のみ */}
             {displayedSlugs.map(slug => {
               const pages = PAGE_REGISTRY[slug];
               const set = selectedPages[slug] || new Set();
