@@ -357,41 +357,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     }
   }, [engSlug, engLoading, currentTab]);
 
-  // 権限ガード: 現在の currentTab がそのエンゲージメントで閲覧不可の場合、見られる最初のページへ。
-  // adminは常に閲覧可なので影響なし。Capital は path ベースなので除外（capitalNav 側で別途ガードされる）。
-  useEffect(() => {
-    if (engLoading || accessLoading) return;
-    if (!engSlug) return;
-    if (engSlug === 'spartia_capital') return;
-    // mypage は権限テーブル外（自分のページなので常時閲覧可）
-    if (currentTab === 'mypage') return;
-    // admin_settings / manager_admin は admin/manager 判定で別管理
-    if (currentTab === 'admin_settings' || currentTab === 'manager_admin') return;
-    if (canViewPage(engSlug, currentTab)) return;
-    // 見えない → 同 engagement で見られる最初のページへ
-    // navGroups (Sourcing) を参照、それ以外は適切なフォールバックリスト
-    const fallback = (() => {
-      if (engSlug === 'masp') {
-        return ['database', 'firms', 'all_members'].find(k => canViewPage('masp', k));
-      }
-      if (engSlug === 'seller_sourcing') {
-        for (const g of navGroups) {
-          if (g.children) {
-            const c = g.children.find(c => canViewPage('seller_sourcing', c.id));
-            if (c) return c.id;
-          } else if (g.id !== 'manager_admin' && canViewPage('seller_sourcing', g.id)) {
-            return g.id;
-          }
-        }
-        return null;
-      }
-      if (engSlug === 'spartia_career') {
-        return ['applications', 'deals_career', 'members_career'].find(k => canViewPage('spartia_career', k));
-      }
-      return null;
-    })();
-    if (fallback) setCurrentTab(fallback);
-  }, [engSlug, engLoading, accessLoading, currentTab, canViewPage, navGroups]);
+  // 権限ガード本体は navGroups 宣言後に置くため、この位置では先に変数を確保するだけ。
   const [now, setNow] = useState(new Date());
   const [lastUpdated, setLastUpdated] = useState(() => new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   // call_sessions ベースの「リストごと最終架電日時」マップ { [supaId]: ISO string }
@@ -652,6 +618,39 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       return visibleChildren.length > 0 ? { ...g, children: visibleChildren } : null;
     })
     .filter(Boolean);
+
+  // 権限ガード: 現在の currentTab がそのエンゲージメントで閲覧不可の場合、見られる最初のページへ。
+  // adminは常に閲覧可なので影響なし。Capital は path ベースなので除外（capitalNav 側で別途ガードされる）。
+  // navGroups を deps配列で参照するため、navGroups 宣言の後に置かないと TDZ で全画面真っ黒になる。
+  useEffect(() => {
+    if (engLoading || accessLoading) return;
+    if (!engSlug) return;
+    if (engSlug === 'spartia_capital') return;
+    if (currentTab === 'mypage') return;
+    if (currentTab === 'admin_settings' || currentTab === 'manager_admin') return;
+    if (canViewPage(engSlug, currentTab)) return;
+    const fallback = (() => {
+      if (engSlug === 'masp') {
+        return ['database', 'firms', 'all_members'].find(k => canViewPage('masp', k));
+      }
+      if (engSlug === 'seller_sourcing') {
+        for (const g of navGroups) {
+          if (g.children) {
+            const c = g.children.find(c => canViewPage('seller_sourcing', c.id));
+            if (c) return c.id;
+          } else if (g.id !== 'manager_admin' && canViewPage('seller_sourcing', g.id)) {
+            return g.id;
+          }
+        }
+        return null;
+      }
+      if (engSlug === 'spartia_career') {
+        return ['applications', 'deals_career', 'members_career'].find(k => canViewPage('spartia_career', k));
+      }
+      return null;
+    })();
+    if (fallback) setCurrentTab(fallback);
+  }, [engSlug, engLoading, accessLoading, currentTab, canViewPage, navGroups]);
 
   const getActiveGroup = () => {
     for (const g of navGroups) {
