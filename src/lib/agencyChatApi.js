@@ -69,9 +69,6 @@ export function applyAiFiltersToAgencyState(aiFilters, setters) {
   setters.setFilterStaffMax?.(staffMax);
   setters.setExcludeStaffNull?.(f.excludeStaffNull === true);
 
-  // info sharing
-  setters.setFilterInfoSharing?.(YES_NO(f.infoSharing));
-
   // 手数料体系 (個別)
   setters.setFilterFaSeller?.(YES_NO(f.feeFaSeller));
   setters.setFilterFaBuyer?.(YES_NO(f.feeFaBuyer));

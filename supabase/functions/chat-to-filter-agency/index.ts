@@ -53,7 +53,6 @@ const SYSTEM_PROMPT = `
 - 都道府県 (prefectures): 47都道府県名から複数選択。本店所在地。例: ["東京都","大阪府"]
 - M&A専従者数 (staffMin / staffMax): 整数。M&A業務専従者の人数の下限/上限
 - 専従者数 NULL 除外 (excludeStaffNull): boolean。未登録の機関を除外する場合 true
-- 情報共有の仕組みへの加盟 (infoSharing): "" / "yes" / "no"
 - 手数料体系 - FA譲渡側 (feeFaSeller): "" / "yes"(成功報酬有り) / "no"
 - 手数料体系 - FA譲受側 (feeFaBuyer): "" / "yes" / "no"
 - 手数料体系 - 仲介譲渡側 (feeBrokerSeller): "" / "yes" / "no"
@@ -125,10 +124,6 @@ const SYSTEM_PROMPT = `
 - 「○○系」「××派」のような曖昧表現は keywords に入れて OR
 - 重要: keywords は機関名 (name) と本店所在地 (prefecture) に対する ILIKE。事業内容の自由テキスト DB 列は無いため、keywords は機関名から推測されるパターンに限定する。
 
-### 情報共有
-- 「情報共有加盟」「ネットワーク参加」 → infoSharing: "yes"
-- 「単独機関」「未加盟」 → infoSharing: "no"
-
 ## デフォルトの logic
 - 業態キーワード（会計事務所/税理士法人/コンサル など）の組み合わせは **OR** 推奨
 - 規模 + 地域 + 手数料 など、性質の違うフィルタを束ねるときは **AND** がデフォルト
@@ -145,7 +140,6 @@ const SYSTEM_PROMPT = `
     "staffMin": 数値 or null,
     "staffMax": 数値 or null,
     "excludeStaffNull": false,
-    "infoSharing": "",
     "feeFaSeller": "",
     "feeFaBuyer": "",
     "feeBrokerSeller": "",

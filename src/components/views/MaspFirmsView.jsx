@@ -14,7 +14,8 @@ const CSV_COLUMNS = [
   { header: '支援機関名', accessor: a => a.name },
   { header: '本店所在地', accessor: a => a.prefecture || '' },
   { header: 'M&A専従者数', accessor: a => a.staff_count != null ? a.staff_count : '' },
-  { header: '情報共有加盟', accessor: a => a.info_sharing ? '有り' : '無し' },
+  { header: '代表者', accessor: a => a.contact_name || '' },
+  { header: '電話番号', accessor: a => a.contact_phone || '' },
   { header: 'FA譲渡側-成功報酬', accessor: a => a.fa_seller_success_fee || '' },
   { header: 'FA譲渡側-算定方式', accessor: a => a.fa_seller_calc_method || '' },
   { header: 'FA譲渡側-最低手数料', accessor: a => a.fa_seller_min_fee || '' },
@@ -129,7 +130,6 @@ function MaspFirmsViewInner() {
   const [filterStatuses, setFilterStatuses] = useState([])
   // 都道府県は複数選択 (Database と同等。プリセットで一括追加可能)
   const [filterPrefs, setFilterPrefs] = useState([])
-  const [filterInfoSharing, setFilterInfoSharing] = useState('')
   const [filterFeeType, setFilterFeeType] = useState('')
   // Step 2: 手数料項目細分化（FA/仲介 × 譲渡側/譲受側 個別）
   const [filterFaSeller, setFilterFaSeller] = useState('') // '' | 'yes' | 'no'
@@ -211,8 +211,6 @@ function MaspFirmsViewInner() {
       const set = new Set(filterPrefs)
       list = list.filter(a => set.has(a.prefecture))
     }
-    if (filterInfoSharing === 'yes') list = list.filter(a => a.info_sharing)
-    if (filterInfoSharing === 'no') list = list.filter(a => !a.info_sharing)
     // 旧 filterFeeType (FA / 仲介の大枠) と、新しい個別細分化フィルタを併用可能。
     if (filterFeeType === 'fa') list = list.filter(a => a.fa_seller_success_fee === '有り' || a.fa_buyer_success_fee === '有り')
     if (filterFeeType === 'broker') list = list.filter(a => a.broker_seller_success_fee === '有り' || a.broker_buyer_success_fee === '有り')
@@ -242,7 +240,7 @@ function MaspFirmsViewInner() {
       case 'staff_desc': list.sort((a,b) => (b.staff_count||0) - (a.staff_count||0)); break
     }
     return list
-  }, [allAgencies, search, keywords, keywordLogic, filterStatuses, filterPrefs, filterInfoSharing, filterFeeType, filterFaSeller, filterFaBuyer, filterBrokerSeller, filterBrokerBuyer, filterStaffMin, filterStaffMax, excludeStaffNull, filterContact, sortKey])
+  }, [allAgencies, search, keywords, keywordLogic, filterStatuses, filterPrefs, filterFeeType, filterFaSeller, filterFaBuyer, filterBrokerSeller, filterBrokerBuyer, filterStaffMin, filterStaffMax, excludeStaffNull, filterContact, sortKey])
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -266,7 +264,7 @@ function MaspFirmsViewInner() {
   function clearFilters() {
     setSearch('')
     setKeywordInput(''); setKeywords([]); setKeywordLogic('AND')
-    setFilterStatuses([]); setFilterPrefs([]); setFilterInfoSharing('')
+    setFilterStatuses([]); setFilterPrefs([])
     setFilterFeeType('')
     setFilterFaSeller(''); setFilterFaBuyer(''); setFilterBrokerSeller(''); setFilterBrokerBuyer('')
     setFilterStaffMin(''); setFilterStaffMax(''); setExcludeStaffNull(false)
@@ -281,7 +279,7 @@ function MaspFirmsViewInner() {
   }
   function removeKeyword(k) { setKeywords(keywords.filter(x => x !== k)); setPage(1) }
   // 詳細検索パネルの何かが入っているか
-  const hasAnyFilter = !!(filterStatuses.length > 0 || filterPrefs.length > 0 || filterInfoSharing || filterFeeType
+  const hasAnyFilter = !!(filterStatuses.length > 0 || filterPrefs.length > 0 || filterFeeType
     || filterFaSeller || filterFaBuyer || filterBrokerSeller || filterBrokerBuyer
     || filterStaffMin || filterStaffMax || excludeStaffNull || filterContact || keywords.length > 0)
   function toggleStatusFilter(s) {
@@ -319,7 +317,6 @@ function MaspFirmsViewInner() {
     staffMin: filterStaffMin ? Number(filterStaffMin) : null,
     staffMax: filterStaffMax ? Number(filterStaffMax) : null,
     excludeStaffNull,
-    infoSharing: filterInfoSharing,
     feeFaSeller: filterFaSeller, feeFaBuyer: filterFaBuyer,
     feeBrokerSeller: filterBrokerSeller, feeBrokerBuyer: filterBrokerBuyer,
     statuses: filterStatuses,
@@ -330,7 +327,6 @@ function MaspFirmsViewInner() {
     applyAiFiltersToAgencyState(aiFilters, {
       setKeywords, setKeywordLogic,
       setFilterPrefs, setFilterStaffMin, setFilterStaffMax, setExcludeStaffNull,
-      setFilterInfoSharing,
       setFilterFaSeller, setFilterFaBuyer, setFilterBrokerSeller, setFilterBrokerBuyer,
       setFilterStatuses,
       setFilterContact,
@@ -363,7 +359,6 @@ function MaspFirmsViewInner() {
       staffMin: filterStaffMin ? Number(filterStaffMin) : null,
       staffMax: filterStaffMax ? Number(filterStaffMax) : null,
       excludeStaffNull,
-      infoSharing: filterInfoSharing,
       feeFaSeller: filterFaSeller, feeFaBuyer: filterFaBuyer,
       feeBrokerSeller: filterBrokerSeller, feeBrokerBuyer: filterBrokerBuyer,
       statuses: filterStatuses,
@@ -486,6 +481,7 @@ function MaspFirmsViewInner() {
       contact_form_url: editForm.form_url || null,
       website: editForm.website || null,
       contact_name: editForm.contact_name || null,
+      contact_phone: editForm.phone || null,
     }).eq('id', editingContact)
     qc.invalidateQueries({ queryKey: ['ma-agencies'] })
     setEditingContact(null)
@@ -751,13 +747,6 @@ function MaspFirmsViewInner() {
             />
             <Select
               size="sm"
-              label="情報共有の仕組みへの加盟"
-              value={filterInfoSharing}
-              onChange={e => { setFilterInfoSharing(e.target.value); setPage(1) }}
-              options={[{ value: '', label: 'すべて' }, { value: 'yes', label: '加盟有り' }, { value: 'no', label: '加盟無し' }]}
-            />
-            <Select
-              size="sm"
               label="連絡先の有無"
               value={filterContact}
               onChange={e => { setFilterContact(e.target.value); setPage(1) }}
@@ -846,17 +835,18 @@ function MaspFirmsViewInner() {
             <tr style={{ background: color.navy, color: color.white }}>
               <th rowSpan={3} style={{ ...th, width: 32 }}><input type="checkbox" checked={selectAll} onChange={toggleSelectAll} style={{ width: 13, height: 13 }} /></th>
               <th rowSpan={3} style={{ ...th, width: 36 }}>No</th>
-              <th colSpan={4} style={{ ...th, borderBottom: `1px solid ${color.border}`, borderRight: `1px solid ${color.border}` }}>基本情報</th>
+              <th colSpan={3} style={{ ...th, borderBottom: `1px solid ${color.border}`, borderRight: `1px solid ${color.border}` }}>基本情報</th>
               <th colSpan={6} style={{ ...th, borderBottom: `1px solid ${color.border}`, borderRight: `1px solid ${color.border}` }}>手数料体系 — FA</th>
               <th colSpan={6} style={{ ...th, borderBottom: `1px solid ${color.border}`, borderRight: `1px solid ${color.border}` }}>手数料体系 — 仲介</th>
+              <th rowSpan={3} style={{ ...th, width: 110 }}>代表者</th>
+              <th rowSpan={3} style={{ ...th, width: 110 }}>電話番号</th>
               <th rowSpan={3} style={{ ...th, width: 90 }}>連絡先</th>
               <th rowSpan={3} style={{ ...th, width: 70 }}>ステータス</th>
             </tr>
             <tr style={{ background: color.navy, color: color.white }}>
               <th rowSpan={2} style={{ ...th, minWidth: 180, textAlign: 'left', paddingLeft: 8 }}>支援機関名</th>
               <th rowSpan={2} style={{ ...th, width: 56 }}>本店<br/>所在地</th>
-              <th rowSpan={2} style={{ ...th, width: 48 }}>M&A<br/>専従<br/>者数</th>
-              <th rowSpan={2} style={{ ...th, width: 68, borderRight: `1px solid ${color.border}` }}>情報共有<br/>加盟有無</th>
+              <th rowSpan={2} style={{ ...th, width: 48, borderRight: `1px solid ${color.border}` }}>M&A<br/>専従<br/>者数</th>
               <th colSpan={4} style={{ ...th, borderBottom: `1px solid ${color.border}`, fontSize: 9 }}>譲渡側</th>
               <th colSpan={2} style={{ ...th, borderBottom: `1px solid ${color.border}`, borderRight: `1px solid ${color.border}`, fontSize: 9 }}>譲受側</th>
               <th colSpan={4} style={{ ...th, borderBottom: `1px solid ${color.border}`, fontSize: 9 }}>譲渡側</th>
@@ -897,9 +887,8 @@ function MaspFirmsViewInner() {
                     {a.name}
                   </td>
                   <td style={td}>{a.prefecture || ''}</td>
-                  <td style={{ ...td, textAlign: 'right', paddingRight: 8 }}>{a.staff_count != null ? `${a.staff_count}人` : ''}</td>
-                  <td style={{ ...td, borderRight: `1px solid ${color.borderLight}` }}>
-                    {a.info_sharing ? <Badge variant="success" size="sm" dot>有り</Badge> : <Badge variant="neutral" size="sm">無し</Badge>}
+                  <td style={{ ...td, textAlign: 'right', paddingRight: 8, borderRight: `1px solid ${color.borderLight}` }}>
+                    {a.staff_count != null ? `${a.staff_count}人` : ''}
                   </td>
                   <td style={td}>{a.fa_seller_success_fee || ''}</td>
                   <td style={td}>{a.fa_seller_calc_method || ''}</td>
@@ -913,6 +902,14 @@ function MaspFirmsViewInner() {
                   <td style={td}>{a.broker_seller_other_fee || ''}</td>
                   <td style={td}>{a.broker_buyer_success_fee || ''}</td>
                   <td style={{ ...td, borderRight: `1px solid ${color.borderLight}` }}>{a.broker_buyer_calc_method || ''}</td>
+                  <td style={{ ...td, textAlign: 'left', paddingLeft: 8, fontSize: font.size.xs }}>
+                    {a.contact_name || <span style={{ color: color.textLight }}>—</span>}
+                  </td>
+                  <td style={{ ...td, fontFamily: font.family.mono, fontSize: font.size.xs }}>
+                    {a.contact_phone
+                      ? <a href={`tel:${a.contact_phone}`} style={{ color: color.navy, textDecoration: 'none' }}>{a.contact_phone}</a>
+                      : <span style={{ color: color.textLight }}>—</span>}
+                  </td>
                   <td style={td}>
                     <div style={{ display: 'flex', gap: 3, justifyContent: 'center', alignItems: 'center' }}>
                       {hasEmail && <span title={a.contact_email} style={{ fontSize: 9, background: color.successSoft, color: color.success, padding: '1px 4px', borderRadius: radius.sm, cursor: 'pointer' }}
@@ -920,7 +917,7 @@ function MaspFirmsViewInner() {
                       {hasForm && <span title={a.contact_form_url} style={{ fontSize: 9, background: color.gray50, color: color.navy, padding: '1px 4px', borderRadius: radius.sm, cursor: 'pointer' }}
                         onClick={() => window.open(a.contact_form_url, '_blank')}>Form</span>}
                       <span style={{ fontSize: 9, color: color.textMid, cursor: 'pointer', padding: '1px 3px' }}
-                        onClick={() => { setEditingContact(a.id); setEditForm({ email: a.contact_email || '', form_url: a.contact_form_url || '', website: a.website || '', contact_name: a.contact_name || '' }) }}
+                        onClick={() => { setEditingContact(a.id); setEditForm({ email: a.contact_email || '', form_url: a.contact_form_url || '', website: a.website || '', contact_name: a.contact_name || '', phone: a.contact_phone || '' }) }}
                         title="編集">✎</span>
                     </div>
                   </td>
@@ -956,7 +953,7 @@ function MaspFirmsViewInner() {
           style={{ position: 'fixed', inset: 0, background: alpha(color.navyDeep, 0.5), display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div style={{ background: color.white, borderRadius: radius.lg, padding: space[6], width: 420, boxShadow: shadow.xl }}>
             <h3 style={{ fontSize: font.size.md, fontWeight: font.weight.medium, color: color.navy, marginBottom: space[4] }}>連絡先を編集</h3>
-            {[['担当者名', 'contact_name', 'text'], ['メールアドレス', 'email', 'email'], ['問い合わせフォームURL', 'form_url', 'url'], ['ウェブサイト', 'website', 'url']].map(([label, key, type]) => (
+            {[['代表者', 'contact_name', 'text'], ['電話番号', 'phone', 'tel'], ['メールアドレス', 'email', 'email'], ['問い合わせフォームURL', 'form_url', 'url'], ['ウェブサイト', 'website', 'url']].map(([label, key, type]) => (
               <div key={key} style={{ marginBottom: space[3] }}>
                 <Input
                   size="sm"
