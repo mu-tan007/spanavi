@@ -75,12 +75,22 @@ export default function MaspFirmsView() {
 function MaspFirmsViewInner() {
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
+  // Step 2: 複数キーワード + AND/OR 切替（search はメインの企業名検索用に残す）
+  const [keywordInput, setKeywordInput] = useState('')
+  const [keywords, setKeywords] = useState([]) // string[]
+  const [keywordLogic, setKeywordLogic] = useState('AND') // 'AND' | 'OR'
   const [filterStatus, setFilterStatus] = useState('')
   const [filterPref, setFilterPref] = useState('')
   const [filterInfoSharing, setFilterInfoSharing] = useState('')
   const [filterFeeType, setFilterFeeType] = useState('')
+  // Step 2: 手数料項目細分化（FA/仲介 × 譲渡側/譲受側 個別）
+  const [filterFaSeller, setFilterFaSeller] = useState('') // '' | 'yes' | 'no'
+  const [filterFaBuyer, setFilterFaBuyer] = useState('')
+  const [filterBrokerSeller, setFilterBrokerSeller] = useState('')
+  const [filterBrokerBuyer, setFilterBrokerBuyer] = useState('')
   const [filterStaffMin, setFilterStaffMin] = useState('')
   const [filterStaffMax, setFilterStaffMax] = useState('')
+  const [excludeStaffNull, setExcludeStaffNull] = useState(false)
   const [sortKey, setSortKey] = useState('name_asc')
   const [page, setPage] = useState(1)
   const [selectedIds, setSelectedIds] = useState(new Set())
@@ -114,12 +124,31 @@ function MaspFirmsViewInner() {
   const filtered = useMemo(() => {
     let list = allAgencies
     if (search) { const q = search.toLowerCase(); list = list.filter(a => a.name.toLowerCase().includes(q)) }
+    if (keywords.length > 0) {
+      const lower = keywords.map(k => k.toLowerCase())
+      list = list.filter(a => {
+        const hay = (a.name + ' ' + (a.prefecture || '')).toLowerCase()
+        if (keywordLogic === 'AND') return lower.every(k => hay.includes(k))
+        return lower.some(k => hay.includes(k))
+      })
+    }
     if (filterStatus) list = list.filter(a => a.status === filterStatus)
     if (filterPref) list = list.filter(a => a.prefecture === filterPref)
     if (filterInfoSharing === 'yes') list = list.filter(a => a.info_sharing)
     if (filterInfoSharing === 'no') list = list.filter(a => !a.info_sharing)
+    // 旧 filterFeeType (FA / 仲介の大枠) と、新しい個別細分化フィルタを併用可能。
     if (filterFeeType === 'fa') list = list.filter(a => a.fa_seller_success_fee === '有り' || a.fa_buyer_success_fee === '有り')
     if (filterFeeType === 'broker') list = list.filter(a => a.broker_seller_success_fee === '有り' || a.broker_buyer_success_fee === '有り')
+    const matchYesNo = (val, mode) => {
+      if (mode === 'yes') return val === '有り'
+      if (mode === 'no') return val !== '有り'
+      return true
+    }
+    if (filterFaSeller) list = list.filter(a => matchYesNo(a.fa_seller_success_fee, filterFaSeller))
+    if (filterFaBuyer) list = list.filter(a => matchYesNo(a.fa_buyer_success_fee, filterFaBuyer))
+    if (filterBrokerSeller) list = list.filter(a => matchYesNo(a.broker_seller_success_fee, filterBrokerSeller))
+    if (filterBrokerBuyer) list = list.filter(a => matchYesNo(a.broker_buyer_success_fee, filterBrokerBuyer))
+    if (excludeStaffNull) list = list.filter(a => a.staff_count != null)
     if (filterStaffMin) list = list.filter(a => (a.staff_count || 0) >= Number(filterStaffMin))
     if (filterStaffMax) list = list.filter(a => (a.staff_count || 0) <= Number(filterStaffMax))
     list = [...list]
@@ -132,7 +161,7 @@ function MaspFirmsViewInner() {
       case 'staff_desc': list.sort((a,b) => (b.staff_count||0) - (a.staff_count||0)); break
     }
     return list
-  }, [allAgencies, search, filterStatus, filterPref, filterInfoSharing, filterFeeType, filterStaffMin, filterStaffMax, sortKey])
+  }, [allAgencies, search, keywords, keywordLogic, filterStatus, filterPref, filterInfoSharing, filterFeeType, filterFaSeller, filterFaBuyer, filterBrokerSeller, filterBrokerBuyer, filterStaffMin, filterStaffMax, excludeStaffNull, sortKey])
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -144,7 +173,26 @@ function MaspFirmsViewInner() {
   }
   function toggleSelect(id) { setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n }) }
   function toggleSelectAll() { if (selectAll) setSelectedIds(new Set()); else setSelectedIds(new Set(paged.map(a => a.id))); setSelectAll(!selectAll) }
-  function clearFilters() { setSearch(''); setFilterStatus(''); setFilterPref(''); setFilterInfoSharing(''); setFilterFeeType(''); setFilterStaffMin(''); setFilterStaffMax(''); setPage(1) }
+  function clearFilters() {
+    setSearch('')
+    setKeywordInput(''); setKeywords([]); setKeywordLogic('AND')
+    setFilterStatus(''); setFilterPref(''); setFilterInfoSharing('')
+    setFilterFeeType('')
+    setFilterFaSeller(''); setFilterFaBuyer(''); setFilterBrokerSeller(''); setFilterBrokerBuyer('')
+    setFilterStaffMin(''); setFilterStaffMax(''); setExcludeStaffNull(false)
+    setPage(1)
+  }
+  function addKeyword() {
+    const k = keywordInput.trim()
+    if (!k) return
+    if (keywords.includes(k)) { setKeywordInput(''); return }
+    setKeywords([...keywords, k]); setKeywordInput(''); setPage(1)
+  }
+  function removeKeyword(k) { setKeywords(keywords.filter(x => x !== k)); setPage(1) }
+  // 詳細検索パネルの何かが入っているか
+  const hasAnyFilter = !!(filterStatus || filterPref || filterInfoSharing || filterFeeType
+    || filterFaSeller || filterFaBuyer || filterBrokerSeller || filterBrokerBuyer
+    || filterStaffMin || filterStaffMax || excludeStaffNull || keywords.length > 0)
 
   function exportCsv() {
     if (filtered.length === 0) {
@@ -298,7 +346,7 @@ function MaspFirmsViewInner() {
       />
 
       {/* 検索バー */}
-      <div style={{ display: 'flex', gap: space[2], marginBottom: space[2.5], flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: space[2], marginBottom: space[2], flexWrap: 'wrap', alignItems: 'center' }}>
         <Input
           size="sm"
           value={search}
@@ -307,6 +355,23 @@ function MaspFirmsViewInner() {
           fullWidth={false}
           containerStyle={{ width: 220 }}
         />
+        <Input
+          size="sm"
+          value={keywordInput}
+          onChange={e => setKeywordInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addKeyword() } }}
+          placeholder="キーワード追加 (Enter)"
+          fullWidth={false}
+          containerStyle={{ width: 200 }}
+        />
+        <Select
+          size="sm"
+          value={keywordLogic}
+          onChange={e => setKeywordLogic(e.target.value)}
+          options={[{ value: 'AND', label: 'すべて含む (AND)' }, { value: 'OR', label: 'いずれかを含む (OR)' }]}
+          fullWidth={false}
+          containerStyle={{ minWidth: 170 }}
+        />
         <Button
           variant={showAdvanced ? 'primary' : 'outline'}
           size="sm"
@@ -314,7 +379,7 @@ function MaspFirmsViewInner() {
         >
           {showAdvanced ? '✕ 詳細検索を閉じる' : '詳細検索'}
         </Button>
-        {(filterStatus || filterPref || filterInfoSharing || filterFeeType || filterStaffMin || filterStaffMax) && (
+        {hasAnyFilter && (
           <Button variant="ghost" size="sm" onClick={clearFilters} style={{ color: color.danger }}>
             クリア
           </Button>
@@ -331,6 +396,27 @@ function MaspFirmsViewInner() {
           />
         </div>
       </div>
+
+      {/* キーワードチップ */}
+      {keywords.length > 0 && (
+        <div style={{ display: 'flex', gap: space[1], marginBottom: space[2.5], flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: font.size.xs, color: color.textMid }}>{keywordLogic === 'AND' ? 'すべて含む:' : 'いずれかを含む:'}</span>
+          {keywords.map(k => (
+            <span key={k} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              padding: '2px 8px', borderRadius: radius.pill,
+              background: alpha(color.navyLight, 0.08), color: color.navy,
+              fontSize: font.size.xs, fontWeight: font.weight.medium,
+            }}>
+              {k}
+              <button onClick={() => removeKeyword(k)} style={{
+                border: 'none', background: 'transparent', cursor: 'pointer',
+                color: color.textMid, fontSize: font.size.xs, padding: 0, lineHeight: 1,
+              }}>✕</button>
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* 詳細検索 */}
       {showAdvanced && (
@@ -378,6 +464,56 @@ function MaspFirmsViewInner() {
               onChange={e => { setFilterStaffMax(e.target.value); setPage(1) }}
               options={[{ value: '', label: '上限なし' }, ...[1,2,3,5,10,20,50,100,200].map(n => ({ value: String(n), label: `${n}人以下` }))]}
             />
+          </div>
+
+          {/* 手数料体系 個別フィルタ */}
+          <div style={{ borderTop: `0.5px solid ${color.border}`, marginTop: space[3], paddingTop: space[3] }}>
+            <div style={{ fontSize: font.size.sm, fontWeight: font.weight.medium, color: color.navy, marginBottom: space[2] }}>
+              手数料体系（個別）
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '14px 16px' }}>
+              <Select
+                size="sm"
+                label="FA・譲渡側 成功報酬"
+                value={filterFaSeller}
+                onChange={e => { setFilterFaSeller(e.target.value); setPage(1) }}
+                options={[{ value: '', label: 'すべて' }, { value: 'yes', label: '有り' }, { value: 'no', label: '無し' }]}
+              />
+              <Select
+                size="sm"
+                label="FA・譲受側 成功報酬"
+                value={filterFaBuyer}
+                onChange={e => { setFilterFaBuyer(e.target.value); setPage(1) }}
+                options={[{ value: '', label: 'すべて' }, { value: 'yes', label: '有り' }, { value: 'no', label: '無し' }]}
+              />
+              <Select
+                size="sm"
+                label="仲介・譲渡側 成功報酬"
+                value={filterBrokerSeller}
+                onChange={e => { setFilterBrokerSeller(e.target.value); setPage(1) }}
+                options={[{ value: '', label: 'すべて' }, { value: 'yes', label: '有り' }, { value: 'no', label: '無し' }]}
+              />
+              <Select
+                size="sm"
+                label="仲介・譲受側 成功報酬"
+                value={filterBrokerBuyer}
+                onChange={e => { setFilterBrokerBuyer(e.target.value); setPage(1) }}
+                options={[{ value: '', label: 'すべて' }, { value: 'yes', label: '有り' }, { value: 'no', label: '無し' }]}
+              />
+            </div>
+          </div>
+
+          {/* その他オプション */}
+          <div style={{ borderTop: `0.5px solid ${color.border}`, marginTop: space[3], paddingTop: space[3] }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: font.size.sm, color: color.textDark, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={excludeStaffNull}
+                onChange={e => { setExcludeStaffNull(e.target.checked); setPage(1) }}
+                style={{ width: 14, height: 14 }}
+              />
+              M&A専従者数が未登録の機関を除外
+            </label>
           </div>
         </Card>
       )}
