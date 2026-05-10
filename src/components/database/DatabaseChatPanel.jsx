@@ -12,9 +12,9 @@
 //   4) needsClarification: true の場合はボタンを出さず聞き返し文だけ表示
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { color, space, radius, font, shadow, alpha, transition } from '../../constants/design';
-import { Button, Input, Select, Card, Badge } from '../ui';
-import { MessageSquare, Send, Save, BookmarkCheck, Trash2, ChevronDown, ChevronUp, RotateCcw, Sparkles } from 'lucide-react';
+import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { Button, Input, Select, Badge } from '../ui';
+import { MessageSquare, Send, Save, BookmarkCheck, Trash2, RotateCcw, Sparkles, X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import {
   createChatSession, listChatSessions, loadChatMessages, appendChatMessage, deleteChatSession,
@@ -23,11 +23,10 @@ import {
   pickPersistableFilters,
 } from '../../lib/databaseChatApi';
 
-export default function DatabaseChatPanel({ baseFilters, onApplyFilters }) {
+export default function DatabaseChatPanel({ baseFilters, onApplyFilters, open, onClose }) {
   const { session, orgId, profile } = useAuth();
   const userId = session?.user?.id || profile?.id || null;
 
-  const [open, setOpen] = useState(true);                  // パネル展開状態
   const [sessionId, setSessionId] = useState(null);        // 現アクティブなチャットセッション
   const [messages, setMessages] = useState([]);            // 表示中の会話
   const [input, setInput] = useState('');
@@ -153,33 +152,50 @@ export default function DatabaseChatPanel({ baseFilters, onApplyFilters }) {
     }
   };
 
-  return (
-    <Card padding="none" style={{ marginBottom: space[4], overflow: 'hidden' }}>
-      {/* ヘッダー（折りたたみトグル） */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: `${space[2.5]}px ${space[4]}px`,
-        background: open ? alpha(color.navyLight, 0.06) : color.white,
-        borderBottom: open ? `1px solid ${color.border}` : 'none',
-        cursor: 'pointer', transition: transition.fast,
-      }} onClick={() => setOpen(o => !o)}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
-          <Sparkles size={16} color={color.navy} />
-          <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.textDark }}>
-            AIチャット検索
-          </div>
-          <Badge variant="primary" size="sm">Beta</Badge>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
-          <span style={{ fontSize: font.size.xs, color: color.textLight }}>
-            自然言語で条件を伝えるとAIが検索フィルタを組み立てます
-          </span>
-          {open ? <ChevronUp size={16} color={color.textMid} /> : <ChevronDown size={16} color={color.textMid} />}
-        </div>
-      </div>
+  if (!open) return null;
 
-      {open && (
-        <div style={{ padding: space[4] }}>
+  return (
+    <>
+      {/* 背景オーバーレイ */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed', inset: 0, background: alpha(color.navyDeep, 0.4),
+          zIndex: 90,
+        }}
+      />
+      {/* ドロワー */}
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, width: 520, maxWidth: '100vw',
+        background: color.white, boxShadow: shadow.xl, zIndex: 91,
+        display: 'flex', flexDirection: 'column',
+        animation: 'slideInRight 0.25s ease',
+      }}>
+        {/* ヘッダー */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: `${space[4]}px ${space[5]}px`,
+          borderBottom: `1px solid ${color.border}`,
+          gap: space[2],
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
+            <Sparkles size={18} color={color.navy} />
+            <div>
+              <div style={{ fontSize: font.size.xs, color: color.textMid, letterSpacing: 1, textTransform: 'uppercase' }}>
+                Database · AI Search
+              </div>
+              <div style={{ fontSize: font.size.md, fontWeight: font.weight.semibold, color: color.navy, marginTop: 2 }}>
+                自然言語で企業を検索
+                <Badge variant="primary" size="sm" style={{ marginLeft: space[2] }}>Beta</Badge>
+              </div>
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="閉じる">
+            <X size={18} />
+          </Button>
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: space[4] }}>
           {/* 上部ツールバー：保存検索の呼び出し / 現在条件を保存 / 新規会話 */}
           <div style={{ display: 'flex', gap: space[2], marginBottom: space[3], flexWrap: 'wrap', alignItems: 'center' }}>
             <div style={{ position: 'relative' }}>
@@ -302,8 +318,15 @@ export default function DatabaseChatPanel({ baseFilters, onApplyFilters }) {
             </Button>
           </div>
         </div>
-      )}
-    </Card>
+      </div>
+
+      <style>{`
+        @keyframes slideInRight {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+      `}</style>
+    </>
   );
 }
 

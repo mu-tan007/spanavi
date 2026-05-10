@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge } from '../ui';
-import { Database, Upload } from 'lucide-react';
+import { Database, Upload, Sparkles } from 'lucide-react';
 import DatabaseFilterPanel from '../database/DatabaseFilterPanel';
 import DatabaseResultTable from '../database/DatabaseResultTable';
 import DatabaseChatPanel from '../database/DatabaseChatPanel';
@@ -51,6 +51,7 @@ export default function DatabaseView({ isAdmin }) {
   const [showImport, setShowImport] = useState(false);
   const [showTsrModal, setShowTsrModal] = useState(false);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
+  const [showAiChat, setShowAiChat] = useState(false);
   const [dbTotal, setDbTotal] = useState(null);
 
   useEffect(() => {
@@ -117,6 +118,9 @@ export default function DatabaseView({ isAdmin }) {
         style={{ marginBottom: 24 }}
         right={
           <>
+            <Button variant="secondary" size="sm" iconLeft={<Sparkles size={14} />} onClick={() => setShowAiChat(true)}>
+              AIで検索
+            </Button>
             <Button variant="secondary" size="sm" onClick={() => setShowTsrModal(true)}>
               TSR業種分類一覧
             </Button>
@@ -127,12 +131,6 @@ export default function DatabaseView({ isAdmin }) {
             )}
           </>
         }
-      />
-
-      {/* AIチャット検索パネル */}
-      <DatabaseChatPanel
-        baseFilters={filters}
-        onApplyFilters={handleApplyFromChat}
       />
 
       {/* Filters */}
@@ -204,6 +202,14 @@ export default function DatabaseView({ isAdmin }) {
           onConfirm={executeExport}
         />
       )}
+
+      {/* AI チャット検索ドロワー */}
+      <DatabaseChatPanel
+        open={showAiChat}
+        onClose={() => setShowAiChat(false)}
+        baseFilters={filters}
+        onApplyFilters={(f) => { setShowAiChat(false); handleApplyFromChat(f); }}
+      />
     </div>
   );
 }
