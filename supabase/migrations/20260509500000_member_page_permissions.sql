@@ -1,8 +1,9 @@
 -- ============================================================
 -- member_page_permissions: メンバーごとのページ閲覧権限（ホワイトリスト）
--- 事業タブ閲覧権は既存 member_engagements を再利用。
+-- 事業タブ閲覧権は MASP > Members の所属チェックボックス（member_engagements）が唯一のソース。
 -- 本テーブルはサイドバーのページ単位ホワイトリスト。
--- 未登録のページはそのメンバーには表示されない（adminは常に全閲覧）。
+-- 未登録のページはそのメンバーには表示されない（adminは常に全閲覧でバイパス）。
+-- MASP（全社）は admin 専用ハードコードのため、本テーブルでは扱わない。
 -- ============================================================
 
 set local search_path = public, extensions;
@@ -73,10 +74,6 @@ language sql
 immutable
 as $$
   values
-    -- masp
-    ('masp', 'database'),
-    ('masp', 'firms'),
-    ('masp', 'all_members'),
     -- seller_sourcing
     ('seller_sourcing', 'dashboard'),
     ('seller_sourcing', 'lists'),
@@ -101,21 +98,9 @@ as $$
 $$;
 
 -- ============================================================
--- backfill: 既存 active メンバーに「現状所属事業の全ページ」許可を付与
--- - masp は member_engagements に行が無い仮想事業 → 全 active メンバーに付与
--- - その他は member_engagements に紐づく事業のページのみ
+-- backfill: 既存 active メンバーに「所属事業の全ページ」許可を付与
 -- ============================================================
 
--- masp は全 active メンバーに付与
-insert into public.member_page_permissions (org_id, member_id, engagement_slug, page_key)
-select m.org_id, m.id, p.engagement_slug, p.page_key
-from public.members m
-cross join public._all_page_keys() p
-where m.is_active = true
-  and p.engagement_slug = 'masp'
-on conflict (member_id, engagement_slug, page_key) do nothing;
-
--- 所属事業のページを付与
 insert into public.member_page_permissions (org_id, member_id, engagement_slug, page_key)
 select m.org_id, m.id, p.engagement_slug, p.page_key
 from public.members m
@@ -126,35 +111,9 @@ where m.is_active = true
 on conflict (member_id, engagement_slug, page_key) do nothing;
 
 -- ============================================================
--- 新規メンバー作成時のトリガー: masp の全ページを自動付与
--- 事業ページは admin が member_engagements で所属を設定したタイミングで
--- もう1つのトリガーで付与する
--- ============================================================
-create or replace function public.fn_grant_default_page_permissions()
-returns trigger
-language plpgsql
-security definer
-set search_path = public, extensions
-as $$
-begin
-  if new.is_active is null or new.is_active = true then
-    insert into public.member_page_permissions (org_id, member_id, engagement_slug, page_key)
-    select new.org_id, new.id, p.engagement_slug, p.page_key
-    from public._all_page_keys() p
-    where p.engagement_slug = 'masp'
-    on conflict (member_id, engagement_slug, page_key) do nothing;
-  end if;
-  return new;
-end;
-$$;
-
-drop trigger if exists trg_grant_default_page_permissions on public.members;
-create trigger trg_grant_default_page_permissions
-  after insert on public.members
-  for each row
-  execute function public.fn_grant_default_page_permissions();
-
 -- 事業所属（member_engagements）追加時にその事業の全ページを自動付与
+-- 新規メンバー単独の挿入時は何もしない（事業所属が無い段階では付与すべきページが無い）。
+-- ============================================================
 create or replace function public.fn_grant_engagement_pages()
 returns trigger
 language plpgsql
