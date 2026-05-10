@@ -7,11 +7,34 @@ import DatabaseFilterPanel from '../database/DatabaseFilterPanel';
 import DatabaseResultTable from '../database/DatabaseResultTable';
 import DatabaseChatPanel from '../database/DatabaseChatPanel';
 import ImportModal from '../database/ImportModal';
+import DatabaseExportColumnModal from '../database/DatabaseExportColumnModal';
 import TsrIndustryModal from '../TsrIndustryModal';
 import { useCompanySearch } from '../../hooks/useCompanySearch';
 import { searchCompanies } from '../../lib/companyMasterApi';
 import { supabase } from '../../lib/supabase';
 import PageHeader from '../common/PageHeader';
+
+// CSVエクスポート対象カラム（label = CSVヘッダ, key = company_master のカラム名）
+const EXPORT_COLUMNS = [
+  { key: 'industry_major',       label: '大分類' },
+  { key: 'industry_sub',         label: '細分類' },
+  { key: 'company_name',         label: '企業名' },
+  { key: 'business_description', label: '事業内容' },
+  { key: 'prefecture',           label: '都道府県' },
+  { key: 'city',                 label: '市区郡' },
+  { key: 'address',              label: '住所' },
+  { key: 'revenue_k',            label: '売上高(千円)' },
+  { key: 'net_income_k',         label: '当期純利益(千円)' },
+  { key: 'representative',       label: '代表者' },
+  { key: 'representative_age',   label: '年齢' },
+  { key: 'shareholders',         label: '株主' },
+  { key: 'officers',             label: '役員' },
+  { key: 'employee_count',       label: '従業員数' },
+  { key: 'established_year',     label: '設立年' },
+  { key: 'phone',                label: '電話番号' },
+  { key: 'clients',              label: '取引先' },
+  { key: 'remarks',              label: '備考' },
+];
 
 export default function DatabaseView({ isAdmin }) {
   const {
@@ -27,6 +50,7 @@ export default function DatabaseView({ isAdmin }) {
   }, [setFilters, doSearch]);
   const [showImport, setShowImport] = useState(false);
   const [showTsrModal, setShowTsrModal] = useState(false);
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [dbTotal, setDbTotal] = useState(null);
 
   useEffect(() => {
@@ -34,7 +58,14 @@ export default function DatabaseView({ isAdmin }) {
       .then(({ count }) => setDbTotal(count));
   }, [showImport]);
 
-  const handleExport = useCallback(async () => {
+  const handleExport = useCallback(() => {
+    if (totalCount === 0) return;
+    setShowColumnPicker(true);
+  }, [totalCount]);
+
+  const executeExport = useCallback(async (selectedKeys) => {
+    setShowColumnPicker(false);
+    if (!selectedKeys || selectedKeys.length === 0) return;
     if (!window.confirm(`${totalCount.toLocaleString()}件をCSV出力します。よろしいですか？`)) return;
 
     try {
@@ -48,8 +79,10 @@ export default function DatabaseView({ isAdmin }) {
       }
       const rows = allRows;
 
-      const headers = ['大分類','細分類','企業名','事業内容','都道府県','市区郡','住所','売上高(千円)','当期純利益(千円)','代表者','年齢','株主','役員','従業員数','設立年','取引先','電話番号','備考'];
-      const keys = ['industry_major','industry_sub','company_name','business_description','prefecture','city','address','revenue_k','net_income_k','representative','representative_age','shareholders','officers','employee_count','established_year','phone','clients','remarks'];
+      // EXPORT_COLUMNS の並び順を維持しつつ、選択されたカラムだけ抽出
+      const cols = EXPORT_COLUMNS.filter(c => selectedKeys.includes(c.key));
+      const headers = cols.map(c => c.label);
+      const keys = cols.map(c => c.key);
 
       const csvRows = [headers.join(',')];
       for (const row of rows) {
@@ -159,6 +192,16 @@ export default function DatabaseView({ isAdmin }) {
         <ImportModal
           onClose={() => setShowImport(false)}
           onImportComplete={() => { if (hasSearched) doSearch(); }}
+        />
+      )}
+
+      {/* CSV Export Column Picker */}
+      {showColumnPicker && (
+        <DatabaseExportColumnModal
+          columns={EXPORT_COLUMNS}
+          totalCount={totalCount}
+          onCancel={() => setShowColumnPicker(false)}
+          onConfirm={executeExport}
         />
       )}
     </div>
