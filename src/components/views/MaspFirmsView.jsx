@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { logAudit } from './capital/lib/audit'
@@ -710,28 +710,37 @@ function MaspFirmsViewInner() {
                   )
                 })}
               </div>
-              {/* 47都道府県チップ */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 4 }}>
-                {PREFS.map(p => {
-                  const sel = filterPrefs.includes(p)
-                  return (
-                    <button
-                      key={p}
-                      onClick={() => togglePref(p)}
-                      style={{
-                        padding: '4px 6px', borderRadius: radius.sm,
-                        border: `0.5px solid ${sel ? color.navy : color.border}`,
-                        background: sel ? color.navy : color.white,
-                        color: sel ? color.white : color.textDark,
-                        fontSize: font.size.xs, cursor: 'pointer',
-                        fontWeight: sel ? font.weight.semibold : font.weight.normal,
-                      }}
-                    >
+              {/* 都道府県 オートコンプリート入力 */}
+              <PrefAutocomplete
+                available={PREFS.filter(p => !filterPrefs.includes(p))}
+                onAdd={(p) => togglePref(p)}
+              />
+              {/* 選択中チップ */}
+              {filterPrefs.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+                  {filterPrefs.map(p => (
+                    <span key={p} style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      padding: '3px 4px 3px 10px', borderRadius: radius.pill,
+                      background: color.navy, color: color.white,
+                      fontSize: font.size.xs, fontWeight: font.weight.medium,
+                    }}>
                       {p}
-                    </button>
-                  )
-                })}
-              </div>
+                      <button
+                        onClick={() => togglePref(p)}
+                        style={{
+                          width: 16, height: 16, borderRadius: '50%',
+                          border: 'none', cursor: 'pointer',
+                          background: alpha(color.white, 0.2),
+                          color: color.white, fontSize: 10, lineHeight: 1,
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          padding: 0,
+                        }}
+                      >×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
             <Select
               size="sm"
@@ -1078,6 +1087,105 @@ function MaspFirmsViewInner() {
               <Button variant="primary" fullWidth onClick={handleSaveSearch} disabled={!saveDialogName.trim()}>保存</Button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// 都道府県オートコンプリート (テキスト入力 + サジェスト ドロップダウン)
+function PrefAutocomplete({ available, onAdd }) {
+  const [q, setQ] = useState('')
+  const [open, setOpen] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const wrapRef = useRef(null)
+
+  const filtered = useMemo(() => {
+    const query = q.trim()
+    if (!query) return available.slice(0, 12)
+    return available.filter(p => p.includes(query)).slice(0, 12)
+  }, [available, q])
+
+  // 外側クリックで閉じる
+  useEffect(() => {
+    function onDocClick(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
+    }
+    if (open) document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [open])
+
+  function pick(p) {
+    onAdd(p)
+    setQ('')
+    setActiveIndex(0)
+    // ドロップダウンは開いたまま (連続選択しやすい)
+  }
+
+  function onKeyDown(e) {
+    if (!open) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter') setOpen(true)
+      return
+    }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex(i => Math.min(filtered.length - 1, i + 1)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIndex(i => Math.max(0, i - 1)) }
+    else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (filtered[activeIndex]) pick(filtered[activeIndex])
+    } else if (e.key === 'Escape') {
+      setOpen(false)
+    }
+  }
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative', width: 280, maxWidth: '100%' }}>
+      <input
+        value={q}
+        onChange={e => { setQ(e.target.value); setOpen(true); setActiveIndex(0) }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={onKeyDown}
+        placeholder="都道府県を入力 (例: 東 / 愛知)"
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          height: 32, padding: '0 10px',
+          border: `0.5px solid ${color.border}`, borderRadius: radius.md,
+          fontSize: font.size.sm, fontFamily: font.family.sans,
+          color: color.textDark, background: color.white,
+          outline: 'none',
+        }}
+      />
+      {open && filtered.length > 0 && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0,
+          marginTop: 4, maxHeight: 280, overflowY: 'auto',
+          background: color.white, border: `0.5px solid ${color.border}`,
+          borderRadius: radius.md, boxShadow: shadow.md, zIndex: 50,
+        }}>
+          {filtered.map((p, i) => (
+            <button
+              key={p}
+              type="button"
+              onMouseDown={e => { e.preventDefault(); pick(p) }}
+              onMouseEnter={() => setActiveIndex(i)}
+              style={{
+                display: 'block', width: '100%',
+                padding: '6px 10px', textAlign: 'left',
+                background: i === activeIndex ? alpha(color.navyLight, 0.08) : color.white,
+                color: color.textDark, border: 'none', cursor: 'pointer',
+                fontSize: font.size.sm,
+              }}
+            >{p}</button>
+          ))}
+        </div>
+      )}
+      {open && filtered.length === 0 && q.trim() && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4,
+          background: color.white, border: `0.5px solid ${color.border}`,
+          borderRadius: radius.md, padding: '6px 10px',
+          fontSize: font.size.xs, color: color.textLight, zIndex: 50,
+        }}>
+          該当する都道府県はありません
         </div>
       )}
     </div>
