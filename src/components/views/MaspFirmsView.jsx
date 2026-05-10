@@ -6,6 +6,8 @@ import PageHeader from '../common/PageHeader'
 import { color, space, radius, font, shadow, alpha } from '../../constants/design'
 import { Button, Input, Select, Card, Badge } from '../ui'
 import { downloadCsv, todayJST } from '../../lib/csvExport'
+import { applyAiFiltersToAgencyState } from '../../lib/agencyChatApi'
+import AgencyChatPanel from '../masp/AgencyChatPanel'
 
 const CSV_COLUMNS = [
   { header: '支援機関名', accessor: a => a.name },
@@ -101,6 +103,8 @@ function MaspFirmsViewInner() {
   const [lookingUp, setLookingUp] = useState(false)
   const [editingContact, setEditingContact] = useState(null)
   const [editForm, setEditForm] = useState({})
+  // AI チャットパネル
+  const [showAiChat, setShowAiChat] = useState(false)
 
   const { data: allAgencies = [], isLoading } = useQuery({
     queryKey: ['ma-agencies'],
@@ -201,6 +205,36 @@ function MaspFirmsViewInner() {
     }
     const filename = `M&A支援機関_${todayJST()}.csv`
     downloadCsv(filename, filtered, CSV_COLUMNS)
+  }
+
+  // AI チャットへ渡す現在の手動フィルタ
+  const aiCurrentFilters = {
+    keywords, logic: keywordLogic,
+    prefecture: filterPref || null,
+    staffMin: filterStaffMin ? Number(filterStaffMin) : null,
+    staffMax: filterStaffMax ? Number(filterStaffMax) : null,
+    excludeStaffNull,
+    infoSharing: filterInfoSharing,
+    feeFaSeller: filterFaSeller, feeFaBuyer: filterFaBuyer,
+    feeBrokerSeller: filterBrokerSeller, feeBrokerBuyer: filterBrokerBuyer,
+    status: filterStatus,
+  }
+
+  function applyAi(aiFilters) {
+    applyAiFiltersToAgencyState(aiFilters, {
+      setKeywords, setKeywordLogic,
+      setFilterPref, setFilterStaffMin, setFilterStaffMax, setExcludeStaffNull,
+      setFilterInfoSharing,
+      setFilterFaSeller, setFilterFaBuyer, setFilterBrokerSeller, setFilterBrokerBuyer,
+      setFilterStatus,
+      setPage, setSelectedIds, setSelectAll,
+    }, {
+      onMultiPrefHint: (prefs) => {
+        console.info('[MaspFirmsView] AI が複数都道府県を返したが UI は単一選択のため最初の1つのみ採用:', prefs);
+      },
+    })
+    // 詳細検索も自動展開
+    setShowAdvanced(true)
   }
 
   async function lookupContacts() {
@@ -328,6 +362,9 @@ function MaspFirmsViewInner() {
         style={{ marginBottom: space[4] }}
         right={
           <>
+            <Button variant="secondary" size="sm" onClick={() => setShowAiChat(true)}>
+              AIで検索
+            </Button>
             <Button variant="outline" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
               CSV出力 ({filtered.length}件)
             </Button>
@@ -676,6 +713,14 @@ function MaspFirmsViewInner() {
           </div>
         </div>
       )}
+
+      {/* AI チャットドロワー */}
+      <AgencyChatPanel
+        open={showAiChat}
+        onClose={() => setShowAiChat(false)}
+        currentFilters={aiCurrentFilters}
+        onApply={applyAi}
+      />
     </div>
   )
 }

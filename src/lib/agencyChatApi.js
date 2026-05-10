@@ -1,0 +1,183 @@
+// MASP Firms (cap_ma_agencies) 自然言語チャット & 保存検索 用クライアント API
+//   - chat-to-filter-agency Edge Function を呼び出して filters JSON を取得
+//   - 会話履歴 (masp_chat_sessions / masp_chat_messages) と保存検索を Supabase に永続化
+//
+// AI が返す filters のシェイプ:
+//   {
+//     keywords: string[], logic: 'AND' | 'OR',
+//     prefectures: string[],
+//     staffMin: number | null, staffMax: number | null, excludeStaffNull: boolean,
+//     infoSharing: '' | 'yes' | 'no',
+//     feeFaSeller: '' | 'yes' | 'no',
+//     feeFaBuyer: '' | 'yes' | 'no',
+//     feeBrokerSeller: '' | 'yes' | 'no',
+//     feeBrokerBuyer: '' | 'yes' | 'no',
+//     status: '' | 'not_contacted' | 'contacted'
+//   }
+//
+// MaspFirmsView の state は1つのオブジェクトでは持っていないので、apply は
+// 個別 setter のセットを setters 引数で渡してもらう。
+
+import { supabase } from './supabase';
+
+const PREFS = [
+  '北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県',
+  '茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県',
+  '新潟県','富山県','石川県','福井県','山梨県','長野県',
+  '岐阜県','静岡県','愛知県','三重県',
+  '滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県',
+  '鳥取県','島根県','岡山県','広島県','山口県',
+  '徳島県','香川県','愛媛県','高知県',
+  '福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県',
+];
+const PREF_SET = new Set(PREFS);
+
+const YES_NO = (v) => (v === 'yes' || v === 'no' ? v : '');
+const STATUS_OK = (v) => (v === 'not_contacted' || v === 'contacted' ? v : '');
+
+/**
+ * AI が返した filters を MaspFirmsView の個別 setter に流し込む。
+ * setters は { setKeywords, setKeywordLogic, setFilterPref, setFilterStaffMin, ... } の集合。
+ * MaspFirmsView は単一の都道府県セレクト (filterPref) しか持っていないので、
+ * AI が複数都道府県を返した場合は最初の1つを採用 + 残りはコンソール warn で通知する。
+ *
+ * 全置換ではなく上書きするフィールドのみ touch (AI が空指定したフィールドはクリアする)。
+ */
+export function applyAiFiltersToAgencyState(aiFilters, setters, opts = {}) {
+  if (!aiFilters || typeof aiFilters !== 'object') return;
+  const f = aiFilters;
+
+  // keywords
+  const keywords = Array.isArray(f.keywords) ? f.keywords.map(s => String(s || '').trim()).filter(Boolean) : [];
+  setters.setKeywords?.(keywords);
+  setters.setKeywordLogic?.(f.logic === 'OR' ? 'OR' : 'AND');
+
+  // prefectures (UI は単一選択なので最初の1つを採用)
+  const prefList = Array.isArray(f.prefectures) ? f.prefectures.filter(p => PREF_SET.has(p)) : [];
+  if (prefList.length === 0) {
+    setters.setFilterPref?.('');
+  } else {
+    setters.setFilterPref?.(prefList[0]);
+    if (prefList.length > 1 && opts.onMultiPrefHint) {
+      opts.onMultiPrefHint(prefList);
+    }
+  }
+
+  // staffMin/Max + null除外
+  const staffMin = (typeof f.staffMin === 'number' && Number.isFinite(f.staffMin)) ? String(f.staffMin) : '';
+  const staffMax = (typeof f.staffMax === 'number' && Number.isFinite(f.staffMax)) ? String(f.staffMax) : '';
+  setters.setFilterStaffMin?.(staffMin);
+  setters.setFilterStaffMax?.(staffMax);
+  setters.setExcludeStaffNull?.(f.excludeStaffNull === true);
+
+  // info sharing
+  setters.setFilterInfoSharing?.(YES_NO(f.infoSharing));
+
+  // 手数料体系 (個別)
+  setters.setFilterFaSeller?.(YES_NO(f.feeFaSeller));
+  setters.setFilterFaBuyer?.(YES_NO(f.feeFaBuyer));
+  setters.setFilterBrokerSeller?.(YES_NO(f.feeBrokerSeller));
+  setters.setFilterBrokerBuyer?.(YES_NO(f.feeBrokerBuyer));
+
+  // status
+  setters.setFilterStatus?.(STATUS_OK(f.status));
+
+  // ページ・選択は AI 適用時に常にリセット
+  setters.setPage?.(1);
+  setters.setSelectedIds?.(new Set());
+  setters.setSelectAll?.(false);
+}
+
+// ========== セッション管理 ==========
+
+export async function createChatSession(orgId, userId, title = null) {
+  const { data, error } = await supabase
+    .from('masp_chat_sessions')
+    .insert({ org_id: orgId, user_id: userId, title })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function listChatSessions(userId, limit = 20) {
+  const { data, error } = await supabase
+    .from('masp_chat_sessions')
+    .select('id, title, created_at, updated_at')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function loadChatMessages(sessionId) {
+  const { data, error } = await supabase
+    .from('masp_chat_messages')
+    .select('id, role, content, filters, created_at')
+    .eq('session_id', sessionId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function appendChatMessage(sessionId, role, content, filters = null) {
+  const { data, error } = await supabase
+    .from('masp_chat_messages')
+    .insert({ session_id: sessionId, role, content, filters })
+    .select()
+    .single();
+  if (error) throw error;
+
+  // updated_at と title を最新で更新
+  const sessionUpdate = { updated_at: new Date().toISOString() };
+  if (role === 'assistant' && content) {
+    sessionUpdate.title = content.slice(0, 60);
+  }
+  await supabase.from('masp_chat_sessions').update(sessionUpdate).eq('id', sessionId);
+
+  return data;
+}
+
+export async function deleteChatSession(sessionId) {
+  const { error } = await supabase.from('masp_chat_sessions').delete().eq('id', sessionId);
+  if (error) throw error;
+}
+
+// ========== AI 呼び出し ==========
+
+export async function sendChatToAi({ messages, currentFilters }) {
+  const { data, error } = await supabase.functions.invoke('chat-to-filter-agency', {
+    body: { messages, currentFilters },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data; // { summary, filters, needsClarification, clarifyQuestion }
+}
+
+// ========== 保存検索 ==========
+
+export async function saveSearch(orgId, userId, name, filters) {
+  const { data, error } = await supabase
+    .from('saved_agency_searches')
+    .insert({ org_id: orgId, user_id: userId, name, filters })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function listSavedSearches(userId) {
+  const { data, error } = await supabase
+    .from('saved_agency_searches')
+    .select('id, name, filters, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function deleteSavedSearch(id) {
+  const { error } = await supabase.from('saved_agency_searches').delete().eq('id', id);
+  if (error) throw error;
+}
