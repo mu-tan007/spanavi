@@ -219,6 +219,14 @@ export default function MaspFirmsView() {
   const selWithForm = selectedAgencies.filter(a => a.contact_form_url && !a.contact_email)
   const selNoContact = selectedAgencies.filter(a => !a.contact_email && !a.contact_form_url)
 
+  // DEBUG: 一時的に return を最小化して JSX 由来か state 由来か切り分け
+  return (
+    <div style={{ padding: 32, color: color.navy }}>
+      <h1 style={{ fontSize: font.size.xl, marginBottom: 12 }}>Firms (state OK debug)</h1>
+      <p>allAgencies: {allAgencies.length} 件 / filtered: {filtered.length} 件 / loading: {String(isLoading)}</p>
+    </div>
+  );
+  // 以下 unreachable - 元 JSX
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
