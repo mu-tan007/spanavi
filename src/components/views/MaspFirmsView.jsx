@@ -149,6 +149,13 @@ function MaspFirmsViewInner() {
   const [selectAll, setSelectAll] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [lookingUp, setLookingUp] = useState(false)
+  // 全件バックフィル用
+  const [backfillRunning, setBackfillRunning] = useState(false)
+  const [backfillTotal, setBackfillTotal] = useState(0)
+  const [backfillDone, setBackfillDone] = useState(0)
+  const [backfillCancelled, setBackfillCancelled] = useState(false)
+  const backfillCancelRef = useRef(false)
+  useEffect(() => { backfillCancelRef.current = backfillCancelled }, [backfillCancelled])
   const [editingContact, setEditingContact] = useState(null)
   const [editForm, setEditForm] = useState({})
   // AI チャットパネル
@@ -419,6 +426,49 @@ function MaspFirmsViewInner() {
     }
   }
 
+  // 連絡先 (電話番号 or メアド or HP) が一切ない機関を全件 AI バックフィル
+  async function backfillAllContacts() {
+    // 対象: contact_phone も website もメールもフォームも全部 NULL の機関
+    const targets = allAgencies.filter(a =>
+      !a.contact_phone && !a.contact_email && !a.contact_form_url && !a.website
+    )
+    if (targets.length === 0) {
+      alert('連絡先未取得の機関はありません')
+      return
+    }
+    if (!confirm(
+      `連絡先未取得 ${targets.length}社 を AI で一括取得します。\n` +
+      `20社/回 × ${Math.ceil(targets.length / 20)}回 で約 ${Math.ceil(targets.length / 20 * 5)}秒〜${Math.ceil(targets.length / 20 * 15)}秒 かかります。\n` +
+      `処理中はこのページを閉じないでください。\n\n実行しますか？`
+    )) return
+    setBackfillRunning(true)
+    setBackfillTotal(targets.length)
+    setBackfillDone(0)
+    setBackfillCancelled(false)
+    let updatedTotal = 0
+    try {
+      for (let i = 0; i < targets.length; i += 20) {
+        if (backfillCancelRef.current) break
+        const batch = targets.slice(i, i + 20).map(a => a.id)
+        try {
+          const { data } = await supabase.functions.invoke('lookup-agency-contact', { body: { agency_ids: batch } })
+          if (data?.updated) updatedTotal += data.updated
+        } catch (e) {
+          console.warn('[backfill] batch failed', e)
+        }
+        setBackfillDone(d => d + batch.length)
+      }
+      qc.invalidateQueries({ queryKey: ['ma-agencies'] })
+      alert(`バックフィル完了: ${updatedTotal}社の連絡先情報を更新しました (対象${targets.length}社中)`)
+    } finally {
+      setBackfillRunning(false)
+    }
+  }
+  function cancelBackfill() {
+    backfillCancelRef.current = true
+    setBackfillCancelled(true)
+  }
+
   function openBroadcast() {
     const needText = needs.length > 0 ? needs.map(n => `- ${n.industry_label || '業種未指定'}`).join('\n') : '（買収ニーズを登録してください）'
     setBroadcastBody(`お世話になっております。\nM&Aソーシングパートナーズ株式会社と申します。\n\n弊社では現在、以下の条件での買収案件を探しております。\n\n${needText}\n\nご案件がございましたら、ぜひご紹介いただけますと幸いです。\n何卒よろしくお願いいたします。`)
@@ -536,6 +586,17 @@ function MaspFirmsViewInner() {
             <Button variant="outline" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
               CSV出力 ({filtered.length}件)
             </Button>
+            <Button
+              variant="outline" size="sm"
+              onClick={backfillAllContacts}
+              loading={backfillRunning}
+              disabled={backfillRunning}
+              title="連絡先 (HP/メール/フォーム/電話番号) が一切ない機関を AI で一括取得"
+            >
+              {backfillRunning
+                ? `取得中 ${backfillDone}/${backfillTotal}`
+                : '未取得の連絡先を全件AI取得'}
+            </Button>
             {selectedIds.size > 0 && (
               <>
                 <Button variant="secondary" size="sm" onClick={lookupContacts} loading={lookingUp} disabled={lookingUp}>
@@ -549,6 +610,35 @@ function MaspFirmsViewInner() {
           </>
         }
       />
+
+      {/* バックフィル進捗バー */}
+      {backfillRunning && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: space[3],
+          padding: `${space[2]}px ${space[3]}px`,
+          marginBottom: space[3],
+          background: alpha(color.navyLight, 0.06),
+          border: `0.5px solid ${color.border}`,
+          borderRadius: radius.md,
+        }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4 }}>
+              連絡先 AI バックフィル中: {backfillDone} / {backfillTotal} 社
+              ({backfillTotal > 0 ? Math.round(backfillDone / backfillTotal * 100) : 0}%)
+              {backfillCancelled && ' — キャンセル中、現在のバッチ完了で停止します'}
+            </div>
+            <div style={{ height: 6, background: color.gray50, borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', width: `${backfillTotal > 0 ? backfillDone / backfillTotal * 100 : 0}%`,
+                background: color.navy, transition: 'width 0.3s ease',
+              }} />
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" onClick={cancelBackfill} disabled={backfillCancelled}>
+            キャンセル
+          </Button>
+        </div>
+      )}
 
       {/* 検索バー */}
       <div style={{ display: 'flex', gap: space[2], marginBottom: space[2], flexWrap: 'wrap', alignItems: 'center' }}>
