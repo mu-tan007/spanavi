@@ -25,16 +25,12 @@ const CF_STREAM_SUBDOMAIN = import.meta.env.VITE_CF_STREAM_CUSTOMER_SUBDOMAIN ||
 const STORAGE_KEY = 'spanavi_library_card_order_v1';
 const DEFAULT_ORDER = ['daily_report', 'bookmarks', 'rules', 'meetings', 'scripts'];
 
-// このビュー独自のレガシーカード色（既存の見た目を維持）
-const CARD_COLOR = '#1F3B6B';
-const LEGACY_NAVY = '#0D2247';
-
 const CARDS = {
-  daily_report: { title: 'Daily Report',         eyebrow: '本日の活動レポート', accent: CARD_COLOR },
-  bookmarks:    { title: 'お気に入り録音',        eyebrow: '保存した録音',       accent: CARD_COLOR },
-  rules:        { title: '22箇条',               eyebrow: 'インターン心得',     accent: CARD_COLOR },
-  meetings:     { title: '週次ミーティング',     eyebrow: 'アーカイブ',         accent: CARD_COLOR },
-  scripts:      { title: 'スクリプト一覧',       eyebrow: 'クライアント別',     accent: CARD_COLOR },
+  daily_report: { title: 'Daily Report',         eyebrow: '本日の活動レポート', accent: color.navy },
+  bookmarks:    { title: 'お気に入り録音',        eyebrow: '保存した録音',       accent: color.navy },
+  rules:        { title: '22箇条',               eyebrow: 'インターン心得',     accent: color.navy },
+  meetings:     { title: '週次ミーティング',     eyebrow: 'アーカイブ',         accent: color.navy },
+  scripts:      { title: 'スクリプト一覧',       eyebrow: 'クライアント別',     accent: color.navy },
 };
 
 export default function LibraryView({
@@ -206,7 +202,7 @@ export default function LibraryView({
                     <div style={{ display: 'flex', alignItems: 'center', gap: space[3], fontSize: font.size.sm }}>
                       <div style={{ flex: '1 1 240px', minWidth: 0 }}>
                         <div style={{
-                          fontWeight: font.weight.bold, color: LEGACY_NAVY,
+                          fontWeight: font.weight.bold, color: color.navy,
                           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>
                           {b.company_name || '—'}
@@ -219,7 +215,7 @@ export default function LibraryView({
                         size="sm"
                         variant={isPlaying ? 'primary' : 'outline'}
                         onClick={() => setBookmarkPlayingId(isPlaying ? null : b.id)}
-                        style={{ borderColor: LEGACY_NAVY, color: isPlaying ? color.white : LEGACY_NAVY, background: isPlaying ? LEGACY_NAVY : color.white }}
+                        style={{ borderColor: color.navy, color: isPlaying ? color.white : color.navy, background: isPlaying ? color.navy : color.white }}
                       >
                         {isPlaying ? '■ 停止' : '▶ 再生'}
                       </Button>
@@ -295,7 +291,7 @@ export default function LibraryView({
                                 size="sm"
                                 variant={isPlaying ? 'primary' : 'outline'}
                                 onClick={() => setMeetingPlayingId(isPlaying ? null : m.id)}
-                                style={{ borderColor: LEGACY_NAVY, color: isPlaying ? color.white : LEGACY_NAVY, background: isPlaying ? LEGACY_NAVY : color.white }}
+                                style={{ borderColor: color.navy, color: isPlaying ? color.white : color.navy, background: isPlaying ? color.navy : color.white }}
                               >
                                 {isPlaying ? '■ 停止' : '▶ 再生'}
                               </Button>
@@ -341,7 +337,7 @@ export default function LibraryView({
                               ) : (
                                 <div style={{
                                   width: '100%', height: 240, borderRadius: radius.md,
-                                  background: LEGACY_NAVY,
+                                  background: color.navy,
                                   display: 'flex', flexDirection: 'column',
                                   alignItems: 'center', justifyContent: 'center',
                                   color: color.white, gap: space[1.5],
