@@ -1,10 +1,18 @@
 import { useState, useMemo } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { logAudit } from './capital/lib/audit'
 import PageHeader from '../common/PageHeader'
 import { color, space, radius, font, shadow, alpha } from '../../constants/design'
 import { Button, Input, Select, Card, Badge } from '../ui'
+
+// SpanaviApp 配下には QueryClientProvider が無いため、このページ専用に QueryClient を持つ。
+// (Spartia Capital も同パターンで内蔵 QueryClient を使用)
+const firmsQueryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: 1, refetchOnWindowFocus: false, staleTime: 30_000 },
+  },
+})
 
 const STATUS_STYLE = {
   not_contacted: { bg: color.gray50,      fg: color.textMid, label: '未接触' },
@@ -33,6 +41,14 @@ const PREFS = [
 const PAGE_SIZE = 50
 
 export default function MaspFirmsView() {
+  return (
+    <QueryClientProvider client={firmsQueryClient}>
+      <MaspFirmsViewInner />
+    </QueryClientProvider>
+  )
+}
+
+function MaspFirmsViewInner() {
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
@@ -219,14 +235,6 @@ export default function MaspFirmsView() {
   const selWithForm = selectedAgencies.filter(a => a.contact_form_url && !a.contact_email)
   const selNoContact = selectedAgencies.filter(a => !a.contact_email && !a.contact_form_url)
 
-  // DEBUG: 一時的に return を最小化して JSX 由来か state 由来か切り分け
-  return (
-    <div style={{ padding: 32, color: color.navy }}>
-      <h1 style={{ fontSize: font.size.xl, marginBottom: 12 }}>Firms (state OK debug)</h1>
-      <p>allAgencies: {allAgencies.length} 件 / filtered: {filtered.length} 件 / loading: {String(isLoading)}</p>
-    </div>
-  );
-  // 以下 unreachable - 元 JSX
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
