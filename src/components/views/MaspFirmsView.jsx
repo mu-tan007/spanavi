@@ -166,6 +166,9 @@ function MaspFirmsViewInner() {
   // 保存検索
   const [savedSearches, setSavedSearches] = useState([])
   const [showSavedSearches, setShowSavedSearches] = useState(false)
+  // CSV出力ダイアログ
+  const [showCsvDialog, setShowCsvDialog] = useState(false)
+  const [csvSelectedKeys, setCsvSelectedKeys] = useState(() => new Set(CSV_COLUMNS.map(c => c.header)))
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [saveDialogName, setSaveDialogName] = useState('')
 
@@ -308,14 +311,30 @@ function MaspFirmsViewInner() {
     setPage(1)
   }
 
-  function exportCsv() {
+  function openCsvDialog() {
     if (filtered.length === 0) {
       alert('出力対象の支援機関がありません')
       return
     }
-    const filename = `M&A支援機関_${todayJST()}.csv`
-    downloadCsv(filename, filtered, CSV_COLUMNS)
+    setShowCsvDialog(true)
   }
+  function exportCsv() {
+    const cols = CSV_COLUMNS.filter(c => csvSelectedKeys.has(c.header))
+    if (cols.length === 0) { alert('1列以上選択してください'); return }
+    const filename = `M&A支援機関_${todayJST()}.csv`
+    downloadCsv(filename, filtered, cols)
+    setShowCsvDialog(false)
+  }
+  function toggleCsvCol(header) {
+    setCsvSelectedKeys(prev => {
+      const next = new Set(prev)
+      if (next.has(header)) next.delete(header)
+      else next.add(header)
+      return next
+    })
+  }
+  function selectAllCsv() { setCsvSelectedKeys(new Set(CSV_COLUMNS.map(c => c.header))) }
+  function clearAllCsv() { setCsvSelectedKeys(new Set()) }
 
   // AI チャットへ渡す現在の手動フィルタ
   const aiCurrentFilters = {
@@ -583,7 +602,7 @@ function MaspFirmsViewInner() {
             <Button variant="outline" size="sm" onClick={() => setShowSavedSearches(true)}>
               保存検索 ({savedSearches.length})
             </Button>
-            <Button variant="outline" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
+            <Button variant="outline" size="sm" onClick={openCsvDialog} disabled={filtered.length === 0}>
               CSV出力 ({filtered.length}件)
             </Button>
             <Button
@@ -1148,6 +1167,59 @@ function MaspFirmsViewInner() {
             )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: space[3] }}>
               <Button variant="outline" size="sm" onClick={() => setShowSavedSearches(false)}>閉じる</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CSV出力 列選択ダイアログ */}
+      {showCsvDialog && (
+        <div onClick={e => { if (e.target === e.currentTarget) setShowCsvDialog(false) }}
+          style={{ position: 'fixed', inset: 0, background: alpha(color.navyDeep, 0.5), display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: color.white, borderRadius: radius.lg, padding: space[6], width: 480, maxHeight: '80vh', overflowY: 'auto', boxShadow: shadow.xl }}>
+            <h3 style={{ fontSize: font.size.md, fontWeight: font.weight.semibold, color: color.navy, marginBottom: space[1] }}>
+              CSV出力 — 含める列を選択
+            </h3>
+            <p style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[3] }}>
+              {filtered.length}社 × {csvSelectedKeys.size}列 を出力します
+            </p>
+            <div style={{ display: 'flex', gap: space[2], marginBottom: space[2] }}>
+              <Button variant="ghost" size="sm" onClick={selectAllCsv}>すべて選択</Button>
+              <Button variant="ghost" size="sm" onClick={clearAllCsv} style={{ color: color.danger }}>すべて解除</Button>
+            </div>
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6,
+              padding: space[3], background: color.gray50,
+              border: `0.5px solid ${color.border}`, borderRadius: radius.md,
+            }}>
+              {CSV_COLUMNS.map(c => {
+                const sel = csvSelectedKeys.has(c.header)
+                return (
+                  <label key={c.header}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '4px 6px', borderRadius: radius.sm,
+                      cursor: 'pointer', fontSize: font.size.xs,
+                      color: sel ? color.textDark : color.textMid,
+                      background: sel ? color.white : 'transparent',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={sel}
+                      onChange={() => toggleCsvCol(c.header)}
+                      style={{ width: 14, height: 14 }}
+                    />
+                    {c.header}
+                  </label>
+                )
+              })}
+            </div>
+            <div style={{ display: 'flex', gap: space[2], marginTop: space[4] }}>
+              <Button variant="outline" fullWidth onClick={() => setShowCsvDialog(false)}>キャンセル</Button>
+              <Button variant="primary" fullWidth onClick={exportCsv} disabled={csvSelectedKeys.size === 0}>
+                決定 ({csvSelectedKeys.size}列)
+              </Button>
             </div>
           </div>
         </div>
