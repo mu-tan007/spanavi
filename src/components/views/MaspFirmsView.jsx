@@ -125,7 +125,8 @@ function MaspFirmsViewInner() {
   const [keywordInput, setKeywordInput] = useState('')
   const [keywords, setKeywords] = useState([]) // string[]
   const [keywordLogic, setKeywordLogic] = useState('AND') // 'AND' | 'OR'
-  const [filterStatus, setFilterStatus] = useState('')
+  // ステータスは複数選択 (取引先 / 接触済 / 未接触 を任意に組み合わせ)
+  const [filterStatuses, setFilterStatuses] = useState([])
   // 都道府県は複数選択 (Database と同等。プリセットで一括追加可能)
   const [filterPrefs, setFilterPrefs] = useState([])
   const [filterInfoSharing, setFilterInfoSharing] = useState('')
@@ -195,17 +196,15 @@ function MaspFirmsViewInner() {
         return lower.some(k => hay.includes(k))
       })
     }
-    if (filterStatus) {
-      // filterStatus は派生ステータス基準
-      // partner → リンク先 client が 取引先カテゴリ
-      // contacted → 派生 contacted または crm_contacted (どちらも UI 上「接触済」)
-      // not_contacted → 派生で not_contacted
+    if (filterStatuses.length > 0) {
+      // 複数選択 OR フィルタ。例: ['contacted', 'partner'] → 接触済 + 取引先
+      const want = new Set(filterStatuses)
       list = list.filter(a => {
         const ds = deriveStatus(a)
-        if (filterStatus === 'partner') return ds === 'partner'
-        if (filterStatus === 'contacted') return ds === 'contacted' || ds === 'crm_contacted'
-        if (filterStatus === 'not_contacted') return ds === 'not_contacted'
-        return true
+        if (want.has('partner') && ds === 'partner') return true
+        if (want.has('contacted') && (ds === 'contacted' || ds === 'crm_contacted')) return true
+        if (want.has('not_contacted') && ds === 'not_contacted') return true
+        return false
       })
     }
     if (filterPrefs.length > 0) {
@@ -243,7 +242,7 @@ function MaspFirmsViewInner() {
       case 'staff_desc': list.sort((a,b) => (b.staff_count||0) - (a.staff_count||0)); break
     }
     return list
-  }, [allAgencies, search, keywords, keywordLogic, filterStatus, filterPrefs, filterInfoSharing, filterFeeType, filterFaSeller, filterFaBuyer, filterBrokerSeller, filterBrokerBuyer, filterStaffMin, filterStaffMax, excludeStaffNull, filterContact, sortKey])
+  }, [allAgencies, search, keywords, keywordLogic, filterStatuses, filterPrefs, filterInfoSharing, filterFeeType, filterFaSeller, filterFaBuyer, filterBrokerSeller, filterBrokerBuyer, filterStaffMin, filterStaffMax, excludeStaffNull, filterContact, sortKey])
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -267,7 +266,7 @@ function MaspFirmsViewInner() {
   function clearFilters() {
     setSearch('')
     setKeywordInput(''); setKeywords([]); setKeywordLogic('AND')
-    setFilterStatus(''); setFilterPrefs([]); setFilterInfoSharing('')
+    setFilterStatuses([]); setFilterPrefs([]); setFilterInfoSharing('')
     setFilterFeeType('')
     setFilterFaSeller(''); setFilterFaBuyer(''); setFilterBrokerSeller(''); setFilterBrokerBuyer('')
     setFilterStaffMin(''); setFilterStaffMax(''); setExcludeStaffNull(false)
@@ -282,9 +281,13 @@ function MaspFirmsViewInner() {
   }
   function removeKeyword(k) { setKeywords(keywords.filter(x => x !== k)); setPage(1) }
   // 詳細検索パネルの何かが入っているか
-  const hasAnyFilter = !!(filterStatus || filterPrefs.length > 0 || filterInfoSharing || filterFeeType
+  const hasAnyFilter = !!(filterStatuses.length > 0 || filterPrefs.length > 0 || filterInfoSharing || filterFeeType
     || filterFaSeller || filterFaBuyer || filterBrokerSeller || filterBrokerBuyer
     || filterStaffMin || filterStaffMax || excludeStaffNull || filterContact || keywords.length > 0)
+  function toggleStatusFilter(s) {
+    setFilterStatuses(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
+    setPage(1)
+  }
 
   function togglePref(p) {
     setFilterPrefs(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
@@ -319,7 +322,7 @@ function MaspFirmsViewInner() {
     infoSharing: filterInfoSharing,
     feeFaSeller: filterFaSeller, feeFaBuyer: filterFaBuyer,
     feeBrokerSeller: filterBrokerSeller, feeBrokerBuyer: filterBrokerBuyer,
-    status: filterStatus,
+    statuses: filterStatuses,
     contact: filterContact,
   }
 
@@ -329,7 +332,7 @@ function MaspFirmsViewInner() {
       setFilterPrefs, setFilterStaffMin, setFilterStaffMax, setExcludeStaffNull,
       setFilterInfoSharing,
       setFilterFaSeller, setFilterFaBuyer, setFilterBrokerSeller, setFilterBrokerBuyer,
-      setFilterStatus,
+      setFilterStatuses,
       setFilterContact,
       setPage, setSelectedIds, setSelectAll,
     })
@@ -363,7 +366,7 @@ function MaspFirmsViewInner() {
       infoSharing: filterInfoSharing,
       feeFaSeller: filterFaSeller, feeFaBuyer: filterFaBuyer,
       feeBrokerSeller: filterBrokerSeller, feeBrokerBuyer: filterBrokerBuyer,
-      status: filterStatus,
+      statuses: filterStatuses,
       contact: filterContact,
       sortKey,
     }
@@ -386,7 +389,7 @@ function MaspFirmsViewInner() {
       setFilterPrefs, setFilterStaffMin, setFilterStaffMax, setExcludeStaffNull,
       setFilterInfoSharing,
       setFilterFaSeller, setFilterFaBuyer, setFilterBrokerSeller, setFilterBrokerBuyer,
-      setFilterStatus, setFilterContact,
+      setFilterStatuses, setFilterContact,
       setPage, setSelectedIds, setSelectAll,
     })
     if (s.filters?.sortKey) setSortKey(s.filters.sortKey)
@@ -633,18 +636,38 @@ function MaspFirmsViewInner() {
       {showAdvanced && (
         <Card padding="md" style={{ marginBottom: space[4] }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px 20px' }}>
-            <Select
-              size="sm"
-              label="ステータス"
-              value={filterStatus}
-              onChange={e => { setFilterStatus(e.target.value); setPage(1) }}
-              options={[
-                { value: '', label: 'すべて' },
-                { value: 'not_contacted', label: '未接触' },
-                { value: 'contacted', label: '接触済' },
-                { value: 'partner', label: '取引先 (CRM連携)' },
-              ]}
-            />
+            <div>
+              <div style={{ fontSize: font.size.sm, color: color.textDark, fontWeight: font.weight.medium, marginBottom: 6 }}>
+                ステータス {filterStatuses.length > 0 && (
+                  <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.normal, marginLeft: 6 }}>
+                    ({filterStatuses.length}選択中)
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                {[
+                  { value: 'not_contacted', label: '未接触', style: STATUS_STYLE.not_contacted },
+                  { value: 'contacted',     label: '接触済', style: STATUS_STYLE.contacted },
+                  { value: 'partner',       label: '取引先', style: STATUS_STYLE.partner },
+                ].map(opt => {
+                  const sel = filterStatuses.includes(opt.value)
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => toggleStatusFilter(opt.value)}
+                      style={{
+                        padding: '4px 12px', borderRadius: radius.pill,
+                        border: `0.5px solid ${sel ? opt.style.fg : color.border}`,
+                        background: sel ? opt.style.bg : color.white,
+                        color: sel ? opt.style.fg : color.textMid,
+                        fontSize: font.size.xs, fontWeight: sel ? font.weight.semibold : font.weight.normal,
+                        cursor: 'pointer',
+                      }}
+                    >{opt.label}</button>
+                  )
+                })}
+              </div>
+            </div>
             <div style={{ gridColumn: '1 / -1' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                 <div style={{ fontSize: font.size.sm, color: color.textDark, fontWeight: font.weight.medium }}>

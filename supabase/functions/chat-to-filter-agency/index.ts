@@ -58,7 +58,8 @@ const SYSTEM_PROMPT = `
 - 手数料体系 - FA譲受側 (feeFaBuyer): "" / "yes" / "no"
 - 手数料体系 - 仲介譲渡側 (feeBrokerSeller): "" / "yes" / "no"
 - 手数料体系 - 仲介譲受側 (feeBrokerBuyer): "" / "yes" / "no"
-- 接触ステータス (status): "" / "not_contacted"(未接触) / "contacted"(接触済) / "partner"(取引先 = 当社の CRM clients に支援中/準備中/停止中/保留 として登録されている機関)
+- 接触ステータス (statuses): **配列**。["not_contacted"](未接触)/["contacted"](接触済)/["partner"](取引先)を任意に組み合わせ可。複数指定で OR 結合。空配列 [] ですべて。
+  - 取引先(partner) = 当社の CRM clients に「支援中/準備中/停止中/保留」として登録されている機関
 - 連絡先有無 (contact): "" / "any"(メールorフォームあり) / "email"(メアドあり) / "form"(フォームのみ・メアド無) / "none"(連絡先なし)
 - 自由テキスト (keywords): 機関名や所在地に含まれそうな単語の配列。OR/AND は logic で指定
 - ロジック (logic): "AND" または "OR" (デフォルト AND)
@@ -103,18 +104,21 @@ const SYSTEM_PROMPT = `
 - 「買い手側支援」「譲受側専門」 → feeFaBuyer: "yes" or feeBrokerBuyer: "yes"
 - 「事業承継特化」「事業承継支援」 → 譲渡側 (feeFaSeller / feeBrokerSeller) を "yes" + keywords に「事業承継」を入れない (機関名にあまり含まれない)。手数料体系で表現する。
 
-### 接触ステータス (status)
-- 「未接触」「まだアプローチしてない」「これから接触する機関」「新規開拓候補」「未開拓」 → status: "not_contacted"
-- 「接触済み」「すでに連絡した」「アプローチ済み」 → status: "contacted"
-- 「取引先」「うちのクライアント」「契約のある機関」「支援中の機関」「自社が支援している機関」 → status: "partner"
-- 「取引先と接触済みを除いて」「未接触のみ」「新規開拓リスト」 → status: "not_contacted" (取引先と接触済みは含まない)
+### 接触ステータス (statuses) — 配列で複数指定可
+- 「未接触」「まだアプローチしてない」「新規開拓候補」「未開拓」 → statuses: ["not_contacted"]
+- 「接触済み」「すでに連絡した」「アプローチ済み」 → statuses: ["contacted"]
+- 「取引先」「うちのクライアント」「契約のある機関」「支援中の機関」「自社が支援している機関」 → statuses: ["partner"]
+- 「接触済みと取引先」「接触済 OR 取引先」「すでに何らかの関係がある機関」 → statuses: ["contacted", "partner"]
+- 「未接触と接触済み」 → statuses: ["not_contacted", "contacted"]
+- 「全部」「全ステータス」 → statuses: []
+- 「取引先と接触済みを除いて」「未接触のみ」「新規開拓リスト」 → statuses: ["not_contacted"] (取引先と接触済みは含まない)
 
 ### 連絡先有無 (contact)
 - 「メアドあり」「メールアドレスがある機関」「すぐメール送れる機関」 → contact: "email"
 - 「フォームしか連絡先ない」「問い合わせフォームだけ」 → contact: "form"
 - 「連絡先がある機関」「どっちかでも連絡先取れる」 → contact: "any"
 - 「連絡先なし」「連絡先未取得」「アタックリストの新規候補」 → contact: "none"
-- 「すぐ配信できる機関」 → contact: "any" + status: "not_contacted" の組み合わせも可
+- 「すぐ配信できる機関」 → contact: "any" + statuses: ["not_contacted"] の組み合わせも可
 
 ### キーワード (keywords)
 - 「会計事務所」「税理士法人」「コンサル」「FAS」「監査法人」「投資銀行」「ブティック」など、機関名に含まれそうな業態の語 → keywords に入れる (AND/OR は logic で)
@@ -146,7 +150,7 @@ const SYSTEM_PROMPT = `
     "feeFaBuyer": "",
     "feeBrokerSeller": "",
     "feeBrokerBuyer": "",
-    "status": "",
+    "statuses": [],
     "contact": ""
   },
   "needsClarification": false,

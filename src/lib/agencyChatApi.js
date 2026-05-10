@@ -33,7 +33,13 @@ const PREFS = [
 const PREF_SET = new Set(PREFS);
 
 const YES_NO = (v) => (v === 'yes' || v === 'no' ? v : '');
-const STATUS_OK = (v) => (['not_contacted', 'contacted', 'partner'].includes(v) ? v : '');
+const VALID_STATUSES = new Set(['not_contacted', 'contacted', 'partner']);
+const STATUSES_OK = (v) => {
+  if (Array.isArray(v)) return v.filter(s => VALID_STATUSES.has(s));
+  // 後方互換: AI が文字列で返してきた場合は配列化
+  if (typeof v === 'string' && VALID_STATUSES.has(v)) return [v];
+  return [];
+};
 const CONTACT_OK = (v) => (['email', 'form', 'any', 'none'].includes(v) ? v : '');
 
 /**
@@ -72,8 +78,9 @@ export function applyAiFiltersToAgencyState(aiFilters, setters) {
   setters.setFilterBrokerSeller?.(YES_NO(f.feeBrokerSeller));
   setters.setFilterBrokerBuyer?.(YES_NO(f.feeBrokerBuyer));
 
-  // status
-  setters.setFilterStatus?.(STATUS_OK(f.status));
+  // status (配列で複数選択可。AI は statuses or status いずれでも返せる)
+  const statusList = STATUSES_OK(f.statuses ?? f.status);
+  setters.setFilterStatuses?.(statusList);
 
   // 連絡先有無
   setters.setFilterContact?.(CONTACT_OK(f.contact));
