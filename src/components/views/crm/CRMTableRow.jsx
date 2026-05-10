@@ -2,7 +2,8 @@ import { C } from '../../../constants/colors';
 import { color, space, radius, font, alpha } from '../../../constants/design';
 import {
   NAVY, GRAY_200, GRAY_50, GOLD,
-  statusStyle, lastTouchDisplay, nextActionFor,
+  statusStyle, statusCategory, statusCategoryStyle,
+  lastTouchDisplay, nextActionFor,
   priorityScore, priorityRank, composeEmailDraft,
 } from './utils';
 
@@ -110,11 +111,30 @@ export default function CRMTableRow({
       onMouseEnter={e => { e.currentTarget.style.background = '#EAF4FF'; }}
       onMouseLeave={e => { e.currentTarget.style.background = altBg; }}
     >
-      {/* 1. ステータス */}
-      <span style={{
-        borderLeft: `3px solid ${sc.color}`, paddingLeft: 8, color: sc.color, fontSize: font.size.sm,
-        display: 'inline-block', width: 'fit-content', textAlign: crmCols[0]?.align,
-      }}>{c.status}</span>
+      {/* 1. ステータス (上に カテゴリ ラベル / 下に ステータス) */}
+      {(() => {
+        const cat = statusCategory(c.status);
+        const catStyle = statusCategoryStyle(cat);
+        return (
+          <span style={{
+            borderLeft: `3px solid ${sc.color}`, paddingLeft: 8,
+            display: 'inline-flex', flexDirection: 'column', width: 'fit-content',
+            alignItems: 'flex-start', textAlign: crmCols[0]?.align, lineHeight: 1.15,
+          }}>
+            {cat && (
+              <span style={{
+                fontSize: 9, fontWeight: font.weight.bold, letterSpacing: 0.5,
+                color: catStyle.color, background: catStyle.bg,
+                padding: '1px 5px', borderRadius: 2,
+                marginBottom: 2,
+              }}>{cat}</span>
+            )}
+            <span style={{ color: sc.color, fontSize: font.size.sm, fontWeight: font.weight.medium }}>
+              {c.status}
+            </span>
+          </span>
+        );
+      })()}
 
       {/* 2. 企業名（優先度バッジ付き） */}
       <span style={{

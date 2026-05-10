@@ -8,6 +8,36 @@ export const GOLD = '#B8860B';
 
 export const STATUS_LIST = ['支援中', '準備中', '停止中', '保留', '中期フォロー', '面談予定'];
 
+// ステータスのカテゴリ分類
+// - 取引先: 既に契約・支援関係がある会社 (支援中/準備中/停止中/保留)
+// - 接触済み: 接点はあるが未契約 (中期フォロー/面談予定)
+// - その他: 未接触 (新規・予期せぬ値)
+export const STATUS_CATEGORY = {
+  '支援中':       '取引先',
+  '準備中':       '取引先',
+  '停止中':       '取引先',
+  '保留':         '取引先',
+  '中期フォロー': '接触済み',
+  '面談予定':     '接触済み',
+};
+
+export function statusCategory(st) {
+  return STATUS_CATEGORY[st] || '';
+}
+
+// カテゴリ別のスタイル (列内の小さなラベル用)
+export function statusCategoryStyle(category) {
+  if (category === '取引先')   return { color: '#0D2247', bg: '#E8F0FF' };  // navy 系
+  if (category === '接触済み') return { color: '#7c3aed', bg: '#F3EAFF' };  // 紫系
+  return { color: '#9CA3AF', bg: 'transparent' };
+}
+
+// カテゴリ単位でグルーピングされた STATUS_LIST (タブ表示用)
+export const STATUS_GROUPS = [
+  { category: '取引先',   statuses: ['支援中', '準備中', '停止中', '保留'] },
+  { category: '接触済み', statuses: ['中期フォロー', '面談予定'] },
+];
+
 export function statusStyle(st) {
   if (st === '支援中') return { bg: C.green + '15', color: C.green, dot: C.green };
   if (st === '準備中') return { bg: C.gold + '15', color: C.gold, dot: C.gold };

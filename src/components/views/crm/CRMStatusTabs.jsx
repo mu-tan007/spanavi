@@ -1,5 +1,5 @@
 import { C } from '../../../constants/colors';
-import { NAVY, GRAY_200, STATUS_LIST, statusStyle } from './utils';
+import { NAVY, GRAY_200, STATUS_GROUPS, statusStyle, statusCategoryStyle } from './utils';
 
 export default function CRMStatusTabs({ statusFilter, setStatusFilter, statusCounts, totalCount }) {
   const baseBtn = {
@@ -8,7 +8,7 @@ export default function CRMStatusTabs({ statusFilter, setStatusFilter, statusCou
   };
 
   return (
-    <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
       <button
         onClick={() => setStatusFilter('all')}
         style={{
@@ -20,24 +20,45 @@ export default function CRMStatusTabs({ statusFilter, setStatusFilter, statusCou
       >
         全て <span style={{ fontSize: 10, opacity: 0.7 }}>{totalCount}</span>
       </button>
-      {STATUS_LIST.map(st => {
-        const sc = statusStyle(st);
-        const active = statusFilter === st;
+
+      {STATUS_GROUPS.map(group => {
+        const cs = statusCategoryStyle(group.category);
         return (
-          <button
-            key={st}
-            onClick={() => setStatusFilter(st)}
+          <div
+            key={group.category}
             style={{
-              ...baseBtn,
-              border: '1px solid ' + (active ? sc.color : GRAY_200),
-              background: active ? sc.bg : '#fff',
-              color: active ? sc.color : C.textMid,
-              display: 'flex', alignItems: 'center', gap: 4,
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '4px 8px 4px 6px',
+              borderRadius: 4, border: `1px dashed ${cs.color}`,
+              background: cs.bg,
             }}
           >
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: sc.dot }}></span>
-            {st} <span style={{ fontSize: 10, opacity: 0.7 }}>{statusCounts[st] || 0}</span>
-          </button>
+            <span style={{
+              fontSize: 9, fontWeight: 700, letterSpacing: 0.5,
+              color: cs.color, padding: '1px 5px', borderRadius: 2,
+              background: '#fff', border: `1px solid ${cs.color}`,
+            }}>{group.category}</span>
+            {group.statuses.map(st => {
+              const sc = statusStyle(st);
+              const active = statusFilter === st;
+              return (
+                <button
+                  key={st}
+                  onClick={() => setStatusFilter(st)}
+                  style={{
+                    ...baseBtn,
+                    border: '1px solid ' + (active ? sc.color : GRAY_200),
+                    background: active ? sc.bg : '#fff',
+                    color: active ? sc.color : C.textMid,
+                    display: 'flex', alignItems: 'center', gap: 4,
+                  }}
+                >
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: sc.dot }}></span>
+                  {st} <span style={{ fontSize: 10, opacity: 0.7 }}>{statusCounts[st] || 0}</span>
+                </button>
+              );
+            })}
+          </div>
         );
       })}
     </div>

@@ -4,7 +4,8 @@ import ColumnResizeHandle from '../../common/ColumnResizeHandle';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import {
   NAVY, GRAY_200, GRAY_50, GOLD, CRM_COL_LABELS,
-  statusStyle, lastTouchDisplay, nextActionFor, priorityScore, priorityRank,
+  statusStyle, statusCategory, statusCategoryStyle,
+  lastTouchDisplay, nextActionFor, priorityScore, priorityRank,
 } from './utils';
 import CRMTableRow from './CRMTableRow';
 
@@ -59,6 +60,17 @@ function MobileCard({
           padding: '1px 5px', fontFamily: font.family.mono,
           fontVariantNumeric: 'tabular-nums', minWidth: 22, textAlign: 'center',
         }}>{score}</span>
+        {(() => {
+          const cat = statusCategory(c.status);
+          const catStyle = statusCategoryStyle(cat);
+          return cat ? (
+            <span style={{
+              fontSize: 9, fontWeight: font.weight.bold, letterSpacing: 0.5,
+              color: catStyle.color, background: catStyle.bg,
+              padding: '1px 5px', borderRadius: 2,
+            }}>{cat}</span>
+          ) : null;
+        })()}
         <span style={{ fontSize: font.size.xs, color: sc.color, fontWeight: font.weight.bold }}>{c.status}</span>
         <span style={{
           fontSize: 9, color: lt.stale ? GOLD : color.textLight,
