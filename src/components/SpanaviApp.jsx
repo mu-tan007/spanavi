@@ -235,29 +235,6 @@ const CLIENT_DATA = [{"no": 1, "status": "支援中", "contract": "済", "compan
 // Helper: trigger phone call via hidden iframe (no page navigation, allows rapid sequential calls)
 // dialPhone はsrc/utils/phone.jsからimport済み
 
-// View 単位エラーバウンダリ: クラッシュ時に黒画面の代わりに詳細を表示する
-class ViewErrorBoundary extends React.Component {
-  constructor(props) { super(props); this.state = { error: null, info: null }; }
-  static getDerivedStateFromError(error) { return { error }; }
-  componentDidCatch(error, info) { console.error('[ViewErrorBoundary]', this.props.name, error, info); this.setState({ info }); }
-  render() {
-    if (!this.state.error) return this.props.children;
-    return (
-      <div style={{ padding: 32, background: color.white, borderRadius: radius.md, border: `1px solid ${color.danger}`, margin: 16 }}>
-        <h2 style={{ fontSize: font.size.lg, color: color.danger, marginBottom: 12, fontWeight: font.weight.semibold }}>
-          {this.props.name || 'View'} でエラーが発生しました
-        </h2>
-        <pre style={{ fontSize: font.size.xs, color: color.textDark, background: color.gray50, padding: 12, borderRadius: radius.sm, overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
-          {String(this.state.error?.message || this.state.error)}
-          {this.state.error?.stack ? '\n\n' + this.state.error.stack : ''}
-          {this.state.info?.componentStack ? '\n\nComponent stack:' + this.state.info.componentStack : ''}
-        </pre>
-        <button onClick={() => this.setState({ error: null, info: null })} style={{ marginTop: 12, padding: '6px 14px', fontSize: font.size.sm, background: color.navy, color: color.white, border: 'none', borderRadius: radius.md, cursor: 'pointer' }}>再試行</button>
-      </div>
-    );
-  }
-}
-
 // インライン録音プレーヤー（全画面共通）
 function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, supabaseData, onDataRefetch, orgId }) {
   const { engagements, currentEngagement, switchEngagement, loading: engLoading } = useEngagements();
@@ -1268,11 +1245,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {engSlug === 'masp' && !['database','firms','mypage','all_members','admin_settings'].includes(currentTab) && (
           <EngagementComingSoon title="MASP" subtitle="この画面は準備中です" />
         )}
-        {engSlug === 'masp' && currentTab === 'firms' && (
-          <ViewErrorBoundary name="MASP Firms">
-            <MaspFirmsView />
-          </ViewErrorBoundary>
-        )}
+        {engSlug === 'masp' && currentTab === 'firms' && <MaspFirmsView />}
         {engSlug === 'masp' && currentTab === 'all_members' && <MASPMembersView isAdmin={isAdmin} />}
         {engSlug === 'masp' && currentTab === 'admin_settings' && isAdmin && (
           <AdminView
