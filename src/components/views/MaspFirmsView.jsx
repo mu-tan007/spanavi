@@ -587,7 +587,6 @@ function MaspFirmsViewInner() {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        bleed={false}
         eyebrow="MASP · Firms"
         title="M&A支援機関データベース"
         description={`${filtered.length === stats.total
