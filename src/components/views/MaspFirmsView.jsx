@@ -5,6 +5,30 @@ import { logAudit } from './capital/lib/audit'
 import PageHeader from '../common/PageHeader'
 import { color, space, radius, font, shadow, alpha } from '../../constants/design'
 import { Button, Input, Select, Card, Badge } from '../ui'
+import { downloadCsv, todayJST } from '../../lib/csvExport'
+
+const CSV_COLUMNS = [
+  { header: '支援機関名', accessor: a => a.name },
+  { header: '本店所在地', accessor: a => a.prefecture || '' },
+  { header: 'M&A専従者数', accessor: a => a.staff_count != null ? a.staff_count : '' },
+  { header: '情報共有加盟', accessor: a => a.info_sharing ? '有り' : '無し' },
+  { header: 'FA譲渡側-成功報酬', accessor: a => a.fa_seller_success_fee || '' },
+  { header: 'FA譲渡側-算定方式', accessor: a => a.fa_seller_calc_method || '' },
+  { header: 'FA譲渡側-最低手数料', accessor: a => a.fa_seller_min_fee || '' },
+  { header: 'FA譲渡側-その他', accessor: a => a.fa_seller_other_fee || '' },
+  { header: 'FA譲受側-成功報酬', accessor: a => a.fa_buyer_success_fee || '' },
+  { header: 'FA譲受側-算定方式', accessor: a => a.fa_buyer_calc_method || '' },
+  { header: '仲介譲渡側-成功報酬', accessor: a => a.broker_seller_success_fee || '' },
+  { header: '仲介譲渡側-算定方式', accessor: a => a.broker_seller_calc_method || '' },
+  { header: '仲介譲渡側-最低手数料', accessor: a => a.broker_seller_min_fee || '' },
+  { header: '仲介譲渡側-その他', accessor: a => a.broker_seller_other_fee || '' },
+  { header: '仲介譲受側-成功報酬', accessor: a => a.broker_buyer_success_fee || '' },
+  { header: '仲介譲受側-算定方式', accessor: a => a.broker_buyer_calc_method || '' },
+  { header: 'メールアドレス', accessor: a => a.contact_email || '' },
+  { header: '問い合わせフォームURL', accessor: a => a.contact_form_url || '' },
+  { header: 'ウェブサイト', accessor: a => a.website || '' },
+  { header: 'ステータス', accessor: a => a.status === 'contacted' ? '接触済' : '未接触' },
+]
 
 // SpanaviApp 配下には QueryClientProvider が無いため、このページ専用に QueryClient を持つ。
 // (Spartia Capital も同パターンで内蔵 QueryClient を使用)
@@ -121,6 +145,15 @@ function MaspFirmsViewInner() {
   function toggleSelect(id) { setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n }) }
   function toggleSelectAll() { if (selectAll) setSelectedIds(new Set()); else setSelectedIds(new Set(paged.map(a => a.id))); setSelectAll(!selectAll) }
   function clearFilters() { setSearch(''); setFilterStatus(''); setFilterPref(''); setFilterInfoSharing(''); setFilterFeeType(''); setFilterStaffMin(''); setFilterStaffMax(''); setPage(1) }
+
+  function exportCsv() {
+    if (filtered.length === 0) {
+      alert('出力対象の支援機関がありません')
+      return
+    }
+    const filename = `M&A支援機関_${todayJST()}.csv`
+    downloadCsv(filename, filtered, CSV_COLUMNS)
+  }
 
   async function lookupContacts() {
     const ids = [...selectedIds]
@@ -245,16 +278,23 @@ function MaspFirmsViewInner() {
           ? `${(page-1)*PAGE_SIZE+1}〜${Math.min(page*PAGE_SIZE, filtered.length)}件を表示中（全${stats.total}件）`
           : `${filtered.length}件該当（全${stats.total}件）`}　接触済 ${stats.contacted}社　未接触 ${stats.notContacted}社`}
         style={{ marginBottom: space[4] }}
-        right={selectedIds.size > 0 ? (
+        right={
           <>
-            <Button variant="secondary" size="sm" onClick={lookupContacts} loading={lookingUp} disabled={lookingUp}>
-              {lookingUp ? 'AI取得中...' : `${selectedIds.size}社の連絡先を取得`}
+            <Button variant="outline" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
+              CSV出力 ({filtered.length}件)
             </Button>
-            <Button size="sm" onClick={openBroadcast}>
-              {selectedIds.size}社に配信
-            </Button>
+            {selectedIds.size > 0 && (
+              <>
+                <Button variant="secondary" size="sm" onClick={lookupContacts} loading={lookingUp} disabled={lookingUp}>
+                  {lookingUp ? 'AI取得中...' : `${selectedIds.size}社の連絡先を取得`}
+                </Button>
+                <Button size="sm" onClick={openBroadcast}>
+                  {selectedIds.size}社に配信
+                </Button>
+              </>
+            )}
           </>
-        ) : null}
+        }
       />
 
       {/* 検索バー */}
