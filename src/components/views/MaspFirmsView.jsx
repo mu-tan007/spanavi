@@ -64,6 +64,19 @@ const PREFS = [
   '徳島県','香川県','愛媛県','高知県',
   '福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県',
 ]
+
+// 地方プリセット（複数都道府県を一括選択するためのショートカット）
+const PREF_PRESETS = [
+  { label: '首都圏', prefs: ['東京都','神奈川県','千葉県','埼玉県'] },
+  { label: '関西',   prefs: ['大阪府','京都府','兵庫県','奈良県','滋賀県','和歌山県'] },
+  { label: '東海',   prefs: ['愛知県','岐阜県','三重県','静岡県'] },
+  { label: '北海道・東北', prefs: ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県'] },
+  { label: '北陸甲信越', prefs: ['新潟県','富山県','石川県','福井県','山梨県','長野県'] },
+  { label: '中国',   prefs: ['鳥取県','島根県','岡山県','広島県','山口県'] },
+  { label: '四国',   prefs: ['徳島県','香川県','愛媛県','高知県'] },
+  { label: '九州・沖縄', prefs: ['福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'] },
+]
+
 const PAGE_SIZE = 50
 
 export default function MaspFirmsView() {
@@ -82,7 +95,8 @@ function MaspFirmsViewInner() {
   const [keywords, setKeywords] = useState([]) // string[]
   const [keywordLogic, setKeywordLogic] = useState('AND') // 'AND' | 'OR'
   const [filterStatus, setFilterStatus] = useState('')
-  const [filterPref, setFilterPref] = useState('')
+  // 都道府県は複数選択 (Database と同等。プリセットで一括追加可能)
+  const [filterPrefs, setFilterPrefs] = useState([])
   const [filterInfoSharing, setFilterInfoSharing] = useState('')
   const [filterFeeType, setFilterFeeType] = useState('')
   // Step 2: 手数料項目細分化（FA/仲介 × 譲渡側/譲受側 個別）
@@ -137,7 +151,10 @@ function MaspFirmsViewInner() {
       })
     }
     if (filterStatus) list = list.filter(a => a.status === filterStatus)
-    if (filterPref) list = list.filter(a => a.prefecture === filterPref)
+    if (filterPrefs.length > 0) {
+      const set = new Set(filterPrefs)
+      list = list.filter(a => set.has(a.prefecture))
+    }
     if (filterInfoSharing === 'yes') list = list.filter(a => a.info_sharing)
     if (filterInfoSharing === 'no') list = list.filter(a => !a.info_sharing)
     // 旧 filterFeeType (FA / 仲介の大枠) と、新しい個別細分化フィルタを併用可能。
@@ -165,7 +182,7 @@ function MaspFirmsViewInner() {
       case 'staff_desc': list.sort((a,b) => (b.staff_count||0) - (a.staff_count||0)); break
     }
     return list
-  }, [allAgencies, search, keywords, keywordLogic, filterStatus, filterPref, filterInfoSharing, filterFeeType, filterFaSeller, filterFaBuyer, filterBrokerSeller, filterBrokerBuyer, filterStaffMin, filterStaffMax, excludeStaffNull, sortKey])
+  }, [allAgencies, search, keywords, keywordLogic, filterStatus, filterPrefs, filterInfoSharing, filterFeeType, filterFaSeller, filterFaBuyer, filterBrokerSeller, filterBrokerBuyer, filterStaffMin, filterStaffMax, excludeStaffNull, sortKey])
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -180,7 +197,7 @@ function MaspFirmsViewInner() {
   function clearFilters() {
     setSearch('')
     setKeywordInput(''); setKeywords([]); setKeywordLogic('AND')
-    setFilterStatus(''); setFilterPref(''); setFilterInfoSharing('')
+    setFilterStatus(''); setFilterPrefs([]); setFilterInfoSharing('')
     setFilterFeeType('')
     setFilterFaSeller(''); setFilterFaBuyer(''); setFilterBrokerSeller(''); setFilterBrokerBuyer('')
     setFilterStaffMin(''); setFilterStaffMax(''); setExcludeStaffNull(false)
@@ -194,9 +211,23 @@ function MaspFirmsViewInner() {
   }
   function removeKeyword(k) { setKeywords(keywords.filter(x => x !== k)); setPage(1) }
   // 詳細検索パネルの何かが入っているか
-  const hasAnyFilter = !!(filterStatus || filterPref || filterInfoSharing || filterFeeType
+  const hasAnyFilter = !!(filterStatus || filterPrefs.length > 0 || filterInfoSharing || filterFeeType
     || filterFaSeller || filterFaBuyer || filterBrokerSeller || filterBrokerBuyer
     || filterStaffMin || filterStaffMax || excludeStaffNull || keywords.length > 0)
+
+  function togglePref(p) {
+    setFilterPrefs(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
+    setPage(1)
+  }
+  function applyPrefPreset(prefs) {
+    setFilterPrefs(prev => {
+      // すべて含まれていたら解除、そうでなければ和集合
+      const allIncluded = prefs.every(p => prev.includes(p))
+      if (allIncluded) return prev.filter(p => !prefs.includes(p))
+      return [...new Set([...prev, ...prefs])]
+    })
+    setPage(1)
+  }
 
   function exportCsv() {
     if (filtered.length === 0) {
@@ -210,7 +241,7 @@ function MaspFirmsViewInner() {
   // AI チャットへ渡す現在の手動フィルタ
   const aiCurrentFilters = {
     keywords, logic: keywordLogic,
-    prefecture: filterPref || null,
+    prefectures: filterPrefs,
     staffMin: filterStaffMin ? Number(filterStaffMin) : null,
     staffMax: filterStaffMax ? Number(filterStaffMax) : null,
     excludeStaffNull,
@@ -223,15 +254,11 @@ function MaspFirmsViewInner() {
   function applyAi(aiFilters) {
     applyAiFiltersToAgencyState(aiFilters, {
       setKeywords, setKeywordLogic,
-      setFilterPref, setFilterStaffMin, setFilterStaffMax, setExcludeStaffNull,
+      setFilterPrefs, setFilterStaffMin, setFilterStaffMax, setExcludeStaffNull,
       setFilterInfoSharing,
       setFilterFaSeller, setFilterFaBuyer, setFilterBrokerSeller, setFilterBrokerBuyer,
       setFilterStatus,
       setPage, setSelectedIds, setSelectAll,
-    }, {
-      onMultiPrefHint: (prefs) => {
-        console.info('[MaspFirmsView] AI が複数都道府県を返したが UI は単一選択のため最初の1つのみ採用:', prefs);
-      },
     })
     // 詳細検索も自動展開
     setShowAdvanced(true)
@@ -466,13 +493,71 @@ function MaspFirmsViewInner() {
               onChange={e => { setFilterStatus(e.target.value); setPage(1) }}
               options={[{ value: '', label: 'すべて' }, { value: 'not_contacted', label: '未接触' }, { value: 'contacted', label: '接触済' }]}
             />
-            <Select
-              size="sm"
-              label="本店所在都道府県"
-              value={filterPref}
-              onChange={e => { setFilterPref(e.target.value); setPage(1) }}
-              options={[{ value: '', label: 'すべて' }, ...PREFS.map(p => ({ value: p, label: p }))]}
-            />
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <div style={{ fontSize: font.size.sm, color: color.textDark, fontWeight: font.weight.medium }}>
+                  本店所在都道府県 {filterPrefs.length > 0 && (
+                    <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.normal, marginLeft: 6 }}>
+                      ({filterPrefs.length}選択中)
+                    </span>
+                  )}
+                </div>
+                {filterPrefs.length > 0 && (
+                  <button
+                    onClick={() => { setFilterPrefs([]); setPage(1) }}
+                    style={{
+                      border: 'none', background: 'transparent', cursor: 'pointer',
+                      color: color.danger, fontSize: font.size.xs,
+                    }}
+                  >
+                    すべて解除
+                  </button>
+                )}
+              </div>
+              {/* 地方プリセット */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                {PREF_PRESETS.map(preset => {
+                  const allIn = preset.prefs.every(p => filterPrefs.includes(p))
+                  return (
+                    <button
+                      key={preset.label}
+                      onClick={() => applyPrefPreset(preset.prefs)}
+                      style={{
+                        padding: '3px 10px', borderRadius: radius.pill,
+                        border: `0.5px solid ${allIn ? color.navy : color.border}`,
+                        background: allIn ? color.navy : color.white,
+                        color: allIn ? color.white : color.navy,
+                        fontSize: font.size.xs, fontWeight: font.weight.medium, cursor: 'pointer',
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  )
+                })}
+              </div>
+              {/* 47都道府県チップ */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 4 }}>
+                {PREFS.map(p => {
+                  const sel = filterPrefs.includes(p)
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => togglePref(p)}
+                      style={{
+                        padding: '4px 6px', borderRadius: radius.sm,
+                        border: `0.5px solid ${sel ? color.navy : color.border}`,
+                        background: sel ? color.navy : color.white,
+                        color: sel ? color.white : color.textDark,
+                        fontSize: font.size.xs, cursor: 'pointer',
+                        fontWeight: sel ? font.weight.semibold : font.weight.normal,
+                      }}
+                    >
+                      {p}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
             <Select
               size="sm"
               label="FA/仲介業務の別"

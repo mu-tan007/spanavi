@@ -37,13 +37,12 @@ const STATUS_OK = (v) => (v === 'not_contacted' || v === 'contacted' ? v : '');
 
 /**
  * AI が返した filters を MaspFirmsView の個別 setter に流し込む。
- * setters は { setKeywords, setKeywordLogic, setFilterPref, setFilterStaffMin, ... } の集合。
- * MaspFirmsView は単一の都道府県セレクト (filterPref) しか持っていないので、
- * AI が複数都道府県を返した場合は最初の1つを採用 + 残りはコンソール warn で通知する。
+ * setters は { setKeywords, setKeywordLogic, setFilterPrefs, setFilterStaffMin, ... } の集合。
+ * 都道府県は複数選択 (filterPrefs: string[]) で MaspFirmsView 側に保持される。
  *
  * 全置換ではなく上書きするフィールドのみ touch (AI が空指定したフィールドはクリアする)。
  */
-export function applyAiFiltersToAgencyState(aiFilters, setters, opts = {}) {
+export function applyAiFiltersToAgencyState(aiFilters, setters) {
   if (!aiFilters || typeof aiFilters !== 'object') return;
   const f = aiFilters;
 
@@ -52,16 +51,9 @@ export function applyAiFiltersToAgencyState(aiFilters, setters, opts = {}) {
   setters.setKeywords?.(keywords);
   setters.setKeywordLogic?.(f.logic === 'OR' ? 'OR' : 'AND');
 
-  // prefectures (UI は単一選択なので最初の1つを採用)
+  // prefectures (複数選択)。47都道府県以外は自動的に除外。
   const prefList = Array.isArray(f.prefectures) ? f.prefectures.filter(p => PREF_SET.has(p)) : [];
-  if (prefList.length === 0) {
-    setters.setFilterPref?.('');
-  } else {
-    setters.setFilterPref?.(prefList[0]);
-    if (prefList.length > 1 && opts.onMultiPrefHint) {
-      opts.onMultiPrefHint(prefList);
-    }
-  }
+  setters.setFilterPrefs?.(prefList);
 
   // staffMin/Max + null除外
   const staffMin = (typeof f.staffMin === 'number' && Number.isFinite(f.staffMin)) ? String(f.staffMin) : '';
