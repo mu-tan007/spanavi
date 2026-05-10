@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { logAudit } from './capital/lib/audit'
@@ -121,6 +121,9 @@ function MaspFirmsViewInner() {
   const [editForm, setEditForm] = useState({})
   // AI チャットパネル
   const [showAiChat, setShowAiChat] = useState(false)
+  // AI 適用後のヒット件数フィードバック { id, count }
+  // id が増えるたびに「AI が新たに適用した」とみなし、count は次の effect で filtered.length を測定
+  const [aiSession, setAiSession] = useState({ id: 0, count: null })
 
   const { data: allAgencies = [], isLoading } = useQuery({
     queryKey: ['ma-agencies'],
@@ -271,7 +274,17 @@ function MaspFirmsViewInner() {
     })
     // 詳細検索も自動展開
     setShowAdvanced(true)
+    // AI 適用イベントを発火 (count は次の effect で測定)
+    setAiSession(prev => ({ id: prev.id + 1, count: null }))
   }
+
+  // AI 適用後のヒット件数を測定 (filtered useMemo 再計算後に確定する)
+  useEffect(() => {
+    if (aiSession.id > 0 && aiSession.count === null) {
+      setAiSession(prev => ({ ...prev, count: filtered.length }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiSession.id])
 
   async function lookupContacts() {
     const ids = [...selectedIds]
@@ -827,6 +840,7 @@ function MaspFirmsViewInner() {
         onClose={() => setShowAiChat(false)}
         currentFilters={aiCurrentFilters}
         onApply={applyAi}
+        aiSession={aiSession}
       />
     </div>
   )

@@ -19,8 +19,10 @@ const SUGGESTIONS = [
   '九州の未接触機関で情報共有加盟済み',
 ];
 
-export default function AgencyChatPanel({ open, onClose, currentFilters, onApply }) {
-  const [messages, setMessages] = useState([]); // { role, content, filters? }
+export default function AgencyChatPanel({ open, onClose, currentFilters, onApply, aiSession }) {
+  // messages: { role, content, filters?, appliedSessionId? }
+  // appliedSessionId が aiSession.id と一致したら、そのメッセージの下にヒット件数を表示
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
@@ -64,10 +66,13 @@ export default function AgencyChatPanel({ open, onClose, currentFilters, onApply
     }
   }
 
-  function applyAndClose(aiFilters) {
+  function applyAndKeepOpen(aiFilters, msgIndex) {
     if (!aiFilters) return;
     onApply?.(aiFilters);
-    onClose?.();
+    // 該当メッセージに「次の aiSession.id で記録予定」フラグ
+    const expectedId = (aiSession?.id || 0) + 1;
+    setMessages(prev => prev.map((m, i) => i === msgIndex ? { ...m, appliedSessionId: expectedId } : m));
+    // ドロワーは開いたまま、結果件数を見せる
   }
 
   function reset() {
@@ -157,10 +162,16 @@ export default function AgencyChatPanel({ open, onClose, currentFilters, onApply
                 {m.content}
               </div>
               {m.role === 'assistant' && m.filters && !m.needsClarification && (
-                <div style={{ marginTop: 6, display: 'flex', gap: 6 }}>
-                  <Button size="sm" variant="primary" onClick={() => applyAndClose(m.filters)}>
+                <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
+                  <Button size="sm" variant="primary" onClick={() => applyAndKeepOpen(m.filters, i)}>
                     この条件で検索
                   </Button>
+                  {m.appliedSessionId && aiSession?.id === m.appliedSessionId && aiSession?.count != null && (
+                    <HitFeedback
+                      count={aiSession.count}
+                      onAskRefine={(text) => { setInput(text); }}
+                    />
+                  )}
                 </div>
               )}
             </div>
@@ -245,5 +256,65 @@ export default function AgencyChatPanel({ open, onClose, currentFilters, onApply
         }
       `}</style>
     </>
+  );
+}
+
+function HitFeedback({ count, onAskRefine }) {
+  // 件数に応じてサジェスト変更
+  let tone, msg, suggest;
+  if (count === 0) {
+    tone = 'danger';
+    msg = `0件 — 条件に該当する機関がありません`;
+    suggest = '条件を緩めて再検索して';
+  } else if (count <= 5) {
+    tone = 'warn';
+    msg = `${count}件 — 候補が少なめです`;
+    suggest = 'もう少し広い条件で検索して';
+  } else if (count <= 100) {
+    tone = 'success';
+    msg = `${count}件 ヒットしました`;
+    suggest = null;
+  } else if (count <= 500) {
+    tone = 'info';
+    msg = `${count}件 — やや多めです`;
+    suggest = 'もっと絞り込んで';
+  } else {
+    tone = 'warn';
+    msg = `${count}件 — かなり多いので絞り込み推奨`;
+    suggest = '優先度の高い条件に絞って';
+  }
+  const bg = {
+    danger: alpha(color.danger, 0.08),
+    warn: alpha(color.warn, 0.1),
+    success: alpha(color.success, 0.1),
+    info: alpha(color.navyLight, 0.08),
+  }[tone];
+  const fg = {
+    danger: color.danger,
+    warn: color.warn,
+    success: color.success,
+    info: color.navy,
+  }[tone];
+  return (
+    <div style={{
+      padding: '6px 10px', borderRadius: radius.md,
+      background: bg, color: fg,
+      fontSize: font.size.xs, display: 'flex', alignItems: 'center', gap: 8,
+      maxWidth: '100%',
+    }}>
+      <span style={{ fontWeight: font.weight.semibold }}>{msg}</span>
+      {suggest && (
+        <button
+          onClick={() => onAskRefine?.(suggest)}
+          style={{
+            border: 'none', background: 'transparent',
+            color: fg, fontSize: font.size.xs, cursor: 'pointer',
+            textDecoration: 'underline', padding: 0,
+          }}
+        >
+          {suggest}
+        </button>
+      )}
+    </div>
   );
 }
