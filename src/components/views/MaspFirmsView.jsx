@@ -6,8 +6,9 @@ import PageHeader from '../common/PageHeader'
 import { color, space, radius, font, shadow, alpha } from '../../constants/design'
 import { Button, Input, Select, Card, Badge } from '../ui'
 import { downloadCsv, todayJST } from '../../lib/csvExport'
-import { applyAiFiltersToAgencyState } from '../../lib/agencyChatApi'
+import { applyAiFiltersToAgencyState, listSavedSearches, saveSearch, deleteSavedSearch } from '../../lib/agencyChatApi'
 import AgencyChatPanel from '../masp/AgencyChatPanel'
+import { useAuth } from '../../hooks/useAuth'
 
 const CSV_COLUMNS = [
   { header: '支援機関名', accessor: a => a.name },
@@ -89,6 +90,9 @@ export default function MaspFirmsView() {
 
 function MaspFirmsViewInner() {
   const qc = useQueryClient()
+  const { profile } = useAuth()
+  const userId = profile?.id || null
+  const orgId = profile?.org_id || null
   const [search, setSearch] = useState('')
   // Step 2: 複数キーワード + AND/OR 切替（search はメインの企業名検索用に残す）
   const [keywordInput, setKeywordInput] = useState('')
@@ -124,6 +128,11 @@ function MaspFirmsViewInner() {
   // AI 適用後のヒット件数フィードバック { id, count }
   // id が増えるたびに「AI が新たに適用した」とみなし、count は次の effect で filtered.length を測定
   const [aiSession, setAiSession] = useState({ id: 0, count: null })
+  // 保存検索
+  const [savedSearches, setSavedSearches] = useState([])
+  const [showSavedSearches, setShowSavedSearches] = useState(false)
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [saveDialogName, setSaveDialogName] = useState('')
 
   const { data: allAgencies = [], isLoading } = useQuery({
     queryKey: ['ma-agencies'],
@@ -286,6 +295,62 @@ function MaspFirmsViewInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiSession.id])
 
+  // 保存検索を起動時に取得
+  useEffect(() => {
+    if (!userId) return
+    listSavedSearches(userId).then(setSavedSearches).catch(e => console.warn('[MaspFirmsView] listSavedSearches failed', e))
+  }, [userId])
+
+  function currentSearchSnapshot() {
+    return {
+      keywords, logic: keywordLogic,
+      prefectures: filterPrefs,
+      staffMin: filterStaffMin ? Number(filterStaffMin) : null,
+      staffMax: filterStaffMax ? Number(filterStaffMax) : null,
+      excludeStaffNull,
+      infoSharing: filterInfoSharing,
+      feeFaSeller: filterFaSeller, feeFaBuyer: filterFaBuyer,
+      feeBrokerSeller: filterBrokerSeller, feeBrokerBuyer: filterBrokerBuyer,
+      status: filterStatus,
+      contact: filterContact,
+      sortKey,
+    }
+  }
+  async function handleSaveSearch() {
+    const name = saveDialogName.trim()
+    if (!name || !userId || !orgId) return
+    try {
+      const saved = await saveSearch(orgId, userId, name, currentSearchSnapshot())
+      setSavedSearches(prev => [saved, ...prev])
+      setShowSaveDialog(false); setSaveDialogName('')
+    } catch (e) {
+      alert('保存に失敗しました: ' + (e.message || e))
+    }
+  }
+  function applySavedSearch(s) {
+    // saved.filters は currentSearchSnapshot と同じシェイプ
+    applyAiFiltersToAgencyState(s.filters, {
+      setKeywords, setKeywordLogic,
+      setFilterPrefs, setFilterStaffMin, setFilterStaffMax, setExcludeStaffNull,
+      setFilterInfoSharing,
+      setFilterFaSeller, setFilterFaBuyer, setFilterBrokerSeller, setFilterBrokerBuyer,
+      setFilterStatus, setFilterContact,
+      setPage, setSelectedIds, setSelectAll,
+    })
+    if (s.filters?.sortKey) setSortKey(s.filters.sortKey)
+    setShowSavedSearches(false)
+    setShowAdvanced(true)
+  }
+  async function handleDeleteSavedSearch(id) {
+    if (!confirm('この保存検索を削除しますか？')) return
+    try {
+      await deleteSavedSearch(id)
+      setSavedSearches(prev => prev.filter(s => s.id !== id))
+    } catch (e) {
+      alert('削除に失敗しました: ' + (e.message || e))
+    }
+  }
+
   async function lookupContacts() {
     const ids = [...selectedIds]
     if (ids.length === 0) return
@@ -414,6 +479,9 @@ function MaspFirmsViewInner() {
             <Button variant="secondary" size="sm" onClick={() => setShowAiChat(true)}>
               AIで検索
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowSavedSearches(true)}>
+              保存検索 ({savedSearches.length})
+            </Button>
             <Button variant="outline" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
               CSV出力 ({filtered.length}件)
             </Button>
@@ -466,9 +534,14 @@ function MaspFirmsViewInner() {
           {showAdvanced ? '✕ 詳細検索を閉じる' : '詳細検索'}
         </Button>
         {hasAnyFilter && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} style={{ color: color.danger }}>
-            クリア
-          </Button>
+          <>
+            <Button variant="ghost" size="sm" onClick={() => { setSaveDialogName(''); setShowSaveDialog(true) }}>
+              この条件を保存
+            </Button>
+            <Button variant="ghost" size="sm" onClick={clearFilters} style={{ color: color.danger }}>
+              クリア
+            </Button>
+          </>
         )}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: space[1.5] }}>
           <span style={{ fontSize: font.size.xs, color: color.textMid }}>並び替え</span>
@@ -841,7 +914,77 @@ function MaspFirmsViewInner() {
         currentFilters={aiCurrentFilters}
         onApply={applyAi}
         aiSession={aiSession}
+        userId={userId}
+        orgId={orgId}
       />
+
+      {/* 保存検索一覧モーダル */}
+      {showSavedSearches && (
+        <div onClick={e => { if (e.target === e.currentTarget) setShowSavedSearches(false) }}
+          style={{ position: 'fixed', inset: 0, background: alpha(color.navyDeep, 0.5), display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: color.white, borderRadius: radius.lg, padding: space[6], width: 480, maxHeight: '80vh', overflowY: 'auto', boxShadow: shadow.xl }}>
+            <h3 style={{ fontSize: font.size.md, fontWeight: font.weight.semibold, color: color.navy, marginBottom: space[3] }}>
+              保存した検索条件
+            </h3>
+            {savedSearches.length === 0 ? (
+              <p style={{ fontSize: font.size.sm, color: color.textMid }}>
+                保存した条件はまだありません。詳細検索で条件を入れた後「この条件を保存」ボタンを押すと、ここに表示されます。
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {savedSearches.map(s => (
+                  <div key={s.id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: `${space[2]}px ${space[3]}px`,
+                    border: `0.5px solid ${color.border}`, borderRadius: radius.md,
+                    background: color.white,
+                  }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: font.size.sm, color: color.textDark, fontWeight: font.weight.medium }}>
+                        {s.name}
+                      </div>
+                      <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 2 }}>
+                        {new Date(s.created_at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <Button size="sm" variant="primary" onClick={() => applySavedSearch(s)}>適用</Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleDeleteSavedSearch(s.id)} style={{ color: color.danger }}>削除</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: space[3] }}>
+              <Button variant="outline" size="sm" onClick={() => setShowSavedSearches(false)}>閉じる</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 検索条件保存ダイアログ */}
+      {showSaveDialog && (
+        <div onClick={e => { if (e.target === e.currentTarget) setShowSaveDialog(false) }}
+          style={{ position: 'fixed', inset: 0, background: alpha(color.navyDeep, 0.5), display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: color.white, borderRadius: radius.lg, padding: space[6], width: 400, boxShadow: shadow.xl }}>
+            <h3 style={{ fontSize: font.size.md, fontWeight: font.weight.semibold, color: color.navy, marginBottom: space[3] }}>
+              この検索条件を保存
+            </h3>
+            <Input
+              label="名前"
+              value={saveDialogName}
+              onChange={e => setSaveDialogName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSaveSearch() }}
+              placeholder="例: 関西の中堅FA、首都圏未接触機関"
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: space[2], marginTop: space[3] }}>
+              <Button variant="outline" fullWidth onClick={() => setShowSaveDialog(false)}>キャンセル</Button>
+              <Button variant="primary" fullWidth onClick={handleSaveSearch} disabled={!saveDialogName.trim()}>保存</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

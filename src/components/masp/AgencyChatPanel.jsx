@@ -1,7 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button } from '../ui';
-import { sendChatToAi } from '../../lib/agencyChatApi';
+import {
+  sendChatToAi,
+  createChatSession, listChatSessions, loadChatMessages,
+  appendChatMessage, deleteChatSession,
+} from '../../lib/agencyChatApi';
 
 // MASP Firms (cap_ma_agencies) の自然言語検索チャットパネル。
 // 右側スライドインのドロワー形式。シンプル運用 (履歴永続化は v2 で対応)。
@@ -19,7 +23,7 @@ const SUGGESTIONS = [
   '九州の未接触機関で情報共有加盟済み',
 ];
 
-export default function AgencyChatPanel({ open, onClose, currentFilters, onApply, aiSession }) {
+export default function AgencyChatPanel({ open, onClose, currentFilters, onApply, aiSession, userId, orgId }) {
   // messages: { role, content, filters?, appliedSessionId? }
   // appliedSessionId が aiSession.id と一致したら、そのメッセージの下にヒット件数を表示
   const [messages, setMessages] = useState([]);
@@ -27,6 +31,16 @@ export default function AgencyChatPanel({ open, onClose, currentFilters, onApply
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const scrollRef = useRef(null);
+  // 永続化セッション
+  const [sessionId, setSessionId] = useState(null); // 現在のセッション (Supabase)
+  const [pastSessions, setPastSessions] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // 起動時に過去セッション一覧を取得
+  useEffect(() => {
+    if (!open || !userId) return;
+    listChatSessions(userId, 30).then(setPastSessions).catch(e => console.warn('[AgencyChatPanel] listChatSessions failed', e));
+  }, [open, userId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -45,6 +59,23 @@ export default function AgencyChatPanel({ open, onClose, currentFilters, onApply
     const next = [...messages, userMsg];
     setMessages(next);
     setSending(true);
+
+    // セッション確保 (初回のみ作成)
+    let sid = sessionId;
+    if (!sid && userId && orgId) {
+      try {
+        const s = await createChatSession(orgId, userId, trimmed.slice(0, 60));
+        sid = s.id;
+        setSessionId(sid);
+        setPastSessions(prev => [s, ...prev]);
+      } catch (e) {
+        console.warn('[AgencyChatPanel] createChatSession failed', e);
+      }
+    }
+    if (sid) {
+      appendChatMessage(sid, 'user', trimmed).catch(e => console.warn('appendChatMessage user failed', e));
+    }
+
     try {
       const res = await sendChatToAi({
         messages: next.map(m => ({ role: m.role, content: m.content })),
@@ -58,11 +89,48 @@ export default function AgencyChatPanel({ open, onClose, currentFilters, onApply
         needsClarification: res?.needsClarification === true,
       };
       setMessages([...next, aiMsg]);
+      if (sid) {
+        appendChatMessage(sid, 'assistant', aiMsg.content, aiMsg.filters || null)
+          .catch(e => console.warn('appendChatMessage assistant failed', e));
+      }
     } catch (e) {
       console.error('[AgencyChatPanel] send error', e);
       setError(e.message || 'AI 応答に失敗しました');
     } finally {
       setSending(false);
+    }
+  }
+
+  async function loadSession(s) {
+    setShowHistory(false);
+    try {
+      const rows = await loadChatMessages(s.id);
+      setMessages(rows.map(r => ({
+        role: r.role,
+        content: r.content,
+        filters: r.filters || null,
+        needsClarification: false, // 過去メッセージで再度 apply するときの整合性のため false 扱い
+      })));
+      setSessionId(s.id);
+      setError(null);
+    } catch (e) {
+      console.error('[AgencyChatPanel] loadSession failed', e);
+      setError('履歴の読み込みに失敗しました');
+    }
+  }
+
+  async function handleDeleteSession(s, evt) {
+    evt.stopPropagation();
+    if (!confirm(`「${s.title || '無題'}」を削除しますか？`)) return;
+    try {
+      await deleteChatSession(s.id);
+      setPastSessions(prev => prev.filter(x => x.id !== s.id));
+      if (sessionId === s.id) {
+        setMessages([]);
+        setSessionId(null);
+      }
+    } catch (e) {
+      alert('削除に失敗しました: ' + (e.message || e));
     }
   }
 
@@ -78,6 +146,7 @@ export default function AgencyChatPanel({ open, onClose, currentFilters, onApply
   function reset() {
     setMessages([]);
     setError(null);
+    setSessionId(null);
   }
 
   return (
@@ -112,12 +181,64 @@ export default function AgencyChatPanel({ open, onClose, currentFilters, onApply
             </div>
           </div>
           <div style={{ display: 'flex', gap: space[1] }}>
+            <Button variant="ghost" size="sm" onClick={() => setShowHistory(v => !v)}>
+              履歴 ({pastSessions.length})
+            </Button>
             {messages.length > 0 && (
               <Button variant="ghost" size="sm" onClick={reset}>新規</Button>
             )}
             <Button variant="ghost" size="sm" onClick={onClose}>✕</Button>
           </div>
         </div>
+
+        {/* 履歴パネル (折りたたみ) */}
+        {showHistory && (
+          <div style={{
+            borderBottom: `1px solid ${color.border}`,
+            background: color.gray50,
+            maxHeight: 220, overflowY: 'auto',
+            padding: space[2],
+          }}>
+            {pastSessions.length === 0 ? (
+              <div style={{ fontSize: font.size.xs, color: color.textLight, padding: space[2] }}>
+                履歴はありません
+              </div>
+            ) : pastSessions.map(s => (
+              <div key={s.id}
+                onClick={() => loadSession(s)}
+                style={{
+                  padding: `${space[1]}px ${space[2]}px`,
+                  borderRadius: radius.sm,
+                  cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6,
+                  background: sessionId === s.id ? alpha(color.navyLight, 0.1) : 'transparent',
+                }}
+                onMouseEnter={e => { if (sessionId !== s.id) e.currentTarget.style.background = color.white }}
+                onMouseLeave={e => { if (sessionId !== s.id) e.currentTarget.style.background = 'transparent' }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: font.size.xs, color: color.textDark,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {s.title || '(無題)'}
+                  </div>
+                  <div style={{ fontSize: 9, color: color.textLight }}>
+                    {new Date(s.updated_at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+                <button
+                  onClick={(e) => handleDeleteSession(s, e)}
+                  style={{
+                    border: 'none', background: 'transparent', cursor: 'pointer',
+                    color: color.textLight, fontSize: font.size.xs, padding: '2px 4px',
+                  }}
+                  title="削除"
+                >✕</button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* メッセージ一覧 */}
         <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: space[4] }}>
