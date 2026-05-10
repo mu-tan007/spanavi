@@ -107,6 +107,8 @@ function MaspFirmsViewInner() {
   const [filterStaffMin, setFilterStaffMin] = useState('')
   const [filterStaffMax, setFilterStaffMax] = useState('')
   const [excludeStaffNull, setExcludeStaffNull] = useState(false)
+  // 連絡先有無 ('' / 'email' / 'form' / 'any' / 'none')
+  const [filterContact, setFilterContact] = useState('')
   const [sortKey, setSortKey] = useState('name_asc')
   const [page, setPage] = useState(1)
   const [selectedIds, setSelectedIds] = useState(new Set())
@@ -172,6 +174,10 @@ function MaspFirmsViewInner() {
     if (excludeStaffNull) list = list.filter(a => a.staff_count != null)
     if (filterStaffMin) list = list.filter(a => (a.staff_count || 0) >= Number(filterStaffMin))
     if (filterStaffMax) list = list.filter(a => (a.staff_count || 0) <= Number(filterStaffMax))
+    if (filterContact === 'email') list = list.filter(a => !!a.contact_email)
+    else if (filterContact === 'form') list = list.filter(a => !!a.contact_form_url && !a.contact_email)
+    else if (filterContact === 'any') list = list.filter(a => a.contact_email || a.contact_form_url)
+    else if (filterContact === 'none') list = list.filter(a => !a.contact_email && !a.contact_form_url)
     list = [...list]
     switch (sortKey) {
       case 'name_asc': list.sort((a,b) => a.name.localeCompare(b.name, 'ja')); break
@@ -182,7 +188,7 @@ function MaspFirmsViewInner() {
       case 'staff_desc': list.sort((a,b) => (b.staff_count||0) - (a.staff_count||0)); break
     }
     return list
-  }, [allAgencies, search, keywords, keywordLogic, filterStatus, filterPrefs, filterInfoSharing, filterFeeType, filterFaSeller, filterFaBuyer, filterBrokerSeller, filterBrokerBuyer, filterStaffMin, filterStaffMax, excludeStaffNull, sortKey])
+  }, [allAgencies, search, keywords, keywordLogic, filterStatus, filterPrefs, filterInfoSharing, filterFeeType, filterFaSeller, filterFaBuyer, filterBrokerSeller, filterBrokerBuyer, filterStaffMin, filterStaffMax, excludeStaffNull, filterContact, sortKey])
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -201,6 +207,7 @@ function MaspFirmsViewInner() {
     setFilterFeeType('')
     setFilterFaSeller(''); setFilterFaBuyer(''); setFilterBrokerSeller(''); setFilterBrokerBuyer('')
     setFilterStaffMin(''); setFilterStaffMax(''); setExcludeStaffNull(false)
+    setFilterContact('')
     setPage(1)
   }
   function addKeyword() {
@@ -213,7 +220,7 @@ function MaspFirmsViewInner() {
   // 詳細検索パネルの何かが入っているか
   const hasAnyFilter = !!(filterStatus || filterPrefs.length > 0 || filterInfoSharing || filterFeeType
     || filterFaSeller || filterFaBuyer || filterBrokerSeller || filterBrokerBuyer
-    || filterStaffMin || filterStaffMax || excludeStaffNull || keywords.length > 0)
+    || filterStaffMin || filterStaffMax || excludeStaffNull || filterContact || keywords.length > 0)
 
   function togglePref(p) {
     setFilterPrefs(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
@@ -249,6 +256,7 @@ function MaspFirmsViewInner() {
     feeFaSeller: filterFaSeller, feeFaBuyer: filterFaBuyer,
     feeBrokerSeller: filterBrokerSeller, feeBrokerBuyer: filterBrokerBuyer,
     status: filterStatus,
+    contact: filterContact,
   }
 
   function applyAi(aiFilters) {
@@ -258,6 +266,7 @@ function MaspFirmsViewInner() {
       setFilterInfoSharing,
       setFilterFaSeller, setFilterFaBuyer, setFilterBrokerSeller, setFilterBrokerBuyer,
       setFilterStatus,
+      setFilterContact,
       setPage, setSelectedIds, setSelectAll,
     })
     // 詳細検索も自動展開
@@ -571,6 +580,19 @@ function MaspFirmsViewInner() {
               value={filterInfoSharing}
               onChange={e => { setFilterInfoSharing(e.target.value); setPage(1) }}
               options={[{ value: '', label: 'すべて' }, { value: 'yes', label: '加盟有り' }, { value: 'no', label: '加盟無し' }]}
+            />
+            <Select
+              size="sm"
+              label="連絡先の有無"
+              value={filterContact}
+              onChange={e => { setFilterContact(e.target.value); setPage(1) }}
+              options={[
+                { value: '', label: 'すべて' },
+                { value: 'any', label: 'メール or フォームあり' },
+                { value: 'email', label: 'メールアドレスあり' },
+                { value: 'form', label: 'フォームのみ (メール無)' },
+                { value: 'none', label: '連絡先なし' },
+              ]}
             />
             <Select
               size="sm"

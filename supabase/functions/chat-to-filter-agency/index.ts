@@ -59,6 +59,7 @@ const SYSTEM_PROMPT = `
 - 手数料体系 - 仲介譲渡側 (feeBrokerSeller): "" / "yes" / "no"
 - 手数料体系 - 仲介譲受側 (feeBrokerBuyer): "" / "yes" / "no"
 - 接触ステータス (status): "" / "not_contacted"(未接触) / "contacted"(接触済)
+- 連絡先有無 (contact): "" / "any"(メールorフォームあり) / "email"(メアドあり) / "form"(フォームのみ・メアド無) / "none"(連絡先なし)
 - 自由テキスト (keywords): 機関名や所在地に含まれそうな単語の配列。OR/AND は logic で指定
 - ロジック (logic): "AND" または "OR" (デフォルト AND)
 
@@ -106,6 +107,13 @@ const SYSTEM_PROMPT = `
 - 「未接触」「まだアプローチしてない」「これから接触する機関」 → status: "not_contacted"
 - 「接触済み」「すでに連絡した」 → status: "contacted"
 
+### 連絡先有無 (contact)
+- 「メアドあり」「メールアドレスがある機関」「すぐメール送れる機関」 → contact: "email"
+- 「フォームしか連絡先ない」「問い合わせフォームだけ」 → contact: "form"
+- 「連絡先がある機関」「どっちかでも連絡先取れる」 → contact: "any"
+- 「連絡先なし」「連絡先未取得」「アタックリストの新規候補」 → contact: "none"
+- 「すぐ配信できる機関」 → contact: "any" + status: "not_contacted" の組み合わせも可
+
 ### キーワード (keywords)
 - 「会計事務所」「税理士法人」「コンサル」「FAS」「監査法人」「投資銀行」「ブティック」など、機関名に含まれそうな業態の語 → keywords に入れる (AND/OR は logic で)
 - 「○○系」「××派」のような曖昧表現は keywords に入れて OR
@@ -136,7 +144,8 @@ const SYSTEM_PROMPT = `
     "feeFaBuyer": "",
     "feeBrokerSeller": "",
     "feeBrokerBuyer": "",
-    "status": ""
+    "status": "",
+    "contact": ""
   },
   "needsClarification": false,
   "clarifyQuestion": null

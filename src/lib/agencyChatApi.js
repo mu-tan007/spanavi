@@ -34,6 +34,7 @@ const PREF_SET = new Set(PREFS);
 
 const YES_NO = (v) => (v === 'yes' || v === 'no' ? v : '');
 const STATUS_OK = (v) => (v === 'not_contacted' || v === 'contacted' ? v : '');
+const CONTACT_OK = (v) => (['email', 'form', 'any', 'none'].includes(v) ? v : '');
 
 /**
  * AI が返した filters を MaspFirmsView の個別 setter に流し込む。
@@ -73,6 +74,9 @@ export function applyAiFiltersToAgencyState(aiFilters, setters) {
 
   // status
   setters.setFilterStatus?.(STATUS_OK(f.status));
+
+  // 連絡先有無
+  setters.setFilterContact?.(CONTACT_OK(f.contact));
 
   // ページ・選択は AI 適用時に常にリセット
   setters.setPage?.(1);
