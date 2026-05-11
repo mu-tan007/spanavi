@@ -202,7 +202,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [localMemo, setLocalMemo] = useState('');
   const [savingMemo, setSavingMemo] = useState(false);
   const [appoModal, setAppoModal] = useState(null); // holds selectedRow when アポ獲得 is clicked
-  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState({}); // { [itemId]: true }
+  const [aiError, setAiError] = useState({}); // { [itemId]: 'parse_failed'|'not_found'|'error' }
   const [scriptPanelOpen, setScriptPanelOpen] = useState(true);
   const [scriptTab, setScriptTab] = useState('script');
   const [sortState, setSortState] = useState({ column: null, direction: null });
@@ -1051,6 +1052,37 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setSelectedRow(prev => prev?.id === selectedRow.id ? { ...prev, sub_phone_number: subPhone } : prev);
   };
 
+  // AI企業分析: itemIdごとに生成状態を管理し、awaitから戻った時点でも対象企業に正しく反映する
+  const triggerAiGenerate = async (row) => {
+    if (!row?.id) return;
+    const itemId = row.id;
+    setAiGenerating(prev => ({ ...prev, [itemId]: true }));
+    setAiError(prev => { const n = { ...prev }; delete n[itemId]; return n; });
+    try {
+      const { data, error } = await invokeGenerateCompanyInfo({
+        itemId,
+        company: row.company,
+        representative: row.representative,
+        address: row.address,
+      });
+      if (error) {
+        setAiError(prev => ({ ...prev, [itemId]: 'error' }));
+      } else if (data?.error) {
+        setAiError(prev => ({ ...prev, [itemId]: data.error }));
+      } else if (data?.overview || data?.strengths) {
+        const patch = { ai_overview: data.overview, ai_strengths: data.strengths, ai_generated_at: new Date().toISOString() };
+        setItems(prev => prev.map(i => i.id === itemId ? { ...i, ...patch } : i));
+        // 生成中に別企業へ切り替わっていた場合は selectedRow を上書きしない（取り違え防止）
+        setSelectedRow(prev => prev?.id === itemId ? { ...prev, ...patch } : prev);
+      }
+    } catch (e) {
+      console.error('[AI企業分析] error:', e);
+      setAiError(prev => ({ ...prev, [itemId]: 'error' }));
+    } finally {
+      setAiGenerating(prev => { const n = { ...prev }; delete n[itemId]; return n; });
+    }
+  };
+
   const inputStyle = { width: '100%', padding: '6px 10px', borderRadius: 4, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: C.offWhite, boxSizing: 'border-box' };
   const labelStyle = { fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 2, display: 'block' };
 
@@ -1362,34 +1394,31 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 const hasAi = selectedRow.ai_overview || selectedRow.ai_strengths;
                 const genAt = selectedRow.ai_generated_at ? new Date(selectedRow.ai_generated_at) : null;
                 const genLabel = genAt ? `${genAt.getMonth() + 1}/${genAt.getDate()} ${genAt.getHours()}:${String(genAt.getMinutes()).padStart(2, '0')}` : '';
+                const generatingNow = !!aiGenerating[selectedRow.id];
+                const errCode = aiError[selectedRow.id];
+                const errMsg = errCode === 'not_found' ? '該当企業が特定できませんでした。所在地や代表者を確認してください。'
+                  : errCode === 'parse_failed' ? '生成結果が想定形式ではありませんでした。再生成してください。'
+                  : errCode ? '生成に失敗しました。再生成してください。' : '';
                 return (
                   <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 8, border: '1px solid ' + (hasAi ? '#3B82F620' : C.border), background: hasAi ? '#EFF6FF' : C.offWhite }}>
                     <div style={{ display: 'flex', alignItems: 'center', marginBottom: hasAi ? 8 : 0 }}>
                       <span style={{ fontSize: 10, fontWeight: 700, color: C.navy }}>AI企業分析</span>
                       {hasAi && genLabel && <span style={{ fontSize: 9, color: C.textLight, marginLeft: 6 }}>{genLabel}生成</span>}
                       <span style={{ marginLeft: 'auto' }}>
-                        {aiGenerating ? (
+                        {generatingNow ? (
                           <span style={{ fontSize: 9, color: '#3B82F6', fontWeight: 600 }}>生成中...</span>
                         ) : (
-                          <button onClick={async () => {
-                            setAiGenerating(true);
-                            try {
-                              const { data } = await invokeGenerateCompanyInfo({ itemId: selectedRow.id, company: selectedRow.company, representative: selectedRow.representative });
-                              if (data?.overview || data?.strengths) {
-                                const updated = { ...selectedRow, ai_overview: data.overview, ai_strengths: data.strengths, ai_generated_at: new Date().toISOString() };
-                                setItems(prev => prev.map(it => it.id === selectedRow.id ? updated : it));
-                                setSelectedRow(updated);
-                              }
-                            } catch (e) { console.error('[AI企業分析] error:', e); }
-                            setAiGenerating(false);
-                          }}
+                          <button onClick={() => triggerAiGenerate(selectedRow)}
                             style={{ fontSize: 9, fontWeight: 600, color: '#3B82F6', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: "'Noto Sans JP'" }}>
                             {hasAi ? '再生成' : '生成する'}
                           </button>
                         )}
                       </span>
                     </div>
-                    {!hasAi && !aiGenerating && (
+                    {errMsg && (
+                      <div style={{ fontSize: 10, color: '#B91C1C', marginTop: 4 }}>{errMsg}</div>
+                    )}
+                    {!hasAi && !generatingNow && !errMsg && (
                       <div style={{ fontSize: 10, color: C.textLight, marginTop: 4 }}>企業HPをもとに概要・特徴を自動生成します</div>
                     )}
                     {hasAi && (
@@ -2125,34 +2154,31 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 const hasAi = selectedRow.ai_overview || selectedRow.ai_strengths;
                 const genAt = selectedRow.ai_generated_at ? new Date(selectedRow.ai_generated_at) : null;
                 const genLabel = genAt ? `${genAt.getMonth() + 1}/${genAt.getDate()} ${genAt.getHours()}:${String(genAt.getMinutes()).padStart(2, '0')}` : '';
+                const generatingNow = !!aiGenerating[selectedRow.id];
+                const errCode = aiError[selectedRow.id];
+                const errMsg = errCode === 'not_found' ? '該当企業が特定できませんでした。所在地や代表者を確認してください。'
+                  : errCode === 'parse_failed' ? '生成結果が想定形式ではありませんでした。再生成してください。'
+                  : errCode ? '生成に失敗しました。再生成してください。' : '';
                 return (
                   <div style={{ padding: '12px 14px', borderRadius: radius.md, border: `1px solid ${hasAi ? alpha('#3B82F6', 0.13) : color.gray200}`, background: hasAi ? alpha(color.navyLight, 0.08) : color.white }}>
                     <div style={{ display: 'flex', alignItems: 'center', marginBottom: hasAi ? 8 : 0 }}>
                       <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navyDeep }}>AI企業分析</span>
                       {hasAi && genLabel && <span style={{ fontSize: 9, color: color.gray400, marginLeft: 6 }}>{genLabel}生成</span>}
                       <span style={{ marginLeft: 'auto' }}>
-                        {aiGenerating ? (
+                        {generatingNow ? (
                           <span style={{ fontSize: font.size.xs - 1, color: '#3B82F6', fontWeight: font.weight.semibold }}>生成中...</span>
                         ) : (
-                          <button onClick={async () => {
-                            setAiGenerating(true);
-                            try {
-                              const { data } = await invokeGenerateCompanyInfo({ itemId: selectedRow.id, company: selectedRow.company, representative: selectedRow.representative });
-                              if (data?.overview || data?.strengths) {
-                                const updated = { ...selectedRow, ai_overview: data.overview, ai_strengths: data.strengths, ai_generated_at: new Date().toISOString() };
-                                setItems(prev => prev.map(it => it.id === selectedRow.id ? updated : it));
-                                setSelectedRow(updated);
-                              }
-                            } catch (e) { console.error('[AI企業分析] error:', e); }
-                            setAiGenerating(false);
-                          }}
+                          <button onClick={() => triggerAiGenerate(selectedRow)}
                             style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, color: '#3B82F6', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: font.family.sans }}>
                             {hasAi ? '再生成' : '生成する'}
                           </button>
                         )}
                       </span>
                     </div>
-                    {!hasAi && !aiGenerating && (
+                    {errMsg && (
+                      <div style={{ fontSize: font.size.xs - 1, color: color.danger, marginTop: 4 }}>{errMsg}</div>
+                    )}
+                    {!hasAi && !generatingNow && !errMsg && (
                       <div style={{ fontSize: font.size.xs - 1, color: color.gray400, marginTop: 4 }}>企業HPをもとに概要・特徴を自動生成します</div>
                     )}
                     {hasAi && (

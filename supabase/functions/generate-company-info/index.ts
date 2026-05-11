@@ -17,20 +17,22 @@ Deno.serve(async (req) => {
     })
 
   try {
-    const { item_id, company, representative } = await req.json()
+    const { item_id, company, representative, address } = await req.json()
     if (!company) return json({ error: 'company is required' }, 400)
 
     const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!apiKey) return json({ error: 'ANTHROPIC_API_KEY not set' }, 500)
 
-    const searchQuery = representative
-      ? `${company} ${representative}`
-      : company
+    // 同名異社の取り違え防止のため、所在地・代表者を必ず検索クエリに含める
+    const searchQuery = [company, address, representative].filter(Boolean).join(' ')
 
     const prompt = `「${searchQuery}」でWeb検索し、この企業のホームページを見つけて以下の情報をJSON形式で返してください。
 
 企業名: ${company}
+${address ? `本社所在地: ${address}` : ''}
 ${representative ? `代表者: ${representative}` : ''}
+
+重要：同じ社名の別法人と取り違えないよう、上記の本社所在地・代表者と一致する企業のみを対象にしてください。一致する企業が見つからない場合は overview と strengths を空文字にしてください。
 
 必ず以下のJSON形式で出力してください（他のテキストは不要）：
 {
@@ -67,19 +69,28 @@ ${representative ? `代表者: ${representative}` : ''}
       .join('')
 
     // JSONを抽出（コードブロックやテキストに囲まれている場合も対応）
-    let parsed: { overview?: string; strengths?: string } = {}
+    // パース失敗時は overview に生テキスト（謝罪文等）を保存せず、明示的にエラーを返す
+    let parsed: { overview?: string; strengths?: string } | null = null
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/)
       if (jsonMatch) parsed = JSON.parse(jsonMatch[0])
     } catch {
+      parsed = null
+    }
+    if (!parsed) {
       console.error('[generate-company-info] JSON parse failed, raw text:', text)
-      parsed = { overview: text, strengths: '' }
+      return json({ error: 'parse_failed', raw: text.slice(0, 200) })
     }
 
     // Web Searchの引用タグを除去
     const stripCite = (s: string) => s.replace(/<\/?cite[^>]*>/g, '')
     const overview = stripCite(parsed.overview || '')
     const strengths = stripCite(parsed.strengths || '')
+
+    // 該当企業が見つからなかった場合（両方空）は、過去の生成結果を空で上書きしないようerrorを返す
+    if (!overview && !strengths) {
+      return json({ error: 'not_found' })
+    }
 
     // item_idが提供されていればDBに保存
     if (item_id) {
