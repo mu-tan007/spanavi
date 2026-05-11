@@ -71,6 +71,7 @@ function deriveStatus(agency) {
   const cs = agency?.linked_client?.status
   if (cs && CRM_PARTNER_STATUSES.has(cs)) return 'partner'
   if (cs && CRM_CONTACTED_STATUSES.has(cs)) return 'crm_contacted'
+  if (agency?.status === 'partner') return 'partner'
   if (agency?.status === 'contacted') return 'contacted'
   return 'not_contacted'
 }
@@ -981,7 +982,8 @@ function MaspFirmsViewInner() {
               const ss = STATUS_STYLE[derivedSt] || STATUS_STYLE.not_contacted
               const linkedName = a.linked_client?.name
               const linkedRawStatus = a.linked_client?.status
-              const isCrmDerived = derivedSt === 'partner' || derivedSt === 'crm_contacted'
+              // CRM リンクがある機関は編集不可 (手動設定の partner は編集可)
+              const isCrmDerived = !!a.linked_client?.id
               const rowNum = (page - 1) * PAGE_SIZE + i + 1
               const hasEmail = !!a.contact_email
               const hasForm = !!a.contact_form_url
@@ -1069,7 +1071,9 @@ function MaspFirmsViewInner() {
                     ) : (
                       <select value={a.status} onChange={e => updateStatus(a.id, e.target.value)}
                         style={{ height: 24, padding: '0 4px', fontSize: 10, border: `0.5px solid ${ss.bg}`, borderRadius: radius.sm, background: ss.bg, color: ss.fg, outline: 'none', cursor: 'pointer' }}>
-                        <option value="not_contacted">未接触</option><option value="contacted">接触済</option>
+                        <option value="not_contacted">未接触</option>
+                        <option value="contacted">接触済</option>
+                        <option value="partner">取引先</option>
                       </select>
                     )}
                   </td>
