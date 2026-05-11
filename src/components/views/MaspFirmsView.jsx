@@ -16,6 +16,7 @@ const CSV_COLUMNS = [
   { header: 'M&A専従者数', accessor: a => a.staff_count != null ? a.staff_count : '' },
   { header: '代表者', accessor: a => a.contact_name || '' },
   { header: '電話番号', accessor: a => a.contact_phone || '' },
+  { header: '問い合わせ', accessor: a => a.contact_form_url || a.website || '' },
   { header: 'FA譲渡側-成功報酬', accessor: a => a.fa_seller_success_fee || '' },
   { header: 'FA譲渡側-算定方式', accessor: a => a.fa_seller_calc_method || '' },
   { header: 'FA譲渡側-最低手数料', accessor: a => a.fa_seller_min_fee || '' },
@@ -948,6 +949,7 @@ function MaspFirmsViewInner() {
               <th colSpan={6} style={{ ...th, borderBottom: `1px solid ${color.border}`, borderRight: `1px solid ${color.border}` }}>手数料体系 — 仲介</th>
               <th rowSpan={3} style={{ ...th, width: 110 }}>代表者</th>
               <th rowSpan={3} style={{ ...th, width: 110 }}>電話番号</th>
+              <th rowSpan={3} style={{ ...th, width: 80 }}>問い合わせ</th>
               <th rowSpan={3} style={{ ...th, width: 90 }}>連絡先</th>
               <th rowSpan={3} style={{ ...th, width: 70 }}>ステータス</th>
             </tr>
@@ -1017,6 +1019,31 @@ function MaspFirmsViewInner() {
                     {a.contact_phone
                       ? <a href={`tel:${a.contact_phone}`} style={{ color: color.navy, textDecoration: 'none' }}>{a.contact_phone}</a>
                       : <span style={{ color: color.textLight }}>—</span>}
+                  </td>
+                  <td style={td}>
+                    {(() => {
+                      const url = a.contact_form_url || a.website
+                      if (!url) return <span style={{ color: color.textLight }}>—</span>
+                      const isForm = !!a.contact_form_url
+                      return (
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          style={{
+                            display: 'inline-block', fontSize: 9,
+                            background: isForm ? color.successSoft : alpha(color.navyLight, 0.08),
+                            color: isForm ? color.success : color.navy,
+                            padding: '2px 6px', borderRadius: radius.sm,
+                            textDecoration: 'none', fontWeight: font.weight.medium,
+                          }}
+                          title={url}
+                        >
+                          {isForm ? 'フォーム' : 'HP'}
+                        </a>
+                      )
+                    })()}
                   </td>
                   <td style={td}>
                     <div style={{ display: 'flex', gap: 3, justifyContent: 'center', alignItems: 'center' }}>
