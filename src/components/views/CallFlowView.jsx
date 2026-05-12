@@ -2125,7 +2125,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                         const sc = cfvShortcuts.find(s => s.id === st.id);
                         return (
                           <button key={st.id} onClick={() => handleResult(st.label)}
-                            style={{ height: 56, borderRadius: radius.md, border: isAppo ? 'none' : `1px solid ${color.gray200}`, background: isAppo ? color.navyDeep : st.id === 'absent' ? color.offWhite : color.white, color: isAppo ? color.white : color.gray500, fontSize: 15, fontWeight: font.weight.bold, cursor: 'pointer', fontFamily: font.family.sans, position: 'relative' }}>
+                            style={{ height: 56, borderRadius: radius.md, border: isAppo ? 'none' : `1px solid ${color.gray200}`, background: isAppo ? color.navy : st.id === 'absent' ? color.offWhite : color.white, color: isAppo ? color.white : color.gray500, fontSize: 15, fontWeight: font.weight.bold, cursor: 'pointer', fontFamily: font.family.sans, position: 'relative' }}>
                             {st.label}
                             {sc && <span style={{ position: 'absolute', bottom: 4, right: 7, fontSize: 9, opacity: isAppo ? 0.55 : 0.5, fontFamily: font.family.mono, color: isAppo ? color.white : undefined }}>{sc.key}</span>}
                           </button>
