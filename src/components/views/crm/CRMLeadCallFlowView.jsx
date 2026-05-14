@@ -15,17 +15,18 @@ import CRMLeadRecallModal from './CRMLeadRecallModal';
 // ステータス定義（CRM新規開拓 専用）
 //   既存3画面の「社長接続」ではなく「キーマン接続」、加えて「問い合わせフォーム」を新設
 //   ショートカットは既存ソーシング側と同じく Mac=数字キー / Win=Fキー（order 1〜10）
+//   配色は src/constants/callResults.js の Lists ページと同じ navy/gray/blue/red の落ち着いたトーンに統一
 const STATUSES = [
-  { id: 'absent',           label: '不通',             order: 1,  color: '#6B7280', excluded: false, recall: false, isAppo: false },
-  { id: 'keyman_absent',    label: 'キーマン不在',     order: 2,  color: '#6B7280', excluded: false, recall: false, isAppo: false },
-  { id: 'keyman_connect',   label: 'キーマン接続',     order: 3,  color: '#1E40AF', excluded: false, recall: false, isAppo: false },
-  { id: 'appointment',      label: 'アポ獲得',         order: 4,  color: '#16A34A', excluded: false, recall: false, isAppo: true  },
-  { id: 'reception_block',  label: '受付ブロック',     order: 5,  color: '#DC2626', excluded: false, recall: false, isAppo: false },
-  { id: 'reception_recall', label: '受付再コール',     order: 6,  color: '#B8860B', excluded: false, recall: true,  isAppo: false },
-  { id: 'keyman_recall',    label: 'キーマン再コール', order: 7,  color: '#B8860B', excluded: false, recall: true,  isAppo: false },
-  { id: 'rejected',         label: 'お断り',           order: 8,  color: '#DC2626', excluded: true,  recall: false, isAppo: false },
-  { id: 'inquiry_form',     label: '問い合わせフォーム', order: 9,  color: '#7c3aed', excluded: false, recall: false, isAppo: false },
-  { id: 'excluded',         label: '除外',             order: 10, color: '#9CA3AF', excluded: true,  recall: false, isAppo: false },
+  { id: 'absent',           label: '不通',             order: 1,  color: '#6B7280', bg: '#6B728018', excluded: false, recall: false, isAppo: false },
+  { id: 'keyman_absent',    label: 'キーマン不在',     order: 2,  color: '#6B7280', bg: '#6B728018', excluded: false, recall: false, isAppo: false },
+  { id: 'keyman_connect',   label: 'キーマン接続',     order: 3,  color: '#2563EB', bg: '#2563EB18', excluded: false, recall: false, isAppo: false },
+  { id: 'appointment',      label: 'アポ獲得',         order: 4,  color: '#0D2247', bg: '#0D224710', excluded: false, recall: false, isAppo: true  },
+  { id: 'reception_block',  label: '受付ブロック',     order: 5,  color: '#6B7280', bg: '#6B728018', excluded: false, recall: false, isAppo: false },
+  { id: 'reception_recall', label: '受付再コール',     order: 6,  color: '#2563EB', bg: '#2563EB18', excluded: false, recall: true,  isAppo: false },
+  { id: 'keyman_recall',    label: 'キーマン再コール', order: 7,  color: '#2563EB', bg: '#2563EB18', excluded: false, recall: true,  isAppo: false },
+  { id: 'rejected',         label: 'お断り',           order: 8,  color: '#6B7280', bg: '#6B728018', excluded: true,  recall: false, isAppo: false },
+  { id: 'inquiry_form',     label: '問い合わせフォーム', order: 9,  color: '#2563EB', bg: '#2563EB18', excluded: false, recall: false, isAppo: false },
+  { id: 'excluded',         label: '除外',             order: 10, color: '#e53835', bg: '#e5383510', excluded: true,  recall: false, isAppo: false },
 ];
 
 const IS_MAC = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
@@ -880,30 +881,64 @@ export default function CRMLeadCallFlowView({ list, companies, records, currentU
                 />
               </div>
 
-              {/* ステータスボタン（大型グリッド 2列） */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: space[2] }}>
-                {STATUSES.map(s => (
-                  <button
-                    key={s.id}
-                    onClick={() => recordStatus(s.id)}
-                    style={{
-                      padding: 14, borderRadius: radius.md,
-                      border: `1px solid ${s.color}`,
-                      background: alpha(s.color, 0.07), color: s.color,
-                      fontSize: font.size.sm, fontWeight: font.weight.bold,
-                      cursor: 'pointer', fontFamily: font.family.sans,
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6,
-                    }}
-                  >
-                    <span>{s.label}</span>
-                    <kbd style={{
-                      fontSize: 10, fontWeight: font.weight.bold, padding: '1px 6px',
-                      border: `1px solid ${s.color}`, borderRadius: radius.sm,
-                      fontFamily: font.family.mono,
-                    }}>{shortcutLabel(s.order)}</kbd>
-                  </button>
-                ))}
-              </div>
+              {/* ステータスボタン: Lists の集中ページと同じ「大ボタン3つ + 小ボタン残り」レイアウト */}
+              {(() => {
+                const PRIMARY = ['absent', 'keyman_absent', 'appointment'];
+                const primary = STATUSES.filter(s => PRIMARY.includes(s.id));
+                const rest = STATUSES.filter(s => !PRIMARY.includes(s.id));
+                return (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: space[2] + 2, marginBottom: space[2] + 2 }}>
+                      {primary.map(s => {
+                        const isAppo = s.isAppo;
+                        const isAbsent = s.id === 'keyman_absent';
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => recordStatus(s.id)}
+                            style={{
+                              height: 56, borderRadius: radius.md,
+                              border: isAppo ? 'none' : `1px solid ${color.gray200}`,
+                              background: isAppo ? color.navy : isAbsent ? color.offWhite : color.white,
+                              color: isAppo ? color.white : color.gray500,
+                              fontSize: 15, fontWeight: font.weight.bold,
+                              cursor: 'pointer', fontFamily: font.family.sans, position: 'relative',
+                            }}
+                          >
+                            {s.label}
+                            <span style={{
+                              position: 'absolute', bottom: 4, right: 7, fontSize: 9,
+                              opacity: isAppo ? 0.55 : 0.5, fontFamily: font.family.mono,
+                              color: isAppo ? color.white : undefined,
+                            }}>{shortcutLabel(s.order)}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                      {rest.map(s => (
+                        <button
+                          key={s.id}
+                          onClick={() => recordStatus(s.id)}
+                          style={{
+                            height: 40, borderRadius: radius.md,
+                            border: `1px solid ${color.gray200}`,
+                            background: color.white, color: color.gray500,
+                            fontSize: font.size.sm, fontWeight: font.weight.semibold,
+                            cursor: 'pointer', fontFamily: font.family.sans, position: 'relative',
+                          }}
+                        >
+                          {s.label}
+                          <span style={{
+                            position: 'absolute', bottom: 3, right: 5, fontSize: 8,
+                            opacity: 0.45, fontFamily: font.family.mono,
+                          }}>{shortcutLabel(s.order)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
             </>
           ) : (
             <div style={{ textAlign: 'center', color: color.textLight, fontSize: font.size.base, marginTop: 100 }}>
