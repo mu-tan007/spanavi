@@ -75,7 +75,7 @@ function clientsRowToFE(c) {
   };
 }
 
-export default function CRMLeadCallFlowView({ list, companies, records, currentUser, members = [], setClientData, onClose }) {
+export default function CRMLeadCallFlowView({ list, companies, records, currentUser, members = [], setClientData, onClose, defaultCompanyId = null, onBackToList = null, filters = null }) {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
@@ -217,6 +217,21 @@ export default function CRMLeadCallFlowView({ list, companies, records, currentU
   // 検索＋範囲＋ソート適用後の表示用 companies
   const visibleCompanies = useMemo(() => {
     let arr = companies;
+    // 親 (CRMLeadListDetailView) から渡された絞り込みを最優先で適用
+    if (filters?.rangeStart != null || filters?.rangeEnd != null) {
+      const s = filters.rangeStart || 1;
+      const e = filters.rangeEnd || companies.length;
+      arr = arr.filter(c => (c.no || 0) >= s && (c.no || 0) <= e);
+    }
+    if (filters?.statusFilter && filters.statusFilter.length > 0) {
+      arr = arr.filter(c => {
+        const latest = getLatestStatus(c.id);
+        return latest && filters.statusFilter.includes(latest);
+      });
+    }
+    if (filters?.prefFilter && filters.prefFilter.length > 0) {
+      arr = arr.filter(c => filters.prefFilter.includes(c.prefecture));
+    }
     if (rangeApplied) {
       const s = parseInt(rangeStart) || 1;
       const e = parseInt(rangeEnd) || companies.length;
@@ -251,7 +266,16 @@ export default function CRMLeadCallFlowView({ list, companies, records, currentU
       });
     }
     return arr;
-  }, [companies, searchTerm, sortBy, sortDir, recordsByCompany, rangeApplied, rangeStart, rangeEnd]);
+  }, [companies, searchTerm, sortBy, sortDir, recordsByCompany, rangeApplied, rangeStart, rangeEnd, filters]);
+
+  // defaultCompanyId が指定されていれば、その企業を初期選択する
+  useEffect(() => {
+    if (defaultCompanyId && selectedIdx == null) {
+      const idx = visibleCompanies.findIndex(c => c.id === defaultCompanyId);
+      if (idx >= 0) setSelectedIdx(idx);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultCompanyId, visibleCompanies]);
 
   // selectedIdx は visibleCompanies 上の index（フィルタや並び替えに追随）
   const selected = selectedIdx != null ? visibleCompanies[selectedIdx] : null;
@@ -578,6 +602,18 @@ export default function CRMLeadCallFlowView({ list, companies, records, currentU
         flexShrink: 0,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: space[4] }}>
+          {onBackToList && (
+            <button
+              onClick={onBackToList}
+              title="リスト一覧に戻る"
+              style={{
+                padding: '5px 12px', borderRadius: radius.sm,
+                border: `1px solid ${color.white}`, background: 'transparent',
+                color: color.white, fontSize: font.size.xs, cursor: 'pointer', fontFamily: font.family.sans,
+                whiteSpace: 'nowrap',
+              }}
+            >◀ リストに戻る</button>
+          )}
           <div>
             <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.white }}>{list.name}</div>
             <div style={{ fontSize: 10, color: alpha(color.white, 0.7) }}>

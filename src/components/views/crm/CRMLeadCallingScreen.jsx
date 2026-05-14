@@ -75,7 +75,7 @@ function clientsRowToFE(c) {
   };
 }
 
-export default function CRMLeadCallingScreen({ list, companies, records, currentUser, members = [], setClientData, onClose }) {
+export default function CRMLeadCallingScreen({ list, companies, records, currentUser, members = [], setClientData, onClose, filters = null, onOpenFocus = null }) {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
@@ -218,6 +218,21 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
   // 検索＋範囲＋ソート適用後の表示用 companies
   const visibleCompanies = useMemo(() => {
     let arr = companies;
+    // 親 (CRMLeadListDetailView) から渡された絞り込みを最優先で適用
+    if (filters?.rangeStart != null || filters?.rangeEnd != null) {
+      const s = filters.rangeStart || 1;
+      const e = filters.rangeEnd || companies.length;
+      arr = arr.filter(c => (c.no || 0) >= s && (c.no || 0) <= e);
+    }
+    if (filters?.statusFilter && filters.statusFilter.length > 0) {
+      arr = arr.filter(c => {
+        const latest = getLatestStatus(c.id);
+        return latest && filters.statusFilter.includes(latest);
+      });
+    }
+    if (filters?.prefFilter && filters.prefFilter.length > 0) {
+      arr = arr.filter(c => filters.prefFilter.includes(c.prefecture));
+    }
     if (rangeApplied) {
       const s = parseInt(rangeStart) || 1;
       const e = parseInt(rangeEnd) || companies.length;
@@ -252,7 +267,7 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
       });
     }
     return arr;
-  }, [companies, searchTerm, sortBy, sortDir, recordsByCompany, rangeApplied, rangeStart, rangeEnd]);
+  }, [companies, searchTerm, sortBy, sortDir, recordsByCompany, rangeApplied, rangeStart, rangeEnd, filters]);
 
   // selectedIdx は visibleCompanies 上の index（フィルタや並び替えに追随）
   const selected = selectedIdx != null ? visibleCompanies[selectedIdx] : null;
@@ -831,7 +846,11 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
             return (
               <div
                 key={c.id}
-                onClick={() => setSelectedIdx(i)}
+                onClick={() => {
+                  // Lists 同様、行クリックで 1企業集中ページに遷移
+                  if (onOpenFocus) onOpenFocus(c.id);
+                  else setSelectedIdx(i);
+                }}
                 style={{
                   display: 'grid',
                   gridTemplateColumns: `40px 1.4fr 1fr 100px ${'40px '.repeat(displayRounds).trim()}`,
