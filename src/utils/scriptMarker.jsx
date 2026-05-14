@@ -7,7 +7,8 @@ const MARKER_STYLE = 'background:linear-gradient(transparent 60%,#FFE066 60%);fo
  */
 export function renderMarkedScript(text, style = {}) {
   if (!text) return null;
-  const parts = text.split(/(==.+?==)/g);
+  // `s` (dotAll) フラグ: `.` を改行にもマッチさせ、複数行にまたがる ==marker== を拾う
+  const parts = text.split(/(==[\s\S]+?==)/g);
   return (
     <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontFamily: "'Noto Sans JP', sans-serif", ...style }}>
       {parts.map((part, i) => {
@@ -29,11 +30,12 @@ export function renderMarkedScript(text, style = {}) {
  */
 export function toHtml(text) {
   if (!text) return '';
+  // `[\s\S]+?` で改行込みのテキストもマーカーとして拾えるようにする
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/==(.+?)==/g, `<span style="${MARKER_STYLE}" data-marker="1">$1</span>`)
+    .replace(/==([\s\S]+?)==/g, `<span style="${MARKER_STYLE}" data-marker="1">$1</span>`)
     .replace(/\n/g, '<br>');
 }
 
@@ -41,7 +43,8 @@ export function toHtml(text) {
  * contentEditableのHTML → ==text== 構文
  */
 export function fromHtml(html) {
-  let text = html.replace(/<span[^>]*data-marker="1"[^>]*>(.*?)<\/span>/gi, '==$1==');
+  // 改行を含むマーカー span も拾えるよう `[\s\S]*?` を使用
+  let text = html.replace(/<span[^>]*data-marker="1"[^>]*>([\s\S]*?)<\/span>/gi, '==$1==');
   text = text.replace(/<br\s*\/?>/gi, '\n');
   text = text.replace(/<\/div>\s*<div[^>]*>/gi, '\n');
   text = text.replace(/<div[^>]*>/gi, '\n');

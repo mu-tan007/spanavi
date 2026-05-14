@@ -117,7 +117,7 @@ function ScriptEditor({ list }) {
   );
 }
 
-export default function CRMLeadListDetailView({ list, currentUser, members = [], setClientData, onBack }) {
+export default function CRMLeadListDetailView({ list, currentUser, members = [], setClientData, onBack, inModal = false }) {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [callingMode, setCallingMode] = useState(null); // 'list' | 'flow' | null
@@ -192,11 +192,13 @@ export default function CRMLeadListDetailView({ list, currentUser, members = [],
         border: '1px solid ' + GRAY_200,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: space[3] }}>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onBack}
-          >← リスト一覧</Button>
+          {!inModal && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onBack}
+            >← リスト一覧</Button>
+          )}
           <div>
             <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: NAVY }}>{list.name}</div>
             <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 2 }}>
