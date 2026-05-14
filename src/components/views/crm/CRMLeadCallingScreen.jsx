@@ -109,11 +109,21 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
   const [appoModalCompany, setAppoModalCompany] = useState(null);
   const [pendingAppoMemo, setPendingAppoMemo] = useState('');
   const [recallModal, setRecallModal] = useState(null);  // { company, statusId, statusLabel } or null
-  const [rangeStart, setRangeStart] = useState('');
-  const [rangeEnd, setRangeEnd] = useState('');
-  const [rangeApplied, setRangeApplied] = useState(false);
+  // 親 (DetailModal) から渡された絞り込みを初期値として保持
+  const [rangeStart, setRangeStart] = useState(() => filters?.rangeStart ? String(filters.rangeStart) : '');
+  const [rangeEnd, setRangeEnd] = useState(() => filters?.rangeEnd ? String(filters.rangeEnd) : '');
+  const [rangeApplied, setRangeApplied] = useState(() => !!(filters?.rangeStart || filters?.rangeEnd));
+  const [statusFilterChips, setStatusFilterChips] = useState(() => filters?.statusFilter || []);
+  const [prefFilterChips, setPrefFilterChips] = useState(() => filters?.prefFilter || []);
+  const [prefDropOpen, setPrefDropOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+
+  // この企業データから利用可能な都道府県を抽出 (Lists CallFlowView と同じ方式)
+  const availablePrefs = useMemo(
+    () => [...new Set(companies.map(c => c.prefecture).filter(Boolean))].sort(),
+    [companies]
+  );
 
   // 録音URLをZoom APIから取得（架電直後に呼び出す）
   const fetchRecordingUrl = async (phone, calledAt, prevCalledAt = null) => {
@@ -218,21 +228,18 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
   // 検索＋範囲＋ソート適用後の表示用 companies
   const visibleCompanies = useMemo(() => {
     let arr = companies;
-    // 親 (CRMLeadListDetailView) から渡された絞り込みを最優先で適用
-    if (filters?.rangeStart != null || filters?.rangeEnd != null) {
-      const s = filters.rangeStart || 1;
-      const e = filters.rangeEnd || companies.length;
-      arr = arr.filter(c => (c.no || 0) >= s && (c.no || 0) <= e);
-    }
-    if (filters?.statusFilter && filters.statusFilter.length > 0) {
+    // ステータス絞り込み (chip)
+    if (statusFilterChips.length > 0) {
       arr = arr.filter(c => {
         const latest = getLatestStatus(c.id);
-        return latest && filters.statusFilter.includes(latest);
+        return latest && statusFilterChips.includes(latest);
       });
     }
-    if (filters?.prefFilter && filters.prefFilter.length > 0) {
-      arr = arr.filter(c => filters.prefFilter.includes(c.prefecture));
+    // 都道府県絞り込み (chip)
+    if (prefFilterChips.length > 0) {
+      arr = arr.filter(c => prefFilterChips.includes(c.prefecture));
     }
+    // No 範囲 (DetailModal から初期化、ヘッダーでも変更可能)
     if (rangeApplied) {
       const s = parseInt(rangeStart) || 1;
       const e = parseInt(rangeEnd) || companies.length;
@@ -267,7 +274,7 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
       });
     }
     return arr;
-  }, [companies, searchTerm, sortBy, sortDir, recordsByCompany, rangeApplied, rangeStart, rangeEnd, filters]);
+  }, [companies, searchTerm, sortBy, sortDir, recordsByCompany, rangeApplied, rangeStart, rangeEnd, statusFilterChips, prefFilterChips]);
 
   // selectedIdx は visibleCompanies 上の index（フィルタや並び替えに追随）
   const selected = selectedIdx != null ? visibleCompanies[selectedIdx] : null;
@@ -676,23 +683,24 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
         </div>
       </div>
 
-      {/* 範囲指定バー */}
+      {/* フィルタバー (Lists CallFlowView 同等: 範囲 / ステータスチップ / 都道府県) */}
       <div style={{
-        background: color.white, borderBottom: `1px solid ${color.border}`,
-        padding: `${space[1.5]}px ${space[6]}px`,
+        background: color.offWhite, borderBottom: `1px solid ${color.border}`,
+        padding: `${space[2]}px ${space[6]}px`,
         display: 'flex', alignItems: 'center', gap: space[2],
         fontSize: font.size.xs, color: color.textMid, flexShrink: 0,
+        flexWrap: 'wrap',
       }}>
-        <span style={{ fontWeight: font.weight.semibold }}>範囲指定</span>
-        <span>No.</span>
+        {/* 範囲指定 (DetailModal で設定済みでも上書き可能) */}
+        <span style={{ fontWeight: font.weight.semibold, whiteSpace: 'nowrap' }}>No.</span>
         <input
           type="number"
           value={rangeStart}
           onChange={e => setRangeStart(e.target.value)}
-          placeholder="1"
+          placeholder="開始"
           min={1}
           style={{
-            width: 70, padding: '4px 8px', borderRadius: radius.sm,
+            width: 60, padding: '4px 8px', borderRadius: radius.sm,
             border: `1px solid ${color.border}`, fontSize: font.size.xs,
             fontFamily: font.family.mono, textAlign: 'center', outline: 'none',
           }}
@@ -702,41 +710,138 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
           type="number"
           value={rangeEnd}
           onChange={e => setRangeEnd(e.target.value)}
-          placeholder={String(companies.length)}
+          placeholder="終了"
           min={1}
           style={{
-            width: 70, padding: '4px 8px', borderRadius: radius.sm,
+            width: 60, padding: '4px 8px', borderRadius: radius.sm,
             border: `1px solid ${color.border}`, fontSize: font.size.xs,
             fontFamily: font.family.mono, textAlign: 'center', outline: 'none',
           }}
         />
-        <Button
-          variant="primary"
-          size="sm"
+        <button
           onClick={() => {
-            if (!rangeStart && !rangeEnd) { alert('範囲を入力してください'); return; }
+            if (!rangeStart && !rangeEnd) { setRangeApplied(false); return; }
             setRangeApplied(true);
             setSelectedIdx(null);
           }}
-          style={{ minHeight: 0, padding: '4px 12px', fontSize: font.size.xs, fontWeight: font.weight.medium }}
-        >適用</Button>
-        {rangeApplied && (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              setRangeApplied(false);
-              setRangeStart(''); setRangeEnd('');
-              setSelectedIdx(null);
-            }}
-            style={{ minHeight: 0, padding: '4px 12px', fontSize: font.size.xs }}
-          >解除</Button>
+          style={{
+            padding: '4px 12px', borderRadius: radius.sm, cursor: 'pointer',
+            fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
+            background: rangeApplied ? color.navy : color.white,
+            color: rangeApplied ? color.white : color.textMid,
+            border: `1px solid ${rangeApplied ? color.navy : color.border}`,
+          }}
+        >{rangeApplied ? '範囲適用中' : '適用'}</button>
+
+        <span style={{ width: 1, height: 16, background: color.border, margin: `0 ${space[1]}px` }} />
+
+        {/* ステータスチップ */}
+        <button
+          onClick={() => setStatusFilterChips([])}
+          style={{
+            padding: '4px 10px', borderRadius: radius.md, cursor: 'pointer',
+            fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
+            background: statusFilterChips.length === 0 ? color.navy : color.cream,
+            color: statusFilterChips.length === 0 ? color.white : color.textMid,
+            border: `1px solid ${statusFilterChips.length === 0 ? color.navy : color.border}`,
+          }}
+        >全ステータス</button>
+        {STATUSES.map(s => {
+          const isActive = statusFilterChips.includes(s.id);
+          return (
+            <button
+              key={s.id}
+              onClick={() => {
+                setStatusFilterChips(prev => prev.includes(s.id) ? prev.filter(x => x !== s.id) : [...prev, s.id]);
+                setSelectedIdx(null);
+              }}
+              style={{
+                padding: '4px 10px', borderRadius: radius.md, cursor: 'pointer',
+                fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
+                background: isActive ? color.navy : color.cream,
+                color: isActive ? color.white : color.textMid,
+                border: `1px solid ${isActive ? color.navy : color.border}`,
+              }}
+            >{s.label}</button>
+          );
+        })}
+
+        {/* 都道府県フィルタ */}
+        {availablePrefs.length > 0 && (
+          <div style={{ position: 'relative', display: 'inline-flex' }}>
+            <button
+              onClick={() => setPrefDropOpen(o => !o)}
+              style={{
+                padding: '4px 10px', borderRadius: radius.md, cursor: 'pointer',
+                fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
+                background: prefFilterChips.length > 0 ? color.navy : color.cream,
+                color: prefFilterChips.length > 0 ? color.white : color.textMid,
+                border: `1px solid ${prefFilterChips.length > 0 ? color.navy : color.border}`,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {prefFilterChips.length === 0 ? '都道府県' : `都道府県 (${prefFilterChips.length})`} ▼
+            </button>
+            {prefDropOpen && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, marginTop: 4, zIndex: 20,
+                background: color.white, border: `1px solid ${color.border}`,
+                borderRadius: radius.md, boxShadow: shadow.md,
+                padding: space[2], minWidth: 240, maxHeight: 280, overflowY: 'auto',
+              }}>
+                {availablePrefs.map(p => {
+                  const isActive = prefFilterChips.includes(p);
+                  return (
+                    <label
+                      key={p}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: space[1.5],
+                        padding: '4px 6px', cursor: 'pointer', fontSize: font.size.xs,
+                        borderRadius: radius.sm,
+                        background: isActive ? alpha(color.navy, 0.05) : 'transparent',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isActive}
+                        onChange={() => {
+                          setPrefFilterChips(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
+                          setSelectedIdx(null);
+                        }}
+                        style={{ accentColor: color.navy }}
+                      />
+                      <span style={{ color: color.textDark }}>{p}</span>
+                    </label>
+                  );
+                })}
+                <div style={{ display: 'flex', gap: space[1], marginTop: space[1.5], paddingTop: space[1.5], borderTop: `1px solid ${color.borderLight}` }}>
+                  <button
+                    onClick={() => setPrefFilterChips([])}
+                    style={{
+                      padding: '3px 10px', borderRadius: radius.sm, cursor: 'pointer',
+                      fontSize: font.size.xs, fontFamily: font.family.sans,
+                      background: color.white, color: color.textMid,
+                      border: `1px solid ${color.border}`,
+                    }}
+                  >クリア</button>
+                  <button
+                    onClick={() => setPrefDropOpen(false)}
+                    style={{
+                      padding: '3px 10px', borderRadius: radius.sm, cursor: 'pointer',
+                      fontSize: font.size.xs, fontFamily: font.family.sans, fontWeight: font.weight.semibold,
+                      background: color.navy, color: color.white,
+                      border: `1px solid ${color.navy}`,
+                    }}
+                  >閉じる</button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
-        {rangeApplied && (
-          <span style={{ fontSize: 10, color: color.textLight }}>
-            （範囲適用中: {visibleCompanies.length} 件）
-          </span>
-        )}
+
+        <span style={{ marginLeft: 'auto', fontSize: 10, color: color.textLight, fontFamily: font.family.mono }}>
+          表示 {visibleCompanies.length} 件 / 全 {companies.length} 件
+        </span>
       </div>
 
       {/* スクリプト表示 */}
@@ -804,7 +909,7 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
         <div style={{ background: color.white, minHeight: '100%' }}>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: `40px 1.4fr 1fr 100px ${'40px '.repeat(displayRounds).trim()}`,
+            gridTemplateColumns: `40px 1.2fr 1fr 1fr 90px 110px 80px ${'40px '.repeat(displayRounds).trim()}`,
             padding: '8px 16px', background: color.navy,
             fontSize: 10, fontWeight: font.weight.semibold, color: color.white,
             position: 'sticky', top: 0, zIndex: 1,
@@ -813,7 +918,10 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
               { key: 'no', label: 'No' },
               { key: 'company', label: '企業名' },
               { key: 'business', label: '事業内容', sortable: false },
-              { key: 'lastCall', label: '電話番号', sortLabel: '最終発信日' },
+              { key: 'address', label: '住所', sortable: false },
+              { key: 'representative', label: '代表者', sortable: false },
+              { key: 'phone', label: '電話番号', sortable: false },
+              { key: 'lastCall', label: '最終架電日', sortLabel: '最終発信日' },
             ].map(col => {
               const sortable = col.sortable !== false;
               const active = sortBy === col.key;
@@ -853,7 +961,7 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
                 }}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: `40px 1.4fr 1fr 100px ${'40px '.repeat(displayRounds).trim()}`,
+                  gridTemplateColumns: `40px 1.2fr 1fr 1fr 90px 110px 80px ${'40px '.repeat(displayRounds).trim()}`,
                   padding: '6px 16px', fontSize: 10, alignItems: 'center',
                   borderBottom: `1px solid ${color.border}`,
                   background: isSelected ? '#EFF6FF' : (excluded ? '#FEE2E230' : (i % 2 === 0 ? color.white : color.offWhite)),
@@ -870,7 +978,18 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
                   )}
                 </span>
                 <span style={{ color: color.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.business || '-'}</span>
+                <span style={{ color: color.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 10 }}>{c.address || '-'}</span>
+                <span style={{ color: color.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.representative || '-'}</span>
                 <span style={{ fontFamily: font.family.mono, color: color.textMid }}>{c.phone || '-'}</span>
+                {(() => {
+                  // 最終架電日 (latest record の called_at)
+                  const rs = recordsByCompany[c.id] || {};
+                  const last = Object.values(rs).map(r => r.called_at).filter(Boolean).sort().pop();
+                  if (!last) return <span style={{ textAlign: 'right', color: alpha(color.textLight, 0.6), fontSize: 10, fontFamily: font.family.mono }}>-</span>;
+                  const d = new Date(last);
+                  const md = `${d.getMonth() + 1}/${d.getDate()}`;
+                  return <span style={{ textAlign: 'right', color: color.textMid, fontSize: 10, fontFamily: font.family.mono }}>{md}</span>;
+                })()}
                 {Array.from({ length: displayRounds }, (_, k) => {
                   const r = rounds[k + 1];
                   if (!r) return <span key={k} style={{ textAlign: 'center', color: alpha(color.textLight, 0.4) }}>-</span>;
