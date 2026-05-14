@@ -60,7 +60,7 @@ function buildWeeklyPeriods() {
 // クライアント選択時のリスト別 架電結果サマリ + 時系列
 // DB 側で期間絞り込みと集計。
 export default function CallResultsTab({ client }) {
-  const { ceoConnectLabels } = useCallStatuses();
+  const { keymanConnectLabels } = useCallStatuses();
   const [rows, setRows] = useState([]);
   const [byDay, setByDay] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -98,10 +98,10 @@ export default function CallResultsTab({ client }) {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const ceoLabels = Array.from(ceoConnectLabels || []);
+      const keymanLabels = Array.from(keymanConnectLabels || []);
       const [sumRes, dayRes] = await Promise.all([
         supabase.rpc('sourcing_call_result_by_list', {
-          p_client_id: client.id, p_org_id: orgId, p_ceo_labels: ceoLabels,
+          p_client_id: client.id, p_org_id: orgId, p_keyman_labels: keymanLabels,
           p_from: periodRange.from, p_to: periodRange.to,
         }),
         supabase.rpc('sourcing_call_daily', {
@@ -115,13 +115,13 @@ export default function CallResultsTab({ client }) {
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [orgId, client?.id, ceoConnectLabels, periodRange.from, periodRange.to]);
+  }, [orgId, client?.id, keymanConnectLabels, periodRange.from, periodRange.to]);
 
   const totals = useMemo(() => rows.reduce((a, s) => ({
-    calls:       a.calls       + Number(s.calls || 0),
-    ceoConnects: a.ceoConnects + Number(s.ceo_connects || 0),
-    appos:       a.appos       + Number(s.appos || 0),
-  }), { calls: 0, ceoConnects: 0, appos: 0 }), [rows]);
+    calls:           a.calls           + Number(s.calls || 0),
+    keymanConnects:  a.keymanConnects  + Number(s.keyman_connects || 0),
+    appos:           a.appos           + Number(s.appos || 0),
+  }), { calls: 0, keymanConnects: 0, appos: 0 }), [rows]);
 
   // 詳細ページ: 全フック宣言後に描画切替
   if (detailList) {
@@ -205,8 +205,8 @@ export default function CallResultsTab({ client }) {
       ) : (<>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
         <SummaryCard label="総架電件数" value={totals.calls.toLocaleString()} />
-        <SummaryCard label="社長接続数" value={totals.ceoConnects.toLocaleString()} />
-        <SummaryCard label="社長接続率" value={ratePct(totals.ceoConnects, totals.calls)} />
+        <SummaryCard label="キーマン接続数" value={totals.keymanConnects.toLocaleString()} />
+        <SummaryCard label="キーマン接続率" value={ratePct(totals.keymanConnects, totals.calls)} />
         <SummaryCard label="アポ獲得数 / 獲得率" value={`${totals.appos.toLocaleString()} / ${rate2Pct(totals.appos, totals.calls)}`} />
       </div>
 
@@ -216,8 +216,8 @@ export default function CallResultsTab({ client }) {
             <tr style={{ background: color.cream, borderBottom: `1px solid ${color.border}` }}>
               <th style={{ ...th, textAlign: 'left' }}>業種</th>
               <th style={th}>架電件数</th>
-              <th style={th}>社長接続数</th>
-              <th style={th}>社長接続率</th>
+              <th style={th}>キーマン接続数</th>
+              <th style={th}>キーマン接続率</th>
               <th style={th}>アポ獲得数</th>
               <th style={th}>アポ獲得率</th>
               <th style={th}>詳細</th>
@@ -226,7 +226,7 @@ export default function CallResultsTab({ client }) {
           <tbody>
             {rows.map(s => {
               const calls = Number(s.calls || 0);
-              const ceo = Number(s.ceo_connects || 0);
+              const keyman = Number(s.keyman_connects || 0);
               const appos = Number(s.appos || 0);
               const archived = !!s.is_archived;
               return (
@@ -242,8 +242,8 @@ export default function CallResultsTab({ client }) {
                     </span>
                   </td>
                   <td style={td}>{calls.toLocaleString()}</td>
-                  <td style={td}>{ceo.toLocaleString()}</td>
-                  <td style={td}>{ratePct(ceo, calls)}</td>
+                  <td style={td}>{keyman.toLocaleString()}</td>
+                  <td style={td}>{ratePct(keyman, calls)}</td>
                   <td style={td}>{appos.toLocaleString()}</td>
                   <td style={td}>{rate2Pct(appos, calls)}</td>
                   <td style={td}>
@@ -259,8 +259,8 @@ export default function CallResultsTab({ client }) {
             <tr style={{ background: color.cream, borderTop: `2px solid ${color.navy}`, fontWeight: font.weight.semibold }}>
               <td style={{ ...td, textAlign: 'left', color: color.navy, fontWeight: font.weight.bold }}>合計</td>
               <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{totals.calls.toLocaleString()}</td>
-              <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{totals.ceoConnects.toLocaleString()}</td>
-              <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{ratePct(totals.ceoConnects, totals.calls)}</td>
+              <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{totals.keymanConnects.toLocaleString()}</td>
+              <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{ratePct(totals.keymanConnects, totals.calls)}</td>
               <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{totals.appos.toLocaleString()}</td>
               <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{rate2Pct(totals.appos, totals.calls)}</td>
               <td style={td}></td>

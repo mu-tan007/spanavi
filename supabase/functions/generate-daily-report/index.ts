@@ -13,9 +13,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const CONNECT_STATUSES = new Set(['社長再コール', 'アポ獲得', '社長お断り'])
+const CONNECT_STATUSES = new Set(['キーマン再コール', 'アポ獲得', 'キーマンお断り'])
 const APPO_STATUS = 'アポ獲得'
-const REJECT_STATUS = '社長お断り'
+const REJECT_STATUS = 'キーマンお断り'
 
 interface CallRow {
   id: string
@@ -323,9 +323,9 @@ Deno.serve(async (req) => {
         const kpi = {
           active_members: activeMembers.length,
           calls: teamCallsTotal,
-          ceo_connects: teamConnects,
+          keyman_connects: teamConnects,
           appointments: teamAppos,
-          ceo_connect_rate: teamCallsTotal > 0 ? +(teamConnects / teamCallsTotal * 100).toFixed(1) : 0,
+          keyman_connect_rate: teamCallsTotal > 0 ? +(teamConnects / teamCallsTotal * 100).toFixed(1) : 0,
           appointment_rate: teamConnects > 0 ? +(teamAppos / teamConnects * 100).toFixed(1) : 0,
           sales: teamSales,
         }

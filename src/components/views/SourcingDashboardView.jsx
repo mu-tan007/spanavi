@@ -145,9 +145,9 @@ export default function SourcingDashboardView({
       filtered = (rankingRows || []).filter(r => set.has(r.getter_name));
     }
     const total = filtered.reduce((s, r) => s + Number(r.total || 0), 0);
-    const ceoConnect = filtered.reduce((s, r) => s + Number(r.ceo_connect || 0), 0);
+    const keymanConnect = filtered.reduce((s, r) => s + Number(r.keyman_connect || 0), 0);
     const appo = filtered.reduce((s, r) => s + Number(r.appo || 0), 0);
-    return { total, ceoConnect, appo };
+    return { total, keymanConnect, appo };
   }, [scope, members]);
 
   const todayAgg = useMemo(() => aggScope(ranking.today), [ranking.today, aggScope]);
@@ -245,7 +245,7 @@ export default function SourcingDashboardView({
     openQueueItemAtIdx();
   }, [openQueueItemAtIdx]);
 
-  // ---- 社長再コール超過 / 社長お断り14日経過 / 再アプローチ候補 ----
+  // ---- キーマン再コール超過 / キーマンお断り14日経過 / 再アプローチ候補 ----
   // サーバー側 RPC で join 済の必要行だけ取得
   const [overdueRecalls, setOverdueRecalls] = useState([]);
   const [oldRejections, setOldRejections] = useState([]);
@@ -360,7 +360,7 @@ export default function SourcingDashboardView({
           display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 12,
         }}>
           <TodayCard label="架電件数" actual={todayAgg.total} goal={getGoal('calls', 'daily')} unit="件" />
-          <TodayCard label="社長接続数" actual={todayAgg.ceoConnect} goal={getGoal('connections', 'daily')} unit="件" />
+          <TodayCard label="キーマン接続数" actual={todayAgg.keymanConnect} goal={getGoal('connections', 'daily')} unit="件" />
           <TodayCard label="アポ獲得数" actual={todayAgg.appo} goal={getGoal('appointments', 'daily')} unit="件" />
         </div>
       </Card>
@@ -375,7 +375,7 @@ export default function SourcingDashboardView({
           ]}
           rows={[
             { kpi: 'calls', label: '架電件数', weekActual: weekAgg.total, monthActual: monthAgg.total, money: false },
-            { kpi: 'connections', label: '社長接続数', weekActual: weekAgg.ceoConnect, monthActual: monthAgg.ceoConnect, money: false },
+            { kpi: 'connections', label: 'キーマン接続数', weekActual: weekAgg.keymanConnect, monthActual: monthAgg.keymanConnect, money: false },
             { kpi: 'appointments', label: 'アポ獲得数', weekActual: weekAgg.appo, monthActual: monthAgg.appo, money: false },
             { kpi: 'sales', label: '売上', weekActual: weekSales, monthActual: monthSales, money: true },
             { kpi: 'incentive', label: 'インセンティブ', weekActual: weekIncentive, monthActual: monthIncentive, money: true },
@@ -408,9 +408,9 @@ export default function SourcingDashboardView({
         )}
       </Card>
 
-      {/* 社長再コール超過 */}
+      {/* キーマン再コール超過 */}
       <CollapsibleList
-        title="社長再コール超過"
+        title="キーマン再コール超過"
         items={overdueRecalls}
         loading={recallLoading}
         emptyText="再コール超過はありません。"
@@ -438,9 +438,9 @@ export default function SourcingDashboardView({
         )}
       />
 
-      {/* 社長お断り 14日経過 */}
+      {/* キーマンお断り 14日経過 */}
       <CollapsibleList
-        title="社長お断り 14日経過"
+        title="キーマンお断り 14日経過"
         items={oldRejections}
         loading={recallLoading}
         emptyText="該当なし。"

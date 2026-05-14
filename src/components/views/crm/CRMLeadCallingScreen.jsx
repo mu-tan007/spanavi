@@ -13,7 +13,7 @@ import CRMLeadAppoModal from './CRMLeadAppoModal';
 import CRMLeadRecallModal from './CRMLeadRecallModal';
 
 // ステータス定義（CRM新規開拓 専用）
-//   既存3画面の「社長接続」ではなく「キーマン接続」、加えて「問い合わせフォーム」を新設
+//   キーマン接続に加えて「問い合わせフォーム」を新設
 //   ショートカットは既存ソーシング側と同じく Mac=数字キー / Win=Fキー（order 1〜10）
 //   配色は src/constants/callResults.js の Lists ページと同じ navy/gray/blue/red の落ち着いたトーンに統一
 const STATUSES = [

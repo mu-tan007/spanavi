@@ -35,7 +35,7 @@ export default function RecallModal({ row, statusId, onSubmit, onCancel, members
       <div style={{ background: color.white, border: `1px solid ${color.gray200}`, borderRadius: radius.md, width: isMobile ? '95vw' : 400, maxHeight: isMobile ? '90vh' : undefined, boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
         <div style={{ padding: "12px 24px", background: NAVY, borderRadius: `${radius.md}px ${radius.md}px 0 0`, color: color.white, fontWeight: font.weight.semibold, fontSize: 15 }}>
           <div style={{ fontSize: 15, fontWeight: font.weight.semibold }}>再コール設定</div>
-          <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>{row.company}　{statusId === "ceo_recall" ? "（社長再コール）" : "（受付再コール）"}</div>
+          <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>{row.company}　{statusId === "keyman_recall" ? "（キーマン再コール）" : "（受付再コール）"}</div>
         </div>
         <div style={{ padding: "16px 20px" }}>
           <div style={{ display: "grid", gap: 10 }}>

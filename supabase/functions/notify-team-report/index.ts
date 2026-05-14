@@ -5,8 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// デフォルトの社長接続ステータス（org_settings未設定時フォールバック）
-const DEFAULT_CEO_STATUSES = ['社長再コール', 'アポ獲得', '社長お断り']
+// デフォルトのキーマン接続ステータス（org_settings未設定時フォールバック）
+const DEFAULT_KEYMAN_STATUSES = ['キーマン再コール', 'アポ獲得', 'キーマンお断り']
 
 // チーム名 → org_settings Webhookキー マッピング
 const TEAM_WEBHOOK_KEYS: Record<string, string> = {
@@ -140,14 +140,14 @@ Deno.serve(async (req) => {
       settingsMap[s.setting_key] = s.setting_value
     }
 
-    // 社長接続ステータス
-    let ceoLabels = new Set(DEFAULT_CEO_STATUSES)
+    // キーマン接続ステータス
+    let keymanLabels = new Set(DEFAULT_KEYMAN_STATUSES)
     if (settingsMap['call_statuses']) {
       try {
         const parsed = JSON.parse(settingsMap['call_statuses'])
         if (Array.isArray(parsed)) {
-          ceoLabels = new Set(
-            parsed.filter((s: { ceo_connect?: boolean }) => s.ceo_connect).map((s: { label: string }) => s.label)
+          keymanLabels = new Set(
+            parsed.filter((s: { keyman_connect?: boolean }) => s.keyman_connect).map((s: { label: string }) => s.label)
           )
         }
       } catch { /* use defaults */ }
@@ -195,16 +195,16 @@ Deno.serve(async (req) => {
     }
 
     // --- 人ごと集計 ---
-    type PersonStats = { calls: number; ceo: number; appo: number; callRecords: { called_at: string }[] }
+    type PersonStats = { calls: number; keyman: number; appo: number; callRecords: { called_at: string }[] }
     const personStats: Record<string, PersonStats> = {}
 
     for (const r of records) {
       const name = r.getter_name
       if (!name) continue
-      if (!personStats[name]) personStats[name] = { calls: 0, ceo: 0, appo: 0, callRecords: [] }
+      if (!personStats[name]) personStats[name] = { calls: 0, keyman: 0, appo: 0, callRecords: [] }
       personStats[name].calls++
       personStats[name].callRecords.push({ called_at: r.called_at })
-      if (ceoLabels.has(r.status)) personStats[name].ceo++
+      if (keymanLabels.has(r.status)) personStats[name].keyman++
       if (r.status === 'アポ獲得') personStats[name].appo++
     }
 
@@ -216,7 +216,7 @@ Deno.serve(async (req) => {
     }
     // appointments テーブルのアポ数を優先（call_records のアポ獲得カウントより正確）
     for (const [name, count] of Object.entries(appoByPerson)) {
-      if (!personStats[name]) personStats[name] = { calls: 0, ceo: 0, appo: 0, callRecords: [] }
+      if (!personStats[name]) personStats[name] = { calls: 0, keyman: 0, appo: 0, callRecords: [] }
       personStats[name].appo = count
     }
 
@@ -224,9 +224,9 @@ Deno.serve(async (req) => {
     const EXCLUDED_TEAMS = new Set(['営業統括', 'その他'])
     type TeamReport = {
       teamName: string
-      members: { name: string; calls: number; ceo: number; appo: number; cph: number | null }[]
+      members: { name: string; calls: number; keyman: number; appo: number; cph: number | null }[]
       totalCalls: number
-      totalCeo: number
+      totalKeyman: number
       totalAppo: number
     }
     const teamReports: Record<string, TeamReport> = {}
@@ -238,15 +238,15 @@ Deno.serve(async (req) => {
 
       const teamKey = team
       if (!teamReports[teamKey]) {
-        teamReports[teamKey] = { teamName: team + 'チーム', members: [], totalCalls: 0, totalCeo: 0, totalAppo: 0 }
+        teamReports[teamKey] = { teamName: team + 'チーム', members: [], totalCalls: 0, totalKeyman: 0, totalAppo: 0 }
       }
 
       const workHours = calcWorkHours(stats.callRecords)
       const cph = workHours > 0.01 ? Math.round((stats.calls / workHours) * 10) / 10 : null
 
-      teamReports[teamKey].members.push({ name, calls: stats.calls, ceo: stats.ceo, appo: stats.appo, cph })
+      teamReports[teamKey].members.push({ name, calls: stats.calls, keyman: stats.keyman, appo: stats.appo, cph })
       teamReports[teamKey].totalCalls += stats.calls
-      teamReports[teamKey].totalCeo += stats.ceo
+      teamReports[teamKey].totalKeyman += stats.keyman
       teamReports[teamKey].totalAppo += stats.appo
     }
 
@@ -267,19 +267,19 @@ Deno.serve(async (req) => {
 
       report.members.forEach((m, i) => {
         const cphStr = m.cph !== null ? `${m.cph}件/h` : '-件/h'
-        const connectRate = m.calls > 0 ? (m.ceo / m.calls * 100).toFixed(1) : '0.0'
+        const connectRate = m.calls > 0 ? (m.keyman / m.calls * 100).toFixed(1) : '0.0'
         const appoRate = m.calls > 0 ? (m.appo / m.calls * 100).toFixed(1) : '0.0'
         lines.push(
-          `${String(i + 1).padStart(2, ' ')}. ${m.name} — ${m.calls}件 | ${cphStr} | 社長${m.ceo} (${connectRate}%) | アポ${m.appo} (${appoRate}%)`
+          `${String(i + 1).padStart(2, ' ')}. ${m.name} — ${m.calls}件 | ${cphStr} | キーマン${m.keyman} (${connectRate}%) | アポ${m.appo} (${appoRate}%)`
         )
       })
 
       lines.push('')
       lines.push('━━━━━━━━━━━━━━━━━━━━━━━━')
-      const totalConnectRate = report.totalCalls > 0 ? (report.totalCeo / report.totalCalls * 100).toFixed(1) : '0.0'
+      const totalConnectRate = report.totalCalls > 0 ? (report.totalKeyman / report.totalCalls * 100).toFixed(1) : '0.0'
       const totalAppoRate = report.totalCalls > 0 ? (report.totalAppo / report.totalCalls * 100).toFixed(1) : '0.0'
       lines.push(
-        `合計: ${report.totalCalls}件 | 社長${report.totalCeo} (${totalConnectRate}%) | アポ${report.totalAppo} (${totalAppoRate}%)`
+        `合計: ${report.totalCalls}件 | キーマン${report.totalKeyman} (${totalConnectRate}%) | アポ${report.totalAppo} (${totalAppoRate}%)`
       )
 
       return lines.join('\n')

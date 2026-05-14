@@ -13,7 +13,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
   const STATUSES = statuses;
   const EXCLUDED_IDS = useMemo(() => statuses.filter(s => s.excluded).map(s => s.id), [statuses]);
   const HIDDEN_FROM_CALLABLE = useMemo(() =>
-    statuses.filter(s => s.excluded || ['reception_recall', 'ceo_recall'].includes(s.id)).map(s => s.id),
+    statuses.filter(s => s.excluded || ['reception_recall', 'keyman_recall'].includes(s.id)).map(s => s.id),
     [statuses]
   );
 
@@ -129,7 +129,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
       e.preventDefault();
       if (sc.id === 'appointment') {
         setAppoModal({ idx: sel, row: csvData[sel], round: editRound });
-      } else if (sc.id === 'reception_recall' || sc.id === 'ceo_recall') {
+      } else if (sc.id === 'reception_recall' || sc.id === 'keyman_recall') {
         setRecallModal({ idx: sel, row: csvData[sel], statusId: sc.id, round: editRound });
       } else {
         setImportedCSVs(prev => {
@@ -744,12 +744,12 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
               <tbody>
                 {[
                   ...(IS_MAC
-                    ? [['1', '不通'], ['2', '社長不在'], ['3', 'アポ獲得'],
-                       ['4', '受付ブロック'], ['5', '受付再コール'], ['6', '社長再コール'],
-                       ['7', '社長お断り'], ['8', '除外']]
-                    : [['F1', '不通'], ['F2', '社長不在'], ['F3', 'アポ獲得'],
-                       ['F4', '受付ブロック'], ['F5', '受付再コール'], ['F6', '社長再コール'],
-                       ['F7', '社長お断り'], ['F8', '除外']]),
+                    ? [['1', '不通'], ['2', 'キーマン不在'], ['3', 'アポ獲得'],
+                       ['4', '受付ブロック'], ['5', '受付再コール'], ['6', 'キーマン再コール'],
+                       ['7', 'キーマンお断り'], ['8', '除外']]
+                    : [['F1', '不通'], ['F2', 'キーマン不在'], ['F3', 'アポ獲得'],
+                       ['F4', '受付ブロック'], ['F5', '受付再コール'], ['F6', 'キーマン再コール'],
+                       ['F7', 'キーマンお断り'], ['F8', '除外']]),
                   ['← →', '前後の企業に移動'], ['Esc', 'モーダルを閉じる'], ['?', 'このヘルプを表示'],
                 ].map(([key, desc]) => (
                   <tr key={key} style={{ borderBottom: `1px solid ${color.borderLight}` }}>

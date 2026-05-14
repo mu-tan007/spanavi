@@ -127,7 +127,7 @@ export default function ActivityRankingSection({ byPerson: byPersonProp = [], lo
           })}
         </div>
         <div style={colStyle}>
-          <ColHeader text='社長接続数' />
+          <ColHeader text='キーマン接続数' />
           {connectRank.slice(0, 8).map((item, idx) => (
             <RankRow key={item.name} item={item} idx={idx} valueKey='connect' showRate maxVal={connectRank[0]?.connect} currentUser={currentUser} onSelect={onSelectPerson} />
           ))}

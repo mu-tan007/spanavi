@@ -5,7 +5,7 @@ import { Button, Input, Select, Card, Badge } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import {
-  extractCeoMaIntent, extractPrefecture, parseRevenueOku,
+  extractKeymanMaIntent, extractPrefecture, parseRevenueOku,
   extractRevenueFromReport, extractAddressFromReport,
 } from '../../../utils/apppoReportParse';
 import { PlayRecordingButton } from '../../common/RecordingPlayerProvider';
@@ -113,7 +113,7 @@ export default function AppointmentsTab({ client }) {
       let q = supabase
         .from('appointments')
         .select(`
-          id, company_name, meeting_date, status, cancel_reason, ceo_ma_intent, sales_amount, appo_report, recording_url,
+          id, company_name, meeting_date, status, cancel_reason, keyman_ma_intent, sales_amount, appo_report, recording_url,
           item:call_list_items(id, company, address, revenue, business)
         `)
         .eq('org_id', orgId)
@@ -174,7 +174,7 @@ export default function AppointmentsTab({ client }) {
       const revenueText = r.item?.revenue || fallback.revenue || null;
       const revenue_oku = parseRevenueOku(revenueText) ?? extractRevenueFromReport(r.appo_report);
       // 未入力 & 推定できずは 不明 に集約
-      const intent = r.ceo_ma_intent || extractCeoMaIntent(r.appo_report) || 'unknown';
+      const intent = r.keyman_ma_intent || extractKeymanMaIntent(r.appo_report) || 'unknown';
       return {
         ...r,
         address,
@@ -182,7 +182,7 @@ export default function AppointmentsTab({ client }) {
         revenue_oku,
         revenue_text: revenue_oku != null ? formatOku(revenue_oku) : (revenueText || null),
         resolved_intent: intent,
-        intent_is_derived: !r.ceo_ma_intent && intent !== 'unknown' ? !!extractCeoMaIntent(r.appo_report) : false,
+        intent_is_derived: !r.keyman_ma_intent && intent !== 'unknown' ? !!extractKeymanMaIntent(r.appo_report) : false,
       };
     });
     // ソート: ステータス優先度 → 面談日 昇順
@@ -208,10 +208,10 @@ export default function AppointmentsTab({ client }) {
   const handleIntentChange = async (id, value) => {
     setUpdating(id);
     const { error } = await supabase.from('appointments')
-      .update({ ceo_ma_intent: value || null })
+      .update({ keyman_ma_intent: value || null })
       .eq('id', id);
     if (!error) {
-      setRows(prev => prev.map(r => r.id === id ? { ...r, ceo_ma_intent: value || null } : r));
+      setRows(prev => prev.map(r => r.id === id ? { ...r, keyman_ma_intent: value || null } : r));
     }
     setUpdating(null);
   };
@@ -310,7 +310,7 @@ export default function AppointmentsTab({ client }) {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-        <SectionCard title="社長のM&A意向">
+        <SectionCard title="キーマンのM&A意向">
           <div style={{ height: 200 }}>
             <ResponsiveContainer>
               <PieChart>
@@ -362,7 +362,7 @@ export default function AppointmentsTab({ client }) {
                 <th style={th}>エリア</th>
                 <th style={th}>面談日</th>
                 <th style={th}>状態</th>
-                <th style={th}>社長のM&A意向</th>
+                <th style={th}>キーマンのM&A意向</th>
                 <th style={th}>録音</th>
               </tr>
             </thead>
@@ -382,7 +382,7 @@ export default function AppointmentsTab({ client }) {
                         <Select
                           size="sm"
                           fullWidth={false}
-                          value={r.ceo_ma_intent || r.resolved_intent || ''}
+                          value={r.keyman_ma_intent || r.resolved_intent || ''}
                           disabled={updating === r.id}
                           onChange={e => handleIntentChange(r.id, e.target.value)}
                           options={[

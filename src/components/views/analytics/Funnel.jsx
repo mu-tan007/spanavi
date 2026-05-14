@@ -8,7 +8,7 @@ const STAGE_COLORS = ['#0D2247', '#1E40AF', '#2563EB', '#3B82F6', '#C8A84B', '#C
 const MEETING_DONE = new Set(['面談済', '事前確認済', 'アポ取得']);
 
 export default function Funnel({
-  stats,          // { calls, ceoConnect, appo }
+  stats,          // { calls, keymanConnect, appo }
   appoData = [],
   from,
   to,
@@ -16,7 +16,7 @@ export default function Funnel({
 }) {
   const stages = useMemo(() => {
     const calls = stats?.calls || 0;
-    const ceoConnect = stats?.ceoConnect || 0;
+    const keymanConnect = stats?.keymanConnect || 0;
     const appo = stats?.appo || 0;
 
     const inRange = (a) => {
@@ -30,7 +30,7 @@ export default function Funnel({
 
     return [
       { label: '架電',       value: calls,        unit: '件', denom: calls },
-      { label: '社長接続',   value: ceoConnect,   unit: '件', denom: calls },
+      { label: 'キーマン接続',   value: keymanConnect,   unit: '件', denom: calls },
       { label: 'アポ獲得',   value: appo,         unit: '件', denom: calls },
       { label: '実施',       value: meetingDone,  unit: '件', denom: appo },
       { label: '受注',       value: closed,       unit: '件', denom: meetingDone },

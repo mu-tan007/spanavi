@@ -70,7 +70,7 @@ export default function Heatmap({
         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
         letterSpacing: '0.02em',
       }}>
-        <span>時間帯 × 曜日 ヒートマップ <span style={{ fontSize: 10, fontWeight: font.weight.medium, color: color.textLight, marginLeft: 8 }}>（色=社長接続率）{listName ? ` / ${listName}` : ''}</span></span>
+        <span>時間帯 × 曜日 ヒートマップ <span style={{ fontSize: 10, fontWeight: font.weight.medium, color: color.textLight, marginLeft: 8 }}>（色=キーマン接続率）{listName ? ` / ${listName}` : ''}</span></span>
       </div>
 
       {loading ? (
@@ -112,7 +112,7 @@ export default function Heatmap({
                       return (
                         <td
                           key={h}
-                          title={`${wd} ${h}時台\n架電 ${cell.calls}件 / 社長接続 ${cell.connects}件${rate != null ? ` / ${rate.toFixed(1)}%` : ''}`}
+                          title={`${wd} ${h}時台\n架電 ${cell.calls}件 / キーマン接続 ${cell.connects}件${rate != null ? ` / ${rate.toFixed(1)}%` : ''}`}
                           style={{
                             padding: '14px 4px', background: bg, textAlign: 'center',
                             border: `2px solid ${color.white}`, color: textColor,
@@ -136,7 +136,7 @@ export default function Heatmap({
               borderLeft: `3px solid ${color.navy}`,
               borderRadius: 2, fontSize: font.size.xs, color: color.textDark,
             }}>
-              最も社長接続率が高い時間帯: <b>{WEEKDAYS[bestCell.w]} {bestCell.h}時台</b> ー {bestCell.connects}/{bestCell.calls}件 / <b style={{ color: color.navy }}>{(bestCell.rate * 100).toFixed(1)}%</b>
+              最もキーマン接続率が高い時間帯: <b>{WEEKDAYS[bestCell.w]} {bestCell.h}時台</b> ー {bestCell.connects}/{bestCell.calls}件 / <b style={{ color: color.navy }}>{(bestCell.rate * 100).toFixed(1)}%</b>
             </div>
           )}
 

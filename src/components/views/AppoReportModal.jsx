@@ -190,11 +190,16 @@ HP：${form.hp}
   const handleSave = async () => {
     setSaving(true);
     setAiStatus('saving');
-    // 当社売上・インターン報酬の計算
+    // 当社売上・アポインター報酬の計算
+    //   定額型（reward_types.calc_type === 'fixed_per_appo'）の場合は
+    //   ourSales 自体がアポ1件あたりの定額報酬になるので、個人rate掛けはスキップ
     const salesVal = parseInt(form.ourSales) || 0;
+    const isFixedPerAppo = rewardRows.length > 0 && rewardRows[0].calc_type === 'fixed_per_appo';
     const acquirerMember = members.find(m => (typeof m === 'string' ? m : (m.name || '')) === form.acquirer);
     const acquirerRate = parseFloat(acquirerMember?.rate ?? acquirerMember?.incentive_rate ?? 0) || 0;
-    const rewardVal = salesVal && acquirerRate ? Math.round(salesVal * acquirerRate) : 0;
+    const rewardVal = isFixedPerAppo
+      ? salesVal
+      : (salesVal && acquirerRate ? Math.round(salesVal * acquirerRate) : 0);
     const reportNote = generateReport();
     // Step 1: アポをDBに登録（appointments テーブルへ insert + ローカル状態更新）
     const { result: insResult } = await insertAppointment({

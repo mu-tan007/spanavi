@@ -74,7 +74,7 @@ export const getCurrentRecommendation = (rules, industry, now, latestCallAt, cre
   let timeScore = 50;
   let timeLabel = "通常";
 
-  // 昼休みゴールデンタイム: 平日13:00-14:00は全業種で社長在席率が高い
+  // 昼休みゴールデンタイム: 平日13:00-14:00は全業種でキーマン在席率が高い
   const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
   const isLunchGolden = isWeekday && currentTime >= 13 && currentTime < 14;
 

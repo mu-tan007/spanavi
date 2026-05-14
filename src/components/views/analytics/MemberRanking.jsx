@@ -35,7 +35,7 @@ export default function MemberRanking({ from, to, currentUser, members, appoData
   }, [rankData]);
 
   const rankByPerson = useMemo(
-    () => rankData.map(r => ({ name: r.getter_name, call: r.calls, connect: r.ceo_connect, appo: r.appo })),
+    () => rankData.map(r => ({ name: r.getter_name, call: r.calls, connect: r.keyman_connect, appo: r.appo })),
     [rankData]
   );
 

@@ -11,6 +11,10 @@ import {
 const TIMING_OPTIONS = ['面談実施', '基本合意'];
 const BASIS_OPTIONS  = ['売上高', '当期純利益', '-'];
 const TAX_OPTIONS    = ['税別', '税込'];
+const CALC_TYPE_OPTIONS = [
+  { value: 'rate',           label: '売上額×階段単価' },
+  { value: 'fixed_per_appo', label: 'アポ1件 定額（単価のみ）' },
+];
 
 const fmt = (n) => n != null && n !== '' ? '¥' + Number(n).toLocaleString() : '-';
 
@@ -46,6 +50,7 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
       timing: addTypeForm.timing || '面談実施',
       basis: addTypeForm.basis || '売上高',
       tax: addTypeForm.tax || '税別',
+      calc_type: addTypeForm.calc_type || 'rate',
       sort_order: (types?.length || 0) + 1,
     });
     if (error) { alert('追加に失敗しました: ' + error.message); return; }
@@ -63,6 +68,7 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
       timing: editTypeForm.timing,
       basis: editTypeForm.basis,
       tax: editTypeForm.tax,
+      calc_type: editTypeForm.calc_type || 'rate',
     });
     if (error) { alert('更新に失敗しました: ' + error.message); return; }
     setEditTypeForm(null);
@@ -135,7 +141,7 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
         <Button
           variant="primary"
           size="sm"
-          onClick={() => setAddTypeForm({ type_id: '', name: '', timing: '面談実施', basis: '売上高', tax: '税別' })}
+          onClick={() => setAddTypeForm({ type_id: '', name: '', timing: '面談実施', basis: '売上高', tax: '税別', calc_type: 'rate' })}
         >
           ＋ 新規タイプ追加
         </Button>
@@ -166,7 +172,7 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
                 </div>
               </div>
               <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 4 }}>
-                {t.timing} / {t.basis} / {t.tax} / {t.reward_tiers?.length || 0}段階
+                {t.calc_type === 'fixed_per_appo' ? 'アポ1件 定額' : '売上×階段'} / {t.timing} / {t.tax} / {t.reward_tiers?.length || 0}段階
               </div>
             </div>
           ))}
@@ -256,6 +262,7 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
             <div style={{ display: 'grid', gap: 10 }}>
               <Input type="text" size="sm" label="タイプID（英大文字1〜3文字）" maxLength={3} placeholder="例: O" value={addTypeForm.type_id} onChange={e => setAddTypeForm(p => ({ ...p, type_id: e.target.value }))} />
               <Input type="text" size="sm" label="名称" placeholder="例: 固定20万円" value={addTypeForm.name} onChange={e => setAddTypeForm(p => ({ ...p, name: e.target.value }))} />
+              <Select size="sm" label="計算方式" value={addTypeForm.calc_type || 'rate'} onChange={e => setAddTypeForm(p => ({ ...p, calc_type: e.target.value }))} options={CALC_TYPE_OPTIONS} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                 <Select size="sm" label="タイミング" value={addTypeForm.timing} onChange={e => setAddTypeForm(p => ({ ...p, timing: e.target.value }))} options={TIMING_OPTIONS.map(o => ({ value: o, label: o }))} />
                 <Select size="sm" label="基準" value={addTypeForm.basis} onChange={e => setAddTypeForm(p => ({ ...p, basis: e.target.value }))} options={BASIS_OPTIONS.map(o => ({ value: o, label: o }))} />
@@ -278,6 +285,7 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
             <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: space[4] }}>※ タイプIDは変更できません</div>
             <div style={{ display: 'grid', gap: 10 }}>
               <Input type="text" size="sm" label="名称" value={editTypeForm.name} onChange={e => setEditTypeForm(p => ({ ...p, name: e.target.value }))} />
+              <Select size="sm" label="計算方式" value={editTypeForm.calc_type || 'rate'} onChange={e => setEditTypeForm(p => ({ ...p, calc_type: e.target.value }))} options={CALC_TYPE_OPTIONS} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                 <Select size="sm" label="タイミング" value={editTypeForm.timing} onChange={e => setEditTypeForm(p => ({ ...p, timing: e.target.value }))} options={TIMING_OPTIONS.map(o => ({ value: o, label: o }))} />
                 <Select size="sm" label="基準" value={editTypeForm.basis} onChange={e => setEditTypeForm(p => ({ ...p, basis: e.target.value }))} options={BASIS_OPTIONS.map(o => ({ value: o, label: o }))} />

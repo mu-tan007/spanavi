@@ -70,8 +70,8 @@ function MetricCard({ label, value, unit, sub, predicted, deltaPct, isMoney, acc
 }
 
 export default function KPIScorecard({
-  stats,          // { calls, ceoConnect, appo }
-  prevStats,      // { calls, ceoConnect, appo }
+  stats,          // { calls, keymanConnect, appo }
+  prevStats,      // { calls, keymanConnect, appo }
   appoData = [],
   period,
   range,
@@ -83,16 +83,16 @@ export default function KPIScorecard({
 
   const metrics = useMemo(() => {
     const calls = stats?.calls || 0;
-    const ceoConnect = stats?.ceoConnect || 0;
+    const keymanConnect = stats?.keymanConnect || 0;
     const appo = stats?.appo || 0;
     const appoRate = calls > 0 ? (appo / calls) * 100 : 0;
-    const connectRate = calls > 0 ? (ceoConnect / calls) * 100 : 0;
+    const connectRate = calls > 0 ? (keymanConnect / calls) * 100 : 0;
 
     const prevCalls = prevStats?.calls || 0;
-    const prevCeo = prevStats?.ceoConnect || 0;
+    const prevKeyman = prevStats?.keymanConnect || 0;
     const prevAppo = prevStats?.appo || 0;
     const prevAppoRate = prevCalls > 0 ? (prevAppo / prevCalls) * 100 : 0;
-    const prevConnectRate = prevCalls > 0 ? (prevCeo / prevCalls) * 100 : 0;
+    const prevConnectRate = prevCalls > 0 ? (prevKeyman / prevCalls) * 100 : 0;
 
     const inRange = (a, r) => {
       const d = (a.getDate || '').slice(0, 10);
@@ -144,7 +144,7 @@ export default function KPIScorecard({
         <MetricCard label="アポ数" value={metrics.appo.value} unit="件" predicted={metrics.appo.predicted} deltaPct={metrics.appo.delta} sub="前期比" />
         <MetricCard label="架電数" value={metrics.calls.value} unit="件" predicted={metrics.calls.predicted} deltaPct={metrics.calls.delta} sub="前期比" />
         <MetricCard label="アポ率" value={metrics.appoRate.value.toFixed(1)} unit="%" deltaPct={null} sub={metrics.appoRate.deltaPt != null ? `前期比 ${metrics.appoRate.deltaPt >= 0 ? '+' : ''}${metrics.appoRate.deltaPt.toFixed(1)}pt` : null} small />
-        <MetricCard label="社長接続率" value={metrics.connectRate.value.toFixed(1)} unit="%" deltaPct={null} sub={metrics.connectRate.deltaPt != null ? `前期比 ${metrics.connectRate.deltaPt >= 0 ? '+' : ''}${metrics.connectRate.deltaPt.toFixed(1)}pt` : null} small />
+        <MetricCard label="キーマン接続率" value={metrics.connectRate.value.toFixed(1)} unit="%" deltaPct={null} sub={metrics.connectRate.deltaPt != null ? `前期比 ${metrics.connectRate.deltaPt >= 0 ? '+' : ''}${metrics.connectRate.deltaPt.toFixed(1)}pt` : null} small />
         <MetricCard label="リスケ+キャンセル率" value={metrics.badRate.value.toFixed(1)} unit="%" accent={metrics.badRate.value > 20 ? color.danger : color.navy} sub={`リスケ${metrics.badRate.resched}/キャンセル${metrics.badRate.cancel} / アポ計${metrics.badRate.total}`} small />
       </div>
     </section>

@@ -37,7 +37,7 @@ function calcWorkHours(calls) {
 }
 
 export function PersonDetailModal({ person, callRecords, appoRecords, sessions, members, teamMap, rankDateRange, onClose }) {
-  const { ceoConnectLabels } = useCallStatuses();
+  const { keymanConnectLabels } = useCallStatuses();
   const personCalls = callRecords.filter(r => r.getter_name === person);
   const personAppos = appoRecords.filter(r => r.getter_name === person);
   const personSessions = sessions
@@ -47,7 +47,7 @@ export function PersonDetailModal({ person, callRecords, appoRecords, sessions, 
   const member = (members || []).find(m => typeof m === 'object' && m.name === person) || {};
 
   const totalCalls   = personCalls.length;
-  const totalConnect = personCalls.filter(r => ceoConnectLabels.has(r.status)).length;
+  const totalConnect = personCalls.filter(r => keymanConnectLabels.has(r.status)).length;
   const totalAppo    = personAppos.length;
 
   const sessionHours = calcWorkHours(personCalls);
@@ -59,12 +59,12 @@ export function PersonDetailModal({ person, callRecords, appoRecords, sessions, 
       const h = (new Date(r.called_at).getUTCHours() + 9) % 24;
       if (!buckets[h]) buckets[h] = { hour: h, normal: 0, ceo: 0, appo: 0 };
       if (r.status === 'アポ獲得') buckets[h].appo++;
-      else if (ceoConnectLabels.has(r.status)) buckets[h].ceo++;
+      else if (keymanConnectLabels.has(r.status)) buckets[h].ceo++;
       else buckets[h].normal++;
     });
     return Array.from({ length: 24 }, (_, h) => buckets[h] || { hour: h, normal: 0, ceo: 0, appo: 0 })
       .filter(d => d.hour >= 8 && d.hour < 20 && d.normal + d.ceo + d.appo > 0);
-  }, [personCalls, ceoConnectLabels]);
+  }, [personCalls, keymanConnectLabels]);
 
   const sessionRows = personSessions
     .filter(s => { const h = jstHourOf(s.started_at); return h >= 8 && h < 20; })
@@ -123,7 +123,7 @@ export function PersonDetailModal({ person, callRecords, appoRecords, sessions, 
             {[
               { label: '架電件数',   value: totalCalls,   sub: null },
               { label: '件/h',       value: cph ?? '-',   sub: cph ? `${sessionHours.toFixed(1)}h稼働` : null },
-              { label: '社長接続',   value: totalConnect, sub: totalCalls > 0 ? `${(totalConnect / totalCalls * 100).toFixed(1)}%` : null },
+              { label: 'キーマン接続',   value: totalConnect, sub: totalCalls > 0 ? `${(totalConnect / totalCalls * 100).toFixed(1)}%` : null },
               { label: 'アポ取得',   value: totalAppo,    sub: totalCalls > 0 ? `${(totalAppo / totalCalls * 100).toFixed(1)}%` : null },
             ].map(({ label, value, sub }) => (
               <div key={label} style={{ background: '#F8F9FA', border: `1px solid ${color.border}`, borderRadius: radius.md, padding: '14px 16px' }}>
@@ -144,7 +144,7 @@ export function PersonDetailModal({ person, callRecords, appoRecords, sessions, 
                   <XAxis dataKey='hour' tick={{ fontSize: 9 }} tickFormatter={h => `${h}時`} />
                   <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
                   <Tooltip
-                    formatter={(v, name) => [v, { normal: '架電（接続なし）', ceo: '社長接続', appo: 'アポ取得' }[name] || name]}
+                    formatter={(v, name) => [v, { normal: '架電（接続なし）', ceo: 'キーマン接続', appo: 'アポ取得' }[name] || name]}
                     contentStyle={{ background: color.navy, borderRadius: radius.md, color: color.white, padding: '8px 12px', fontSize: font.size.xs, border: 'none' }}
                     labelStyle={{ color: color.white }}
                     itemStyle={{ color: color.white }}
@@ -155,7 +155,7 @@ export function PersonDetailModal({ person, callRecords, appoRecords, sessions, 
                 </BarChart>
               </ResponsiveContainer>
               <div style={{ display: 'flex', gap: 16, justifyContent: 'center', fontSize: font.size.xs - 1, color: color.gray500, marginTop: 6 }}>
-                {[[color.navy,'架電（接続なし）'],['#1E40AF','社長接続'],[color.gray500,'アポ取得']].map(([bg, label]) => (
+                {[[color.navy,'架電（接続なし）'],['#1E40AF','キーマン接続'],[color.gray500,'アポ取得']].map(([bg, label]) => (
                   <span key={label}><span style={{ display: 'inline-block', width: 10, height: 10, background: bg, borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />{label}</span>
                 ))}
               </div>
@@ -219,7 +219,7 @@ function getPrevActivityDateRange(period, todayStr, weekStartStr, monthStr) {
 const _offsetDays = (ds, n) => { const d = new Date(ds + 'T12:00:00Z'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
 export default function PerformanceView({ members, currentUser, appoData = [] }) {
-  const { ceoConnectLabels } = useCallStatuses();
+  const { keymanConnectLabels } = useCallStatuses();
   const now = new Date();
   const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
   const todayD = new Date(todayStr);
@@ -235,7 +235,7 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
   const [activityPeriod, setActivityPeriod] = useState('week');
   const [activityFrom, setActivityFrom] = useState('');
   const [activityTo, setActivityTo] = useState('');
-  const [activitySummary, setActivitySummary] = useState({ current: { total: 0, ceo_connect: 0, appo: 0 }, previous: { total: 0, ceo_connect: 0, appo: 0 } });
+  const [activitySummary, setActivitySummary] = useState({ current: { total: 0, keyman_connect: 0, appo: 0 }, previous: { total: 0, keyman_connect: 0, appo: 0 } });
   const [activityLoading, setActivityLoading] = useState(false);
 
   useEffect(() => {
@@ -286,7 +286,7 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
   const [rankPeriod, setRankPeriod] = useState('week');
   const [rankFrom, setRankFrom] = useState('');
   const [rankTo, setRankTo] = useState('');
-  const [rankData, setRankData] = useState([]); // RPC集計済み: [{getter_name, calls, ceo_connect, appo, work_hours}]
+  const [rankData, setRankData] = useState([]); // RPC集計済み: [{getter_name, calls, keyman_connect, appo, work_hours}]
   const [rankLoading, setRankLoading] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState(null);
   // PersonDetailModal用に生データも保持（モーダル表示時のみ使用）
@@ -322,7 +322,7 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
 
   // RPC集計結果からbyPerson配列を生成（ActivityRankingSection/TeamPerformanceTable用）
   const rankByPerson = useMemo(() =>
-    rankData.map(r => ({ name: r.getter_name, call: r.calls, connect: r.ceo_connect, appo: r.appo })),
+    rankData.map(r => ({ name: r.getter_name, call: r.calls, connect: r.keyman_connect, appo: r.appo })),
     [rankData]
   );
 
@@ -354,7 +354,7 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
         const formatted = (data || []).map(r => ({
           label: r.week_start.slice(5).replace('-', '/'),
           calls: r.calls,
-          connect: r.ceo_connect,
+          connect: r.keyman_connect,
           appo: r.appo,
         }));
         setTrendData(formatted);
@@ -473,7 +473,7 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
             <Tooltip content={<TrendTooltip />} />
             <Legend wrapperStyle={{ fontSize: font.size.xs - 1 }} />
             <Line type='monotone' dataKey='calls' stroke={color.navy} strokeWidth={2} dot={{ r: 3 }} name='架電数' />
-            <Line type='monotone' dataKey='connect' stroke='#1E40AF' strokeWidth={2} dot={{ r: 3 }} name='社長接続' />
+            <Line type='monotone' dataKey='connect' stroke='#1E40AF' strokeWidth={2} dot={{ r: 3 }} name='キーマン接続' />
             <Line type='monotone' dataKey='appo' stroke={color.gray500} strokeWidth={2} dot={{ r: 3 }} name='アポ' />
           </LineChart>
         </ResponsiveContainer>

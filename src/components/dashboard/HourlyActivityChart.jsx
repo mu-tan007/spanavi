@@ -83,7 +83,7 @@ export default function HourlyActivityChart({ chartData: chartDataProp, selected
       {/* 凡例 */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: font.size.xs, color: color.textMid }}>
         <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#0D2247', marginRight: 4 }} />架電（接続なし）</span>
-        <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#1E40AF', marginRight: 4 }} />社長接続</span>
+        <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#1E40AF', marginRight: 4 }} />キーマン接続</span>
         <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#6B7280', marginRight: 4 }} />アポ取得</span>
       </div>
 
@@ -108,7 +108,7 @@ export default function HourlyActivityChart({ chartData: chartDataProp, selected
                 strokeWidth={selectedDate === todayStr && entry.hour === nowHour ? 2 : 0} />
             ))}
           </Bar>
-          <Bar dataKey='connectOnly' stackId='a' fill='#1E40AF' name='社長接続' />
+          <Bar dataKey='connectOnly' stackId='a' fill='#1E40AF' name='キーマン接続' />
           <Bar dataKey='appo' stackId='a' fill='#6B7280' name='アポ取得' radius={[2, 2, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>

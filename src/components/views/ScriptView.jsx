@@ -135,7 +135,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
 
   const DEFAULT_QA_DATA = {
     reception: [
-      { q: 'ご用件は何でしょうか？', a: 'M＆Aに関するご案内でご連絡しております。社長様はいらっしゃいますか？' },
+      { q: 'ご用件は何でしょうか？', a: 'M＆Aに関するご案内でご連絡しております。キーマン様はいらっしゃいますか？' },
       { q: 'どちらの会社の方ですか？', a: '○○株式会社の○○と申します。' },
       { q: '資料を送ってください', a: 'ご説明の機会をいただいた際にお持ちします。ぜひ30分ほどお時間をいただけますでしょうか。' },
       { q: '後でかけ直してください', a: '承知しました。何時頃にお電話すればよろしいでしょうか。' },
@@ -485,7 +485,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                         {isEditing ? (
                           <div style={{ padding: '10px 16px 14px' }}>
                             <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-                              {[['reception', '受付対応'], ['president', '社長対応']].map(([k, l]) => (
+                              {[['reception', '受付対応'], ['president', 'キーマン対応']].map(([k, l]) => (
                                 <Button key={k} size="sm"
                                   variant={rebuttalEditTab === k ? 'primary' : 'secondary'}
                                   onClick={() => setRebuttalEditTab(k)}
@@ -594,7 +594,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                             )}
                             {(parsed.president || []).length > 0 && (
                               <div>
-                                <div style={{ fontSize: 9, fontWeight: font.weight.semibold, color: color.gray400, marginBottom: 4 }}>社長対応</div>
+                                <div style={{ fontSize: 9, fontWeight: font.weight.semibold, color: color.gray400, marginBottom: 4 }}>キーマン対応</div>
                                 {parsed.president.map((item, i) => (
                                   <div key={i} style={{
                                     marginBottom: 6, padding: '4px 8px',
@@ -648,7 +648,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
               }}>✕</button>
             </div>
             <div style={{ display: 'flex', borderBottom: `1px solid ${color.border}`, flexShrink: 0 }}>
-              {[['reception', '受付対応'], ['president', '社長対応']].map(([k, l]) => (
+              {[['reception', '受付対応'], ['president', 'キーマン対応']].map(([k, l]) => (
                 <button key={k} onClick={() => setQaTab(k)} style={{
                   flex: 1, padding: '10px', border: 'none', background: 'transparent',
                   fontWeight: qaTab === k ? font.weight.semibold : font.weight.normal,

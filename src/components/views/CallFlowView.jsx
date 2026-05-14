@@ -178,7 +178,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
 
 export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
-  const { statuses: callStatuses, shortcuts: cfvShortcuts, ceoConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
+  const { statuses: callStatuses, shortcuts: cfvShortcuts, keymanConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
   // EXCLUDED_STATUSES: DB保存値はラベル（日本語）なので、excludedなステータスのlabel Setを導出
   const EXCLUDED_STATUSES = useMemo(
@@ -713,10 +713,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     zoomPhone.hangUp();
     if (!selectedRow || selectedRound === null) { console.warn('[handleResult] 早期リターン — selectedRow:', selectedRow, '/ selectedRound:', selectedRound); return; }
     if (result === 'アポ獲得') { setAppoModal(selectedRow); return; }
-    if (result === '受付再コール' || result === '社長再コール') {
+    if (result === '受付再コール' || result === 'キーマン再コール') {
       setRecallModal({
         row: selectedRow,
-        statusId: result === '受付再コール' ? 'reception_recall' : 'ceo_recall',
+        statusId: result === '受付再コール' ? 'reception_recall' : 'keyman_recall',
         round: selectedRound,
         label: result,
       });
@@ -1367,7 +1367,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   </div>
                 ) : (
                   <div>
-                    {/* 大ボタン3つ: 不通・社長不在・アポ獲得 */}
+                    {/* 大ボタン3つ: 不通・キーマン不在・アポ獲得 */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 6 }}>
                       {callStatuses.filter(r => ['missed', 'absent', 'appointment'].includes(r.id)).map(r => {
                         const isAppo = r.id === 'appointment';
@@ -1558,7 +1558,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 <div>
                   {!rd && qaData && <div style={{ fontSize: 9, color: C.gold, marginBottom: 6, fontWeight: 500 }}>共通のアウト返しを表示中</div>}
                   <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                    {[['reception', '受付対応'], ['president', '社長対応']].map(([k, l]) => (
+                    {[['reception', '受付対応'], ['president', 'キーマン対応']].map(([k, l]) => (
                       <button key={k} onClick={() => setQaSubTab(k)}
                         style={{ fontSize: 9, padding: '2px 10px', borderRadius: 4, border: qaSubTab === k ? '1px solid ' + C.gold : '1px solid ' + C.borderLight, background: qaSubTab === k ? C.gold + '20' : C.white, color: qaSubTab === k ? C.navy : C.textMid, cursor: 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: qaSubTab === k ? 700 : 400 }}>
                         {l}
@@ -2011,7 +2011,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   if (!latest) return { bg: color.gray100, color: color.textMid };
                   const s = latest.status;
                   if (s === '不通' || s === '受付ブロック') return { bg: color.dangerSoft, color: color.danger };
-                  if (s === '社長不在' || s === '受付再コール' || s === '社長再コール') return { bg: color.warnSoft, color: '#C07600' };
+                  if (s === 'キーマン不在' || s === '受付再コール' || s === 'キーマン再コール') return { bg: color.warnSoft, color: '#C07600' };
                   if (s === 'アポ獲得') return { bg: color.successSoft, color: color.success };
                   return { bg: color.gray100, color: color.textMid };
                 })();
@@ -2124,7 +2124,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 }
                 return (
                   <div style={{ padding: space[4], background: color.white, borderRadius: radius.md, border: `1px solid ${color.gray200}` }}>
-                    {/* 大ボタン3つ: 不通・社長不在・アポ獲得 */}
+                    {/* 大ボタン3つ: 不通・キーマン不在・アポ獲得 */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: space[2] + 2, marginBottom: space[2] + 2 }}>
                       {callStatuses.filter(s => ['missed', 'absent', 'appointment'].includes(s.id)).map(st => {
                         const isAppo = st.id === 'appointment';
@@ -2311,7 +2311,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 <div>
                   {!rd && qaData && <div style={{ fontSize: font.size.xs - 1, color: '#D4A017', marginBottom: 8, fontWeight: font.weight.medium }}>共通のアウト返しを表示中（リスト別はScriptsページで設定できます）</div>}
                   <div style={{ display: 'flex', gap: space[2], marginBottom: space[3] }}>
-                    {[['reception', '受付対応'], ['president', '社長対応']].map(([k, l]) => (
+                    {[['reception', '受付対応'], ['president', 'キーマン対応']].map(([k, l]) => (
                       <button key={k} onClick={() => setQaSubTab(k)}
                         style={{ fontSize: font.size.xs, padding: '4px 14px', borderRadius: radius.md, border: 'none', background: qaSubTab === k ? color.navyDeep : color.gray100, color: qaSubTab === k ? color.white : color.gray500, cursor: 'pointer', fontFamily: font.family.sans, fontWeight: qaSubTab === k ? font.weight.semibold : font.weight.normal }}>
                         {l}
@@ -2426,12 +2426,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               <tbody>
                 {[
                   ...(IS_MAC
-                    ? [['1', '不通'], ['2', '社長不在'], ['3', 'アポ獲得'],
-                       ['4', '受付ブロック'], ['5', '受付再コール'], ['6', '社長再コール'],
-                       ['7', '社長お断り'], ['8', '除外']]
-                    : [['F1', '不通'], ['F2', '社長不在'], ['F3', 'アポ獲得'],
-                       ['F4', '受付ブロック'], ['F5', '受付再コール'], ['F6', '社長再コール'],
-                       ['F7', '社長お断り'], ['F8', '除外']]),
+                    ? [['1', '不通'], ['2', 'キーマン不在'], ['3', 'アポ獲得'],
+                       ['4', '受付ブロック'], ['5', '受付再コール'], ['6', 'キーマン再コール'],
+                       ['7', 'キーマンお断り'], ['8', '除外']]
+                    : [['F1', '不通'], ['F2', 'キーマン不在'], ['F3', 'アポ獲得'],
+                       ['F4', '受付ブロック'], ['F5', '受付再コール'], ['F6', 'キーマン再コール'],
+                       ['F7', 'キーマンお断り'], ['F8', '除外']]),
                   ['← →', '前後の企業に移動'], ['Esc', 'モーダルを閉じる'], ['?', 'このヘルプを表示'],
                 ].map(([key, desc]) => (
                   <tr key={key} style={{ borderBottom: `1px solid ${color.gray100}` }}>

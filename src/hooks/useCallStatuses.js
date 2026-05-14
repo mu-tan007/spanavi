@@ -75,13 +75,13 @@ export function useCallStatuses() {
     return m
   }, [statuses])
 
-  const ceoConnectLabels = useMemo(
-    () => new Set(statuses.filter(s => s.ceo_connect).map(s => s.label)),
+  const keymanConnectLabels = useMemo(
+    () => new Set(statuses.filter(s => s.keyman_connect).map(s => s.label)),
     [statuses]
   )
 
-  const ceoConnectIds = useMemo(
-    () => new Set(statuses.filter(s => s.ceo_connect).map(s => s.id)),
+  const keymanConnectIds = useMemo(
+    () => new Set(statuses.filter(s => s.keyman_connect).map(s => s.id)),
     [statuses]
   )
 
@@ -109,8 +109,8 @@ export function useCallStatuses() {
     statuses,
     statusMap,
     labelMap,
-    ceoConnectLabels,
-    ceoConnectIds,
+    keymanConnectLabels,
+    keymanConnectIds,
     shortcuts,
     excludedIds,
     getStatusColor,

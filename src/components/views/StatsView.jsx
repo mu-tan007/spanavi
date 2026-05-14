@@ -84,7 +84,7 @@ const _offsetDays = (ds, n) => { const d = new Date(ds + 'T12:00:00Z'); d.setDat
 
 export default function StatsView({ callListData, currentUser, appoData, members, now: nowProp, embedded = false }) {
   const isMobile = useIsMobile();
-  const { ceoConnectLabels } = useCallStatuses();
+  const { keymanConnectLabels } = useCallStatuses();
 
   // ── クライアント円グラフ選択 ──────────────────────────────────────────
   const [selectedClientPie, setSelectedClientPie] = useState(null);
@@ -407,7 +407,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
       if (!id) return;
       if (!m[id]) m[id] = { calls: 0, connect: 0, appo: 0, lastDate: '' };
       m[id].calls++;
-      if (ceoConnectLabels.has(r.status)) m[id].connect++;
+      if (keymanConnectLabels.has(r.status)) m[id].connect++;
       if (r.status === 'アポ獲得') m[id].appo++;
       const jd = new Date(r.called_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
       if (jd > m[id].lastDate) m[id].lastDate = jd;
@@ -424,7 +424,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
         appoRate: d.calls > 0 ? d.appo / d.calls * 100 : 0,
       };
     });
-  }, [listRecords, listMetaMap, ceoConnectLabels]);
+  }, [listRecords, listMetaMap, keymanConnectLabels]);
 
   const listFiltered = useMemo(() => {
     let rows = listTableData;

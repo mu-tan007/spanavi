@@ -7,12 +7,12 @@ import ColumnResizeHandle from '../common/ColumnResizeHandle';
 const fmtHours = (h) => h > 0.01 ? `${Math.floor(h)}h${String(Math.round((h % 1) * 60)).padStart(2, '0')}m` : '-';
 const RESCHED_STATUSES = new Set(['リスケ中', 'キャンセル', '面談済', '事前確認済', 'アポ取得']);
 
-const COLS = ['架電数', '社長接続', '接続率', 'アポ数', 'アポ率', '件/h', '稼働時間', 'リスケ率', 'キャンセル率'];
+const COLS = ['架電数', 'キーマン接続', '接続率', 'アポ数', 'アポ率', '件/h', '稼働時間', 'リスケ率', 'キャンセル率'];
 
 const TEAM_PERF_COLS = [
   { key: 'name', width: 180, align: 'left' },
   { key: 'calls', width: 70, align: 'right' },
-  { key: 'ceoConnect', width: 100, align: 'right' },
+  { key: 'keymanConnect', width: 100, align: 'right' },
   { key: 'connectRate', width: 100, align: 'right' },
   { key: 'appo', width: 80, align: 'right' },
   { key: 'appoRate', width: 100, align: 'right' },

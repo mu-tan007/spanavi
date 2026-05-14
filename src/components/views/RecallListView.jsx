@@ -78,7 +78,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
       <PageHeader
         eyebrow="Sourcing · Recall"
         title="Recall"
-        description="再コール・社長お断り14日経過の管理"
+        description="再コール・キーマンお断り14日経過の管理"
         style={{ marginBottom: 24 }}
       />
 
@@ -243,7 +243,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
             key: 'type', label: '種別', width: 100, align: 'center',
             render: (item) => (
               <Badge variant="primary" size="sm">
-                {item.status === 'ceo_recall' || item.status === '社長再コール' ? '社長' : '受付'}
+                {item.status === 'keyman_recall' || item.status === 'キーマン再コール' ? 'キーマン' : '受付'}
               </Badge>
             ),
           },

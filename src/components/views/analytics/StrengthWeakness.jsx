@@ -5,7 +5,7 @@ const NAVY = '#0D2247';
 
 /**
  * 個人スコープ時に、組織平均との差分を表示するカード。
- * myStats, orgStats: { calls, ceoConnect, appo }
+ * myStats, orgStats: { calls, keymanConnect, appo }
  */
 export default function StrengthWeakness({
   memberName,
@@ -16,23 +16,23 @@ export default function StrengthWeakness({
     if (!memberName || !myStats || !orgStats) return null;
 
     const orgCalls = orgStats.calls || 0;
-    const orgCeo = orgStats.ceoConnect || 0;
+    const orgKeyman = orgStats.keymanConnect || 0;
     const orgAppo = orgStats.appo || 0;
-    const orgConnectRate = orgCalls > 0 ? (orgCeo / orgCalls) * 100 : 0;
+    const orgConnectRate = orgCalls > 0 ? (orgKeyman / orgCalls) * 100 : 0;
     const orgAppoRate    = orgCalls > 0 ? (orgAppo / orgCalls) * 100 : 0;
-    const orgAppoFromConnect = orgCeo > 0 ? (orgAppo / orgCeo) * 100 : 0;
+    const orgAppoFromConnect = orgKeyman > 0 ? (orgAppo / orgKeyman) * 100 : 0;
 
     const myCalls = myStats.calls || 0;
-    const myCeo = myStats.ceoConnect || 0;
+    const myKeyman = myStats.keymanConnect || 0;
     const myAppo = myStats.appo || 0;
-    const myConnectRate = myCalls > 0 ? (myCeo / myCalls) * 100 : 0;
+    const myConnectRate = myCalls > 0 ? (myKeyman / myCalls) * 100 : 0;
     const myAppoRate    = myCalls > 0 ? (myAppo / myCalls) * 100 : 0;
-    const myAppoFromConnect = myCeo > 0 ? (myAppo / myCeo) * 100 : 0;
+    const myAppoFromConnect = myKeyman > 0 ? (myAppo / myKeyman) * 100 : 0;
 
     return [
-      { label: '社長接続率',     my: myConnectRate,     org: orgConnectRate,     unit: '%', samples: myCalls },
+      { label: 'キーマン接続率',     my: myConnectRate,     org: orgConnectRate,     unit: '%', samples: myCalls },
       { label: 'アポ率（全架電比）', my: myAppoRate,    org: orgAppoRate,        unit: '%', samples: myCalls },
-      { label: '接続後アポ転換率', my: myAppoFromConnect, org: orgAppoFromConnect, unit: '%', samples: myCeo },
+      { label: '接続後アポ転換率', my: myAppoFromConnect, org: orgAppoFromConnect, unit: '%', samples: myKeyman },
       { label: '架電数（期間合計）', my: myCalls,       org: orgCalls,           unit: '件', samples: myCalls, noDiff: true },
     ];
   }, [memberName, myStats, orgStats]);

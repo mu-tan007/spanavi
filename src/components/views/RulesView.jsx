@@ -37,7 +37,7 @@ const INDUSTRY_RULES = {
     label: 'Construction',
     successRate: '後継者不在率 57.3%（全業種中最高水準）',
     goldenTime: ['8〜10時（現場出発前）', '16〜18時（現場から帰社後）', '雨の日は終日チャンス'],
-    presidentPattern: '10〜15時は現場巡回に出ていることが多い。売上1億円未満の会社ほど自宅兼事務所率が高く、社長が直接電話に出やすい。',
+    presidentPattern: '10〜15時は現場巡回に出ていることが多い。売上1億円未満の会社ほど自宅兼事務所率が高く、キーマンが直接電話に出やすい。',
     painPoints: ['職人の高齢化・技術継承問題', '人手不足'],
   },
   '物流': {
@@ -51,7 +51,7 @@ const INDUSTRY_RULES = {
     label: 'All Industries',
     successRate: '全業種共通',
     goldenTime: ['10〜11時', '14〜16時'],
-    presidentPattern: '業種を問わず架電可能なリスト。リユース業は個人オーナーが多く、社長直通になりやすい。',
+    presidentPattern: '業種を問わず架電可能なリスト。リユース業は個人オーナーが多く、キーマン直通になりやすい。',
     painPoints: ['後継者問題', '人手不足', '業績の先行き不安'],
   },
   '医療・ヘルスケア': {
@@ -65,7 +65,7 @@ const INDUSTRY_RULES = {
     label: 'Real Estate',
     successRate: '後継者不在率 中程度 ／ 従業員10名未満の事業者が9割以上',
     goldenTime: ['9〜10時（開店直後）', '16〜17時（夕方の来客が落ち着く時間帯）'],
-    presidentPattern: '物件案内で日中は外出していることが多い。水曜・日曜は避けた方が無難。小規模事務所が多く社長が直接電話に出ることも多い。',
+    presidentPattern: '物件案内で日中は外出していることが多い。水曜・日曜は避けた方が無難。小規模事務所が多くキーマンが直接電話に出ることも多い。',
     painPoints: ['市場縮小・人口減少エリアの将来不安', '後継者問題'],
   },
   '飲食': {
@@ -188,7 +188,7 @@ export default function RulesView({ currentIndustry, onBack }) {
       {/* Active category notice */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: font.size.base, color: color.textMid }}>
-          業種別の架電ゴールデンタイム・社長の行動パターン・刺さる痛点
+          業種別の架電ゴールデンタイム・キーマンの行動パターン・刺さる痛点
         </div>
         {activeCategory && (
           <div style={{ marginTop: 8, fontSize: font.size.xs, color: NAVY, fontWeight: font.weight.semibold, borderLeft: '3px solid ' + NAVY, paddingLeft: 8 }}>

@@ -1,9 +1,9 @@
 // アポ取得報告 (appo_report) から「先方の温度感」を抜き出して
-// ceo_ma_intent ('positive' | 'wait' | 'unknown' | 'negative') に変換する。
+// keyman_ma_intent ('positive' | 'wait' | 'unknown' | 'negative') に変換する。
 // 実データに現れるパターン: 消極的 / 積極的 / 様子見 / 普通 / 中 / 低め /
 // 比較的高い / やんわり断り / 不明 / 空欄 etc.
 
-export function extractCeoMaIntent(appoReport) {
+export function extractKeymanMaIntent(appoReport) {
   if (!appoReport) return null;
   const text = String(appoReport);
 

@@ -20,7 +20,6 @@ import CRMTable from './crm/CRMTable';
 import MonthlyTargetsView from './crm/MonthlyTargetsView';
 import CRMKPIDashboard from './crm/CRMKPIDashboard';
 import CRMPipelineView from './crm/CRMPipelineView';
-import CRMLeadGenView from './crm/CRMLeadGenView';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -392,13 +391,12 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
         />
       )}
 
-      {/* サブビュー切替（list / pipeline / leadgen / targets） */}
+      {/* サブビュー切替（list / pipeline / targets） */}
       {view !== 'detail' && (
         <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
           {[
             { key: 'list',     label: '顧客一覧' },
             { key: 'pipeline', label: 'パイプライン' },
-            { key: 'leadgen',  label: '新規開拓' },
             { key: 'targets',  label: '月別目標' },
           ].map(t => {
             const active = view === t.key;
@@ -441,11 +439,6 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
           maxMonthTarget={maxMonthTarget}
           onCardClick={goToDetail}
         />
-      )}
-
-      {/* 新規開拓ボード */}
-      {view === 'leadgen' && (
-        <CRMLeadGenView currentUser={currentUser} members={members} setClientData={setClientData} />
       )}
 
       {/* 詳細ページモード */}

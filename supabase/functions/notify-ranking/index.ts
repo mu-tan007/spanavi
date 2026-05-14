@@ -5,8 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// 社長接続とみなすステータス
-const CEO_STATUSES = new Set(['社長再コール', 'アポ獲得', '社長お断り'])
+// キーマン接続とみなすステータス
+const KEYMAN_STATUSES = new Set(['キーマン再コール', 'アポ獲得', 'キーマンお断り'])
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -49,18 +49,18 @@ Deno.serve(async (req) => {
       from += PAGE_SIZE
     }
     // getter_name ごとに集計
-    const stats: Record<string, { calls: number; ceo: number; appo: number }> = {}
+    const stats: Record<string, { calls: number; keyman: number; appo: number }> = {}
     for (const rec of (records || [])) {
       const name = rec.getter_name as string
       if (!name) continue
-      if (!stats[name]) stats[name] = { calls: 0, ceo: 0, appo: 0 }
+      if (!stats[name]) stats[name] = { calls: 0, keyman: 0, appo: 0 }
       stats[name].calls++
-      if (CEO_STATUSES.has(rec.status)) stats[name].ceo++
+      if (KEYMAN_STATUSES.has(rec.status)) stats[name].keyman++
       if (rec.status === 'アポ獲得') stats[name].appo++
     }
 
     // ランキング取得ヘルパー
-    type StatKey = 'calls' | 'ceo' | 'appo'
+    type StatKey = 'calls' | 'keyman' | 'appo'
     const topN = (key: StatKey, limit: number | null): [string, number][] => {
       const sorted = Object.entries(stats)
         .filter(([, s]) => s[key] > 0)
@@ -85,8 +85,8 @@ Deno.serve(async (req) => {
       `🔥 架電件数（全${callEntries.length}名）`,
       formatSection(callEntries),
       '',
-      '📞 社長接続数 TOP3',
-      formatSection(topN('ceo', 3)),
+      '📞 キーマン接続数 TOP3',
+      formatSection(topN('keyman', 3)),
       '',
       '🎯 アポ取得数 TOP3',
       formatSection(topN('appo', 3)),

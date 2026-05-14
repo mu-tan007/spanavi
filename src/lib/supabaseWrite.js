@@ -1110,7 +1110,7 @@ export async function fetchAllRecallRecords() {
     const { data, error } = await supabase
       .from('call_records')
       .select('*')
-      .in('status', ['受付再コール', '社長再コール'])
+      .in('status', ['受付再コール', 'キーマン再コール'])
       .order('called_at', { ascending: false })
       .range(from, from + PAGE - 1)
     if (error) { console.error('[DB] fetchAllRecallRecords error:', error); return { data: records, error } }
@@ -1164,11 +1164,11 @@ export async function fetchAllRecallRecords() {
   const listAlive = memoFiltered.filter(r => listMap[r.list_id]?.is_archived !== true)
 
   // フィルタ3: call_list_items.call_status（その企業の直近架電結果）が
-  // 受付再コール / 社長再コール でないものは除外。
+  // 受付再コール / キーマン再コール でないものは除外。
   // 過去に再コールを記録 → 別画面（CallingScreen 等）から非再コール結果で上書きしたが、
   // その時に call_records 側の recall_completed フラグが立たなかった「取り残し」を排除する。
   // call_list_items が取得できなかったレコードは安全側で残す（fetch失敗時の取りこぼし防止）。
-  const RECALL_LATEST_STATUSES = new Set(['受付再コール', '社長再コール'])
+  const RECALL_LATEST_STATUSES = new Set(['受付再コール', 'キーマン再コール'])
   const statusFresh = listAlive.filter(r => {
     const item = itemMap[r.item_id]
     if (!item) return true
@@ -1222,7 +1222,7 @@ export async function completeRecallsForItem(itemId) {
     .from('call_records')
     .select('id, memo')
     .eq('item_id', itemId)
-    .in('status', ['受付再コール', '社長再コール'])
+    .in('status', ['受付再コール', 'キーマン再コール'])
   if (!records?.length) return
   for (const r of records) {
     try {
@@ -2104,7 +2104,7 @@ export async function deleteRoleplayBooking(gcalEventId) {
 export async function fetchRewardMaster() {
   const { data, error } = await supabase
     .from('reward_tiers')
-    .select('*, reward_types(name, timing, basis, tax)')
+    .select('*, reward_types(name, timing, basis, tax, calc_type)')
     .order('type_id')
     .order('sort_order')
   if (error) { console.error('[DB] fetchRewardMaster error:', error); return { data: [], error } }
@@ -2114,6 +2114,7 @@ export async function fetchRewardMaster() {
     timing: row.reward_types?.timing || '',
     basis: row.reward_types?.basis || '',
     tax: row.reward_types?.tax || '',
+    calc_type: row.reward_types?.calc_type || 'rate',
     lo: row.lo,
     hi: row.hi,
     price: row.price,
@@ -2335,7 +2336,7 @@ export async function rpcPerfActivitySummary(fromISO, toISO, prevFromISO, prevTo
     p_prev_from: prevFromISO || null, p_prev_to: prevToISO || null,
   })
   if (error) console.error('[RPC] perf_activity_summary error:', error)
-  return { data: data || { current: { total: 0, ceo_connect: 0, appo: 0 }, previous: { total: 0, ceo_connect: 0, appo: 0 } }, error }
+  return { data: data || { current: { total: 0, keyman_connect: 0, appo: 0 }, previous: { total: 0, keyman_connect: 0, appo: 0 } }, error }
 }
 
 export async function rpcPerfHourlyChart(dateStr) {

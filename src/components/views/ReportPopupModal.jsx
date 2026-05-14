@@ -26,7 +26,7 @@ export default function ReportPopupModal({ appo, mode = 'callRecord', onClose, o
       ? 'お断り理由'
       : 'メモ・所感';
   const supplementPlaceholder = isAppo
-    ? '例：1回目は社長不在、2回目で接続→事例紹介で前向きに転じてアポ獲得'
+    ? '例：1回目はキーマン不在、2回目で接続→事例紹介で前向きに転じてアポ獲得'
     : isReject
       ? '例：M&Aには興味なし。後継者は息子に決まっている、と強めの口調で断られた'
       : '例：通話の要点・先方の反応';
@@ -99,7 +99,7 @@ export default function ReportPopupModal({ appo, mode = 'callRecord', onClose, o
         style={{ background: color.white, borderRadius: radius.lg, width: 560, maxWidth: '92vw',
           maxHeight: '88vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
         <div style={{ padding: `${space[3]}px ${space[5]}px`, background: color.navy, color: color.white, borderRadius: `${radius.lg}px ${radius.lg}px 0 0` }}>
-          <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold }}>通話レポート{isAppo ? '（アポ獲得）' : isReject ? '（社長お断り）' : ''}</div>
+          <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold }}>通話レポート{isAppo ? '（アポ獲得）' : isReject ? '（キーマンお断り）' : ''}</div>
           <div style={{ fontSize: font.size.xs, color: alpha(color.white, 0.7), marginTop: 2 }}>
             {appo.company_name} / {appo.getter_name || '—'} / {status}
           </div>

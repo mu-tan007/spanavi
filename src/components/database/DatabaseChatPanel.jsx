@@ -270,7 +270,7 @@ export default function DatabaseChatPanel({ baseFilters, onApplyFilters, open, o
             {messages.length === 0 ? (
               <div style={{ textAlign: 'center', padding: space[4], color: color.textLight, fontSize: font.size.xs }}>
                 <MessageSquare size={28} color={color.border} style={{ marginBottom: 6 }} />
-                <div>例: 「東京都の製造業、社員50人以上、社長60代以上」</div>
+                <div>例: 「東京都の製造業、社員50人以上、キーマン60代以上」</div>
                 <div style={{ marginTop: 2 }}>例: 「関西のSaaS系で売上10〜30億円」</div>
               </div>
             ) : messages.map(m => (

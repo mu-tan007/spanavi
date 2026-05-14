@@ -6,7 +6,7 @@ const WEEKDAYS = ['月', '火', '水', '木', '金', '土', '日'];
 
 /**
  * heatmapData: [{ dow, hour, calls, connects }]
- * orgStats: { calls, ceoConnect, appo }
+ * orgStats: { calls, keymanConnect, appo }
  * rankByPerson: [{ name, call, connect, appo }]
  * callListData: 既存フォーマット
  */
@@ -15,7 +15,7 @@ function generateActions({ heatmapData, orgStats, callListData, rankByPerson }) 
 
   // ── ① ヒートマップで突出した時間帯 ──────────────────────────────────
   const totalCalls = orgStats?.calls || 0;
-  const totalConnects = orgStats?.ceoConnect || 0;
+  const totalConnects = orgStats?.keymanConnect || 0;
   const orgRate = totalCalls > 0 ? totalConnects / totalCalls : 0;
 
   let bestCell = null;
@@ -35,7 +35,7 @@ function generateActions({ heatmapData, orgStats, callListData, rankByPerson }) 
       type: 'schedule',
       priority: 1,
       title: `${WEEKDAYS[bestCell.w]}曜 ${bestCell.h}時台に架電を集中`,
-      body: `この時間帯の社長接続率 ${(bestCell.rate * 100).toFixed(1)}% は組織平均 ${(orgRate * 100).toFixed(1)}% の${(bestCell.rate / orgRate).toFixed(1)}倍。同曜・同時間帯の枠を今週中に追加投入してアポを積み増す。`,
+      body: `この時間帯のキーマン接続率 ${(bestCell.rate * 100).toFixed(1)}% は組織平均 ${(orgRate * 100).toFixed(1)}% の${(bestCell.rate / orgRate).toFixed(1)}倍。同曜・同時間帯の枠を今週中に追加投入してアポを積み増す。`,
     });
   }
 
@@ -55,7 +55,7 @@ function generateActions({ heatmapData, orgStats, callListData, rankByPerson }) 
         type: 'coaching',
         priority: 2,
         title: `${names} のアポ転換にロープレ推奨`,
-        body: `架電量は平均水準だがアポ転換が大きく下回っている（平均の${Math.round((lowPerformers[0].appo / (avgAppo || 1)) * 100)}%）。社長接続後のクロージングを重点的にロープレ。`,
+        body: `架電量は平均水準だがアポ転換が大きく下回っている（平均の${Math.round((lowPerformers[0].appo / (avgAppo || 1)) * 100)}%）。キーマン接続後のクロージングを重点的にロープレ。`,
       });
     }
   }
@@ -73,14 +73,14 @@ function generateActions({ heatmapData, orgStats, callListData, rankByPerson }) 
   }
 
   // ── ④ ファネル段階別: 接続→アポ転換の弱さ検出 ─────────────────────
-  const ceoCount = orgStats?.ceoConnect || 0;
+  const keymanCount = orgStats?.keymanConnect || 0;
   const appoCount = orgStats?.appo || 0;
-  if (ceoCount >= 30 && (appoCount / ceoCount) < 0.15) {
+  if (keymanCount >= 30 && (appoCount / keymanCount) < 0.15) {
     actions.push({
       type: 'funnel',
       priority: 2,
-      title: `社長接続→アポ転換率を改善（現在 ${(appoCount / ceoCount * 100).toFixed(1)}%）`,
-      body: `社長と話せた後のアポ取得率が15%未満。スクリプトの冒頭フックと切り返しトークを見直し、成功パターンを共有する。`,
+      title: `キーマン接続→アポ転換率を改善（現在 ${(appoCount / keymanCount * 100).toFixed(1)}%）`,
+      body: `キーマンと話せた後のアポ取得率が15%未満。スクリプトの冒頭フックと切り返しトークを見直し、成功パターンを共有する。`,
     });
   }
 

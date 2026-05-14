@@ -166,7 +166,7 @@ export default function ClientReportPDF({
   listName,
   dateRange,
   totalCalls,
-  ceoConnectRate,
+  keymanConnectRate,
   appoRate,
   appoList,
   dailyStats,
@@ -194,8 +194,8 @@ export default function ClientReportPDF({
 
   const statsColumns = ['date', 'calls', 'connected', 'connRate', 'appo', 'appoRate'];
   const statsColumnsDailyWithWeek = ['week', 'calls', 'connected', 'connRate', 'appo', 'appoRate'];
-  const statsLabels = ['日付', '架電数', '社長接続数', '接続率', 'アポ数', 'アポ率'];
-  const statsLabelsWeekly = ['週', '架電数', '社長接続数', '接続率', 'アポ数', 'アポ率'];
+  const statsLabels = ['日付', '架電数', 'キーマン接続数', '接続率', 'アポ数', 'アポ率'];
+  const statsLabelsWeekly = ['週', '架電数', 'キーマン接続数', '接続率', 'アポ数', 'アポ率'];
 
   const generatedDate = new Date().toLocaleDateString('ja-JP', {
     year: 'numeric', month: 'long', day: 'numeric',
@@ -220,9 +220,9 @@ export default function ClientReportPDF({
               borderColor={color.navy}
             />
             <KpiCard
-              label="社長接続率"
-              value={`${ceoConnectRate.toFixed(1)}%`}
-              sub="社長再コール・お断り・アポ獲得の合計"
+              label="キーマン接続率"
+              value={`${keymanConnectRate.toFixed(1)}%`}
+              sub="キーマン再コール・お断り・アポ獲得の合計"
               borderColor={color.navyLight}
             />
             <KpiCard
@@ -298,7 +298,7 @@ export default function ClientReportPDF({
       <div id="pdf-page-2" style={pageStyle}>
         <PageHeader {...headerProps} pageTitle="日次推移" pageNum={2} />
         <div style={{ padding: PAD, overflow: 'hidden', height: PAGE_H - HEADER_H - PAD * 2 }}>
-          <SectionTitle>日次 架電数・社長接続率の推移</SectionTitle>
+          <SectionTitle>日次 架電数・キーマン接続率の推移</SectionTitle>
           {dailyStats.length === 0 ? (
             <div style={{ color: color.textLight, fontSize: font.size.xs, padding: '12px 0' }}>データなし</div>
           ) : (
@@ -309,7 +309,7 @@ export default function ClientReportPDF({
                 barKey="calls"
                 lineKey="connRate"
                 barLabel="架電数"
-                lineLabel="社長接続率"
+                lineLabel="キーマン接続率"
               />
               {fmtDaily.length > 14 && (
                 <div style={{ fontSize: font.size.xs - 1, color: color.textLight, textAlign: 'right', marginBottom: 4 }}>
@@ -335,7 +335,7 @@ export default function ClientReportPDF({
       <div id="pdf-page-3" style={pageStyle}>
         <PageHeader {...headerProps} pageTitle="週次推移" pageNum={3} />
         <div style={{ padding: PAD, overflow: 'hidden', height: PAGE_H - HEADER_H - PAD * 2 }}>
-          <SectionTitle>週次 架電数・社長接続率・アポ率の推移</SectionTitle>
+          <SectionTitle>週次 架電数・キーマン接続率・アポ率の推移</SectionTitle>
           {weeklyStats.length === 0 ? (
             <div style={{ color: color.textLight, fontSize: font.size.xs, padding: '12px 0' }}>データなし</div>
           ) : (
@@ -346,7 +346,7 @@ export default function ClientReportPDF({
                 barKey="calls"
                 lineKey="connRate"
                 barLabel="架電数"
-                lineLabel="社長接続率"
+                lineLabel="キーマン接続率"
               />
               <StatsTable
                 rows={weeklyTableRows}
@@ -367,14 +367,14 @@ export default function ClientReportPDF({
       <div id="pdf-page-4" style={pageStyle}>
         <PageHeader {...headerProps} pageTitle="時間帯別分析" pageNum={4} />
         <div style={{ padding: PAD, overflow: 'hidden', height: PAGE_H - HEADER_H - PAD * 2 }}>
-          <SectionTitle>時間帯別 架電数・社長接続率（JST / 9時〜19時）</SectionTitle>
+          <SectionTitle>時間帯別 架電数・キーマン接続率（JST / 9時〜19時）</SectionTitle>
           <ComboChart
             data={hourlyStats}
             xKey="hour"
             barKey="calls"
             lineKey="connRate"
             barLabel="架電数"
-            lineLabel="社長接続率"
+            lineLabel="キーマン接続率"
             xFormatter={(h) => `${h}時`}
           />
 
@@ -398,10 +398,10 @@ export default function ClientReportPDF({
               </div>
               <div>
                 <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginBottom: 6 }}>
-                  最も社長接続率が高い時間帯: {bestHour}時台
+                  最もキーマン接続率が高い時間帯: {bestHour}時台
                 </div>
                 <div style={{ fontSize: font.size.xs, color: color.textMid, lineHeight: 1.6 }}>
-                  {bestHour}時〜{bestHour + 1}時の時間帯に架電を集中させることで、社長接続率の向上が期待できます。<br />
+                  {bestHour}時〜{bestHour + 1}時の時間帯に架電を集中させることで、キーマン接続率の向上が期待できます。<br />
                   接続率: <strong style={{ color: C.green }}>
                     {(hourlyStats.find(h => h.hour === bestHour) || {}).connRate || 0}%
                   </strong>（

@@ -197,9 +197,9 @@ function downloadCsv(report) {
   const k = p.kpi || {};
   lines.push(`稼働メンバー,${k.active_members ?? 0}`);
   lines.push(`架電,${k.calls ?? 0}`);
-  lines.push(`接続,${k.ceo_connects ?? 0}`);
+  lines.push(`接続,${k.keyman_connects ?? 0}`);
   lines.push(`アポ,${k.appointments ?? 0}`);
-  lines.push(`接続率,${k.ceo_connect_rate ?? 0}%`);
+  lines.push(`接続率,${k.keyman_connect_rate ?? 0}%`);
   lines.push(`アポ率,${k.appointment_rate ?? 0}%`);
   lines.push(`売上,${k.sales ?? 0}`);
   lines.push('');
@@ -313,7 +313,7 @@ function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, curren
         </div>
         <div style={{ fontSize: 18, fontWeight: font.weight.bold, color: color.navy, marginTop: 4, display: 'flex', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
           <SummaryNum label="架電" cur={kpi.calls} prev={ykpi?.calls} />
-          <SummaryNum label="接続" cur={kpi.ceo_connects} prev={ykpi?.ceo_connects} />
+          <SummaryNum label="接続" cur={kpi.keyman_connects} prev={ykpi?.keyman_connects} />
           <SummaryNum label="アポ" cur={kpi.appointments} prev={ykpi?.appointments} suffix="件" />
           <SummaryNum label="売上" cur={kpi.sales} prev={ykpi?.sales} prefix="¥" formatter={v => v.toLocaleString()} />
         </div>
@@ -334,9 +334,9 @@ function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, curren
               <KpiRow label="出勤者 / 稼働者" value={`${kpi.active_members ?? '-'} / ${kpi.active_members ?? '-'}`}
                 others={otherTeams.map(t => `${t.payload?.kpi?.active_members ?? '-'} / ${t.payload?.kpi?.active_members ?? '-'}`)} compare={false} />
               <KpiRow label="架電件数" value={kpi.calls} others={otherTeams.map(t => t.payload?.kpi?.calls ?? 0)} />
-              <KpiRow label="社長接続数" value={kpi.ceo_connects} others={otherTeams.map(t => t.payload?.kpi?.ceo_connects ?? 0)} />
+              <KpiRow label="キーマン接続数" value={kpi.keyman_connects} others={otherTeams.map(t => t.payload?.kpi?.keyman_connects ?? 0)} />
               <KpiRow label="アポ獲得数" value={kpi.appointments} others={otherTeams.map(t => t.payload?.kpi?.appointments ?? 0)} />
-              <KpiRow label="社長接続率" value={kpi.ceo_connect_rate} others={otherTeams.map(t => t.payload?.kpi?.ceo_connect_rate ?? 0)} suffix="%" />
+              <KpiRow label="キーマン接続率" value={kpi.keyman_connect_rate} others={otherTeams.map(t => t.payload?.kpi?.keyman_connect_rate ?? 0)} suffix="%" />
               <KpiRow label="アポ獲得率" value={kpi.appointment_rate} others={otherTeams.map(t => t.payload?.kpi?.appointment_rate ?? 0)} suffix="%" />
               <KpiRow label="売上 (¥)" value={kpi.sales || 0} others={otherTeams.map(t => t.payload?.kpi?.sales ?? 0)}
                 formatter={v => v.toLocaleString()} />
@@ -389,7 +389,7 @@ function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, curren
             items={(coaching.low_calls_per_hour || []).map(i => ({ ...i, hint: `${i.calls_per_hour}件/h` }))}
           />
           <PickList
-            title="② 社長接続率 < 平均 70%"
+            title="② キーマン接続率 < 平均 70%"
             sub={coaching.team_connect_rate_avg != null
               ? `チーム平均 ${coaching.team_connect_rate_avg}% × 70% 未満`
               : null}
@@ -415,8 +415,8 @@ function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, curren
         <ListBreakdownTable lists={sortedLists} sortKey={listSortKey} sortDir={listSortDir} onSort={onListSort} />
       </Section>
 
-      {/* 7. 時間別グラフ（架電/社長接続/アポ重ね描き + ピークラベル） */}
-      <Section title="時間別 架電 / 社長接続 / アポ">
+      {/* 7. 時間別グラフ（架電/キーマン接続/アポ重ね描き + ピークラベル） */}
+      <Section title="時間別 架電 / キーマン接続 / アポ">
         <HourlyChart data={hourly} peakHour={peakHour} />
       </Section>
     </div>
@@ -487,7 +487,7 @@ function ListBreakdownTable({ lists, sortKey, sortDir, onSort }) {
               リスト名 {sortKey === 'list_name' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
             </th>
             <SortHead k="calls">架電</SortHead>
-            <SortHead k="connects">社長接続</SortHead>
+            <SortHead k="connects">キーマン接続</SortHead>
             <SortHead k="appointments">アポ</SortHead>
             <SortHead k="connect_rate">接続率</SortHead>
             <SortHead k="appointment_rate">アポ率</SortHead>
@@ -720,7 +720,7 @@ function MemberCard({ m, report, openProfile, currentUser, globalPlayingId, setG
           )}
           {m.rejection_recordings?.length > 0 && (
             <RecordingGroup
-              label="社長お断り録音" count={m.rejection_recordings.length} accent="#DC2626"
+              label="キーマンお断り録音" count={m.rejection_recordings.length} accent="#DC2626"
               records={m.rejection_recordings} playingId={globalPlayingId} setPlayingId={setGlobalPlayingId}
             />
           )}
@@ -839,7 +839,7 @@ function HourlyChart({ data, peakHour }) {
             const callsH = totalH - apposH - connectsH;
             const isPeak = d.hour === peakHour && (d.count || 0) > 0;
             const isHovered = hoverHour === d.hour;
-            const tooltip = `${d.hour}時台\n架電 ${d.count || 0}件\n社長接続 ${d.connects || 0}件\nアポ獲得 ${d.appointments || 0}件`;
+            const tooltip = `${d.hour}時台\n架電 ${d.count || 0}件\nキーマン接続 ${d.connects || 0}件\nアポ獲得 ${d.appointments || 0}件`;
             return (
               <div key={d.hour}
                 onMouseEnter={() => setHoverHour(d.hour)}
@@ -877,7 +877,7 @@ function HourlyChart({ data, peakHour }) {
           }}>
             <div style={{ fontWeight: font.weight.bold, color: color.navy, marginBottom: 2 }}>{hovered.hour}時台</div>
             <div>架電件数 <span style={{ float: 'right', fontFamily: font.family.mono, fontWeight: font.weight.bold }}>{hovered.count || 0}</span></div>
-            <div>社長接続数 <span style={{ float: 'right', fontFamily: font.family.mono, fontWeight: font.weight.bold, color: color.navy }}>{hovered.connects || 0}</span></div>
+            <div>キーマン接続数 <span style={{ float: 'right', fontFamily: font.family.mono, fontWeight: font.weight.bold, color: color.navy }}>{hovered.connects || 0}</span></div>
             <div>アポ獲得数 <span style={{ float: 'right', fontFamily: font.family.mono, fontWeight: font.weight.bold, color: '#059669' }}>{hovered.appointments || 0}</span></div>
           </div>
         )}
@@ -885,7 +885,7 @@ function HourlyChart({ data, peakHour }) {
       {/* 凡例 */}
       <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: space[2], fontSize: 10, color: color.textMid }}>
         <LegendDot color={color.navy + '60'} label="架電" />
-        <LegendDot color={color.navy + 'cc'} label="社長接続" />
+        <LegendDot color={color.navy + 'cc'} label="キーマン接続" />
         <LegendDot color="#059669" label="アポ獲得" />
       </div>
     </div>

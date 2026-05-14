@@ -268,7 +268,7 @@ export function parseCSVLine(line, sep = ',') {
 const HEADER_ALIASES = {
   company: ['会社名', '企業名', '法人名', 'company', 'name'],
   phone: ['電話番号', '電話', 'phone', 'tel', 'telephone'],
-  representative: ['代表者', '代表者名', '社長', '代表', 'representative'],
+  representative: ['代表者', '代表者名', 'キーマン', '社長', '代表', 'representative'],
   business: ['事業内容', '業界', '業種', 'business', 'industry'],
   address: ['住所', '所在地', 'address'],
   prefecture: ['都道府県', '県', 'pref', 'prefecture'],

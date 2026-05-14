@@ -21,9 +21,9 @@ export default function ActivitySummaryCards({
   period, setPeriod, customFrom, setCustomFrom, customTo, setCustomTo,
   loading,
 }) {
-  const cur = { total: aggregated?.current?.total || 0, ceoConnect: aggregated?.current?.ceo_connect || 0, appo: aggregated?.current?.appo || 0 };
-  const prev = { total: aggregated?.previous?.total || 0, ceoConnect: aggregated?.previous?.ceo_connect || 0, appo: aggregated?.previous?.appo || 0 };
-  const connectRate = cur.total > 0 ? (cur.ceoConnect / cur.total * 100).toFixed(1) : '0.0';
+  const cur = { total: aggregated?.current?.total || 0, keymanConnect: aggregated?.current?.keyman_connect || 0, appo: aggregated?.current?.appo || 0 };
+  const prev = { total: aggregated?.previous?.total || 0, keymanConnect: aggregated?.previous?.keyman_connect || 0, appo: aggregated?.previous?.appo || 0 };
+  const connectRate = cur.total > 0 ? (cur.keymanConnect / cur.total * 100).toFixed(1) : '0.0';
   const appoRate = cur.total > 0 ? (cur.appo / cur.total * 100).toFixed(1) : '0.0';
 
   const tabBtn = (active) => ({
@@ -85,20 +85,20 @@ export default function ActivitySummaryCards({
           {prev.total > 0 && <div style={{ fontSize: 10, color: color.textLight, marginTop: 2 }}>前期: {prev.total}件</div>}
         </div>
 
-        {/* 社長接続数＋接続率 */}
+        {/* キーマン接続数＋接続率 */}
         <div style={cardStyle}>
-          <div style={{ fontSize: font.size.xs, color: color.gray500, marginBottom: 8 }}>社長接続数</div>
+          <div style={{ fontSize: font.size.xs, color: color.gray500, marginBottom: 8 }}>キーマン接続数</div>
           <div style={{
             fontSize: 24, fontWeight: font.weight.black, color: color.navy,
             fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums',
           }}>
-            {cur.ceoConnect}<span style={{ fontSize: font.size.base, fontWeight: font.weight.semibold }}>件</span>
+            {cur.keymanConnect}<span style={{ fontSize: font.size.base, fontWeight: font.weight.semibold }}>件</span>
           </div>
           <div style={{
             fontSize: font.size.base, color: color.gray700,
             fontWeight: font.weight.bold, marginTop: 4,
           }}>接続率 <span style={{ fontFamily: font.family.mono }}>{connectRate}%</span></div>
-          <div style={{ marginTop: 4 }}><GrowthBadge cur={cur.ceoConnect} prev={prev.ceoConnect} /></div>
+          <div style={{ marginTop: 4 }}><GrowthBadge cur={cur.keymanConnect} prev={prev.keymanConnect} /></div>
         </div>
 
         {/* アポ取得数＋アポ率 */}

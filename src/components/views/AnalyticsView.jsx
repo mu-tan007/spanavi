@@ -64,7 +64,7 @@ function aggregateByScope(rank, scope, scopeId, teamMap) {
   else if (scope === 'team' && scopeId) rows = rows.filter(p => teamMap[p.name] === scopeId);
   return {
     calls: rows.reduce((s, p) => s + (p.call || 0), 0),
-    ceoConnect: rows.reduce((s, p) => s + (p.connect || 0), 0),
+    keymanConnect: rows.reduce((s, p) => s + (p.connect || 0), 0),
     appo: rows.reduce((s, p) => s + (p.appo || 0), 0),
   };
 }
@@ -120,8 +120,8 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
     ])
       .then(([cur, prev]) => {
         if (cancelled) return;
-        setRankByPerson((cur.data || []).map(r => ({ name: r.getter_name, call: r.calls, connect: r.ceo_connect, appo: r.appo })));
-        setPrevRankByPerson((prev.data || []).map(r => ({ name: r.getter_name, call: r.calls, connect: r.ceo_connect, appo: r.appo })));
+        setRankByPerson((cur.data || []).map(r => ({ name: r.getter_name, call: r.calls, connect: r.keyman_connect, appo: r.appo })));
+        setPrevRankByPerson((prev.data || []).map(r => ({ name: r.getter_name, call: r.calls, connect: r.keyman_connect, appo: r.appo })));
       })
       .catch(err => console.error('[AnalyticsView] rankFetch:', err))
       .finally(() => { if (!cancelled) setRankLoading(false); });
@@ -193,8 +193,8 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
   const memberStats = useMemo(() => {
     if (scope !== 'member' || !scopeId) return null;
     const p = rankByPerson.find(r => r.name === scopeId);
-    if (!p) return { calls: 0, ceoConnect: 0, appo: 0 };
-    return { calls: p.call, ceoConnect: p.connect, appo: p.appo };
+    if (!p) return { calls: 0, keymanConnect: 0, appo: 0 };
+    return { calls: p.call, keymanConnect: p.connect, appo: p.appo };
   }, [rankByPerson, scope, scopeId]);
 
   return (
