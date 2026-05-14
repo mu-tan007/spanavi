@@ -931,10 +931,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     if (singleItemMode) {
       onClose();
     } else {
-      const idx = newItems.findIndex(i => i.id === appoModal.id);
+      // sorted（フィルタ済みリスト）の順序で次の架電可能な企業を探す
+      // ※handleResult と同じロジック。newItems を直接使うとステータス絞り込み等の
+      //   UI フィルタが無視され、選択順がぐちゃぐちゃになるので必ず sorted を使う。
+      const sortedIdx = sorted.findIndex(i => i.id === appoModal.id);
       let next = null;
-      for (let j = idx + 1; j < newItems.length; j++) {
-        const ni = newItems[j];
+      for (let j = sortedIdx + 1; j < sorted.length; j++) {
+        const ni = sorted[j];
         const niRecs = newRecords.filter(r => r.item_id === ni.id);
         const niExcl = niRecs.some(r => EXCLUDED_STATUSES.has(r.status));
         const niLatest = niRecs.length > 0 ? niRecs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b) : null;
@@ -1012,10 +1015,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     if (singleItemMode) {
       onClose();
     } else {
-      const idx = newItems.findIndex(i => i.id === row.id);
+      // sorted（フィルタ済みリスト）の順序で次の架電可能な企業を探す
+      // ※handleResult と同じロジック。newItems を直接使うとステータス絞り込み等の
+      //   UI フィルタが無視され、選択順がぐちゃぐちゃになるので必ず sorted を使う。
+      const sortedIdx = sorted.findIndex(i => i.id === row.id);
       let next = null;
-      for (let j = idx + 1; j < newItems.length; j++) {
-        const ni = newItems[j];
+      for (let j = sortedIdx + 1; j < sorted.length; j++) {
+        const ni = sorted[j];
         const niRecs = newRecords.filter(r => r.item_id === ni.id);
         const niExcl = niRecs.some(r => EXCLUDED_STATUSES.has(r.status));
         const niLatest = niRecs.length > 0 ? niRecs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b) : null;
