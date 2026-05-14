@@ -21,19 +21,25 @@ function fmtDate(ts) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
+// Lists ページの行内アクションボタンと同じ控えめなトーンで描画する
 function MiniIcon({ label, hint, color: btnColor, onClick }) {
+  // 'subtle' バリアント: tinted background + 同色文字。Lists の Edit/Delete アイコンと整合する
   return (
     <button
       onClick={e => { e.stopPropagation(); onClick(); }}
       title={hint}
       style={{
-        width: 22, height: 20, borderRadius: radius.sm,
-        border: '1px solid ' + btnColor,
-        background: color.white, color: btnColor,
-        fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, padding: 0,
+        minWidth: 26, height: 26, padding: '0 8px', borderRadius: radius.md,
+        background: alpha(btnColor, 0.08),
+        border: `1px solid ${alpha(btnColor, 0.18)}`,
+        color: btnColor,
+        fontSize: font.size.xs, fontWeight: font.weight.semibold,
         cursor: 'pointer', fontFamily: font.family.sans,
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'background 0.12s',
       }}
+      onMouseEnter={e => { e.currentTarget.style.background = alpha(btnColor, 0.14); }}
+      onMouseLeave={e => { e.currentTarget.style.background = alpha(btnColor, 0.08); }}
     >{label}</button>
   );
 }
@@ -251,7 +257,7 @@ export default function CRMLeadGenView({ currentUser, members = [], setClientDat
   const [importOpen, setImportOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [selectedListId, setSelectedListId] = useState(null);
-  const [showArchived, setShowArchived] = useState(false);
+  const [displayFilter, setDisplayFilter] = useState('active'); // 'active' | 'archived' | 'all' — Lists ページと同じ
   const [recallsOpen, setRecallsOpen] = useState(false);
 
   // 全リスト横断の再コール予定件数（バッジ用）
@@ -292,9 +298,13 @@ export default function CRMLeadGenView({ currentUser, members = [], setClientDat
     staleTime: 60_000,
   });
 
-  // showArchived の値で表示するリストを切替
-  const visibleLists = showArchived ? lists : lists.filter(l => !l.is_archived);
+  // displayFilter で表示対象を切替（Lists ページと同じロジック）
   const archivedCount = lists.filter(l => l.is_archived).length;
+  const activeCount = lists.length - archivedCount;
+  const visibleLists =
+    displayFilter === 'archived' ? lists.filter(l => l.is_archived) :
+    displayFilter === 'all'      ? lists :
+                                   lists.filter(l => !l.is_archived);
 
   const handleDelete = async (list) => {
     await deleteClientLeadList(list.id);
@@ -315,27 +325,36 @@ export default function CRMLeadGenView({ currentUser, members = [], setClientDat
 
   return (
     <div>
+      {/* 表示フィルタタブ（Lists ページと同一スタイル） */}
+      <div style={{ display: 'flex', gap: space[2], marginBottom: space[3] }}>
+        {[['active', 'アクティブのみ'], ['archived', 'アーカイブのみ'], ['all', '全て表示']].map(([val, label]) => (
+          <button
+            key={val}
+            onClick={() => setDisplayFilter(val)}
+            style={{
+              padding: '6px 16px', borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold,
+              cursor: 'pointer', transition: 'all 0.15s', fontFamily: font.family.sans,
+              ...(displayFilter === val
+                ? { background: color.navy, color: color.white, border: `1px solid ${color.navy}` }
+                : { background: color.white, color: color.textMid, border: `1px solid ${color.border}` }),
+            }}
+            onMouseEnter={e => { if (displayFilter !== val) e.currentTarget.style.background = color.gray50; }}
+            onMouseLeave={e => { if (displayFilter !== val) e.currentTarget.style.background = color.white; }}
+          >{label}</button>
+        ))}
+      </div>
+
+      {/* ヘッダー */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[4],
         padding: '14px 18px', background: color.white, borderRadius: radius.md,
-        border: '1px solid ' + GRAY_200, flexWrap: 'wrap', gap: space[2],
+        border: `1px solid ${color.border}`, flexWrap: 'wrap', gap: space[2],
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: space[2.5] }}>
-          <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: NAVY }}>新規開拓ボード</span>
-          <span style={{ fontSize: font.size.xs, color: color.textLight }}>{visibleLists.length} リスト</span>
-          {archivedCount > 0 && (
-            <label style={{
-              fontSize: font.size.xs, color: color.textMid, marginLeft: space[2],
-              display: 'inline-flex', alignItems: 'center', gap: space[1], cursor: 'pointer',
-            }}>
-              <input
-                type="checkbox"
-                checked={showArchived}
-                onChange={e => setShowArchived(e.target.checked)}
-              />
-              アーカイブ済も表示（{archivedCount}）
-            </label>
-          )}
+          <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>新規開拓ボード</span>
+          <span style={{ fontSize: font.size.xs, color: color.textLight, fontFamily: font.family.mono, fontWeight: font.weight.semibold }}>
+            {displayFilter === 'archived' ? archivedCount : displayFilter === 'all' ? lists.length : activeCount}件
+          </span>
         </div>
         <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center' }}>
           {pendingRecalls.length > 0 && (
@@ -344,7 +363,7 @@ export default function CRMLeadGenView({ currentUser, members = [], setClientDat
               size="sm"
               onClick={() => setRecallsOpen(true)}
               style={{
-                border: '1px solid ' + (overdueRecallCount > 0 ? color.danger : '#B8860B'),
+                border: `1px solid ${overdueRecallCount > 0 ? color.danger : '#B8860B'}`,
                 background: alpha(overdueRecallCount > 0 ? color.danger : '#B8860B', 0.08),
                 color: overdueRecallCount > 0 ? color.danger : '#B8860B',
                 whiteSpace: 'nowrap',
@@ -358,9 +377,8 @@ export default function CRMLeadGenView({ currentUser, members = [], setClientDat
           )}
           <Button
             variant="primary"
-            size="md"
+            size="sm"
             onClick={() => setImportOpen(true)}
-            style={{ background: NAVY }}
           >＋ 新規リスト（CSVインポート）</Button>
         </div>
       </div>
@@ -368,9 +386,9 @@ export default function CRMLeadGenView({ currentUser, members = [], setClientDat
       {visibleLists.length === 0 ? (
         <div style={{
           padding: '40px 20px', textAlign: 'center', color: color.textLight, fontSize: font.size.sm,
-          background: color.white, border: '1px solid ' + GRAY_200, borderRadius: radius.md,
+          background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
         }}>
-          {showArchived
+          {displayFilter === 'archived'
             ? 'アーカイブ済みのリストはありません'
             : 'まだ開拓リストがありません。「+ 新規リスト」から CSV を取り込んでください。'
           }
@@ -392,7 +410,7 @@ export default function CRMLeadGenView({ currentUser, members = [], setClientDat
           onArchive={handleArchive}
           onUnarchive={handleUnarchive}
           onDelete={handleDelete}
-          showingArchived={showArchived}
+          showingArchived={displayFilter === 'archived'}
         />
       )}
 
