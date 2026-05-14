@@ -1367,25 +1367,20 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   </div>
                 ) : (
                   <div>
-                    {/* 大ボタン3つ: 不通・キーマン不在・アポ獲得 */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 6 }}>
-                      {callStatuses.filter(r => ['missed', 'absent', 'appointment'].includes(r.id)).map(r => {
+                    {/* ステータスボタン: 全 9 ステータスを 3×3 均等 grid に配置（アポ獲得は gold 強調、除外は red） */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 14 }}>
+                      {callStatuses.map(r => {
                         const isAppo = r.id === 'appointment';
-                        return (
-                          <button key={r.id} onClick={() => handleResult(r.label)}
-                            style={{ height: 48, borderRadius: 7, border: isAppo ? '1.5px solid ' + C.gold : '1px solid ' + C.navy + '25', background: isAppo ? C.gold : C.navy + '08', color: isAppo ? C.white : C.navy, cursor: 'pointer', fontSize: 13, fontWeight: 700, fontFamily: "'Noto Sans JP'" }}>
-                            {r.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {/* 小ボタン: 残りのステータス */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 5, marginBottom: 14 }}>
-                      {callStatuses.filter(r => !['missed', 'absent', 'appointment'].includes(r.id)).map(r => {
                         const isExcl = r.id === 'excluded';
                         return (
                           <button key={r.id} onClick={() => handleResult(r.label)}
-                            style={{ height: 34, borderRadius: 6, border: isExcl ? '1.5px solid ' + C.red + '40' : '1px solid ' + C.navy + '25', background: isExcl ? C.red + '10' : C.navy + '08', color: isExcl ? C.red : C.navy, cursor: 'pointer', fontSize: 10, fontWeight: 600, fontFamily: "'Noto Sans JP'" }}>
+                            style={{
+                              height: 42, borderRadius: 7,
+                              border: isAppo ? '1.5px solid ' + C.gold : isExcl ? '1.5px solid ' + C.red + '40' : '1px solid ' + C.navy + '25',
+                              background: isAppo ? C.gold : isExcl ? C.red + '10' : C.navy + '08',
+                              color: isAppo ? C.white : isExcl ? C.red : C.navy,
+                              cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: "'Noto Sans JP'"
+                            }}>
                             {r.label}
                           </button>
                         );
@@ -2124,29 +2119,16 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 }
                 return (
                   <div style={{ padding: space[4], background: color.white, borderRadius: radius.md, border: `1px solid ${color.gray200}` }}>
-                    {/* 大ボタン3つ: 不通・キーマン不在・アポ獲得 */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: space[2] + 2, marginBottom: space[2] + 2 }}>
-                      {callStatuses.filter(s => ['missed', 'absent', 'appointment'].includes(s.id)).map(st => {
+                    {/* ステータスボタン: 全 9 ステータスを 3×3 均等 grid に配置（アポ獲得は navy 強調） */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: space[2] + 2 }}>
+                      {callStatuses.map(st => {
                         const isAppo = st.id === 'appointment';
                         const sc = cfvShortcuts.find(s => s.id === st.id);
                         return (
                           <button key={st.id} onClick={() => handleResult(st.label)}
-                            style={{ height: 56, borderRadius: radius.md, border: isAppo ? 'none' : `1px solid ${color.gray200}`, background: isAppo ? color.navy : st.id === 'absent' ? color.offWhite : color.white, color: isAppo ? color.white : color.gray500, fontSize: 15, fontWeight: font.weight.bold, cursor: 'pointer', fontFamily: font.family.sans, position: 'relative' }}>
+                            style={{ height: 52, borderRadius: radius.md, border: isAppo ? 'none' : `1px solid ${color.gray200}`, background: isAppo ? color.navy : color.white, color: isAppo ? color.white : color.gray500, fontSize: font.size.sm, fontWeight: font.weight.bold, cursor: 'pointer', fontFamily: font.family.sans, position: 'relative' }}>
                             {st.label}
                             {sc && <span style={{ position: 'absolute', bottom: 4, right: 7, fontSize: 9, opacity: isAppo ? 0.55 : 0.5, fontFamily: font.family.mono, color: isAppo ? color.white : undefined }}>{sc.key}</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {/* 小ボタン: 残りのステータス */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
-                      {callStatuses.filter(s => !['missed', 'absent', 'appointment'].includes(s.id)).map(st => {
-                        const sc = cfvShortcuts.find(s => s.id === st.id);
-                        return (
-                          <button key={st.id} onClick={() => handleResult(st.label)}
-                            style={{ height: 40, borderRadius: radius.md, border: `1px solid ${color.gray200}`, background: color.white, color: color.gray500, fontSize: font.size.sm, fontWeight: font.weight.semibold, cursor: 'pointer', fontFamily: font.family.sans, position: 'relative' }}>
-                            {st.label}
-                            {sc && <span style={{ position: 'absolute', bottom: 3, right: 5, fontSize: 8, opacity: 0.45, fontFamily: font.family.mono }}>{sc.key}</span>}
                           </button>
                         );
                       })}
