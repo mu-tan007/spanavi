@@ -614,6 +614,37 @@ export default function CRMLeadCallFlowView({ list, companies, records, currentU
               }}
             >◀ リストに戻る</button>
           )}
+          {/* 前へ/次へナビゲーション (Lists CallFlowView 集中ページと同等) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: space[1] }}>
+            <button
+              onClick={() => setSelectedIdx(i => (i > 0 ? i - 1 : i))}
+              disabled={selectedIdx == null || selectedIdx <= 0}
+              title="前の企業へ (← / ↑)"
+              style={{
+                padding: '5px 10px', borderRadius: radius.sm,
+                border: `1px solid ${color.white}`, background: 'transparent',
+                color: color.white, fontSize: font.size.xs, cursor: 'pointer', fontFamily: font.family.sans,
+                opacity: (selectedIdx == null || selectedIdx <= 0) ? 0.4 : 1,
+              }}
+            >◀ 前へ</button>
+            <span style={{
+              fontSize: font.size.xs, color: color.white, fontFamily: font.family.mono,
+              padding: '0 6px', minWidth: 60, textAlign: 'center',
+            }}>
+              {selectedIdx != null ? `${selectedIdx + 1} / ${visibleCompanies.length}件` : `${visibleCompanies.length}件`}
+            </span>
+            <button
+              onClick={() => setSelectedIdx(i => (i != null && i < visibleCompanies.length - 1 ? i + 1 : (i == null && visibleCompanies.length > 0 ? 0 : i)))}
+              disabled={selectedIdx != null && selectedIdx >= visibleCompanies.length - 1}
+              title="次の企業へ (→ / ↓)"
+              style={{
+                padding: '5px 10px', borderRadius: radius.sm,
+                border: `1px solid ${color.white}`, background: 'transparent',
+                color: color.white, fontSize: font.size.xs, cursor: 'pointer', fontFamily: font.family.sans,
+                opacity: (selectedIdx != null && selectedIdx >= visibleCompanies.length - 1) ? 0.4 : 1,
+              }}
+            >次へ ▶</button>
+          </div>
           <div>
             <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.white }}>{list.name}</div>
             <div style={{ fontSize: 10, color: alpha(color.white, 0.7) }}>
@@ -787,77 +818,14 @@ export default function CRMLeadCallFlowView({ list, companies, records, currentU
         </div>
       )}
 
-      {/* メイン: 3ペイン（左=企業リスト / 中央=大型UI / 右=スクリプト・履歴） */}
+      {/* メイン: 2ペイン (Lists CallFlowView 集中ページと同等: 中央=大型UI / 右=スクリプト等タブ)
+          以前は 3ペインで左に企業リストがあったが、ヘッダーの前へ/次へボタンで
+          企業移動できるため Lists 同様にサイドリストは廃止 */}
       <div style={{
         flex: 1, display: 'grid',
-        gridTemplateColumns: '240px 1fr 320px',
+        gridTemplateColumns: '1fr 320px',
         overflow: 'hidden', minHeight: 0,
       }}>
-        {/* 左ペイン: 企業リスト（コンパクト） */}
-        <div style={{
-          background: color.offWhite, borderRight: `1px solid ${color.border}`,
-          overflowY: 'auto',
-        }}>
-          {visibleCompanies.length === 0 ? (
-            <div style={{ padding: 30, textAlign: 'center', fontSize: font.size.xs, color: color.textLight }}>
-              該当企業なし
-            </div>
-          ) : (
-            visibleCompanies.map((c, i) => {
-              const isSelected = i === selectedIdx;
-              const excluded = isExcluded(c.id);
-              const latest = getLatestStatus(c.id);
-              const latestStatus = latest ? getStatus(latest) : null;
-              const rounds = recordsByCompany[c.id] || {};
-              const roundCount = Object.keys(rounds).length;
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => setSelectedIdx(i)}
-                  style={{
-                    padding: `${space[2]}px ${space[3]}px`,
-                    borderBottom: `1px solid ${color.border}`,
-                    background: isSelected ? '#EFF6FF' : 'transparent',
-                    borderLeft: isSelected ? `3px solid ${color.navy}` : '3px solid transparent',
-                    cursor: 'pointer',
-                    opacity: excluded ? 0.5 : 1,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
-                    <span style={{ fontSize: 9, color: color.textLight, fontFamily: font.family.mono }}>
-                      No.{c.no}
-                    </span>
-                    {roundCount > 0 && (
-                      <span style={{ fontSize: 8, color: color.textLight, fontFamily: font.family.mono }}>
-                        {roundCount}周
-                      </span>
-                    )}
-                  </div>
-                  <div style={{
-                    fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy,
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    {c.company}
-                    {c.promoted_to_client_id && (
-                      <span style={{
-                        marginLeft: 4, fontSize: 7, color: color.success,
-                        border: `1px solid ${color.success}`, borderRadius: radius.sm, padding: '0px 3px', fontWeight: font.weight.bold,
-                      }}>CRM</span>
-                    )}
-                  </div>
-                  {latestStatus && (
-                    <div style={{
-                      marginTop: 3, fontSize: 8, fontWeight: font.weight.bold, color: latestStatus.color,
-                    }}>
-                      {latestStatus.label}
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-
         {/* 中央ペイン: 大型UI */}
         <div style={{ overflowY: 'auto', padding: '20px 28px', background: color.white }}>
           {selected ? (
