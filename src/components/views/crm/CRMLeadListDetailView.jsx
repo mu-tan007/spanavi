@@ -13,14 +13,14 @@ import CRMLeadCallFlowView from './CRMLeadCallFlowView';
 
 // CRM新規開拓のステータス一覧（CRMLeadCallFlowView と揃える）
 const STATUS_OPTIONS = [
-  { id: 'absent',           label: '不通' },
+  { id: 'missed',           label: '不通' },
   { id: 'keyman_absent',    label: 'キーマン不在' },
   { id: 'keyman_connect',   label: 'キーマン接続' },
   { id: 'appointment',      label: 'アポ獲得' },
   { id: 'reception_block',  label: '受付ブロック' },
   { id: 'reception_recall', label: '受付再コール' },
   { id: 'keyman_recall',    label: 'キーマン再コール' },
-  { id: 'rejected',         label: 'お断り' },
+  { id: 'keyman_decline',   label: 'キーマン断り' },
   { id: 'inquiry_form',     label: '問い合わせフォーム' },
   { id: 'excluded',         label: '除外' },
 ];
@@ -31,10 +31,10 @@ const STATUS_VARIANT = {
   inquiry_form: 'info',
   reception_recall: 'warn',
   keyman_recall: 'warn',
-  rejected: 'danger',
+  keyman_decline: 'danger',
   reception_block: 'danger',
   excluded: 'neutral',
-  absent: 'neutral',
+  missed: 'neutral',
   keyman_absent: 'neutral',
 };
 

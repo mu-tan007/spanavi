@@ -17,14 +17,14 @@ import CRMLeadRecallModal from './CRMLeadRecallModal';
 //   ショートカットは既存ソーシング側と同じく Mac=数字キー / Win=Fキー（order 1〜10）
 //   配色は src/constants/callResults.js の Lists ページと同じ navy/gray/blue/red の落ち着いたトーンに統一
 const STATUSES = [
-  { id: 'absent',           label: '不通',             order: 1,  color: '#6B7280', bg: '#6B728018', excluded: false, recall: false, isAppo: false },
+  { id: 'missed',           label: '不通',             order: 1,  color: '#6B7280', bg: '#6B728018', excluded: false, recall: false, isAppo: false },
   { id: 'keyman_absent',    label: 'キーマン不在',     order: 2,  color: '#6B7280', bg: '#6B728018', excluded: false, recall: false, isAppo: false },
   { id: 'keyman_connect',   label: 'キーマン接続',     order: 3,  color: '#2563EB', bg: '#2563EB18', excluded: false, recall: false, isAppo: false },
   { id: 'appointment',      label: 'アポ獲得',         order: 4,  color: '#0D2247', bg: '#0D224710', excluded: false, recall: false, isAppo: true  },
   { id: 'reception_block',  label: '受付ブロック',     order: 5,  color: '#6B7280', bg: '#6B728018', excluded: false, recall: false, isAppo: false },
   { id: 'reception_recall', label: '受付再コール',     order: 6,  color: '#2563EB', bg: '#2563EB18', excluded: false, recall: true,  isAppo: false },
   { id: 'keyman_recall',    label: 'キーマン再コール', order: 7,  color: '#2563EB', bg: '#2563EB18', excluded: false, recall: true,  isAppo: false },
-  { id: 'rejected',         label: 'お断り',           order: 8,  color: '#6B7280', bg: '#6B728018', excluded: true,  recall: false, isAppo: false },
+  { id: 'keyman_decline',   label: 'キーマン断り',     order: 8,  color: '#6B7280', bg: '#6B728018', excluded: true,  recall: false, isAppo: false },
   { id: 'inquiry_form',     label: '問い合わせフォーム', order: 9,  color: '#2563EB', bg: '#2563EB18', excluded: false, recall: false, isAppo: false },
   { id: 'excluded',         label: '除外',             order: 10, color: '#e53835', bg: '#e5383510', excluded: true,  recall: false, isAppo: false },
 ];
