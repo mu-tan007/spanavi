@@ -5,7 +5,7 @@
 // engagement_slug:
 //   masp             — MASP（全社・仮想 engagement）
 //   seller_sourcing  — ソーシング（SpanaviApp.jsx の navGroups）
-//   spartia_career   — スパキャリ（SpartiaCareerSidebar）
+//   spartia_career   — スパキャリ（SpacareerAdminSidebar / 受講生は SpacareerClientApp）
 //
 // page_key は SpanaviApp.jsx 内で `currentTab === <key>` 判定に使われている文字列と一致させる。
 // 事業の追加・削除は engagements テーブル側で行い、UIは engagements.status='active' と
@@ -36,9 +36,14 @@ export const PAGE_REGISTRY = {
     { key: 'shift', label: 'Shifts', group: 'ADMIN' },
   ],
   spartia_career: [
-    { key: 'applications', label: '応募管理' },
-    { key: 'deals_career', label: 'Deals' },
-    { key: 'members_career', label: 'Members' },
+    { key: 'customers', label: '顧客一覧', group: 'CUSTOMERS' },
+    { key: 'sessions', label: 'セッション管理', group: 'OPERATIONS' },
+    { key: 'homework', label: '事前課題管理', group: 'OPERATIONS' },
+    { key: 'social_style', label: 'ソーシャルスタイル診断', group: 'DIAGNOSIS' },
+    { key: 'ai_courses', label: 'AI講座管理', group: 'CONTENT' },
+    { key: 'templates', label: 'テンプレート管理', group: 'CONTENT' },
+    { key: 'analytics', label: '分析レポート', group: 'ANALYTICS' },
+    { key: 'settings', label: '設定', group: 'SETTINGS' },
   ],
 };
 

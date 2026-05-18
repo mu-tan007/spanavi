@@ -192,6 +192,7 @@ export function AuthProvider({ children }) {
     signOut,
     isAdmin: profile?.role === 'admin',
     isManager: profile?.role === 'admin' || profile?.role === 'manager',
+    isStudent: profile?.role === 'student',
     orgId: profile?.org_id || null,
     recoveryMode,
     clearRecoveryMode,

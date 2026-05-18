@@ -37,8 +37,6 @@ import PayrollView from './views/PayrollView';
 import ListView from './views/ListView';
 import DatabaseView from './views/DatabaseView';
 import DealsView from './views/DealsView';
-import ApplicationsView from './views/career/ApplicationsView';
-import CareerDealsView from './views/career/CareerDealsView';
 import MASPMembersView from './views/MASPMembersView';
 import MaspFirmsView from './views/MaspFirmsView';
 import EngagementMembersView from './views/EngagementMembersView';

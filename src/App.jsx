@@ -5,12 +5,13 @@ import ResetPasswordPage from './components/ResetPasswordPage'
 import SpanaviApp from './components/SpanaviApp'
 import ClientLoginPage from './components/client/ClientLoginPage'
 import ClientPortalApp from './components/client/ClientPortalApp'
+import SpacareerClientApp from './components/spacareer/client/SpacareerClientApp'
 import DesignPreview from './components/views/DesignPreview'
 import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 
 function MainApp() {
-  const { session, profile, loading, signOut, isAdmin, recoveryMode, clearRecoveryMode, orgId } = useAuth()
+  const { session, profile, loading, signOut, isAdmin, isStudent, recoveryMode, clearRecoveryMode, orgId } = useAuth()
   const { data: supabaseData, loading: dataLoading, error: dataError, refetch: onDataRefetch } = useSpanaviData(orgId)
 
   // プロフィール取得タイムアウト（10秒待ってもorgIdが取れない場合はエラー表示）
@@ -36,6 +37,12 @@ function MainApp() {
   // (これを profile チェックより前に置かないと「アカウント情報取得失敗」画面に吸われてしまう)
   if (!loading && session && session.user?.user_metadata?.role === 'client') {
     return <Navigate to="/client" replace />
+  }
+
+  // スパキャリ受講生（members.rank='student'）はクライアントポータルへ強制ルーティング
+  // 仕様書: tasks/spacareer-spec.md §3.1 - 事業切替UIを通さない
+  if (!loading && session && isStudent) {
+    return <Navigate to="/spacareer" replace />
   }
 
   // セッションはあるがプロフィール取得に失敗した場合 → ログイン画面に戻す
@@ -161,6 +168,7 @@ export default function App() {
       <Route path="/design-preview" element={<DesignPreview />} />
       <Route path="/client/login" element={<ClientLoginPage />} />
       <Route path="/client/*" element={<ClientPortalApp />} />
+      <Route path="/spacareer/*" element={<SpacareerClientApp />} />
       <Route path="/*" element={<MainApp />} />
     </Routes>
   )
