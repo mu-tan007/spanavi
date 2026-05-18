@@ -48,7 +48,9 @@ Deno.serve(async (req) => {
     const calendarId = Deno.env.get('GOOGLE_CALENDAR_ID') || 'primary'
     const accessToken = await getAccessToken()
 
-    // GET: freeBusy で空き時間取得
+    // GET: 期間内のイベントを取得し、終日イベントを除いた busy 配列を返す
+    // freeBusy API は「終日 予定あり」も busy として返すため使えない（架電カレンダーで
+    // 全日ブロックされてしまう）。events.list を使って event.start.date（終日）を除外する。
     if (req.method === 'GET') {
       const timeMin = url.searchParams.get('timeMin')
       const timeMax = url.searchParams.get('timeMax')
@@ -56,33 +58,54 @@ Deno.serve(async (req) => {
 
       // 複数カレンダー対応: calendarIds=primary,client@example.com
       const calendarIdsParam = url.searchParams.get('calendarIds')
-      const items = calendarIdsParam
-        ? calendarIdsParam.split(',').map(id => ({ id: id.trim() }))
-        : [{ id: calendarId }]
+      const calIds = calendarIdsParam
+        ? calendarIdsParam.split(',').map(id => id.trim()).filter(Boolean)
+        : [calendarId]
 
-      const res = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timeMin, timeMax, items }),
-      })
-      const data = await res.json()
-      if (!res.ok) return json({ error: data.error?.message || 'freeBusy failed' }, res.status)
+      const fetchBusyForCalendar = async (id: string): Promise<{ busy: any[]; errors?: any[] }> => {
+        const params = new URLSearchParams({
+          timeMin,
+          timeMax,
+          singleEvents: 'true',         // 繰り返しイベントを展開
+          orderBy: 'startTime',
+          maxResults: '250',
+        })
+        const r = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(id)}/events?${params.toString()}`,
+          { headers: { 'Authorization': `Bearer ${accessToken}` } }
+        )
+        const d = await r.json()
+        if (!r.ok) {
+          return { busy: [], errors: [{ reason: d.error?.message || 'events.list failed', code: r.status }] }
+        }
+        const busy: any[] = []
+        for (const ev of (d.items || [])) {
+          // 終日イベント: start.date / end.date のみ持つ → 除外
+          if (ev.start?.date && !ev.start?.dateTime) continue
+          // 透明扱い(空き時間表示)、キャンセル済みは除外
+          if (ev.transparency === 'transparent') continue
+          if (ev.status === 'cancelled') continue
+          if (!ev.start?.dateTime || !ev.end?.dateTime) continue
+          busy.push({ start: ev.start.dateTime, end: ev.end.dateTime })
+        }
+        return { busy }
+      }
+
+      const results = await Promise.all(calIds.map(async id => [id, await fetchBusyForCalendar(id)] as const))
 
       // 複数カレンダーの場合: カレンダーIDごとにbusy配列を返す
       if (calendarIdsParam) {
         const calendars: Record<string, any[]> = {}
         const calendarErrors: Record<string, any[]> = {}
-        for (const [id, cal] of Object.entries(data.calendars || {})) {
-          calendars[id] = (cal as any).busy || []
-          if ((cal as any).errors?.length) {
-            calendarErrors[id] = (cal as any).errors
-          }
+        for (const [id, r] of results) {
+          calendars[id] = r.busy
+          if (r.errors?.length) calendarErrors[id] = r.errors
         }
         return json({ calendars, ...(Object.keys(calendarErrors).length ? { calendarErrors } : {}) })
       }
 
       // 後方互換: 単一カレンダーの場合は既存フォーマット
-      const busy = Object.values(data.calendars || {}).flatMap((cal: any) => cal.busy || [])
+      const busy = results.flatMap(([, r]) => r.busy)
       return json({ busy })
     }
 
