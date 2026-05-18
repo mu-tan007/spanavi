@@ -21,6 +21,12 @@ import { MemberProfileProvider } from './common/MemberProfileDrawer';
 import { RecordingPlayerProvider } from './common/RecordingPlayerProvider';
 import MASPSidebar from './common/sidebars/MASPSidebar';
 import SpacareerAdminSidebar from './spacareer/admin/SpacareerAdminSidebar';
+import SpacareerCustomersView from './spacareer/admin/customers/SpacareerCustomersView';
+import SpacareerSessionsView from './spacareer/admin/sessions/SpacareerSessionsView';
+import SpacareerSocialStyleView from './spacareer/admin/social-style/SpacareerSocialStyleView';
+import SpacareerCoursesView from './spacareer/admin/courses/SpacareerCoursesView';
+import SpacareerAnalyticsView from './spacareer/admin/analytics/SpacareerAnalyticsView';
+import SpacareerSettingsView from './spacareer/admin/settings/SpacareerSettingsView';
 import SpartiaCapitalSidebar from './common/sidebars/SpartiaCapitalSidebar';
 import PlaceholderSidebar from './common/sidebars/PlaceholderSidebar';
 import CapitalApp from './views/capital/CapitalApp';
@@ -1269,7 +1275,11 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
           />
         )}
         {/* スパキャリ運営ダッシュボード 8画面（Phase 3 並列実装で各画面の中身を構築） */}
-        {engSlug === 'spartia_career' && ['customers','sessions','homework','social_style','ai_courses','templates','analytics','settings'].includes(currentTab) && (
+        {engSlug === 'spartia_career' && currentTab === 'social_style' && <SpacareerSocialStyleView />}
+        {engSlug === 'spartia_career' && currentTab === 'ai_courses' && <SpacareerCoursesView />}
+        {engSlug === 'spartia_career' && currentTab === 'analytics' && <SpacareerAnalyticsView />}
+        {engSlug === 'spartia_career' && currentTab === 'settings' && <SpacareerSettingsView />}
+        {engSlug === 'spartia_career' && ['customers','sessions','homework','templates'].includes(currentTab) && (
           <EngagementComingSoon title={currentEngagement?.name || 'スパキャリ'} subtitle="この画面は Phase 3 並列実装で構築予定です" />
         )}
         {engSlug === 'spartia_career' && !['customers','sessions','homework','social_style','ai_courses','templates','analytics','settings','mypage'].includes(currentTab) && (
