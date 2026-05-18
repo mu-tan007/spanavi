@@ -21,6 +21,8 @@ import { MemberProfileProvider } from './common/MemberProfileDrawer';
 import { RecordingPlayerProvider } from './common/RecordingPlayerProvider';
 import MASPSidebar from './common/sidebars/MASPSidebar';
 import SpacareerAdminSidebar from './spacareer/admin/SpacareerAdminSidebar';
+import SpacareerSocialStyleView from './spacareer/admin/social-style/SpacareerSocialStyleView';
+import SpacareerCoursesView from './spacareer/admin/courses/SpacareerCoursesView';
 import SpartiaCapitalSidebar from './common/sidebars/SpartiaCapitalSidebar';
 import PlaceholderSidebar from './common/sidebars/PlaceholderSidebar';
 import CapitalApp from './views/capital/CapitalApp';
@@ -1269,7 +1271,9 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
           />
         )}
         {/* スパキャリ運営ダッシュボード 8画面（Phase 3 並列実装で各画面の中身を構築） */}
-        {engSlug === 'spartia_career' && ['customers','sessions','homework','social_style','ai_courses','templates','analytics','settings'].includes(currentTab) && (
+        {engSlug === 'spartia_career' && currentTab === 'social_style' && <SpacareerSocialStyleView />}
+        {engSlug === 'spartia_career' && currentTab === 'ai_courses' && <SpacareerCoursesView />}
+        {engSlug === 'spartia_career' && ['customers','sessions','homework','templates','analytics','settings'].includes(currentTab) && (
           <EngagementComingSoon title={currentEngagement?.name || 'スパキャリ'} subtitle="この画面は Phase 3 並列実装で構築予定です" />
         )}
         {engSlug === 'spartia_career' && !['customers','sessions','homework','social_style','ai_courses','templates','analytics','settings','mypage'].includes(currentTab) && (
