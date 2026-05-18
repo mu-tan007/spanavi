@@ -9,6 +9,8 @@ import { deactivateMember, updateMemberProfile, updateMember } from '../../lib/s
 import { getOrgId } from '../../lib/orgContext';
 import PageHeader from '../common/PageHeader';
 import { useMemberProfile } from '../common/MemberProfileDrawer';
+import ContractTemplateManager from './masp/ContractTemplateManager';
+import GenerateContractModal from './masp/GenerateContractModal';
 
 // POSITION_OPTIONS は organization_positions テーブルから動的取得
 // （fallback: テーブル未設定時のデフォルト）
@@ -73,6 +75,9 @@ export default function MASPMembersView({ isAdmin }) {
   // 招待再送
   const [resendingId, setResendingId] = useState(null);
   const [resendResult, setResendResult] = useState(null);
+
+  // 業務委託契約書生成モーダル
+  const [contractTarget, setContractTarget] = useState(null);
 
   // 新規追加モーダル
   const [addModal, setAddModal] = useState(false);
@@ -348,7 +353,11 @@ export default function MASPMembersView({ isAdmin }) {
         />
       </PageHeader>
 
-      <div style={{ padding: '24px 16px 16px', overflowX: 'auto' }}>
+      <div style={{ padding: '24px 16px 0' }}>
+        <ContractTemplateManager isAdmin={isAdmin} />
+      </div>
+
+      <div style={{ padding: '8px 16px 16px', overflowX: 'auto' }}>
         <table style={{
           width: '100%', borderCollapse: 'collapse', minWidth: 1100,
           background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
@@ -453,6 +462,11 @@ export default function MASPMembersView({ isAdmin }) {
                               <button
                                 onClick={() => { setActionMenuId(null); startEdit(m); }}
                                 style={menuItemStyle}>編集</button>
+                              <button
+                                onClick={() => { setActionMenuId(null); setContractTarget(m); }}
+                                style={menuItemStyle}
+                                title="業務委託契約書を差し込み生成"
+                              >契約書を生成</button>
                               {m.email && (
                                 <button
                                   onClick={() => { setActionMenuId(null); handleResendInvite(m); }}
@@ -581,6 +595,18 @@ export default function MASPMembersView({ isAdmin }) {
             </div>
           </div>
         </div>
+      )}
+
+      {contractTarget && (
+        <GenerateContractModal
+          member={contractTarget}
+          onClose={() => setContractTarget(null)}
+          onGenerated={(res) => {
+            setResendResult({ type: 'ok', message: `${res.filename} をダウンロードしました` });
+            setTimeout(() => setResendResult(null), 5000);
+            refresh?.();
+          }}
+        />
       )}
 
       {deleteTarget && (

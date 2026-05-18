@@ -1,0 +1,102 @@
+// =====================================================================
+// 業務委託契約書 .docx 生成ヘルパー
+// ---------------------------------------------------------------------
+// docxtemplater で Word テンプレ内のプレースホルダ({{name}} 等) を差し込む。
+// 生成後の Word を file-saver でダウンロード → むー様が手動で PDF 化し、
+// GMOサインへアップロードする運用。
+// =====================================================================
+
+import Docxtemplater from 'docxtemplater';
+import PizZip from 'pizzip';
+import { saveAs } from 'file-saver';
+import { supabase } from './supabase';
+
+// テンプレ Storage のパス: {orgId}/{templateId}.docx
+export function templateStoragePath(orgId, templateId) {
+  return `${orgId}/${templateId}.docx`;
+}
+
+// 終了日の自動算出: 開始日 + 1年 - 1日（1年契約、満了日）
+export function autoEndDate(startDateStr) {
+  if (!startDateStr) return '';
+  const d = new Date(startDateStr + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return '';
+  d.setFullYear(d.getFullYear() + 1);
+  d.setDate(d.getDate() - 1);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// YYYY-MM-DD → 2026年5月18日 形式
+export function formatJpDate(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-');
+  if (!y || !m || !d) return dateStr;
+  return `${Number(y)}年${Number(m)}月${Number(d)}日`;
+}
+
+// 口座種別の表示用整形
+function formatAccountType(t) {
+  if (!t) return '';
+  const map = { ordinary: '普通', checking: '当座', savings: '貯蓄' };
+  return map[t] || t;
+}
+
+// テンプレ用のプレースホルダ値を組み立てる
+export function buildPlaceholders({ member, startDate, endDate, bank }) {
+  const b = bank || {};
+  return {
+    name: member?.name || '',
+    address: member?.address || '',
+    start_date: formatJpDate(startDate),
+    end_date: formatJpDate(endDate),
+    bank_name: b.bank_name || '',
+    bank_branch: b.branch_name || '',
+    account_type: formatAccountType(b.account_type),
+    account_number: b.account_number || '',
+    account_holder: b.account_holder || member?.name || '',
+  };
+}
+
+// Storage からテンプレ .docx をダウンロードして ArrayBuffer で返す
+export async function downloadTemplateBlob(filePath) {
+  const { data, error } = await supabase.storage
+    .from('contract-templates')
+    .download(filePath);
+  if (error) throw new Error(`テンプレ取得失敗: ${error.message}`);
+  return await data.arrayBuffer();
+}
+
+// docxtemplater で差し込み実施 → Blob 返却
+export function renderDocxBlob(templateAb, placeholders) {
+  const zip = new PizZip(templateAb);
+  const doc = new Docxtemplater(zip, {
+    paragraphLoop: true,
+    linebreaks: true,
+  });
+  doc.render(placeholders);
+  return doc.getZip().generate({
+    type: 'blob',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    compression: 'DEFLATE',
+  });
+}
+
+// 全部入りユーティリティ: テンプレを取得→差し込み→ダウンロード
+export async function generateAndDownloadContract({
+  template,           // { id, file_path, name }
+  member,             // members 行
+  startDate,
+  endDate,
+  bank,               // 口座情報
+}) {
+  const ab = await downloadTemplateBlob(template.file_path);
+  const placeholders = buildPlaceholders({ member, startDate, endDate, bank });
+  const blob = renderDocxBlob(ab, placeholders);
+  const safeName = (member?.name || 'member').replace(/[\\/:*?"<>|]/g, '_');
+  const filename = `業務委託契約書_${safeName}_${startDate || ''}.docx`;
+  saveAs(blob, filename);
+  return { placeholders, filename };
+}
