@@ -1,10 +1,21 @@
 import React from 'react';
-import SidebarShell, { ActiveItem, DisabledItem, SectionHeader } from './SidebarShell';
+import SidebarShell, { ActiveItem, DisabledItem, SectionHeader } from '../../common/sidebars/SidebarShell';
 import { useAccessControl } from '../../../hooks/useAccessControl';
 
-const ACTIVE_IDS = new Set(['applications', 'deals_career', 'members_career']);
+// スパキャリ運営ダッシュボード 8メニュー
+// 仕様書: tasks/spacareer-spec.md §3.2 B. 運営ダッシュボード
+const ACTIVE_IDS = new Set([
+  'customers',
+  'sessions',
+  'homework',
+  'social_style',
+  'ai_courses',
+  'templates',
+  'analytics',
+  'settings',
+]);
 
-export default function SpartiaCareerSidebar({
+export default function SpacareerAdminSidebar({
   currentTab,
   setCurrentTab,
   branding,
@@ -16,34 +27,28 @@ export default function SpartiaCareerSidebar({
   const { canViewPage } = useAccessControl();
 
   const rawSections = [
-    { label: 'APPLICATIONS', items: [
-      { id: 'applications', label: '応募管理' },
-      { id: 'cw_integration', label: 'CW連携' },
+    { label: 'CUSTOMERS', items: [
+      { id: 'customers', label: '顧客一覧' },
     ]},
-    { label: 'PIPELINE', items: [
-      { id: 'deals_career', label: 'Deals' },
-      { id: 'meeting_schedule', label: '面談スケジュール' },
+    { label: 'OPERATIONS', items: [
+      { id: 'sessions', label: 'セッション管理' },
+      { id: 'homework', label: '事前課題管理' },
     ]},
-    { label: 'ENROLLMENT', items: [
-      { id: 'customers', label: '受講生' },
-      { id: 'curriculum', label: 'カリキュラム' },
-      { id: 'payments', label: '支払い管理' },
+    { label: 'DIAGNOSIS', items: [
+      { id: 'social_style', label: 'ソーシャルスタイル診断' },
     ]},
-    { label: 'MEMBERS', items: [
-      { id: 'members_career', label: 'Members' },
+    { label: 'CONTENT', items: [
+      { id: 'ai_courses', label: 'AI講座管理' },
+      { id: 'templates', label: 'テンプレート管理' },
     ]},
     { label: 'ANALYTICS', items: [
-      { id: 'kpi_career', label: 'KPI' },
-      { id: 'team_compare', label: 'チーム比較' },
+      { id: 'analytics', label: '分析レポート' },
     ]},
     { label: 'SETTINGS', items: [
-      { id: 'plans', label: 'プラン管理' },
-      { id: 'stages', label: 'ステージ設定' },
+      { id: 'settings', label: '設定' },
     ]},
   ];
 
-  // 有効ページのみ抽出: 「Active かつ canViewPage」が true なページだけ表示。
-  // DisabledItem (機能未実装) は閲覧権限の有無に関わらず表示してロードマップ提示用に残す。
   const sections = rawSections
     .map(s => ({
       ...s,
