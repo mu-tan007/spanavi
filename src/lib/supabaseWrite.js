@@ -1793,6 +1793,29 @@ export async function deletePayrollSnapshots(payMonth) {
   return { error }
 }
 
+// 被紹介者を「紹介フィー支払済」としてマーキング（重複支給防止）
+export async function markMembersReferralPaid(memberIds, payMonth) {
+  if (!memberIds || memberIds.length === 0) return { error: null }
+  const { error } = await supabase
+    .from('members')
+    .update({ referral_paid_pay_month: payMonth })
+    .eq('org_id', getOrgId())
+    .in('id', memberIds)
+  if (error) console.error('[DB] markMembersReferralPaid error:', error)
+  return { error }
+}
+
+// 指定月の紹介フィー支払マークをクリア（確定解除時）
+export async function clearMembersReferralPaid(payMonth) {
+  const { error } = await supabase
+    .from('members')
+    .update({ referral_paid_pay_month: null })
+    .eq('org_id', getOrgId())
+    .eq('referral_paid_pay_month', payMonth)
+  if (error) console.error('[DB] clearMembersReferralPaid error:', error)
+  return { error }
+}
+
 export async function fetchPayrollAdjustment(payMonth) {
   const { data, error } = await supabase
     .from('payroll_adjustments')

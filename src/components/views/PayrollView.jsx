@@ -5,7 +5,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge, Tag, DataTable } from '../ui';
 import { calcRankAndRate } from '../../utils/calculations';
 import { supabase } from '../../lib/supabase';
-import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, fetchPayrollAdjustment, upsertPayrollAdjustment } from '../../lib/supabaseWrite';
+import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, fetchPayrollAdjustment, upsertPayrollAdjustment, markMembersReferralPaid, clearMembersReferralPaid } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 // 旧 useColumnConfig / ColumnResizeHandle は DataTable 移行で不要に
 import PageHeader from '../common/PageHeader';
@@ -159,6 +159,8 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
     const monthEnd = new Date(sel.year, sel.month, 0);
     members.forEach(m => {
       if (typeof m !== 'object' || !m.referrerName || !m.operationStartDate) return;
+      // 他月で既に支払済なら除外（同じ被紹介者の二重支給防止）
+      if (m.referralPaidPayMonth && m.referralPaidPayMonth !== payMonth) return;
       const opDate = new Date(m.operationStartDate);
       const deadline = new Date(opDate);
       deadline.setDate(deadline.getDate() + 30);
@@ -174,7 +176,33 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
       }
     });
     return map;
-  }, [members, appoData, monthTab]);
+  }, [members, appoData, monthTab, payMonth]);
+
+  // 当月支払対象の被紹介者IDリスト（確定/解除時にマーキング更新するため）
+  const referralPaidMemberIds = React.useMemo(() => {
+    const sel = payrollMonths.find(x => x.label === monthTab) ?? { year: 2026, month: 3 };
+    const monthStart = new Date(sel.year, sel.month - 1, 1);
+    const monthEnd = new Date(sel.year, sel.month, 0);
+    const ids = [];
+    members.forEach(m => {
+      if (typeof m !== 'object' || !m.referrerName || !m.operationStartDate || !m._supaId) return;
+      if (m.referralPaidPayMonth && m.referralPaidPayMonth !== payMonth) return;
+      const opDate = new Date(m.operationStartDate);
+      const deadline = new Date(opDate);
+      deadline.setDate(deadline.getDate() + 30);
+      const salesWithin30Days = appoData
+        .filter(a =>
+          a.getter === m.name &&
+          PAYROLL_COUNTABLE.has(a.status) &&
+          a.appointmentDate && new Date(a.appointmentDate) >= opDate && new Date(a.appointmentDate) <= deadline
+        )
+        .reduce((sum, a) => sum + (a.sales || 0), 0);
+      if (salesWithin30Days >= 100000 && opDate <= monthEnd && deadline >= monthStart) {
+        ids.push(m._supaId);
+      }
+    });
+    return ids;
+  }, [members, appoData, monthTab, payMonth]);
 
   // 月次報酬計算
   const calcData = React.useMemo(() => {
@@ -300,6 +328,11 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
       }));
       const { error } = await upsertPayrollSnapshots(rows);
       if (error) throw error;
+      // 当月支払対象の被紹介者を「支払済」としてマーキング（次月以降の重複支給防止）
+      if (referralPaidMemberIds.length > 0) {
+        await markMembersReferralPaid(referralPaidMemberIds, payMonth);
+        if (onDataRefetch) setTimeout(onDataRefetch, 500);
+      }
       const { data: fresh } = await fetchPayrollSnapshots(payMonth);
       setSnapshots(fresh || []);
       setActionMsg(`${monthTab}の報酬を確定しました（${rows.length}名）`);
@@ -320,6 +353,9 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
     try {
       const { error } = await deletePayrollSnapshots(payMonth);
       if (error) throw error;
+      // 当月分の紹介フィー支払マークを解除（再計算でやり直し可能にする）
+      await clearMembersReferralPaid(payMonth);
+      if (onDataRefetch) setTimeout(onDataRefetch, 500);
       setSnapshots([]);
       setActionMsg(`${monthTab}の確定を解除しました`);
       setTimeout(() => setActionMsg(''), 4000);

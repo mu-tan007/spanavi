@@ -175,6 +175,7 @@ export function useSpanaviData(authOrgId) {
           joinDate: m.start_date || '',
           operationStartDate: m.operation_start_date || '',
           referrerName: m.referrer_name || '',
+          referralPaidPayMonth: m.referral_paid_pay_month || '',
           zoomUserId: m.zoom_user_id || '',
           zoomPhoneNumber: m.zoom_phone_number || '',
           avatarUrl: m.avatar_url || '',
