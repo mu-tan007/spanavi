@@ -1110,7 +1110,8 @@ export async function fetchAllRecallRecords() {
     const { data, error } = await supabase
       .from('call_records')
       .select('*')
-      .in('status', ['受付再コール', 'キーマン再コール'])
+      // 旧ラベル '社長再コール' は古いキャッシュSPAから書き込まれる残存対策で含める
+      .in('status', ['受付再コール', 'キーマン再コール', '社長再コール'])
       .order('called_at', { ascending: false })
       .range(from, from + PAGE - 1)
     if (error) { console.error('[DB] fetchAllRecallRecords error:', error); return { data: records, error } }
@@ -1168,7 +1169,7 @@ export async function fetchAllRecallRecords() {
   // 過去に再コールを記録 → 別画面（CallingScreen 等）から非再コール結果で上書きしたが、
   // その時に call_records 側の recall_completed フラグが立たなかった「取り残し」を排除する。
   // call_list_items が取得できなかったレコードは安全側で残す（fetch失敗時の取りこぼし防止）。
-  const RECALL_LATEST_STATUSES = new Set(['受付再コール', 'キーマン再コール'])
+  const RECALL_LATEST_STATUSES = new Set(['受付再コール', 'キーマン再コール', '社長再コール'])
   const statusFresh = listAlive.filter(r => {
     const item = itemMap[r.item_id]
     if (!item) return true
