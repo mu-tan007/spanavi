@@ -1,7 +1,7 @@
 // ============================================================
 // Daily Report 生成 Edge Function
 // ------------------------------------------------------------
-// 平日 18:00 JST に pg_cron からキックされる。
+// 毎日 20:00 JST に pg_cron からキックされる。
 // Sourcing 事業の各チームについて当日の活動をサマリし、
 // daily_reports テーブルに保存 + 事業所属メンバー全員に push 通知。
 // ============================================================
@@ -62,7 +62,6 @@ Deno.serve(async (req) => {
     )
 
     // 手動リラン用: body.target_date (YYYY-MM-DD JST) が来たらその日付で再生成。
-    // 平日チェックや cron 認証は維持する。
     let overrideDate: string | null = null
     try {
       const body = await req.clone().json()
@@ -74,13 +73,7 @@ Deno.serve(async (req) => {
     const today = new Date()
     const targetDate = overrideDate || jstDateStr(today)
 
-    // 平日のみ実行（保険）
-    const dow = new Date(targetDate + 'T00:00:00Z').getUTCDay()
-    if (dow === 0 || dow === 6) {
-      return new Response(JSON.stringify({ ok: true, skipped: 'weekend', targetDate }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
+    // 毎日生成（土日も含む）
 
     const dayStart = `${targetDate}T00:00:00+09:00`
     const dayEnd = `${targetDate}T23:59:59+09:00`
