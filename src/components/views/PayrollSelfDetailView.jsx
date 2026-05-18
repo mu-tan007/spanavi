@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import PageHeader from '../common/PageHeader';
 import PayrollInvoiceUploader from './PayrollInvoiceUploader';
+import PayrollInvoiceGenerator from './PayrollInvoiceGenerator';
 
 const PAYROLL_COUNTABLE = new Set(['アポ取得', '事前確認済', '面談済']);
 const MONO = "'JetBrains Mono'";
@@ -29,11 +30,23 @@ function buildPayrollMonths() {
 // メンバー単位の月別給与詳細ページ。
 // canEdit=true なら請求書アップロード可（自分自身を閲覧している時）。
 // targetMember は { _supaId, id, name, team, role, totalSales, operationStartDate, referrerName, referralPaidPayMonth, ... }
+// 直近の完了月（前月）のラベルを返す。1月の場合は前年12月。payrollMonths に
+// 含まれない場合は最後の要素にフォールバック。
+function defaultMonthLabel(payrollMonths) {
+  const now = new Date();
+  const m = now.getMonth() === 0 ? 12 : now.getMonth(); // getMonth()=0 (Jan) → 12月(前年)
+  const y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const target = payrollMonths.find(p => p.year === y && p.month === m);
+  if (target) return target.label;
+  return payrollMonths[payrollMonths.length - 1]?.label || '3月';
+}
+
 export default function PayrollSelfDetailView({ targetMember, members, appoData, canEdit = true, memberRoleMap: memberRoleMapProp = null, embedded = false, onBack = null }) {
   const payrollMonths = useMemo(() => buildPayrollMonths(), []);
-  const [monthTab, setMonthTab] = useState(() => payrollMonths[payrollMonths.length - 1]?.label || '3月');
+  const [monthTab, setMonthTab] = useState(() => defaultMonthLabel(payrollMonths));
   const [orgSettings, setOrgSettings] = useState({});
   const [internalRoleMap, setInternalRoleMap] = useState({});
+  const [invoiceRefreshKey, setInvoiceRefreshKey] = useState(0);
 
   useEffect(() => {
     fetchOrgSettings().then(({ data }) => setOrgSettings(data || {}));
@@ -370,8 +383,31 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
         />
       </div>
 
-      {/* 請求書 */}
-      <PayrollInvoiceUploader memberId={targetMember._supaId || targetMember.id} payMonth={payMonth} canEdit={canEdit} />
+      {/* 請求書（アップロード/格納済表示） */}
+      <PayrollInvoiceUploader
+        key={`${targetMember._supaId || targetMember.id}-${payMonth}-${invoiceRefreshKey}`}
+        memberId={targetMember._supaId || targetMember.id}
+        payMonth={payMonth}
+        canEdit={canEdit}
+      />
+
+      <div style={{ marginTop: space[5] }}>
+        <PayrollInvoiceGenerator
+          memberId={targetMember._supaId || targetMember.id}
+          memberName={targetMember.name}
+          memberEmail={targetMember.email}
+          memberPhone={targetMember.phone_number}
+          payrollMonths={payrollMonths}
+          payMonthLabel={monthTab}
+          incentive={incentive}
+          roleBonus={roleBonusInfo.bonus}
+          referrals={referrals}
+          referralTotal={referralTotal}
+          totalPayout={totalPayout}
+          canEdit={canEdit}
+          onUploaded={() => setInvoiceRefreshKey(k => k + 1)}
+        />
+      </div>
     </div>
   );
 }
