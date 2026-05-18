@@ -11,6 +11,7 @@ import PageHeader from '../common/PageHeader';
 import { useMemberProfile } from '../common/MemberProfileDrawer';
 import ContractTemplateManager from './masp/ContractTemplateManager';
 import GenerateContractModal from './masp/GenerateContractModal';
+import { autoEndDate, generateAndDownloadContract } from '../../lib/contractGenerator';
 
 // POSITION_OPTIONS は organization_positions テーブルから動的取得
 // （fallback: テーブル未設定時のデフォルト）
@@ -80,12 +81,20 @@ export default function MASPMembersView({ isAdmin }) {
   const [contractTarget, setContractTarget] = useState(null);
 
   // 新規追加モーダル
+  // 注: start_date は「契約開始日」として使用（入社日と同義）
+  // 契約終了日と銀行情報は契約書差し込み + member_invoice_profiles 登録用
   const [addModal, setAddModal] = useState(false);
   const [addForm, setAddForm] = useState({
-    name: '', email: '', phone_number: '', position: '', start_date: '',
+    name: '', email: '', phone_number: '', position: '',
+    start_date: '', contract_end_date: '',
+    address: '',
+    bank_name: '', branch_name: '', account_type: '',
+    account_number: '', account_holder_kana: '',
   });
   const [addSendInvite, setAddSendInvite] = useState(true);
   const [addEngagementIds, setAddEngagementIds] = useState(new Set()); // 選択された engagement IDs
+  const [addTemplateId, setAddTemplateId] = useState(''); // 自動生成する契約書テンプレ
+  const [addContractTemplates, setAddContractTemplates] = useState([]);
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState(null);
 
@@ -217,12 +226,42 @@ export default function MASPMembersView({ isAdmin }) {
     }
   };
 
-  const openAddModal = () => {
-    setAddForm({ name: '', email: '', phone_number: '', position: '', start_date: '' });
+  const openAddModal = async () => {
+    setAddForm({
+      name: '', email: '', phone_number: '', position: '',
+      start_date: '', contract_end_date: '',
+      address: '',
+      bank_name: '', branch_name: '', account_type: '',
+      account_number: '', account_holder_kana: '',
+    });
     setAddSendInvite(true);
     setAddEngagementIds(new Set());
+    setAddTemplateId('');
     setAddError(null);
     setAddModal(true);
+
+    // 契約書テンプレ一覧をロード（1つしかなければ自動選択）
+    const orgId = getOrgId();
+    const { data } = await supabase
+      .from('contract_templates')
+      .select('id, name, file_path')
+      .eq('org_id', orgId)
+      .eq('is_active', true)
+      .order('uploaded_at', { ascending: false });
+    setAddContractTemplates(data || []);
+    if (data && data.length === 1) setAddTemplateId(data[0].id);
+  };
+
+  // 契約開始日を変えたら、契約終了日が未入力 or 旧値の自動算出と一致していれば自動更新
+  const onAddStartDateChange = (v) => {
+    setAddForm(s => {
+      const wasAuto = !s.contract_end_date || s.contract_end_date === autoEndDate(s.start_date);
+      return {
+        ...s,
+        start_date: v,
+        contract_end_date: wasAuto ? autoEndDate(v) : s.contract_end_date,
+      };
+    });
   };
 
   const toggleAddEngagement = (id) => {
@@ -311,12 +350,87 @@ export default function MASPMembersView({ isAdmin }) {
         if (meErr) console.warn('member_engagements insert partially failed:', meErr.message);
       }
 
+      // 住所 + 口座情報を member_invoice_profiles に upsert（請求書 + 契約書 共通）
+      const hasInvoiceFields = addForm.address || addForm.bank_name || addForm.branch_name
+        || addForm.account_type || addForm.account_number || addForm.account_holder_kana;
+      if (newMemberId && hasInvoiceFields) {
+        const { error: ipErr } = await supabase
+          .from('member_invoice_profiles')
+          .upsert({
+            member_id: newMemberId,
+            org_id: orgId,
+            address: addForm.address || null,
+            bank_name: addForm.bank_name || null,
+            branch_name: addForm.branch_name || null,
+            account_type: addForm.account_type || null,
+            account_number: addForm.account_number || null,
+            account_holder_kana: addForm.account_holder_kana || null,
+          }, { onConflict: 'member_id' });
+        if (ipErr) console.warn('member_invoice_profiles upsert failed:', ipErr.message);
+      }
+
+      // 契約書テンプレが選ばれていれば、自動で .docx を生成 + contracts に履歴登録
+      let contractFilename = null;
+      if (newMemberId && addTemplateId && addForm.start_date && addForm.contract_end_date) {
+        try {
+          const template = addContractTemplates.find(t => t.id === addTemplateId);
+          if (template) {
+            const memberForGen = {
+              id: newMemberId,
+              name: addForm.name.trim(),
+              address: addForm.address || '',
+            };
+            const bank = {
+              bank_name: addForm.bank_name,
+              branch_name: addForm.branch_name,
+              account_type: addForm.account_type,
+              account_number: addForm.account_number,
+              account_holder: addForm.account_holder_kana || addForm.name.trim(),
+            };
+            const { placeholders, filename } = await generateAndDownloadContract({
+              template,
+              member: memberForGen,
+              startDate: addForm.start_date,
+              endDate: addForm.contract_end_date,
+              bank,
+            });
+            contractFilename = filename;
+
+            const { data: { user } } = await supabase.auth.getUser();
+            await supabase.from('contracts').insert({
+              org_id: orgId,
+              member_id: newMemberId,
+              template_id: template.id,
+              start_date: addForm.start_date,
+              end_date: addForm.contract_end_date,
+              payload: { placeholders, filename, template_name: template.name },
+              generated_by: user?.id || null,
+            });
+          }
+        } catch (genErr) {
+          console.warn('contract generation failed:', genErr.message);
+          // 契約書生成失敗してもメンバー追加自体は成功扱い
+          setResendResult({
+            type: 'error',
+            message: `メンバー追加は成功しましたが契約書生成に失敗: ${genErr.message}`,
+          });
+          setTimeout(() => setResendResult(null), 6000);
+        }
+      }
+
       // Stripe 席数同期
       syncSeatCount(members.length + 1);
 
       // 完了
       setAdding(false);
       setAddModal(false);
+      if (contractFilename) {
+        setResendResult({
+          type: 'ok',
+          message: `${addForm.name.trim()} を追加し、契約書 ${contractFilename} をダウンロードしました`,
+        });
+        setTimeout(() => setResendResult(null), 6000);
+      }
       await refresh?.();
     } catch (err) {
       setAddError(err.message || '追加に失敗しました');
@@ -551,14 +665,87 @@ export default function MASPMembersView({ isAdmin }) {
                   options={positionSelectOptions}
                 />
               </FormRow>
-              <FormRow label="入社日">
+              <FormRow label="契約開始日">
                 <Input
                   size="sm"
                   type="date"
                   value={addForm.start_date}
-                  onChange={e => setAddForm(s => ({ ...s, start_date: e.target.value }))}
+                  onChange={e => onAddStartDateChange(e.target.value)}
                   style={{ fontFamily: font.family.mono }}
                 />
+              </FormRow>
+              <FormRow label="契約終了日">
+                <Input
+                  size="sm"
+                  type="date"
+                  value={addForm.contract_end_date}
+                  onChange={e => setAddForm(s => ({ ...s, contract_end_date: e.target.value }))}
+                  style={{ fontFamily: font.family.mono }}
+                />
+                <div style={{ fontSize: 10, color: color.textLight, marginTop: 3 }}>
+                  契約開始日 + 1年 - 1日 で自動算出（1年自動更新）。必要に応じて変更可。
+                </div>
+              </FormRow>
+
+              <FormRow label="住所">
+                <Input
+                  size="sm"
+                  value={addForm.address}
+                  onChange={e => setAddForm(s => ({ ...s, address: e.target.value }))}
+                  placeholder="例: 東京都港区六本木1-2-3 マンション101"
+                />
+              </FormRow>
+
+              <div style={{ marginTop: 8, padding: '12px 14px', background: color.gray50, border: `1px solid ${color.border}`, borderRadius: radius.md }}>
+                <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, marginBottom: 8 }}>口座情報</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <FormRow label="銀行名">
+                    <Input size="sm" value={addForm.bank_name} onChange={e => setAddForm(s => ({ ...s, bank_name: e.target.value }))} placeholder="例: 三井住友銀行" />
+                  </FormRow>
+                  <FormRow label="支店名">
+                    <Input size="sm" value={addForm.branch_name} onChange={e => setAddForm(s => ({ ...s, branch_name: e.target.value }))} placeholder="例: 六本木支店" />
+                  </FormRow>
+                  <FormRow label="口座種別">
+                    <Select
+                      size="sm"
+                      value={addForm.account_type}
+                      onChange={e => setAddForm(s => ({ ...s, account_type: e.target.value }))}
+                      options={[
+                        { value: '', label: '（選択）' },
+                        { value: 'ordinary', label: '普通' },
+                        { value: 'checking', label: '当座' },
+                        { value: 'savings', label: '貯蓄' },
+                      ]}
+                    />
+                  </FormRow>
+                  <FormRow label="口座番号">
+                    <Input size="sm" value={addForm.account_number} onChange={e => setAddForm(s => ({ ...s, account_number: e.target.value }))} placeholder="数字のみ" style={{ fontFamily: font.family.mono }} />
+                  </FormRow>
+                  <FormRow label="口座名義">
+                    <Input size="sm" value={addForm.account_holder_kana} onChange={e => setAddForm(s => ({ ...s, account_holder_kana: e.target.value }))} placeholder="例: ヤマダ タロウ" />
+                  </FormRow>
+                </div>
+              </div>
+
+              <FormRow label="契約書テンプレ">
+                {addContractTemplates.length === 0 ? (
+                  <div style={{ fontSize: font.size.xs, color: color.textLight }}>
+                    テンプレ未登録。先に「業務委託契約書テンプレ」セクションでアップロードすると、メンバー追加と同時に契約書が自動生成されます。
+                  </div>
+                ) : (
+                  <Select
+                    size="sm"
+                    value={addTemplateId}
+                    onChange={e => setAddTemplateId(e.target.value)}
+                    options={[
+                      { value: '', label: '生成しない' },
+                      ...addContractTemplates.map(t => ({ value: t.id, label: t.name })),
+                    ]}
+                  />
+                )}
+                <div style={{ fontSize: 10, color: color.textLight, marginTop: 3 }}>
+                  テンプレを選ぶと、メンバー追加と同時に契約書 (.docx) がダウンロードされます。
+                </div>
               </FormRow>
 
               <div style={{ marginTop: 8, padding: '12px 14px', background: color.gray50, border: `1px solid ${color.border}`, borderRadius: radius.md }}>

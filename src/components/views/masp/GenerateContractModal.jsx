@@ -27,38 +27,61 @@ export default function GenerateContractModal({ member, onClose, onGenerated }) 
   const [templates, setTemplates] = useState([]);
   const [loadingTpl, setLoadingTpl] = useState(true);
   const [templateId, setTemplateId] = useState('');
+  // 契約開始日のデフォルトはメンバーの入社日 (= 契約開始日)
   const [form, setForm] = useState({
     name: member?.name || '',
-    address: member?.address || '',
-    start_date: '',
-    end_date: '',
-    bank_name: member?.bank_info?.bank_name || '',
-    branch_name: member?.bank_info?.branch_name || '',
-    account_type: member?.bank_info?.account_type || '',
-    account_number: member?.bank_info?.account_number || '',
-    account_holder: member?.bank_info?.account_holder || member?.name || '',
+    address: '',
+    start_date: member?.start_date || '',
+    end_date: autoEndDate(member?.start_date || ''),
+    bank_name: '',
+    branch_name: '',
+    account_type: '',
+    account_number: '',
+    account_holder: member?.name || '',
   });
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
 
-  // テンプレ一覧をロード
+  // テンプレ一覧 + member_invoice_profiles の既存口座情報をロード
   useEffect(() => {
     (async () => {
       const orgId = getOrgId();
-      const { data, error: err } = await supabase
-        .from('contract_templates')
-        .select('id, name, file_path')
-        .eq('org_id', orgId)
-        .eq('is_active', true)
-        .order('uploaded_at', { ascending: false });
-      if (err) setError(err.message);
+
+      const [tplRes, ipRes] = await Promise.all([
+        supabase
+          .from('contract_templates')
+          .select('id, name, file_path')
+          .eq('org_id', orgId)
+          .eq('is_active', true)
+          .order('uploaded_at', { ascending: false }),
+        supabase
+          .from('member_invoice_profiles')
+          .select('address, bank_name, branch_name, account_type, account_number, account_holder_kana')
+          .eq('member_id', member.id)
+          .maybeSingle(),
+      ]);
+
+      if (tplRes.error) setError(tplRes.error.message);
       else {
-        setTemplates(data || []);
-        if (data && data.length === 1) setTemplateId(data[0].id);
+        setTemplates(tplRes.data || []);
+        if (tplRes.data && tplRes.data.length === 1) setTemplateId(tplRes.data[0].id);
+      }
+
+      const ip = ipRes.data;
+      if (ip) {
+        setForm(s => ({
+          ...s,
+          address: ip.address || s.address,
+          bank_name: ip.bank_name || s.bank_name,
+          branch_name: ip.branch_name || s.branch_name,
+          account_type: ip.account_type || s.account_type,
+          account_number: ip.account_number || s.account_number,
+          account_holder: ip.account_holder_kana || s.account_holder,
+        }));
       }
       setLoadingTpl(false);
     })();
-  }, []);
+  }, [member.id]);
 
   // 開始日を変えたら終了日を自動算出（手動入力されていない場合のみ）
   const onStartDateChange = (v) => {
@@ -92,13 +115,21 @@ export default function GenerateContractModal({ member, onClose, onGenerated }) 
     };
 
     try {
-      // members への永続化（次回以降の入力省略）
+      // 永続化: members.name + member_invoice_profiles（請求書と契約書で共用）
       const orgId = getOrgId();
-      await supabase.from('members').update({
-        name: form.name.trim(),
+      if (form.name.trim() !== (member?.name || '')) {
+        await supabase.from('members').update({ name: form.name.trim() }).eq('id', member.id);
+      }
+      await supabase.from('member_invoice_profiles').upsert({
+        member_id: member.id,
+        org_id: orgId,
         address: form.address.trim() || null,
-        bank_info: bank,
-      }).eq('id', member.id);
+        bank_name: bank.bank_name || null,
+        branch_name: bank.branch_name || null,
+        account_type: bank.account_type || null,
+        account_number: bank.account_number || null,
+        account_holder_kana: bank.account_holder || null,
+      }, { onConflict: 'member_id' });
 
       // .docx 生成 + ダウンロード
       const { placeholders, filename } = await generateAndDownloadContract({
