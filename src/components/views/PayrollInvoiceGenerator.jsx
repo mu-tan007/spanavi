@@ -1,21 +1,23 @@
 // ============================================================
-// Payroll 請求書作成: 当月支給データから請求書PDFを自動生成
+// Payroll 請求書: 1アクションで PDF を生成し本人ページに格納
 // メンバー個人 → M&Aソーシングパートナーズ宛の業務委託請求書
 // 振込先・個人情報は member_invoice_profiles テーブルに DB 保存。
 // 端末・ブラウザに依存せず、本人が次回開いた際に自動プレフィルされる。
 // ============================================================
 import { useEffect, useMemo, useState } from 'react';
 import { color, space, radius, font, alpha } from '../../constants/design';
-import { Button, Card } from '../ui';
+import { Button, Card, Badge } from '../ui';
 import {
   uploadPayrollInvoice,
   fetchMemberInvoiceProfile,
   upsertMemberInvoiceProfile,
+  fetchPayrollInvoice,
+  getPayrollInvoiceUrl,
+  deletePayrollInvoice,
 } from '../../lib/supabaseWrite';
 
 const fmt = (n) => Number(n).toLocaleString('ja-JP');
 
-// DB レコード（snake_case） → UI プロフィール（camelCase）
 function dbToUi(row) {
   if (!row) return null;
   return {
@@ -32,7 +34,6 @@ function dbToUi(row) {
   };
 }
 
-// 「4月」→ { year, month } を payrollMonths から特定。
 function getYearMonthForLabel(payrollMonths, label) {
   return payrollMonths.find(p => p.label === label) || null;
 }
@@ -41,28 +42,59 @@ function fmtJpDate(d) {
   return `${d.getFullYear()}年${String(d.getMonth() + 1).padStart(2, '0')}月${String(d.getDate()).padStart(2, '0')}日`;
 }
 
+function fmtFileSize(b) {
+  if (!b && b !== 0) return '';
+  if (b < 1024) return b + ' B';
+  if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1024 / 1024).toFixed(2) + ' MB';
+}
+
+function fmtTimestamp(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
 export default function PayrollInvoiceGenerator({
-  memberId,        // members.id (UUID, payroll_invoices.member_id 用)
+  memberId,
   memberName,
   memberEmail,
   memberPhone,
-  payrollMonths,   // [{label,year,month}]
-  payMonthLabel,   // "4月" など現在選択中
+  payrollMonths,
+  payMonthLabel,
   incentive,
   roleBonus,
-  referrals,       // [{name, amount, ...}]
+  referrals,
   referralTotal,
   totalPayout,
-  canEdit,         // false なら閲覧のみ（管理者が他人のを開いている時）
-  onUploaded,     // 生成 → アップ後にコールバック
+  canEdit,
 }) {
-  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
 
+  // 既存請求書（格納済みか）
+  const [savedInvoice, setSavedInvoice] = useState(null);
+  const [loadingInvoice, setLoadingInvoice] = useState(false);
+
+  const ym = useMemo(() => getYearMonthForLabel(payrollMonths, payMonthLabel), [payrollMonths, payMonthLabel]);
+  const yyyymm = ym ? `${ym.year}-${String(ym.month).padStart(2, '0')}` : '';
+
+  const showError = (m) => { setErr(m); setTimeout(() => setErr(''), 5000); };
+  const showMsg = (m) => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
+
+  // 既存請求書取得
+  const reloadInvoice = async () => {
+    if (!memberId || !yyyymm) { setSavedInvoice(null); return; }
+    setLoadingInvoice(true);
+    const { data } = await fetchPayrollInvoice(memberId, yyyymm);
+    setSavedInvoice(data || null);
+    setLoadingInvoice(false);
+  };
+  useEffect(() => { reloadInvoice(); /* eslint-disable-next-line */ }, [memberId, yyyymm]);
+
+  // プロフィール
   const defaultProfile = useMemo(() => ({
     postalCode: '',
     address: '',
@@ -78,7 +110,6 @@ export default function PayrollInvoiceGenerator({
 
   const [profile, setProfile] = useState(defaultProfile);
 
-  // DB から請求書プロフィールを取得（メンバー切替時にも再取得）
   useEffect(() => {
     let cancelled = false;
     if (!memberId) { setProfileLoaded(true); return; }
@@ -90,11 +121,9 @@ export default function PayrollInvoiceGenerator({
       setProfileLoaded(true);
     });
     return () => { cancelled = true; };
-    // defaultProfile はメンバー切替時のみ実質変化
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId]);
 
-  // 軽量デバウンス: 入力変更 → 600ms 後に DB upsert
   useEffect(() => {
     if (!profileLoaded || !memberId) return;
     const t = setTimeout(async () => {
@@ -109,9 +138,6 @@ export default function PayrollInvoiceGenerator({
 
   const update = (patch) => setProfile(p => ({ ...p, ...patch }));
 
-  const showError = (m) => { setErr(m); setTimeout(() => setErr(''), 5000); };
-  const showMsg = (m) => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
-
   // 請求書明細
   const invoiceItems = useMemo(() => {
     const out = [];
@@ -123,17 +149,11 @@ export default function PayrollInvoiceGenerator({
     return out;
   }, [incentive, roleBonus, referrals, payMonthLabel]);
 
-  const ym = useMemo(() => getYearMonthForLabel(payrollMonths, payMonthLabel), [payrollMonths, payMonthLabel]);
-  const yyyymm = ym ? `${ym.year}-${String(ym.month).padStart(2, '0')}` : '';
-
   const dateContext = useMemo(() => {
     if (!ym) return null;
     const issueDate = new Date();
-    // 支払期限: 対象月の翌月末（4月分→5月末、5月分→6月末）
-    // new Date(year, month+1, 0) で「month+1 の前日」= month+1 の末日表現になるが、
-    // ym.month は 1-indexed（5月なら 5）なので、翌月末は new Date(ym.year, ym.month+1, 0)
-    // ただし JS Date は 0-indexed のため: 5月(ym.month=5) → 翌月(6月)末 = new Date(2026, 6, 0)
-    const deadline = new Date(ym.year, ym.month + 1, 0); // 翌月末日
+    // 翌月末: new Date(ym.year, ym.month + 1, 0) で「翌月の0日目」= 翌月末日
+    const deadline = new Date(ym.year, ym.month + 1, 0);
     return {
       issueDate: fmtJpDate(issueDate),
       paymentDeadline: fmtJpDate(deadline),
@@ -150,10 +170,10 @@ export default function PayrollInvoiceGenerator({
     return null;
   };
 
-  // PDF 生成（共通処理）。upload=true なら storage にも保存。
-  const generatePdf = async ({ upload }) => {
-    const validationErr = validateProfile();
-    if (validationErr) { showError(validationErr); return; }
+  // PDF 生成 + 自動アップロード
+  const handleCreate = async () => {
+    const v = validateProfile();
+    if (v) { showError(v); return; }
     if (!dateContext) { showError('対象月の情報が取得できません'); return; }
 
     setBusy(true);
@@ -204,18 +224,13 @@ export default function PayrollInvoiceGenerator({
       pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 210, 297);
 
       const fileName = `業務委託料_${payMonthLabel}分_${memberName}.pdf`;
-      if (upload) {
-        // PDF → Blob → File
-        const blob = pdf.output('blob');
-        const file = new File([blob], fileName, { type: 'application/pdf' });
-        const { error } = await uploadPayrollInvoice(memberId, yyyymm, file);
-        if (error) throw error;
-        showMsg('請求書を生成し、上の「請求書」欄に格納しました');
-        if (onUploaded) onUploaded();
-      } else {
-        pdf.save(fileName);
-        showMsg('PDF をダウンロードしました');
-      }
+      const blob = pdf.output('blob');
+      const file = new File([blob], fileName, { type: 'application/pdf' });
+      const { error } = await uploadPayrollInvoice(memberId, yyyymm, file);
+      if (error) throw error;
+
+      showMsg('請求書を作成し、本人ページに格納しました');
+      await reloadInvoice();
     } catch (e) {
       console.error('[PayrollInvoiceGenerator]', e);
       showError('生成に失敗しました: ' + (e.message || '不明なエラー'));
@@ -226,35 +241,73 @@ export default function PayrollInvoiceGenerator({
     }
   };
 
+  // 既存請求書のダウンロード
+  const handleDownload = async () => {
+    if (!savedInvoice?.storage_path) return;
+    const { url, error } = await getPayrollInvoiceUrl(savedInvoice.storage_path);
+    if (error || !url) { showError('ダウンロードURLの取得に失敗しました'); return; }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  // 既存請求書の削除（→再作成可能に戻る）
+  const handleDelete = async () => {
+    if (!savedInvoice) return;
+    if (!window.confirm(`${payMonthLabel}分の請求書を削除しますか？\n削除後はこの月の請求書を作り直せます。`)) return;
+    setBusy(true);
+    const { error } = await deletePayrollInvoice(memberId, yyyymm);
+    setBusy(false);
+    if (error) { showError('削除に失敗しました: ' + (error.message || '不明')); return; }
+    showMsg('削除しました');
+    await reloadInvoice();
+  };
+
   const labelStyle = { fontSize: font.size.xs, color: color.textLight, display: 'block', marginBottom: 4, fontWeight: font.weight.semibold };
   const inputStyle = { padding: '8px 12px', borderRadius: radius.md, background: color.white, border: `1px solid ${color.border}`, color: color.textDark, fontSize: font.size.sm, fontFamily: font.family.sans, outline: 'none', width: '100%', boxSizing: 'border-box' };
 
-  return (
-    <Card
-      padding="md"
-      title="請求書を作成"
-      description={`${payMonthLabel}分の支給データから業務委託請求書 PDF を自動生成`}
-      style={{ marginBottom: space[5] }}
-    >
-      {!open ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: space[3], flexWrap: 'wrap' }}>
-          <span style={{ fontSize: font.size.sm, color: color.textMid }}>
-            合計 <span style={{ fontFamily: font.family.mono, fontWeight: font.weight.bold, color: color.navy }}>¥{fmt(totalPayout)}</span> ・ {invoiceItems.length} 項目
-          </span>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: space[2] }}>
-            <Button variant="primary" size="sm" disabled={!canEdit || totalPayout <= 0} onClick={() => setOpen(true)}>
-              請求書を作成
-            </Button>
+  const titleText = `請求書（${payMonthLabel}分）`;
+  const subtitle = savedInvoice
+    ? '本人ページに格納済み。管理者が閲覧できます。'
+    : `${payMonthLabel}分の支給データから業務委託請求書 PDF を自動生成し、本人ページに格納します`;
+
+  // ── 格納済みビュー ─────────────────────────────────────────
+  if (savedInvoice) {
+    return (
+      <Card padding="md" title={titleText} description={subtitle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: space[3], flexWrap: 'wrap', marginBottom: space[3] }}>
+          <Badge variant="success" dot>格納済</Badge>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark }}>{savedInvoice.file_name}</div>
+            <div style={{ fontSize: font.size.xs, color: color.textLight, fontFamily: font.family.mono }}>
+              {fmtFileSize(savedInvoice.file_size_bytes)} ・ {fmtTimestamp(savedInvoice.uploaded_at)}
+            </div>
           </div>
-          {!canEdit && (
-            <span style={{ fontSize: font.size.xs, color: color.textLight }}>※ 本人のみ作成可</span>
-          )}
-          {totalPayout <= 0 && canEdit && (
-            <span style={{ fontSize: font.size.xs, color: color.textLight }}>※ 当月の支給対象がありません</span>
-          )}
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: space[2] }}>
+            <Button variant="secondary" size="sm" onClick={handleDownload}>ダウンロード</Button>
+            {canEdit && (
+              <>
+                <Button variant="outline" size="sm" loading={busy} disabled={busy || totalPayout <= 0} onClick={handleCreate}>再作成</Button>
+                <Button variant="danger" size="sm" loading={busy} onClick={handleDelete}>削除</Button>
+              </>
+            )}
+          </div>
+        </div>
+        {msg && (<div style={{ fontSize: font.size.xs, color: color.success, fontWeight: font.weight.semibold }}>{msg}</div>)}
+        {err && (<div style={{ fontSize: font.size.xs, color: color.danger, fontWeight: font.weight.semibold }}>{err}</div>)}
+      </Card>
+    );
+  }
+
+  // ── 未作成ビュー（フォーム + 作成ボタン） ──────────────────
+  return (
+    <Card padding="md" title={titleText} description={subtitle}>
+      {loadingInvoice ? (
+        <div style={{ fontSize: font.size.sm, color: color.textLight }}>読込中...</div>
+      ) : !canEdit ? (
+        <div style={{ fontSize: font.size.sm, color: color.textLight }}>
+          まだ請求書が作成されていません（本人のみ作成可）。
         </div>
       ) : (
-        <div>
+        <>
           {/* 個人情報 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: space[3] }}>
             <div>
@@ -334,33 +387,22 @@ export default function PayrollInvoiceGenerator({
                   </div>
                 ))}
                 <div style={{ borderTop: `1px solid ${color.border}`, marginTop: 6, paddingTop: 6, display: 'flex', justifyContent: 'space-between', fontSize: font.size.sm, fontWeight: font.weight.bold }}>
-                  <span>合計</span>
+                  <span>合計（税込）</span>
                   <span style={{ fontFamily: font.family.mono, color: color.navy }}>¥{fmt(totalPayout)}</span>
                 </div>
               </div>
             )}
           </div>
 
-          {/* アクション */}
           <div style={{ display: 'flex', gap: space[2], flexWrap: 'wrap' }}>
-            <Button variant="primary" size="md" loading={busy} disabled={!canEdit || totalPayout <= 0} onClick={() => generatePdf({ upload: false })}>
-              PDF をダウンロード
-            </Button>
-            <Button variant="secondary" size="md" loading={busy} disabled={!canEdit || totalPayout <= 0} onClick={() => generatePdf({ upload: true })}>
-              生成して請求書欄に保存
-            </Button>
-            <Button variant="outline" size="md" onClick={() => setOpen(false)}>
-              閉じる
+            <Button variant="primary" size="md" loading={busy} disabled={!canEdit || totalPayout <= 0} onClick={handleCreate}>
+              請求書を作成
             </Button>
           </div>
 
-          {msg && (
-            <div style={{ marginTop: space[2], fontSize: font.size.xs, color: color.success, fontWeight: font.weight.semibold }}>{msg}</div>
-          )}
-          {err && (
-            <div style={{ marginTop: space[2], fontSize: font.size.xs, color: color.danger, fontWeight: font.weight.semibold }}>{err}</div>
-          )}
-        </div>
+          {msg && (<div style={{ marginTop: space[2], fontSize: font.size.xs, color: color.success, fontWeight: font.weight.semibold }}>{msg}</div>)}
+          {err && (<div style={{ marginTop: space[2], fontSize: font.size.xs, color: color.danger, fontWeight: font.weight.semibold }}>{err}</div>)}
+        </>
       )}
     </Card>
   );

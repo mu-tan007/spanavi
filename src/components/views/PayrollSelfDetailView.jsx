@@ -6,7 +6,6 @@ import { fetchOrgSettings } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import PageHeader from '../common/PageHeader';
-import PayrollInvoiceUploader from './PayrollInvoiceUploader';
 import PayrollInvoiceGenerator from './PayrollInvoiceGenerator';
 
 const PAYROLL_COUNTABLE = new Set(['アポ取得', '事前確認済', '面談済']);
@@ -46,7 +45,6 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
   const [monthTab, setMonthTab] = useState(() => defaultMonthLabel(payrollMonths));
   const [orgSettings, setOrgSettings] = useState({});
   const [internalRoleMap, setInternalRoleMap] = useState({});
-  const [invoiceRefreshKey, setInvoiceRefreshKey] = useState(0);
 
   useEffect(() => {
     fetchOrgSettings().then(({ data }) => setOrgSettings(data || {}));
@@ -383,31 +381,22 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
         />
       </div>
 
-      {/* 請求書（アップロード/格納済表示） */}
-      <PayrollInvoiceUploader
-        key={`${targetMember._supaId || targetMember.id}-${payMonth}-${invoiceRefreshKey}`}
+      {/* 請求書（生成 + 格納の統合UI） */}
+      <PayrollInvoiceGenerator
+        key={`${targetMember._supaId || targetMember.id}-${payMonth}`}
         memberId={targetMember._supaId || targetMember.id}
-        payMonth={payMonth}
+        memberName={targetMember.name}
+        memberEmail={targetMember.email}
+        memberPhone={targetMember.phone_number}
+        payrollMonths={payrollMonths}
+        payMonthLabel={monthTab}
+        incentive={incentive}
+        roleBonus={roleBonusInfo.bonus}
+        referrals={referrals}
+        referralTotal={referralTotal}
+        totalPayout={totalPayout}
         canEdit={canEdit}
       />
-
-      <div style={{ marginTop: space[5] }}>
-        <PayrollInvoiceGenerator
-          memberId={targetMember._supaId || targetMember.id}
-          memberName={targetMember.name}
-          memberEmail={targetMember.email}
-          memberPhone={targetMember.phone_number}
-          payrollMonths={payrollMonths}
-          payMonthLabel={monthTab}
-          incentive={incentive}
-          roleBonus={roleBonusInfo.bonus}
-          referrals={referrals}
-          referralTotal={referralTotal}
-          totalPayout={totalPayout}
-          canEdit={canEdit}
-          onUploaded={() => setInvoiceRefreshKey(k => k + 1)}
-        />
-      </div>
     </div>
   );
 }
