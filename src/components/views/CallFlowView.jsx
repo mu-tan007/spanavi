@@ -19,6 +19,7 @@ import ClientCalendarPanel from '../common/ClientCalendarPanel';
 import MultiCalendarPanel from '../common/MultiCalendarPanel';
 import QuickAppoModal from '../common/QuickAppoModal';
 import { renderMarkedScript } from '../../utils/scriptMarker';
+import { resolveListContacts } from '../../utils/listContacts';
 
 // ============================================================
 // Call Flow View (架電フロー) — 左右分割レイアウト
@@ -1582,13 +1583,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             {scriptTab === 'calendar' && (() => {
               const cl = (clientData || []).find(c => c.company === list.company);
               const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
-              const linkedContacts = (list.contactIds || [])
-                .map(cid => contacts.find(ct => ct.id === cid))
-                .filter(Boolean);
-              if (linkedContacts.length === 0 && list.manager) {
-                const fallback = contacts.find(ct => ct.name?.includes(list.manager));
-                if (fallback) linkedContacts.push(fallback);
-              }
+              const linkedContacts = resolveListContacts(list, contacts);
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <MultiCalendarPanel
@@ -2322,13 +2317,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             {scriptTab === 'calendar' && (() => {
               const cl = (clientData || []).find(c => c.company === list.company);
               const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
-              const linkedContacts = (list.contactIds || [])
-                .map(cid => contacts.find(ct => ct.id === cid))
-                .filter(Boolean);
-              if (linkedContacts.length === 0 && list.manager) {
-                const fallback = contacts.find(ct => ct.name?.includes(list.manager));
-                if (fallback) linkedContacts.push(fallback);
-              }
+              const linkedContacts = resolveListContacts(list, contacts);
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <MultiCalendarPanel

@@ -112,6 +112,7 @@ export function useSpanaviData(authOrgId) {
         script: cl.script_name || '',
         notes: cl.notes || '',
         is_archived: cl.is_archived || false,
+        is_prospecting: cl.is_prospecting === true,
         contactIds: (cl.contact_ids && cl.contact_ids.length > 0) ? cl.contact_ids : (cl.contact_id ? [cl.contact_id] : []),
         created_at: cl.created_at || null,
       }))

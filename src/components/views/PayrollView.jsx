@@ -9,6 +9,7 @@ import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPay
 import { getOrgId } from '../../lib/orgContext';
 // 旧 useColumnConfig / ColumnResizeHandle は DataTable 移行で不要に
 import PageHeader from '../common/PageHeader';
+import PayrollSelfDetailView from './PayrollSelfDetailView';
 
 const PAYROLL_DATA = [];
 
@@ -42,6 +43,41 @@ const PAYROLL_COLS = [
 ];
 
 export default function PayrollView({ members, appoData, isAdmin, setMembers, onDataRefetch, currentUser = '' }) {
+  // ── 一般メンバー: 自分の詳細ページのみ ────────────────────────
+  // 管理者は引き続き全員一覧 + ドリルダウン閲覧（下部 AdminPayrollList）。
+  const myMember = (members || []).find(m => typeof m === 'object' && m.name === currentUser) || null;
+  const [drillTargetId, setDrillTargetId] = useState(null);
+
+  if (!isAdmin) {
+    return <PayrollSelfDetailView targetMember={myMember} members={members} appoData={appoData} canEdit={true} />;
+  }
+
+  // 管理者ドリルダウン中
+  if (drillTargetId) {
+    const target = (members || []).find(m => typeof m === 'object' && (m._supaId === drillTargetId || m.id === drillTargetId));
+    if (target) {
+      const isSelf = target.name === currentUser;
+      return (
+        <PayrollSelfDetailView
+          targetMember={target}
+          members={members}
+          appoData={appoData}
+          canEdit={isSelf}
+          embedded
+          onBack={() => setDrillTargetId(null)}
+        />
+      );
+    }
+  }
+
+  return <AdminPayrollList
+    members={members} appoData={appoData} isAdmin={isAdmin}
+    setMembers={setMembers} onDataRefetch={onDataRefetch} currentUser={currentUser}
+    onSelectMember={(id) => setDrillTargetId(id)}
+  />;
+}
+
+function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetch, currentUser, onSelectMember }) {
   const payrollMonths = (() => {
     const now = new Date();
     const result = [];
@@ -693,6 +729,10 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
               rowBackground={(_, i) => i % 2 === 0 ? color.white : GRAY_50}
               style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}
               columns={dataColumns}
+              onRowClick={(row) => {
+                const m = (members || []).find(mm => typeof mm === 'object' && mm.name === row.name);
+                if (m && onSelectMember) onSelectMember(m._supaId || m.id);
+              }}
             />
 
             {/* 合計行: DataTable の真下に同じ列幅で表示 */}

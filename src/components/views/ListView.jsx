@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
-import { Button, Input, Select, Card } from '../ui';
+import { Button, Input, Select, Card, Badge } from '../ui';
 import { updateCallList, insertCallList, archiveCallList, restoreCallList } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
 import { useEngagements } from '../../hooks/useEngagements';
@@ -70,7 +70,8 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   const { currentEngagement } = useEngagements();
   const { columns: lvCols, gridTemplateColumns: lvGrid, contentMinWidth: lvMinW, onResizeStart: lvResize } = useColumnConfig('listView', LISTVIEW_COLS);
   const { columns: arCols, gridTemplateColumns: arGrid, contentMinWidth: arMinW, onResizeStart: arResize } = useColumnConfig('listViewArchive', LISTVIEW_ARCHIVE_COLS);
-  const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
+  // 「支援中」のクライアントのみ選択候補にする
+  const clientOptions = clientData.filter(c => c.status === "支援中");
 
   // 担当者名を苗字のみで表示（CRMの同一クライアント担当者内で苗字被りがあれば名の頭文字付き）
   const shortManagerName = (list) => {
@@ -89,10 +90,11 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       return sameSurname.length > 0 ? `${surname}(${parts[1][0]})` : surname;
     }).join('・');
   };
-  const emptyForm = { company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", contactIds: [], companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "" };
+  const emptyForm = { company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", contactIds: [], companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "", isProspecting: false };
   const [formData, setFormData] = useState(emptyForm);
   const [showRec, setShowRec] = useState(true);
-  const [displayFilter, setDisplayFilter] = useState('active');
+  // 'sourcing' = 通常ソーシング, 'prospecting' = 新規開拓, 'archived' = アーカイブ, 'all' = 全て
+  const [displayFilter, setDisplayFilter] = useState('sourcing');
   const [extractingUrl, setExtractingUrl] = useState(false);
 
   const handleExtractFromUrl = async () => {
@@ -135,6 +137,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       industry: list.industry, count: String(list.count), manager: list.manager,
       contactIds: list.contactIds || [],
       companyInfo: list.companyInfo || "", companyUrl: list.companyUrl || "", scriptBody: list.scriptBody || "", cautions: list.cautions || "", notes: list.notes || "",
+      isProspecting: !!list.is_prospecting,
     });
     setEditingListId(list.id);
     setListFormOpen(true);
@@ -148,12 +151,12 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         const error = await updateCallList(target._supaId, formData);
         if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
       }
-      setCallListData(prev => prev.map(l => l.id === editingListId ? { ...l, company: formData.company, type: formData.type, status: formData.status, industry: formData.industry, count: parseInt(formData.count) || 0, manager: formData.manager, contactIds: formData.contactIds, companyInfo: formData.companyInfo, companyUrl: formData.companyUrl, scriptBody: formData.scriptBody, cautions: formData.cautions, notes: formData.notes } : l));
+      setCallListData(prev => prev.map(l => l.id === editingListId ? { ...l, company: formData.company, type: formData.type, status: formData.status, industry: formData.industry, count: parseInt(formData.count) || 0, manager: formData.manager, contactIds: formData.contactIds, companyInfo: formData.companyInfo, companyUrl: formData.companyUrl, scriptBody: formData.scriptBody, cautions: formData.cautions, notes: formData.notes, is_prospecting: !!formData.isProspecting } : l));
     } else {
       const { result, error } = await insertCallList(formData, currentEngagement?.id);
       if (error || !result) { alert('保存に失敗しました: ' + (error?.message || '不明なエラー')); return; }
       const newId = Math.max(0, ...callListData.map(l => l.id)) + 1;
-      setCallListData(prev => [...prev, { id: newId, ...formData, contactIds: formData.contactIds, count: parseInt(formData.count) || 0, _supaId: result.id }]);
+      setCallListData(prev => [...prev, { id: newId, ...formData, contactIds: formData.contactIds, count: parseInt(formData.count) || 0, is_prospecting: !!formData.isProspecting, _supaId: result.id }]);
     }
     setListFormOpen(false);
     setEditingListId(null);
@@ -232,7 +235,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
 
       {/* Filter Tabs */}
       <div style={{ display: "flex", gap: space[2], marginBottom: space[3] }}>
-        {[['active', 'アクティブのみ'], ['archived', 'アーカイブのみ'], ['all', '全て表示']].map(([val, label]) => (
+        {[['sourcing', 'ソーシング'], ['prospecting', '新規開拓'], ['archived', 'アーカイブ'], ['all', '全て表示']].map(([val, label]) => (
           <button key={val} onClick={() => setDisplayFilter(val)} style={{
             padding: "6px 16px", borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold,
             cursor: "pointer", transition: "all 0.15s", fontFamily: font.family.sans,
@@ -289,7 +292,13 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
           <option value="date">日付順</option>
           <option value="manager">担当者別</option>
         </select>
-        <span style={{ fontSize: font.size.xs, color: color.textLight, fontWeight: font.weight.semibold, fontFamily: font.family.mono }}>{displayFilter === 'archived' ? callListData.filter(l => l.is_archived).length : displayFilter === 'all' ? filteredLists.length + callListData.filter(l => l.is_archived).length : filteredLists.length}件</span>
+        <span style={{ fontSize: font.size.xs, color: color.textLight, fontWeight: font.weight.semibold, fontFamily: font.family.mono }}>{(() => {
+          const archivedCount = callListData.filter(l => l.is_archived).length;
+          if (displayFilter === 'sourcing') return filteredLists.filter(l => !l.is_prospecting).length;
+          if (displayFilter === 'prospecting') return filteredLists.filter(l => l.is_prospecting).length;
+          if (displayFilter === 'archived') return archivedCount;
+          return filteredLists.length + archivedCount;
+        })()}件</span>
         {isAdmin && (
           <div style={{ marginLeft: 'auto' }}>
             <Button variant="primary" size="sm" onClick={handleOpenAdd}>＋ リスト追加</Button>
@@ -312,16 +321,28 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
             }}>✕</button>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 14 }}>
+            <div style={{ gridColumn: "span 3", display: "flex", alignItems: "center", gap: space[2] }}>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: space[2], cursor: "pointer", fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark }}>
+                <input
+                  type="checkbox"
+                  checked={!!formData.isProspecting}
+                  onChange={e => setFormData(p => ({ ...p, isProspecting: e.target.checked }))}
+                  style={{ accentColor: color.navy }}
+                />
+                <span>新規開拓リスト</span>
+              </label>
+              <span style={{ fontSize: font.size.xs, color: color.textLight }}>
+                （自社向け。売上集計から除外され、インターン報酬のみ計上）
+              </span>
+            </div>
             <div style={{ gridColumn: "span 2" }}>
               <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>クライアント企業名 *</label>
-              <select value={formData.company} onChange={e => setFormData(p => ({ ...p, company: e.target.value, contactIds: [], manager: '' }))} style={formInputStyle}>
-                <option value="">クライアントを選択...</option>
-                {clientOptions.map(c => (
-                  <option key={c._supaId || c.company} value={c.company}>
-                    {c.company}{c.status === "停止中" ? "（停止中）" : ""}
-                  </option>
-                ))}
-              </select>
+              <ClientCombobox
+                value={formData.company}
+                options={clientOptions}
+                onChange={(company) => setFormData(p => ({ ...p, company, contactIds: [], manager: '' }))}
+                inputStyle={formInputStyle}
+              />
             </div>
             <div>
               <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>種別</label>
@@ -456,8 +477,13 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         </div>
         {displayFilter !== 'archived' && <div style={{ maxHeight: 600, overflowY: "auto" }}>
           {(() => {
+            const activeLists = displayFilter === 'sourcing'
+              ? filteredLists.filter(l => !l.is_prospecting)
+              : displayFilter === 'prospecting'
+              ? filteredLists.filter(l => l.is_prospecting)
+              : filteredLists;
             const grouped = {};
-            filteredLists.forEach(list => {
+            activeLists.forEach(list => {
               const key = list.company;
               if (!grouped[key]) grouped[key] = [];
               grouped[key].push(list);
@@ -491,9 +517,19 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                     onMouseEnter={e => { e.currentTarget.style.background = "#EAF4FF"; e.currentTarget.style.borderLeft = `2px solid ${color.navy}`; }}
                     onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderLeft = "2px solid transparent"; }}
                     >
-                      <span onClick={() => setSelectedList(list.id)} style={{ fontWeight: font.weight.medium, paddingRight: space[2], cursor: "pointer", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[0]?.align || 'left' }}>
+                      <span onClick={() => setSelectedList(list.id)} style={{ fontWeight: font.weight.medium, paddingRight: space[2], cursor: "pointer", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[0]?.align || 'left', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         {list.status === "架電停止" && <span style={{ color: color.danger, marginRight: 4 }}>■</span>}
-                        {list.company}
+                        {list.is_prospecting && (
+                          <span style={{
+                            display: "inline-flex", alignItems: "center",
+                            padding: "1px 7px", borderRadius: radius.md, fontSize: 10,
+                            fontWeight: font.weight.bold, color: color.gold,
+                            background: alpha(color.gold, 0.1),
+                            border: `1px solid ${alpha(color.gold, 0.3)}`,
+                            letterSpacing: 0.3, flexShrink: 0,
+                          }}>新規開拓</span>
+                        )}
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list.company}</span>
                       </span>
                       <span style={{ display: "flex", justifyContent: lvCols[1]?.align === 'right' ? 'flex-end' : lvCols[1]?.align === 'center' ? 'center' : 'flex-start' }}><TypeBadge color={list.type === "M&A仲介" ? color.navy : list.type === "IFA" ? '#6366F1' : list.type === "ファンド" ? color.success : color.warn} small>{list.type}</TypeBadge></span>
                       <span style={{ color: color.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[2]?.align || 'left' }}>{list.industry}</span>
@@ -523,7 +559,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
           })()}
         </div>}
         {/* アーカイブ済みリスト */}
-        {displayFilter !== 'active' && (() => {
+        {(displayFilter === 'archived' || displayFilter === 'all') && (() => {
           const archivedLists = callListData.filter(l => l.is_archived);
           if (archivedLists.length === 0) return <div style={{ padding: "24px 16px", textAlign: "center", fontSize: font.size.sm, color: color.textLight }}>— No records —</div>;
           return (
@@ -560,6 +596,105 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         })()}
         </div>
       </div>
+    </div>
+  );
+}
+
+// 「クライアント企業名」入力欄: 一文字以上入力で候補ドロップダウン表示。
+// ↑↓/Enter/Escape キーボード操作、外側クリックで閉じる。
+function ClientCombobox({ value, options, onChange, inputStyle }) {
+  const [query, setQuery] = useState(value || '');
+  const [open, setOpen] = useState(false);
+  const [highlight, setHighlight] = useState(0);
+  const wrapRef = useRef(null);
+
+  useEffect(() => { setQuery(value || ''); }, [value]);
+
+  const matches = useMemo(() => {
+    const q = (query || '').trim().toLowerCase();
+    if (!q) return options;
+    return options.filter(c => (c.company || '').toLowerCase().includes(q));
+  }, [options, query]);
+
+  useEffect(() => {
+    const onMouseDown = (e) => {
+      if (!wrapRef.current) return;
+      if (!wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    window.addEventListener('mousedown', onMouseDown);
+    return () => window.removeEventListener('mousedown', onMouseDown);
+  }, []);
+
+  useEffect(() => { setHighlight(0); }, [query, open]);
+
+  const pick = (company) => {
+    onChange(company);
+    setQuery(company);
+    setOpen(false);
+  };
+
+  const onKeyDown = (e) => {
+    if (!open) {
+      if (e.key === 'ArrowDown') { setOpen(true); e.preventDefault(); }
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlight(h => Math.min(h + 1, matches.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlight(h => Math.max(h - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const m = matches[highlight];
+      if (m) pick(m.company);
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <input
+        type="text"
+        value={query}
+        onChange={e => { setQuery(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={onKeyDown}
+        placeholder="クライアント名を入力（例: 株式…）"
+        style={inputStyle}
+      />
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+          background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
+          boxShadow: shadow.md, maxHeight: 240, overflowY: 'auto', zIndex: 60,
+        }}>
+          {matches.length === 0 ? (
+            <div style={{ padding: '10px 14px', fontSize: font.size.xs, color: color.textLight, fontStyle: 'italic' }}>
+              該当する「支援中」クライアントがありません
+            </div>
+          ) : (
+            matches.map((c, i) => (
+              <div
+                key={c._supaId || c.company}
+                onMouseEnter={() => setHighlight(i)}
+                onMouseDown={(e) => { e.preventDefault(); pick(c.company); }}
+                style={{
+                  padding: '8px 14px', fontSize: font.size.sm,
+                  cursor: 'pointer',
+                  background: highlight === i ? alpha(color.navy, 0.06) : color.white,
+                  color: c.company === value ? color.navy : color.textDark,
+                  fontWeight: c.company === value ? font.weight.semibold : font.weight.normal,
+                  fontFamily: font.family.sans,
+                }}
+              >
+                {c.company}
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }

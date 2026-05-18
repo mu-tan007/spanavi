@@ -64,6 +64,7 @@ export async function updateCallList(supaId, data) {
       rebuttal_data: data.rebuttalData,
       notes: data.notes,
       list_type: data.type,
+      is_prospecting: data.isProspecting === true,
       contact_ids: data.contactIds ?? undefined,
       contact_id: (data.contactIds && data.contactIds.length > 0) ? data.contactIds[0] : (data.contactId ?? undefined),
     })
@@ -101,6 +102,7 @@ export async function insertCallList(data, engagementId = null) {
       rebuttal_data: data.rebuttalData,
       notes: data.notes,
       list_type: data.type,
+      is_prospecting: data.isProspecting === true,
       script_name: data.script,
       contact_ids: data.contactIds || [],
       contact_id: (data.contactIds && data.contactIds.length > 0) ? data.contactIds[0] : (data.contactId || null),
@@ -3470,5 +3472,121 @@ export async function deleteClientMonthlyTarget(clientId, yearMonth) {
     .eq('client_id', clientId)
     .eq('year_month', yearMonth)
   if (error) console.error('[DB] deleteClientMonthlyTarget error:', error)
+  return { error }
+}
+
+// ============================================================
+// Payroll Invoices (給与請求書 - メンバー × 月)
+// ============================================================
+const PAYROLL_INVOICE_BUCKET = 'payroll-invoices'
+
+const PAYROLL_INVOICE_EXT_FROM_MIME = {
+  'application/pdf': 'pdf',
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+}
+
+function payrollInvoicePath(orgId, memberId, payMonth, ext) {
+  return `${orgId}/${memberId}/${payMonth}.${ext}`
+}
+
+export async function uploadPayrollInvoice(memberId, payMonth, file) {
+  if (!memberId || !payMonth || !file) {
+    return { data: null, error: new Error('invalid args') }
+  }
+  const orgId = getOrgId()
+  const ext = PAYROLL_INVOICE_EXT_FROM_MIME[file.type] || ''
+  if (!ext) {
+    return { data: null, error: new Error('PDF / PNG / JPG のみアップロード可能です') }
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    return { data: null, error: new Error('ファイルサイズは 5MB 以下にしてください') }
+  }
+
+  // 既存ファイル削除（拡張子が変わった場合に古いオブジェクトを残さない）
+  const { data: existing } = await supabase
+    .from('payroll_invoices')
+    .select('storage_path')
+    .eq('org_id', orgId)
+    .eq('member_id', memberId)
+    .eq('pay_month', payMonth)
+    .maybeSingle()
+  if (existing?.storage_path && existing.storage_path !== payrollInvoicePath(orgId, memberId, payMonth, ext)) {
+    await supabase.storage.from(PAYROLL_INVOICE_BUCKET).remove([existing.storage_path])
+  }
+
+  const path = payrollInvoicePath(orgId, memberId, payMonth, ext)
+  const { error: upErr } = await supabase.storage
+    .from(PAYROLL_INVOICE_BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: true })
+  if (upErr) {
+    console.error('[DB] uploadPayrollInvoice storage error:', upErr)
+    return { data: null, error: upErr }
+  }
+
+  const auth = await supabase.auth.getUser()
+  const { data, error } = await supabase
+    .from('payroll_invoices')
+    .upsert({
+      org_id: orgId,
+      member_id: memberId,
+      pay_month: payMonth,
+      storage_path: path,
+      file_name: file.name,
+      mime_type: file.type,
+      file_size_bytes: file.size,
+      uploaded_at: new Date().toISOString(),
+      uploaded_by: auth?.data?.user?.id || null,
+    }, { onConflict: 'org_id,member_id,pay_month' })
+    .select()
+    .single()
+
+  if (error) console.error('[DB] uploadPayrollInvoice insert error:', error)
+  return { data, error }
+}
+
+export async function fetchPayrollInvoice(memberId, payMonth) {
+  if (!memberId || !payMonth) return { data: null, error: new Error('missing args') }
+  const orgId = getOrgId()
+  const { data, error } = await supabase
+    .from('payroll_invoices')
+    .select('*')
+    .eq('org_id', orgId)
+    .eq('member_id', memberId)
+    .eq('pay_month', payMonth)
+    .maybeSingle()
+  if (error) console.error('[DB] fetchPayrollInvoice error:', error)
+  return { data, error }
+}
+
+export async function getPayrollInvoiceUrl(storagePath, expiresIn = 600) {
+  if (!storagePath) return { url: null, error: new Error('no path') }
+  const { data, error } = await supabase.storage
+    .from(PAYROLL_INVOICE_BUCKET)
+    .createSignedUrl(storagePath, expiresIn)
+  if (error) console.error('[DB] getPayrollInvoiceUrl error:', error)
+  return { url: data?.signedUrl || null, error }
+}
+
+export async function deletePayrollInvoice(memberId, payMonth) {
+  if (!memberId || !payMonth) return { error: new Error('missing args') }
+  const orgId = getOrgId()
+  const { data: row } = await supabase
+    .from('payroll_invoices')
+    .select('storage_path')
+    .eq('org_id', orgId)
+    .eq('member_id', memberId)
+    .eq('pay_month', payMonth)
+    .maybeSingle()
+  if (row?.storage_path) {
+    await supabase.storage.from(PAYROLL_INVOICE_BUCKET).remove([row.storage_path])
+  }
+  const { error } = await supabase
+    .from('payroll_invoices')
+    .delete()
+    .eq('org_id', orgId)
+    .eq('member_id', memberId)
+    .eq('pay_month', payMonth)
+  if (error) console.error('[DB] deletePayrollInvoice error:', error)
   return { error }
 }
