@@ -44,12 +44,15 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  // pg_cron 経由は x-daily-report-secret ヘッダで認証
+  // 認証: x-daily-report-secret ヘッダで自前認証する（verify_jwt=false 運用）
+  // pg_cron から Authorization を付けない構成のため、共有 secret を必須化。
   const secret = req.headers.get('x-daily-report-secret')
   const expected = Deno.env.get('DAILY_REPORT_SECRET')
-  const isFromCron = expected && secret === expected
-  if (!isFromCron) {
-    // service_role JWT が来てる前提（Supabase 標準検証）
+  if (!expected || !secret || secret !== expected) {
+    return new Response(JSON.stringify({ error: 'unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 
   try {
