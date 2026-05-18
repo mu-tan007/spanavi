@@ -166,7 +166,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
         .filter(a =>
           a.getter === m.name &&
           PAYROLL_COUNTABLE.has(a.status) &&
-          a.meetDate && new Date(a.meetDate) >= opDate && new Date(a.meetDate) <= deadline
+          a.appointmentDate && new Date(a.appointmentDate) >= opDate && new Date(a.appointmentDate) <= deadline
         )
         .reduce((sum, a) => sum + (a.sales || 0), 0);
       if (salesWithin30Days >= 100000 && opDate <= monthEnd && deadline >= monthStart) {

@@ -188,6 +188,7 @@ export function useSpanaviData(authOrgId) {
         company: a.company_name || '',
         getter: a.getter_name || '',
         getDate: a.created_at ? new Date(a.created_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }) : '',
+        appointmentDate: a.appointment_date || '',
         meetDate: a.meeting_date ? new Date(a.meeting_date).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }) : '',
         status: a.status || '',
         sales: a.sales_amount || 0,
