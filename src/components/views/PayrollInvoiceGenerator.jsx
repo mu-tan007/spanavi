@@ -1,33 +1,35 @@
 // ============================================================
 // Payroll 請求書作成: 当月支給データから請求書PDFを自動生成
 // メンバー個人 → M&Aソーシングパートナーズ宛の業務委託請求書
-// 振込先・個人情報は localStorage(`spanavi_invoice_${memberId}`) に保存
+// 振込先・個人情報は member_invoice_profiles テーブルに DB 保存。
+// 端末・ブラウザに依存せず、本人が次回開いた際に自動プレフィルされる。
 // ============================================================
 import { useEffect, useMemo, useState } from 'react';
 import { color, space, radius, font, alpha } from '../../constants/design';
-import { Button, Card, Input } from '../ui';
-import { uploadPayrollInvoice } from '../../lib/supabaseWrite';
-
-const MASP_PAYMENT_DEFAULT_DAY = 25; // 翌月25日（仮: 運用に合わせて要調整）
+import { Button, Card } from '../ui';
+import {
+  uploadPayrollInvoice,
+  fetchMemberInvoiceProfile,
+  upsertMemberInvoiceProfile,
+} from '../../lib/supabaseWrite';
 
 const fmt = (n) => Number(n).toLocaleString('ja-JP');
 
-const profileStorageKey = (memberId) => `spanavi_invoice_profile_${memberId}`;
-
-function loadProfile(memberId) {
-  try {
-    const raw = localStorage.getItem(profileStorageKey(memberId));
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-function saveProfile(memberId, profile) {
-  try {
-    localStorage.setItem(profileStorageKey(memberId), JSON.stringify(profile));
-  } catch { /* ignore */ }
+// DB レコード（snake_case） → UI プロフィール（camelCase）
+function dbToUi(row) {
+  if (!row) return null;
+  return {
+    postalCode: row.postal_code || '',
+    address: row.address || '',
+    phone: row.phone || '',
+    email: row.email || '',
+    taxInvoiceNumber: row.tax_invoice_number || '',
+    bankName: row.bank_name || '',
+    branchName: row.branch_name || '',
+    accountType: row.account_type || '普通',
+    accountNumber: row.account_number || '',
+    accountHolderKana: row.account_holder_kana || '',
+  };
 }
 
 // 「4月」→ { year, month } を payrollMonths から特定。
@@ -56,39 +58,56 @@ export default function PayrollInvoiceGenerator({
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
 
-  const initialProfile = useMemo(() => {
-    const saved = memberId ? loadProfile(memberId) : null;
-    return {
-      postalCode: '',
-      address: '',
-      phone: memberPhone || '',
-      email: memberEmail || '',
-      bankName: '',
-      branchName: '',
-      accountType: '普通',
-      accountNumber: '',
-      accountHolderKana: '',
-      taxInvoiceNumber: '',
-      ...(saved || {}),
-    };
-  }, [memberId, memberPhone, memberEmail]);
+  const defaultProfile = useMemo(() => ({
+    postalCode: '',
+    address: '',
+    phone: memberPhone || '',
+    email: memberEmail || '',
+    bankName: '',
+    branchName: '',
+    accountType: '普通',
+    accountNumber: '',
+    accountHolderKana: '',
+    taxInvoiceNumber: '',
+  }), [memberPhone, memberEmail]);
 
-  const [profile, setProfile] = useState(initialProfile);
+  const [profile, setProfile] = useState(defaultProfile);
 
+  // DB から請求書プロフィールを取得（メンバー切替時にも再取得）
   useEffect(() => {
-    setProfile(initialProfile);
-  }, [initialProfile]);
-
-  const update = (patch) => {
-    setProfile(p => {
-      const next = { ...p, ...patch };
-      if (memberId) saveProfile(memberId, next);
-      return next;
+    let cancelled = false;
+    if (!memberId) { setProfileLoaded(true); return; }
+    setProfileLoaded(false);
+    fetchMemberInvoiceProfile(memberId).then(({ data }) => {
+      if (cancelled) return;
+      const merged = { ...defaultProfile, ...(dbToUi(data) || {}) };
+      setProfile(merged);
+      setProfileLoaded(true);
     });
-  };
+    return () => { cancelled = true; };
+    // defaultProfile はメンバー切替時のみ実質変化
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [memberId]);
+
+  // 軽量デバウンス: 入力変更 → 600ms 後に DB upsert
+  useEffect(() => {
+    if (!profileLoaded || !memberId) return;
+    const t = setTimeout(async () => {
+      setSavingProfile(true);
+      const { error } = await upsertMemberInvoiceProfile(memberId, profile);
+      setSavingProfile(false);
+      if (error) showError('口座情報の保存に失敗しました: ' + (error.message || '不明'));
+    }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, memberId, profileLoaded]);
+
+  const update = (patch) => setProfile(p => ({ ...p, ...patch }));
 
   const showError = (m) => { setErr(m); setTimeout(() => setErr(''), 5000); };
   const showMsg = (m) => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
@@ -110,7 +129,11 @@ export default function PayrollInvoiceGenerator({
   const dateContext = useMemo(() => {
     if (!ym) return null;
     const issueDate = new Date();
-    const deadline = new Date(ym.year, ym.month, MASP_PAYMENT_DEFAULT_DAY); // 翌月25日
+    // 支払期限: 対象月の翌月末（4月分→5月末、5月分→6月末）
+    // new Date(year, month+1, 0) で「month+1 の前日」= month+1 の末日表現になるが、
+    // ym.month は 1-indexed（5月なら 5）なので、翌月末は new Date(ym.year, ym.month+1, 0)
+    // ただし JS Date は 0-indexed のため: 5月(ym.month=5) → 翌月(6月)末 = new Date(2026, 6, 0)
+    const deadline = new Date(ym.year, ym.month + 1, 0); // 翌月末日
     return {
       issueDate: fmtJpDate(issueDate),
       paymentDeadline: fmtJpDate(deadline),
@@ -286,8 +309,11 @@ export default function PayrollInvoiceGenerator({
             </div>
           </div>
 
-          <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: space[3] }}>
-            ※ 入力内容はこのブラウザに保存され、次回以降は自動入力されます
+          <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: space[3], display: 'flex', alignItems: 'center', gap: space[2] }}>
+            <span>※ 入力内容は本人のアカウントに保存され、どの端末からでも自動入力されます</span>
+            {savingProfile && (
+              <span style={{ color: color.info, fontWeight: font.weight.semibold }}>保存中…</span>
+            )}
           </div>
 
           {/* プレビュー: 明細 */}

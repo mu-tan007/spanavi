@@ -3568,6 +3568,47 @@ export async function getPayrollInvoiceUrl(storagePath, expiresIn = 600) {
   return { url: data?.signedUrl || null, error }
 }
 
+// ── 請求書プロフィール（振込先・住所などメンバー単位の常駐情報） ──
+export async function fetchMemberInvoiceProfile(memberId) {
+  if (!memberId) return { data: null, error: new Error('missing memberId') }
+  const orgId = getOrgId()
+  const { data, error } = await supabase
+    .from('member_invoice_profiles')
+    .select('*')
+    .eq('org_id', orgId)
+    .eq('member_id', memberId)
+    .maybeSingle()
+  if (error) console.error('[DB] fetchMemberInvoiceProfile error:', error)
+  return { data, error }
+}
+
+export async function upsertMemberInvoiceProfile(memberId, patch) {
+  if (!memberId) return { data: null, error: new Error('missing memberId') }
+  const orgId = getOrgId()
+  const row = {
+    member_id: memberId,
+    org_id: orgId,
+    postal_code: patch.postalCode ?? '',
+    address: patch.address ?? '',
+    phone: patch.phone ?? '',
+    email: patch.email ?? '',
+    tax_invoice_number: patch.taxInvoiceNumber ?? '',
+    bank_name: patch.bankName ?? '',
+    branch_name: patch.branchName ?? '',
+    account_type: patch.accountType || '普通',
+    account_number: patch.accountNumber ?? '',
+    account_holder_kana: patch.accountHolderKana ?? '',
+    updated_at: new Date().toISOString(),
+  }
+  const { data, error } = await supabase
+    .from('member_invoice_profiles')
+    .upsert(row, { onConflict: 'member_id' })
+    .select()
+    .single()
+  if (error) console.error('[DB] upsertMemberInvoiceProfile error:', error)
+  return { data, error }
+}
+
 export async function deletePayrollInvoice(memberId, payMonth) {
   if (!memberId || !payMonth) return { error: new Error('missing args') }
   const orgId = getOrgId()

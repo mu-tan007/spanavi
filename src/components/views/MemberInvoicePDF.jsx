@@ -136,13 +136,8 @@ export default function MemberInvoicePDF({
           <table style={{ borderCollapse: 'collapse', fontSize: 11, width: 280 }}>
             <tbody>
               <tr style={{ borderBottom: '2px solid #222' }}>
-                <td style={{ padding: '8px 12px', fontWeight: font.weight.bold, color: '#111' }}>合計</td>
+                <td style={{ padding: '8px 12px', fontWeight: font.weight.bold, color: '#111' }}>合計（税込）</td>
                 <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: font.weight.bold, color: '#111', fontFamily: monoFamily }}>{fmt(total)}</td>
-              </tr>
-              <tr>
-                <td colSpan={2} style={{ padding: '6px 12px', fontSize: 10, color: '#666', textAlign: 'right' }}>
-                  ※ 業務委託に基づく報酬のため消費税は対象外
-                </td>
               </tr>
             </tbody>
           </table>
