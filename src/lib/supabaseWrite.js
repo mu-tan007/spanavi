@@ -71,19 +71,22 @@ export async function updateCallList(supaId, data) {
   return error
 }
 
-export async function insertCallList(data) {
-  // まずclient_idを取得
+export async function insertCallList(data, engagementId = null) {
+  // まずclient_idと（フォールバック用に）engagement_idを取得
   const { data: clients } = await supabase
     .from('clients')
-    .select('id')
+    .select('id, engagement_id')
     .eq('name', data.company)
     .limit(1)
   const clientId = clients?.[0]?.id || null
+  // 引数で渡された engagement_id を優先、無ければ client の engagement_id、それも無ければ seller_sourcing にフォールバック
+  const resolvedEngagementId = await resolveEngagementId(engagementId || clients?.[0]?.engagement_id)
 
   const { data: result, error } = await supabase
     .from('call_lists')
     .insert({
       org_id: getOrgId(),
+      engagement_id: resolvedEngagementId,
       client_id: clientId,
       name: `${data.company} - ${data.industry}`,
       industry: data.industry,
@@ -140,11 +143,32 @@ export async function restoreCallList(supaId) {
 // Clients (クライアント)
 // ============================================================
 
-export async function insertClient(data) {
+// engagement_id が UUID 形式かどうか判定（仮想 masp_global を弾く）
+function isRealEngagementId(id) {
+  return typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}
+
+// 渡された engagementId が無効な場合は seller_sourcing にフォールバック
+async function resolveEngagementId(engagementId) {
+  if (isRealEngagementId(engagementId)) return engagementId;
+  const orgId = getOrgId();
+  if (!orgId) return null;
+  const { data } = await supabase
+    .from('engagements')
+    .select('id')
+    .eq('org_id', orgId)
+    .eq('slug', 'seller_sourcing')
+    .maybeSingle();
+  return data?.id || null;
+}
+
+export async function insertClient(data, engagementId = null) {
+  const resolvedEngagementId = await resolveEngagementId(engagementId);
   const { data: result, error } = await supabase
     .from('clients')
     .insert({
       org_id: getOrgId(),
+      engagement_id: resolvedEngagementId,
       name: data.company,
       status: data.status || '準備中',
       contract_status: data.contract || '未',
@@ -417,26 +441,38 @@ export async function deleteRecordingBookmark(id) {
   return { error }
 }
 
-export async function insertAppointment(data) {
-  // list_idがあればcall_listsからclient_idを取得（クライアント名変更に強い）
+export async function insertAppointment(data, engagementId = null) {
+  // list_idがあればcall_listsからclient_idと engagement_id を取得（クライアント名変更に強い）
   let clientId = null
+  let listEngagementId = null
   if (data.list_id) {
     const { data: listRow } = await supabase
       .from('call_lists')
-      .select('client_id')
+      .select('client_id, engagement_id')
       .eq('id', data.list_id)
       .single()
     clientId = listRow?.client_id || null
+    listEngagementId = listRow?.engagement_id || null
   }
   // list_idからclient_idが取得できなかった場合はクライアント名でフォールバック
+  let clientEngagementId = null
   if (!clientId && data.client) {
     const { data: clients } = await supabase
       .from('clients')
-      .select('id')
+      .select('id, engagement_id')
       .eq('name', data.client)
       .limit(1)
     clientId = clients?.[0]?.id || null
+    clientEngagementId = clients?.[0]?.engagement_id || null
+  } else if (clientId) {
+    // client_id があれば engagement_id も同時に引き直す（list 由来の場合は既に持っている）
+    if (!listEngagementId) {
+      const { data: c } = await supabase.from('clients').select('engagement_id').eq('id', clientId).maybeSingle()
+      clientEngagementId = c?.engagement_id || null
+    }
   }
+  // 優先順: 引数 > list の engagement_id > client の engagement_id > seller_sourcing フォールバック
+  const resolvedEngagementId = await resolveEngagementId(engagementId || listEngagementId || clientEngagementId)
 
   const appoMonth = data.meetDate ? (parseInt(data.meetDate.slice(5, 7), 10) + '月') : ''
 
@@ -444,6 +480,7 @@ export async function insertAppointment(data) {
     .from('appointments')
     .insert({
       org_id: getOrgId(),
+      engagement_id: resolvedEngagementId,
       client_id: clientId,
       company_name: data.company,
       status: data.status || 'アポ取得',

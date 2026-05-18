@@ -20,6 +20,7 @@ import CRMTable from './crm/CRMTable';
 import MonthlyTargetsView from './crm/MonthlyTargetsView';
 import CRMKPIDashboard from './crm/CRMKPIDashboard';
 import CRMPipelineView from './crm/CRMPipelineView';
+import { useEngagements } from '../../hooks/useEngagements';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,6 +56,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   const goToList = () => { setView('list'); setDetailClient(null); };
 
   const orgId = getOrgId();
+  const { currentEngagement } = useEngagements();
 
   // 最終接点の元データを React Query で 5分キャッシュ
   const memoQuery = useQuery({
@@ -260,7 +262,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     if (!addForm || !setClientData) return;
     if (!addForm.company?.trim()) { alert('企業名を入力してください'); return; }
     setAddSaving(true);
-    const { result, error } = await insertClient(addForm);
+    const { result, error } = await insertClient(addForm, currentEngagement?.id);
     if (error) { setAddSaving(false); alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
     const newClient = {
       _supaId: result.id,

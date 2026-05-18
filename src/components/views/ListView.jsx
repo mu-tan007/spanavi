@@ -4,6 +4,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card } from '../ui';
 import { updateCallList, insertCallList, archiveCallList, restoreCallList } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
+import { useEngagements } from '../../hooks/useEngagements';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import { useIsMobile } from '../../hooks/useIsMobile';
@@ -66,6 +67,7 @@ const LISTVIEW_ARCHIVE_COLS = [
 
 export default function ListView({ filteredLists, allLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [], contactsByClient = {}, onOpenIndustryRules }) {
   const isMobile = useIsMobile();
+  const { currentEngagement } = useEngagements();
   const { columns: lvCols, gridTemplateColumns: lvGrid, contentMinWidth: lvMinW, onResizeStart: lvResize } = useColumnConfig('listView', LISTVIEW_COLS);
   const { columns: arCols, gridTemplateColumns: arGrid, contentMinWidth: arMinW, onResizeStart: arResize } = useColumnConfig('listViewArchive', LISTVIEW_ARCHIVE_COLS);
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
@@ -126,7 +128,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       }
       setCallListData(prev => prev.map(l => l.id === editingListId ? { ...l, company: formData.company, type: formData.type, status: formData.status, industry: formData.industry, count: parseInt(formData.count) || 0, manager: formData.manager, contactIds: formData.contactIds, companyInfo: formData.companyInfo, scriptBody: formData.scriptBody, cautions: formData.cautions, notes: formData.notes } : l));
     } else {
-      const { result, error } = await insertCallList(formData);
+      const { result, error } = await insertCallList(formData, currentEngagement?.id);
       if (error || !result) { alert('保存に失敗しました: ' + (error?.message || '不明なエラー')); return; }
       const newId = Math.max(0, ...callListData.map(l => l.id)) + 1;
       setCallListData(prev => [...prev, { id: newId, ...formData, contactIds: formData.contactIds, count: parseInt(formData.count) || 0, _supaId: result.id }]);
