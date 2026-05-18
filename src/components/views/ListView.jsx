@@ -93,6 +93,28 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   const [formData, setFormData] = useState(emptyForm);
   const [showRec, setShowRec] = useState(true);
   const [displayFilter, setDisplayFilter] = useState('active');
+  const [extractingUrl, setExtractingUrl] = useState(false);
+
+  const handleExtractFromUrl = async () => {
+    const url = (formData.companyUrl || '').trim();
+    if (!url) { alert('HP URL を入力してください。'); return; }
+    if (!/^https?:\/\//i.test(url)) { alert('URL は http:// または https:// で始まる必要があります。'); return; }
+    if ((formData.companyInfo || '').trim().length > 0) {
+      if (!window.confirm('企業概要に既存の内容があります。AI抽出結果で置き換えますか？')) return;
+    }
+    setExtractingUrl(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('extract-company-from-url', { body: { url } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error === 'not_found' ? '該当する企業情報が見つかりませんでした。URLをご確認ください。' : data.error);
+      if (!data?.overview) throw new Error('企業概要の抽出に失敗しました。');
+      setFormData(p => ({ ...p, companyInfo: data.overview }));
+    } catch (e) {
+      alert('抽出に失敗しました: ' + (e?.message || '不明なエラー'));
+    } finally {
+      setExtractingUrl(false);
+    }
+  };
 
   // Dashboard の「現在のおすすめリスト TOP4」と同一ロジック: アクティブ + 架電可能 + recommendation あり、score降順 で TOP4
   // enrichedLists (allLists) を使うことで、現在のフィルタ状態に左右されない
@@ -126,7 +148,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         const error = await updateCallList(target._supaId, formData);
         if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
       }
-      setCallListData(prev => prev.map(l => l.id === editingListId ? { ...l, company: formData.company, type: formData.type, status: formData.status, industry: formData.industry, count: parseInt(formData.count) || 0, manager: formData.manager, contactIds: formData.contactIds, companyInfo: formData.companyInfo, scriptBody: formData.scriptBody, cautions: formData.cautions, notes: formData.notes } : l));
+      setCallListData(prev => prev.map(l => l.id === editingListId ? { ...l, company: formData.company, type: formData.type, status: formData.status, industry: formData.industry, count: parseInt(formData.count) || 0, manager: formData.manager, contactIds: formData.contactIds, companyInfo: formData.companyInfo, companyUrl: formData.companyUrl, scriptBody: formData.scriptBody, cautions: formData.cautions, notes: formData.notes } : l));
     } else {
       const { result, error } = await insertCallList(formData, currentEngagement?.id);
       if (error || !result) { alert('保存に失敗しました: ' + (error?.message || '不明なエラー')); return; }
@@ -350,6 +372,28 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
               })()}
             </div>
 <div style={{ gridColumn: "span 3" }}>
+              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>クライアント企業ホームページ URL</label>
+              <div style={{ display: "flex", gap: space[2] }}>
+                <input
+                  type="url"
+                  value={formData.companyUrl}
+                  onChange={e => setFormData(p => ({ ...p, companyUrl: e.target.value }))}
+                  style={{ ...formInputStyle, flex: 1 }}
+                  placeholder="https://example.co.jp/about/"
+                />
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={handleExtractFromUrl}
+                  loading={extractingUrl}
+                  disabled={extractingUrl || !(formData.companyUrl || '').trim()}
+                >URLから自動入力</Button>
+              </div>
+              <div style={{ fontSize: 10, color: color.textLight, marginTop: 4 }}>
+                URLを入力して「URLから自動入力」を押すと、AIがホームページを読み取り企業概要を自動生成します。
+              </div>
+            </div>
+            <div style={{ gridColumn: "span 3" }}>
               <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>企業概要</label>
               <textarea
                 value={formData.companyInfo}

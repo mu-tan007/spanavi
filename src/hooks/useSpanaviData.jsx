@@ -104,6 +104,7 @@ export function useSpanaviData(authOrgId) {
         count: cl.total_count || 0,
         manager: cl.manager_name || '',
         companyInfo: cl.company_info || '',
+        companyUrl: cl.company_url || '',
         scriptBody: cl.script_body || '',
         cautions: cl.cautions || '',
         rebuttalData: cl.rebuttal_data || '',
