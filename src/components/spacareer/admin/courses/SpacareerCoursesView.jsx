@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { color, space, font, radius, alpha } from '../../../../constants/design';
 import { Button, Card, Badge, DataTable } from '../../../ui';
+import PageHeader from '../../../common/PageHeader';
+import KpiCard from '../_shared/KpiCard';
+import SubTabs from '../_shared/SubTabs';
 import { supabase } from '../../../../lib/supabase';
 import { getOrgId } from '../../../../lib/orgContext';
 import VideoUploadModal from './VideoUploadModal';
@@ -154,68 +157,41 @@ export default function SpacareerCoursesView() {
   };
 
   return (
-    <div style={{ paddingBottom: space[6] }}>
-      {/* ===== Header ===== */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-        marginBottom: space[4], flexWrap: 'wrap', gap: space[3],
-      }}>
-        <div>
-          <h1 style={{
-            margin: 0, fontSize: font.size['2xl'], fontWeight: font.weight.bold,
-            color: color.navy, letterSpacing: font.letterSpacing.tight,
-          }}>
-            AI講座管理
-          </h1>
-          <div style={{ fontSize: font.size.sm, color: color.textMid, marginTop: space[1] }}>
-            動画アップロード・カテゴリ管理・視聴ログ・お気に入り分析
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: space[2] }}>
-          <Button variant="outline" onClick={() => setCategoryEditorOpen(true)}>カテゴリ管理</Button>
-          <Button variant="primary" onClick={() => { setEditTarget(null); setUploadOpen(true); }}>
-            + 動画をアップロード
-          </Button>
-        </div>
-      </div>
+    <div style={{ paddingBottom: space[6], animation: 'fadeIn 0.3s ease' }}>
+      <PageHeader
+        title="AI講座管理"
+        description="動画アップロード・カテゴリ管理・視聴ログ・お気に入り分析"
+        right={(
+          <>
+            <Button variant="outline" onClick={() => setCategoryEditorOpen(true)}>カテゴリ管理</Button>
+            <Button variant="primary" onClick={() => { setEditTarget(null); setUploadOpen(true); }}>
+              動画をアップロード
+            </Button>
+          </>
+        )}
+        style={{ marginBottom: space[4] }}
+      />
 
       {/* ===== KPI ===== */}
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
         gap: space[3], marginBottom: space[4],
       }}>
-        <KpiCard label="動画本数" value={kpis.totalVideos} accent={color.navy} />
-        <KpiCard label="視聴記録" value={kpis.totalViews} accent={color.info} />
-        <KpiCard label="視聴完了" value={kpis.watched} accent={color.success} />
-        <KpiCard label="お気に入り" value={kpis.totalFavorites} accent={color.warn} />
+        <KpiCard label="動画本数"   value={kpis.totalVideos}    unit="本" tone="navy" />
+        <KpiCard label="視聴記録"   value={kpis.totalViews}     unit="件" tone="info" />
+        <KpiCard label="視聴完了"   value={kpis.watched}        unit="件" tone="success" />
+        <KpiCard label="お気に入り" value={kpis.totalFavorites} unit="件" tone="warn" />
       </div>
 
-      {/* ===== Tabs ===== */}
-      <div style={{ display: 'flex', gap: space[2], marginBottom: space[3], borderBottom: `1px solid ${color.border}` }}>
-        {[
+      <SubTabs
+        tabs={[
           { key: 'videos',    label: '動画一覧' },
           { key: 'views',     label: '視聴ログ' },
           { key: 'favorites', label: 'お気に入り分析' },
-        ].map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            style={{
-              padding: `${space[2]}px ${space[3]}px`,
-              fontSize: font.size.sm,
-              fontWeight: tab === t.key ? font.weight.semibold : font.weight.normal,
-              color: tab === t.key ? color.navy : color.textMid,
-              background: 'transparent',
-              border: 'none',
-              borderBottom: `2px solid ${tab === t.key ? color.navy : 'transparent'}`,
-              cursor: 'pointer',
-              marginBottom: -1,
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+        ]}
+        activeKey={tab}
+        onChange={setTab}
+      />
 
       {error && (
         <div style={{
@@ -264,20 +240,6 @@ export default function SpacareerCoursesView() {
 }
 
 // ────────────────────────────────────────────────────────────
-function KpiCard({ label, value, accent }) {
-  return (
-    <Card padding="md">
-      <div style={{ fontSize: font.size.xs, color: color.textMid, letterSpacing: font.letterSpacing.wide, marginBottom: space[1] }}>
-        {label}
-      </div>
-      <div style={{ fontSize: font.size['2xl'], fontWeight: font.weight.bold, color: accent || color.navy, lineHeight: 1 }}>
-        {value}
-      </div>
-    </Card>
-  );
-}
-
-// ────────────────────────────────────────────────────────────
 function VideosTab({ loading, activeCategories, videosByCategory, onMove, onEdit, onDisable }) {
   if (loading) {
     return (
@@ -300,96 +262,97 @@ function VideosTab({ loading, activeCategories, videosByCategory, onMove, onEdit
     <div style={{ display: 'flex', flexDirection: 'column', gap: space[4] }}>
       {activeCategories.map(cat => {
         const list = videosByCategory.get(cat.id) || [];
+        const columns = [
+          { key: '_order', label: '並び', width: 56, align: 'center',
+            render: (v) => {
+              const idx = list.findIndex(x => x.id === v.id);
+              const isFirst = idx === 0;
+              const isLast = idx === list.length - 1;
+              return (
+                <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 2 }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onMove(v, -1); }}
+                    disabled={isFirst}
+                    style={reorderBtn(isFirst)}
+                    aria-label="上へ"
+                  >▲</button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onMove(v, 1); }}
+                    disabled={isLast}
+                    style={reorderBtn(isLast)}
+                    aria-label="下へ"
+                  >▼</button>
+                </div>
+              );
+            }},
+          { key: '_thumb', label: 'サムネ', width: 110, align: 'center',
+            render: (v) => (
+              <div style={{
+                width: 96, height: 54,
+                background: color.gray100,
+                borderRadius: radius.md,
+                overflow: 'hidden',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: font.size.xs, color: color.textLight,
+              }}>
+                {v.thumbnail_url
+                  ? <img src={v.thumbnail_url} alt={v.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : 'No image'}
+              </div>
+            )},
+          { key: 'title', label: 'タイトル', width: 360, align: 'left',
+            render: (v) => (
+              <div style={{ minWidth: 0 }}>
+                <div style={{
+                  fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>{v.title}</div>
+                {v.description && (
+                  <div style={{
+                    fontSize: font.size.xs, color: color.textMid, marginTop: 2,
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  }}>{v.description}</div>
+                )}
+              </div>
+            )},
+          { key: 'duration', label: '所要時間', width: 110, align: 'right',
+            cellStyle: { fontFamily: font.family.mono },
+            render: (v) => formatDuration(v.duration_seconds) },
+          { key: 'status', label: 'ステータス', width: 110, align: 'center',
+            render: (v) => v.video_url
+              ? <Badge variant="success" dot>公開中</Badge>
+              : <Badge variant="warn">未アップ</Badge> },
+          { key: '_actions', label: '操作', width: 220, align: 'center',
+            render: (v) => (
+              <div style={{ display: 'inline-flex', gap: space[1], justifyContent: 'center' }}>
+                {v.video_url && (
+                  <Button size="sm" variant="outline"
+                    onClick={(e) => { e.stopPropagation(); window.open(v.video_url, '_blank'); }}>再生</Button>
+                )}
+                <Button size="sm" variant="outline"
+                  onClick={(e) => { e.stopPropagation(); onEdit(v); }}>編集</Button>
+                <Button size="sm" variant="danger"
+                  onClick={(e) => { e.stopPropagation(); onDisable(v); }}>非表示</Button>
+              </div>
+            )},
+        ];
         return (
-          <Card key={cat.id} padding="none">
-            <div style={{
-              padding: `${space[3]}px ${space[4]}px`,
-              borderBottom: `1px solid ${color.borderLight}`,
-              background: color.cream,
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
-              <div style={{ fontSize: font.size.md, fontWeight: font.weight.semibold, color: color.navy }}>
-                {cat.name}
-              </div>
-              <Badge variant="neutral">{list.length} 本</Badge>
-            </div>
-            {list.length === 0 ? (
-              <div style={{ padding: space[4], color: color.textLight, fontSize: font.size.sm, textAlign: 'center' }}>
-                このカテゴリに動画はまだありません
-              </div>
-            ) : (
-              <div>
-                {list.map((v, idx) => (
-                  <div
-                    key={v.id}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '40px 96px 1fr 110px 100px 220px',
-                      gap: space[3],
-                      alignItems: 'center',
-                      padding: `${space[2]}px ${space[4]}px`,
-                      borderBottom: idx === list.length - 1 ? 'none' : `1px solid ${color.borderLight}`,
-                      background: idx % 2 === 1 ? color.cream : color.white,
-                    }}
-                  >
-                    {/* reorder buttons */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <button onClick={() => onMove(v, -1)} disabled={idx === 0} style={iconBtn(idx === 0)}>▲</button>
-                      <button onClick={() => onMove(v, 1)} disabled={idx === list.length - 1} style={iconBtn(idx === list.length - 1)}>▼</button>
-                    </div>
-
-                    {/* thumbnail */}
-                    <div style={{
-                      width: 96, height: 54,
-                      background: color.gray100,
-                      borderRadius: radius.md,
-                      overflow: 'hidden',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: font.size.xs, color: color.textLight,
-                    }}>
-                      {v.thumbnail_url
-                        ? <img src={v.thumbnail_url} alt={v.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        : 'No image'}
-                    </div>
-
-                    {/* title + description */}
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{
-                        fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark,
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                      }}>{v.title}</div>
-                      {v.description && (
-                        <div style={{
-                          fontSize: font.size.xs, color: color.textMid, marginTop: 2,
-                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                        }}>{v.description}</div>
-                      )}
-                    </div>
-
-                    {/* duration */}
-                    <div style={{ fontSize: font.size.sm, color: color.textMid, fontFamily: font.family.mono, textAlign: 'right' }}>
-                      {formatDuration(v.duration_seconds)}
-                    </div>
-
-                    {/* status */}
-                    <div style={{ textAlign: 'center' }}>
-                      {v.video_url
-                        ? <Badge variant="success" dot>公開中</Badge>
-                        : <Badge variant="warn">未アップ</Badge>}
-                    </div>
-
-                    {/* actions */}
-                    <div style={{ display: 'flex', gap: space[1], justifyContent: 'flex-end' }}>
-                      {v.video_url && (
-                        <Button size="sm" variant="outline" onClick={() => window.open(v.video_url, '_blank')}>再生</Button>
-                      )}
-                      <Button size="sm" variant="outline" onClick={() => onEdit(v)}>編集</Button>
-                      <Button size="sm" variant="danger" onClick={() => onDisable(v)}>非表示</Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          <Card
+            key={cat.id}
+            padding="none"
+            title={cat.name}
+            action={<Badge variant="neutral">{list.length} 本</Badge>}
+          >
+            <DataTable
+              columns={columns}
+              rows={list}
+              rowKey="id"
+              emptyMessage="このカテゴリに動画はまだありません"
+              height="auto"
+              showCount={false}
+              fillWidth
+              style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}
+            />
           </Card>
         );
       })}
@@ -397,7 +360,7 @@ function VideosTab({ loading, activeCategories, videosByCategory, onMove, onEdit
   );
 }
 
-const iconBtn = (disabled) => ({
+const reorderBtn = (disabled) => ({
   width: 22, height: 18, padding: 0,
   fontSize: 10, lineHeight: 1,
   background: color.white, color: disabled ? color.textLight : color.navy,

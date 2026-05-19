@@ -118,7 +118,7 @@ function Row({ label, value, mono }) {
       }}>{label}</div>
       <div style={{
         color: color.textDark,
-        fontFamily: mono ? "'JetBrains Mono', monospace" : undefined,
+        fontFamily: mono ? font.family.mono : undefined,
       }}>{value}</div>
     </>
   );

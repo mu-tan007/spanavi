@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { color, space, radius, font } from '../../../../constants/design';
 import { Card, Badge, DataTable } from '../../../ui';
-import KpiCard from './KpiCard';
+import KpiCard from '../_shared/KpiCard';
 import PieBreakdownChart from './PieBreakdownChart';
 import BarCompareChart from './BarCompareChart';
 import SectionTitle from './SectionTitle';

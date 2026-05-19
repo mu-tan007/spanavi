@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { color, space, font, radius, alpha } from '../../../../constants/design';
 import { Button, Card, Badge, DataTable } from '../../../ui';
+import PageHeader from '../../../common/PageHeader';
+import KpiCard from '../_shared/KpiCard';
 import { supabase } from '../../../../lib/supabase';
 import { getOrgId } from '../../../../lib/orgContext';
 import { SOCIAL_STYLE_DESCRIPTIONS } from './socialStyleQuestions';
@@ -141,27 +143,17 @@ export default function SpacareerSocialStyleView() {
   ]), []);
 
   return (
-    <div style={{ paddingBottom: space[6] }}>
-      {/* ===== Header ===== */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-        marginBottom: space[4], flexWrap: 'wrap', gap: space[3],
-      }}>
-        <div>
-          <h1 style={{
-            margin: 0, fontSize: font.size['2xl'], fontWeight: font.weight.bold,
-            color: color.navy, letterSpacing: font.letterSpacing.tight,
-          }}>
-            ソーシャルスタイル診断
-          </h1>
-          <div style={{ fontSize: font.size.sm, color: color.textMid, marginTop: space[1] }}>
-            招待発行・回答状況・4タイプ別の判定結果を一元管理します
-          </div>
-        </div>
-        <Button variant="primary" onClick={() => setInviteOpen(true)}>
-          + 診断招待を発行
-        </Button>
-      </div>
+    <div style={{ paddingBottom: space[6], animation: 'fadeIn 0.3s ease' }}>
+      <PageHeader
+        title="ソーシャルスタイル診断"
+        description="招待発行・回答状況・4タイプ別の判定結果を一元管理します"
+        right={(
+          <Button variant="primary" onClick={() => setInviteOpen(true)}>
+            診断招待を発行
+          </Button>
+        )}
+        style={{ marginBottom: space[4] }}
+      />
 
       {/* ===== KPI Cards ===== */}
       <div style={{
@@ -170,10 +162,10 @@ export default function SpacareerSocialStyleView() {
         gap: space[3],
         marginBottom: space[4],
       }}>
-        <KpiCard label="招待発行" value={kpis.total} accent={color.navy} />
-        <KpiCard label="未着手" value={kpis.unstarted} accent={color.textMid} />
-        <KpiCard label="進行中" value={kpis.inProgress} accent={color.warn} />
-        <KpiCard label="完了" value={kpis.completed} accent={color.success} />
+        <KpiCard label="招待発行" value={kpis.total}      tone="navy" />
+        <KpiCard label="未着手"   value={kpis.unstarted}  tone="info" />
+        <KpiCard label="進行中"   value={kpis.inProgress} tone="warn" />
+        <KpiCard label="完了"     value={kpis.completed}  tone="success" />
       </div>
 
       {/* ===== 4タイプ別件数 ===== */}
@@ -265,20 +257,6 @@ export default function SpacareerSocialStyleView() {
         onCreated={() => { loadResponses(); }}
       />
     </div>
-  );
-}
-
-// ────────────────────────────────────────────────────────────
-function KpiCard({ label, value, accent }) {
-  return (
-    <Card padding="md">
-      <div style={{ fontSize: font.size.xs, color: color.textMid, letterSpacing: font.letterSpacing.wide, marginBottom: space[1] }}>
-        {label}
-      </div>
-      <div style={{ fontSize: font.size['2xl'], fontWeight: font.weight.bold, color: accent || color.navy, lineHeight: 1 }}>
-        {value}
-      </div>
-    </Card>
   );
 }
 

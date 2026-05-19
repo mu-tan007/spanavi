@@ -90,7 +90,7 @@ function Stat({ label, value, accent, mono }) {
       <div style={{
         fontSize: font.size.xl, color: palette[accent] || color.textDark,
         fontWeight: font.weight.bold,
-        fontFamily: mono ? "'JetBrains Mono', monospace" : undefined,
+        fontFamily: mono ? font.family.mono : undefined,
         marginTop: 4,
       }}>{value}</div>
     </Card>

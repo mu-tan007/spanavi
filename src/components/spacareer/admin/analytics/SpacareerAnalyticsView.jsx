@@ -3,7 +3,7 @@ import { color, space, radius, font } from '../../../../constants/design';
 import { Card } from '../../../ui';
 import PageHeader from '../../../common/PageHeader';
 import PeriodFilter from './PeriodFilter';
-import KpiCard from './KpiCard';
+import KpiCard from '../_shared/KpiCard';
 import TrendChart from './TrendChart';
 import BarCompareChart from './BarCompareChart';
 import HeatmapChart from './HeatmapChart';

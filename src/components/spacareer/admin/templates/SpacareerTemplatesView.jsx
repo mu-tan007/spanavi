@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { color, space, font, radius, shadow, alpha } from '../../../../constants/design';
 import { Button, Badge, Input } from '../../../ui';
+import PageHeader from '../../../common/PageHeader';
+import SubTabs from '../_shared/SubTabs';
 import TemplateEditor from './TemplateEditor';
 import TemplateHistory from './TemplateHistory';
 import { TEMPLATES, TEMPLATE_CATEGORIES, TEMPLATE_HISTORY } from './mockTemplates';
@@ -42,68 +44,29 @@ export default function SpacareerTemplatesView() {
     setSnapshot(prev => prev.map(t => t.key === tpl.key ? { ...t, enabled: !t.enabled } : t));
   };
 
+  const categoryTabs = useMemo(
+    () => TEMPLATE_CATEGORIES.map(c => ({
+      key: c.key,
+      label: c.label,
+      badge: categoryCounts[c.key] || 0,
+    })),
+    [categoryCounts]
+  );
+
   return (
-    <div style={{ padding: space[3] }}>
-      {/* ヘッダー */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: space[4], flexWrap: 'wrap', gap: space[3] }}>
-        <div>
-          <h1 style={{
-            fontSize: font.size['2xl'],
-            fontWeight: font.weight.bold,
-            color: color.navy,
-            marginBottom: 4,
-            letterSpacing: font.letterSpacing.tight,
-          }}>
-            テンプレート管理
-          </h1>
-          <p style={{ fontSize: font.size.sm, color: color.textMid }}>
-            既存11種のテンプレートを機能別4タブで管理します。配信済み事前課題は旧テンプレ版のまま固定。
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: space[2], alignItems: 'center' }}>
+    <div style={{ animation: 'fadeIn 0.3s ease' }}>
+      <PageHeader
+        title="テンプレート管理"
+        description="既存11種のテンプレートを機能別4タブで管理します。配信済み事前課題は旧テンプレ版のまま固定。"
+        right={(
           <Button variant={showHistory ? 'outline' : 'ghost'} size="md" onClick={() => setShowHistory(s => !s)}>
             {showHistory ? '編集に戻る' : '変更履歴を見る'}
           </Button>
-        </div>
-      </div>
+        )}
+        style={{ marginBottom: space[4] }}
+      />
 
-      {/* カテゴリタブ */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${color.border}`, marginBottom: space[4] }}>
-        {TEMPLATE_CATEGORIES.map(c => {
-          const active = c.key === activeCategory;
-          return (
-            <button
-              key={c.key}
-              type="button"
-              onClick={() => setActiveCategory(c.key)}
-              style={{
-                padding: `${space[2]}px ${space[4]}px`,
-                fontSize: font.size.sm,
-                fontWeight: font.weight.semibold,
-                fontFamily: font.family.sans,
-                color: active ? color.navy : color.textMid,
-                background: 'transparent',
-                border: 'none',
-                borderBottom: active ? `2px solid ${color.navy}` : '2px solid transparent',
-                marginBottom: -1,
-                cursor: 'pointer',
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-              }}
-            >
-              {c.label}
-              <span style={{
-                fontSize: font.size.xs,
-                background: active ? color.navy : color.gray200,
-                color: active ? color.white : color.textMid,
-                padding: '1px 8px',
-                borderRadius: radius.pill,
-              }}>
-                {categoryCounts[c.key] || 0}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <SubTabs tabs={categoryTabs} activeKey={activeCategory} onChange={setActiveCategory} dense />
 
       {showHistory ? (
         <TemplateHistory

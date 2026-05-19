@@ -8,7 +8,7 @@ export default function TemplateHistory({ history, templates, onSelectTemplate }
 
   const columns = [
     { key: 'at',       label: '日時',         width: 160, align: 'right',
-      cellStyle: { fontFamily: 'Inter, sans-serif' } },
+      cellStyle: { fontFamily: font.family.mono } },
     { key: 'tpl',      label: 'テンプレート', width: 220, align: 'left',
       render: (r) => (
         <button

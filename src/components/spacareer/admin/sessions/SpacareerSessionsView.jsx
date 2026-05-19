@@ -1,8 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { color, space, font, radius } from '../../../../constants/design';
-import { Card, Badge, DataTable, Button } from '../../../ui';
+import { color, space, font } from '../../../../constants/design';
+import { Badge, DataTable, Button } from '../../../ui';
+import PageHeader from '../../../common/PageHeader';
 import { useCustomersList } from '../customers/lib/useCustomers';
 import SessionCompleteFlow from '../customers/CustomerDetail/SessionCompleteFlow';
+import KpiCard from '../_shared/KpiCard';
+import SubTabs from '../_shared/SubTabs';
 
 // ============================================================
 // セッション管理（独立メニュー）= 横断ビュー
@@ -99,44 +102,35 @@ export default function SpacareerSessionsView({ isAdmin }) {
   const [openRowId, setOpenRowId] = useState(null);
   const openRow = openRowId ? flat.find((r) => r.id === openRowId) : null;
 
+  const sessionTabs = useMemo(() => ([
+    { key: 'summary', label: '全体サマリー' },
+    ...[0, 1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({
+      key: `session_${n}`,
+      label: n === 0 ? 'キックオフ' : `第${n}回`,
+    })),
+  ]), []);
+
   return (
-    <div style={{ padding: 0 }}>
-      <div style={{ marginBottom: space[3] }}>
-        <h1 style={{
-          fontSize: font.size['2xl'], fontWeight: font.weight.bold,
-          color: color.navy, margin: 0, lineHeight: 1.2,
-        }}>セッション管理</h1>
-        <p style={{
-          fontSize: font.size.sm, color: color.textMid, margin: 0, marginTop: 4,
-        }}>第0〜8回の横断ビュー。完了ボタンと AI 自動生成フローの中核です。</p>
-      </div>
+    <div style={{ padding: 0, animation: 'fadeIn 0.3s ease' }}>
+      <PageHeader
+        title="セッション管理"
+        description="第0〜8回の横断ビュー。完了ボタンと AI 自動生成フローの中核です。"
+        style={{ marginBottom: space[4] }}
+      />
 
       {tab === 'summary' && (
         <div style={{
           display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: space[3],
-          marginBottom: space[3],
+          marginBottom: space[4],
         }}>
-          <Kpi label="進行中の顧客" value={kpi.inProgress} accent="primary" />
-          <Kpi label="卒業完了" value={kpi.graduated} accent="success" />
-          <Kpi label="遅延アラート" value={kpi.overdue} accent="danger" />
-          <Kpi label="今週の予定" value={kpi.thisWeek} accent="warn" mono />
+          <KpiCard label="進行中の顧客" value={kpi.inProgress} unit="名" tone="primary" />
+          <KpiCard label="卒業完了" value={kpi.graduated} unit="名" tone="success" />
+          <KpiCard label="遅延アラート" value={kpi.overdue} unit="件" tone="danger" />
+          <KpiCard label="今週の予定" value={kpi.thisWeek} unit="件" tone="warn" />
         </div>
       )}
 
-      <div style={{
-        display: 'flex', overflowX: 'auto',
-        borderBottom: `1px solid ${color.border}`,
-        background: color.white, marginBottom: space[3],
-        borderRadius: `${radius.md}px ${radius.md}px 0 0`,
-      }}>
-        <TabBtn label="全体サマリー" active={tab === 'summary'} onClick={() => setTab('summary')} />
-        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-          <TabBtn key={n}
-            label={n === 0 ? 'キックオフ' : `第${n}回`}
-            active={tab === `session_${n}`}
-            onClick={() => setTab(`session_${n}`)} />
-        ))}
-      </div>
+      <SubTabs tabs={sessionTabs} activeKey={tab} onChange={setTab} />
 
       <DataTable
         columns={[
@@ -201,40 +195,3 @@ export default function SpacareerSessionsView({ isAdmin }) {
   );
 }
 
-function TabBtn({ label, active, onClick }) {
-  return (
-    <button onClick={onClick} style={{
-      padding: `${space[3]}px ${space[4]}px`,
-      background: 'transparent',
-      color: active ? color.navy : color.textMid,
-      border: 'none',
-      borderBottom: active ? `2px solid ${color.navy}` : '2px solid transparent',
-      cursor: 'pointer',
-      fontSize: font.size.sm,
-      fontWeight: font.weight.semibold,
-      letterSpacing: font.letterSpacing.wide,
-      whiteSpace: 'nowrap',
-    }}>{label}</button>
-  );
-}
-
-function Kpi({ label, value, accent, mono }) {
-  const palette = {
-    primary: color.navyLight, success: color.success,
-    warn: color.warn, danger: color.danger,
-  };
-  return (
-    <Card padding="md">
-      <div style={{
-        fontSize: font.size.xs, color: color.textMid,
-        letterSpacing: font.letterSpacing.wide, fontWeight: font.weight.semibold,
-      }}>{label}</div>
-      <div style={{
-        fontSize: font.size['2xl'], fontWeight: font.weight.bold,
-        color: palette[accent] || color.textDark,
-        fontFamily: mono ? "'JetBrains Mono', monospace" : undefined,
-        marginTop: 4,
-      }}>{value}</div>
-    </Card>
-  );
-}

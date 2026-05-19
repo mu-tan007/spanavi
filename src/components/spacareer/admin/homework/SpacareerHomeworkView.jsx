@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { color, space, font, radius, shadow } from '../../../../constants/design';
+import { color, space, font, radius } from '../../../../constants/design';
 import { Button, Badge, DataTable, Card } from '../../../ui';
+import PageHeader from '../../../common/PageHeader';
+import KpiCard from '../_shared/KpiCard';
+import SubTabs from '../_shared/SubTabs';
 import HomeworkMatrix from './HomeworkMatrix';
 import HomeworkEditPanel from './HomeworkEditPanel';
 import {
@@ -37,22 +40,12 @@ export default function SpacareerHomeworkView() {
   const selectedStatus = selectedCell ? MOCK_MATRIX[selectedCell.customerId]?.[selectedCell.sessionNumber] : null;
 
   return (
-    <div style={{ padding: space[3] }}>
-      {/* ヘッダー */}
-      <div style={{ marginBottom: space[4] }}>
-        <h1 style={{
-          fontSize: font.size['2xl'],
-          fontWeight: font.weight.bold,
-          color: color.navy,
-          marginBottom: 4,
-          letterSpacing: font.letterSpacing.tight,
-        }}>
-          事前課題管理
-        </h1>
-        <p style={{ fontSize: font.size.sm, color: color.textMid }}>
-          全顧客×第1〜第8回（全8サイクル）の事前課題を横断管理します。第0回は事前課題なし。
-        </p>
-      </div>
+    <div style={{ animation: 'fadeIn 0.3s ease' }}>
+      <PageHeader
+        title="事前課題管理"
+        description="全顧客×第1〜第8回（全8サイクル）の事前課題を横断管理します。第0回は事前課題なし。"
+        style={{ marginBottom: space[4] }}
+      />
 
       {/* KPI 4枚 */}
       <div style={{
@@ -61,39 +54,13 @@ export default function SpacareerHomeworkView() {
         gap: space[3],
         marginBottom: space[4],
       }}>
-        <KpiCard label="未通知の顧客" value={kpi.unsentCount} unit="名" accent="danger" hint="セッション完了後1日以内に通知が必要" />
-        <KpiCard label="期限切れ間近" value={kpi.dueSoonCount} unit="件" accent="warn"   hint="締切3日前以降で未提出/部分提出" />
-        <KpiCard label="全対象顧客" value={kpi.customerCount} unit="名" accent="primary" hint="進行中の受講生" />
-        <KpiCard label="通知済み"    value={kpi.notifiedCount} unit="件" accent="info"    hint="クライアントポータル公開済み" />
+        <KpiCard label="未通知の顧客" value={kpi.unsentCount} unit="名" tone="danger"  hint="セッション完了後1日以内に通知が必要" />
+        <KpiCard label="期限切れ間近" value={kpi.dueSoonCount} unit="件" tone="warn"   hint="締切3日前以降で未提出/部分提出" />
+        <KpiCard label="全対象顧客"   value={kpi.customerCount} unit="名" tone="primary" hint="進行中の受講生" />
+        <KpiCard label="通知済み"     value={kpi.notifiedCount} unit="件" tone="info"    hint="クライアントポータル公開済み" />
       </div>
 
-      {/* タブ */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${color.border}`, marginBottom: space[4] }}>
-        {MAIN_TABS.map(t => {
-          const active = t.key === tab;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              style={{
-                padding: `${space[2]}px ${space[4]}px`,
-                fontSize: font.size.sm,
-                fontWeight: font.weight.semibold,
-                fontFamily: font.family.sans,
-                color: active ? color.navy : color.textMid,
-                background: 'transparent',
-                border: 'none',
-                borderBottom: active ? `2px solid ${color.navy}` : '2px solid transparent',
-                marginBottom: -1,
-                cursor: 'pointer',
-              }}
-            >
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
+      <SubTabs tabs={MAIN_TABS} activeKey={tab} onChange={setTab} />
 
       {/* 本体 */}
       <div style={{
@@ -120,41 +87,6 @@ export default function SpacareerHomeworkView() {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-// ─── KPI ─────────────────────────────────────────────────────
-function KpiCard({ label, value, unit, accent = 'primary', hint }) {
-  const accentColor = ({
-    danger:  color.danger,
-    warn:    color.warn,
-    primary: color.navy,
-    info:    color.navyLight,
-  })[accent] || color.navy;
-  return (
-    <div style={{
-      background: color.white,
-      border: `1px solid ${color.border}`,
-      borderTop: `3px solid ${accentColor}`,
-      borderRadius: radius.lg,
-      boxShadow: shadow.sm,
-      padding: space[4],
-    }}>
-      <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, letterSpacing: font.letterSpacing.wide, marginBottom: space[2] }}>
-        {label}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-        <span style={{ fontSize: font.size['3xl'], fontWeight: font.weight.bold, color: color.navy, fontFamily: font.family.display, lineHeight: 1 }}>
-          {value}
-        </span>
-        <span style={{ fontSize: font.size.sm, color: color.textMid }}>{unit}</span>
-      </div>
-      {hint && (
-        <div style={{ marginTop: space[2], fontSize: font.size.xs, color: color.textLight, lineHeight: font.lineHeight.normal }}>
-          {hint}
-        </div>
-      )}
     </div>
   );
 }
@@ -215,11 +147,11 @@ function UnsentView({ onSelect }) {
     { key: 'sessionNumber', label: 'セッション',     width: 110, align: 'center',
       render: (r) => `第${r.sessionNumber}回` },
     { key: 'sessionDate',   label: 'セッション実施日', width: 140, align: 'right',
-      cellStyle: { fontFamily: 'Inter, sans-serif' } },
+      cellStyle: { fontFamily: font.family.mono } },
     { key: 'elapsedDays',   label: '経過日数',       width: 100, align: 'right',
-      render: (r) => `${r.elapsedDays} 日`, cellStyle: { fontFamily: 'Inter, sans-serif' } },
+      render: (r) => `${r.elapsedDays} 日`, cellStyle: { fontFamily: font.family.mono } },
     { key: 'dueByDate',     label: '設定期限',       width: 130, align: 'right',
-      cellStyle: { fontFamily: 'Inter, sans-serif', color: color.danger } },
+      cellStyle: { fontFamily: font.family.mono, color: color.danger } },
     { key: 'status',        label: 'ステータス',     width: 110, align: 'center',
       render: () => <Badge variant="danger" dot>未通知</Badge> },
     { key: 'trainer',       label: '担当コーチ',     width: 130, align: 'left' },
@@ -250,9 +182,9 @@ function HomeworkTemplatesQuickList() {
         </span>
       ) },
     { key: 'itemCount', label: '項目数', width: 100, align: 'right',
-      render: (r) => r.itemCount ? `${r.itemCount} 項目` : '—', cellStyle: { fontFamily: 'Inter, sans-serif' } },
+      render: (r) => r.itemCount ? `${r.itemCount} 項目` : '—', cellStyle: { fontFamily: font.family.mono } },
     { key: 'updatedAt', label: '最終更新', width: 140, align: 'right',
-      cellStyle: { fontFamily: 'Inter, sans-serif' } },
+      cellStyle: { fontFamily: font.family.mono } },
     { key: 'updatedBy', label: '更新者', width: 140, align: 'left' },
     { key: 'action',    label: '', width: 110, align: 'center',
       render: () => <Button size="sm" variant="outline">編集</Button> },
