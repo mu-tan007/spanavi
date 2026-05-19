@@ -25,6 +25,12 @@ import { color, radius, font, shadow, alpha } from '../../constants/design';
  * @prop rowAccent: (row) => 'danger' | 'warn' | 'success' | 'primary' | string | null
  * @prop rowBackground: (row) => string | null
  * @prop zebra: boolean (default true)
+ *
+ * 行展開（任意）:
+ * @prop expandable: (row, index) => boolean | null  - true なら展開トグルを表示
+ * @prop renderExpanded: (row, index) => ReactNode    - 展開時に表示する内容
+ * @prop expandedKeys: Set<string|number>             - 展開中の rowKey 集合（外部 state）
+ * @prop onToggleExpand: (key) => void                - トグル時のコールバック
  */
 const DEFAULT_HEIGHT = 'calc(100vh - 200px)';
 
@@ -53,13 +59,68 @@ export default function DataTable({
   className,
   style,
   ariaLabel,
+  // 行展開
+  expandable,
+  renderExpanded,
+  expandedKeys,
+  onToggleExpand,
 }) {
   const [hoverKey, setHoverKey] = useState(null);
+  const hasExpansion = typeof expandable === 'function' && typeof renderExpanded === 'function';
+
+  // 展開トグル列（32px固定）を columns に prepend する
+  const effectiveColumns = hasExpansion
+    ? [
+        {
+          key: '__expand__',
+          label: '',
+          width: 32,
+          align: 'center',
+          headerStyle: { padding: 0 },
+          cellStyle: { padding: 0 },
+          render: (row, idx) => {
+            if (!expandable(row, idx)) return '';
+            const key = typeof rowKey === 'function' ? rowKey(row, idx)
+              : typeof rowKey === 'string' && row && row[rowKey] != null ? row[rowKey]
+              : idx;
+            const isOpen = expandedKeys && expandedKeys.has(key);
+            return (
+              <span
+                role="button"
+                aria-label={isOpen ? '行を閉じる' : '行を展開'}
+                aria-expanded={isOpen}
+                tabIndex={0}
+                onClick={(e) => { e.stopPropagation(); onToggleExpand && onToggleExpand(key); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggleExpand && onToggleExpand(key);
+                  }
+                }}
+                style={{
+                  display: 'inline-flex',
+                  width: 20, height: 20,
+                  alignItems: 'center', justifyContent: 'center',
+                  color: color.textMid,
+                  cursor: 'pointer',
+                  fontSize: font.size.xs,
+                  transition: 'transform 0.15s ease',
+                  transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                  userSelect: 'none',
+                }}
+              >▶</span>
+            );
+          },
+        },
+        ...columns,
+      ]
+    : columns;
 
   // fillWidth=true: 列合計が画面幅未満なら、各列を比例して広げる (画面幅いっぱい使う)
   // fillWidth=false (default): 固定 px 幅 (合計が画面より小さくても左寄せ、超えれば横スクロール)
-  const totalNumWidth = columns.reduce((s, c) => s + (typeof c.width === 'number' ? c.width : 0), 0);
-  const gridTemplateColumns = columns
+  const totalNumWidth = effectiveColumns.reduce((s, c) => s + (typeof c.width === 'number' ? c.width : 0), 0);
+  const gridTemplateColumns = effectiveColumns
     .map(c => {
       if (typeof c.width === 'number') {
         return fillWidth
@@ -69,7 +130,7 @@ export default function DataTable({
       return c.width || 'minmax(80px, 1fr)';
     })
     .join(' ');
-  const minWidth = columns.reduce((sum, c) => sum + (typeof c.width === 'number' ? c.width : 80), 0);
+  const minWidth = effectiveColumns.reduce((sum, c) => sum + (typeof c.width === 'number' ? c.width : 80), 0);
 
   const getKey = (row, idx) => {
     if (typeof rowKey === 'function') return rowKey(row, idx);
@@ -125,7 +186,7 @@ export default function DataTable({
               padding: '10px 16px',
             }}
           >
-            {columns.map((col) => (
+            {effectiveColumns.map((col) => (
               <span
                 key={col.key}
                 role="columnheader"
@@ -145,7 +206,7 @@ export default function DataTable({
 
           {/* Body */}
           {loading ? (
-            <SkeletonRows columns={columns} gridTemplateColumns={gridTemplateColumns} />
+            <SkeletonRows columns={effectiveColumns} gridTemplateColumns={gridTemplateColumns} />
           ) : error ? (
             <ErrorState error={error} />
           ) : rows.length === 0 ? (
@@ -158,10 +219,11 @@ export default function DataTable({
               const customBg = rowBackground ? rowBackground(row, idx) : null;
               const baseBg = customBg || (zebra && idx % 2 === 1 ? color.cream : color.white);
               const accentColor = ACCENT_COLORS[accent] || accent;
+              const isExpanded = hasExpansion && expandedKeys && expandedKeys.has(key);
 
               return (
+                <React.Fragment key={key}>
                 <div
-                  key={key}
                   role="row"
                   aria-rowindex={idx + 2}
                   onClick={onRowClick ? () => onRowClick(row, idx) : undefined}
@@ -174,14 +236,14 @@ export default function DataTable({
                     fontSize: font.size.sm,
                     color: color.textDark,
                     background: isHover ? alpha(color.navyLight, 0.06) : baseBg,
-                    borderBottom: `1px solid ${color.borderLight}`,
+                    borderBottom: isExpanded ? `1px solid ${color.border}` : `1px solid ${color.borderLight}`,
                     borderLeft: accentColor ? `3px solid ${accentColor}` : '3px solid transparent',
                     cursor: onRowClick ? 'pointer' : 'default',
                     transition: 'background 0.15s ease',
                     alignItems: 'center',
                   }}
                 >
-                  {columns.map((col) => {
+                  {effectiveColumns.map((col) => {
                     const raw = col.render ? col.render(row, idx) : row[col.key];
                     const isText = typeof raw === 'string' || typeof raw === 'number';
                     return (
@@ -202,6 +264,21 @@ export default function DataTable({
                     );
                   })}
                 </div>
+                {isExpanded && (
+                  <div
+                    role="row"
+                    aria-expanded="true"
+                    style={{
+                      padding: '12px 16px 18px 16px',
+                      background: color.offWhite,
+                      borderBottom: `1px solid ${color.borderLight}`,
+                      borderLeft: accentColor ? `3px solid ${accentColor}` : '3px solid transparent',
+                    }}
+                  >
+                    {renderExpanded(row, idx)}
+                  </div>
+                )}
+                </React.Fragment>
               );
             })
           )}

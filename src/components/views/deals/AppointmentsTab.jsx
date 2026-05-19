@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { C } from '../../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
 import { Button, Input, Select, Card, Badge } from '../../ui';
+import DataTable from '../../ui/DataTable';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import {
@@ -9,6 +10,8 @@ import {
   extractRevenueFromReport, extractAddressFromReport,
 } from '../../../utils/apppoReportParse';
 import { PlayRecordingButton } from '../../common/RecordingPlayerProvider';
+import { fetchDossiersByAppointmentIds } from '../../../lib/dossierApi';
+import CompanyDossierPanel from './CompanyDossierPanel';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -74,11 +77,13 @@ function buildWeeklyPeriods() {
   return opts;
 }
 
-export default function AppointmentsTab({ client }) {
+export default function AppointmentsTab({ client, isImpersonating = false, adminAccessToken = null }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(null);
   const [extraByName, setExtraByName] = useState({});
+  const [dossiersById, setDossiersById] = useState({});
+  const [expandedIds, setExpandedIds] = useState(() => new Set());
 
   const [periodMode, setPeriodMode] = useState('total');
   const monthlyOpts = useMemo(buildMonthlyPeriods, []);
@@ -164,6 +169,25 @@ export default function AppointmentsTab({ client }) {
     })();
     return () => { cancelled = true; };
   }, [orgId, client?.id, periodRange.from, periodRange.to]);
+
+  // appointments 取得後にドシエも一括取得（RLS で見える範囲のみ）
+  useEffect(() => {
+    if (!rows || rows.length === 0) { setDossiersById({}); return; }
+    let cancelled = false;
+    const ids = rows.map(r => r.id).filter(Boolean);
+    fetchDossiersByAppointmentIds(ids).then(({ data }) => {
+      if (!cancelled) setDossiersById(data || {});
+    });
+    return () => { cancelled = true; };
+  }, [rows]);
+
+  const toggleExpand = (key) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   const enriched = useMemo(() => {
     const mapped = (rows || []).map(r => {
@@ -352,66 +376,75 @@ export default function AppointmentsTab({ client }) {
       </div>
 
       <SectionCard title="アポ一覧">
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', minWidth: 1100, borderCollapse: 'collapse', fontSize: font.size.sm }}>
-            <thead>
-              <tr style={{ background: color.cream, borderBottom: `1px solid ${color.border}` }}>
-                <th style={{ ...th, textAlign: 'left' }}>企業名</th>
-                <th style={{ ...th, textAlign: 'left' }}>業種</th>
-                <th style={th}>売上高</th>
-                <th style={th}>エリア</th>
-                <th style={th}>面談日</th>
-                <th style={th}>状態</th>
-                <th style={th}>キーマンのM&A意向</th>
-                <th style={th}>録音</th>
-              </tr>
-            </thead>
-            <tbody>
-              {enriched.map(r => {
-                const statusClr = r.status === 'キャンセル' ? color.danger : r.status === 'リスケ中' ? color.warn : color.navy;
-                return (
-                  <tr key={r.id} style={{ borderBottom: `1px solid ${color.borderLight}` }}>
-                    <td style={{ ...td, textAlign: 'left', fontWeight: font.weight.medium, color: color.navy, whiteSpace: 'normal', minWidth: 180 }}>{r.company_name || '—'}</td>
-                    <td style={{ ...td, textAlign: 'left', color: color.textMid, whiteSpace: 'normal', minWidth: 220, maxWidth: 320 }}>{r.item?.business || '—'}</td>
-                    <td style={td}>{r.revenue_text || '—'}</td>
-                    <td style={td}>{r.prefecture}</td>
-                    <td style={td}>{r.meeting_date ? String(r.meeting_date).slice(0, 10) : '—'}</td>
-                    <td style={{ ...td, color: statusClr, fontWeight: font.weight.semibold }}>{r.status || '—'}</td>
-                    <td style={td}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                        <Select
-                          size="sm"
-                          fullWidth={false}
-                          value={r.keyman_ma_intent || r.resolved_intent || ''}
-                          disabled={updating === r.id}
-                          onChange={e => handleIntentChange(r.id, e.target.value)}
-                          options={[
-                            { value: '', label: '—' },
-                            ...CEO_INTENT_OPTIONS.map(o => ({ value: o.value, label: o.label })),
-                          ]}
-                        />
-                        {r.intent_is_derived && (
-                          <span title="議事録から自動推定" style={{ fontSize: 9, color: color.textLight }}>AI</span>
-                        )}
-                      </div>
-                    </td>
-                    <td style={{ ...td, padding: '4px 6px' }}>
-                      {r.recording_url ? (
-                        <PlayRecordingButton
-                          url={r.recording_url}
-                          title={r.company_name || 'アポ録音'}
-                          subtitle={r.meeting_date ? `面談日 ${String(r.meeting_date).slice(0, 10)}` : ''}
-                        />
-                      ) : (
-                        <span style={{ fontSize: 10, color: color.textLight }}>—</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={[
+            { key: 'company_name', label: '企業名', width: 220, align: 'left',
+              cellStyle: { fontWeight: font.weight.medium, color: color.navy, whiteSpace: 'normal' },
+              render: r => r.company_name || '—' },
+            { key: 'business', label: '業種', width: 240, align: 'left',
+              cellStyle: { color: color.textMid, whiteSpace: 'normal' },
+              render: r => r.item?.business || '—' },
+            { key: 'revenue_text', label: '売上高', width: 110, align: 'right',
+              render: r => r.revenue_text || '—' },
+            { key: 'prefecture', label: 'エリア', width: 100, align: 'center',
+              render: r => r.prefecture },
+            { key: 'meeting_date', label: '面談日', width: 110, align: 'right',
+              render: r => r.meeting_date ? String(r.meeting_date).slice(0, 10) : '—' },
+            { key: 'status', label: '状態', width: 110, align: 'center',
+              render: r => {
+                const variant = r.status === 'キャンセル' ? 'danger' : r.status === 'リスケ中' ? 'warn' : r.status === '面談済' ? 'success' : 'primary';
+                return r.status ? <Badge variant={variant} dot size="sm">{r.status}</Badge> : '—';
+              } },
+            { key: 'intent', label: 'キーマンのM&A意向', width: 160, align: 'center',
+              cellStyle: { overflow: 'visible', whiteSpace: 'nowrap' },
+              render: r => (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                     onClick={e => e.stopPropagation()}>
+                  <Select
+                    size="sm"
+                    fullWidth={false}
+                    value={r.keyman_ma_intent || r.resolved_intent || ''}
+                    disabled={updating === r.id}
+                    onChange={e => handleIntentChange(r.id, e.target.value)}
+                    options={[
+                      { value: '', label: '—' },
+                      ...CEO_INTENT_OPTIONS.map(o => ({ value: o.value, label: o.label })),
+                    ]}
+                  />
+                  {r.intent_is_derived && (
+                    <span title="議事録から自動推定" style={{ fontSize: 9, color: color.textLight }}>AI</span>
+                  )}
+                </div>
+              ) },
+            { key: 'recording', label: '録音', width: 80, align: 'center',
+              render: r => r.recording_url ? (
+                <span onClick={e => e.stopPropagation()}>
+                  <PlayRecordingButton
+                    url={r.recording_url}
+                    title={r.company_name || 'アポ録音'}
+                    subtitle={r.meeting_date ? `面談日 ${String(r.meeting_date).slice(0, 10)}` : ''}
+                  />
+                </span>
+              ) : <span style={{ fontSize: 10, color: color.textLight }}>—</span> },
+          ]}
+          rows={enriched}
+          rowKey="id"
+          loading={loading}
+          emptyMessage="該当するアポイントがありません"
+          height="auto"
+          rowAccent={r => r.status === 'キャンセル' ? 'danger' : r.status === 'リスケ中' ? 'warn' : null}
+          expandable={() => true}
+          expandedKeys={expandedIds}
+          onToggleExpand={toggleExpand}
+          renderExpanded={r => (
+            <CompanyDossierPanel
+              appointment={r}
+              initialDossier={dossiersById[r.id] || null}
+              isImpersonating={isImpersonating}
+              adminAccessToken={adminAccessToken}
+            />
+          )}
+        />
       </SectionCard>
       </>)}
     </div>

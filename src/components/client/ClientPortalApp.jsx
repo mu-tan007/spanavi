@@ -200,7 +200,11 @@ export default function ClientPortalApp() {
       </header>
 
       <main style={{ padding: space[4] }}>
-        <ClientDealsView client={client} />
+        <ClientDealsView
+          client={client}
+          isImpersonating={!!adminBackup}
+          adminAccessToken={adminBackup?.access_token || null}
+        />
       </main>
     </div>
     </RecordingPlayerProvider>
