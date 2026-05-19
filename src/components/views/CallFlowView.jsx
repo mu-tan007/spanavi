@@ -2242,6 +2242,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: radius.md, background: color.offWhite, fontSize: font.size.xs, border: `1px solid ${color.gray200}` }}>
                               <span style={{ fontWeight: font.weight.bold, color: color.navyDeep, minWidth: 40, fontFamily: font.family.mono, fontSize: font.size.xs - 1 }}>{rec.round}回目</span>
                               <span style={{ flex: 1, color: sc.color, fontWeight: font.weight.semibold }}>{rec.status}</span>
+                              {rec.getter_name && (
+                                <span style={{ color: color.textMid, fontSize: font.size.xs - 1 }}>{rec.getter_name}</span>
+                              )}
                               <span style={{ color: color.gray400, fontSize: font.size.xs - 1 }}>{dtStr}</span>
                               {rec.recording_url
                                 ? <button onClick={() => setActiveRecordingId(activeRecordingId === rec.id ? null : rec.id)}
