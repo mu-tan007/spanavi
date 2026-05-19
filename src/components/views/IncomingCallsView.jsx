@@ -147,16 +147,40 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [records.length]);
 
+  // 会社名から「（株）」「(株)」「株式会社」「(有)」「（有）」「有限会社」等の法人接頭辞を除去
+  // 検索精度を上げるためのヘルパー。
+  const stripCompanyPrefix = (s) => {
+    if (!s) return '';
+    return s
+      .replace(/^\s*(（株）|\(株\)|㈱|株式会社|（有）|\(有\)|㈲|有限会社|（合）|\(合\)|合同会社|合資会社|合名会社|一般社団法人|公益社団法人|医療法人|学校法人|社会福祉法人|宗教法人|特定非営利活動法人|NPO法人)\s*/u, '')
+      .replace(/\s*(株式会社|（株）|\(株\)|㈱)\s*$/u, '')
+      .trim();
+  };
+
   const searchCompanies = async (q) => {
     setLinkQuery(q);
-    if (!q || q.trim().length < 1) { setLinkResults([]); return; }
+    const trimmed = (q || '').trim();
+    if (!trimmed) { setLinkResults([]); return; }
     setLinkSearching(true);
-    const { data } = await supabase
+    // 1次検索: 入力そのままで部分一致 / 担当者名にも当てる
+    // RLS で org スコープがかかるので org_id の eq は付けない（過剰絞り込みで 0 件化を防ぐ）。
+    let { data } = await supabase
       .from('call_list_items')
-      .select('id, company, phone, list_id, call_lists(id, name, clients(name))')
-      .eq('org_id', getOrgId())
-      .ilike('company', `%${q.trim()}%`)
+      .select('id, company, phone, representative, list_id, call_lists(id, name, clients(name))')
+      .or(`company.ilike.%${trimmed}%,representative.ilike.%${trimmed}%`)
       .limit(20);
+    // 2次検索: 接頭辞を除いた core 名で再検索（"（株）ABC" → "ABC"）
+    if ((!data || data.length === 0)) {
+      const core = stripCompanyPrefix(trimmed);
+      if (core && core !== trimmed) {
+        const { data: data2 } = await supabase
+          .from('call_list_items')
+          .select('id, company, phone, representative, list_id, call_lists(id, name, clients(name))')
+          .or(`company.ilike.%${core}%,representative.ilike.%${core}%`)
+          .limit(20);
+        data = data2;
+      }
+    }
     setLinkResults(data || []);
     setLinkSearching(false);
   };
