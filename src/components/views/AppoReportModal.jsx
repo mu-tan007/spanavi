@@ -7,7 +7,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { invokeAppoAiReport, invokeTranscribeRecording, fetchZoomUserId, insertAppointment } from '../../lib/supabaseWrite';
 import { MemberSuggestInput } from './AppoListView';
 
-export default function AppoReportModal({ row, list, currentUser = '', members = [], onClose, onSave, onDone, initialRecordingUrl = '', onFetchRecordingUrl, clientData = [], rewardMaster = [] }) {
+export default function AppoReportModal({ row, list, currentUser = '', members = [], onClose, onSave, onDone, initialRecordingUrl = '', onFetchRecordingUrl, clientData = [], rewardMaster = [], dialedPhone = '' }) {
   const isMobile = useIsMobile();
   const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
@@ -258,7 +258,10 @@ HP：${form.hp}
       const zoomUserId = await fetchZoomUserId(currentUser);
       const { data, error } = await invokeAppoAiReport({
         zoom_user_id: zoomUserId,
-        callee_phone: form.phone,
+        // 実際に発信した番号（キーマン携帯/別事業所）を優先。未指定なら会社番号。
+        // Zoom 録音の callee_number 一致フィルタに使われるため、ここを間違えると
+        // AI 自動レポートが録音を見つけられず空のままになる。
+        callee_phone: dialedPhone || form.phone,
         report_text:  generateReport(),
         company_name: row.company,
         client_name:  list.company,

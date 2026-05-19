@@ -317,6 +317,9 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
       defaultListMode: false,
       singleItemMode: true,
       initialRecordingUrl: row.recording_url || '',
+      // 着信元の caller_number を渡すことで、appo-ai-report が Zoom 録音を
+      // caller_number でも引けるようになる（inbound 録音の自動レポート生成）
+      initialDialedPhone: row.caller_number || '',
       autoOpenAppoModal: true,
     });
   };

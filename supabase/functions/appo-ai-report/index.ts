@@ -46,8 +46,10 @@ Deno.serve(async (req) => {
           const zoomToken: string = tokenData.access_token
 
           if (zoomToken) {
-            // アカウント全体の録音を取得（過去2時間、最大100件）
-            const fromDate = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString().slice(0, 10)
+            // アカウント全体の録音を取得（過去24時間、最大100件）
+            // 着信→後追いアポ取得など、通話から数時間経ってからレポート作成する
+            // ケースもあるため広めに取る
+            const fromDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
             const toDate   = new Date().toISOString().slice(0, 10)
             const recRes = await fetch(
               `https://api.zoom.us/v2/phone/recordings?from=${fromDate}&to=${toDate}&page_size=100`,
@@ -65,9 +67,13 @@ Deno.serve(async (req) => {
             const myRecordings = allRecordings.filter(r => r.owner_id === zoomUserId)
 
             // callee_phone が指定されている場合は電話番号でさらに絞り込む
+            // outbound では callee_number、inbound では caller_number に該当番号が入るので両方チェック
             const calleePhoneNorm = normalizePhone(callee_phone || '')
             const matched = calleePhoneNorm
-              ? myRecordings.filter(r => normalizePhone(r.callee_number || '') === calleePhoneNorm)
+              ? myRecordings.filter(r =>
+                  normalizePhone(r.callee_number || '') === calleePhoneNorm ||
+                  normalizePhone((r as any).caller_number || '') === calleePhoneNorm
+                )
               : myRecordings
 
             // 最新の録音（start_time 降順の先頭）を使用

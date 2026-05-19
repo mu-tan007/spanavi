@@ -177,7 +177,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   );
 }
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '' }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, keymanConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -1691,7 +1691,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           onClose={() => setAppoModal(null)}
           onSave={handleAppoSave}
           initialRecordingUrl={initialRecordingUrl || ''}
-          onFetchRecordingUrl={() => handleAppoFetchRecording(appoModal.id, lastDialedPhone || appoModal.phone)}
+          dialedPhone={lastDialedPhone || initialDialedPhone || appoModal.phone || ''}
+          onFetchRecordingUrl={() => handleAppoFetchRecording(appoModal.id, lastDialedPhone || initialDialedPhone || appoModal.phone)}
         />
       )}
 
@@ -2441,7 +2442,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           onClose={() => setAppoModal(null)}
           onSave={handleAppoSave}
           initialRecordingUrl={initialRecordingUrl || ''}
-          onFetchRecordingUrl={() => handleAppoFetchRecording(appoModal.id, lastDialedPhone || appoModal.phone)}
+          dialedPhone={lastDialedPhone || initialDialedPhone || appoModal.phone || ''}
+          onFetchRecordingUrl={() => handleAppoFetchRecording(appoModal.id, lastDialedPhone || initialDialedPhone || appoModal.phone)}
         />
       )}
 
