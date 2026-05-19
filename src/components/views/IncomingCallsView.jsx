@@ -227,6 +227,26 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
         .is('keyman_mobile', null);
     }
 
+    // 紐づけ後も自動紐づけ行と同じリッチ表示（企業名リンク＋リスト/クライアント名）
+    // にするため、phoneItemMap にも match 情報を追加する。
+    const normPhone = normalizePhone(linkModal.callerNumber);
+    if (normPhone) {
+      const matchInfo = {
+        itemId: item.id,
+        company: item.company || '',
+        listId: item.list_id,
+        listName: item.call_lists?.name || '',
+        clientName: item.call_lists?.clients?.name || '',
+      };
+      setPhoneItemMap(prev => ({
+        ...prev,
+        [normPhone]: [
+          ...((prev[normPhone] || []).filter(x => x.itemId !== item.id)),
+          matchInfo,
+        ],
+      }));
+    }
+
     setRecords(prev => prev.map(r => r.id === linkModal.callId
       ? { ...r, item_id: item.id, company_name: item.company || null }
       : r));
