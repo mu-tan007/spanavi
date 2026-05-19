@@ -84,7 +84,20 @@ export function renderDocxBlob(templateAb, placeholders) {
     paragraphLoop: true,
     linebreaks: true,
   });
-  doc.render(placeholders);
+  try {
+    doc.render(placeholders);
+  } catch (e) {
+    // docxtemplater は「Multi error」として e.properties.errors に詳細を持つ
+    // ユーザーに見える形で 1 行目を throw、残りはコンソールに出す
+    const errs = e?.properties?.errors;
+    if (Array.isArray(errs) && errs.length > 0) {
+      try { console.error('[contract] docxtemplater errors:', errs); } catch (_) {}
+      const first = errs[0];
+      const msg = first?.properties?.explanation || first?.message || first?.id || JSON.stringify(first);
+      throw new Error(`docxtemplater: ${msg}`);
+    }
+    throw e;
+  }
   return doc.getZip().generate({
     type: 'blob',
     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
