@@ -44,11 +44,17 @@ function formatAccountType(t) {
   return map[t] || t;
 }
 
+// 氏名フィールドの半角スペースを全角スペースへ正規化（契約書での体裁統一）
+function normalizeJpName(s) {
+  if (!s) return '';
+  return String(s).replace(/ /g, '　');
+}
+
 // テンプレ用のプレースホルダ値を組み立てる
 export function buildPlaceholders({ member, startDate, endDate, bank }) {
   const b = bank || {};
   return {
-    name: member?.name || '',
+    name: normalizeJpName(member?.name || ''),
     address: member?.address || '',
     start_date: formatJpDate(startDate),
     end_date: formatJpDate(endDate),
