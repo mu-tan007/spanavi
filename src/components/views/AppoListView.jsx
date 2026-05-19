@@ -1026,15 +1026,15 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       const { data, error } = await invokeTranscribeRecording({
         recording_url: replaceUrl,
         item_id: reportDetail.item_id || '',
-        temperature: '', meetingExp: '', futureConsider: '', other: '',
+        personality: '', meetingExp: '', futureConsider: '', other: '',
       });
       if (error || data?.error) throw new Error(error?.message || data?.error);
       setReplaceStep('enhancing');
 
-      // appo_report の4項目を更新
+      // appo_report の4項目を更新（既存「先方の温度感→」「先方のお人柄→」両方にマッチ）
       const replaceField = (text, pattern, value) =>
         pattern.test(text) ? text.replace(pattern, value) : text;
-      if (data.temperature)    report = replaceField(report, /^　・先方の温度感→.*$/m, `　・先方の温度感→${data.temperature}`);
+      if (data.personality)    report = replaceField(report, /^　・(先方の温度感|先方のお人柄)→.*$/m, `　・先方のお人柄→${data.personality}`);
       if (data.meetingExp)     report = replaceField(report, /^　・面談経験の有無→.*$/m, `　・面談経験の有無→${data.meetingExp}`);
       if (data.futureConsider) report = replaceField(report, /^　・将来的な検討可否→.*$/m, `　・将来的な検討可否→${data.futureConsider}`);
       if (data.other)          report = replaceField(report, /^　・その他→.*$/m, `　・その他→${data.other}`);
@@ -1089,14 +1089,14 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       const { data, error } = await invokeTranscribeRecording({
         recording_url: url,
         item_id: reportDetail.item_id || '',
-        temperature: '', meetingExp: '', futureConsider: '', other: '',
+        personality: '', meetingExp: '', futureConsider: '', other: '',
       });
       if (error || data?.error) throw new Error(error?.message || data?.error);
       setReplaceStep('enhancing');
 
       const replaceField = (text, pattern, value) =>
         pattern.test(text) ? text.replace(pattern, value) : text;
-      if (data.temperature)    report = replaceField(report, /^　・先方の温度感→.*$/m, `　・先方の温度感→${data.temperature}`);
+      if (data.personality)    report = replaceField(report, /^　・(先方の温度感|先方のお人柄)→.*$/m, `　・先方のお人柄→${data.personality}`);
       if (data.meetingExp)     report = replaceField(report, /^　・面談経験の有無→.*$/m, `　・面談経験の有無→${data.meetingExp}`);
       if (data.futureConsider) report = replaceField(report, /^　・将来的な検討可否→.*$/m, `　・将来的な検討可否→${data.futureConsider}`);
       if (data.other)          report = replaceField(report, /^　・その他→.*$/m, `　・その他→${data.other}`);
