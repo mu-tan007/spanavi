@@ -5,8 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// キーマン接続とみなすステータス
-const KEYMAN_STATUSES = new Set(['キーマン再コール', 'アポ獲得', 'キーマンお断り'])
+// キーマン接続とみなすステータス（Analytics の _perf_keyman_connect_labels() と一致させること）
+const KEYMAN_STATUSES = new Set(['キーマン再コール', 'アポ獲得', 'キーマン断り'])
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
