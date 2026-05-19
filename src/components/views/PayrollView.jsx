@@ -5,7 +5,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge, Tag, DataTable } from '../ui';
 import { calcRankAndRate } from '../../utils/calculations';
 import { supabase } from '../../lib/supabase';
-import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, fetchPayrollAdjustment, upsertPayrollAdjustment, markMembersReferralPaid, clearMembersReferralPaid } from '../../lib/supabaseWrite';
+import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, fetchPayrollAdjustment, upsertPayrollAdjustment, markMembersReferralPaid, clearMembersReferralPaid, fetchPayrollInvoicesByMonth } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 // 旧 useColumnConfig / ColumnResizeHandle は DataTable 移行で不要に
 import PageHeader from '../common/PageHeader';
@@ -40,6 +40,7 @@ const PAYROLL_COLS = [
   { key: 'roleBonus', width: 110, align: 'right' },
   { key: 'referral', width: 80, align: 'right' },
   { key: 'total', width: 120, align: 'right' },
+  { key: 'invoice', width: 90, align: 'center' },
 ];
 
 export default function PayrollView({ members, appoData, isAdmin, setMembers, onDataRefetch, currentUser = '' }) {
@@ -152,20 +153,34 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
   const [adjForm, setAdjForm] = useState({ sales: '', incentive: '', note: '' });
   const [adjSaving, setAdjSaving] = useState(false);
 
-  // monthTab 変更時にスナップショット＆調整を取得
+  // 請求書格納済みの member_id セット（月単位）
+  const [invoiceMemberIdSet, setInvoiceMemberIdSet] = useState(new Set());
+
+  // monthTab 変更時にスナップショット＆調整＆請求書一覧を取得
   useEffect(() => {
     setSnapshotLoading(true);
     Promise.all([
       fetchPayrollSnapshots(payMonth),
       fetchPayrollAdjustment(payMonth),
-    ]).then(([snapRes, adjRes]) => {
+      fetchPayrollInvoicesByMonth(payMonth),
+    ]).then(([snapRes, adjRes, invRes]) => {
       setSnapshots(snapRes.data || []);
       const adj = adjRes.data || { sales_discount: 0, incentive_discount: 0, note: '' };
       setAdjustment(adj);
       setAdjForm({ sales: adj.sales_discount || '', incentive: adj.incentive_discount || '', note: adj.note || '' });
+      setInvoiceMemberIdSet(new Set((invRes.data || []).map(r => r.member_id)));
       setSnapshotLoading(false);
     });
   }, [payMonth]);
+
+  // name → member_id（_supaId）の引き当てマップ。一覧の各行は p.name のみ持つため必要
+  const memberIdByName = React.useMemo(() => {
+    const m = {};
+    (members || []).forEach(mem => {
+      if (typeof mem === 'object' && mem.name && mem._supaId) m[mem.name] = mem._supaId;
+    });
+    return m;
+  }, [members]);
 
   const handleSaveAdjustment = async () => {
     setAdjSaving(true);
@@ -474,15 +489,16 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
 
   // テーブルカラム定義: [header, sortKey, align]
   const COLS = [
-    { h: "名前",           sk: null,         align: "left"  },
-    { h: "チーム",         sk: null,         align: "left"  },
-    { h: "ランク",         sk: null,         align: "left"  },
-    { h: "率",             sk: null,         align: "right" },
-    { h: "今月売上",       sk: "sales",      align: "right" },
-    { h: "①インセンティブ",sk: "incentive",  align: "right" },
-    { h: "②役職ボーナス", sk: "teamBonus",  align: "right" },
-    { h: "③紹介",         sk: null,         align: "right" },
-    { h: "合計支給額",     sk: "total",      align: "right" },
+    { h: "名前",           sk: null,         align: "left"   },
+    { h: "チーム",         sk: null,         align: "left"   },
+    { h: "ランク",         sk: null,         align: "left"   },
+    { h: "率",             sk: null,         align: "right"  },
+    { h: "今月売上",       sk: "sales",      align: "right"  },
+    { h: "①インセンティブ",sk: "incentive",  align: "right"  },
+    { h: "②役職ボーナス", sk: "teamBonus",  align: "right"  },
+    { h: "③紹介",         sk: null,         align: "right"  },
+    { h: "合計支給額",     sk: "total",      align: "right"  },
+    { h: "請求書",         sk: null,         align: "center" },
   ];
   const cellPad = "8px 16px";
 
@@ -710,6 +726,16 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
               return fmt(p.total + refBonus);
             },
           },
+          {
+            key: 'invoice', label: labelOf(COLS[9]), width: PAYROLL_COLS[9].width, align: PAYROLL_COLS[9].align,
+            cellStyle: { padding: cellPad },
+            render: (p) => {
+              const mid = memberIdByName[p.name];
+              return mid && invoiceMemberIdSet.has(mid)
+                ? <Badge variant="success" dot>格納済</Badge>
+                : <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>未提出</span>;
+            },
+          },
         ];
 
         // 合計値の事前計算
@@ -777,6 +803,7 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
                   <div style={{ padding: cellPad, fontSize: font.size.base, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.black, color: TH_BG, textAlign: PAYROLL_COLS[8].align }}>
                     {'¥' + sumTotal.toLocaleString()}
                   </div>
+                  <div style={{ padding: cellPad }} />
                 </div>
               </div>
             )}

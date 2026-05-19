@@ -3559,6 +3559,19 @@ export async function fetchPayrollInvoice(memberId, payMonth) {
   return { data, error }
 }
 
+// 月単位で格納済み請求書の member_id を一覧取得（管理者の Payroll 一覧用）
+export async function fetchPayrollInvoicesByMonth(payMonth) {
+  if (!payMonth) return { data: [], error: new Error('missing payMonth') }
+  const orgId = getOrgId()
+  const { data, error } = await supabase
+    .from('payroll_invoices')
+    .select('member_id, file_name, uploaded_at')
+    .eq('org_id', orgId)
+    .eq('pay_month', payMonth)
+  if (error) console.error('[DB] fetchPayrollInvoicesByMonth error:', error)
+  return { data: data || [], error }
+}
+
 export async function getPayrollInvoiceUrl(storagePath, expiresIn = 600) {
   if (!storagePath) return { url: null, error: new Error('no path') }
   const { data, error } = await supabase.storage

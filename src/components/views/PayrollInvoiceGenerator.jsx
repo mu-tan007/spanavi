@@ -71,6 +71,9 @@ export default function PayrollInvoiceGenerator({
   const [busy, setBusy] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  // 本人が実際にフォームを編集した時のみ upsert する。
+  // プレフィル直後の自動発火と、管理者閲覧時の RLS 違反（他人のレコードへのwrite）を防ぐ。
+  const [profileDirty, setProfileDirty] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
 
@@ -118,6 +121,7 @@ export default function PayrollInvoiceGenerator({
       if (cancelled) return;
       const merged = { ...defaultProfile, ...(dbToUi(data) || {}) };
       setProfile(merged);
+      setProfileDirty(false);
       setProfileLoaded(true);
     });
     return () => { cancelled = true; };
@@ -125,18 +129,19 @@ export default function PayrollInvoiceGenerator({
   }, [memberId]);
 
   useEffect(() => {
-    if (!profileLoaded || !memberId) return;
+    if (!profileLoaded || !memberId || !canEdit || !profileDirty) return;
     const t = setTimeout(async () => {
       setSavingProfile(true);
       const { error } = await upsertMemberInvoiceProfile(memberId, profile);
       setSavingProfile(false);
       if (error) showError('口座情報の保存に失敗しました: ' + (error.message || '不明'));
+      else setProfileDirty(false);
     }, 600);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile, memberId, profileLoaded]);
+  }, [profile, memberId, profileLoaded, canEdit, profileDirty]);
 
-  const update = (patch) => setProfile(p => ({ ...p, ...patch }));
+  const update = (patch) => { setProfile(p => ({ ...p, ...patch })); setProfileDirty(true); };
 
   // 請求書明細
   const invoiceItems = useMemo(() => {
