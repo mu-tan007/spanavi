@@ -61,12 +61,20 @@ export function buildPlaceholders({ member, startDate, endDate, bank }) {
 }
 
 // Storage からテンプレ .docx をダウンロードして ArrayBuffer で返す
+// 注: Supabase Storage の Cache-Control デフォルトが 3600 秒なので
+// ブラウザ/CDN が古い版を返すことがある。署名付きURLにキャッシュバスター
+// クエリを付けて fetch することで常に最新を取りに行く。
 export async function downloadTemplateBlob(filePath) {
-  const { data, error } = await supabase.storage
+  const { data: signed, error: signErr } = await supabase.storage
     .from('contract-templates')
-    .download(filePath);
-  if (error) throw new Error(`テンプレ取得失敗: ${error.message}`);
-  return await data.arrayBuffer();
+    .createSignedUrl(filePath, 120);
+  if (signErr || !signed?.signedUrl) {
+    throw new Error(`テンプレ取得失敗: ${signErr?.message || 'no signed url'}`);
+  }
+  const bust = `${signed.signedUrl.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+  const res = await fetch(signed.signedUrl + bust, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`テンプレ取得失敗: HTTP ${res.status}`);
+  return await res.arrayBuffer();
 }
 
 // docxtemplater で差し込み実施 → Blob 返却
