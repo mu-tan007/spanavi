@@ -157,31 +157,56 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
       .trim();
   };
 
+  // 既存の高速検索 RPC（trigram index 利用、SECURITY DEFINER で RLS バイパス）を使う。
+  // 直接 PostgREST .or().ilike() だと 500K 件の call_list_items に対し
+  // RLS との複合で planner が trigram を使えず Seq Scan で 5〜10 秒かかる。
+  // RPC 経由なら 30ms 程度。
+  const _searchSeqRef = useRef(0);
   const searchCompanies = async (q) => {
     setLinkQuery(q);
     const trimmed = (q || '').trim();
     if (!trimmed) { setLinkResults([]); return; }
+    const seq = ++_searchSeqRef.current;
     setLinkSearching(true);
-    // 1次検索: 入力そのままで部分一致 / 担当者名にも当てる
-    // RLS で org スコープがかかるので org_id の eq は付けない（過剰絞り込みで 0 件化を防ぐ）。
-    let { data } = await supabase
-      .from('call_list_items')
-      .select('id, company, phone, representative, list_id, call_lists(id, name, clients(name))')
-      .or(`company.ilike.%${trimmed}%,representative.ilike.%${trimmed}%`)
-      .limit(20);
-    // 2次検索: 接頭辞を除いた core 名で再検索（"（株）ABC" → "ABC"）
-    if ((!data || data.length === 0)) {
+
+    const runRpc = async (kw) => {
+      const { data, error } = await supabase.rpc('search_call_list_items', {
+        p_keyword: kw,
+        p_search_field: 'all',
+        p_status_filter: 'all',
+        p_offset: 0,
+        p_limit: 20,
+      });
+      if (error) console.warn('[IncomingCalls] search_call_list_items error:', error.message);
+      return data || [];
+    };
+
+    let rows = await runRpc(trimmed);
+    if (rows.length === 0) {
       const core = stripCompanyPrefix(trimmed);
-      if (core && core !== trimmed) {
-        const { data: data2 } = await supabase
-          .from('call_list_items')
-          .select('id, company, phone, representative, list_id, call_lists(id, name, clients(name))')
-          .or(`company.ilike.%${core}%,representative.ilike.%${core}%`)
-          .limit(20);
-        data = data2;
-      }
+      if (core && core !== trimmed) rows = await runRpc(core);
     }
-    setLinkResults(data || []);
+
+    // 古い検索結果が後から到着しても上書きしない（debounce 代わり）
+    if (seq !== _searchSeqRef.current) return;
+
+    // RPC は list_id しか返さないので、ヒットした行の call_lists / clients 情報を一括取得
+    const listIds = [...new Set(rows.map(r => r.list_id).filter(Boolean))];
+    let listMap = {};
+    if (listIds.length > 0) {
+      const { data: lists } = await supabase
+        .from('call_lists')
+        .select('id, name, clients(name)')
+        .in('id', listIds);
+      (lists || []).forEach(l => { listMap[l.id] = l; });
+    }
+    const enriched = rows.map(r => ({
+      ...r,
+      call_lists: listMap[r.list_id] || null,
+    }));
+
+    if (seq !== _searchSeqRef.current) return;
+    setLinkResults(enriched);
     setLinkSearching(false);
   };
 
