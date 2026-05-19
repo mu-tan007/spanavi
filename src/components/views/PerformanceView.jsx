@@ -20,20 +20,30 @@ const GOLD = color.gold;
 const jstHourOf = (iso) => (new Date(iso).getUTCHours() + 9) % 24;
 const jstDateOf = (iso) => new Date(new Date(iso).getTime() + 9 * 3600000).toISOString().slice(0, 10);
 
-// call_records の called_at から稼働時間を計算する
-// 人ごと・日ごとに min(called_at) 〜 max(called_at) の差分を合算
+// call_records の called_at から実稼働時間を計算する。
+// 人ごと・日ごとに「最初〜最後の経過時間」から「30分以上のアイドル区間」を控除して合算。
+// 例: 8-10時 + 17-18時 に架電 → 10時間 - 7時間ギャップ = 3時間。
+const IDLE_THRESHOLD_MS = 30 * 60 * 1000;
 function calcWorkHours(calls) {
-  const dayBounds = {}; // { jstDate: { min: ms, max: ms } }
+  const byDay = {}; // { jstDate: [ms, ms, ...] }
   calls.forEach(r => {
     const ms   = new Date(r.called_at).getTime();
     const date = jstDateOf(r.called_at);
-    if (!dayBounds[date]) dayBounds[date] = { min: ms, max: ms };
-    else {
-      if (ms < dayBounds[date].min) dayBounds[date].min = ms;
-      if (ms > dayBounds[date].max) dayBounds[date].max = ms;
-    }
+    (byDay[date] ||= []).push(ms);
   });
-  return Object.values(dayBounds).reduce((sum, d) => sum + Math.max((d.max - d.min) / 3600000, 0), 0);
+  let totalMs = 0;
+  Object.values(byDay).forEach(arr => {
+    if (arr.length < 2) return;
+    arr.sort((a, b) => a - b);
+    const span = arr[arr.length - 1] - arr[0];
+    let gapSum = 0;
+    for (let i = 1; i < arr.length; i++) {
+      const gap = arr[i] - arr[i - 1];
+      if (gap > IDLE_THRESHOLD_MS) gapSum += gap;
+    }
+    totalMs += Math.max(span - gapSum, 0);
+  });
+  return totalMs / 3600000;
 }
 
 export function PersonDetailModal({ person, callRecords, appoRecords, sessions, members, teamMap, rankDateRange, onClose }) {

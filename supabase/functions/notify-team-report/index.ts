@@ -23,24 +23,31 @@ function jstDateOf(iso: string): string {
   return new Date(new Date(iso).getTime() + JST_OFFSET).toISOString().slice(0, 10)
 }
 
-// 人ごとの稼働時間を計算（calcWorkHours移植）
-// 日ごとに min(called_at) 〜 max(called_at) の差分を合算
+// 人ごとの実稼働時間を計算。
+// 日ごとに「最初〜最後の経過時間」から「30分以上のアイドル区間」を控除して合算。
+// 例: 8-10時 + 17-18時 に架電 → 10時間 - 7時間ギャップ = 3時間。
+const IDLE_THRESHOLD_MS = 30 * 60 * 1000
 function calcWorkHours(calls: { called_at: string }[]): number {
-  const dayBounds: Record<string, { min: number; max: number }> = {}
+  const byDay: Record<string, number[]> = {}
   for (const r of calls) {
     const ms = new Date(r.called_at).getTime()
     const date = jstDateOf(r.called_at)
-    if (!dayBounds[date]) {
-      dayBounds[date] = { min: ms, max: ms }
-    } else {
-      if (ms < dayBounds[date].min) dayBounds[date].min = ms
-      if (ms > dayBounds[date].max) dayBounds[date].max = ms
-    }
+    if (!byDay[date]) byDay[date] = []
+    byDay[date].push(ms)
   }
-  return Object.values(dayBounds).reduce(
-    (sum, d) => sum + Math.max((d.max - d.min) / 3600000, 0),
-    0
-  )
+  let totalMs = 0
+  for (const arr of Object.values(byDay)) {
+    if (arr.length < 2) continue
+    arr.sort((a, b) => a - b)
+    const span = arr[arr.length - 1] - arr[0]
+    let gapSum = 0
+    for (let i = 1; i < arr.length; i++) {
+      const gap = arr[i] - arr[i - 1]
+      if (gap > IDLE_THRESHOLD_MS) gapSum += gap
+    }
+    totalMs += Math.max(span - gapSum, 0)
+  }
+  return totalMs / 3600000
 }
 
 // 集計期間を算出（JST基準）
