@@ -3572,11 +3572,14 @@ export async function fetchPayrollInvoicesByMonth(payMonth) {
   return { data: data || [], error }
 }
 
-export async function getPayrollInvoiceUrl(storagePath, expiresIn = 600) {
+export async function getPayrollInvoiceUrl(storagePath, expiresIn = 600, downloadName) {
   if (!storagePath) return { url: null, error: new Error('no path') }
+  // downloadName を渡すと Supabase が Content-Disposition で
+  // 指定ファイル名でダウンロードさせる（?download=... クエリ）
+  const options = downloadName ? { download: downloadName } : undefined
   const { data, error } = await supabase.storage
     .from(PAYROLL_INVOICE_BUCKET)
-    .createSignedUrl(storagePath, expiresIn)
+    .createSignedUrl(storagePath, expiresIn, options)
   if (error) console.error('[DB] getPayrollInvoiceUrl error:', error)
   return { url: data?.signedUrl || null, error }
 }

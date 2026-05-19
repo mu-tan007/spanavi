@@ -228,7 +228,7 @@ export default function PayrollInvoiceGenerator({
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 210, 297);
 
-      const fileName = `業務委託料_${payMonthLabel}分_${memberName}.pdf`;
+      const fileName = `${memberName}_${payMonthLabel}分.pdf`;
       const blob = pdf.output('blob');
       const file = new File([blob], fileName, { type: 'application/pdf' });
       const { error } = await uploadPayrollInvoice(memberId, yyyymm, file);
@@ -246,10 +246,13 @@ export default function PayrollInvoiceGenerator({
     }
   };
 
+  // ダウンロード時に強制する表示ファイル名（DBの古いfile_nameに引きずられない）
+  const downloadFileName = `${memberName}_${payMonthLabel}分.pdf`;
+
   // 既存請求書のダウンロード
   const handleDownload = async () => {
     if (!savedInvoice?.storage_path) return;
-    const { url, error } = await getPayrollInvoiceUrl(savedInvoice.storage_path);
+    const { url, error } = await getPayrollInvoiceUrl(savedInvoice.storage_path, 600, downloadFileName);
     if (error || !url) { showError('ダウンロードURLの取得に失敗しました'); return; }
     window.open(url, '_blank', 'noopener,noreferrer');
   };
@@ -281,7 +284,7 @@ export default function PayrollInvoiceGenerator({
         <div style={{ display: 'flex', alignItems: 'center', gap: space[3], flexWrap: 'wrap', marginBottom: space[3] }}>
           <Badge variant="success" dot>格納済</Badge>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark }}>{savedInvoice.file_name}</div>
+            <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark }}>{downloadFileName}</div>
             <div style={{ fontSize: font.size.xs, color: color.textLight, fontFamily: font.family.mono }}>
               {fmtFileSize(savedInvoice.file_size_bytes)} ・ {fmtTimestamp(savedInvoice.uploaded_at)}
             </div>
