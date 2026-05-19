@@ -203,6 +203,7 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
       const salesWithin30Days = appoData
         .filter(a =>
           a.getter === m.name &&
+          !a.isProspecting &&
           PAYROLL_COUNTABLE.has(a.status) &&
           a.appointmentDate && new Date(a.appointmentDate) >= opDate && new Date(a.appointmentDate) <= deadline
         )
@@ -229,6 +230,7 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
       const salesWithin30Days = appoData
         .filter(a =>
           a.getter === m.name &&
+          !a.isProspecting &&
           PAYROLL_COUNTABLE.has(a.status) &&
           a.appointmentDate && new Date(a.appointmentDate) >= opDate && new Date(a.appointmentDate) <= deadline
         )
@@ -265,9 +267,13 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
           sales: 0, incentive: 0, teamBonus: 0, total: 0,
         };
       }
-      byGetter[a.getter].sales += a.sales || 0;
+      // 新規開拓リスト由来のアポは売上集計・チームボーナス計算から除外
+      // インターン報酬（reward / intern_reward）は新規開拓でも計上する
+      if (!a.isProspecting) {
+        byGetter[a.getter].sales += a.sales || 0;
+        teamSales[team] = (teamSales[team] || 0) + (a.sales || 0);
+      }
       byGetter[a.getter].incentive += a.reward || 0;
-      teamSales[team] = (teamSales[team] || 0) + (a.sales || 0);
     });
     members.forEach(m => {
       if (typeof m !== 'object' || !m.name) return;
@@ -421,7 +427,11 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
       const memberMap = {};
       members.forEach(m => { if (typeof m === 'object' && m.name) memberMap[m.name] = m; });
       const deltas = {};
-      uncounted.forEach(a => { deltas[a.getter] = (deltas[a.getter] || 0) + (a.sales || 0); });
+      // 新規開拓リスト由来のアポは累計売上に加算しない（後で再加算しないようis_counted_in_cumulativeフラグだけ立てる）
+      uncounted.forEach(a => {
+        if (a.isProspecting) return;
+        deltas[a.getter] = (deltas[a.getter] || 0) + (a.sales || 0);
+      });
       for (const [getterName, delta] of Object.entries(deltas)) {
         const member = memberMap[getterName];
         if (!member?._supaId || delta === 0) continue;
@@ -480,8 +490,7 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
     <div style={{ animation: "fadeIn 0.3s ease" }}>
 
       <PageHeader
-        eyebrow="Admin · 報酬"
-        title="Payroll"
+        title="報酬管理"
         description="月次インセンティブ・支給額の管理"
         style={{ marginBottom: space[6] }}
       />

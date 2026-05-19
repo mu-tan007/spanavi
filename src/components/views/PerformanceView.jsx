@@ -420,8 +420,7 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        eyebrow="Sourcing · Performance"
-        title="Performance"
+        title="パフォーマンス"
         description="個人・チーム パフォーマンス分析"
         style={{ marginBottom: 24 }}
       />

@@ -99,9 +99,10 @@ export default function KPIScorecard({
       return (!r.from || d >= r.from) && (!r.to || d <= r.to);
     };
     const periodAppos = (appoData || []).filter(a => COUNTABLE.has(a.status) && inRange(a, range));
-    const sales = periodAppos.reduce((s, a) => s + (a.sales || 0), 0);
+    // 新規開拓リスト由来のアポは売上集計から除外（件数 KPI には含める）
+    const sales = periodAppos.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0);
     const prevPeriodAppos = prevRange ? (appoData || []).filter(a => COUNTABLE.has(a.status) && inRange(a, prevRange)) : [];
-    const prevSales = prevPeriodAppos.reduce((s, a) => s + (a.sales || 0), 0);
+    const prevSales = prevPeriodAppos.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0);
 
     const reschedInRange = (appoData || []).filter(a => inRange(a, range) && a.status === 'リスケ中').length;
     const cancelInRange = (appoData || []).filter(a => inRange(a, range) && a.status === 'キャンセル').length;

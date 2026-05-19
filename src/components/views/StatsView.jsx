@@ -227,8 +227,9 @@ export default function StatsView({ callListData, currentUser, appoData, members
     return d >= prevMonthStr + '-01' && d <= prevMonthEndStr;
   }), [appoData, prevMonthStr, prevMonthEndStr]);
 
-  const kpiMonthSales = useMemo(() => monthAppoFiltered.reduce((s, a) => s + (a.sales || 0), 0), [monthAppoFiltered]);
-  const kpiPrevMonthSales = useMemo(() => prevMonthAppoFiltered.reduce((s, a) => s + (a.sales || 0), 0), [prevMonthAppoFiltered]);
+  // 新規開拓リスト由来のアポは売上集計から除外（件数は残す）
+  const kpiMonthSales = useMemo(() => monthAppoFiltered.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0), [monthAppoFiltered]);
+  const kpiPrevMonthSales = useMemo(() => prevMonthAppoFiltered.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0), [prevMonthAppoFiltered]);
   // アポ件数は call_records.status='アポ獲得' ベース（Performance/Dashboard と統一）
   const [kpiMonthAppo, setKpiMonthAppo] = useState(0);
   const [kpiPrevMonthAppo, setKpiPrevMonthAppo] = useState(0);
@@ -275,7 +276,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
     return Array.from({ length: days }, (_, i) => {
       const ds = ym + '-' + String(i + 1).padStart(2, '0');
       const recs = (appoData || []).filter(a => COUNTABLE.has(a.status) && (a.getDate || '').slice(0, 10) === ds);
-      return { date: String(i + 1) + '日', sales: recs.reduce((s, a) => s + (a.sales || 0), 0), count: recs.length, isToday: ds === todayStr };
+      return { date: String(i + 1) + '日', sales: recs.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0), count: recs.length, isToday: ds === todayStr };
     });
   }, [appoData, chartMonthStr, todayStr]);
 
@@ -291,7 +292,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
         const d = (a.getDate || '').slice(0, 10);
         return d >= fs && d <= fe;
       });
-      result.push({ label: fs.slice(5).replace('-', '/') + '週', sales: recs.reduce((s, a) => s + (a.sales || 0), 0), count: recs.length });
+      result.push({ label: fs.slice(5).replace('-', '/') + '週', sales: recs.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0), count: recs.length });
     }
     return result;
   }, [appoData, todayStr, dayOfWeek]);
@@ -301,7 +302,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
       const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
       const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
       const recs = (appoData || []).filter(a => COUNTABLE.has(a.status) && (a.getDate || '').startsWith(ym));
-      return { label: ym.slice(2).replace('-', '/'), sales: recs.reduce((s, a) => s + (a.sales || 0), 0), count: recs.length };
+      return { label: ym.slice(2).replace('-', '/'), sales: recs.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0), count: recs.length };
     });
   }, [appoData]);
 
@@ -314,7 +315,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
     while (cur <= end) {
       const ds = cur.toISOString().slice(0, 10);
       const recs = (appoData || []).filter(a => COUNTABLE.has(a.status) && (a.getDate || '').slice(0, 10) === ds);
-      result.push({ date: ds.slice(5).replace('-', '/'), sales: recs.reduce((s, a) => s + (a.sales || 0), 0), count: recs.length, isToday: ds === todayStr });
+      result.push({ date: ds.slice(5).replace('-', '/'), sales: recs.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0), count: recs.length, isToday: ds === todayStr });
       cur.setDate(cur.getDate() + 1);
     }
     return result;
@@ -330,7 +331,10 @@ export default function StatsView({ callListData, currentUser, appoData, members
     personFiltered.forEach(a => {
       const k = a.getter || '不明';
       if (!m[k]) m[k] = { total: 0, reward: 0, count: 0 };
-      m[k].total += a.sales || 0; m[k].reward += a.reward || 0; m[k].count++;
+      // 売上は新規開拓由来を除外、報酬と件数は残す
+      if (!a.isProspecting) m[k].total += a.sales || 0;
+      m[k].reward += a.reward || 0;
+      m[k].count++;
     });
     return Object.entries(m).sort((a, b) => b[1].total - a[1].total);
   }, [personFiltered]);
@@ -345,7 +349,9 @@ export default function StatsView({ callListData, currentUser, appoData, members
     teamFilteredData.forEach(a => {
       const tn = teamMap[a.getter] || 'その他';
       if (!m[tn]) m[tn] = { total: 0, count: 0, members: new Set() };
-      m[tn].total += a.sales || 0; m[tn].count++;
+      // 売上は新規開拓由来を除外、件数は残す
+      if (!a.isProspecting) m[tn].total += a.sales || 0;
+      m[tn].count++;
       if (a.getter) m[tn].members.add(a.getter);
     });
     return Object.entries(m).sort((a, b) => b[1].total - a[1].total).map(([tn, d]) => [tn, { ...d, memberCount: d.members.size }]);
@@ -362,12 +368,15 @@ export default function StatsView({ callListData, currentUser, appoData, members
       const key = a.client || a.company || '不明';
       const name = a.client || a.company || key;
       if (!m[key]) m[key] = { name, total: 0, count: 0, lastDate: '', items: {} };
-      m[key].total += a.sales || 0; m[key].count++;
+      // クライアント別売上には新規開拓由来を含めない（件数は残す）
+      if (!a.isProspecting) m[key].total += a.sales || 0;
+      m[key].count++;
       const d = a.getDate || '';
       if (d > m[key].lastDate) m[key].lastDate = d;
       const listKey = (a.getDate || '').slice(0, 7) || 'その他';
       if (!m[key].items[listKey]) m[key].items[listKey] = { total: 0, count: 0 };
-      m[key].items[listKey].total += a.sales || 0; m[key].items[listKey].count++;
+      if (!a.isProspecting) m[key].items[listKey].total += a.sales || 0;
+      m[key].items[listKey].count++;
     });
     return Object.entries(m).sort((a, b) => b[1].total - a[1].total);
   }, [clientFilteredData]);
@@ -513,8 +522,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
 
       {!embedded && (
         <PageHeader
-          eyebrow="Sourcing · Analytics"
-          title="Analytics"
+          title="アナリティクス"
           description="売上・架電・ランキングの統合分析ダッシュボード"
           style={{ marginBottom: isMobile ? 16 : 24 }}
         />

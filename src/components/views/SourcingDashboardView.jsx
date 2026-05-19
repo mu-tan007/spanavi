@@ -162,9 +162,10 @@ export default function SourcingDashboardView({
     return base.filter(a => set.has(a.getter));
   }, [appoData, scope, members]);
 
+  // 新規開拓リスト由来のアポは売上集計から除外（件数は残す）
   const salesInPeriod = (from, to) =>
     scopedAppos.filter(a => (!from || a.getDate >= from) && (!to || a.getDate <= to))
-      .reduce((s, a) => s + (parseFloat(a.sales) || 0), 0);
+      .reduce((s, a) => s + (a.isProspecting ? 0 : (parseFloat(a.sales) || 0)), 0);
 
   const appoInPeriod = (from, to) =>
     scopedAppos.filter(a => (!from || a.getDate >= from) && (!to || a.getDate <= to)).length;
@@ -178,9 +179,9 @@ export default function SourcingDashboardView({
       (!from || a.getDate >= from) && (!to || a.getDate <= to)
     );
     const incentive = periodAppos.reduce((s, a) => s + (parseFloat(a.reward) || 0), 0);
-    // team bonus は team scope 以上で計上
+    // team bonus は team scope 以上で計上、新規開拓由来は除外
     if (scope.type === 'member') return incentive;
-    const teamSales = periodAppos.reduce((s, a) => s + (parseFloat(a.sales) || 0), 0);
+    const teamSales = periodAppos.reduce((s, a) => s + (a.isProspecting ? 0 : (parseFloat(a.sales) || 0)), 0);
     const pool = Math.round(teamSales * 0.03);
     return incentive + pool; // 簡易: pool をそのままプラス
   };
@@ -327,7 +328,7 @@ export default function SourcingDashboardView({
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        title="Dashboard"
+        title="ダッシュボード"
         description="現在地と次の一手"
         right={(
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>

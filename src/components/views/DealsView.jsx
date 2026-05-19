@@ -71,7 +71,7 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', background: color.offWhite, animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        title="Deals"
+        title="案件管理"
         description="クライアント別 架電・アポ実績"
         style={{ marginBottom: 24 }}
       />

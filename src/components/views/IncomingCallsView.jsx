@@ -39,6 +39,11 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
   const [phoneItemMap, setPhoneItemMap] = useState({});
   // リスト選択モーダル: null | [{ itemId, company, listId, listName, clientName }]
   const [selectModal, setSelectModal] = useState(null);
+  // 未紐づけ手動リンク: { callId, callerNumber } | null
+  const [linkModal, setLinkModal] = useState(null);
+  const [linkQuery, setLinkQuery] = useState('');
+  const [linkResults, setLinkResults] = useState([]);
+  const [linkSearching, setLinkSearching] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -52,32 +57,73 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
     setRecords(rows);
 
     // 全電話番号を一括でcall_list_itemsに問い合わせ
+    // phone（会社番号）/ sub_phone_number（別事業所）/ keyman_mobile（キーマン携帯）の
+    // いずれかで一致した項目を集計する。
     const phones = [...new Set(
       rows.map(r => normalizePhone(r.caller_number)).filter(Boolean)
     )];
     if (phones.length > 0) {
+      const phonesCsv = phones.join(',');
+      const orClause = [
+        `phone.in.(${phonesCsv})`,
+        `sub_phone_number.in.(${phonesCsv})`,
+        `keyman_mobile.in.(${phonesCsv})`,
+      ].join(',');
       const { data: items } = await supabase
         .from('call_list_items')
-        .select('id, company, phone, list_id, call_lists(id, name, clients(name))')
-        .in('phone', phones)
+        .select('id, company, phone, sub_phone_number, keyman_mobile, list_id, call_lists(id, name, clients(name))')
+        .or(orClause)
         .limit(500);
       const map = {};
       (items || []).forEach(item => {
-        const p = normalizePhone(item.phone);
-        if (!p) return;
-        if (!map[p]) map[p] = [];
-        map[p].push({
-          itemId: item.id,
-          company: item.company || '',
-          listId: item.list_id,
-          listName: item.call_lists?.name || '',
-          clientName: item.call_lists?.clients?.name || '',
+        const numbers = [item.phone, item.sub_phone_number, item.keyman_mobile]
+          .map(normalizePhone)
+          .filter(Boolean);
+        numbers.forEach(p => {
+          if (!phones.includes(p)) return;
+          if (!map[p]) map[p] = [];
+          if (map[p].some(x => x.itemId === item.id)) return;
+          map[p].push({
+            itemId: item.id,
+            company: item.company || '',
+            listId: item.list_id,
+            listName: item.call_lists?.name || '',
+            clientName: item.call_lists?.clients?.name || '',
+          });
         });
       });
       setPhoneItemMap(map);
     }
 
     setLoading(false);
+  };
+
+  const searchCompanies = async (q) => {
+    setLinkQuery(q);
+    if (!q || q.trim().length < 1) { setLinkResults([]); return; }
+    setLinkSearching(true);
+    const { data } = await supabase
+      .from('call_list_items')
+      .select('id, company, phone, list_id, call_lists(id, name, clients(name))')
+      .eq('org_id', getOrgId())
+      .ilike('company', `%${q.trim()}%`)
+      .limit(20);
+    setLinkResults(data || []);
+    setLinkSearching(false);
+  };
+
+  const applyLink = async (item) => {
+    if (!linkModal) return;
+    await supabase
+      .from('incoming_calls')
+      .update({ item_id: item.id, company_name: item.company || null })
+      .eq('id', linkModal.callId);
+    setRecords(prev => prev.map(r => r.id === linkModal.callId
+      ? { ...r, item_id: item.id, company_name: item.company || null }
+      : r));
+    setLinkModal(null);
+    setLinkQuery('');
+    setLinkResults([]);
   };
 
   useEffect(() => { load(); }, []);
@@ -119,7 +165,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease', height: 'calc(100vh - 130px)', display: 'flex', flexDirection: 'column' }}>
       <PageHeader
-        title="Incoming Call"
+        title="着信対応"
         description="着信履歴"
         style={{ marginBottom: isMobile ? 16 : 24 }}
       />
@@ -172,7 +218,20 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
               );
               const companyName = uniqueMatches[0]?.company || r.company_name || null;
               const canNavigate = uniqueMatches.length > 0 && setCallFlowScreen;
-              if (!companyName) return <span style={{ color: color.textLight }}>—</span>;
+              if (!companyName) {
+                return (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setLinkModal({ callId: r.id, callerNumber: r.caller_number }); setLinkQuery(''); setLinkResults([]); }}
+                    style={{
+                      padding: '3px 10px', borderRadius: radius.md, border: `1px dashed ${color.border}`,
+                      background: color.white, color: color.textMid, cursor: 'pointer',
+                      fontSize: font.size.xs, fontFamily: font.family.sans, fontWeight: font.weight.medium,
+                    }}
+                  >
+                    企業に紐づける
+                  </button>
+                );
+              }
               return (
                 <div>
                   {canNavigate ? (
@@ -298,6 +357,85 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
                 キャンセル
               </Button>
             </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 未紐づけ着信の手動リンクモーダル */}
+      {linkModal && (
+        <div
+          onClick={() => setLinkModal(null)}
+          style={{
+            position: 'fixed', inset: 0,
+            background: alpha(color.navyDeep, 0.5), backdropFilter: 'blur(3px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 320,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: color.white, borderRadius: radius.md,
+              width: 480, maxWidth: '90vw', maxHeight: '80vh',
+              boxShadow: shadow.xl, border: `1px solid ${color.border}`,
+              overflow: 'hidden', display: 'flex', flexDirection: 'column',
+            }}
+          >
+            <div style={{
+              background: color.navy, color: color.white,
+              padding: '12px 24px',
+              fontWeight: font.weight.semibold, fontSize: font.size.md,
+            }}>
+              企業に紐づける
+              <div style={{ fontSize: font.size.xs, fontWeight: font.weight.normal, opacity: 0.85, marginTop: 2 }}>
+                着信番号: {linkModal.callerNumber || '-'}
+              </div>
+            </div>
+            <div style={{ padding: '14px 20px', borderBottom: `1px solid ${color.border}` }}>
+              <input
+                type="text"
+                autoFocus
+                value={linkQuery}
+                onChange={e => searchCompanies(e.target.value)}
+                placeholder="企業名で検索"
+                style={{
+                  width: '100%', padding: '8px 12px', borderRadius: radius.md,
+                  border: `1px solid ${color.border}`, fontSize: font.size.sm,
+                  fontFamily: font.family.sans, outline: 'none', background: color.offWhite,
+                }}
+              />
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '8px 20px' }}>
+              {linkSearching && <div style={{ padding: 12, fontSize: font.size.xs, color: color.textLight }}>検索中…</div>}
+              {!linkSearching && linkQuery.trim() && linkResults.length === 0 && (
+                <div style={{ padding: 12, fontSize: font.size.xs, color: color.textLight }}>該当する企業はありません</div>
+              )}
+              {linkResults.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => applyLink(item)}
+                  style={{
+                    width: '100%', textAlign: 'left',
+                    padding: '10px 12px', marginBottom: 6,
+                    borderRadius: radius.md, border: `1px solid ${color.border}`,
+                    background: color.cream, cursor: 'pointer',
+                    fontFamily: font.family.sans,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#EAF4FF'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = color.cream; }}
+                >
+                  <div style={{ fontSize: font.size.sm, color: color.navy, fontWeight: font.weight.semibold }}>
+                    {item.company || '(企業名なし)'}
+                  </div>
+                  <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 2 }}>
+                    {item.call_lists?.name || ''} {item.call_lists?.clients?.name ? `（${item.call_lists.clients.name}）` : ''}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div style={{ padding: '10px 20px', borderTop: `1px solid ${color.border}`, textAlign: 'right' }}>
+              <Button size="sm" variant="outline" onClick={() => setLinkModal(null)}>キャンセル</Button>
             </div>
           </div>
         </div>

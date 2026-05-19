@@ -589,8 +589,7 @@ function MaspFirmsViewInner() {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        eyebrow="MASP · Firms"
-        title="M&A支援機関データベース"
+        title="M&A支援機関"
         description={`${filtered.length === stats.total
           ? `${(page-1)*PAGE_SIZE+1}〜${Math.min(page*PAGE_SIZE, filtered.length)}件を表示中（全${stats.total}件）`
           : `${filtered.length}件該当（全${stats.total}件）`}　取引先 ${stats.partner}社　接触済 ${stats.contacted}社　未接触 ${stats.notContacted}社`}

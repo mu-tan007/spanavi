@@ -18,19 +18,19 @@ export default function MASPSidebar({
   const { canViewPage } = useAccessControl();
 
   const companyItems = [
-    { id: 'database', label: 'Database', enabled: true },
-    { id: 'firms', label: 'Firms', enabled: true },
-    { id: 'all_members', label: 'Members', enabled: true },
+    { id: 'database', label: '企業DB', enabled: true },
+    { id: 'firms', label: 'M&A支援機関', enabled: true },
+    { id: 'all_members', label: 'メンバー', enabled: true },
   ].filter(it => canViewPage('masp', it.id));
 
   const sections = [
-    ...(companyItems.length > 0 ? [{ label: 'COMPANY', icon: Building2, items: companyItems }] : []),
-    // admin だけ「SETTINGS」セクションを表示（admin_settings は権限テーブル対象外、admin判定のみ）
+    ...(companyItems.length > 0 ? [{ label: '全社データ', icon: Building2, items: companyItems }] : []),
+    // admin だけ「設定」セクションを表示（admin_settings は権限テーブル対象外、admin判定のみ）
     ...(isAdmin ? [{
-      label: 'SETTINGS',
+      label: '設定',
       icon: Settings,
       items: [
-        { id: 'admin_settings', label: 'Admin Settings', enabled: true },
+        { id: 'admin_settings', label: '全社管理', enabled: true },
       ],
     }] : []),
   ];

@@ -184,6 +184,10 @@ export function useSpanaviData(authOrgId) {
         }
       })
 
+      // call_lists.id → is_prospecting マップ（appointments 側で新規開拓フラグを引くため）
+      const listProspectingMap = new Map()
+      callLists.forEach(cl => { if (cl.id) listProspectingMap.set(cl.id, cl.is_prospecting === true) })
+
       // appointments → 既存APPO_DATAフォーマットに変換
       const appoDataFormatted = appointments.map(a => ({
         _supaId: a.id,
@@ -215,6 +219,8 @@ export function useSpanaviData(authOrgId) {
         isOnline: a.is_online || false,
         list_id: a.list_id || null,
         item_id: a.item_id || null,
+        // 新規開拓リスト由来のアポは売上集計から除外し、インターン報酬のみカウントする
+        isProspecting: !!(a.list_id && listProspectingMap.get(a.list_id)),
       }))
 
       setData({

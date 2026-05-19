@@ -307,6 +307,12 @@ HP：${form.hp}
           <div style={{ fontSize: font.size.md + 1, fontWeight: font.weight.semibold }}>アポ取得報告</div>
           <div style={{ fontSize: font.size.xs, color: alpha(color.white, 0.7), marginTop: 2 }}>{row.company}</div>
         </div>
+        {/* 新規開拓リスト案内 */}
+        {list?.is_prospecting && (
+          <div style={{ padding: `${space[2]}px ${space[5]}px`, background: alpha(color.info, 0.08), borderBottom: `1px solid ${alpha(color.info, 0.25)}`, color: color.info, fontSize: font.size.xs, fontWeight: font.weight.semibold }}>
+            新規開拓リストのアポイントです：売上集計からは除外され、インターン報酬のみ計上されます。
+          </div>
+        )}
         {/* フォーム */}
         <div style={{ padding: `${space[4]}px ${space[5]}px`, overflowY: 'auto', flex: 1 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[2.5] }}>

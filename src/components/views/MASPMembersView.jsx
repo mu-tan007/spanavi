@@ -450,8 +450,7 @@ export default function MASPMembersView({ isAdmin }) {
   return (
     <div style={{ background: color.offWhite, minHeight: 'calc(100vh - 120px)', animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        eyebrow="MASP · 全社従業員"
-        title="Members"
+        title="メンバー"
         description={`全従業員 ${members.length} 名 (入社日順)。${isAdmin ? '編集ボタンで個別編集' : '閲覧のみ'}`}
         right={isAdmin ? (
           <Button size="sm" onClick={openAddModal}>+ 新規追加</Button>

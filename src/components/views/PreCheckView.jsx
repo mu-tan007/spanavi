@@ -424,8 +424,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
       <PageHeader
-        eyebrow="Sourcing · Pre-Check"
-        title="Pre-Check"
+        title="事前確認"
         description="アポ前のヒアリング管理"
         style={{ marginBottom: 24 }}
       />

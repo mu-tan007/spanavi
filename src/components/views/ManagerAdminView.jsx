@@ -42,8 +42,7 @@ export default function ManagerAdminView({ currentUser, members = [], appoData =
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         bleed={false}
-        eyebrow="Admin · マネージャー"
-        title="Manager"
+        title="マネージャー管理"
         description="マネージャー管理パネル"
         style={{ marginBottom: 24, flexShrink: 0, padding: '14px 28px 16px' }}
       />

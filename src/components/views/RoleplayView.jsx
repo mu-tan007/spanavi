@@ -247,8 +247,7 @@ export default function RoleplayView({ currentUser, userId, members = [], isAdmi
   return (
     <div style={{ animation: "fadeIn 0.3s ease", display: "flex", flexDirection: "column", gap: 24 }}>
       <PageHeader
-        eyebrow="研修 · ロープレ"
-        title="Role Play"
+        title="ロープレ"
         description="ロープレ予約・履歴"
       />
 

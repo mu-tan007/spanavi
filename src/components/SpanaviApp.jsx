@@ -597,31 +597,31 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   // 単独項目 (children=null) は本体 id を、グループは children の各 id を権限判定する。
   // children が 0 になったグループは表示しない。
   const _rawNavGroups = [
-    { id: "dashboard", label: "Dashboard", children: null },
-    { id: "g_call", label: "CALLING", children: [
-      { id: "lists", label: "Lists" },
-      { id: "search", label: "Search" },
-      { id: "live", label: "Live Status" },
-      { id: "recall", label: "Recall" },
-      { id: "incoming", label: "Incoming Call" },
+    { id: "dashboard", label: "ダッシュボード", children: null },
+    { id: "g_call", label: "架電", children: [
+      { id: "lists", label: "架電リスト" },
+      { id: "search", label: "企業・録音検索" },
+      { id: "live", label: "ライブ稼働状況" },
+      { id: "recall", label: "再架電" },
+      { id: "incoming", label: "着信対応" },
     ]},
-    { id: "g_appo", label: "PIPELINE", children: [
-      { id: "appo", label: "Appointments" },
-      { id: "precheck", label: "Pre-Check" },
-      { id: "deals", label: "Deals" },
+    { id: "g_appo", label: "商談", children: [
+      { id: "appo", label: "アポ一覧" },
+      { id: "precheck", label: "事前確認" },
+      { id: "deals", label: "案件" },
     ]},
-    { id: "g_insights", label: "INSIGHTS", children: [
-      { id: "stats", label: "Analytics" },
-      { id: "library", label: "Library" },
-      { id: "edu_roleplay", label: "Role Play" },
+    { id: "g_insights", label: "分析・教育", children: [
+      { id: "stats", label: "アナリティクス" },
+      { id: "library", label: "ライブラリ" },
+      { id: "edu_roleplay", label: "ロープレ" },
     ]},
-    { id: "g_admin", label: "ADMIN", children: [
-      { id: "members", label: "Members" },
+    { id: "g_admin", label: "管理", children: [
+      { id: "members", label: "メンバー" },
       { id: "crm", label: "CRM" },
-      { id: "payroll", label: "Payroll" },
-      { id: "shift", label: "Shifts" },
+      { id: "payroll", label: "報酬" },
+      { id: "shift", label: "シフト" },
     ]},
-    ...(isManagerRole ? [{ id: "manager_admin", label: "Admin", children: null }] : []),
+    ...(isManagerRole ? [{ id: "manager_admin", label: "管理者設定", children: null }] : []),
   ];
   const navGroups = _rawNavGroups
     .map(g => {

@@ -153,7 +153,7 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
     <div style={{ background: color.offWhite, minHeight: 'calc(100vh - 120px)', animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         bleed={bleed}
-        title="Members"
+        title="メンバー"
         description={canDrag
           ? `${members.length} 名。行をドラッグしてチーム間の移動・チーム内の並び替えができます`
           : `${members.length} 名 (入社日順)${isAdmin && filter.trim() ? ' — 検索中はドラッグ不可' : ''}`}

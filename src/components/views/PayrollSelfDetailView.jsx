@@ -97,13 +97,18 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
     });
   }, [appoData, targetMember, payMonth]);
 
-  // インセンティブ計算
+  // インセンティブ計算（新規開拓リスト由来でもインターン報酬は計上する）
   const incentive = useMemo(
     () => myAppos.reduce((s, a) => s + (a.reward || 0), 0),
     [myAppos]
   );
+  // 新規開拓リスト由来のアポは売上集計から完全除外（件数は残す）
   const monthlySales = useMemo(
-    () => myAppos.reduce((s, a) => s + (a.sales || 0), 0),
+    () => myAppos.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0),
+    [myAppos]
+  );
+  const prospectingCount = useMemo(
+    () => myAppos.filter(a => a.isProspecting).length,
     [myAppos]
   );
 
@@ -126,8 +131,9 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
     });
     const teamMembers = (members || []).filter(m => typeof m === 'object' && m.team === team);
     const teamMemberNames = new Set(teamMembers.map(m => m.name));
+    // 新規開拓由来のアポは役職ボーナス計算からも除外
     const teamSales = monthAppos
-      .filter(a => teamMemberNames.has(a.getter))
+      .filter(a => teamMemberNames.has(a.getter) && !a.isProspecting)
       .reduce((s, a) => s + (a.sales || 0), 0);
 
     // 同じチームのリーダー / 副リーダー人数（role_map から）
@@ -181,6 +187,7 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
       const salesWithin30 = (appoData || [])
         .filter(a =>
           a.getter === m.name &&
+          !a.isProspecting &&
           PAYROLL_COUNTABLE.has(a.status) &&
           a.appointmentDate &&
           new Date(a.appointmentDate) >= opDate &&
@@ -213,12 +220,20 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
     { key: 'date', label: '面談日', width: 110, align: 'right', cellStyle: { fontFamily: MONO },
       render: (a) => a.meetDate || a.getDate || '-' },
     { key: 'client', label: 'クライアント', width: 180, align: 'left', render: (a) => a.client || '-' },
-    { key: 'company', label: '企業名', width: 220, align: 'left', render: (a) => a.company || '-' },
+    { key: 'company', label: '企業名', width: 220, align: 'left',
+      render: (a) => (
+        <span>
+          {a.company || '-'}
+          {a.isProspecting && (
+            <Badge variant="info" dot style={{ marginLeft: 6 }}>新規開拓</Badge>
+          )}
+        </span>
+      ) },
     { key: 'status', label: 'ステータス', width: 110, align: 'center',
       render: (a) => <Badge variant={a.status === '面談済' ? 'success' : 'primary'} dot>{a.status}</Badge> },
     { key: 'sales', label: '売上', width: 110, align: 'right',
       cellStyle: { fontFamily: MONO, fontVariantNumeric: 'tabular-nums' },
-      render: (a) => fmtYen(a.sales) },
+      render: (a) => a.isProspecting ? <span style={{ color: color.textLight }}>-</span> : fmtYen(a.sales) },
     { key: 'reward', label: 'インターン報酬', width: 130, align: 'right',
       cellStyle: { fontFamily: MONO, fontVariantNumeric: 'tabular-nums', color: color.success, fontWeight: font.weight.semibold },
       render: (a) => fmtYen(a.reward) },
@@ -228,7 +243,6 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       {!embedded && (
         <PageHeader
-          eyebrow="Sourcing · 給与"
           title="自分の給与"
           description={`${targetMember.name} ・ ${payMonth} 分の支給内訳`}
           style={{ marginBottom: space[5] }}
@@ -298,6 +312,11 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
               <span style={{ fontFamily: MONO, fontWeight: font.weight.semibold }}>{myAppos.length} 件</span>
               <span style={{ color: color.textLight, marginLeft: space[3] }}>当月売上: </span>
               <span style={{ fontFamily: MONO, fontWeight: font.weight.semibold }}>{fmtYen(monthlySales)}</span>
+              {prospectingCount > 0 && (
+                <span style={{ marginLeft: space[3], fontSize: font.size.xs - 1, color: color.textLight }}>
+                  （うち新規開拓 {prospectingCount} 件は売上から除外）
+                </span>
+              )}
             </div>
             <div style={{
               padding: space[2], borderRadius: radius.md,

@@ -144,7 +144,7 @@ export default function LibraryView({
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        title="Library"
+        title="ライブラリ"
         description="営業ナレッジの統合アーカイブ"
         style={{ marginBottom: space[5] }}
       />

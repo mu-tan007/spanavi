@@ -497,7 +497,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
   const countableStatuses = ["面談済", "事前確認済", "アポ取得"];
   const countable = filtered.filter(a => countableStatuses.includes(a.status));
-  const totalSales = countable.reduce((s, a) => s + (a.sales || 0), 0);
+  // 新規開拓リスト由来のアポは売上集計から除外（件数とインターン報酬は残す）
+  const totalSales = countable.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0);
   const totalReward = countable.reduce((s, a) => s + (a.reward || 0), 0);
 
   const monthStats = AVAILABLE_MONTHS.map(({ label, yyyymm }) => {
@@ -505,7 +506,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       a.meetDate && a.meetDate.slice(0, 7) === yyyymm && countableStatuses.includes(a.status)
     );
     return { month: label, count: items.length,
-      sales: items.reduce((s, a) => s + (a.sales || 0), 0),
+      sales: items.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0),
       reward: items.reduce((s, a) => s + (a.reward || 0), 0) };
   });
 
@@ -599,8 +600,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     const client = clientData.find(c => c.company === clientName);
     const rm = client ? rewardMaster.find(r => r.id === client.rewardType) : null;
     const isTaxExcl = (rm?.tax || '税別') === '税別';
+    // 新規開拓リスト由来のアポは請求対象外（クライアント請求は通常リストのみ）
     const appos = appoData.filter(a =>
-      a.status === '面談済' && a.client === clientName && a.meetDate && a.meetDate.slice(0, 7) === month
+      a.status === '面談済' && a.client === clientName && !a.isProspecting && a.meetDate && a.meetDate.slice(0, 7) === month
     );
     setInvoiceItems(appos.map(a => {
       const raw = a.sales || 0;
@@ -1082,12 +1084,11 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
       <PageHeader
-        eyebrow="Sourcing · アポ"
-        title="Appointments"
+        title="アポ一覧"
         description="獲得アポイント一覧・進行管理"
         style={{ marginBottom: 24 }}
-      >
-      </PageHeader>
+      />
+
 
       <>
       {/* Header */}
@@ -1329,7 +1330,12 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 </span>
               )}
               <span style={{ color: color.textMid, fontSize: 10, textAlign: appoCols[0]?.align || 'left' }}>{a.client}</span>
-              <span style={{ fontWeight: font.weight.semibold, color: color.navy, cursor: "pointer", textDecoration: "underline dotted", textUnderlineOffset: 2, textAlign: appoCols[1]?.align || 'left' }} onClick={() => setReportDetail(a)}>{a.company}</span>
+              <span style={{ fontWeight: font.weight.semibold, color: color.navy, cursor: "pointer", textDecoration: "underline dotted", textUnderlineOffset: 2, textAlign: appoCols[1]?.align || 'left' }} onClick={() => setReportDetail(a)}>
+                {a.company}
+                {a.isProspecting && (
+                  <span style={{ marginLeft: 6, fontSize: 9, fontWeight: font.weight.semibold, color: color.info, background: alpha(color.info, 0.1), padding: '1px 5px', borderRadius: radius.sm }}>新規開拓</span>
+                )}
+              </span>
               <span style={{ color: color.textDark, textAlign: appoCols[2]?.align || 'left' }}>{a.getter}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: color.textLight, textAlign: appoCols[3]?.align || 'right', display: 'block' }}>{a.getDate.slice(5)}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: color.textLight, textAlign: appoCols[4]?.align || 'right', display: 'block' }}>{a.meetDate.slice(5)}</span>
@@ -1338,7 +1344,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 color: sc.color,
                 whiteSpace: 'nowrap',
               }}>{a.status}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, textAlign: appoCols[6]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.sales > 0 ? formatCurrency(a.sales) : "-"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: font.weight.semibold, color: a.isProspecting ? color.textLight : color.navy, textAlign: appoCols[6]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.isProspecting ? "-" : (a.sales > 0 ? formatCurrency(a.sales) : "-")}</span>
               <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: color.textMid, textAlign: appoCols[7]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
             </div>
           );
@@ -1348,7 +1354,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
       {/* Bulk Invoice Create Modal (ZIP) — 編集モーダル表示中は隠す */}
       {bulkInvoiceModal && setAppoData && !bulkInvoiceEditingClient && (() => {
-        const monthAppos = appoData.filter(a => a.status === '面談済' && a.meetDate && a.meetDate.slice(0, 7) === bulkInvoiceMonth);
+        // 新規開拓由来のアポは請求対象外
+        const monthAppos = appoData.filter(a => a.status === '面談済' && !a.isProspecting && a.meetDate && a.meetDate.slice(0, 7) === bulkInvoiceMonth);
         const clientNames = [...new Set(monthAppos.map(a => a.client))].filter(Boolean).sort();
         const clientInfos = clientNames.map(name => {
           const c = clientData.find(cl => cl.company === name);
@@ -1480,7 +1487,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
       {/* Bulk Send Modal */}
       {bulkSendModal && setAppoData && (() => {
-        const monthAppos = appoData.filter(a => a.status === '面談済' && a.meetDate && a.meetDate.slice(0, 7) === bulkSendMonth);
+        // 新規開拓由来のアポは一括送信対象外
+        const monthAppos = appoData.filter(a => a.status === '面談済' && !a.isProspecting && a.meetDate && a.meetDate.slice(0, 7) === bulkSendMonth);
         const clientNames = [...new Set(monthAppos.map(a => a.client))].filter(Boolean).sort();
         const clientInfos = clientNames.map(name => {
           const c = clientData.find(cl => cl.company === name);
@@ -2337,8 +2345,7 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
       <PageHeader
-        eyebrow="Admin · 名簿"
-        title="Employee Roster"
+        title="名簿"
         description="従業員名簿"
         style={{ marginBottom: 24 }}
       />

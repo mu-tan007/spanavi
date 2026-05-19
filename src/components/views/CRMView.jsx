@@ -386,7 +386,6 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     <div style={{ animation: "fadeIn 0.3s ease" }}>
       {view !== 'detail' && (
         <PageHeader
-          eyebrow="Sourcing · 顧客"
           title="CRM"
           description="顧客・連絡先・契約条件・月別目標の管理"
           style={{ marginBottom: 16 }}

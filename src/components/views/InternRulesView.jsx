@@ -239,9 +239,8 @@ export default function InternRulesView({ embedded = false }) {
 
       {!embedded && (
         <PageHeader
-          eyebrow="研修 · 心得"
-          title="22 Rules"
-          description="インターン22か条"
+          title="インターン22か条"
+          description="営業の基本心得"
           style={{ marginBottom: 24 }}
         />
       )}

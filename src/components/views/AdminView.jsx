@@ -179,8 +179,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
   return (
     <div style={{ paddingBottom: space[12], animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        eyebrow="Admin · 設定"
-        title="Admin Settings"
+        title="管理者設定"
         description="管理者設定 — 代表のみアクセス可能"
         style={{ marginBottom: space[6] }}
         right={

@@ -200,8 +200,7 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        eyebrow="Sourcing · Strategic Analytics"
-        title="Analytics"
+        title="パフォーマンス分析"
         description="組織・チーム・個人を俯瞰する戦略分析"
         style={{ marginBottom: isMobile ? 16 : 24 }}
       />

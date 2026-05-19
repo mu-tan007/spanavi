@@ -98,13 +98,25 @@ Deno.serve(async (req) => {
       }
 
       // callee_number → 企業名解決
+      // phone（会社番号）/ sub_phone_number（別事業所）/ keyman_mobile（キーマン携帯）の
+      // いずれにヒットしても紐づける。番号は 0始まり / +81始まり の表記揺れも吸収。
       let resolvedCalleeName = calleeName
       let resolvedCallerName = callerName
       if (calleeNumber && !resolvedCalleeName) {
+        const variants = Array.from(new Set([
+          calleeNumber,
+          `0${calleeNumber}`,
+          `+81${calleeNumber.replace(/^0/, '')}`,
+        ].filter(Boolean)))
+        const orClause = variants.flatMap(v => [
+          `phone.eq.${v}`,
+          `sub_phone_number.eq.${v}`,
+          `keyman_mobile.eq.${v}`,
+        ]).join(',')
         const { data: items } = await supabase
           .from('call_list_items')
           .select('company')
-          .or(`phone.eq.${calleeNumber},phone.eq.0${calleeNumber}`)
+          .or(orClause)
           .limit(1)
         if (items?.length) resolvedCalleeName = items[0].company ?? ''
       }
@@ -195,10 +207,21 @@ Deno.serve(async (req) => {
       let companyName: string | null = null
 
       if (callerNumber) {
+        // 着信側も phone / sub_phone_number / keyman_mobile の 3 列で照合
+        const variants = Array.from(new Set([
+          callerNumber,
+          `0${callerNumber}`,
+          `+81${callerNumber.replace(/^0/, '')}`,
+        ].filter(Boolean)))
+        const orClause = variants.flatMap(v => [
+          `phone.eq.${v}`,
+          `sub_phone_number.eq.${v}`,
+          `keyman_mobile.eq.${v}`,
+        ]).join(',')
         const { data: items } = await supabase
           .from('call_list_items')
-          .select('id, company, phone')
-          .or(`phone.eq.${callerNumber},phone.eq.0${callerNumber},phone.eq.+81${callerNumber}`)
+          .select('id, company, phone, sub_phone_number, keyman_mobile')
+          .or(orClause)
           .limit(1)
 
         if (items && items.length > 0) {
@@ -206,6 +229,7 @@ Deno.serve(async (req) => {
           companyName = items[0].company ?? null
         }
       }
+      // 未紐づけでも incoming_calls には記録する（後で UI から手動リンク可能）
 
       const { error: insertError } = await supabase
         .from('incoming_calls')

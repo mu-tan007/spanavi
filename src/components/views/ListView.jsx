@@ -186,8 +186,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
       <PageHeader
-        eyebrow="Sourcing · Lists"
-        title="Lists"
+        title="架電リスト"
         description="架電リスト管理"
         style={{ marginBottom: 24 }}
         right={onOpenIndustryRules ? (

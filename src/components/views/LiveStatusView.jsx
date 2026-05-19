@@ -467,8 +467,7 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        eyebrow="Sourcing · ライブ"
-        title="Live Status"
+        title="ライブ稼働状況"
         description="リアルタイム架電状況"
         style={{ marginBottom: isMobile ? space[4] : space[6] }}
       />

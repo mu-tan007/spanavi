@@ -32,7 +32,6 @@ export default function LogView({ callLogs, logFormOpen, setLogFormOpen, addCall
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
       <PageHeader
-        eyebrow="Sourcing · ログ"
         title="架電ログ"
         description="日次架電の記録と重複チェック"
         style={{ marginBottom: 24 }}

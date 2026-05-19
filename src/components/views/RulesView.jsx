@@ -176,8 +176,7 @@ export default function RulesView({ currentIndustry, onBack }) {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        eyebrow="Sourcing · ルール"
-        title="Industry Rules"
+        title="業界別ルール"
         description="業種別対応ルール・注意事項"
         style={{ marginBottom: 24 }}
         right={onBack ? (

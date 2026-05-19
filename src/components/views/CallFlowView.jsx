@@ -220,6 +220,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const cfvKbRef = useRef({});
   const [subPhone, setSubPhone] = useState('');
+  const [keymanMobile, setKeymanMobile] = useState('');
   const [lastDialedPhone, setLastDialedPhone] = useState(null);
   const [activeRecordingId, setActiveRecordingId] = useState(null);
   const [quickAppoSlot, setQuickAppoSlot] = useState(null); // { date, time }
@@ -349,6 +350,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   useEffect(() => {
     setLocalMemo(selectedRow?.id ? extractUserNote(selectedRow.memo) : '');
     setSubPhone(selectedRow?.sub_phone_number || '');
+    setKeymanMobile(selectedRow?.keyman_mobile || '');
     setLastDialedPhone(null);
     try {
       if (selectedRow?.id != null) sessionStorage.setItem('callflow_selected_id', String(selectedRow.id));
@@ -1059,6 +1061,17 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setSelectedRow(prev => prev?.id === selectedRow.id ? { ...prev, sub_phone_number: subPhone } : prev);
   };
 
+  const handleKeymanMobileBlur = async () => {
+    if (!selectedRow) return;
+    const err = await updateCallListItem(selectedRow.id, { keyman_mobile: keymanMobile });
+    if (err) {
+      console.error('[keymanMobile] DB保存失敗', err);
+      return;
+    }
+    setItems(prev => prev.map(i => i.id === selectedRow.id ? { ...i, keyman_mobile: keymanMobile } : i));
+    setSelectedRow(prev => prev?.id === selectedRow.id ? { ...prev, keyman_mobile: keymanMobile } : prev);
+  };
+
   // AI企業分析: itemIdごとに生成状態を管理し、awaitから戻った時点でも対象企業に正しく反映する
   const triggerAiGenerate = async (row) => {
     if (!row?.id) return;
@@ -1301,20 +1314,36 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 </div>
               )}
 
-              {/* サブ電話番号入力・発信 */}
-              <div style={{ display: 'flex', gap: 6, marginBottom: 12, alignItems: 'center' }}>
+              {/* 別事業所番号（本社以外の支店/営業所） */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
                 <input
                   type="tel"
                   value={subPhone}
                   onChange={e => setSubPhone(e.target.value)}
                   onBlur={handleSubPhoneBlur}
-                  placeholder="別の番号に架電"
+                  placeholder="別事業所番号 (支店/営業所)"
                   style={{ flex: 1, padding: '6px 8px', borderRadius: 6, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: C.offWhite, color: C.textDark }}
                 />
                 <button
                   onClick={() => { if (!subPhone.trim()) return; dialPhone(subPhone.trim()); setLastDialedPhone(subPhone.trim()); }}
                   disabled={!subPhone.trim()}
                   style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid ' + C.border, background: C.white, cursor: subPhone.trim() ? 'pointer' : 'default', fontSize: 13, opacity: subPhone.trim() ? 1 : 0.4, lineHeight: 1 }}
+                >発信</button>
+              </div>
+              {/* キーマン携帯 */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 12, alignItems: 'center' }}>
+                <input
+                  type="tel"
+                  value={keymanMobile}
+                  onChange={e => setKeymanMobile(e.target.value)}
+                  onBlur={handleKeymanMobileBlur}
+                  placeholder="キーマン携帯番号"
+                  style={{ flex: 1, padding: '6px 8px', borderRadius: 6, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', background: C.offWhite, color: C.textDark }}
+                />
+                <button
+                  onClick={() => { if (!keymanMobile.trim()) return; dialPhone(keymanMobile.trim()); setLastDialedPhone(keymanMobile.trim()); }}
+                  disabled={!keymanMobile.trim()}
+                  style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid ' + C.border, background: C.white, cursor: keymanMobile.trim() ? 'pointer' : 'default', fontSize: 13, opacity: keymanMobile.trim() ? 1 : 0.4, lineHeight: 1 }}
                 >発信</button>
               </div>
 
@@ -2080,16 +2109,29 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     電話をかける
                   </Button>
                 )}
-                {/* サブ電話番号 */}
+                {/* 別事業所番号（本社以外の支店/営業所） */}
                 <div style={{ display: 'flex', gap: 6, marginTop: 10, alignItems: 'center' }}>
                   <input type="tel" value={subPhone} onChange={e => setSubPhone(e.target.value)} onBlur={handleSubPhoneBlur}
-                    placeholder="別番号に架電"
+                    placeholder="別事業所番号 (支店/営業所)"
                     style={{ flex: 1, padding: '7px 10px', borderRadius: radius.md, border: `1px solid ${color.gray200}`, fontSize: font.size.xs, fontFamily: font.family.sans, outline: 'none', background: color.offWhite, color: color.textDark }} />
                   <Button
                     variant="secondary"
                     size="sm"
                     onClick={() => { if (!subPhone.trim()) return; dialPhone(subPhone.trim()); setLastDialedPhone(subPhone.trim()); }}
                     disabled={!subPhone.trim()}
+                    style={{ padding: '6px 12px', fontSize: font.size.sm, fontWeight: font.weight.medium }}
+                  >発信</Button>
+                </div>
+                {/* キーマン携帯 */}
+                <div style={{ display: 'flex', gap: 6, marginTop: 6, alignItems: 'center' }}>
+                  <input type="tel" value={keymanMobile} onChange={e => setKeymanMobile(e.target.value)} onBlur={handleKeymanMobileBlur}
+                    placeholder="キーマン携帯番号"
+                    style={{ flex: 1, padding: '7px 10px', borderRadius: radius.md, border: `1px solid ${color.gray200}`, fontSize: font.size.xs, fontFamily: font.family.sans, outline: 'none', background: color.offWhite, color: color.textDark }} />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => { if (!keymanMobile.trim()) return; dialPhone(keymanMobile.trim()); setLastDialedPhone(keymanMobile.trim()); }}
+                    disabled={!keymanMobile.trim()}
                     style={{ padding: '6px 12px', fontSize: font.size.sm, fontWeight: font.weight.medium }}
                   >発信</Button>
                 </div>
