@@ -507,6 +507,9 @@ export async function insertAppointment(data, engagementId = null) {
       meeting_location: data.meetLocation || null,
       is_online: data.isOnline || false,
       gcal_event_id: data.gcalEventId || null,
+      // transcribe-recording が録音から判定した M&A 意向（4値）を直書き保存。
+      // 既存の appo_report テキストからの正規表現抽出（apppoReportParse）は後方互換 fallback。
+      keyman_ma_intent: data.keymanMaIntent || null,
     })
     .select()
     .single()

@@ -5,6 +5,8 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { invokeAppoAiReport, invokeTranscribeRecording, fetchZoomUserId, insertAppointment } from '../../lib/supabaseWrite';
+import { invokeGenerateCompanyDossier } from '../../lib/dossierApi';
+import { getOrgId } from '../../lib/orgContext';
 import { MemberSuggestInput } from './AppoListView';
 
 export default function AppoReportModal({ row, list, currentUser = '', members = [], onClose, onSave, onDone, initialRecordingUrl = '', onFetchRecordingUrl, clientData = [], rewardMaster = [], dialedPhone = '' }) {
@@ -47,10 +49,11 @@ export default function AppoReportModal({ row, list, currentUser = '', members =
     phone:          row.phone || '',
     email:          '',
     hp:             '',
-    temperature:    '',
+    personality:    '',
     meetingExp:     '',
     futureConsider: '',
     other:          '',
+    keymanMaIntent: '',
     recordingUrl:   initialRecordingUrl,
     acquirer:       currentUser,
     ourSales:       initialOurSales,
@@ -141,7 +144,7 @@ export default function AppoReportModal({ row, list, currentUser = '', members =
 メール：${form.email}
 HP：${form.hp}
 メモ：
-　・先方の温度感→${form.temperature}
+　・先方のお人柄→${form.personality}
 　・面談経験の有無→${form.meetingExp}
 　・将来的な検討可否→${form.futureConsider}
 　・その他→${form.other}
@@ -163,7 +166,7 @@ HP：${form.hp}
       const { data, error } = await invokeTranscribeRecording({
         recording_url:  form.recordingUrl,
         item_id:        row?.id || '',
-        temperature:    form.temperature,
+        personality:    form.personality,
         meetingExp:     form.meetingExp,
         futureConsider: form.futureConsider,
         other:          form.other,
@@ -172,11 +175,12 @@ HP：${form.hp}
       setGenerateStep('enhancing');
       setForm(prev => ({
         ...prev,
-        temperature:    data.temperature    || prev.temperature,
-        meetingExp:     data.meetingExp     || prev.meetingExp,
-        futureConsider: data.futureConsider || prev.futureConsider,
-        other:          data.other          || prev.other,
-        recordingUrl:   data.publicRecordingUrl || prev.recordingUrl,
+        personality:      data.personality      || prev.personality,
+        meetingExp:       data.meetingExp       || prev.meetingExp,
+        futureConsider:   data.futureConsider   || prev.futureConsider,
+        other:            data.other            || prev.other,
+        keymanMaIntent:   data.keyman_ma_intent || prev.keymanMaIntent || '',
+        recordingUrl:     data.publicRecordingUrl || prev.recordingUrl,
       }));
       setGenerateStep('done');
       setTimeout(() => setGenerateStep('idle'), 3000);
@@ -218,7 +222,15 @@ HP：${form.hp}
       recording_url: form.recordingUrl || null,
       reportStyle: form.reportStyle || null,
       reportSupplement: form.reportSupplement || null,
+      keymanMaIntent: form.keymanMaIntent || null,
     });
+    // Step 4: 企業ドシエ生成 fire-and-forget（バックグラウンドで Edge Function 完走、約30〜90秒）
+    if (insResult?.id) {
+      const orgId = getOrgId();
+      invokeGenerateCompanyDossier({ appointment_id: insResult.id, org_id: orgId }).catch(e =>
+        console.warn('[AppoReportModal] dossier generation kickoff failed:', e)
+      );
+    }
     await onSave({
       company:    row.company,
       client:     list.company,
@@ -293,7 +305,7 @@ HP：${form.hp}
     { key: 'phone',          label: '電話番号',        span: 1 },
     { key: 'email',          label: 'メール',          span: 1 },
     { key: 'hp',             label: 'HP',             span: 2 },
-    { key: 'temperature',    label: '先方の温度感',     span: 2 },
+    { key: 'personality',    label: '先方のお人柄',     span: 2 },
     { key: 'meetingExp',     label: '面談経験の有無',   span: 2 },
     { key: 'futureConsider', label: '将来的な検討可否', span: 2 },
     { key: 'other',          label: 'その他',          span: 2 },

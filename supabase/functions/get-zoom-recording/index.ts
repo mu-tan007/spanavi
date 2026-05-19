@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json()
-    const { zoom_user_id, callee_phone, called_at, prev_called_at, recording_url: inputRecordingUrl } = body
+    const { zoom_user_id, callee_phone, called_at, prev_called_at, recording_url: inputRecordingUrl, from_date: fromOverride, to_date: toOverride } = body
 
     console.log('[get-zoom-recording] リクエスト受信')
     console.log('[get-zoom-recording] zoom_user_id:', zoom_user_id ?? '(なし)')
@@ -191,11 +191,27 @@ Deno.serve(async (req) => {
     console.log('[get-zoom-recording] モードB: 録音URL検索開始')
     console.log('[get-zoom-recording] callee_phone(正規化):', normalizePhone(callee_phone || ''))
 
-    // ── 日付範囲: 今日 + 昨日（セッション長に関わらず全営業日の録音をカバー）
-    // Zoom API の from/to は YYYY-MM-DD（UTC基準）
-    // 昨日を下限にすることで日付またぎ・長時間セッションに対応
-    const toDate   = new Date().toISOString().slice(0, 10)
-    const fromDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    // ── 日付範囲: 既定は今日 + 昨日。
+    // クライアントが from_date / to_date を明示した場合はそれを優先（過去アポの再生成用）。
+    // called_at が古い日付の場合は called_at 付近 ±1 日を自動的に拾う。
+    const dateOnly = (iso: string) => /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : iso.slice(0, 10)
+    let toDate   = new Date().toISOString().slice(0, 10)
+    let fromDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    if (fromOverride && toOverride) {
+      fromDate = dateOnly(fromOverride)
+      toDate   = dateOnly(toOverride)
+    } else if (called_at) {
+      const ca = new Date(called_at)
+      if (!isNaN(ca.getTime())) {
+        // 古い called_at（昨日より前）なら called_at の前後1日を自動採用
+        const isOld = (Date.now() - ca.getTime()) > 24 * 60 * 60 * 1000
+        if (isOld) {
+          fromDate = new Date(ca.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+          toDate   = new Date(ca.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+        }
+      }
+    }
+    console.log(`[get-zoom-recording] search window: ${fromDate} ~ ${toDate}`)
 
     // 全ページ取得（ページネーション対応）
     const allRecordings = await fetchAllRecordings(zoomToken, fromDate, toDate)

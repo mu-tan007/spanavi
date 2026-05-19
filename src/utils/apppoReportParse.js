@@ -2,6 +2,12 @@
 // keyman_ma_intent ('positive' | 'wait' | 'unknown' | 'negative') に変換する。
 // 実データに現れるパターン: 消極的 / 積極的 / 様子見 / 普通 / 中 / 低め /
 // 比較的高い / やんわり断り / 不明 / 空欄 etc.
+//
+// 【後方互換用】2026-05-20 以降は「先方の温度感」→「先方のお人柄」へ
+// 仕様変更し、M&A意向は transcribe-recording Edge Function が録音から
+// 直接判定して appointments.keyman_ma_intent カラムへ書き込む。
+// 本関数は keyman_ma_intent カラムが空の既存アポ（過去データ）に対する
+// fallback として残す。新規アポでは appointments.keyman_ma_intent を優先参照。
 
 export function extractKeymanMaIntent(appoReport) {
   if (!appoReport) return null;

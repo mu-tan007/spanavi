@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { recording_url, item_id, temperature, meetingExp, futureConsider, other } = await req.json()
+    const { recording_url, item_id, personality, meetingExp, futureConsider, other } = await req.json()
 
     if (!recording_url) {
       return new Response(
@@ -153,39 +153,54 @@ Deno.serve(async (req) => {
 必ず以下のJSONフォーマットのみで回答してください（他のテキストなし）：
 
 {
-  "temperature": "先方の温度感（前向き/様子見/消極的など具体的に）",
+  "personality": "先方のお人柄について録音から読み取れる特徴を詳述。話し方の特徴（落ち着いている/早口/論理的/感情的）、思考の傾向（慎重/即断/数字重視/感覚重視/全体俯瞰/詳細追求）、コミュニケーションスタイル（聞き上手/話し上手/質問が多い/結論を急ぐ/間を取る）、価値観の片鱗（事業愛/従業員思い/数字至上/品質重視/挑戦志向）、態度（柔和/威圧的/警戒的/オープン）等を 3-5 文で具体的に。アポインターの記入があればそれを足場に肉付けする",
   "meetingExp": "他のM&A仲介会社との面談経験の有無と詳細",
-  "futureConsider": "将来的な検討可否",
-  "other": "上記3項目以外でM&Aに関する重要事項があれば自然な文章で記載。なければ空欄"
+  "futureConsider": "将来的な検討可否（お断りの強度・後継者問題への言及・検討時期等を踏まえて）",
+  "other": "上記3項目以外でM&Aに関する重要事項があれば自然な文章で記載。なければ空欄",
+  "keyman_ma_intent": "positive | wait | negative | unknown のいずれか1語のみ。録音全体から先方のM&A意向を総合判定"
 }
 
 【各フィールドの補完・修正ルール】
 - アポインターの記入内容をベースに、録音から読み取れる情報で追記・修正する
 - 録音の内容がアポインターの記入と矛盾する場合は録音を優先する
-- 録音から判断できない場合は「確認できず」と記載する
+- 録音から判断できない場合は「確認できず」と記載する（keyman_ma_intent は unknown）
 
 【録音分析の観点】
 以下の観点で録音を分析し、各フィールドの内容に反映すること：
 
 1. M&Aの趣旨が先方に伝わっているか
    「資本提携」「M&A」「会社の譲渡」「株式の譲渡」等のキーワードが使われているか確認する。
-   単なる「提携」「業務提携」のみでは不十分とみなし、温度感や将来検討可否に影響する可能性として記録する。
+   単なる「提携」「業務提携」のみでは不十分とみなし、futureConsider や keyman_ma_intent に影響する可能性として記録する。
 
 2. お断りの有無とその強度
    「興味ない」「検討していない」「結構です」等のお断りがあれば、
-   その回数・強さのニュアンス（強い拒否 / やんわり断り）を先方の温度感に反映する。
+   その回数・強さのニュアンス（強い拒否 / やんわり断り）を futureConsider に詳述し、
+   keyman_ma_intent の判定（negative かどうか）に反映する。
 
-3. M&Aに関わる重要事項（該当があれば「その他」に自然な文章で記載）
+3. お人柄の手がかり（personality に反映）
+   - 話速・声のトーン・抑揚・間の取り方
+   - 質問の質と量（深掘りタイプ / 表面的）
+   - 数字や具体例への反応
+   - 従業員・取引先・家族に対する言及の温度
+   - 当社（アポインター側）への評価・指摘の出方
+
+4. M&Aに関わる重要事項（該当があれば「その他」に自然な文章で記載）
    - 後継者問題・事業承継への言及
    - 他社からのM&A提案・打診の有無
    - 会社の将来・経営方針に関する発言
    - 株主構成・経営体制に関する言及
 
+【keyman_ma_intent 判定ガイド】
+- positive: 前向き／積極的／関心が高い／検討の具体性あり／「もう少し話を聞きたい」等
+- wait:     様子見／中立／「いずれ考えるかも」／結論を保留／業績次第
+- negative: 消極的／拒否／「今は考えていない」／やんわり断り／強い拒絶
+- unknown:  判断材料不足／会話が短い／本人不在／代理応答
+
 【文字起こし】
 ${transcript}
 
 【アポインターの記入内容】
-- 先方の温度感: ${temperature || ''}
+- 先方のお人柄: ${personality || ''}
 - 面談経験の有無: ${meetingExp || ''}
 - 将来的な検討可否: ${futureConsider || ''}
 - その他: ${other || ''}`
@@ -215,7 +230,13 @@ ${transcript}
     const claudeData = await claudeRes.json()
     const claudeText: string = claudeData.content?.[0]?.text || '{}'
 
-    let enhanced: { temperature?: string; meetingExp?: string; futureConsider?: string; other?: string } = {}
+    let enhanced: {
+      personality?: string
+      meetingExp?: string
+      futureConsider?: string
+      other?: string
+      keyman_ma_intent?: string
+    } = {}
     try {
       // JSON ブロックが含まれる場合は抽出
       const jsonMatch = claudeText.match(/\{[\s\S]*\}/)
@@ -225,14 +246,22 @@ ${transcript}
       // パース失敗時は元の値を返す
     }
 
+    // keyman_ma_intent は 4 値以外を unknown に正規化
+    const intentRaw = String(enhanced.keyman_ma_intent || '').toLowerCase().trim()
+    const intent: 'positive' | 'wait' | 'negative' | 'unknown' =
+      intentRaw === 'positive' || intentRaw === 'wait' || intentRaw === 'negative'
+        ? intentRaw
+        : 'unknown'
+
     // ── 5. 構造化 JSON を返却 ──────────────────────────────────────────────
     return new Response(
       JSON.stringify({
         transcript,
-        temperature:         enhanced.temperature    || temperature    || '',
+        personality:         enhanced.personality    || personality    || '',
         meetingExp:          enhanced.meetingExp     || meetingExp     || '',
         futureConsider:      enhanced.futureConsider || futureConsider || '',
         other:               enhanced.other          || other          || '',
+        keyman_ma_intent:    intent,
         publicRecordingUrl,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

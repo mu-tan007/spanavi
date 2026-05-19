@@ -221,6 +221,8 @@ export function useSpanaviData(authOrgId) {
         item_id: a.item_id || null,
         // 新規開拓リスト由来のアポは売上集計から除外し、インターン報酬のみカウントする
         isProspecting: !!(a.list_id && listProspectingMap.get(a.list_id)),
+        // 録音 AI 再生成時に Zoom 検索ウィンドウを called_at 周辺に合わせるための原値
+        createdAtRaw: a.created_at || null,
       }))
 
       setData({

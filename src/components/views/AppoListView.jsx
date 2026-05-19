@@ -6,7 +6,7 @@ import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/formatters';
-import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, uploadAppoRecording } from '../../lib/supabaseWrite';
+import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording } from '../../lib/supabaseWrite';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -905,28 +905,63 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     let recordingUrl = urlMatch?.[1]?.trim() || '';
     if (!recordingUrl) {
       // Zoom APIから録音URLを取得
+      // 後追い再生成シナリオ（携帯紐づけが後から行われたケース）にも対応するため：
+      //   1) 紐づけられた call_list_item を引いて keyman_mobile / sub_phone_number / phone を全部試す
+      //   2) called_at はアポ作成時刻 (createdAtRaw) を使い、Zoom 検索ウィンドウを当該日近辺に合わせる
       setTranscribeStep('fetching');
-      const phone = (reportDetail?.phone || '').replace(/[^\d]/g, '');
       const getterName = detailEditForm?.getter || '';
       const member = (members || []).find(m => (typeof m === 'string' ? m : m.name) === getterName);
       const zoomUserId = typeof member === 'object' ? member?.zoomUserId : null;
-      if (zoomUserId && phone) {
+
+      const phoneCandidates = [];
+      if (reportDetail?.item_id) {
         try {
-          const { data } = await invokeGetZoomRecording({
-            zoom_user_id: zoomUserId,
-            callee_phone: phone,
-            called_at: new Date().toISOString(),
-            prev_called_at: null,
-          });
-          recordingUrl = data?.recording_url || '';
+          const { data: item } = await fetchCallListItemById(reportDetail.item_id);
+          if (item) {
+            // キーマン携帯 → 別事業所 → 会社番号 の順で試す
+            // （携帯通話の後付け再生成が一番ありがちなのでキーマン携帯を最優先）
+            [item.keyman_mobile, item.sub_phone_number, item.phone].forEach(p => {
+              const norm = (p || '').replace(/[^\d]/g, '');
+              if (norm && !phoneCandidates.includes(norm)) phoneCandidates.push(norm);
+            });
+          }
         } catch (e) {
-          console.error('[handleTranscribeDetail] Zoom取得エラー:', e);
+          console.warn('[handleTranscribeDetail] fetchCallListItemById error:', e);
+        }
+      }
+      const fallbackPhone = (reportDetail?.phone || '').replace(/[^\d]/g, '');
+      if (fallbackPhone && !phoneCandidates.includes(fallbackPhone)) phoneCandidates.push(fallbackPhone);
+
+      const calledAt = reportDetail?.createdAtRaw || reportDetail?._createdAt || null;
+
+      if (zoomUserId && phoneCandidates.length > 0) {
+        for (const phone of phoneCandidates) {
+          try {
+            const { data } = await invokeGetZoomRecording({
+              zoom_user_id: zoomUserId,
+              callee_phone: phone,
+              called_at: calledAt,
+              prev_called_at: null,
+            });
+            if (data?.recording_url) { recordingUrl = data.recording_url; break; }
+          } catch (e) {
+            console.error('[handleTranscribeDetail] Zoom取得エラー:', phone, e);
+          }
         }
       }
       if (!recordingUrl) {
         setTranscribeStep('error');
         setTimeout(() => setTranscribeStep('idle'), 3000);
         return;
+      }
+      // 取得できた録音URLを appointments.recording_url にも反映（次回以降の再生・再生成を高速化）
+      if (reportDetail?._supaId) {
+        try {
+          await updateAppointment(reportDetail._supaId, { ...reportDetail, recording_url: recordingUrl });
+          if (setAppoData) setAppoData(prev => prev.map(a => a._supaId === reportDetail._supaId ? { ...a, recordingUrl } : a));
+        } catch (e) {
+          console.warn('[handleTranscribeDetail] recording_url 保存エラー:', e);
+        }
       }
     }
     // Step 2: 文字起こし＋AI添削
@@ -935,7 +970,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       const { data, error } = await invokeTranscribeRecording({
         recording_url: recordingUrl,
         item_id: '',
-        temperature: '', meetingExp: '', futureConsider: '', other: '',
+        personality: '', meetingExp: '', futureConsider: '', other: '',
       });
       if (error || data?.error) throw new Error(error?.message || data?.error);
       setTranscribeStep('enhancing');
@@ -944,7 +979,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       const replaceField = (text, pattern, value) => {
         return pattern.test(text) ? text.replace(pattern, value) : text + '\n' + value;
       };
-      if (data.temperature)    report = replaceField(report, /^　・先方の温度感→.*$/m, `　・先方の温度感→${data.temperature}`);
+      // 既存テキストの「先方の温度感→」「先方のお人柄→」どちらにもマッチさせ、結果は新ラベルに統一
+      if (data.personality)    report = replaceField(report, /^　・(先方の温度感|先方のお人柄)→.*$/m, `　・先方のお人柄→${data.personality}`);
       if (data.meetingExp)     report = replaceField(report, /^　・面談経験の有無→.*$/m, `　・面談経験の有無→${data.meetingExp}`);
       if (data.futureConsider) report = replaceField(report, /^　・将来的な検討可否→.*$/m, `　・将来的な検討可否→${data.futureConsider}`);
       if (data.other)          report = replaceField(report, /^　・その他→.*$/m, `　・その他→${data.other}`);
