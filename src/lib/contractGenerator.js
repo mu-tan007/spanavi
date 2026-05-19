@@ -83,6 +83,8 @@ export function renderDocxBlob(templateAb, placeholders) {
   const doc = new Docxtemplater(zip, {
     paragraphLoop: true,
     linebreaks: true,
+    // docxtemplater のデフォルトデリミタは { } なので {{ }} を使うには明示が必要
+    delimiters: { start: '{{', end: '}}' },
   });
   try {
     doc.render(placeholders);
