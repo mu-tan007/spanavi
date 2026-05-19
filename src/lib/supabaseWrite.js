@@ -867,6 +867,32 @@ export async function updateCallListItem(id, updates) {
   return error
 }
 
+// 旧キーマン携帯番号（または別事業所番号）が編集/削除された時に、
+// その旧番号でこの item に紐づいていた着信履歴を全て紐づけ解除する。
+// rawNumber は normalize 前/後どちらでも OK（内部でバリアント展開）。
+export async function unlinkIncomingCallsByCallerNumber(itemId, rawNumber) {
+  if (!itemId || !rawNumber) return null
+  const digits = String(rawNumber).replace(/\D/g, '')
+  if (!digits) return null
+  // 着信履歴に保存されている caller_number は表記揺れが大きいので複数形式を当てる
+  const local = digits.startsWith('81') ? '0' + digits.slice(2) : digits
+  const intl = local.startsWith('0') ? '+81' + local.slice(1) : `+81${local}`
+  const variants = Array.from(new Set([
+    String(rawNumber),
+    digits,
+    local,
+    intl,
+    intl.replace('+', ''),
+  ].filter(Boolean)))
+  const { error } = await supabase
+    .from('incoming_calls')
+    .update({ item_id: null, company_name: null })
+    .eq('item_id', itemId)
+    .in('caller_number', variants)
+  if (error) console.error('[DB] unlinkIncomingCallsByCallerNumber error:', error)
+  return error
+}
+
 export async function insertCallListItems(listId, rows) {
   if (!listId || !rows?.length) return { data: null, error: null }
   const CHUNK_SIZE = 500

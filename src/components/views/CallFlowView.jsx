@@ -9,7 +9,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getScriptPdfSignedUrl, updateCallListCautions } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getScriptPdfSignedUrl, updateCallListCautions } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -1066,25 +1066,41 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
   const handleSubPhoneBlur = async () => {
     if (!selectedRow) return;
-    const err = await updateCallListItem(selectedRow.id, { sub_phone_number: subPhone });
+    const oldValue = (selectedRow.sub_phone_number || '').trim();
+    const newValue = (subPhone || '').trim();
+    if (oldValue === newValue) return;
+    const err = await updateCallListItem(selectedRow.id, { sub_phone_number: newValue });
     if (err) {
       console.error('[subPhone] DB保存失敗 — call_list_items.sub_phone_numberカラムが存在しない可能性があります。SQL: ALTER TABLE call_list_items ADD COLUMN IF NOT EXISTS sub_phone_number TEXT;', err);
       return;
     }
+    // 旧別事業所番号で紐づいていた着信履歴を解除
+    if (oldValue) {
+      unlinkIncomingCallsByCallerNumber(selectedRow.id, oldValue)
+        .catch(e => console.warn('[subPhone] 旧番号の着信紐づけ解除エラー:', e));
+    }
     // DB保存後にメモリ上のitemsも更新（企業切り替え後に復元できるように）
-    setItems(prev => prev.map(i => i.id === selectedRow.id ? { ...i, sub_phone_number: subPhone } : i));
-    setSelectedRow(prev => prev?.id === selectedRow.id ? { ...prev, sub_phone_number: subPhone } : prev);
+    setItems(prev => prev.map(i => i.id === selectedRow.id ? { ...i, sub_phone_number: newValue } : i));
+    setSelectedRow(prev => prev?.id === selectedRow.id ? { ...prev, sub_phone_number: newValue } : prev);
   };
 
   const handleKeymanMobileBlur = async () => {
     if (!selectedRow) return;
-    const err = await updateCallListItem(selectedRow.id, { keyman_mobile: keymanMobile });
+    const oldValue = (selectedRow.keyman_mobile || '').trim();
+    const newValue = (keymanMobile || '').trim();
+    if (oldValue === newValue) return; // 変更なし
+    const err = await updateCallListItem(selectedRow.id, { keyman_mobile: newValue });
     if (err) {
       console.error('[keymanMobile] DB保存失敗', err);
       return;
     }
-    setItems(prev => prev.map(i => i.id === selectedRow.id ? { ...i, keyman_mobile: keymanMobile } : i));
-    setSelectedRow(prev => prev?.id === selectedRow.id ? { ...prev, keyman_mobile: keymanMobile } : prev);
+    // 旧キーマン携帯番号で紐づいていた着信履歴を解除（削除・別番号に変更どちらも）
+    if (oldValue) {
+      unlinkIncomingCallsByCallerNumber(selectedRow.id, oldValue)
+        .catch(e => console.warn('[keymanMobile] 旧番号の着信紐づけ解除エラー:', e));
+    }
+    setItems(prev => prev.map(i => i.id === selectedRow.id ? { ...i, keyman_mobile: newValue } : i));
+    setSelectedRow(prev => prev?.id === selectedRow.id ? { ...prev, keyman_mobile: newValue } : prev);
   };
 
   // AI企業分析: itemIdごとに生成状態を管理し、awaitから戻った時点でも対象企業に正しく反映する
