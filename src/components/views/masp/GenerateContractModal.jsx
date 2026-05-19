@@ -220,10 +220,10 @@ export default function GenerateContractModal({ member, onClose, onGenerated }) 
 
           <SectionLabel>④ 口座情報</SectionLabel>
           <Row label="銀行名">
-            <Input size="sm" value={form.bank_name} onChange={set('bank_name')} placeholder="例: 三井住友銀行" />
+            <Input size="sm" value={form.bank_name} onChange={set('bank_name')} placeholder="例: 三井住友銀行 / みずほ信用金庫" />
           </Row>
           <Row label="支店名">
-            <Input size="sm" value={form.branch_name} onChange={set('branch_name')} placeholder="例: 六本木支店" />
+            <Input size="sm" value={form.branch_name} onChange={set('branch_name')} placeholder="例: 六本木支店 / 本店営業部" />
           </Row>
           <Row label="口座種別">
             <Select size="sm" value={form.account_type} onChange={set('account_type')} options={ACCOUNT_TYPES} />

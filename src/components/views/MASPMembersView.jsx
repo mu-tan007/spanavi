@@ -700,10 +700,10 @@ export default function MASPMembersView({ isAdmin }) {
                 <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, marginBottom: 8 }}>口座情報</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <FormRow label="銀行名">
-                    <Input size="sm" value={addForm.bank_name} onChange={e => setAddForm(s => ({ ...s, bank_name: e.target.value }))} placeholder="例: 三井住友銀行" />
+                    <Input size="sm" value={addForm.bank_name} onChange={e => setAddForm(s => ({ ...s, bank_name: e.target.value }))} placeholder="例: 三井住友銀行 / みずほ信用金庫" />
                   </FormRow>
                   <FormRow label="支店名">
-                    <Input size="sm" value={addForm.branch_name} onChange={e => setAddForm(s => ({ ...s, branch_name: e.target.value }))} placeholder="例: 六本木支店" />
+                    <Input size="sm" value={addForm.branch_name} onChange={e => setAddForm(s => ({ ...s, branch_name: e.target.value }))} placeholder="例: 六本木支店 / 本店営業部" />
                   </FormRow>
                   <FormRow label="口座種別">
                     <Select
