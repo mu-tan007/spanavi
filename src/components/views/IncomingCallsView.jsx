@@ -73,9 +73,21 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
     // 全電話番号を一括でcall_list_itemsに問い合わせ
     // phone（会社番号）/ sub_phone_number（別事業所）/ keyman_mobile（キーマン携帯）の
     // いずれかで一致した項目を集計する。
-    const phones = [...new Set(
-      rows.map(r => normalizePhone(r.caller_number)).filter(Boolean)
-    )];
+    // DB 側には normalized (09xx...) / 国際表記 (+8190xx...) / raw (+819xxxxxxxxx) など
+    // 表記揺れで保存されている可能性があるため、全パターンを in 句に展開する。
+    const phonesSet = new Set();
+    rows.forEach(r => {
+      if (!r.caller_number) return;
+      const raw = String(r.caller_number);
+      phonesSet.add(raw);
+      const norm = normalizePhone(raw);
+      if (norm) {
+        phonesSet.add(norm);
+        phonesSet.add(`+81${norm.replace(/^0/, '')}`);
+      }
+    });
+    const phones = [...phonesSet];
+    const phonesNormalized = new Set(rows.map(r => normalizePhone(r.caller_number)).filter(Boolean));
     if (phones.length > 0) {
       const phonesCsv = phones.join(',');
       const orClause = [
@@ -90,11 +102,12 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
         .limit(500);
       const map = {};
       (items || []).forEach(item => {
+        // 各 phone/sub/mobile を normalize して、着信側の normalized key と突合
         const numbers = [item.phone, item.sub_phone_number, item.keyman_mobile]
           .map(normalizePhone)
           .filter(Boolean);
         numbers.forEach(p => {
-          if (!phones.includes(p)) return;
+          if (!phonesNormalized.has(p)) return;
           if (!map[p]) map[p] = [];
           if (map[p].some(x => x.itemId === item.id)) return;
           map[p].push({
@@ -218,13 +231,23 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
       .update({ item_id: item.id, company_name: item.company || null })
       .eq('id', linkModal.callId);
 
-    // keyman_mobile が未設定の場合のみ学習保存（既存値は尊重）
+    // keyman_mobile が未設定(null or 空文字)の場合のみ学習保存（既存値は尊重）
+    // 保存する番号は normalize 後の形式（09xxxxxxxxx）に統一して
+    // phoneItemMap 側の正規化マッチングで確実にヒットさせる。
     if (linkModal.callerNumber) {
-      await supabase
+      const normalized = normalizePhone(linkModal.callerNumber) || linkModal.callerNumber;
+      const { data: current } = await supabase
         .from('call_list_items')
-        .update({ keyman_mobile: linkModal.callerNumber })
+        .select('keyman_mobile')
         .eq('id', item.id)
-        .is('keyman_mobile', null);
+        .single();
+      const existing = (current?.keyman_mobile || '').trim();
+      if (!existing) {
+        await supabase
+          .from('call_list_items')
+          .update({ keyman_mobile: normalized })
+          .eq('id', item.id);
+      }
     }
 
     // 紐づけ後も自動紐づけ行と同じリッチ表示（企業名リンク＋リスト/クライアント名）

@@ -262,13 +262,25 @@ Deno.serve(async (req) => {
               if (matched && matched.length > 0) {
                 itemId = matched[0].id
                 companyName = matched[0].company
-                // 学習: この番号を keyman_mobile に保存（既に値がある場合は上書きしない）
-                await supabase
+                // 学習: 既存 keyman_mobile が null または空文字なら normalize 形式で保存
+                // （表記揺れによる phoneItemMap マッチ漏れ防止）
+                const { data: currentItem } = await supabase
                   .from('call_list_items')
-                  .update({ keyman_mobile: rawNumber || callerNumber })
+                  .select('keyman_mobile')
                   .eq('id', itemId)
-                  .is('keyman_mobile', null)
-                console.log('[receive-zoom-webhook] 着信 fallback 紐づけ＋学習:', companyName, '←', rawNumber)
+                  .single()
+                const existing = (currentItem?.keyman_mobile || '').trim()
+                if (!existing) {
+                  // 国番号 81 → 先頭 0 表記に正規化（09043069338 形式）
+                  const toSave = callerNumber.startsWith('81')
+                    ? '0' + callerNumber.slice(2)
+                    : (callerNumber || rawNumber || '')
+                  await supabase
+                    .from('call_list_items')
+                    .update({ keyman_mobile: toSave })
+                    .eq('id', itemId)
+                }
+                console.log('[receive-zoom-webhook] inbound fallback link+learn:', companyName, '<-', rawNumber)
               }
             }
           }
