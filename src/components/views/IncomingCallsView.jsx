@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../lib/supabase';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Badge, DataTable } from '../ui';
+import { invokeGetZoomRecording } from '../../lib/supabaseWrite';
+import InlineAudioPlayer from '../common/InlineAudioPlayer';
 
 import { getOrgId } from '../../lib/orgContext';
 import PageHeader from '../common/PageHeader';
@@ -14,6 +16,14 @@ const formatJST = (iso) => {
     month: 'numeric', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
+};
+
+const formatDuration = (sec) => {
+  if (sec == null || sec < 0) return '-';
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  if (m === 0) return `${s}秒`;
+  return `${m}:${String(s).padStart(2, '0')}`;
 };
 
 // リスト表示ラベル: call_lists.nameがclientName含む場合はlistNameのみ
@@ -44,6 +54,10 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
   const [linkQuery, setLinkQuery] = useState('');
   const [linkResults, setLinkResults] = useState([]);
   const [linkSearching, setLinkSearching] = useState(false);
+  // 録音再生表示中の行ID
+  const [activeRecordingId, setActiveRecordingId] = useState(null);
+  // 録音自動取得を 1 行 1 回に制限するための refs
+  const _autoFetchedRef = useRef(new Set());
 
   const load = async () => {
     setLoading(true);
@@ -98,6 +112,41 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
     setLoading(false);
   };
 
+  // Phase A: 録音 URL が未取得の応答済み着信について Zoom Cloud Recording から
+  // 自動的に URL を引いて incoming_calls.recording_url に保存する。
+  // 行ロード後、duration_sec が記録済 (= 通話終了) かつ recording_url 未設定の行が対象。
+  // get-zoom-recording は callee_number/caller_number 両方をフィルタ対象にしているため
+  // inbound の場合でも caller_number で hit する。
+  const autoFetchRecording = async (row) => {
+    if (!row?.id || row.recording_url || _autoFetchedRef.current.has(row.id)) return;
+    if (!row.answered_by_zoom_user_id || !row.caller_number) return;
+    if (row.duration_sec == null || row.duration_sec < 5) return; // 5秒未満は録音されない想定
+    _autoFetchedRef.current.add(row.id);
+    try {
+      const { data } = await invokeGetZoomRecording({
+        zoom_user_id: row.answered_by_zoom_user_id,
+        callee_phone: row.caller_number, // get-zoom-recording は caller/callee 両方検索
+        called_at: row.received_at,
+      });
+      const url = data?.recording_url;
+      if (url) {
+        await supabase.from('incoming_calls').update({ recording_url: url }).eq('id', row.id);
+        setRecords(prev => prev.map(r => r.id === row.id ? { ...r, recording_url: url } : r));
+      }
+    } catch (e) {
+      console.warn('[IncomingCalls] auto-fetch recording error:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (!records.length) return;
+    // 終了済み・録音未取得の行を上位 20 件だけ走査（過去分は手動再取得に任せる）
+    records.slice(0, 20).forEach(r => {
+      if (r.ended_at && !r.recording_url) autoFetchRecording(r);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [records.length]);
+
   const searchCompanies = async (q) => {
     setLinkQuery(q);
     if (!q || q.trim().length < 1) { setLinkResults([]); return; }
@@ -112,12 +161,23 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
     setLinkSearching(false);
   };
 
+  // Phase C: 手動リンク時に keyman_mobile を自動学習（同じ番号からの次回着信は自動紐づけ）
   const applyLink = async (item) => {
     if (!linkModal) return;
     await supabase
       .from('incoming_calls')
       .update({ item_id: item.id, company_name: item.company || null })
       .eq('id', linkModal.callId);
+
+    // keyman_mobile が未設定の場合のみ学習保存（既存値は尊重）
+    if (linkModal.callerNumber) {
+      await supabase
+        .from('call_list_items')
+        .update({ keyman_mobile: linkModal.callerNumber })
+        .eq('id', item.id)
+        .is('keyman_mobile', null);
+    }
+
     setRecords(prev => prev.map(r => r.id === linkModal.callId
       ? { ...r, item_id: item.id, company_name: item.company || null }
       : r));
@@ -153,6 +213,20 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
       singleItemMode: true,
     });
     setSelectModal(null);
+  };
+
+  // Phase C: 着信行から「アポ取得」→ CallFlowView を該当企業フォーカス＋AppoReportModal自動展開、
+  // 録音URLも初期値として渡す
+  const openAppoFromIncoming = (row, match) => {
+    if (!setCallFlowScreen || !match) return;
+    setCallFlowScreen({
+      list: { _supaId: match.listId, id: match.listId, company: match.company },
+      defaultItemId: match.itemId,
+      defaultListMode: false,
+      singleItemMode: true,
+      initialRecordingUrl: row.recording_url || '',
+      autoOpenAppoModal: true,
+    });
   };
 
   const filtered = records.filter(r =>
@@ -278,23 +352,77 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
             render: (r) => r.caller_number || '-',
           },
           {
-            key: 'status', label: 'ステータス', width: 120, align: 'center',
+            key: 'duration', label: '通話時間', width: 80, align: 'right',
+            cellStyle: { fontFamily: font.family.mono, color: color.textMid, fontSize: font.size.xs },
+            render: (r) => formatDuration(r.duration_sec),
+          },
+          {
+            key: 'recording', label: '録音', width: 180, align: 'left',
+            cellStyle: { whiteSpace: 'normal', overflow: 'visible' },
+            render: (r) => {
+              if (activeRecordingId === r.id && r.recording_url) {
+                return (
+                  <InlineAudioPlayer
+                    url={r.recording_url}
+                    onClose={() => setActiveRecordingId(null)}
+                  />
+                );
+              }
+              if (r.recording_url) {
+                return (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setActiveRecordingId(r.id); }}
+                    style={{
+                      padding: '4px 10px', borderRadius: radius.md,
+                      border: `1px solid ${color.border}`, background: color.white,
+                      color: color.navy, cursor: 'pointer',
+                      fontSize: font.size.xs, fontWeight: font.weight.semibold,
+                    }}
+                  >
+                    ▶ 再生
+                  </button>
+                );
+              }
+              if (r.ended_at && r.duration_sec >= 5) {
+                return <span style={{ fontSize: font.size.xs, color: color.textLight }}>取得中…</span>;
+              }
+              return <span style={{ color: color.textLight }}>-</span>;
+            },
+          },
+          {
+            key: 'status', label: 'ステータス', width: 100, align: 'center',
             render: (r) => r.status
               ? <Badge variant={statusVariant(r.status)} dot>{r.status}</Badge>
               : '-'
           },
           {
-            key: 'handler', label: '対応者', width: 130, align: 'left',
-            cellStyle: { color: color.textMid },
-            render: (r) => r.handled_by || '-'
-          },
-          {
-            key: 'action', label: '操作', width: 140, align: 'center',
-            render: (r) => r.status !== '対応済み' ? (
-              <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); markHandled(r.id); }}>
-                対応済みにする
-              </Button>
-            ) : null
+            key: 'action', label: '操作', width: 220, align: 'center',
+            cellStyle: { whiteSpace: 'normal', overflow: 'visible' },
+            render: (r) => {
+              const phone = normalizePhone(r.caller_number);
+              const matches = phoneItemMap[phone] || [];
+              const primaryMatch = matches[0] || null;
+              const hasCompany = primaryMatch || r.company_name;
+              return (
+                <div style={{ display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {hasCompany && primaryMatch && (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={(e) => { e.stopPropagation(); openAppoFromIncoming(r, primaryMatch); }}
+                      style={{ fontSize: font.size.xs }}
+                    >
+                      アポ取得
+                    </Button>
+                  )}
+                  {r.status !== '対応済み' && (
+                    <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); markHandled(r.id); }}>
+                      対応済
+                    </Button>
+                  )}
+                </div>
+              );
+            }
           },
         ]}
       />
@@ -389,7 +517,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
             }}>
               企業に紐づける
               <div style={{ fontSize: font.size.xs, fontWeight: font.weight.normal, opacity: 0.85, marginTop: 2 }}>
-                着信番号: {linkModal.callerNumber || '-'}
+                着信番号: {linkModal.callerNumber || '-'}（紐づけ時にキーマン携帯として自動保存）
               </div>
             </div>
             <div style={{ padding: '14px 20px', borderBottom: `1px solid ${color.border}` }}>

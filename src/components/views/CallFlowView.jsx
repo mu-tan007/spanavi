@@ -177,7 +177,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   );
 }
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, keymanConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -624,6 +624,18 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   // selectedRow 変更時は録音プレーヤーをリセット
   useEffect(() => { setActiveRecordingId(null); }, [selectedRow]);
 
+  // autoOpenAppoModal: 着信からの「アポ取得」遷移時、selectedRow ロード完了後に
+  // 自動で AppoReportModal を開く（一度だけ）
+  const _autoOpenAppoFiredRef = useRef(false);
+  useEffect(() => {
+    if (!autoOpenAppoModal || _autoOpenAppoFiredRef.current) return;
+    if (selectedRow && selectedRow.id) {
+      _autoOpenAppoFiredRef.current = true;
+      setSelectedRound(prev => prev ?? 1);
+      setAppoModal(selectedRow);
+    }
+  }, [autoOpenAppoModal, selectedRow]);
+
   // PiP: isMinimizedをrefで追跡
   const isMinimizedRef = useRef(false);
   useEffect(() => { isMinimizedRef.current = !!isMinimized; }, [isMinimized]);
@@ -856,7 +868,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       .sort((a, b) => (b.called_at || '').localeCompare(a.called_at || ''))[0];
     const _prevCalledAtAppo = _prevRecAppo?.called_at || null;
 
-    const recordingUrlAppo = await fetchRecordingUrl(appoModal.phone, calledAtAppo, _prevCalledAtAppo);
+    // 携帯/別事業所への発信で取得したアポも録音が拾えるよう、
+    // 直近 dial 番号を優先（lastDialedPhone）→ 無ければ会社番号 (appoModal.phone) にフォールバック
+    const _appoDialedPhone = lastDialedPhone || appoModal.phone;
+    const recordingUrlAppo = await fetchRecordingUrl(_appoDialedPhone, calledAtAppo, _prevCalledAtAppo);
 
     const { result: newRec, error: recErr } = await insertCallRecord({
       item_id: appoModal.id, list_id: list._supaId,
@@ -871,7 +886,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     // 録音URL未取得の場合、自動リトライ（Zoomの録音処理遅延対策）
     // appoIdを保持してappo_reportも更新する
     const _appoItemId = appoModal.id;
-    const _appoPhone = appoModal.phone;
+    const _appoPhone = _appoDialedPhone;
     if (!recordingUrlAppo && newRec?.id) {
       const retryFetchRecording = async (delaySec) => {
         await new Promise(r => setTimeout(r, delaySec * 1000));
@@ -1659,8 +1674,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           rewardMaster={rewardMaster}
           onClose={() => setAppoModal(null)}
           onSave={handleAppoSave}
-          initialRecordingUrl={''}
-          onFetchRecordingUrl={() => handleAppoFetchRecording(appoModal.id, appoModal.phone)}
+          initialRecordingUrl={initialRecordingUrl || ''}
+          onFetchRecordingUrl={() => handleAppoFetchRecording(appoModal.id, lastDialedPhone || appoModal.phone)}
         />
       )}
 
@@ -2409,8 +2424,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           rewardMaster={rewardMaster}
           onClose={() => setAppoModal(null)}
           onSave={handleAppoSave}
-          initialRecordingUrl={''}
-          onFetchRecordingUrl={() => handleAppoFetchRecording(appoModal.id, appoModal.phone)}
+          initialRecordingUrl={initialRecordingUrl || ''}
+          onFetchRecordingUrl={() => handleAppoFetchRecording(appoModal.id, lastDialedPhone || appoModal.phone)}
         />
       )}
 

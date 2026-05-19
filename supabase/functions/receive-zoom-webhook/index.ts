@@ -6,15 +6,16 @@ const corsHeaders = {
 }
 
 // 処理対象のWebhookイベント
-const INCOMING_EVENT = 'phone.callee_ringing'
+// caller_* = 発信側（自社→外部）のイベント。
+// callee_* = 着信側（外部→自社）のイベント。
 const OUTBOUND_EVENTS = new Set([
   'phone.caller_ringing',
   'phone.caller_connected',
   'phone.caller_ended',
-  'phone.callee_connected',
-  'phone.callee_ended',
-  'phone.callee_answered',
 ])
+const INBOUND_RINGING = 'phone.callee_ringing'
+const INBOUND_ANSWERED = new Set(['phone.callee_connected', 'phone.callee_answered'])
+const INBOUND_ENDED = 'phone.callee_ended'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -149,7 +150,7 @@ Deno.serve(async (req) => {
         console.log('[receive-zoom-webhook] 📞 ringing:', resolvedCallerName, '→', resolvedCalleeName || calleeNumber, '| orgId:', orgId, '| error:', error?.message ?? 'none')
       }
 
-      if (eventType === 'phone.caller_connected' || eventType === 'phone.callee_connected' || eventType === 'phone.callee_answered') {
+      if (eventType === 'phone.caller_connected') {
         // 通話接続 → UPDATE
         const { error } = await supabase
           .from('active_calls')
@@ -159,7 +160,7 @@ Deno.serve(async (req) => {
         console.log('[receive-zoom-webhook] 🟢 connected:', callId)
       }
 
-      if (eventType === 'phone.caller_ended' || eventType === 'phone.callee_ended') {
+      if (eventType === 'phone.caller_ended') {
         // 通話終了 → UPDATE
         const { error } = await supabase
           .from('active_calls')
@@ -176,19 +177,21 @@ Deno.serve(async (req) => {
     }
 
     // ============================================================
-    // 着信イベント → incoming_calls テーブル（既存ロジック）
+    // 着信系イベント → incoming_calls テーブル
+    // callee_ringing: 行作成 / callee_connected|answered: 応答時刻記録 / callee_ended: 終了時刻+duration記録
     // ============================================================
-    if (eventType === INCOMING_EVENT) {
+    if (eventType === INBOUND_RINGING || INBOUND_ANSWERED.has(eventType) || eventType === INBOUND_ENDED) {
       const payload = body.payload ?? {}
       const object = payload.object ?? {}
+      const callId: string = object.call_id ?? ''
 
       const rawNumber: string = object.caller?.phone_number ?? object.caller_number ?? ''
       const callerNumber = rawNumber.replace(/[^\d]/g, '')
       const callerNameIncoming: string = object.caller?.name ?? object.caller_name ?? ''
+      const calleeUserId: string = object.callee?.user_id ?? ''
 
       // org_id解決: callee(着信先)のuser_idからmembersを引く
       let orgId: string | null = null
-      const calleeUserId = object.callee?.user_id ?? ''
       if (calleeUserId) {
         const { data: member } = await supabase
           .from('members')
@@ -203,59 +206,134 @@ Deno.serve(async (req) => {
         orgId = firstOrg?.org_id ?? null
       }
 
-      let itemId: string | null = null
-      let companyName: string | null = null
+      // ── ringing: INSERT（zoom_call_id付き）────────────────────────
+      if (eventType === INBOUND_RINGING) {
+        let itemId: string | null = null
+        let companyName: string | null = null
 
-      if (callerNumber) {
-        // 着信側も phone / sub_phone_number / keyman_mobile の 3 列で照合
-        const variants = Array.from(new Set([
-          callerNumber,
-          `0${callerNumber}`,
-          `+81${callerNumber.replace(/^0/, '')}`,
-        ].filter(Boolean)))
-        const orClause = variants.flatMap(v => [
-          `phone.eq.${v}`,
-          `sub_phone_number.eq.${v}`,
-          `keyman_mobile.eq.${v}`,
-        ]).join(',')
-        const { data: items } = await supabase
-          .from('call_list_items')
-          .select('id, company, phone, sub_phone_number, keyman_mobile')
-          .or(orClause)
-          .limit(1)
+        if (callerNumber) {
+          // 着信側も phone / sub_phone_number / keyman_mobile の 3 列で照合
+          const variants = Array.from(new Set([
+            callerNumber,
+            `0${callerNumber}`,
+            `+81${callerNumber.replace(/^0/, '')}`,
+          ].filter(Boolean)))
+          const orClause = variants.flatMap(v => [
+            `phone.eq.${v}`,
+            `sub_phone_number.eq.${v}`,
+            `keyman_mobile.eq.${v}`,
+          ]).join(',')
+          const { data: items } = await supabase
+            .from('call_list_items')
+            .select('id, company, phone, sub_phone_number, keyman_mobile')
+            .or(orClause)
+            .limit(1)
 
-        if (items && items.length > 0) {
-          itemId = items[0].id
-          companyName = items[0].company ?? null
+          if (items && items.length > 0) {
+            itemId = items[0].id
+            companyName = items[0].company ?? null
+          } else {
+            // Phase B fallback: active_calls の発信履歴（最近 60 日）から
+            // 同じ番号にかけた callee_name を引いて、call_list_items で会社名一致を探す。
+            // 見つかったら keyman_mobile に逆書き戻し（learn-once）。
+            const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()
+            const acVariants = variants.flatMap(v => [v, `+81${v.replace(/^0/, '')}`])
+            const acOr = acVariants.map(v => `callee_number.eq.${v}`).join(',')
+            const { data: pastCalls } = await supabase
+              .from('active_calls')
+              .select('callee_name, callee_number, started_at')
+              .eq('org_id', orgId)
+              .eq('direction', 'outbound')
+              .gte('started_at', sixtyDaysAgo)
+              .not('callee_name', 'is', null)
+              .or(acOr)
+              .order('started_at', { ascending: false })
+              .limit(5)
+
+            const guessName = (pastCalls || []).find(p => p.callee_name)?.callee_name
+            if (guessName) {
+              const { data: matched } = await supabase
+                .from('call_list_items')
+                .select('id, company')
+                .eq('org_id', orgId)
+                .eq('company', guessName)
+                .order('created_at', { ascending: false })
+                .limit(1)
+              if (matched && matched.length > 0) {
+                itemId = matched[0].id
+                companyName = matched[0].company
+                // 学習: この番号を keyman_mobile に保存（既に値がある場合は上書きしない）
+                await supabase
+                  .from('call_list_items')
+                  .update({ keyman_mobile: rawNumber || callerNumber })
+                  .eq('id', itemId)
+                  .is('keyman_mobile', null)
+                console.log('[receive-zoom-webhook] 着信 fallback 紐づけ＋学習:', companyName, '←', rawNumber)
+              }
+            }
+          }
         }
-      }
-      // 未紐づけでも incoming_calls には記録する（後で UI から手動リンク可能）
 
-      const { error: insertError } = await supabase
-        .from('incoming_calls')
-        .insert({
-          org_id: orgId,
-          caller_number: rawNumber || null,
-          caller_name: callerNameIncoming || null,
-          item_id: itemId,
-          company_name: companyName,
-          received_at: new Date().toISOString(),
-          status: '未対応',
-        })
+        const { error: insertError } = await supabase
+          .from('incoming_calls')
+          .insert({
+            org_id: orgId,
+            zoom_call_id: callId || null,
+            caller_number: rawNumber || null,
+            caller_name: callerNameIncoming || null,
+            answered_by_zoom_user_id: calleeUserId || null,
+            item_id: itemId,
+            company_name: companyName,
+            received_at: new Date().toISOString(),
+            status: '未対応',
+          })
 
-      if (insertError) {
-        console.error('[receive-zoom-webhook] insert error:', insertError.message)
+        if (insertError) {
+          console.error('[receive-zoom-webhook] incoming insert error:', insertError.message)
+          return new Response(
+            JSON.stringify({ ok: false, error: insertError.message }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        console.log('[receive-zoom-webhook] 着信登録完了 | caller:', rawNumber, '| company:', companyName, '| callId:', callId)
         return new Response(
-          JSON.stringify({ ok: false, error: insertError.message }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ ok: true, callerNumber: rawNumber, companyName, itemId, callId }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
-      console.log('[receive-zoom-webhook] 着信登録完了 | caller:', rawNumber, '| company:', companyName)
-      return new Response(
-        JSON.stringify({ ok: true, callerNumber: rawNumber, companyName, itemId }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      // ── connected / answered: 応答時刻を記録（任意：incoming_calls に answered_at がないので duration 計算用に使う）
+      // ── ended: 終了時刻と duration を更新
+      if (eventType === INBOUND_ENDED) {
+        if (!callId) {
+          return new Response(JSON.stringify({ ok: true, skipped: 'no call_id' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+        // 該当 incoming_calls 行を取得して duration を計算
+        const { data: row } = await supabase
+          .from('incoming_calls')
+          .select('id, received_at')
+          .eq('zoom_call_id', callId)
+          .limit(1)
+          .single()
+        if (row) {
+          const endedAt = new Date()
+          const startedAt = row.received_at ? new Date(row.received_at) : null
+          const duration = startedAt ? Math.max(0, Math.round((endedAt.getTime() - startedAt.getTime()) / 1000)) : null
+          await supabase
+            .from('incoming_calls')
+            .update({ ended_at: endedAt.toISOString(), duration_sec: duration })
+            .eq('id', row.id)
+          console.log('[receive-zoom-webhook] 着信終了:', callId, 'duration=', duration)
+        }
+        return new Response(JSON.stringify({ ok: true, event: eventType, callId }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+
+      // connected/answered は今のところ side effect なし（duration は ended で計算）
+      return new Response(JSON.stringify({ ok: true, event: eventType, callId, skipped: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     // ============================================================
