@@ -66,10 +66,14 @@ export default function DataTable({
   onToggleExpand,
 }) {
   const [hoverKey, setHoverKey] = useState(null);
-  const hasExpansion = typeof expandable === 'function' && typeof renderExpanded === 'function';
+  // 展開トグル列を表示するか（expandable プロップ指定時のみ）。
+  // renderExpanded だけ指定された場合はトグル列なしで body のみ描画
+  // （企業名タップ等、外部から toggle するパターンに対応）。
+  const hasExpandToggle = typeof expandable === 'function' && typeof renderExpanded === 'function';
+  const hasExpandBody = typeof renderExpanded === 'function' && expandedKeys instanceof Set;
 
   // 展開トグル列（32px固定）を columns に prepend する
-  const effectiveColumns = hasExpansion
+  const effectiveColumns = hasExpandToggle
     ? [
         {
           key: '__expand__',
@@ -219,7 +223,7 @@ export default function DataTable({
               const customBg = rowBackground ? rowBackground(row, idx) : null;
               const baseBg = customBg || (zebra && idx % 2 === 1 ? color.cream : color.white);
               const accentColor = ACCENT_COLORS[accent] || accent;
-              const isExpanded = hasExpansion && expandedKeys && expandedKeys.has(key);
+              const isExpanded = hasExpandBody && expandedKeys.has(key);
 
               return (
                 <React.Fragment key={key}>

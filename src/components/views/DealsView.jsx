@@ -145,6 +145,7 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
             engagementId={currentEngagement.id}
             client={selectedClient}
             clients={clients}
+            canEditDossier={true}
           />
         )}
       </div>

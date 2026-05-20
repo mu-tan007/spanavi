@@ -10,9 +10,9 @@ const TABS = [
 ];
 
 // クライアント向け最小 Deals ページ。client はサーバー側で RLS により制約済み。
-// isImpersonating: 代理ログイン中（MASPメンバーがクライアントとして閲覧）か。
+// canEditDossier: 代理ログイン中（MASPメンバーがクライアントとして閲覧）= true。
 // adminAccessToken: 代理ログイン中の MASP メンバー編集経路で使う admin の access_token。
-export default function ClientDealsView({ client, isImpersonating = false, adminAccessToken = null }) {
+export default function ClientDealsView({ client, canEditDossier = false, adminAccessToken = null }) {
   const [activeTab, setActiveTab] = useState('calls');
 
   // Ctrl+←/→ は事業タブ切替に統一されたため subtab 切替ショートカットは廃止
@@ -67,7 +67,7 @@ export default function ClientDealsView({ client, isImpersonating = false, admin
         {activeTab === 'appos' && (
           <AppointmentsTab
             client={{ id: client.id, name: client.name }}
-            isImpersonating={isImpersonating}
+            canEditDossier={canEditDossier}
             adminAccessToken={adminAccessToken}
           />
         )}

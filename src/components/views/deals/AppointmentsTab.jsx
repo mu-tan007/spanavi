@@ -10,7 +10,7 @@ import {
   extractRevenueFromReport, extractAddressFromReport,
 } from '../../../utils/apppoReportParse';
 import { PlayRecordingButton } from '../../common/RecordingPlayerProvider';
-import { fetchDossiersByAppointmentIds } from '../../../lib/dossierApi';
+import { fetchDossiersByAppointmentIds, invokeGenerateCompanyDossier } from '../../../lib/dossierApi';
 import CompanyDossierPanel from './CompanyDossierPanel';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
@@ -77,13 +77,16 @@ function buildWeeklyPeriods() {
   return opts;
 }
 
-export default function AppointmentsTab({ client, isImpersonating = false, adminAccessToken = null }) {
+// canEditDossier=true は MASP メンバー権限あり（管理画面 or クライアントポータル代理ログイン中）。
+// adminAccessToken は代理ログイン中の編集経路で使う admin の access_token。null なら supabase 直接書込。
+export default function AppointmentsTab({ client, canEditDossier = false, adminAccessToken = null }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(null);
   const [extraByName, setExtraByName] = useState({});
   const [dossiersById, setDossiersById] = useState({});
   const [expandedIds, setExpandedIds] = useState(() => new Set());
+  const [kickingoffIds, setKickingoffIds] = useState(() => new Set());
 
   const [periodMode, setPeriodMode] = useState('total');
   const monthlyOpts = useMemo(buildMonthlyPeriods, []);
@@ -187,6 +190,27 @@ export default function AppointmentsTab({ client, isImpersonating = false, admin
       if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
+  };
+
+  // 「企業ドシェ作成」ボタン押下 → Edge Function キック + ローカル状態を running に即時反映
+  const handleKickoffDossier = async (row) => {
+    if (!row?.id || kickingoffIds.has(row.id)) return;
+    setKickingoffIds(prev => { const n = new Set(prev); n.add(row.id); return n; });
+    // 楽観更新: 即 running 状態を見せる（Realtime 反映までの空白を埋める）
+    setDossiersById(prev => ({
+      ...prev,
+      [row.id]: { ...(prev[row.id] || {}), appointment_id: row.id, generation_status: 'running' },
+    }));
+    try {
+      await invokeGenerateCompanyDossier({ appointment_id: row.id, org_id: orgId });
+    } catch (e) {
+      console.warn('[AppointmentsTab] dossier kickoff failed:', e);
+    } finally {
+      // ボタン disable 解除は数秒後（Realtime で running→succeeded を拾うまでの繋ぎ）
+      setTimeout(() => {
+        setKickingoffIds(prev => { const n = new Set(prev); n.delete(row.id); return n; });
+      }, 2000);
+    }
   };
 
   const enriched = useMemo(() => {
@@ -378,9 +402,38 @@ export default function AppointmentsTab({ client, isImpersonating = false, admin
       <SectionCard title="アポ一覧">
         <DataTable
           columns={[
-            { key: 'company_name', label: '企業名', width: 220, align: 'left',
+            { key: 'company_name', label: '企業名', width: 240, align: 'left',
               cellStyle: { fontWeight: font.weight.medium, color: color.navy, whiteSpace: 'normal' },
-              render: r => r.company_name || '—' },
+              render: r => {
+                const isOpen = expandedIds.has(r.id);
+                return (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={isOpen}
+                    onClick={(e) => { e.stopPropagation(); toggleExpand(r.id); }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault(); e.stopPropagation(); toggleExpand(r.id);
+                      }
+                    }}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      cursor: 'pointer', color: color.navy,
+                      borderBottom: '1px dashed ' + alpha(color.navy, 0.35),
+                      paddingBottom: 1,
+                    }}
+                  >
+                    <span style={{
+                      fontSize: 9, color: color.textMid,
+                      transition: 'transform 0.15s ease',
+                      transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                      display: 'inline-block', width: 8,
+                    }}>▶</span>
+                    {r.company_name || '—'}
+                  </span>
+                );
+              } },
             { key: 'business', label: '業種', width: 240, align: 'left',
               cellStyle: { color: color.textMid, whiteSpace: 'normal' },
               render: r => r.item?.business || '—' },
@@ -395,10 +448,10 @@ export default function AppointmentsTab({ client, isImpersonating = false, admin
                 const variant = r.status === 'キャンセル' ? 'danger' : r.status === 'リスケ中' ? 'warn' : r.status === '面談済' ? 'success' : 'primary';
                 return r.status ? <Badge variant={variant} dot size="sm">{r.status}</Badge> : '—';
               } },
-            { key: 'intent', label: 'キーマンのM&A意向', width: 160, align: 'center',
+            { key: 'intent', label: 'キーマンのM&A意向', width: 150, align: 'center',
               cellStyle: { overflow: 'visible', whiteSpace: 'nowrap' },
               render: r => (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                      onClick={e => e.stopPropagation()}>
                   <Select
                     size="sm"
@@ -411,12 +464,10 @@ export default function AppointmentsTab({ client, isImpersonating = false, admin
                       ...CEO_INTENT_OPTIONS.map(o => ({ value: o.value, label: o.label })),
                     ]}
                   />
-                  {r.intent_is_derived && (
-                    <span title="議事録から自動推定" style={{ fontSize: 9, color: color.textLight }}>AI</span>
-                  )}
                 </div>
               ) },
-            { key: 'recording', label: '録音', width: 80, align: 'center',
+            { key: 'recording', label: '録音', width: 110, align: 'center',
+              cellStyle: { padding: '8px 12px' },
               render: r => r.recording_url ? (
                 <span onClick={e => e.stopPropagation()}>
                   <PlayRecordingButton
@@ -426,6 +477,29 @@ export default function AppointmentsTab({ client, isImpersonating = false, admin
                   />
                 </span>
               ) : <span style={{ fontSize: 10, color: color.textLight }}>—</span> },
+            ...(canEditDossier ? [{
+              key: 'dossier', label: '企業ドシェ', width: 120, align: 'center',
+              cellStyle: { overflow: 'visible' },
+              render: r => {
+                const d = dossiersById[r.id];
+                const status = d?.generation_status;
+                const isRunning = status === 'running' || status === 'queued';
+                const isKicking = kickingoffIds.has(r.id);
+                const exists = !!d;
+                const label = isRunning ? '生成中…' : exists ? '再生成' : 'ドシェ作成';
+                return (
+                  <span onClick={e => e.stopPropagation()}>
+                    <Button
+                      size="sm"
+                      variant={exists ? 'outline' : 'primary'}
+                      disabled={isRunning || isKicking}
+                      loading={isKicking}
+                      onClick={() => handleKickoffDossier(r)}
+                    >{label}</Button>
+                  </span>
+                );
+              },
+            }] : []),
           ]}
           rows={enriched}
           rowKey="id"
@@ -433,14 +507,12 @@ export default function AppointmentsTab({ client, isImpersonating = false, admin
           emptyMessage="該当するアポイントがありません"
           height="auto"
           rowAccent={r => r.status === 'キャンセル' ? 'danger' : r.status === 'リスケ中' ? 'warn' : null}
-          expandable={() => true}
           expandedKeys={expandedIds}
-          onToggleExpand={toggleExpand}
           renderExpanded={r => (
             <CompanyDossierPanel
               appointment={r}
               initialDossier={dossiersById[r.id] || null}
-              isImpersonating={isImpersonating}
+              canEditDossier={canEditDossier}
               adminAccessToken={adminAccessToken}
             />
           )}

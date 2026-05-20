@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { color, space, radius, font, alpha } from '../../../constants/design';
 import { Button, Badge } from '../../ui';
+import { supabase } from '../../../lib/supabase';
 import {
   fetchDossierByAppointment,
   invokeGenerateCompanyDossier,
@@ -44,15 +45,18 @@ function fmtJp(iso) {
   } catch { return '—'; }
 }
 
+// canEditDossier=true は MASP メンバー権限あり（管理画面 or クライアントポータル代理ログイン中）。
+// adminAccessToken は代理ログイン中の編集経路で使う admin の access_token。
+//   - あり: update-company-dossier Edge Function 経由（admin token 検証 + service_role 書込）
+//   - なし: supabase 直接 update（RLS でメンバー権限チェック）
 export default function CompanyDossierPanel({
   appointment,
   initialDossier = null,
-  isImpersonating = false,
+  canEditDossier = false,
   adminAccessToken = null,
 }) {
   const [dossier, setDossier] = useState(initialDossier);
   const [loading, setLoading] = useState(!initialDossier);
-  const [kickingoff, setKickingoff] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingKey, setEditingKey] = useState(null);
   const [editingDraft, setEditingDraft] = useState('');
@@ -61,6 +65,23 @@ export default function CompanyDossierPanel({
   const [errorMsg, setErrorMsg] = useState('');
 
   const appointmentId = appointment?.id;
+
+  // 編集 API: adminAccessToken があれば Edge Function、なければ supabase 直接
+  const writeDossier = async (payload) => {
+    if (adminAccessToken) {
+      return invokeUpdateCompanyDossier({ dossier_id: dossier.id, ...payload }, adminAccessToken);
+    }
+    const updatePayload = {
+      edited_at: new Date().toISOString(),
+    };
+    if (payload.content !== undefined) updatePayload.content = payload.content;
+    if (payload.free_notes !== undefined) updatePayload.free_notes = payload.free_notes;
+    const { error } = await supabase
+      .from('company_dossiers')
+      .update(updatePayload)
+      .eq('id', dossier.id);
+    return { data: error ? null : { success: true }, error };
+  };
 
   // 初期取得（initialDossier が無いとき）
   useEffect(() => {
@@ -84,37 +105,8 @@ export default function CompanyDossierPanel({
     return unsub;
   }, [appointmentId]);
 
-  const handleGenerate = async () => {
-    if (!appointmentId || kickingoff) return;
-    setKickingoff(true);
-    setErrorMsg('');
-    const { error } = await invokeGenerateCompanyDossier({
-      appointment_id: appointmentId,
-      org_id: appointment?.org_id,
-    });
-    if (error) setErrorMsg(error.message || '生成リクエストに失敗しました');
-    // Realtime で status 遷移を拾うので、ここでは何もしない
-    setTimeout(() => setKickingoff(false), 1500);
-  };
-
-  const handleRegenerate = async () => {
-    if (!dossier?.id) return handleGenerate();
-    if (!isImpersonating || !adminAccessToken) {
-      // 代理ログインしていない場合は generate を直接叩く
-      return handleGenerate();
-    }
-    setKickingoff(true);
-    setErrorMsg('');
-    const { error } = await invokeUpdateCompanyDossier(
-      { dossier_id: dossier.id, regenerate: true },
-      adminAccessToken,
-    );
-    if (error) setErrorMsg(error.message || '再生成リクエストに失敗しました');
-    setTimeout(() => setKickingoff(false), 1500);
-  };
-
   const startEdit = (sectionKey) => {
-    if (!isImpersonating) return;
+    if (!canEditDossier) return;
     setEditingKey(sectionKey);
     const val = dossier?.content?.[sectionKey];
     setEditingDraft(typeof val === 'string' ? val : JSON.stringify(val ?? '', null, 2));
@@ -126,7 +118,7 @@ export default function CompanyDossierPanel({
   };
 
   const saveEdit = async () => {
-    if (!dossier?.id || !editingKey || !adminAccessToken) return;
+    if (!dossier?.id || !editingKey || !canEditDossier) return;
     setSaving(true);
     setErrorMsg('');
     // 文字列セクションは string、それ以外は JSON parse 試行
@@ -138,33 +130,27 @@ export default function CompanyDossierPanel({
       catch (e) { setErrorMsg('JSONとして解釈できませんでした: ' + e.message); setSaving(false); return; }
     }
     const nextContent = { ...(dossier.content || {}), [editingKey]: nextVal };
-    const { data, error } = await invokeUpdateCompanyDossier(
-      { dossier_id: dossier.id, content: nextContent },
-      adminAccessToken,
-    );
+    const { error } = await writeDossier({ content: nextContent });
     if (error) {
       setErrorMsg(error.message || '保存に失敗しました');
     } else {
-      setDossier(prev => ({ ...prev, content: nextContent, edited_at: new Date().toISOString(), edited_by: data?.edited_by || prev.edited_by }));
+      setDossier(prev => ({ ...prev, content: nextContent, edited_at: new Date().toISOString() }));
       cancelEdit();
     }
     setSaving(false);
   };
 
   const startEditFreeNotes = () => {
-    if (!isImpersonating) return;
+    if (!canEditDossier) return;
     setEditingFreeNotes(true);
     setFreeNotesDraft(dossier?.free_notes || '');
   };
 
   const saveFreeNotes = async () => {
-    if (!dossier?.id || !adminAccessToken) return;
+    if (!dossier?.id || !canEditDossier) return;
     setSaving(true);
     setErrorMsg('');
-    const { error } = await invokeUpdateCompanyDossier(
-      { dossier_id: dossier.id, free_notes: freeNotesDraft },
-      adminAccessToken,
-    );
+    const { error } = await writeDossier({ free_notes: freeNotesDraft });
     if (error) {
       setErrorMsg(error.message || '保存に失敗しました');
     } else {
@@ -183,19 +169,16 @@ export default function CompanyDossierPanel({
     return <div style={panelStyle}><div style={{ color: color.textMid, fontSize: font.size.sm }}>読み込み中...</div></div>;
   }
 
-  // 未生成
+  // 未生成（クライアントポータルでも管理画面でも、未生成時はメッセージのみ。
+  // 生成ボタンは AppointmentsTab 行内の「企業ドシェ作成」列に集約済）
   if (!dossier) {
     return (
       <div style={panelStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[2] }}>
-          <div style={{ fontSize: font.size.sm, color: color.textMid }}>
-            この企業のドシエはまだ生成されていません
-          </div>
-          <Button size="sm" onClick={handleGenerate} disabled={kickingoff} loading={kickingoff}>
-            {kickingoff ? '生成リクエスト中...' : 'ドシエ生成'}
-          </Button>
+        <div style={{ fontSize: font.size.sm, color: color.textMid }}>
+          {canEditDossier
+            ? 'この企業のドシェはまだ生成されていません。右側の「ドシェ作成」ボタンから生成してください。'
+            : 'この企業のドシェはまだ生成されていません。'}
         </div>
-        {errorMsg && <div style={errStyle}>{errorMsg}</div>}
       </div>
     );
   }
@@ -212,7 +195,7 @@ export default function CompanyDossierPanel({
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
           <span style={{ fontSize: font.size.sm + 1, fontWeight: font.weight.semibold, color: color.navy }}>
-            企業ドシエ
+            企業ドシェ
           </span>
           <Badge variant={badgeCfg.variant} dot={badgeCfg.dot} size="sm">{STATUS_LABEL[status] || status}</Badge>
           {lowSourceCount > 0 && (
@@ -222,9 +205,6 @@ export default function CompanyDossierPanel({
         <div style={{ display: 'flex', alignItems: 'center', gap: space[3], fontSize: font.size.xs - 1, color: color.textLight }}>
           <span>生成: {fmtJp(dossier.generated_at)}</span>
           {dossier.edited_at && <span>編集: {fmtJp(dossier.edited_at)}</span>}
-          {isImpersonating && status !== 'running' && status !== 'queued' && (
-            <Button size="sm" variant="outline" onClick={handleRegenerate} disabled={kickingoff}>再生成</Button>
-          )}
         </div>
       </div>
 
@@ -253,7 +233,7 @@ export default function CompanyDossierPanel({
               editing={editingKey === key}
               draft={editingDraft}
               setDraft={setEditingDraft}
-              isImpersonating={isImpersonating}
+              canEditDossier={canEditDossier}
               onEdit={() => startEdit(key)}
               onCancel={cancelEdit}
               onSave={saveEdit}
@@ -267,7 +247,7 @@ export default function CompanyDossierPanel({
               <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>
                 MASP メモ（自由記述）
               </span>
-              {isImpersonating && !editingFreeNotes && (
+              {canEditDossier && !editingFreeNotes && (
                 <button onClick={startEditFreeNotes} style={editButtonStyle}>編集</button>
               )}
             </div>
@@ -318,12 +298,12 @@ export default function CompanyDossierPanel({
   );
 }
 
-function DossierSection({ sectionKey, label, value, editing, draft, setDraft, isImpersonating, onEdit, onCancel, onSave, saving }) {
+function DossierSection({ sectionKey, label, value, editing, draft, setDraft, canEditDossier, onEdit, onCancel, onSave, saving }) {
   return (
     <div style={sectionStyle}>
       <div style={sectionHeaderStyle}>
         <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>{label}</span>
-        {isImpersonating && !editing && (
+        {canEditDossier && !editing && (
           <button onClick={onEdit} style={editButtonStyle}>編集</button>
         )}
       </div>

@@ -202,7 +202,7 @@ export default function ClientPortalApp() {
       <main style={{ padding: space[4] }}>
         <ClientDealsView
           client={client}
-          isImpersonating={!!adminBackup}
+          canEditDossier={!!adminBackup}
           adminAccessToken={adminBackup?.access_token || null}
         />
       </main>
