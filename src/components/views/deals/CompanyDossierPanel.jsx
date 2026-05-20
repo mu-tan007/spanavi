@@ -363,12 +363,24 @@ function SectionRender({ sectionKey, value }) {
   return <pre style={{ fontSize: font.size.xs - 1, color: color.textMid, background: color.gray50, padding: space[2], borderRadius: radius.sm, overflow: 'auto' }}>{JSON.stringify(value, null, 2)}</pre>;
 }
 
+// 住所を統合: full_address があれば最優先、無ければ prefecture+city+address を連結
+function buildFullAddress(v) {
+  if (!v) return '';
+  if (v.full_address) return v.full_address;
+  const parts = [v.prefecture, v.city, v.address].filter(p => p && String(p).trim());
+  return parts.join('');
+}
+
 // ── 2. 基本情報レンダラ ──
 function BasicInfoRender({ value }) {
   // history は別扱い
   const history = Array.isArray(value.history) ? value.history : [];
   const baseEntries = BASIC_INFO_ORDER
-    .map(k => [k, value[k]])
+    .map(k => {
+      // 住所は prefecture/city/address を統合
+      if (k === 'address') return ['address', buildFullAddress(value)];
+      return [k, value[k]];
+    })
     .filter(([_, v]) => v !== null && v !== undefined && v !== '' && v !== 0);
 
   if (baseEntries.length === 0 && history.length === 0) return emptyHint();

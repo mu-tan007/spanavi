@@ -171,10 +171,12 @@ export const BASIC_INFO_LABELS = {
   remarks:              '備考',
 };
 
-// 基本情報内項目の表示順（短い項目→長文項目）
+// 基本情報内項目の表示順（短い項目→長文項目）。
+// 住所は prefecture/city/address を「address」1項目に統合表示する
+// （BasicInfoRender 側で full_address or 結合文字列を採用）
 export const BASIC_INFO_ORDER = [
   'industry_major', 'industry_sub',
-  'prefecture', 'city', 'address',
+  'address',
   'representative', 'representative_age',
   'established_year', 'employee_count',
   'revenue_k', 'ordinary_income_k', 'net_income_k', 'capital_k',
