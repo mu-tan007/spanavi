@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { updateClient, insertClient, deleteClient } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
@@ -60,11 +61,36 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     return (clientData || []).find(c => c._supaId === detailClientId) || null;
   }, [detailClientId, clientData]);
 
-  const goToDetail = (c) => { setDetailClientId(c?._supaId || null); setView('detail'); };
-  const goToList = () => { setView('list'); setDetailClientId(null); };
+  // view と clientId の同時切替は単一 setSearchParams で行う必要がある。
+  // React Router の useSearchParams は内部 ref を useEffect で遅延更新するため、
+  // useUrlState 経由で setView + setDetailClientId を連続で呼ぶと 2回目の更新が
+  // 1回目を上書きして消す（→ 顧客行クリックで詳細画面が真っ白になる事故の原因）。
+  const [, setSearchParams] = useSearchParams();
+  const goToDetail = (c) => {
+    setSearchParams(prev => {
+      const np = new URLSearchParams(prev);
+      if (c?._supaId) np.set('clientId', c._supaId); else np.delete('clientId');
+      np.set('view', 'detail');
+      return np;
+    }, { replace: true });
+  };
+  const goToList = () => {
+    setSearchParams(prev => {
+      const np = new URLSearchParams(prev);
+      np.delete('view');   // default 'list' は URL から消す
+      np.delete('clientId');
+      return np;
+    }, { replace: true });
+  };
 
-  // detailClient setter は外側で setDetailClient と呼ばれていた箇所があるので互換 setter を用意
-  const setDetailClient = (c) => setDetailClientId(c?._supaId || null);
+  // 詳細ページ表示中に編集後の値を反映するための互換 setter（view は維持）
+  const setDetailClient = (c) => {
+    setSearchParams(prev => {
+      const np = new URLSearchParams(prev);
+      if (c?._supaId) np.set('clientId', c._supaId); else np.delete('clientId');
+      return np;
+    }, { replace: true });
+  };
 
   // 状態整合性: view='detail' なのに対応する clientId が現 clientData に無い → list に戻す
   // （古い共有URL/削除済みclient/別engagementのidが URL に残っていた場合に画面が真っ白になる事故防止）
@@ -74,9 +100,13 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     if (!detailClientId) return;
     if (!clientData || clientData.length === 0) return;
     if (detailClient) return;
-    setView('list');
-    setDetailClientId(null);
-  }, [view, detailClientId, detailClient, clientData, setView, setDetailClientId]);
+    setSearchParams(prev => {
+      const np = new URLSearchParams(prev);
+      np.delete('view');
+      np.delete('clientId');
+      return np;
+    }, { replace: true });
+  }, [view, detailClientId, detailClient, clientData, setSearchParams]);
 
   const orgId = getOrgId();
   const { currentEngagement } = useEngagements();
