@@ -186,12 +186,11 @@ export const BASIC_INFO_ORDER = [
   'remarks',
 ];
 
-// MASP メモ内の項目ラベル
+// MASP メモ内の項目ラベル（「その他所感」は UI には表示しない仕様）
 export const MASP_MEMO_LABELS = {
   personality:     '社長のお人柄',
   meeting_exp:     'M&A面談経験の有無',
   future_consider: '将来的なM&A検討可否',
-  other:           'その他所感',
 };
 
-export const MASP_MEMO_ORDER = ['personality', 'meeting_exp', 'future_consider', 'other'];
+export const MASP_MEMO_ORDER = ['personality', 'meeting_exp', 'future_consider'];
