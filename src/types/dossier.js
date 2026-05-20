@@ -151,7 +151,7 @@ export const DOSSIER_SECTION_LABELS = {
 export const BASIC_INFO_LABELS = {
   industry_major:       '業界（大分類）',
   industry_sub:         '業界（細分類）',
-  business_description: '事業内容（DB登録）',
+  business_description: '事業内容',
   prefecture:           '都道府県',
   city:                 '市区郡',
   address:              '住所',
