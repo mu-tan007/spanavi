@@ -363,12 +363,25 @@ function SectionRender({ sectionKey, value }) {
   return <pre style={{ fontSize: font.size.xs - 1, color: color.textMid, background: color.gray50, padding: space[2], borderRadius: radius.sm, overflow: 'auto' }}>{JSON.stringify(value, null, 2)}</pre>;
 }
 
+// 住所文字列を整形:
+//   - 末尾の「/」（TSR 系データの建物名 separator 残り）を削除
+//   - 文字列途中の「/」は半角スペースに置換（番地と建物名の区切り）
+//     例: "丸の内1-2-3/○○ビル5F" → "丸の内1-2-3 ○○ビル5F"
+function cleanAddress(addr) {
+  if (!addr) return '';
+  return String(addr)
+    .replace(/[\/／]\s*$/, '')          // 末尾の / or ／ を削除
+    .replace(/\s*[\/／]\s*/g, ' ')      // 内部の / を半角スペースに
+    .replace(/\s+/g, ' ')               // 連続スペースを1つに
+    .trim();
+}
+
 // 住所を統合: full_address があれば最優先、無ければ prefecture+city+address を連結
 function buildFullAddress(v) {
   if (!v) return '';
-  if (v.full_address) return v.full_address;
-  const parts = [v.prefecture, v.city, v.address].filter(p => p && String(p).trim());
-  return parts.join('');
+  const raw = v.full_address
+    || [v.prefecture, v.city, v.address].filter(p => p && String(p).trim()).join('');
+  return cleanAddress(raw);
 }
 
 // ── 2. 基本情報レンダラ ──
