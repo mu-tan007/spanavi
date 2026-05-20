@@ -143,15 +143,14 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
       if (missingNames.length === 0) { setExtraByName({}); setLoading(false); return; }
 
       // fallback A: call_list_items の別行 (アーカイブ済リストも含む) で同名企業
-      // fallback B: company_master (MASP database) で同名企業
+      // fallback B: company_master (全社共通 national DB、org_id カラム無し) で同名企業
       const [cliRes, cmRes] = await Promise.all([
         supabase.from('call_list_items')
           .select('company, address, revenue')
           .eq('org_id', orgId)
           .in('company', missingNames),
         supabase.from('company_master')
-          .select('company_name, address, revenue_k')
-          .eq('org_id', orgId)
+          .select('company_name, address, full_address, revenue_k')
           .in('company_name', missingNames),
       ]);
       if (cancelled) return;
@@ -159,7 +158,8 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
       // company_master 優先度は低め (A があれば A)
       (cmRes.data || []).forEach(c => {
         if (!acc[c.company_name]) acc[c.company_name] = {};
-        if (!acc[c.company_name].address && c.address) acc[c.company_name].address = c.address;
+        const addr = c.full_address || c.address;
+        if (!acc[c.company_name].address && addr) acc[c.company_name].address = addr;
         if (!acc[c.company_name].revenue && c.revenue_k) acc[c.company_name].revenue = String(c.revenue_k);
       });
       (cliRes.data || []).forEach(c => {
@@ -501,7 +501,7 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
                 // 「成果物が存在する」とみなすのは succeeded / partial / failed のみ。
                 // queued は触ったことがある（過去にキックした）だけで成果物無し → 「ドシェ作成」のままが自然。
                 const hasResult = status === 'succeeded' || status === 'partial' || status === 'failed';
-                const label = isRunning ? '生成中…' : hasResult ? '再生成' : '作成';
+                const label = isRunning ? '生成中…' : hasResult ? '作成済み' : '作成';
                 return (
                   <span onClick={e => e.stopPropagation()}>
                     <Button

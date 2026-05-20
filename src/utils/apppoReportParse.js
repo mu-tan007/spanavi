@@ -80,9 +80,19 @@ export function extractRevenueFromReport(appoReport) {
   return sen * 1000 / 100000000; // 億円
 }
 
-// appo_report から「訪問先：XX県...」を拾って住所を取得
+// appo_report から「訪問先：XX県...」を拾って住所を取得。
+// オンライン会議（Zoom/Teams/Meet/オンライン/Web/電話/先方/弊社/当社オフィス 等）は
+// 物理住所でないため null を返す。エリア分布の「不明」増加を防ぐ。
+const ONLINE_OR_NON_ADDRESS = /^(zoom|teams|google ?meet|meet|webex|skype|オンライン|web会議|web|電話|tel|先方|相手|当社|弊社|本社|オフィス|事務所|未定|tbd|未定)/i;
+
 export function extractAddressFromReport(appoReport) {
   if (!appoReport) return null;
   const m = String(appoReport).match(/訪問先[\s:：]+([^\n]+)/);
-  return m ? m[1].trim() : null;
+  if (!m) return null;
+  const raw = m[1].trim();
+  if (!raw) return null;
+  if (ONLINE_OR_NON_ADDRESS.test(raw)) return null;
+  // 都道府県を含まない文字列は住所として弱いため null（extractPrefecture で「不明」になるだけ）
+  if (!/[都道府県]/.test(raw)) return null;
+  return raw;
 }
