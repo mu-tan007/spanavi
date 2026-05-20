@@ -10,7 +10,7 @@ import {
   extractRevenueFromReport, extractAddressFromReport,
 } from '../../../utils/apppoReportParse';
 import { PlayRecordingButton } from '../../common/RecordingPlayerProvider';
-import { fetchDossiersByAppointmentIds, invokeGenerateCompanyDossier } from '../../../lib/dossierApi';
+import { fetchDossiersByAppointmentIds, invokeGenerateCompanyDossier, subscribeDossierByAppointment } from '../../../lib/dossierApi';
 import CompanyDossierPanel from './CompanyDossierPanel';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
@@ -182,6 +182,17 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
       if (!cancelled) setDossiersById(data || {});
     });
     return () => { cancelled = true; };
+  }, [rows]);
+
+  // 各アポのドシエ状態変化を Realtime で購読（ボタン「生成中…」→「再生成」の即時反映）
+  useEffect(() => {
+    if (!rows || rows.length === 0) return;
+    const unsubs = rows.map(r => r.id).filter(Boolean).map(id =>
+      subscribeDossierByAppointment(id, (next) => {
+        setDossiersById(prev => ({ ...prev, [next.appointment_id]: { ...(prev[next.appointment_id] || {}), ...next } }));
+      })
+    );
+    return () => { unsubs.forEach(u => { try { u(); } catch (_) { /* noop */ } }); };
   }, [rows]);
 
   const toggleExpand = (key) => {

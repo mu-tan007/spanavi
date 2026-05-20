@@ -76,17 +76,30 @@ interface CompanyMasterRow {
   prefecture: string | null
   city: string | null
   address: string | null
+  full_address: string | null
   revenue_k: number | null
   net_income_k: number | null
+  ordinary_income_k: number | null
+  capital_k: number | null
   representative: string | null
-  representative_age: string | null
+  representative_age: number | null
   shareholders: string | null
   officers: string | null
-  employee_count: string | null
-  established_year: string | null
+  employee_count: number | null
+  established_year: number | null
   phone: string | null
   clients: string | null
+  suppliers: string | null
   remarks: string | null
+}
+
+// 「株式会社X」「X株式会社」「（株）X」等のプレフィックス/サフィックスを除去して core 名を返す
+function normalizeCompanyName(name: string): string {
+  return name
+    .replace(/(株式会社|有限会社|合同会社|合資会社|合名会社|相互会社|医療法人|社会福祉法人|学校法人|特定非営利活動法人|一般社団法人|公益社団法人|一般財団法人|公益財団法人|宗教法人)/g, '')
+    .replace(/[（(](株|有|合|名|資|相)[)）]/g, '')
+    .replace(/[\s　]/g, '')
+    .trim()
 }
 
 async function loadAppointmentContext(appointmentId: string): Promise<{
@@ -102,7 +115,11 @@ async function loadAppointmentContext(appointmentId: string): Promise<{
     .maybeSingle()
   if (apptErr || !appt) return null
 
-  const [itemRes, listRes, masterRes] = await Promise.all([
+  // company_master は全社共通の national DB（org_id カラム無し）。
+  // Step 1: 社名完全一致 → Step 2: 株式会社等を除去した normalized_name 一致
+  const masterColumns = 'company_name, industry_major, industry_sub, business_description, prefecture, city, address, full_address, revenue_k, net_income_k, ordinary_income_k, capital_k, representative, representative_age, shareholders, officers, employee_count, established_year, phone, clients, suppliers, remarks'
+
+  const [itemRes, listRes, masterExactRes] = await Promise.all([
     appt.item_id
       ? supabase.from('call_list_items')
           .select('company, address, phone, business, representative')
@@ -116,18 +133,32 @@ async function loadAppointmentContext(appointmentId: string): Promise<{
           .maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from('company_master')
-      .select('company_name, industry_major, industry_sub, business_description, prefecture, city, address, revenue_k, net_income_k, representative, representative_age, shareholders, officers, employee_count, established_year, phone, clients, remarks')
-      .eq('org_id', appt.org_id)
+      .select(masterColumns)
       .eq('company_name', appt.company_name)
       .limit(1)
       .maybeSingle(),
   ])
 
+  let master = (masterExactRes.data || null) as CompanyMasterRow | null
+
+  // fallback: normalized_name で一致検索（株式会社などのプレフィックス揺れ吸収）
+  if (!master) {
+    const core = normalizeCompanyName(appt.company_name)
+    if (core && core.length >= 2) {
+      const { data: fuzzyData } = await supabase.from('company_master')
+        .select(masterColumns)
+        .eq('normalized_name', core)
+        .limit(1)
+        .maybeSingle()
+      if (fuzzyData) master = fuzzyData as CompanyMasterRow
+    }
+  }
+
   return {
     appointment: appt as AppointmentRow,
     item: (itemRes.data || null) as CallListItemRow | null,
     list: (listRes.data || null) as CallListRow | null,
-    master: (masterRes.data || null) as CompanyMasterRow | null,
+    master,
   }
 }
 
@@ -156,17 +187,20 @@ function buildPrompt(args: {
 - 事業内容: ${args.master.business_description || '不明'}
 - 都道府県: ${args.master.prefecture || '不明'}
 - 市区郡: ${args.master.city || '不明'}
-- 住所: ${args.master.address || '不明'}
+- 住所: ${args.master.full_address || args.master.address || '不明'}
 - 売上高(千円): ${args.master.revenue_k ?? '不明'}
+- 経常利益(千円): ${args.master.ordinary_income_k ?? '不明'}
 - 当期純利益(千円): ${args.master.net_income_k ?? '不明'}
+- 資本金(千円): ${args.master.capital_k ?? '不明'}
 - 代表者: ${args.master.representative || '不明'}
-- 代表者年齢: ${args.master.representative_age || '不明'}
-- 設立年: ${args.master.established_year || '不明'}
-- 従業員数: ${args.master.employee_count || '不明'}
+- 代表者年齢: ${args.master.representative_age ?? '不明'}
+- 設立年: ${args.master.established_year ?? '不明'}
+- 従業員数: ${args.master.employee_count ?? '不明'}
 - 電話: ${args.master.phone || '不明'}
 - 役員: ${args.master.officers || '不明'}
 - 株主: ${args.master.shareholders || '不明'}
-- 取引先: ${args.master.clients || '不明'}
+- 主要取引先: ${args.master.clients || '不明'}
+- 仕入先: ${args.master.suppliers || '不明'}
 - 備考: ${args.master.remarks || '不明'}
 ` : ''
 
@@ -269,12 +303,12 @@ function buildInternalDb(master: CompanyMasterRow | null): Record<string, unknow
   const obj: Record<string, unknown> = {}
   const keys: (keyof CompanyMasterRow)[] = [
     'industry_major', 'industry_sub', 'business_description',
-    'prefecture', 'city', 'address',
+    'prefecture', 'city', 'address', 'full_address',
     'representative', 'representative_age',
     'established_year', 'employee_count',
-    'revenue_k', 'net_income_k',
+    'revenue_k', 'ordinary_income_k', 'net_income_k', 'capital_k',
     'phone',
-    'officers', 'shareholders', 'clients',
+    'officers', 'shareholders', 'clients', 'suppliers',
     'remarks',
   ]
   for (const k of keys) {
@@ -328,20 +362,35 @@ async function generateDossierWithClaude(prompt: string): Promise<DossierResult 
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
   if (!apiKey) return { error: 'ANTHROPIC_API_KEY not set' }
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8000,
-      messages: [{ role: 'user', content: prompt }],
-      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 6 }],
-    }),
-  })
+  // Claude API call に 120 秒タイムアウト（Edge Function Wall clock 400 秒以内に確実に収まるよう）
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 120_000)
+
+  let res: Response
+  try {
+    res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 5000,
+        messages: [{ role: 'user', content: prompt }],
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
+      }),
+      signal: controller.signal,
+    })
+  } catch (e) {
+    clearTimeout(timeoutId)
+    if ((e as Error).name === 'AbortError') {
+      return { error: 'Claude API timeout (120s exceeded)' }
+    }
+    return { error: `Claude API fetch error: ${(e as Error).message}` }
+  }
+  clearTimeout(timeoutId)
 
   if (!res.ok) {
     const errText = await res.text()
