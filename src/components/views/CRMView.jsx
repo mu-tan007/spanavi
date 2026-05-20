@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { updateClient, insertClient, deleteClient } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
@@ -63,10 +63,20 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   const goToDetail = (c) => { setDetailClientId(c?._supaId || null); setView('detail'); };
   const goToList = () => { setView('list'); setDetailClientId(null); };
 
-  // 状態整合性: view='detail' なのに clientId 不在 → list に戻す
-  // （データロード前で client が見つからないケースは clientData ロード後の再描画で復元）
   // detailClient setter は外側で setDetailClient と呼ばれていた箇所があるので互換 setter を用意
   const setDetailClient = (c) => setDetailClientId(c?._supaId || null);
+
+  // 状態整合性: view='detail' なのに対応する clientId が現 clientData に無い → list に戻す
+  // （古い共有URL/削除済みclient/別engagementのidが URL に残っていた場合に画面が真っ白になる事故防止）
+  // clientData ロード前 (length === 0) は判定保留してロード完了後に再評価
+  useEffect(() => {
+    if (view !== 'detail') return;
+    if (!detailClientId) return;
+    if (!clientData || clientData.length === 0) return;
+    if (detailClient) return;
+    setView('list');
+    setDetailClientId(null);
+  }, [view, detailClientId, detailClient, clientData, setView, setDetailClientId]);
 
   const orgId = getOrgId();
   const { currentEngagement } = useEngagements();
