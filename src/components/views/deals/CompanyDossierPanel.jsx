@@ -226,28 +226,10 @@ export default function CompanyDossierPanel({
               onCancel={cancelEdit}
               onSave={saveEdit}
               saving={saving}
+              sourceUrl={getSectionSourceUrl(key, dossier.sources)}
             />
           ))}
 
-          {/* 情報源 */}
-          {dossier.sources && dossier.sources.length > 0 && (
-            <div style={{ ...sectionStyle, borderBottom: 'none' }}>
-              <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[1.5] }}>
-                情報源
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {dossier.sources.map((s, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: space[2], fontSize: font.size.xs - 1, color: color.textMid }}>
-                    <span style={{ fontFamily: font.family.mono, color: color.textLight, minWidth: 80 }}>{s.type}</span>
-                    <a href={s.url} target="_blank" rel="noopener noreferrer" style={{ color: color.navy, textDecoration: 'underline', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.url || '(URL不明)'}</a>
-                    <Badge size="sm" variant={s.identity_match === 'high' ? 'success' : s.identity_match === 'medium' ? 'info' : 'warn'} dot>
-                      {s.identity_match}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -256,15 +238,49 @@ export default function CompanyDossierPanel({
   );
 }
 
-function DossierSection({ sectionKey, label, value, editing, draft, setDraft, canEditDossier, onEdit, onCancel, onSave, saving }) {
+// セクション key → 該当するソース URL を返す。
+// HP 由来のセクション（exec_summary / business / strengths）は type='hp' を、
+// industry_ma_news は web_search source の代表を、各セクションヘッダー右の出典リンクとして使う。
+// basic_info は社内DB由来なのでリンクなし、masp_memo はアポ取得報告由来なのでリンクなし。
+function getSectionSourceUrl(sectionKey, sources) {
+  if (!Array.isArray(sources) || sources.length === 0) return null;
+  if (['executive_summary', 'business', 'strengths'].includes(sectionKey)) {
+    const hp = sources.find(s => s.type === 'hp' && s.url);
+    return hp?.url || null;
+  }
+  if (sectionKey === 'industry_ma_news') {
+    // industry_ma_news は各アイテムに url 既設のため、ヘッダーには代表ソースを出さない
+    return null;
+  }
+  return null;
+}
+
+function DossierSection({ sectionKey, label, value, editing, draft, setDraft, canEditDossier, onEdit, onCancel, onSave, saving, sourceUrl }) {
   const stringKeys = new Set(['executive_summary']);
   return (
     <div style={sectionStyle}>
       <div style={sectionHeaderStyle}>
         <span style={{ fontSize: font.size.sm + 1, fontWeight: font.weight.semibold, color: color.navy }}>{label}</span>
-        {canEditDossier && !editing && (
-          <button onClick={onEdit} style={editButtonStyle}>編集</button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
+          {sourceUrl && (
+            <a
+              href={sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontSize: font.size.xs - 1,
+                color: color.textLight,
+                textDecoration: 'none',
+                borderBottom: `1px dotted ${color.textLight}`,
+                paddingBottom: 1,
+              }}
+              title={sourceUrl}
+            >出典 ↗</a>
+          )}
+          {canEditDossier && !editing && (
+            <button onClick={onEdit} style={editButtonStyle}>編集</button>
+          )}
+        </div>
       </div>
       {editing ? (
         <div>
