@@ -169,9 +169,9 @@ export default function CompanyDossierPanel({
     return <div style={panelStyle}><div style={{ color: color.textMid, fontSize: font.size.sm }}>読み込み中...</div></div>;
   }
 
-  // 未生成（クライアントポータルでも管理画面でも、未生成時はメッセージのみ。
-  // 生成ボタンは AppointmentsTab 行内の「企業情報作成」列に集約済）
-  if (!dossier) {
+  // 未生成（dossier 行が無い、または queued 状態＝行はあるが生成成果物がまだ無い）。
+  // 生成ボタンは AppointmentsTab 行内の「企業情報作成」列に集約済。
+  if (!dossier || dossier.generation_status === 'queued') {
     return (
       <div style={panelStyle}>
         <div style={{ fontSize: font.size.sm, color: color.textMid }}>
@@ -208,8 +208,8 @@ export default function CompanyDossierPanel({
         </div>
       </div>
 
-      {/* 生成中 / 失敗時 */}
-      {(status === 'running' || status === 'queued') && (
+      {/* 生成中 */}
+      {status === 'running' && (
         <div style={{ padding: space[4], textAlign: 'center', color: color.textMid, fontSize: font.size.sm }}>
           生成中... HP取得・公開情報収集・構造化（約30〜90秒）
         </div>

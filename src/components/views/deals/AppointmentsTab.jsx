@@ -494,15 +494,19 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
               render: r => {
                 const d = dossiersById[r.id];
                 const status = d?.generation_status;
-                const isRunning = status === 'running' || status === 'queued';
+                // queued は「未生成」相当でボタン押下可能（手動で running に上書きする想定）。
+                // running のみが「実行中」で disable 対象。
+                const isRunning = status === 'running';
                 const isKicking = kickingoffIds.has(r.id);
-                const exists = !!d;
-                const label = isRunning ? '生成中…' : exists ? '再生成' : '作成';
+                // 「成果物が存在する」とみなすのは succeeded / partial / failed のみ。
+                // queued は触ったことがある（過去にキックした）だけで成果物無し → 「ドシェ作成」のままが自然。
+                const hasResult = status === 'succeeded' || status === 'partial' || status === 'failed';
+                const label = isRunning ? '生成中…' : hasResult ? '再生成' : '作成';
                 return (
                   <span onClick={e => e.stopPropagation()}>
                     <Button
                       size="sm"
-                      variant={exists ? 'outline' : 'primary'}
+                      variant={hasResult ? 'outline' : 'primary'}
                       disabled={isRunning || isKicking}
                       loading={isKicking}
                       onClick={() => handleKickoffDossier(r)}
