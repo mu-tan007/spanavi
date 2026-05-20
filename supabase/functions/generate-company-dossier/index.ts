@@ -47,6 +47,30 @@ function extractRepresentativeFromAppoReport(text: string | null): string | null
   return m ? m[1].trim() : null
 }
 
+// appo_report テキストから MASP メモ4項目を抽出（先方のお人柄／面談経験／将来検討／その他）。
+// 旧フォーマット「先方の温度感→...」にも後方互換でマッチ。
+function extractMaspMemoFromAppoReport(text: string | null): {
+  personality?: string
+  meeting_exp?: string
+  future_consider?: string
+  other?: string
+} {
+  if (!text) return {}
+  const result: { personality?: string; meeting_exp?: string; future_consider?: string; other?: string } = {}
+  // 各行は「　・<項目>→<内容>」形式（先頭は全角スペース）。
+  const grab = (re: RegExp): string | undefined => {
+    const m = text.match(re)
+    if (!m) return undefined
+    const v = m[1].trim()
+    return v && v !== '確認できず' ? v : undefined
+  }
+  result.personality      = grab(/[　\s]*・\s*(?:先方のお人柄|先方の温度感)\s*[→:：]\s*([^\n]+)/)
+  result.meeting_exp      = grab(/[　\s]*・\s*面談経験の有無\s*[→:：]\s*([^\n]+)/)
+  result.future_consider  = grab(/[　\s]*・\s*将来的な検討可否\s*[→:：]\s*([^\n]+)/)
+  result.other            = grab(/[　\s]*・\s*その他\s*[→:：]\s*([^\n]+)/)
+  return result
+}
+
 interface AppointmentRow {
   id: string
   org_id: string
@@ -213,8 +237,10 @@ ${args.hpPages.map(p => `=== ${p.url} ===\n${p.text}`).join('\n\n')}
 【対象企業HP】未指定（web_search ツールで企業を特定すること）
 `
 
+  const industryHint = args.master?.industry_major || args.master?.industry_sub || '対象企業の属する業界'
+
   return `あなたは M&A アドバイザリーのアナリストです。
-クライアントへ提示する「企業情報」を、以下の対象企業について構造化して作成してください。
+クライアントへ提示する「企業情報レポート」を、以下の対象企業について構造化して作成してください。
 
 【出力フォーマット規約（絶対厳守）】
 - 出力は純粋な JSON 1 オブジェクトのみ。
@@ -235,60 +261,71 @@ ${identityBlock}
 ${masterBlock}
 ${hpBlock}
 
+【セクション構成（重複排除のため厳守）】
+本レポートは以下 6 セクションのみを生成する（MASPメモと基本情報の社内DB部分は別途UIで生成・表示）：
+
+1. executive_summary  : 「何をやっている会社か」を 1-3 文・80-150 文字で簡潔に。冗長な前置き禁止
+2. business           : 事業セグメント別の説明（箇条書き string[]、各 1-2 文、最大 6 件）
+3. strengths          : 特徴や強み・差別化要素（箇条書き string[]、各 1-2 文、最大 5 件）
+4. market_trend       : ${industryHint}全体の市場動向（200-400 文字）。M&A 文脈で読み解く視点
+                        （業界再編トレンド、需要動向、規制環境、後継者問題、買い手心理 等）
+5. industry_ma_news   : 同業界（${industryHint}）の M&A 関連ニュース最大 5 件
+                        [{date, title, url, summary, source, deal_type}]
+                        deal_type は 'M&A' | 'TOB' | '資本業務提携' | '事業譲渡' | '子会社化' 等
+6. history            : 対象企業の沿革（[{year, event}] 形式、最大 8 件）。basic_info セクション内に配置
+
+【絶対に出力しない項目（重複排除）】
+- 会社の住所・代表者・売上・利益・資本金・従業員数・設立年・電話番号・株主・役員・取引先・仕入先
+  → 社内DB（basic_info）で別途表示するため content には含めない
+- 個別企業のプレスリリース・ニュース
+  → 業界 M&A ニュース (industry_ma_news) に集約。個社レベルのプレス羅列は不要
+- 「会社概要」と称する長文段落
+  → executive_summary を超えない短文1個のみ
+
 【作成ルール】
 1. 公開情報のみを使用（HP本文 + web_search ツール）
 2. web_search ツールは以下の目的で使用：
-   - HP本文に無い経営陣・沿革情報の補完
-   - 直近1年のプレスリリース取得（site:prtimes.jp や @Press 系）
-   - 直近のニュース・受賞・新製品リリース（業界メディア）
+   - 業界の M&A 案件・市場動向の取得（site:prtimes.jp / site:nikkei.com / site:ma-cp.com 等）
+   - 業界レポート・統計の取得
+   - 対象企業の沿革・事業セグメントの補完
 3. 各情報源について identity_match (high/medium/low) を判定
-   - high:   社名・代表者・住所いずれも一致確認できた
-   - medium: 社名 + 1点が一致、もう1点は記載なし
-   - low:    社名のみ一致、または同定不能（採用しない方が安全だが参考として記載可）
-4. 社内DB情報（業界分類・株主・役員・取引先・備考等）は別途 UI に直接表示されるので、
-   content には含めず外部情報の補完に専念せよ（business_segments / history / leadership /
-   financials / press_releases / news / key_topics / mna_relevance / overview）
+   - industry_ma_news は同業界の他社 M&A 案件なので、identity_match='medium' 想定
+     （対象企業そのもののニュースではないため high はつけない）
 
 【出力フォーマット（必ずこのJSONのみ、他テキスト一切なし）】
 {
   "content": {
-    "overview": "会社概要を 200-400 文字で。創業の経緯、現在の規模感、主要事業、業界内のポジション、特徴を含める",
-    "business_segments": ["セグメント1: 内容簡潔に", "セグメント2: ..."],
+    "executive_summary": "東京都内に本社を構えるパン製造小売企業。スクラッチ製法のベーカリーを多店舗展開し、フランチャイズ・海外進出も推進。",
+    "business": [
+      "ベーカリー直営事業: 石窯パン工房「○○」を本州中心に12店舗展開",
+      "FC事業: 2017年開始、関東圏で5店舗。マスターFC契約も保有",
+      "海外事業: 2024年インドネシア・バリ島に進出"
+    ],
+    "strengths": [
+      "スクラッチ製法による120種類以上のパン品揃え",
+      "セレクトショップ型コンセプトによる差別化",
+      "サンマルクとのマスターFC契約による全国展開基盤"
+    ],
+    "market_trend": "国内ベーカリー市場は人件費・原材料費高騰で利益率が圧迫されている一方、こだわり系・地域密着型ブランドへの選好は強い…（200-400文字）",
+    "industry_ma_news": [
+      {"date": "2026-04-15", "title": "○○製パンが△△ベーカリーを買収", "url": "...", "summary": "...", "source": "M&A Capital Partners", "deal_type": "M&A"}
+    ],
     "history": [
-      {"year": "1985", "event": "設立"},
-      {"year": "2010", "event": "..."}
-    ],
-    "leadership": [
-      {"role": "代表取締役社長", "name": "..."},
-      {"role": "取締役CFO", "name": "..."}
-    ],
-    "financials": {
-      "revenue": "5.0億円(2025年3月期) など",
-      "employees": "120名 など",
-      "established": "1985年4月 など",
-      "capital": "5,000万円 など"
-    },
-    "press_releases": [
-      {"date": "2026-04-15", "title": "...", "url": "...", "summary": "1-2文"}
-    ],
-    "news": [
-      {"date": "2026-03-10", "title": "...", "url": "...", "summary": "1-2文", "source": "日経新聞 等"}
-    ],
-    "key_topics": ["後継者問題への言及", "DX推進", "海外展開"],
-    "mna_relevance": "M&Aアドバイザーとして本企業を見たときの所感を 150-300 文字で。事業承継ニーズ、財務状況、業界再編トレンド等"
+      {"year": "2013", "event": "株式会社○○設立、代表取締役 ○○"},
+      {"year": "2014", "event": "本庄本店オープン"}
+    ]
   },
   "sources": [
     {"type": "hp",         "url": "...", "identity_match": "high"},
-    {"type": "web_search", "url": "https://prtimes.jp/...", "identity_match": "high"}
+    {"type": "web_search", "url": "https://prtimes.jp/...", "identity_match": "medium"}
   ]
 }
 
 【出力の厳守事項】
-- 情報が無い項目は空配列・空文字・null として返す（捏造禁止）
-- JSON 以外のテキスト（説明文・前置き・末尾コメント・コードフェンス）は一切出力しないこと
-- url 不明の press_releases/news は url を空文字にする
-- press_releases / news は最大 5 件ずつ
-- 採用しなかった候補に関する注釈も出力に含めない（identity_match で表現する）`
+- 情報が無いセクションは空配列・空文字として返す（捏造禁止）
+- JSON 以外のテキストは一切出力しない
+- url 不明の industry_ma_news は url を空文字にする
+- 採用しなかった候補に関する注釈は出力に含めない（identity_match で表現する）`
 }
 
 interface DossierResult {
@@ -458,18 +495,43 @@ async function runDossierGeneration(appointmentId: string, providedHpUrl: string
     targetCompany, targetRep, targetAddress, master, hpUrl, hpPages,
   })
 
-  // 社内DB情報を Edge Function 側で構築（Claude を介さず確実に表示）
+  // 社内DB情報（basic_info の生データ部分）と MASP メモ（アポ報告から自動抽出）を
+  // Edge Function 側で構築（Claude を介さず確実に表示）
   const internalDb = buildInternalDb(master)
+  const maspMemo = extractMaspMemoFromAppoReport(appointment.appo_report)
 
   const result = await generateDossierWithClaude(prompt)
 
+  // 新7セクション構成への content マージヘルパー
+  //   - Claude の出力 history は basic_info.history にネストする
+  //   - basic_info = internal_db（社内DB生データ） + history
+  //   - masp_memo は appo_report から抽出した4項目
+  const mergeContent = (claudeContent: Record<string, unknown> | null): Record<string, unknown> => {
+    const c = claudeContent || {}
+    const history = Array.isArray(c.history) ? c.history : []
+    const basicInfo: Record<string, unknown> = { ...(internalDb || {}) }
+    if (history.length > 0) basicInfo.history = history
+
+    const merged: Record<string, unknown> = {
+      executive_summary: c.executive_summary || '',
+      basic_info: basicInfo,
+      business: Array.isArray(c.business) ? c.business : [],
+      strengths: Array.isArray(c.strengths) ? c.strengths : [],
+      market_trend: c.market_trend || '',
+      industry_ma_news: Array.isArray(c.industry_ma_news) ? c.industry_ma_news : [],
+      masp_memo: maspMemo,
+    }
+    return merged
+  }
+
   if ('error' in result) {
-    // Claude が失敗しても internal_db だけは保存し、partial として表示できるようにする
-    if (internalDb) {
+    // Claude が失敗しても basic_info（社内DB）と masp_memo（アポ報告抽出）だけは保存し partial として表示
+    const partialContent = mergeContent(null)
+    if (internalDb || Object.keys(maspMemo).length > 0) {
       await supabase
         .from('company_dossiers')
         .update({
-          content: { internal_db: internalDb },
+          content: partialContent,
           generation_status: 'partial',
           generation_error: result.error.slice(0, 1000),
           generated_at: new Date().toISOString(),
@@ -488,9 +550,7 @@ async function runDossierGeneration(appointmentId: string, providedHpUrl: string
     return
   }
 
-  // Claude content に internal_db をマージ（Edge Function 側で構築した生データ）
-  const mergedContent: Record<string, unknown> = { ...result.content }
-  if (internalDb) mergedContent.internal_db = internalDb
+  const mergedContent = mergeContent(result.content)
 
   // HP 取得失敗 + sources が空 → partial
   const noHpData = !hpUrl || hpPages.length === 0

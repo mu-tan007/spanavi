@@ -8,11 +8,25 @@ import {
   invokeUpdateCompanyDossier,
   subscribeDossierByAppointment,
 } from '../../../lib/dossierApi';
-import { DOSSIER_SECTION_KEYS, DOSSIER_SECTION_LABELS, INTERNAL_DB_LABELS, INTERNAL_DB_ORDER } from '../../../types/dossier';
+import {
+  DOSSIER_SECTION_KEYS,
+  DOSSIER_SECTION_LABELS,
+  BASIC_INFO_LABELS,
+  BASIC_INFO_ORDER,
+  MASP_MEMO_LABELS,
+  MASP_MEMO_ORDER,
+} from '../../../types/dossier';
 
 // =====================================================================
 // CompanyDossierPanel
-//   AppointmentsTab の行展開エリア内で表示する企業ドシエパネル。
+//   AppointmentsTab の行展開エリア内で表示する企業情報パネル（7セクション）。
+//   1. Executive Summary
+//   2. 基本情報（沿革内包）
+//   3. 事業内容
+//   4. 特徴・強み
+//   5. 市場動向
+//   6. 同業界のM&Aニュース
+//   7. MASPメモ（アポ取得報告から自動抽出）
 //   閲覧（クライアント）/ 編集（MASP代理ログイン中）を両立。
 // =====================================================================
 
@@ -60,8 +74,6 @@ export default function CompanyDossierPanel({
   const [saving, setSaving] = useState(false);
   const [editingKey, setEditingKey] = useState(null);
   const [editingDraft, setEditingDraft] = useState('');
-  const [editingFreeNotes, setEditingFreeNotes] = useState(false);
-  const [freeNotesDraft, setFreeNotesDraft] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   const appointmentId = appointment?.id;
@@ -71,9 +83,7 @@ export default function CompanyDossierPanel({
     if (adminAccessToken) {
       return invokeUpdateCompanyDossier({ dossier_id: dossier.id, ...payload }, adminAccessToken);
     }
-    const updatePayload = {
-      edited_at: new Date().toISOString(),
-    };
+    const updatePayload = { edited_at: new Date().toISOString() };
     if (payload.content !== undefined) updatePayload.content = payload.content;
     if (payload.free_notes !== undefined) updatePayload.free_notes = payload.free_notes;
     const { error } = await supabase
@@ -83,7 +93,7 @@ export default function CompanyDossierPanel({
     return { data: error ? null : { success: true }, error };
   };
 
-  // 初期取得（initialDossier が無いとき）
+  // 初期取得
   useEffect(() => {
     if (!appointmentId || initialDossier) return;
     let cancelled = false;
@@ -96,7 +106,7 @@ export default function CompanyDossierPanel({
     return () => { cancelled = true; };
   }, [appointmentId, initialDossier]);
 
-  // Realtime: 生成中なら status 遷移を監視
+  // Realtime
   useEffect(() => {
     if (!appointmentId) return;
     const unsub = subscribeDossierByAppointment(appointmentId, (next) => {
@@ -121,9 +131,10 @@ export default function CompanyDossierPanel({
     if (!dossier?.id || !editingKey || !canEditDossier) return;
     setSaving(true);
     setErrorMsg('');
-    // 文字列セクションは string、それ以外は JSON parse 試行
+    // 文字列セクションは string、それ以外は JSON parse
+    const stringKeys = new Set(['executive_summary', 'market_trend']);
     let nextVal;
-    if (['overview', 'mna_relevance'].includes(editingKey)) {
+    if (stringKeys.has(editingKey)) {
       nextVal = editingDraft;
     } else {
       try { nextVal = JSON.parse(editingDraft); }
@@ -140,26 +151,6 @@ export default function CompanyDossierPanel({
     setSaving(false);
   };
 
-  const startEditFreeNotes = () => {
-    if (!canEditDossier) return;
-    setEditingFreeNotes(true);
-    setFreeNotesDraft(dossier?.free_notes || '');
-  };
-
-  const saveFreeNotes = async () => {
-    if (!dossier?.id || !canEditDossier) return;
-    setSaving(true);
-    setErrorMsg('');
-    const { error } = await writeDossier({ free_notes: freeNotesDraft });
-    if (error) {
-      setErrorMsg(error.message || '保存に失敗しました');
-    } else {
-      setDossier(prev => ({ ...prev, free_notes: freeNotesDraft, edited_at: new Date().toISOString() }));
-      setEditingFreeNotes(false);
-    }
-    setSaving(false);
-  };
-
   const lowSourceCount = useMemo(() => {
     if (!dossier?.sources) return 0;
     return dossier.sources.filter(s => s.identity_match === 'low').length;
@@ -169,8 +160,7 @@ export default function CompanyDossierPanel({
     return <div style={panelStyle}><div style={{ color: color.textMid, fontSize: font.size.sm }}>読み込み中...</div></div>;
   }
 
-  // 未生成（dossier 行が無い、または queued 状態＝行はあるが生成成果物がまだ無い）。
-  // 生成ボタンは AppointmentsTab 行内の「企業情報作成」列に集約済。
+  // 未生成
   if (!dossier || dossier.generation_status === 'queued') {
     return (
       <div style={panelStyle}>
@@ -208,7 +198,6 @@ export default function CompanyDossierPanel({
         </div>
       </div>
 
-      {/* 生成中 */}
       {status === 'running' && (
         <div style={{ padding: space[4], textAlign: 'center', color: color.textMid, fontSize: font.size.sm }}>
           生成中... HP取得・公開情報収集・構造化（約30〜90秒）
@@ -221,7 +210,6 @@ export default function CompanyDossierPanel({
         </div>
       )}
 
-      {/* 本体セクション */}
       {(status === 'succeeded' || status === 'partial') && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
           {DOSSIER_SECTION_KEYS.map(key => (
@@ -241,39 +229,9 @@ export default function CompanyDossierPanel({
             />
           ))}
 
-          {/* 自由記述欄 */}
-          <div style={sectionStyle}>
-            <div style={sectionHeaderStyle}>
-              <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>
-                MASP メモ（自由記述）
-              </span>
-              {canEditDossier && !editingFreeNotes && (
-                <button onClick={startEditFreeNotes} style={editButtonStyle}>編集</button>
-              )}
-            </div>
-            {editingFreeNotes ? (
-              <div>
-                <textarea
-                  value={freeNotesDraft}
-                  onChange={e => setFreeNotesDraft(e.target.value)}
-                  rows={4}
-                  style={textareaStyle}
-                />
-                <div style={{ display: 'flex', gap: space[2], marginTop: space[2] }}>
-                  <Button size="sm" onClick={saveFreeNotes} disabled={saving} loading={saving}>保存</Button>
-                  <Button size="sm" variant="outline" onClick={() => setEditingFreeNotes(false)} disabled={saving}>キャンセル</Button>
-                </div>
-              </div>
-            ) : (
-              <div style={{ fontSize: font.size.sm, color: dossier.free_notes ? color.textDark : color.textLight, whiteSpace: 'pre-wrap' }}>
-                {dossier.free_notes || '（未記入）'}
-              </div>
-            )}
-          </div>
-
           {/* 情報源 */}
           {dossier.sources && dossier.sources.length > 0 && (
-            <div style={sectionStyle}>
+            <div style={{ ...sectionStyle, borderBottom: 'none' }}>
               <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[1.5] }}>
                 情報源
               </div>
@@ -299,10 +257,11 @@ export default function CompanyDossierPanel({
 }
 
 function DossierSection({ sectionKey, label, value, editing, draft, setDraft, canEditDossier, onEdit, onCancel, onSave, saving }) {
+  const stringKeys = new Set(['executive_summary', 'market_trend']);
   return (
     <div style={sectionStyle}>
       <div style={sectionHeaderStyle}>
-        <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>{label}</span>
+        <span style={{ fontSize: font.size.sm + 1, fontWeight: font.weight.semibold, color: color.navy }}>{label}</span>
         {canEditDossier && !editing && (
           <button onClick={onEdit} style={editButtonStyle}>編集</button>
         )}
@@ -312,7 +271,7 @@ function DossierSection({ sectionKey, label, value, editing, draft, setDraft, ca
           <textarea
             value={draft}
             onChange={e => setDraft(e.target.value)}
-            rows={['overview', 'mna_relevance'].includes(sectionKey) ? 5 : 8}
+            rows={stringKeys.has(sectionKey) ? 5 : 10}
             style={textareaStyle}
           />
           <div style={{ display: 'flex', gap: space[2], marginTop: space[2] }}>
@@ -327,10 +286,11 @@ function DossierSection({ sectionKey, label, value, editing, draft, setDraft, ca
   );
 }
 
-// internal_db 値を日本語整形（千円 → 億円、年齢に「歳」など）
-function formatInternalDbValue(key, value) {
+// 千円→億円整形、年齢に「歳」など
+function formatBasicValue(key, value) {
   if (value === null || value === undefined || value === '') return '—';
-  if (key === 'revenue_k' || key === 'net_income_k') {
+  const moneyKeys = new Set(['revenue_k', 'ordinary_income_k', 'net_income_k', 'capital_k']);
+  if (moneyKeys.has(key)) {
     const num = typeof value === 'number' ? value : parseFloat(String(value).replace(/,/g, ''));
     if (!isNaN(num)) {
       if (Math.abs(num) >= 100000) return `${(num / 100000).toFixed(1).replace(/\.0$/, '')}億円`;
@@ -344,123 +304,239 @@ function formatInternalDbValue(key, value) {
   return String(value);
 }
 
+function emptyHint() {
+  return <div style={{ fontSize: font.size.sm, color: color.textLight }}>（情報なし）</div>;
+}
+
+function isEmptyValue(v) {
+  if (v === null || v === undefined || v === '') return true;
+  if (Array.isArray(v) && v.length === 0) return true;
+  if (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0) return true;
+  return false;
+}
+
 function SectionRender({ sectionKey, value }) {
-  if (value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) {
-    return <div style={{ fontSize: font.size.sm, color: color.textLight }}>（情報なし）</div>;
+  if (isEmptyValue(value)) return emptyHint();
+
+  // 1. Executive Summary（短文）
+  if (sectionKey === 'executive_summary') {
+    return (
+      <div style={{
+        fontSize: font.size.sm + 1, color: color.textDark, lineHeight: font.lineHeight.relaxed,
+        whiteSpace: 'pre-wrap', padding: space[2], background: alpha(color.navyLight, 0.05),
+        borderLeft: `3px solid ${color.gold}`, borderRadius: radius.sm,
+      }}>{value}</div>
+    );
   }
-  // 文字列セクション
-  if (sectionKey === 'overview' || sectionKey === 'mna_relevance') {
+
+  // 2. 基本情報（表 + 沿革タイムライン）
+  if (sectionKey === 'basic_info') return <BasicInfoRender value={value} />;
+
+  // 3, 4. 事業内容 / 特徴・強み（番号付きカード）
+  if (sectionKey === 'business' || sectionKey === 'strengths') {
+    return <NumberedCardList items={value} />;
+  }
+
+  // 5. 市場動向（文章）
+  if (sectionKey === 'market_trend') {
     return <div style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: font.lineHeight.relaxed, whiteSpace: 'pre-wrap' }}>{value}</div>;
   }
-  // internal_db: 社内DB情報（key-value 表示）
-  if (sectionKey === 'internal_db') {
-    const entries = INTERNAL_DB_ORDER
-      .map(k => [k, value[k]])
-      .filter(([_, v]) => v !== null && v !== undefined && v !== '' && v !== 0);
-    if (entries.length === 0) {
-      return <div style={{ fontSize: font.size.sm, color: color.textLight }}>（情報なし）</div>;
-    }
-    // 長文（officers/shareholders/clients/remarks/business_description）は全幅、短い項目は2列
-    const longKeys = new Set(['officers', 'shareholders', 'clients', 'remarks', 'business_description']);
-    const shortEntries = entries.filter(([k]) => !longKeys.has(k));
-    const longEntries  = entries.filter(([k]) =>  longKeys.has(k));
-    return (
-      <div>
-        {shortEntries.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: space[1.5], marginBottom: longEntries.length > 0 ? space[2] : 0 }}>
-            {shortEntries.map(([k, v]) => (
-              <div key={k} style={{ fontSize: font.size.sm }}>
-                <span style={{ color: color.textMid, marginRight: space[2] }}>{INTERNAL_DB_LABELS[k] || k}:</span>
-                <span style={{ color: color.textDark }}>{formatInternalDbValue(k, v)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        {longEntries.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
-            {longEntries.map(([k, v]) => (
-              <div key={k}>
-                <div style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, marginBottom: 2 }}>
-                  {INTERNAL_DB_LABELS[k] || k}
-                </div>
-                <div style={{ fontSize: font.size.sm, color: color.textDark, whiteSpace: 'pre-wrap', lineHeight: font.lineHeight.relaxed }}>
-                  {String(v)}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-  // string[] セクション
-  if (sectionKey === 'business_segments' || sectionKey === 'key_topics') {
-    return (
-      <ul style={listStyle}>
-        {value.map((v, i) => <li key={i} style={liStyle}>{v}</li>)}
-      </ul>
-    );
-  }
-  // history: [{year, event}]
-  if (sectionKey === 'history') {
-    return (
-      <ul style={listStyle}>
-        {value.map((v, i) => (
-          <li key={i} style={liStyle}>
-            <span style={{ fontFamily: font.family.mono, color: color.textMid, marginRight: space[2] }}>{v.year}</span>
-            {v.event}
-          </li>
-        ))}
-      </ul>
-    );
-  }
-  // leadership: [{role, name}]
-  if (sectionKey === 'leadership') {
-    return (
-      <ul style={listStyle}>
-        {value.map((v, i) => (
-          <li key={i} style={liStyle}>
-            <span style={{ color: color.textMid, marginRight: space[2] }}>{v.role}</span>
-            <span style={{ fontWeight: font.weight.medium }}>{v.name}</span>
-          </li>
-        ))}
-      </ul>
-    );
-  }
-  // financials: {revenue, employees, established, capital}
-  if (sectionKey === 'financials') {
-    const labels = { revenue: '売上高', employees: '従業員数', established: '設立', capital: '資本金' };
-    return (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: space[1.5] }}>
-        {Object.entries(labels).map(([k, lbl]) => (
-          <div key={k} style={{ fontSize: font.size.sm }}>
-            <span style={{ color: color.textMid, marginRight: space[2] }}>{lbl}:</span>
-            <span style={{ color: value[k] ? color.textDark : color.textLight }}>{value[k] || '—'}</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  // press_releases / news: [{date, title, url, summary, ...}]
-  if (sectionKey === 'press_releases' || sectionKey === 'news') {
-    return (
-      <ul style={{ ...listStyle, gap: space[2] }}>
-        {value.map((v, i) => (
-          <li key={i} style={{ ...liStyle, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <div style={{ fontSize: font.size.xs, color: color.textMid, fontFamily: font.family.mono }}>
-              {v.date || '—'}{v.source ? ` ・ ${v.source}` : ''}
-            </div>
-            <div style={{ fontSize: font.size.sm, fontWeight: font.weight.medium, color: color.textDark }}>
-              {v.url ? <a href={v.url} target="_blank" rel="noopener noreferrer" style={{ color: color.navy, textDecoration: 'underline' }}>{v.title}</a> : v.title}
-            </div>
-            {v.summary && <div style={{ fontSize: font.size.xs, color: color.textMid }}>{v.summary}</div>}
-          </li>
-        ))}
-      </ul>
-    );
-  }
-  // フォールバック: JSON.stringify
+
+  // 6. 同業界 M&A ニュース
+  if (sectionKey === 'industry_ma_news') return <MaNewsRender items={value} />;
+
+  // 7. MASP メモ
+  if (sectionKey === 'masp_memo') return <MaspMemoRender value={value} />;
+
+  // フォールバック
   return <pre style={{ fontSize: font.size.xs - 1, color: color.textMid, background: color.gray50, padding: space[2], borderRadius: radius.sm, overflow: 'auto' }}>{JSON.stringify(value, null, 2)}</pre>;
+}
+
+// ── 2. 基本情報レンダラ ──
+function BasicInfoRender({ value }) {
+  // history は別扱い
+  const history = Array.isArray(value.history) ? value.history : [];
+  const baseEntries = BASIC_INFO_ORDER
+    .map(k => [k, value[k]])
+    .filter(([_, v]) => v !== null && v !== undefined && v !== '' && v !== 0);
+
+  if (baseEntries.length === 0 && history.length === 0) return emptyHint();
+
+  const longKeys = new Set(['officers', 'shareholders', 'clients', 'suppliers', 'remarks', 'business_description']);
+  const shortEntries = baseEntries.filter(([k]) => !longKeys.has(k));
+  const longEntries  = baseEntries.filter(([k]) =>  longKeys.has(k));
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
+      {/* 基本データ表 */}
+      {(shortEntries.length > 0 || longEntries.length > 0) && (
+        <div>
+          {shortEntries.length > 0 && (
+            <div style={{
+              display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 0,
+              border: `1px solid ${color.borderLight}`, borderRadius: radius.sm, overflow: 'hidden',
+            }}>
+              {shortEntries.map(([k, v], idx) => (
+                <div key={k} style={{
+                  display: 'flex', fontSize: font.size.sm,
+                  borderBottom: `1px solid ${color.borderLight}`,
+                  borderRight: idx % 2 === 0 ? `1px solid ${color.borderLight}` : 'none',
+                  background: idx % 4 < 2 ? color.white : color.cream,
+                }}>
+                  <span style={{ color: color.textMid, padding: `${space[1.5]}px ${space[2]}px`, minWidth: 110, background: alpha(color.navyLight, 0.05), borderRight: `1px solid ${color.borderLight}`, fontWeight: font.weight.medium }}>
+                    {BASIC_INFO_LABELS[k] || k}
+                  </span>
+                  <span style={{ color: color.textDark, padding: `${space[1.5]}px ${space[2]}px`, flex: 1 }}>
+                    {formatBasicValue(k, v)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {longEntries.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: space[2], marginTop: space[2] }}>
+              {longEntries.map(([k, v]) => (
+                <div key={k}>
+                  <div style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, marginBottom: 2 }}>
+                    {BASIC_INFO_LABELS[k] || k}
+                  </div>
+                  <div style={{ fontSize: font.size.sm, color: color.textDark, whiteSpace: 'pre-wrap', lineHeight: font.lineHeight.relaxed }}>
+                    {String(v)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 沿革タイムライン */}
+      {history.length > 0 && (
+        <div>
+          <div style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, marginBottom: space[2] }}>
+            沿革
+          </div>
+          <div style={{ position: 'relative', paddingLeft: space[5] }}>
+            {/* 縦線 */}
+            <div style={{
+              position: 'absolute', left: 10, top: 4, bottom: 4,
+              width: 2, background: alpha(color.navyLight, 0.3),
+            }} />
+            {history.map((h, i) => (
+              <div key={i} style={{ position: 'relative', marginBottom: i === history.length - 1 ? 0 : space[2] }}>
+                {/* ドット */}
+                <div style={{
+                  position: 'absolute', left: -19, top: 6,
+                  width: 10, height: 10, borderRadius: '50%',
+                  background: color.gold, border: `2px solid ${color.white}`,
+                  boxShadow: `0 0 0 1px ${alpha(color.navyLight, 0.4)}`,
+                }} />
+                <div style={{ display: 'flex', gap: space[3], alignItems: 'baseline' }}>
+                  <span style={{
+                    fontFamily: font.family.mono, fontSize: font.size.sm,
+                    color: color.navy, fontWeight: font.weight.semibold, minWidth: 50,
+                  }}>{h.year}</span>
+                  <span style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: font.lineHeight.relaxed }}>
+                    {h.event}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 3, 4. 番号付きカードリスト（事業内容・強み）──
+function NumberedCardList({ items }) {
+  if (!Array.isArray(items) || items.length === 0) return emptyHint();
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: space[1.5] }}>
+      {items.map((v, i) => (
+        <div key={i} style={{
+          display: 'flex', gap: space[2], alignItems: 'flex-start',
+          padding: space[2], background: color.white, borderRadius: radius.sm,
+          border: `1px solid ${color.borderLight}`,
+        }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 22, height: 22, borderRadius: '50%',
+            background: color.navy, color: color.white,
+            fontSize: font.size.xs, fontWeight: font.weight.semibold,
+            flexShrink: 0,
+          }}>{i + 1}</span>
+          <span style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: font.lineHeight.relaxed, flex: 1 }}>
+            {String(v)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── 6. M&A ニュース ──
+function MaNewsRender({ items }) {
+  if (!Array.isArray(items) || items.length === 0) return emptyHint();
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
+      {items.map((v, i) => (
+        <div key={i} style={{
+          padding: space[2.5], background: color.white,
+          border: `1px solid ${color.borderLight}`, borderRadius: radius.sm,
+          borderLeft: `3px solid ${color.gold}`,
+        }}>
+          <div style={{ display: 'flex', gap: space[2], alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>
+              {v.date || '日付不明'}
+            </span>
+            {v.deal_type && <Badge size="sm" variant="primary">{v.deal_type}</Badge>}
+            {v.source && (
+              <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>
+                出典: {v.source}
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark, marginBottom: 4 }}>
+            {v.url
+              ? <a href={v.url} target="_blank" rel="noopener noreferrer" style={{ color: color.navy, textDecoration: 'underline' }}>{v.title}</a>
+              : v.title}
+          </div>
+          {v.summary && (
+            <div style={{ fontSize: font.size.xs + 1, color: color.textMid, lineHeight: font.lineHeight.relaxed }}>
+              {v.summary}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── 7. MASP メモ ──
+function MaspMemoRender({ value }) {
+  const entries = MASP_MEMO_ORDER
+    .map(k => [k, value[k]])
+    .filter(([_, v]) => v !== null && v !== undefined && v !== '' && v !== '確認できず');
+  if (entries.length === 0) return emptyHint();
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
+      {entries.map(([k, v]) => (
+        <div key={k} style={{
+          padding: space[2], background: alpha(color.gold, 0.06),
+          borderRadius: radius.sm, border: `1px solid ${alpha(color.gold, 0.2)}`,
+        }}>
+          <div style={{ fontSize: font.size.xs, color: color.navy, fontWeight: font.weight.semibold, marginBottom: 4 }}>
+            {MASP_MEMO_LABELS[k] || k}
+          </div>
+          <div style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: font.lineHeight.relaxed, whiteSpace: 'pre-wrap' }}>
+            {String(v)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ────── styles ──────
@@ -476,7 +552,7 @@ const sectionStyle = {
 };
 const sectionHeaderStyle = {
   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  marginBottom: space[1.5],
+  marginBottom: space[2],
 };
 const editButtonStyle = {
   background: 'none', border: `1px solid ${color.border}`,
@@ -491,8 +567,6 @@ const textareaStyle = {
   resize: 'vertical', outline: 'none',
   boxSizing: 'border-box',
 };
-const listStyle = { listStyle: 'disc', paddingLeft: space[5], display: 'flex', flexDirection: 'column', gap: space[1], margin: 0 };
-const liStyle = { fontSize: font.size.sm, color: color.textDark, lineHeight: font.lineHeight.relaxed };
 const errStyle = {
   marginTop: space[2],
   padding: space[2],
