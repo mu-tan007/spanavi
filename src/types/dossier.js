@@ -130,8 +130,8 @@
 // ─────────────────────────────────────────────────────────────
 
 export const DOSSIER_SECTION_KEYS = [
-  'executive_summary',
   'basic_info',
+  'history',
   'business',
   'strengths',
   'industry_ma_news',
@@ -139,11 +139,11 @@ export const DOSSIER_SECTION_KEYS = [
 ];
 
 export const DOSSIER_SECTION_LABELS = {
-  executive_summary: 'Executive Summary',
   basic_info:        '基本情報',
+  history:           '沿革',
   business:          '事業内容',
   strengths:         '特徴・強み',
-  industry_ma_news:  '同業界のM&Aニュース',
+  industry_ma_news:  'M&Aニュース',
   masp_memo:         'MASPメモ',
 };
 

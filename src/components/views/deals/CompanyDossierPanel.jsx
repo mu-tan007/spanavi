@@ -334,29 +334,21 @@ function isEmptyValue(v) {
 function SectionRender({ sectionKey, value }) {
   if (isEmptyValue(value)) return emptyHint();
 
-  // 1. Executive Summary（短文）
-  if (sectionKey === 'executive_summary') {
-    return (
-      <div style={{
-        fontSize: font.size.sm + 1, color: color.textDark, lineHeight: font.lineHeight.relaxed,
-        whiteSpace: 'pre-wrap', padding: space[2], background: alpha(color.navyLight, 0.05),
-        borderLeft: `3px solid ${color.gold}`, borderRadius: radius.sm,
-      }}>{value}</div>
-    );
-  }
-
-  // 2. 基本情報（表 + 沿革タイムライン）
+  // 1. 基本情報（全項目を1つの表に統合）
   if (sectionKey === 'basic_info') return <BasicInfoRender value={value} />;
+
+  // 2. 沿革（独立タイムライン）
+  if (sectionKey === 'history') return <HistoryRender items={value} />;
 
   // 3, 4. 事業内容 / 特徴・強み（番号付きカード）
   if (sectionKey === 'business' || sectionKey === 'strengths') {
     return <NumberedCardList items={value} />;
   }
 
-  // 5. 同業界 M&A ニュース
+  // 5. M&Aニュース
   if (sectionKey === 'industry_ma_news') return <MaNewsRender items={value} />;
 
-  // 7. MASP メモ
+  // 6. MASP メモ
   if (sectionKey === 'masp_memo') return <MaspMemoRender value={value} />;
 
   // フォールバック
@@ -384,10 +376,11 @@ function buildFullAddress(v) {
   return cleanAddress(raw);
 }
 
-// ── 2. 基本情報レンダラ ──
+// ── 1. 基本情報レンダラ（全項目を1つの表に統合） ──
+// 短文/長文の区別なく、ラベル + 値の表形式で表示。
+// 長文項目（事業内容DB登録/役員/株主構成/主要取引先/仕入先/備考）は
+// 1行のセル内で折り返し表示される。
 function BasicInfoRender({ value }) {
-  // history は別扱い
-  const history = Array.isArray(value.history) ? value.history : [];
   const baseEntries = BASIC_INFO_ORDER
     .map(k => {
       // 住所は prefecture/city/address を統合
@@ -396,91 +389,102 @@ function BasicInfoRender({ value }) {
     })
     .filter(([_, v]) => v !== null && v !== undefined && v !== '' && v !== 0);
 
-  if (baseEntries.length === 0 && history.length === 0) return emptyHint();
+  if (baseEntries.length === 0) return emptyHint();
 
+  // 長文項目は表内で全幅セル、短文は2列セルに配置するため分離
   const longKeys = new Set(['officers', 'shareholders', 'clients', 'suppliers', 'remarks', 'business_description']);
+
+  // 配置: 短文を2列で並べ、長文は全幅行として表の末尾に追加
   const shortEntries = baseEntries.filter(([k]) => !longKeys.has(k));
   const longEntries  = baseEntries.filter(([k]) =>  longKeys.has(k));
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
-      {/* 基本データ表 */}
-      {(shortEntries.length > 0 || longEntries.length > 0) && (
-        <div>
-          {shortEntries.length > 0 && (
-            <div style={{
-              display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 0,
-              border: `1px solid ${color.borderLight}`, borderRadius: radius.sm, overflow: 'hidden',
-            }}>
-              {shortEntries.map(([k, v], idx) => (
-                <div key={k} style={{
-                  display: 'flex', fontSize: font.size.sm,
-                  borderBottom: `1px solid ${color.borderLight}`,
-                  borderRight: idx % 2 === 0 ? `1px solid ${color.borderLight}` : 'none',
-                  background: idx % 4 < 2 ? color.white : color.cream,
-                }}>
-                  <span style={{ color: color.textMid, padding: `${space[1.5]}px ${space[2]}px`, minWidth: 110, background: alpha(color.navyLight, 0.05), borderRight: `1px solid ${color.borderLight}`, fontWeight: font.weight.medium }}>
-                    {BASIC_INFO_LABELS[k] || k}
-                  </span>
-                  <span style={{ color: color.textDark, padding: `${space[1.5]}px ${space[2]}px`, flex: 1 }}>
-                    {formatBasicValue(k, v)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-          {longEntries.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: space[2], marginTop: space[2] }}>
-              {longEntries.map(([k, v]) => (
-                <div key={k}>
-                  <div style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, marginBottom: 2 }}>
-                    {BASIC_INFO_LABELS[k] || k}
-                  </div>
-                  <div style={{ fontSize: font.size.sm, color: color.textDark, whiteSpace: 'pre-wrap', lineHeight: font.lineHeight.relaxed }}>
-                    {String(v)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+  const labelCellStyle = {
+    color: color.textMid, padding: `${space[1.5]}px ${space[2]}px`,
+    minWidth: 110, background: alpha(color.navyLight, 0.05),
+    borderRight: `1px solid ${color.borderLight}`,
+    fontWeight: font.weight.medium,
+    display: 'flex', alignItems: 'flex-start',
+  };
+  const valueCellStyle = {
+    color: color.textDark, padding: `${space[1.5]}px ${space[2]}px`,
+    flex: 1, whiteSpace: 'pre-wrap', lineHeight: font.lineHeight.relaxed,
+    wordBreak: 'break-word',
+  };
 
-      {/* 沿革タイムライン */}
-      {history.length > 0 && (
-        <div>
-          <div style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, marginBottom: space[2] }}>
-            沿革
-          </div>
-          <div style={{ position: 'relative', paddingLeft: space[5] }}>
-            {/* 縦線 */}
-            <div style={{
-              position: 'absolute', left: 10, top: 4, bottom: 4,
-              width: 2, background: alpha(color.navyLight, 0.3),
-            }} />
-            {history.map((h, i) => (
-              <div key={i} style={{ position: 'relative', marginBottom: i === history.length - 1 ? 0 : space[2] }}>
-                {/* ドット */}
-                <div style={{
-                  position: 'absolute', left: -19, top: 6,
-                  width: 10, height: 10, borderRadius: '50%',
-                  background: color.gold, border: `2px solid ${color.white}`,
-                  boxShadow: `0 0 0 1px ${alpha(color.navyLight, 0.4)}`,
-                }} />
-                <div style={{ display: 'flex', gap: space[3], alignItems: 'baseline' }}>
-                  <span style={{
-                    fontFamily: font.family.mono, fontSize: font.size.sm,
-                    color: color.navy, fontWeight: font.weight.semibold, minWidth: 50,
-                  }}>{h.year}</span>
-                  <span style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: font.lineHeight.relaxed }}>
-                    {h.event}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+  return (
+    <div style={{
+      border: `1px solid ${color.borderLight}`,
+      borderRadius: radius.sm,
+      overflow: 'hidden',
+      fontSize: font.size.sm,
+    }}>
+      {/* 短文項目: 2列グリッド */}
+      {shortEntries.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+          {shortEntries.map(([k, v], idx) => (
+            <div key={k} style={{
+              display: 'flex',
+              borderBottom: (idx >= shortEntries.length - 2 && longEntries.length === 0)
+                ? 'none'
+                : `1px solid ${color.borderLight}`,
+              borderRight: idx % 2 === 0 ? `1px solid ${color.borderLight}` : 'none',
+              background: Math.floor(idx / 2) % 2 === 1 ? color.cream : color.white,
+            }}>
+              <span style={labelCellStyle}>{BASIC_INFO_LABELS[k] || k}</span>
+              <span style={valueCellStyle}>{formatBasicValue(k, v)}</span>
+            </div>
+          ))}
         </div>
       )}
+      {/* 長文項目: 全幅1列 */}
+      {longEntries.length > 0 && (
+        <div>
+          {longEntries.map(([k, v], idx) => (
+            <div key={k} style={{
+              display: 'flex',
+              borderBottom: idx === longEntries.length - 1 ? 'none' : `1px solid ${color.borderLight}`,
+              background: idx % 2 === 0 ? color.white : color.cream,
+            }}>
+              <span style={labelCellStyle}>{BASIC_INFO_LABELS[k] || k}</span>
+              <span style={valueCellStyle}>{String(v)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 2. 沿革タイムラインレンダラ（独立セクション） ──
+function HistoryRender({ items }) {
+  if (!Array.isArray(items) || items.length === 0) return emptyHint();
+  return (
+    <div style={{ position: 'relative', paddingLeft: space[5] }}>
+      {/* 縦線 */}
+      <div style={{
+        position: 'absolute', left: 10, top: 4, bottom: 4,
+        width: 2, background: alpha(color.navyLight, 0.3),
+      }} />
+      {items.map((h, i) => (
+        <div key={i} style={{ position: 'relative', marginBottom: i === items.length - 1 ? 0 : space[2] }}>
+          {/* ドット */}
+          <div style={{
+            position: 'absolute', left: -19, top: 6,
+            width: 10, height: 10, borderRadius: '50%',
+            background: color.gold, border: `2px solid ${color.white}`,
+            boxShadow: `0 0 0 1px ${alpha(color.navyLight, 0.4)}`,
+          }} />
+          <div style={{ display: 'flex', gap: space[3], alignItems: 'baseline' }}>
+            <span style={{
+              fontFamily: font.family.mono, fontSize: font.size.sm,
+              color: color.navy, fontWeight: font.weight.semibold, minWidth: 50,
+            }}>{h.year}</span>
+            <span style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: font.lineHeight.relaxed }}>
+              {h.event}
+            </span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

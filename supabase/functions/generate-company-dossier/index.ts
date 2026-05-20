@@ -256,20 +256,19 @@ ${IDENTITY_RULE}
 ${masterBlock}
 ${hpBlock}
 
-【生成セクション(4つのみ)】
-1. executive_summary : 「何をやっている会社か」1-3 文 / 80-150 字
-2. business         : 事業セグメント別の説明 string[]、各 1-2 文、最大 6 件
-3. strengths        : 特徴・強み string[]、各 1-2 文、最大 5 件
-4. history          : 対象企業の沿革 [{year, event}]、最大 8 件
+【生成セクション(3つのみ)】
+1. business  : 事業セグメント別の説明 string[]、各 1-2 文、最大 6 件
+2. strengths : 特徴・強み string[]、各 1-2 文、最大 5 件
+3. history   : 対象企業の沿革 [{year, event}]、最大 8 件
 
 【絶対に出力しない項目(重複排除)】
 - 住所・代表者・売上・利益・資本金・従業員数・電話・株主・役員・取引先 → 社内DBで表示
 - 業界全体の市場動向 / 同業界 M&A ニュース → 別 call で取得
+- 会社概要・要約は不要（基本情報の表で代替）
 
 【出力JSON】
 {
   "content": {
-    "executive_summary": "...",
     "business": ["..."],
     "strengths": ["..."],
     "history": [{"year": "1985", "event": "設立"}]
@@ -517,9 +516,10 @@ async function runDossierGeneration(appointmentId: string, providedHpUrl: string
     }),
   ])
 
-  // 6セクション content マージヘルパー（market_trend は廃止）
-  //   - basic_info = internal_db + Claude 出力の history
-  //   - executive_summary / business / strengths は coreResult から
+  // 6セクション content マージヘルパー（Executive Summary 廃止、history を独立 key 化）
+  //   - basic_info = internal_db のみ（沿革は含めない）
+  //   - history は独立セクション
+  //   - business / strengths は coreResult から
   //   - industry_ma_news は maNewsResult から
   //   - masp_memo は appo_report 抽出
   const mergeContent = (
@@ -528,13 +528,10 @@ async function runDossierGeneration(appointmentId: string, providedHpUrl: string
   ): Record<string, unknown> => {
     const cc = coreContent || {}
     const mc = maNewsContent || {}
-    const history = Array.isArray(cc.history) ? cc.history : []
-    const basicInfo: Record<string, unknown> = { ...(internalDb || {}) }
-    if (history.length > 0) basicInfo.history = history
 
     return {
-      executive_summary: cc.executive_summary || '',
-      basic_info: basicInfo,
+      basic_info: internalDb || {},
+      history: Array.isArray(cc.history) ? cc.history : [],
       business: Array.isArray(cc.business) ? cc.business : [],
       strengths: Array.isArray(cc.strengths) ? cc.strengths : [],
       industry_ma_news: Array.isArray(mc.industry_ma_news) ? mc.industry_ma_news : [],
