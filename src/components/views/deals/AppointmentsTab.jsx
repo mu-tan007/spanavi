@@ -372,8 +372,18 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
         <SectionCard title="キーマンのM&A意向">
           <div style={{ height: 200 }}>
             <ResponsiveContainer>
-              <PieChart>
-                <Pie data={intentChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label>
+              <PieChart margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
+                <Pie
+                  data={intentChartData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={52}
+                  labelLine={{ stroke: color.textLight, strokeWidth: 1 }}
+                  label={({ value }) => value}
+                  isAnimationActive={false}
+                >
                   {intentChartData.map((d, i) => <Cell key={i} fill={d.color} />)}
                 </Pie>
                 <Tooltip />
