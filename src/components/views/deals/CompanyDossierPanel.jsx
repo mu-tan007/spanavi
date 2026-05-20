@@ -8,7 +8,7 @@ import {
   invokeUpdateCompanyDossier,
   subscribeDossierByAppointment,
 } from '../../../lib/dossierApi';
-import { DOSSIER_SECTION_KEYS, DOSSIER_SECTION_LABELS } from '../../../types/dossier';
+import { DOSSIER_SECTION_KEYS, DOSSIER_SECTION_LABELS, INTERNAL_DB_LABELS, INTERNAL_DB_ORDER } from '../../../types/dossier';
 
 // =====================================================================
 // CompanyDossierPanel
@@ -170,14 +170,14 @@ export default function CompanyDossierPanel({
   }
 
   // 未生成（クライアントポータルでも管理画面でも、未生成時はメッセージのみ。
-  // 生成ボタンは AppointmentsTab 行内の「企業ドシェ作成」列に集約済）
+  // 生成ボタンは AppointmentsTab 行内の「企業情報作成」列に集約済）
   if (!dossier) {
     return (
       <div style={panelStyle}>
         <div style={{ fontSize: font.size.sm, color: color.textMid }}>
           {canEditDossier
-            ? 'この企業のドシェはまだ生成されていません。右側の「ドシェ作成」ボタンから生成してください。'
-            : 'この企業のドシェはまだ生成されていません。'}
+            ? 'この企業の企業情報はまだ生成されていません。右側の「作成」ボタンから生成してください。'
+            : 'この企業の企業情報はまだ生成されていません。'}
         </div>
       </div>
     );
@@ -195,7 +195,7 @@ export default function CompanyDossierPanel({
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
           <span style={{ fontSize: font.size.sm + 1, fontWeight: font.weight.semibold, color: color.navy }}>
-            企業ドシェ
+            企業情報
           </span>
           <Badge variant={badgeCfg.variant} dot={badgeCfg.dot} size="sm">{STATUS_LABEL[status] || status}</Badge>
           {lowSourceCount > 0 && (
@@ -327,6 +327,23 @@ function DossierSection({ sectionKey, label, value, editing, draft, setDraft, ca
   );
 }
 
+// internal_db 値を日本語整形（千円 → 億円、年齢に「歳」など）
+function formatInternalDbValue(key, value) {
+  if (value === null || value === undefined || value === '') return '—';
+  if (key === 'revenue_k' || key === 'net_income_k') {
+    const num = typeof value === 'number' ? value : parseFloat(String(value).replace(/,/g, ''));
+    if (!isNaN(num)) {
+      if (Math.abs(num) >= 100000) return `${(num / 100000).toFixed(1).replace(/\.0$/, '')}億円`;
+      if (Math.abs(num) >= 1000) return `${(num / 1000).toFixed(0)}百万円`;
+      return `${num.toLocaleString()}千円`;
+    }
+  }
+  if (key === 'representative_age' && /^\d+$/.test(String(value))) return `${value}歳`;
+  if (key === 'employee_count' && /^\d+$/.test(String(value))) return `${value}名`;
+  if (key === 'established_year' && /^\d+$/.test(String(value))) return `${value}年`;
+  return String(value);
+}
+
 function SectionRender({ sectionKey, value }) {
   if (value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) {
     return <div style={{ fontSize: font.size.sm, color: color.textLight }}>（情報なし）</div>;
@@ -334,6 +351,47 @@ function SectionRender({ sectionKey, value }) {
   // 文字列セクション
   if (sectionKey === 'overview' || sectionKey === 'mna_relevance') {
     return <div style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: font.lineHeight.relaxed, whiteSpace: 'pre-wrap' }}>{value}</div>;
+  }
+  // internal_db: 社内DB情報（key-value 表示）
+  if (sectionKey === 'internal_db') {
+    const entries = INTERNAL_DB_ORDER
+      .map(k => [k, value[k]])
+      .filter(([_, v]) => v !== null && v !== undefined && v !== '' && v !== 0);
+    if (entries.length === 0) {
+      return <div style={{ fontSize: font.size.sm, color: color.textLight }}>（情報なし）</div>;
+    }
+    // 長文（officers/shareholders/clients/remarks/business_description）は全幅、短い項目は2列
+    const longKeys = new Set(['officers', 'shareholders', 'clients', 'remarks', 'business_description']);
+    const shortEntries = entries.filter(([k]) => !longKeys.has(k));
+    const longEntries  = entries.filter(([k]) =>  longKeys.has(k));
+    return (
+      <div>
+        {shortEntries.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: space[1.5], marginBottom: longEntries.length > 0 ? space[2] : 0 }}>
+            {shortEntries.map(([k, v]) => (
+              <div key={k} style={{ fontSize: font.size.sm }}>
+                <span style={{ color: color.textMid, marginRight: space[2] }}>{INTERNAL_DB_LABELS[k] || k}:</span>
+                <span style={{ color: color.textDark }}>{formatInternalDbValue(k, v)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {longEntries.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
+            {longEntries.map(([k, v]) => (
+              <div key={k}>
+                <div style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, marginBottom: 2 }}>
+                  {INTERNAL_DB_LABELS[k] || k}
+                </div>
+                <div style={{ fontSize: font.size.sm, color: color.textDark, whiteSpace: 'pre-wrap', lineHeight: font.lineHeight.relaxed }}>
+                  {String(v)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   }
   // string[] セクション
   if (sectionKey === 'business_segments' || sectionKey === 'key_topics') {

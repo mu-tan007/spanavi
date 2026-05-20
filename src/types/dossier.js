@@ -124,6 +124,7 @@
 
 export const DOSSIER_SECTION_KEYS = [
   'overview',
+  'internal_db',
   'business_segments',
   'history',
   'leadership',
@@ -136,6 +137,7 @@ export const DOSSIER_SECTION_KEYS = [
 
 export const DOSSIER_SECTION_LABELS = {
   overview:          '会社概要',
+  internal_db:       '社内データベース情報',
   business_segments: '事業セグメント',
   history:           '沿革',
   leadership:        '経営陣',
@@ -145,3 +147,36 @@ export const DOSSIER_SECTION_LABELS = {
   key_topics:        'M&A関連トピック',
   mna_relevance:     'M&A関連性所感',
 };
+
+// internal_db フィールドのラベルマッピング（UI 整形表示用）
+export const INTERNAL_DB_LABELS = {
+  industry_major:       '業界（大分類）',
+  industry_sub:         '業界（細分類）',
+  business_description: '事業内容',
+  prefecture:           '都道府県',
+  city:                 '市区郡',
+  address:              '住所',
+  representative:       '代表者',
+  representative_age:   '代表者年齢',
+  established_year:     '設立年',
+  employee_count:       '従業員数',
+  revenue_k:            '売上高（千円）',
+  net_income_k:         '当期純利益（千円）',
+  phone:                '電話番号',
+  officers:             '役員',
+  shareholders:         '株主構成',
+  clients:              '主要取引先',
+  remarks:              '備考',
+};
+
+// internal_db の表示順序（label 順）
+export const INTERNAL_DB_ORDER = [
+  'industry_major', 'industry_sub', 'business_description',
+  'prefecture', 'city', 'address',
+  'representative', 'representative_age',
+  'established_year', 'employee_count',
+  'revenue_k', 'net_income_k',
+  'phone',
+  'officers', 'shareholders', 'clients',
+  'remarks',
+];

@@ -478,7 +478,7 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
                 </span>
               ) : <span style={{ fontSize: 10, color: color.textLight }}>—</span> },
             ...(canEditDossier ? [{
-              key: 'dossier', label: '企業ドシェ', width: 120, align: 'center',
+              key: 'dossier', label: '企業情報', width: 120, align: 'center',
               cellStyle: { overflow: 'visible' },
               render: r => {
                 const d = dossiersById[r.id];
@@ -486,7 +486,7 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
                 const isRunning = status === 'running' || status === 'queued';
                 const isKicking = kickingoffIds.has(r.id);
                 const exists = !!d;
-                const label = isRunning ? '生成中…' : exists ? '再生成' : 'ドシェ作成';
+                const label = isRunning ? '生成中…' : exists ? '再生成' : '作成';
                 return (
                   <span onClick={e => e.stopPropagation()}>
                     <Button

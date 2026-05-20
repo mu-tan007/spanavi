@@ -70,16 +70,23 @@ interface CallListRow {
 
 interface CompanyMasterRow {
   company_name: string
-  address: string | null
-  representative: string | null
+  industry_major: string | null
+  industry_sub: string | null
   business_description: string | null
+  prefecture: string | null
+  city: string | null
+  address: string | null
   revenue_k: number | null
   net_income_k: number | null
+  representative: string | null
+  representative_age: string | null
+  shareholders: string | null
+  officers: string | null
   employee_count: string | null
   established_year: string | null
   phone: string | null
-  officers: string | null
-  shareholders: string | null
+  clients: string | null
+  remarks: string | null
 }
 
 async function loadAppointmentContext(appointmentId: string): Promise<{
@@ -109,7 +116,7 @@ async function loadAppointmentContext(appointmentId: string): Promise<{
           .maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from('company_master')
-      .select('company_name, address, representative, business_description, revenue_k, net_income_k, employee_count, established_year, phone, officers, shareholders')
+      .select('company_name, industry_major, industry_sub, business_description, prefecture, city, address, revenue_k, net_income_k, representative, representative_age, shareholders, officers, employee_count, established_year, phone, clients, remarks')
       .eq('org_id', appt.org_id)
       .eq('company_name', appt.company_name)
       .limit(1)
@@ -142,18 +149,25 @@ function buildPrompt(args: {
 }): string {
   const identityBlock = buildIdentityClause(args.targetCompany, args.targetRep, args.targetAddress)
   const masterBlock = args.master ? `
-【社内マスターDBの該当企業情報（参考、これも採用前に同定照合すること）】
+【社内マスターDBの該当企業情報（参考。これも採用前に同定照合すること。なお内容は別途 internal_db セクションで UI に直接表示されるので、重複させず外部情報の補完に専念せよ）】
 - 商号: ${args.master.company_name}
-- 住所: ${args.master.address || '不明'}
-- 代表者: ${args.master.representative || '不明'}
+- 業界(大分類): ${args.master.industry_major || '不明'}
+- 業界(細分類): ${args.master.industry_sub || '不明'}
 - 事業内容: ${args.master.business_description || '不明'}
+- 都道府県: ${args.master.prefecture || '不明'}
+- 市区郡: ${args.master.city || '不明'}
+- 住所: ${args.master.address || '不明'}
 - 売上高(千円): ${args.master.revenue_k ?? '不明'}
 - 当期純利益(千円): ${args.master.net_income_k ?? '不明'}
+- 代表者: ${args.master.representative || '不明'}
+- 代表者年齢: ${args.master.representative_age || '不明'}
+- 設立年: ${args.master.established_year || '不明'}
 - 従業員数: ${args.master.employee_count || '不明'}
-- 設立: ${args.master.established_year || '不明'}
 - 電話: ${args.master.phone || '不明'}
 - 役員: ${args.master.officers || '不明'}
 - 株主: ${args.master.shareholders || '不明'}
+- 取引先: ${args.master.clients || '不明'}
+- 備考: ${args.master.remarks || '不明'}
 ` : ''
 
   const hpBlock = args.hpPages.length > 0 ? `
@@ -166,7 +180,15 @@ ${args.hpPages.map(p => `=== ${p.url} ===\n${p.text}`).join('\n\n')}
 `
 
   return `あなたは M&A アドバイザリーのアナリストです。
-クライアントへ提示する「企業ドシエ（dossier）」を、以下の対象企業について構造化して作成してください。
+クライアントへ提示する「企業情報」を、以下の対象企業について構造化して作成してください。
+
+【出力フォーマット規約（絶対厳守）】
+- 出力は純粋な JSON 1 オブジェクトのみ。
+- 「\`\`\`json」「\`\`\`」等のコードフェンスを付けない。
+- JSON の前後に説明文・前置き・後書き・補足・脚注を一切付けない。
+- 文字列内部の二重引用符は \\" でエスケープ。改行は \\n。
+- 1 文字目は必ず { で、最後の文字は必ず } とする。
+- 上記が守れない場合、応答はパース失敗で破棄される。
 
 【対象企業の同定情報（厳守）】
 ${identityBlock}
@@ -189,6 +211,9 @@ ${hpBlock}
    - high:   社名・代表者・住所いずれも一致確認できた
    - medium: 社名 + 1点が一致、もう1点は記載なし
    - low:    社名のみ一致、または同定不能（採用しない方が安全だが参考として記載可）
+4. 社内DB情報（業界分類・株主・役員・取引先・備考等）は別途 UI に直接表示されるので、
+   content には含めず外部情報の補完に専念せよ（business_segments / history / leadership /
+   financials / press_releases / news / key_topics / mna_relevance / overview）
 
 【出力フォーマット（必ずこのJSONのみ、他テキスト一切なし）】
 {
@@ -210,31 +235,93 @@ ${hpBlock}
       "capital": "5,000万円 など"
     },
     "press_releases": [
-      {"date": "2026-04-15", "title": "...", "url": "...", "summary": "1-2文"},
-      ...最大5件
+      {"date": "2026-04-15", "title": "...", "url": "...", "summary": "1-2文"}
     ],
     "news": [
-      {"date": "2026-03-10", "title": "...", "url": "...", "summary": "1-2文", "source": "日経新聞 等"},
-      ...最大5件
+      {"date": "2026-03-10", "title": "...", "url": "...", "summary": "1-2文", "source": "日経新聞 等"}
     ],
-    "key_topics": ["後継者問題への言及", "DX推進", "海外展開", "..."],
+    "key_topics": ["後継者問題への言及", "DX推進", "海外展開"],
     "mna_relevance": "M&Aアドバイザーとして本企業を見たときの所感を 150-300 文字で。事業承継ニーズ、財務状況、業界再編トレンド等"
   },
   "sources": [
-    {"type": "hp",         "url": "...", "identity_match": "high|medium|low"},
-    {"type": "web_search", "url": "https://prtimes.jp/...", "identity_match": "high|medium|low"}
+    {"type": "hp",         "url": "...", "identity_match": "high"},
+    {"type": "web_search", "url": "https://prtimes.jp/...", "identity_match": "high"}
   ]
 }
 
 【出力の厳守事項】
 - 情報が無い項目は空配列・空文字・null として返す（捏造禁止）
-- JSON以外のテキスト（説明文・前置き・末尾コメント）は一切出力しないこと
-- url 不明の press_releases/news は url を空文字にする`
+- JSON 以外のテキスト（説明文・前置き・末尾コメント・コードフェンス）は一切出力しないこと
+- url 不明の press_releases/news は url を空文字にする
+- press_releases / news は最大 5 件ずつ
+- 採用しなかった候補に関する注釈も出力に含めない（identity_match で表現する）`
 }
 
 interface DossierResult {
   content: Record<string, unknown>
   sources: Array<{ type: string; url: string; identity_match: string; note?: string }>
+}
+
+// company_master 行から internal_db オブジェクトを構築。
+// Claude を経由しないため情報欠落・要約による劣化が起きない。
+function buildInternalDb(master: CompanyMasterRow | null): Record<string, unknown> | null {
+  if (!master) return null
+  const obj: Record<string, unknown> = {}
+  const keys: (keyof CompanyMasterRow)[] = [
+    'industry_major', 'industry_sub', 'business_description',
+    'prefecture', 'city', 'address',
+    'representative', 'representative_age',
+    'established_year', 'employee_count',
+    'revenue_k', 'net_income_k',
+    'phone',
+    'officers', 'shareholders', 'clients',
+    'remarks',
+  ]
+  for (const k of keys) {
+    const v = master[k]
+    if (v !== null && v !== undefined && v !== '') obj[k] = v
+  }
+  return Object.keys(obj).length > 0 ? obj : null
+}
+
+// Claude 応答からJSONを堅牢に抽出する。
+//   - ```json ... ``` フェンスを最優先で剥がす
+//   - 文字列全体が JSON ならそのまま parse
+//   - だめなら最初の `{` から「対応する `}`」までを balanced match で抽出
+function extractDossierJson(rawText: string): { ok: true; value: { content: unknown; sources?: unknown } } | { ok: false; error: string } {
+  if (!rawText) return { ok: false, error: 'empty response' }
+
+  // 1. コードフェンス剥がし
+  let s = rawText.trim()
+  const fenceMatch = s.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  if (fenceMatch) s = fenceMatch[1].trim()
+
+  // 2. 直接 parse 試行
+  try { return { ok: true, value: JSON.parse(s) as { content: unknown; sources?: unknown } } } catch (_) { /* fallthrough */ }
+
+  // 3. 最初の { から balanced match で抽出（文字列内のブレースは無視）
+  const start = s.indexOf('{')
+  if (start < 0) return { ok: false, error: 'no opening brace found' }
+  let depth = 0
+  let inStr = false
+  let esc = false
+  let end = -1
+  for (let i = start; i < s.length; i++) {
+    const ch = s[i]
+    if (esc) { esc = false; continue }
+    if (ch === '\\') { esc = true; continue }
+    if (ch === '"') { inStr = !inStr; continue }
+    if (inStr) continue
+    if (ch === '{') depth++
+    else if (ch === '}') {
+      depth--
+      if (depth === 0) { end = i; break }
+    }
+  }
+  if (end < 0) return { ok: false, error: 'no matching closing brace' }
+  const candidate = s.slice(start, end + 1)
+  try { return { ok: true, value: JSON.parse(candidate) as { content: unknown; sources?: unknown } } }
+  catch (e) { return { ok: false, error: `JSON parse failed: ${(e as Error).message}` } }
 }
 
 async function generateDossierWithClaude(prompt: string): Promise<DossierResult | { error: string }> {
@@ -250,7 +337,7 @@ async function generateDossierWithClaude(prompt: string): Promise<DossierResult 
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 6000,
+      max_tokens: 8000,
       messages: [{ role: 'user', content: prompt }],
       tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 6 }],
     }),
@@ -266,17 +353,14 @@ async function generateDossierWithClaude(prompt: string): Promise<DossierResult 
     .map((b: { text: string }) => b.text)
     .join('')
 
-  try {
-    const m = text.match(/\{[\s\S]*\}/)
-    if (!m) return { error: 'JSON not found in response' }
-    const parsed = JSON.parse(m[0])
-    if (!parsed.content) return { error: 'content key missing in JSON' }
-    return {
-      content: parsed.content,
-      sources: Array.isArray(parsed.sources) ? parsed.sources : [],
-    }
-  } catch (e) {
-    return { error: `JSON parse failed: ${(e as Error).message}. Raw: ${text.slice(0, 300)}` }
+  const extracted = extractDossierJson(text)
+  if (!extracted.ok) return { error: `${extracted.error}. Raw head: ${text.slice(0, 300)}` }
+
+  const parsed = extracted.value as { content?: Record<string, unknown>; sources?: Array<{ type: string; url: string; identity_match: string }> }
+  if (!parsed.content) return { error: 'content key missing in JSON' }
+  return {
+    content: parsed.content,
+    sources: Array.isArray(parsed.sources) ? parsed.sources : [],
   }
 }
 
@@ -325,19 +409,39 @@ async function runDossierGeneration(appointmentId: string, providedHpUrl: string
     targetCompany, targetRep, targetAddress, master, hpUrl, hpPages,
   })
 
+  // 社内DB情報を Edge Function 側で構築（Claude を介さず確実に表示）
+  const internalDb = buildInternalDb(master)
+
   const result = await generateDossierWithClaude(prompt)
 
   if ('error' in result) {
-    await supabase
-      .from('company_dossiers')
-      .update({
-        generation_status: 'failed',
-        generation_error: result.error.slice(0, 1000),
-        generated_at: new Date().toISOString(),
-      })
-      .eq('appointment_id', appointmentId)
+    // Claude が失敗しても internal_db だけは保存し、partial として表示できるようにする
+    if (internalDb) {
+      await supabase
+        .from('company_dossiers')
+        .update({
+          content: { internal_db: internalDb },
+          generation_status: 'partial',
+          generation_error: result.error.slice(0, 1000),
+          generated_at: new Date().toISOString(),
+        })
+        .eq('appointment_id', appointmentId)
+    } else {
+      await supabase
+        .from('company_dossiers')
+        .update({
+          generation_status: 'failed',
+          generation_error: result.error.slice(0, 1000),
+          generated_at: new Date().toISOString(),
+        })
+        .eq('appointment_id', appointmentId)
+    }
     return
   }
+
+  // Claude content に internal_db をマージ（Edge Function 側で構築した生データ）
+  const mergedContent: Record<string, unknown> = { ...result.content }
+  if (internalDb) mergedContent.internal_db = internalDb
 
   // HP 取得失敗 + sources が空 → partial
   const noHpData = !hpUrl || hpPages.length === 0
@@ -353,7 +457,7 @@ async function runDossierGeneration(appointmentId: string, providedHpUrl: string
   await supabase
     .from('company_dossiers')
     .update({
-      content: result.content,
+      content: mergedContent,
       sources: sourcesWithMeta,
       generation_status: status,
       generation_error: null,
