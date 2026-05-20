@@ -300,24 +300,26 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: space[4] }}>
       {/* 期間セレクタ */}
-      <Card padding="none" style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>期間:</span>
-        {[
-          { id: 'total',   label: 'トータル' },
-          { id: 'monthly', label: '月次' },
-          { id: 'weekly',  label: '週次' },
-          { id: 'daily',   label: '日次' },
-        ].map(p => {
-          const active = periodMode === p.id;
-          return (
-            <Button
-              key={p.id}
-              size="sm"
-              variant={active ? 'primary' : 'secondary'}
-              onClick={() => setPeriodMode(p.id)}
-            >{p.label}</Button>
-          );
-        })}
+      <Card padding="none" style={{ padding: `${space[2]}px ${space[4]}px`, display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
+        <span style={{ fontSize: font.size.sm, color: color.textMid, fontWeight: font.weight.semibold, marginRight: space[1] }}>期間</span>
+        <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center' }}>
+          {[
+            { id: 'total',   label: 'トータル' },
+            { id: 'monthly', label: '月次' },
+            { id: 'weekly',  label: '週次' },
+            { id: 'daily',   label: '日次' },
+          ].map(p => {
+            const active = periodMode === p.id;
+            return (
+              <Button
+                key={p.id}
+                size="sm"
+                variant={active ? 'primary' : 'secondary'}
+                onClick={() => setPeriodMode(p.id)}
+              >{p.label}</Button>
+            );
+          })}
+        </div>
         {periodMode === 'monthly' && (
           <Select
             size="sm"
@@ -347,8 +349,8 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
             onChange={e => setDailyDate(e.target.value)}
           />
         )}
-        <span style={{ fontSize: 10, color: color.textLight, marginLeft: 'auto' }}>
-          表示中: {periodRange.label} (獲得日ベース)
+        <span style={{ fontSize: font.size.xs, color: color.textLight, marginLeft: 'auto', paddingLeft: space[2] }}>
+          表示中: {periodRange.label}（獲得日ベース）
         </span>
       </Card>
 
