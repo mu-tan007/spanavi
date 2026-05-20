@@ -45,7 +45,9 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
   const isMobile = useIsMobile();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useUrlState('status', 'all');
+  // URL クエリキーは画面間衝突を避けるため inc_ プレフィックス必須
+  // (CRM の ?status=面談予定 を そのまま読むと着信対応が全件除外になる事故防止)
+  const [statusFilter, setStatusFilter] = useUrlState('inc_status', 'all');
   // phone(正規化済み) → [{ itemId, company, listId, listName, clientName }]
   const [phoneItemMap, setPhoneItemMap] = useState({});
   // リスト選択モーダル: null | [{ itemId, company, listId, listName, clientName }]

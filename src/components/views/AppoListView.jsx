@@ -328,14 +328,16 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const _lsMonth = _ls('spanavi_appo_month');
   const defaultApMonth = (_lsMonth && AVAILABLE_MONTHS.some(m => m.yyyymm === _lsMonth))
     ? _lsMonth : (AVAILABLE_MONTHS[0]?.yyyymm || '2026-03');
-  const [apPeriod, setApPeriod] = useUrlState('period', defaultApPeriod);
-  const [apSelectedMonth, setApSelectedMonth] = useUrlState('month', defaultApMonth);
-  const [apCustomFrom, setApCustomFrom] = useUrlState('from', _ls('spanavi_appo_from') || '');
-  const [apCustomTo, setApCustomTo] = useUrlState('to', _ls('spanavi_appo_to') || '');
-  const [statusFilter, setStatusFilter] = useUrlState('status', 'all');
-  const [search, setSearch] = useUrlState('q', '');
-  const [sortKey, setSortKey] = useUrlState('sort', 'status');
-  const [sortDir, setSortDir] = useUrlState('dir', 'asc', { allowed: ['asc', 'desc'] });
+  // URL クエリキーは画面間衝突を避けるため apo_ プレフィックス必須。
+  // 例: CRM の ?status=面談予定 を そのまま読むとアポ一覧が全件除外になる事故が発生
+  const [apPeriod, setApPeriod] = useUrlState('apo_period', defaultApPeriod);
+  const [apSelectedMonth, setApSelectedMonth] = useUrlState('apo_month', defaultApMonth);
+  const [apCustomFrom, setApCustomFrom] = useUrlState('apo_from', _ls('spanavi_appo_from') || '');
+  const [apCustomTo, setApCustomTo] = useUrlState('apo_to', _ls('spanavi_appo_to') || '');
+  const [statusFilter, setStatusFilter] = useUrlState('apo_status', 'all');
+  const [search, setSearch] = useUrlState('apo_q', '');
+  const [sortKey, setSortKey] = useUrlState('apo_sort', 'status');
+  const [sortDir, setSortDir] = useUrlState('apo_dir', 'asc', { allowed: ['asc', 'desc'] });
   const [editForm, setEditForm] = useState(null);
   const [addAppoForm, setAddAppoForm] = useState(null);
   const [reportDetail, setReportDetail] = useState(null); // Appointment detail modal
