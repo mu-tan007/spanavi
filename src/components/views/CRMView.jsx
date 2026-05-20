@@ -92,14 +92,17 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     }, { replace: true });
   };
 
-  // 状態整合性: view='detail' なのに対応する clientId が現 clientData に無い → list に戻す
-  // （古い共有URL/削除済みclient/別engagementのidが URL に残っていた場合に画面が真っ白になる事故防止）
-  // clientData ロード前 (length === 0) は判定保留してロード完了後に再評価
+  // 状態整合性: view='detail' なのに detailClient が見つからない → 自動で list に戻す
+  // 復帰すべきパターン:
+  //   (a) clientId が URL から欠落（旧 goToDetail の race で残った "view=detail だけ" の URL）
+  //   (b) clientId はあるが現 clientData に該当 client が無い（削除済み/別engagement/共有URL）
+  // (b) のみ「clientData がロード前の length===0 段階」では即時判定せず待つ。
+  // (a) は clientId 自体が無いので clientData ロード完了を待つ必要はない（即時 list 復帰）。
   useEffect(() => {
     if (view !== 'detail') return;
-    if (!detailClientId) return;
-    if (!clientData || clientData.length === 0) return;
     if (detailClient) return;
+    // clientId が URL にあるが clientData が未ロードのケースは復帰判定を保留
+    if (detailClientId && (!clientData || clientData.length === 0)) return;
     setSearchParams(prev => {
       const np = new URLSearchParams(prev);
       np.delete('view');
