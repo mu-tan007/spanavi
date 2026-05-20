@@ -10,6 +10,7 @@ import { fetchAllRecallRecords, fetchMemberPayrollHistory } from '../../lib/supa
 import PageHeader from '../common/PageHeader';
 import TopListCard from '../common/TopListCard';
 import PushNotificationBanner from '../dashboard/PushNotificationBanner';
+import { useUrlState } from '../../hooks/useUrlState';
 import { Phone } from 'lucide-react';
 
 // teams は teams テーブルから動的取得（SourcingEngagement の active チーム）
@@ -78,7 +79,9 @@ export default function SourcingDashboardView({
     return opts;
   }, [myMember, currentUser, teamRows]);
 
-  const [scopeIdx, setScopeIdx] = useState(0);
+  const [scopeIdxStr, setScopeIdxStr] = useUrlState('scopeIdx', '0');
+  const scopeIdx = parseInt(scopeIdxStr, 10) || 0;
+  const setScopeIdx = (v) => setScopeIdxStr(String(typeof v === 'function' ? v(scopeIdx) : v));
   const scope = scopeOptions[scopeIdx];
 
   // 目標を入力できる権限判定（このスコープについて）

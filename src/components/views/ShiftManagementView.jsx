@@ -5,6 +5,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge } from '../ui';
 import { fetchShifts, insertShift, updateShift, deleteShift } from '../../lib/supabaseWrite';
 import PageHeader from '../common/PageHeader';
+import { useUrlState } from '../../hooks/useUrlState';
 
 // このビュー独自のレガシーネイビー（既存の見た目を維持するためトークンとは別に保持）
 const NAVY = '#0D2247';
@@ -57,10 +58,19 @@ const tlGetPreview = (d) => {
 export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   const isMobile = useIsMobile();
   const today = new Date();
-  const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth() + 1);
-  const [viewMode, setViewMode] = useState('month');
-  const [selectedDay, setSelectedDay] = useState(today.getDate());
+  // ハードリロード/URL共有で状態保持するため URL クエリに同期。
+  // year/month/day は数値だが useUrlState は文字列管理なので呼び出し側でparse。
+  const [yearStr, setYearStr] = useUrlState('year', String(today.getFullYear()));
+  const [monthStr, setMonthStr] = useUrlState('month', String(today.getMonth() + 1));
+  const [viewMode, setViewMode] = useUrlState('view', 'month', { allowed: ['month', 'day'] });
+  const [selectedDayStr, setSelectedDayStr] = useUrlState('day', String(today.getDate()));
+  const year = parseInt(yearStr, 10) || today.getFullYear();
+  const month = parseInt(monthStr, 10) || (today.getMonth() + 1);
+  const selectedDay = parseInt(selectedDayStr, 10) || today.getDate();
+  const setYear = (v) => setYearStr(String(typeof v === 'function' ? v(year) : v));
+  const setMonth = (v) => setMonthStr(String(typeof v === 'function' ? v(month) : v));
+  const setSelectedDay = (v) => setSelectedDayStr(String(typeof v === 'function' ? v(selectedDay) : v));
+
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(false);
 

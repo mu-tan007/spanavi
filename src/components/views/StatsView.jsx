@@ -17,6 +17,7 @@ import {
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import PageHeader from '../common/PageHeader';
+import { useUrlState } from '../../hooks/useUrlState';
 
 const NAVY = '#0D2247';
 const GOLD = '#C8A84B';
@@ -87,7 +88,8 @@ export default function StatsView({ callListData, currentUser, appoData, members
   const { keymanConnectLabels } = useCallStatuses();
 
   // ── クライアント円グラフ選択 ──────────────────────────────────────────
-  const [selectedClientPie, setSelectedClientPie] = useState(null);
+  // ハードリロード/URL共有対応で URL クエリに同期
+  const [selectedClientPie, setSelectedClientPie] = useUrlState('client', null);
 
   // ── KPI カード用（週次架電データ） ─────────────────────────────────────
   const [kpiCalls, setKpiCalls] = useState([]);
@@ -106,10 +108,10 @@ export default function StatsView({ callListData, currentUser, appoData, members
   const [listLoading, setListLoading] = useState(false);
   const [listSortKey, setListSortKey] = useState('calls');
   const [listSortDir, setListSortDir] = useState('desc');
-  const [listFilter, setListFilter] = useState('all');
+  const [listFilter, setListFilter] = useUrlState('listFilter', 'all');
 
   // ── ① 売上推移グラフ ─────────────────────────────────────────────────────
-  const [chartTab, setChartTab] = useState('monthly');
+  const [chartTab, setChartTab] = useUrlState('chartTab', 'monthly');
   const [chartMonthStr, setChartMonthStr] = useState(() => AVAILABLE_MONTHS[0]?.yyyymm || '2026-03');
   const [chartCustomFrom, setChartCustomFrom] = useState('');
   const [chartCustomTo, setChartCustomTo] = useState('');

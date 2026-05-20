@@ -4,6 +4,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import PageHeader from '../common/PageHeader';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { useUrlState } from '../../hooks/useUrlState';
 import {
   fetchCallListsMeta,
   rpcPerfRankingScoped,
@@ -80,12 +81,13 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
   const weekStartStr = weekStart.toISOString().slice(0, 10);
   const monthStr = todayStr.slice(0, 7);
 
-  const [period, setPeriod] = useState('month');
-  const [customFrom, setCustomFrom] = useState('');
-  const [customTo, setCustomTo] = useState('');
-  const [scope, setScope] = useState('org');
-  const [scopeId, setScopeId] = useState(null);
-  const [listId, setListId] = useState(null);
+  // ハードリロード/URL共有で状態保持するため URL クエリに同期
+  const [period, setPeriod]         = useUrlState('period', 'month', { allowed: ['day', 'week', 'month', 'custom'] });
+  const [customFrom, setCustomFrom] = useUrlState('from', '');
+  const [customTo, setCustomTo]     = useUrlState('to', '');
+  const [scope, setScope]           = useUrlState('scope', 'org', { allowed: ['org', 'team', 'member'] });
+  const [scopeId, setScopeId]       = useUrlState('scopeId', null);
+  const [listId, setListId]         = useUrlState('listId', null);
 
   const range = useMemo(
     () => computeDateRange(period, customFrom, customTo, todayStr, weekStartStr, monthStr),

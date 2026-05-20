@@ -10,6 +10,7 @@ import { getOrgId } from '../../lib/orgContext';
 // 旧 useColumnConfig / ColumnResizeHandle は DataTable 移行で不要に
 import PageHeader from '../common/PageHeader';
 import PayrollSelfDetailView from './PayrollSelfDetailView';
+import { useUrlState } from '../../hooks/useUrlState';
 
 const PAYROLL_DATA = [];
 
@@ -90,13 +91,15 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
     }
     return result;
   })();
-  const [monthTab, setMonthTab] = useState(() => {
-    const s = localStorage.getItem('spanavi_payroll_month');
+  // URL クエリ同期（ハードリロード/共有URL対応）。既存 localStorage は移行のため初期値だけ参照。
+  const defaultMonthTab = (() => {
+    const s = typeof window !== 'undefined' ? localStorage.getItem('spanavi_payroll_month') : null;
     return (s && payrollMonths.some(x => x.label === s)) ? s : (payrollMonths[payrollMonths.length - 1]?.label || "3月");
-  });
-  useEffect(() => { localStorage.setItem('spanavi_payroll_month', monthTab); }, [monthTab]);
-  const [teamFilter, setTeamFilter] = useState("all");
-  const [sortKey, setSortKey] = useState("total");
+  })();
+  const [monthTab, setMonthTab] = useUrlState('month', defaultMonthTab);
+  useEffect(() => { try { localStorage.setItem('spanavi_payroll_month', monthTab); } catch (_) { /* noop */ } }, [monthTab]);
+  const [teamFilter, setTeamFilter] = useUrlState('team', 'all');
+  const [sortKey, setSortKey] = useUrlState('sort', 'total');
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
   const [orgSettings, setOrgSettings] = useState({});

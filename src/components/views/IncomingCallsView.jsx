@@ -8,6 +8,7 @@ import InlineAudioPlayer from '../common/InlineAudioPlayer';
 
 import { getOrgId } from '../../lib/orgContext';
 import PageHeader from '../common/PageHeader';
+import { useUrlState } from '../../hooks/useUrlState';
 
 const formatJST = (iso) => {
   if (!iso) return '-';
@@ -44,7 +45,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
   const isMobile = useIsMobile();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useUrlState('status', 'all');
   // phone(正規化済み) → [{ itemId, company, listId, listName, clientName }]
   const [phoneItemMap, setPhoneItemMap] = useState({});
   // リスト選択モーダル: null | [{ itemId, company, listId, listName, clientName }]

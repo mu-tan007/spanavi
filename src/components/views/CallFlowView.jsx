@@ -15,6 +15,7 @@ import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
 import AppoReportModal from './AppoReportModal';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
+import { useUrlState } from '../../hooks/useUrlState';
 import ClientCalendarPanel from '../common/ClientCalendarPanel';
 import MultiCalendarPanel from '../common/MultiCalendarPanel';
 import QuickAppoModal from '../common/QuickAppoModal';
@@ -198,8 +199,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRow, setSelectedRow] = useState(null);
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(0);
+  const [search, setSearch] = useUrlState('q', '');
+  const [pageStr, setPageStr] = useUrlState('page', '0');
+  const page = parseInt(pageStr, 10) || 0;
+  const setPage = (v) => setPageStr(String(typeof v === 'function' ? v(page) : v));
   const [localMemo, setLocalMemo] = useState('');
   const [savingMemo, setSavingMemo] = useState(false);
   const [appoModal, setAppoModal] = useState(null); // holds selectedRow when アポ獲得 is clicked
@@ -210,7 +213,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [sortState, setSortState] = useState({ column: null, direction: null });
   const [callRecords, setCallRecords] = useState([]);
   const [selectedRound, setSelectedRound] = useState(null);
-  const [filterMode, setFilterMode] = useState('callable');
+  const [filterMode, setFilterMode] = useUrlState('mode', 'callable');
   const [revenueMin, setRevenueMin] = useState(initialRevenueMin ? String(initialRevenueMin) : '');  // 千円単位（例: 100000 = 1億円）
   const [revenueMax, setRevenueMax] = useState(initialRevenueMax ? String(initialRevenueMax) : '');  // 空文字 = 上限なし
   const [prefFilters, setPrefFilters] = useState(Array.isArray(initialPrefFilter) ? initialPrefFilter : (initialPrefFilter ? [initialPrefFilter] : []));

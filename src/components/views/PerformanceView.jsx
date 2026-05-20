@@ -13,6 +13,7 @@ import HourlyActivityChart from '../dashboard/HourlyActivityChart';
 import ActivityRankingSection from '../dashboard/ActivityRankingSection';
 import TeamPerformanceTable from '../dashboard/TeamPerformanceTable';
 import PageHeader from '../common/PageHeader';
+import { useUrlState } from '../../hooks/useUrlState';
 
 const NAVY = color.navy;
 const GOLD = color.gold;
@@ -241,10 +242,10 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
   const _jstStart = (ds) => new Date(ds + 'T00:00:00+09:00').toISOString();
   const _jstEnd   = (ds) => new Date(ds + 'T23:59:59.999+09:00').toISOString();
 
-  // セクション1: 活動サマリー
-  const [activityPeriod, setActivityPeriod] = useState('week');
-  const [activityFrom, setActivityFrom] = useState('');
-  const [activityTo, setActivityTo] = useState('');
+  // セクション1: 活動サマリー（URL同期でハードリロード時の状態保持）
+  const [activityPeriod, setActivityPeriod] = useUrlState('act_period', 'week');
+  const [activityFrom, setActivityFrom] = useUrlState('act_from', '');
+  const [activityTo, setActivityTo] = useUrlState('act_to', '');
   const [activitySummary, setActivitySummary] = useState({ current: { total: 0, keyman_connect: 0, appo: 0 }, previous: { total: 0, keyman_connect: 0, appo: 0 } });
   const [activityLoading, setActivityLoading] = useState(false);
 
@@ -266,7 +267,7 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
   }, [activityPeriod, activityFrom, activityTo, todayStr, weekStartStr, monthStr]);
 
   // セクション2: 時間帯別
-  const [hourlyDate, setHourlyDate] = useState(todayStr);
+  const [hourlyDate, setHourlyDate] = useUrlState('hourly', todayStr);
   const [hourlyChartData, setHourlyChartData] = useState([]);
   const [hourlyLoading, setHourlyLoading] = useState(false);
 
@@ -293,9 +294,9 @@ export default function PerformanceView({ members, currentUser, appoData = [] })
   }, [hourlyDate]);
 
   // セクション3+5: ランキング・チーム
-  const [rankPeriod, setRankPeriod] = useState('week');
-  const [rankFrom, setRankFrom] = useState('');
-  const [rankTo, setRankTo] = useState('');
+  const [rankPeriod, setRankPeriod] = useUrlState('rank_period', 'week');
+  const [rankFrom, setRankFrom] = useUrlState('rank_from', '');
+  const [rankTo, setRankTo] = useUrlState('rank_to', '');
   const [rankData, setRankData] = useState([]); // RPC集計済み: [{getter_name, calls, keyman_connect, appo, work_hours}]
   const [rankLoading, setRankLoading] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState(null);

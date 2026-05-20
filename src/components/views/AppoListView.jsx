@@ -14,6 +14,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import PageHeader from '../common/PageHeader';
+import { useUrlState } from '../../hooks/useUrlState';
 
 const APPO_COLS = [
   { key: 'client', width: 240, align: 'left' },
@@ -321,23 +322,20 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const isMobile = useIsMobile();
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
   // ── ランク・レート自動計算 ──────────────────────────────────────
-  const [apPeriod, setApPeriod] = useState(() =>
-    localStorage.getItem('spanavi_appo_period') || "all"
-  );
-  const [apSelectedMonth, setApSelectedMonth] = useState(() => {
-    const s = localStorage.getItem('spanavi_appo_month');
-    return (s && AVAILABLE_MONTHS.some(m => m.yyyymm === s)) ? s : (AVAILABLE_MONTHS[0]?.yyyymm || "2026-03");
-  });
-  const [apCustomFrom, setApCustomFrom] = useState(() =>
-    localStorage.getItem('spanavi_appo_from') || ""
-  );
-  const [apCustomTo, setApCustomTo] = useState(() =>
-    localStorage.getItem('spanavi_appo_to') || ""
-  );
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState('status');
-  const [sortDir, setSortDir] = useState('asc');
+  // ハードリロード/URL共有対応で URL クエリに同期。既存 localStorage は初期値だけ参照（後方互換）。
+  const _ls = (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
+  const defaultApPeriod = _ls('spanavi_appo_period') || 'all';
+  const _lsMonth = _ls('spanavi_appo_month');
+  const defaultApMonth = (_lsMonth && AVAILABLE_MONTHS.some(m => m.yyyymm === _lsMonth))
+    ? _lsMonth : (AVAILABLE_MONTHS[0]?.yyyymm || '2026-03');
+  const [apPeriod, setApPeriod] = useUrlState('period', defaultApPeriod);
+  const [apSelectedMonth, setApSelectedMonth] = useUrlState('month', defaultApMonth);
+  const [apCustomFrom, setApCustomFrom] = useUrlState('from', _ls('spanavi_appo_from') || '');
+  const [apCustomTo, setApCustomTo] = useUrlState('to', _ls('spanavi_appo_to') || '');
+  const [statusFilter, setStatusFilter] = useUrlState('status', 'all');
+  const [search, setSearch] = useUrlState('q', '');
+  const [sortKey, setSortKey] = useUrlState('sort', 'status');
+  const [sortDir, setSortDir] = useUrlState('dir', 'asc', { allowed: ['asc', 'desc'] });
   const [editForm, setEditForm] = useState(null);
   const [addAppoForm, setAddAppoForm] = useState(null);
   const [reportDetail, setReportDetail] = useState(null); // Appointment detail modal

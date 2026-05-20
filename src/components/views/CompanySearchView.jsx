@@ -33,6 +33,7 @@ import InlineAudioPlayer from '../common/InlineAudioPlayer';
 import { PlayRecordingButton } from '../common/RecordingPlayerProvider';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
+import { useUrlState } from '../../hooks/useUrlState';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import PageHeader from '../common/PageHeader';
 
@@ -64,12 +65,13 @@ const SEARCH_LISTS_COLS = [
 ];
 
 export default function CompanySearchView({ importedCSVs, callListData, setCallingScreen, setImportedCSVs, clientData = [], currentUser, members = [], setCallFlowScreen, rewardMaster = [] }) {
-  const [subTab, setSubTab] = useState("company");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchField, setSearchField] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [clientSortBy, setClientSortBy] = useState(null);
-  const [clientSortDir, setClientSortDir] = useState("asc");
+  // ハードリロード/URL共有で状態保持するため URL クエリに同期
+  const [subTab, setSubTab]         = useUrlState('subtab', 'company');
+  const [searchTerm, setSearchTerm] = useUrlState('q', '');
+  const [searchField, setSearchField] = useUrlState('field', 'all');
+  const [statusFilter, setStatusFilter] = useUrlState('status', 'all');
+  const [clientSortBy, setClientSortBy] = useUrlState('sort', null);
+  const [clientSortDir, setClientSortDir] = useUrlState('dir', 'asc', { allowed: ['asc', 'desc'] });
 
   // Column resize/alignment hooks
   const { columns: scCols, gridTemplateColumns: scGrid, contentMinWidth: scMinW, onResizeStart: scResize } = useColumnConfig('searchCompany', SEARCH_COMPANY_COLS);
@@ -77,19 +79,19 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   const { columns: slCols, gridTemplateColumns: slGrid, contentMinWidth: slMinW, onResizeStart: slResize } = useColumnConfig('searchLists', SEARCH_LISTS_COLS);
   const { statuses, keymanConnectLabels, getStatusColor, labelMap } = useCallStatuses();
 
-  // List search state（リスト検索）
-  const [lsClientInput, setLsClientInput] = useState("");
+  // List search state（リスト検索）- URLに同期して状態保持
+  const [lsClientInput, setLsClientInput] = useUrlState('ls_client', '');
   const [lsClientFocused, setLsClientFocused] = useState(false);
-  const [lsIndustry, setLsIndustry] = useState("");
+  const [lsIndustry, setLsIndustry] = useUrlState('ls_industry', '');
   const [lsIndustryFocused, setLsIndustryFocused] = useState(false);
-  const [lsPref, setLsPref] = useState("");
-  const [lsRevenueMin, setLsRevenueMin] = useState("");
-  const [lsRevenueMax, setLsRevenueMax] = useState("");
-  const [lsNetIncomeMin, setLsNetIncomeMin] = useState("");
-  const [lsNetIncomeMax, setLsNetIncomeMax] = useState("");
-  const [lsStatus, setLsStatus] = useState([]);
-  const [lsCallCountMin, setLsCallCountMin] = useState("");
-  const [lsCallCountMax, setLsCallCountMax] = useState("");
+  const [lsPref, setLsPref] = useUrlState('ls_pref', '');
+  const [lsRevenueMin, setLsRevenueMin] = useUrlState('ls_rev_min', '');
+  const [lsRevenueMax, setLsRevenueMax] = useUrlState('ls_rev_max', '');
+  const [lsNetIncomeMin, setLsNetIncomeMin] = useUrlState('ls_ni_min', '');
+  const [lsNetIncomeMax, setLsNetIncomeMax] = useUrlState('ls_ni_max', '');
+  const [lsStatus, setLsStatus] = useUrlState('ls_status', [], { json: true });
+  const [lsCallCountMin, setLsCallCountMin] = useUrlState('ls_cc_min', '');
+  const [lsCallCountMax, setLsCallCountMax] = useUrlState('ls_cc_max', '');
   const [lsResults, setLsResults] = useState(null); // null = 未検索（リストレベル）
   const [lsItemResults, setLsItemResults] = useState(null); // null = 未検索（企業レベル）
   const [lsCalledCounts, setLsCalledCounts] = useState({});
@@ -142,12 +144,12 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   const [savingMemo, setSavingMemo] = useState(false);
   const [appoModal, setAppoModal] = useState(null);
 
-  // ====== 録音一覧タブ用 state ======
-  const [recGetter, setRecGetter] = useState('all');
-  const [recStatus, setRecStatus] = useState('all');
-  const [recDateFrom, setRecDateFrom] = useState('');
-  const [recDateTo, setRecDateTo] = useState('');
-  const [recSortDir, setRecSortDir] = useState('desc');
+  // ====== 録音一覧タブ用 state ======（URL同期）
+  const [recGetter, setRecGetter] = useUrlState('rec_getter', 'all');
+  const [recStatus, setRecStatus] = useUrlState('rec_status', 'all');
+  const [recDateFrom, setRecDateFrom] = useUrlState('rec_from', '');
+  const [recDateTo, setRecDateTo] = useUrlState('rec_to', '');
+  const [recSortDir, setRecSortDir] = useUrlState('rec_sort', 'desc', { allowed: ['asc', 'desc'] });
   const [recList, setRecList] = useState([]);
   const [recLoading, setRecLoading] = useState(false);
   const [recPlayingId, setRecPlayingId] = useState(null);

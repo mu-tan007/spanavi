@@ -1,10 +1,10 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { useEngagements } from '../../hooks/useEngagements';
 import { useEngagementClients } from '../../hooks/useEngagementClients';
+import { useUrlState } from '../../hooks/useUrlState';
 import { invokeAdminImpersonateClient } from '../../lib/supabaseWrite';
 import ClientSelector from '../common/ClientSelector';
 import PageHeader from '../common/PageHeader';
@@ -15,34 +15,15 @@ const TABS = [
   { id: 'calls', label: '架電結果' },
   { id: 'appos', label: '獲得アポ詳細' },
 ];
-
-const TAB_IDS = new Set(TABS.map(t => t.id));
+const TAB_IDS = TABS.map(t => t.id);
 
 export default function DealsView({ isAdmin = false, currentUser = '' }) {
   const { currentEngagement } = useEngagements();
   const { clients } = useEngagementClients(currentEngagement?.id);
 
-  // クライアント選択・サブタブはハードリロード/共有URL対応のため URL クエリに同期
-  const [searchParams, setSearchParams] = useSearchParams();
-  const selectedClientId = searchParams.get('client') || null;
-  const tabParam = searchParams.get('tab');
-  const activeTab = TAB_IDS.has(tabParam) ? tabParam : 'calls';
-
-  const setSelectedClientId = useCallback((id) => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      if (id) next.set('client', id); else next.delete('client');
-      return next;
-    }, { replace: true });
-  }, [setSearchParams]);
-
-  const setActiveTab = useCallback((tab) => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      if (tab && tab !== 'calls') next.set('tab', tab); else next.delete('tab');
-      return next;
-    }, { replace: true });
-  }, [setSearchParams]);
+  // ハードリロード/共有URL対応のため URL クエリに同期
+  const [selectedClientId, setSelectedClientId] = useUrlState('client', null);
+  const [activeTab, setActiveTab] = useUrlState('tab', 'calls', { allowed: TAB_IDS });
 
   const [impersonating, setImpersonating] = useState(false);
 

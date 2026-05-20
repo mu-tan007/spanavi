@@ -4,6 +4,7 @@ import { updateClient, insertClient, deleteClient } from '../../lib/supabaseWrit
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import useColumnConfig from '../../hooks/useColumnConfig';
+import { useUrlState } from '../../hooks/useUrlState';
 import PageHeader from '../common/PageHeader';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
@@ -37,23 +38,35 @@ export default function CRMView(props) {
 }
 
 function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient, callListData = [], currentUser = '', members = [] }) {
-  const [statusFilter, setStatusFilter] = useState("支援中");
-  const [search, setSearch] = useState("");
+  // ハードリロード/URL共有で状態保持するため URL クエリに同期
+  const [statusFilter, setStatusFilter] = useUrlState('status', '支援中');
+  const [search, setSearch]             = useUrlState('q', '');
+  const [view, setView]                 = useUrlState('view', 'list', { allowed: ['list', 'detail', 'pipeline', 'targets'] });
+  const [detailClientId, setDetailClientId] = useUrlState('clientId', null);
+
   const [showRewardDetail, setShowRewardDetail] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [addForm, setAddForm] = useState(null);
   const [addSaving, setAddSaving] = useState(false);
   const [addToast, setAddToast] = useState(null);
-  // 詳細ページ切替
-  const [view, setView] = useState('list'); // 'list' | 'detail' | 'targets'
-  const [detailClient, setDetailClient] = useState(null);
   // 新規顧客追加で AI が抽出した「追加候補の担当者」をキューする
   const [pendingNewContacts, setPendingNewContacts] = useState([]);
   // 既存顧客の編集で AI が抽出した「追加候補の担当者」をキューする
   const [pendingEditContacts, setPendingEditContacts] = useState([]);
 
-  const goToDetail = (c) => { setDetailClient(c); setView('detail'); };
-  const goToList = () => { setView('list'); setDetailClient(null); };
+  // URL の clientId から実 clientData を復元（リロード時の view='detail' 対応）
+  const detailClient = useMemo(() => {
+    if (!detailClientId) return null;
+    return (clientData || []).find(c => c._supaId === detailClientId) || null;
+  }, [detailClientId, clientData]);
+
+  const goToDetail = (c) => { setDetailClientId(c?._supaId || null); setView('detail'); };
+  const goToList = () => { setView('list'); setDetailClientId(null); };
+
+  // 状態整合性: view='detail' なのに clientId 不在 → list に戻す
+  // （データロード前で client が見つからないケースは clientData ロード後の再描画で復元）
+  // detailClient setter は外側で setDetailClient と呼ばれていた箇所があるので互換 setter を用意
+  const setDetailClient = (c) => setDetailClientId(c?._supaId || null);
 
   const orgId = getOrgId();
   const { currentEngagement } = useEngagements();
@@ -151,7 +164,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   );
 
   // アラートフィルタ ('overdue' | 'expired' | null)
-  const [alertFilter, setAlertFilter] = useState(null);
+  const [alertFilter, setAlertFilter] = useUrlState('alert', null, { allowed: ['overdue', 'expired'] });
 
   // フォロー漏れ判定: 最終接点 30日以上前 or 一度も接点なし（架電履歴・アポ・メモのいずれもない）
   const isOverdue = (c) => {
