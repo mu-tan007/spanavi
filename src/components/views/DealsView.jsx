@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
@@ -15,12 +16,34 @@ const TABS = [
   { id: 'appos', label: '獲得アポ詳細' },
 ];
 
+const TAB_IDS = new Set(TABS.map(t => t.id));
+
 export default function DealsView({ isAdmin = false, currentUser = '' }) {
   const { currentEngagement } = useEngagements();
   const { clients } = useEngagementClients(currentEngagement?.id);
 
-  const [selectedClientId, setSelectedClientId] = useState(null);
-  const [activeTab, setActiveTab] = useState('calls');
+  // クライアント選択・サブタブはハードリロード/共有URL対応のため URL クエリに同期
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedClientId = searchParams.get('client') || null;
+  const tabParam = searchParams.get('tab');
+  const activeTab = TAB_IDS.has(tabParam) ? tabParam : 'calls';
+
+  const setSelectedClientId = useCallback((id) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (id) next.set('client', id); else next.delete('client');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setActiveTab = useCallback((tab) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (tab && tab !== 'calls') next.set('tab', tab); else next.delete('tab');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   const [impersonating, setImpersonating] = useState(false);
 
   const selectedClient = useMemo(
