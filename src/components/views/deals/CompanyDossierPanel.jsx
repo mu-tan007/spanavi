@@ -132,7 +132,7 @@ export default function CompanyDossierPanel({
     setSaving(true);
     setErrorMsg('');
     // 文字列セクションは string、それ以外は JSON parse
-    const stringKeys = new Set(['executive_summary', 'market_trend']);
+    const stringKeys = new Set(['executive_summary']);
     let nextVal;
     if (stringKeys.has(editingKey)) {
       nextVal = editingDraft;
@@ -257,7 +257,7 @@ export default function CompanyDossierPanel({
 }
 
 function DossierSection({ sectionKey, label, value, editing, draft, setDraft, canEditDossier, onEdit, onCancel, onSave, saving }) {
-  const stringKeys = new Set(['executive_summary', 'market_trend']);
+  const stringKeys = new Set(['executive_summary']);
   return (
     <div style={sectionStyle}>
       <div style={sectionHeaderStyle}>
@@ -337,12 +337,7 @@ function SectionRender({ sectionKey, value }) {
     return <NumberedCardList items={value} />;
   }
 
-  // 5. 市場動向（文章）
-  if (sectionKey === 'market_trend') {
-    return <div style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: font.lineHeight.relaxed, whiteSpace: 'pre-wrap' }}>{value}</div>;
-  }
-
-  // 6. 同業界 M&A ニュース
+  // 5. 同業界 M&A ニュース
   if (sectionKey === 'industry_ma_news') return <MaNewsRender items={value} />;
 
   // 7. MASP メモ

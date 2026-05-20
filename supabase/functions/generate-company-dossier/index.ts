@@ -194,7 +194,40 @@ function buildIdentityClause(targetCompany: string, targetRep: string | null, ta
   return parts.join('\n')
 }
 
-function buildPrompt(args: {
+// 共通ヘルパー: identity + master ブロック + industryHint
+function buildContextBlocks(args: {
+  targetCompany: string
+  targetRep: string | null
+  targetAddress: string | null
+  master: CompanyMasterRow | null
+}): { identityBlock: string; masterBlock: string; industryHint: string } {
+  const identityBlock = buildIdentityClause(args.targetCompany, args.targetRep, args.targetAddress)
+  const masterBlock = args.master ? `
+【社内マスターDB(参考。UIで別途表示するため content には重複させない)】
+- 商号: ${args.master.company_name}
+- 業界: ${args.master.industry_major || '不明'} / ${args.master.industry_sub || '不明'}
+- 事業: ${args.master.business_description || '不明'}
+- 住所: ${args.master.full_address || args.master.address || '不明'}
+- 代表者: ${args.master.representative || '不明'}
+- 設立: ${args.master.established_year ?? '不明'}
+` : ''
+  const industryHint = args.master?.industry_sub || args.master?.industry_major || '対象企業の属する業界'
+  return { identityBlock, masterBlock, industryHint }
+}
+
+const JSON_GUARDRAIL = `【出力フォーマット規約(絶対厳守)】
+- 出力は純粋な JSON 1 オブジェクトのみ。コードフェンス禁止。前置き・後書き禁止。
+- 1 文字目は { で最後の文字は }。`
+
+const IDENTITY_RULE = `【企業同定の絶対ルール】
+- 社名・代表者名・住所のうち少なくとも 2 つが一致する情報のみ採用
+- 社名のみ一致(同名異社リスク)は web_search で住所/代表者を確認
+- 確認できない情報は採用せず identity_match='low'
+- 推測・捏造禁止`
+
+// === Call 1: 企業コア (HP本文中心、web_search 1回まで) ===
+// executive_summary / business / strengths / history を生成
+function buildCompanyCorePrompt(args: {
   targetCompany: string
   targetRep: string | null
   targetAddress: string | null
@@ -202,130 +235,90 @@ function buildPrompt(args: {
   hpUrl: string | null
   hpPages: { url: string; text: string }[]
 }): string {
-  const identityBlock = buildIdentityClause(args.targetCompany, args.targetRep, args.targetAddress)
-  const masterBlock = args.master ? `
-【社内マスターDBの該当企業情報（参考。これも採用前に同定照合すること。なお内容は別途 internal_db セクションで UI に直接表示されるので、重複させず外部情報の補完に専念せよ）】
-- 商号: ${args.master.company_name}
-- 業界(大分類): ${args.master.industry_major || '不明'}
-- 業界(細分類): ${args.master.industry_sub || '不明'}
-- 事業内容: ${args.master.business_description || '不明'}
-- 都道府県: ${args.master.prefecture || '不明'}
-- 市区郡: ${args.master.city || '不明'}
-- 住所: ${args.master.full_address || args.master.address || '不明'}
-- 売上高(千円): ${args.master.revenue_k ?? '不明'}
-- 経常利益(千円): ${args.master.ordinary_income_k ?? '不明'}
-- 当期純利益(千円): ${args.master.net_income_k ?? '不明'}
-- 資本金(千円): ${args.master.capital_k ?? '不明'}
-- 代表者: ${args.master.representative || '不明'}
-- 代表者年齢: ${args.master.representative_age ?? '不明'}
-- 設立年: ${args.master.established_year ?? '不明'}
-- 従業員数: ${args.master.employee_count ?? '不明'}
-- 電話: ${args.master.phone || '不明'}
-- 役員: ${args.master.officers || '不明'}
-- 株主: ${args.master.shareholders || '不明'}
-- 主要取引先: ${args.master.clients || '不明'}
-- 仕入先: ${args.master.suppliers || '不明'}
-- 備考: ${args.master.remarks || '不明'}
-` : ''
-
+  const { identityBlock, masterBlock } = buildContextBlocks(args)
   const hpBlock = args.hpPages.length > 0 ? `
-【対象企業HP本文（${args.hpUrl}）】
+【対象企業HP本文(${args.hpUrl})】
 ${args.hpPages.map(p => `=== ${p.url} ===\n${p.text}`).join('\n\n')}
 ` : args.hpUrl ? `
-【対象企業HP】${args.hpUrl}（本文取得に失敗。web_search ツールでドメイン限定検索することを推奨）
+【対象企業HP】${args.hpUrl} (本文取得失敗。web_search でドメイン限定検索推奨)
 ` : `
-【対象企業HP】未指定（web_search ツールで企業を特定すること）
+【対象企業HP】未指定 (web_search で企業を特定)
 `
 
-  const industryHint = args.master?.industry_major || args.master?.industry_sub || '対象企業の属する業界'
+  return `あなたは M&A アドバイザリーのアナリストです。対象企業の基本情報を構造化してください。
 
-  return `あなたは M&A アドバイザリーのアナリストです。
-クライアントへ提示する「企業情報レポート」を、以下の対象企業について構造化して作成してください。
+${JSON_GUARDRAIL}
 
-【出力フォーマット規約（絶対厳守）】
-- 出力は純粋な JSON 1 オブジェクトのみ。
-- 「\`\`\`json」「\`\`\`」等のコードフェンスを付けない。
-- JSON の前後に説明文・前置き・後書き・補足・脚注を一切付けない。
-- 文字列内部の二重引用符は \\" でエスケープ。改行は \\n。
-- 1 文字目は必ず { で、最後の文字は必ず } とする。
-- 上記が守れない場合、応答はパース失敗で破棄される。
-
-【対象企業の同定情報（厳守）】
+【対象企業の同定情報】
 ${identityBlock}
 
-【企業同定の絶対ルール】
-- 上記の社名・代表者名・住所のうち少なくとも 2 つが一致する情報のみ採用する
-- 社名のみ一致する情報（同名異社のリスク）は採用前に web_search で住所か代表者を確認する
-- 確認できない情報は採用せず、各 source の identity_match を 'low' とマーク
-- 推測・他社情報からの捏造は絶対に行わない
+${IDENTITY_RULE}
 ${masterBlock}
 ${hpBlock}
 
-【セクション構成（重複排除のため厳守）】
-本レポートは以下 6 セクションのみを生成する（MASPメモと基本情報の社内DB部分は別途UIで生成・表示）：
+【生成セクション(4つのみ)】
+1. executive_summary : 「何をやっている会社か」1-3 文 / 80-150 字
+2. business         : 事業セグメント別の説明 string[]、各 1-2 文、最大 6 件
+3. strengths        : 特徴・強み string[]、各 1-2 文、最大 5 件
+4. history          : 対象企業の沿革 [{year, event}]、最大 8 件
 
-1. executive_summary  : 「何をやっている会社か」を 1-3 文・80-150 文字で簡潔に。冗長な前置き禁止
-2. business           : 事業セグメント別の説明（箇条書き string[]、各 1-2 文、最大 6 件）
-3. strengths          : 特徴や強み・差別化要素（箇条書き string[]、各 1-2 文、最大 5 件）
-4. market_trend       : ${industryHint}全体の市場動向（200-400 文字）。M&A 文脈で読み解く視点
-                        （業界再編トレンド、需要動向、規制環境、後継者問題、買い手心理 等）
-5. industry_ma_news   : 同業界（${industryHint}）の M&A 関連ニュース最大 5 件
-                        [{date, title, url, summary, source, deal_type}]
-                        deal_type は 'M&A' | 'TOB' | '資本業務提携' | '事業譲渡' | '子会社化' 等
-6. history            : 対象企業の沿革（[{year, event}] 形式、最大 8 件）。basic_info セクション内に配置
+【絶対に出力しない項目(重複排除)】
+- 住所・代表者・売上・利益・資本金・従業員数・電話・株主・役員・取引先 → 社内DBで表示
+- 業界全体の市場動向 / 同業界 M&A ニュース → 別 call で取得
 
-【絶対に出力しない項目（重複排除）】
-- 会社の住所・代表者・売上・利益・資本金・従業員数・設立年・電話番号・株主・役員・取引先・仕入先
-  → 社内DB（basic_info）で別途表示するため content には含めない
-- 個別企業のプレスリリース・ニュース
-  → 業界 M&A ニュース (industry_ma_news) に集約。個社レベルのプレス羅列は不要
-- 「会社概要」と称する長文段落
-  → executive_summary を超えない短文1個のみ
-
-【作成ルール】
-1. 公開情報のみを使用（HP本文 + web_search ツール）
-2. web_search ツールは以下の目的で使用：
-   - 業界の M&A 案件・市場動向の取得（site:prtimes.jp / site:nikkei.com / site:ma-cp.com 等）
-   - 業界レポート・統計の取得
-   - 対象企業の沿革・事業セグメントの補完
-3. 各情報源について identity_match (high/medium/low) を判定
-   - industry_ma_news は同業界の他社 M&A 案件なので、identity_match='medium' 想定
-     （対象企業そのもののニュースではないため high はつけない）
-
-【出力フォーマット（必ずこのJSONのみ、他テキスト一切なし）】
+【出力JSON】
 {
   "content": {
-    "executive_summary": "東京都内に本社を構えるパン製造小売企業。スクラッチ製法のベーカリーを多店舗展開し、フランチャイズ・海外進出も推進。",
-    "business": [
-      "ベーカリー直営事業: 石窯パン工房「○○」を本州中心に12店舗展開",
-      "FC事業: 2017年開始、関東圏で5店舗。マスターFC契約も保有",
-      "海外事業: 2024年インドネシア・バリ島に進出"
-    ],
-    "strengths": [
-      "スクラッチ製法による120種類以上のパン品揃え",
-      "セレクトショップ型コンセプトによる差別化",
-      "サンマルクとのマスターFC契約による全国展開基盤"
-    ],
-    "market_trend": "国内ベーカリー市場は人件費・原材料費高騰で利益率が圧迫されている一方、こだわり系・地域密着型ブランドへの選好は強い…（200-400文字）",
+    "executive_summary": "...",
+    "business": ["..."],
+    "strengths": ["..."],
+    "history": [{"year": "1985", "event": "設立"}]
+  },
+  "sources": [{"type": "hp", "url": "...", "identity_match": "high"}]
+}`
+}
+
+// === Call 2: 同業界M&Aニュース (web_search 中心) ===
+function buildIndustryMaNewsPrompt(args: {
+  targetCompany: string
+  targetRep: string | null
+  targetAddress: string | null
+  master: CompanyMasterRow | null
+}): string {
+  const { identityBlock, masterBlock, industryHint } = buildContextBlocks(args)
+  return `あなたは M&A アドバイザリーのアナリストです。「${industryHint}」の M&A 関連ニュースを構造化してください。
+
+${JSON_GUARDRAIL}
+
+【対象企業の同定(参考用、本callは同業界ニュース取得が目的)】
+${identityBlock}
+${masterBlock}
+
+【生成セクション】
+industry_ma_news: 「${industryHint}」の M&A 関連ニュース最大 5 件
+  [{date, title, url, summary, source, deal_type}]
+  deal_type は 'M&A' | 'TOB' | '資本業務提携' | '事業譲渡' | '子会社化' 等
+  対象企業そのものでなく、同業界の他社M&A案件が主軸
+
+【web_search 使用方針】
+- site:ma-cp.com / site:strike-ma.co.jp / site:nikkei.com / site:diamond.jp 等を優先
+- 直近1-2年の案件中心
+- identity_match='medium' でOK
+
+【出力JSON】
+{
+  "content": {
     "industry_ma_news": [
-      {"date": "2026-04-15", "title": "○○製パンが△△ベーカリーを買収", "url": "...", "summary": "...", "source": "M&A Capital Partners", "deal_type": "M&A"}
-    ],
-    "history": [
-      {"year": "2013", "event": "株式会社○○設立、代表取締役 ○○"},
-      {"year": "2014", "event": "本庄本店オープン"}
+      {"date": "2026-04-15", "title": "...", "url": "...", "summary": "...", "source": "M&A Capital", "deal_type": "M&A"}
     ]
   },
-  "sources": [
-    {"type": "hp",         "url": "...", "identity_match": "high"},
-    {"type": "web_search", "url": "https://prtimes.jp/...", "identity_match": "medium"}
-  ]
+  "sources": [{"type": "web_search", "url": "...", "identity_match": "medium"}]
 }
 
 【出力の厳守事項】
-- 情報が無いセクションは空配列・空文字として返す（捏造禁止）
-- JSON 以外のテキストは一切出力しない
-- url 不明の industry_ma_news は url を空文字にする
-- 採用しなかった候補に関する注釈は出力に含めない（identity_match で表現する）`
+- 該当ニュースが無ければ industry_ma_news: [] (捏造禁止)
+- url 不明は空文字
+- JSON 以外のテキスト一切なし`
 }
 
 interface DossierResult {
@@ -395,16 +388,29 @@ function extractDossierJson(rawText: string): { ok: true; value: { content: unkn
   catch (e) { return { ok: false, error: `JSON parse failed: ${(e as Error).message}` } }
 }
 
-async function generateDossierWithClaude(prompt: string): Promise<DossierResult | { error: string }> {
+async function callClaude(opts: {
+  prompt: string
+  maxTokens: number
+  maxWebSearches: number
+  timeoutMs?: number
+  label: string
+}): Promise<DossierResult | { error: string }> {
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
   if (!apiKey) return { error: 'ANTHROPIC_API_KEY not set' }
 
-  // Claude API call に 120 秒タイムアウト（Edge Function Wall clock 400 秒以内に確実に収まるよう）
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 120_000)
+  const timeoutId = setTimeout(() => controller.abort(), opts.timeoutMs ?? 120_000)
 
   let res: Response
   try {
+    const body: Record<string, unknown> = {
+      model: 'claude-sonnet-4-6',
+      max_tokens: opts.maxTokens,
+      messages: [{ role: 'user', content: opts.prompt }],
+    }
+    if (opts.maxWebSearches > 0) {
+      body.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: opts.maxWebSearches }]
+    }
     res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -412,26 +418,21 @@ async function generateDossierWithClaude(prompt: string): Promise<DossierResult 
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 5000,
-        messages: [{ role: 'user', content: prompt }],
-        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
-      }),
+      body: JSON.stringify(body),
       signal: controller.signal,
     })
   } catch (e) {
     clearTimeout(timeoutId)
     if ((e as Error).name === 'AbortError') {
-      return { error: 'Claude API timeout (120s exceeded)' }
+      return { error: `[${opts.label}] Claude API timeout (${opts.timeoutMs ?? 120000}ms exceeded)` }
     }
-    return { error: `Claude API fetch error: ${(e as Error).message}` }
+    return { error: `[${opts.label}] Claude API fetch error: ${(e as Error).message}` }
   }
   clearTimeout(timeoutId)
 
   if (!res.ok) {
     const errText = await res.text()
-    return { error: `Anthropic API error ${res.status}: ${errText.slice(0, 500)}` }
+    return { error: `[${opts.label}] Anthropic API error ${res.status}: ${errText.slice(0, 500)}` }
   }
   const data = await res.json()
   const text = (data.content || [])
@@ -440,10 +441,10 @@ async function generateDossierWithClaude(prompt: string): Promise<DossierResult 
     .join('')
 
   const extracted = extractDossierJson(text)
-  if (!extracted.ok) return { error: `${extracted.error}. Raw head: ${text.slice(0, 300)}` }
+  if (!extracted.ok) return { error: `[${opts.label}] ${extracted.error}. Raw head: ${text.slice(0, 300)}` }
 
   const parsed = extracted.value as { content?: Record<string, unknown>; sources?: Array<{ type: string; url: string; identity_match: string }> }
-  if (!parsed.content) return { error: 'content key missing in JSON' }
+  if (!parsed.content) return { error: `[${opts.label}] content key missing in JSON` }
   return {
     content: parsed.content,
     sources: Array.isArray(parsed.sources) ? parsed.sources : [],
@@ -490,78 +491,102 @@ async function runDossierGeneration(appointmentId: string, providedHpUrl: string
     ? await fetchCompanyPagesFromDomain(hpUrl).catch(() => [])
     : []
 
-  // Claude へ依頼
-  const prompt = buildPrompt({
-    targetCompany, targetRep, targetAddress, master, hpUrl, hpPages,
-  })
-
-  // 社内DB情報（basic_info の生データ部分）と MASP メモ（アポ報告から自動抽出）を
-  // Edge Function 側で構築（Claude を介さず確実に表示）
+  // 社内DB情報・MASP メモは Claude を経由せず Edge Function 側で構築
   const internalDb = buildInternalDb(master)
   const maspMemo = extractMaspMemoFromAppoReport(appointment.appo_report)
 
-  const result = await generateDossierWithClaude(prompt)
+  // === 2 並列 Claude 呼び出し（時間半減）===
+  // Call 1: 企業コア（HP本文ベース、web_search 1回まで）
+  // Call 2: 同業界M&Aニュース（web_search 2回まで）
+  // 最遅 call の時間で完了する → 直列なら 60-120秒、並列なら 30-70秒程度を目標
+  const coreBaseArgs = { targetCompany, targetRep, targetAddress, master }
+  const [coreResult, maNewsResult] = await Promise.all([
+    callClaude({
+      prompt: buildCompanyCorePrompt({ ...coreBaseArgs, hpUrl, hpPages }),
+      maxTokens: 3000,
+      maxWebSearches: 1,
+      timeoutMs: 120_000,
+      label: 'core',
+    }),
+    callClaude({
+      prompt: buildIndustryMaNewsPrompt(coreBaseArgs),
+      maxTokens: 2500,
+      maxWebSearches: 2,
+      timeoutMs: 120_000,
+      label: 'ma_news',
+    }),
+  ])
 
-  // 新7セクション構成への content マージヘルパー
-  //   - Claude の出力 history は basic_info.history にネストする
-  //   - basic_info = internal_db（社内DB生データ） + history
-  //   - masp_memo は appo_report から抽出した4項目
-  const mergeContent = (claudeContent: Record<string, unknown> | null): Record<string, unknown> => {
-    const c = claudeContent || {}
-    const history = Array.isArray(c.history) ? c.history : []
+  // 6セクション content マージヘルパー（market_trend は廃止）
+  //   - basic_info = internal_db + Claude 出力の history
+  //   - executive_summary / business / strengths は coreResult から
+  //   - industry_ma_news は maNewsResult から
+  //   - masp_memo は appo_report 抽出
+  const mergeContent = (
+    coreContent: Record<string, unknown> | null,
+    maNewsContent: Record<string, unknown> | null,
+  ): Record<string, unknown> => {
+    const cc = coreContent || {}
+    const mc = maNewsContent || {}
+    const history = Array.isArray(cc.history) ? cc.history : []
     const basicInfo: Record<string, unknown> = { ...(internalDb || {}) }
     if (history.length > 0) basicInfo.history = history
 
-    const merged: Record<string, unknown> = {
-      executive_summary: c.executive_summary || '',
+    return {
+      executive_summary: cc.executive_summary || '',
       basic_info: basicInfo,
-      business: Array.isArray(c.business) ? c.business : [],
-      strengths: Array.isArray(c.strengths) ? c.strengths : [],
-      market_trend: c.market_trend || '',
-      industry_ma_news: Array.isArray(c.industry_ma_news) ? c.industry_ma_news : [],
+      business: Array.isArray(cc.business) ? cc.business : [],
+      strengths: Array.isArray(cc.strengths) ? cc.strengths : [],
+      industry_ma_news: Array.isArray(mc.industry_ma_news) ? mc.industry_ma_news : [],
       masp_memo: maspMemo,
     }
-    return merged
   }
 
-  if ('error' in result) {
-    // Claude が失敗しても basic_info（社内DB）と masp_memo（アポ報告抽出）だけは保存し partial として表示
-    const partialContent = mergeContent(null)
-    if (internalDb || Object.keys(maspMemo).length > 0) {
-      await supabase
-        .from('company_dossiers')
-        .update({
-          content: partialContent,
-          generation_status: 'partial',
-          generation_error: result.error.slice(0, 1000),
-          generated_at: new Date().toISOString(),
-        })
-        .eq('appointment_id', appointmentId)
-    } else {
-      await supabase
-        .from('company_dossiers')
-        .update({
-          generation_status: 'failed',
-          generation_error: result.error.slice(0, 1000),
-          generated_at: new Date().toISOString(),
-        })
-        .eq('appointment_id', appointmentId)
-    }
+  const coreOk = !('error' in coreResult)
+  const maNewsOk = !('error' in maNewsResult)
+  const errors: string[] = []
+  if (!coreOk) errors.push((coreResult as { error: string }).error)
+  if (!maNewsOk) errors.push((maNewsResult as { error: string }).error)
+
+  const mergedContent = mergeContent(
+    coreOk ? (coreResult as DossierResult).content : null,
+    maNewsOk ? (maNewsResult as DossierResult).content : null,
+  )
+
+  // ステータス判定:
+  //   - 両方失敗 + internal_db/masp_memo もなし → failed
+  //   - 両方失敗だが basic_info/masp_memo あり → partial
+  //   - 片方成功 → partial（不完全だが表示可能）
+  //   - 両方成功 → succeeded
+  let status: 'succeeded' | 'partial' | 'failed'
+  if (!coreOk && !maNewsOk) {
+    status = (internalDb || Object.keys(maspMemo).length > 0) ? 'partial' : 'failed'
+  } else if (!coreOk || !maNewsOk) {
+    status = 'partial'
+  } else {
+    status = 'succeeded'
+  }
+
+  // sources を結合（両 call から）
+  const sourcesWithMeta: Array<{ type: string; url: string; identity_match: string; fetched_at: string }> = []
+  const pushSources = (r: DossierResult | { error: string }) => {
+    if ('error' in r) return
+    for (const s of r.sources) sourcesWithMeta.push({ ...s, fetched_at: new Date().toISOString() })
+  }
+  pushSources(coreResult)
+  pushSources(maNewsResult)
+
+  if (status === 'failed') {
+    await supabase
+      .from('company_dossiers')
+      .update({
+        generation_status: 'failed',
+        generation_error: errors.join(' | ').slice(0, 1000),
+        generated_at: new Date().toISOString(),
+      })
+      .eq('appointment_id', appointmentId)
     return
   }
-
-  const mergedContent = mergeContent(result.content)
-
-  // HP 取得失敗 + sources が空 → partial
-  const noHpData = !hpUrl || hpPages.length === 0
-  const noSources = !result.sources || result.sources.length === 0
-  const status = noHpData && noSources ? 'partial' : 'succeeded'
-
-  // sources に取得時刻を付与
-  const sourcesWithMeta = result.sources.map(s => ({
-    ...s,
-    fetched_at: new Date().toISOString(),
-  }))
 
   await supabase
     .from('company_dossiers')
@@ -569,7 +594,7 @@ async function runDossierGeneration(appointmentId: string, providedHpUrl: string
       content: mergedContent,
       sources: sourcesWithMeta,
       generation_status: status,
-      generation_error: null,
+      generation_error: errors.length > 0 ? errors.join(' | ').slice(0, 1000) : null,
       generated_at: new Date().toISOString(),
     })
     .eq('appointment_id', appointmentId)

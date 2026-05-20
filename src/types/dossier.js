@@ -134,7 +134,6 @@ export const DOSSIER_SECTION_KEYS = [
   'basic_info',
   'business',
   'strengths',
-  'market_trend',
   'industry_ma_news',
   'masp_memo',
 ];
@@ -144,7 +143,6 @@ export const DOSSIER_SECTION_LABELS = {
   basic_info:        '基本情報',
   business:          '事業内容',
   strengths:         '特徴・強み',
-  market_trend:      '市場動向',
   industry_ma_news:  '同業界のM&Aニュース',
   masp_memo:         'MASPメモ',
 };
