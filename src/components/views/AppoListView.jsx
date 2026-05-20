@@ -15,6 +15,7 @@ import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import PageHeader from '../common/PageHeader';
 import { useUrlState } from '../../hooks/useUrlState';
+import { useSearchParams } from 'react-router-dom';
 
 const APPO_COLS = [
   { key: 'client', width: 240, align: 'left' },
@@ -338,6 +339,22 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [search, setSearch] = useUrlState('apo_q', '');
   const [sortKey, setSortKey] = useUrlState('apo_sort', 'status');
   const [sortDir, setSortDir] = useUrlState('apo_dir', 'asc', { allowed: ['asc', 'desc'] });
+  // sortKey + sortDir を同時更新する時は useUrlState 2 連続だと React Router の
+  // searchParamsRef 遅延更新で 2 回目が 1 回目を上書きしてしまう (sort 切替不発)。
+  // 単一 setSearchParams で両キーを同時に書き換える必要がある。
+  const [, setSearchParams] = useSearchParams();
+  const applySort = (nextKey, nextDir) => {
+    setSearchParams(prev => {
+      const np = new URLSearchParams(prev);
+      if (nextKey === 'status') np.delete('apo_sort'); else np.set('apo_sort', nextKey);
+      if (nextDir === 'asc') np.delete('apo_dir'); else np.set('apo_dir', nextDir);
+      return np;
+    }, { replace: true });
+  };
+  const toggleSort = (key) => {
+    if (sortKey === key) applySort(key, sortDir === 'asc' ? 'desc' : 'asc');
+    else applySort(key, 'asc');
+  };
   const [editForm, setEditForm] = useState(null);
   const [addAppoForm, setAddAppoForm] = useState(null);
   const [reportDetail, setReportDetail] = useState(null); // Appointment detail modal
@@ -1183,7 +1200,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             {statuses.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           {setAppoData && (
-            <Button onClick={() => { setSortKey('status'); setSortDir('asc'); }}
+            <Button onClick={() => applySort('status', 'asc')}
               variant={sortKey === 'status' ? 'primary' : 'outline'} size="sm">
               デフォルト
             </Button>
@@ -1324,7 +1341,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             { label: 'インセンティブ', key: null },
           ].map(({ label, key }, i) => (
             <span key={label}
-              onClick={key ? () => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); } } : undefined}
+              onClick={key ? () => toggleSort(key) : undefined}
               style={{ position: 'relative', textAlign: appoCols[i]?.align || 'left', whiteSpace: 'nowrap', cursor: key ? 'pointer' : 'default', userSelect: 'none', minWidth: 0 }}>
               {label}
               {key && (
