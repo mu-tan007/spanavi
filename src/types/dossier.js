@@ -42,11 +42,37 @@
  */
 
 /**
+ * 社内DB（company_master）から直接埋め込む構造化フィールド。
+ * Claude を経由しないので情報欠落・要約による劣化が起きない。
+ * 値が無い項目は null/undefined/空文字。
+ *
+ * @typedef {Object} DossierInternalDb
+ * @property {string} [industry_major]
+ * @property {string} [industry_sub]
+ * @property {string} [prefecture]
+ * @property {string} [city]
+ * @property {string} [address]
+ * @property {string} [representative]
+ * @property {string} [representative_age]
+ * @property {string} [established_year]
+ * @property {string} [employee_count]
+ * @property {number} [revenue_k]
+ * @property {number} [net_income_k]
+ * @property {string} [phone]
+ * @property {string} [officers]
+ * @property {string} [shareholders]
+ * @property {string} [clients]
+ * @property {string} [remarks]
+ * @property {string} [business_description]
+ */
+
+/**
  * @typedef {Object} DossierContent
  * @property {string}                  [overview]          - 会社概要（数段落）
+ * @property {DossierInternalDb}       [internal_db]       - 社内DB情報（生データ、UIで整形表示）
  * @property {string[]}                [business_segments] - 事業セグメント
  * @property {DossierHistoryEntry[]}   [history]           - 沿革
- * @property {DossierLeadershipEntry[]}[leadership]        - 経営陣
+ * @property {DossierLeadershipEntry[]}[leadership]        - 経営陣（外部情報で補完）
  * @property {DossierFinancials}       [financials]        - 財務サマリー
  * @property {DossierPressRelease[]}   [press_releases]    - 直近プレスリリース
  * @property {DossierNewsItem[]}       [news]              - 直近ニュース

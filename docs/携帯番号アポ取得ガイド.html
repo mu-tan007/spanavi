@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<title>携帯番号でのアポ取得 対応ガイド</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Yu Gothic", "Yu Gothic UI", "Meiryo", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+    color: #1a2238;
+    font-size: 10.5pt;
+    line-height: 1.55;
+    margin: 0;
+  }
+  h1 {
+    font-size: 18pt;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    margin: 0 0 4mm;
+    padding-bottom: 3mm;
+    border-bottom: 2px solid #0D2247;
+    color: #0D2247;
+  }
+  .intro {
+    background: #F7F9FC;
+    border-left: 3px solid #0D2247;
+    padding: 4mm 5mm;
+    margin: 0 0 7mm;
+    font-size: 10pt;
+    line-height: 1.6;
+  }
+  .intro strong { color: #0D2247; }
+  h2 {
+    font-size: 13pt;
+    font-weight: 700;
+    margin: 7mm 0 3mm;
+    padding: 2mm 3mm;
+    background: #0D2247;
+    color: #fff;
+    border-radius: 2px;
+  }
+  h2 .num {
+    display: inline-block;
+    width: 6mm;
+    height: 6mm;
+    border-radius: 50%;
+    background: #C8A84B;
+    color: #0D2247;
+    text-align: center;
+    line-height: 6mm;
+    font-size: 11pt;
+    margin-right: 2mm;
+    font-weight: 800;
+  }
+  h3 {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #0D2247;
+    margin: 4mm 0 2mm;
+    padding-left: 3mm;
+    border-left: 3px solid #C8A84B;
+  }
+  ol.steps {
+    counter-reset: step;
+    list-style: none;
+    padding: 0;
+    margin: 2mm 0 3mm 0;
+  }
+  ol.steps > li {
+    counter-increment: step;
+    position: relative;
+    padding: 2mm 2mm 2mm 11mm;
+    margin-bottom: 1.5mm;
+    background: #F7F9FC;
+    border-radius: 3px;
+    border: 1px solid #E5E8EE;
+  }
+  ol.steps > li::before {
+    content: counter(step);
+    position: absolute;
+    left: 2mm;
+    top: 2mm;
+    width: 6mm;
+    height: 6mm;
+    background: #0D2247;
+    color: #fff;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 6mm;
+    font-weight: 700;
+    font-size: 10pt;
+  }
+  ol.steps > li b { color: #0D2247; }
+  .warn {
+    background: #FFF7E6;
+    border-left: 3px solid #C8A84B;
+    padding: 3mm 4mm;
+    margin: 3mm 0;
+    font-size: 9.5pt;
+  }
+  .warn b { color: #8B6914; }
+  .branch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4mm;
+    margin: 2mm 0 3mm;
+  }
+  .branch .box {
+    background: #F7F9FC;
+    border: 1px solid #E5E8EE;
+    border-radius: 3px;
+    padding: 3mm 4mm;
+    font-size: 9.5pt;
+    line-height: 1.55;
+  }
+  .branch .box .label {
+    font-weight: 700;
+    font-size: 9.5pt;
+    color: #0D2247;
+    margin-bottom: 1.5mm;
+    padding-bottom: 1mm;
+    border-bottom: 1px dashed #C8A84B;
+  }
+  table.summary {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 3mm 0 0;
+    font-size: 9.5pt;
+  }
+  table.summary th {
+    background: #0D2247;
+    color: #fff;
+    padding: 2mm 3mm;
+    text-align: left;
+    font-weight: 700;
+    font-size: 9.5pt;
+  }
+  table.summary td {
+    padding: 2mm 3mm;
+    border-bottom: 1px solid #E5E8EE;
+    background: #fff;
+    vertical-align: top;
+  }
+  table.summary tr:nth-child(even) td { background: #F7F9FC; }
+  .footer {
+    margin-top: 8mm;
+    padding-top: 3mm;
+    border-top: 1px solid #E5E8EE;
+    font-size: 8.5pt;
+    color: #6B7280;
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+  .save {
+    background: #0D2247;
+    color: #fff;
+    padding: 0.5mm 2mm;
+    border-radius: 2px;
+    font-size: 9.5pt;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .field {
+    background: #F0F2F7;
+    padding: 0.5mm 1.5mm;
+    border-radius: 2px;
+    font-weight: 600;
+  }
+  .keep-together { break-inside: avoid; page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<h1>携帯番号でのアポ取得 対応ガイド</h1>
+
+<div class="intro">
+今までやっていた「Zoom にログイン → 録音を探す → ダウンロード → アポ取得報告に差し替え」の作業は<strong>もう不要</strong>です。<br>
+以下の手順で進めれば、録音の紐づけ・AI による報告書自動生成まで Spanavi 内で完結します。
+</div>
+
+<div class="keep-together">
+<h2><span class="num">1</span>こちらから社長の携帯にかけた場合</h2>
+
+<h3>架電する前</h3>
+<ol class="steps">
+  <li>その企業の<b>1画面集中ページ</b>を開く</li>
+  <li>右側の <span class="field">キーマン携帯</span> 欄に携帯番号を入力</li>
+  <li>入力欄の<b>外を一度クリック</b> → 自動保存されます</li>
+</ol>
+
+<h3>電話をかける</h3>
+<ol class="steps">
+  <li><span class="field">キーマン携帯</span> の隣の <span class="save">発信</span> ボタンを押す</li>
+  <li>Zoom Phone から発信 → 通話開始（録音は自動）</li>
+</ol>
+
+<div class="warn">
+<b>注意：</b> 必ず Spanavi の「発信」ボタンから掛けてください。個人スマホや会社の電話アプリから直接かけると、録音が Spanavi に残りません。
+</div>
+
+<h3>通話後・アポが取れたら</h3>
+<ol class="steps">
+  <li>普段通り <span class="save">アポ獲得</span> ステータスを押す</li>
+  <li>アポ取得報告画面が開く（録音 URL はセット済み）</li>
+  <li><span class="save">文字起こし＋AI添削</span> ボタンを押す → 温度感・面談経験・将来検討・その他が自動で入る</li>
+  <li>内容を確認して <span class="save">保存</span></li>
+</ol>
+</div>
+
+<div class="keep-together">
+<h2><span class="num">2</span>社長の携帯から着信を取った場合</h2>
+
+<h3>着信を取る</h3>
+<ol class="steps">
+  <li>Zoom Phone（PC または モバイルアプリ）で着信を取る</li>
+  <li>通話 → アポ獲得まで持っていく → 電話を切る</li>
+</ol>
+
+<div class="warn">
+<b>注意：</b> 個人スマホで取る場合は、必ず<b>Zoom Phone のモバイルアプリ</b>で取ること。通常の電話アプリで取ると Spanavi には何も残りません。
+</div>
+
+<h3>着信対応画面で処理</h3>
+<ol class="steps">
+  <li>左メニューの <span class="field">着信対応</span> をクリック</li>
+  <li>該当の着信行を見て、下の AかB のどちらか</li>
+</ol>
+
+<div class="branch">
+  <div class="box">
+    <div class="label">A：企業名が表示されている</div>
+    そのまま <span class="save">アポ取得</span> ボタンを押す<br>
+    → 報告画面が企業情報＋録音 URL 入りで開く
+  </div>
+  <div class="box">
+    <div class="label">B：「企業に紐づける」が出ている</div>
+    ボタンを押す → 検索窓に企業名を入力 → 候補をクリックして紐づけ<br>
+    → 行に <span class="save">アポ取得</span> が出る<br>
+    <span style="font-size:8.5pt; color:#6B7280;">※ 紐づけた携帯番号は次回以降の着信で自動認識</span>
+  </div>
+</div>
+
+<h3>アポ取得報告</h3>
+<ol class="steps">
+  <li><span class="save">文字起こし＋AI添削</span> ボタンを押す</li>
+  <li>温度感・面談経験・将来検討・その他が自動で入る</li>
+  <li>内容を確認して <span class="save">保存</span></li>
+</ol>
+</div>
+
+<div class="keep-together">
+<h2><span class="num">3</span>携帯番号を登録せずにアポ報告を書いてしまった場合</h2>
+
+<p style="margin: 2mm 0;">慌てなくて大丈夫。後からでも救済できます。</p>
+
+<ol class="steps">
+  <li>その企業の<b>1画面集中ページ</b>に戻る</li>
+  <li><span class="field">キーマン携帯</span> 欄に番号を入れて保存（外をクリック）</li>
+  <li><span class="field">アポ一覧</span> で該当のアポを開く</li>
+  <li><span class="save">文字起こし＋AI添削</span> ボタンを押す</li>
+  <li>過去の録音が後から引っ張られて、報告書が AI で再生成される</li>
+</ol>
+</div>
+
+<div class="keep-together">
+<h2><span class="num">4</span>まとめ表</h2>
+
+<table class="summary">
+  <thead>
+    <tr>
+      <th style="width: 28%;">パターン</th>
+      <th style="width: 28%;">操作する場所</th>
+      <th>主なアクション</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>① こちらから携帯にかける</td>
+      <td>1画面集中ページ</td>
+      <td>「キーマン携帯」入力 → 「発信」ボタン → アポ獲得 → AI添削</td>
+    </tr>
+    <tr>
+      <td>② 携帯から着信を取る</td>
+      <td>着信対応タブ</td>
+      <td>「アポ取得」ボタン（必要なら企業紐づけ）→ AI添削</td>
+    </tr>
+    <tr>
+      <td>③ 後から気づいた</td>
+      <td>1画面集中ページ＋アポ一覧</td>
+      <td>「キーマン携帯」入力 → アポを開いて「文字起こし＋AI添削」</td>
+    </tr>
+    <tr>
+      <td>おまけ：キーマンが代わった</td>
+      <td>1画面集中ページ</td>
+      <td>「キーマン携帯」欄を空にする（古い番号での紐づけも自動解除）</td>
+    </tr>
+    <tr>
+      <td>おまけ：支店・営業所番号</td>
+      <td>1画面集中ページ</td>
+      <td>「別事業所番号」欄に入れる（同じ仕組みで自動紐づけ）</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="footer">
+発行：M&Aソーシングパートナーズ ／ Spanavi 運用ガイド ／ 2026-05-20 改訂
+</div>
+
+</body>
+</html>
