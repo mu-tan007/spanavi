@@ -200,8 +200,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRow, setSelectedRow] = useState(null);
-  const [search, setSearch] = useUrlState('q', '');
-  const [pageStr, setPageStr] = useUrlState('page', '0');
+  const [search, setSearch] = useUrlState('flow_q', '');
+  const [pageStr, setPageStr] = useUrlState('flow_page', '0');
   const page = parseInt(pageStr, 10) || 0;
   const setPage = (v) => setPageStr(String(typeof v === 'function' ? v(page) : v));
   // useUrlState は連続呼び出しが race するため (feedback_use_url_state_race)、

@@ -26,13 +26,15 @@ for (let h = 9; h < 20; h++) {
  *   onClose     - () => void
  */
 export default function QuickAppoModal({ date, time, row, list, clientInfo, contacts, currentUser, onSave, onClose }) {
+  const isProspecting = !!list?.is_prospecting;
   const [meetTime, setMeetTime] = useState(time);
-  const [location, setLocation] = useState('東京都');
+  // クライアント開拓はオンラインが基本なのでデフォルト「オンライン」
+  const [location, setLocation] = useState(isProspecting ? 'オンライン' : '東京都');
   const [contactPersonName, setContactPersonName] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-
-  const isProspecting = !!list?.is_prospecting;
+  // 担当者名: 末尾の「様」を取り除いた canonical 表記。後段で 様 を付与するため二重防止
+  const cleanContactName = contactPersonName.trim().replace(/様$/, '').trim();
   const isOnline = location === 'オンライン';
   const dateLabel = (() => {
     const d = new Date(date + 'T00:00:00');
@@ -40,7 +42,7 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
   })();
 
   const handleSave = async () => {
-    if (isProspecting && !contactPersonName.trim()) {
+    if (isProspecting && !cleanContactName) {
       setError('クライアント開拓では担当者名が必須です');
       return;
     }
@@ -59,7 +61,7 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
         await ensureProspectingClient({
           name: row?.company || '',
           industry: list?.type || list?.list_type || '',
-          contactPerson: contactPersonName.trim(),
+          contactPerson: cleanContactName,
           nextContactAt: startISO,
         });
       }
@@ -67,7 +69,7 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
       // Step 2: Google Calendar イベント作成（クライアント開拓のみ）
       let gcalEventId = null;
       if (isProspecting) {
-        const summary = `${contactPersonName.trim()}様 ${row?.company || ''}`;
+        const summary = `${cleanContactName}様 ${row?.company || ''}`;
         const description = [
           `面談場所: ${location}`,
           `アポ取得者: ${currentUser}`,
@@ -98,8 +100,8 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
         isOnline,
         sales: 0,
         reward: 0,
-        note: contactPersonName.trim() ? `担当者: ${contactPersonName.trim()}` : '',
-        appoReport: `【アポ登録】\n企業名：${row?.company || ''}\n面談日：${dateLabel} ${meetTime}\n場所：${location}\nアポ取得者：${currentUser}${contactPersonName.trim() ? `\n担当者：${contactPersonName.trim()}様` : ''}`,
+        note: cleanContactName ? `担当者: ${cleanContactName}` : '',
+        appoReport: `【アポ登録】\n企業名：${row?.company || ''}\n面談日：${dateLabel} ${meetTime}\n場所：${location}\nアポ取得者：${currentUser}${cleanContactName ? `\n担当者：${cleanContactName}様` : ''}`,
         list_id: list?._supaId || null,
         item_id: row?._supaId || null,
         phone: row?.phone || '',
@@ -110,7 +112,7 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
 
       // Step 4: Slack通知（クライアントチャンネル）
       if (clientInfo?.slackWebhookUrl) {
-        const slackText = `${dateLabel} ${meetTime}から、${location}で${row?.company || ''}のアポイントを獲得しました（取得者：${currentUser}${contactPersonName.trim() ? `、担当：${contactPersonName.trim()}様` : ''}）`;
+        const slackText = `${dateLabel} ${meetTime}から、${location}で${row?.company || ''}のアポイントを獲得しました（取得者：${currentUser}${cleanContactName ? `、担当：${cleanContactName}様` : ''}）`;
         try {
           await invokeSendAppoReport({ channel: 'slack', text: slackText, webhook_url: clientInfo.slackWebhookUrl });
         } catch (e) {
@@ -183,7 +185,7 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
           />
           {isProspecting && (
             <div style={{ fontSize: 10, color: color.textLight, marginTop: 4 }}>
-              クライアント開拓では、入力した担当者名でGoogleカレンダーに「{contactPersonName.trim() || '担当者名'}様 {row?.company || '企業名'}」として登録されます。
+              クライアント開拓では、入力した担当者名でGoogleカレンダーに「{cleanContactName || '担当者名'}様 {row?.company || '企業名'}」として登録されます。
             </div>
           )}
         </div>

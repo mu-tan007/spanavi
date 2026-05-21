@@ -40,8 +40,8 @@ export default function CRMView(props) {
 
 function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient, callListData = [], currentUser = '', members = [] }) {
   // ハードリロード/URL共有で状態保持するため URL クエリに同期
-  const [statusFilter, setStatusFilter] = useUrlState('status', '支援中');
-  const [search, setSearch]             = useUrlState('q', '');
+  const [statusFilter, setStatusFilter] = useUrlState('crm_status', '支援中');
+  const [search, setSearch]             = useUrlState('crm_q', '');
   const [view, setView]                 = useUrlState('view', 'list', { allowed: ['list', 'detail', 'pipeline', 'targets'] });
   const [detailClientId, setDetailClientId] = useUrlState('clientId', null);
 

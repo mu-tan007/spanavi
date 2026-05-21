@@ -66,11 +66,11 @@ const SEARCH_LISTS_COLS = [
 
 export default function CompanySearchView({ importedCSVs, callListData, setCallingScreen, setImportedCSVs, clientData = [], currentUser, members = [], setCallFlowScreen, rewardMaster = [] }) {
   // ハードリロード/URL共有で状態保持するため URL クエリに同期
-  const [subTab, setSubTab]         = useUrlState('subtab', 'company');
-  const [searchTerm, setSearchTerm] = useUrlState('q', '');
-  const [searchField, setSearchField] = useUrlState('field', 'all');
-  const [statusFilter, setStatusFilter] = useUrlState('status', 'all');
-  const [clientSortBy, setClientSortBy] = useUrlState('sort', null);
+  const [subTab, setSubTab]         = useUrlState('search_subtab', 'company');
+  const [searchTerm, setSearchTerm] = useUrlState('search_q', '');
+  const [searchField, setSearchField] = useUrlState('search_field', 'all');
+  const [statusFilter, setStatusFilter] = useUrlState('search_status', 'all');
+  const [clientSortBy, setClientSortBy] = useUrlState('search_sort', null);
   const [clientSortDir, setClientSortDir] = useUrlState('dir', 'asc', { allowed: ['asc', 'desc'] });
 
   // Column resize/alignment hooks
