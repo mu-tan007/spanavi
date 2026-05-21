@@ -44,6 +44,23 @@ export default function ClientFormModal({
 
   const title = isEdit ? `顧客情報を編集 — ${form.company}` : '新規顧客を追加';
 
+  // 商材マスタ（business_categories）のプルダウン
+  const [categoryOptions, setCategoryOptions] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('business_categories')
+        .select('name, slug, is_active')
+        .eq('org_id', getOrgId())
+        .eq('is_active', true)
+        .order('display_order');
+      if (cancelled) return;
+      setCategoryOptions((data || []).map(c => ({ value: c.name, label: c.name })));
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // タイプ別報酬上書き（client_engagement_reward_settings）
   const { engagements } = useEngagements();
   const salesAgencyEngs = useMemo(() => {
@@ -172,7 +189,12 @@ export default function ClientFormModal({
 
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={labelStyle}>商材</label>
-              <Input size="sm" value={form.industry || ''} onChange={e => u('industry', e.target.value)} placeholder="例: M&A仲介、IFA、不動産" />
+              <Select
+                size="sm"
+                value={form.industry || ''}
+                onChange={e => u('industry', e.target.value)}
+                options={[{ value: '', label: '-（未選択）' }, ...categoryOptions]}
+              />
             </div>
 
             <div>
