@@ -256,6 +256,8 @@ export default function SourcingDashboardView({
   const [oldRejections, setOldRejections] = useState([]);
   const [reapproachCandidates, setReapproachCandidates] = useState([]);
   const [recallLoading, setRecallLoading] = useState(true);
+  // 週次・月次 進捗率の表示切替（'both' / 'weekly' / 'monthly'）
+  const [progressPeriodFilter, setProgressPeriodFilter] = useState('both');
 
   useEffect(() => {
     let cancelled = false;
@@ -385,12 +387,38 @@ export default function SourcingDashboardView({
 
       {/* 週次・月次 進捗 */}
       <Card padding="md" style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy, marginBottom: 12 }}>週次・月次 進捗率</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>週次・月次 進捗率</div>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+            {[{ id: 'both', label: '両方' }, { id: 'weekly', label: '週次' }, { id: 'monthly', label: '月次' }].map(opt => {
+              const active = progressPeriodFilter === opt.id;
+              return (
+                <button key={opt.id} type="button"
+                  onClick={() => setProgressPeriodFilter(opt.id)}
+                  style={{
+                    padding: '4px 12px', fontSize: font.size.xs,
+                    background: active ? color.navy : color.white,
+                    color: active ? color.white : color.textMid,
+                    border: `1px solid ${active ? color.navy : color.border}`,
+                    borderRadius: radius.sm, cursor: 'pointer',
+                    fontWeight: active ? font.weight.semibold : font.weight.normal,
+                    fontFamily: font.family.sans,
+                  }}
+                >{opt.label}</button>
+              );
+            })}
+          </div>
+        </div>
         <ProgressTable
-          periods={[
-            { id: 'weekly', label: '週次' },
-            { id: 'monthly', label: '月次' },
-          ]}
+          periods={(() => {
+            const all = [
+              { id: 'weekly', label: '週次' },
+              { id: 'monthly', label: '月次' },
+            ];
+            if (progressPeriodFilter === 'weekly')  return all.filter(p => p.id === 'weekly');
+            if (progressPeriodFilter === 'monthly') return all.filter(p => p.id === 'monthly');
+            return all;
+          })()}
           rows={[
             { kpi: 'calls', label: '架電件数', weekActual: weekAgg.total, monthActual: monthAgg.total, money: false },
             { kpi: 'connections', label: 'キーマン接続数', weekActual: weekAgg.keymanConnect, monthActual: monthAgg.keymanConnect, money: false },
