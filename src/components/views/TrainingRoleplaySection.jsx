@@ -1180,7 +1180,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
                 variant="secondary"
                 size="sm"
                 onClick={() => {
-                  setAddForm({ partner_name: '篠宮', session_type: 'weekly', session_date: new Date().toISOString().slice(0, 10), notes: '' });
+                  setAddForm({ partner_name: '篠宮 拓武', session_type: 'weekly', session_date: new Date().toISOString().slice(0, 10), notes: '' });
                   setAddModalOpen(true);
                 }}
                 style={{
