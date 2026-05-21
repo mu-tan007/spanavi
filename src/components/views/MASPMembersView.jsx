@@ -34,9 +34,19 @@ async function syncSeatCount(newCount) {
   }
 }
 
+// product slug → 配下の代表 engagement slug
+// チェックボックスON時はこの代表 engagement に member_engagements を作る。
+const PRODUCT_TO_PRIMARY_ENG_SLUG = {
+  sales_agency: 'seller_sourcing',
+  spartia_career_biz: 'spartia_career',
+  spartia_recruitment_biz: 'spartia_recruitment',
+  spanavi_biz: 'spanavi',
+  spartia_capital_biz: 'spartia_capital',
+};
+
 // MASP タブの「Members」ページ。全社の従業員一覧を編集する。
 export default function MASPMembersView({ isAdmin }) {
-  const { engagements } = useEngagements();
+  const { engagements, products } = useEngagements();
   const { openProfile } = useMemberProfile();
   const { members, assignments, teamsByEngagement, memberTeam, loading, toggleAssignment, assignMemberToTeam, refresh } = useAllMembersWithEngagements();
   const [positionOptions, setPositionOptions] = useState(POSITION_FALLBACK);
@@ -98,11 +108,26 @@ export default function MASPMembersView({ isAdmin }) {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState(null);
 
-  // MASP (virtual) を除外して表示する事業列
-  const engagementCols = useMemo(
-    () => engagements.filter(e => e.slug !== 'masp'),
-    [engagements]
-  );
+  // 商材（products）単位で列を構成。
+  // - 各列の checked 判定は「配下のいずれかの engagement に所属」
+  // - チェックON → 代表 engagement に member_engagements 追加
+  // - チェックOFF → 配下の全 engagement から削除
+  const productCols = useMemo(() => {
+    return (products || []).map(p => {
+      const primarySlug = PRODUCT_TO_PRIMARY_ENG_SLUG[p.slug];
+      const primaryEng = engagements.find(e => e.slug === primarySlug);
+      const engagementIds = engagements
+        .filter(e => e.product_id === p.id)
+        .map(e => e.id);
+      return {
+        productId: p.id,
+        slug: p.slug,
+        name: p.name,
+        primaryEngagementId: primaryEng?.id || null,
+        engagementIds,
+      };
+    }).filter(c => c.primaryEngagementId);
+  }, [products, engagements]);
 
   const visible = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -483,8 +508,8 @@ export default function MASPMembersView({ isAdmin }) {
               <th style={{ ...th, textAlign: 'left' }}>役職</th>
               <th style={{ ...th, textAlign: 'left' }}>メール</th>
               <th style={{ ...th, textAlign: 'left' }}>携帯</th>
-              {engagementCols.map(e => (
-                <th key={e.id} style={{ ...th, minWidth: 88 }}>{e.name}</th>
+              {productCols.map(p => (
+                <th key={p.productId} style={{ ...th, minWidth: 110 }}>{p.name}</th>
               ))}
               {isAdmin && <th style={{ ...th, width: 36, padding: 0 }} aria-label="操作"></th>}
             </tr>
@@ -525,23 +550,34 @@ export default function MASPMembersView({ isAdmin }) {
                       ? <Input size="sm" type="tel" value={editForm.phone_number} onChange={e => setEditForm(s => ({ ...s, phone_number: e.target.value }))} />
                       : (m.phone_number || '—')}
                   </td>
-                  {engagementCols.map(e => (
-                    <td key={e.id} style={{ ...td, textAlign: 'center' }}>
-                      <input
-                        type="checkbox"
-                        checked={set.has(e.id)}
-                        disabled={!isAdmin}
-                        onChange={ev => {
-                          if (!isAdmin) return;
-                          toggleAssignment(m.id, e.id, ev.target.checked);
-                          if (!ev.target.checked) {
-                            assignMemberToTeam(m.id, e.id, null);
-                          }
-                        }}
-                        style={{ width: 16, height: 16, cursor: isAdmin ? 'pointer' : 'not-allowed' }}
-                      />
-                    </td>
-                  ))}
+                  {productCols.map(p => {
+                    const checked = p.engagementIds.some(id => set.has(id));
+                    return (
+                      <td key={p.productId} style={{ ...td, textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={!isAdmin}
+                          onChange={async ev => {
+                            if (!isAdmin) return;
+                            if (ev.target.checked) {
+                              // 代表 engagement に紐付け
+                              await toggleAssignment(m.id, p.primaryEngagementId, true);
+                            } else {
+                              // 配下の全 engagement から外す（チーム割当も解除）
+                              for (const engId of p.engagementIds) {
+                                if (set.has(engId)) {
+                                  await toggleAssignment(m.id, engId, false);
+                                  await assignMemberToTeam(m.id, engId, null);
+                                }
+                              }
+                            }
+                          }}
+                          style={{ width: 16, height: 16, cursor: isAdmin ? 'pointer' : 'not-allowed' }}
+                        />
+                      </td>
+                    );
+                  })}
                   {isAdmin && (
                     <td style={{ ...td, textAlign: 'center', width: 36, padding: '4px 4px' }}>
                       {isEditing ? (
@@ -602,7 +638,7 @@ export default function MASPMembersView({ isAdmin }) {
             })}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={5 + engagementCols.length + (isAdmin ? 1 : 0)} style={{ padding: '40px 12px', textAlign: 'center', color: color.textLight }}>
+                <td colSpan={5 + productCols.length + (isAdmin ? 1 : 0)} style={{ padding: '40px 12px', textAlign: 'center', color: color.textLight }}>
                   該当するメンバーがいません
                 </td>
               </tr>
@@ -750,10 +786,14 @@ export default function MASPMembersView({ isAdmin }) {
               <div style={{ marginTop: 8, padding: '12px 14px', background: color.gray50, border: `1px solid ${color.border}`, borderRadius: radius.md }}>
                 <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, marginBottom: 8 }}>所属事業</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {engagementCols.map(e => (
-                    <label key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: font.size.sm, color: color.textDark, cursor: 'pointer' }}>
-                      <input type="checkbox" checked={addEngagementIds.has(e.id)} onChange={() => toggleAddEngagement(e.id)} />
-                      {e.name}
+                  {productCols.map(p => (
+                    <label key={p.productId} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: font.size.sm, color: color.textDark, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={addEngagementIds.has(p.primaryEngagementId)}
+                        onChange={() => toggleAddEngagement(p.primaryEngagementId)}
+                      />
+                      {p.name}
                     </label>
                   ))}
                 </div>
