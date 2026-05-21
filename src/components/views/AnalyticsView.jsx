@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
@@ -88,6 +89,19 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
   const [scope, setScope]           = useUrlState('scope', 'org', { allowed: ['org', 'team', 'member'] });
   const [scopeId, setScopeId]       = useUrlState('scopeId', null);
   const [listId, setListId]         = useUrlState('listId', null);
+
+  // scope と scopeId は同時更新したいので、useUrlState の連続呼び出し race を避けて
+  // useSearchParams で 1 回の setSearchParams にまとめる
+  const [, setSearchParams] = useSearchParams();
+  const onScopeChange = useCallback((newScope) => {
+    setSearchParams(prev => {
+      const np = new URLSearchParams(prev);
+      if (newScope === 'org') np.delete('scope');
+      else np.set('scope', newScope);
+      np.delete('scopeId');
+      return np;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   const range = useMemo(
     () => computeDateRange(period, customFrom, customTo, todayStr, weekStartStr, monthStr),
@@ -211,7 +225,7 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
         period={period} setPeriod={setPeriod}
         from={customFrom} setFrom={setCustomFrom}
         to={customTo} setTo={setCustomTo}
-        scope={scope} setScope={setScope}
+        scope={scope} setScope={onScopeChange}
         scopeId={scopeId} setScopeId={setScopeId}
         listId={listId} setListId={setListId}
         members={members}

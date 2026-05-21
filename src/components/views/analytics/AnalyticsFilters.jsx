@@ -62,7 +62,7 @@ export default function AnalyticsFilters({
           <div style={labelStyle}>スコープ</div>
           <div style={{ display: 'flex', gap: space[1] }}>
             {[['org', '組織'], ['team', 'チーム'], ['member', '個人']].map(([k, l]) => (
-              <button key={k} onClick={() => { setScope(k); setScopeId(null); }} style={tabBtn(scope === k)}>{l}</button>
+              <button key={k} onClick={() => setScope(k)} style={tabBtn(scope === k)}>{l}</button>
             ))}
           </div>
         </div>
