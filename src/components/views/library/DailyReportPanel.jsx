@@ -4,7 +4,7 @@ import { getOrgId } from '../../../lib/orgContext';
 import { C } from '../../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
 import { Button, Input, Select, Card, Badge } from '../../ui';
-import InlineAudioPlayer from '../../common/InlineAudioPlayer';
+import { useRecordingPlayer } from '../../common/RecordingPlayerProvider';
 import { useEngagements } from '../../../hooks/useEngagements';
 import { useMemberProfile } from '../../common/MemberProfileDrawer';
 
@@ -294,9 +294,6 @@ function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, curren
     else { setListSortKey(k); setListSortDir('desc'); }
   };
 
-  // グローバル単一再生制御
-  const [globalPlayingId, setGlobalPlayingId] = useState(null);
-
   // ピーク時間
   const peakHour = useMemo(() => {
     let max = 0, peak = null;
@@ -372,8 +369,7 @@ function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, curren
         {members.length === 0 ? <Empty>本日稼働したメンバーはいません</Empty> : (
           <div style={{ display: 'grid', gap: space[2.5], gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))' }}>
             {sortedMembers.map(m => <MemberCard key={m.member_id} m={m} report={report} isAdmin={isAdmin}
-              openProfile={openProfile} currentUser={currentUser}
-              globalPlayingId={globalPlayingId} setGlobalPlayingId={setGlobalPlayingId} />)}
+              openProfile={openProfile} currentUser={currentUser} />)}
           </div>
         )}
       </Section>
@@ -599,7 +595,7 @@ function ShiftNoCallList({ items, report, currentUser }) {
   );
 }
 
-function MemberCard({ m, report, openProfile, currentUser, globalPlayingId, setGlobalPlayingId }) {
+function MemberCard({ m, report, openProfile, currentUser }) {
   const [feedback, setFeedback] = useState('');
   const [feedbackSaved, setFeedbackSaved] = useState(null);
   const [feedbackMeta, setFeedbackMeta] = useState(null); // { by, at }
@@ -709,19 +705,19 @@ function MemberCard({ m, report, openProfile, currentUser, globalPlayingId, setG
         </div>
       )}
 
-      {/* 録音（グローバル単一再生） */}
+      {/* 録音（画面下部固定の統一プレイヤーで再生） */}
       {(m.appo_recordings?.length > 0 || m.rejection_recordings?.length > 0) && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[2.5] }}>
           {m.appo_recordings?.length > 0 && (
             <RecordingGroup
               label="アポ獲得録音" count={m.appo_recordings.length} accent="#059669"
-              records={m.appo_recordings} playingId={globalPlayingId} setPlayingId={setGlobalPlayingId}
+              records={m.appo_recordings} memberName={m.name}
             />
           )}
           {m.rejection_recordings?.length > 0 && (
             <RecordingGroup
               label="キーマン断り録音" count={m.rejection_recordings.length} accent="#DC2626"
-              records={m.rejection_recordings} playingId={globalPlayingId} setPlayingId={setGlobalPlayingId}
+              records={m.rejection_recordings} memberName={m.name}
             />
           )}
         </div>
@@ -765,7 +761,7 @@ function CardEyebrow({ children }) {
   );
 }
 
-function RecordingGroup({ label, count, accent, records, playingId, setPlayingId }) {
+function RecordingGroup({ label, count, accent, records, memberName }) {
   return (
     <div>
       <div style={{ fontSize: 9.5, fontWeight: font.weight.bold, color: accent, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
@@ -773,36 +769,42 @@ function RecordingGroup({ label, count, accent, records, playingId, setPlayingId
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         {records.map(r => (
-          <RecordingRow key={r.id} r={r} accent={accent}
-            playing={playingId === r.id}
-            onToggle={() => setPlayingId(playingId === r.id ? null : r.id)} />
+          <RecordingRow key={r.id} r={r} accent={accent} memberName={memberName} label={label} />
         ))}
       </div>
     </div>
   );
 }
 
-function RecordingRow({ r, accent, playing, onToggle }) {
+function RecordingRow({ r, accent, memberName, label }) {
+  const { play, isCurrent } = useRecordingPlayer();
+  const playing = isCurrent(r.recording_url);
+  const handleClick = () => {
+    if (!r.recording_url) return;
+    const title = `${r.company || '会社名不明'}（${label}）`;
+    const subtitle = `${memberName || ''} ${(r.called_at || '').slice(11, 16)}`.trim();
+    play(r.recording_url, title, subtitle);
+  };
   return (
-    <div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', alignItems: 'center', gap: space[2], fontSize: 11, padding: '3px 0' }}>
-        <span title={r.company || '会社名不明'}
-          style={{ color: color.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {r.company || '会社名不明'}
-        </span>
-        <span style={{ color: color.textLight, fontSize: 10, fontFamily: font.family.mono }}>
-          {(r.called_at || '').slice(11, 16)}
-        </span>
-        <button onClick={onToggle}
-          style={{
-            width: 24, height: 22, padding: 0, fontSize: 10, fontWeight: font.weight.semibold,
-            background: playing ? (accent || color.navy) : color.white,
-            color: playing ? color.white : (accent || color.navy),
-            border: `1px solid ${accent || color.navy}`, borderRadius: radius.sm, cursor: 'pointer', fontFamily: font.family.sans,
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          }}>{playing ? '■' : '▶'}</button>
-      </div>
-      {playing && <InlineAudioPlayer url={r.recording_url} onClose={() => onToggle()} />}
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', alignItems: 'center', gap: space[2], fontSize: 11, padding: '3px 0' }}>
+      <span title={r.company || '会社名不明'}
+        style={{ color: color.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {r.company || '会社名不明'}
+      </span>
+      <span style={{ color: color.textLight, fontSize: 10, fontFamily: font.family.mono }}>
+        {(r.called_at || '').slice(11, 16)}
+      </span>
+      <button onClick={handleClick} disabled={!r.recording_url}
+        style={{
+          width: 24, height: 22, padding: 0, fontSize: 10, fontWeight: font.weight.semibold,
+          background: playing ? (accent || color.navy) : color.white,
+          color: playing ? color.white : (accent || color.navy),
+          border: `1px solid ${accent || color.navy}`, borderRadius: radius.sm,
+          cursor: r.recording_url ? 'pointer' : 'not-allowed',
+          opacity: r.recording_url ? 1 : 0.4,
+          fontFamily: font.family.sans,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        }}>{playing ? '■' : '▶'}</button>
     </div>
   );
 }
