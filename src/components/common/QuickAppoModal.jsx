@@ -49,7 +49,8 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
       const appoData = {
         company: row?.company || '',
         client: list?.company || '',
-        status: 'アポ取得',
+        // クライアント開拓は事前確認を行わないため、デフォルトで事前確認済に
+        status: list?.is_prospecting ? '事前確認済' : 'アポ取得',
         getter: currentUser,
         getDate: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }),
         meetDate: date,

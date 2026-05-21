@@ -957,7 +957,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         getter:     formData.getter,
         getDate:    formData.getDate,
         meetDate:   formData.meetDate,
-        status:     'アポ取得',
+        // クライアント開拓は事前確認を行わないため、デフォルトで事前確認済に（AppoReportModalと同期）
+        status:     list?.is_prospecting ? '事前確認済' : 'アポ取得',
         note:       formData.note || '',
         appoReport: formData.appoReport || '',
         sales:      salesVal,

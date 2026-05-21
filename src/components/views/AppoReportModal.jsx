@@ -213,7 +213,8 @@ HP：${form.hp}
       getDate:    form.getDate,
       getter:     form.acquirer,
       appoReport: reportNote,
-      status:     'アポ取得',
+      // クライアント開拓は事前確認を行わないため、デフォルトで事前確認済に
+      status:     list?.is_prospecting ? '事前確認済' : 'アポ取得',
       sales:      salesVal,
       reward:     rewardVal,
       list_id:    list._supaId || null,
