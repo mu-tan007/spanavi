@@ -1,8 +1,12 @@
+import React, { useState, useEffect, useMemo } from 'react';
 import { C } from '../../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
 import { Button, Input, Select } from '../../ui';
 import VoiceRecorderInline from '../contacts/VoiceRecorderInline';
 import { NAVY, GRAY_200, GRAY_50, STATUS_LIST } from './utils';
+import { supabase } from '../../../lib/supabase';
+import { useEngagements } from '../../../hooks/useEngagements';
+import { getOrgId } from '../../../lib/orgContext';
 
 const textareaStyle = {
   width: '100%', padding: '6px 10px', borderRadius: radius.md,
@@ -39,6 +43,59 @@ export default function ClientFormModal({
   const isEdit = mode === 'edit';
 
   const title = isEdit ? `顧客情報を編集 — ${form.company}` : '新規顧客を追加';
+
+  // タイプ別報酬上書き（client_engagement_reward_settings）
+  const { engagements } = useEngagements();
+  const salesAgencyEngs = useMemo(() => {
+    const order = ['seller_sourcing', 'matching', 'client_acquisition'];
+    return (engagements || [])
+      .filter(e => order.includes(e.slug))
+      .sort((a, b) => order.indexOf(a.slug) - order.indexOf(b.slug));
+  }, [engagements]);
+  const [engRewards, setEngRewards] = useState({}); // { [engagement_id]: reward_type }
+  const [engRewardsLoaded, setEngRewardsLoaded] = useState(false);
+  useEffect(() => {
+    if (!isEdit || !form?._supaId) { setEngRewardsLoaded(true); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('client_engagement_reward_settings')
+        .select('engagement_id, reward_type')
+        .eq('client_id', form._supaId);
+      if (cancelled) return;
+      const map = {};
+      (data || []).forEach(r => { map[r.engagement_id] = r.reward_type; });
+      setEngRewards(map);
+      setEngRewardsLoaded(true);
+    })();
+    return () => { cancelled = true; };
+  }, [isEdit, form?._supaId]);
+
+  // 保存ボタンの拡張ラッパー: 親の onSave 後に engRewards も upsert/delete
+  const handleSaveAll = async () => {
+    await onSave?.();
+    if (!isEdit || !form?._supaId) return;
+    // 既存設定との差分を upsert/delete
+    const orgId = getOrgId();
+    const ops = [];
+    for (const eng of salesAgencyEngs) {
+      const newType = (engRewards[eng.id] || '').trim();
+      if (newType) {
+        ops.push(
+          supabase.from('client_engagement_reward_settings').upsert({
+            org_id: orgId, client_id: form._supaId, engagement_id: eng.id, reward_type: newType,
+          }, { onConflict: 'org_id,client_id,engagement_id' })
+        );
+      } else {
+        ops.push(
+          supabase.from('client_engagement_reward_settings')
+            .delete()
+            .eq('org_id', orgId).eq('client_id', form._supaId).eq('engagement_id', eng.id)
+        );
+      }
+    }
+    await Promise.all(ops);
+  };
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 20001, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -119,7 +176,7 @@ export default function ClientFormModal({
             </div>
 
             <div>
-              <label style={labelStyle}>報酬体系</label>
+              <label style={labelStyle}>報酬体系（デフォルト）</label>
               <Select
                 size="sm"
                 value={form.rewardType || ''}
@@ -130,6 +187,34 @@ export default function ClientFormModal({
                 ]}
               />
             </div>
+
+            {/* タイプ別の報酬上書き（既存クライアントのみ表示） */}
+            {isEdit && salesAgencyEngs.length > 0 && (
+              <div style={{ gridColumn: '1 / -1', padding: '10px 12px', background: color.cream, borderRadius: radius.md, border: `1px solid ${color.border}` }}>
+                <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 6 }}>
+                  タイプ別の報酬上書き
+                  <span style={{ marginLeft: 8, fontSize: 10, color: color.textLight, fontWeight: font.weight.normal }}>
+                    （空欄=上の「報酬体系（デフォルト）」を使用）
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 6, alignItems: 'center' }}>
+                  {salesAgencyEngs.map(eng => (
+                    <React.Fragment key={eng.id}>
+                      <span style={{ fontSize: font.size.xs, color: color.textMid }}>{eng.name}</span>
+                      <Select
+                        size="sm"
+                        value={engRewards[eng.id] || ''}
+                        onChange={e => setEngRewards(prev => ({ ...prev, [eng.id]: e.target.value }))}
+                        options={[
+                          { value: '', label: '-（デフォルト使用）' },
+                          ...rewardIds.map(id => ({ value: id, label: `${id} - ${rewardMap[id] ? rewardMap[id].name : ''}` })),
+                        ]}
+                      />
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div>
               <label style={labelStyle}>支払サイト</label>
@@ -260,7 +345,7 @@ export default function ClientFormModal({
           )}
           <div style={{ display: 'flex', gap: space[2] }}>
             <Button variant="outline" size="sm" onClick={onCancel}>キャンセル</Button>
-            <Button variant="primary" size="sm" onClick={onSave} loading={saving} disabled={saving}>
+            <Button variant="primary" size="sm" onClick={handleSaveAll} loading={saving} disabled={saving}>
               {saving ? '保存中...' : '保存'}
             </Button>
           </div>
