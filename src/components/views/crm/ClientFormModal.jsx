@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { C } from '../../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
 import { Button, Input, Select } from '../../ui';
-import VoiceRecorderInline from '../contacts/VoiceRecorderInline';
 import { NAVY, GRAY_200, GRAY_50, STATUS_LIST } from './utils';
 import { supabase } from '../../../lib/supabase';
 import { useEngagements } from '../../../hooks/useEngagements';
@@ -30,11 +29,6 @@ export default function ClientFormModal({
   saving = false,
   rewardMaster = [],
   rewardMap = {},
-  pendingContacts = [],
-  onClearPendingContacts,
-  voiceTargetKind,            // 'client_create' | 'client_update'
-  voiceClientId = null,
-  onVoiceProcessed,
 }) {
   if (!form) return null;
 
@@ -117,39 +111,11 @@ export default function ClientFormModal({
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 20001, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: 580, maxHeight: '90vh', overflow: 'auto', boxShadow: shadow.xl }}>
-        <div style={{ padding: '12px 24px', background: color.navy, borderRadius: `${radius.md}px ${radius.md}px 0 0`, color: color.white, fontWeight: font.weight.semibold, fontSize: font.size.md, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: space[3] }}>
-          <span>{title}</span>
-          <span style={{ display: 'inline-flex' }}>
-            <VoiceRecorderInline
-              targetKind={voiceTargetKind}
-              clientId={voiceClientId}
-              onProcessed={onVoiceProcessed}
-              onError={msg => alert(msg)}
-              size={28}
-            />
-          </span>
+        <div style={{ padding: '12px 24px', background: color.navy, borderRadius: `${radius.md}px ${radius.md}px 0 0`, color: color.white, fontWeight: font.weight.semibold, fontSize: font.size.md }}>
+          {title}
         </div>
 
         <div style={{ padding: '16px 20px' }}>
-          {pendingContacts.length > 0 && (
-            <div style={{
-              marginBottom: space[3], padding: '6px 10px',
-              fontSize: font.size.xs, color: color.navy,
-              background: alpha(color.gold, 0.08), border: `1px solid ${alpha(color.gold, 0.4)}`,
-              borderRadius: radius.sm,
-            }}>
-              AI から担当者 {pendingContacts.length} 名の追加候補があります。保存時にまとめて登録されます。
-              <button
-                onClick={onClearPendingContacts}
-                style={{
-                  background: 'none', border: 'none', color: color.textLight,
-                  fontSize: font.size.xs, marginLeft: 6, cursor: 'pointer',
-                  fontFamily: font.family.sans, textDecoration: 'underline',
-                }}
-              >クリア</button>
-            </div>
-          )}
-
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[2.5] }}>
             <div>
               <label style={labelStyle}>ステータス</label>
