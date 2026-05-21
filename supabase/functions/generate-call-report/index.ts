@@ -111,9 +111,26 @@ Deno.serve(async (req) => {
 
     let prompt = ''
     const isAppo = call_status === 'アポ獲得'
+    const isKeymanReject = /キーマン断り|キーマンお断り/.test(call_status)
     const isReject = /お断り/.test(call_status)
 
-    if (isAppo) {
+    if (isKeymanReject) {
+      prompt = `以下はM&Aアドバイザリーのテレアポ録音（キーマン断り）の文字起こしです。社長との会話を構造的に分析し、必ず以下のJSONフォーマットのみで回答してください（前後に余計なテキストを付けない）:
+
+{
+  "report_style": null,
+  "rejection_reason": "失注・断り理由の詳細分析。発言根拠（誰がどう言ったか具体的引用）、断りの強度（強い拒否 / やんわり）、本質的な背景（後継者決定済み / M&A自体に否定的 / タイミング悪い 等）を 4-6 文で。",
+  "recall_potential": "再コールの余地。HIGH（再アプローチ可能） / MEDIUM（時期を見て再打診） / LOW（再コール不適切） のいずれかを冒頭に書き、続けて判断根拠 2-3 文。",
+  "recall_approach": "次回再コール時に意識すべき話しぶり・切り口を 3-5 文で具体的に。今回断られた論点を踏まえた切り返し案、避けるべき話題、開始時のトーン、決定権の引き出し方など。",
+  "report_text": "上記3点を箇条書きで整理した本文。テキストエリアにそのまま貼って読めるフォーマット。"
+}
+
+【アポインター補足】
+${manual_supplement || '（補足なし）'}
+
+【文字起こし】
+${transcript}`
+    } else if (isAppo) {
       prompt = `以下はM&Aアドバイザリーのテレアポ録音です。アポ獲得に至った通話の文字起こしを分析し、必ず以下のJSONフォーマットのみで回答してください（前後に余計なテキストを付けない）:
 
 {
@@ -180,7 +197,13 @@ ${transcript}`
     const claudeData = await claudeRes.json()
     const claudeText: string = claudeData.content?.[0]?.text || '{}'
 
-    let result: { report_style?: string | null; report_text?: string } = {}
+    let result: {
+      report_style?: string | null;
+      report_text?: string;
+      rejection_reason?: string;
+      recall_potential?: string;
+      recall_approach?: string;
+    } = {}
     try {
       const m = claudeText.match(/\{[\s\S]*\}/)
       result = m ? JSON.parse(m[0]) : {}
@@ -192,6 +215,9 @@ ${transcript}`
       transcript,
       report_style: result.report_style ?? null,
       report_text: result.report_text || '',
+      rejection_reason: result.rejection_reason || '',
+      recall_potential: result.recall_potential || '',
+      recall_approach: result.recall_approach || '',
       public_recording_url: publicRecordingUrl,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   } catch (err) {

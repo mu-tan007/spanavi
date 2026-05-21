@@ -14,12 +14,16 @@ export default function ReportPopupModal({ appo, mode = 'callRecord', onClose, o
   const [saveError, setSaveError] = useState('');
   const [aiStep, setAiStep] = useState('idle'); // idle | running | done | error
   const [aiError, setAiError] = useState('');
+  const [rejectionAnalysis, setRejectionAnalysis] = useState({
+    reason: '', potential: '', approach: '',
+  });
 
   if (!appo) return null;
 
   const status = appo.status || '';
   const isAppo = status === 'アポ獲得';
-  const isReject = /お断り/.test(status);
+  const isKeymanReject = /キーマン断り|キーマンお断り/.test(status);
+  const isReject = /お断り/.test(status) || isKeymanReject;
   const supplementLabel = isAppo
     ? '経緯・所感'
     : isReject
@@ -60,6 +64,13 @@ export default function ReportPopupModal({ appo, mode = 'callRecord', onClose, o
       if (error || data?.error) throw new Error(error?.message || data?.error || 'unknown');
       if (data.report_style && isAppo) setStyle(data.report_style);
       if (data.report_text) setSupplement(data.report_text);
+      if (isKeymanReject) {
+        setRejectionAnalysis({
+          reason:    data.rejection_reason || '',
+          potential: data.recall_potential || '',
+          approach:  data.recall_approach || '',
+        });
+      }
       setAiStep('done');
       setTimeout(() => setAiStep('idle'), 3000);
     } catch (e) {
@@ -141,6 +152,33 @@ export default function ReportPopupModal({ appo, mode = 'callRecord', onClose, o
                     style={{ marginLeft: 'auto', background: 'none', border: 'none', color: color.textLight, cursor: 'pointer', fontSize: font.size.xs }}>クリア</button>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* キーマン断り 失注分析（AI 構造化抽出） */}
+          {isKeymanReject && (rejectionAnalysis.reason || rejectionAnalysis.potential || rejectionAnalysis.approach) && (
+            <div style={{ marginBottom: space[3], padding: space[3], background: alpha(color.danger, 0.04), border: `1px solid ${alpha(color.danger, 0.25)}`, borderRadius: radius.md, display: 'flex', flexDirection: 'column', gap: space[2.5] }}>
+              <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.danger, letterSpacing: font.letterSpacing.wider }}>
+                失注分析（AI構造化）
+              </div>
+              {rejectionAnalysis.reason && (
+                <div>
+                  <div style={sectionLabel}>① 失注・断り理由</div>
+                  <pre style={codeBlock}>{rejectionAnalysis.reason}</pre>
+                </div>
+              )}
+              {rejectionAnalysis.potential && (
+                <div>
+                  <div style={sectionLabel}>② 再コール余地</div>
+                  <pre style={codeBlock}>{rejectionAnalysis.potential}</pre>
+                </div>
+              )}
+              {rejectionAnalysis.approach && (
+                <div>
+                  <div style={sectionLabel}>③ 再コール時の話しぶり指針</div>
+                  <pre style={codeBlock}>{rejectionAnalysis.approach}</pre>
+                </div>
+              )}
             </div>
           )}
 
