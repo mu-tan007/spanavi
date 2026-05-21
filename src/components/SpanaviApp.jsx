@@ -330,7 +330,13 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     }
   }, [callListData, callFlowScreen?.list?._supaId]);
   const isAdmin = isAdminProp || currentUser === "管理者";
-  const currentMemberDetail = useMemo(() => members.find(m => m.name === currentUser), [members, currentUser]);
+  // user_id 優先で検索（名簿で氏名を編集してもアバター/表示が追従するように）。
+  // user_id が無い旧データのために name フォールバックも維持。
+  const currentMemberDetail = useMemo(
+    () => members.find(m => m.user_id && m.user_id === userId) || members.find(m => m.name === currentUser),
+    [members, userId, currentUser]
+  );
+  const displayUserName = currentMemberDetail?.name || currentUser;
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
@@ -772,7 +778,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
           currentTab={currentTab}
           setCurrentTab={setCurrentTab}
           onClose={() => setMobileMenuOpen(false)}
-          userName={currentUser}
+          userName={displayUserName}
         />
       )}
       <div style={{ width: 220, position: 'fixed', left: 0, top: 0, height: '100vh', background: branding.primaryColor, overflowY: 'auto', zIndex: 200, boxShadow: '2px 0 8px rgba(0,0,0,0.15)', display: (isMobile || engSlug !== 'seller_sourcing') ? 'none' : 'flex', flexDirection: 'column' }}>
@@ -812,8 +818,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         </div>
         {/* User area — クリックでマイページへ */}
         {(() => {
-          const _currentMember = Array.isArray(members) ? members.find(m => (typeof m === 'object' ? m.name : m) === currentUser) : null;
-          const _avatarUrl = typeof _currentMember === 'object' ? _currentMember?.avatarUrl : null;
+          const _avatarUrl = currentMemberDetail?.avatarUrl || null;
           return (
             <div onClick={() => setCurrentTab('mypage')}
               onMouseEnter={() => setHoveredGroup('mypage')}
@@ -821,10 +826,10 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
               style={{ padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: currentTab === 'mypage' ? 'rgba(255,255,255,0.12)' : hoveredGroup === 'mypage' ? 'rgba(255,255,255,0.07)' : 'transparent', borderLeft: '3px solid transparent', boxSizing: 'border-box' }}>
               <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#0176D3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
                 {_avatarUrl
-                  ? <img src={_avatarUrl} alt={currentUser} style={{ width: '100%', height: '100%', objectFit: 'cover', imageRendering: '-webkit-optimize-contrast' }} />
-                  : (currentUser || '?')[0]}
+                  ? <img src={_avatarUrl} alt={displayUserName} style={{ width: '100%', height: '100%', objectFit: 'cover', imageRendering: '-webkit-optimize-contrast' }} />
+                  : (displayUserName || '?')[0]}
               </div>
-              <span style={{ fontSize: 13, color: currentTab === 'mypage' ? '#FFFFFF' : 'rgba(255,255,255,0.75)', fontWeight: currentTab === 'mypage' ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser}</span>
+              <span style={{ fontSize: 13, color: currentTab === 'mypage' ? '#FFFFFF' : 'rgba(255,255,255,0.75)', fontWeight: currentTab === 'mypage' ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayUserName}</span>
             </div>
           );
         })()}
@@ -889,8 +894,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
 
       {/* ===== ALT SIDEBARS (desktop, non Seller Sourcing) ===== */}
       {!isMobile && engSlug !== 'seller_sourcing' && (() => {
-        const _mem = Array.isArray(members) ? members.find(m => (typeof m === 'object' ? m.name : m) === currentUser) : null;
-        const _avatar = typeof _mem === 'object' ? _mem?.avatarUrl : null;
+        const _avatar = currentMemberDetail?.avatarUrl || null;
         const _onLogout = () => { if (onLogout) onLogout(); else setCurrentUser(null); };
         const _onUserClick = () => setCurrentTab('mypage');
         if (engSlug === 'masp') return (
@@ -898,7 +902,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
             currentTab={currentTab}
             setCurrentTab={setCurrentTab}
             branding={branding}
-            currentUser={currentUser}
+            currentUser={displayUserName}
             currentMemberAvatar={_avatar}
             onUserClick={_onUserClick}
             onLogout={_onLogout}
@@ -910,7 +914,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
             currentTab={currentTab}
             setCurrentTab={setCurrentTab}
             branding={branding}
-            currentUser={currentUser}
+            currentUser={displayUserName}
             currentMemberAvatar={_avatar}
             onUserClick={_onUserClick}
             onLogout={_onLogout}
@@ -920,7 +924,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
           <SpartiaCapitalSidebar
             currentTab={currentTab}
             branding={branding}
-            currentUser={currentUser}
+            currentUser={displayUserName}
             currentMemberAvatar={_avatar}
             onUserClick={_onUserClick}
             onLogout={_onLogout}
@@ -930,7 +934,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
           <PlaceholderSidebar
             engagement={currentEngagement}
             branding={branding}
-            currentUser={currentUser}
+            currentUser={displayUserName}
             currentMemberAvatar={_avatar}
             onUserClick={_onUserClick}
             onLogout={_onLogout}
