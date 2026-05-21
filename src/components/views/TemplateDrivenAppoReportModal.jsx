@@ -53,9 +53,10 @@ export default function TemplateDrivenAppoReportModal({
   // 録音URL + 状態
   const [recordingUrl, setRecordingUrl] = useState(initialRecordingUrl);
   const [recLoading, setRecLoading] = useState(false);
-  // キーマン携帯番号から録音検索
+  // キーマン携帯番号から録音検索（既存番号があれば自動展開）
   const [keymanMobileInput, setKeymanMobileInput] = useState(row?.keyman_mobile || '');
   const [keymanLookupStep, setKeymanLookupStep] = useState('idle'); // 'idle' | 'fetching' | 'done' | 'error'
+  const [showKeymanLookup, setShowKeymanLookup] = useState(!!row?.keyman_mobile);
   const recFetchedRef = useRef(false);
   useEffect(() => {
     if (recFetchedRef.current) return;
@@ -318,29 +319,8 @@ export default function TemplateDrivenAppoReportModal({
           </span>
         </div>
 
-        {/* キーマン携帯から録音検索 + AI 添削 */}
-        <div style={{ padding: `${space[3]}px ${space[5]}px`, background: color.offWhite, borderBottom: `1px solid ${color.border}`, display: 'flex', flexDirection: 'column', gap: space[2] }}>
-          {/* キーマン携帯番号 */}
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', padding: '6px 8px', borderRadius: radius.md, background: '#FFF7E6', border: '1px solid #F4D38A' }}>
-            <span style={{ fontSize: 10, fontWeight: font.weight.semibold, color: '#92670A', whiteSpace: 'nowrap' }}>キーマン携帯</span>
-            <input
-              type="tel"
-              value={keymanMobileInput}
-              onChange={e => setKeymanMobileInput(e.target.value)}
-              placeholder="例: 09012345678"
-              style={{ flex: 1, minWidth: 140, padding: '4px 8px', borderRadius: radius.sm, border: `1px solid ${color.border}`, fontSize: font.size.sm, fontFamily: font.family.mono, outline: 'none', background: color.white }}
-            />
-            <Button
-              variant="outline" size="sm"
-              onClick={handleLookupKeyman}
-              disabled={keymanLookupStep !== 'idle' || !keymanMobileInput.trim()}>
-              {keymanLookupStep === 'fetching' && '検索中...'}
-              {keymanLookupStep === 'done'     && '録音取得完了'}
-              {keymanLookupStep === 'error'    && '見つかりませんでした'}
-              {keymanLookupStep === 'idle'     && '録音を取得'}
-            </Button>
-          </div>
-          {/* AI 添削 + 録音状態 */}
+        {/* AI 添削 + 録音状態 + キーマン携帯（控えめなディスクロージャ） */}
+        <div style={{ padding: `${space[3]}px ${space[5]}px`, background: color.offWhite, borderBottom: `1px solid ${color.border}`, display: 'flex', flexDirection: 'column', gap: space[1.5] }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
             <Button
               variant="primary"
@@ -354,8 +334,39 @@ export default function TemplateDrivenAppoReportModal({
             <span style={{ fontSize: font.size.xs, color: color.textLight }}>
               {recLoading ? '録音URL取得中…' : (recordingUrl ? '録音準備OK' : '録音URL未取得')}
             </span>
+            <button
+              type="button"
+              onClick={() => setShowKeymanLookup(v => !v)}
+              style={{
+                marginLeft: 'auto', background: 'none', border: 'none',
+                color: color.navy, cursor: 'pointer',
+                fontSize: font.size.xs, fontFamily: font.family.sans,
+                textDecoration: 'underline', padding: 0,
+              }}
+            >{showKeymanLookup ? '▲ 閉じる' : '▼ キーマン携帯から録音検索'}</button>
             {aiError && <span style={{ fontSize: font.size.xs, color: color.danger, marginLeft: 'auto' }}>{aiError}</span>}
           </div>
+          {showKeymanLookup && (
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', paddingLeft: space[2] }}>
+              <span style={{ fontSize: 10, color: color.textLight, whiteSpace: 'nowrap' }}>携帯番号</span>
+              <input
+                type="tel"
+                value={keymanMobileInput}
+                onChange={e => setKeymanMobileInput(e.target.value)}
+                placeholder="例: 09012345678"
+                style={{ flex: 1, minWidth: 140, padding: '3px 8px', borderRadius: radius.sm, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: font.family.mono, outline: 'none', background: color.white }}
+              />
+              <Button
+                variant="outline" size="sm"
+                onClick={handleLookupKeyman}
+                disabled={keymanLookupStep !== 'idle' || !keymanMobileInput.trim()}>
+                {keymanLookupStep === 'fetching' && '検索中…'}
+                {keymanLookupStep === 'done'     && '取得完了'}
+                {keymanLookupStep === 'error'    && '見つかりませんでした'}
+                {keymanLookupStep === 'idle'     && '録音を取得'}
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* 動的フォーム */}

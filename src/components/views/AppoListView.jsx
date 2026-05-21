@@ -376,6 +376,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [hpStep, setHpStep] = React.useState('idle'); // 'idle' | 'fetching' | 'done' | 'error'
   const [keymanMobileInput, setKeymanMobileInput] = React.useState('');
   const [keymanLookupStep, setKeymanLookupStep] = React.useState('idle'); // 'idle' | 'fetching' | 'done' | 'error'
+  const [showKeymanLookup, setShowKeymanLookup] = React.useState(false);
   // 録音URL差し替え用
   const [showReplaceUrl, setShowReplaceUrl] = useState(false);
   const [replaceUrl, setReplaceUrl] = useState('');
@@ -2155,10 +2156,14 @@ MASP 篠宮`}
                     setDetailEditing(true);
                     // call_list_items から既存のキーマン携帯番号を読み込み（録音検索のデフォルト値に）
                     setKeymanMobileInput('');
+                    setShowKeymanLookup(false);
                     if (reportDetail?.item_id) {
                       try {
                         const { data: item } = await fetchCallListItemById(reportDetail.item_id);
-                        if (item?.keyman_mobile) setKeymanMobileInput(item.keyman_mobile);
+                        if (item?.keyman_mobile) {
+                          setKeymanMobileInput(item.keyman_mobile);
+                          setShowKeymanLookup(true);
+                        }
                       } catch (e) { console.warn('[detail edit] keyman_mobile load error:', e); }
                     }
                   }}
@@ -2340,28 +2345,8 @@ MASP 篠宮`}
                   </div>
                 )}
                 {detailEditing && (
-                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {/* キーマン携帯番号から録音検索 */}
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', padding: '6px 8px', borderRadius: radius.md, background: '#FFF7E6', border: `1px solid #F4D38A` }}>
-                      <span style={{ fontSize: 10, fontWeight: font.weight.semibold, color: '#92670A', whiteSpace: 'nowrap' }}>キーマン携帯</span>
-                      <input
-                        type="tel"
-                        value={keymanMobileInput}
-                        onChange={e => setKeymanMobileInput(e.target.value)}
-                        placeholder="例: 09012345678"
-                        style={{ flex: 1, minWidth: 140, padding: '4px 8px', borderRadius: radius.sm, border: `1px solid ${color.border}`, fontSize: font.size.sm, fontFamily: font.family.mono, outline: 'none', background: color.white }}
-                      />
-                      <Button
-                        onClick={handleLookupRecordingByKeymanMobile}
-                        disabled={keymanLookupStep !== 'idle' || !keymanMobileInput.trim()}
-                        variant="outline" size="sm">
-                        {keymanLookupStep === 'fetching' && '検索中...'}
-                        {keymanLookupStep === 'done'     && '録音取得完了'}
-                        {keymanLookupStep === 'error'    && '見つかりませんでした'}
-                        {keymanLookupStep === 'idle'     && '録音を取得'}
-                      </Button>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       <Button
                         onClick={handleTranscribeDetail}
                         disabled={transcribeStep !== 'idle'}
@@ -2382,7 +2367,38 @@ MASP 篠宮`}
                         {hpStep === 'error'    && 'HPが見つかりませんでした'}
                         {hpStep === 'idle'     && 'HP自動取得'}
                       </Button>
+                      <button
+                        type="button"
+                        onClick={() => setShowKeymanLookup(v => !v)}
+                        style={{
+                          marginLeft: 'auto', background: 'none', border: 'none',
+                          color: color.navy, cursor: 'pointer',
+                          fontSize: font.size.xs, fontFamily: font.family.sans,
+                          textDecoration: 'underline', padding: 0,
+                        }}
+                      >{showKeymanLookup ? '▲ 閉じる' : '▼ キーマン携帯から録音検索'}</button>
                     </div>
+                    {showKeymanLookup && (
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', paddingLeft: 6 }}>
+                        <span style={{ fontSize: 10, color: color.textLight, whiteSpace: 'nowrap' }}>携帯番号</span>
+                        <input
+                          type="tel"
+                          value={keymanMobileInput}
+                          onChange={e => setKeymanMobileInput(e.target.value)}
+                          placeholder="例: 09012345678"
+                          style={{ flex: 1, minWidth: 140, padding: '3px 8px', borderRadius: radius.sm, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: font.family.mono, outline: 'none', background: color.white }}
+                        />
+                        <Button
+                          onClick={handleLookupRecordingByKeymanMobile}
+                          disabled={keymanLookupStep !== 'idle' || !keymanMobileInput.trim()}
+                          variant="outline" size="sm">
+                          {keymanLookupStep === 'fetching' && '検索中…'}
+                          {keymanLookupStep === 'done'     && '取得完了'}
+                          {keymanLookupStep === 'error'    && '見つかりませんでした'}
+                          {keymanLookupStep === 'idle'     && '録音を取得'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
