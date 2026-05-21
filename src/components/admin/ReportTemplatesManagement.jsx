@@ -120,18 +120,19 @@ export default function ReportTemplatesManagement({ onToast }) {
       </div>
 
       {/* タイプ単位 */}
-      <Section title="タイプ単位（デフォルト）" hint="それぞれのタイプに対するデフォルトのフォーマット">
+      <Section title="タイプ単位（デフォルト）" hint="タイプごとに用途別の複数テンプレを持てます（例：アポ取得報告 + ヒアリング報告）">
         {salesAgencyEngagements.map(e => {
-          const t = groupedTemplates.engagement.find(x => x.engagement_id === e.id);
+          const ts = groupedTemplates.engagement.filter(x => x.engagement_id === e.id);
+          const cat = categories.find(c => c.id === e.category_id)?.name || '—';
           return (
-            <Row
+            <EngagementBlock
               key={e.id}
-              label={e.name}
-              category={categories.find(c => c.id === e.category_id)?.name || '—'}
-              template={t}
+              engagement={e}
+              category={cat}
+              templates={ts}
               onCreate={() => setEditing({ scope_level: 'engagement', engagement_id: e.id })}
-              onEdit={() => setEditing(t)}
-              onDelete={() => setConfirmDelete(t)}
+              onEdit={(t) => setEditing(t)}
+              onDelete={(t) => setConfirmDelete(t)}
             />
           );
         })}
@@ -203,6 +204,58 @@ function Section({ title, hint, children }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: space[1.5] }}>
         {children}
       </div>
+    </div>
+  );
+}
+
+function EngagementBlock({ engagement, category, templates, onCreate, onEdit, onDelete }) {
+  return (
+    <div style={{
+      background: color.cream, border: `1px solid ${color.border}`,
+      borderRadius: radius.md, padding: space[3],
+      display: 'flex', flexDirection: 'column', gap: space[2],
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
+        <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>{engagement.name}</span>
+        {category && <span style={{ fontSize: font.size.xs, color: color.textLight }}>{category}</span>}
+        <span style={{ fontSize: font.size.xs, color: color.textLight, marginLeft: space[1] }}>
+          {templates.length}件のテンプレ
+        </span>
+        <div style={{ marginLeft: 'auto' }}>
+          <Button variant="outline" size="sm" onClick={onCreate}>＋ テンプレ追加</Button>
+        </div>
+      </div>
+      {templates.length === 0 ? (
+        <div style={{
+          padding: `${space[2]}px ${space[4]}px`, fontSize: font.size.xs, color: color.textLight,
+          background: color.white, borderRadius: radius.sm, border: `1px dashed ${color.border}`,
+        }}>このタイプにはまだテンプレがありません</div>
+      ) : (
+        templates.map(t => (
+          <TemplateRowItem key={t.id} template={t} onEdit={() => onEdit(t)} onDelete={() => onDelete(t)} />
+        ))
+      )}
+    </div>
+  );
+}
+
+function TemplateRowItem({ template, onEdit, onDelete }) {
+  const fieldCount = Array.isArray(template.schema) ? template.schema.length : 0;
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: space[2],
+      padding: `${space[2]}px ${space[3]}px`, background: color.white,
+      border: `1px solid ${color.border}`, borderRadius: radius.sm,
+    }}>
+      <Badge variant="success" dot>{template.name}</Badge>
+      {template.description && (
+        <span style={{ fontSize: font.size.xs, color: color.textLight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{template.description}</span>
+      )}
+      <span style={{ fontSize: font.size.xs, color: color.textLight, marginLeft: 'auto' }}>
+        フィールド {fieldCount}件
+      </span>
+      <Button variant="outline" size="sm" onClick={onEdit}>編集</Button>
+      <Button variant="danger" size="sm" onClick={onDelete}>削除</Button>
     </div>
   );
 }
