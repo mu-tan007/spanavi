@@ -1748,7 +1748,16 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             contacts={contacts}
             currentUser={currentUser}
             onClose={() => setQuickAppoSlot(null)}
-            onSave={() => { setQuickAppoSlot(null); }}
+            onSave={(savedAppoData) => {
+              setQuickAppoSlot(null);
+              if (setAppoData && savedAppoData) {
+                setAppoData(prev => [...(prev || []), {
+                  ...savedAppoData,
+                  month: savedAppoData.meetDate ? (parseInt(savedAppoData.meetDate.slice(5, 7), 10) + '月') : '',
+                  isProspecting: !!list?.is_prospecting,
+                }]);
+              }
+            }}
           />
         );
       })()}
@@ -2546,7 +2555,16 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             contacts={contacts}
             currentUser={currentUser}
             onClose={() => setQuickAppoSlot(null)}
-            onSave={() => { setQuickAppoSlot(null); }}
+            onSave={(savedAppoData) => {
+              setQuickAppoSlot(null);
+              if (setAppoData && savedAppoData) {
+                setAppoData(prev => [...(prev || []), {
+                  ...savedAppoData,
+                  month: savedAppoData.meetDate ? (parseInt(savedAppoData.meetDate.slice(5, 7), 10) + '月') : '',
+                  isProspecting: !!list?.is_prospecting,
+                }]);
+              }
+            }}
           />
         );
       })()}

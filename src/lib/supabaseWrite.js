@@ -257,6 +257,98 @@ export async function updateClientCalendarId(supaId, googleCalendarId) {
   return error
 }
 
+// クライアント開拓アポ取得時、CRM の clients テーブルへ upsert する。
+// 既存(name一致)があれば「面談予定」に更新、無ければ新規作成。
+// 進行段階が支援中/準備中の場合は status は変更しない。
+export async function ensureProspectingClient({ name, industry, contactPerson, contactEmail, contactPhone, nextContactAt }) {
+  if (!name) return { data: null, error: new Error('no name') }
+  const orgId = getOrgId()
+  const { data: existing, error: e0 } = await supabase
+    .from('clients')
+    .select('id, status')
+    .eq('org_id', orgId)
+    .eq('name', name)
+    .maybeSingle()
+  if (e0) {
+    console.warn('[DB] ensureProspectingClient lookup error:', e0)
+  }
+  if (existing) {
+    const updates = {}
+    if (nextContactAt) updates.next_contact_at = nextContactAt
+    if (contactPerson) updates.contact_person = contactPerson
+    if (contactEmail) updates.contact_email = contactEmail
+    if (contactPhone) updates.contact_phone = contactPhone
+    if (industry) updates.industry = industry
+    // 既に進行段階が進んでいる場合は status を巻き戻さない
+    if (existing.status !== '支援中' && existing.status !== '準備中') {
+      updates.status = '面談予定'
+      updates.status_changed_at = new Date().toISOString()
+    }
+    if (Object.keys(updates).length === 0) return { data: existing, error: null }
+    const { data, error } = await supabase
+      .from('clients')
+      .update(updates)
+      .eq('id', existing.id)
+      .select()
+      .single()
+    if (error) console.error('[DB] ensureProspectingClient update error:', error)
+    return { data, error }
+  }
+  // 新規 INSERT
+  const { data, error } = await supabase
+    .from('clients')
+    .insert({
+      org_id: orgId,
+      name,
+      status: '面談予定',
+      contract_status: '未',
+      industry: industry || '',
+      contact_person: contactPerson || null,
+      contact_email: contactEmail || null,
+      contact_phone: contactPhone || null,
+      next_contact_at: nextContactAt || null,
+      status_changed_at: new Date().toISOString(),
+    })
+    .select()
+    .single()
+  if (error) console.error('[DB] ensureProspectingClient insert error:', error)
+  return { data, error }
+}
+
+// gcal-proxy Edge Function 経由で Google Calendar にイベントを作成する
+export async function createGcalEvent({ summary, description, startISO, endISO, location: locationStr }) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) throw new Error('not authenticated')
+    const eventBody = {
+      summary,
+      description: description || '',
+      start: { dateTime: startISO, timeZone: 'Asia/Tokyo' },
+      end:   { dateTime: endISO,   timeZone: 'Asia/Tokyo' },
+    }
+    if (locationStr) eventBody.location = locationStr
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gcal-proxy`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(eventBody),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      console.warn('[gcal] createEvent failed:', json)
+      return { eventId: null, error: json.error || `HTTP ${res.status}` }
+    }
+    return { eventId: json.eventId || null, error: null }
+  } catch (e) {
+    console.warn('[gcal] createEvent error:', e)
+    return { eventId: null, error: e?.message || String(e) }
+  }
+}
+
 export async function updateClientSchedulingUrl(supaId, schedulingUrl) {
   if (!supaId) { console.warn('[DB] updateClientSchedulingUrl: no supaId'); return null }
   const { error } = await supabase
