@@ -285,8 +285,8 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
           sales: 0, incentive: 0, teamBonus: 0, total: 0,
         };
       }
-      // 新規開拓リスト由来のアポは売上集計・チームボーナス計算から除外
-      // インターン報酬（reward / intern_reward）は新規開拓でも計上する
+      // クライアント開拓リスト由来のアポは売上集計・チームボーナス計算から除外
+      // インターン報酬（reward / intern_reward）はクライアント開拓でも計上する
       if (!a.isProspecting) {
         byGetter[a.getter].sales += a.sales || 0;
         teamSales[team] = (teamSales[team] || 0) + (a.sales || 0);
@@ -445,7 +445,7 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
       const memberMap = {};
       members.forEach(m => { if (typeof m === 'object' && m.name) memberMap[m.name] = m; });
       const deltas = {};
-      // 新規開拓リスト由来のアポは累計売上に加算しない（後で再加算しないようis_counted_in_cumulativeフラグだけ立てる）
+      // クライアント開拓リスト由来のアポは累計売上に加算しない（後で再加算しないようis_counted_in_cumulativeフラグだけ立てる）
       uncounted.forEach(a => {
         if (a.isProspecting) return;
         deltas[a.getter] = (deltas[a.getter] || 0) + (a.sales || 0);

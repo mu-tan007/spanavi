@@ -113,6 +113,7 @@ export function useSpanaviData(authOrgId) {
         notes: cl.notes || '',
         is_archived: cl.is_archived || false,
         is_prospecting: cl.is_prospecting === true,
+        engagement_id: cl.engagement_id || null,
         contactIds: (cl.contact_ids && cl.contact_ids.length > 0) ? cl.contact_ids : (cl.contact_id ? [cl.contact_id] : []),
         created_at: cl.created_at || null,
       }))
@@ -184,7 +185,7 @@ export function useSpanaviData(authOrgId) {
         }
       })
 
-      // call_lists.id → is_prospecting マップ（appointments 側で新規開拓フラグを引くため）
+      // call_lists.id → is_prospecting マップ（appointments 側でクライアント開拓フラグを引くため）
       const listProspectingMap = new Map()
       callLists.forEach(cl => { if (cl.id) listProspectingMap.set(cl.id, cl.is_prospecting === true) })
 
@@ -219,7 +220,7 @@ export function useSpanaviData(authOrgId) {
         isOnline: a.is_online || false,
         list_id: a.list_id || null,
         item_id: a.item_id || null,
-        // 新規開拓リスト由来のアポは売上集計から除外し、インターン報酬のみカウントする
+        // クライアント開拓リスト由来のアポは売上集計から除外し、インターン報酬のみカウントする
         isProspecting: !!(a.list_id && listProspectingMap.get(a.list_id)),
         // 録音 AI 再生成時に Zoom 検索ウィンドウを called_at 周辺に合わせるための原値
         createdAtRaw: a.created_at || null,

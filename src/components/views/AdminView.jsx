@@ -7,6 +7,7 @@ import OrganizationSettings from '../admin/OrganizationSettings';
 import EngagementSettings from '../admin/EngagementSettings';
 import SlackZoomSettings from '../admin/SlackZoomSettings';
 import ClientManagement from '../admin/ClientManagement';
+import EngagementClassification from '../admin/EngagementClassification';
 import IndustryRuleSettings from '../admin/IndustryRuleSettings';
 import CallStatusSettings from '../admin/CallStatusSettings';
 import PermissionSettings from '../admin/PermissionSettings';
@@ -31,6 +32,7 @@ const TABS = [
   { id: 'calling',     label: '架電設定',              icon: '' },
   { id: 'slack',       label: 'Slack / Zoom設定',       icon: '' },
   { id: 'clients',     label: 'クライアント・リスト管理', icon: '' },
+  { id: 'classification', label: '業務種別 仕分け',     icon: '' },
 ];
 
 // 全社スコープでのみ表示するタブ。事業セレクタを「全社」にしたときのみ並ぶ。
@@ -289,6 +291,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
         )}
         {activeTab === 'slack'   && <SlackZoomSettings onToast={showToast} />}
         {activeTab === 'clients' && <ClientManagement  onToast={showToast} />}
+        {activeTab === 'classification' && <EngagementClassification onToast={showToast} />}
       </div>
 
       {/* メンバーマイページ モーダル */}

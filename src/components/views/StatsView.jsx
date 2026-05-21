@@ -229,7 +229,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
     return d >= prevMonthStr + '-01' && d <= prevMonthEndStr;
   }), [appoData, prevMonthStr, prevMonthEndStr]);
 
-  // 新規開拓リスト由来のアポは売上集計から除外（件数は残す）
+  // クライアント開拓リスト由来のアポは売上集計から除外（件数は残す）
   const kpiMonthSales = useMemo(() => monthAppoFiltered.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0), [monthAppoFiltered]);
   const kpiPrevMonthSales = useMemo(() => prevMonthAppoFiltered.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0), [prevMonthAppoFiltered]);
   // アポ件数は call_records.status='アポ獲得' ベース（Performance/Dashboard と統一）
@@ -333,7 +333,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
     personFiltered.forEach(a => {
       const k = a.getter || '不明';
       if (!m[k]) m[k] = { total: 0, reward: 0, count: 0 };
-      // 売上は新規開拓由来を除外、報酬と件数は残す
+      // 売上はクライアント開拓由来を除外、報酬と件数は残す
       if (!a.isProspecting) m[k].total += a.sales || 0;
       m[k].reward += a.reward || 0;
       m[k].count++;
@@ -351,7 +351,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
     teamFilteredData.forEach(a => {
       const tn = teamMap[a.getter] || 'その他';
       if (!m[tn]) m[tn] = { total: 0, count: 0, members: new Set() };
-      // 売上は新規開拓由来を除外、件数は残す
+      // 売上はクライアント開拓由来を除外、件数は残す
       if (!a.isProspecting) m[tn].total += a.sales || 0;
       m[tn].count++;
       if (a.getter) m[tn].members.add(a.getter);
@@ -370,7 +370,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
       const key = a.client || a.company || '不明';
       const name = a.client || a.company || key;
       if (!m[key]) m[key] = { name, total: 0, count: 0, lastDate: '', items: {} };
-      // クライアント別売上には新規開拓由来を含めない（件数は残す）
+      // クライアント別売上にはクライアント開拓由来を含めない（件数は残す）
       if (!a.isProspecting) m[key].total += a.sales || 0;
       m[key].count++;
       const d = a.getDate || '';

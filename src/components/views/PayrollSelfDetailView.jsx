@@ -97,12 +97,12 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
     });
   }, [appoData, targetMember, payMonth]);
 
-  // インセンティブ計算（新規開拓リスト由来でもインターン報酬は計上する）
+  // インセンティブ計算（クライアント開拓リスト由来でもインターン報酬は計上する）
   const incentive = useMemo(
     () => myAppos.reduce((s, a) => s + (a.reward || 0), 0),
     [myAppos]
   );
-  // 新規開拓リスト由来のアポは売上集計から完全除外（件数は残す）
+  // クライアント開拓リスト由来のアポは売上集計から完全除外（件数は残す）
   const monthlySales = useMemo(
     () => myAppos.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0),
     [myAppos]
@@ -131,7 +131,7 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
     });
     const teamMembers = (members || []).filter(m => typeof m === 'object' && m.team === team);
     const teamMemberNames = new Set(teamMembers.map(m => m.name));
-    // 新規開拓由来のアポは役職ボーナス計算からも除外
+    // クライアント開拓由来のアポは役職ボーナス計算からも除外
     const teamSales = monthAppos
       .filter(a => teamMemberNames.has(a.getter) && !a.isProspecting)
       .reduce((s, a) => s + (a.sales || 0), 0);
@@ -225,7 +225,7 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
         <span>
           {a.company || '-'}
           {a.isProspecting && (
-            <Badge variant="info" dot style={{ marginLeft: 6 }}>新規開拓</Badge>
+            <Badge variant="info" dot style={{ marginLeft: 6 }}>クライアント開拓</Badge>
           )}
         </span>
       ) },
@@ -314,7 +314,7 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
               <span style={{ fontFamily: MONO, fontWeight: font.weight.semibold }}>{fmtYen(monthlySales)}</span>
               {prospectingCount > 0 && (
                 <span style={{ marginLeft: space[3], fontSize: font.size.xs - 1, color: color.textLight }}>
-                  （うち新規開拓 {prospectingCount} 件は売上から除外）
+                  （うちクライアント開拓 {prospectingCount} 件は売上から除外）
                 </span>
               )}
             </div>

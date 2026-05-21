@@ -514,7 +514,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
   const countableStatuses = ["面談済", "事前確認済", "アポ取得"];
   const countable = filtered.filter(a => countableStatuses.includes(a.status));
-  // 新規開拓リスト由来のアポは売上集計から除外（件数とインターン報酬は残す）
+  // クライアント開拓リスト由来のアポは売上集計から除外（件数とインターン報酬は残す）
   const totalSales = countable.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0);
   const totalReward = countable.reduce((s, a) => s + (a.reward || 0), 0);
 
@@ -617,7 +617,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     const client = clientData.find(c => c.company === clientName);
     const rm = client ? rewardMaster.find(r => r.id === client.rewardType) : null;
     const isTaxExcl = (rm?.tax || '税別') === '税別';
-    // 新規開拓リスト由来のアポは請求対象外（クライアント請求は通常リストのみ）
+    // クライアント開拓リスト由来のアポは請求対象外（クライアント請求は通常リストのみ）
     const appos = appoData.filter(a =>
       a.status === '面談済' && a.client === clientName && !a.isProspecting && a.meetDate && a.meetDate.slice(0, 7) === month
     );
@@ -1386,7 +1386,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               <span style={{ fontWeight: font.weight.semibold, color: color.navy, cursor: "pointer", textDecoration: "underline dotted", textUnderlineOffset: 2, textAlign: appoCols[1]?.align || 'left' }} onClick={() => setReportDetail(a)}>
                 {a.company}
                 {a.isProspecting && (
-                  <span style={{ marginLeft: 6, fontSize: 9, fontWeight: font.weight.semibold, color: color.info, background: alpha(color.info, 0.1), padding: '1px 5px', borderRadius: radius.sm }}>新規開拓</span>
+                  <span style={{ marginLeft: 6, fontSize: 9, fontWeight: font.weight.semibold, color: color.info, background: alpha(color.info, 0.1), padding: '1px 5px', borderRadius: radius.sm }}>クライアント開拓</span>
                 )}
               </span>
               <span style={{ color: color.textDark, textAlign: appoCols[2]?.align || 'left' }}>{a.getter}</span>
@@ -1407,7 +1407,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
       {/* Bulk Invoice Create Modal (ZIP) — 編集モーダル表示中は隠す */}
       {bulkInvoiceModal && setAppoData && !bulkInvoiceEditingClient && (() => {
-        // 新規開拓由来のアポは請求対象外
+        // クライアント開拓由来のアポは請求対象外
         const monthAppos = appoData.filter(a => a.status === '面談済' && !a.isProspecting && a.meetDate && a.meetDate.slice(0, 7) === bulkInvoiceMonth);
         const clientNames = [...new Set(monthAppos.map(a => a.client))].filter(Boolean).sort();
         const clientInfos = clientNames.map(name => {
@@ -1540,7 +1540,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
       {/* Bulk Send Modal */}
       {bulkSendModal && setAppoData && (() => {
-        // 新規開拓由来のアポは一括送信対象外
+        // クライアント開拓由来のアポは一括送信対象外
         const monthAppos = appoData.filter(a => a.status === '面談済' && !a.isProspecting && a.meetDate && a.meetDate.slice(0, 7) === bulkSendMonth);
         const clientNames = [...new Set(monthAppos.map(a => a.client))].filter(Boolean).sort();
         const clientInfos = clientNames.map(name => {

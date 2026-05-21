@@ -50,24 +50,26 @@ export async function downloadDriveFileViaProxy(driveId, onProgress) {
 
 export async function updateCallList(supaId, data) {
   if (!supaId) { console.warn('[DB] updateCallList: no supaId'); return null }
+  const payload = {
+    industry: data.industry,
+    status: data.status,
+    total_count: parseInt(data.count) || 0,
+    manager_name: data.manager,
+    company_info: data.companyInfo,
+    company_url: data.companyUrl ?? null,
+    script_body: data.scriptBody,
+    cautions: data.cautions,
+    rebuttal_data: data.rebuttalData,
+    notes: data.notes,
+    list_type: data.type,
+    is_prospecting: data.isProspecting === true,
+    contact_ids: data.contactIds ?? undefined,
+    contact_id: (data.contactIds && data.contactIds.length > 0) ? data.contactIds[0] : (data.contactId ?? undefined),
+  }
+  if (data.engagementId) payload.engagement_id = data.engagementId
   const { error } = await supabase
     .from('call_lists')
-    .update({
-      industry: data.industry,
-      status: data.status,
-      total_count: parseInt(data.count) || 0,
-      manager_name: data.manager,
-      company_info: data.companyInfo,
-      company_url: data.companyUrl ?? null,
-      script_body: data.scriptBody,
-      cautions: data.cautions,
-      rebuttal_data: data.rebuttalData,
-      notes: data.notes,
-      list_type: data.type,
-      is_prospecting: data.isProspecting === true,
-      contact_ids: data.contactIds ?? undefined,
-      contact_id: (data.contactIds && data.contactIds.length > 0) ? data.contactIds[0] : (data.contactId ?? undefined),
-    })
+    .update(payload)
     .eq('id', supaId)
   if (error) console.error('[DB] updateCallList error:', error)
   return error

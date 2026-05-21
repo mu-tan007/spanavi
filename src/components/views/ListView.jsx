@@ -67,7 +67,17 @@ const LISTVIEW_ARCHIVE_COLS = [
 
 export default function ListView({ filteredLists, allLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [], contactsByClient = {}, onOpenIndustryRules }) {
   const isMobile = useIsMobile();
-  const { currentEngagement } = useEngagements();
+  const { currentEngagement, engagements: allEngagements } = useEngagements();
+  // 営業代行系3業務種別（リスト作成時の選択肢）
+  const salesAgencyEngagements = useMemo(() => {
+    const order = ['seller_sourcing', 'matching', 'client_acquisition'];
+    const label = { seller_sourcing: '売り手ソーシング', matching: '買い手マッチング', client_acquisition: 'クライアント開拓' };
+    return (allEngagements || [])
+      .filter(e => order.includes(e.slug))
+      .sort((a, b) => order.indexOf(a.slug) - order.indexOf(b.slug))
+      .map(e => ({ id: e.id, slug: e.slug, name: label[e.slug] || e.name }));
+  }, [allEngagements]);
+  const clientAcquisitionId = salesAgencyEngagements.find(e => e.slug === 'client_acquisition')?.id;
   const { columns: lvCols, gridTemplateColumns: lvGrid, contentMinWidth: lvMinW, onResizeStart: lvResize } = useColumnConfig('listView', LISTVIEW_COLS);
   const { columns: arCols, gridTemplateColumns: arGrid, contentMinWidth: arMinW, onResizeStart: arResize } = useColumnConfig('listViewArchive', LISTVIEW_ARCHIVE_COLS);
   // 「支援中」のクライアントのみ選択候補にする
@@ -90,10 +100,10 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       return sameSurname.length > 0 ? `${surname}(${parts[1][0]})` : surname;
     }).join('・');
   };
-  const emptyForm = { company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", contactIds: [], companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "", isProspecting: false };
+  const emptyForm = { company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", contactIds: [], companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "", isProspecting: false, engagementId: "" };
   const [formData, setFormData] = useState(emptyForm);
   const [showRec, setShowRec] = useState(true);
-  // 'sourcing' = 通常ソーシング, 'prospecting' = 新規開拓, 'archived' = アーカイブ, 'all' = 全て
+  // 'sourcing' = 通常ソーシング, 'prospecting' = クライアント開拓, 'archived' = アーカイブ, 'all' = 全て
   const [displayFilter, setDisplayFilter] = useState('sourcing');
   const [extractingUrl, setExtractingUrl] = useState(false);
 
@@ -125,8 +135,15 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
     .sort((a, b) => (b.recommendation?.score || 0) - (a.recommendation?.score || 0))
     .slice(0, 4);
 
+  const defaultEngagementId = () => {
+    // currentEngagementが営業代行系3つのどれかなら採用、それ以外はseller_sourcingにフォールバック
+    const cur = salesAgencyEngagements.find(e => e.id === currentEngagement?.id);
+    if (cur) return cur.id;
+    return salesAgencyEngagements.find(e => e.slug === 'seller_sourcing')?.id || "";
+  };
+
   const handleOpenAdd = () => {
-    setFormData(emptyForm);
+    setFormData({ ...emptyForm, engagementId: defaultEngagementId() });
     setEditingListId(null);
     setListFormOpen(true);
   };
@@ -138,6 +155,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       contactIds: list.contactIds || [],
       companyInfo: list.companyInfo || "", companyUrl: list.companyUrl || "", scriptBody: list.scriptBody || "", cautions: list.cautions || "", notes: list.notes || "",
       isProspecting: !!list.is_prospecting,
+      engagementId: list.engagement_id || defaultEngagementId(),
     });
     setEditingListId(list.id);
     setListFormOpen(true);
@@ -145,18 +163,22 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
 
   const handleSave = async () => {
     if (!formData.company || !formData.industry || !formData.count) return;
+    if (!formData.engagementId) { alert('業務種別を選択してください'); return; }
+    // クライアント開拓 engagement を選んだ場合は is_prospecting=true を自動付与
+    const derivedIsProspecting = formData.engagementId === clientAcquisitionId;
+    const dataToSave = { ...formData, isProspecting: derivedIsProspecting };
     if (editingListId !== null) {
       const target = callListData.find(l => l.id === editingListId);
       if (target?._supaId) {
-        const error = await updateCallList(target._supaId, formData);
+        const error = await updateCallList(target._supaId, dataToSave);
         if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
       }
-      setCallListData(prev => prev.map(l => l.id === editingListId ? { ...l, company: formData.company, type: formData.type, status: formData.status, industry: formData.industry, count: parseInt(formData.count) || 0, manager: formData.manager, contactIds: formData.contactIds, companyInfo: formData.companyInfo, companyUrl: formData.companyUrl, scriptBody: formData.scriptBody, cautions: formData.cautions, notes: formData.notes, is_prospecting: !!formData.isProspecting } : l));
+      setCallListData(prev => prev.map(l => l.id === editingListId ? { ...l, company: dataToSave.company, type: dataToSave.type, status: dataToSave.status, industry: dataToSave.industry, count: parseInt(dataToSave.count) || 0, manager: dataToSave.manager, contactIds: dataToSave.contactIds, companyInfo: dataToSave.companyInfo, companyUrl: dataToSave.companyUrl, scriptBody: dataToSave.scriptBody, cautions: dataToSave.cautions, notes: dataToSave.notes, is_prospecting: derivedIsProspecting, engagement_id: dataToSave.engagementId } : l));
     } else {
-      const { result, error } = await insertCallList(formData, currentEngagement?.id);
+      const { result, error } = await insertCallList(dataToSave, dataToSave.engagementId || currentEngagement?.id);
       if (error || !result) { alert('保存に失敗しました: ' + (error?.message || '不明なエラー')); return; }
       const newId = Math.max(0, ...callListData.map(l => l.id)) + 1;
-      setCallListData(prev => [...prev, { id: newId, ...formData, contactIds: formData.contactIds, count: parseInt(formData.count) || 0, is_prospecting: !!formData.isProspecting, _supaId: result.id }]);
+      setCallListData(prev => [...prev, { id: newId, ...dataToSave, contactIds: dataToSave.contactIds, count: parseInt(dataToSave.count) || 0, is_prospecting: derivedIsProspecting, engagement_id: dataToSave.engagementId, _supaId: result.id }]);
     }
     setListFormOpen(false);
     setEditingListId(null);
@@ -234,7 +256,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
 
       {/* Filter Tabs */}
       <div style={{ display: "flex", gap: space[2], marginBottom: space[3] }}>
-        {[['sourcing', 'ソーシング'], ['prospecting', '新規開拓'], ['archived', 'アーカイブ'], ['all', '全て表示']].map(([val, label]) => (
+        {[['sourcing', 'ソーシング'], ['prospecting', 'クライアント開拓'], ['archived', 'アーカイブ'], ['all', '全て表示']].map(([val, label]) => (
           <button key={val} onClick={() => setDisplayFilter(val)} style={{
             padding: "6px 16px", borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold,
             cursor: "pointer", transition: "all 0.15s", fontFamily: font.family.sans,
@@ -320,19 +342,34 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
             }}>✕</button>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 14 }}>
-            <div style={{ gridColumn: "span 3", display: "flex", alignItems: "center", gap: space[2] }}>
-              <label style={{ display: "inline-flex", alignItems: "center", gap: space[2], cursor: "pointer", fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark }}>
-                <input
-                  type="checkbox"
-                  checked={!!formData.isProspecting}
-                  onChange={e => setFormData(p => ({ ...p, isProspecting: e.target.checked }))}
-                  style={{ accentColor: color.navy }}
-                />
-                <span>新規開拓リスト</span>
-              </label>
-              <span style={{ fontSize: font.size.xs, color: color.textLight }}>
-                （自社向け。売上集計から除外され、インターン報酬のみ計上）
-              </span>
+            <div style={{ gridColumn: "span 3", display: "flex", alignItems: "center", gap: space[2], flexWrap: 'wrap' }}>
+              <label style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark }}>業務種別 *</label>
+              <div style={{ display: 'flex', gap: space[1.5] }}>
+                {salesAgencyEngagements.map(e => {
+                  const active = formData.engagementId === e.id;
+                  return (
+                    <button
+                      key={e.id}
+                      type="button"
+                      onClick={() => setFormData(p => ({ ...p, engagementId: e.id }))}
+                      style={{
+                        padding: `6px ${space[3] + 2}px`, fontSize: font.size.sm,
+                        background: active ? color.navy : color.white,
+                        color: active ? color.white : color.textMid,
+                        border: `1px solid ${active ? color.navy : color.border}`,
+                        borderRadius: radius.md, cursor: 'pointer',
+                        fontWeight: active ? font.weight.semibold : font.weight.normal,
+                        fontFamily: font.family.sans,
+                      }}
+                    >{e.name}</button>
+                  );
+                })}
+              </div>
+              {formData.engagementId === clientAcquisitionId && (
+                <span style={{ fontSize: font.size.xs, color: color.textLight }}>
+                  （クライアント開拓は自動的に売上集計から除外され、インターン報酬のみ計上）
+                </span>
+              )}
             </div>
             <div style={{ gridColumn: "span 2" }}>
               <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>クライアント企業名 *</label>
@@ -526,7 +563,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                             background: alpha(color.gold, 0.1),
                             border: `1px solid ${alpha(color.gold, 0.3)}`,
                             letterSpacing: 0.3, flexShrink: 0,
-                          }}>新規開拓</span>
+                          }}>クライアント開拓</span>
                         )}
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list.company}</span>
                       </span>
