@@ -23,6 +23,27 @@ const SCOPE_LABELS = {
   list: 'リスト単位（上書き）',
 };
 
+const AUTO_FILL_OPTIONS = [
+  { value: '',                     label: '-（手動入力）' },
+  { value: 'company_name',         label: 'アポ対象企業名' },
+  { value: 'address',              label: '住所' },
+  { value: 'phone',                label: '電話番号' },
+  { value: 'mobile_phone',         label: 'キーマン携帯' },
+  { value: 'contact_name',         label: '担当者名（call_list_items.representative）' },
+  { value: 'email',                label: 'メールアドレス（クライアント担当者）' },
+  { value: 'industry',             label: '業種（list.industry）' },
+  { value: 'business',             label: '事業内容（call_list_items.business）' },
+  { value: 'representative',       label: '代表者' },
+  { value: 'url',                  label: 'URL' },
+  { value: 'sales_thousand',       label: '売上（千円）' },
+  { value: 'net_income_thousand',  label: '当期純利益（千円）' },
+  { value: 'current_user',         label: 'ログインユーザー名' },
+];
+const AUTO_FETCH_OPTIONS = [
+  { value: '',              label: '-（手動入力）' },
+  { value: 'homepage_url',  label: 'AI+Web検索でHP自動取得' },
+];
+
 export default function ReportTemplatesManagement({ onToast }) {
   const orgId = getOrgId();
   const { engagements, categories } = useEngagements();
@@ -348,6 +369,12 @@ function TemplateEditModal({ initial, engagements, clients, lists, onSave, onCan
   };
 
   const availableKeys = form.schema.filter(f => f.key).map(f => f.key);
+  const [expandedIdx, setExpandedIdx] = useState(new Set()); // 詳細オプションを開いているフィールドのindex
+  const toggleExpand = (i) => setExpandedIdx(prev => {
+    const next = new Set(prev);
+    if (next.has(i)) next.delete(i); else next.add(i);
+    return next;
+  });
 
   const onSaveClick = async () => {
     setSaving(true);
@@ -447,7 +474,10 @@ function TemplateEditModal({ initial, engagements, clients, lists, onSave, onCan
               <span style={{ fontSize: font.size.xs, color: color.textLight }}>このテンプレで聞きたい項目を定義</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
-              {form.schema.map((f, i) => (
+              {form.schema.map((f, i) => {
+                const expanded = expandedIdx.has(i);
+                const hasMarker = f.ai_extract || f.auto_fill || f.auto_fetch || f.default || f.visible_when;
+                return (
                 <div key={i} style={{
                   padding: `${space[2.5]}px ${space[3]}px`, background: color.offWhite,
                   border: `1px solid ${color.border}`, borderRadius: radius.md,
@@ -472,8 +502,74 @@ function TemplateEditModal({ initial, engagements, clients, lists, onSave, onCan
                       <Input size="sm" value={(f.options || []).join('\n')} onChange={e => updateField(i, { options: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) })} placeholder="選択肢を改行区切り" />
                     )}
                   </div>
+                  {/* 詳細オプション トグル */}
+                  <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: space[2] }}>
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(i)}
+                      style={{
+                        background: 'none', border: 'none', color: color.navy,
+                        fontSize: font.size.xs, cursor: 'pointer', textDecoration: 'underline', padding: 0,
+                        fontFamily: font.family.sans,
+                      }}
+                    >{expanded ? '▲ 詳細を閉じる' : '▼ 詳細オプション'}</button>
+                    {hasMarker && !expanded && (
+                      <span style={{ fontSize: 10, color: color.textLight }}>
+                        {[
+                          f.ai_extract && 'AI抽出',
+                          f.auto_fill && `自動入力:${f.auto_fill}`,
+                          f.auto_fetch && `自動取得:${f.auto_fetch}`,
+                          f.default && `デフォルト:${f.default}`,
+                          f.visible_when && `条件付き:${f.visible_when.field}=${f.visible_when.equals}`,
+                        ].filter(Boolean).join(' / ')}
+                      </span>
+                    )}
+                  </div>
+                  {expanded && (
+                    <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[2], padding: space[2], background: color.cream, borderRadius: radius.sm }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: font.size.xs, color: color.textMid }}>
+                        <input type="checkbox" checked={!!f.ai_extract} onChange={e => updateField(i, { ai_extract: e.target.checked || undefined })} />
+                        AI抽出対象（録音から自動抽出）
+                      </label>
+                      <div>
+                        <span style={{ fontSize: 10, color: color.textLight, display: 'block', marginBottom: 2 }}>デフォルト値</span>
+                        <Input size="sm" value={f.default || ''} onChange={e => updateField(i, { default: e.target.value || undefined })} placeholder="例: 代表取締役" />
+                      </div>
+                      <div>
+                        <span style={{ fontSize: 10, color: color.textLight, display: 'block', marginBottom: 2 }}>自動入力ソース</span>
+                        <Select size="sm" value={f.auto_fill || ''} onChange={e => updateField(i, { auto_fill: e.target.value || undefined })} options={AUTO_FILL_OPTIONS} />
+                      </div>
+                      <div>
+                        <span style={{ fontSize: 10, color: color.textLight, display: 'block', marginBottom: 2 }}>外部取得（ボタン表示）</span>
+                        <Select size="sm" value={f.auto_fetch || ''} onChange={e => updateField(i, { auto_fetch: e.target.value || undefined })} options={AUTO_FETCH_OPTIONS} />
+                      </div>
+                      <div style={{ gridColumn: '1 / -1', borderTop: `1px dashed ${color.border}`, paddingTop: space[1.5] }}>
+                        <span style={{ fontSize: 10, color: color.textLight, display: 'block', marginBottom: 2 }}>
+                          条件付き表示（別フィールドの値が特定値のときだけ表示）
+                        </span>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr auto', gap: 6, alignItems: 'center' }}>
+                          <Select
+                            size="sm"
+                            value={f.visible_when?.field || ''}
+                            onChange={e => updateField(i, { visible_when: e.target.value ? { ...(f.visible_when || {}), field: e.target.value } : undefined })}
+                            options={[{ value: '', label: '-（常時表示）' }, ...availableKeys.filter(k => k !== f.key).map(k => ({ value: k, label: k }))]}
+                          />
+                          <span style={{ fontSize: font.size.xs, color: color.textMid }}>が</span>
+                          <Input
+                            size="sm"
+                            value={f.visible_when?.equals || ''}
+                            onChange={e => updateField(i, { visible_when: f.visible_when?.field ? { ...(f.visible_when || {}), equals: e.target.value } : undefined })}
+                            placeholder="例: 対面"
+                            disabled={!f.visible_when?.field}
+                          />
+                          <span style={{ fontSize: font.size.xs, color: color.textMid }}>のとき</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
               <Button variant="outline" size="sm" onClick={addField}>＋ 項目を追加</Button>
             </div>
           </div>

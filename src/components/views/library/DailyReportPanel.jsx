@@ -85,7 +85,7 @@ export default function DailyReportPanel({ currentUser, userId, isAdmin }) {
   }, [selectedDate]);
   const yesterdayReports = useMemo(() => reports.filter(r => r.report_date === yesterdayDate), [reports, yesterdayDate]);
 
-  if (!sourcing) return <Empty>ソーシング事業が見つかりません</Empty>;
+  if (!sourcing) return <Empty>営業代行（売り手ソーシング）事業が見つかりません</Empty>;
   if (loading) return <Empty>読み込み中…</Empty>;
   if (reports.length === 0) {
     return (
