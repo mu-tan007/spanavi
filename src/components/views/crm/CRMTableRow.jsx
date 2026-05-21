@@ -163,20 +163,27 @@ export default function CRMTableRow({
         }}>{c.company}</span>
       </span>
 
-      {/* 3. 最終接点 */}
+      {/* 3. 商材（旧: 業界） */}
+      <span style={{
+        textAlign: crmCols[2]?.align,
+        fontSize: font.size.xs, color: color.textMid,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>{c.industry || '-'}</span>
+
+      {/* 4. 最終接点 */}
       <span style={{
         fontFamily: font.family.mono,
         fontSize: font.size.xs,
         fontVariantNumeric: 'tabular-nums',
         color: lt.stale ? color.gold : (lt.label === '-' ? color.textLight : color.textMid),
         fontWeight: lt.stale ? font.weight.bold : font.weight.normal,
-        textAlign: crmCols[2]?.align,
+        textAlign: crmCols[3]?.align,
       }}>{lt.label}</span>
 
-      {/* 4. 主担当 */}
+      {/* 5. 主担当 */}
       {primary ? (
         <span style={{
-          fontSize: font.size.xs, color: color.navy, textAlign: crmCols[3]?.align,
+          fontSize: font.size.xs, color: color.navy, textAlign: crmCols[4]?.align,
           display: 'inline-flex', alignItems: 'center', gap: 4,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
@@ -190,21 +197,21 @@ export default function CRMTableRow({
           <span style={{ fontWeight: font.weight.medium }}>{primary.name}</span>
         </span>
       ) : (
-        <span style={{ fontSize: font.size.xs, color: color.textLight, textAlign: crmCols[3]?.align }}>-</span>
+        <span style={{ fontSize: font.size.xs, color: color.textLight, textAlign: crmCols[4]?.align }}>-</span>
       )}
 
-      {/* 5. 次回接点予定 */}
+      {/* 6. 次回接点予定 */}
       <span style={{
         fontFamily: font.family.mono,
         fontSize: font.size.xs,
         fontVariantNumeric: 'tabular-nums',
         color: nextContact.color,
         fontWeight: nextContact.bold ? font.weight.bold : font.weight.normal,
-        textAlign: crmCols[4]?.align,
+        textAlign: crmCols[5]?.align,
       }}>{nextContact.label}</span>
 
-      {/* 6. 目標対比 */}
-      <span style={{ textAlign: crmCols[5]?.align }}>
+      {/* 7. 目標対比 */}
+      <span style={{ textAlign: crmCols[6]?.align }}>
         <span style={{
           display: 'inline-block',
           fontFamily: font.family.mono,
@@ -224,8 +231,8 @@ export default function CRMTableRow({
         )}
       </span>
 
-      {/* 7. 次のアクション */}
-      <span style={{ textAlign: crmCols[6]?.align }}>
+      {/* 8. 次のアクション */}
+      <span style={{ textAlign: crmCols[7]?.align }}>
         <span style={{
           fontSize: font.size.xs, fontWeight: font.weight.semibold,
           color: action.color,

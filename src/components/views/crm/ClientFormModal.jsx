@@ -114,8 +114,8 @@ export default function ClientFormModal({
             </div>
 
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={labelStyle}>業界</label>
-              <Input size="sm" value={form.industry || ''} onChange={e => u('industry', e.target.value)} />
+              <label style={labelStyle}>商材</label>
+              <Input size="sm" value={form.industry || ''} onChange={e => u('industry', e.target.value)} placeholder="例: M&A仲介、IFA、不動産" />
             </div>
 
             <div>
