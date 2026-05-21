@@ -31,10 +31,12 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
   // クライアント開拓はオンラインが基本なのでデフォルト「オンライン」
   const [location, setLocation] = useState(isProspecting ? 'オンライン' : '東京都');
   const [contactPersonName, setContactPersonName] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   // 担当者名: 末尾の「様」を取り除いた canonical 表記。後段で 様 を付与するため二重防止
   const cleanContactName = contactPersonName.trim().replace(/様$/, '').trim();
+  const cleanContactEmail = contactEmail.trim();
   const isOnline = location === 'オンライン';
   const dateLabel = (() => {
     const d = new Date(date + 'T00:00:00');
@@ -44,6 +46,14 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
   const handleSave = async () => {
     if (isProspecting && !cleanContactName) {
       setError('クライアント開拓では担当者名が必須です');
+      return;
+    }
+    if (isProspecting && !cleanContactEmail) {
+      setError('クライアント開拓では担当者メールアドレスが必須です');
+      return;
+    }
+    if (isProspecting && cleanContactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanContactEmail)) {
+      setError('メールアドレスの形式が正しくありません');
       return;
     }
     setSaving(true);
@@ -57,11 +67,13 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
       const endISO = endDate.toISOString();
 
       // Step 1: クライアント開拓の場合、CRM clientsテーブルへ upsert（面談予定）
+      // 担当者名・メアドはここで clients.contact_person / contact_email に自動入力される
       if (isProspecting) {
         await ensureProspectingClient({
           name: row?.company || '',
           industry: list?.type || list?.list_type || '',
           contactPerson: cleanContactName,
+          contactEmail: cleanContactEmail,
           nextContactAt: startISO,
         });
       }
@@ -73,6 +85,8 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
         const description = [
           `面談場所: ${location}`,
           `アポ取得者: ${currentUser}`,
+          `担当者: ${cleanContactName}様`,
+          cleanContactEmail ? `メール: ${cleanContactEmail}` : null,
           row?.phone ? `電話: ${row.phone}` : null,
         ].filter(Boolean).join('\n');
         const { eventId, error: gcalErr } = await createGcalEvent({
@@ -189,6 +203,25 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
             </div>
           )}
         </div>
+
+        {/* 担当者メールアドレス（クライアント開拓のみ） */}
+        {isProspecting && (
+          <div style={{ marginBottom: space[3] }}>
+            <label style={{ fontSize: font.size.xs, color: color.gray500, display: 'block', marginBottom: 2 }}>
+              担当者メールアドレス<span style={{ color: color.danger }}> *</span>
+            </label>
+            <Input
+              size="sm"
+              type="email"
+              value={contactEmail}
+              onChange={e => setContactEmail(e.target.value)}
+              placeholder="例: harada@example.co.jp"
+            />
+            <div style={{ fontSize: 10, color: color.textLight, marginTop: 4 }}>
+              CRMの面談予定に企業を追加する際、担当者名と一緒に自動入力されます。
+            </div>
+          </div>
+        )}
 
         {/* 取得者 */}
         <div style={{ marginBottom: space[4] }}>
