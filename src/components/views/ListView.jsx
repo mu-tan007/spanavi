@@ -45,9 +45,10 @@ const ScorePill = ({ score }) => {
 };
 
 const LISTVIEW_COLS = [
-  { key: 'client', width: 320, align: 'left' },
-  { key: 'type', width: 250, align: 'center' },
-  { key: 'industry', width: 100, align: 'left' },
+  { key: 'client', width: 280, align: 'left' },
+  { key: 'category', width: 90, align: 'center' },
+  { key: 'engagementType', width: 140, align: 'center' },
+  { key: 'industry', width: 140, align: 'left' },
   { key: 'count', width: 72, align: 'right' },
   { key: 'manager', width: 180, align: 'center' },
   { key: 'progress', width: 110, align: 'center' },
@@ -57,8 +58,9 @@ const LISTVIEW_COLS = [
 
 
 const LISTVIEW_ARCHIVE_COLS = [
-  { key: 'client', width: 280, align: 'left' },
-  { key: 'type', width: 70, align: 'left' },
+  { key: 'client', width: 240, align: 'left' },
+  { key: 'category', width: 80, align: 'center' },
+  { key: 'engagementType', width: 130, align: 'center' },
   { key: 'industry', width: 140, align: 'left' },
   { key: 'count', width: 70, align: 'right' },
   { key: 'manager', width: 112, align: 'left' },
@@ -67,7 +69,12 @@ const LISTVIEW_ARCHIVE_COLS = [
 
 export default function ListView({ filteredLists, allLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [], contactsByClient = {}, onOpenIndustryRules }) {
   const isMobile = useIsMobile();
-  const { currentEngagement, engagements: allEngagements } = useEngagements();
+  const { currentEngagement, engagements: allEngagements, categories: allCategories } = useEngagements();
+  // 商材（business_categories）：現状はM&Aのみ
+  const selectableCategories = useMemo(
+    () => (allCategories || []).slice().sort((a, b) => (a.display_order || 0) - (b.display_order || 0)),
+    [allCategories]
+  );
   // 営業代行系3業務種別（リスト作成時の選択肢）
   const salesAgencyEngagements = useMemo(() => {
     const order = ['seller_sourcing', 'matching', 'client_acquisition'];
@@ -75,9 +82,24 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
     return (allEngagements || [])
       .filter(e => order.includes(e.slug))
       .sort((a, b) => order.indexOf(a.slug) - order.indexOf(b.slug))
-      .map(e => ({ id: e.id, slug: e.slug, name: label[e.slug] || e.name }));
+      .map(e => ({ id: e.id, slug: e.slug, name: label[e.slug] || e.name, category_id: e.category_id }));
   }, [allEngagements]);
   const clientAcquisitionId = salesAgencyEngagements.find(e => e.slug === 'client_acquisition')?.id;
+  // engagement.id → category 名 のマップ（一覧表示用）
+  const engagementToCategoryName = useMemo(() => {
+    const map = {};
+    (allEngagements || []).forEach(e => {
+      const cat = (allCategories || []).find(c => c.id === e.category_id);
+      if (cat) map[e.id] = cat.name;
+    });
+    return map;
+  }, [allEngagements, allCategories]);
+  // engagement.id → engagement 表示名（業務種別名）のマップ
+  const engagementToEngagementName = useMemo(() => {
+    const map = {};
+    salesAgencyEngagements.forEach(e => { map[e.id] = e.name; });
+    return map;
+  }, [salesAgencyEngagements]);
   const { columns: lvCols, gridTemplateColumns: lvGrid, contentMinWidth: lvMinW, onResizeStart: lvResize } = useColumnConfig('listView', LISTVIEW_COLS);
   const { columns: arCols, gridTemplateColumns: arGrid, contentMinWidth: arMinW, onResizeStart: arResize } = useColumnConfig('listViewArchive', LISTVIEW_ARCHIVE_COLS);
   // 「支援中」のクライアントのみ選択候補にする
@@ -342,16 +364,23 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
             }}>✕</button>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 14 }}>
+            {/* 商材セレクタ（事業 > 商材 > 業務種別 の真ん中レイヤー） */}
             <div style={{ gridColumn: "span 3", display: "flex", alignItems: "center", gap: space[2], flexWrap: 'wrap' }}>
-              <label style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark }}>業務種別 *</label>
+              <label style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark }}>商材 *</label>
               <div style={{ display: 'flex', gap: space[1.5] }}>
-                {salesAgencyEngagements.map(e => {
-                  const active = formData.engagementId === e.id;
+                {selectableCategories.map(c => {
+                  // 選択中の engagement が属する category を active 表示
+                  const selectedEng = salesAgencyEngagements.find(e => e.id === formData.engagementId);
+                  const active = selectedEng?.category_id === c.id;
                   return (
                     <button
-                      key={e.id}
+                      key={c.id}
                       type="button"
-                      onClick={() => setFormData(p => ({ ...p, engagementId: e.id }))}
+                      onClick={() => {
+                        // 商材を切り替えたら、その配下の最初の業務種別をデフォルト選択
+                        const first = salesAgencyEngagements.find(e => e.category_id === c.id);
+                        if (first) setFormData(p => ({ ...p, engagementId: first.id }));
+                      }}
                       style={{
                         padding: `6px ${space[3] + 2}px`, fontSize: font.size.sm,
                         background: active ? color.navy : color.white,
@@ -361,9 +390,40 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                         fontWeight: active ? font.weight.semibold : font.weight.normal,
                         fontFamily: font.family.sans,
                       }}
-                    >{e.name}</button>
+                    >{c.name}</button>
                   );
                 })}
+              </div>
+            </div>
+            {/* 業務種別セレクタ（商材配下） */}
+            <div style={{ gridColumn: "span 3", display: "flex", alignItems: "center", gap: space[2], flexWrap: 'wrap' }}>
+              <label style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark }}>業務種別 *</label>
+              <div style={{ display: 'flex', gap: space[1.5] }}>
+                {(() => {
+                  // 選択中商材配下の engagements のみ表示
+                  const selectedEng = salesAgencyEngagements.find(e => e.id === formData.engagementId);
+                  const targetCategoryId = selectedEng?.category_id || selectableCategories[0]?.id;
+                  const candidates = salesAgencyEngagements.filter(e => e.category_id === targetCategoryId);
+                  return candidates.map(e => {
+                    const active = formData.engagementId === e.id;
+                    return (
+                      <button
+                        key={e.id}
+                        type="button"
+                        onClick={() => setFormData(p => ({ ...p, engagementId: e.id }))}
+                        style={{
+                          padding: `6px ${space[3] + 2}px`, fontSize: font.size.sm,
+                          background: active ? color.navy : color.white,
+                          color: active ? color.white : color.textMid,
+                          border: `1px solid ${active ? color.navy : color.border}`,
+                          borderRadius: radius.md, cursor: 'pointer',
+                          fontWeight: active ? font.weight.semibold : font.weight.normal,
+                          fontFamily: font.family.sans,
+                        }}
+                      >{e.name}</button>
+                    );
+                  });
+                })()}
               </div>
               {formData.engagementId === clientAcquisitionId && (
                 <span style={{ fontSize: font.size.xs, color: color.textLight }}>
@@ -381,17 +441,8 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
               />
             </div>
             <div>
-              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>種別</label>
-              <select value={formData.type} onChange={e => setFormData(p => ({ ...p, type: e.target.value }))} style={formInputStyle}>
-                <option value="M&A仲介">M&A仲介</option>
-                <option value="IFA">IFA</option>
-                <option value="ファンド">ファンド</option>
-                <option value="売り手FA">売り手FA</option>
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>業種 *</label>
-              <input value={formData.industry} onChange={e => setFormData(p => ({ ...p, industry: e.target.value }))} style={formInputStyle} placeholder="例: 建設" />
+              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>リスト名 *</label>
+              <input value={formData.industry} onChange={e => setFormData(p => ({ ...p, industry: e.target.value }))} style={formInputStyle} placeholder="例: 建設、プラスチック成形、IT" />
             </div>
             <div>
               <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>リスト社数 *</label>
@@ -504,10 +555,10 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
           padding: isMobile ? "6px 10px" : "8px 16px", background: color.navy,
           fontSize: isMobile ? 10 : font.size.xs, fontWeight: font.weight.semibold, color: color.white, verticalAlign: 'middle',
         }}>
-          {['クライアント', '種別', '業種', '社数', '担当者', '架電進捗率', 'おすすめ度', ''].map((label, i) => (
+          {['クライアント', '商材', 'タイプ', 'リスト名', '社数', '担当者', '架電進捗率', 'おすすめ度', ''].map((label, i) => (
             <span key={i} style={{ position: 'relative', textAlign: lvCols[i]?.align || 'left', minWidth: 0, cursor: 'default', userSelect: 'none' }}>
               {label}
-              {i < 7 && <ColumnResizeHandle colIndex={i} onResizeStart={lvResize} />}
+              {i < 8 && <ColumnResizeHandle colIndex={i} onResizeStart={lvResize} />}
             </span>
           ))}
         </div>
@@ -555,24 +606,24 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                     >
                       <span onClick={() => setSelectedList(list.id)} style={{ fontWeight: font.weight.medium, paddingRight: space[2], cursor: "pointer", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[0]?.align || 'left', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         {list.status === "架電停止" && <span style={{ color: color.danger, marginRight: 4 }}>■</span>}
-                        {list.is_prospecting && (
-                          <span style={{
-                            display: "inline-flex", alignItems: "center",
-                            padding: "1px 7px", borderRadius: radius.md, fontSize: 10,
-                            fontWeight: font.weight.bold, color: color.gold,
-                            background: alpha(color.gold, 0.1),
-                            border: `1px solid ${alpha(color.gold, 0.3)}`,
-                            letterSpacing: 0.3, flexShrink: 0,
-                          }}>クライアント開拓</span>
-                        )}
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list.company}</span>
                       </span>
-                      <span style={{ display: "flex", justifyContent: lvCols[1]?.align === 'right' ? 'flex-end' : lvCols[1]?.align === 'center' ? 'center' : 'flex-start' }}><TypeBadge color={list.type === "M&A仲介" ? color.navy : list.type === "IFA" ? '#6366F1' : list.type === "ファンド" ? color.success : color.warn} small>{list.type}</TypeBadge></span>
-                      <span style={{ color: color.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[2]?.align || 'left' }}>{list.industry}</span>
-                      <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.textMid, textAlign: lvCols[3]?.align || 'right' }}>{list.count.toLocaleString()}</span>
-                      <span style={{ color: color.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[4]?.align || 'center' }}>{shortManagerName(list)}</span>
-                      <span style={{ display: "flex", justifyContent: lvCols[5]?.align === 'right' ? 'flex-end' : lvCols[5]?.align === 'center' ? 'center' : 'flex-start' }}><ProgressPill pct={list.call_progress_pct} /></span>
-                      <span style={{ display: "flex", justifyContent: lvCols[6]?.align === 'right' ? 'flex-end' : lvCols[6]?.align === 'center' ? 'center' : 'flex-start' }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
+                      <span style={{ color: color.textMid, fontSize: font.size.xs, textAlign: lvCols[1]?.align || 'center' }}>{engagementToCategoryName[list.engagement_id] || '—'}</span>
+                      <span style={{ display: "flex", justifyContent: lvCols[2]?.align === 'right' ? 'flex-end' : lvCols[2]?.align === 'center' ? 'center' : 'flex-start' }}>
+                        {(() => {
+                          const typeName = engagementToEngagementName[list.engagement_id] || '—';
+                          const tone = typeName === '売り手ソーシング' ? color.navy
+                                     : typeName === '買い手マッチング' ? '#6366F1'
+                                     : typeName === 'クライアント開拓' ? color.gold
+                                     : color.textMid;
+                          return <TypeBadge color={tone} small>{typeName}</TypeBadge>;
+                        })()}
+                      </span>
+                      <span style={{ color: color.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[3]?.align || 'left' }}>{list.industry}</span>
+                      <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.textMid, textAlign: lvCols[4]?.align || 'right' }}>{list.count.toLocaleString()}</span>
+                      <span style={{ color: color.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[5]?.align || 'center' }}>{shortManagerName(list)}</span>
+                      <span style={{ display: "flex", justifyContent: lvCols[6]?.align === 'right' ? 'flex-end' : lvCols[6]?.align === 'center' ? 'center' : 'flex-start' }}><ProgressPill pct={list.call_progress_pct} /></span>
+                      <span style={{ display: "flex", justifyContent: lvCols[7]?.align === 'right' ? 'flex-end' : lvCols[7]?.align === 'center' ? 'center' : 'flex-start' }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
                       {isAdmin && (
                         <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 4 }}>
                           <button onClick={() => handleOpenEdit(list)} title="編集" style={{
@@ -609,11 +660,12 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                   opacity: 0.5, background: color.offWhite,
                 }}>
                   <span style={{ color: color.textMid, fontWeight: font.weight.medium, textAlign: arCols[0]?.align || 'left' }}>{list.company}</span>
-                  <span style={{ color: color.textLight, fontSize: 10, textAlign: arCols[1]?.align || 'left' }}>{list.type}</span>
-                  <span style={{ color: color.textLight, textAlign: arCols[2]?.align || 'left' }}>{list.industry}</span>
-                  <span style={{ fontFamily: font.family.mono, fontSize: 10, color: color.textLight, textAlign: arCols[3]?.align || 'left' }}>{list.count.toLocaleString()}</span>
-                  <span style={{ color: color.textLight, textAlign: arCols[4]?.align || 'left' }}>{shortManagerName(list)}</span>
-                  <span style={{ textAlign: arCols[5]?.align || 'right' }}>
+                  <span style={{ color: color.textLight, fontSize: 10, textAlign: arCols[1]?.align || 'center' }}>{engagementToCategoryName[list.engagement_id] || '—'}</span>
+                  <span style={{ color: color.textLight, fontSize: 10, textAlign: arCols[2]?.align || 'center' }}>{engagementToEngagementName[list.engagement_id] || '—'}</span>
+                  <span style={{ color: color.textLight, textAlign: arCols[3]?.align || 'left' }}>{list.industry}</span>
+                  <span style={{ fontFamily: font.family.mono, fontSize: 10, color: color.textLight, textAlign: arCols[4]?.align || 'left' }}>{list.count.toLocaleString()}</span>
+                  <span style={{ color: color.textLight, textAlign: arCols[5]?.align || 'left' }}>{shortManagerName(list)}</span>
+                  <span style={{ textAlign: arCols[6]?.align || 'right' }}>
                     {isAdmin && <button onClick={async () => {
                       const error = await restoreCallList(list._supaId);
                       if (error) { alert('復元に失敗しました: ' + (error.message || '不明なエラー')); return; }

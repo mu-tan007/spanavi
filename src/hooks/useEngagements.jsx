@@ -21,6 +21,7 @@ const EngagementContext = createContext(null);
 export function EngagementProvider({ children }) {
   const [dbEngagements, setDbEngagements] = useState([]);
   const [dbProducts, setDbProducts] = useState([]);
+  const [dbCategories, setDbCategories] = useState([]);
   const [currentSlug, setCurrentSlug] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -30,17 +31,23 @@ export function EngagementProvider({ children }) {
     let cancelled = false;
     async function fetchAll() {
       if (!orgId) { setLoading(false); return; }
-      // engagements と products を並列取得
-      const [engRes, prodRes] = await Promise.all([
+      // engagements / products / categories を並列取得
+      const [engRes, prodRes, catRes] = await Promise.all([
         supabase
           .from('engagements')
-          .select('id,name,slug,type,status,display_order,description,product_id')
+          .select('id,name,slug,type,status,display_order,description,product_id,category_id')
           .eq('org_id', orgId)
           .eq('status', 'active')
           .order('display_order'),
         supabase
           .from('products')
           .select('id,name,slug,display_order,is_active,description')
+          .eq('org_id', orgId)
+          .eq('is_active', true)
+          .order('display_order'),
+        supabase
+          .from('business_categories')
+          .select('id,name,slug,display_order,is_active,product_id,description')
           .eq('org_id', orgId)
           .eq('is_active', true)
           .order('display_order'),
@@ -58,6 +65,9 @@ export function EngagementProvider({ children }) {
       if (!prodRes.error && prodRes.data) {
         setDbProducts(prodRes.data);
       }
+      if (!catRes.error && catRes.data) {
+        setDbCategories(catRes.data);
+      }
       setLoading(false);
     }
     fetchAll();
@@ -66,6 +76,7 @@ export function EngagementProvider({ children }) {
 
   const engagements = useMemo(() => [MASP_ENGAGEMENT, ...dbEngagements], [dbEngagements]);
   const products = useMemo(() => dbProducts, [dbProducts]);
+  const categories = useMemo(() => dbCategories, [dbCategories]);
   const currentEngagement = useMemo(
     () => engagements.find(e => e.slug === currentSlug) || null,
     [engagements, currentSlug]
@@ -74,6 +85,11 @@ export function EngagementProvider({ children }) {
   const currentProduct = useMemo(
     () => products.find(p => p.id === currentEngagement?.product_id) || null,
     [products, currentEngagement]
+  );
+  // 現在の engagement が属する category
+  const currentCategory = useMemo(
+    () => categories.find(c => c.id === currentEngagement?.category_id) || null,
+    [categories, currentEngagement]
   );
 
   const switchEngagement = (slug) => {
@@ -100,7 +116,7 @@ export function EngagementProvider({ children }) {
     }
   };
 
-  const value = { engagements, products, currentEngagement, currentProduct, switchEngagement, switchProduct, loading };
+  const value = { engagements, products, categories, currentEngagement, currentProduct, currentCategory, switchEngagement, switchProduct, loading };
   return <EngagementContext.Provider value={value}>{children}</EngagementContext.Provider>;
 }
 
