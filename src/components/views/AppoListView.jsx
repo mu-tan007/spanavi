@@ -6,7 +6,7 @@ import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/formatters';
-import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording } from '../../lib/supabaseWrite';
+import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage } from '../../lib/supabaseWrite';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -373,6 +373,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [dealizing, setDealizing] = useState(false);
   // 'idle' | 'fetching' | 'transcribing' | 'enhancing' | 'done' | 'error'
   const [transcribeStep, setTranscribeStep] = React.useState('idle');
+  const [hpStep, setHpStep] = React.useState('idle'); // 'idle' | 'fetching' | 'done' | 'error'
   // 録音URL差し替え用
   const [showReplaceUrl, setShowReplaceUrl] = useState(false);
   const [replaceUrl, setReplaceUrl] = useState('');
@@ -916,6 +917,65 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       alert('ZIP生成に失敗しました: ' + (e.message || '不明なエラー'));
     } finally {
       setBulkInvoiceGenerating(false);
+    }
+  };
+
+  // 企業HPを自動取得して appoReport の「HP：」行を更新する
+  const handleFetchHpDetail = async () => {
+    if (hpStep !== 'idle') return;
+    setHpStep('fetching');
+    try {
+      // 対象企業情報を call_list_items から引いて住所・代表者を補完
+      let address = '';
+      let representative = '';
+      if (reportDetail?.item_id) {
+        try {
+          const { data: item } = await fetchCallListItemById(reportDetail.item_id);
+          if (item) {
+            address = (item.address || '').replace(/\/\s*$/, '');
+            representative = item.representative || '';
+          }
+        } catch (e) {
+          console.warn('[handleFetchHpDetail] fetchCallListItemById error:', e);
+        }
+      }
+      const companyName = reportDetail?.company || detailEditForm?.company || '';
+      if (!companyName) { setHpStep('error'); setTimeout(() => setHpStep('idle'), 3000); return; }
+      const { url, confidence, reason } = await invokeLookupCompanyHomepage({
+        company_name: companyName, address, representative,
+      });
+      if (!url) {
+        console.warn('[handleFetchHpDetail] no url:', reason);
+        setHpStep('error');
+        setTimeout(() => setHpStep('idle'), 4000);
+        return;
+      }
+      // 編集中の appoReport から「HP：」行を置換（無ければ追記）
+      let report = detailEditForm?.appoReport || '';
+      const hpLineRe = /^HP[：:]\s*.*$/m;
+      if (hpLineRe.test(report)) {
+        report = report.replace(hpLineRe, `HP：${url}`);
+      } else {
+        // 「法人名：」直後 or 末尾に追記
+        const corpRe = /^(法人名[：:].*)$/m;
+        report = corpRe.test(report) ? report.replace(corpRe, `$1\nHP：${url}`) : `${report}\nHP：${url}`;
+      }
+      setDetailEditForm(f => ({ ...f, appoReport: report }));
+      // report_data にも反映（テンプレ駆動アポの場合）
+      if (reportDetail?._supaId && reportDetail?.report_data) {
+        const newReportData = { ...reportDetail.report_data, hp: url };
+        try {
+          await updateAppointment(reportDetail._supaId, { ...reportDetail, appoReport: report, report_data: newReportData });
+        } catch (e) {
+          console.warn('[handleFetchHpDetail] updateAppointment error:', e);
+        }
+      }
+      setHpStep('done');
+      setTimeout(() => setHpStep('idle'), 3000);
+    } catch (e) {
+      console.error('[handleFetchHpDetail] error:', e);
+      setHpStep('error');
+      setTimeout(() => setHpStep('idle'), 4000);
     }
   };
 
@@ -2222,18 +2282,28 @@ MASP 篠宮`}
                   </div>
                 )}
                 {detailEditing && (
-                  <Button
-                    onClick={handleTranscribeDetail}
-                    disabled={transcribeStep !== 'idle'}
-                    variant="outline" size="sm"
-                    style={{ marginTop: 8 }}>
-                    {transcribeStep === 'fetching'     && '録音を検索中...'}
-                    {transcribeStep === 'transcribing' && '文字起こし中...'}
-                    {transcribeStep === 'enhancing'    && 'AI添削中...'}
-                    {transcribeStep === 'done'         && '添削完了'}
-                    {transcribeStep === 'error'        && '録音データが見つかりませんでした'}
-                    {transcribeStep === 'idle'         && '文字起こし＋AI添削'}
-                  </Button>
+                  <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <Button
+                      onClick={handleTranscribeDetail}
+                      disabled={transcribeStep !== 'idle'}
+                      variant="outline" size="sm">
+                      {transcribeStep === 'fetching'     && '録音を検索中...'}
+                      {transcribeStep === 'transcribing' && '文字起こし中...'}
+                      {transcribeStep === 'enhancing'    && 'AI添削中...'}
+                      {transcribeStep === 'done'         && '添削完了'}
+                      {transcribeStep === 'error'        && '録音データが見つかりませんでした'}
+                      {transcribeStep === 'idle'         && '文字起こし＋AI添削'}
+                    </Button>
+                    <Button
+                      onClick={handleFetchHpDetail}
+                      disabled={hpStep !== 'idle'}
+                      variant="outline" size="sm">
+                      {hpStep === 'fetching' && 'HP取得中...'}
+                      {hpStep === 'done'     && 'HP取得完了'}
+                      {hpStep === 'error'    && 'HPが見つかりませんでした'}
+                      {hpStep === 'idle'     && 'HP自動取得'}
+                    </Button>
+                  </div>
                 )}
               </div>
               {(() => {
