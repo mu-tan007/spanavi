@@ -185,7 +185,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
 
   const handleSave = async () => {
     if (!formData.company || !formData.industry || !formData.count) return;
-    if (!formData.engagementId) { alert('業務種別を選択してください'); return; }
+    if (!formData.engagementId) { alert('タイプを選択してください'); return; }
     // クライアント開拓 engagement を選んだ場合は is_prospecting=true を自動付与
     const derivedIsProspecting = formData.engagementId === clientAcquisitionId;
     const dataToSave = { ...formData, isProspecting: derivedIsProspecting };
@@ -397,7 +397,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
             </div>
             {/* 業務種別セレクタ（商材配下） */}
             <div style={{ gridColumn: "span 3", display: "flex", alignItems: "center", gap: space[2], flexWrap: 'wrap' }}>
-              <label style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark }}>業務種別 *</label>
+              <label style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark }}>タイプ *</label>
               <div style={{ display: 'flex', gap: space[1.5] }}>
                 {(() => {
                   // 選択中商材配下の engagements のみ表示

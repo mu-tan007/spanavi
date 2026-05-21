@@ -32,7 +32,7 @@ const TABS = [
   { id: 'calling',     label: '架電設定',              icon: '' },
   { id: 'slack',       label: 'Slack / Zoom設定',       icon: '' },
   { id: 'clients',     label: 'クライアント・リスト管理', icon: '' },
-  { id: 'classification', label: '業務種別 仕分け',     icon: '' },
+  { id: 'classification', label: 'タイプ 仕分け',       icon: '' },
 ];
 
 // 全社スコープでのみ表示するタブ。事業セレクタを「全社」にしたときのみ並ぶ。

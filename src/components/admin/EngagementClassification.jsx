@@ -41,7 +41,7 @@ export default function EngagementClassification({ onToast }) {
         .in('slug', SALES_AGENCY_SLUGS);
       if (cancelled) return;
       if (error) {
-        onToast?.('業務種別の取得に失敗しました: ' + error.message, 'error');
+        onToast?.('タイプの取得に失敗しました: ' + error.message, 'error');
         return;
       }
       setEngagements(data || []);
@@ -136,7 +136,7 @@ export default function EngagementClassification({ onToast }) {
       onToast?.('変更されたリストがありません');
       return;
     }
-    if (!window.confirm(`${changed.length}件のリストの業務種別を更新します。よろしいですか？`)) return;
+    if (!window.confirm(`${changed.length}件のリストのタイプを更新します。よろしいですか？`)) return;
 
     setSaving(true);
     const results = await Promise.allSettled(
@@ -151,7 +151,7 @@ export default function EngagementClassification({ onToast }) {
     setSaving(false);
 
     if (errors.length === 0) {
-      onToast?.(`${changed.length}件の業務種別を更新しました`);
+      onToast?.(`${changed.length}件のタイプを更新しました`);
       await loadCallLists();
     } else {
       onToast?.(`${changed.length - errors.length}件成功、${errors.length}件失敗`, 'error');
@@ -197,7 +197,7 @@ export default function EngagementClassification({ onToast }) {
       ),
     },
     {
-      key: '_selected_engagement_id', label: '業務種別', width: 220, align: 'center',
+      key: '_selected_engagement_id', label: 'タイプ', width: 220, align: 'center',
       render: row => {
         const changed = row._initial_engagement_id !== row._selected_engagement_id;
         return (
