@@ -509,7 +509,7 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
     <div style={{ animation: "fadeIn 0.3s ease" }}>
 
       <PageHeader
-        title="報酬管理"
+        title="報酬"
         description="月次インセンティブ・支給額の管理"
         style={{ marginBottom: space[6] }}
       />

@@ -456,7 +456,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        title="シフト管理"
+        title="シフト"
         description="シフト・勤怠管理"
         style={{ marginBottom: isMobile ? space[4] : space[6], flexShrink: 0 }}
       />

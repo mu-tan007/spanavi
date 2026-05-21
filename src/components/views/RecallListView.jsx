@@ -76,7 +76,7 @@ export default function RecallListView({ callListData, supaRecalls = [], members
   return (
     <div style={{ animation: "fadeIn 0.3s ease", height: 'calc(100vh - 130px)', display: 'flex', flexDirection: 'column' }}>
       <PageHeader
-        title="再架電リスト"
+        title="再架電"
         description="再コール・キーマン断り14日経過の管理"
         style={{ marginBottom: 24 }}
       />
