@@ -9,12 +9,17 @@ import { NAVY, GRAY_200, currentYearMonth, statusStyle, STATUS_LIST } from './ut
 const yen = n => '¥' + Number(n || 0).toLocaleString();
 
 function getMonthBoundaries(ym) {
-  // ym='YYYY-MM' から当月の開始・終了 ISO 文字列を返す（UTC基準）
+  // ym='YYYY-MM' から当月の開始・終了 ISO 文字列を返す（JST基準）
+  // 他画面（AppoListView / KPIScorecard）と月境界を揃えるため JST 月初〜翌月初
   const [y, m] = ym.split('-').map(Number);
-  const start = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0)).toISOString();
-  const end = new Date(Date.UTC(y, m, 1, 0, 0, 0)).toISOString();
+  const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+  const start = `${ym}-01T00:00:00+09:00`;
+  const end   = `${next}-01T00:00:00+09:00`;
   return { start, end };
 }
+
+// 当社売上として計上するステータス（他画面と統一）
+const COUNTABLE_STATUSES = ['面談済', '事前確認済', 'アポ取得'];
 
 function previousYearMonth(ym) {
   const [y, m] = ym.split('-').map(Number);
@@ -73,18 +78,23 @@ export default function CRMKPIDashboard({ clientData = [], statusCounts = {} }) 
   });
 
   // 当月の appointments（売上＋件数）
+  // - meeting_date 基準で月境界判定（実際の売上計上月）
+  // - 面談済 / 事前確認済 / アポ取得 のみ集計
+  // - call_lists.is_prospecting=true（クライアント開拓）は売上集計から除外
   const { data: thisMonthAppos = [] } = useQuery({
     queryKey: ['crm-appointments-month', orgId, currentYM],
     queryFn: async () => {
       const { start, end } = getMonthBoundaries(currentYM);
       const { data, error } = await supabase
         .from('appointments')
-        .select('id, client_id, sales_amount, appointment_date')
+        .select('id, client_id, sales_amount, meeting_date, status, list_id, call_lists(is_prospecting)')
         .eq('org_id', orgId)
-        .gte('appointment_date', start)
-        .lt('appointment_date', end);
+        .gte('meeting_date', start)
+        .lt('meeting_date', end)
+        .in('status', COUNTABLE_STATUSES);
       if (error) { console.warn('[CRM KPI] appointments fetch failed', error); return []; }
-      return data || [];
+      // クライアント開拓由来は売上対象外
+      return (data || []).filter(a => !a.call_lists?.is_prospecting);
     },
     enabled: !!orgId,
     staleTime: 5 * 60 * 1000,
