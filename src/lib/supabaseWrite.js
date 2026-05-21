@@ -257,6 +257,80 @@ export async function updateClientCalendarId(supaId, googleCalendarId) {
   return error
 }
 
+// ============================================================
+// アポ取得報告テンプレ (appointment_report_templates)
+// ============================================================
+
+export async function fetchReportTemplates() {
+  const orgId = getOrgId()
+  if (!orgId) return { data: [], error: new Error('no org') }
+  const { data, error } = await supabase
+    .from('appointment_report_templates')
+    .select('id, org_id, name, description, scope_level, engagement_id, client_id, list_id, schema, body_template, ai_prompt, is_active, created_by, created_at, updated_at')
+    .eq('org_id', orgId)
+    .eq('is_active', true)
+    .order('scope_level')
+    .order('created_at', { ascending: false })
+  if (error) console.error('[DB] fetchReportTemplates error:', error)
+  return { data: data || [], error }
+}
+
+export async function insertReportTemplate(payload) {
+  const orgId = getOrgId()
+  const { data: { session } } = await supabase.auth.getSession()
+  const { data, error } = await supabase
+    .from('appointment_report_templates')
+    .insert({
+      org_id: orgId,
+      name: payload.name,
+      description: payload.description || null,
+      scope_level: payload.scope_level,
+      engagement_id: payload.engagement_id || null,
+      client_id: payload.client_id || null,
+      list_id: payload.list_id || null,
+      schema: payload.schema || [],
+      body_template: payload.body_template || '',
+      ai_prompt: payload.ai_prompt || null,
+      is_active: true,
+      created_by: session?.user?.id || null,
+    })
+    .select()
+    .single()
+  if (error) console.error('[DB] insertReportTemplate error:', error)
+  return { data, error }
+}
+
+export async function updateReportTemplate(id, payload) {
+  const { data, error } = await supabase
+    .from('appointment_report_templates')
+    .update({
+      name: payload.name,
+      description: payload.description || null,
+      scope_level: payload.scope_level,
+      engagement_id: payload.engagement_id || null,
+      client_id: payload.client_id || null,
+      list_id: payload.list_id || null,
+      schema: payload.schema || [],
+      body_template: payload.body_template || '',
+      ai_prompt: payload.ai_prompt || null,
+    })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) console.error('[DB] updateReportTemplate error:', error)
+  return { data, error }
+}
+
+export async function deleteReportTemplate(id) {
+  // 論理削除 (is_active=false) でユニーク制約を解放する
+  const { error } = await supabase
+    .from('appointment_report_templates')
+    .update({ is_active: false })
+    .eq('id', id)
+  if (error) console.error('[DB] deleteReportTemplate error:', error)
+  return { error }
+}
+
 // クライアント開拓アポ取得時、CRM の clients テーブルへ upsert する。
 // 既存(name一致)があれば「面談予定」に更新、無ければ新規作成。
 // 進行段階が支援中/準備中の場合は status は変更しない。
