@@ -35,6 +35,7 @@ export function useSpanaviData(authOrgId) {
         rewardTypesRes,
         clientContactsRes,
         sourcingEngRes,
+        clientEngagementRewardsRes,
       ] = await Promise.all([
         supabase.from('clients').select('*').eq('org_id', orgId).order('sort_order'),
         supabase.from('call_lists').select('*').eq('org_id', orgId).order('sort_order'),
@@ -43,6 +44,7 @@ export function useSpanaviData(authOrgId) {
         supabase.from('reward_types').select('*').order('type_id'),
         supabase.from('client_contacts').select('*').eq('org_id', orgId).order('created_at'),
         supabase.from('engagements').select('id').eq('org_id', orgId).eq('slug', 'seller_sourcing').maybeSingle(),
+        supabase.from('client_engagement_reward_settings').select('client_id, engagement_id, reward_type').eq('org_id', orgId),
       ])
 
       // Sourcing 事業の member_engagements.role_id → engagement_roles.name を取得
@@ -114,6 +116,7 @@ export function useSpanaviData(authOrgId) {
         is_archived: cl.is_archived || false,
         is_prospecting: cl.is_prospecting === true,
         engagement_id: cl.engagement_id || null,
+        client_id: cl.client_id || null,
         contactIds: (cl.contact_ids && cl.contact_ids.length > 0) ? cl.contact_ids : (cl.contact_id ? [cl.contact_id] : []),
         created_at: cl.created_at || null,
       }))
@@ -226,6 +229,7 @@ export function useSpanaviData(authOrgId) {
         createdAtRaw: a.created_at || null,
       }))
 
+      const clientEngagementRewards = clientEngagementRewardsRes?.data || []
       setData({
         callLists: callListsFormatted,
         clientData: clientDataFormatted,
@@ -233,6 +237,7 @@ export function useSpanaviData(authOrgId) {
         membersDetailed,
         appoData: appoDataFormatted,
         rewardTypes,
+        clientEngagementRewards,
         contactsByClient,
         // 生データも保持（書き込み時に使う）
         _raw: { clients, callLists, members, appointments, rewardTypes },
