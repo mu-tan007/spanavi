@@ -691,6 +691,14 @@ export async function insertAppointment(data, engagementId = null) {
 
   const appoMonth = data.meetDate ? (parseInt(data.meetDate.slice(5, 7), 10) + '月') : ''
 
+  // クライアント別のデフォルト備考。data.note が空の場合のみ適用。
+  // 将来 clients テーブルに default_appo_note カラムを生やせばここの分岐を外せる。
+  const CLIENT_DEFAULT_NOTES = {
+    'ブティックス株式会社': 'ご面談当日にお手元に決算書や財務状況がわかるデータをご準備いただくことは可能かヒアリングすること。（簡易的な株価の算定のため）',
+  }
+  const defaultNote = !data.note && data.client ? (CLIENT_DEFAULT_NOTES[data.client] || null) : null
+  const finalNote = data.note || defaultNote || null
+
   const { data: result, error } = await supabase
     .from('appointments')
     .insert({
@@ -704,7 +712,7 @@ export async function insertAppointment(data, engagementId = null) {
       meeting_date: data.meetDate || null,
       sales_amount: parseInt(data.sales) || 0,
       intern_reward: parseInt(data.reward) || 0,
-      notes: data.note || null,
+      notes: finalNote,
       appo_report: data.appoReport || null,
       appo_month: appoMonth,
       email_status: data.emailStatus || 'pending',
