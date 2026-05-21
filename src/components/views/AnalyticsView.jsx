@@ -20,6 +20,7 @@ import Funnel from './analytics/Funnel';
 import Heatmap from './analytics/Heatmap';
 import MemberRanking from './analytics/MemberRanking';
 import StrengthWeakness from './analytics/StrengthWeakness';
+import IndustryAnalytics from './analytics/IndustryAnalytics';
 import StatsView from './StatsView';
 
 const NAVY = '#0D2247';
@@ -289,6 +290,8 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
           orgStats={orgStats}
         />
       )}
+
+      <IndustryAnalytics />
 
       <div style={{ margin: '28px 0 20px', borderTop: `1px solid ${color.border}`, paddingTop: 20 }}>
         <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.textLight, letterSpacing: font.letterSpacing.wider, textTransform: 'uppercase', marginBottom: 4 }}>売上・クライアント・リスト別分析</div>
