@@ -13,9 +13,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const CONNECT_STATUSES = new Set(['キーマン再コール', 'アポ獲得', 'キーマンお断り'])
+const CONNECT_STATUSES = new Set(['キーマン再コール', 'アポ獲得', 'キーマン断り'])
 const APPO_STATUS = 'アポ獲得'
-const REJECT_STATUS = 'キーマンお断り'
+const REJECT_STATUS = 'キーマン断り'
 
 interface CallRow {
   id: string

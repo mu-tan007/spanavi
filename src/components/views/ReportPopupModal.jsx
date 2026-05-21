@@ -99,7 +99,7 @@ export default function ReportPopupModal({ appo, mode = 'callRecord', onClose, o
         style={{ background: color.white, borderRadius: radius.lg, width: 560, maxWidth: '92vw',
           maxHeight: '88vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
         <div style={{ padding: `${space[3]}px ${space[5]}px`, background: color.navy, color: color.white, borderRadius: `${radius.lg}px ${radius.lg}px 0 0` }}>
-          <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold }}>通話レポート{isAppo ? '（アポ獲得）' : isReject ? '（キーマンお断り）' : ''}</div>
+          <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold }}>通話レポート{isAppo ? '（アポ獲得）' : isReject ? '（キーマン断り）' : ''}</div>
           <div style={{ fontSize: font.size.xs, color: alpha(color.white, 0.7), marginTop: 2 }}>
             {appo.company_name} / {appo.getter_name || '—'} / {status}
           </div>

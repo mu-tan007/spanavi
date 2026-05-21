@@ -6,7 +6,7 @@ const corsHeaders = {
 }
 
 // デフォルトのキーマン接続ステータス（org_settings未設定時フォールバック）
-const DEFAULT_KEYMAN_STATUSES = ['キーマン再コール', 'アポ獲得', 'キーマンお断り']
+const DEFAULT_KEYMAN_STATUSES = ['キーマン再コール', 'アポ獲得', 'キーマン断り']
 
 // チーム名 → org_settings Webhookキー マッピング
 const TEAM_WEBHOOK_KEYS: Record<string, string> = {

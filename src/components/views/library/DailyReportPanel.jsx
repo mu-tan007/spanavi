@@ -720,7 +720,7 @@ function MemberCard({ m, report, openProfile, currentUser, globalPlayingId, setG
           )}
           {m.rejection_recordings?.length > 0 && (
             <RecordingGroup
-              label="キーマンお断り録音" count={m.rejection_recordings.length} accent="#DC2626"
+              label="キーマン断り録音" count={m.rejection_recordings.length} accent="#DC2626"
               records={m.rejection_recordings} playingId={globalPlayingId} setPlayingId={setGlobalPlayingId}
             />
           )}

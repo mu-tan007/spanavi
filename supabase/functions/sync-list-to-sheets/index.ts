@@ -37,7 +37,7 @@ async function getAccessToken(): Promise<string> {
   return data.access_token as string
 }
 
-const KEYMAN_CONNECT = new Set(['キーマン再コール', 'キーマンお断り', 'アポ獲得'])
+const KEYMAN_CONNECT = new Set(['キーマン再コール', 'キーマン断り', 'アポ獲得'])
 
 function buildSheetData(list: any, items: any[], records: any[]) {
   // record map: item_id -> round -> {status, date}

@@ -249,7 +249,7 @@ export default function SourcingDashboardView({
     openQueueItemAtIdx();
   }, [openQueueItemAtIdx]);
 
-  // ---- キーマン再コール超過 / キーマンお断り14日経過 / 再アプローチ候補 ----
+  // ---- キーマン再コール超過 / キーマン断り14日経過 / 再アプローチ候補 ----
   // サーバー側 RPC で join 済の必要行だけ取得
   const [overdueRecalls, setOverdueRecalls] = useState([]);
   const [oldRejections, setOldRejections] = useState([]);
@@ -442,9 +442,9 @@ export default function SourcingDashboardView({
         )}
       />
 
-      {/* キーマンお断り 14日経過 */}
+      {/* キーマン断り 14日経過 */}
       <CollapsibleList
-        title="キーマンお断り 14日経過"
+        title="キーマン断り 14日経過"
         items={oldRejections}
         loading={recallLoading}
         emptyText="該当なし。"
