@@ -4,12 +4,50 @@ import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
-import { invokeAppoAiReport, invokeTranscribeRecording, fetchZoomUserId, insertAppointment } from '../../lib/supabaseWrite';
+import { invokeAppoAiReport, invokeTranscribeRecording, fetchZoomUserId, insertAppointment, fetchReportTemplates } from '../../lib/supabaseWrite';
 import { invokeGenerateCompanyDossier } from '../../lib/dossierApi';
 import { getOrgId } from '../../lib/orgContext';
 import { MemberSuggestInput } from './AppoListView';
+import TemplateDrivenAppoReportModal from './TemplateDrivenAppoReportModal';
+import { resolveApplicableTemplates } from '../../lib/templateRenderer';
 
-export default function AppoReportModal({ row, list, currentUser = '', members = [], onClose, onSave, onDone, initialRecordingUrl = '', onFetchRecordingUrl, clientData = [], rewardMaster = [], dialedPhone = '' }) {
+export default function AppoReportModal(props) {
+  const { row, list, currentUser = '', members = [], onClose, onSave, onDone, initialRecordingUrl = '', onFetchRecordingUrl, clientData = [], rewardMaster = [], dialedPhone = '', contactsByClient = {} } = props;
+  // テンプレ駆動ルーティング: 適用可能なテンプレがあれば TemplateDrivenAppoReportModal へ委譲
+  const [templates, setTemplates] = useState(null); // null=loading, []=no templates
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await fetchReportTemplates();
+      if (!cancelled) setTemplates(data || []);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  if (templates === null) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 20000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: color.white, padding: space[5], borderRadius: radius.md, color: color.textMid, fontSize: font.size.sm }}>テンプレ読込中…</div>
+      </div>
+    );
+  }
+  const applicable = resolveApplicableTemplates(templates, list);
+  if (applicable.length > 0) {
+    return (
+      <TemplateDrivenAppoReportModal
+        row={row} list={list} currentUser={currentUser} members={members}
+        clientData={clientData} rewardMaster={rewardMaster} contactsByClient={contactsByClient}
+        templates={templates}
+        onClose={onClose} onSave={onSave} onDone={onDone}
+        initialRecordingUrl={initialRecordingUrl}
+        onFetchRecordingUrl={onFetchRecordingUrl}
+      />
+    );
+  }
+  // テンプレなし: 既存実装にフォールバック
+  return <LegacyAppoReportModal {...props} />;
+}
+
+function LegacyAppoReportModal({ row, list, currentUser = '', members = [], onClose, onSave, onDone, initialRecordingUrl = '', onFetchRecordingUrl, clientData = [], rewardMaster = [], dialedPhone = '' }) {
   const isMobile = useIsMobile();
   const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 

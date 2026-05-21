@@ -389,6 +389,49 @@ export async function ensureProspectingClient({ name, industry, contactPerson, c
   return { data, error }
 }
 
+// 企業名・住所・代表者から公式 HP URL を AI + web search で推定
+export async function invokeLookupCompanyHomepage({ company_name, address, prefecture, representative }) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) throw new Error('not authenticated')
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/lookup-company-homepage`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ company_name, address, prefecture, representative }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) return { url: null, confidence: 'low', reason: json.reason || `HTTP ${res.status}` }
+    return json
+  } catch (e) {
+    console.warn('[lookup-homepage] error:', e)
+    return { url: null, confidence: 'low', reason: e?.message || String(e) }
+  }
+}
+
+// 録音を文字起こし＋テンプレ駆動でフィールド抽出
+export async function invokeTranscribeAndExtract({ recording_url, item_id, ai_prompt, extract_fields }) {
+  const { data: { session } } = await supabase.auth.getSession()
+  const token = session?.access_token
+  if (!token) throw new Error('not authenticated')
+  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-and-extract`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({ recording_url, item_id, ai_prompt, extract_fields }),
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`)
+  return json
+}
+
 // gcal-proxy Edge Function 経由で Google Calendar にイベントを作成する
 export async function createGcalEvent({ summary, description, startISO, endISO, location: locationStr }) {
   try {
@@ -678,6 +721,9 @@ export async function insertAppointment(data, engagementId = null) {
       // transcribe-recording が録音から判定した M&A 意向（4値）を直書き保存。
       // 既存の appo_report テキストからの正規表現抽出（apppoReportParse）は後方互換 fallback。
       keyman_ma_intent: data.keymanMaIntent || null,
+      // テンプレ駆動: 保存時テンプレIDのスナップショット + 動的フィールド値
+      report_template_id_snapshot: data.reportTemplateIdSnapshot || null,
+      report_data: data.reportData || null,
     })
     .select()
     .single()
