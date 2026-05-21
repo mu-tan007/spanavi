@@ -126,7 +126,8 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   const [formData, setFormData] = useState(emptyForm);
   const [showRec, setShowRec] = useState(true);
   // 'sourcing' = 通常ソーシング, 'prospecting' = クライアント開拓, 'archived' = アーカイブ, 'all' = 全て
-  const [displayFilter, setDisplayFilter] = useState('sourcing');
+  // displayFilter: engagement slug ('seller_sourcing' / 'matching' / 'client_acquisition') | 'archived' | 'all'
+  const [displayFilter, setDisplayFilter] = useState('seller_sourcing');
   const [extractingUrl, setExtractingUrl] = useState(false);
 
   const handleExtractFromUrl = async () => {
@@ -276,20 +277,55 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         </div>
       )}
 
-      {/* Filter Tabs */}
-      <div style={{ display: "flex", gap: space[2], marginBottom: space[3] }}>
-        {[['sourcing', 'ソーシング'], ['prospecting', 'クライアント開拓'], ['archived', 'アーカイブ'], ['all', '全て表示']].map(([val, label]) => (
-          <button key={val} onClick={() => setDisplayFilter(val)} style={{
-            padding: "6px 16px", borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold,
-            cursor: "pointer", transition: "all 0.15s", fontFamily: font.family.sans,
-            ...(displayFilter === val
-              ? { background: color.navy, color: color.white, border: `1px solid ${color.navy}` }
-              : { background: color.white, color: color.textMid, border: `1px solid ${color.border}` }),
-          }}
-          onMouseEnter={e => { if (displayFilter !== val) e.currentTarget.style.background = color.gray50; }}
-          onMouseLeave={e => { if (displayFilter !== val) e.currentTarget.style.background = color.white; }}
-          >{label}</button>
-        ))}
+      {/* Filter Tabs: 商材＋タイプ */}
+      <div style={{ display: "flex", gap: space[2], marginBottom: space[3], flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* 商材 (将来複数になれば表示、現状M&Aのみなのでラベルとして表示) */}
+        {selectableCategories.length >= 1 && (
+          <>
+            <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>商材:</span>
+            {selectableCategories.map(c => (
+              <span key={c.id} style={{
+                padding: "5px 12px", borderRadius: radius.md, fontSize: font.size.sm,
+                background: color.navy, color: color.white, fontWeight: font.weight.semibold,
+                fontFamily: font.family.sans,
+              }}>{c.name}</span>
+            ))}
+            <span style={{ color: color.border, fontSize: font.size.md }}>|</span>
+          </>
+        )}
+        {/* タイプ */}
+        <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>タイプ:</span>
+        {salesAgencyEngagements.map(e => {
+          const active = displayFilter === e.slug;
+          return (
+            <button key={e.slug} onClick={() => setDisplayFilter(e.slug)} style={{
+              padding: "6px 16px", borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold,
+              cursor: "pointer", transition: "all 0.15s", fontFamily: font.family.sans,
+              ...(active
+                ? { background: color.navy, color: color.white, border: `1px solid ${color.navy}` }
+                : { background: color.white, color: color.textMid, border: `1px solid ${color.border}` }),
+            }}
+            onMouseEnter={ev => { if (!active) ev.currentTarget.style.background = color.gray50; }}
+            onMouseLeave={ev => { if (!active) ev.currentTarget.style.background = color.white; }}
+            >{e.name}</button>
+          );
+        })}
+        <span style={{ color: color.border, fontSize: font.size.md }}>|</span>
+        {[['archived', 'アーカイブ'], ['all', '全て表示']].map(([val, label]) => {
+          const active = displayFilter === val;
+          return (
+            <button key={val} onClick={() => setDisplayFilter(val)} style={{
+              padding: "6px 16px", borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold,
+              cursor: "pointer", transition: "all 0.15s", fontFamily: font.family.sans,
+              ...(active
+                ? { background: color.navy, color: color.white, border: `1px solid ${color.navy}` }
+                : { background: color.white, color: color.textMid, border: `1px solid ${color.border}` }),
+            }}
+            onMouseEnter={ev => { if (!active) ev.currentTarget.style.background = color.gray50; }}
+            onMouseLeave={ev => { if (!active) ev.currentTarget.style.background = color.white; }}
+            >{label}</button>
+          );
+        })}
       </div>
 
       {/* Filters */}
@@ -337,8 +373,8 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         </select>
         <span style={{ fontSize: font.size.xs, color: color.textLight, fontWeight: font.weight.semibold, fontFamily: font.family.mono }}>{(() => {
           const archivedCount = callListData.filter(l => l.is_archived).length;
-          if (displayFilter === 'sourcing') return filteredLists.filter(l => !l.is_prospecting).length;
-          if (displayFilter === 'prospecting') return filteredLists.filter(l => l.is_prospecting).length;
+          const filterEng = salesAgencyEngagements.find(e => e.slug === displayFilter);
+          if (filterEng) return filteredLists.filter(l => l.engagement_id === filterEng.id).length;
           if (displayFilter === 'archived') return archivedCount;
           return filteredLists.length + archivedCount;
         })()}件</span>
@@ -564,11 +600,11 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         </div>
         {displayFilter !== 'archived' && <div style={{ maxHeight: 600, overflowY: "auto" }}>
           {(() => {
-            const activeLists = displayFilter === 'sourcing'
-              ? filteredLists.filter(l => !l.is_prospecting)
-              : displayFilter === 'prospecting'
-              ? filteredLists.filter(l => l.is_prospecting)
-              : filteredLists;
+            // タイプ別フィルタ: displayFilter が engagement slug ならその engagement のリストのみ
+            const filterEng = salesAgencyEngagements.find(e => e.slug === displayFilter);
+            const activeLists = filterEng
+              ? filteredLists.filter(l => l.engagement_id === filterEng.id)
+              : filteredLists; // 'all'
             const grouped = {};
             activeLists.forEach(list => {
               const key = list.company;
