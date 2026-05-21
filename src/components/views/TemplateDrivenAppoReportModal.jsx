@@ -195,18 +195,19 @@ export default function TemplateDrivenAppoReportModal({
 
       // クライアント情報（売上計算用）
       const clientInfo = (clientData || []).find(c => c.company === list?.company);
-      // クライアント × タイプ単位の報酬上書きを優先（無ければ clients.reward_type にフォールバック）
-      let rewardType = clientInfo?.rewardType || '';
+      // クライアント × タイプ単位の報酬体系を引く（一本化後）。
+      // 設定がなければ報酬計算なし（クライアント開拓など売上対象外を含む）。
+      let rewardType = '';
       if (clientInfo?._supaId && list?.engagement_id) {
-        const { data: override } = await supabase
+        const { data: setting } = await supabase
           .from('client_engagement_reward_settings')
           .select('reward_type')
           .eq('client_id', clientInfo._supaId)
           .eq('engagement_id', list.engagement_id)
           .maybeSingle();
-        if (override?.reward_type) rewardType = override.reward_type;
+        if (setting?.reward_type) rewardType = setting.reward_type;
       }
-      const rewardRows = (rewardMaster || []).filter(r => r.id === rewardType);
+      const rewardRows = rewardType ? (rewardMaster || []).filter(r => r.id === rewardType) : [];
       const isFixed = rewardRows.length > 0 && rewardRows[0].basis === '-';
       const initialOurSales = (() => {
         if (!rewardRows.length) return 0;

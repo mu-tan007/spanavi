@@ -197,30 +197,17 @@ export default function ClientFormModal({
               />
             </div>
 
-            <div>
-              <label style={labelStyle}>報酬体系（デフォルト）</label>
-              <Select
-                size="sm"
-                value={form.rewardType || ''}
-                onChange={e => u('rewardType', e.target.value)}
-                options={[
-                  { value: '', label: '-' },
-                  ...rewardIds.map(id => ({ value: id, label: `${id} - ${rewardMap[id] ? rewardMap[id].name : ''}` })),
-                ]}
-              />
-            </div>
-
-            {/* タイプ別の報酬上書き（既存クライアントのみ表示） */}
+            {/* 報酬体系（タイプ別） — 既存クライアントのみ */}
             {isEdit && salesAgencyEngs.length > 0 && (
               <div style={{ gridColumn: '1 / -1', padding: '10px 12px', background: color.cream, borderRadius: radius.md, border: `1px solid ${color.border}` }}>
                 <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 6 }}>
-                  タイプ別の報酬上書き
+                  報酬体系（タイプ別）
                   <span style={{ marginLeft: 8, fontSize: 10, color: color.textLight, fontWeight: font.weight.normal }}>
-                    （空欄=上の「報酬体系（デフォルト）」を使用）
+                    未設定のタイプは報酬計算なし（クライアント開拓は会社売上対象外）
                   </span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 6, alignItems: 'center' }}>
-                  {salesAgencyEngs.map(eng => (
+                  {salesAgencyEngs.filter(e => e.slug !== 'client_acquisition').map(eng => (
                     <React.Fragment key={eng.id}>
                       <span style={{ fontSize: font.size.xs, color: color.textMid }}>{eng.name}</span>
                       <Select
@@ -228,7 +215,7 @@ export default function ClientFormModal({
                         value={engRewards[eng.id] || ''}
                         onChange={e => setEngRewards(prev => ({ ...prev, [eng.id]: e.target.value }))}
                         options={[
-                          { value: '', label: '-（デフォルト使用）' },
+                          { value: '', label: '-（未設定／報酬計算なし）' },
                           ...rewardIds.map(id => ({ value: id, label: `${id} - ${rewardMap[id] ? rewardMap[id].name : ''}` })),
                         ]}
                       />
