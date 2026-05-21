@@ -4,7 +4,7 @@ import { Button, Badge, Select } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import {
   insertAppointment, invokeSendAppoReport, invokeTranscribeAndExtract,
-  invokeLookupCompanyHomepage,
+  invokeLookupCompanyHomepage, invokeGetZoomRecording, updateCallListItem,
 } from '../../lib/supabaseWrite';
 import {
   resolveApplicableTemplates, renderBody, buildInitialFormValues, buildAiExtractionInstruction,
@@ -53,6 +53,9 @@ export default function TemplateDrivenAppoReportModal({
   // 録音URL + 状態
   const [recordingUrl, setRecordingUrl] = useState(initialRecordingUrl);
   const [recLoading, setRecLoading] = useState(false);
+  // キーマン携帯番号から録音検索
+  const [keymanMobileInput, setKeymanMobileInput] = useState(row?.keyman_mobile || '');
+  const [keymanLookupStep, setKeymanLookupStep] = useState('idle'); // 'idle' | 'fetching' | 'done' | 'error'
   const recFetchedRef = useRef(false);
   useEffect(() => {
     if (recFetchedRef.current) return;
@@ -106,6 +109,40 @@ export default function TemplateDrivenAppoReportModal({
       setAiError(e?.message || '抽出に失敗しました');
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  // キーマン携帯番号から Zoom 録音を検索
+  const handleLookupKeyman = async () => {
+    if (keymanLookupStep !== 'idle') return;
+    const raw = (keymanMobileInput || '').replace(/[^\d+]/g, '');
+    if (!raw) { setKeymanLookupStep('error'); setTimeout(() => setKeymanLookupStep('idle'), 3000); return; }
+    setKeymanLookupStep('fetching');
+    try {
+      const getterName = form.acquirer || currentUser;
+      const member = (members || []).find(m => (typeof m === 'string' ? m : m.name) === getterName);
+      const zoomUserId = typeof member === 'object' ? member?.zoomUserId : null;
+      if (!zoomUserId) { setKeymanLookupStep('error'); setTimeout(() => setKeymanLookupStep('idle'), 4000); return; }
+      const { data, error } = await invokeGetZoomRecording({
+        zoom_user_id: zoomUserId, callee_phone: raw, called_at: null, prev_called_at: null,
+      });
+      if (error || !data?.recording_url) { setKeymanLookupStep('error'); setTimeout(() => setKeymanLookupStep('idle'), 4000); return; }
+      setRecordingUrl(data.recording_url);
+      // recordingUrl フィールドが schema にあれば自動入力
+      if (template?.schema?.some(f => f.key === 'recordingUrl')) {
+        setForm(prev => ({ ...prev, recordingUrl: data.recording_url }));
+      }
+      // item の keyman_mobile を保存（次回以降の自動検索のため）
+      if (row?._supaId || row?.id) {
+        try { await updateCallListItem(row._supaId || row.id, { keyman_mobile: raw }); }
+        catch (e) { console.warn('[TemplateModal] updateCallListItem error:', e); }
+      }
+      setKeymanLookupStep('done');
+      setTimeout(() => setKeymanLookupStep('idle'), 3000);
+    } catch (e) {
+      console.error('[TemplateModal] keyman lookup error:', e);
+      setKeymanLookupStep('error');
+      setTimeout(() => setKeymanLookupStep('idle'), 4000);
     }
   };
 
@@ -281,21 +318,44 @@ export default function TemplateDrivenAppoReportModal({
           </span>
         </div>
 
-        {/* AI 添削 + 録音URL */}
-        <div style={{ padding: `${space[3]}px ${space[5]}px`, background: color.offWhite, borderBottom: `1px solid ${color.border}`, display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleAiExtract}
-            loading={aiLoading}
-            disabled={aiLoading || !recordingUrl}
-          >
-            {aiLoading ? '抽出中…' : '文字起こし＋AI添削'}
-          </Button>
-          <span style={{ fontSize: font.size.xs, color: color.textLight }}>
-            {recLoading ? '録音URL取得中…' : (recordingUrl ? '録音準備OK' : '録音URL未取得')}
-          </span>
-          {aiError && <span style={{ fontSize: font.size.xs, color: color.danger, marginLeft: 'auto' }}>{aiError}</span>}
+        {/* キーマン携帯から録音検索 + AI 添削 */}
+        <div style={{ padding: `${space[3]}px ${space[5]}px`, background: color.offWhite, borderBottom: `1px solid ${color.border}`, display: 'flex', flexDirection: 'column', gap: space[2] }}>
+          {/* キーマン携帯番号 */}
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', padding: '6px 8px', borderRadius: radius.md, background: '#FFF7E6', border: '1px solid #F4D38A' }}>
+            <span style={{ fontSize: 10, fontWeight: font.weight.semibold, color: '#92670A', whiteSpace: 'nowrap' }}>キーマン携帯</span>
+            <input
+              type="tel"
+              value={keymanMobileInput}
+              onChange={e => setKeymanMobileInput(e.target.value)}
+              placeholder="例: 09012345678"
+              style={{ flex: 1, minWidth: 140, padding: '4px 8px', borderRadius: radius.sm, border: `1px solid ${color.border}`, fontSize: font.size.sm, fontFamily: font.family.mono, outline: 'none', background: color.white }}
+            />
+            <Button
+              variant="outline" size="sm"
+              onClick={handleLookupKeyman}
+              disabled={keymanLookupStep !== 'idle' || !keymanMobileInput.trim()}>
+              {keymanLookupStep === 'fetching' && '検索中...'}
+              {keymanLookupStep === 'done'     && '録音取得完了'}
+              {keymanLookupStep === 'error'    && '見つかりませんでした'}
+              {keymanLookupStep === 'idle'     && '録音を取得'}
+            </Button>
+          </div>
+          {/* AI 添削 + 録音状態 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleAiExtract}
+              loading={aiLoading}
+              disabled={aiLoading || !recordingUrl}
+            >
+              {aiLoading ? '抽出中…' : '文字起こし＋AI添削'}
+            </Button>
+            <span style={{ fontSize: font.size.xs, color: color.textLight }}>
+              {recLoading ? '録音URL取得中…' : (recordingUrl ? '録音準備OK' : '録音URL未取得')}
+            </span>
+            {aiError && <span style={{ fontSize: font.size.xs, color: color.danger, marginLeft: 'auto' }}>{aiError}</span>}
+          </div>
         </div>
 
         {/* 動的フォーム */}

@@ -6,7 +6,7 @@ import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/formatters';
-import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage } from '../../lib/supabaseWrite';
+import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage, updateCallListItem } from '../../lib/supabaseWrite';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -374,6 +374,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   // 'idle' | 'fetching' | 'transcribing' | 'enhancing' | 'done' | 'error'
   const [transcribeStep, setTranscribeStep] = React.useState('idle');
   const [hpStep, setHpStep] = React.useState('idle'); // 'idle' | 'fetching' | 'done' | 'error'
+  const [keymanMobileInput, setKeymanMobileInput] = React.useState('');
+  const [keymanLookupStep, setKeymanLookupStep] = React.useState('idle'); // 'idle' | 'fetching' | 'done' | 'error'
   // 録音URL差し替え用
   const [showReplaceUrl, setShowReplaceUrl] = useState(false);
   const [replaceUrl, setReplaceUrl] = useState('');
@@ -917,6 +919,51 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       alert('ZIP生成に失敗しました: ' + (e.message || '不明なエラー'));
     } finally {
       setBulkInvoiceGenerating(false);
+    }
+  };
+
+  // キーマン携帯番号で Zoom 録音を検索し、見つかれば appoReport / item.keyman_mobile を更新
+  const handleLookupRecordingByKeymanMobile = async () => {
+    if (keymanLookupStep !== 'idle') return;
+    const raw = (keymanMobileInput || '').replace(/[^\d+]/g, '');
+    if (!raw) { setKeymanLookupStep('error'); setTimeout(() => setKeymanLookupStep('idle'), 3000); return; }
+    setKeymanLookupStep('fetching');
+    try {
+      const getterName = detailEditForm?.getter || reportDetail?.getter || '';
+      const member = (members || []).find(m => (typeof m === 'string' ? m : m.name) === getterName);
+      const zoomUserId = typeof member === 'object' ? member?.zoomUserId : null;
+      if (!zoomUserId) { setKeymanLookupStep('error'); setTimeout(() => setKeymanLookupStep('idle'), 4000); return; }
+      const calledAt = reportDetail?.createdAtRaw || reportDetail?._createdAt || null;
+      const { data, error } = await invokeGetZoomRecording({
+        zoom_user_id: zoomUserId, callee_phone: raw, called_at: calledAt, prev_called_at: null,
+      });
+      if (error || !data?.recording_url) { setKeymanLookupStep('error'); setTimeout(() => setKeymanLookupStep('idle'), 4000); return; }
+      const url = data.recording_url;
+      // appoReport の「録音URL：」行を更新（無ければ末尾に追記）
+      let report = detailEditForm?.appoReport || '';
+      const recRe = /^　?・?録音URL[：:]\s*.*$/m;
+      report = recRe.test(report) ? report.replace(recRe, `　・録音URL：${url}`) : `${report}\n　・録音URL：${url}`;
+      setDetailEditForm(f => ({ ...f, appoReport: report }));
+      // item の keyman_mobile を更新（同じ番号で次回以降の自動検索も効くように）
+      if (reportDetail?.item_id) {
+        try { await updateCallListItem(reportDetail.item_id, { keyman_mobile: raw }); }
+        catch (e) { console.warn('[handleLookupRecordingByKeymanMobile] updateCallListItem error:', e); }
+      }
+      // appointment の recording_url も即時保存
+      if (reportDetail?._supaId) {
+        try {
+          await updateAppointment(reportDetail._supaId, { ...reportDetail, appoReport: report, recording_url: url });
+          if (setAppoData) setAppoData(prev => prev.map(a => a._supaId === reportDetail._supaId ? { ...a, recordingUrl: url, appoReport: report } : a));
+        } catch (e) {
+          console.warn('[handleLookupRecordingByKeymanMobile] updateAppointment error:', e);
+        }
+      }
+      setKeymanLookupStep('done');
+      setTimeout(() => setKeymanLookupStep('idle'), 3000);
+    } catch (e) {
+      console.error('[handleLookupRecordingByKeymanMobile] error:', e);
+      setKeymanLookupStep('error');
+      setTimeout(() => setKeymanLookupStep('idle'), 4000);
     }
   };
 
@@ -2103,7 +2150,18 @@ MASP 篠宮`}
                   </button>
                 )}
                 {!detailEditing ? (
-                  <button onClick={() => { setDetailEditForm({ ...reportDetail, _idx: appoData.findIndex(a => a._supaId === reportDetail._supaId) }); setDetailEditing(true); }}
+                  <button onClick={async () => {
+                    setDetailEditForm({ ...reportDetail, _idx: appoData.findIndex(a => a._supaId === reportDetail._supaId) });
+                    setDetailEditing(true);
+                    // call_list_items から既存のキーマン携帯番号を読み込み（録音検索のデフォルト値に）
+                    setKeymanMobileInput('');
+                    if (reportDetail?.item_id) {
+                      try {
+                        const { data: item } = await fetchCallListItemById(reportDetail.item_id);
+                        if (item?.keyman_mobile) setKeymanMobileInput(item.keyman_mobile);
+                      } catch (e) { console.warn('[detail edit] keyman_mobile load error:', e); }
+                    }
+                  }}
                     style={{ padding: "4px 12px", borderRadius: radius.md, border: "1px solid rgba(255,255,255,0.4)", background: "transparent", color: color.white, cursor: "pointer", fontSize: font.size.xs, fontFamily: "'Noto Sans JP'" }}>
                     編集
                   </button>
@@ -2282,27 +2340,49 @@ MASP 篠宮`}
                   </div>
                 )}
                 {detailEditing && (
-                  <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <Button
-                      onClick={handleTranscribeDetail}
-                      disabled={transcribeStep !== 'idle'}
-                      variant="outline" size="sm">
-                      {transcribeStep === 'fetching'     && '録音を検索中...'}
-                      {transcribeStep === 'transcribing' && '文字起こし中...'}
-                      {transcribeStep === 'enhancing'    && 'AI添削中...'}
-                      {transcribeStep === 'done'         && '添削完了'}
-                      {transcribeStep === 'error'        && '録音データが見つかりませんでした'}
-                      {transcribeStep === 'idle'         && '文字起こし＋AI添削'}
-                    </Button>
-                    <Button
-                      onClick={handleFetchHpDetail}
-                      disabled={hpStep !== 'idle'}
-                      variant="outline" size="sm">
-                      {hpStep === 'fetching' && 'HP取得中...'}
-                      {hpStep === 'done'     && 'HP取得完了'}
-                      {hpStep === 'error'    && 'HPが見つかりませんでした'}
-                      {hpStep === 'idle'     && 'HP自動取得'}
-                    </Button>
+                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {/* キーマン携帯番号から録音検索 */}
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', padding: '6px 8px', borderRadius: radius.md, background: '#FFF7E6', border: `1px solid #F4D38A` }}>
+                      <span style={{ fontSize: 10, fontWeight: font.weight.semibold, color: '#92670A', whiteSpace: 'nowrap' }}>キーマン携帯</span>
+                      <input
+                        type="tel"
+                        value={keymanMobileInput}
+                        onChange={e => setKeymanMobileInput(e.target.value)}
+                        placeholder="例: 09012345678"
+                        style={{ flex: 1, minWidth: 140, padding: '4px 8px', borderRadius: radius.sm, border: `1px solid ${color.border}`, fontSize: font.size.sm, fontFamily: font.family.mono, outline: 'none', background: color.white }}
+                      />
+                      <Button
+                        onClick={handleLookupRecordingByKeymanMobile}
+                        disabled={keymanLookupStep !== 'idle' || !keymanMobileInput.trim()}
+                        variant="outline" size="sm">
+                        {keymanLookupStep === 'fetching' && '検索中...'}
+                        {keymanLookupStep === 'done'     && '録音取得完了'}
+                        {keymanLookupStep === 'error'    && '見つかりませんでした'}
+                        {keymanLookupStep === 'idle'     && '録音を取得'}
+                      </Button>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <Button
+                        onClick={handleTranscribeDetail}
+                        disabled={transcribeStep !== 'idle'}
+                        variant="outline" size="sm">
+                        {transcribeStep === 'fetching'     && '録音を検索中...'}
+                        {transcribeStep === 'transcribing' && '文字起こし中...'}
+                        {transcribeStep === 'enhancing'    && 'AI添削中...'}
+                        {transcribeStep === 'done'         && '添削完了'}
+                        {transcribeStep === 'error'        && '録音データが見つかりませんでした'}
+                        {transcribeStep === 'idle'         && '文字起こし＋AI添削'}
+                      </Button>
+                      <Button
+                        onClick={handleFetchHpDetail}
+                        disabled={hpStep !== 'idle'}
+                        variant="outline" size="sm">
+                        {hpStep === 'fetching' && 'HP取得中...'}
+                        {hpStep === 'done'     && 'HP取得完了'}
+                        {hpStep === 'error'    && 'HPが見つかりませんでした'}
+                        {hpStep === 'idle'     && 'HP自動取得'}
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
