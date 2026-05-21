@@ -16,6 +16,7 @@ import RecallModal from './RecallModal';
 import AppoReportModal from './AppoReportModal';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import { useUrlState } from '../../hooks/useUrlState';
+import { useSearchParams } from 'react-router-dom';
 import ClientCalendarPanel from '../common/ClientCalendarPanel';
 import MultiCalendarPanel from '../common/MultiCalendarPanel';
 import QuickAppoModal from '../common/QuickAppoModal';
@@ -203,6 +204,25 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [pageStr, setPageStr] = useUrlState('page', '0');
   const page = parseInt(pageStr, 10) || 0;
   const setPage = (v) => setPageStr(String(typeof v === 'function' ? v(page) : v));
+  // useUrlState は連続呼び出しが race するため (feedback_use_url_state_race)、
+  // 検索/モード変更時の「ページ0リセット」は単一 setSearchParams にまとめる
+  const [, setSearchParamsRaw] = useSearchParams();
+  const setSearchAndResetPage = (newSearch) => {
+    setSearchParamsRaw(prev => {
+      const np = new URLSearchParams(prev);
+      if (newSearch) np.set('q', newSearch); else np.delete('q');
+      np.delete('page');
+      return np;
+    }, { replace: true });
+  };
+  const setFilterModeAndResetPage = (mode) => {
+    setSearchParamsRaw(prev => {
+      const np = new URLSearchParams(prev);
+      if (mode && mode !== 'callable') np.set('mode', mode); else np.delete('mode');
+      np.delete('page');
+      return np;
+    }, { replace: true });
+  };
   const [localMemo, setLocalMemo] = useState('');
   const [savingMemo, setSavingMemo] = useState(false);
   const [appoModal, setAppoModal] = useState(null); // holds selectedRow when アポ獲得 is clicked
@@ -1190,10 +1210,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         {/* ── 左パネル：企業一覧 ── */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid ' + C.borderLight }}>
           <div style={{ padding: '8px 12px', background: C.white, borderBottom: '1px solid ' + C.borderLight, flexShrink: 0, display: 'flex', gap: 6, alignItems: 'center' }}>
-            <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} placeholder="企業名・代表者・電話番号で検索..."
+            <input value={search} onChange={e => setSearchAndResetPage(e.target.value)} placeholder="企業名・代表者・電話番号で検索..."
               style={{ flex: 1, padding: '6px 12px', borderRadius: 6, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', boxSizing: 'border-box' }} />
             {[['callable','架電可能'],['all','全件'],['excluded','除外']].map(([mode, label]) => (
-              <button key={mode} onClick={() => { setFilterMode(mode); setPage(0); }}
+              <button key={mode} onClick={() => setFilterModeAndResetPage(mode)}
                 style={{ padding: '4px 8px', borderRadius: 4, fontSize: 9, fontWeight: 600, cursor: 'pointer',
                   fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
                   background: filterMode === mode ? C.navy : 'transparent',
@@ -1853,10 +1873,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             <div style={{ background: color.white, borderRadius: radius.md, overflow: 'hidden', border: `1px solid ${color.gray200}` }}>
               {/* 検索バー + 架電開始ボタン */}
               <div style={{ padding: `${space[2]}px ${space[3]}px`, borderBottom: `1px solid ${color.gray200}`, display: 'flex', gap: 6, alignItems: 'center', background: color.offWhite, flexWrap: 'wrap' }}>
-                <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} placeholder="検索..."
+                <input value={search} onChange={e => setSearchAndResetPage(e.target.value)} placeholder="検索..."
                   style={{ width: 180, minWidth: 120, padding: '6px 10px', borderRadius: radius.md, border: `1px solid ${color.gray200}`, fontSize: font.size.xs, fontFamily: font.family.sans, outline: 'none', boxSizing: 'border-box' }} />
                 {[['callable','架電可能'],['all','全件'],['excluded','架電不可']].map(([mode, label]) => (
-                  <button key={mode} onClick={() => { setFilterMode(mode); setStatusFilterLocal([]); setPage(0); }}
+                  <button key={mode} onClick={() => { setStatusFilterLocal([]); setFilterModeAndResetPage(mode); }}
                     style={{ padding: '4px 10px', borderRadius: radius.md, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, cursor: 'pointer', fontFamily: font.family.sans, whiteSpace: 'nowrap',
                       background: filterMode === mode && statusFilterLocal.length === 0 ? color.navyDeep : 'transparent',
                       color: filterMode === mode && statusFilterLocal.length === 0 ? color.white : color.gray400,
