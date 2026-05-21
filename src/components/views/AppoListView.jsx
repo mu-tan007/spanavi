@@ -140,7 +140,12 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
       // メール: 宛先・件名・本文
       const selectedOpt = emailOptions.length > 0 ? emailOptions[0] : null;
       setEmailTo(selectedOpt ? selectedOpt.email : (cl?.clientEmail || ''));
-      setEmailSubject('【アポイント取得のご報告】M&Aソーシングパートナーズ 篠宮');
+      // クライアント別の件名デフォルト（ブティックス株式会社のみ独自フォーマット）
+      const targetCompany = appo.company || '';
+      const subject = (cl?.company === 'ブティックス株式会社')
+        ? `【アウトバウンド外注】【M＆Aソーシングパートナーズ】アポ取得のお知らせ ${targetCompany}`
+        : '【アポイント取得のご報告】M&Aソーシングパートナーズ 篠宮';
+      setEmailSubject(subject);
       const contacts = cl?._supaId ? (contactsByClient[cl._supaId] || []) : [];
       const matchedContact = selectedOpt ? contacts.find(ct => ct.email === selectedOpt.email) : null;
       const greeting = matchedContact ? matchedContact.name : (cl?.company || appo.client || '');
