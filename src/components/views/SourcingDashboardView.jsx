@@ -249,8 +249,9 @@ export default function SourcingDashboardView({
     openQueueItemAtIdx();
   }, [openQueueItemAtIdx]);
 
-  // ---- キーマン再コール超過 / キーマン断り14日経過 / 再アプローチ候補 ----
+  // ---- 受付再コール超過 / キーマン再コール超過 / キーマン断り14日経過 / 再アプローチ候補 ----
   // サーバー側 RPC で join 済の必要行だけ取得
+  const [overdueReceptionRecalls, setOverdueReceptionRecalls] = useState([]);
   const [overdueRecalls, setOverdueRecalls] = useState([]);
   const [oldRejections, setOldRejections] = useState([]);
   const [reapproachCandidates, setReapproachCandidates] = useState([]);
@@ -259,12 +260,25 @@ export default function SourcingDashboardView({
   useEffect(() => {
     let cancelled = false;
     setRecallLoading(true);
+    const mapRecall = (r) => ({
+      id: r.record_id,
+      item_id: r.item_id,
+      list_id: r.list_id,
+      company: r.company || '—',
+      list_name: r.list_name || '',
+      recall_date: r.recall_date,
+      recall_time: r.recall_time,
+      assignee: r.assignee,
+      getter_name: r.getter_name,
+    });
     Promise.all([
+      supabase.rpc('dashboard_overdue_reception_recalls'),
       supabase.rpc('dashboard_overdue_recalls'),
       supabase.rpc('dashboard_old_rejections', { p_days: 14 }),
       supabase.rpc('dashboard_reapproach_candidates'),
-    ]).then(([recRes, rejRes, reaRes]) => {
+    ]).then(([recpRes, recRes, rejRes, reaRes]) => {
       if (cancelled) return;
+      setOverdueReceptionRecalls((recpRes.data || []).map(mapRecall));
       setOverdueRecalls((recRes.data || []).map(r => ({
         id: r.record_id,
         item_id: r.item_id,
@@ -411,6 +425,36 @@ export default function SourcingDashboardView({
           </div>
         )}
       </Card>
+
+      {/* 受付再コール超過 */}
+      <CollapsibleList
+        title="受付再コール超過"
+        items={overdueReceptionRecalls}
+        loading={recallLoading}
+        emptyText="受付再コール超過はありません。"
+        render={(r, i) => (
+          <div key={r.id || i} style={rowStyle}>
+            <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+              <div style={{ fontWeight: font.weight.bold, color: color.navy, fontSize: font.size.sm, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {r.company || '—'}
+              </div>
+              <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 2 }}>
+                {r.list_name || ''}
+              </div>
+            </div>
+            <div style={{ fontSize: font.size.xs - 1, color: color.danger, minWidth: 120 }}>
+              再コール予定: {r.recall_date} {r.recall_time || ''}
+            </div>
+            <div style={{ fontSize: font.size.xs - 1, color: color.textMid, minWidth: 80 }}>
+              担当: {r.assignee || r.getter_name || '—'}
+            </div>
+            <CallButton
+              disabled={!setCallFlowScreen || !r.item_id || !r.list_id}
+              onClick={() => openQueue(overdueReceptionRecalls, i)}
+            />
+          </div>
+        )}
+      />
 
       {/* キーマン再コール超過 */}
       <CollapsibleList
