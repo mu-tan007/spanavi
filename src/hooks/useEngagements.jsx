@@ -20,6 +20,7 @@ const EngagementContext = createContext(null);
 
 export function EngagementProvider({ children }) {
   const [dbEngagements, setDbEngagements] = useState([]);
+  const [dbProducts, setDbProducts] = useState([]);
   const [currentSlug, setCurrentSlug] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -27,34 +28,52 @@ export function EngagementProvider({ children }) {
 
   useEffect(() => {
     let cancelled = false;
-    async function fetch() {
+    async function fetchAll() {
       if (!orgId) { setLoading(false); return; }
-      const { data, error } = await supabase
-        .from('engagements')
-        .select('id,name,slug,type,status,display_order,description')
-        .eq('org_id', orgId)
-        .eq('status', 'active')
-        .order('display_order');
+      // engagements と products を並列取得
+      const [engRes, prodRes] = await Promise.all([
+        supabase
+          .from('engagements')
+          .select('id,name,slug,type,status,display_order,description,product_id')
+          .eq('org_id', orgId)
+          .eq('status', 'active')
+          .order('display_order'),
+        supabase
+          .from('products')
+          .select('id,name,slug,display_order,is_active,description')
+          .eq('org_id', orgId)
+          .eq('is_active', true)
+          .order('display_order'),
+      ]);
       if (cancelled) return;
-      if (!error && data) {
-        setDbEngagements(data);
+      if (!engRes.error && engRes.data) {
+        setDbEngagements(engRes.data);
         const saved = (() => { try { return localStorage.getItem(STORAGE_KEY); } catch { return null; } })();
-        const all = [MASP_ENGAGEMENT, ...data];
+        const all = [MASP_ENGAGEMENT, ...engRes.data];
         const initial = all.find(e => e.slug === saved)
           || all.find(e => e.slug === 'seller_sourcing')
           || all[0];
         setCurrentSlug(initial?.slug || null);
       }
+      if (!prodRes.error && prodRes.data) {
+        setDbProducts(prodRes.data);
+      }
       setLoading(false);
     }
-    fetch();
+    fetchAll();
     return () => { cancelled = true; };
   }, [orgId]);
 
   const engagements = useMemo(() => [MASP_ENGAGEMENT, ...dbEngagements], [dbEngagements]);
+  const products = useMemo(() => dbProducts, [dbProducts]);
   const currentEngagement = useMemo(
     () => engagements.find(e => e.slug === currentSlug) || null,
     [engagements, currentSlug]
+  );
+  // 現在の engagement が属する product
+  const currentProduct = useMemo(
+    () => products.find(p => p.id === currentEngagement?.product_id) || null,
+    [products, currentEngagement]
   );
 
   const switchEngagement = (slug) => {
@@ -64,7 +83,24 @@ export function EngagementProvider({ children }) {
     try { localStorage.setItem(STORAGE_KEY, slug); } catch { /* ignore */ }
   };
 
-  const value = { engagements, currentEngagement, switchEngagement, loading };
+  // 指定 product の代表 engagement に切り替え（display_order が最小のもの）
+  const switchProduct = (productId) => {
+    if (productId === 'masp_global') {
+      setCurrentSlug('masp');
+      try { localStorage.setItem(STORAGE_KEY, 'masp'); } catch { /* ignore */ }
+      return;
+    }
+    const candidates = dbEngagements
+      .filter(e => e.product_id === productId)
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    const primary = candidates[0];
+    if (primary) {
+      setCurrentSlug(primary.slug);
+      try { localStorage.setItem(STORAGE_KEY, primary.slug); } catch { /* ignore */ }
+    }
+  };
+
+  const value = { engagements, products, currentEngagement, currentProduct, switchEngagement, switchProduct, loading };
   return <EngagementContext.Provider value={value}>{children}</EngagementContext.Provider>;
 }
 

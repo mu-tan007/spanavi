@@ -210,7 +210,7 @@ export default function GoalSettingsPanel({ isAdmin, onToast, readOnly = false, 
       <div style={{ marginBottom: space[4] }}>
         <div style={{ fontSize: font.size.sm, color: C.textMid, marginBottom: 4 }}>
           {readOnly
-            ? 'Sourcing 事業の KPI 目標 (閲覧のみ)。編集はマイページから。'
+            ? '営業代行事業の KPI 目標 (閲覧のみ)。編集はマイページから。'
             : '対象期間を選んで 5 つの KPI 目標を入力します。組織全体は admin のみ / チームはリーダー / メンバーは本人が編集可。'}
         </div>
       </div>

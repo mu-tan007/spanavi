@@ -38,12 +38,17 @@ const TABS = [
 // 全社スコープでのみ表示するタブ。事業セレクタを「全社」にしたときのみ並ぶ。
 const COMPANY_WIDE_TABS = new Set(['org', 'permissions']);
 
-// 「全社」スコープを表す UI 専用の仮想 engagement（DB には存在しない）。
+// 「全社」スコープを表す UI 専用の仮想 product（DB には存在しない）。
 // 全社を選択しているときだけ「組織設定」タブを表示する。
 const COMPANY_WIDE_ID = '__company_wide__';
-const COMPANY_WIDE_ENGAGEMENT = { id: COMPANY_WIDE_ID, name: '全社', slug: COMPANY_WIDE_ID, display_order: 0 };
-// 対象事業セレクタに出す事業 slug のホワイトリスト
-const ADMIN_ENGAGEMENT_SLUGS = ['seller_sourcing', 'spartia_career'];
+const COMPANY_WIDE_PRODUCT = { id: COMPANY_WIDE_ID, name: '全社', slug: COMPANY_WIDE_ID, display_order: 0 };
+// 対象事業セレクタに出す事業（product）slug のホワイトリスト
+const ADMIN_PRODUCT_SLUGS = ['sales_agency', 'spartia_career_biz'];
+// product slug → 配下の代表 engagement slug（管理設定はこの engagement に紐付けて保存）
+const PRODUCT_TO_PRIMARY_ENGAGEMENT = {
+  sales_agency: 'seller_sourcing',
+  spartia_career_biz: 'spartia_career',
+};
 
 // ────────────────────────────────────────────────
 // Toast
@@ -86,32 +91,39 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
   const [toasts, setToasts] = useState([]);
 
   // 事業セレクタ (各タブの設定は事業ごとに独立)
-  // 「全社」 + ホワイトリスト事業（Sourcing / スパキャリ）を選択肢として並べる。
-  const { engagements } = useEngagements();
-  const selectableEngagements = useMemo(
+  // 「全社」 + ホワイトリスト事業（営業代行 / スパキャリ）を選択肢として並べる。
+  const { engagements, products } = useEngagements();
+  const selectableProducts = useMemo(
     () => {
-      const fromDb = (engagements || [])
-        .filter(e => ADMIN_ENGAGEMENT_SLUGS.includes(e.slug))
+      const fromDb = (products || [])
+        .filter(p => ADMIN_PRODUCT_SLUGS.includes(p.slug))
         .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
-      return [COMPANY_WIDE_ENGAGEMENT, ...fromDb];
+      return [COMPANY_WIDE_PRODUCT, ...fromDb];
     },
-    [engagements]
+    [products]
   );
-  const [selectedEngagementId, setSelectedEngagementId] = useState(() => {
-    try { return localStorage.getItem('admin_selectedEngagementId') || COMPANY_WIDE_ID; } catch { return COMPANY_WIDE_ID; }
+  const [selectedProductId, setSelectedProductId] = useState(() => {
+    try { return localStorage.getItem('admin_selectedProductId') || COMPANY_WIDE_ID; } catch { return COMPANY_WIDE_ID; }
   });
   // 事業リスト取得後、未選択なら「全社」を自動選択
   useEffect(() => {
-    if (!selectedEngagementId && selectableEngagements.length > 0) {
-      setSelectedEngagementId(COMPANY_WIDE_ID);
+    if (!selectedProductId && selectableProducts.length > 0) {
+      setSelectedProductId(COMPANY_WIDE_ID);
     }
-  }, [selectableEngagements, selectedEngagementId]);
-  const handleSelectEngagement = (id) => {
-    setSelectedEngagementId(id);
-    try { localStorage.setItem('admin_selectedEngagementId', id); } catch {}
+  }, [selectableProducts, selectedProductId]);
+  const handleSelectProduct = (id) => {
+    setSelectedProductId(id);
+    try { localStorage.setItem('admin_selectedProductId', id); } catch {}
   };
-  const selectedEngagement = selectableEngagements.find(e => e.id === selectedEngagementId) || null;
-  const isCompanyWide = selectedEngagementId === COMPANY_WIDE_ID;
+  const selectedProduct = selectableProducts.find(p => p.id === selectedProductId) || null;
+  const isCompanyWide = selectedProductId === COMPANY_WIDE_ID;
+  // 選択中 product 配下の代表 engagement（タブ設定の保存先として使う）
+  const selectedEngagementId = useMemo(() => {
+    if (isCompanyWide) return COMPANY_WIDE_ID;
+    const slug = PRODUCT_TO_PRIMARY_ENGAGEMENT[selectedProduct?.slug];
+    if (!slug) return COMPANY_WIDE_ID;
+    return (engagements || []).find(e => e.slug === slug)?.id || COMPANY_WIDE_ID;
+  }, [selectedProduct, engagements, isCompanyWide]);
   // 「全社」スコープでは全社向けタブ(組織設定/権限管理)のみ、個別事業ではそれ以外のタブのみ表示する。
   const visibleTabs = useMemo(
     () => TABS.filter(t => isCompanyWide ? COMPANY_WIDE_TABS.has(t.id) : !COMPANY_WIDE_TABS.has(t.id)),
@@ -205,19 +217,19 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
       />
 
       {/* 事業セレクタ (設定は事業ごとに独立) */}
-      {selectableEngagements.length > 0 && (
+      {selectableProducts.length > 0 && (
         <div style={{
           background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
           padding: `${space[2.5]}px ${space[4]}px`, marginBottom: space[3],
           display: 'flex', alignItems: 'center', gap: space[2.5], flexWrap: 'wrap',
         }}>
           <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>対象事業:</span>
-          {selectableEngagements.map(e => {
-            const active = selectedEngagementId === e.id;
+          {selectableProducts.map(p => {
+            const active = selectedProductId === p.id;
             return (
               <button
-                key={e.id}
-                onClick={() => handleSelectEngagement(e.id)}
+                key={p.id}
+                onClick={() => handleSelectProduct(p.id)}
                 style={{
                   padding: `5px ${space[3] + 2}px`, fontSize: font.size.sm,
                   background: active ? NAVY : color.white,
@@ -226,7 +238,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
                   borderRadius: radius.md, cursor: 'pointer', fontWeight: active ? font.weight.semibold : font.weight.normal,
                   fontFamily: font.family.sans,
                 }}
-              >{e.name}</button>
+              >{p.name}</button>
             );
           })}
           <span style={{ fontSize: 10, color: color.gray400, marginLeft: 'auto' }}>

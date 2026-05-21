@@ -51,8 +51,11 @@ export const PAGE_REGISTRY = {
 // DB engagements が取得できる場合は eng.name を優先すること。
 export const ENGAGEMENT_LABELS = {
   masp: 'MASP（全社）',
-  seller_sourcing: 'ソーシング',
+  seller_sourcing: '売り手ソーシング',
+  matching: '買い手マッチング',
+  client_acquisition: 'クライアント開拓',
   spartia_career: 'スパキャリ',
+  spartia_recruitment: 'Spartia Recruitment',
 };
 
 export const ALL_ENGAGEMENT_SLUGS = Object.keys(PAGE_REGISTRY);

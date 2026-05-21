@@ -2,50 +2,85 @@ import React, { useState } from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow } from '../../constants/design';
 import { Button } from '../ui';
-import { useEngagements } from '../../hooks/useEngagements';
+import { useEngagements, MASP_ENGAGEMENT } from '../../hooks/useEngagements';
 import { useAccessControl } from '../../hooks/useAccessControl';
 
-// タブ選択でサイドバーが切り替わる対象（実装済み or 枠だけ準備済み）
-const SWITCHABLE_SLUGS = new Set(['masp', 'seller_sourcing', 'spartia_career', 'spartia_capital']);
-// コンテンツまで完全に実装済みのもの（タグを出さない）
-const READY_SLUGS = new Set(['masp', 'seller_sourcing', 'spartia_capital', 'spartia_career']);
+// product slug 単位で「サイドバーが切り替わる対象」と「準備中」を判定する。
+// product → 代表 engagement に切替する（業務種別単位ではなく事業単位でナビゲーション）。
+const SWITCHABLE_PRODUCT_SLUGS = new Set(['sales_agency', 'spartia_career_biz', 'spartia_capital_biz']);
+const READY_PRODUCT_SLUGS      = new Set(['sales_agency', 'spartia_career_biz', 'spartia_capital_biz']);
+
+// product slug → 配下の代表 engagement slug
+const PRODUCT_TO_PRIMARY_ENG_SLUG = {
+  sales_agency:           'seller_sourcing',
+  spartia_career_biz:     'spartia_career',
+  spartia_recruitment_biz:'spartia_recruitment',
+  spanavi_biz:            'spanavi',
+  spartia_capital_biz:    'spartia_capital',
+};
 
 // inline=true のとき: 外側の position:fixed コンテナを出さず、タブ列だけ返す。
 // (SpanaviApp のトップヘッダー内に埋め込んで使う)
 export default function EngagementHeader({ isMobile = false, onEngagementChange, inline = false }) {
-  const { engagements, currentEngagement, switchEngagement } = useEngagements();
+  const { engagements, products, currentEngagement, switchEngagement } = useEngagements();
   const { canViewEngagement } = useAccessControl();
   const [comingSoon, setComingSoon] = useState(null);
 
   if (!engagements.length) return null;
 
-  // 自分が見られる事業タブのみ表示。adminバイパスは canViewEngagement 内で処理。
-  const sorted = [...engagements]
-    .filter(e => canViewEngagement(e.slug))
-    .sort((a, b) => a.display_order - b.display_order);
+  // MASP（仮想） + 全 products を、表示順で並べる
+  // 各 product の表示可否は配下の代表 engagement に対する canViewEngagement で判定
+  const items = [
+    { kind: 'masp', id: 'masp_global', slug: 'masp', name: 'MASP', display_order: 0 },
+    ...((products || []).map(p => ({
+      kind: 'product', id: p.id, slug: p.slug, name: p.name, display_order: p.display_order || 0,
+    }))),
+  ].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+
+  const sorted = items.filter(item => {
+    if (item.kind === 'masp') return canViewEngagement('masp');
+    const engSlug = PRODUCT_TO_PRIMARY_ENG_SLUG[item.slug];
+    return engSlug ? canViewEngagement(engSlug) : false;
+  });
 
   if (sorted.length === 0) return null;
 
-  const handleTabClick = (eng) => {
-    if (SWITCHABLE_SLUGS.has(eng.slug)) {
-      switchEngagement(eng.slug);
-      onEngagementChange?.(eng);
+  // 現在選択中の item を判定（MASP は engagement.slug='masp'、product は配下の代表engagement）
+  const currentItemId = (() => {
+    if (currentEngagement?.slug === 'masp') return 'masp_global';
+    const p = (products || []).find(p => p.id === currentEngagement?.product_id);
+    return p?.id || null;
+  })();
+
+  const handleTabClick = (item) => {
+    if (item.kind === 'masp') {
+      switchEngagement('masp');
+      onEngagementChange?.({ slug: 'masp', name: 'MASP' });
+      return;
+    }
+    if (SWITCHABLE_PRODUCT_SLUGS.has(item.slug)) {
+      const engSlug = PRODUCT_TO_PRIMARY_ENG_SLUG[item.slug];
+      if (engSlug) {
+        switchEngagement(engSlug);
+        const eng = engagements.find(e => e.slug === engSlug);
+        onEngagementChange?.(eng || { slug: engSlug });
+      }
     } else {
-      setComingSoon(eng);
+      setComingSoon(item);
     }
   };
 
   const tabsRow = (
     <div style={{ display: 'flex', alignSelf: 'stretch', gap: 2, height: '100%', alignItems: 'stretch' }}>
-          {sorted.map((eng) => {
-            const active = currentEngagement?.slug === eng.slug;
-            const ready = READY_SLUGS.has(eng.slug);
-            const isMasp = eng.slug === 'masp';
+          {sorted.map((item) => {
+            const active = currentItemId === item.id;
+            const ready = item.kind === 'masp' ? true : READY_PRODUCT_SLUGS.has(item.slug);
+            const isMasp = item.kind === 'masp';
             return (
-              <React.Fragment key={eng.id}>
+              <React.Fragment key={item.id}>
                 <button
                   type="button"
-                  onClick={() => handleTabClick(eng)}
+                  onClick={() => handleTabClick(item)}
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -67,7 +102,7 @@ export default function EngagementHeader({ isMobile = false, onEngagementChange,
                   onMouseEnter={e => { if (!active) e.currentTarget.style.color = color.navy; }}
                   onMouseLeave={e => { if (!active) e.currentTarget.style.color = ready ? color.textMid : color.textLight; }}
                 >
-                  {eng.name}
+                  {item.name}
                   {!ready && !isMasp && (
                     <span style={{
                       fontSize: 9, padding: '1px 5px', borderRadius: radius.sm,
@@ -75,7 +110,6 @@ export default function EngagementHeader({ isMobile = false, onEngagementChange,
                     }}>準備中</span>
                   )}
                 </button>
-                {/* MASP と他事業の区切り線はトップヘッダー統合で不要になったため削除 */}
               </React.Fragment>
             );
           })}
