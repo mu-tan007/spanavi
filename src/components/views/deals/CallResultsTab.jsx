@@ -123,6 +123,21 @@ export default function CallResultsTab({ client }) {
     appos:           a.appos           + Number(s.appos || 0),
   }), { calls: 0, keymanConnects: 0, appos: 0 }), [rows]);
 
+  // アクティブ / アーカイブで分割
+  const activeRows   = useMemo(() => rows.filter(s => !s.is_archived), [rows]);
+  const archivedRows = useMemo(() => rows.filter(s =>  s.is_archived), [rows]);
+
+  const sumRows = (list) => list.reduce((a, s) => ({
+    calls:          a.calls          + Number(s.calls || 0),
+    keymanConnects: a.keymanConnects + Number(s.keyman_connects || 0),
+    appos:          a.appos          + Number(s.appos || 0),
+  }), { calls: 0, keymanConnects: 0, appos: 0 });
+  const activeTotals   = useMemo(() => sumRows(activeRows),   [activeRows]);
+  const archivedTotals = useMemo(() => sumRows(archivedRows), [archivedRows]);
+
+  // アーカイブセクションの折りたたみ状態（デフォルト閉じ）
+  const [archivedOpen, setArchivedOpen] = useState(false);
+
   // 詳細ページ: 全フック宣言後に描画切替
   if (detailList) {
     return (
@@ -212,64 +227,58 @@ export default function CallResultsTab({ client }) {
         <SummaryCard label="アポ獲得数 / 獲得率" value={`${totals.appos.toLocaleString()} / ${rate2Pct(totals.appos, totals.calls)}`} />
       </div>
 
-      <SectionCard title="リスト別 架電結果">
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
-          <thead>
-            <tr style={{ background: color.cream, borderBottom: `1px solid ${color.border}` }}>
-              <th style={{ ...th, textAlign: 'left' }}>業種</th>
-              <th style={th}>架電件数</th>
-              <th style={th}>キーマン接続数</th>
-              <th style={th}>キーマン接続率</th>
-              <th style={th}>アポ獲得数</th>
-              <th style={th}>アポ獲得率</th>
-              <th style={th}>詳細</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(s => {
-              const calls = Number(s.calls || 0);
-              const keyman = Number(s.keyman_connects || 0);
-              const appos = Number(s.appos || 0);
-              const archived = !!s.is_archived;
-              return (
-                <tr key={s.list_id} style={{
-                  borderBottom: `1px solid ${color.borderLight}`,
-                  background: archived ? color.cream : 'transparent',
-                  color: archived ? color.textMid : undefined,
-                }}>
-                  <td style={{ ...td, textAlign: 'left', color: archived ? color.textLight : color.textMid }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      {s.industry || '—'}
-                      {archived && <Badge variant="neutral" size="sm">ARCHIVED</Badge>}
-                    </span>
-                  </td>
-                  <td style={td}>{calls.toLocaleString()}</td>
-                  <td style={td}>{keyman.toLocaleString()}</td>
-                  <td style={td}>{ratePct(keyman, calls)}</td>
-                  <td style={td}>{appos.toLocaleString()}</td>
-                  <td style={td}>{rate2Pct(appos, calls)}</td>
-                  <td style={td}>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setDetailList({ list_id: s.list_id, list_name: s.industry || '(名称未設定)' })}
-                    >▶ 開く</Button>
-                  </td>
-                </tr>
-              );
-            })}
-            <tr style={{ background: color.cream, borderTop: `2px solid ${color.navy}`, fontWeight: font.weight.semibold }}>
-              <td style={{ ...td, textAlign: 'left', color: color.navy, fontWeight: font.weight.bold }}>合計</td>
-              <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{totals.calls.toLocaleString()}</td>
-              <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{totals.keymanConnects.toLocaleString()}</td>
-              <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{ratePct(totals.keymanConnects, totals.calls)}</td>
-              <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{totals.appos.toLocaleString()}</td>
-              <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{rate2Pct(totals.appos, totals.calls)}</td>
-              <td style={td}></td>
-            </tr>
-          </tbody>
-        </table>
+      {/* アクティブリスト */}
+      <SectionCard title={(
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: space[2] }}>
+          <span>アクティブリスト</span>
+          <Badge variant="success" dot>{activeRows.length} 件</Badge>
+        </span>
+      )}>
+        {activeRows.length === 0 ? (
+          <div style={{ padding: 20, color: color.textLight, fontSize: font.size.sm, textAlign: 'center' }}>
+            現在進行中のアクティブリストはありません。
+          </div>
+        ) : (
+          <ListResultsTable
+            rows={activeRows}
+            totals={activeTotals}
+            ratePct={ratePct} rate2Pct={rate2Pct}
+            onOpenDetail={(s) => setDetailList({ list_id: s.list_id, list_name: s.industry || '(名称未設定)' })}
+          />
+        )}
       </SectionCard>
+
+      {/* アーカイブリスト (折りたたみ) */}
+      {archivedRows.length > 0 && (
+        <SectionCard title={(
+          <button onClick={() => setArchivedOpen(o => !o)} style={{
+            display: 'inline-flex', alignItems: 'center', gap: space[2], background: 'transparent', border: 'none',
+            cursor: 'pointer', padding: 0, color: color.navy, fontFamily: font.family.sans,
+            fontSize: font.size.base, fontWeight: font.weight.semibold,
+          }}>
+            <span style={{ fontSize: 12, color: color.textLight }}>{archivedOpen ? '▼' : '▶'}</span>
+            <span>アーカイブ済リスト</span>
+            <Badge variant="neutral" dot>{archivedRows.length} 件</Badge>
+            <span style={{ fontSize: font.size.xs - 1, color: color.textLight, fontWeight: font.weight.medium }}>
+              （完了/停止した過去のリスト）
+            </span>
+          </button>
+        )}>
+          {!archivedOpen ? (
+            <div style={{ padding: '4px 8px', fontSize: font.size.xs, color: color.textLight }}>
+              ▶ 上のタイトルをクリックで展開
+            </div>
+          ) : (
+            <ListResultsTable
+              rows={archivedRows}
+              totals={archivedTotals}
+              ratePct={ratePct} rate2Pct={rate2Pct}
+              archivedStyle
+              onOpenDetail={(s) => setDetailList({ list_id: s.list_id, list_name: s.industry || '(名称未設定)' })}
+            />
+          )}
+        </SectionCard>
+      )}
 
       {byDay.length > 0 && (
         <SectionCard title="日別 架電件数">
@@ -317,3 +326,57 @@ function EmptyCard({ children }) {
 
 const th = { padding: '10px 12px', fontWeight: font.weight.semibold, color: color.navy, fontSize: font.size.xs, letterSpacing: font.letterSpacing.wide, textAlign: 'center' };
 const td = { padding: '8px 12px', fontSize: font.size.sm, color: color.textDark, textAlign: 'center', fontFamily: font.family.mono };
+
+// 共通テーブル: アクティブ / アーカイブで色味を変える
+function ListResultsTable({ rows, totals, ratePct, rate2Pct, onOpenDetail, archivedStyle = false }) {
+  return (
+    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
+      <thead>
+        <tr style={{ background: archivedStyle ? color.gray100 : color.cream, borderBottom: `1px solid ${color.border}` }}>
+          <th style={{ ...th, textAlign: 'left' }}>業種</th>
+          <th style={th}>架電件数</th>
+          <th style={th}>キーマン接続数</th>
+          <th style={th}>キーマン接続率</th>
+          <th style={th}>アポ獲得数</th>
+          <th style={th}>アポ獲得率</th>
+          <th style={th}>詳細</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map(s => {
+          const calls = Number(s.calls || 0);
+          const keyman = Number(s.keyman_connects || 0);
+          const appos = Number(s.appos || 0);
+          return (
+            <tr key={s.list_id} style={{
+              borderBottom: `1px solid ${color.borderLight}`,
+              background: archivedStyle ? color.cream : 'transparent',
+              color: archivedStyle ? color.textMid : undefined,
+            }}>
+              <td style={{ ...td, textAlign: 'left', color: archivedStyle ? color.textLight : color.textMid }}>
+                {s.industry || '—'}
+              </td>
+              <td style={td}>{calls.toLocaleString()}</td>
+              <td style={td}>{keyman.toLocaleString()}</td>
+              <td style={td}>{ratePct(keyman, calls)}</td>
+              <td style={td}>{appos.toLocaleString()}</td>
+              <td style={td}>{rate2Pct(appos, calls)}</td>
+              <td style={td}>
+                <Button size="sm" variant="outline" onClick={() => onOpenDetail(s)}>▶ 開く</Button>
+              </td>
+            </tr>
+          );
+        })}
+        <tr style={{ background: color.cream, borderTop: `2px solid ${color.navy}`, fontWeight: font.weight.semibold }}>
+          <td style={{ ...td, textAlign: 'left', color: color.navy, fontWeight: font.weight.bold }}>小計</td>
+          <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{totals.calls.toLocaleString()}</td>
+          <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{totals.keymanConnects.toLocaleString()}</td>
+          <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{ratePct(totals.keymanConnects, totals.calls)}</td>
+          <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{totals.appos.toLocaleString()}</td>
+          <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{rate2Pct(totals.appos, totals.calls)}</td>
+          <td style={td}></td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
