@@ -1,8 +1,11 @@
-import { color, space, font } from '../../../constants/design';
+import { useMemo } from 'react';
+import { color, space, radius, font } from '../../../constants/design';
 import KeymanRejectionsPanel from './KeymanRejectionsPanel';
 import IndustryStatusComboPanel from './IndustryStatusComboPanel';
 import { OverdueReceptionPanel, OverdueKeymanPanel, ReapproachCandidatesPanel } from './DashboardMigratedPanels';
 import { useUrlState } from '../../../hooks/useUrlState';
+import { useEngagements } from '../../../hooks/useEngagements';
+import { FilterButton, salesAgencyEngagementOptions } from './smartQueueHelpers';
 
 const SUBTABS = [
   { value: 'keyman_reject',     label: '① キーマン断り一覧' },
@@ -16,9 +19,58 @@ export default function SpecialQueryPanel({ setCallFlowScreen, callListData }) {
   const [sub, setSub] = useUrlState('sq_sub', 'keyman_reject', {
     allowed: ['keyman_reject', 'industry_combo', 'overdue_reception', 'overdue_keyman', 'reapproach'],
   });
+  const [categoryId, setCategoryId] = useUrlState('sq_cat', null);
+  const [engIdsRaw, setEngIdsRaw]   = useUrlState('sq_eng', '', {}); // CSV
+  const engIds = useMemo(() => (engIdsRaw ? engIdsRaw.split(',').filter(Boolean) : []), [engIdsRaw]);
+  const setEngIds = (next) => setEngIdsRaw(next.length === 0 ? '' : next.join(','));
+
+  const { engagements: allEngagements, categories: allCategories } = useEngagements();
+  const categoryOptions = useMemo(
+    () => (allCategories || []).slice().sort((a, b) => (a.display_order || 0) - (b.display_order || 0)),
+    [allCategories]
+  );
+  const salesAgencyEngagements = useMemo(() => salesAgencyEngagementOptions(allEngagements), [allEngagements]);
+
+  // 商材選択時は配下の engagement のみ表示
+  const visibleEngagements = useMemo(() => {
+    if (!categoryId) return salesAgencyEngagements;
+    return salesAgencyEngagements.filter(e => {
+      const eng = (allEngagements || []).find(x => x.id === e.id);
+      return eng?.category_id === categoryId;
+    });
+  }, [categoryId, salesAgencyEngagements, allEngagements]);
+
+  const toggleEng = (id) => {
+    if (engIds.includes(id)) setEngIds(engIds.filter(x => x !== id));
+    else setEngIds([...engIds, id]);
+  };
+
+  // 各サブパネルに渡す共通フィルタ
+  const filterProps = { categoryId, engIds, allEngagements };
 
   return (
     <div>
+      {/* 共通フィルタ: 商材・タイプ */}
+      <div style={{
+        background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
+        padding: '10px 16px', marginBottom: space[3],
+        display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap',
+      }}>
+        <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>商材:</span>
+        <FilterButton active={!categoryId} onClick={() => setCategoryId(null)}>全て</FilterButton>
+        {categoryOptions.map(c => (
+          <FilterButton key={c.id} active={categoryId === c.id} onClick={() => setCategoryId(c.id)}>{c.name}</FilterButton>
+        ))}
+
+        <span style={{ color: color.border }}>|</span>
+        <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>タイプ:</span>
+        <FilterButton active={engIds.length === 0} onClick={() => setEngIds([])}>全て</FilterButton>
+        {visibleEngagements.map(e => (
+          <FilterButton key={e.id} active={engIds.includes(e.id)} onClick={() => toggleEng(e.id)}>{e.name}</FilterButton>
+        ))}
+      </div>
+
+      {/* サブタブ */}
       <div style={{
         display: 'flex', gap: space[1], marginBottom: space[3],
         borderBottom: `1px solid ${color.border}`, flexWrap: 'wrap',
@@ -41,11 +93,11 @@ export default function SpecialQueryPanel({ setCallFlowScreen, callListData }) {
         })}
       </div>
 
-      {sub === 'keyman_reject'     && <KeymanRejectionsPanel     setCallFlowScreen={setCallFlowScreen} callListData={callListData} />}
-      {sub === 'industry_combo'    && <IndustryStatusComboPanel  setCallFlowScreen={setCallFlowScreen} callListData={callListData} />}
-      {sub === 'overdue_reception' && <OverdueReceptionPanel     setCallFlowScreen={setCallFlowScreen} callListData={callListData} />}
-      {sub === 'overdue_keyman'    && <OverdueKeymanPanel        setCallFlowScreen={setCallFlowScreen} callListData={callListData} />}
-      {sub === 'reapproach'        && <ReapproachCandidatesPanel setCallFlowScreen={setCallFlowScreen} callListData={callListData} />}
+      {sub === 'keyman_reject'     && <KeymanRejectionsPanel     setCallFlowScreen={setCallFlowScreen} callListData={callListData} {...filterProps} />}
+      {sub === 'industry_combo'    && <IndustryStatusComboPanel  setCallFlowScreen={setCallFlowScreen} callListData={callListData} {...filterProps} />}
+      {sub === 'overdue_reception' && <OverdueReceptionPanel     setCallFlowScreen={setCallFlowScreen} callListData={callListData} {...filterProps} />}
+      {sub === 'overdue_keyman'    && <OverdueKeymanPanel        setCallFlowScreen={setCallFlowScreen} callListData={callListData} {...filterProps} />}
+      {sub === 'reapproach'        && <ReapproachCandidatesPanel setCallFlowScreen={setCallFlowScreen} callListData={callListData} {...filterProps} />}
     </div>
   );
 }

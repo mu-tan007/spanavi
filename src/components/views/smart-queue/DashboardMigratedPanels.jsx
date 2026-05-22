@@ -1,8 +1,34 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { color, space, radius, font } from '../../../constants/design';
 import { Button, Badge, DataTable } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { PanelHeader, KPI } from './smartQueueHelpers';
+
+// クライアント側で商材・タイプによる post-filter
+//   ダッシュボード移管RPCはこれらの引数を持たないため、結果をJSで絞る。
+//   各 RPC 結果に list_id を含むため、callListData から engagement_id を引いて判定する。
+function useEngFilter(rows, { categoryId, engIds, allEngagements, callListData }) {
+  return useMemo(() => {
+    if (!categoryId && (!engIds || engIds.length === 0)) return rows;
+    // list_id → engagement_id マップ
+    const listEngMap = new Map();
+    (callListData || []).forEach(l => {
+      const id = l._supaId || l.id;
+      if (id) listEngMap.set(id, l.engagement_id || l.engagementId);
+    });
+    // 商材で絞る場合: 対象 engagement の集合
+    const matchedEngIds = categoryId
+      ? new Set((allEngagements || []).filter(e => e.category_id === categoryId).map(e => e.id))
+      : null;
+    return rows.filter(r => {
+      const eid = listEngMap.get(r.list_id);
+      if (!eid) return false;
+      if (matchedEngIds && !matchedEngIds.has(eid)) return false;
+      if (engIds && engIds.length > 0 && !engIds.includes(eid)) return false;
+      return true;
+    });
+  }, [rows, categoryId, engIds, allEngagements, callListData]);
+}
 
 // ダッシュボードから移管した3パネル: 受付再コール超過 / キーマン再コール超過 / 再アプローチ候補
 // 既存 RPC をそのまま流用
@@ -39,8 +65,9 @@ function useRpc(rpcName, args) {
 }
 
 // ③ 受付再コール超過
-export function OverdueReceptionPanel({ setCallFlowScreen, callListData = [] }) {
-  const { rows, loading } = useRpc('dashboard_overdue_reception_recalls');
+export function OverdueReceptionPanel({ setCallFlowScreen, callListData = [], categoryId = null, engIds = [], allEngagements = [] }) {
+  const { rows: allRows, loading } = useRpc('dashboard_overdue_reception_recalls');
+  const rows = useEngFilter(allRows, { categoryId, engIds, allEngagements, callListData });
   const handleCall = useCallHandler(setCallFlowScreen, callListData);
   const columns = [
     { key: 'company', label: '企業名', width: 240, align: 'left',
@@ -65,8 +92,9 @@ export function OverdueReceptionPanel({ setCallFlowScreen, callListData = [] }) 
 }
 
 // ④ キーマン再コール超過
-export function OverdueKeymanPanel({ setCallFlowScreen, callListData = [] }) {
-  const { rows, loading } = useRpc('dashboard_overdue_recalls');
+export function OverdueKeymanPanel({ setCallFlowScreen, callListData = [], categoryId = null, engIds = [], allEngagements = [] }) {
+  const { rows: allRows, loading } = useRpc('dashboard_overdue_recalls');
+  const rows = useEngFilter(allRows, { categoryId, engIds, allEngagements, callListData });
   const handleCall = useCallHandler(setCallFlowScreen, callListData);
   const columns = [
     { key: 'company', label: '企業名', width: 240, align: 'left',
@@ -91,8 +119,9 @@ export function OverdueKeymanPanel({ setCallFlowScreen, callListData = [] }) {
 }
 
 // ⑤ 再アプローチ候補（過去アポ取得企業が別リストで活きている）
-export function ReapproachCandidatesPanel({ setCallFlowScreen, callListData = [] }) {
-  const { rows, loading } = useRpc('dashboard_reapproach_candidates');
+export function ReapproachCandidatesPanel({ setCallFlowScreen, callListData = [], categoryId = null, engIds = [], allEngagements = [] }) {
+  const { rows: allRows, loading } = useRpc('dashboard_reapproach_candidates');
+  const rows = useEngFilter(allRows, { categoryId, engIds, allEngagements, callListData });
   const handleCall = useCallHandler(setCallFlowScreen, callListData);
   const columns = [
     { key: 'company', label: '企業名', width: 240, align: 'left',

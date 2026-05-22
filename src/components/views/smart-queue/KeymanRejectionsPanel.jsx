@@ -2,11 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { color, space, radius, font, alpha } from '../../../constants/design';
 import { Button, Badge, DataTable } from '../../ui';
 import { supabase } from '../../../lib/supabase';
-import { useEngagements } from '../../../hooks/useEngagements';
-import {
-  fmtRevenueK, salesAgencyEngagementOptions,
-  PanelHeader, FilterBar, FilterButton, KPI,
-} from './smartQueueHelpers';
+import { PanelHeader, KPI } from './smartQueueHelpers';
 
 // ① キーマン断り一覧（温度感ラベル + 断り理由メモ）
 //   AI分析未実施は「未判定」と表示
@@ -27,20 +23,19 @@ function extractTemp(text) {
   return m ? m[1].toUpperCase() : null;
 }
 
-export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData = [] }) {
-  const { engagements: allEngagements } = useEngagements();
-  const salesAgencyEngagements = useMemo(() => salesAgencyEngagementOptions(allEngagements), [allEngagements]);
-
-  const [engId, setEngId] = useState(null);
+export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData = [], categoryId = null, engIds = [], allEngagements = [] }) {
   const [page, setPage]   = useState(0);
   const [data, setData]   = useState({ total: 0, rows: [] });
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(new Set());
 
+  // engIds が単一なら RPC に渡し、複数または商材選択時は全件取得後にクライアントfilter
+  const useEngParam = engIds.length === 1 ? engIds[0] : null;
+
   useEffect(() => {
     setLoading(true);
     supabase.rpc('smart_queue_keyman_rejections', {
-      p_engagement_id: engId,
+      p_engagement_id: useEngParam,
       p_offset: page * PAGE_SIZE,
       p_limit: PAGE_SIZE,
     }).then(({ data: d, error }) => {
@@ -48,13 +43,26 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
         console.warn('[KeymanRejectionsPanel] RPC failed:', error);
         setData({ total: 0, rows: [] });
       } else {
-        setData({ total: d?.total ?? 0, rows: Array.isArray(d?.rows) ? d.rows : [] });
+        let rows = Array.isArray(d?.rows) ? d.rows : [];
+        let total = d?.total ?? 0;
+        // 商材フィルタ（クライアント側）
+        if (categoryId) {
+          const matched = (allEngagements || []).filter(e => e.category_id === categoryId).map(e => e.id);
+          rows = rows.filter(r => matched.includes(r.engagement_id));
+          total = rows.length;
+        }
+        // engIds 複数選択時のクライアントフィルタ
+        if (engIds.length > 1) {
+          rows = rows.filter(r => engIds.includes(r.engagement_id));
+          total = rows.length;
+        }
+        setData({ total, rows });
       }
       setLoading(false);
     });
-  }, [engId, page]);
+  }, [useEngParam, page, categoryId, engIds, allEngagements]);
 
-  useEffect(() => { setPage(0); }, [engId]);
+  useEffect(() => { setPage(0); }, [useEngParam, categoryId, engIds.length]);
 
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
@@ -169,13 +177,6 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
         leftKpi={<KPI label="表示中" value={`${data.rows.length} 件`} />}
         rightKpi={<KPI label="総数" value={`${data.total.toLocaleString()} 件`} muted />}
       />
-      <FilterBar>
-        <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>タイプ:</span>
-        <FilterButton active={!engId} onClick={() => setEngId(null)}>全て</FilterButton>
-        {salesAgencyEngagements.map(e => (
-          <FilterButton key={e.id} active={engId === e.id} onClick={() => setEngId(e.id)}>{e.name}</FilterButton>
-        ))}
-      </FilterBar>
 
       {/* DataTable + 展開行 */}
       <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, overflow: 'hidden' }}>

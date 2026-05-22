@@ -1,10 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { color, space, radius, font, alpha } from '../../../constants/design';
 import { Button, Badge, DataTable } from '../../ui';
 import { supabase } from '../../../lib/supabase';
-import { useEngagements } from '../../../hooks/useEngagements';
 import {
-  ALL_STATUSES, TSR_INDUSTRY_MAJORS, salesAgencyEngagementOptions,
+  ALL_STATUSES, TSR_INDUSTRY_MAJORS,
   PanelHeader, FilterBar, FilterButton, KPI, ScoreCell,
 } from './smartQueueHelpers';
 
@@ -20,10 +19,7 @@ const STATUS_VARIANT = {
   'キーマン断り': 'danger', '問い合わせフォーム': 'info',
 };
 
-export default function IndustryStatusComboPanel({ setCallFlowScreen, callListData = [] }) {
-  const { engagements: allEngagements } = useEngagements();
-  const salesAgencyEngagements = useMemo(() => salesAgencyEngagementOptions(allEngagements), [allEngagements]);
-
+export default function IndustryStatusComboPanel({ setCallFlowScreen, callListData = [], categoryId = null, engIds = [], allEngagements = [] }) {
   // おすすめ業種 (フェッチ)
   const [recommendedIndustries, setRecommendedIndustries] = useState([]);
 
@@ -35,10 +31,11 @@ export default function IndustryStatusComboPanel({ setCallFlowScreen, callListDa
 
   const [industries, setIndustries] = useState([]); // 初期は未選択
   const [statuses, setStatuses]     = useState([]);
-  const [engId, setEngId]           = useState(null);
   const [page, setPage]             = useState(0);
   const [data, setData]             = useState({ total: 0, rows: [] });
   const [loading, setLoading]       = useState(false);
+
+  const useEngParam = engIds.length === 1 ? engIds[0] : null;
 
   // おすすめ業種が来たら自動でTOP3を選択
   useEffect(() => {
@@ -53,7 +50,7 @@ export default function IndustryStatusComboPanel({ setCallFlowScreen, callListDa
     supabase.rpc('smart_queue_industry_status_combo', {
       p_industries: industries.length ? industries : null,
       p_statuses:   statuses.length   ? statuses   : null,
-      p_engagement_id: engId,
+      p_engagement_id: useEngParam,
       p_offset: page * PAGE_SIZE,
       p_limit:  PAGE_SIZE,
     }).then(({ data: d, error }) => {
@@ -61,13 +58,25 @@ export default function IndustryStatusComboPanel({ setCallFlowScreen, callListDa
         console.warn('[IndustryStatusComboPanel] RPC failed:', error);
         setData({ total: 0, rows: [] });
       } else {
-        setData({ total: d?.total ?? 0, rows: Array.isArray(d?.rows) ? d.rows : [] });
+        let rows = Array.isArray(d?.rows) ? d.rows : [];
+        let total = d?.total ?? 0;
+        // 商材フィルタ
+        if (categoryId) {
+          const matched = (allEngagements || []).filter(e => e.category_id === categoryId).map(e => e.id);
+          rows = rows.filter(r => matched.includes(r.engagement_id));
+          total = rows.length;
+        }
+        if (engIds.length > 1) {
+          rows = rows.filter(r => engIds.includes(r.engagement_id));
+          total = rows.length;
+        }
+        setData({ total, rows });
       }
       setLoading(false);
     });
-  }, [industries, statuses, engId, page]);
+  }, [industries, statuses, useEngParam, page, categoryId, engIds, allEngagements]);
 
-  useEffect(() => { setPage(0); }, [industries, statuses, engId]);
+  useEffect(() => { setPage(0); }, [industries, statuses, useEngParam, categoryId, engIds.length]);
 
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
@@ -155,12 +164,6 @@ export default function IndustryStatusComboPanel({ setCallFlowScreen, callListDa
         <FilterButton active={statuses.length === 0} onClick={() => setStatuses([])}>全て</FilterButton>
         {ALL_STATUSES.map(s => (
           <FilterButton key={s} active={statuses.includes(s)} onClick={() => toggleArray(statuses, setStatuses, s)}>{s}</FilterButton>
-        ))}
-        <span style={{ color: color.border }}>|</span>
-        <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>タイプ:</span>
-        <FilterButton active={!engId} onClick={() => setEngId(null)}>全て</FilterButton>
-        {salesAgencyEngagements.map(e => (
-          <FilterButton key={e.id} active={engId === e.id} onClick={() => setEngId(e.id)}>{e.name}</FilterButton>
         ))}
       </FilterBar>
 
