@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { color, space, radius, font } from '../../../constants/design';
-import { Button, Badge, DataTable } from '../../ui';
+import { Button, DataTable } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { PanelHeader, KPI } from './smartQueueHelpers';
 import { useCallQueue } from './useCallQueue';
@@ -124,18 +124,14 @@ export function ReapproachCandidatesPanel({ setCallFlowScreen, callListData = []
   const columns = [
     { key: 'company', label: '企業名', width: 240, align: 'left',
       render: (r) => <span style={{ fontWeight: font.weight.semibold, color: color.navy }}>{r.company || '—'}</span> },
-    { key: 'client_name', label: '新リストのクライアント', width: 180, align: 'left',
-      render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid }}>{r.client_name || '—'}</span> },
-    { key: 'list_name', label: '新リスト', width: 200, align: 'left',
+    { key: 'list_name', label: '新リスト', width: 220, align: 'left',
       render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid }}>{r.list_name || '—'}</span> },
-    { key: 'past_client', label: '前回アポ先', width: 160, align: 'left',
+    { key: 'past_client', label: '前回アポ先', width: 180, align: 'left',
       render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid }}>{r.past_client || '—'}</span> },
-    { key: 'past_getter', label: '前回担当', width: 100, align: 'center',
+    { key: 'past_getter', label: '前回担当', width: 110, align: 'center',
       render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid }}>{r.past_getter || '—'}</span> },
     { key: 'past_date', label: '前回日付', width: 110, align: 'right',
       render: (r) => <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs }}>{r.past_date || '—'}</span> },
-    { key: 'source', label: 'ソース', width: 90, align: 'center',
-      render: (r) => <Badge variant={r.source === 'spanavi' ? 'info' : 'neutral'}>{r.source}</Badge> },
     { key: 'action', label: '架電', width: 90, align: 'center',
       render: (r) => <Button size="sm" variant="primary" onClick={() => handleCall(r)} disabled={!r.list_id || !r.item_id}>架電</Button> },
   ];

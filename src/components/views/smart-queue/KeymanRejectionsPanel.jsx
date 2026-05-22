@@ -2,13 +2,14 @@ import { useState, useEffect, useMemo } from 'react';
 import { color, space, radius, font, alpha } from '../../../constants/design';
 import { Button, Badge, DataTable } from '../../ui';
 import { supabase } from '../../../lib/supabase';
-import { PanelHeader, KPI } from './smartQueueHelpers';
+import { PanelHeader, KPI, FilterBar } from './smartQueueHelpers';
+import MultiSelectDropdown from './MultiSelectDropdown';
 import { useCallQueue } from './useCallQueue';
 
 // ① キーマン断り一覧（温度感ラベル + 断り理由メモ）
 //   AI分析未実施は「未判定」と表示
-// 上限撤廃: 一回で全件取得（最大10,000件）。表示は DataTable の縦スクロール
-const PAGE_SIZE = 10000;
+// 上限撤廃: 一回で全件取得（実質撤廃）。表示は DataTable の縦スクロール
+const PAGE_SIZE = 100000;
 
 const TEMP_BADGE = {
   HIGH:      { variant: 'success', label: '温度感: 高' },
@@ -30,6 +31,11 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
   const [data, setData]   = useState({ total: 0, rows: [] });
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(new Set());
+
+  // 担当者フィルタ（複数選択）
+  const [getterFilter, setGetterFilter] = useState([]);
+  // 並び順
+  const [sortKey, setSortKey] = useState('reject_asc'); // reject_asc(古い順) / reject_desc(新しい順)
 
   // engIds が単一なら RPC に渡し、複数または商材選択時は全件取得後にクライアントfilter
   const useEngParam = engIds.length === 1 ? engIds[0] : null;
@@ -64,14 +70,30 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
     });
   }, [useEngParam, page, categoryId, engIds, allEngagements]);
 
-  useEffect(() => { setPage(0); }, [useEngParam, categoryId, engIds.length]);
+  useEffect(() => { setPage(0); }, [useEngParam, categoryId, engIds.length, getterFilter, sortKey]);
 
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
+  // 担当者選択肢（rows から動的抽出、ユニーク + ソート）
+  const getterOptions = useMemo(() => {
+    const set = new Set();
+    data.rows.forEach(r => { if (r.getter_name) set.add(r.getter_name); });
+    return Array.from(set).sort();
+  }, [data.rows]);
+
+  // 担当者フィルタ + ソート（クライアント側）
+  const visibleRows = useMemo(() => {
+    let list = data.rows;
+    if (getterFilter.length > 0) list = list.filter(r => getterFilter.includes(r.getter_name));
+    if (sortKey === 'reject_asc')  list = [...list].sort((a, b) => (a.days_since_reject || 0) - (b.days_since_reject || 0));
+    else if (sortKey === 'reject_desc') list = [...list].sort((a, b) => (b.days_since_reject || 0) - (a.days_since_reject || 0));
+    return list;
+  }, [data.rows, getterFilter, sortKey]);
+
   const { openQueue } = useCallQueue({ setCallFlowScreen, callListData });
   const handleCall = (row) => {
-    const idx = data.rows.findIndex(r => r.item_id === row.item_id);
-    openQueue(data.rows, idx >= 0 ? idx : 0);
+    const idx = visibleRows.findIndex(r => r.item_id === row.item_id);
+    openQueue(visibleRows, idx >= 0 ? idx : 0);
   };
 
   const toggleExpand = (id) => {
@@ -131,14 +153,14 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
   // 展開行を rows に組み込む（DataTableは展開行未サポートなので、内部で2行構造に展開）
   const tableRows = useMemo(() => {
     const out = [];
-    for (const r of data.rows) {
+    for (const r of visibleRows) {
       out.push(r);
       if (expanded.has(r.record_id)) {
         out.push({ ...r, _expandRow: true });
       }
     }
     return out;
-  }, [data.rows, expanded]);
+  }, [visibleRows, expanded]);
 
   // 展開行カスタムレンダリング（DataTableのrender callbackでrowに_expandRowがあれば全幅表示）
   const renderExpandedContent = (r) => (
@@ -171,9 +193,30 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
     <div>
       <PanelHeader
         title="① キーマン断り一覧"
-        leftKpi={<KPI label="表示中" value={`${data.rows.length} 件`} />}
+        leftKpi={<KPI label="表示中" value={`${visibleRows.length} 件`} />}
         rightKpi={<KPI label="総数" value={`${data.total.toLocaleString()} 件`} muted />}
       />
+
+      {/* 並び順 + 担当者フィルタ */}
+      <FilterBar>
+        <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>並び順:</span>
+        <select value={sortKey} onChange={e => setSortKey(e.target.value)} style={{
+          padding: '5px 10px', borderRadius: radius.md, border: `1px solid ${color.border}`,
+          fontSize: font.size.xs, color: color.textDark, fontFamily: font.family.sans, background: color.white, cursor: 'pointer',
+        }}>
+          <option value="reject_asc">断りから日数が少ない順</option>
+          <option value="reject_desc">断りから日数が多い順</option>
+        </select>
+        <span style={{ color: color.border }}>|</span>
+        <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>断り担当:</span>
+        <MultiSelectDropdown
+          placeholder="担当者を選択（複数可）"
+          options={getterOptions}
+          values={getterFilter}
+          onChange={setGetterFilter}
+          width={220}
+        />
+      </FilterBar>
 
       {/* DataTable + 展開行 */}
       <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, overflow: 'hidden' }}>
@@ -183,7 +226,7 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
           customRowRender={(r) => expanded.has(r.record_id) ? renderExpandedContent(r) : null}
         />
         {/* DataTableが展開行未対応なので、フォールバックとして表外に列挙 */}
-        {data.rows.filter(r => expanded.has(r.record_id)).map(r => (
+        {visibleRows.filter(r => expanded.has(r.record_id)).map(r => (
           <div key={`exp-${r.record_id}`} style={{ borderTop: `1px solid ${color.border}` }}>
             <div style={{ padding: '8px 18px', background: alpha(color.navy, 0.06), fontSize: font.size.xs, color: color.navy, fontWeight: font.weight.semibold }}>
               {r.company} の詳細

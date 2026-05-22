@@ -12,8 +12,8 @@ import { useCallQueue } from './useCallQueue';
 //   現在の曜日/時間帯おすすめ業種をフェッチして上位表示、ユーザー任意で
 //   業種(複数)・ステータス(複数)選択可能
 
-// 上限撤廃: 一回で全件取得（最大10,000件）
-const PAGE_SIZE = 10000;
+// 上限撤廃: ヒット件数を全件取得
+const PAGE_SIZE = 100000;
 
 const STATUS_VARIANT = {
   '未架電': 'neutral', '不通': 'neutral', 'キーマン不在': 'neutral',
