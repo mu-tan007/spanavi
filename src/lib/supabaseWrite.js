@@ -132,6 +132,8 @@ export async function archiveCallList(supaId) {
     .update({ is_archived: true })
     .eq('id', supaId)
   if (error) console.error('[DB] archiveCallList error:', error)
+  // スマートキュー mv は materialized なので即時 refresh で UI に反映
+  else refreshSmartQueueMVs()
   return error
 }
 
@@ -142,7 +144,16 @@ export async function restoreCallList(supaId) {
     .update({ is_archived: false })
     .eq('id', supaId)
   if (error) console.error('[DB] restoreCallList error:', error)
+  else refreshSmartQueueMVs()
   return error
+}
+
+// スマートキュー用 mv を refresh（fire-and-forget）。CONCURRENTLY なので
+// 完了を待たなくても他クエリは読める。エラーは握りつぶしてログのみ。
+export function refreshSmartQueueMVs() {
+  supabase.rpc('refresh_smart_queue_mvs').then(({ error }) => {
+    if (error) console.warn('[DB] refresh_smart_queue_mvs failed:', error)
+  })
 }
 
 // ============================================================
