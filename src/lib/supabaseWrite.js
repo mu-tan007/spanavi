@@ -67,11 +67,16 @@ export async function updateCallList(supaId, data) {
     contact_id: (data.contactIds && data.contactIds.length > 0) ? data.contactIds[0] : (data.contactId ?? undefined),
   }
   if (data.engagementId) payload.engagement_id = data.engagementId
+  // リスト名（name）は industry を含めて再生成。スマートキューの「元リスト」表示に反映させるため
+  if (data.company && data.industry) payload.name = `${data.company} - ${data.industry}`
   const { error } = await supabase
     .from('call_lists')
     .update(payload)
     .eq('id', supaId)
   if (error) console.error('[DB] updateCallList error:', error)
+  // スマートキュー mv 経由の画面（詳細条件抽出 / ②業種×ステータス）に
+  // 即時反映させるため refresh を発火
+  else refreshSmartQueueMVs()
   return error
 }
 
@@ -112,6 +117,7 @@ export async function insertCallList(data, engagementId = null) {
     .select()
     .single()
   if (error) console.error('[DB] insertCallList error:', error)
+  else refreshSmartQueueMVs()
   return { result, error }
 }
 
@@ -122,6 +128,7 @@ export async function deleteCallList(supaId) {
     .delete()
     .eq('id', supaId)
   if (error) console.error('[DB] deleteCallList error:', error)
+  else refreshSmartQueueMVs()
   return error
 }
 
