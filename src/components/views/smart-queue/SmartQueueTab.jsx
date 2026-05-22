@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { color, space, radius, font } from '../../../constants/design';
+import IndustryDataPanel from './IndustryDataPanel';
 import OverdueRecallsPanel from './OverdueRecallsPanel';
 import UnconnectedFollowupPanel from './UnconnectedFollowupPanel';
 import NewProspectsPanel from './NewProspectsPanel';
@@ -21,6 +22,8 @@ export default function SmartQueueTab({ setCallFlowScreen }) {
 
   return (
     <div>
+      <IndustryDataPanel />
+
       <div style={{
         display: 'flex', gap: space[1], marginBottom: space[3],
         borderBottom: `1px solid ${color.border}`,
