@@ -3,6 +3,7 @@ import { color, space, radius, font } from '../../../constants/design';
 import { Button, Badge, DataTable } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { PanelHeader, KPI } from './smartQueueHelpers';
+import { useCallQueue } from './useCallQueue';
 
 // クライアント側で商材・タイプによる post-filter
 //   ダッシュボード移管RPCはこれらの引数を持たないため、結果をJSで絞る。
@@ -33,15 +34,12 @@ function useEngFilter(rows, { categoryId, engIds, allEngagements, callListData }
 // ダッシュボードから移管した3パネル: 受付再コール超過 / キーマン再コール超過 / 再アプローチ候補
 // 既存 RPC をそのまま流用
 
-function useCallHandler(setCallFlowScreen, callListData) {
+// rows をキューとして渡し、index から開始 → 前後矢印 / 自動進行で連続架電
+function useQueueOpener(setCallFlowScreen, callListData, rows) {
+  const { openQueue } = useCallQueue({ setCallFlowScreen, callListData });
   return (row) => {
-    if (!setCallFlowScreen || !row.list_id || !row.item_id) return;
-    const full = (callListData || []).find(l => l._supaId === row.list_id || l.id === row.list_id)
-      || { _supaId: row.list_id, id: row.list_id, company: '' };
-    setCallFlowScreen({
-      list: full, defaultItemId: row.item_id, defaultListMode: false, singleItemMode: true,
-      onResultSubmit: () => setCallFlowScreen?.(null),
-    });
+    const idx = (rows || []).findIndex(r => r.item_id === row.item_id);
+    openQueue(rows, idx >= 0 ? idx : 0);
   };
 }
 
@@ -68,7 +66,7 @@ function useRpc(rpcName, args) {
 export function OverdueReceptionPanel({ setCallFlowScreen, callListData = [], categoryId = null, engIds = [], allEngagements = [] }) {
   const { rows: allRows, loading } = useRpc('dashboard_overdue_reception_recalls');
   const rows = useEngFilter(allRows, { categoryId, engIds, allEngagements, callListData });
-  const handleCall = useCallHandler(setCallFlowScreen, callListData);
+  const handleCall = useQueueOpener(setCallFlowScreen, callListData, rows);
   const columns = [
     { key: 'company', label: '企業名', width: 240, align: 'left',
       render: (r) => <span style={{ fontWeight: font.weight.semibold, color: color.navy }}>{r.company || '—'}</span> },
@@ -95,7 +93,7 @@ export function OverdueReceptionPanel({ setCallFlowScreen, callListData = [], ca
 export function OverdueKeymanPanel({ setCallFlowScreen, callListData = [], categoryId = null, engIds = [], allEngagements = [] }) {
   const { rows: allRows, loading } = useRpc('dashboard_overdue_recalls');
   const rows = useEngFilter(allRows, { categoryId, engIds, allEngagements, callListData });
-  const handleCall = useCallHandler(setCallFlowScreen, callListData);
+  const handleCall = useQueueOpener(setCallFlowScreen, callListData, rows);
   const columns = [
     { key: 'company', label: '企業名', width: 240, align: 'left',
       render: (r) => <span style={{ fontWeight: font.weight.semibold, color: color.navy }}>{r.company || '—'}</span> },
@@ -122,7 +120,7 @@ export function OverdueKeymanPanel({ setCallFlowScreen, callListData = [], categ
 export function ReapproachCandidatesPanel({ setCallFlowScreen, callListData = [], categoryId = null, engIds = [], allEngagements = [] }) {
   const { rows: allRows, loading } = useRpc('dashboard_reapproach_candidates');
   const rows = useEngFilter(allRows, { categoryId, engIds, allEngagements, callListData });
-  const handleCall = useCallHandler(setCallFlowScreen, callListData);
+  const handleCall = useQueueOpener(setCallFlowScreen, callListData, rows);
   const columns = [
     { key: 'company', label: '企業名', width: 240, align: 'left',
       render: (r) => <span style={{ fontWeight: font.weight.semibold, color: color.navy }}>{r.company || '—'}</span> },

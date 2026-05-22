@@ -6,12 +6,13 @@ import {
   ALL_STATUSES, TSR_INDUSTRY_MAJORS,
   PanelHeader, FilterBar, FilterButton, KPI, ScoreCell,
 } from './smartQueueHelpers';
+import { useCallQueue } from './useCallQueue';
 
 // ② 業種 × ステータス組合せ
 //   現在の曜日/時間帯おすすめ業種をフェッチして上位表示、ユーザー任意で
 //   業種(複数)・ステータス(複数)選択可能
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 200;
 
 const STATUS_VARIANT = {
   '未架電': 'neutral', '不通': 'neutral', 'キーマン不在': 'neutral',
@@ -84,14 +85,10 @@ export default function IndustryStatusComboPanel({ setCallFlowScreen, callListDa
     setter(arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]);
   };
 
+  const { openQueue } = useCallQueue({ setCallFlowScreen, callListData });
   const handleCall = (row) => {
-    if (!setCallFlowScreen || !row.list_id || !row.item_id) return;
-    const full = (callListData || []).find(l => l._supaId === row.list_id || l.id === row.list_id)
-      || { _supaId: row.list_id, id: row.list_id, company: '' };
-    setCallFlowScreen({
-      list: full, defaultItemId: row.item_id, defaultListMode: false, singleItemMode: true,
-      onResultSubmit: () => setCallFlowScreen?.(null),
-    });
+    const idx = data.rows.findIndex(r => r.item_id === row.item_id);
+    openQueue(data.rows, idx >= 0 ? idx : 0);
   };
 
   const columns = [

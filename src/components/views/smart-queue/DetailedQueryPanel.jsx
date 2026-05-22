@@ -9,6 +9,7 @@ import {
   PanelHeader, FilterButton, KPI,
 } from './smartQueueHelpers';
 import MultiSelectDropdown from './MultiSelectDropdown';
+import { useCallQueue } from './useCallQueue';
 
 // 詳細条件抽出
 // フィルタ変更は draft のみ更新、「検索」ボタン押下で applied に反映 → fetch
@@ -114,14 +115,10 @@ export default function DetailedQueryPanel({ setCallFlowScreen, callListData = [
 
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
+  const { openQueue } = useCallQueue({ setCallFlowScreen, callListData });
   const handleCall = (row) => {
-    if (!setCallFlowScreen || !row.list_id || !row.item_id) return;
-    const full = (callListData || []).find(l => l._supaId === row.list_id || l.id === row.list_id)
-      || { _supaId: row.list_id, id: row.list_id, company: '' };
-    setCallFlowScreen({
-      list: full, defaultItemId: row.item_id, defaultListMode: false, singleItemMode: true,
-      onResultSubmit: () => setCallFlowScreen?.(null),
-    });
+    const idx = data.rows.findIndex(r => r.item_id === row.item_id);
+    openQueue(data.rows, idx >= 0 ? idx : 0);
   };
 
   const setDraftField = (k, v) => setDraft(d => ({ ...d, [k]: v }));

@@ -3,10 +3,11 @@ import { color, space, radius, font, alpha } from '../../../constants/design';
 import { Button, Badge, DataTable } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { PanelHeader, KPI } from './smartQueueHelpers';
+import { useCallQueue } from './useCallQueue';
 
 // ① キーマン断り一覧（温度感ラベル + 断り理由メモ）
 //   AI分析未実施は「未判定」と表示
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 200;
 
 const TEMP_BADGE = {
   HIGH:      { variant: 'success', label: '温度感: 高' },
@@ -66,14 +67,10 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
 
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
+  const { openQueue } = useCallQueue({ setCallFlowScreen, callListData });
   const handleCall = (row) => {
-    if (!setCallFlowScreen || !row.list_id || !row.item_id) return;
-    const full = (callListData || []).find(l => l._supaId === row.list_id || l.id === row.list_id)
-      || { _supaId: row.list_id, id: row.list_id, company: '' };
-    setCallFlowScreen({
-      list: full, defaultItemId: row.item_id, defaultListMode: false, singleItemMode: true,
-      onResultSubmit: () => setCallFlowScreen?.(null),
-    });
+    const idx = data.rows.findIndex(r => r.item_id === row.item_id);
+    openQueue(data.rows, idx >= 0 ? idx : 0);
   };
 
   const toggleExpand = (id) => {
