@@ -83,7 +83,7 @@ export default function DetailedQueryPanel({ setCallFlowScreen, callListData = [
     if (!hasSearched) return; // 初回は検索ボタンを押すまで待つ
     setLoading(true);
     const useEngParam = applied.engIds.length === 1 ? applied.engIds[0] : null;
-    supabase.rpc('smart_queue_detailed_query', {
+    const params = {
       p_statuses:      applied.statuses.length    ? applied.statuses    : null,
       p_prefectures:   applied.prefectures.length ? applied.prefectures : null,
       p_industries:    applied.industries.length  ? applied.industries  : null,
@@ -94,7 +94,10 @@ export default function DetailedQueryPanel({ setCallFlowScreen, callListData = [
       p_engagement_id: useEngParam,
       p_offset:        page * PAGE_SIZE,
       p_limit:         PAGE_SIZE,
-    }).then(({ data: d, error }) => {
+    };
+    console.log('[DetailedQueryPanel] RPC params:', params);
+    supabase.rpc('smart_queue_detailed_query', params).then(({ data: d, error }) => {
+      console.log('[DetailedQueryPanel] RPC response:', { error, total: d?.total, rows_count: d?.rows?.length });
       if (error) {
         console.warn('[DetailedQueryPanel] RPC failed:', error);
         setData({ total: 0, rows: [] });
