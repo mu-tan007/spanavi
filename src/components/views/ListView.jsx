@@ -514,19 +514,8 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
               />
             </div>
             <div>
-              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>業種 *</label>
-              <input value={formData.industry} onChange={e => setFormData(p => ({ ...p, industry: e.target.value }))} style={formInputStyle} placeholder="例: 建設、プラスチック成形、IT" />
-            </div>
-            <div style={{ gridColumn: "span 2" }}>
-              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>リスト名（表示用）</label>
-              <input
-                value={formData.name}
-                onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
-                style={formInputStyle}
-                placeholder={formData.company && formData.industry
-                  ? `未入力なら「${formData.company} - ${formData.industry}」が自動採用`
-                  : '未入力なら「クライアント名 - 業種」が自動採用'}
-              />
+              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>リスト名 *</label>
+              <input value={formData.industry} onChange={e => setFormData(p => ({ ...p, industry: e.target.value }))} style={formInputStyle} placeholder="例: 建設、プラスチック成形、IT、食品⑤" />
             </div>
             <div>
               <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>リスト社数 *</label>

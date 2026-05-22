@@ -67,10 +67,13 @@ export async function updateCallList(supaId, data) {
     contact_id: (data.contactIds && data.contactIds.length > 0) ? data.contactIds[0] : (data.contactId ?? undefined),
   }
   if (data.engagementId) payload.engagement_id = data.engagementId
-  // リスト名は call_lists.name を独立フィールドとして扱う（手動編集された
-  // 「食品⑤」のような独自命名を industry 変更で上書きしないため）。
-  // 明示的に data.name が渡された場合のみ反映する。
-  if (typeof data.name === 'string' && data.name.trim()) payload.name = data.name.trim()
+  // リスト名は「{会社名} - {業種}」で常に再生成（業種＝リスト名として一元管理）。
+  // data.name が明示的に渡されればそれを優先する。
+  if (typeof data.name === 'string' && data.name.trim()) {
+    payload.name = data.name.trim()
+  } else if (data.company && data.industry) {
+    payload.name = `${data.company} - ${data.industry}`
+  }
   const { error } = await supabase
     .from('call_lists')
     .update(payload)
