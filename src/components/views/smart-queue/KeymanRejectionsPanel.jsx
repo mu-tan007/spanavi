@@ -28,7 +28,12 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
   const [page, setPage] = useState(0);
   const [expanded, setExpanded] = useState(new Set());
   const [getterFilter, setGetterFilter] = useState([]);
+  const [tempFilter, setTempFilter] = useState([]); // 日本語ラベル配列 ['高','中','低','未判定']
   const [sortKey, setSortKey] = useState('reject_asc');
+
+  const TEMP_OPTIONS = ['高', '中', '低', '未判定'];
+  const TEMP_LABEL_TO_CODE = { '高': 'HIGH', '中': 'MEDIUM', '低': 'LOW', '未判定': 'UNCERTAIN' };
+  const tempCodes = tempFilter.map(l => TEMP_LABEL_TO_CODE[l]).filter(Boolean);
 
   // 商材・タイプはサーバー側 filter （p_engagement_ids）に統一
   const engagementIds = useMemo(() => {
@@ -41,12 +46,13 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
 
   // ページ表示用データ
   const { data: pageData, isPending } = useQuery({
-    queryKey: ['smart_queue_keyman_rejections', engagementIds, getterFilter, sortKey, page],
+    queryKey: ['smart_queue_keyman_rejections', engagementIds, getterFilter, tempFilter, sortKey, page],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('smart_queue_keyman_rejections', {
         p_engagement_id: null,
         p_engagement_ids: engagementIds,
         p_getter_names:  getterFilter.length ? getterFilter : null,
+        p_temps:         tempCodes.length ? tempCodes : null,
         p_sort:          sortKey,
         p_offset:        page * PAGE_SIZE,
         p_limit:         PAGE_SIZE,
@@ -77,6 +83,7 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
         p_engagement_id: null,
         p_engagement_ids: engagementIds,
         p_getter_names:  getterFilter.length ? getterFilter : null,
+        p_temps:         tempCodes.length ? tempCodes : null,
         p_sort:          sortKey,
       });
       const ids = Array.isArray(data) ? data : [];
@@ -168,6 +175,10 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
           <option value="temp_desc">温度感: 高→低</option>
           <option value="temp_asc">温度感: 低→高</option>
         </select>
+        <span style={{ color: color.border }}>|</span>
+        <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>温度感:</span>
+        <MultiSelectDropdown placeholder="温度感を選択（複数可）" options={TEMP_OPTIONS} values={tempFilter}
+          onChange={v => { setTempFilter(v); setPage(0); }} width={180} />
         <span style={{ color: color.border }}>|</span>
         <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>断り担当:</span>
         <MultiSelectDropdown placeholder="担当者を選択（複数可）" options={getterOptions} values={getterFilter}
