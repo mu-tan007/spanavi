@@ -118,39 +118,35 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
       render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid }}>{r.getter_name || '—'}</span> },
     { key: 'list_name', label: '元リスト', width: 180, align: 'left',
       render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{r.list_name || '—'}</span> },
-    { key: 'memo', label: '断り理由メモ', width: 60, align: 'center',
+    { key: 'memo', label: '断り理由メモ', width: 320, align: 'left',
       render: (r) => {
-        const has = r.rejection_reason || r.report_supplement;
-        if (!has) return <span style={{ color: color.textLight, fontSize: font.size.xs }}>—</span>;
+        const text = r.rejection_reason;
+        if (!text) return <span style={{ color: color.textLight, fontSize: font.size.xs }}>—</span>;
+        const isOpen = expanded.has(r.record_id);
+        const PREVIEW_LEN = 80;
+        const isLong = text.length > PREVIEW_LEN;
+        const preview = isLong && !isOpen ? text.slice(0, PREVIEW_LEN) + '…' : text;
         return (
-          <button onClick={() => toggleExpand(r.record_id)} style={{
-            padding: '2px 8px', borderRadius: radius.md, border: `1px solid ${color.border}`,
-            background: expanded.has(r.record_id) ? alpha(color.navy, 0.08) : color.white,
-            fontSize: font.size.xs - 1, color: color.navy, fontWeight: font.weight.semibold, cursor: 'pointer',
-          }}>{expanded.has(r.record_id) ? '閉じる' : '詳細'}</button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '4px 0' }}>
+            <span style={{
+              fontSize: font.size.xs, color: color.textDark, lineHeight: font.lineHeight.relaxed,
+              whiteSpace: isOpen ? 'pre-wrap' : 'normal',
+            }}>{preview}</span>
+            {isLong && (
+              <button onClick={() => toggleExpand(r.record_id)} style={{
+                alignSelf: 'flex-start',
+                padding: '0', background: 'transparent', border: 'none',
+                color: color.navy, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold,
+                cursor: 'pointer', fontFamily: font.family.sans, textDecoration: 'underline',
+              }}>{isOpen ? '閉じる' : 'もっと見る'}</button>
+            )}
+          </div>
         );
       },
     },
     { key: 'action', label: '架電', width: 80, align: 'center',
       render: (r) => <Button size="sm" variant="primary" onClick={() => handleCall(r)} loading={openingQueue} disabled={!r.list_id || !r.item_id}>架電</Button> },
   ];
-
-  const renderExpandedContent = (r) => (
-    <div style={{ background: color.cream, padding: space[3], borderTop: `1px solid ${color.border}`, fontSize: font.size.xs, color: color.textDark, lineHeight: font.lineHeight.relaxed }}>
-      {r.rejection_reason && (
-        <div style={{ marginBottom: space[2] }}>
-          <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.navy, letterSpacing: 0.4, marginBottom: 4 }}>AI失注分析</div>
-          <pre style={{ margin: 0, padding: space[2], background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, fontFamily: font.family.sans, whiteSpace: 'pre-wrap' }}>{r.rejection_reason}</pre>
-        </div>
-      )}
-      {r.report_supplement && (
-        <div>
-          <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.navy, letterSpacing: 0.4, marginBottom: 4 }}>担当者メモ</div>
-          <pre style={{ margin: 0, padding: space[2], background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, fontFamily: font.family.sans, whiteSpace: 'pre-wrap' }}>{r.report_supplement}</pre>
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div>
@@ -175,18 +171,8 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
           onChange={v => { setGetterFilter(v); setPage(0); }} width={220} />
       </FilterBar>
 
-      <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, overflow: 'hidden' }}>
-        <DataTable columns={columns} rows={filteredRows} rowKey="record_id" loading={isPending}
-          emptyMessage="該当するキーマン断り案件がありません。" height="auto" fillWidth />
-        {filteredRows.filter(r => expanded.has(r.record_id)).map(r => (
-          <div key={`exp-${r.record_id}`} style={{ borderTop: `1px solid ${color.border}` }}>
-            <div style={{ padding: '8px 18px', background: alpha(color.navy, 0.06), fontSize: font.size.xs, color: color.navy, fontWeight: font.weight.semibold }}>
-              {r.company} の詳細
-            </div>
-            {renderExpandedContent(r)}
-          </div>
-        ))}
-      </div>
+      <DataTable columns={columns} rows={filteredRows} rowKey="record_id" loading={isPending}
+        emptyMessage="該当するキーマン断り案件がありません。" height="calc(100vh - 540px)" fillWidth />
 
       {total > PAGE_SIZE && (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: space[2], padding: space[3] }}>
