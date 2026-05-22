@@ -15,7 +15,7 @@ export default function IndustryDataPanel() {
   const [heatmap, setHeatmap]         = useState([]);
   const [loadingNow, setLoadingNow]   = useState(true);
   const [loadingHeat, setLoadingHeat] = useState(false);
-  const [collapsed, setCollapsed]     = useState(false);
+  const [collapsed, setCollapsed]     = useState(true);
 
   const now = useMemo(() => new Date(), []);
   const nowDow  = (now.getDay() + 7) % 7;
