@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { color, space, radius, font } from '../../../constants/design';
 import { Button, Badge, DataTable } from '../../ui';
 import { supabase } from '../../../lib/supabase';
@@ -9,10 +10,7 @@ import {
 import { useCallQueue } from './useCallQueue';
 
 // ② 業種 × ステータス組合せ
-//   現在の曜日/時間帯おすすめ業種をフェッチして上位表示、ユーザー任意で
-//   業種(複数)・ステータス(複数)選択可能
-
-// 表示は 200件/ページ（軽量）、 架電キューは ids RPC で全件対象
+// 表示は 200件/ページ、 架電キューは ids RPC で全件対象
 const PAGE_SIZE = 200;
 
 const STATUS_VARIANT = {
@@ -22,24 +20,29 @@ const STATUS_VARIANT = {
 };
 
 export default function IndustryStatusComboPanel({ setCallFlowScreen, callListData = [], categoryId = null, engIds = [], allEngagements = [] }) {
-  // おすすめ業種 (フェッチ)
-  const [recommendedIndustries, setRecommendedIndustries] = useState([]);
+  // おすすめ業種
+  const { data: recommendedIndustries = [] } = useQuery({
+    queryKey: ['industry_score_now_top5'],
+    queryFn: async () => {
+      const { data } = await supabase.rpc('industry_score_now', { p_min_samples: 30 });
+      return Array.isArray(data) ? data.slice(0, 5) : [];
+    },
+  });
 
-  useEffect(() => {
-    supabase.rpc('industry_score_now', { p_min_samples: 30 }).then(({ data }) => {
-      setRecommendedIndustries(Array.isArray(data) ? data.slice(0, 5) : []);
-    });
-  }, []);
-
-  const [industries, setIndustries] = useState([]); // 初期は未選択
+  const [industries, setIndustries] = useState([]);
   const [statuses, setStatuses]     = useState([]);
   const [page, setPage]             = useState(0);
-  const [data, setData]             = useState({ total: 0, rows: [] });
-  const [loading, setLoading]       = useState(false);
 
-  const useEngParam = engIds.length === 1 ? engIds[0] : null;
+  // 商材選択時に配下の engagement_id 集合を計算。複数 engIds 選択時はそれ優先
+  const engagementIds = useMemo(() => {
+    if (engIds.length > 0) return engIds;
+    if (categoryId) {
+      return (allEngagements || []).filter(e => e.category_id === categoryId).map(e => e.id);
+    }
+    return null;
+  }, [categoryId, engIds, allEngagements]);
 
-  // おすすめ業種が来たら自動でTOP3を選択
+  // おすすめ業種で初回自動選択
   useEffect(() => {
     if (recommendedIndustries.length > 0 && industries.length === 0) {
       setIndustries(recommendedIndustries.slice(0, 3).map(r => r.industry_major));
@@ -47,39 +50,24 @@ export default function IndustryStatusComboPanel({ setCallFlowScreen, callListDa
     // eslint-disable-next-line
   }, [recommendedIndustries]);
 
-  useEffect(() => {
-    setLoading(true);
-    supabase.rpc('smart_queue_industry_status_combo', {
-      p_industries: industries.length ? industries : null,
-      p_statuses:   statuses.length   ? statuses   : null,
-      p_engagement_id: useEngParam,
-      p_offset: page * PAGE_SIZE,
-      p_limit:  PAGE_SIZE,
-    }).then(({ data: d, error }) => {
-      if (error) {
-        console.warn('[IndustryStatusComboPanel] RPC failed:', error);
-        setData({ total: 0, rows: [] });
-      } else {
-        let rows = Array.isArray(d?.rows) ? d.rows : [];
-        let total = d?.total ?? 0;
-        // 商材フィルタ
-        if (categoryId) {
-          const matched = (allEngagements || []).filter(e => e.category_id === categoryId).map(e => e.id);
-          rows = rows.filter(r => matched.includes(r.engagement_id));
-          total = rows.length;
-        }
-        if (engIds.length > 1) {
-          rows = rows.filter(r => engIds.includes(r.engagement_id));
-          total = rows.length;
-        }
-        setData({ total, rows });
-      }
-      setLoading(false);
-    });
-  }, [industries, statuses, useEngParam, page, categoryId, engIds, allEngagements]);
+  useEffect(() => { setPage(0); }, [industries, statuses, engagementIds]);
 
-  useEffect(() => { setPage(0); }, [industries, statuses, useEngParam, categoryId, engIds.length]);
-
+  const { data: pageData, isPending } = useQuery({
+    queryKey: ['smart_queue_industry_status_combo', industries, statuses, engagementIds, page],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('smart_queue_industry_status_combo', {
+        p_industries:    industries.length ? industries : null,
+        p_statuses:      statuses.length   ? statuses   : null,
+        p_engagement_id: null,
+        p_engagement_ids: engagementIds,
+        p_offset: page * PAGE_SIZE,
+        p_limit:  PAGE_SIZE,
+      });
+      if (error) console.warn('[IndustryStatusComboPanel] failed:', error);
+      return data || { total: 0, rows: [] };
+    },
+  });
+  const data = pageData || { total: 0, rows: [] };
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
   const toggleArray = (arr, setter, v) => {
@@ -94,26 +82,10 @@ export default function IndustryStatusComboPanel({ setCallFlowScreen, callListDa
       const { data: ids } = await supabase.rpc('smart_queue_industry_status_combo_ids', {
         p_industries: industries.length ? industries : null,
         p_statuses:   statuses.length   ? statuses   : null,
-        p_engagement_id: useEngParam,
+        p_engagement_id: null,
+        p_engagement_ids: engagementIds,
       });
-      let list = Array.isArray(ids) ? ids : [];
-      if (categoryId || engIds.length > 1) {
-        const listEngMap = new Map();
-        (callListData || []).forEach(l => {
-          const id = l._supaId || l.id;
-          if (id) listEngMap.set(id, l.engagement_id || l.engagementId);
-        });
-        const matchedEngIds = categoryId
-          ? new Set((allEngagements || []).filter(e => e.category_id === categoryId).map(e => e.id))
-          : null;
-        list = list.filter(r => {
-          const eid = listEngMap.get(r.list_id);
-          if (!eid) return false;
-          if (matchedEngIds && !matchedEngIds.has(eid)) return false;
-          if (engIds.length > 0 && !engIds.includes(eid)) return false;
-          return true;
-        });
-      }
+      const list = Array.isArray(ids) ? ids : [];
       const idx = list.findIndex(r => r.item_id === row.item_id);
       openQueue(list, idx >= 0 ? idx : 0);
     } catch (e) {
@@ -154,17 +126,15 @@ export default function IndustryStatusComboPanel({ setCallFlowScreen, callListDa
     <div>
       <PanelHeader
         title="② 業種 × ステータス組合せ"
-        leftKpi={<KPI label="ヒット" value={`${data.total.toLocaleString()} 件`} />}
-        rightKpi={<KPI label="ページ" value={`${page + 1} / ${totalPages}`} muted />}
+        leftKpi={<KPI label="表示中" value={`${data.rows.length} 件`} />}
+        rightKpi={<KPI label="総数" value={`${data.total.toLocaleString()} 件`} muted />}
       />
 
-      {/* おすすめ業種 (クイック選択): 金色アクセントの細枠で控えめに */}
       {recommendedIndustries.length > 0 && (
         <div style={{
           padding: '10px 16px', marginBottom: space[3],
           background: color.white, borderRadius: radius.md,
-          border: `1px solid ${color.border}`,
-          borderLeft: `3px solid ${color.gold}`,
+          border: `1px solid ${color.border}`, borderLeft: `3px solid ${color.gold}`,
           display: 'flex', gap: space[2], alignItems: 'center', flexWrap: 'wrap',
         }}>
           <span style={{
@@ -201,14 +171,17 @@ export default function IndustryStatusComboPanel({ setCallFlowScreen, callListDa
         ))}
       </FilterBar>
 
-      <DataTable columns={columns} rows={data.rows} rowKey={(r, i) => `${r.item_id}-${i}`} loading={loading}
+      <DataTable columns={columns} rows={data.rows} rowKey={(r, i) => `${r.item_id}-${i}`} loading={isPending}
         emptyMessage="該当する企業がありません。" height="calc(100vh - 580px)" fillWidth />
 
       {data.total > PAGE_SIZE && (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: space[2], padding: space[3] }}>
-          <Button size="sm" variant="outline" onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0 || loading}>前へ</Button>
+          <Button size="sm" variant="outline" onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0 || isPending}>前へ</Button>
           <span style={{ fontSize: font.size.xs, color: color.textMid, fontFamily: font.family.mono, minWidth: 100, textAlign: 'center' }}>{page + 1} / {totalPages}</span>
-          <Button size="sm" variant="outline" onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1 || loading}>次へ</Button>
+          <Button size="sm" variant="outline" onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1 || isPending}>次へ</Button>
+          <span style={{ fontSize: font.size.xs, color: color.textLight, marginLeft: space[3] }}>
+            {page * PAGE_SIZE + 1} - {Math.min((page + 1) * PAGE_SIZE, data.total)} / {data.total.toLocaleString()} 件
+          </span>
         </div>
       )}
     </div>

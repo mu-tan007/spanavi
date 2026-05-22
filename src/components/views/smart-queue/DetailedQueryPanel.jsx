@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { color, space, radius, font } from '../../../constants/design';
 import { Button, Badge, DataTable } from '../../ui';
 import { supabase } from '../../../lib/supabase';
@@ -15,7 +16,7 @@ import { useCallQueue } from './useCallQueue';
 // フィルタ変更は draft のみ更新、「検索」ボタン押下で applied に反映 → fetch
 // 並び順: 商材 → タイプ → 業種 → 都道府県 → ステータス → 売上 → 経過日数
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 200;
 
 const STATUS_VARIANT = {
   '未架電': 'neutral', '不通': 'neutral', 'キーマン不在': 'neutral',
@@ -58,9 +59,37 @@ export default function DetailedQueryPanel({ setCallFlowScreen, callListData = [
   const dirty = !isSameDraft(draft, applied);
 
   const [page, setPage]       = useState(0);
-  const [data, setData]       = useState({ total: 0, rows: [] });
-  const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+
+  // useQuery キャッシュ化（同じ条件・ページなら即時描画）
+  // 商材・タイプはサーバー側 filter （p_engagement_ids）に統一
+  const engagementIds = applied.engIds.length > 0 ? applied.engIds : null;
+  const { data: pageData, isPending } = useQuery({
+    queryKey: ['smart_queue_detailed_query', applied, page],
+    enabled: hasSearched,
+    queryFn: async () => {
+      const { data: d, error } = await supabase.rpc('smart_queue_detailed_query', {
+        p_statuses:      applied.statuses.length    ? applied.statuses    : null,
+        p_prefectures:   applied.prefectures.length ? applied.prefectures : null,
+        p_industries:    applied.industries.length  ? applied.industries  : null,
+        p_revenue_min_k: okuToK(applied.revMin),
+        p_revenue_max_k: okuToK(applied.revMax),
+        p_days_min:      applied.daysMin === '' ? null : Number(applied.daysMin),
+        p_days_max:      applied.daysMax === '' ? null : Number(applied.daysMax),
+        p_engagement_id: null,
+        p_engagement_ids: engagementIds,
+        p_offset:        page * PAGE_SIZE,
+        p_limit:         PAGE_SIZE,
+      });
+      if (error) {
+        console.warn('[DetailedQueryPanel] RPC failed:', error);
+        return { total: 0, rows: [] };
+      }
+      return { total: d?.total ?? 0, rows: Array.isArray(d?.rows) ? d.rows : [] };
+    },
+  });
+  const data = pageData || { total: 0, rows: [] };
+  const loading = isPending && hasSearched;
 
   // 商材選択時に、その配下の engagement のみをタイプ選択肢として表示
   const visibleEngagements = useMemo(() => {
@@ -79,50 +108,15 @@ export default function DetailedQueryPanel({ setCallFlowScreen, callListData = [
     // eslint-disable-next-line
   }, [draft.categoryId]);
 
-  // 適用済みフィルタが変わったら fetch（ページ移動含む）
-  useEffect(() => {
-    if (!hasSearched) return; // 初回は検索ボタンを押すまで待つ
-    setLoading(true);
-    const useEngParam = applied.engIds.length === 1 ? applied.engIds[0] : null;
-    supabase.rpc('smart_queue_detailed_query', {
-      p_statuses:      applied.statuses.length    ? applied.statuses    : null,
-      p_prefectures:   applied.prefectures.length ? applied.prefectures : null,
-      p_industries:    applied.industries.length  ? applied.industries  : null,
-      p_revenue_min_k: okuToK(applied.revMin),
-      p_revenue_max_k: okuToK(applied.revMax),
-      p_days_min:      applied.daysMin === '' ? null : Number(applied.daysMin),
-      p_days_max:      applied.daysMax === '' ? null : Number(applied.daysMax),
-      p_engagement_id: useEngParam,
-      p_offset:        page * PAGE_SIZE,
-      p_limit:         PAGE_SIZE,
-    }).then(({ data: d, error }) => {
-      if (error) {
-        console.warn('[DetailedQueryPanel] RPC failed:', error);
-        setData({ total: 0, rows: [] });
-      } else {
-        let rows = Array.isArray(d?.rows) ? d.rows : [];
-        let total = d?.total ?? 0;
-        // 複数 engagement 選択時はクライアント再フィルタ
-        if (applied.engIds.length > 1) {
-          rows = rows.filter(r => applied.engIds.includes(r.engagement_id));
-          total = rows.length;
-        }
-        setData({ total, rows });
-      }
-      setLoading(false);
-    });
-  }, [applied, page, hasSearched]);
-
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
   const { openQueue } = useCallQueue({ setCallFlowScreen, callListData });
-  // 架電ボタン押下: 表示用の 1 ページではなく「ヒット全件」を queue として渡す
+  // 架電ボタン押下: 軽量 ids RPC で全件取得 → 全件キュー
   const [openingQueue, setOpeningQueue] = useState(false);
   const handleCall = async (row) => {
     setOpeningQueue(true);
     try {
-      const useEngParam = applied.engIds.length === 1 ? applied.engIds[0] : null;
-      const { data: d } = await supabase.rpc('smart_queue_detailed_query', {
+      const { data: ids } = await supabase.rpc('smart_queue_detailed_query_ids', {
         p_statuses:      applied.statuses.length    ? applied.statuses    : null,
         p_prefectures:   applied.prefectures.length ? applied.prefectures : null,
         p_industries:    applied.industries.length  ? applied.industries  : null,
@@ -130,19 +124,14 @@ export default function DetailedQueryPanel({ setCallFlowScreen, callListData = [
         p_revenue_max_k: okuToK(applied.revMax),
         p_days_min:      applied.daysMin === '' ? null : Number(applied.daysMin),
         p_days_max:      applied.daysMax === '' ? null : Number(applied.daysMax),
-        p_engagement_id: useEngParam,
-        p_offset:        0,
-        p_limit:         10000,
+        p_engagement_id: null,
+        p_engagement_ids: engagementIds,
       });
-      let allRows = Array.isArray(d?.rows) ? d.rows : [];
-      if (applied.engIds.length > 1) {
-        allRows = allRows.filter(r => applied.engIds.includes(r.engagement_id));
-      }
-      const idx = allRows.findIndex(r => r.item_id === row.item_id);
-      openQueue(allRows, idx >= 0 ? idx : 0);
+      const list = Array.isArray(ids) ? ids : [];
+      const idx = list.findIndex(r => r.item_id === row.item_id);
+      openQueue(list, idx >= 0 ? idx : 0);
     } catch (e) {
       console.warn('[DetailedQueryPanel] queue fetch failed:', e);
-      // フォールバック: 現在ページから queue 作成
       const idx = data.rows.findIndex(r => r.item_id === row.item_id);
       openQueue(data.rows, idx >= 0 ? idx : 0);
     } finally {

@@ -30,15 +30,22 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
   const [getterFilter, setGetterFilter] = useState([]);
   const [sortKey, setSortKey] = useState('reject_asc');
 
-  // 単一なら RPC へ。複数 / 商材選択時はクライアント post-filter
-  const useEngParam = engIds.length === 1 ? engIds[0] : null;
+  // 商材・タイプはサーバー側 filter （p_engagement_ids）に統一
+  const engagementIds = useMemo(() => {
+    if (engIds.length > 0) return engIds;
+    if (categoryId) {
+      return (allEngagements || []).filter(e => e.category_id === categoryId).map(e => e.id);
+    }
+    return null;
+  }, [categoryId, engIds, allEngagements]);
 
   // ページ表示用データ
   const { data: pageData, isPending } = useQuery({
-    queryKey: ['smart_queue_keyman_rejections', useEngParam, getterFilter, sortKey, page],
+    queryKey: ['smart_queue_keyman_rejections', engagementIds, getterFilter, sortKey, page],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('smart_queue_keyman_rejections', {
-        p_engagement_id: useEngParam,
+        p_engagement_id: null,
+        p_engagement_ids: engagementIds,
         p_getter_names:  getterFilter.length ? getterFilter : null,
         p_sort:          sortKey,
         p_offset:        page * PAGE_SIZE,
@@ -49,19 +56,7 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
     },
   });
 
-  // 商材 / 複数 engagement のクライアントフィルタ
-  const filteredRows = useMemo(() => {
-    let rows = pageData?.rows || [];
-    if (categoryId) {
-      const matched = (allEngagements || []).filter(e => e.category_id === categoryId).map(e => e.id);
-      rows = rows.filter(r => matched.includes(r.engagement_id));
-    }
-    if (engIds.length > 1) {
-      rows = rows.filter(r => engIds.includes(r.engagement_id));
-    }
-    return rows;
-  }, [pageData, categoryId, engIds, allEngagements]);
-
+  const filteredRows = pageData?.rows || [];
   const total = pageData?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const getterOptions = pageData?.getters || [];
@@ -79,30 +74,12 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
     setOpeningQueue(true);
     try {
       const { data } = await supabase.rpc('smart_queue_keyman_rejections_ids', {
-        p_engagement_id: useEngParam,
+        p_engagement_id: null,
+        p_engagement_ids: engagementIds,
         p_getter_names:  getterFilter.length ? getterFilter : null,
         p_sort:          sortKey,
       });
-      let ids = Array.isArray(data) ? data : [];
-      // 商材 / 複数 engagement のクライアントフィルタ
-      if (categoryId || engIds.length > 1) {
-        // ids には engagement_id が無いので、 callListData から逆引き
-        const listEngMap = new Map();
-        (callListData || []).forEach(l => {
-          const id = l._supaId || l.id;
-          if (id) listEngMap.set(id, l.engagement_id || l.engagementId);
-        });
-        const matchedEngIds = categoryId
-          ? new Set((allEngagements || []).filter(e => e.category_id === categoryId).map(e => e.id))
-          : null;
-        ids = ids.filter(r => {
-          const eid = listEngMap.get(r.list_id);
-          if (!eid) return false;
-          if (matchedEngIds && !matchedEngIds.has(eid)) return false;
-          if (engIds.length > 0 && !engIds.includes(eid)) return false;
-          return true;
-        });
-      }
+      const ids = Array.isArray(data) ? data : [];
       const idx = ids.findIndex(r => r.item_id === row.item_id);
       openQueue(ids, idx >= 0 ? idx : 0);
     } catch (e) {
