@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { color, space, font } from '../../../constants/design';
 import IndustryDataPanel from './IndustryDataPanel';
 import DetailedQueryPanel from './DetailedQueryPanel';
 import SpecialQueryPanel from './SpecialQueryPanel';
+import { useUrlState } from '../../../hooks/useUrlState';
 
 // スマートキュー: 2階層タブ構造
 //   上段: 業種別キーマン接続率データ（おすすめ業種シグナル）
@@ -17,7 +17,7 @@ const MAIN_TABS = [
 ];
 
 export default function SmartQueueTab({ setCallFlowScreen, callListData }) {
-  const [mainTab, setMainTab] = useState('detailed');
+  const [mainTab, setMainTab] = useUrlState('sq_main', 'detailed', { allowed: ['detailed', 'special'] });
 
   return (
     <div>

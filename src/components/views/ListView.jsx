@@ -11,6 +11,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import PageHeader from '../common/PageHeader';
 import TopListCard, { ProgressPill } from '../common/TopListCard';
 import SmartQueueTab from './smart-queue/SmartQueueTab';
+import { useUrlState } from '../../hooks/useUrlState';
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -130,7 +131,8 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   // displayFilter: engagement slug ('seller_sourcing' / 'matching' / 'client_acquisition') | 'archived' | 'all'
   const [displayFilter, setDisplayFilter] = useState('seller_sourcing');
   // トップタブ: 'lists' = 既存のリスト一覧 / 'smart_queue' = スマートキュー（リスト跨ぎ横断）
-  const [viewMode, setViewMode] = useState('lists');
+  // URLに保持してハードリロード/共有/戻る進むでも保持。プレフィックス lv_ で他画面と衝突回避。
+  const [viewMode, setViewMode] = useUrlState('lv_view', 'lists', { allowed: ['lists', 'smart_queue'] });
   const [extractingUrl, setExtractingUrl] = useState(false);
 
   const handleExtractFromUrl = async () => {

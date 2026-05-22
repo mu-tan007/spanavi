@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { color, space, font } from '../../../constants/design';
 import KeymanRejectionsPanel from './KeymanRejectionsPanel';
 import IndustryStatusComboPanel from './IndustryStatusComboPanel';
 import { OverdueReceptionPanel, OverdueKeymanPanel, ReapproachCandidatesPanel } from './DashboardMigratedPanels';
+import { useUrlState } from '../../../hooks/useUrlState';
 
 const SUBTABS = [
   { value: 'keyman_reject',     label: '① キーマン断り一覧' },
@@ -13,7 +13,9 @@ const SUBTABS = [
 ];
 
 export default function SpecialQueryPanel({ setCallFlowScreen, callListData }) {
-  const [sub, setSub] = useState('keyman_reject');
+  const [sub, setSub] = useUrlState('sq_sub', 'keyman_reject', {
+    allowed: ['keyman_reject', 'industry_combo', 'overdue_reception', 'overdue_keyman', 'reapproach'],
+  });
 
   return (
     <div>
