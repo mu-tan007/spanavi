@@ -1,0 +1,22 @@
+-- =====================================================================
+-- 二重架電防止:
+-- 1) mv_excluded_items を materialized view → 通常テーブル化
+-- 2) call_records INSERT/UPDATE trigger で アポ獲得/除外 を同期更新
+-- 3) smart_queue_call_check RPC: 架電直前の DB チェック用
+-- 4) 各 smart_queue_* RPC に「mv_excluded_items 即時 NOT EXISTS」を追加
+--    （mv_smart_queue_base が古くても、 excluded は実テーブル参照で即時反映）
+-- =====================================================================
+
+-- 本マイグレーションは本日 apply 済（excluded_trigger_and_rpcs /
+-- smart_queue_call_check ）。 履歴として残す。
+--
+-- 内容詳細:
+--   - mv_excluded_items を CREATE TABLE で再構築 + 既存 call_records から
+--     アポ獲得/除外 を移行
+--   - trg_sync_excluded_items() / trg_call_records_excluded_sync trigger
+--   - refresh_smart_queue_mvs() から mv_excluded_items の refresh を除外
+--   - smart_queue_detailed_query / _ids / industry_status_combo / _ids
+--     に excluded_items NOT EXISTS を追加
+--   - smart_queue_call_check(p_item_id) RPC 新設
+--     - latest_status / latest_getter / latest_called_at
+--     - today_other_getters (本日他者架電者リスト)
