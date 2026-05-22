@@ -67,8 +67,10 @@ export async function updateCallList(supaId, data) {
     contact_id: (data.contactIds && data.contactIds.length > 0) ? data.contactIds[0] : (data.contactId ?? undefined),
   }
   if (data.engagementId) payload.engagement_id = data.engagementId
-  // リスト名（name）は industry を含めて再生成。スマートキューの「元リスト」表示に反映させるため
-  if (data.company && data.industry) payload.name = `${data.company} - ${data.industry}`
+  // リスト名は call_lists.name を独立フィールドとして扱う（手動編集された
+  // 「食品⑤」のような独自命名を industry 変更で上書きしないため）。
+  // 明示的に data.name が渡された場合のみ反映する。
+  if (typeof data.name === 'string' && data.name.trim()) payload.name = data.name.trim()
   const { error } = await supabase
     .from('call_lists')
     .update(payload)
@@ -97,7 +99,10 @@ export async function insertCallList(data, engagementId = null) {
       org_id: getOrgId(),
       engagement_id: resolvedEngagementId,
       client_id: clientId,
-      name: `${data.company} - ${data.industry}`,
+      // 明示的に data.name があれば優先、無ければ「会社名 - 業種」を自動生成
+      name: (typeof data.name === 'string' && data.name.trim())
+        ? data.name.trim()
+        : `${data.company} - ${data.industry}`,
       industry: data.industry,
       status: data.status || '架電可能',
       total_count: parseInt(data.count) || 0,

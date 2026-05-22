@@ -124,7 +124,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       return sameSurname.length > 0 ? `${surname}(${parts[1][0]})` : surname;
     }).join('・');
   };
-  const emptyForm = { company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", contactIds: [], companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "", isProspecting: false, engagementId: "" };
+  const emptyForm = { name: "", company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", contactIds: [], companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "", isProspecting: false, engagementId: "" };
   const [formData, setFormData] = useState(emptyForm);
   const [showRec, setShowRec] = useState(true);
   // 'sourcing' = 通常ソーシング, 'prospecting' = クライアント開拓, 'archived' = アーカイブ, 'all' = 全て
@@ -178,6 +178,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
 
   const handleOpenEdit = (list) => {
     setFormData({
+      name: list.name || "",
       company: list.company, type: list.type, status: list.status,
       industry: list.industry, count: String(list.count), manager: list.manager,
       contactIds: list.contactIds || [],
@@ -513,8 +514,19 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
               />
             </div>
             <div>
-              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>リスト名 *</label>
+              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>業種 *</label>
               <input value={formData.industry} onChange={e => setFormData(p => ({ ...p, industry: e.target.value }))} style={formInputStyle} placeholder="例: 建設、プラスチック成形、IT" />
+            </div>
+            <div style={{ gridColumn: "span 2" }}>
+              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>リスト名（表示用）</label>
+              <input
+                value={formData.name}
+                onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
+                style={formInputStyle}
+                placeholder={formData.company && formData.industry
+                  ? `未入力なら「${formData.company} - ${formData.industry}」が自動採用`
+                  : '未入力なら「クライアント名 - 業種」が自動採用'}
+              />
             </div>
             <div>
               <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>リスト社数 *</label>
