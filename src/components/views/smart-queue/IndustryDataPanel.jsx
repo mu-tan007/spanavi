@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { color, space, radius, font, alpha } from '../../../constants/design';
 import { supabase } from '../../../lib/supabase';
 
@@ -9,53 +10,45 @@ const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
 //   上段: 現在(JST)曜日×時間帯の業種別接続率ランキング
 //   下段: 業種選択 → 曜日×時間帯ヒートマップ
 export default function IndustryDataPanel() {
-  const [nowRanking, setNowRanking]   = useState([]);
-  const [industries, setIndustries]   = useState([]);
   const [selectedIndustry, setSelectedIndustry] = useState(null);
-  const [heatmap, setHeatmap]         = useState([]);
-  const [loadingNow, setLoadingNow]   = useState(true);
-  const [loadingHeat, setLoadingHeat] = useState(false);
-  const [collapsed, setCollapsed]     = useState(true);
+  const [collapsed, setCollapsed] = useState(true);
 
   const now = useMemo(() => new Date(), []);
   const nowDow  = (now.getDay() + 7) % 7;
   const nowHour = now.getHours();
 
-  // 初回: いまランキング + 業種選択肢
-  useEffect(() => {
-    let cancelled = false;
-    setLoadingNow(true);
-    Promise.all([
-      supabase.rpc('industry_score_now',        { p_min_samples: 30 }),
-      supabase.rpc('industry_score_industries', { p_min_samples: 100 }),
-    ]).then(([nowRes, indRes]) => {
-      if (cancelled) return;
-      const ranks = Array.isArray(nowRes.data) ? nowRes.data : [];
-      const inds  = Array.isArray(indRes.data) ? indRes.data : [];
-      setNowRanking(ranks);
-      setIndustries(inds);
-      if (inds.length > 0 && !selectedIndustry) {
-        setSelectedIndustry(inds[0].industry_major);
-      }
-      setLoadingNow(false);
-    });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // 共通キャッシュに乗せる（タブ切替で即時描画）
+  const { data: nowRanking = [], isPending: loadingNow1 } = useQuery({
+    queryKey: ['industry_score_now', 30],
+    queryFn: async () => {
+      const { data } = await supabase.rpc('industry_score_now', { p_min_samples: 30 });
+      return Array.isArray(data) ? data : [];
+    },
+  });
+  const { data: industries = [], isPending: loadingNow2 } = useQuery({
+    queryKey: ['industry_score_industries', 100],
+    queryFn: async () => {
+      const { data } = await supabase.rpc('industry_score_industries', { p_min_samples: 100 });
+      return Array.isArray(data) ? data : [];
+    },
+  });
+  const loadingNow = loadingNow1 || loadingNow2;
 
-  // 業種選択 → ヒートマップ取得
+  // 業種選択肢が来たら最初の業種をデフォルト選択
   useEffect(() => {
-    if (!selectedIndustry) return;
-    let cancelled = false;
-    setLoadingHeat(true);
-    supabase.rpc('industry_score_heatmap', { p_industry: selectedIndustry })
-      .then(({ data }) => {
-        if (cancelled) return;
-        setHeatmap(Array.isArray(data) ? data : []);
-        setLoadingHeat(false);
-      });
-    return () => { cancelled = true; };
-  }, [selectedIndustry]);
+    if (industries.length > 0 && !selectedIndustry) {
+      setSelectedIndustry(industries[0].industry_major);
+    }
+  }, [industries, selectedIndustry]);
+
+  const { data: heatmap = [], isPending: loadingHeat } = useQuery({
+    queryKey: ['industry_score_heatmap', selectedIndustry],
+    enabled: !!selectedIndustry,
+    queryFn: async () => {
+      const { data } = await supabase.rpc('industry_score_heatmap', { p_industry: selectedIndustry });
+      return Array.isArray(data) ? data : [];
+    },
+  });
 
   // ヒートマップ用に dow,hour → cell のマップ
   const heatmapMap = useMemo(() => {

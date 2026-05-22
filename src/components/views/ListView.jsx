@@ -371,7 +371,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         padding: isMobile ? "10px 12px" : "14px 18px", background: color.white, borderRadius: radius.md,
         border: `1px solid ${color.border}`,
       }}>
-        <input type="text" placeholder="企業名・業種・担当者で検索..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ ...inputStyle, flex: "1 1 200px", minWidth: 180 }} />
+        <input type="text" placeholder="企業名・リスト名・担当者で検索..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ ...inputStyle, flex: "1 1 200px", minWidth: 180 }} />
         {(() => {
           const STATUS_OPTIONS = ['架電可能', '架電停止'];
           const isAll = filterStatus.length === 0;

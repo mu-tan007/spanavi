@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { color, space, radius, font } from '../../../constants/design';
 import { Button, DataTable } from '../../ui';
 import { supabase } from '../../../lib/supabase';
@@ -44,22 +45,18 @@ function useQueueOpener(setCallFlowScreen, callListData, rows) {
 }
 
 function useRpc(rpcName, args) {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    setLoading(true);
-    supabase.rpc(rpcName, args).then(({ data, error }) => {
+  const { data, isPending } = useQuery({
+    queryKey: [rpcName, args],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc(rpcName, args);
       if (error) {
         console.warn(`[${rpcName}] failed:`, error);
-        setRows([]);
-      } else {
-        setRows(Array.isArray(data) ? data : []);
+        return [];
       }
-      setLoading(false);
-    });
-    // eslint-disable-next-line
-  }, []);
-  return { rows, loading };
+      return Array.isArray(data) ? data : [];
+    },
+  });
+  return { rows: data || [], loading: isPending };
 }
 
 // ③ 受付再コール超過
