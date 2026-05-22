@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { color, space, radius, font, alpha } from '../../../constants/design';
+import { color, space, radius, font } from '../../../constants/design';
 import { Button, Badge, DataTable } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import {
@@ -121,21 +121,24 @@ export default function IndustryStatusComboPanel({ setCallFlowScreen, callListDa
     <div>
       <PanelHeader
         title="② 業種 × ステータス組合せ"
-        description="現在の曜日/時間帯おすすめ業種をデフォルト選択。業種・ステータスを複数選択して横断的に抽出。"
         leftKpi={<KPI label="ヒット" value={`${data.total.toLocaleString()} 件`} />}
         rightKpi={<KPI label="ページ" value={`${page + 1} / ${totalPages}`} muted />}
       />
 
-      {/* おすすめ業種 (クイック選択) */}
+      {/* おすすめ業種 (クイック選択): 金色アクセントの細枠で控えめに */}
       {recommendedIndustries.length > 0 && (
         <div style={{
           padding: '10px 16px', marginBottom: space[3],
-          background: alpha(color.gold, 0.06), borderRadius: radius.md,
-          border: `1px solid ${alpha(color.gold, 0.30)}`,
+          background: color.white, borderRadius: radius.md,
+          border: `1px solid ${color.border}`,
+          borderLeft: `3px solid ${color.gold}`,
           display: 'flex', gap: space[2], alignItems: 'center', flexWrap: 'wrap',
         }}>
-          <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: '#92670A' }}>
-            ⭐ いまのおすすめ業種:
+          <span style={{
+            fontSize: font.size.xs, fontWeight: font.weight.bold,
+            color: color.gold, letterSpacing: font.letterSpacing.wider,
+          }}>
+            いまのおすすめ業種
           </span>
           {recommendedIndustries.map((r, i) => (
             <FilterButton key={r.industry_major}

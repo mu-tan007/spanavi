@@ -12,8 +12,8 @@ import { useUrlState } from '../../../hooks/useUrlState';
 //                       ④キーマン再コール超過 ⑤再アプローチ候補
 
 const MAIN_TABS = [
-  { value: 'detailed', label: '詳細条件抽出', hint: 'ステータス/地域/業種/売上で自由抽出' },
-  { value: 'special',  label: '特殊条件抽出', hint: 'キーマン断り / 業種×状況 / ダッシュボード移管' },
+  { value: 'detailed', label: '詳細条件抽出' },
+  { value: 'special',  label: '特殊条件抽出' },
 ];
 
 export default function SmartQueueTab({ setCallFlowScreen, callListData }) {
@@ -37,16 +37,10 @@ export default function SmartQueueTab({ setCallFlowScreen, callListData }) {
               fontWeight: active ? font.weight.bold : font.weight.semibold,
               color: active ? color.navy : color.textMid, cursor: 'pointer',
               fontFamily: font.family.sans, transition: 'all 0.12s', marginBottom: -1,
-              display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1,
             }}
               onMouseEnter={e => { if (!active) e.currentTarget.style.color = color.navy; }}
               onMouseLeave={e => { if (!active) e.currentTarget.style.color = color.textMid; }}
-            >
-              <span>{t.label}</span>
-              <span style={{ fontSize: 9.5, color: color.textLight, fontWeight: font.weight.medium }}>
-                {t.hint}
-              </span>
-            </button>
+            >{t.label}</button>
           );
         })}
       </div>

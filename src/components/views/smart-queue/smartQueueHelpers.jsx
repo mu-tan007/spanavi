@@ -49,17 +49,14 @@ export function FilterButton({ active, onClick, children }) {
   );
 }
 
-export function PanelHeader({ title, description, leftKpi, rightKpi }) {
+export function PanelHeader({ title, leftKpi, rightKpi }) {
   return (
     <div style={{
       padding: '14px 18px', background: color.white, borderRadius: radius.md,
       border: `1px solid ${color.border}`, marginBottom: space[3],
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: space[2] }}>
-        <div>
-          <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy }}>{title}</div>
-          <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 2 }}>{description}</div>
-        </div>
+        <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy }}>{title}</div>
         <div style={{ display: 'flex', gap: space[3], alignItems: 'center' }}>
           {leftKpi}
           {rightKpi}

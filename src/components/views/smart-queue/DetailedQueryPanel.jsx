@@ -201,7 +201,6 @@ export default function DetailedQueryPanel({ setCallFlowScreen, callListData = [
     <div>
       <PanelHeader
         title="詳細条件抽出"
-        description="フィルタを設定して「検索」を押すと結果を取得します。条件変更だけでは検索は走りません。"
         leftKpi={<KPI label="ヒット" value={hasSearched ? `${data.total.toLocaleString()} 件` : '—'} />}
         rightKpi={<KPI label="ページ" value={hasSearched ? `${page + 1} / ${totalPages}` : '—'} muted />}
       />

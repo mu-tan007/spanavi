@@ -81,7 +81,7 @@ export function OverdueReceptionPanel({ setCallFlowScreen, callListData = [], ca
   ];
   return (
     <div>
-      <PanelHeader title="③ 受付再コール超過" description="受付再コール予定日時を超過した案件（旧ダッシュボード）"
+      <PanelHeader title="③ 受付再コール超過"
         leftKpi={<KPI label="件数" value={`${rows.length} 件`} />} />
       <DataTable columns={columns} rows={rows} rowKey={(r, i) => `${r.record_id}-${i}`} loading={loading}
         emptyMessage="受付再コール超過はありません。" height="calc(100vh - 380px)" fillWidth />
@@ -108,7 +108,7 @@ export function OverdueKeymanPanel({ setCallFlowScreen, callListData = [], categ
   ];
   return (
     <div>
-      <PanelHeader title="④ キーマン再コール超過" description="キーマン再コール予定日時を超過した案件（旧ダッシュボード）"
+      <PanelHeader title="④ キーマン再コール超過"
         leftKpi={<KPI label="件数" value={`${rows.length} 件`} />} />
       <DataTable columns={columns} rows={rows} rowKey={(r, i) => `${r.record_id || r.id}-${i}`} loading={loading}
         emptyMessage="キーマン再コール超過はありません。" height="calc(100vh - 380px)" fillWidth />
@@ -141,7 +141,7 @@ export function ReapproachCandidatesPanel({ setCallFlowScreen, callListData = []
   ];
   return (
     <div>
-      <PanelHeader title="⑤ 再アプローチ候補" description="過去アポ取得企業（電話一致 or 旧データ）が現在のリストでまだフォロー中（旧ダッシュボード）"
+      <PanelHeader title="⑤ 再アプローチ候補"
         leftKpi={<KPI label="件数" value={`${rows.length} 件`} />} />
       <DataTable columns={columns} rows={rows} rowKey={(r, i) => `${r.item_id}-${i}`} loading={loading}
         emptyMessage="再アプローチ候補はありません。" height="calc(100vh - 380px)" fillWidth />

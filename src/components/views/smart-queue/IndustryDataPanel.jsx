@@ -85,13 +85,8 @@ export default function IndustryDataPanel() {
       border: `1px solid ${color.border}`, marginBottom: space[3],
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: collapsed ? 0 : space[3] }}>
-        <div>
-          <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy }}>
-            業種別 キーマン接続率データ
-          </div>
-          <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 2 }}>
-            全期間の架電実績（アーカイブ含む）から TSR 業種 × 曜日 × 時間帯でキーマン接続率を集計
-          </div>
+        <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy }}>
+          業種別 キーマン接続率データ
         </div>
         <button onClick={() => setCollapsed(c => !c)} style={{
           padding: '4px 10px', background: 'transparent', border: `1px solid ${color.border}`,
@@ -203,10 +198,6 @@ export default function IndustryDataPanel() {
                     ))}
                   </tbody>
                 </table>
-                <div style={{ fontSize: 10, color: color.textLight, marginTop: 6 }}>
-                  数値はキーマン接続率（%）。色が濃いほど接続率が高い。母数が10件未満のマスは数値のみ表示します。<br />
-                  金色の枠 = 現在の曜日/時間帯。
-                </div>
               </div>
             )}
           </div>
