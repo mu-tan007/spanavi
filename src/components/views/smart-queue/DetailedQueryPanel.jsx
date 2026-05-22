@@ -116,9 +116,38 @@ export default function DetailedQueryPanel({ setCallFlowScreen, callListData = [
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
   const { openQueue } = useCallQueue({ setCallFlowScreen, callListData });
-  const handleCall = (row) => {
-    const idx = data.rows.findIndex(r => r.item_id === row.item_id);
-    openQueue(data.rows, idx >= 0 ? idx : 0);
+  // 架電ボタン押下: 表示用の 1 ページではなく「ヒット全件」を queue として渡す
+  const [openingQueue, setOpeningQueue] = useState(false);
+  const handleCall = async (row) => {
+    setOpeningQueue(true);
+    try {
+      const useEngParam = applied.engIds.length === 1 ? applied.engIds[0] : null;
+      const { data: d } = await supabase.rpc('smart_queue_detailed_query', {
+        p_statuses:      applied.statuses.length    ? applied.statuses    : null,
+        p_prefectures:   applied.prefectures.length ? applied.prefectures : null,
+        p_industries:    applied.industries.length  ? applied.industries  : null,
+        p_revenue_min_k: okuToK(applied.revMin),
+        p_revenue_max_k: okuToK(applied.revMax),
+        p_days_min:      applied.daysMin === '' ? null : Number(applied.daysMin),
+        p_days_max:      applied.daysMax === '' ? null : Number(applied.daysMax),
+        p_engagement_id: useEngParam,
+        p_offset:        0,
+        p_limit:         10000,
+      });
+      let allRows = Array.isArray(d?.rows) ? d.rows : [];
+      if (applied.engIds.length > 1) {
+        allRows = allRows.filter(r => applied.engIds.includes(r.engagement_id));
+      }
+      const idx = allRows.findIndex(r => r.item_id === row.item_id);
+      openQueue(allRows, idx >= 0 ? idx : 0);
+    } catch (e) {
+      console.warn('[DetailedQueryPanel] queue fetch failed:', e);
+      // フォールバック: 現在ページから queue 作成
+      const idx = data.rows.findIndex(r => r.item_id === row.item_id);
+      openQueue(data.rows, idx >= 0 ? idx : 0);
+    } finally {
+      setOpeningQueue(false);
+    }
   };
 
   const setDraftField = (k, v) => setDraft(d => ({ ...d, [k]: v }));
@@ -165,7 +194,7 @@ export default function DetailedQueryPanel({ setCallFlowScreen, callListData = [
     { key: 'list_name', label: '元リスト', width: 200, align: 'left',
       render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{r.list_name || '—'}</span> },
     { key: 'action', label: '架電', width: 90, align: 'center',
-      render: (r) => <Button size="sm" variant="primary" onClick={() => handleCall(r)} disabled={!r.list_id || !r.item_id}>架電</Button> },
+      render: (r) => <Button size="sm" variant="primary" onClick={() => handleCall(r)} loading={openingQueue} disabled={!r.list_id || !r.item_id}>架電</Button> },
   ];
 
   return (

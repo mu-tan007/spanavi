@@ -7,7 +7,8 @@ import { useCallQueue } from './useCallQueue';
 
 // ① キーマン断り一覧（温度感ラベル + 断り理由メモ）
 //   AI分析未実施は「未判定」と表示
-const PAGE_SIZE = 200;
+// 上限撤廃: 一回で全件取得（最大10,000件）。表示は DataTable の縦スクロール
+const PAGE_SIZE = 10000;
 
 const TEMP_BADGE = {
   HIGH:      { variant: 'success', label: '温度感: 高' },
