@@ -18,9 +18,25 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    const { recording_url } = await req.json()
+    const body = await req.json()
+    let { recording_url } = body
+    const { record_id, save_to_db } = body
+
+    // record_id 指定時は DB から recording_url を取得（service role 経由なので RLS bypass）
+    if (record_id && !recording_url) {
+      const { data, error } = await supabase
+        .from('call_records')
+        .select('recording_url')
+        .eq('id', record_id)
+        .single()
+      if (error || !data?.recording_url) {
+        return json({ error: `failed to fetch recording_url for ${record_id}: ${error?.message || 'no url'}` }, 400)
+      }
+      recording_url = data.recording_url
+    }
+
     if (!recording_url) {
-      return json({ error: 'recording_url is required' }, 400)
+      return json({ error: 'recording_url or record_id is required' }, 400)
     }
 
     // ── 1. Zoom token (zoom URL のみ) ──────────────────────────────────
@@ -160,6 +176,22 @@ ${transcript}`
       result = m ? JSON.parse(m[0]) : {}
     } catch (e) {
       console.error('[analyze-rejection-recording] JSON parse error:', e, 'raw:', claudeText)
+    }
+
+    // record_id + save_to_db フラグなら call_records.rejection_reason に保存
+    //   フォーマット: `${recall_potential}\n${rejection_reason}`
+    //   KeymanRejectionsPanel の extractTemp が冒頭の HIGH/MEDIUM/LOW を抽出
+    if (record_id && save_to_db) {
+      const temp = result.recall_potential || ''
+      const body = result.rejection_reason || ''
+      const reason = temp ? `${temp}\n${body}` : body
+      if (reason) {
+        const { error: updErr } = await supabase
+          .from('call_records')
+          .update({ rejection_reason: reason })
+          .eq('id', record_id)
+        if (updErr) console.error('[analyze-rejection-recording] update failed:', updErr)
+      }
     }
 
     return json({
