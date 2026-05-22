@@ -92,14 +92,6 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
   };
 
   const columns = [
-    { key: 'temp', label: '温度感', width: 100, align: 'center',
-      render: (r) => {
-        const temp = extractTemp(r.rejection_reason);
-        const conf = temp ? TEMP_BADGE[temp] : TEMP_BADGE.UNCERTAIN;
-        const isUnjudged = !r.rejection_reason;
-        return isUnjudged ? <Badge variant="neutral">未判定</Badge> : <Badge variant={conf.variant} dot>{conf.label}</Badge>;
-      },
-    },
     { key: 'company', label: '企業名', width: 240, align: 'left',
       render: (r) => (
         <div>
@@ -118,9 +110,18 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
       render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid }}>{r.getter_name || '—'}</span> },
     { key: 'list_name', label: '元リスト', width: 180, align: 'left',
       render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{r.list_name || '—'}</span> },
+    { key: 'temp', label: '温度感', width: 100, align: 'center',
+      render: (r) => {
+        const temp = extractTemp(r.rejection_reason);
+        const conf = temp ? TEMP_BADGE[temp] : TEMP_BADGE.UNCERTAIN;
+        const isUnjudged = !r.rejection_reason;
+        return isUnjudged ? <Badge variant="neutral">未判定</Badge> : <Badge variant={conf.variant} dot>{conf.label}</Badge>;
+      },
+    },
     { key: 'memo', label: '断り理由メモ', width: 320, align: 'left',
       render: (r) => {
-        const text = r.rejection_reason;
+        // 冒頭の温度感プレフィックス（HIGH\n / MEDIUM\n / LOW\n）は表示から除去
+        const text = (r.rejection_reason || '').replace(/^(HIGH|MEDIUM|LOW)\s*\n?/, '').trim();
         if (!text) return <span style={{ color: color.textLight, fontSize: font.size.xs }}>—</span>;
         const isOpen = expanded.has(r.record_id);
         const PREVIEW_LEN = 80;
