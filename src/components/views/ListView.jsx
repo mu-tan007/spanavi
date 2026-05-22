@@ -10,6 +10,7 @@ import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import PageHeader from '../common/PageHeader';
 import TopListCard, { ProgressPill } from '../common/TopListCard';
+import SmartQueueTab from './smart-queue/SmartQueueTab';
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -67,7 +68,7 @@ const LISTVIEW_ARCHIVE_COLS = [
   { key: 'actions', width: 80, align: 'right' },
 ];
 
-export default function ListView({ filteredLists, allLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [], contactsByClient = {}, onOpenIndustryRules }) {
+export default function ListView({ filteredLists, allLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [], contactsByClient = {}, setCallFlowScreen, onOpenIndustryRules }) {
   const isMobile = useIsMobile();
   const { currentEngagement, engagements: allEngagements, categories: allCategories } = useEngagements();
   // 商材（business_categories）：現状はM&Aのみ
@@ -128,6 +129,8 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   // 'sourcing' = 通常ソーシング, 'prospecting' = クライアント開拓, 'archived' = アーカイブ, 'all' = 全て
   // displayFilter: engagement slug ('seller_sourcing' / 'matching' / 'client_acquisition') | 'archived' | 'all'
   const [displayFilter, setDisplayFilter] = useState('seller_sourcing');
+  // トップタブ: 'lists' = 既存のリスト一覧 / 'smart_queue' = スマートキュー（リスト跨ぎ横断）
+  const [viewMode, setViewMode] = useState('lists');
   const [extractingUrl, setExtractingUrl] = useState(false);
 
   const handleExtractFromUrl = async () => {
@@ -233,11 +236,42 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       <PageHeader
         title="架電リスト"
         description="架電リスト管理"
-        style={{ marginBottom: 24 }}
-        right={onOpenIndustryRules ? (
+        style={{ marginBottom: space[3] }}
+        right={onOpenIndustryRules && viewMode === 'lists' ? (
           <Button variant="secondary" size="sm" onClick={onOpenIndustryRules}>業種別ルールを開く</Button>
         ) : null}
       />
+
+      {/* トップタブ: リスト一覧 / スマートキュー */}
+      <div style={{
+        display: 'flex', gap: space[1], marginBottom: space[4],
+        borderBottom: `1px solid ${color.border}`,
+      }}>
+        {[
+          { value: 'lists',       label: 'リスト一覧' },
+          { value: 'smart_queue', label: 'スマートキュー' },
+        ].map(t => {
+          const active = viewMode === t.value;
+          return (
+            <button key={t.value} onClick={() => setViewMode(t.value)} style={{
+              padding: '10px 22px', background: 'transparent',
+              border: 'none', borderBottom: `2px solid ${active ? color.navy : 'transparent'}`,
+              fontSize: font.size.sm, fontWeight: active ? font.weight.bold : font.weight.semibold,
+              color: active ? color.navy : color.textMid, cursor: 'pointer',
+              fontFamily: font.family.sans, transition: 'all 0.12s', marginBottom: -1,
+            }}
+              onMouseEnter={e => { if (!active) e.currentTarget.style.color = color.navy; }}
+              onMouseLeave={e => { if (!active) e.currentTarget.style.color = color.textMid; }}
+            >{t.label}</button>
+          );
+        })}
+      </div>
+
+      {viewMode === 'smart_queue' && (
+        <SmartQueueTab setCallFlowScreen={setCallFlowScreen} />
+      )}
+
+      {viewMode === 'lists' && <>
       {/* 時間外メッセージ */}
       {now && (now.getHours() < 7 || now.getHours() >= 20) && (
         <div style={{ background: color.white, borderRadius: radius.md, padding: "14px 20px", marginBottom: space[4], border: `1px solid ${color.border}`, borderLeft: `4px solid ${color.textLight}`, display: "flex", alignItems: "center", gap: space[2] }}>
@@ -720,6 +754,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         })()}
         </div>
       </div>
+      </>}
     </div>
   );
 }
