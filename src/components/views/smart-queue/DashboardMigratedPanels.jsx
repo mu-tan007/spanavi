@@ -1,10 +1,36 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { color, space, radius, font } from '../../../constants/design';
 import { Button, DataTable } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { PanelHeader, KPI } from './smartQueueHelpers';
 import { useCallQueue } from './useCallQueue';
+
+const PAGE_SIZE = 200;
+
+// クライアント側ページネーション（200件/ページ）
+function usePagedRows(rows) {
+  const [page, setPage] = useState(0);
+  useEffect(() => { setPage(0); }, [rows]);
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageRows = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  return { page, setPage, total, totalPages, pageRows };
+}
+
+function Pagination({ page, totalPages, total, loading, onChange }) {
+  if (total <= PAGE_SIZE) return null;
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: space[2], padding: space[3] }}>
+      <Button size="sm" variant="outline" onClick={() => onChange(Math.max(0, page - 1))} disabled={page === 0 || loading}>前へ</Button>
+      <span style={{ fontSize: font.size.xs, color: color.textMid, fontFamily: font.family.mono, minWidth: 100, textAlign: 'center' }}>{page + 1} / {totalPages}</span>
+      <Button size="sm" variant="outline" onClick={() => onChange(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1 || loading}>次へ</Button>
+      <span style={{ fontSize: font.size.xs, color: color.textLight, marginLeft: space[3] }}>
+        {page * PAGE_SIZE + 1} - {Math.min((page + 1) * PAGE_SIZE, total)} / {total.toLocaleString()} 件
+      </span>
+    </div>
+  );
+}
 
 // クライアント側で商材・タイプによる post-filter
 //   ダッシュボード移管RPCはこれらの引数を持たないため、結果をJSで絞る。
@@ -63,6 +89,7 @@ function useRpc(rpcName, args) {
 export function OverdueReceptionPanel({ setCallFlowScreen, callListData = [], categoryId = null, engIds = [], allEngagements = [] }) {
   const { rows: allRows, loading } = useRpc('dashboard_overdue_reception_recalls');
   const rows = useEngFilter(allRows, { categoryId, engIds, allEngagements, callListData });
+  const { page, setPage, total, totalPages, pageRows } = usePagedRows(rows);
   const handleCall = useQueueOpener(setCallFlowScreen, callListData, rows);
   const columns = [
     { key: 'company', label: '企業名', width: 240, align: 'left',
@@ -79,9 +106,11 @@ export function OverdueReceptionPanel({ setCallFlowScreen, callListData = [], ca
   return (
     <div>
       <PanelHeader title="③ 受付再コール超過"
-        leftKpi={<KPI label="件数" value={`${rows.length} 件`} />} />
-      <DataTable columns={columns} rows={rows} rowKey={(r, i) => `${r.record_id}-${i}`} loading={loading}
+        leftKpi={<KPI label="表示中" value={`${pageRows.length} 件`} />}
+        rightKpi={<KPI label="総数" value={`${total.toLocaleString()} 件`} muted />} />
+      <DataTable columns={columns} rows={pageRows} rowKey={(r, i) => `${r.record_id}-${i}`} loading={loading}
         emptyMessage="受付再コール超過はありません。" height="calc(100vh - 380px)" fillWidth />
+      <Pagination page={page} totalPages={totalPages} total={total} loading={loading} onChange={setPage} />
     </div>
   );
 }
@@ -90,6 +119,7 @@ export function OverdueReceptionPanel({ setCallFlowScreen, callListData = [], ca
 export function OverdueKeymanPanel({ setCallFlowScreen, callListData = [], categoryId = null, engIds = [], allEngagements = [] }) {
   const { rows: allRows, loading } = useRpc('dashboard_overdue_recalls');
   const rows = useEngFilter(allRows, { categoryId, engIds, allEngagements, callListData });
+  const { page, setPage, total, totalPages, pageRows } = usePagedRows(rows);
   const handleCall = useQueueOpener(setCallFlowScreen, callListData, rows);
   const columns = [
     { key: 'company', label: '企業名', width: 240, align: 'left',
@@ -106,9 +136,11 @@ export function OverdueKeymanPanel({ setCallFlowScreen, callListData = [], categ
   return (
     <div>
       <PanelHeader title="④ キーマン再コール超過"
-        leftKpi={<KPI label="件数" value={`${rows.length} 件`} />} />
-      <DataTable columns={columns} rows={rows} rowKey={(r, i) => `${r.record_id || r.id}-${i}`} loading={loading}
+        leftKpi={<KPI label="表示中" value={`${pageRows.length} 件`} />}
+        rightKpi={<KPI label="総数" value={`${total.toLocaleString()} 件`} muted />} />
+      <DataTable columns={columns} rows={pageRows} rowKey={(r, i) => `${r.record_id || r.id}-${i}`} loading={loading}
         emptyMessage="キーマン再コール超過はありません。" height="calc(100vh - 380px)" fillWidth />
+      <Pagination page={page} totalPages={totalPages} total={total} loading={loading} onChange={setPage} />
     </div>
   );
 }
@@ -117,6 +149,7 @@ export function OverdueKeymanPanel({ setCallFlowScreen, callListData = [], categ
 export function ReapproachCandidatesPanel({ setCallFlowScreen, callListData = [], categoryId = null, engIds = [], allEngagements = [] }) {
   const { rows: allRows, loading } = useRpc('dashboard_reapproach_candidates');
   const rows = useEngFilter(allRows, { categoryId, engIds, allEngagements, callListData });
+  const { page, setPage, total, totalPages, pageRows } = usePagedRows(rows);
   const handleCall = useQueueOpener(setCallFlowScreen, callListData, rows);
   const columns = [
     { key: 'company', label: '企業名', width: 240, align: 'left',
@@ -135,9 +168,11 @@ export function ReapproachCandidatesPanel({ setCallFlowScreen, callListData = []
   return (
     <div>
       <PanelHeader title="⑤ 再アプローチ候補"
-        leftKpi={<KPI label="件数" value={`${rows.length} 件`} />} />
-      <DataTable columns={columns} rows={rows} rowKey={(r, i) => `${r.item_id}-${i}`} loading={loading}
+        leftKpi={<KPI label="表示中" value={`${pageRows.length} 件`} />}
+        rightKpi={<KPI label="総数" value={`${total.toLocaleString()} 件`} muted />} />
+      <DataTable columns={columns} rows={pageRows} rowKey={(r, i) => `${r.item_id}-${i}`} loading={loading}
         emptyMessage="再アプローチ候補はありません。" height="calc(100vh - 380px)" fillWidth />
+      <Pagination page={page} totalPages={totalPages} total={total} loading={loading} onChange={setPage} />
     </div>
   );
 }
