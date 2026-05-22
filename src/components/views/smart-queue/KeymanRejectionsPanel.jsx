@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { color, space, radius, font, alpha } from '../../../constants/design';
 import { Button, Badge, DataTable } from '../../ui';
 import { supabase } from '../../../lib/supabase';
@@ -6,10 +7,9 @@ import { PanelHeader, KPI, FilterBar } from './smartQueueHelpers';
 import MultiSelectDropdown from './MultiSelectDropdown';
 import { useCallQueue } from './useCallQueue';
 
-// ① キーマン断り一覧（温度感ラベル + 断り理由メモ）
-//   AI分析未実施は「未判定」と表示
-// 上限撤廃: 一回で全件取得（実質撤廃）。表示は DataTable の縦スクロール
-const PAGE_SIZE = 100000;
+// ① キーマン断り一覧
+//   表示は 200件/ページ（軽量）、 架電キューは ids RPC で全件対象
+const PAGE_SIZE = 200;
 
 const TEMP_BADGE = {
   HIGH:      { variant: 'success', label: '温度感: 高' },
@@ -18,8 +18,6 @@ const TEMP_BADGE = {
   UNCERTAIN: { variant: 'neutral', label: '判定困難' },
 };
 
-// rejection_reason の冒頭から temp を抽出（generate-call-report が
-// HIGH/MEDIUM/LOW を文頭に書く仕様）
 function extractTemp(text) {
   if (!text) return null;
   const m = text.match(/^(HIGH|MEDIUM|LOW)/i);
@@ -27,81 +25,93 @@ function extractTemp(text) {
 }
 
 export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData = [], categoryId = null, engIds = [], allEngagements = [] }) {
-  const [page, setPage]   = useState(0);
-  const [data, setData]   = useState({ total: 0, rows: [] });
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
   const [expanded, setExpanded] = useState(new Set());
-
-  // 担当者フィルタ（複数選択）
   const [getterFilter, setGetterFilter] = useState([]);
-  // 並び順
-  const [sortKey, setSortKey] = useState('reject_asc'); // reject_asc(古い順) / reject_desc(新しい順)
+  const [sortKey, setSortKey] = useState('reject_asc');
 
-  // engIds が単一なら RPC に渡し、複数または商材選択時は全件取得後にクライアントfilter
+  // 単一なら RPC へ。複数 / 商材選択時はクライアント post-filter
   const useEngParam = engIds.length === 1 ? engIds[0] : null;
 
-  useEffect(() => {
-    setLoading(true);
-    supabase.rpc('smart_queue_keyman_rejections', {
-      p_engagement_id: useEngParam,
-      p_offset: page * PAGE_SIZE,
-      p_limit: PAGE_SIZE,
-    }).then(({ data: d, error }) => {
-      if (error) {
-        console.warn('[KeymanRejectionsPanel] RPC failed:', error);
-        setData({ total: 0, rows: [] });
-      } else {
-        let rows = Array.isArray(d?.rows) ? d.rows : [];
-        let total = d?.total ?? 0;
-        // 商材フィルタ（クライアント側）
-        if (categoryId) {
-          const matched = (allEngagements || []).filter(e => e.category_id === categoryId).map(e => e.id);
-          rows = rows.filter(r => matched.includes(r.engagement_id));
-          total = rows.length;
-        }
-        // engIds 複数選択時のクライアントフィルタ
-        if (engIds.length > 1) {
-          rows = rows.filter(r => engIds.includes(r.engagement_id));
-          total = rows.length;
-        }
-        setData({ total, rows });
-      }
-      setLoading(false);
-    });
-  }, [useEngParam, page, categoryId, engIds, allEngagements]);
+  // ページ表示用データ
+  const { data: pageData, isPending } = useQuery({
+    queryKey: ['smart_queue_keyman_rejections', useEngParam, getterFilter, sortKey, page],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('smart_queue_keyman_rejections', {
+        p_engagement_id: useEngParam,
+        p_getter_names:  getterFilter.length ? getterFilter : null,
+        p_sort:          sortKey,
+        p_offset:        page * PAGE_SIZE,
+        p_limit:         PAGE_SIZE,
+      });
+      if (error) console.warn('[KeymanRejectionsPanel] failed:', error);
+      return data || { total: 0, rows: [], getters: [] };
+    },
+  });
 
-  useEffect(() => { setPage(0); }, [useEngParam, categoryId, engIds.length, getterFilter, sortKey]);
+  // 商材 / 複数 engagement のクライアントフィルタ
+  const filteredRows = useMemo(() => {
+    let rows = pageData?.rows || [];
+    if (categoryId) {
+      const matched = (allEngagements || []).filter(e => e.category_id === categoryId).map(e => e.id);
+      rows = rows.filter(r => matched.includes(r.engagement_id));
+    }
+    if (engIds.length > 1) {
+      rows = rows.filter(r => engIds.includes(r.engagement_id));
+    }
+    return rows;
+  }, [pageData, categoryId, engIds, allEngagements]);
 
-  const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
-
-  // 担当者選択肢（rows から動的抽出、ユニーク + ソート）
-  const getterOptions = useMemo(() => {
-    const set = new Set();
-    data.rows.forEach(r => { if (r.getter_name) set.add(r.getter_name); });
-    return Array.from(set).sort();
-  }, [data.rows]);
-
-  // 担当者フィルタ + ソート（クライアント側）
-  const visibleRows = useMemo(() => {
-    let list = data.rows;
-    if (getterFilter.length > 0) list = list.filter(r => getterFilter.includes(r.getter_name));
-    if (sortKey === 'reject_asc')  list = [...list].sort((a, b) => (a.days_since_reject || 0) - (b.days_since_reject || 0));
-    else if (sortKey === 'reject_desc') list = [...list].sort((a, b) => (b.days_since_reject || 0) - (a.days_since_reject || 0));
-    return list;
-  }, [data.rows, getterFilter, sortKey]);
-
-  const { openQueue } = useCallQueue({ setCallFlowScreen, callListData });
-  const handleCall = (row) => {
-    const idx = visibleRows.findIndex(r => r.item_id === row.item_id);
-    openQueue(visibleRows, idx >= 0 ? idx : 0);
-  };
+  const total = pageData?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const getterOptions = pageData?.getters || [];
 
   const toggleExpand = (id) => {
     setExpanded(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
+      const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next;
     });
+  };
+
+  // 架電キュー: ids RPC で全件取得（軽量）
+  const { openQueue } = useCallQueue({ setCallFlowScreen, callListData });
+  const [openingQueue, setOpeningQueue] = useState(false);
+  const handleCall = async (row) => {
+    setOpeningQueue(true);
+    try {
+      const { data } = await supabase.rpc('smart_queue_keyman_rejections_ids', {
+        p_engagement_id: useEngParam,
+        p_getter_names:  getterFilter.length ? getterFilter : null,
+        p_sort:          sortKey,
+      });
+      let ids = Array.isArray(data) ? data : [];
+      // 商材 / 複数 engagement のクライアントフィルタ
+      if (categoryId || engIds.length > 1) {
+        // ids には engagement_id が無いので、 callListData から逆引き
+        const listEngMap = new Map();
+        (callListData || []).forEach(l => {
+          const id = l._supaId || l.id;
+          if (id) listEngMap.set(id, l.engagement_id || l.engagementId);
+        });
+        const matchedEngIds = categoryId
+          ? new Set((allEngagements || []).filter(e => e.category_id === categoryId).map(e => e.id))
+          : null;
+        ids = ids.filter(r => {
+          const eid = listEngMap.get(r.list_id);
+          if (!eid) return false;
+          if (matchedEngIds && !matchedEngIds.has(eid)) return false;
+          if (engIds.length > 0 && !engIds.includes(eid)) return false;
+          return true;
+        });
+      }
+      const idx = ids.findIndex(r => r.item_id === row.item_id);
+      openQueue(ids, idx >= 0 ? idx : 0);
+    } catch (e) {
+      console.warn('[KeymanRejectionsPanel] queue fetch failed:', e);
+      const idx = filteredRows.findIndex(r => r.item_id === row.item_id);
+      openQueue(filteredRows, idx >= 0 ? idx : 0);
+    } finally {
+      setOpeningQueue(false);
+    }
   };
 
   const columns = [
@@ -110,9 +120,7 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
         const temp = extractTemp(r.rejection_reason);
         const conf = temp ? TEMP_BADGE[temp] : TEMP_BADGE.UNCERTAIN;
         const isUnjudged = !r.rejection_reason;
-        return isUnjudged
-          ? <Badge variant="neutral">未判定</Badge>
-          : <Badge variant={conf.variant} dot>{conf.label}</Badge>;
+        return isUnjudged ? <Badge variant="neutral">未判定</Badge> : <Badge variant={conf.variant} dot>{conf.label}</Badge>;
       },
     },
     { key: 'company', label: '企業名', width: 240, align: 'left',
@@ -147,43 +155,21 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
       },
     },
     { key: 'action', label: '架電', width: 80, align: 'center',
-      render: (r) => <Button size="sm" variant="primary" onClick={() => handleCall(r)} disabled={!r.list_id || !r.item_id}>架電</Button> },
+      render: (r) => <Button size="sm" variant="primary" onClick={() => handleCall(r)} loading={openingQueue} disabled={!r.list_id || !r.item_id}>架電</Button> },
   ];
 
-  // 展開行を rows に組み込む（DataTableは展開行未サポートなので、内部で2行構造に展開）
-  const tableRows = useMemo(() => {
-    const out = [];
-    for (const r of visibleRows) {
-      out.push(r);
-      if (expanded.has(r.record_id)) {
-        out.push({ ...r, _expandRow: true });
-      }
-    }
-    return out;
-  }, [visibleRows, expanded]);
-
-  // 展開行カスタムレンダリング（DataTableのrender callbackでrowに_expandRowがあれば全幅表示）
   const renderExpandedContent = (r) => (
-    <div style={{
-      background: color.cream, padding: space[3], borderTop: `1px solid ${color.border}`,
-      fontSize: font.size.xs, color: color.textDark, lineHeight: font.lineHeight.relaxed,
-    }}>
+    <div style={{ background: color.cream, padding: space[3], borderTop: `1px solid ${color.border}`, fontSize: font.size.xs, color: color.textDark, lineHeight: font.lineHeight.relaxed }}>
       {r.rejection_reason && (
         <div style={{ marginBottom: space[2] }}>
           <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.navy, letterSpacing: 0.4, marginBottom: 4 }}>AI失注分析</div>
-          <pre style={{
-            margin: 0, padding: space[2], background: color.white, border: `1px solid ${color.border}`,
-            borderRadius: radius.md, fontFamily: font.family.sans, whiteSpace: 'pre-wrap',
-          }}>{r.rejection_reason}</pre>
+          <pre style={{ margin: 0, padding: space[2], background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, fontFamily: font.family.sans, whiteSpace: 'pre-wrap' }}>{r.rejection_reason}</pre>
         </div>
       )}
       {r.report_supplement && (
         <div>
           <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.navy, letterSpacing: 0.4, marginBottom: 4 }}>担当者メモ</div>
-          <pre style={{
-            margin: 0, padding: space[2], background: color.white, border: `1px solid ${color.border}`,
-            borderRadius: radius.md, fontFamily: font.family.sans, whiteSpace: 'pre-wrap',
-          }}>{r.report_supplement}</pre>
+          <pre style={{ margin: 0, padding: space[2], background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, fontFamily: font.family.sans, whiteSpace: 'pre-wrap' }}>{r.report_supplement}</pre>
         </div>
       )}
     </div>
@@ -193,14 +179,13 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
     <div>
       <PanelHeader
         title="① キーマン断り一覧"
-        leftKpi={<KPI label="表示中" value={`${visibleRows.length} 件`} />}
-        rightKpi={<KPI label="総数" value={`${data.total.toLocaleString()} 件`} muted />}
+        leftKpi={<KPI label="表示中" value={`${filteredRows.length} 件`} />}
+        rightKpi={<KPI label="総数" value={`${total.toLocaleString()} 件`} muted />}
       />
 
-      {/* 並び順 + 担当者フィルタ */}
       <FilterBar>
         <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>並び順:</span>
-        <select value={sortKey} onChange={e => setSortKey(e.target.value)} style={{
+        <select value={sortKey} onChange={e => { setSortKey(e.target.value); setPage(0); }} style={{
           padding: '5px 10px', borderRadius: radius.md, border: `1px solid ${color.border}`,
           fontSize: font.size.xs, color: color.textDark, fontFamily: font.family.sans, background: color.white, cursor: 'pointer',
         }}>
@@ -209,24 +194,14 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
         </select>
         <span style={{ color: color.border }}>|</span>
         <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>断り担当:</span>
-        <MultiSelectDropdown
-          placeholder="担当者を選択（複数可）"
-          options={getterOptions}
-          values={getterFilter}
-          onChange={setGetterFilter}
-          width={220}
-        />
+        <MultiSelectDropdown placeholder="担当者を選択（複数可）" options={getterOptions} values={getterFilter}
+          onChange={v => { setGetterFilter(v); setPage(0); }} width={220} />
       </FilterBar>
 
-      {/* DataTable + 展開行 */}
       <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, overflow: 'hidden' }}>
-        <DataTable columns={columns} rows={tableRows.filter(r => !r._expandRow)} rowKey="record_id" loading={loading}
-          emptyMessage="該当するキーマン断り案件がありません。"
-          height="auto" fillWidth
-          customRowRender={(r) => expanded.has(r.record_id) ? renderExpandedContent(r) : null}
-        />
-        {/* DataTableが展開行未対応なので、フォールバックとして表外に列挙 */}
-        {visibleRows.filter(r => expanded.has(r.record_id)).map(r => (
+        <DataTable columns={columns} rows={filteredRows} rowKey="record_id" loading={isPending}
+          emptyMessage="該当するキーマン断り案件がありません。" height="auto" fillWidth />
+        {filteredRows.filter(r => expanded.has(r.record_id)).map(r => (
           <div key={`exp-${r.record_id}`} style={{ borderTop: `1px solid ${color.border}` }}>
             <div style={{ padding: '8px 18px', background: alpha(color.navy, 0.06), fontSize: font.size.xs, color: color.navy, fontWeight: font.weight.semibold }}>
               {r.company} の詳細
@@ -236,13 +211,13 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
         ))}
       </div>
 
-      {data.total > PAGE_SIZE && (
+      {total > PAGE_SIZE && (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: space[2], padding: space[3] }}>
-          <Button size="sm" variant="outline" onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0 || loading}>前へ</Button>
+          <Button size="sm" variant="outline" onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0 || isPending}>前へ</Button>
           <span style={{ fontSize: font.size.xs, color: color.textMid, fontFamily: font.family.mono, minWidth: 100, textAlign: 'center' }}>{page + 1} / {totalPages}</span>
-          <Button size="sm" variant="outline" onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1 || loading}>次へ</Button>
+          <Button size="sm" variant="outline" onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1 || isPending}>次へ</Button>
           <span style={{ fontSize: font.size.xs, color: color.textLight, marginLeft: space[3] }}>
-            {page * PAGE_SIZE + 1} - {Math.min((page + 1) * PAGE_SIZE, data.total)} / {data.total.toLocaleString()} 件
+            {page * PAGE_SIZE + 1} - {Math.min((page + 1) * PAGE_SIZE, total)} / {total.toLocaleString()} 件
           </span>
         </div>
       )}

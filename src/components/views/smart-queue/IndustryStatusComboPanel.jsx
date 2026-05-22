@@ -12,8 +12,8 @@ import { useCallQueue } from './useCallQueue';
 //   現在の曜日/時間帯おすすめ業種をフェッチして上位表示、ユーザー任意で
 //   業種(複数)・ステータス(複数)選択可能
 
-// 上限撤廃: ヒット件数を全件取得
-const PAGE_SIZE = 100000;
+// 表示は 200件/ページ（軽量）、 架電キューは ids RPC で全件対象
+const PAGE_SIZE = 200;
 
 const STATUS_VARIANT = {
   '未架電': 'neutral', '不通': 'neutral', 'キーマン不在': 'neutral',
@@ -87,9 +87,42 @@ export default function IndustryStatusComboPanel({ setCallFlowScreen, callListDa
   };
 
   const { openQueue } = useCallQueue({ setCallFlowScreen, callListData });
-  const handleCall = (row) => {
-    const idx = data.rows.findIndex(r => r.item_id === row.item_id);
-    openQueue(data.rows, idx >= 0 ? idx : 0);
+  const [openingQueue, setOpeningQueue] = useState(false);
+  const handleCall = async (row) => {
+    setOpeningQueue(true);
+    try {
+      const { data: ids } = await supabase.rpc('smart_queue_industry_status_combo_ids', {
+        p_industries: industries.length ? industries : null,
+        p_statuses:   statuses.length   ? statuses   : null,
+        p_engagement_id: useEngParam,
+      });
+      let list = Array.isArray(ids) ? ids : [];
+      if (categoryId || engIds.length > 1) {
+        const listEngMap = new Map();
+        (callListData || []).forEach(l => {
+          const id = l._supaId || l.id;
+          if (id) listEngMap.set(id, l.engagement_id || l.engagementId);
+        });
+        const matchedEngIds = categoryId
+          ? new Set((allEngagements || []).filter(e => e.category_id === categoryId).map(e => e.id))
+          : null;
+        list = list.filter(r => {
+          const eid = listEngMap.get(r.list_id);
+          if (!eid) return false;
+          if (matchedEngIds && !matchedEngIds.has(eid)) return false;
+          if (engIds.length > 0 && !engIds.includes(eid)) return false;
+          return true;
+        });
+      }
+      const idx = list.findIndex(r => r.item_id === row.item_id);
+      openQueue(list, idx >= 0 ? idx : 0);
+    } catch (e) {
+      console.warn('[IndustryStatusComboPanel] queue fetch failed:', e);
+      const idx = data.rows.findIndex(r => r.item_id === row.item_id);
+      openQueue(data.rows, idx >= 0 ? idx : 0);
+    } finally {
+      setOpeningQueue(false);
+    }
   };
 
   const columns = [
@@ -114,7 +147,7 @@ export default function IndustryStatusComboPanel({ setCallFlowScreen, callListDa
     { key: 'list_name', label: '元リスト', width: 200, align: 'left',
       render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{r.list_name || '—'}</span> },
     { key: 'action', label: '架電', width: 90, align: 'center',
-      render: (r) => <Button size="sm" variant="primary" onClick={() => handleCall(r)} disabled={!r.list_id || !r.item_id}>架電</Button> },
+      render: (r) => <Button size="sm" variant="primary" onClick={() => handleCall(r)} loading={openingQueue} disabled={!r.list_id || !r.item_id}>架電</Button> },
   ];
 
   return (
