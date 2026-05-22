@@ -38,12 +38,19 @@ export default function SmartQueueTab({ setCallFlowScreen }) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    supabase.rpc('smart_queue_overdue_recalls').then(({ data, error }) => {
+    // PostgREST は default 引数の override に弱い場合があるので明示的に null を渡す
+    supabase.rpc('smart_queue_overdue_recalls', {
+      p_engagement_id: null,
+      p_status: null,
+    }).then(({ data, error }) => {
       if (cancelled) return;
       if (error) {
         console.warn('[SmartQueueTab] RPC failed:', error);
         setRows([]);
       } else {
+        if (!Array.isArray(data) || data.length === 0) {
+          console.log('[SmartQueueTab] RPC returned empty:', data);
+        }
         setRows(Array.isArray(data) ? data : []);
       }
       setLoading(false);
