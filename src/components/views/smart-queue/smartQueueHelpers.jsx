@@ -99,6 +99,49 @@ export function ScoreCell({ score }) {
   );
 }
 
+// 詳細条件抽出/業種×ステータスで選択可能な8ステータス + 未架電
+export const ALL_STATUSES = [
+  '未架電', '不通', 'キーマン不在', '受付ブロック',
+  '受付再コール', 'キーマン再コール', 'キーマン断り', '問い合わせフォーム',
+];
+
+export const PREFECTURES_JP = [
+  '北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県',
+  '茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県',
+  '新潟県','富山県','石川県','福井県','山梨県','長野県',
+  '岐阜県','静岡県','愛知県','三重県',
+  '滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県',
+  '鳥取県','島根県','岡山県','広島県','山口県',
+  '徳島県','香川県','愛媛県','高知県',
+  '福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県',
+];
+
+export const TSR_INDUSTRY_MAJORS = [
+  'A 農業、林業','B 漁業','C 鉱業、採石業、砂利採取業',
+  'D 建設業','E 製造業','F 電気・ガス・熱供給・水道業',
+  'G 情報通信業','H 運輸業、郵便業','I 卸売業、小売業',
+  'J 金融業、保険業','K 不動産業、物品賃貸業',
+  'L 学術研究、専門・技術サービス業','M 宿泊業、飲食サービス業',
+  'N 生活関連サービス業、娯楽業','O 教育、学習支援業',
+  'P 医療、福祉','Q 複合サービス事業','R サービス業（他に分類されないもの）',
+];
+
+// 売上 千円 → 表示用「○億○千万」
+export function fmtRevenueK(k) {
+  if (k == null) return '—';
+  if (k >= 1_000_000) return `${(k / 1_000_000).toFixed(1)}十億円`;
+  if (k >= 100_000)   return `${(k / 100_000).toFixed(1)}億円`;
+  if (k >= 1_000)     return `${(k / 1_000).toFixed(0)}百万円`;
+  return `${k}千円`;
+}
+
+// 億円 → 千円換算 (入力UIから RPC 引数へ変換)
+export function okuToK(oku) {
+  const n = Number(oku);
+  if (!isFinite(n) || n <= 0) return null;
+  return Math.round(n * 100_000);
+}
+
 // engagement slug → 日本語ラベル (3種) — 純関数。Hookではない
 export function salesAgencyEngagementOptions(allEngagements) {
   const order = ['seller_sourcing', 'matching', 'client_acquisition'];

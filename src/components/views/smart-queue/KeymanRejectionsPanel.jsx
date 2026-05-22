@@ -1,0 +1,210 @@
+import { useState, useEffect, useMemo } from 'react';
+import { color, space, radius, font, alpha } from '../../../constants/design';
+import { Button, Badge, DataTable } from '../../ui';
+import { supabase } from '../../../lib/supabase';
+import { useEngagements } from '../../../hooks/useEngagements';
+import {
+  fmtRevenueK, salesAgencyEngagementOptions,
+  PanelHeader, FilterBar, FilterButton, KPI,
+} from './smartQueueHelpers';
+
+// ① キーマン断り一覧（温度感ラベル + 断り理由メモ）
+//   AI分析未実施は「未判定」と表示
+const PAGE_SIZE = 50;
+
+const TEMP_BADGE = {
+  HIGH:      { variant: 'success', label: '温度感: 高' },
+  MEDIUM:    { variant: 'info',    label: '温度感: 中' },
+  LOW:       { variant: 'danger',  label: '温度感: 低' },
+  UNCERTAIN: { variant: 'neutral', label: '判定困難' },
+};
+
+// rejection_reason の冒頭から temp を抽出（generate-call-report が
+// HIGH/MEDIUM/LOW を文頭に書く仕様）
+function extractTemp(text) {
+  if (!text) return null;
+  const m = text.match(/^(HIGH|MEDIUM|LOW)/i);
+  return m ? m[1].toUpperCase() : null;
+}
+
+export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData = [] }) {
+  const { engagements: allEngagements } = useEngagements();
+  const salesAgencyEngagements = useMemo(() => salesAgencyEngagementOptions(allEngagements), [allEngagements]);
+
+  const [engId, setEngId] = useState(null);
+  const [page, setPage]   = useState(0);
+  const [data, setData]   = useState({ total: 0, rows: [] });
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(new Set());
+
+  useEffect(() => {
+    setLoading(true);
+    supabase.rpc('smart_queue_keyman_rejections', {
+      p_engagement_id: engId,
+      p_offset: page * PAGE_SIZE,
+      p_limit: PAGE_SIZE,
+    }).then(({ data: d, error }) => {
+      if (error) {
+        console.warn('[KeymanRejectionsPanel] RPC failed:', error);
+        setData({ total: 0, rows: [] });
+      } else {
+        setData({ total: d?.total ?? 0, rows: Array.isArray(d?.rows) ? d.rows : [] });
+      }
+      setLoading(false);
+    });
+  }, [engId, page]);
+
+  useEffect(() => { setPage(0); }, [engId]);
+
+  const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
+
+  const handleCall = (row) => {
+    if (!setCallFlowScreen || !row.list_id || !row.item_id) return;
+    const full = (callListData || []).find(l => l._supaId === row.list_id || l.id === row.list_id)
+      || { _supaId: row.list_id, id: row.list_id, company: '' };
+    setCallFlowScreen({
+      list: full, defaultItemId: row.item_id, defaultListMode: false, singleItemMode: true,
+      onResultSubmit: () => setCallFlowScreen?.(null),
+    });
+  };
+
+  const toggleExpand = (id) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const columns = [
+    { key: 'temp', label: '温度感', width: 100, align: 'center',
+      render: (r) => {
+        const temp = extractTemp(r.rejection_reason);
+        const conf = temp ? TEMP_BADGE[temp] : TEMP_BADGE.UNCERTAIN;
+        const isUnjudged = !r.rejection_reason;
+        return isUnjudged
+          ? <Badge variant="neutral">未判定</Badge>
+          : <Badge variant={conf.variant} dot>{conf.label}</Badge>;
+      },
+    },
+    { key: 'company', label: '企業名', width: 240, align: 'left',
+      render: (r) => (
+        <div>
+          <div style={{ fontWeight: font.weight.semibold, color: color.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.company || '—'}</div>
+          {r.industry && (
+            <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 1 }}>
+              {r.industry}{r.prefecture ? ` ・ ${r.prefecture}` : ''}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    { key: 'days_since_reject', label: '断りから', width: 90, align: 'right',
+      render: (r) => <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs }}>{Math.floor(r.days_since_reject)}日</span> },
+    { key: 'getter_name', label: '担当', width: 80, align: 'center',
+      render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid }}>{r.getter_name || '—'}</span> },
+    { key: 'list_name', label: '元リスト', width: 180, align: 'left',
+      render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{r.list_name || '—'}</span> },
+    { key: 'memo', label: '断り理由メモ', width: 60, align: 'center',
+      render: (r) => {
+        const has = r.rejection_reason || r.report_supplement;
+        if (!has) return <span style={{ color: color.textLight, fontSize: font.size.xs }}>—</span>;
+        return (
+          <button onClick={() => toggleExpand(r.record_id)} style={{
+            padding: '2px 8px', borderRadius: radius.md, border: `1px solid ${color.border}`,
+            background: expanded.has(r.record_id) ? alpha(color.navy, 0.08) : color.white,
+            fontSize: font.size.xs - 1, color: color.navy, fontWeight: font.weight.semibold, cursor: 'pointer',
+          }}>{expanded.has(r.record_id) ? '閉じる' : '詳細'}</button>
+        );
+      },
+    },
+    { key: 'action', label: '架電', width: 80, align: 'center',
+      render: (r) => <Button size="sm" variant="primary" onClick={() => handleCall(r)} disabled={!r.list_id || !r.item_id}>架電</Button> },
+  ];
+
+  // 展開行を rows に組み込む（DataTableは展開行未サポートなので、内部で2行構造に展開）
+  const tableRows = useMemo(() => {
+    const out = [];
+    for (const r of data.rows) {
+      out.push(r);
+      if (expanded.has(r.record_id)) {
+        out.push({ ...r, _expandRow: true });
+      }
+    }
+    return out;
+  }, [data.rows, expanded]);
+
+  // 展開行カスタムレンダリング（DataTableのrender callbackでrowに_expandRowがあれば全幅表示）
+  const renderExpandedContent = (r) => (
+    <div style={{
+      background: color.cream, padding: space[3], borderTop: `1px solid ${color.border}`,
+      fontSize: font.size.xs, color: color.textDark, lineHeight: font.lineHeight.relaxed,
+    }}>
+      {r.rejection_reason && (
+        <div style={{ marginBottom: space[2] }}>
+          <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.navy, letterSpacing: 0.4, marginBottom: 4 }}>AI失注分析</div>
+          <pre style={{
+            margin: 0, padding: space[2], background: color.white, border: `1px solid ${color.border}`,
+            borderRadius: radius.md, fontFamily: font.family.sans, whiteSpace: 'pre-wrap',
+          }}>{r.rejection_reason}</pre>
+        </div>
+      )}
+      {r.report_supplement && (
+        <div>
+          <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.navy, letterSpacing: 0.4, marginBottom: 4 }}>担当者メモ</div>
+          <pre style={{
+            margin: 0, padding: space[2], background: color.white, border: `1px solid ${color.border}`,
+            borderRadius: radius.md, fontFamily: font.family.sans, whiteSpace: 'pre-wrap',
+          }}>{r.report_supplement}</pre>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div>
+      <PanelHeader
+        title="① キーマン断り一覧"
+        description="アクティブリスト × 履歴に「アポ獲得/除外」なし × 直近が再コール待ちでない（母数: 3,210件）。温度感は AI 分析済みのみ表示、未分析は「未判定」"
+        leftKpi={<KPI label="表示中" value={`${data.rows.length} 件`} />}
+        rightKpi={<KPI label="総数" value={`${data.total.toLocaleString()} 件`} muted />}
+      />
+      <FilterBar>
+        <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>タイプ:</span>
+        <FilterButton active={!engId} onClick={() => setEngId(null)}>全て</FilterButton>
+        {salesAgencyEngagements.map(e => (
+          <FilterButton key={e.id} active={engId === e.id} onClick={() => setEngId(e.id)}>{e.name}</FilterButton>
+        ))}
+      </FilterBar>
+
+      {/* DataTable + 展開行 */}
+      <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, overflow: 'hidden' }}>
+        <DataTable columns={columns} rows={tableRows.filter(r => !r._expandRow)} rowKey="record_id" loading={loading}
+          emptyMessage="該当するキーマン断り案件がありません。"
+          height="auto" fillWidth
+          customRowRender={(r) => expanded.has(r.record_id) ? renderExpandedContent(r) : null}
+        />
+        {/* DataTableが展開行未対応なので、フォールバックとして表外に列挙 */}
+        {data.rows.filter(r => expanded.has(r.record_id)).map(r => (
+          <div key={`exp-${r.record_id}`} style={{ borderTop: `1px solid ${color.border}` }}>
+            <div style={{ padding: '8px 18px', background: alpha(color.navy, 0.06), fontSize: font.size.xs, color: color.navy, fontWeight: font.weight.semibold }}>
+              {r.company} の詳細
+            </div>
+            {renderExpandedContent(r)}
+          </div>
+        ))}
+      </div>
+
+      {data.total > PAGE_SIZE && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: space[2], padding: space[3] }}>
+          <Button size="sm" variant="outline" onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0 || loading}>前へ</Button>
+          <span style={{ fontSize: font.size.xs, color: color.textMid, fontFamily: font.family.mono, minWidth: 100, textAlign: 'center' }}>{page + 1} / {totalPages}</span>
+          <Button size="sm" variant="outline" onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1 || loading}>次へ</Button>
+          <span style={{ fontSize: font.size.xs, color: color.textLight, marginLeft: space[3] }}>
+            {page * PAGE_SIZE + 1} - {Math.min((page + 1) * PAGE_SIZE, data.total)} / {data.total.toLocaleString()} 件
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
