@@ -295,7 +295,7 @@ export default function DetailedQueryPanel({ setCallFlowScreen, callListData = [
           border: `1px dashed ${color.border}`, borderRadius: radius.md, color: color.textLight,
           fontSize: font.size.sm,
         }}>
-          条件を設定して「検索」ボタンを押してください（全条件未設定で検索すると約58,000件全件が対象になります）
+          条件を設定して「検索」ボタンを押してください
         </div>
       ) : (
         <>

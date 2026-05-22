@@ -171,7 +171,7 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
     <div>
       <PanelHeader
         title="① キーマン断り一覧"
-        description="アクティブリスト × 履歴に「アポ獲得/除外」なし × 直近が再コール待ちでない（母数: 3,210件）。温度感は AI 分析済みのみ表示、未分析は「未判定」"
+        description="アクティブリスト × 履歴に「アポ獲得/除外」なし × 直近が再コール待ちでない。温度感は AI 分析済みのみ表示、未分析は「未判定」"
         leftKpi={<KPI label="表示中" value={`${data.rows.length} 件`} />}
         rightKpi={<KPI label="総数" value={`${data.total.toLocaleString()} 件`} muted />}
       />
