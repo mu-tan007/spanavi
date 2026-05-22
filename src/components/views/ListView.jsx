@@ -268,7 +268,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       </div>
 
       {viewMode === 'smart_queue' && (
-        <SmartQueueTab setCallFlowScreen={setCallFlowScreen} />
+        <SmartQueueTab setCallFlowScreen={setCallFlowScreen} callListData={callListData} />
       )}
 
       {viewMode === 'lists' && <>
