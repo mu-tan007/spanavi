@@ -165,6 +165,8 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
         }}>
           <option value="reject_asc">断りから日数が少ない順</option>
           <option value="reject_desc">断りから日数が多い順</option>
+          <option value="temp_desc">温度感: 高→低</option>
+          <option value="temp_asc">温度感: 低→高</option>
         </select>
         <span style={{ color: color.border }}>|</span>
         <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>断り担当:</span>
