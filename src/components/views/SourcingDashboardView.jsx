@@ -430,31 +430,8 @@ export default function SourcingDashboardView({
         />
       </Card>
 
-      {/* おすすめリスト TOP4 */}
-      <Card padding="md" style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy, marginBottom: 12 }}>
-          現在のおすすめリスト TOP4
-        </div>
-        {topLists.length === 0 ? (
-          <div style={{ padding: 16, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
-            架電可能なリストがありません。
-          </div>
-        ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
-            gap: 10,
-          }}>
-            {topLists.map(list => (
-              <TopListCard key={list.id} list={list} onClick={() => {
-                if (setSelectedList) setSelectedList(list.id);
-              }} />
-            ))}
-          </div>
-        )}
-      </Card>
-
       {/*
+        おすすめリスト TOP4 はリスト一覧ページに同じものがあるため削除。
         受付再コール超過 / キーマン再コール超過 / キーマン断り14日経過 / 再アプローチ候補
         は「スマートキュー（架電リスト → スマートキュータブ → 特殊条件抽出）」に移管した。
         将来このダッシュボードは個人成果・活動分析にリフォーム予定。
