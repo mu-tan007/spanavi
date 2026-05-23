@@ -14,6 +14,7 @@ import CompanySearchView from './views/CompanySearchView';
 import StatsView from './views/StatsView';
 import AnalyticsView from './views/AnalyticsView';
 import CallingScreen from './views/CallingScreen';
+import { useCallQueue, readSavedQueue } from './views/smart-queue/useCallQueue';
 import PiPWidget from './common/PiPWidget';
 import EngagementHeader from './common/EngagementHeader';
 import { EngagementProvider, useEngagements } from '../hooks/useEngagements';
@@ -272,6 +273,12 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       return raw ? JSON.parse(raw) : null;
     } catch { return null; }
   })());
+  // useCallQueue の保存済みキュー（前へ/次へ復元用）も同様に初期化時にキャプチャ
+  const _savedQueueRef = useRef(readSavedQueue());
+  // SpanaviApp 自体が useCallQueue を持ち、 ハードリロード復元用に openQueue を呼ぶ
+  // 注: callListData を渡すため、 callListData 宣言より下で再宣言するわけにいかない。
+  // useCallQueue は callListData を closure 参照する設計なので、 依存変更で都度 hook 再評価される
+  const { openQueue: restoreQueue } = useCallQueue({ setCallFlowScreen, callListData });
   useEffect(() => {
     try {
       if (callFlowScreen) {
@@ -313,7 +320,13 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         try {
           const savedData = _savedCallFlowRef.current;
           _savedCallFlowRef.current = null; // 二重復元防止
-          if (savedData) {
+          // ハードリロード復元 ─ キューがあれば優先（前へ/次へ機能を復活させる）
+          const savedQueue = _savedQueueRef.current;
+          _savedQueueRef.current = null;
+          if (savedQueue && savedQueue.items.length > 0) {
+            // restoreQueue が setCallFlowScreen を呼ぶので callFlowScreen 単独復元は不要
+            restoreQueue(savedQueue.items, savedQueue.idx || 0);
+          } else if (savedData) {
             const { listSupaId, startNo, endNo, defaultItemId, defaultListMode } = savedData;
             const list = supabaseData.callLists.find(l => l._supaId === listSupaId);
             if (list) setCallFlowScreen({

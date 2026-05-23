@@ -8,8 +8,29 @@ import { supabase } from '../../../lib/supabase';
 //     ・ 直近ステータスが「アポ獲得」「除外」→ 自動スキップして次へ
 //     ・ 直近が「受付再コール」「キーマン再コール」→ 警告ダイアログ
 //     ・ 本日、自分以外の人が架電している → 注意ダイアログ
+//
+// ハードリロード対応:
+//   openQueue / idx 変更時に items + idx を localStorage に保存。
+//   SpanaviApp 側で起動時にこのキーを読んで restoreQueue(items, idx) で再開可能。
 const SKIP_STATUSES = ['アポ獲得', '除外'];
 const WARN_STATUSES = ['受付再コール', 'キーマン再コール'];
+const STORAGE_KEY   = 'masp_v2_callQueue';
+
+function saveQueue(items, idx) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ items, idx })); } catch {}
+}
+function clearQueue() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch {}
+}
+export function readSavedQueue() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj || !Array.isArray(obj.items) || obj.items.length === 0) return null;
+    return { items: obj.items, idx: Number.isFinite(obj.idx) ? obj.idx : 0 };
+  } catch { return null; }
+}
 
 async function checkItem(itemId) {
   const { data, error } = await supabase.rpc('smart_queue_call_check', { p_item_id: itemId });
@@ -28,10 +49,18 @@ export function useCallQueue({ setCallFlowScreen, callListData }) {
       || { _supaId: listId, id: listId, company: '' };
   }, [callListData]);
 
+  const finishQueue = useCallback(() => {
+    clearQueue();
+    setCallFlowScreen?.(null);
+  }, [setCallFlowScreen]);
+
   const openAtIdx = useCallback(async () => {
     const q = queueRef.current;
     const cur = q.items[q.idx];
-    if (!cur || !setCallFlowScreen) { setCallFlowScreen?.(null); return; }
+    if (!cur || !setCallFlowScreen) { finishQueue(); return; }
+
+    // 進捗を永続化（ハードリロードでも再開可能に）
+    saveQueue(q.items, q.idx);
 
     // DB 直接チェック
     const check = await checkItem(cur.item_id);
@@ -44,7 +73,7 @@ export function useCallQueue({ setCallFlowScreen, callListData }) {
           openAtIdx();
         } else {
           alert('全件「アポ獲得/除外」済のためキューを終了します。');
-          setCallFlowScreen?.(null);
+          finishQueue();
         }
         return;
       }
@@ -60,7 +89,7 @@ export function useCallQueue({ setCallFlowScreen, callListData }) {
             queueRef.current = { items: q.items, idx: nextIdx };
             openAtIdx();
           } else {
-            setCallFlowScreen?.(null);
+            finishQueue();
           }
           return;
         }
@@ -77,7 +106,7 @@ export function useCallQueue({ setCallFlowScreen, callListData }) {
             queueRef.current = { items: q.items, idx: nextIdx };
             openAtIdx();
           } else {
-            setCallFlowScreen?.(null);
+            finishQueue();
           }
           return;
         }
@@ -103,10 +132,10 @@ export function useCallQueue({ setCallFlowScreen, callListData }) {
       onResultSubmit: () => {
         queueRef.current = { items: q.items, idx: q.idx + 1 };
         if (queueRef.current.idx < queueRef.current.items.length) openAtIdx();
-        else setCallFlowScreen?.(null);
+        else finishQueue();
       },
     });
-  }, [setCallFlowScreen, resolveFullList]);
+  }, [setCallFlowScreen, resolveFullList, finishQueue]);
 
   const openQueue = useCallback((rows, startIdx = 0) => {
     const items = (rows || []).filter(r => r && r.item_id && r.list_id);
