@@ -61,6 +61,42 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
   const [rangeConfirmed, setRangeConfirmed] = useState(false);
   const [rangeError, setRangeError] = useState(false);
 
+  // キーマン断り の AI 分析結果（温度感+要約）を listId 単位で fetch して Map 化
+  // 表セルの title 属性で tooltip 表示するために使う
+  const [rejectionMap, setRejectionMap] = useState({}); // key: `${item_id}::${round}` → rejection_reason
+  useEffect(() => {
+    const supaId = list?._supaId;
+    if (!supaId) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('call_records')
+        .select('item_id, round, rejection_reason')
+        .eq('list_id', supaId)
+        .eq('status', 'キーマン断り')
+        .not('rejection_reason', 'is', null);
+      if (cancelled || error) return;
+      const map = {};
+      for (const r of (data || [])) {
+        map[`${r.item_id}::${r.round}`] = r.rejection_reason;
+      }
+      setRejectionMap(map);
+    })();
+    return () => { cancelled = true; };
+  }, [list?._supaId]);
+
+  // rejection_reason の冒頭プレフィックスを「温度感: 高/中/低」に変換した tooltip 文字列を返す
+  const tempLabel = (code) => ({ HIGH: '温度感: 高', MEDIUM: '温度感: 中', LOW: '温度感: 低', SKIP: '分析不可' }[code] || null);
+  const getRejectionTooltip = (itemId, round) => {
+    const raw = rejectionMap[`${itemId}::${round}`];
+    if (!raw) return null;
+    const m = raw.match(/^(HIGH|MEDIUM|LOW|SKIP)\s*\n?([\s\S]*)$/);
+    if (!m) return raw;
+    const label = tempLabel(m[1]);
+    const summary = m[2].trim();
+    return label ? `【${label}】\n${summary}` : summary;
+  };
+
   const rangeStartNum = rangeConfirmed ? parseInt(rangeStart) || 1 : null;
   const rangeEndNum = rangeConfirmed ? parseInt(rangeEnd) || csvData.length : null;
 
@@ -671,13 +707,21 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
                   {Array.from({length: displayRounds}, (_, i) => i + 1).map(w => {
                     const wd = getRoundStatus(row, w);
                     const wsd = wd ? getStatusDef(wd.status) : null;
+                    // 「キーマン断り」の周は AI 要約を tooltip で見せる
+                    const rejTooltip = wd?.status === 'キーマン断り' && (row.id || row.itemId || row.item_id)
+                      ? getRejectionTooltip(row.id || row.itemId || row.item_id, w)
+                      : null;
+                    const cellTitle = [
+                      wd?.caller ? `担当: ${wd.caller}` : null,
+                      rejTooltip,
+                    ].filter(Boolean).join('\n\n');
                     return (
-                      <span key={w} style={{ textAlign: "center" }} title={wd?.caller ? "担当: " + wd.caller : ""}>
+                      <span key={w} style={{ textAlign: "center" }} title={cellTitle || undefined}>
                         {excluded && EXCLUDED_IDS.includes(wd?.status) ? (
                           <span style={{ fontSize: 7, padding: "1px 3px", borderRadius: radius.sm, background: alpha(color.danger, 0.08), color: color.danger, fontWeight: font.weight.semibold }}>除外</span>
                         ) : wsd ? (
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
-                            <span style={{ fontSize: 7, padding: "1px 3px", borderRadius: radius.sm, background: wsd.bg, color: wsd.color, fontWeight: font.weight.semibold }}>{wsd.label}</span>
+                            <span style={{ fontSize: 7, padding: "1px 3px", borderRadius: radius.sm, background: wsd.bg, color: wsd.color, fontWeight: font.weight.semibold, cursor: rejTooltip ? 'help' : 'default' }}>{wsd.label}</span>
                             {wd.caller && <span style={{ fontSize: 6, color: color.textLight, lineHeight: 1, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 48 }}>{wd.caller}</span>}
                           </div>
                         ) : (

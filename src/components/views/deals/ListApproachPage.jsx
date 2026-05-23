@@ -7,6 +7,21 @@ import { PlayRecordingButton } from '../../common/RecordingPlayerProvider';
 
 const PAGE_SIZE = 100;
 
+// rejection_reason は AI 分析バッチで `HIGH/MEDIUM/LOW\n要約` 形式で保存される。
+// (SKIP は 25MB超で分析不可な特殊ケース、 UNCERTAIN は未判定)
+const TEMP_BADGE = {
+  HIGH:   { bg: alpha(color.success, 0.15), color: color.success, label: '温度感: 高' },
+  MEDIUM: { bg: alpha(color.info,    0.15), color: color.info,    label: '温度感: 中' },
+  LOW:    { bg: alpha(color.danger,  0.15), color: color.danger,  label: '温度感: 低' },
+};
+
+function parseRejection(raw) {
+  if (!raw) return { temp: null, summary: '' };
+  const m = raw.match(/^(HIGH|MEDIUM|LOW|SKIP)\s*\n?([\s\S]*)$/);
+  if (m) return { temp: m[1].toUpperCase(), summary: m[2].trim() };
+  return { temp: null, summary: raw };
+}
+
 // リスト内各企業のアプローチ詳細をフルページで表示。
 // - 横に並んだ架電履歴 (1回目 / 2回目 / ... が列として広がる)
 // - 100 件ごとのページネーション
@@ -175,6 +190,9 @@ export default function ListApproachPage({ list, orgId, onBack }) {
                       {Array.from({ length: maxCallCount }).map((_, i) => {
                         const c = calls[i];
                         if (!c) return <td key={i} style={{ ...td, color: color.textLight }}>—</td>;
+                        const isKeymanReject = c.status === 'キーマン断り';
+                        const rej = isKeymanReject ? parseRejection(c.rejection_reason) : null;
+                        const tempConf = rej && rej.temp ? TEMP_BADGE[rej.temp] : null;
                         return (
                           <td key={i} style={{ ...td, textAlign: 'left', padding: '6px 10px' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -186,6 +204,24 @@ export default function ListApproachPage({ list, orgId, onBack }) {
                                   : '—'}
                               </span>
                               <span style={{ color: statusColor(c.status), fontWeight: font.weight.medium }}>{c.status || '—'}</span>
+                              {tempConf && (
+                                <span
+                                  title={rej.summary || ''}
+                                  style={{
+                                    fontSize: 9, fontWeight: font.weight.semibold,
+                                    padding: '1px 5px', borderRadius: radius.sm,
+                                    background: tempConf.bg, color: tempConf.color,
+                                    alignSelf: 'flex-start', cursor: rej.summary ? 'help' : 'default',
+                                  }}
+                                >{tempConf.label}</span>
+                              )}
+                              {isKeymanReject && rej && rej.summary && (
+                                <span style={{
+                                  fontSize: 9, color: color.textMid, lineHeight: 1.4,
+                                  marginTop: 2, maxWidth: 220,
+                                  display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 3, overflow: 'hidden',
+                                }}>{rej.summary}</span>
+                              )}
                               {c.getter_name && <span style={{ fontSize: 9, color: color.textLight }}>{c.getter_name}</span>}
                               {c.recording_url && (
                                 <div style={{ marginTop: 2 }}>
