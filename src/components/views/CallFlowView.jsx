@@ -1542,6 +1542,14 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               {(() => {
                 const recs = getRecordsForItem(selectedRow.id).slice().sort((a, b) => a.round - b.round);
                 if (recs.length === 0) return null;
+                const TEMP_LABEL = { HIGH: '温度感: 高', MEDIUM: '温度感: 中', LOW: '温度感: 低', SKIP: '分析不可' };
+                const TEMP_COLOR = { HIGH: C.green || '#16a34a', MEDIUM: C.blue || '#0ea5e9', LOW: C.red || '#dc2626', SKIP: C.textLight };
+                const parseRejection = (raw) => {
+                  if (!raw) return { temp: null, summary: '' };
+                  const m = raw.match(/^(HIGH|MEDIUM|LOW|SKIP)\s*\n?([\s\S]*)$/);
+                  if (m) return { temp: m[1].toUpperCase(), summary: m[2].trim() };
+                  return { temp: null, summary: raw };
+                };
                 return (
                   <div style={{ marginBottom: 14 }}>
                     <div style={{ fontSize: 10, fontWeight: 600, color: C.navy, marginBottom: 6 }}>架電履歴</div>
@@ -1549,6 +1557,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                       {recs.map(rec => {
                         const sc = callStatusColor(rec.status);
                         const dtStr = formatJST(rec.called_at);
+                        const isKeymanReject = rec.status === 'キーマン断り';
+                        const rej = isKeymanReject ? parseRejection(rec.rejection_reason) : null;
                         return (
                           <div key={rec.id}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6,
@@ -1567,6 +1577,27 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                                     style={{ fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>更新</button>
                               }
                             </div>
+                            {isKeymanReject && rej && (rej.temp || rej.summary) && (
+                              <div style={{
+                                marginTop: 3, padding: '6px 8px',
+                                background: (C.red || '#dc2626') + '0d',
+                                borderLeft: '3px solid ' + (C.red || '#dc2626'),
+                                borderRadius: 4,
+                                display: 'flex', flexDirection: 'column', gap: 3,
+                              }}>
+                                {rej.temp && TEMP_LABEL[rej.temp] && (
+                                  <span style={{
+                                    alignSelf: 'flex-start',
+                                    fontSize: 10, fontWeight: 600,
+                                    padding: '1px 7px', borderRadius: 3,
+                                    background: TEMP_COLOR[rej.temp] + '26', color: TEMP_COLOR[rej.temp],
+                                  }}>{TEMP_LABEL[rej.temp]}</span>
+                                )}
+                                {rej.summary && (
+                                  <span style={{ fontSize: 11, color: C.textDark, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{rej.summary}</span>
+                                )}
+                              </div>
+                            )}
                             {activeRecordingId === rec.id && rec.recording_url && (
                               <InlineAudioPlayer url={rec.recording_url} onClose={() => setActiveRecordingId(null)} />
                             )}
@@ -2295,6 +2326,19 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               {(() => {
                 const recs = getRecordsForItem(selectedRow.id).slice().sort((a, b) => a.round - b.round);
                 if (recs.length === 0) return null;
+                // rejection_reason から温度感プレフィックスを切り出すヘルパー
+                const TEMP_BADGE = {
+                  HIGH:   { bg: alpha(color.success, 0.15), color: color.success, label: '温度感: 高' },
+                  MEDIUM: { bg: alpha(color.info,    0.15), color: color.info,    label: '温度感: 中' },
+                  LOW:    { bg: alpha(color.danger,  0.15), color: color.danger,  label: '温度感: 低' },
+                  SKIP:   { bg: alpha(color.textLight, 0.15), color: color.textLight, label: '分析不可' },
+                };
+                const parseRejection = (raw) => {
+                  if (!raw) return { temp: null, summary: '' };
+                  const m = raw.match(/^(HIGH|MEDIUM|LOW|SKIP)\s*\n?([\s\S]*)$/);
+                  if (m) return { temp: m[1].toUpperCase(), summary: m[2].trim() };
+                  return { temp: null, summary: raw };
+                };
                 return (
                   <div style={{ padding: space[4], background: color.white, borderRadius: radius.md, border: `1px solid ${color.gray200}` }}>
                     <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navyDeep, marginBottom: 8 }}>架電履歴</div>
@@ -2302,6 +2346,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                       {recs.map(rec => {
                         const sc = callStatusColor(rec.status);
                         const dtStr = formatJST(rec.called_at);
+                        const isKeymanReject = rec.status === 'キーマン断り';
+                        const rej = isKeymanReject ? parseRejection(rec.rejection_reason) : null;
+                        const tempConf = rej && rej.temp ? TEMP_BADGE[rej.temp] : null;
                         return (
                           <div key={rec.id}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: radius.md, background: color.offWhite, fontSize: font.size.xs, border: `1px solid ${color.gray200}` }}>
@@ -2318,6 +2365,31 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                                     style={{ fontSize: font.size.base, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>更新</button>
                               }
                             </div>
+                            {/* キーマン断り の AI 分析結果（温度感バッジ + 要約） */}
+                            {isKeymanReject && rej && (tempConf || rej.summary) && (
+                              <div style={{
+                                marginTop: 4, padding: '8px 10px',
+                                background: alpha(color.danger, 0.04),
+                                borderLeft: `3px solid ${color.danger}`,
+                                borderRadius: radius.sm,
+                                display: 'flex', flexDirection: 'column', gap: 4,
+                              }}>
+                                {tempConf && (
+                                  <span style={{
+                                    alignSelf: 'flex-start',
+                                    fontSize: font.size.xs - 1, fontWeight: font.weight.semibold,
+                                    padding: '2px 8px', borderRadius: radius.sm,
+                                    background: tempConf.bg, color: tempConf.color,
+                                  }}>{tempConf.label}</span>
+                                )}
+                                {rej.summary && (
+                                  <span style={{
+                                    fontSize: font.size.xs, color: color.textDark,
+                                    lineHeight: 1.6, whiteSpace: 'pre-wrap',
+                                  }}>{rej.summary}</span>
+                                )}
+                              </div>
+                            )}
                             {activeRecordingId === rec.id && rec.recording_url && (
                               <InlineAudioPlayer url={rec.recording_url} onClose={() => setActiveRecordingId(null)} />
                             )}
