@@ -275,10 +275,16 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   useEffect(() => {
     try {
       if (callFlowScreen) {
+        // スマートキュー経由（useCallQueue）で開いた場合、 defaultItemId / defaultListMode も
+        // 保存しておかないと ハードリロード後に「企業未選択 + 中央が空」状態になる。
+        // ※ クロージャー関数（onQueuePrev 等）と singleItemMode はリロード後に意味を持たない
+        //   ため保存しない（通常の listMode/全件ロード経路で復元する）
         localStorage.setItem("masp_v2_callFlowScreen", JSON.stringify({
           listSupaId: callFlowScreen.list?._supaId,
           startNo: callFlowScreen.startNo ?? null,
           endNo: callFlowScreen.endNo ?? null,
+          defaultItemId: callFlowScreen.defaultItemId ?? null,
+          defaultListMode: callFlowScreen.defaultListMode ?? null,
         }));
       } else if (callFlowRestoredRef.current) {
         // 復元処理が完了した後のみ削除（初回レンダリングで誤って削除しない）
@@ -308,9 +314,15 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
           const savedData = _savedCallFlowRef.current;
           _savedCallFlowRef.current = null; // 二重復元防止
           if (savedData) {
-            const { listSupaId, startNo, endNo } = savedData;
+            const { listSupaId, startNo, endNo, defaultItemId, defaultListMode } = savedData;
             const list = supabaseData.callLists.find(l => l._supaId === listSupaId);
-            if (list) setCallFlowScreen({ list, startNo: startNo ?? null, endNo: endNo ?? null });
+            if (list) setCallFlowScreen({
+              list,
+              startNo: startNo ?? null,
+              endNo: endNo ?? null,
+              defaultItemId: defaultItemId ?? null,
+              defaultListMode: defaultListMode ?? null,
+            });
           }
         } catch(e) {}
       }
