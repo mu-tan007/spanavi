@@ -216,11 +216,15 @@ export default function ListApproachPage({ list, orgId, onBack }) {
                                 >{tempConf.label}</span>
                               )}
                               {isKeymanReject && rej && rej.summary && (
-                                <span style={{
-                                  fontSize: 9, color: color.textMid, lineHeight: 1.4,
-                                  marginTop: 2, maxWidth: 220,
-                                  display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 3, overflow: 'hidden',
-                                }}>{rej.summary}</span>
+                                <span
+                                  title={rej.summary}
+                                  style={{
+                                    fontSize: 9, color: color.textMid, lineHeight: 1.4,
+                                    marginTop: 2, maxWidth: 220,
+                                    display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 3, overflow: 'hidden',
+                                    cursor: 'help',
+                                  }}
+                                >{rej.summary}</span>
                               )}
                               {c.getter_name && <span style={{ fontSize: 9, color: color.textLight }}>{c.getter_name}</span>}
                               {c.recording_url && (
