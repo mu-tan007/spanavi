@@ -1345,7 +1345,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
         {currentTab === "database" && <DatabaseView isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView onBack={() => setCurrentTab('lists')} />}
-        {currentTab === "dashboard" && <SourcingDashboardView currentUser={currentUser} userId={userId} callListData={enrichedLists} members={members} now={now} appoData={appoData} onDataRefetch={onDataRefetch} isAdmin={isAdmin} setCurrentTab={setCurrentTab} setSelectedList={setSelectedList} setCallFlowScreen={setCallFlowScreen} />}
+        {currentTab === "dashboard" && <SourcingDashboardView currentUser={currentUser} userId={userId} members={members} now={now} appoData={appoData} isAdmin={isAdmin} />}
         {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} onDataRefetch={onDataRefetch} />}
         {currentTab === "library" && <LibraryView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
         {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} />}

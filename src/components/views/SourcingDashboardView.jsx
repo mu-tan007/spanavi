@@ -1,21 +1,15 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { C } from '../../constants/colors';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
-import { Button, Input, Select, Card, Badge, Tag } from '../ui';
+import { Button, Input, Card } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useEngagements } from '../../hooks/useEngagements';
 import { useKpiGoals, KPI_TYPES, PERIOD_TYPES } from '../../hooks/useKpiGoals';
 import { supabase } from '../../lib/supabase';
-import { fetchAllRecallRecords, fetchMemberPayrollHistory } from '../../lib/supabaseWrite';
 import PageHeader from '../common/PageHeader';
-import TopListCard from '../common/TopListCard';
 import PushNotificationBanner from '../dashboard/PushNotificationBanner';
 import { useUrlState } from '../../hooks/useUrlState';
-import { Phone } from 'lucide-react';
 
-// teams は teams テーブルから動的取得（SourcingEngagement の active チーム）
 const APPO_COUNTABLE = new Set(['面談済', '事前確認済', 'アポ取得']);
-const PAYROLL_COUNTABLE = new Set(['アポ取得', '事前確認済', '面談済']);
 
 // ============================================================
 // ヘルパ
@@ -45,8 +39,7 @@ const getMemberNamesForScope = (scope, members) => {
 // メイン
 // ============================================================
 export default function SourcingDashboardView({
-  currentUser, userId, callListData, members, now, appoData, onDataRefetch, isAdmin,
-  setCurrentTab, setSelectedList, setCallFlowScreen,
+  currentUser, userId, members, now, appoData, isAdmin,
 }) {
   const isMobile = useIsMobile();
   const { currentEngagement } = useEngagements();
@@ -87,9 +80,8 @@ export default function SourcingDashboardView({
   // 目標を入力できる権限判定（このスコープについて）
   const canEditGoal = useMemo(() => {
     if (isAdmin) return true;
-    if (scope.type === 'org') return false; // 管理者のみ
+    if (scope.type === 'org') return false;
     if (scope.type === 'team') return isTeamLeader && myMember?.team === scope.name;
-    // member: 自分のみ
     return scope.name === currentUser;
   }, [isAdmin, isTeamLeader, myMember, scope, currentUser]);
 
@@ -101,7 +93,6 @@ export default function SourcingDashboardView({
   });
 
   const goalMap = useMemo(() => {
-    // kpi_type+period_type をキーに最新の effective_from のみ
     const map = {};
     (goals || []).forEach(g => {
       const k = `${g.kpi_type}_${g.period_type}`;
@@ -139,7 +130,6 @@ export default function SourcingDashboardView({
   }, [engagementId, todayStr, weekStart, monthStart]);
 
   const aggScope = useCallback((rankingRows) => {
-    // 組織全体は退職者含む全件（members フィルタなし）
     let filtered;
     if (scope.type === 'org') {
       filtered = (rankingRows || []);
@@ -157,10 +147,10 @@ export default function SourcingDashboardView({
   const weekAgg = useMemo(() => aggScope(ranking.week), [ranking.week, aggScope]);
   const monthAgg = useMemo(() => aggScope(ranking.month), [ranking.month, aggScope]);
 
-  // アポ・売上・インセンティブ（appoData + payroll）
+  // アポ・売上・インセンティブ
   const scopedAppos = useMemo(() => {
     const base = (appoData || []).filter(a => APPO_COUNTABLE.has(a.status));
-    if (scope.type === 'org') return base; // 組織全体は全件
+    if (scope.type === 'org') return base;
     const set = new Set(getMemberNamesForScope(scope, members));
     return base.filter(a => set.has(a.getter));
   }, [appoData, scope, members]);
@@ -170,164 +160,29 @@ export default function SourcingDashboardView({
     scopedAppos.filter(a => (!from || a.getDate >= from) && (!to || a.getDate <= to))
       .reduce((s, a) => s + (a.isProspecting ? 0 : (parseFloat(a.sales) || 0)), 0);
 
-  const appoInPeriod = (from, to) =>
-    scopedAppos.filter(a => (!from || a.getDate >= from) && (!to || a.getDate <= to)).length;
-
   const weekSales = useMemo(() => salesInPeriod(weekStart, todayStr), [scopedAppos, weekStart, todayStr]);
   const monthSales = useMemo(() => salesInPeriod(monthStart, todayStr), [scopedAppos, monthStart, todayStr]);
 
-  // インセンティブ: 簡易計算（scoped appointments の reward 合計 + team bonus）
+  // インセンティブ
   const calcIncentive = (from, to) => {
     const periodAppos = scopedAppos.filter(a =>
       (!from || a.getDate >= from) && (!to || a.getDate <= to)
     );
     const incentive = periodAppos.reduce((s, a) => s + (parseFloat(a.reward) || 0), 0);
-    // team bonus は team scope 以上で計上、クライアント開拓由来は除外
     if (scope.type === 'member') return incentive;
     const teamSales = periodAppos.reduce((s, a) => s + (a.isProspecting ? 0 : (parseFloat(a.sales) || 0)), 0);
     const pool = Math.round(teamSales * 0.03);
-    return incentive + pool; // 簡易: pool をそのままプラス
+    return incentive + pool;
   };
 
   const weekIncentive = useMemo(() => calcIncentive(weekStart, todayStr), [scopedAppos, weekStart, todayStr, scope]);
   const monthIncentive = useMemo(() => calcIncentive(monthStart, todayStr), [scopedAppos, monthStart, todayStr, scope]);
 
-  // 本日の実績
-  const todayAppo = useMemo(() => appoInPeriod(todayStr, todayStr), [scopedAppos, todayStr]);
-
   // ---- 目標入力モーダル ----
   const [goalModalOpen, setGoalModalOpen] = useState(false);
 
-  // ---- 架電キュー（📞ボタン→次企業へ自動遷移／ヘッダー前後矢印で遷移） ----
-  const queueRef = useRef({ items: [], idx: 0 });
-  // 元リストの完全なオブジェクトを解決して渡す（スクリプト・アウト返し・企業概要・注意事項・カレンダーを保持）
-  const resolveFullList = useCallback((listId) => {
-    const found = (callListData || []).find(l => l._supaId === listId || l.id === listId);
-    return found || { _supaId: listId, id: listId, company: '' };
-  }, [callListData]);
-
-  const openQueueItemAtIdx = useCallback(() => {
-    const q = queueRef.current;
-    const cur = q.items[q.idx];
-    if (!cur || !setCallFlowScreen) { setCallFlowScreen?.(null); return; }
-    const goPrev = q.idx > 0 ? () => {
-      queueRef.current = { items: q.items, idx: q.idx - 1 };
-      openQueueItemAtIdx();
-    } : null;
-    const goNext = q.idx < q.items.length - 1 ? () => {
-      queueRef.current = { items: q.items, idx: q.idx + 1 };
-      openQueueItemAtIdx();
-    } : null;
-    setCallFlowScreen({
-      list: resolveFullList(cur.list_id),
-      defaultItemId: cur.item_id,
-      defaultListMode: false,
-      singleItemMode: true,
-      onQueuePrev: goPrev,
-      onQueueNext: goNext,
-      queuePos: `${q.idx + 1} / ${q.items.length}件`,
-      onResultSubmit: () => {
-        queueRef.current = { items: q.items, idx: q.idx + 1 };
-        if (queueRef.current.idx < queueRef.current.items.length) {
-          openQueueItemAtIdx();
-        } else {
-          setCallFlowScreen?.(null);
-        }
-      },
-    });
-  }, [setCallFlowScreen, resolveFullList]);
-
-  const openQueue = useCallback((items, startIdx) => {
-    // 全件をキューに保持し、選択された位置を初期 idx に。
-    // 前後矢印で 1〜N 全件を自由に行き来できる。
-    const full = (items || []).filter(it => it.item_id && it.list_id);
-    if (!full.length) return;
-    // 元配列の startIdx が valid でない場合に備え、対応する item で再検索
-    const targetId = items[startIdx]?.item_id;
-    const initialIdx = Math.max(0, full.findIndex(it => it.item_id === targetId));
-    queueRef.current = { items: full, idx: initialIdx };
-    openQueueItemAtIdx();
-  }, [openQueueItemAtIdx]);
-
-  // ---- 受付再コール超過 / キーマン再コール超過 / キーマン断り14日経過 / 再アプローチ候補 ----
-  // サーバー側 RPC で join 済の必要行だけ取得
-  const [overdueReceptionRecalls, setOverdueReceptionRecalls] = useState([]);
-  const [overdueRecalls, setOverdueRecalls] = useState([]);
-  const [oldRejections, setOldRejections] = useState([]);
-  const [reapproachCandidates, setReapproachCandidates] = useState([]);
-  const [recallLoading, setRecallLoading] = useState(true);
   // 週次・月次 進捗率の表示切替（'both' / 'weekly' / 'monthly'）
   const [progressPeriodFilter, setProgressPeriodFilter] = useState('both');
-
-  useEffect(() => {
-    let cancelled = false;
-    setRecallLoading(true);
-    const mapRecall = (r) => ({
-      id: r.record_id,
-      item_id: r.item_id,
-      list_id: r.list_id,
-      company: r.company || '—',
-      list_name: r.list_name || '',
-      recall_date: r.recall_date,
-      recall_time: r.recall_time,
-      assignee: r.assignee,
-      getter_name: r.getter_name,
-    });
-    Promise.all([
-      supabase.rpc('dashboard_overdue_reception_recalls'),
-      supabase.rpc('dashboard_overdue_recalls'),
-      supabase.rpc('dashboard_old_rejections', { p_days: 14 }),
-      supabase.rpc('dashboard_reapproach_candidates'),
-    ]).then(([recpRes, recRes, rejRes, reaRes]) => {
-      if (cancelled) return;
-      setOverdueReceptionRecalls((recpRes.data || []).map(mapRecall));
-      setOverdueRecalls((recRes.data || []).map(r => ({
-        id: r.record_id,
-        item_id: r.item_id,
-        list_id: r.list_id,
-        company: r.company || '—',
-        list_name: r.list_name || '',
-        recall_date: r.recall_date,
-        recall_time: r.recall_time,
-        assignee: r.assignee,
-        getter_name: r.getter_name,
-      })));
-      setOldRejections((rejRes.data || []).map(r => ({
-        id: r.record_id,
-        item_id: r.item_id,
-        list_id: r.list_id,
-        company: r.company || '—',
-        list_name: r.list_name || '',
-        getter_name: r.getter_name,
-        called_at: r.called_at,
-      })));
-      setReapproachCandidates((reaRes.data || []).map(r => ({
-        id: `${r.item_id}_${r.list_id}`,
-        item_id: r.item_id,
-        list_id: r.list_id,
-        company: r.company || '—',
-        list_name: r.list_name || '',
-        client_name: r.client_name || '',
-        past_getter: r.past_getter || '',
-        past_client: r.past_client || '',
-        past_date: r.past_date || null,
-        source: r.source || 'spanavi',
-      })));
-      setRecallLoading(false);
-    }).catch(err => {
-      console.error('[Dashboard] recall/rejection/reapproach RPC error:', err);
-      if (!cancelled) setRecallLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [todayStr]);
-
-  // ---- おすすめリスト TOP4 ----
-  const topLists = useMemo(() => {
-    return (callListData || [])
-      .filter(l => l.status === '架電可能' && !l.is_archived && l.recommendation)
-      .sort((a, b) => (b.recommendation?.score || 0) - (a.recommendation?.score || 0))
-      .slice(0, 4);
-  }, [callListData]);
 
   const saveGoals = async (entries) => {
     for (const e of entries) {
@@ -430,13 +285,6 @@ export default function SourcingDashboardView({
         />
       </Card>
 
-      {/*
-        おすすめリスト TOP4 はリスト一覧ページに同じものがあるため削除。
-        受付再コール超過 / キーマン再コール超過 / キーマン断り14日経過 / 再アプローチ候補
-        は「スマートキュー（架電リスト → スマートキュータブ → 特殊条件抽出）」に移管した。
-        将来このダッシュボードは個人成果・活動分析にリフォーム予定。
-      */}
-
       {goalModalOpen && (
         <GoalInputModal
           scope={scope}
@@ -452,11 +300,6 @@ export default function SourcingDashboardView({
 // ============================================================
 // サブコンポーネント
 // ============================================================
-const rowStyle = {
-  display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0',
-  borderBottom: `1px solid ${color.borderLight}`, fontSize: font.size.sm,
-};
-
 function TodayCard({ label, actual, goal, unit }) {
   const pct = progressPct(actual, goal);
   const barColor = pct >= 100 ? color.success : pct >= 60 ? color.gold : pct >= 30 ? color.navy : color.textLight;
@@ -484,7 +327,7 @@ function ProgressTable({ periods, rows, getGoal }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr repeat(2, 2fr)', gap: 0, fontSize: font.size.xs }}>
       <div style={cellHeader}>指標</div>
       {periods.map(p => <div key={p.id} style={cellHeader}>{p.label}</div>)}
-      {rows.map((row, i) => {
+      {rows.map((row) => {
         const weekGoal = getGoal(row.kpi, 'weekly');
         const monthGoal = getGoal(row.kpi, 'monthly');
         const weekPct = progressPct(row.weekActual, weekGoal);
@@ -529,54 +372,6 @@ function ProgressBar({ actual, goal, pct, money }) {
         {goal > 0 ? fmtPct(pct) : '—'}
       </div>
     </div>
-  );
-}
-
-function CallButton({ onClick, disabled }) {
-  return (
-    <Button
-      size="sm"
-      disabled={disabled}
-      onClick={onClick}
-      title="架電集中画面を開く"
-      iconLeft={<Phone size={12} strokeWidth={2} />}
-    >
-      架電
-    </Button>
-  );
-}
-
-function CollapsibleList({ title, items, emptyText, render, loading }) {
-  const [open, setOpen] = useState(false);
-  const initial = 15;
-  const shown = open ? items : items.slice(0, initial);
-  return (
-    <Card padding="none" style={{ marginBottom: 12, padding: '14px 20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>
-          {title}{' '}
-          <span style={{ fontSize: font.size.xs, fontWeight: font.weight.normal, color: color.textLight, marginLeft: 6 }}>
-            {loading ? '読み込み中…' : `${items.length}件`}
-          </span>
-        </div>
-        {!loading && items.length > initial && (
-          <Button size="sm" variant="outline" onClick={() => setOpen(v => !v)}>
-            {open ? '閉じる' : `さらに${items.length - initial}件表示`}
-          </Button>
-        )}
-      </div>
-      {loading ? (
-        <div style={{ padding: 12, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
-          読み込み中…
-        </div>
-      ) : items.length === 0 ? (
-        <div style={{ padding: 12, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
-          {emptyText}
-        </div>
-      ) : (
-        shown.map(render)
-      )}
-    </Card>
   );
 }
 
