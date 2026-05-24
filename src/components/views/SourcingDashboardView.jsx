@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import PageHeader from '../common/PageHeader';
 import PushNotificationBanner from '../dashboard/PushNotificationBanner';
 import { useUrlState } from '../../hooks/useUrlState';
+import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend } from 'recharts';
 
 const APPO_COUNTABLE = new Set(['面談済', '事前確認済', 'アポ取得']);
 
@@ -216,6 +217,48 @@ export default function SourcingDashboardView({
     return Math.max(0, perDayNeeded - todayActual);
   }, [remainingBizDays]);
 
+  // ---- ② 数字分析 用データ取得 ----
+  const [funnelData, setFunnelData] = useState(null);
+  const [trendData, setTrendData] = useState([]);
+  const [heatmapData, setHeatmapData] = useState([]);
+  const [listPerfData, setListPerfData] = useState([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!scope.name) return;
+    let cancelled = false;
+    setAnalyticsLoading(true);
+
+    // 期間: 直近30日（トレンド分析の標準粒度）
+    const from30 = `${new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}T00:00:00+09:00`;
+    const toNow  = `${todayStr}T23:59:59+09:00`;
+
+    Promise.all([
+      supabase.rpc('get_personal_funnel_compare', { p_member_name: scope.name, p_from: from30, p_to: toNow }),
+      supabase.rpc('get_personal_30d_trend',      { p_member_name: scope.name }),
+      supabase.rpc('perf_call_heatmap',           { p_from: from30, p_to: toNow, p_getter_name: scope.name }),
+      supabase.rpc('get_personal_list_perf',      { p_member_name: scope.name, p_from: from30, p_to: toNow }),
+    ]).then(([fRes, tRes, hRes, lRes]) => {
+      if (cancelled) return;
+      setFunnelData(fRes.data || null);
+      setTrendData((tRes.data || []).map(r => ({
+        day: r.day,
+        label: r.day?.slice(5) || '',  // MM-DD表示
+        calls: Number(r.calls || 0),
+        connects: Number(r.connects || 0),
+        appos: Number(r.appos || 0),
+      })));
+      setHeatmapData(hRes.data || []);
+      setListPerfData(lRes.data || []);
+      setAnalyticsLoading(false);
+    }).catch(err => {
+      console.error('[Dashboard analytics] RPC error:', err);
+      if (!cancelled) setAnalyticsLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [scope.name, todayStr]);
+
   // ---- 目標入力モーダル ----
   const [goalModalOpen, setGoalModalOpen] = useState(false);
 
@@ -354,6 +397,31 @@ export default function SourcingDashboardView({
           ]}
           getGoal={getGoal}
         />
+      </Card>
+
+      {/* ② 数字分析 (Analytics) — 直近30日 */}
+      <Card padding="md" style={{ marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+          <div>
+            <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>数字分析</div>
+            <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 2 }}>
+              直近30日のファネル・推移・時間帯・リスト別
+            </div>
+          </div>
+        </div>
+
+        {analyticsLoading ? (
+          <div style={{ padding: 24, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
+            読み込み中…
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <FunnelCompareTable data={funnelData} />
+            <TrendChart data={trendData} />
+            <HeatmapGrid data={heatmapData} isMobile={isMobile} />
+            <ListPerfBlock data={listPerfData} />
+          </div>
+        )}
       </Card>
 
       {goalModalOpen && (
@@ -563,6 +631,256 @@ function ProgressBar({ actual, goal, pct, money }) {
       <div style={{ fontSize: font.size.xs - 2, color: barColor, fontWeight: font.weight.semibold, textAlign: 'right', marginTop: 2 }}>
         {goal > 0 ? fmtPct(pct) : '—'}
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// ② 数字分析 サブコンポーネント
+// ============================================================
+
+// ファネル比較: 架電→接続→アポ、各段階の率を 自分/チーム平均/組織TOP で並べる
+function FunnelCompareTable({ data }) {
+  if (!data) {
+    return <div style={{ color: color.textLight, fontSize: font.size.sm }}>ファネルデータが取得できませんでした。</div>;
+  }
+  const scopes = [
+    { key: 'self',     label: '自分',       hi: true },
+    { key: 'team_avg', label: 'チーム平均', hi: false },
+    { key: 'org_top',  label: '組織TOP',    hi: false },
+  ];
+  const rows = [
+    { key: 'connect_rate',         label: '架電→接続',  suffix: '%' },
+    { key: 'connect_to_appo_rate', label: '接続→アポ',  suffix: '%' },
+    { key: 'appo_rate',            label: '架電→アポ',  suffix: '%' },
+  ];
+  const fmt = (v) => (v == null ? '—' : Number(v).toFixed(1));
+
+  return (
+    <div>
+      <SectionLabel>ファネル比較（自分 vs チーム平均 vs 組織TOP）</SectionLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 0, fontSize: font.size.xs, marginTop: 8 }}>
+        <div style={cellHeader}>段階</div>
+        {scopes.map(s => (
+          <div key={s.key} style={{ ...cellHeader, textAlign: 'center' }}>{s.label}</div>
+        ))}
+        {rows.map(row => (
+          <React.Fragment key={row.key}>
+            <div style={{ ...cellBase, fontWeight: font.weight.semibold, color: color.navy }}>{row.label}</div>
+            {scopes.map(s => {
+              const v = data[s.key]?.[row.key];
+              const selfV = data.self?.[row.key];
+              const teamAvgV = data.team_avg?.[row.key];
+              // 自分セル: チーム平均との比較で色付け
+              let textColor = color.textDark;
+              if (s.key === 'self' && Number(selfV) > 0 && Number(teamAvgV) > 0) {
+                if (Number(selfV) >= Number(teamAvgV) * 1.1) textColor = color.success;
+                else if (Number(selfV) < Number(teamAvgV) * 0.9) textColor = color.danger;
+              }
+              return (
+                <div key={s.key} style={{ ...cellBase, textAlign: 'center', fontFamily: font.family.mono, color: textColor, fontWeight: s.hi ? font.weight.bold : font.weight.normal }}>
+                  {fmt(v)}{row.suffix}
+                </div>
+              );
+            })}
+          </React.Fragment>
+        ))}
+        {/* 件数の行 */}
+        <div style={{ ...cellBase, fontWeight: font.weight.semibold, color: color.textLight, fontSize: font.size.xs - 1 }}>件数</div>
+        {scopes.map(s => (
+          <div key={s.key} style={{ ...cellBase, textAlign: 'center', fontSize: font.size.xs - 1, color: color.textLight, fontFamily: font.family.mono }}>
+            架{fmtNum(data[s.key]?.calls)} / 接{fmtNum(data[s.key]?.connects)} / ア{fmtNum(data[s.key]?.appos)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 30日推移チャート
+function TrendChart({ data }) {
+  if (!data || data.length === 0) {
+    return (
+      <div>
+        <SectionLabel>30日推移（架電 / 接続 / アポ）</SectionLabel>
+        <div style={{ padding: 24, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
+          直近30日に活動データがありません。
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <SectionLabel>30日推移（架電 / 接続 / アポ）</SectionLabel>
+      <div style={{ width: '100%', height: 240, marginTop: 8 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={color.borderLight} />
+            <XAxis dataKey="label" tick={{ fontSize: 10, fill: color.textLight }} interval="preserveStartEnd" />
+            <YAxis yAxisId="left" tick={{ fontSize: 10, fill: color.textLight }} />
+            <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: color.textLight }} />
+            <Tooltip contentStyle={{ fontSize: 11, borderRadius: 4 }} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Line yAxisId="left"  type="monotone" dataKey="calls"    name="架電" stroke={color.navy}    strokeWidth={2} dot={false} />
+            <Line yAxisId="left"  type="monotone" dataKey="connects" name="接続" stroke={color.gold}    strokeWidth={2} dot={false} />
+            <Line yAxisId="right" type="monotone" dataKey="appos"    name="アポ" stroke={color.success} strokeWidth={2} dot={{ r: 3 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+// 時間帯×曜日 ヒートマップ（接続率）
+function HeatmapGrid({ data, isMobile }) {
+  // データ: [{dow:0-6, hour:0-23, calls, connects}]
+  // 曜日: 月-土 (日曜は除外、業務時間外)
+  const DOW_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
+  const VISIBLE_DOWS = [1, 2, 3, 4, 5, 6]; // 月〜土
+  const HOURS = [];
+  for (let h = 9; h <= 19; h++) HOURS.push(h);
+
+  // dow x hour → 接続率
+  const grid = {};
+  let maxRate = 0;
+  (data || []).forEach(d => {
+    const calls = Number(d.calls || 0);
+    const connects = Number(d.connects || 0);
+    if (calls === 0) return;
+    const rate = (connects / calls) * 100;
+    const key = `${d.dow}_${d.hour}`;
+    grid[key] = { rate, calls, connects };
+    if (rate > maxRate) maxRate = rate;
+  });
+
+  const cellSize = isMobile ? 22 : 32;
+  const labelW = 32;
+
+  const cellBgColor = (rate) => {
+    if (rate == null) return color.gray100;
+    if (maxRate === 0) return color.gray100;
+    const intensity = Math.min(1, rate / Math.max(maxRate, 5));
+    return alpha(color.navy, 0.08 + intensity * 0.72);
+  };
+
+  return (
+    <div>
+      <SectionLabel>時間帯 × 曜日 ヒートマップ（接続率）</SectionLabel>
+      <div style={{ overflowX: 'auto', marginTop: 8 }}>
+        <div style={{ display: 'inline-block' }}>
+          {/* ヘッダ行: 時間 */}
+          <div style={{ display: 'flex', gap: 2 }}>
+            <div style={{ width: labelW }} />
+            {HOURS.map(h => (
+              <div key={h} style={{ width: cellSize, textAlign: 'center', fontSize: 9, color: color.textLight, fontFamily: font.family.mono }}>
+                {h}
+              </div>
+            ))}
+          </div>
+          {/* 各曜日行 */}
+          {VISIBLE_DOWS.map(dow => (
+            <div key={dow} style={{ display: 'flex', gap: 2, marginTop: 2 }}>
+              <div style={{ width: labelW, fontSize: 10, color: color.textMid, fontWeight: font.weight.semibold, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 4 }}>
+                {DOW_LABELS[dow]}
+              </div>
+              {HOURS.map(h => {
+                const cell = grid[`${dow}_${h}`];
+                return (
+                  <div
+                    key={h}
+                    title={cell ? `${DOW_LABELS[dow]}曜 ${h}時 : 接続率 ${cell.rate.toFixed(1)}% (${cell.connects}/${cell.calls})` : `${DOW_LABELS[dow]}曜 ${h}時 : データなし`}
+                    style={{
+                      width: cellSize, height: cellSize,
+                      background: cellBgColor(cell?.rate),
+                      borderRadius: 2,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 9, color: cell?.rate > maxRate * 0.5 ? color.white : color.textDark,
+                      fontFamily: font.family.mono, fontWeight: font.weight.semibold,
+                    }}
+                  >
+                    {cell?.rate != null ? Math.round(cell.rate) : ''}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ fontSize: font.size.xs - 2, color: color.textLight, marginTop: 6 }}>
+        数値は接続率(%)。ホバーで詳細表示。色濃いほど高接続率。
+      </div>
+    </div>
+  );
+}
+
+// リスト別パフォーマンス TOP3 / BOTTOM3
+function ListPerfBlock({ data }) {
+  if (!data || data.length === 0) {
+    return (
+      <div>
+        <SectionLabel>リスト別パフォーマンス TOP3 / BOTTOM3（接続率順、最低10件）</SectionLabel>
+        <div style={{ padding: 16, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
+          対象リストがありません（10件以上架電したリストのみ表示）。
+        </div>
+      </div>
+    );
+  }
+  // data は connect_rate 降順で既にソート済み
+  const top = data.slice(0, 3);
+  const bottom = data.length > 3 ? data.slice(-3).reverse() : [];
+
+  return (
+    <div>
+      <SectionLabel>リスト別パフォーマンス TOP3 / BOTTOM3（接続率順、最低10件）</SectionLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: bottom.length > 0 ? '1fr 1fr' : '1fr', gap: 16, marginTop: 8 }}>
+        <ListPerfTable title="TOP3" rows={top} accent={color.success} />
+        {bottom.length > 0 && <ListPerfTable title="BOTTOM3" rows={bottom} accent={color.danger} />}
+      </div>
+    </div>
+  );
+}
+
+function ListPerfTable({ title, rows, accent }) {
+  return (
+    <div>
+      <div style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: accent, marginBottom: 4, letterSpacing: font.letterSpacing.wide }}>
+        {title}
+      </div>
+      <div>
+        {rows.map((r, i) => (
+          <div key={r.list_id} style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '6px 8px',
+            borderLeft: `3px solid ${accent}`,
+            background: alpha(accent, 0.04),
+            borderRadius: 2,
+            marginBottom: 4,
+            fontSize: font.size.xs,
+          }}>
+            <div style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: color.textDark }}>
+              {r.list_name || '(無名リスト)'}
+            </div>
+            <div style={{ fontFamily: font.family.mono, color: color.textLight, fontSize: font.size.xs - 1 }}>
+              {Number(r.calls)}件
+            </div>
+            <div style={{ fontFamily: font.family.mono, fontWeight: font.weight.bold, color: accent, width: 50, textAlign: 'right' }}>
+              {Number(r.connect_rate).toFixed(1)}%
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SectionLabel({ children }) {
+  return (
+    <div style={{
+      fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: color.navy,
+      letterSpacing: font.letterSpacing.wide, marginBottom: 4,
+      paddingLeft: 8, borderLeft: `3px solid ${color.navy}`,
+    }}>
+      {children}
     </div>
   );
 }
