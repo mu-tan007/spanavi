@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import PageHeader from '../common/PageHeader';
 import PushNotificationBanner from '../dashboard/PushNotificationBanner';
 import { useUrlState } from '../../hooks/useUrlState';
+import { useCoachingComments } from '../../hooks/useCoachingComments';
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend } from 'recharts';
 
 const APPO_COUNTABLE = new Set(['面談済', '事前確認済', 'アポ取得']);
@@ -50,6 +51,27 @@ const monthEndYmd = (anyYmd) => {
   const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
   return last.toISOString().slice(0, 10);
 };
+
+const addDays = (ymd, days) => {
+  const d = new Date(`${ymd}T00:00:00+09:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
+// コーチング既定テーマタグ
+const COACHING_THEMES = [
+  '覇気・抑揚',
+  '日程出し',
+  'リスト選び',
+  'アウト返し',
+  '再コール設定',
+  '受付突破',
+  'マインドセット',
+  '質問の型',
+  '丁寧すぎ／ラフさ',
+  'キャラ変／演技',
+  'その他',
+];
 
 // scope は常に 'member' 固定（チーム/組織集計はアナリティクス画面に移管）
 const getMemberNamesForScope = (scope) => (scope?.name ? [scope.name] : []);
@@ -423,6 +445,16 @@ export default function SourcingDashboardView({
           </div>
         )}
       </Card>
+
+      {/* ③ 週次コーチング */}
+      <CoachingSection
+        targetMemberId={scope.id}
+        targetMemberName={scope.name}
+        isAdmin={isAdmin}
+        isViewingSelf={isViewingSelf}
+        weekStart={weekStart}
+        weekEnd={addDays(weekStart, 6)}
+      />
 
       {goalModalOpen && (
         <GoalInputModal
@@ -881,6 +913,333 @@ function SectionLabel({ children }) {
       paddingLeft: 8, borderLeft: `3px solid ${color.navy}`,
     }}>
       {children}
+    </div>
+  );
+}
+
+// ============================================================
+// ③ 週次コーチング セクション
+// ============================================================
+function CoachingSection({ targetMemberId, targetMemberName, isAdmin, isViewingSelf, weekStart, weekEnd }) {
+  const { comments, recurring, loading, upsertComment } = useCoachingComments(targetMemberId);
+  const [orgId, setOrgId] = useState(null);
+  const [authorId, setAuthorId] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  // org_id と auth user id を取得（初回のみ）
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) setAuthorId(data?.user?.id || null);
+    });
+    supabase.rpc('get_user_org_id').then(({ data }) => {
+      if (!cancelled) setOrgId(data || null);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (!targetMemberId) {
+    return null;
+  }
+
+  const currentWeekComment = comments.find(c => c.period_start === weekStart) || null;
+  const pastComments = comments.filter(c => c.period_start !== weekStart);
+  const canEdit = isAdmin;
+
+  return (
+    <Card padding="md" style={{ marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+        <div>
+          <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>
+            週次コーチング
+          </div>
+          <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 2 }}>
+            {isViewingSelf ? '篠宮からの今週のコメント' : `${targetMemberName} へのコメント`}
+            <span style={{ marginLeft: 8, color: color.textLight, fontFamily: font.family.mono }}>
+              {weekStart} 〜 {weekEnd}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 再発警告バナー（篠宮編集時のみ表示） */}
+      {canEdit && !isViewingSelf && recurring.length > 0 && (
+        <RecurringWarning items={recurring} />
+      )}
+
+      {loading ? (
+        <div style={{ padding: 16, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
+          読み込み中…
+        </div>
+      ) : canEdit && !isViewingSelf ? (
+        // 篠宮視点：他人を編集
+        <CoachingEditor
+          existingComment={currentWeekComment}
+          weekStart={weekStart}
+          weekEnd={weekEnd}
+          orgId={orgId}
+          authorId={authorId}
+          onSave={async (payload) => {
+            await upsertComment(payload);
+          }}
+        />
+      ) : (
+        // メンバー本人視点 or 篠宮が自分を見ている視点：閲覧のみ
+        <CoachingReader comment={currentWeekComment} />
+      )}
+
+      {/* 過去履歴タイムライン */}
+      {pastComments.length > 0 && (
+        <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${color.borderLight}` }}>
+          <button
+            type="button"
+            onClick={() => setHistoryOpen(o => !o)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              padding: 0, color: color.navy, fontSize: font.size.xs, fontWeight: font.weight.semibold,
+              fontFamily: font.family.sans,
+            }}
+          >
+            {historyOpen ? '過去のコーチング履歴を閉じる ▲' : `過去のコーチング履歴を見る (${pastComments.length}件) ▼`}
+          </button>
+          {historyOpen && (
+            <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {pastComments.map(c => (
+                <PastCommentItem key={c.id} comment={c} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function CoachingEditor({ existingComment, weekStart, weekEnd, orgId, authorId, onSave }) {
+  const [commentText, setCommentText] = useState(existingComment?.comment_text || '');
+  const [themes, setThemes] = useState(existingComment?.themes || []);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState('');
+
+  // existingComment が変わったら state リセット（メンバー切替時等）
+  useEffect(() => {
+    setCommentText(existingComment?.comment_text || '');
+    setThemes(existingComment?.themes || []);
+    setSaveMsg('');
+  }, [existingComment?.id, weekStart]);
+
+  const toggleTheme = (t) => {
+    setThemes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
+  };
+
+  const handleSave = async () => {
+    if (!commentText.trim()) {
+      setSaveMsg('コメント本文を入力してください');
+      return;
+    }
+    if (!orgId || !authorId) {
+      setSaveMsg('認証情報の取得に失敗しています');
+      return;
+    }
+    setSaving(true); setSaveMsg('');
+    try {
+      await onSave({
+        periodStart: weekStart,
+        periodEnd: weekEnd,
+        commentText,
+        themes,
+        orgId,
+        authorId,
+      });
+      setSaveMsg('保存しました');
+      setTimeout(() => setSaveMsg(''), 3000);
+    } catch (e) {
+      console.error(e);
+      setSaveMsg(`保存失敗: ${e.message || e}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <textarea
+        value={commentText}
+        onChange={e => setCommentText(e.target.value)}
+        placeholder="例: 今週は接続率が上がったが、午後の集中力が落ちている。&#10;再コールは6/1で設定したのか確認。&#10;- [ ] ヌルヌル系社長5件を1週後再コール設定&#10;- [ ] 日程出しは必ず2日&#10;来週は最低でも接続率4%。"
+        rows={10}
+        style={{
+          width: '100%',
+          padding: '10px 12px',
+          fontSize: font.size.sm,
+          fontFamily: font.family.sans,
+          color: color.textDark,
+          background: color.white,
+          border: `1px solid ${color.border}`,
+          borderRadius: radius.md,
+          lineHeight: 1.7,
+          resize: 'vertical',
+          boxSizing: 'border-box',
+        }}
+      />
+
+      <div style={{ marginTop: 12 }}>
+        <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: 6 }}>
+          指摘テーマ（複数選択可）
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {COACHING_THEMES.map(t => {
+            const active = themes.includes(t);
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => toggleTheme(t)}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: font.size.xs,
+                  background: active ? color.navy : color.white,
+                  color: active ? color.white : color.textMid,
+                  border: `1px solid ${active ? color.navy : color.border}`,
+                  borderRadius: radius.pill,
+                  cursor: 'pointer',
+                  fontWeight: active ? font.weight.semibold : font.weight.normal,
+                  fontFamily: font.family.sans,
+                }}
+              >
+                {t}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, justifyContent: 'flex-end' }}>
+        {saveMsg && (
+          <span style={{ fontSize: font.size.xs, color: saveMsg.startsWith('保存しました') ? color.success : color.danger }}>
+            {saveMsg}
+          </span>
+        )}
+        <Button size="sm" onClick={handleSave} loading={saving}>
+          {existingComment ? '更新' : '保存'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function CoachingReader({ comment }) {
+  if (!comment) {
+    return (
+      <div style={{
+        padding: 14,
+        background: color.gray50,
+        borderRadius: radius.md,
+        fontSize: font.size.sm,
+        color: color.textLight,
+        textAlign: 'center',
+      }}>
+        今週はまだコメントが投稿されていません。
+      </div>
+    );
+  }
+  return (
+    <div>
+      <div style={{
+        padding: '12px 16px',
+        background: alpha(color.navy, 0.03),
+        borderLeft: `3px solid ${color.navy}`,
+        borderRadius: radius.sm,
+        fontSize: font.size.sm,
+        color: color.textDark,
+        lineHeight: 1.85,
+        whiteSpace: 'pre-wrap',
+      }}>
+        {comment.comment_text}
+      </div>
+      {comment.themes && comment.themes.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+          {comment.themes.map(t => (
+            <span key={t} style={{
+              padding: '2px 10px',
+              fontSize: font.size.xs - 1,
+              background: alpha(color.navy, 0.08),
+              color: color.navy,
+              borderRadius: radius.pill,
+              fontWeight: font.weight.semibold,
+            }}>
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PastCommentItem({ comment }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{
+      padding: '8px 12px',
+      background: color.gray50,
+      borderRadius: radius.sm,
+      borderLeft: `2px solid ${color.borderLight}`,
+    }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{
+          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+          fontSize: font.size.xs, color: color.textMid,
+          display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+          fontFamily: font.family.sans,
+        }}
+      >
+        <span style={{ fontFamily: font.family.mono, color: color.textLight }}>
+          {comment.period_start} 〜 {comment.period_end}
+        </span>
+        {comment.themes && comment.themes.length > 0 && (
+          <span style={{ color: color.textLight }}>
+            [{comment.themes.slice(0, 3).join(' / ')}{comment.themes.length > 3 ? ' …' : ''}]
+          </span>
+        )}
+        <span style={{ marginLeft: 'auto', color: color.textLight }}>{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div style={{
+          marginTop: 8, fontSize: font.size.sm, color: color.textDark, lineHeight: 1.8, whiteSpace: 'pre-wrap',
+          paddingTop: 8, borderTop: `1px solid ${color.borderLight}`,
+        }}>
+          {comment.comment_text}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RecurringWarning({ items }) {
+  return (
+    <div style={{
+      padding: '10px 14px',
+      background: alpha(color.warn, 0.08),
+      borderLeft: `3px solid ${color.warn}`,
+      borderRadius: radius.md,
+      marginBottom: 12,
+    }}>
+      <div style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: color.warn, letterSpacing: font.letterSpacing.wide, marginBottom: 4 }}>
+        再発指摘の警告
+      </div>
+      <div style={{ fontSize: font.size.xs, color: color.textDark, lineHeight: 1.6 }}>
+        {items.map(it => (
+          <div key={it.theme}>
+            <span style={{ fontWeight: font.weight.semibold }}>「{it.theme}」</span>
+            <span style={{ color: color.textMid }}>
+              {' '}が {it.occurrence_count}週連続で出ています。学習方法を切り替える時期かもしれません（3回ルール）。
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
