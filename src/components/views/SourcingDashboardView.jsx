@@ -8,7 +8,7 @@ import { supabase } from '../../lib/supabase';
 import PageHeader from '../common/PageHeader';
 import PushNotificationBanner from '../dashboard/PushNotificationBanner';
 import { useUrlState } from '../../hooks/useUrlState';
-import { useCoachingComments } from '../../hooks/useCoachingComments';
+import { useCoachingComments, parseCommentBlocks } from '../../hooks/useCoachingComments';
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend } from 'recharts';
 
 const APPO_COUNTABLE = new Set(['面談済', '事前確認済', 'アポ取得']);
@@ -921,7 +921,7 @@ function SectionLabel({ children }) {
 // ③ 週次コーチング セクション
 // ============================================================
 function CoachingSection({ targetMemberId, targetMemberName, isAdmin, isViewingSelf, weekStart, weekEnd }) {
-  const { comments, recurring, loading, upsertComment } = useCoachingComments(targetMemberId);
+  const { comments, recurring, loading, upsertComment, toggleActionItem } = useCoachingComments(targetMemberId);
   const [orgId, setOrgId] = useState(null);
   const [authorId, setAuthorId] = useState(null);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -984,8 +984,12 @@ function CoachingSection({ targetMemberId, targetMemberName, isAdmin, isViewingS
           }}
         />
       ) : (
-        // メンバー本人視点 or 篠宮が自分を見ている視点：閲覧のみ
-        <CoachingReader comment={currentWeekComment} />
+        // メンバー本人視点 or 篠宮が自分を見ている視点：閲覧のみ（自分なら check 可）
+        <CoachingReader
+          comment={currentWeekComment}
+          canCheck={isViewingSelf}
+          onToggle={toggleActionItem}
+        />
       )}
 
       {/* 過去履歴タイムライン */}
@@ -1005,7 +1009,7 @@ function CoachingSection({ targetMemberId, targetMemberName, isAdmin, isViewingS
           {historyOpen && (
             <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {pastComments.map(c => (
-                <PastCommentItem key={c.id} comment={c} />
+                <PastCommentItem key={c.id} comment={c} canCheck={isViewingSelf} onToggle={toggleActionItem} />
               ))}
             </div>
           )}
@@ -1128,7 +1132,7 @@ function CoachingEditor({ existingComment, weekStart, weekEnd, orgId, authorId, 
   );
 }
 
-function CoachingReader({ comment }) {
+function CoachingReader({ comment, canCheck = false, onToggle }) {
   if (!comment) {
     return (
       <div style={{
@@ -1143,6 +1147,11 @@ function CoachingReader({ comment }) {
       </div>
     );
   }
+  const actionItems = comment.action_items || [];
+  const totalActions = actionItems.length;
+  const doneCount = actionItems.filter(i => i.done).length;
+  const completionRate = totalActions > 0 ? Math.round(doneCount / totalActions * 100) : null;
+
   return (
     <div>
       <div style={{
@@ -1153,32 +1162,113 @@ function CoachingReader({ comment }) {
         fontSize: font.size.sm,
         color: color.textDark,
         lineHeight: 1.85,
-        whiteSpace: 'pre-wrap',
       }}>
-        {comment.comment_text}
+        <CommentBody text={comment.comment_text} actionItems={actionItems} canCheck={canCheck} onToggle={onToggle} />
       </div>
-      {comment.themes && comment.themes.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-          {comment.themes.map(t => (
-            <span key={t} style={{
-              padding: '2px 10px',
-              fontSize: font.size.xs - 1,
-              background: alpha(color.navy, 0.08),
-              color: color.navy,
-              borderRadius: radius.pill,
-              fontWeight: font.weight.semibold,
-            }}>
-              {t}
-            </span>
-          ))}
-        </div>
-      )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 10 }}>
+        {(comment.themes || []).map(t => (
+          <span key={t} style={{
+            padding: '2px 10px',
+            fontSize: font.size.xs - 1,
+            background: alpha(color.navy, 0.08),
+            color: color.navy,
+            borderRadius: radius.pill,
+            fontWeight: font.weight.semibold,
+          }}>
+            {t}
+          </span>
+        ))}
+        {completionRate != null && (
+          <span style={{
+            marginLeft: 'auto',
+            padding: '2px 10px',
+            fontSize: font.size.xs - 1,
+            background: completionRate === 100 ? alpha(color.success, 0.15) : alpha(color.warn, 0.12),
+            color: completionRate === 100 ? color.success : color.warn,
+            borderRadius: radius.pill,
+            fontWeight: font.weight.semibold,
+            fontFamily: font.family.mono,
+          }}>
+            アクション完了 {doneCount}/{totalActions} ({completionRate}%)
+          </span>
+        )}
+      </div>
     </div>
   );
 }
 
-function PastCommentItem({ comment }) {
+// コメント本文を「テキスト」「チェックボックス行」に分けて描画
+function CommentBody({ text, actionItems, canCheck, onToggle }) {
+  const blocks = parseCommentBlocks(text);
+  return (
+    <div>
+      {blocks.map((b, i) => {
+        if (b.type === 'text') {
+          return (
+            <div key={i} style={{ whiteSpace: 'pre-wrap' }}>{b.content}</div>
+          );
+        }
+        // checkbox
+        const item = actionItems[b.index];
+        return (
+          <ActionItemRow
+            key={i}
+            text={b.text}
+            done={item?.done || false}
+            disabled={!canCheck || !item}
+            onChange={async () => {
+              if (!item || !onToggle) return;
+              try {
+                await onToggle(item.id, !item.done);
+              } catch (e) {
+                console.error('toggle failed', e);
+              }
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function ActionItemRow({ text, done, disabled, onChange }) {
+  return (
+    <label style={{
+      display: 'flex', alignItems: 'flex-start', gap: 8,
+      padding: '4px 0',
+      cursor: disabled ? 'default' : 'pointer',
+      opacity: disabled && !done ? 0.7 : 1,
+    }}>
+      <input
+        type="checkbox"
+        checked={done}
+        disabled={disabled}
+        onChange={onChange}
+        style={{
+          marginTop: 4, flexShrink: 0,
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          accentColor: color.navy,
+        }}
+      />
+      <span style={{
+        textDecoration: done ? 'line-through' : 'none',
+        color: done ? color.textLight : color.textDark,
+        fontSize: font.size.sm,
+        lineHeight: 1.7,
+      }}>
+        {text}
+      </span>
+    </label>
+  );
+}
+
+function PastCommentItem({ comment, canCheck = false, onToggle }) {
   const [open, setOpen] = useState(false);
+  const actionItems = comment.action_items || [];
+  const totalActions = actionItems.length;
+  const doneCount = actionItems.filter(i => i.done).length;
+  const completionRate = totalActions > 0 ? Math.round(doneCount / totalActions * 100) : null;
+
   return (
     <div style={{
       padding: '8px 12px',
@@ -1204,14 +1294,24 @@ function PastCommentItem({ comment }) {
             [{comment.themes.slice(0, 3).join(' / ')}{comment.themes.length > 3 ? ' …' : ''}]
           </span>
         )}
+        {completionRate != null && (
+          <span style={{
+            fontSize: font.size.xs - 2,
+            color: completionRate === 100 ? color.success : color.warn,
+            fontFamily: font.family.mono,
+            fontWeight: font.weight.semibold,
+          }}>
+            ToDo {doneCount}/{totalActions}
+          </span>
+        )}
         <span style={{ marginLeft: 'auto', color: color.textLight }}>{open ? '▲' : '▼'}</span>
       </button>
       {open && (
         <div style={{
-          marginTop: 8, fontSize: font.size.sm, color: color.textDark, lineHeight: 1.8, whiteSpace: 'pre-wrap',
+          marginTop: 8, fontSize: font.size.sm, color: color.textDark, lineHeight: 1.8,
           paddingTop: 8, borderTop: `1px solid ${color.borderLight}`,
         }}>
-          {comment.comment_text}
+          <CommentBody text={comment.comment_text} actionItems={actionItems} canCheck={canCheck} onToggle={onToggle} />
         </div>
       )}
     </div>
