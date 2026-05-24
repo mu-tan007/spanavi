@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
-import { Button, Input, Card } from '../ui';
+import { Button, Input, Select, Card } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useEngagements } from '../../hooks/useEngagements';
 import { useKpiGoals, KPI_TYPES, PERIOD_TYPES } from '../../hooks/useKpiGoals';
@@ -28,12 +28,8 @@ const fmtYen = (v) => Math.round(v || 0).toLocaleString('ja-JP') + '円';
 const fmtPct = (v) => (v == null || Number.isNaN(v)) ? '—' : Math.round(v) + '%';
 const progressPct = (actual, goal) => (goal > 0 ? (actual / goal) * 100 : 0);
 
-const getMemberNamesForScope = (scope, members) => {
-  if (!members) return [];
-  if (scope.type === 'member') return scope.name ? [scope.name] : [];
-  if (scope.type === 'team') return members.filter(m => m.team === scope.name).map(m => m.name);
-  return members.map(m => m.name);
-};
+// scope は常に 'member' 固定（チーム/組織集計はアナリティクス画面に移管）
+const getMemberNamesForScope = (scope) => (scope?.name ? [scope.name] : []);
 
 // ============================================================
 // メイン
@@ -49,47 +45,58 @@ export default function SourcingDashboardView({
   const myRole = myMember?.role || '';
   const isTeamLeader = myRole === 'チームリーダー';
 
-  // チーム UUID 取得（現在の engagement (= Sourcing) のアクティブチームのみ）
-  const [teamRows, setTeamRows] = useState([]);
+  // ---- スコープ：常にメンバー単位（チーム/組織はアナリティクスに移管） ----
+  // 一般メンバー = 自分固定、チームリーダー = 自チームから選択、篠宮 = 全員から選択
+  const canSwitchMember = isAdmin || isTeamLeader;
+
+  const selectableMembers = useMemo(() => {
+    if (!members) return [];
+    if (isAdmin) return members.slice().sort((a, b) => (a.no || 0) - (b.no || 0));
+    if (isTeamLeader && myMember?.team) {
+      return members
+        .filter(m => m.team === myMember.team)
+        .sort((a, b) => (a.no || 0) - (b.no || 0));
+    }
+    return myMember ? [myMember] : [];
+  }, [members, isAdmin, isTeamLeader, myMember]);
+
+  const [viewMember, setViewMember] = useUrlState('dashViewMember', currentUser);
+  // 選択中メンバーが selectableMembers に含まれなくなった場合（権限切替等）は自分に戻す
   useEffect(() => {
-    if (!engagementId) { setTeamRows([]); return; }
-    supabase
-      .from('teams')
-      .select('id, name, display_order')
-      .eq('engagement_id', engagementId)
-      .eq('status', 'active')
-      .order('display_order')
-      .then(({ data }) => setTeamRows(data || []));
-  }, [engagementId]);
+    if (!selectableMembers.length) return;
+    if (!selectableMembers.some(m => m.name === viewMember)) {
+      setViewMember(currentUser);
+    }
+  }, [selectableMembers, viewMember, currentUser, setViewMember]);
 
-  // ---- スコープ ----
-  const scopeOptions = useMemo(() => {
-    const opts = [{ type: 'member', id: myMember?._supaId || null, label: '自分', name: currentUser }];
-    teamRows.forEach(row => {
-      opts.push({ type: 'team', id: row.id, label: `${row.name}チーム`, name: row.name });
-    });
-    opts.push({ type: 'org', id: null, label: '組織全体', name: null });
-    return opts;
-  }, [myMember, currentUser, teamRows]);
+  const scope = useMemo(() => {
+    const target = (members || []).find(m => m.name === viewMember) || myMember;
+    return {
+      type: 'member',
+      id: target?._supaId || null,
+      name: target?.name || currentUser,
+    };
+  }, [members, viewMember, myMember, currentUser]);
 
-  const [scopeIdxStr, setScopeIdxStr] = useUrlState('scopeIdx', '0');
-  const scopeIdx = parseInt(scopeIdxStr, 10) || 0;
-  const setScopeIdx = (v) => setScopeIdxStr(String(typeof v === 'function' ? v(scopeIdx) : v));
-  const scope = scopeOptions[scopeIdx];
+  const isViewingSelf = scope.name === currentUser;
 
   // 目標を入力できる権限判定（このスコープについて）
+  // 自分の目標 = 常に編集可、他人の目標 = 篠宮 or 同チームのチームリーダーのみ
   const canEditGoal = useMemo(() => {
+    if (isViewingSelf) return true;
     if (isAdmin) return true;
-    if (scope.type === 'org') return false;
-    if (scope.type === 'team') return isTeamLeader && myMember?.team === scope.name;
-    return scope.name === currentUser;
-  }, [isAdmin, isTeamLeader, myMember, scope, currentUser]);
+    if (isTeamLeader) {
+      const target = (members || []).find(m => m.name === scope.name);
+      return target?.team === myMember?.team;
+    }
+    return false;
+  }, [isViewingSelf, isAdmin, isTeamLeader, members, myMember, scope.name]);
 
   // ---- KPI 目標 ----
   const { goals, upsertGoal, refresh: refreshGoals } = useKpiGoals({
     engagementId,
-    scopeType: scope.type,
-    scopeId: scope.type === 'org' ? null : scope.id,
+    scopeType: 'member',
+    scopeId: scope.id,
   });
 
   const goalMap = useMemo(() => {
@@ -130,18 +137,12 @@ export default function SourcingDashboardView({
   }, [engagementId, todayStr, weekStart, monthStart]);
 
   const aggScope = useCallback((rankingRows) => {
-    let filtered;
-    if (scope.type === 'org') {
-      filtered = (rankingRows || []);
-    } else {
-      const set = new Set(getMemberNamesForScope(scope, members));
-      filtered = (rankingRows || []).filter(r => set.has(r.getter_name));
-    }
+    const filtered = (rankingRows || []).filter(r => r.getter_name === scope.name);
     const total = filtered.reduce((s, r) => s + Number(r.total || 0), 0);
     const keymanConnect = filtered.reduce((s, r) => s + Number(r.keyman_connect || 0), 0);
     const appo = filtered.reduce((s, r) => s + Number(r.appo || 0), 0);
     return { total, keymanConnect, appo };
-  }, [scope, members]);
+  }, [scope.name]);
 
   const todayAgg = useMemo(() => aggScope(ranking.today), [ranking.today, aggScope]);
   const weekAgg = useMemo(() => aggScope(ranking.week), [ranking.week, aggScope]);
@@ -149,11 +150,8 @@ export default function SourcingDashboardView({
 
   // アポ・売上・インセンティブ
   const scopedAppos = useMemo(() => {
-    const base = (appoData || []).filter(a => APPO_COUNTABLE.has(a.status));
-    if (scope.type === 'org') return base;
-    const set = new Set(getMemberNamesForScope(scope, members));
-    return base.filter(a => set.has(a.getter));
-  }, [appoData, scope, members]);
+    return (appoData || []).filter(a => APPO_COUNTABLE.has(a.status) && a.getter === scope.name);
+  }, [appoData, scope.name]);
 
   // クライアント開拓リスト由来のアポは売上集計から除外（件数は残す）
   const salesInPeriod = (from, to) =>
@@ -163,20 +161,15 @@ export default function SourcingDashboardView({
   const weekSales = useMemo(() => salesInPeriod(weekStart, todayStr), [scopedAppos, weekStart, todayStr]);
   const monthSales = useMemo(() => salesInPeriod(monthStart, todayStr), [scopedAppos, monthStart, todayStr]);
 
-  // インセンティブ
+  // インセンティブ（個人視点なので reward 合計のみ、team bonus は集計しない）
   const calcIncentive = (from, to) => {
-    const periodAppos = scopedAppos.filter(a =>
-      (!from || a.getDate >= from) && (!to || a.getDate <= to)
-    );
-    const incentive = periodAppos.reduce((s, a) => s + (parseFloat(a.reward) || 0), 0);
-    if (scope.type === 'member') return incentive;
-    const teamSales = periodAppos.reduce((s, a) => s + (a.isProspecting ? 0 : (parseFloat(a.sales) || 0)), 0);
-    const pool = Math.round(teamSales * 0.03);
-    return incentive + pool;
+    return scopedAppos
+      .filter(a => (!from || a.getDate >= from) && (!to || a.getDate <= to))
+      .reduce((s, a) => s + (parseFloat(a.reward) || 0), 0);
   };
 
-  const weekIncentive = useMemo(() => calcIncentive(weekStart, todayStr), [scopedAppos, weekStart, todayStr, scope]);
-  const monthIncentive = useMemo(() => calcIncentive(monthStart, todayStr), [scopedAppos, monthStart, todayStr, scope]);
+  const weekIncentive = useMemo(() => calcIncentive(weekStart, todayStr), [scopedAppos, weekStart, todayStr]);
+  const monthIncentive = useMemo(() => calcIncentive(monthStart, todayStr), [scopedAppos, monthStart, todayStr]);
 
   // ---- 目標入力モーダル ----
   const [goalModalOpen, setGoalModalOpen] = useState(false);
@@ -203,19 +196,18 @@ export default function SourcingDashboardView({
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="ダッシュボード"
-        description="現在地と次の一手"
-        right={(
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-            {scopeOptions.map((s, i) => (
-              <Button
-                key={i}
-                size="sm"
-                variant={scopeIdx === i ? 'primary' : 'outline'}
-                onClick={() => setScopeIdx(i)}
-              >
-                {s.label}
-              </Button>
-            ))}
+        description={isViewingSelf ? '現在地と次の一手' : `${scope.name} の現状`}
+        right={canSwitchMember && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: font.size.xs, color: color.textLight, whiteSpace: 'nowrap' }}>表示中:</span>
+            <Select
+              size="sm"
+              fullWidth={false}
+              value={viewMember}
+              onChange={e => setViewMember(e.target.value)}
+              options={selectableMembers.map(m => ({ value: m.name, label: m.name }))}
+              containerStyle={{ width: 180 }}
+            />
           </div>
         )}
         style={{ marginBottom: 24 }}
@@ -401,8 +393,7 @@ function GoalInputModal({ scope, currentGoals, onClose, onSave }) {
     onSave(entries);
   };
 
-  const scopeLabel = scope.type === 'member' ? `個人（${scope.name}）`
-    : scope.type === 'team' ? `${scope.name}チーム` : '組織全体';
+  const scopeLabel = `個人（${scope.name}）`;
 
   return (
     <div onClick={onClose} style={{
