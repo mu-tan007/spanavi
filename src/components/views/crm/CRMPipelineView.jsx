@@ -237,9 +237,16 @@ export default function CRMPipelineView({
     clientData.forEach(c => {
       if (map[c.status]) map[c.status].push(c);
     });
-    // 各グループ内で優先度スコア降順
+    // 各グループ内でソート
+    // - 「面談予定」: next_contact_at 昇順（直近の予定が上、null は末尾）。同点は優先度スコア降順。
+    // - その他ステータス: 優先度スコア降順
     Object.keys(map).forEach(st => {
       map[st].sort((a, b) => {
+        if (st === '面談予定') {
+          const ta = a.nextContactAt ? new Date(a.nextContactAt).getTime() : Number.POSITIVE_INFINITY;
+          const tb = b.nextContactAt ? new Date(b.nextContactAt).getTime() : Number.POSITIVE_INFINITY;
+          if (ta !== tb) return ta - tb;
+        }
         const sa = priorityScore(a, {
           lastTouchAt: a.statusChangedAt,
           monthAppoCount: monthAppoCountByClient[a._supaId] || 0,
