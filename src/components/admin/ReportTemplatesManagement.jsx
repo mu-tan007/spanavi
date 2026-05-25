@@ -44,6 +44,22 @@ const AUTO_FETCH_OPTIONS = [
   { value: 'homepage_url',  label: 'AI+Web検索でHP自動取得' },
 ];
 
+// 標準キーの推奨 auto_fill マッピング。
+// 「売り手ソーシング 標準」テンプレで contactName の auto_fill が抜けて担当者名が
+// 自動入力されなかった事故（2026-05-25）への再発防止として、これらの key を見つけたら
+// 警告バッジを表示し、ワンクリックで推奨値をセットできるようにする。
+const RECOMMENDED_AUTO_FILL = {
+  contactName:    'contact_name',
+  visitLocation:  'address',
+  phone:          'phone',
+  email:          'email',
+  businessDetail: 'business',
+  salesAmount:    'sales_thousand',
+  netIncome:      'net_income_thousand',
+  representative: 'representative',
+  acquirer:       'current_user',
+};
+
 export default function ReportTemplatesManagement({ onToast }) {
   const orgId = getOrgId();
   const { engagements, categories } = useEngagements();
@@ -477,6 +493,8 @@ function TemplateEditModal({ initial, engagements, clients, lists, onSave, onCan
               {form.schema.map((f, i) => {
                 const expanded = expandedIdx.has(i);
                 const hasMarker = f.ai_extract || f.auto_fill || f.auto_fetch || f.default || f.visible_when;
+                const recAutoFill = RECOMMENDED_AUTO_FILL[f.key];
+                const missingAutoFill = recAutoFill && !f.auto_fill;
                 return (
                 <div key={i} style={{
                   padding: `${space[2.5]}px ${space[3]}px`, background: color.offWhite,
@@ -513,6 +531,16 @@ function TemplateEditModal({ initial, engagements, clients, lists, onSave, onCan
                         fontFamily: font.family.sans,
                       }}
                     >{expanded ? '▲ 詳細を閉じる' : '▼ 詳細オプション'}</button>
+                    {missingAutoFill && (
+                      <span style={{ fontSize: 10, color: color.danger, fontWeight: font.weight.semibold, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        ⚠ 自動入力 未設定（推奨: {recAutoFill}）
+                        <button
+                          type="button"
+                          onClick={() => updateField(i, { auto_fill: recAutoFill })}
+                          style={{ background: color.danger, color: color.white, border: 'none', borderRadius: radius.sm, padding: `2px ${space[1.5]}px`, fontSize: 10, cursor: 'pointer', fontFamily: font.family.sans }}
+                        >推奨値を設定</button>
+                      </span>
+                    )}
                     {hasMarker && !expanded && (
                       <span style={{ fontSize: 10, color: color.textLight }}>
                         {[
