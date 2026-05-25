@@ -7,6 +7,7 @@ import { useEngagements } from '../../hooks/useEngagements';
 import {
   fetchReportTemplates, insertReportTemplate, updateReportTemplate, deleteReportTemplate,
 } from '../../lib/supabaseWrite';
+import { renderBody } from '../../lib/templateRenderer';
 
 const FIELD_TYPES = [
   { value: 'text',     label: 'テキスト（1行）' },
@@ -62,7 +63,7 @@ const RECOMMENDED_AUTO_FILL = {
 
 export default function ReportTemplatesManagement({ onToast }) {
   const orgId = getOrgId();
-  const { engagements, categories } = useEngagements();
+  const { engagements, categories, products } = useEngagements();
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState([]);
@@ -70,13 +71,34 @@ export default function ReportTemplatesManagement({ onToast }) {
   const [editing, setEditing] = useState(null); // null or template object (new: {})
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  // 営業代行系3engagement（テンプレ対象）
+  // 営業代行 product 配下の全 engagement (商材→engagement の順)
+  // 旧版は slug=['seller_sourcing','matching','client_acquisition'] でハードコードしていたため
+  // SaaS/IFA/人材の lead_generation_* / client_acquisition_* 等が画面から漏れていた。
   const salesAgencyEngagements = useMemo(() => {
-    const order = ['seller_sourcing', 'matching', 'client_acquisition'];
-    return (engagements || [])
-      .filter(e => order.includes(e.slug))
-      .sort((a, b) => order.indexOf(a.slug) - order.indexOf(b.slug));
-  }, [engagements]);
+    const sa = (products || []).find(p => p.slug === 'sales_agency');
+    if (!sa) return [];
+    const engs = (engagements || []).filter(e => e.product_id === sa.id && !e.isVirtual);
+    return engs.sort((a, b) => {
+      const ca = categories.find(c => c.id === a.category_id);
+      const cb = categories.find(c => c.id === b.category_id);
+      const co = (ca?.display_order || 999) - (cb?.display_order || 999);
+      if (co !== 0) return co;
+      return (a.display_order || 0) - (b.display_order || 0);
+    });
+  }, [engagements, products, categories]);
+
+  // 商材ごとに engagement をグルーピング (UI 表示用)
+  const engagementsByCategory = useMemo(() => {
+    const map = new Map();
+    for (const e of salesAgencyEngagements) {
+      const cat = categories.find(c => c.id === e.category_id);
+      if (!cat) continue;
+      if (!map.has(cat.id)) map.set(cat.id, { category: cat, engagements: [] });
+      map.get(cat.id).engagements.push(e);
+    }
+    return Array.from(map.values())
+      .sort((a, b) => (a.category.display_order || 0) - (b.category.display_order || 0));
+  }, [salesAgencyEngagements, categories]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -156,23 +178,46 @@ export default function ReportTemplatesManagement({ onToast }) {
         <Button variant="primary" size="sm" onClick={() => setEditing({})}>＋ 新規テンプレ</Button>
       </div>
 
-      {/* タイプ単位 */}
-      <Section title="タイプ単位（デフォルト）" hint="タイプごとに用途別の複数テンプレを持てます（例：アポ取得報告 + ヒアリング報告）">
-        {salesAgencyEngagements.map(e => {
-          const ts = groupedTemplates.engagement.filter(x => x.engagement_id === e.id);
-          const cat = categories.find(c => c.id === e.category_id)?.name || '—';
-          return (
-            <EngagementBlock
-              key={e.id}
-              engagement={e}
-              category={cat}
-              templates={ts}
-              onCreate={() => setEditing({ scope_level: 'engagement', engagement_id: e.id })}
-              onEdit={(t) => setEditing(t)}
-              onDelete={(t) => setConfirmDelete(t)}
-            />
-          );
-        })}
+      {/* タイプ単位 — 商材ごとにグルーピング表示 */}
+      <Section title="タイプ単位（デフォルト）" hint="商材→業務種別の階層で、各業務種別に紐付くテンプレを管理">
+        {engagementsByCategory.map(({ category, engagements: engs }) => (
+          <div key={category.id} style={{
+            border: `1px solid ${color.border}`,
+            borderRadius: radius.lg,
+            background: color.cream,
+            padding: space[3],
+            marginBottom: space[3],
+          }}>
+            <div style={{
+              fontSize: font.size.md,
+              fontWeight: font.weight.bold,
+              color: color.navy,
+              marginBottom: space[2],
+              display: 'flex',
+              alignItems: 'center',
+              gap: space[2],
+            }}>
+              <Badge variant="primary">{category.name}</Badge>
+              <span style={{ fontSize: font.size.xs, color: color.textLight, fontWeight: font.weight.normal }}>
+                {engs.length} 業務種別
+              </span>
+            </div>
+            {engs.map(e => {
+              const ts = groupedTemplates.engagement.filter(x => x.engagement_id === e.id);
+              return (
+                <EngagementBlock
+                  key={e.id}
+                  engagement={e}
+                  category={category.name}
+                  templates={ts}
+                  onCreate={() => setEditing({ scope_level: 'engagement', engagement_id: e.id })}
+                  onEdit={(t) => setEditing(t)}
+                  onDelete={(t) => setConfirmDelete(t)}
+                />
+              );
+            })}
+          </div>
+        ))}
       </Section>
 
       {/* クライアント単位 */}
@@ -391,6 +436,35 @@ function TemplateEditModal({ initial, engagements, clients, lists, onSave, onCan
     if (next.has(i)) next.delete(i); else next.add(i);
     return next;
   });
+
+  // プレビュー用ダミーデータ（field の type/label からそれっぽい値を組み立てる）
+  const previewData = useMemo(() => {
+    const d = { company_name: '株式会社サンプル' };
+    for (const f of form.schema || []) {
+      if (!f.key) continue;
+      if (f.type === 'date') d[f.key] = '2026-06-01';
+      else if (f.type === 'number') d[f.key] = '100000';
+      else if (f.type === 'select' && f.options?.length) d[f.key] = f.options[0];
+      else if (f.key === 'company_name') d[f.key] = '株式会社サンプル';
+      else if (f.key === 'contactName' || f.key === 'representative' || f.label?.includes('担当者')) d[f.key] = '山田 太郎';
+      else if (f.key === 'contactTitle' || f.label?.includes('役職')) d[f.key] = f.default || '代表取締役';
+      else if (f.key === 'phone' || f.label?.includes('電話')) d[f.key] = '03-1234-5678';
+      else if (f.key === 'email' || f.label?.includes('メール')) d[f.key] = 'sample@example.com';
+      else if (f.key === 'hp' || f.label?.includes('HP') || f.label?.includes('URL')) d[f.key] = 'https://example.com/';
+      else if (f.key === 'appoTime' || f.label?.includes('時間')) d[f.key] = '14:00';
+      else if (f.key === 'acquirer' || f.label?.includes('取得者')) d[f.key] = 'ログインユーザー';
+      else if (f.key === 'visitLocation' || f.label?.includes('訪問先')) d[f.key] = '東京都千代田区...';
+      else if (f.key === 'businessDetail' || f.label?.includes('事業内容')) d[f.key] = '◯◯の製造販売';
+      else d[f.key] = `【${f.label || f.key} のサンプル】`;
+    }
+    return d;
+  }, [form.schema]);
+
+  const previewText = useMemo(() => {
+    if (!form.body_template) return '(本文テンプレが空です)';
+    try { return renderBody(form.body_template, previewData, form.schema); }
+    catch { return '(プレビュー生成エラー)'; }
+  }, [form.body_template, previewData, form.schema]);
 
   const onSaveClick = async () => {
     setSaving(true);
@@ -619,6 +693,27 @@ function TemplateEditModal({ initial, engagements, clients, lists, onSave, onCan
                 ))}
               </div>
             )}
+          </Field>
+
+          {/* プレビュー */}
+          <Field label="プレビュー" hint="現在のスキーマと本文テンプレでサンプルデータを当てはめた表示（保存時の実際の見え方を確認）">
+            <pre style={{
+              background: color.cream,
+              border: `1px solid ${color.border}`,
+              padding: space[2.5],
+              borderRadius: radius.md,
+              fontSize: font.size.xs,
+              fontFamily: font.family.mono,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-all',
+              maxHeight: 320,
+              overflow: 'auto',
+              color: color.textDark,
+              margin: 0,
+              lineHeight: 1.7,
+            }}>
+              {previewText}
+            </pre>
           </Field>
 
           {/* AIプロンプト */}
