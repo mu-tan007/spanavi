@@ -295,7 +295,10 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         }));
       } else if (callFlowRestoredRef.current) {
         // 復元処理が完了した後のみ削除（初回レンダリングで誤って削除しない）
+        // 架電集中画面を閉じたらキューも一緒に破棄（×ボタンでの中断後、
+        // 次回ハードリロードで勝手に画面が復活するのを防ぐ）
         localStorage.removeItem("masp_v2_callFlowScreen");
+        localStorage.removeItem("masp_v2_callQueue");
       }
     } catch(e) {}
   }, [callFlowScreen]);
