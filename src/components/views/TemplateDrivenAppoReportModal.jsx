@@ -67,7 +67,12 @@ export default function TemplateDrivenAppoReportModal({
       setRecLoading(true);
       try {
         const url = await onFetchRecordingUrl();
-        if (url) setRecordingUrl(url);
+        if (url) {
+          setRecordingUrl(url);
+          if (template?.schema?.some(f => f.key === 'recordingUrl')) {
+            setForm(prev => ({ ...prev, recordingUrl: url }));
+          }
+        }
       } catch (e) { console.warn('[TemplateModal] 録音URL取得失敗:', e); }
       finally { setRecLoading(false); }
     })();
@@ -187,9 +192,12 @@ export default function TemplateDrivenAppoReportModal({
     setSaving(true);
     try {
       // body 生成（{{company_name}} などにも対応するため company_name 等の特殊キーを含める）
+      // recordingUrl は form と useState の二系統で保持しているため、ここで両方から取り出す
+      // （schema に recordingUrl が無いテンプレでも、useState 側に値があれば反映される）
       const renderData = {
         ...form,
         company_name: row?.company || form.company_name || '',
+        recordingUrl: form.recordingUrl || recordingUrl || '',
       };
       const reportNote = renderBody(template.body_template, renderData);
 
