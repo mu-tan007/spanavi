@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { color, space, font } from '../../../constants/design';
 import { useAuth } from '../../../hooks/useAuth';
 import { supabase } from '../../../lib/supabase';
@@ -18,7 +19,7 @@ import ClientKickoffHearingView from './views/ClientKickoffHearingView';
 // キックオフヒアリング(70問)が未完了の受講生は、初回ログイン直後にその画面を強制表示する。
 // 提出完了したら通常の5メニューに切り替わる（サイドバーから消える）。
 export default function SpacareerClientApp() {
-  const { profile, signOut } = useAuth();
+  const { session, profile, loading, signOut, isStudent } = useAuth();
   const [currentTab, setCurrentTab] = useState('mypage');
   const [hearingActive, setHearingActive] = useState(false); // キックオフヒアリングを表示するか
   const [bootstrapped, setBootstrapped] = useState(false);
@@ -57,13 +58,22 @@ export default function SpacareerClientApp() {
 
   const handleLogout = async () => {
     try { await signOut(); } catch (e) { console.error('Logout error:', e); }
-    window.location.href = '/login';
+    window.location.href = '/spacareer/login';
   };
 
   const currentUser = {
     name: profile?.name || '受講生',
     email: profile?.email,
   };
+
+  // 認証ゲート: ログインしていなければスパキャリ専用ログインへ
+  if (!loading && !session) {
+    return <Navigate to="/spacareer/login" replace />;
+  }
+  // ログイン済みだが受講生ロールでなければ運営ログインへ追い出す
+  if (!loading && session && profile && !isStudent) {
+    return <Navigate to="/login" replace />;
+  }
 
   // bootstrap 完了前は最低限のレイアウトのみ表示（ちらつき防止）
   if (!bootstrapped) {
