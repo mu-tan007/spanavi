@@ -1,9 +1,12 @@
 import React from 'react';
 import SidebarShell, { ActiveItem, SectionHeader } from '../../common/sidebars/SidebarShell';
 
-// スパキャリ クライアントポータル 5メニュー
-// 仕様書: tasks/spacareer-spec.md §3.2 A. クライアントポータル
-const MENU = [
+// スパキャリ クライアントポータル メニュー
+// 仕様書: tasks/spacareer-spec.md §3.2 A / §6.2A
+//
+// キックオフヒアリング(70問)が未完了の受講生にはメニュー先頭に「キックオフヒアリング」を表示。
+// 提出完了したら自動的に非表示になる。
+const BASE_MENU = [
   { id: 'mypage', label: '基本情報', sub: 'マイページ' },
   { id: 'homework', label: '事前課題', sub: 'セッション前の課題' },
   { id: 'feedback', label: 'セッション感想', sub: 'セッション後の振り返り' },
@@ -19,7 +22,12 @@ export default function SpacareerClientSidebar({
   currentMemberAvatar,
   onUserClick,
   onLogout,
+  showKickoffHearing = false,
 }) {
+  const menu = showKickoffHearing
+    ? [{ id: 'kickoff_hearing', label: 'キックオフヒアリング', sub: '第1回前の事前ヒアリング' }, ...BASE_MENU]
+    : BASE_MENU;
+
   return (
     <SidebarShell
       branding={branding}
@@ -30,7 +38,7 @@ export default function SpacareerClientSidebar({
       onLogout={onLogout}
     >
       <SectionHeader label="MENU" />
-      {MENU.map(item => (
+      {menu.map(item => (
         <ActiveItem
           key={item.id}
           label={item.label}
