@@ -29,6 +29,7 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
   const [expanded, setExpanded] = useState(new Set());
   const [getterFilter, setGetterFilter] = useState([]);
   const [tempFilter, setTempFilter] = useState([]); // 日本語ラベル配列 ['高','中','低','未判定']
+  const [clientFilter, setClientFilter] = useState([]);
   const [sortKey, setSortKey] = useState('reject_asc');
 
   const TEMP_OPTIONS = ['高', '中', '低', '未判定'];
@@ -46,19 +47,20 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
 
   // ページ表示用データ
   const { data: pageData, isPending } = useQuery({
-    queryKey: ['smart_queue_keyman_rejections', engagementIds, getterFilter, tempFilter, sortKey, page],
+    queryKey: ['smart_queue_keyman_rejections', engagementIds, getterFilter, tempFilter, clientFilter, sortKey, page],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('smart_queue_keyman_rejections', {
         p_engagement_id: null,
         p_engagement_ids: engagementIds,
         p_getter_names:  getterFilter.length ? getterFilter : null,
         p_temps:         tempCodes.length ? tempCodes : null,
+        p_client_names:  clientFilter.length ? clientFilter : null,
         p_sort:          sortKey,
         p_offset:        page * PAGE_SIZE,
         p_limit:         PAGE_SIZE,
       });
       if (error) console.warn('[KeymanRejectionsPanel] failed:', error);
-      return data || { total: 0, rows: [], getters: [] };
+      return data || { total: 0, rows: [], getters: [], clients: [] };
     },
   });
 
@@ -66,6 +68,7 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
   const total = pageData?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const getterOptions = pageData?.getters || [];
+  const clientOptions = pageData?.clients || [];
 
   const toggleExpand = (id) => {
     setExpanded(prev => {
@@ -84,6 +87,7 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
         p_engagement_ids: engagementIds,
         p_getter_names:  getterFilter.length ? getterFilter : null,
         p_temps:         tempCodes.length ? tempCodes : null,
+        p_client_names:  clientFilter.length ? clientFilter : null,
         p_sort:          sortKey,
       });
       const ids = Array.isArray(data) ? data : [];
@@ -183,6 +187,10 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
         <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>断り担当:</span>
         <MultiSelectDropdown placeholder="担当者を選択（複数可）" options={getterOptions} values={getterFilter}
           onChange={v => { setGetterFilter(v); setPage(0); }} width={220} />
+        <span style={{ color: color.border }}>|</span>
+        <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>クライアント:</span>
+        <MultiSelectDropdown placeholder="クライアントを選択（複数可）" options={clientOptions} values={clientFilter}
+          onChange={v => { setClientFilter(v); setPage(0); }} width={240} />
       </FilterBar>
 
       <DataTable columns={columns} rows={filteredRows} rowKey="record_id" loading={isPending}
