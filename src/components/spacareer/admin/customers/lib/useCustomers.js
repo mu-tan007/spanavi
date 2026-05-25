@@ -101,7 +101,10 @@ export function useCustomerDetail(customerId) {
     if (!customerId || !orgId) { setDetail(null); return; }
     setLoading(true);
     try {
-      const [customer, sessions, homework, kickoff, strength, sstyle, videos, slack] = await Promise.all([
+      const [
+        customer, sessions, homework, kickoff, strength, sstyle, videos, slack,
+        khSession, khAi, khResponses, khQuestions,
+      ] = await Promise.all([
         supabase.from('spacareer_customers')
           .select(`*, member:members!spacareer_customers_member_id_fkey ( id, name, email, phone )`)
           .eq('id', customerId).single(),
@@ -119,6 +122,17 @@ export function useCustomerDetail(customerId) {
           .select('*, session:spacareer_sessions ( session_no )').eq('org_id', orgId),
         supabase.from('spacareer_slack_channels')
           .select('*').eq('customer_id', customerId).maybeSingle(),
+        // 第1回前70問キックオフヒアリング（§6.2A）
+        supabase.from('spacareer_kickoff_hearing_sessions')
+          .select('*').eq('customer_id', customerId).maybeSingle(),
+        supabase.from('spacareer_kickoff_hearing_ai_extractions')
+          .select('*').eq('customer_id', customerId).eq('is_active', true)
+          .order('created_at', { ascending: false }),
+        supabase.from('spacareer_kickoff_hearing_responses')
+          .select('question_id, answer_text, is_draft, answered_at')
+          .eq('customer_id', customerId),
+        supabase.from('spacareer_kickoff_hearing_questions')
+          .select('*').eq('is_active', true).order('display_order'),
       ]);
 
       const sessIds = new Set((sessions.data || []).map((s) => s.id));
@@ -141,6 +155,10 @@ export function useCustomerDetail(customerId) {
         videos: videoRows,
         slack: slack.data || null,
         trainer,
+        kickoffHearingSession: khSession.data || null,
+        kickoffHearingAi: khAi.data || [],
+        kickoffHearingResponses: khResponses.data || [],
+        kickoffHearingQuestions: khQuestions.data || [],
       });
     } catch (e) {
       console.error('[useCustomerDetail] error:', e);

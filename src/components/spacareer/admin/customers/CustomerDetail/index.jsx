@@ -4,6 +4,7 @@ import { Badge } from '../../../../ui';
 import { useCustomerDetail } from '../lib/useCustomers';
 import ProgressStepper from './ProgressStepper';
 import TabBasicInfo from './TabBasicInfo';
+import TabKickoffHearing from './TabKickoffHearing';
 import TabKickoff from './TabKickoff';
 import TabSessionHistory from './TabSessionHistory';
 import TabHomework from './TabHomework';
@@ -19,15 +20,16 @@ import RightSidebar from './RightSidebar';
 // 仕様書 §7.1：8タブ＋視聴ログタブ
 // ============================================================
 const TABS = [
-  { id: 'basic',      label: '基本情報' },
-  { id: 'kickoff',    label: 'キックオフ管理' },
-  { id: 'sessions',   label: 'セッション履歴' },
-  { id: 'homework',   label: '事前課題' },
-  { id: 'strengths',  label: '強み・価値観' },
-  { id: 'files',      label: 'ファイル' },
-  { id: 'memo',       label: 'メモ' },
-  { id: 'members',    label: 'メンバー' },
-  { id: 'video_logs', label: '視聴ログ' },
+  { id: 'basic',           label: '基本情報' },
+  { id: 'kickoff_hearing', label: 'キックオフヒアリング' }, // §6.2A 第1回前70問
+  { id: 'kickoff',         label: 'キックオフ管理' },        // §5.2 第0回キックオフ
+  { id: 'sessions',        label: 'セッション履歴' },
+  { id: 'homework',        label: '事前課題' },
+  { id: 'strengths',       label: '強み・価値観' },
+  { id: 'files',           label: 'ファイル' },
+  { id: 'memo',            label: 'メモ' },
+  { id: 'members',         label: 'メンバー' },
+  { id: 'video_logs',      label: '視聴ログ' },
 ];
 
 function ageFromBirthdate(b) {
@@ -69,8 +71,9 @@ export default function CustomerDetail({ customerId, isAdmin }) {
 
   let CenterContent = null;
   switch (tab) {
-    case 'basic':       CenterContent = <TabBasicInfo detail={detail} />; break;
-    case 'kickoff':     CenterContent = <TabKickoff detail={detail} onRefresh={refresh} />; break;
+    case 'basic':           CenterContent = <TabBasicInfo detail={detail} />; break;
+    case 'kickoff_hearing': CenterContent = <TabKickoffHearing detail={detail} onRefresh={refresh} />; break;
+    case 'kickoff':         CenterContent = <TabKickoff detail={detail} onRefresh={refresh} />; break;
     case 'sessions':    CenterContent = <TabSessionHistory detail={detail} onRefresh={refresh} />; break;
     case 'homework':    CenterContent = <TabHomework detail={detail} />; break;
     case 'strengths':   CenterContent = <TabStrengths detail={detail} />; break;
