@@ -92,7 +92,7 @@ export default function TemplateDrivenAppoReportModal({
       }));
       if (extractFields.length === 0) { setAiError('このテンプレにAI抽出対象フィールドがありません'); setAiLoading(false); return; }
       const ai_prompt = template.ai_prompt || '';
-      const { extracted, transcript, publicRecordingUrl } = await invokeTranscribeAndExtract({
+      const { extracted, transcript, publicRecordingUrl, keyman_ma_intent } = await invokeTranscribeAndExtract({
         recording_url: recordingUrl,
         item_id: row?._supaId || row?.id,
         ai_prompt, extract_fields: extractFields,
@@ -104,6 +104,8 @@ export default function TemplateDrivenAppoReportModal({
           const v = extracted[k];
           if (v && !next[k]) next[k] = v;
         }
+        // keyman_ma_intent は AI 判定結果を常に保持（保存時に insertAppointment へ渡す）
+        if (keyman_ma_intent) next.keymanMaIntent = keyman_ma_intent;
         return next;
       });
       if (publicRecordingUrl && !recordingUrl.includes('supabase')) setRecordingUrl(publicRecordingUrl);
@@ -249,6 +251,7 @@ export default function TemplateDrivenAppoReportModal({
         item_id:  row?._supaId || row?.id || null,
         phone:    row?.phone || form.phone || null,
         recording_url: form.recordingUrl || recordingUrl || null,
+        keymanMaIntent: form.keymanMaIntent || null,
         meetTime: form.appoTime || null,
         meetLocation: form.visitLocation || null,
         isOnline: form.meeting_format === 'オンライン' || form.meeting_format === 'Web',

@@ -111,23 +111,50 @@ Deno.serve(async (req) => {
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!anthropicKey) return json({ error: 'ANTHROPIC_API_KEY not configured' }, 500)
 
+    // 標準キーには旧 transcribe-recording 相当の詳細ガイドラインを差し込む
+    const STD_GUIDE: Record<string, string> = {
+      personality: '話し方の特徴（落ち着いている/早口/論理的/感情的）、思考の傾向（慎重/即断/数字重視/感覚重視/全体俯瞰/詳細追求）、コミュニケーションスタイル（聞き上手/話し上手/質問が多い/結論を急ぐ/間を取る）、価値観の片鱗（事業愛/従業員思い/数字至上/品質重視/挑戦志向）、態度（柔和/威圧的/警戒的/オープン）等を 3-5 文で具体的に',
+      meetingExp:   '他のM&A仲介会社との面談経験の有無と詳細（時期・相手先・印象等）',
+      futureConsider: '将来的な検討可否（お断りの強度・後継者問題への言及・検討時期・条件等を踏まえて）',
+      other:        '上記3項目以外でM&Aに関する重要事項（後継者問題・他社からの打診・株主構成・経営方針等）。なければ空欄',
+    }
+
     const fieldSpec = extract_fields.map((f: any) => {
       const opts = (f.options && f.options.length > 0) ? ` [選択肢: ${f.options.join(' / ')}]` : ''
-      return `- "${f.key}" (${f.label}${opts})`
+      const guide = STD_GUIDE[f.key] ? ` ※${STD_GUIDE[f.key]}` : ''
+      return `- "${f.key}" (${f.label}${opts})${guide}`
     }).join('\n')
 
-    const prompt = `以下はテレアポの通話録音を文字起こししたものです。
-録音の内容を分析し、指定のキーで JSON 形式のみで回答してください（他のテキスト・前置き不要）:
+    const prompt = `以下はM&Aアドバイザリーのテレアポ通話録音を文字起こししたものです。
+録音を分析し、アポインターの記入内容を補完・修正して、指定のキーで JSON 形式のみで回答してください（他のテキスト・前置き不要）。
 
 【抽出キー】
 ${fieldSpec}
+- "keyman_ma_intent" (キーマンのM&A意向: positive / wait / negative / unknown のいずれか1語のみ)
 
 ${ai_prompt ? `【テンプレ固有の抽出指示】\n${ai_prompt}\n` : ''}
-【出力形式】
-{ "key1": "値1", "key2": "値2", ... }
-- 各値は文字列で、不明な場合は空文字を返す
-- options が指定されているフィールドは、その選択肢のいずれかから選ぶ
-- 録音から明確に読み取れる範囲で記入し、推測で埋めすぎない
+【話者の取り扱い（厳守）】
+- 抽出対象は「先方（受電側＝被アポ企業の担当者）」の発話と、そこから読み取れる情報のみ。
+- アポインター（架電側＝当社／代行社）の自己紹介・自社社員名・自社電話番号・自社メールアドレス・自社サービス説明は、絶対に先方情報として抽出しない。
+- 録音中に登場する「フラーレン」「○○と申します」「私の電話番号」「弊社」等の発話はすべてアポインター側のものとして除外する。
+
+【録音分析の観点】
+1. M&Aの趣旨が先方に伝わっているか（「資本提携」「M&A」「会社の譲渡」等のキーワード）
+2. お断りの有無とその強度（強い拒否 / やんわり / 「興味ない」「結構です」等）
+3. お人柄の手がかり（話速・トーン・質問の質・従業員/取引先/家族への言及温度・当社評価）
+4. M&Aに関わる重要事項（後継者問題・他社からの打診・将来経営方針・株主構成）
+
+【keyman_ma_intent 判定ガイド】
+- positive: 前向き／積極的／関心が高い／検討の具体性あり
+- wait:     様子見／中立／「いずれ考えるかも」／結論を保留／業績次第
+- negative: 消極的／拒否／「今は考えていない」／やんわり断り／強い拒絶
+- unknown:  判断材料不足／会話が短い／本人不在／代理応答
+
+【出力形式・ルール】
+{ "key1": "値1", "key2": "値2", "keyman_ma_intent": "wait" }
+- 各値は文字列。録音から読み取れない場合は「確認できず」（keyman_ma_intent は "unknown"）。
+- options 指定フィールドはその選択肢から選ぶ。
+- 録音からの示唆は明示し、推測ベースで埋めすぎない。ただし標準キー（人柄/面談経験/検討可否/その他）は録音から読み取れる範囲で具体的に書く（簡潔すぎる回答は不可）。
 
 【文字起こし】
 ${transcript}`
@@ -165,8 +192,12 @@ ${transcript}`
       const v = extracted[k]
       normalized[k] = v == null ? '' : String(v)
     }
+    // keyman_ma_intent は positive / wait / negative / unknown のいずれかに正規化
+    const VALID_INTENT = new Set(['positive', 'wait', 'negative', 'unknown'])
+    const rawIntent = (normalized['keyman_ma_intent'] || '').toLowerCase().trim()
+    const keyman_ma_intent = VALID_INTENT.has(rawIntent) ? rawIntent : 'unknown'
 
-    return json({ transcript, extracted: normalized, publicRecordingUrl })
+    return json({ transcript, extracted: normalized, keyman_ma_intent, publicRecordingUrl })
   } catch (err) {
     console.error('[transcribe-and-extract] unhandled error:', err)
     return json({ error: (err as Error).message || 'unknown error' }, 500)
