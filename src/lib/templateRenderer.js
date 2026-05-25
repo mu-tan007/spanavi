@@ -1,3 +1,5 @@
+import { formatDateWithWeekday } from './dateUtils';
+
 // アポ取得報告テンプレのレンダリング・解決ユーティリティ
 
 /**
@@ -21,23 +23,27 @@ export function resolveApplicableTemplates(templates, list) {
 
 /**
  * body_template を 値マップで差し込み。{{key}} と {{#if key == "value"}}...{{/if}} を解釈。
+ * schema を渡すと type: 'date' のフィールドは「YYYY-MM-DD（曜）」形式で自動展開する。
  *
  * @param {string} bodyTemplate
  * @param {Object} data - { key: value, ... }
+ * @param {Array} [schema] - テンプレ schema（type判定に使う）
  * @returns {string} レンダリング済み本文
  */
-export function renderBody(bodyTemplate, data) {
+export function renderBody(bodyTemplate, data, schema = []) {
   if (!bodyTemplate) return '';
+  const dateKeys = new Set((schema || []).filter(f => f.type === 'date').map(f => f.key));
   let body = bodyTemplate;
   // {{#if key == "value"}}...{{/if}} を処理
   body = body.replace(
     /\{\{#if\s+(\w+)\s*==\s*"([^"]+)"\}\}([\s\S]*?)\{\{\/if\}\}/g,
     (_m, key, value, content) => (data?.[key] === value ? content : '')
   );
-  // {{key}} 置換
+  // {{key}} 置換（日付フィールドは曜日付きに）
   body = body.replace(/\{\{(\w+)\}\}/g, (_m, key) => {
     const v = data?.[key];
     if (v == null) return '';
+    if (dateKeys.has(key)) return formatDateWithWeekday(v);
     return String(v);
   });
   return body;

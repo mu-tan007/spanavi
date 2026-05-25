@@ -10,6 +10,7 @@ import { getOrgId } from '../../lib/orgContext';
 import { MemberSuggestInput } from './AppoListView';
 import TemplateDrivenAppoReportModal from './TemplateDrivenAppoReportModal';
 import { resolveApplicableTemplates } from '../../lib/templateRenderer';
+import { formatDateWithWeekday } from '../../lib/dateUtils';
 
 export default function AppoReportModal(props) {
   const { row, list, currentUser = '', members = [], onClose, onSave, onDone, initialRecordingUrl = '', onFetchRecordingUrl, clientData = [], rewardMaster = [], dialedPhone = '', contactsByClient = {} } = props;
@@ -49,7 +50,6 @@ export default function AppoReportModal(props) {
 
 function LegacyAppoReportModal({ row, list, currentUser = '', members = [], onClose, onSave, onDone, initialRecordingUrl = '', onFetchRecordingUrl, clientData = [], rewardMaster = [], dialedPhone = '' }) {
   const isMobile = useIsMobile();
-  const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
   // クライアントの報酬タイプを特定
   const clientInfo = (clientData || []).find(c => c.company === list.company);
@@ -161,19 +161,12 @@ function LegacyAppoReportModal({ row, list, currentUser = '', members = [], onCl
     return match ? applyTax(match.price) : null;
   };
 
-  const dateWithWeekday = (d) => {
-    if (!d) return '';
-    const [y, m, dy] = d.split('-').map(Number);
-    const dow = WEEKDAYS[new Date(y, m - 1, dy).getDay()];
-    return `${d}（${dow}）`;
-  };
-
   const generateReport = () =>
 `【アポ取得報告】
 企業名：${row.company}
 担当者：${form.contactName}様（${form.contactTitle}）
-アポ取得日：${form.getDate}
-面談日時：${dateWithWeekday(form.appoDate)} ${form.appoTime}～
+アポ取得日：${formatDateWithWeekday(form.getDate)}
+面談日時：${formatDateWithWeekday(form.appoDate)} ${form.appoTime}～
 訪問先：${form.visitLocation}
 事業内容：${form.businessDetail}
 財務：売上${form.salesAmount}、当期純利益${form.netIncome}

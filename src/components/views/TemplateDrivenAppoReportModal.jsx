@@ -199,7 +199,7 @@ export default function TemplateDrivenAppoReportModal({
         company_name: row?.company || form.company_name || '',
         recordingUrl: form.recordingUrl || recordingUrl || '',
       };
-      const reportNote = renderBody(template.body_template, renderData);
+      const reportNote = renderBody(template.body_template, renderData, template.schema);
 
       // クライアント情報（売上計算用）
       const clientInfo = (clientData || []).find(c => c.company === list?.company);
