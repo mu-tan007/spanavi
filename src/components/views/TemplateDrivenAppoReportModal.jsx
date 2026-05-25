@@ -3,7 +3,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Badge, Select } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import {
-  insertAppointment, invokeSendAppoReport, invokeTranscribeAndExtract,
+  insertAppointment, invokeTranscribeAndExtract,
   invokeLookupCompanyHomepage, invokeGetZoomRecording, updateCallListItem,
 } from '../../lib/supabaseWrite';
 import {
@@ -249,17 +249,17 @@ export default function TemplateDrivenAppoReportModal({
       });
       if (insError) throw insError;
 
-      // Slack 通知（クライアントチャンネル設定があれば）
-      const cl = clientData.find(c => c.company === list?.company);
-      if (cl?.slackWebhookUrlInternal || cl?.slackWebhookUrl) {
-        try {
-          await invokeSendAppoReport({
-            channel: 'slack',
-            text: reportNote,
-            webhook_url: cl.slackWebhookUrlInternal || cl.slackWebhookUrl,
-          });
-        } catch (e) { console.warn('[TemplateModal] Slack通知失敗:', e); }
-      }
+      // #アポ取得報告チャンネルへSlack即時投稿（LegacyAppoReportModalと同等）
+      try {
+        const supabaseUrlEnv = import.meta.env.VITE_SUPABASE_URL;
+        const anonKeyEnv     = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        const slackRes = await fetch(`${supabaseUrlEnv}/functions/v1/post-appo-to-slack`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': anonKeyEnv },
+          body: JSON.stringify({ text: reportNote }),
+        });
+        if (!slackRes.ok) console.warn('[TemplateModal] post-appo-to-slack failed:', slackRes.status);
+      } catch (e) { console.warn('[TemplateModal] post-appo-to-slack error:', e); }
 
       // 企業ドシエ非同期生成
       if (insResult?.id) {
