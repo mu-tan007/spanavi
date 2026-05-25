@@ -42,6 +42,9 @@ const NOTIFY_TPL_TYPE: Record<string, string | null> = {
   due_reminder: 'notify_due',
   portal_published: 'notify_published',
   feedback_request: null,
+  // §6.2A / Phase F: 第1回前70問キックオフヒアリング
+  kickoff_hearing_published: 'notify_kickoff_hearing_published',
+  kickoff_hearing_reminder: 'notify_kickoff_hearing_reminder',
 }
 
 // テンプレ取得失敗時の fallback 本文
@@ -56,6 +59,10 @@ const FALLBACK_BODY: Record<string, string> = {
     '{顧客名}様\n\n第{セッション番号}回の事前課題をクライアントポータルに公開しました。\n締切：{締切日}\nポータル：{ポータルURL}',
   feedback_request:
     '{顧客名}様\n\nお疲れさまでした。第{セッション番号}回セッションの満足度アンケートをお送りします。\nアンケート未回答の場合、全額返金保証の対象外となりますのでご注意ください。\nポータル：{ポータルURL}',
+  kickoff_hearing_published:
+    '{顧客名}様\n\nスパキャリへのお申し込みありがとうございます。\n第1回セッションを最大限有意義な時間にするため、事前ヒアリング（70問・所要60〜90分）をお送りします。\n回答ページ: {ヒアリングURL}\n提出期限: 初回アクセスから72時間以内\nお時間のあるときにご回答ください。途中保存も可能です。',
+  kickoff_hearing_reminder:
+    '{顧客名}様\n\nキックオフヒアリングの提出期限まで残り24時間となりました。\n回答ページ: {ヒアリングURL}\n途中保存しているものがあれば、引き続きご記入をお願いします。',
 }
 
 function renderTemplate(body: string, vars: Record<string, string>): string {

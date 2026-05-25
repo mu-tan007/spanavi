@@ -109,6 +109,48 @@ export default function TabKickoffHearing({ detail, onRefresh }) {
   };
 
   const [reextracting, setReextracting] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+
+  const handlePublishNotify = async () => {
+    if (!session) return;
+    if (!detail.slack?.channel_id) {
+      alert('受講生のSlackゲストチャンネルが未作成です。先にチャンネル作成（spacareer-slack-channel-create）を実行してください。');
+      return;
+    }
+    if (!window.confirm('受講生のSlackゲストチャンネルにキックオフヒアリング配信通知を送ります。\n（同時にステータスを「未着手」に進めます）')) return;
+    setPublishing(true);
+    try {
+      const customerName = detail.customer?.member?.name || detail.customer?.nickname || '受講生';
+      const hearingUrl = `${window.location.origin}/spacareer`;
+      const { data, error: invokeErr } = await supabase.functions.invoke('spacareer-slack-notify', {
+        body: {
+          org_id: detail.customer.org_id,
+          customer_id: detail.customer.id,
+          notify_key: 'kickoff_hearing_published',
+          vars: { '顧客名': customerName, 'ヒアリングURL': hearingUrl },
+        },
+      });
+      if (invokeErr) throw invokeErr;
+      if (data && data.ok === false) throw new Error(data.error || 'slack notify failed');
+
+      // セッションを 'unstarted' に進める + notified_at セット
+      await supabase
+        .from('spacareer_kickoff_hearing_sessions')
+        .update({
+          status: session.status === 'unnotified' ? 'unstarted' : session.status,
+          notified_at: new Date().toISOString(),
+        })
+        .eq('id', session.id);
+
+      onRefresh && (await onRefresh());
+      alert('Slackに配信通知を送信しました。');
+    } catch (e) {
+      alert('配信通知の送信に失敗しました: ' + (e.message || e));
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   const handleReextract = async () => {
     if (!session) return;
     if (!window.confirm('AI抽出を再実行します。\n（既存抽出はアーカイブされ、新しい結果が表示されます）')) return;
@@ -203,6 +245,11 @@ export default function TabKickoffHearing({ detail, onRefresh }) {
       {/* アクションバー */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: space[2], flexWrap: 'wrap' }}>
         <Button size="sm" variant="outline" onClick={handleCsvExport}>CSVエクスポート</Button>
+        {isAdmin && session.status === 'unnotified' && (
+          <Button size="sm" variant="primary" onClick={handlePublishNotify} loading={publishing}>
+            Slackで配信通知を送る
+          </Button>
+        )}
         {isAdmin && (
           <>
             <Button size="sm" variant="outline" onClick={handleExtendDeadline} loading={extending}>期限を延長</Button>
