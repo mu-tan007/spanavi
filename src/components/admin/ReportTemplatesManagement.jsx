@@ -608,7 +608,7 @@ function TemplateEditModal({ initial, engagements, clients, lists, onSave, onCan
               value={form.body_template}
               onChange={e => update({ body_template: e.target.value })}
               style={textareaStyle}
-              placeholder={`例:\n【M&A クライアント開拓 アポ取得報告】\n企業名：{{company_name}}\n担当者：{{decision_maker}}様\n面談日時：{{meeting_at}}\nヒアリング：{{hearing}}`}
+              placeholder={`例:\n【クライアント開拓 アポ取得報告】\n企業名：{{company_name}}\n担当者：{{decision_maker}}様\n面談日時：{{meeting_at}}\nヒアリング：{{hearing}}`}
               rows={8}
             />
             {availableKeys.length > 0 && (

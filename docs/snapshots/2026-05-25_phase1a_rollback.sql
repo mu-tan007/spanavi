@@ -37,6 +37,22 @@ WHERE engagement_id = (SELECT id FROM engagements WHERE slug = 'seller_sourcing_
 -- ④ 株式会社がんばの industry 補正を元に戻す
 UPDATE clients SET industry = '' WHERE id = '69fd6233-1643-45dd-bec5-e3803f68fe76';
 
+-- ⑤ SaaS engagement slug 統一を元に戻す (2026-05-26 追加)
+UPDATE engagements SET slug = 'seller_sourcing_saas' WHERE slug = 'lead_generation_saas';
+
+-- ⑥ クライアント開拓テンプレ統一リネームを元に戻す (2026-05-26 追加)
+--   ※ M&A配下と人材配下は元の名前が異なっていたため、engagement_id で識別して個別に戻す
+UPDATE appointment_report_templates
+SET name = 'M&A クライアント開拓 アポ取得報告'
+WHERE name = 'クライアント開拓 アポ取得報告'
+  AND engagement_id IN (
+    SELECT id FROM engagements WHERE slug IN ('client_acquisition', 'client_acquisition_saas', 'client_acquisition_ifa')
+  );
+UPDATE appointment_report_templates
+SET name = '人材 クライアント開拓 アポ取得報告'
+WHERE name = 'クライアント開拓 アポ取得報告'
+  AND engagement_id = (SELECT id FROM engagements WHERE slug = 'client_acquisition_jinzai');
+
 COMMIT;
 
 -- 検証クエリ:
