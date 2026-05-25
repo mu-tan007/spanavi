@@ -1,12 +1,13 @@
 // スパキャリ テンプレート管理 mockデータ
 // 仕様書: §7.6 テンプレート管理
 
-// 11種類のテンプレート（機能別4タブで分類）
+// テンプレート機能別カテゴリ
 export const TEMPLATE_CATEGORIES = [
-  { key: 'homework',     label: '事前課題' },
-  { key: 'session',      label: 'セッション' },
-  { key: 'diagnosis',    label: '診断' },
-  { key: 'notification', label: '通知' },
+  { key: 'kickoff_hearing', label: 'キックオフ70問' },
+  { key: 'homework',        label: '事前課題' },
+  { key: 'session',         label: 'セッション' },
+  { key: 'diagnosis',       label: '診断' },
+  { key: 'notification',    label: '通知' },
 ];
 
 // type: text(本文編集) / items(項目リスト) / prompt(AIプロンプト) / notification(通知文+変数)

@@ -5,13 +5,14 @@ import PageHeader from '../../../common/PageHeader';
 import SubTabs from '../_shared/SubTabs';
 import TemplateEditor from './TemplateEditor';
 import TemplateHistory from './TemplateHistory';
+import KickoffHearingTemplateEditor from './KickoffHearingTemplateEditor';
 import { TEMPLATES, TEMPLATE_CATEGORIES, TEMPLATE_HISTORY } from './mockTemplates';
 
 // 仕様書: §7.6 テンプレート管理（11種を機能別4タブで分類）
 // 編集権限：トレーナーは11種すべて編集可。AIプロンプト・診断質問項目・各タイプ説明文・ヒアリングシートは運営のみ。
 // （現状は権限フィルタはステップ2完成後の useAccessControl で実装、ここでは表示のみ）
 export default function SpacareerTemplatesView() {
-  const [activeCategory, setActiveCategory] = useState('homework');
+  const [activeCategory, setActiveCategory] = useState('kickoff_hearing');
   const [selectedKey, setSelectedKey] = useState('homework_1');
   const [showHistory, setShowHistory] = useState(false);
   const [search, setSearch] = useState('');
@@ -48,7 +49,8 @@ export default function SpacareerTemplatesView() {
     () => TEMPLATE_CATEGORIES.map(c => ({
       key: c.key,
       label: c.label,
-      badge: categoryCounts[c.key] || 0,
+      // kickoff_hearing はDB直結のため count バッジを出さない
+      badge: c.key === 'kickoff_hearing' ? undefined : (categoryCounts[c.key] || 0),
     })),
     [categoryCounts]
   );
@@ -68,7 +70,9 @@ export default function SpacareerTemplatesView() {
 
       <SubTabs tabs={categoryTabs} activeKey={activeCategory} onChange={setActiveCategory} dense />
 
-      {showHistory ? (
+      {activeCategory === 'kickoff_hearing' ? (
+        <KickoffHearingTemplateEditor />
+      ) : showHistory ? (
         <TemplateHistory
           history={TEMPLATE_HISTORY}
           templates={snapshot}
