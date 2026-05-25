@@ -108,8 +108,24 @@ export default function TabKickoffHearing({ detail, onRefresh }) {
     }
   };
 
-  const handleReextract = () => {
-    alert('AI抽出の本実装は Phase E（Edge Function: analyze-kickoff-hearing）で投入予定です。');
+  const [reextracting, setReextracting] = useState(false);
+  const handleReextract = async () => {
+    if (!session) return;
+    if (!window.confirm('AI抽出を再実行します。\n（既存抽出はアーカイブされ、新しい結果が表示されます）')) return;
+    setReextracting(true);
+    try {
+      const { error: e } = await supabase.functions.invoke('analyze-kickoff-hearing', {
+        body: { customer_id: detail.customer?.id, force_rerun: true },
+      });
+      if (e) throw e;
+      // バックグラウンド処理のため即座には反映されない。少し待ってから refresh
+      setTimeout(() => { onRefresh && onRefresh(); }, 8000);
+      alert('AI抽出を起動しました。数秒後に結果が表示されます。\n表示されない場合は画面を再読込してください。');
+    } catch (e) {
+      alert('AI抽出の起動に失敗しました: ' + (e.message || e));
+    } finally {
+      setReextracting(false);
+    }
   };
 
   const handleCsvExport = () => {
@@ -190,7 +206,7 @@ export default function TabKickoffHearing({ detail, onRefresh }) {
         {isAdmin && (
           <>
             <Button size="sm" variant="outline" onClick={handleExtendDeadline} loading={extending}>期限を延長</Button>
-            <Button size="sm" variant="ghost" onClick={handleReextract}>AI抽出を再実行</Button>
+            <Button size="sm" variant="ghost" onClick={handleReextract} loading={reextracting}>AI抽出を再実行</Button>
           </>
         )}
       </div>

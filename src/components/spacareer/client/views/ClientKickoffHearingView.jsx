@@ -258,6 +258,14 @@ export default function ClientKickoffHearingView() {
         .maybeSingle();
       if (sErr) throw sErr;
       if (sess) setSession(sess);
+
+      // AI抽出 Edge Function をバックグラウンドで起動（結果待ちはしない）
+      // 失敗してもユーザー体験は止めない。運営側で再実行可能。
+      supabase.functions.invoke('analyze-kickoff-hearing', {
+        body: { customer_id: customer.id },
+      }).catch((e) => {
+        console.error('[ClientKickoffHearing] AI extraction invoke error:', e);
+      });
     } catch (e) {
       console.error('[ClientKickoffHearing] submit error:', e);
       alert('提出に失敗しました: ' + (e.message || e));
