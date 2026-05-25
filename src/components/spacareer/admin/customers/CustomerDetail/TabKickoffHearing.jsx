@@ -10,6 +10,12 @@ import { supabase } from '../../../../../lib/supabase';
 // 顧客個人ページの「キックオフヒアリング」タブ。第1回前70問の進捗・AI抽出結果・原文を表示。
 // AI抽出は §8.7 (highlight_top5 / deep_dive_3) を表示。Phase E で本実装される Edge Function 出力を扱う。
 
+const JP_WD = ['日','月','火','水','木','金','土'];
+function formatJpDate(d) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}(${JP_WD[d.getDay()]}) ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 const SESSION_STATUS_LABEL = {
   unnotified: '未通知',
   unstarted: '未着手',
@@ -117,7 +123,28 @@ export default function TabKickoffHearing({ detail, onRefresh }) {
       alert('受講生のSlackゲストチャンネルが未作成です。先にチャンネル作成（spacareer-slack-channel-create）を実行してください。');
       return;
     }
-    if (!window.confirm('受講生のSlackゲストチャンネルにキックオフヒアリング配信通知を送ります。\n（同時にステータスを「未着手」に進めます）')) return;
+    // 第1回セッション日時が未設定なら deadline 計算不可
+    const session1At = detail.kickoff?.session_1_start_at;
+    if (!session1At) {
+      alert('第1回セッションの開始日時が未設定です。\n先に「キックオフ管理」タブで第1回セッションの日程を入力してから、配信通知を送ってください。');
+      return;
+    }
+
+    // deadline = 第1回セッション日 - 3日 の 23:59:00 (JSTローカル)
+    const sess1 = new Date(session1At);
+    const deadline = new Date(sess1);
+    deadline.setDate(deadline.getDate() - 3);
+    deadline.setHours(23, 59, 0, 0);
+    if (deadline.getTime() <= Date.now()) {
+      alert(`計算された提出期限 (${formatJpDate(deadline)}) が既に過ぎています。\n第1回セッション日を見直すか、運営側で個別対応してください。`);
+      return;
+    }
+    const deadlineDisplay = formatJpDate(deadline);
+
+    if (!window.confirm(
+      `受講生のSlackゲストチャンネルに配信通知を送ります。\n\n提出期限: ${deadlineDisplay}（第1回セッションの3日前 23:59）\n\nこの内容で配信してよろしいですか？`
+    )) return;
+
     setPublishing(true);
     try {
       const customerName = detail.customer?.member?.name || detail.customer?.nickname || '受講生';
@@ -127,18 +154,23 @@ export default function TabKickoffHearing({ detail, onRefresh }) {
           org_id: detail.customer.org_id,
           customer_id: detail.customer.id,
           notify_key: 'kickoff_hearing_published',
-          vars: { '顧客名': customerName, 'ヒアリングURL': hearingUrl },
+          vars: {
+            customer_name: customerName,
+            hearing_url: hearingUrl,
+            deadline: deadlineDisplay,
+          },
         },
       });
       if (invokeErr) throw invokeErr;
       if (data && data.ok === false) throw new Error(data.error || 'slack notify failed');
 
-      // セッションを 'unstarted' に進める + notified_at セット
+      // セッションを 'unstarted' に進める + notified_at + deadline_at 確定
       await supabase
         .from('spacareer_kickoff_hearing_sessions')
         .update({
           status: session.status === 'unnotified' ? 'unstarted' : session.status,
           notified_at: new Date().toISOString(),
+          deadline_at: deadline.toISOString(),
         })
         .eq('id', session.id);
 

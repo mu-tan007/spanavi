@@ -34,6 +34,12 @@ function buildHearingUrl(): string {
   return `${HEARING_URL_BASE}/spacareer`
 }
 
+const JP_WD = ['日','月','火','水','木','金','土']
+function formatJpDate(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}(${JP_WD[d.getDay()]}) ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 async function callSlackNotify(payload: {
   org_id: string
   customer_id: string
@@ -102,14 +108,16 @@ Deno.serve(async (req) => {
       const customer = (s as any).customer
       // deno-lint-ignore no-explicit-any
       const customerName = customer?.member?.name || '受講生'
+      const effectiveDeadline = s.deadline_extended_to || s.deadline_at
 
       const r = await callSlackNotify({
         org_id: s.org_id,
         customer_id: s.customer_id,
         notify_key: 'kickoff_hearing_reminder',
         vars: {
-          '顧客名': customerName,
-          'ヒアリングURL': buildHearingUrl(),
+          customer_name: customerName,
+          hearing_url: buildHearingUrl(),
+          deadline: formatJpDate(new Date(effectiveDeadline)),
         },
       })
       if (r.ok) {
