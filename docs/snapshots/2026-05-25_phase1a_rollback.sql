@@ -53,6 +53,32 @@ SET name = '人材 クライアント開拓 アポ取得報告'
 WHERE name = 'クライアント開拓 アポ取得報告'
   AND engagement_id = (SELECT id FROM engagements WHERE slug = 'client_acquisition_jinzai');
 
+-- ⑦ クライアント開拓テンプレの outsourcing_experience 商材別ラベルを元に戻す (2026-05-26 追加 B)
+UPDATE appointment_report_templates
+SET schema = (
+  SELECT jsonb_agg(
+    CASE WHEN s->>'key' = 'outsourcing_experience'
+      THEN s || jsonb_build_object('label', 'M&Aテレアポの外注経験はあるか')
+      ELSE s END
+  ) FROM jsonb_array_elements(schema) s
+),
+ai_prompt = replace(replace(replace(replace(ai_prompt,
+  'M&A向けテレアポ', 'M&Aテレアポ'),
+  'SaaS向けテレアポ', 'M&Aテレアポ'),
+  'IFA向けテレアポ', 'M&Aテレアポ'),
+  '人材紹介向けテレアポ', 'M&Aテレアポ'),
+body_template = replace(replace(replace(replace(body_template,
+  'M&A向けテレアポの外注経験', 'M&Aテレアポの外注経験はあるか'),
+  'SaaS向けテレアポの外注経験', 'M&Aテレアポの外注経験はあるか'),
+  'IFA向けテレアポの外注経験', 'M&Aテレアポの外注経験はあるか'),
+  '人材紹介向けテレアポの外注経験', 'M&Aテレアポの外注経験はあるか')
+WHERE id IN (
+  '9285ff21-015e-4885-8914-2d8c5d29068e', -- M&A
+  '0f6f437e-4c96-4fc5-a7ff-fe4ba57b42f3', -- SaaS
+  'fb3aeb82-6826-47d7-8ab4-9f7874e5c4dc', -- IFA
+  'cbda458a-d7f7-4ca7-baf5-30fdedcc7679'  -- 人材
+);
+
 COMMIT;
 
 -- 検証クエリ:
