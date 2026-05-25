@@ -235,6 +235,14 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     if (alertFilter === 'expired' && !isExpired(c)) return false;
     return true;
   });
+  // 「面談予定」フィルタ時は next_contact_at 昇順（直近の予定が上、null は末尾）
+  if (statusFilter === '面談予定') {
+    filtered.sort((a, b) => {
+      const ta = a.nextContactAt ? new Date(a.nextContactAt).getTime() : Number.POSITIVE_INFINITY;
+      const tb = b.nextContactAt ? new Date(b.nextContactAt).getTime() : Number.POSITIVE_INFINITY;
+      return ta - tb;
+    });
+  }
 
   const statusCounts = {};
   clientData.forEach(c => { statusCounts[c.status] = (statusCounts[c.status] || 0) + 1; });
