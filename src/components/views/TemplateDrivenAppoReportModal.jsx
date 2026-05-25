@@ -261,7 +261,8 @@ export default function TemplateDrivenAppoReportModal({
         if (form.appoDate && form.appoTime) {
           try {
             const startISO = `${form.appoDate}T${form.appoTime}:00+09:00`;
-            const endISO   = new Date(new Date(startISO).getTime() + 60 * 60 * 1000).toISOString();
+            // デフォルト30分枠
+            const endISO   = new Date(new Date(startISO).getTime() + 30 * 60 * 1000).toISOString();
             const summary  = `${form.contactName || ''}様 ${row?.company || ''}`.trim();
             const description = [
               `面談場所: ${form.visitLocation || form.meeting_format || ''}`,

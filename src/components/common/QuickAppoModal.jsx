@@ -63,7 +63,8 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
       const { insertAppointment, invokeSendAppoReport, ensureProspectingClient, createGcalEvent, updateAppointmentMeta } = await import('../../lib/supabaseWrite');
 
       const startISO = `${date}T${meetTime}:00+09:00`;
-      const endDate = new Date(new Date(startISO).getTime() + 60 * 60 * 1000);
+      // デフォルト30分枠
+      const endDate = new Date(new Date(startISO).getTime() + 30 * 60 * 1000);
       const endISO = endDate.toISOString();
 
       // Step 1: クライアント開拓の場合、CRM clientsテーブルへ upsert（面談予定）
