@@ -8,11 +8,12 @@ import ClientPortalApp from './components/client/ClientPortalApp'
 import SpacareerClientApp from './components/spacareer/client/SpacareerClientApp'
 import DesignPreview from './components/views/DesignPreview'
 import { useState, useEffect, useRef } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 
 function MainApp() {
   const { session, profile, loading, signOut, isAdmin, isStudent, recoveryMode, clearRecoveryMode, orgId } = useAuth()
   const { data: supabaseData, loading: dataLoading, error: dataError, refetch: onDataRefetch } = useSpanaviData(orgId)
+  const location = useLocation()
 
   // プロフィール取得タイムアウト（10秒待ってもorgIdが取れない場合はエラー表示）
   const [profileTimeout, setProfileTimeout] = useState(false)
@@ -41,7 +42,8 @@ function MainApp() {
 
   // スパキャリ受講生（members.rank='student'）はクライアントポータルへ強制ルーティング
   // 仕様書: tasks/spacareer-spec.md §3.1 - 事業切替UIを通さない
-  if (!loading && session && isStudent) {
+  // ※既に /spacareer 配下にいる場合は Navigate しない（Routes に流して SpacareerClientApp を描画させる）
+  if (!loading && session && isStudent && !location.pathname.startsWith('/spacareer')) {
     return <Navigate to="/spacareer" replace />
   }
 
