@@ -5,6 +5,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import {
   insertAppointment, invokeTranscribeAndExtract,
   invokeLookupCompanyHomepage, invokeGetZoomRecording, updateCallListItem,
+  ensureProspectingClient, createGcalEvent, updateAppointmentMeta,
 } from '../../lib/supabaseWrite';
 import {
   resolveApplicableTemplates, renderBody, buildInitialFormValues, buildAiExtractionInstruction,
@@ -237,6 +238,47 @@ export default function TemplateDrivenAppoReportModal({
       const acquirerRate = parseFloat(acquirerMember?.rate ?? acquirerMember?.incentive_rate ?? 0) || 0;
       const rewardVal = isFixed ? salesVal : (salesVal && acquirerRate ? Math.round(salesVal * acquirerRate) : 0);
 
+      // クライアント開拓 (is_prospecting) のみ:
+      // ① CRM clients テーブルへ upsert（面談予定として現れるようにする）
+      // ② 篠宮 Google カレンダーへイベント作成 → gcalEventId を appointments に紐付け
+      // 旧 QuickAppoModal にしか実装されておらず TemplateDrivenAppoReportModal
+      // 経由ではクライアント開拓のアポが CRM/GCal に飛ばない事故への対応。
+      let gcalEventId = null;
+      if (list?.is_prospecting) {
+        try {
+          await ensureProspectingClient({
+            name: row?.company || '',
+            industry: list?.type || list?.list_type || '',
+            contactPerson: form.contactName || '',
+            contactEmail: form.email || '',
+            contactPhone: row?.phone || form.phone || '',
+            nextContactAt: form.appoDate && form.appoTime
+              ? `${form.appoDate}T${form.appoTime}:00+09:00`
+              : null,
+          });
+        } catch (e) { console.warn('[TemplateModal] ensureProspectingClient failed:', e); }
+
+        if (form.appoDate && form.appoTime) {
+          try {
+            const startISO = `${form.appoDate}T${form.appoTime}:00+09:00`;
+            const endISO   = new Date(new Date(startISO).getTime() + 60 * 60 * 1000).toISOString();
+            const summary  = `${form.contactName || ''}様 ${row?.company || ''}`.trim();
+            const description = [
+              `面談場所: ${form.visitLocation || form.meeting_format || ''}`,
+              `アポ取得者: ${acquirerName}`,
+              form.contactName ? `担当者: ${form.contactName}様` : null,
+              form.email ? `メール: ${form.email}` : null,
+              (row?.phone || form.phone) ? `電話: ${row?.phone || form.phone}` : null,
+            ].filter(Boolean).join('\n');
+            const { eventId } = await createGcalEvent({
+              summary, description, startISO, endISO,
+              location: form.visitLocation || form.meeting_format || '',
+            });
+            gcalEventId = eventId;
+          } catch (e) { console.warn('[TemplateModal] createGcalEvent failed:', e); }
+        }
+      }
+
       const { result: insResult, error: insError } = await insertAppointment({
         company: row?.company || '',
         client:  list?.company || '',
@@ -257,6 +299,7 @@ export default function TemplateDrivenAppoReportModal({
         isOnline: form.meeting_format === 'オンライン' || form.meeting_format === 'Web',
         reportTemplateIdSnapshot: template.id,
         reportData: form,
+        gcalEventId,
       });
       if (insError) throw insError;
 
