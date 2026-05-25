@@ -162,106 +162,13 @@ function extractJsonArray(text: string): unknown[] {
 }
 
 // ============================================================
-// 運営Slackチャンネルへのダイジェスト送信 (Phase F-4)
-// ============================================================
-// 必要環境変数:
-//   - SLACK_BOT_TOKEN  : Slack Bot Token (chat:write スコープ)
-//   - SPACAREER_OPERATOR_SLACK_CHANNEL_ID : 運営チャンネルID (例: C0123ABCDEF)
-// どちらか未設定の場合はwarn ログだけ出してスキップ（処理は失敗扱いにしない）。
-async function postOperatorDigest(
-  customer_id: string,
-  org_id: string,
-  // deno-lint-ignore no-explicit-any
-  highlightResult: PromiseSettledResult<any>,
-  // deno-lint-ignore no-explicit-any
-  deepDiveResult: PromiseSettledResult<any>,
-): Promise<void> {
-  const token = Deno.env.get('SLACK_BOT_TOKEN')?.trim()
-  const channelId = Deno.env.get('SPACAREER_OPERATOR_SLACK_CHANNEL_ID')?.trim()
-  if (!token) {
-    console.warn('[analyze-kickoff-hearing] SLACK_BOT_TOKEN not set, skip operator digest')
-    return
-  }
-  if (!channelId) {
-    console.warn('[analyze-kickoff-hearing] SPACAREER_OPERATOR_SLACK_CHANNEL_ID not set, skip operator digest')
-    return
-  }
-
-  try {
-    // 顧客名取得
-    const { data: cust } = await supabase
-      .from('spacareer_customers')
-      .select('id, nickname, member:members!spacareer_customers_member_id_fkey ( name )')
-      .eq('id', customer_id)
-      .maybeSingle()
-    // deno-lint-ignore no-explicit-any
-    const customerName = (cust as any)?.member?.name || (cust as any)?.nickname || '受講生'
-
-    const baseUrl = Deno.env.get('SPANAVI_BASE_URL')?.trim() || 'https://spanavi.vercel.app'
-    const customerPageUrl = `${baseUrl}/?spacareer_customer=${customer_id}`
-
-    // ハイライト整形
-    let highlightText = '_抽出失敗_'
-    if (highlightResult.status === 'fulfilled') {
-      try {
-        const items = extractJsonArray(highlightResult.value.text)
-        highlightText = (items as Array<{ question_number?: number; excerpt?: string; why_important?: string }>)
-          .slice(0, 5)
-          .map((it, i) => `${i + 1}. *Q${it.question_number ?? '?'}*: ${it.excerpt || ''}${it.why_important ? `\n   _${it.why_important}_` : ''}`)
-          .join('\n')
-      } catch (_e) {
-        highlightText = '_抽出は成功したが整形失敗_'
-      }
-    }
-
-    // 深掘り整形
-    let deepDiveText = '_抽出失敗_'
-    if (deepDiveResult.status === 'fulfilled') {
-      try {
-        const items = extractJsonArray(deepDiveResult.value.text)
-        deepDiveText = (items as Array<{ topic?: string; rationale?: string; suggested_question?: string }>)
-          .slice(0, 3)
-          .map((it, i) => `${i + 1}. *${it.topic || ''}*\n   ${it.rationale || ''}${it.suggested_question ? `\n   :speech_balloon: ${it.suggested_question}` : ''}`)
-          .join('\n\n')
-      } catch (_e) {
-        deepDiveText = '_抽出は成功したが整形失敗_'
-      }
-    }
-
-    const text =
-      `:bulb: *キックオフヒアリング AI抽出完了*\n` +
-      `顧客: ${customerName}\n` +
-      `詳細: ${customerPageUrl}\n\n` +
-      `*重要発言ハイライト Top5*\n${highlightText}\n\n` +
-      `*深掘り候補 3つ*\n${deepDiveText}`
-
-    const slackRes = await fetch('https://slack.com/api/chat.postMessage', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json; charset=utf-8',
-      },
-      body: JSON.stringify({
-        channel: channelId,
-        text,
-        unfurl_links: false,
-      }),
-      signal: AbortSignal.timeout(15_000),
-    })
-    const slackData = await slackRes.json().catch(() => ({}))
-    if (!slackData?.ok) {
-      console.error('[analyze-kickoff-hearing] operator digest slack error:', slackData?.error || 'unknown')
-    } else {
-      console.log(`[analyze-kickoff-hearing] operator digest sent ts=${slackData.ts}`)
-    }
-  } catch (e) {
-    console.error('[analyze-kickoff-hearing] operator digest unexpected error:', e)
-  }
-}
-
-// ============================================================
 // バックグラウンド処理
 // ============================================================
+// 注: AI抽出結果のSlack自動送信は意図的に「実装しない」。
+// 抽出結果には「深掘り候補」「重要発言ハイライト」など、受講生本人に見せると
+// 「分析されてる感」が出るトレーナー視点の情報が含まれるため、
+// 運営画面 (TabKickoffHearing) で運営・トレーナーだけが確認する設計とする。
+// ────────────────────────────────────────────────
 async function processInBackground(customer_id: string, force_rerun: boolean) {
   const fail = async (msg: string, detail?: string) => {
     console.error(`[analyze-kickoff-hearing] FAIL: ${msg}`, detail || '')
@@ -466,9 +373,6 @@ async function processInBackground(customer_id: string, force_rerun: boolean) {
         .from('spacareer_kickoff_hearing_sessions')
         .update({ status: 'ai_extracted', ai_extracted_at: now })
         .eq('customer_id', customer_id)
-
-      // 運営Slackチャンネルへダイジェスト配信（Phase F-4）
-      await postOperatorDigest(customer_id, orgId, highlightResult, deepDiveResult)
     }
 
     console.log(`[analyze-kickoff-hearing] done customer_id=${customer_id} anySuccess=${anySuccess}`)
