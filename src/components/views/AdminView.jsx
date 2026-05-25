@@ -10,6 +10,7 @@ import ClientManagement from '../admin/ClientManagement';
 import EngagementClassification from '../admin/EngagementClassification';
 import ReportTemplatesManagement from '../admin/ReportTemplatesManagement';
 import ProductsManagement from '../admin/ProductsManagement';
+import BusinessCategoriesManagement from '../admin/BusinessCategoriesManagement';
 import IndustryRuleSettings from '../admin/IndustryRuleSettings';
 import CallStatusSettings from '../admin/CallStatusSettings';
 import PermissionSettings from '../admin/PermissionSettings';
@@ -36,7 +37,8 @@ const TABS = [
   { id: 'clients',     label: 'クライアント・リスト管理', icon: '' },
   { id: 'classification', label: 'タイプ 仕分け',       icon: '' },
   { id: 'report_templates', label: 'アポ取得報告テンプレ', icon: '' },
-  { id: 'products',       label: '商材マスタ',           icon: '' },
+  { id: 'products',       label: '事業マスタ',           icon: '' },
+  { id: 'business_categories', label: '商材・業務マスタ', icon: '' },
 ];
 
 // 全社スコープでのみ表示するタブ。事業セレクタを「全社」にしたときのみ並ぶ。
@@ -310,6 +312,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
         {activeTab === 'classification' && <EngagementClassification onToast={showToast} />}
         {activeTab === 'report_templates' && <ReportTemplatesManagement onToast={showToast} />}
         {activeTab === 'products' && <ProductsManagement onToast={showToast} />}
+        {activeTab === 'business_categories' && <BusinessCategoriesManagement onToast={showToast} />}
       </div>
 
       {/* メンバーマイページ モーダル */}

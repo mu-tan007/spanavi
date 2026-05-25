@@ -4,7 +4,7 @@ import { getOrgId } from '../../lib/orgContext';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Card, Badge, Select } from '../ui';
 
-// 事業（products） + 配下の engagements を一覧管理
+// 事業（products）マスタ管理。商材（business_categories）と業務種別（engagements）は別タブで管理
 export default function ProductsManagement({ onToast }) {
   const orgId = getOrgId();
   const [products, setProducts] = useState([]);
@@ -19,8 +19,8 @@ export default function ProductsManagement({ onToast }) {
       supabase.from('products').select('*').eq('org_id', orgId).order('display_order'),
       supabase.from('engagements').select('id, name, slug, status, product_id, display_order').eq('org_id', orgId).order('display_order'),
     ]);
-    if (p.error) onToast?.('商材の取得に失敗: ' + p.error.message, 'error');
-    if (e.error) onToast?.('engagement の取得に失敗: ' + e.error.message, 'error');
+    if (p.error) onToast?.('事業の取得に失敗: ' + p.error.message, 'error');
+    if (e.error) onToast?.('業務種別の取得に失敗: ' + e.error.message, 'error');
     setProducts(p.data || []);
     setEngagements(e.data || []);
     setLoading(false);
@@ -38,7 +38,7 @@ export default function ProductsManagement({ onToast }) {
   }, [engagements]);
 
   const handleSave = async (payload) => {
-    if (!payload.name) return { error: new Error('商材名は必須です') };
+    if (!payload.name) return { error: new Error('事業名は必須です') };
     if (!payload.slug) return { error: new Error('slug は必須です') };
     if (!/^[a-z0-9_]+$/.test(payload.slug)) return { error: new Error('slug は英小文字・数字・アンダースコアのみ') };
     const isNew = !editing?.id;
@@ -53,16 +53,16 @@ export default function ProductsManagement({ onToast }) {
       ? await supabase.from('products').insert({ ...body, org_id: orgId })
       : await supabase.from('products').update(body).eq('id', editing.id);
     if (error) { onToast?.('保存に失敗: ' + error.message, 'error'); return { error }; }
-    onToast?.(`商材を${isNew ? '作成' : '更新'}しました`);
+    onToast?.(`事業を${isNew ? '作成' : '更新'}しました`);
     setEditing(null);
     await reload();
     return { error: null };
   };
 
   const handleDelete = async (p) => {
-    // is_active=false にする論理削除（紐付くengagementがあると安全に削除しにくいため）
+    // is_active=false にする論理削除（紐付く業務種別があると安全に削除しにくいため）
     const { error } = await supabase.from('products').update({ is_active: false }).eq('id', p.id);
-    if (error) onToast?.('削除失敗: ' + error.message, 'error');
+    if (error) onToast?.('非表示処理に失敗: ' + error.message, 'error');
     else onToast?.(`「${p.name}」を非表示にしました`);
     setConfirmDelete(null);
     await reload();
@@ -72,14 +72,14 @@ export default function ProductsManagement({ onToast }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: space[4] }}>
       <Card padding="md">
         <div style={{ fontSize: font.size.sm, color: color.textMid, lineHeight: 1.6 }}>
-          事業の中の「商材」を管理します（例: M&A / SaaS / 人材 / IFA）。
-          商材は engagement (タイプ: 売り手ソーシング等) の親レイヤーで、新しい商材が増えた時にここから追加します。
+          組織の「事業」を管理します（例: 営業代行 / スパキャリ）。
+          事業は商材（M&A / SaaS / IFA 等）の親レイヤーで、商材と業務種別は「商材・業務マスタ」タブで管理します。
         </div>
       </Card>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: space[2] }}>
         <Button variant="outline" size="sm" onClick={reload} disabled={loading}>再読込</Button>
-        <Button variant="primary" size="sm" onClick={() => setEditing({ is_active: true, display_order: (products[products.length-1]?.display_order || 0) + 1 })}>＋ 新規商材</Button>
+        <Button variant="primary" size="sm" onClick={() => setEditing({ is_active: true, display_order: (products[products.length-1]?.display_order || 0) + 1 })}>＋ 新規事業</Button>
       </div>
 
       {products.map(p => (
@@ -92,11 +92,11 @@ export default function ProductsManagement({ onToast }) {
         />
       ))}
 
-      {/* 商材未紐付け engagements */}
+      {/* 事業未紐付け 業務種別 */}
       {(engagementsByProduct['__unmapped__'] || []).length > 0 && (
         <Card padding="md" style={{ borderLeft: `3px solid ${color.warn}` }}>
           <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 6 }}>
-            商材未紐付けの engagement
+            事業未紐付けの業務種別
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {(engagementsByProduct['__unmapped__'] || []).map(e => (
@@ -145,10 +145,10 @@ function ProductCard({ product, engagements, onEdit, onDelete }) {
       )}
       <div style={{ borderTop: `1px dashed ${color.border}`, paddingTop: space[1.5] }}>
         <div style={{ fontSize: 10, color: color.textLight, marginBottom: 4 }}>
-          配下の engagement (タイプ) - {engagements.length}件
+          配下の業務種別 - {engagements.length}件
         </div>
         {engagements.length === 0 ? (
-          <div style={{ fontSize: font.size.xs, color: color.textLight, fontStyle: 'italic' }}>紐付くengagementがありません</div>
+          <div style={{ fontSize: font.size.xs, color: color.textLight, fontStyle: 'italic' }}>紐付く業務種別がありません</div>
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: space[1.5] }}>
             {engagements.map(e => (
@@ -195,15 +195,15 @@ function ProductEditModal({ initial, onSave, onCancel }) {
         background: color.white, borderRadius: radius.md, width: 500, boxShadow: shadow.xl,
       }}>
         <div style={{ padding: `${space[3]}px ${space[5]}px`, background: color.navy, color: color.white, borderRadius: `${radius.md}px ${radius.md}px 0 0`, fontWeight: font.weight.semibold }}>
-          {isNew ? '商材を作成' : '商材を編集'}
+          {isNew ? '事業を作成' : '事業を編集'}
         </div>
         <div style={{ padding: space[5], display: 'flex', flexDirection: 'column', gap: space[3] }}>
-          <FieldRow label="商材名 *">
-            <Input size="sm" value={form.name} onChange={e => update({ name: e.target.value })} placeholder="例: M&A / SaaS / 人材 / IFA" />
+          <FieldRow label="事業名 *">
+            <Input size="sm" value={form.name} onChange={e => update({ name: e.target.value })} placeholder="例: 営業代行 / スパキャリ" />
           </FieldRow>
           <FieldRow label="slug * (英数字・アンダースコアのみ)">
-            <Input size="sm" value={form.slug} onChange={e => update({ slug: e.target.value })} placeholder="例: m_and_a / saas / recruit" disabled={!isNew} />
-            {!isNew && <span style={{ fontSize: 10, color: color.textLight }}>編集中の商材は slug 変更不可（FK整合性のため）</span>}
+            <Input size="sm" value={form.slug} onChange={e => update({ slug: e.target.value })} placeholder="例: sales_agency / spartia_career_biz" disabled={!isNew} />
+            {!isNew && <span style={{ fontSize: 10, color: color.textLight }}>編集中の事業は slug 変更不可（FK整合性のため）</span>}
           </FieldRow>
           <FieldRow label="説明（任意）">
             <Input size="sm" value={form.description} onChange={e => update({ description: e.target.value })} />
