@@ -217,4 +217,37 @@
 
 ## Review
 
-（実装完了後にここへ追記）
+### 2026-05-25 Phase A〜G + F一部 + 受講生フロー検証手前まで完了
+
+**完了したこと**:
+- Phase A/B: DB 4テーブル+RLS+trigger+73問seed → 本番Supabase反映済
+- Phase C: ClientKickoffHearingView.jsx (セクション折りたたみ・autosave・72hカウントダウン)
+- Phase D: TabKickoffHearing.jsx (KPI/AI抽出/原文/CSV/期限延長/再抽出/配信ボタン)
+- Phase E: analyze-kickoff-hearing Edge Function (Claude Haiku 4.5並列, v3 deploy済)
+- Phase F: kickoff-hearing-reminder Edge Function (pg_cron毎時5分実行)
+  - spacareer-slack-notify 拡張 (notify_key 2種追加 + ASCII placeholder)
+  - 通知テンプレ3種 seed
+- Phase G: KickoffHearingTemplateEditor.jsx (テンプレ管理画面に「キックオフ70問」カテゴリ追加)
+- **受講生専用ログイン /spacareer/login を新設** (commit `6a0b341`、営業代行クライアントと同じ分離設計)
+
+**設計の重要変更（壁打ちで確定）**:
+- 提出期限: 72h相対 → 第1回セッション3日前 23:59 絶対期限
+- Slack配信: 顧客フルネームチャンネルのみ (運営チャンネル構想は廃案)
+- placeholder: 日本語キー → ASCII (`{customer_name}` `{hearing_url}` `{deadline}`)
+
+**直近で潰したバグ**:
+- `members.phone` 列なし問題 → useCustomerDetail から削除
+- student の Navigate 無限ループ → 既に /spacareer 配下なら Navigate しない
+- ヒアリング保存ボタン無反応 → 上記2つの副次的な事象（customer.data=null）として解消
+
+**残ペンディング（次回ここから）**:
+- 受講生として小山さんで /spacareer/login ログイン → 70問入力→提出→AI抽出→運営画面確認 ★最初にこれ
+- 24h前リマインダー pg_cron 動作確認 (deadline_at 操作で即発火可能)
+- テスト終了後: 小山さんの rank/role を 'スパルタン' に戻す
+- テスト顧客クリーンアップ判断
+
+**テスト顧客状態**:
+- spacareer_customers.id: `815f5d27-a98d-40be-bab7-8110afcc79d4`
+- session.status: 'unstarted' (or 'in_progress')、deadline_at='2026-05-29 14:59 UTC'
+- responses: 59必須 dummy 回答 (is_draft=true)
+- Slack channel C0B5W0R0KN2 紐付け済
