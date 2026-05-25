@@ -106,7 +106,7 @@ export function useCustomerDetail(customerId) {
         khSession, khAi, khResponses, khQuestions,
       ] = await Promise.all([
         supabase.from('spacareer_customers')
-          .select(`*, member:members!spacareer_customers_member_id_fkey ( id, name, email, phone )`)
+          .select(`*, member:members!spacareer_customers_member_id_fkey ( id, name, email )`)
           .eq('id', customerId).single(),
         supabase.from('spacareer_sessions')
           .select('*').eq('customer_id', customerId).order('session_no'),
@@ -141,7 +141,7 @@ export function useCustomerDetail(customerId) {
       let trainer = null;
       if (customer.data?.assigned_trainer_id) {
         const { data: t } = await supabase.from('members')
-          .select('id, name, email, phone').eq('id', customer.data.assigned_trainer_id).maybeSingle();
+          .select('id, name, email').eq('id', customer.data.assigned_trainer_id).maybeSingle();
         trainer = t || null;
       }
 
