@@ -390,7 +390,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     // 有効ならそのまま、無効ならデフォルトに揃える。
     _prevEngSlugRef.current = engSlug;
     const MASP_TABS = ['database', 'firms', 'all_members', 'admin_settings', 'mypage'];
-    const SOURCING_TABS = ['dashboard','live','incoming','lists','appo','precheck','deals','crm','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','edu_performance','ai','manager_admin'];
+    const SOURCING_TABS = ['overview','dashboard','live','incoming','lists','appo','precheck','deals','crm','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','edu_performance','ai','manager_admin'];
     const CAREER_TABS = ['customers','sessions','homework','social_style','ai_courses','templates','analytics','settings','mypage'];
     if (engSlug === 'masp') {
       if (!MASP_TABS.includes(currentTab)) setCurrentTab('database');
