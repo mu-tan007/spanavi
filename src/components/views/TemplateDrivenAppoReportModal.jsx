@@ -6,6 +6,7 @@ import {
   insertAppointment, invokeTranscribeAndExtract,
   invokeLookupCompanyHomepage, invokeGetZoomRecording, updateCallListItem,
   ensureProspectingClient, createGcalEvent, updateAppointmentMeta,
+  fetchZoomUserId, invokeAppoAiReport,
 } from '../../lib/supabaseWrite';
 import {
   resolveApplicableTemplates, renderBody, buildInitialFormValues, buildAiExtractionInstruction,
@@ -125,6 +126,21 @@ export default function TemplateDrivenAppoReportModal({
   // 録音URL + 状態
   const [recordingUrl, setRecordingUrl] = useState(initialRecordingUrl);
   const [recLoading, setRecLoading] = useState(false);
+  // 録音URL 手動再取得（FieldRenderer の「再取得」ボタンから呼ぶ）
+  const handleRefetchRecording = async () => {
+    if (!onFetchRecordingUrl || recLoading) return;
+    setRecLoading(true);
+    try {
+      const url = await onFetchRecordingUrl();
+      if (url) {
+        setRecordingUrl(url);
+        if (template?.schema?.some(f => f.key === 'recordingUrl')) {
+          setForm(prev => ({ ...prev, recordingUrl: url }));
+        }
+      }
+    } catch (e) { console.warn('[TemplateModal] 録音URL再取得失敗:', e); }
+    finally { setRecLoading(false); }
+  };
   // キーマン携帯番号から録音検索（既存番号があれば自動展開）
   const [keymanMobileInput, setKeymanMobileInput] = useState(row?.keyman_mobile || '');
   const [keymanLookupStep, setKeymanLookupStep] = useState('idle'); // 'idle' | 'fetching' | 'done' | 'error'
@@ -365,6 +381,8 @@ export default function TemplateDrivenAppoReportModal({
         phone:    row?.phone || form.phone || null,
         recording_url: form.recordingUrl || recordingUrl || null,
         keymanMaIntent: form.keymanMaIntent || null,
+        reportStyle: form.reportStyle || null,
+        reportSupplement: form.reportSupplement || null,
         meetTime: form.appoTime || null,
         meetLocation: form.visitLocation || null,
         isOnline: form.meeting_format === 'オンライン' || form.meeting_format === 'Web',
@@ -390,6 +408,19 @@ export default function TemplateDrivenAppoReportModal({
       if (insResult?.id) {
         invokeGenerateCompanyDossier({ appointment_id: insResult.id, org_id: getOrgId() }).catch(() => {});
       }
+
+      // appo-ai-report (Zoom録音→Claude強化レポート) を fire-and-forget で呼ぶ
+      // 旧 AppoReportModal で呼ばれていたが新モーダルでは抜けていた経路を復活
+      try {
+        const zoomUserId = await fetchZoomUserId(currentUser);
+        invokeAppoAiReport({
+          zoom_user_id: zoomUserId,
+          callee_phone: row?.phone || form.phone || null,
+          report_text: reportNote,
+          company_name: row?.company || '',
+          client_name: list?.company || '',
+        }).catch(e => console.warn('[TemplateModal] appo-ai-report failed:', e));
+      } catch (e) { console.warn('[TemplateModal] fetchZoomUserId failed:', e); }
 
       onSave?.({
         company: row?.company || '',
@@ -517,6 +548,8 @@ export default function TemplateDrivenAppoReportModal({
                 onChange={(v) => set(field.key, v)}
                 onFetchHp={() => handleFetchHp(field.key)}
                 hpLoading={hpLoadingKey === field.key}
+                onRefetchRecording={field.key === 'recordingUrl' ? handleRefetchRecording : undefined}
+                recordingRefetching={field.key === 'recordingUrl' ? recLoading : false}
               />
             ))}
           </div>
@@ -535,9 +568,10 @@ export default function TemplateDrivenAppoReportModal({
   );
 }
 
-function FieldRenderer({ field, value, onChange, onFetchHp, hpLoading }) {
-  const isFullWidth = field.type === 'textarea';
+function FieldRenderer({ field, value, onChange, onFetchHp, hpLoading, onRefetchRecording, recordingRefetching }) {
+  const isFullWidth = field.type === 'textarea' || field.key === 'recordingUrl';
   const hasAutoFetch = field.auto_fetch === 'homepage_url';
+  const isRecording = field.key === 'recordingUrl';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, gridColumn: isFullWidth ? '1 / -1' : 'auto' }}>
@@ -547,6 +581,12 @@ function FieldRenderer({ field, value, onChange, onFetchHp, hpLoading }) {
         </label>
         {field.ai_extract && <Badge variant="info">AI抽出</Badge>}
         {field.auto_fill && <Badge variant="neutral">自動入力</Badge>}
+        {isRecording && value && !recordingRefetching && (
+          <span style={{ fontSize: 10, color: color.success, fontWeight: font.weight.semibold }}>自動取得済み</span>
+        )}
+        {isRecording && recordingRefetching && (
+          <span style={{ fontSize: 10, color: color.textLight }}>取得中…</span>
+        )}
         {hasAutoFetch && (
           <button
             type="button"
@@ -558,6 +598,19 @@ function FieldRenderer({ field, value, onChange, onFetchHp, hpLoading }) {
               cursor: hpLoading ? 'wait' : 'pointer', fontFamily: font.family.sans,
             }}
           >{hpLoading ? '取得中…' : 'HP取得'}</button>
+        )}
+        {isRecording && onRefetchRecording && (
+          <button
+            type="button"
+            onClick={onRefetchRecording}
+            disabled={recordingRefetching}
+            title="録音URLを再取得"
+            style={{
+              marginLeft: 'auto', padding: '2px 8px', fontSize: 10, borderRadius: radius.sm,
+              border: `1px solid ${color.border}`, background: color.white, color: color.navy,
+              cursor: recordingRefetching ? 'wait' : 'pointer', fontFamily: font.family.sans,
+            }}
+          >{recordingRefetching ? '取得中…' : '再取得'}</button>
         )}
       </div>
       {renderInputByType(field, value, onChange)}
@@ -573,6 +626,22 @@ function renderInputByType(field, value, onChange) {
     outline: 'none', background: color.white, color: color.textDark,
     boxSizing: 'border-box',
   };
+  // 特殊フィールド: appoTime (面談時間) は 9:00〜20:00 30分刻みのプルダウン
+  // 旧 AppoReportModal の時刻 select UI を移植
+  if (field.key === 'appoTime') {
+    const timeOpts = Array.from({ length: 23 }, (_, i) => {
+      const total = 540 + i * 30; // 9:00 から
+      const h = Math.floor(total / 60);
+      const m = total % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    });
+    return (
+      <select value={value || ''} onChange={e => onChange(e.target.value)} style={baseStyle}>
+        <option value="">— 選択 —</option>
+        {timeOpts.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    );
+  }
   switch (field.type) {
     case 'textarea':
       return (
