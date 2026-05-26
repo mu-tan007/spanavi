@@ -40,6 +40,7 @@ import CallFlowView from './views/CallFlowView';
 import ScriptView from './views/ScriptView';
 import MyPageView from './views/MyPageView';
 import SourcingDashboardView from './views/SourcingDashboardView';
+import BusinessOverviewView from './views/BusinessOverviewView';
 import CRMView from './views/CRMView';
 import AppoListView, { MembersView } from './views/AppoListView';
 import PayrollView from './views/PayrollView';
@@ -1349,6 +1350,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "database" && <DatabaseView isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView onBack={() => setCurrentTab('lists')} />}
         {currentTab === "dashboard" && <SourcingDashboardView currentUser={currentUser} userId={userId} members={members} now={now} appoData={appoData} isAdmin={isAdmin} />}
+        {currentTab === "overview" && isAdmin && <BusinessOverviewView appoData={appoData} callListData={callListData} clientData={clientData} />}
         {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} onDataRefetch={onDataRefetch} />}
         {currentTab === "library" && <LibraryView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
         {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} />}
