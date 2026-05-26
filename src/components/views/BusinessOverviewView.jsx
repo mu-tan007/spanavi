@@ -83,10 +83,11 @@ function Section({ title, hint, right, children }) {
 }
 
 function NumberCard({ label, value, sub, valueColor = color.navy }) {
+  // 既存ダッシュボードと揃えるため、白背景 + 細borderのみ。cream/色背景は使わない。
   return (
     <div style={{
       padding: `${space[3]}px ${space[4]}px`,
-      background: color.cream,
+      background: color.white,
       borderRadius: radius.md,
       border: `1px solid ${color.border}`,
     }}>
@@ -269,10 +270,11 @@ export default function BusinessOverviewView({ appoData = [], callListData = [],
   }, [month]);
 
   return (
-    <div style={{ padding: '0 28px 28px' }}>
+    <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="経営俯瞰"
         description="全社の数字と目標達成状況を一目で把握"
+        style={{ marginBottom: 24 }}
         right={
           <select value={month} onChange={(e) => setMonth(e.target.value)} style={{
             padding: `${space[1]}px ${space[2]}px`, borderRadius: radius.md,
@@ -287,7 +289,7 @@ export default function BusinessOverviewView({ appoData = [], callListData = [],
         }
       />
 
-      <div style={{ marginTop: space[4], display: 'flex', flexDirection: 'column', gap: space[4] }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: space[4] }}>
 
         {/* A. 今月の数字サマリー + 商材×タイプ マトリクス */}
         <Section title="今月の数字" hint="軸① 案件実行 / 軸② クライアント開拓">
@@ -295,7 +297,7 @@ export default function BusinessOverviewView({ appoData = [], callListData = [],
 
             {/* 軸① */}
             <div style={{
-              padding: space[3], background: alpha(color.navyLight, 0.06),
+              padding: space[3], background: color.white,
               borderRadius: radius.md, border: `1px solid ${color.border}`,
             }}>
               <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy, marginBottom: space[2] }}>
@@ -354,7 +356,7 @@ export default function BusinessOverviewView({ appoData = [], callListData = [],
 
             {/* 軸② */}
             <div style={{
-              padding: space[3], background: alpha(color.gold, 0.06),
+              padding: space[3], background: color.white,
               borderRadius: radius.md, border: `1px solid ${color.border}`,
             }}>
               <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy, marginBottom: space[2] }}>
@@ -402,7 +404,7 @@ export default function BusinessOverviewView({ appoData = [], callListData = [],
                                 width: 70, padding: '2px 6px', textAlign: 'right',
                                 borderRadius: radius.sm, border: `1px solid ${color.border}`,
                                 fontSize: font.size.sm, fontFamily: font.family.mono,
-                                background: savingKey === e.id ? color.cream : color.white, outline: 'none',
+                                background: savingKey === e.id ? color.gray50 : color.white, outline: 'none',
                               }}
                               disabled={savingKey === e.id}
                             />
@@ -446,7 +448,7 @@ export default function BusinessOverviewView({ appoData = [], callListData = [],
             <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[2] }}>
                 {axis1TargetTotal > 0 && (
-                  <div style={{ padding: space[2], background: color.cream, borderRadius: radius.md }}>
+                  <div style={{ padding: space[2], background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md }}>
                     <div style={{ fontSize: font.size.xs, color: color.textLight }}>軸①ペース予測</div>
                     <div style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: axis1PaceRate < 90 ? color.danger : color.navy, fontFamily: font.family.mono }}>
                       {fmtNum(axis1Pace)}件 ({fmtPct(axis1PaceRate)})
@@ -457,7 +459,7 @@ export default function BusinessOverviewView({ appoData = [], callListData = [],
                   </div>
                 )}
                 {axis2TargetTotal > 0 && (
-                  <div style={{ padding: space[2], background: color.cream, borderRadius: radius.md }}>
+                  <div style={{ padding: space[2], background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md }}>
                     <div style={{ fontSize: font.size.xs, color: color.textLight }}>軸②達成状況</div>
                     <div style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: axis2AchieveRate < 70 ? color.danger : color.navy, fontFamily: font.family.mono }}>
                       {fmtNum(stats.axis2.count)} / {fmtNum(axis2TargetTotal)}件 ({fmtPct(axis2AchieveRate)})
@@ -465,24 +467,27 @@ export default function BusinessOverviewView({ appoData = [], callListData = [],
                   </div>
                 )}
               </div>
-              {recommendations.map((rec, i) => (
-                <div key={i} style={{
-                  padding: space[3],
-                  background: rec.level === '高' ? alpha(color.danger, 0.06) : rec.level === '中' ? alpha(color.warn, 0.06) : alpha(color.success, 0.06),
-                  border: `1px solid ${rec.level === '高' ? alpha(color.danger, 0.3) : color.border}`,
-                  borderRadius: radius.md, display: 'flex', alignItems: 'flex-start', gap: space[2],
-                }}>
-                  <span style={{ fontSize: font.size.lg }}>{rec.icon}</span>
-                  <div>
-                    <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 2 }}>
-                      {rec.title}
-                    </div>
-                    <div style={{ fontSize: font.size.xs, color: color.textDark, lineHeight: 1.6 }}>
-                      {rec.desc}
+              {recommendations.map((rec, i) => {
+                const accentColor = rec.level === '高' ? color.danger : rec.level === '中' ? color.warn : color.success;
+                return (
+                  <div key={i} style={{
+                    padding: space[3],
+                    background: color.white,
+                    border: `1px solid ${color.border}`,
+                    borderLeft: `3px solid ${accentColor}`,
+                    borderRadius: radius.md, display: 'flex', alignItems: 'flex-start', gap: space[2],
+                  }}>
+                    <div>
+                      <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: accentColor, marginBottom: 2 }}>
+                        {rec.title}
+                      </div>
+                      <div style={{ fontSize: font.size.xs, color: color.textDark, lineHeight: 1.6 }}>
+                        {rec.desc}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </Section>
