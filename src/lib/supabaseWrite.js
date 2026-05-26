@@ -3775,6 +3775,43 @@ export async function deleteClientMonthlyTarget(clientId, yearMonth) {
 }
 
 // ============================================================
+// 経営俯瞰 engagement × 月の目標 (engagement_monthly_targets)
+// 軸②(クライアント開拓) を商材別に月次目標管理する用
+// ============================================================
+
+export async function fetchEngagementMonthlyTargets(fromYearMonth, toYearMonth) {
+  const orgId = getOrgId()
+  if (!orgId) return { data: [], error: null }
+  const { data, error } = await supabase
+    .from('engagement_monthly_targets')
+    .select('id, engagement_id, year_month, target_count')
+    .eq('org_id', orgId)
+    .gte('year_month', fromYearMonth)
+    .lte('year_month', toYearMonth)
+  if (error) console.error('[DB] fetchEngagementMonthlyTargets error:', error)
+  return { data: data || [], error }
+}
+
+export async function upsertEngagementMonthlyTarget(engagementId, yearMonth, targetCount) {
+  if (!engagementId || !yearMonth) {
+    return { data: null, error: new Error('missing args') }
+  }
+  const orgId = getOrgId()
+  const { data, error } = await supabase
+    .from('engagement_monthly_targets')
+    .upsert({
+      org_id: orgId,
+      engagement_id: engagementId,
+      year_month: yearMonth,
+      target_count: Math.max(0, Number(targetCount) || 0),
+    }, { onConflict: 'org_id,engagement_id,year_month' })
+    .select('id, engagement_id, year_month, target_count')
+    .single()
+  if (error) console.error('[DB] upsertEngagementMonthlyTarget error:', error)
+  return { data, error }
+}
+
+// ============================================================
 // Payroll Invoices (給与請求書 - メンバー × 月)
 // ============================================================
 const PAYROLL_INVOICE_BUCKET = 'payroll-invoices'
