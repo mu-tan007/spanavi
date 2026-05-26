@@ -338,6 +338,15 @@ export default function TemplateDrivenAppoReportModal({
       const acquirerRate = parseFloat(acquirerMember?.rate ?? acquirerMember?.incentive_rate ?? 0) || 0;
       const rewardVal = isFixedPerAppo ? salesVal : (salesVal && acquirerRate ? Math.round(salesVal * acquirerRate) : 0);
 
+      // 軸①（クライアント開拓ではない）でクライアントの reward_settings が未登録の場合に確認
+      // LGアセット事例（IFAクライアント開拓で報酬未登録 → sales=0 で保存事故）の予防
+      if (!list?.is_prospecting && rewardRows.length === 0) {
+        const proceed = window.confirm(
+          `このクライアント（${list?.company || ''}）の業務種別「${list?.engagement_id ? '該当タイプ' : ''}」に報酬体系が登録されていません。\n\nこのまま保存すると当社売上・インターン報酬が ¥0 で記録されます。\n\nそれでも保存しますか？\n（CRM のクライアント編集モーダルで報酬体系を登録してから保存し直すのが推奨）`
+        );
+        if (!proceed) { setSaving(false); return; }
+      }
+
       // クライアント開拓 (is_prospecting) のみ:
       // ① CRM clients テーブルへ upsert（面談予定として現れるようにする）
       // ② 篠宮 Google カレンダーへイベント作成 → gcalEventId を appointments に紐付け

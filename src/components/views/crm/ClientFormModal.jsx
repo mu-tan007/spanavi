@@ -56,14 +56,31 @@ export default function ClientFormModal({
   }, []);
 
   // タイプ別報酬上書き（client_engagement_reward_settings）
-  const { engagements } = useEngagements();
+  const { engagements, products, categories } = useEngagements();
+  // 営業代行 product 配下の全 engagement (商材→engagement の順)
+  // 旧版は slug ハードコードで SaaS/IFA/人材の lead_generation_* が漏れていた
   const salesAgencyEngs = useMemo(() => {
-    const order = ['seller_sourcing', 'matching', 'client_acquisition'];
+    const sa = (products || []).find(p => p.slug === 'sales_agency');
+    if (!sa) return [];
     return (engagements || [])
-      .filter(e => order.includes(e.slug))
-      .sort((a, b) => order.indexOf(a.slug) - order.indexOf(b.slug));
-  }, [engagements]);
+      .filter(e => e.product_id === sa.id && !e.isVirtual)
+      .sort((a, b) => {
+        const ca = categories.find(c => c.id === a.category_id);
+        const cb = categories.find(c => c.id === b.category_id);
+        const co = (ca?.display_order || 999) - (cb?.display_order || 999);
+        if (co !== 0) return co;
+        return (a.display_order || 0) - (b.display_order || 0);
+      });
+  }, [engagements, products, categories]);
   const [engRewards, setEngRewards] = useState({}); // { [engagement_id]: reward_type }
+  // 軸①（client_acquisition 以外）で reward_type 未設定の engagement
+  // 軸② (クライアント開拓) は仕様上 reward 不要なので除外
+  const missingRewardEngs = useMemo(() => {
+    return salesAgencyEngs.filter(e =>
+      e.type !== 'client_acquisition' &&
+      !((engRewards[e.id] || '').toString().trim())
+    );
+  }, [salesAgencyEngs, engRewards]);
   const [engRewardsLoaded, setEngRewardsLoaded] = useState(false);
   useEffect(() => {
     if (!isEdit || !form?._supaId) { setEngRewardsLoaded(true); return; }
@@ -84,6 +101,17 @@ export default function ClientFormModal({
 
   // 保存ボタンの拡張ラッパー: 親の onSave 後に engRewards も upsert/delete
   const handleSaveAll = async () => {
+    // 報酬未設定の軸① engagement があれば confirm（LGアセット事例 = 未設定のままアポで ¥0 計算事故への予防）
+    if (isEdit && missingRewardEngs.length > 0) {
+      const list = missingRewardEngs.map(e => {
+        const cat = categories.find(c => c.id === e.category_id)?.name || '';
+        return `・${cat} / ${e.name}`;
+      }).join('\n');
+      const proceed = window.confirm(
+        `以下の業務種別で報酬体系が未設定です:\n\n${list}\n\nこのまま保存すると、これら業務種別でアポを取った時に当社売上・インターン報酬が ¥0 で記録されます。\n\nそれでも保存しますか？`
+      );
+      if (!proceed) return;
+    }
     await onSave?.();
     if (!isEdit || !form?._supaId) return;
     // 既存設定との差分を upsert/delete
@@ -173,20 +201,32 @@ export default function ClientFormModal({
                   </span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 6, alignItems: 'center' }}>
-                  {salesAgencyEngs.filter(e => e.slug !== 'client_acquisition').map(eng => (
-                    <React.Fragment key={eng.id}>
-                      <span style={{ fontSize: font.size.xs, color: color.textMid }}>{eng.name}</span>
-                      <Select
-                        size="sm"
-                        value={engRewards[eng.id] || ''}
-                        onChange={e => setEngRewards(prev => ({ ...prev, [eng.id]: e.target.value }))}
-                        options={[
-                          { value: '', label: '-（未設定／報酬計算なし）' },
-                          ...rewardIds.map(id => ({ value: id, label: `${id} - ${rewardMap[id] ? rewardMap[id].name : ''}` })),
-                        ]}
-                      />
-                    </React.Fragment>
-                  ))}
+                  {salesAgencyEngs.filter(e => e.type !== 'client_acquisition').map(eng => {
+                    const cat = categories.find(c => c.id === eng.category_id)?.name || '';
+                    const isMissing = !((engRewards[eng.id] || '').toString().trim());
+                    return (
+                      <React.Fragment key={eng.id}>
+                        <span style={{ fontSize: font.size.xs, color: color.textMid, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {cat && <span style={{ fontSize: 10, color: color.textLight }}>{cat}</span>}
+                          {eng.name}
+                          {isMissing && (
+                            <span style={{ fontSize: 10, color: color.white, background: color.danger, padding: '1px 5px', borderRadius: radius.sm, fontWeight: font.weight.semibold }}>
+                              ⚠ 未設定
+                            </span>
+                          )}
+                        </span>
+                        <Select
+                          size="sm"
+                          value={engRewards[eng.id] || ''}
+                          onChange={e => setEngRewards(prev => ({ ...prev, [eng.id]: e.target.value }))}
+                          options={[
+                            { value: '', label: '-（未設定／報酬計算なし）' },
+                            ...rewardIds.map(id => ({ value: id, label: `${id} - ${rewardMap[id] ? rewardMap[id].name : ''}` })),
+                          ]}
+                        />
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
               </div>
             )}
