@@ -40,6 +40,22 @@ function mimeEncode(str: string): string {
   return `=?UTF-8?B?${encoded}?=`
 }
 
+/** Uint8Array を base64url にエンコード（チャンク処理でメモリ効率化） */
+function bytesToBase64Url(bytes: Uint8Array): string {
+  const chunkSize = 32768
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const sub = bytes.subarray(i, i + chunkSize)
+    binary += String.fromCharCode.apply(null, sub as unknown as number[])
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+/** base64 文字列を 76 文字毎に CRLF で折り返す（RFC 2045） */
+function wrapBase64(b64: string): string {
+  return (b64.match(/.{1,76}/g) || []).join('\r\n')
+}
+
 /** RFC 2822 形式のメールを構築し base64url エンコードして返す */
 function buildRawEmail(params: {
   to: string
@@ -50,60 +66,63 @@ function buildRawEmail(params: {
   attachments?: { filename: string; data: string; mimeType: string }[]
 }): string {
   const hasAttachments = params.attachments && params.attachments.length > 0
+  const encoder = new TextEncoder()
 
-  const headers: string[] = [
+  const headerLines: string[] = [
     `From: ${mimeEncode(FROM_NAME)} <${FROM_EMAIL}>`,
     `To: ${params.to}`,
   ]
-  if (params.cc) headers.push(`Cc: ${params.cc}`)
-  if (params.bcc) headers.push(`Bcc: ${params.bcc}`)
-  headers.push(`Subject: ${mimeEncode(params.subject)}`)
-  headers.push('MIME-Version: 1.0')
+  if (params.cc) headerLines.push(`Cc: ${params.cc}`)
+  if (params.bcc) headerLines.push(`Bcc: ${params.bcc}`)
+  headerLines.push(`Subject: ${mimeEncode(params.subject)}`)
+  headerLines.push('MIME-Version: 1.0')
 
-  let raw: string
   if (!hasAttachments) {
-    // テキストメールのみ（従来通り）
-    headers.push(
+    // テキストメールのみ（従来挙動を維持）
+    headerLines.push(
       'Content-Type: text/plain; charset=UTF-8',
       'Content-Transfer-Encoding: base64',
       '',
       btoa(unescape(encodeURIComponent(params.body))),
     )
-    raw = headers.join('\r\n')
-  } else {
-    // MIME multipart/mixed（本文 + 添付ファイル）
-    const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`
-    headers.push(`Content-Type: multipart/mixed; boundary="${boundary}"`)
-    headers.push('')
-    headers.push(`--${boundary}`)
-    headers.push('Content-Type: text/plain; charset=UTF-8')
-    headers.push('Content-Transfer-Encoding: base64')
-    headers.push('')
-    headers.push(btoa(unescape(encodeURIComponent(params.body))))
-
-    for (const att of params.attachments!) {
-      const encodedFilename = mimeEncode(att.filename)
-      headers.push(`--${boundary}`)
-      headers.push(`Content-Type: ${att.mimeType}; name="${encodedFilename}"`)
-      headers.push('Content-Transfer-Encoding: base64')
-      headers.push(`Content-Disposition: attachment; filename*=UTF-8''${encodeURIComponent(att.filename)}; filename="${encodedFilename}"`)
-      headers.push('')
-      // data は既に base64 エンコード済み — 76文字で改行
-      const b64 = att.data
-      for (let i = 0; i < b64.length; i += 76) {
-        headers.push(b64.slice(i, i + 76))
-      }
-    }
-    headers.push(`--${boundary}--`)
-    raw = headers.join('\r\n')
+    return bytesToBase64Url(encoder.encode(headerLines.join('\r\n')))
   }
 
-  // base64url エンコード（Gmail API が要求する形式）
-  // raw にマルチバイト文字が残らない前提だが、安全のため UTF-8 バイト列経由でエンコード
-  const rawBytes = new TextEncoder().encode(raw)
-  let binary = ''
-  for (const b of rawBytes) binary += String.fromCharCode(b)
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  // MIME multipart/mixed: ヘッダー部・本文部・各添付を別 Uint8Array で組み立て、
+  // 最後に1度だけ結合 → base64url。添付の base64 データを文字列連結しないことで
+  // 大きな添付（数MB〜）でもメモリ消費を線形に抑える。
+  const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`
+  headerLines.push(`Content-Type: multipart/mixed; boundary="${boundary}"`)
+  headerLines.push('')
+  headerLines.push(`--${boundary}`)
+  headerLines.push('Content-Type: text/plain; charset=UTF-8')
+  headerLines.push('Content-Transfer-Encoding: base64')
+  headerLines.push('')
+  headerLines.push(btoa(unescape(encodeURIComponent(params.body))))
+
+  const parts: Uint8Array[] = [encoder.encode(headerLines.join('\r\n'))]
+
+  for (const att of params.attachments!) {
+    const encodedFilename = mimeEncode(att.filename)
+    const partHeader =
+      `\r\n--${boundary}\r\n` +
+      `Content-Type: ${att.mimeType}; name="${encodedFilename}"\r\n` +
+      `Content-Transfer-Encoding: base64\r\n` +
+      `Content-Disposition: attachment; filename*=UTF-8''${encodeURIComponent(att.filename)}; filename="${encodedFilename}"\r\n` +
+      `\r\n`
+    parts.push(encoder.encode(partHeader))
+    parts.push(encoder.encode(wrapBase64(att.data)))
+  }
+  parts.push(encoder.encode(`\r\n--${boundary}--`))
+
+  const totalLen = parts.reduce((s, p) => s + p.length, 0)
+  const raw = new Uint8Array(totalLen)
+  let offset = 0
+  for (const p of parts) {
+    raw.set(p, offset)
+    offset += p.length
+  }
+  return bytesToBase64Url(raw)
 }
 
 Deno.serve(async (req) => {
