@@ -152,7 +152,12 @@ ${ai_prompt ? `【テンプレ固有の抽出指示】\n${ai_prompt}\n` : ''}
 
 【出力形式・ルール】
 { "key1": "値1", "key2": "値2", "keyman_ma_intent": "wait" }
-- 各値は文字列。録音から読み取れない場合は「確認できず」（keyman_ma_intent は "unknown"）。
+- 各値は **値そのものだけ** を文字列で返す。フィールド名・ラベル名を値の先頭に含めてはいけない。
+  - ✅ 正: "businessDetail": "デザインの企画・制作"
+  - ❌ 誤: "businessDetail": "事業内容：デザインの企画・制作"
+  - ✅ 正: "personality": "落ち着いた話し方で..."
+  - ❌ 誤: "personality": "先方のお人柄：落ち着いた話し方で..."
+- 録音から読み取れない場合は「確認できず」（keyman_ma_intent は "unknown"）。
 - options 指定フィールドはその選択肢から選ぶ。
 - 録音からの示唆は明示し、推測ベースで埋めすぎない。ただし標準キー（人柄/面談経験/検討可否/その他）は録音から読み取れる範囲で具体的に書く（簡潔すぎる回答は不可）。
 
@@ -186,11 +191,36 @@ ${transcript}`
     } catch (e) {
       console.error('[transcribe-and-extract] JSON parse error:', e, 'raw:', claudeText)
     }
-    // 各値を文字列に正規化
+    // 各値を文字列に正規化 + 先頭ラベル汚染を除去（AIが「事業内容：◯◯」のように
+    // ラベル名込みで返してきた場合の保険サニタイズ）
+    const fieldLabelMap: Record<string, string[]> = {}
+    for (const f of extract_fields) {
+      if (f.key && f.label) fieldLabelMap[f.key] = [String(f.label)]
+    }
+    // 標準キーのラベル候補（schemaから来る label と重複してもOK）
+    const STD_LABELS: Record<string, string[]> = {
+      personality: ['先方のお人柄', 'お人柄'],
+      meetingExp: ['面談経験の有無', '面談経験'],
+      futureConsider: ['将来的な検討可否', '検討可否'],
+      other: ['その他'],
+      businessDetail: ['事業内容', '業務内容'],
+      contactName: ['担当者名', '担当者氏名'],
+    }
+    const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const stripLeadingLabel = (val: string, labels: string[]): string => {
+      if (!val) return val
+      for (const lbl of labels) {
+        const re = new RegExp('^\\s*' + escapeRe(lbl) + '\\s*[:：]\\s*')
+        if (re.test(val)) return val.replace(re, '')
+      }
+      return val
+    }
     const normalized: Record<string, string> = {}
     for (const k of Object.keys(extracted)) {
       const v = extracted[k]
-      normalized[k] = v == null ? '' : String(v)
+      const s = v == null ? '' : String(v)
+      const labels = [...(fieldLabelMap[k] || []), ...(STD_LABELS[k] || [])]
+      normalized[k] = stripLeadingLabel(s, labels)
     }
     // keyman_ma_intent は positive / wait / negative / unknown のいずれかに正規化
     const VALID_INTENT = new Set(['positive', 'wait', 'negative', 'unknown'])
