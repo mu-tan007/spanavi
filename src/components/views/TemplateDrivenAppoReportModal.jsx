@@ -49,8 +49,78 @@ export default function TemplateDrivenAppoReportModal({
   }, [template, row, list, currentUser, contactsByClient]);
 
   const [form, setForm] = useState(initialValues);
-  useEffect(() => { setForm(initialValues); }, [initialValues]);
-  const set = (key, value) => setForm(p => ({ ...p, [key]: value }));
+  // 当社売上の手動編集フラグ。ユーザーが ourSales を触ったら自動計算で上書きしない
+  const [ourSalesEdited, setOurSalesEdited] = useState(false);
+  // テンプレ切替時のみ初期化。initialValues は親の再レンダリングで毎回新参照になり
+  // form リセットを引き起こすため、template.id の変化のみで判定する。
+  // （ユーザーが入力中・AI添削中に initialValues 参照変更で消える事故への対策）
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setForm(initialValues); setOurSalesEdited(false); }, [template?.id]);
+  const set = (key, value) => {
+    if (key === 'ourSales') setOurSalesEdited(true);
+    setForm(p => ({ ...p, [key]: value }));
+  };
+
+  // クライアント×タイプの報酬体系を購読 (当社売上の onChange 自動計算用)
+  const [rewardRows, setRewardRows] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const clientInfo = (clientData || []).find(c => c.company === list?.company);
+      if (!clientInfo?._supaId || !list?.engagement_id) { if (!cancelled) setRewardRows([]); return; }
+      const { data: setting } = await supabase
+        .from('client_engagement_reward_settings')
+        .select('reward_type')
+        .eq('client_id', clientInfo._supaId)
+        .eq('engagement_id', list.engagement_id)
+        .maybeSingle();
+      if (cancelled) return;
+      const rt = setting?.reward_type;
+      setRewardRows(rt ? (rewardMaster || []).filter(r => r.id === rt) : []);
+    })();
+    return () => { cancelled = true; };
+  }, [list?.engagement_id, list?.company, clientData, rewardMaster]);
+
+  // 日本語金額テキスト ("5.0億円" "3000万円" "120,000千" 等) を円に変換
+  const parseJpAmount = (str) => {
+    if (!str) return null;
+    const s = String(str)
+      .replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+      .replace(/[,，\s]/g, '');
+    let m;
+    if ((m = s.match(/^([0-9.]+)億([0-9.]+)?万?/))) return Math.round(parseFloat(m[1]) * 1e8 + (m[2] ? parseFloat(m[2]) * 1e4 : 0));
+    if ((m = s.match(/^([0-9.]+)千万/))) return Math.round(parseFloat(m[1]) * 1e7);
+    if ((m = s.match(/^([0-9.]+)万/))) return Math.round(parseFloat(m[1]) * 1e4);
+    if ((m = s.match(/^([0-9.]+)千/))) return Math.round(parseFloat(m[1]) * 1e3);
+    const n = parseFloat(s);
+    return isNaN(n) ? null : n;
+  };
+
+  // 当社売上を rewardRows + salesAmount/netIncome から自動計算
+  // 旧 AppoReportModal の computeOurSales 相当。手動編集後は上書きしない。
+  useEffect(() => {
+    if (ourSalesEdited) return;
+    if (!rewardRows.length) return;
+    const applyTax = p => rewardRows[0].tax === '税別' ? Math.round(p * 1.1) : p;
+    const basis = rewardRows[0].basis;
+    let computed = null;
+    if (basis === '-') {
+      computed = applyTax(rewardRows[0].price);
+    } else {
+      // テキスト入力 ("5.0億円" 等) を優先、無ければマスタの revenue/net_income (千円) を円換算
+      const salesYen = parseJpAmount(form.salesAmount) ?? (row?.revenue != null ? row.revenue * 1000 : null);
+      const netYen   = parseJpAmount(form.netIncome)   ?? (row?.net_income != null ? row.net_income * 1000 : null);
+      const amount = basis === '売上高' ? salesYen : netYen;
+      if (amount == null) return;
+      const match = rewardRows.find(r => amount >= r.lo && amount < r.hi);
+      if (match) computed = applyTax(match.price);
+    }
+    if (computed != null) {
+      const next = String(computed);
+      setForm(prev => prev.ourSales === next ? prev : { ...prev, ourSales: next });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.salesAmount, form.netIncome, rewardRows, row?.revenue, row?.net_income, ourSalesEdited]);
 
   // 録音URL + 状態
   const [recordingUrl, setRecordingUrl] = useState(initialRecordingUrl);
