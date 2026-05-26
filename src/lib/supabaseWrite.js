@@ -3902,6 +3902,69 @@ export async function upsertMemberInvoiceProfile(memberId, patch) {
   return { data, error }
 }
 
+// ── メンバー × 月 単位の任意調整項目（特別ボーナス/控除） ──
+// 既存 payroll_adjustments は org 全体の月次ディスカウントで別物
+export async function fetchMemberPayrollAdjustments(memberId, payMonth) {
+  if (!memberId || !payMonth) return { data: [], error: new Error('missing args') }
+  const orgId = getOrgId()
+  const { data, error } = await supabase
+    .from('payroll_member_adjustments')
+    .select('*')
+    .eq('org_id', orgId)
+    .eq('member_id', memberId)
+    .eq('pay_month', payMonth)
+    .order('created_at', { ascending: true })
+  if (error) console.error('[DB] fetchMemberPayrollAdjustments error:', error)
+  return { data: data || [], error }
+}
+
+export async function insertMemberPayrollAdjustment({ memberId, payMonth, label, amount, note }) {
+  if (!memberId || !payMonth) return { data: null, error: new Error('missing args') }
+  const orgId = getOrgId()
+  const { data: { user } = {} } = await supabase.auth.getUser()
+  const { data, error } = await supabase
+    .from('payroll_member_adjustments')
+    .insert({
+      org_id: orgId,
+      member_id: memberId,
+      pay_month: payMonth,
+      label: label || '',
+      amount: parseInt(amount) || 0,
+      note: note || '',
+      created_by: user?.id || null,
+    })
+    .select()
+    .single()
+  if (error) console.error('[DB] insertMemberPayrollAdjustment error:', error)
+  return { data, error }
+}
+
+export async function updateMemberPayrollAdjustment(id, patch) {
+  if (!id) return { data: null, error: new Error('missing id') }
+  const row = { updated_at: new Date().toISOString() }
+  if (patch.label !== undefined) row.label = patch.label || ''
+  if (patch.amount !== undefined) row.amount = parseInt(patch.amount) || 0
+  if (patch.note !== undefined) row.note = patch.note || ''
+  const { data, error } = await supabase
+    .from('payroll_member_adjustments')
+    .update(row)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) console.error('[DB] updateMemberPayrollAdjustment error:', error)
+  return { data, error }
+}
+
+export async function deleteMemberPayrollAdjustment(id) {
+  if (!id) return { error: new Error('missing id') }
+  const { error } = await supabase
+    .from('payroll_member_adjustments')
+    .delete()
+    .eq('id', id)
+  if (error) console.error('[DB] deleteMemberPayrollAdjustment error:', error)
+  return { error }
+}
+
 export async function deletePayrollInvoice(memberId, payMonth) {
   if (!memberId || !payMonth) return { error: new Error('missing args') }
   const orgId = getOrgId()

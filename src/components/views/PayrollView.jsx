@@ -51,7 +51,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
   const [drillTargetId, setDrillTargetId] = useState(null);
 
   if (!isAdmin) {
-    return <PayrollSelfDetailView targetMember={myMember} members={members} appoData={appoData} canEdit={true} />;
+    return <PayrollSelfDetailView targetMember={myMember} members={members} appoData={appoData} canEdit={true} isAdmin={false} />;
   }
 
   // 管理者ドリルダウン中
@@ -65,6 +65,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
           members={members}
           appoData={appoData}
           canEdit={isSelf}
+          isAdmin={isAdmin}
           embedded
           onBack={() => setDrillTargetId(null)}
         />

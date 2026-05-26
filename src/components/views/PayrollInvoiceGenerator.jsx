@@ -65,6 +65,7 @@ export default function PayrollInvoiceGenerator({
   roleBonus,
   referrals,
   referralTotal,
+  adjustments,
   totalPayout,
   canEdit,
 }) {
@@ -151,8 +152,12 @@ export default function PayrollInvoiceGenerator({
     (referrals || []).forEach(r => {
       out.push({ label: `紹介料（${r.name} 様）`, amount: r.amount, note: '' });
     });
+    (adjustments || []).forEach(a => {
+      // adjustments は親側で「ラベル空 or 金額0」が除外済み
+      out.push({ label: a.label, amount: a.amount, note: a.note || '' });
+    });
     return out;
-  }, [incentive, roleBonus, referrals, payMonthLabel]);
+  }, [incentive, roleBonus, referrals, adjustments, payMonthLabel]);
 
   const dateContext = useMemo(() => {
     if (!ym) return null;

@@ -1,8 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { color, space, radius, font, alpha } from '../../constants/design';
 import { Button, Card, Badge, DataTable } from '../ui';
 import { calcRankAndRate } from '../../utils/calculations';
-import { fetchOrgSettings } from '../../lib/supabaseWrite';
+import {
+  fetchOrgSettings,
+  fetchMemberPayrollAdjustments,
+  insertMemberPayrollAdjustment,
+  updateMemberPayrollAdjustment,
+  deleteMemberPayrollAdjustment,
+} from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import PageHeader from '../common/PageHeader';
@@ -40,7 +46,9 @@ function defaultMonthLabel(payrollMonths) {
   return payrollMonths[payrollMonths.length - 1]?.label || '3月';
 }
 
-export default function PayrollSelfDetailView({ targetMember, members, appoData, canEdit = true, memberRoleMap: memberRoleMapProp = null, embedded = false, onBack = null }) {
+export default function PayrollSelfDetailView({ targetMember, members, appoData, canEdit = true, isAdmin = false, memberRoleMap: memberRoleMapProp = null, embedded = false, onBack = null }) {
+  // 本人 + admin が調整項目を編集可能
+  const canEditAdjustments = canEdit || isAdmin;
   const payrollMonths = useMemo(() => buildPayrollMonths(), []);
   const [monthTab, setMonthTab] = useState(() => defaultMonthLabel(payrollMonths));
   const [orgSettings, setOrgSettings] = useState({});
@@ -208,7 +216,70 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
   }, [targetMember, members, appoData, payMonth, selectedMonth]);
 
   const referralTotal = referrals.reduce((s, r) => s + r.amount, 0);
-  const totalPayout = incentive + roleBonusInfo.bonus + referralTotal;
+
+  // ── 任意調整項目（特別ボーナス / 控除など） ──
+  const memberKey = targetMember?._supaId || targetMember?.id || null;
+  const [adjustments, setAdjustments] = useState([]);
+  const [adjLoading, setAdjLoading] = useState(false);
+  const [adjBusy, setAdjBusy] = useState(false);
+  const adjSaveTimers = useRef({});
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!memberKey || !payMonth) { setAdjustments([]); return; }
+    setAdjLoading(true);
+    fetchMemberPayrollAdjustments(memberKey, payMonth).then(({ data }) => {
+      if (cancelled) return;
+      setAdjustments(data || []);
+      setAdjLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [memberKey, payMonth]);
+
+  const adjustmentTotal = adjustments.reduce((s, a) => s + (parseInt(a.amount) || 0), 0);
+  const totalPayout = incentive + roleBonusInfo.bonus + referralTotal + adjustmentTotal;
+
+  // 請求書PDFに渡す調整項目（ラベル空 or 金額0 は除外）
+  const adjustmentsForInvoice = useMemo(
+    () => adjustments
+      .filter(a => (a.label || '').trim() && (parseInt(a.amount) || 0) !== 0)
+      .map(a => ({ label: a.label, amount: parseInt(a.amount) || 0, note: a.note || '' })),
+    [adjustments]
+  );
+
+  const handleAddAdjustment = async () => {
+    if (!memberKey || !payMonth) return;
+    setAdjBusy(true);
+    const { data, error } = await insertMemberPayrollAdjustment({
+      memberId: memberKey,
+      payMonth,
+      label: '特別ボーナス',
+      amount: 0,
+      note: '',
+    });
+    setAdjBusy(false);
+    if (error) { window.alert('追加に失敗しました: ' + (error.message || '不明')); return; }
+    if (data) setAdjustments(prev => [...prev, data]);
+  };
+
+  const handleAdjustmentChange = (id, patch) => {
+    setAdjustments(prev => prev.map(a => a.id === id ? { ...a, ...patch } : a));
+    // debounce 600ms で upsert
+    if (adjSaveTimers.current[id]) clearTimeout(adjSaveTimers.current[id]);
+    adjSaveTimers.current[id] = setTimeout(async () => {
+      await updateMemberPayrollAdjustment(id, patch);
+      delete adjSaveTimers.current[id];
+    }, 600);
+  };
+
+  const handleDeleteAdjustment = async (id) => {
+    if (!window.confirm('この調整項目を削除しますか？')) return;
+    setAdjBusy(true);
+    const { error } = await deleteMemberPayrollAdjustment(id);
+    setAdjBusy(false);
+    if (error) { window.alert('削除に失敗しました: ' + (error.message || '不明')); return; }
+    setAdjustments(prev => prev.filter(a => a.id !== id));
+  };
 
   if (!targetMember) {
     return <div style={{ padding: space[5], color: color.textLight }}>メンバー情報が取得できません</div>;
@@ -271,11 +342,18 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
       </div>
 
       {/* サマリーカード */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: space[5] }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: space[5] }}>
         {[
           { label: '①インセンティブ', value: fmtYen(incentive), tone: color.success },
           { label: '②役職ボーナス', value: fmtYen(roleBonusInfo.bonus), tone: color.navy },
           { label: '③紹介料', value: fmtYen(referralTotal), tone: color.success },
+          {
+            label: '④調整',
+            value: adjustmentTotal === 0
+              ? '-'
+              : (adjustmentTotal > 0 ? '+' : '-') + '¥' + Math.abs(adjustmentTotal).toLocaleString(),
+            tone: adjustmentTotal < 0 ? color.danger : color.navy,
+          },
           { label: '合計支給額', value: fmtYen(totalPayout), tone: color.navy, emphasis: true },
         ].map((s, i) => (
           <Card key={i} variant="default" padding="none" style={{ padding: '14px 18px' }}>
@@ -383,6 +461,111 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
         )}
       </Card>
 
+      {/* ④調整明細（特別ボーナス / 控除など、手動追加項目） */}
+      <Card
+        padding="md"
+        title="④調整明細"
+        description="特別ボーナス・控除など、自動計算に含まれないイレギュラー項目を追加できます（プラス・マイナス両方可）"
+        style={{ marginBottom: space[5] }}
+      >
+        {adjLoading ? (
+          <div style={{ fontSize: font.size.sm, color: color.textLight }}>読込中...</div>
+        ) : (
+          <>
+            {adjustments.length === 0 ? (
+              <div style={{ fontSize: font.size.sm, color: color.textLight, marginBottom: space[3] }}>
+                当月の調整項目はありません
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: space[3] }}>
+                {/* ヘッダー行 */}
+                <div style={{
+                  display: 'grid', gridTemplateColumns: '1fr 160px 1.4fr 60px',
+                  gap: space[2], fontSize: font.size.xs - 1,
+                  fontWeight: font.weight.semibold, color: color.textLight,
+                  padding: '0 12px',
+                }}>
+                  <span>項目名</span>
+                  <span style={{ textAlign: 'right' }}>金額（±）</span>
+                  <span>メモ</span>
+                  <span style={{ textAlign: 'center' }}>削除</span>
+                </div>
+                {adjustments.map(a => {
+                  const amt = parseInt(a.amount) || 0;
+                  const positive = amt >= 0;
+                  const accentColor = amt === 0 ? color.border : (positive ? color.success : color.danger);
+                  return (
+                    <div key={a.id} style={{
+                      display: 'grid', gridTemplateColumns: '1fr 160px 1.4fr 60px',
+                      gap: space[2], alignItems: 'center',
+                      padding: '8px 12px', borderRadius: radius.md,
+                      background: alpha(accentColor, 0.05),
+                      border: `1px solid ${alpha(accentColor, 0.25)}`,
+                    }}>
+                      <input
+                        value={a.label || ''}
+                        placeholder="例: 特別ボーナス"
+                        disabled={!canEditAdjustments}
+                        onChange={e => handleAdjustmentChange(a.id, { label: e.target.value })}
+                        style={{
+                          padding: '6px 10px', borderRadius: radius.sm,
+                          border: `1px solid ${color.border}`, background: color.white,
+                          fontSize: font.size.sm, fontFamily: font.family.sans,
+                          color: color.textDark, outline: 'none',
+                        }}
+                      />
+                      <input
+                        type="number"
+                        value={a.amount ?? 0}
+                        disabled={!canEditAdjustments}
+                        onChange={e => handleAdjustmentChange(a.id, { amount: e.target.value })}
+                        style={{
+                          padding: '6px 10px', borderRadius: radius.sm,
+                          border: `1px solid ${color.border}`, background: color.white,
+                          fontSize: font.size.sm, fontFamily: MONO,
+                          color: positive ? color.success : color.danger,
+                          fontWeight: font.weight.bold,
+                          textAlign: 'right', outline: 'none',
+                        }}
+                      />
+                      <input
+                        value={a.note || ''}
+                        placeholder="（任意）メモ"
+                        disabled={!canEditAdjustments}
+                        onChange={e => handleAdjustmentChange(a.id, { note: e.target.value })}
+                        style={{
+                          padding: '6px 10px', borderRadius: radius.sm,
+                          border: `1px solid ${color.border}`, background: color.white,
+                          fontSize: font.size.sm, fontFamily: font.family.sans,
+                          color: color.textMid, outline: 'none',
+                        }}
+                      />
+                      <div style={{ textAlign: 'center' }}>
+                        {canEditAdjustments && (
+                          <Button variant="danger" size="sm" onClick={() => handleDeleteAdjustment(a.id)} disabled={adjBusy}>
+                            ×
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {canEditAdjustments && (
+              <Button variant="outline" size="sm" onClick={handleAddAdjustment} loading={adjBusy} disabled={adjBusy}>
+                + 項目を追加
+              </Button>
+            )}
+            {adjustments.length > 0 && (
+              <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: space[2] }}>
+                ※ 金額がプラスなら加算、マイナスなら控除。ラベル空または金額0の行は請求書には掲載されません。編集内容は自動保存されます。
+              </div>
+            )}
+          </>
+        )}
+      </Card>
+
       {/* アポ明細 */}
       <div style={{ marginBottom: space[5] }}>
         <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy, marginBottom: space[2] }}>
@@ -413,6 +596,7 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
         roleBonus={roleBonusInfo.bonus}
         referrals={referrals}
         referralTotal={referralTotal}
+        adjustments={adjustmentsForInvoice}
         totalPayout={totalPayout}
         canEdit={canEdit}
       />
