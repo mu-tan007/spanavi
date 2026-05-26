@@ -283,6 +283,11 @@ export default function TemplateDrivenAppoReportModal({
       // body 生成（{{company_name}} などにも対応するため company_name 等の特殊キーを含める）
       // recordingUrl は form と useState の二系統で保持しているため、ここで両方から取り出す
       // （schema に recordingUrl が無いテンプレでも、useState 側に値があれば反映される）
+      // ourSales は ¥ + カンマ区切り表記で本文に展開（旧 AppoReportModal と同じ運用）
+      const ourSalesRaw = form.ourSales;
+      const ourSalesDisplay = (ourSalesRaw != null && String(ourSalesRaw).trim() !== '')
+        ? '¥' + Number(ourSalesRaw).toLocaleString()
+        : '';
       const renderData = {
         ...form,
         company_name: row?.company || form.company_name || '',
@@ -290,6 +295,7 @@ export default function TemplateDrivenAppoReportModal({
         // form.acquirer が空（モーダル初期化時に currentUser がまだ届いてなかった等）でも、
         // 必ず currentUser をフォールバックに使う
         acquirer: form.acquirer || currentUser || '',
+        ourSales: ourSalesDisplay,
       };
       const reportNote = renderBody(template.body_template, renderData, template.schema);
 

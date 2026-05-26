@@ -3,23 +3,15 @@ import { formatDateWithWeekday } from './dateUtils';
 // アポ取得報告テンプレのレンダリング・解決ユーティリティ
 
 /**
- * 千円単位の整数を「X.X億円」「XXXX万円」等の人間可読フォーマットに変換。
- * call_list_items.revenue / net_income (千円単位) を sales_thousand auto_fill で
- * 画面に出すときに使う。生数字をそのまま入れると単位不明 + 自動計算がズレるため。
+ * 千円単位の整数をカンマ区切り「754,006千円」表記に変換。
+ * 旧 AppoReportModal 時代から続く運用表記「◯◯千円」に合わせる。
+ * (人間可読のため億/万円表記に勝手に変えると運用とズレるので注意 — 2026-05-26 反省)
  */
 export function formatJpAmountFromThousand(n) {
   if (n == null || n === '' || isNaN(Number(n))) return '';
   const num = Number(n);
   if (num === 0) return '';
-  const yen = num * 1000;
-  if (yen >= 1e8) {
-    const oku = yen / 1e8;
-    return `${oku.toFixed(oku < 10 ? 1 : 0).replace(/\.0$/, '')}億円`;
-  }
-  if (yen >= 1e4) {
-    return `${Math.round(yen / 1e4).toLocaleString()}万円`;
-  }
-  return `${Math.round(yen).toLocaleString()}円`;
+  return `${num.toLocaleString()}千円`;
 }
 
 /**
