@@ -235,6 +235,8 @@ export default function CRMPipelineView({
     const map = {};
     STATUS_LIST.forEach(st => { map[st] = []; });
     clientData.forEach(c => {
+      // 自社 (軸②便宜上クライアント) はパイプラインに出さない
+      if (c.company === 'M&Aソーシングパートナーズ株式会社') return;
       if (map[c.status]) map[c.status].push(c);
     });
     // 各グループ内でソート

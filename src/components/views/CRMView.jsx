@@ -224,11 +224,17 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     return new Date(c.nextContactAt).getTime() < Date.now();
   };
 
+  // 自社 (軸②クライアント開拓便宜上の client) を除外した clientData
+  // ステータス別カウント・KPI・バッジ件数すべてで自社を含めないため、ここで filter 済を使う
+  const displayClientData = useMemo(
+    () => clientData.filter(c => c.company !== 'M&Aソーシングパートナーズ株式会社'),
+    [clientData]
+  );
   // バッジ件数（statusFilter は無視して全クライアントから集計）
-  const overdueCount = clientData.filter(isOverdue).length;
-  const expiredCount = clientData.filter(isExpired).length;
+  const overdueCount = displayClientData.filter(isOverdue).length;
+  const expiredCount = displayClientData.filter(isExpired).length;
 
-  const filtered = clientData.filter(c => {
+  const filtered = displayClientData.filter(c => {
     if (statusFilter !== "all" && c.status !== statusFilter) return false;
     if (search && !c.company.includes(search) && !c.industry.includes(search)) return false;
     if (alertFilter === 'overdue' && !isOverdue(c)) return false;
@@ -245,7 +251,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   }
 
   const statusCounts = {};
-  clientData.forEach(c => { statusCounts[c.status] = (statusCounts[c.status] || 0) + 1; });
+  displayClientData.forEach(c => { statusCounts[c.status] = (statusCounts[c.status] || 0) + 1; });
 
   const rewardMap = {};
   rewardMaster.forEach(r => {
@@ -529,7 +535,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
       {/* List mode: KPI + header + tabs + table */}
       {view === 'list' && (
         <>
-          <CRMKPIDashboard clientData={clientData} statusCounts={statusCounts} />
+          <CRMKPIDashboard clientData={displayClientData} statusCounts={statusCounts} />
           <CRMHeader
             filteredCount={filtered.length}
             search={search}
@@ -545,7 +551,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
             statusCounts={statusCounts}
-            totalCount={clientData.length}
+            totalCount={displayClientData.length}
           />
           <CRMTable
             filtered={filtered}
