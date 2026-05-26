@@ -454,6 +454,56 @@ export default function TemplateDrivenAppoReportModal({
         invokeGenerateCompanyDossier({ appointment_id: insResult.id, org_id: getOrgId() }).catch(() => {});
       }
 
+      // 保存時の自動AI添削 fire-and-forget
+      // 録音URLが取得済み & AI抽出対象フィールドが全部空 のときだけ自動で
+      // transcribe-and-extract を実行し、結果を appointments に書き戻す。
+      // アポインターが「文字起こし+AI添削」ボタンを押し忘れても自動で添削される。
+      const effectiveRecordingUrl = form.recordingUrl || recordingUrl;
+      if (insResult?.id && effectiveRecordingUrl) {
+        const aiTargetFields = (template.schema || [])
+          .filter(f => f.ai_extract)
+          .map(f => ({ key: f.key, label: f.label, options: f.options || [] }));
+        const allEmpty = aiTargetFields.length > 0 && aiTargetFields.every(f => !form[f.key]);
+        if (allEmpty) {
+          (async () => {
+            try {
+              const { extracted, keyman_ma_intent, publicRecordingUrl } = await invokeTranscribeAndExtract({
+                recording_url: effectiveRecordingUrl,
+                item_id: row?._supaId || row?.id,
+                ai_prompt: template.ai_prompt || '',
+                extract_fields: aiTargetFields,
+              });
+              if (!extracted) return;
+              const merged = { ...form };
+              for (const k of Object.keys(extracted)) {
+                if (extracted[k]) merged[k] = extracted[k];
+              }
+              if (keyman_ma_intent) merged.keymanMaIntent = keyman_ma_intent;
+              const finalRecUrl = publicRecordingUrl || effectiveRecordingUrl;
+              merged.recordingUrl = finalRecUrl;
+              const ourSalesDisp = (merged.ourSales != null && String(merged.ourSales).trim() !== '')
+                ? '¥' + Number(merged.ourSales).toLocaleString() : '';
+              const newReportNote = renderBody(template.body_template, {
+                ...merged,
+                company_name: row?.company || '',
+                recordingUrl: finalRecUrl,
+                acquirer: merged.acquirer || currentUser || '',
+                ourSales: ourSalesDisp,
+              }, template.schema);
+              await supabase.from('appointments').update({
+                report_data: merged,
+                appo_report: newReportNote,
+                recording_url: finalRecUrl,
+                keyman_ma_intent: keyman_ma_intent || null,
+              }).eq('id', insResult.id);
+              console.info('[TemplateModal] 自動AI添削 完了:', insResult.id);
+            } catch (e) {
+              console.warn('[TemplateModal] 自動AI添削 失敗:', e);
+            }
+          })();
+        }
+      }
+
       // appo-ai-report (Zoom録音→Claude強化レポート) を fire-and-forget で呼ぶ
       // 旧 AppoReportModal で呼ばれていたが新モーダルでは抜けていた経路を復活
       try {
