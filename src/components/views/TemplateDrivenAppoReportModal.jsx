@@ -308,7 +308,12 @@ export default function TemplateDrivenAppoReportModal({
         if (setting?.reward_type) rewardType = setting.reward_type;
       }
       const rewardRows = rewardType ? (rewardMaster || []).filter(r => r.id === rewardType) : [];
+      // basis === '-' は「売上/利益基準ではない固定単価」(当社売上計算用フラグ)
+      // calc_type === 'fixed_per_appo' は「アポ1件あたり完全定額で個別レート計算しない」(インターン報酬計算用フラグ)
+      // 旧 AppoReportModal はこの2つを区別していたが新モーダルで isFixed 一本にしていたため、
+      // ブティックス (basis='-', calc_type='rate') で intern_reward が誤って sales そのまま入る事故が発生
       const isFixed = rewardRows.length > 0 && rewardRows[0].basis === '-';
+      const isFixedPerAppo = rewardRows.length > 0 && rewardRows[0].calc_type === 'fixed_per_appo';
       const initialOurSales = (() => {
         if (!rewardRows.length) return 0;
         const applyTax = p => rewardRows[0].tax === '税別' ? Math.round(p * 1.1) : p;
@@ -325,7 +330,7 @@ export default function TemplateDrivenAppoReportModal({
       const acquirerName = form.acquirer || currentUser;
       const acquirerMember = members.find(m => (typeof m === 'string' ? m : (m.name || '')) === acquirerName);
       const acquirerRate = parseFloat(acquirerMember?.rate ?? acquirerMember?.incentive_rate ?? 0) || 0;
-      const rewardVal = isFixed ? salesVal : (salesVal && acquirerRate ? Math.round(salesVal * acquirerRate) : 0);
+      const rewardVal = isFixedPerAppo ? salesVal : (salesVal && acquirerRate ? Math.round(salesVal * acquirerRate) : 0);
 
       // クライアント開拓 (is_prospecting) のみ:
       // ① CRM clients テーブルへ upsert（面談予定として現れるようにする）
@@ -369,10 +374,41 @@ export default function TemplateDrivenAppoReportModal({
         }
       }
 
+      // テンプレが独自フィールド (meeting_datetime / meetingDate 等) に「6月2日 火曜日 19時〜」
+      // のような自由テキストで面談日時を入れているケース (ブティックス専用テンプレ 等)、
+      // それを parse して meetDate/meetTime に紐付ける。これがないと DB の meeting_date 列が null になる。
+      const customMeetText = form.meeting_datetime || form.meetingDate || '';
+      const parsedMeet = (() => {
+        const out = { date: null, time: null };
+        if (!customMeetText) return out;
+        const s = String(customMeetText).replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+        let m = s.match(/(\d{4})-(\d{1,2})-(\d{1,2}).*?(\d{1,2})[時:](\d{0,2})/);
+        if (m) { out.date = `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`; out.time = `${String(m[4]).padStart(2,'0')}:${String(m[5]||'00').padStart(2,'0')}`; return out; }
+        m = s.match(/(\d{1,2})月\s*(\d{1,2})日.*?(\d{1,2})[時:](\d{0,2})/);
+        if (m) {
+          const today = new Date();
+          let year = today.getFullYear();
+          const month = parseInt(m[1]); const day = parseInt(m[2]);
+          if (new Date(year, month - 1, day).getTime() < today.getTime() - 86400000) year++;
+          out.date = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+          out.time = `${String(m[3]).padStart(2,'0')}:${String(m[4]||'00').padStart(2,'0')}`;
+          return out;
+        }
+        m = s.match(/(\d{1,2})月\s*(\d{1,2})日/);
+        if (m) {
+          const today = new Date();
+          let year = today.getFullYear();
+          const month = parseInt(m[1]); const day = parseInt(m[2]);
+          if (new Date(year, month - 1, day).getTime() < today.getTime() - 86400000) year++;
+          out.date = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        }
+        return out;
+      })();
+
       const { result: insResult, error: insError } = await insertAppointment({
         company: row?.company || '',
         client:  list?.company || '',
-        meetDate: form.appoDate || form.hearing_date || null,
+        meetDate: form.appoDate || form.hearing_date || parsedMeet.date || null,
         getDate:  form.getDate || form.hearing_date || new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10),
         getter:   acquirerName,
         appoReport: reportNote,
@@ -386,7 +422,7 @@ export default function TemplateDrivenAppoReportModal({
         keymanMaIntent: form.keymanMaIntent || null,
         reportStyle: form.reportStyle || null,
         reportSupplement: form.reportSupplement || null,
-        meetTime: form.appoTime || null,
+        meetTime: form.appoTime || parsedMeet.time || null,
         meetLocation: form.visitLocation || null,
         isOnline: form.meeting_format === 'オンライン' || form.meeting_format === 'Web',
         reportTemplateIdSnapshot: template.id,
