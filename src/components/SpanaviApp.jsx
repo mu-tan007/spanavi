@@ -682,7 +682,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     if (!engSlug) return;
     if (engSlug === 'spartia_capital') return;
     if (currentTab === 'mypage') return;
-    if (currentTab === 'admin_settings' || currentTab === 'manager_admin') return;
+    if (currentTab === 'admin_settings' || currentTab === 'manager_admin' || currentTab === 'overview') return;
     if (canViewPage(engSlug, currentTab)) return;
     const fallback = (() => {
       if (engSlug === 'masp') {
