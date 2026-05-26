@@ -3,6 +3,26 @@ import { formatDateWithWeekday } from './dateUtils';
 // アポ取得報告テンプレのレンダリング・解決ユーティリティ
 
 /**
+ * 千円単位の整数を「X.X億円」「XXXX万円」等の人間可読フォーマットに変換。
+ * call_list_items.revenue / net_income (千円単位) を sales_thousand auto_fill で
+ * 画面に出すときに使う。生数字をそのまま入れると単位不明 + 自動計算がズレるため。
+ */
+export function formatJpAmountFromThousand(n) {
+  if (n == null || n === '' || isNaN(Number(n))) return '';
+  const num = Number(n);
+  if (num === 0) return '';
+  const yen = num * 1000;
+  if (yen >= 1e8) {
+    const oku = yen / 1e8;
+    return `${oku.toFixed(oku < 10 ? 1 : 0).replace(/\.0$/, '')}億円`;
+  }
+  if (yen >= 1e4) {
+    return `${Math.round(yen / 1e4).toLocaleString()}万円`;
+  }
+  return `${Math.round(yen).toLocaleString()}円`;
+}
+
+/**
  * applicable な templates を 優先順 list > client > engagement で返す。
  *
  * @param {Array} templates - 全 active テンプレ
@@ -83,8 +103,8 @@ export function buildInitialFormValues(template, ctx) {
         case 'business':             v = row.business || ''; break;
         case 'representative':       v = row.representative || ''; break;
         case 'url':                  v = row.url || ''; break;
-        case 'sales_thousand':       v = row.revenue != null ? String(row.revenue) : ''; break;
-        case 'net_income_thousand':  v = row.net_income != null ? String(row.net_income) : ''; break;
+        case 'sales_thousand':       v = formatJpAmountFromThousand(row.revenue); break;
+        case 'net_income_thousand':  v = formatJpAmountFromThousand(row.net_income); break;
         default: v = '';
       }
     }

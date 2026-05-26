@@ -287,6 +287,9 @@ export default function TemplateDrivenAppoReportModal({
         ...form,
         company_name: row?.company || form.company_name || '',
         recordingUrl: form.recordingUrl || recordingUrl || '',
+        // form.acquirer が空（モーダル初期化時に currentUser がまだ届いてなかった等）でも、
+        // 必ず currentUser をフォールバックに使う
+        acquirer: form.acquirer || currentUser || '',
       };
       const reportNote = renderBody(template.body_template, renderData, template.schema);
 
