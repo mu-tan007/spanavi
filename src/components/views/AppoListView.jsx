@@ -1105,16 +1105,15 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       if (error || data?.error) throw new Error(error?.message || data?.error);
       setTranscribeStep('enhancing');
       // アポ取得報告テキストの該当フィールドを添削結果で更新
+      // 旧フォーマット「→」と新テンプレ駆動「：」両方にマッチ。テンプレ駆動側は「：」を使うので
+      // 出力は「：」に統一。マッチしない場合は末尾追記をやめる（誤追記事故防止）。
       let report = detailEditForm?.appoReport || '';
-      const replaceField = (text, pattern, value) => {
-        return pattern.test(text) ? text.replace(pattern, value) : text + '\n' + value;
-      };
-      // 既存テキストの「先方の温度感→」「先方のお人柄→」どちらにもマッチさせ、結果は新ラベルに統一
-      if (data.personality)    report = replaceField(report, /^　・(先方の温度感|先方のお人柄)→.*$/m, `　・先方のお人柄→${data.personality}`);
-      if (data.meetingExp)     report = replaceField(report, /^　・面談経験の有無→.*$/m, `　・面談経験の有無→${data.meetingExp}`);
-      if (data.futureConsider) report = replaceField(report, /^　・将来的な検討可否→.*$/m, `　・将来的な検討可否→${data.futureConsider}`);
-      if (data.other)          report = replaceField(report, /^　・その他→.*$/m, `　・その他→${data.other}`);
-      if (data.publicRecordingUrl) report = replaceField(report, /^　・録音URL：.*$/m, `　・録音URL：${data.publicRecordingUrl}`);
+      const replaceField = (text, pattern, value) => pattern.test(text) ? text.replace(pattern, value) : text;
+      if (data.personality)    report = replaceField(report, /^　・(先方の温度感|先方のお人柄)[→:：].*$/m, `　・先方のお人柄：${data.personality}`);
+      if (data.meetingExp)     report = replaceField(report, /^　・面談経験の有無[→:：].*$/m, `　・面談経験の有無：${data.meetingExp}`);
+      if (data.futureConsider) report = replaceField(report, /^　・将来的な検討可否[→:：].*$/m, `　・将来的な検討可否：${data.futureConsider}`);
+      if (data.other)          report = replaceField(report, /^　・その他[→:：].*$/m, `　・その他：${data.other}`);
+      if (data.publicRecordingUrl) report = replaceField(report, /^　・録音URL[→:：].*$/m, `　・録音URL：${data.publicRecordingUrl}`);
       setDetailEditForm(f => ({ ...f, appoReport: report }));
       setTranscribeStep('done');
       setTimeout(() => setTranscribeStep('idle'), 3000);
@@ -1161,14 +1160,14 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       if (error || data?.error) throw new Error(error?.message || data?.error);
       setReplaceStep('enhancing');
 
-      // appo_report の4項目を更新（既存「先方の温度感→」「先方のお人柄→」両方にマッチ）
+      // appo_report の4項目を更新（旧「→」/ 新「：」両対応、出力は「：」に統一）
       const replaceField = (text, pattern, value) =>
         pattern.test(text) ? text.replace(pattern, value) : text;
-      if (data.personality)    report = replaceField(report, /^　・(先方の温度感|先方のお人柄)→.*$/m, `　・先方のお人柄→${data.personality}`);
-      if (data.meetingExp)     report = replaceField(report, /^　・面談経験の有無→.*$/m, `　・面談経験の有無→${data.meetingExp}`);
-      if (data.futureConsider) report = replaceField(report, /^　・将来的な検討可否→.*$/m, `　・将来的な検討可否→${data.futureConsider}`);
-      if (data.other)          report = replaceField(report, /^　・その他→.*$/m, `　・その他→${data.other}`);
-      if (data.publicRecordingUrl) report = replaceField(report, /^　・録音URL[：:].*$/m, `　・録音URL：${data.publicRecordingUrl}`);
+      if (data.personality)    report = replaceField(report, /^　・(先方の温度感|先方のお人柄)[→:：].*$/m, `　・先方のお人柄：${data.personality}`);
+      if (data.meetingExp)     report = replaceField(report, /^　・面談経験の有無[→:：].*$/m, `　・面談経験の有無：${data.meetingExp}`);
+      if (data.futureConsider) report = replaceField(report, /^　・将来的な検討可否[→:：].*$/m, `　・将来的な検討可否：${data.futureConsider}`);
+      if (data.other)          report = replaceField(report, /^　・その他[→:：].*$/m, `　・その他：${data.other}`);
+      if (data.publicRecordingUrl) report = replaceField(report, /^　・録音URL[→:：].*$/m, `　・録音URL：${data.publicRecordingUrl}`);
 
       // 更新された appo_report を DB 保存
       await updateAppointment(supaId, {

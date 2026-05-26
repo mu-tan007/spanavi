@@ -1144,6 +1144,28 @@ export async function unlinkIncomingCallsByCallerNumber(itemId, rawNumber) {
   return error
 }
 
+// CSV 取り込み時、各セルの先頭に「事業内容：」「電話番号：」のようなラベルが
+// 紛れ込んでいたら自動で除去する。Excel の見出し付きセルをコピペした時に
+// 起きる汚染（フラーレンリスト 47件の事例）への構造的予防。
+const FIELD_LABEL_PREFIXES = {
+  business: ['事業内容', '業務内容', '事業'],
+  phone: ['電話番号', '電話', 'TEL', 'ＴＥＬ'],
+  address: ['住所', '所在地'],
+  representative: ['代表者', '代表', '社長'],
+  company: ['企業名', '会社名'],
+  url: ['HP', 'ＨＰ', 'URL', 'ＵＲＬ', 'ホームページ', 'ウェブサイト'],
+  memo: ['メモ', '備考'],
+}
+function stripLabelPrefix(value, field) {
+  if (!value || typeof value !== 'string') return value
+  const labels = FIELD_LABEL_PREFIXES[field] || []
+  for (const label of labels) {
+    const re = new RegExp('^' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[:：]\\s*')
+    if (re.test(value)) return value.replace(re, '')
+  }
+  return value
+}
+
 export async function insertCallListItems(listId, rows) {
   if (!listId || !rows?.length) return { data: null, error: null }
   const CHUNK_SIZE = 500
@@ -1154,16 +1176,16 @@ export async function insertCallListItems(listId, rows) {
       org_id: getOrgId(),
       list_id: listId,
       no: r.no,
-      company: r.company || '',
-      business: r.business || '',
-      representative: r.representative || '',
-      phone: r.phone || '',
-      address: r.address || '',
+      company: stripLabelPrefix(r.company || '', 'company'),
+      business: stripLabelPrefix(r.business || '', 'business'),
+      representative: stripLabelPrefix(r.representative || '', 'representative'),
+      phone: stripLabelPrefix(r.phone || '', 'phone'),
+      address: stripLabelPrefix(r.address || '', 'address'),
       revenue: r.revenue ?? null,
       net_income: r.net_income ?? null,
       employees: r.employees ?? null,
-      url: r.url || null,
-      memo: r.memo || null,
+      url: stripLabelPrefix(r.url || '', 'url') || null,
+      memo: stripLabelPrefix(r.memo || '', 'memo') || null,
     }))
     const chunkNo = Math.floor(i / CHUNK_SIZE) + 1
     const { error } = await supabase
