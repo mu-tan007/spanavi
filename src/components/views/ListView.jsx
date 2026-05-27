@@ -134,8 +134,26 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   const [formData, setFormData] = useState(emptyForm);
   const [showRec, setShowRec] = useState(true);
   // 'sourcing' = 通常ソーシング, 'prospecting' = クライアント開拓, 'archived' = アーカイブ, 'all' = 全て
-  // displayFilter: engagement slug ('seller_sourcing' / 'matching' / 'client_acquisition') | 'archived' | 'all'
+  // displayFilter: engagement slug ('seller_sourcing' / 'matching' / 'client_acquisition' / 'client_acquisition_saas' 等) | 'archived' | 'all'
   const [displayFilter, setDisplayFilter] = useState('seller_sourcing');
+  // categoryFilter: 商材 ('all' | business_categories.id) ── 2階層フィルタの親
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  // 商材切替時に、選択中タイプが新商材に存在しなければ自動的に「全て」に戻す
+  // (例: M&A→IFA に切り替えた時、買い手マッチングを選んでいたら IFA には無いので 'all' へ)
+  useEffect(() => {
+    if (categoryFilter === 'all') return;
+    if (displayFilter === 'all' || displayFilter === 'archived') return;
+    const eng = salesAgencyEngagements.find(e => e.slug === displayFilter);
+    if (!eng || eng.category_id !== categoryFilter) {
+      setDisplayFilter('all');
+    }
+  }, [categoryFilter, displayFilter, salesAgencyEngagements]);
+  // engagement.id → category_id 引き直し (filteredLists の商材絞り込みに使用)
+  const engagementToCategoryId = useMemo(() => {
+    const map = {};
+    (allEngagements || []).forEach(e => { map[e.id] = e.category_id; });
+    return map;
+  }, [allEngagements]);
   // トップタブ: 'lists' = 既存のリスト一覧 / 'smart_queue' = スマートキュー（リスト跨ぎ横断）
   // URLに保持してハードリロード/共有/戻る進むでも保持。プレフィックス lv_ で他画面と衝突回避。
   const [viewMode, setViewMode] = useUrlState('lv_view', 'lists', { allowed: ['lists', 'smart_queue'] });
@@ -320,56 +338,51 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         </div>
       )}
 
-      {/* Filter Tabs: 商材＋タイプ */}
-      <div style={{ display: "flex", gap: space[2], marginBottom: space[3], flexWrap: 'wrap', alignItems: 'center' }}>
-        {/* 商材 (将来複数になれば表示、現状M&Aのみなのでラベルとして表示) */}
-        {selectableCategories.length >= 1 && (
-          <>
-            <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>商材:</span>
-            {selectableCategories.map(c => (
-              <span key={c.id} style={{
-                padding: "5px 12px", borderRadius: radius.md, fontSize: font.size.sm,
-                background: color.navy, color: color.white, fontWeight: font.weight.semibold,
-                fontFamily: font.family.sans,
-              }}>{c.name}</span>
-            ))}
-            <span style={{ color: color.border, fontSize: font.size.md }}>|</span>
-          </>
-        )}
-        {/* タイプ */}
-        <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>タイプ:</span>
-        {salesAgencyEngagements.map(e => {
-          const active = displayFilter === e.slug;
-          return (
-            <button key={e.slug} onClick={() => setDisplayFilter(e.slug)} style={{
-              padding: "6px 16px", borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold,
-              cursor: "pointer", transition: "all 0.15s", fontFamily: font.family.sans,
-              ...(active
-                ? { background: color.navy, color: color.white, border: `1px solid ${color.navy}` }
-                : { background: color.white, color: color.textMid, border: `1px solid ${color.border}` }),
-            }}
-            onMouseEnter={ev => { if (!active) ev.currentTarget.style.background = color.gray50; }}
-            onMouseLeave={ev => { if (!active) ev.currentTarget.style.background = color.white; }}
-            >{e.name}</button>
-          );
-        })}
-        <span style={{ color: color.border, fontSize: font.size.md }}>|</span>
-        {[['archived', 'アーカイブ'], ['all', '全て表示']].map(([val, label]) => {
-          const active = displayFilter === val;
-          return (
-            <button key={val} onClick={() => setDisplayFilter(val)} style={{
-              padding: "6px 16px", borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold,
-              cursor: "pointer", transition: "all 0.15s", fontFamily: font.family.sans,
-              ...(active
-                ? { background: color.navy, color: color.white, border: `1px solid ${color.navy}` }
-                : { background: color.white, color: color.textMid, border: `1px solid ${color.border}` }),
-            }}
-            onMouseEnter={ev => { if (!active) ev.currentTarget.style.background = color.gray50; }}
-            onMouseLeave={ev => { if (!active) ev.currentTarget.style.background = color.white; }}
-            >{label}</button>
-          );
-        })}
-      </div>
+      {/* Filter Tabs: 商材 → タイプ の 2 階層 */}
+      {(() => {
+        const pillStyle = (active) => ({
+          padding: "6px 16px", borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold,
+          cursor: "pointer", transition: "all 0.15s", fontFamily: font.family.sans,
+          ...(active
+            ? { background: color.navy, color: color.white, border: `1px solid ${color.navy}` }
+            : { background: color.white, color: color.textMid, border: `1px solid ${color.border}` }),
+        });
+        // 選択中商材配下のタイプ
+        const typesForCategory = categoryFilter === 'all'
+          ? []
+          : salesAgencyEngagements.filter(e => e.category_id === categoryFilter);
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: space[2], marginBottom: space[3] }}>
+            {/* Row 1: 商材セレクタ */}
+            <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, minWidth: 40 }}>商材:</span>
+              <button onClick={() => { setCategoryFilter('all'); setDisplayFilter('all'); }} style={pillStyle(categoryFilter === 'all')}>全商材</button>
+              {selectableCategories.map(c => (
+                <button key={c.id} onClick={() => setCategoryFilter(c.id)} style={pillStyle(categoryFilter === c.id)}>{c.name}</button>
+              ))}
+            </div>
+            {/* Row 2: タイプセレクタ (商材選択中のみ表示) */}
+            {categoryFilter !== 'all' && (
+              <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, minWidth: 40 }}>タイプ:</span>
+                <button onClick={() => setDisplayFilter('all')} style={pillStyle(displayFilter === 'all')}>全て</button>
+                {typesForCategory.map(e => (
+                  <button key={e.slug} onClick={() => setDisplayFilter(e.slug)} style={pillStyle(displayFilter === e.slug)}>{e.name}</button>
+                ))}
+                <span style={{ flex: 1 }} />
+                <button onClick={() => setDisplayFilter('archived')} style={pillStyle(displayFilter === 'archived')}>アーカイブ</button>
+              </div>
+            )}
+            {/* 商材=全商材 のときはアーカイブだけ右端に置く */}
+            {categoryFilter === 'all' && (
+              <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ flex: 1 }} />
+                <button onClick={() => setDisplayFilter('archived')} style={pillStyle(displayFilter === 'archived')}>アーカイブ</button>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Filters */}
       <div style={{
@@ -416,10 +429,12 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         </select>
         <span style={{ fontSize: font.size.xs, color: color.textLight, fontWeight: font.weight.semibold, fontFamily: font.family.mono }}>{(() => {
           const archivedCount = callListData.filter(l => l.is_archived).length;
-          const filterEng = salesAgencyEngagements.find(e => e.slug === displayFilter);
-          if (filterEng) return filteredLists.filter(l => l.engagement_id === filterEng.id).length;
           if (displayFilter === 'archived') return archivedCount;
-          return filteredLists.length + archivedCount;
+          const filterEng = salesAgencyEngagements.find(e => e.slug === displayFilter);
+          let scope = filteredLists;
+          if (categoryFilter !== 'all') scope = scope.filter(l => engagementToCategoryId[l.engagement_id] === categoryFilter);
+          if (filterEng) scope = scope.filter(l => l.engagement_id === filterEng.id);
+          return scope.length;
         })()}件</span>
         {isAdmin && (
           <div style={{ marginLeft: 'auto' }}>
@@ -643,11 +658,17 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         </div>
         {displayFilter !== 'archived' && <div style={{ maxHeight: 600, overflowY: "auto" }}>
           {(() => {
-            // タイプ別フィルタ: displayFilter が engagement slug ならその engagement のリストのみ
+            // 2 階層絞り込み:
+            //   (a) categoryFilter (商材) ── 'all' 以外なら配下 engagement のみ残す
+            //   (b) displayFilter (タイプ) ── slug 一致の engagement のみ残す
             const filterEng = salesAgencyEngagements.find(e => e.slug === displayFilter);
-            const activeLists = filterEng
-              ? filteredLists.filter(l => l.engagement_id === filterEng.id)
-              : filteredLists; // 'all'
+            let activeLists = filteredLists;
+            if (categoryFilter !== 'all') {
+              activeLists = activeLists.filter(l => engagementToCategoryId[l.engagement_id] === categoryFilter);
+            }
+            if (filterEng) {
+              activeLists = activeLists.filter(l => l.engagement_id === filterEng.id);
+            }
             const grouped = {};
             activeLists.forEach(list => {
               const key = list.company;
