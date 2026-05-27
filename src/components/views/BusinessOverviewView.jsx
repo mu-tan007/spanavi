@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { color, space, radius, font, alpha } from '../../constants/design';
 import { Card } from '../ui';
 import PageHeader from '../common/PageHeader';
+import { ProgressPill } from '../common/TopListCard';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import {
@@ -124,7 +125,7 @@ function MatrixCell({ count, isTotal, isEmpty }) {
 
 export default function BusinessOverviewView({
   appoData = [], callListData = [], clientData = [],
-  setCurrentTab, setSelectedList, setCallFlowScreen,
+  setCallFlowScreen,
 }) {
   const [month, setMonth] = useState(getCurrentMonth());
   const [engagementsMaster, setEngagementsMaster] = useState([]); // {id, type, category_id, category_name}
@@ -450,71 +451,11 @@ export default function BusinessOverviewView({
           </div>
         </Section>
 
-        {/* B. 目標と乖離 → 推奨アクション */}
-        <Section title="目標と乖離 → 推奨アクション" hint={`残営業日 ${daysRemaining}日 / 経過 ${daysPassed}日`}>
-          {axis1TargetTotal === 0 && axis2TargetTotal === 0 ? (
-            <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>
-              目標が未設定です。<br />
-              軸① の月次目標は CRM 顧客一覧 → 月別目標タブから各クライアント別に設定してください。<br />
-              軸② の月次目標は上の「商材別 目標 (件)」欄から入力してください。
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[2] }}>
-                {axis1TargetTotal > 0 && (
-                  <div style={{ padding: space[2], background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md }}>
-                    <div style={{ fontSize: font.size.xs, color: color.textLight }}>軸①ペース予測</div>
-                    <div style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: axis1PaceRate < 90 ? color.danger : color.navy, fontFamily: font.family.mono }}>
-                      {fmtNum(axis1Pace)}件 ({fmtPct(axis1PaceRate)})
-                    </div>
-                    <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: 2 }}>
-                      目標 {fmtNum(axis1TargetTotal)}件、{axis1Pace >= axis1TargetTotal ? '達成見込' : `▲${fmtNum(axis1TargetTotal - axis1Pace)}件 未達見込`}
-                    </div>
-                  </div>
-                )}
-                {axis2TargetTotal > 0 && (
-                  <div style={{ padding: space[2], background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md }}>
-                    <div style={{ fontSize: font.size.xs, color: color.textLight }}>軸②達成状況</div>
-                    <div style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: axis2AchieveRate < 70 ? color.danger : color.navy, fontFamily: font.family.mono }}>
-                      {fmtNum(stats.axis2.count)} / {fmtNum(axis2TargetTotal)}件 ({fmtPct(axis2AchieveRate)})
-                    </div>
-                  </div>
-                )}
-              </div>
-              {recommendations.map((rec, i) => {
-                const accentColor = rec.level === '高' ? color.danger : rec.level === '中' ? color.warn : color.success;
-                return (
-                  <div key={i} style={{
-                    padding: space[3],
-                    background: color.white,
-                    border: `1px solid ${color.border}`,
-                    borderLeft: `3px solid ${accentColor}`,
-                    borderRadius: radius.md, display: 'flex', alignItems: 'flex-start', gap: space[2],
-                  }}>
-                    <div>
-                      <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: accentColor, marginBottom: 2 }}>
-                        {rec.title}
-                      </div>
-                      <div style={{ fontSize: font.size.xs, color: color.textDark, lineHeight: 1.6 }}>
-                        {rec.desc}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Section>
-
         {/* F. コスト・粗利・利益率 */}
         <SectionF stats={stats} previousStats={previousStats} />
 
         {/* C. リスト分析 */}
-        <SectionListAnalysis
-          setCurrentTab={setCurrentTab}
-          setSelectedList={setSelectedList}
-          setCallFlowScreen={setCallFlowScreen}
-        />
+        <SectionListAnalysis setCallFlowScreen={setCallFlowScreen} />
 
         {/* D/H プレースホルダ (Phase γ/δ) */}
         <Section title="他セクション (Phase γ/δ で実装予定)" hint="見込み先プール・アポインター稼働">
@@ -574,22 +515,26 @@ function CountBadge({ count, onClick, tone = 'navy' }) {
   );
 }
 
-function SectionListAnalysis({ setCurrentTab, setSelectedList, setCallFlowScreen }) {
+function SectionListAnalysis({ setCallFlowScreen }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [drill, setDrill] = useState(null); // { list, kind, kindLabel, rows, loading }
+  const [drill, setDrill] = useState(null);
+  // 商材×タイプセレクタ (デフォルトはデータ取得後に初回グループへ自動セット)
+  const [selectedKey, setSelectedKey] = useState(null);
+  // ソート方向: 'worst' = 停滞度高い順, 'best' = 停滞度低い順 (= 健全順)
+  const [sortDir, setSortDir] = useState('worst');
 
   useEffect(() => {
     let cancelled = false;
     fetchListAnalysisSummary().then(({ data }) => {
       if (cancelled) return;
-      setRows(data);
+      setRows(data || []);
       setLoading(false);
     });
     return () => { cancelled = true; };
   }, []);
 
-  // 商材×タイプでグループ化、停滞度高い順 (同じならアポ少ない順)
+  // 商材×タイプでグループ化
   const groups = useMemo(() => {
     const map = new Map();
     for (const r of rows) {
@@ -605,22 +550,45 @@ function SectionListAnalysis({ setCurrentTab, setSelectedList, setCallFlowScreen
     }
     const typeOrder = ['seller_sourcing', 'matching', 'client_acquisition'];
     return Array.from(map.values())
-      .map(g => ({
-        ...g,
-        rows: g.rows.slice().sort((a, b) =>
-          (b.stagnation - a.stagnation) || (a.appo_count - b.appo_count)
-        ),
-      }))
       .sort((a, b) =>
         (a.cat_order - b.cat_order) ||
         (typeOrder.indexOf(a.eng_type) - typeOrder.indexOf(b.eng_type))
       );
   }, [rows]);
 
-  const handleOpenList = useCallback((listId) => {
-    if (setCurrentTab) setCurrentTab('lists');
-    if (setSelectedList) setSelectedList(listId);
-  }, [setCurrentTab, setSelectedList]);
+  // 初回データロード時にデフォルトグループ選択
+  useEffect(() => {
+    if (!selectedKey && groups.length > 0) setSelectedKey(groups[0].key);
+  }, [groups, selectedKey]);
+
+  // 選択中グループ + ソート適用
+  const activeGroup = useMemo(() => {
+    const g = groups.find(g => g.key === selectedKey);
+    if (!g) return null;
+    const sorted = g.rows.slice().sort((a, b) => {
+      if (sortDir === 'worst') {
+        return (b.stagnation - a.stagnation) || (a.appo_count - b.appo_count);
+      }
+      // best: 停滞度低い順 (= 健全) , 同じならアポ数多い順
+      return (a.stagnation - b.stagnation) || (b.appo_count - a.appo_count);
+    });
+    return { ...g, rows: sorted };
+  }, [groups, selectedKey, sortDir]);
+
+  // 商材リスト (重複なし)
+  const categories = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    for (const g of groups) {
+      if (!seen.has(g.category)) {
+        seen.add(g.category);
+        out.push({ category: g.category, cat_order: g.cat_order });
+      }
+    }
+    return out;
+  }, [groups]);
+
+  const selectedCategory = activeGroup?.category;
 
   const handleOpenDrill = useCallback(async (row, kind, kindLabel) => {
     setDrill({ list: row, kind, kindLabel, rows: [], loading: true });
@@ -639,22 +607,56 @@ function SectionListAnalysis({ setCurrentTab, setSelectedList, setCallFlowScreen
     }
   }, [setCallFlowScreen]);
 
+  // pillスタイル
+  const pillStyle = (active) => ({
+    padding: '5px 14px', borderRadius: radius.md, fontSize: font.size.xs,
+    fontWeight: font.weight.semibold, cursor: 'pointer', fontFamily: font.family.sans,
+    transition: 'all 0.15s',
+    ...(active
+      ? { background: color.navy, color: color.white, border: `1px solid ${color.navy}` }
+      : { background: color.white, color: color.textMid, border: `1px solid ${color.border}` }),
+  });
+
   return (
     <>
-      <Section title="リスト分析 ─ 既存リストでさらに伸ばす" hint="商材×タイプ別 停滞度ワースト10">
+      <Section title="リスト分析 ─ 既存リストでさらに伸ばす" hint="商材×タイプで切替・停滞度で並べ替え可">
         {loading ? (
           <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>読み込み中…</div>
         ) : groups.length === 0 ? (
           <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>表示するアクティブリストがありません</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: space[4] }}>
-            {groups.map(g => (
-              <ListAnalysisGroup
-                key={g.key} group={g}
-                onOpenList={handleOpenList}
-                onOpenDrill={handleOpenDrill}
-              />
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
+            {/* 商材セレクタ */}
+            <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, minWidth: 40 }}>商材:</span>
+              {categories.map(c => {
+                const firstGroupOfCat = groups.find(g => g.category === c.category);
+                return (
+                  <button key={c.category}
+                    onClick={() => setSelectedKey(firstGroupOfCat?.key)}
+                    style={pillStyle(selectedCategory === c.category)}
+                  >{c.category}</button>
+                );
+              })}
+            </div>
+            {/* タイプセレクタ */}
+            <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, minWidth: 40 }}>タイプ:</span>
+              {groups.filter(g => g.category === selectedCategory).map(g => (
+                <button key={g.key} onClick={() => setSelectedKey(g.key)} style={pillStyle(selectedKey === g.key)}>
+                  {g.eng_name}
+                </button>
+              ))}
+              <span style={{ flex: 1 }} />
+              {/* ソート切替 */}
+              <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>並び順:</span>
+              <button onClick={() => setSortDir('worst')} style={pillStyle(sortDir === 'worst')}>ワースト順</button>
+              <button onClick={() => setSortDir('best')} style={pillStyle(sortDir === 'best')}>ベスト順</button>
+            </div>
+            {/* テーブル */}
+            {activeGroup && (
+              <ListAnalysisTable group={activeGroup} sortDir={sortDir} onOpenDrill={handleOpenDrill} />
+            )}
           </div>
         )}
       </Section>
@@ -664,36 +666,31 @@ function SectionListAnalysis({ setCurrentTab, setSelectedList, setCallFlowScreen
   );
 }
 
-function ListAnalysisGroup({ group, onOpenList, onOpenDrill }) {
+function ListAnalysisTable({ group, sortDir, onOpenDrill }) {
   const [expanded, setExpanded] = useState(false);
   const top10 = group.rows.slice(0, 10);
   const rest = group.rows.slice(10);
   const visible = expanded ? group.rows : top10;
-  const hasStagnant = group.rows.some(r => r.stagnation > 0);
 
   const th = { padding: '8px 10px', fontSize: font.size.xs, textAlign: 'left', fontWeight: font.weight.semibold, color: color.white };
   const td = { padding: '8px 10px', fontSize: font.size.sm, borderTop: `1px solid ${color.border}` };
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: space[2], marginBottom: space[2] }}>
-        <h3 style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy, margin: 0 }}>
-          {group.category} × {group.eng_name}
-        </h3>
-        <span style={{ fontSize: font.size.xs, color: color.textLight }}>
-          {group.rows.length}リスト{hasStagnant && '（停滞度高い順）'}
-        </span>
+      <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: space[1] }}>
+        {group.rows.length}リスト中、{sortDir === 'worst' ? 'ワースト' : 'ベスト'}10件を表示
       </div>
       <div style={{ overflowX: 'auto', border: `1px solid ${color.border}`, borderRadius: radius.md }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1000 }}>
           <thead>
             <tr style={{ background: color.navy }}>
               <th style={th}>クライアント</th>
               <th style={th}>リスト名</th>
               <th style={{ ...th, textAlign: 'right' }}>社数</th>
-              <th style={{ ...th, textAlign: 'right' }}>架電進捗</th>
+              <th style={{ ...th, textAlign: 'center' }}>架電進捗</th>
               <th style={{ ...th, textAlign: 'right' }}>アポ数</th>
               <th style={{ ...th, textAlign: 'center' }}>停滞度</th>
+              <th style={{ ...th, textAlign: 'right' }}>最終<br />架電から</th>
               <th style={{ ...th, textAlign: 'center' }}>リスケ中</th>
               <th style={{ ...th, textAlign: 'center' }}>キーマン<br />再コール</th>
               <th style={{ ...th, textAlign: 'center' }}>キーマン断り<br />(高/中)</th>
@@ -705,24 +702,24 @@ function ListAnalysisGroup({ group, onOpenList, onOpenDrill }) {
                 <td style={{ ...td, color: color.textMid, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {r.list_client || '—'}
                 </td>
-                <td style={td}>
-                  <button onClick={() => onOpenList(r.list_id)} style={{
-                    background: 'none', border: 'none', color: color.navy, cursor: 'pointer',
-                    padding: 0, fontSize: font.size.sm, fontFamily: font.family.sans,
-                    textDecoration: 'underline', textAlign: 'left',
-                  }}>{r.list_name || r.list_industry || '(無題)'}</button>
+                <td style={{ ...td, color: color.textDark }}>
+                  {r.list_industry || '(無題)'}
                 </td>
                 <td style={{ ...td, textAlign: 'right', fontFamily: font.family.mono, color: color.textMid }}>
                   {Number(r.total_count || 0).toLocaleString()}
                 </td>
-                <td style={{ ...td, textAlign: 'right', fontFamily: font.family.mono, color: color.textDark }}>
-                  {Number(r.call_progress_pct || 0)}%
+                <td style={{ ...td, textAlign: 'center' }}>
+                  <ProgressPill pct={r.call_progress_pct} />
                 </td>
                 <td style={{ ...td, textAlign: 'right', fontFamily: font.family.mono, color: color.textDark, fontWeight: font.weight.semibold }}>
                   {r.appo_count}
                 </td>
                 <td style={{ ...td, textAlign: 'center' }}>
                   <StagnationBadge level={r.stagnation} />
+                </td>
+                <td style={{ ...td, textAlign: 'right', fontFamily: font.family.mono,
+                  color: r.days_since_last_call != null && r.days_since_last_call > 30 ? color.danger : color.textMid }}>
+                  {r.days_since_last_call != null ? `${r.days_since_last_call}日` : '—'}
                 </td>
                 <td style={{ ...td, textAlign: 'center' }}>
                   <CountBadge count={r.rescheduling_count} tone="warn"
