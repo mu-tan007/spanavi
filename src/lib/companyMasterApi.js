@@ -16,31 +16,85 @@ export function normalizeCompanyNameForMaster(name) {
     .trim();
 }
 
+/** 代表者名の正規化 (会社名と同じ NFKC+空白除去+小文字化)。同姓同名は仕方ない。 */
+function normalizeRepresentative(name) {
+  if (!name) return '';
+  return String(name)
+    .normalize('NFKC')
+    .replace(/\s+/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+/** 電話番号の数字以外を除去 (ハイフン揺れ吸収)。 */
+function digitsOnly(phone) {
+  if (!phone) return '';
+  return String(phone).replace(/[^0-9]/g, '');
+}
+
 /**
- * 会社名から company_master を 1 件引き当てる。
- * アポ報告画面で売上・純利益が空のとき、自社 49 万社 DB から自動補完する用途。
- * 完全一致 (正規化後) のみ。複数候補は最初の 1 件を返す。
- * 見つからなければ null。
+ * 会社名 + 補助情報 (電話/代表者/住所) で company_master を 1 件特定する。
  *
- * @param {string} companyName
- * @returns {Promise<{revenue_k:number|null, net_income_k:number|null, phone:string|null,
- *                    business_description:string|null, full_address:string|null,
- *                    representative:string|null, employee_count:number|null,
- *                    company_name:string, normalized_name:string}|null>}
+ * 同名異会社のリスクがあるため、会社名で候補を全て取得した上で
+ * 補助情報による絞り込みを試みる。一意に絞れない場合は自動入力スキップ。
+ *
+ * 絞り込み優先順位:
+ *   (1) 会社名 + 電話番号完全一致 → 高信頼
+ *   (2) 会社名 + 代表者名完全一致 → 高信頼
+ *   (3) 会社名 + 都道府県一致 → 中信頼
+ *   (4) いずれも1件に絞れない → null (ambiguous)
+ *
+ * @param {Object} params
+ * @param {string} params.company_name 必須
+ * @param {string} [params.representative] 代表者名
+ * @param {string} [params.phone] 電話番号
+ * @param {string} [params.address] 住所 (都道府県抽出に使用)
+ * @returns {Promise<{ match: object|null, confidence: 'high'|'medium'|'ambiguous'|'no_match'|'no_input', candidates: number }>}
  */
-export async function fetchCompanyMasterByName(companyName) {
-  const normalized = normalizeCompanyNameForMaster(companyName);
-  if (!normalized) return null;
-  const { data, error } = await supabase
+export async function fetchCompanyMasterByName({ company_name, representative, phone, address } = {}) {
+  const normalized = normalizeCompanyNameForMaster(company_name);
+  if (!normalized) return { match: null, confidence: 'no_input', candidates: 0 };
+
+  const { data: candidates, error } = await supabase
     .from('company_master')
-    .select('company_name, normalized_name, revenue_k, net_income_k, phone, business_description, full_address, representative, employee_count')
+    .select('id, company_name, normalized_name, revenue_k, net_income_k, phone, business_description, full_address, prefecture, representative, normalized_representative, employee_count')
     .eq('normalized_name', normalized)
-    .limit(1);
+    .limit(50);
+
   if (error) {
     console.warn('[companyMaster] lookup error:', error);
-    return null;
+    return { match: null, confidence: 'no_match', candidates: 0 };
   }
-  return data?.[0] || null;
+  if (!candidates?.length) return { match: null, confidence: 'no_match', candidates: 0 };
+  if (candidates.length === 1) return { match: candidates[0], confidence: 'high', candidates: 1 };
+
+  // 複数候補：補助情報で絞り込み
+  // (1) 電話番号完全一致
+  const inputPhone = digitsOnly(phone);
+  if (inputPhone) {
+    const byPhone = candidates.filter(c => digitsOnly(c.phone) === inputPhone);
+    if (byPhone.length === 1) return { match: byPhone[0], confidence: 'high', candidates: candidates.length };
+  }
+
+  // (2) 代表者名完全一致 (DB側 normalized_representative と比較)
+  const inputRep = normalizeRepresentative(representative);
+  if (inputRep) {
+    const byRep = candidates.filter(c => normalizeRepresentative(c.normalized_representative || c.representative) === inputRep);
+    if (byRep.length === 1) return { match: byRep[0], confidence: 'high', candidates: candidates.length };
+  }
+
+  // (3) 都道府県一致
+  // 入力 address から都道府県を抽出 (例: 「東京都新宿区...」「神奈川県横浜市...」)
+  const prefMatch = address ? String(address).match(/^(.{2,3}?(?:都|道|府|県))/) : null;
+  const inputPref = prefMatch?.[1] || null;
+  if (inputPref) {
+    const byPref = candidates.filter(c => c.prefecture === inputPref);
+    if (byPref.length === 1) return { match: byPref[0], confidence: 'medium', candidates: candidates.length };
+  }
+
+  // 絞り込めず
+  console.info(`[companyMaster] ambiguous: ${candidates.length} candidates for "${company_name}"`);
+  return { match: null, confidence: 'ambiguous', candidates: candidates.length };
 }
 
 /** カテゴリマスタ取得（キャッシュ用） */

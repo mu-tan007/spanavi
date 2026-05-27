@@ -290,7 +290,9 @@ export default function TemplateDrivenAppoReportModal({
   }, [template?.id, row?.company]);
 
   // 売上高 / 当期純利益が架電リスト側で空のとき、自社 company_master (約49万社/TSR)
-  // から会社名で照合して自動補完する。M&A 等の報酬計算は財務値ベースなので必須情報。
+  // から会社名 + 補助情報 (電話/代表者/住所) で 1 社に特定して自動補完する。
+  // 同名異会社のリスクを避けるため、補助情報で一意に絞れない場合 (ambiguous) は
+  // 自動入力をスキップし、アポインターに手動入力させる。
   useEffect(() => {
     if (!template?.schema || !row?.company) return;
     const salesField = template.schema.find(f => f.auto_fill === 'sales_thousand');
@@ -300,18 +302,30 @@ export default function TemplateDrivenAppoReportModal({
     const needNet = netField && !form[netField.key] && (row.net_income == null);
     if (!needSales && !needNet) return;
     let cancelled = false;
-    fetchCompanyMasterByName(row.company).then(master => {
-      if (cancelled || !master) return;
+    fetchCompanyMasterByName({
+      company_name: row.company,
+      representative: row.representative,
+      phone: row.phone,
+      address: row.address,
+    }).then(({ match, confidence, candidates }) => {
+      if (cancelled) return;
+      if (!match) {
+        if (confidence === 'ambiguous') {
+          console.info(`[appo-report] 財務自動補完スキップ: 同名候補${candidates}件、補助情報で絞り込めず`);
+        }
+        return;
+      }
       setForm(p => {
         const next = { ...p };
-        if (needSales && master.revenue_k != null && !next[salesField.key]) {
-          next[salesField.key] = formatJpAmountFromThousand(master.revenue_k);
+        if (needSales && match.revenue_k != null && !next[salesField.key]) {
+          next[salesField.key] = formatJpAmountFromThousand(match.revenue_k);
         }
-        if (needNet && master.net_income_k != null && !next[netField.key]) {
-          next[netField.key] = formatJpAmountFromThousand(master.net_income_k);
+        if (needNet && match.net_income_k != null && !next[netField.key]) {
+          next[netField.key] = formatJpAmountFromThousand(match.net_income_k);
         }
         return next;
       });
+      console.info(`[appo-report] 財務自動補完: confidence=${confidence}`);
     }).catch(() => {});
     return () => { cancelled = true; };
     // form を依存に入れると無限ループ。template/company の変化のみで発火する。
