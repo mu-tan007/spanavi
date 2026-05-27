@@ -509,20 +509,6 @@ export default function BusinessOverviewView({
         {/* F. コスト・粗利・利益率 */}
         <SectionF stats={stats} previousStats={previousStats} />
 
-        {/* G. 集中リスク */}
-        <SectionG appoData={appoData} callListData={callListData} engagementMap={engagementMap} month={month} selfClient={selfClient} />
-
-        {/* E. クライアント別 健全性 */}
-        <SectionE
-          clientData={clientData}
-          appoData={appoData}
-          callListData={callListData}
-          engagementMap={engagementMap}
-          clientTargets={clientTargets}
-          month={month}
-          selfClient={selfClient}
-        />
-
         {/* C. リスト分析 */}
         <SectionListAnalysis
           setCurrentTab={setCurrentTab}
