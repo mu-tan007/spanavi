@@ -175,15 +175,14 @@ export default function BusinessOverviewView({ appoData = [], callListData = [],
     return map;
   }, [engagementsMaster]);
 
-  // 当月集計 (軸①/軸② 別 + 商材×タイプ別)
-  const stats = useMemo(() => {
+  // 集計関数 (任意の年月)
+  const computeStats = useCallback((targetYm) => {
     let a1c = 0, a1s = 0, a1r = 0, a2c = 0, a2r = 0;
-    // matrix[categoryName][type] = count
     const a1Matrix = {};
-    const a2Matrix = {}; // a2Matrix[categoryName] = count
+    const a2Matrix = {};
     appoData.forEach(a => {
       if (!a.getDate || !COUNTABLE_STATUSES.has(a.status)) return;
-      if (a.getDate.slice(0, 7) !== month) return;
+      if (a.getDate.slice(0, 7) !== targetYm) return;
       const list = callListData.find(l => l._supaId === a.list_id);
       const engId = list?.engagement_id;
       const eng = engagementMap[engId];
@@ -205,7 +204,18 @@ export default function BusinessOverviewView({ appoData = [], callListData = [],
       axis1: { count: a1c, sales: a1s, reward: a1r, matrix: a1Matrix },
       axis2: { count: a2c, reward: a2r, matrix: a2Matrix },
     };
-  }, [appoData, callListData, engagementMap, month]);
+  }, [appoData, callListData, engagementMap]);
+
+  const stats = useMemo(() => computeStats(month), [computeStats, month]);
+
+  // 前月 ym 算出
+  const prevMonth = useMemo(() => {
+    const [y, m] = month.split('-').map(Number);
+    const d = new Date(y, m - 2, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }, [month]);
+
+  const previousStats = useMemo(() => computeStats(prevMonth), [computeStats, prevMonth]);
 
   // 自社client_id 特定 (軸②目標が紐付く)
   const selfClient = useMemo(() => clientData.find(c => c.company === SELF_CLIENT_NAME), [clientData]);
@@ -243,20 +253,20 @@ export default function BusinessOverviewView({ appoData = [], callListData = [],
     const recs = [];
     if (axis1TargetTotal > 0 && axis1PaceRate != null && axis1PaceRate < 90) {
       recs.push({
-        level: '高', icon: '⚠', title: '軸①目標未達見込み',
+        level: '高', title: '軸①目標未達見込み',
         desc: `現在のペースで${fmtNum(axis1Pace)}件着地予測 (目標${fmtNum(axis1TargetTotal)}件、達成率${fmtPct(axis1PaceRate)})。リスト追加打診 + 見込み先プール再アプローチを推奨。`,
       });
     } else if (axis1TargetTotal > 0 && axis1PaceRate != null && axis1PaceRate < 100) {
-      recs.push({ level: '中', icon: '🟡', title: '軸①目標 ぎりぎり達成見込み', desc: '見込み先プールへの再アプローチを強化推奨。' });
+      recs.push({ level: '中', title: '軸①目標 ぎりぎり達成見込み', desc: '見込み先プールへの再アプローチを強化推奨。' });
     }
     if (axis2TargetTotal > 0 && axis2AchieveRate != null && axis2AchieveRate < 70) {
       recs.push({
-        level: '高', icon: '⚠', title: '軸②クライアント開拓 進捗遅れ',
+        level: '高', title: '軸②クライアント開拓 進捗遅れ',
         desc: `当月${fmtNum(stats.axis2.count)}件 (目標${fmtNum(axis2TargetTotal)}件、達成率${fmtPct(axis2AchieveRate)})。新規開拓加速を推奨。`,
       });
     }
     if (recs.length === 0 && (axis1TargetTotal > 0 || axis2TargetTotal > 0)) {
-      recs.push({ level: '低', icon: '✅', title: '順調', desc: '目標達成ペースで進行中。' });
+      recs.push({ level: '低', title: '順調', desc: '目標達成ペースで進行中。' });
     }
     return recs;
   }, [axis1TargetTotal, axis1Pace, axis1PaceRate, axis2TargetTotal, axis2AchieveRate, stats]);
@@ -492,19 +502,315 @@ export default function BusinessOverviewView({ appoData = [], callListData = [],
           )}
         </Section>
 
-        {/* Phase β/γ/δ プレースホルダ */}
-        <Section title="他セクション (Phase β/γ/δ で実装予定)" hint="コスト・集中リスク・リスト運用・見込み先プール・クライアント別健全性・アポインター稼働">
+        {/* F. コスト・粗利・利益率 */}
+        <SectionF stats={stats} previousStats={previousStats} />
+
+        {/* G. 集中リスク */}
+        <SectionG appoData={appoData} callListData={callListData} engagementMap={engagementMap} month={month} selfClient={selfClient} />
+
+        {/* E. クライアント別 健全性 */}
+        <SectionE
+          clientData={clientData}
+          appoData={appoData}
+          callListData={callListData}
+          engagementMap={engagementMap}
+          clientTargets={clientTargets}
+          month={month}
+          selfClient={selfClient}
+        />
+
+        {/* C/D/H プレースホルダ (Phase γ/δ) */}
+        <Section title="他セクション (Phase γ/δ で実装予定)" hint="リスト運用・見込み先プール・アポインター稼働">
           <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>
-            ・F. コスト・粗利・利益率<br />
-            ・G. 集中リスク (1社依存度)<br />
             ・C. リスト運用と改善<br />
             ・D. 見込み先プール<br />
-            ・E. クライアント別健全性<br />
             ・H. アポインター稼働<br />
           </div>
         </Section>
 
       </div>
     </div>
+  );
+}
+
+// ========================================================================
+// F. コスト・粗利・利益率
+// ========================================================================
+function SectionF({ stats, previousStats }) {
+  const totalSales = stats.axis1.sales; // 軸②は売上発生しないので合算しても axis1.sales のみ
+  const totalReward = stats.axis1.reward + stats.axis2.reward;
+  const grossProfit = totalSales - totalReward;
+  const profitRate = totalSales > 0 ? (grossProfit / totalSales) * 100 : null;
+
+  const prevSales = previousStats?.axis1?.sales || 0;
+  const prevReward = (previousStats?.axis1?.reward || 0) + (previousStats?.axis2?.reward || 0);
+  const prevProfit = prevSales - prevReward;
+  const salesDelta = prevSales > 0 ? ((totalSales - prevSales) / prevSales) * 100 : null;
+  const rewardDelta = prevReward > 0 ? ((totalReward - prevReward) / prevReward) * 100 : null;
+  const profitDelta = prevProfit > 0 ? ((grossProfit - prevProfit) / prevProfit) * 100 : null;
+
+  const sign = (n) => n == null ? '' : (n >= 0 ? '+' : '') + Math.round(n) + '%';
+
+  return (
+    <Section title="月次採算" hint="当社売上 - インターン報酬 = 粗利">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: space[3] }}>
+        <NumberCard
+          label="当社売上"
+          value={yen(totalSales)}
+          sub={salesDelta != null ? `前月比 ${sign(salesDelta)}` : '前月比 —'}
+        />
+        <NumberCard
+          label="インターン報酬"
+          value={yen(totalReward)}
+          sub={rewardDelta != null ? `前月比 ${sign(rewardDelta)}` : '前月比 —'}
+        />
+        <NumberCard
+          label={`粗利 (利益率 ${profitRate != null ? Math.round(profitRate) : '—'}%)`}
+          value={yen(grossProfit)}
+          sub={profitDelta != null ? `前月比 ${sign(profitDelta)}` : '前月比 —'}
+          valueColor={grossProfit < 0 ? color.danger : color.navy}
+        />
+      </div>
+      <div style={{ marginTop: space[3], padding: space[2], fontSize: font.size.xs, color: color.textMid, background: color.gray50, borderRadius: radius.sm }}>
+        翌月末払い予定: <b style={{ color: color.navy }}>{yen(totalReward)}</b> (キャッシュアウト予測)
+      </div>
+    </Section>
+  );
+}
+
+// ========================================================================
+// G. 集中リスク
+// ========================================================================
+function SectionG({ appoData, callListData, engagementMap, month, selfClient }) {
+  const byClient = useMemo(() => {
+    const map = new Map();
+    appoData.forEach(a => {
+      if (!a.getDate || !COUNTABLE_STATUSES.has(a.status)) return;
+      if (a.getDate.slice(0, 7) !== month) return;
+      const list = callListData.find(l => l._supaId === a.list_id);
+      const engId = list?.engagement_id;
+      const eng = engagementMap[engId];
+      if (!eng || eng.type === 'client_acquisition') return; // 軸①のみ集計
+      const cname = a.client || '不明';
+      if (selfClient && cname === selfClient.company) return;
+      const cur = map.get(cname) || { count: 0, sales: 0 };
+      cur.count++;
+      cur.sales += Number(a.sales || 0);
+      map.set(cname, cur);
+    });
+    return Array.from(map.entries()).map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => b.sales - a.sales);
+  }, [appoData, callListData, engagementMap, month, selfClient]);
+
+  const totalSales = byClient.reduce((s, c) => s + c.sales, 0);
+  const top3Sales = byClient.slice(0, 3).reduce((s, c) => s + c.sales, 0);
+  const top3Pct = totalSales > 0 ? (top3Sales / totalSales) * 100 : 0;
+  const top1 = byClient[0];
+  const top1Pct = totalSales > 0 && top1 ? (top1.sales / totalSales) * 100 : 0;
+
+  const riskLevel = top1Pct > 50 ? '高' : top1Pct > 30 ? '中' : '低';
+  const riskColor = riskLevel === '高' ? color.danger : riskLevel === '中' ? color.warn : color.success;
+
+  return (
+    <Section title="集中リスク" hint="軸① 当月の当社売上ベース">
+      {byClient.length === 0 ? (
+        <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>当月の売上データなし</div>
+      ) : (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[2], marginBottom: space[3] }}>
+            <NumberCard
+              label="TOP1クライアント比率"
+              value={Math.round(top1Pct) + '%'}
+              sub={top1 ? `${top1.name} (${yen(top1.sales)})` : '—'}
+              valueColor={riskColor}
+            />
+            <NumberCard
+              label={`TOP3クライアント比率 (依存度: ${riskLevel})`}
+              value={Math.round(top3Pct) + '%'}
+              sub={`全${byClient.length}社中 上位3社で売上の${Math.round(top3Pct)}%`}
+              valueColor={riskColor}
+            />
+          </div>
+          {/* クライアント別バー */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: space[1] }}>
+            {byClient.slice(0, 5).map((c, i) => {
+              const pct = totalSales > 0 ? (c.sales / totalSales) * 100 : 0;
+              return (
+                <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: space[2], fontSize: font.size.sm }}>
+                  <div style={{ width: 180, color: color.textDark, fontWeight: font.weight.semibold, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {i + 1}. {c.name}
+                  </div>
+                  <div style={{ flex: 1, height: 14, background: color.gray100, borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ width: `${pct}%`, height: '100%', background: color.navy }} />
+                  </div>
+                  <div style={{ width: 60, textAlign: 'right', fontFamily: font.family.mono, color: color.textMid }}>
+                    {Math.round(pct)}%
+                  </div>
+                  <div style={{ width: 110, textAlign: 'right', fontFamily: font.family.mono, color: color.textDark }}>
+                    {yen(c.sales)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {top1Pct > 40 && (
+            <div style={{ marginTop: space[3], padding: space[2], fontSize: font.size.xs, color: color.danger, background: color.white, border: `1px solid ${color.border}`, borderLeft: `3px solid ${color.danger}`, borderRadius: radius.sm }}>
+              <b>{top1?.name}</b> 1社で当月売上の{Math.round(top1Pct)}%を占めています。解約時の影響大。新規受託加速で分散推奨。
+            </div>
+          )}
+        </>
+      )}
+    </Section>
+  );
+}
+
+// ========================================================================
+// E. クライアント別 健全性
+// ========================================================================
+function SectionE({ clientData, appoData, callListData, engagementMap, clientTargets, month, selfClient }) {
+  const [tab, setTab] = useState('axis1');
+
+  // 軸①: clients から自社を除外、各クライアントの月次目標 vs 当月実績
+  const axis1Rows = useMemo(() => {
+    return clientData
+      .filter(c => c.company !== SELF_CLIENT_NAME)
+      .map(c => {
+        let actual = 0;
+        appoData.forEach(a => {
+          if (!a.getDate || !COUNTABLE_STATUSES.has(a.status)) return;
+          if (a.getDate.slice(0, 7) !== month) return;
+          if (a.client === c.company) {
+            const list = callListData.find(l => l._supaId === a.list_id);
+            const eng = engagementMap[list?.engagement_id];
+            if (eng && eng.type !== 'client_acquisition') actual++;
+          }
+        });
+        const target = clientTargets[c._supaId] || 0;
+        const rate = target > 0 ? (actual / target) * 100 : null;
+        const lastContact = c.nextContactAt || c.statusChangedAt;
+        const daysSince = lastContact ? Math.floor((Date.now() - new Date(lastContact).getTime()) / (1000 * 60 * 60 * 24)) : null;
+        return {
+          id: c._supaId, name: c.company, status: c.status,
+          contactPerson: c.contactPerson || c.contact_person || '',
+          target, actual, rate,
+          daysSince,
+          needsAttention: (target > 0 && rate < 50) || (daysSince != null && daysSince > 30),
+        };
+      })
+      .filter(r => ['支援中', '準備中', '面談予定'].includes(r.status))
+      .sort((a, b) => {
+        if (a.needsAttention !== b.needsAttention) return a.needsAttention ? -1 : 1;
+        return (b.target || 0) - (a.target || 0);
+      });
+  }, [clientData, appoData, callListData, engagementMap, clientTargets, month]);
+
+  // 軸②: 開拓中の見込客 (面談予定/準備中)
+  const axis2Rows = useMemo(() => {
+    return clientData
+      .filter(c => c.company !== SELF_CLIENT_NAME)
+      .filter(c => ['面談予定', '準備中'].includes(c.status))
+      .map(c => ({
+        id: c._supaId,
+        name: c.company,
+        industry: c.industry || '—',
+        status: c.status,
+        contactPerson: c.contactPerson || c.contact_person || '',
+        nextContactAt: c.nextContactAt,
+      }))
+      .sort((a, b) => (a.nextContactAt || '9999').localeCompare(b.nextContactAt || '9999'));
+  }, [clientData]);
+
+  const tabStyle = (active) => ({
+    padding: `${space[1]}px ${space[3]}px`,
+    background: active ? color.navy : color.white,
+    color: active ? color.white : color.textMid,
+    border: `1px solid ${color.border}`,
+    borderBottom: active ? `1px solid ${color.navy}` : `1px solid ${color.border}`,
+    cursor: 'pointer',
+    fontSize: font.size.sm,
+    fontWeight: font.weight.semibold,
+    fontFamily: font.family.sans,
+    borderRadius: `${radius.sm}px ${radius.sm}px 0 0`,
+  });
+
+  return (
+    <Section title="クライアント別 健全性">
+      <div style={{ display: 'flex', gap: 2, marginBottom: space[2] }}>
+        <button onClick={() => setTab('axis1')} style={tabStyle(tab === 'axis1')}>軸① 既存クライアント ({axis1Rows.length})</button>
+        <button onClick={() => setTab('axis2')} style={tabStyle(tab === 'axis2')}>軸② 開拓中 ({axis2Rows.length})</button>
+      </div>
+
+      {tab === 'axis1' && (
+        axis1Rows.length === 0 ? (
+          <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>該当クライアントなし</div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: color.navy, color: color.white }}>
+                <th style={{ padding: '6px 8px', fontSize: font.size.xs, textAlign: 'left', fontWeight: font.weight.semibold }}>クライアント</th>
+                <th style={{ padding: '6px 8px', fontSize: font.size.xs, textAlign: 'left', fontWeight: font.weight.semibold }}>先方担当</th>
+                <th style={{ padding: '6px 8px', fontSize: font.size.xs, textAlign: 'right', fontWeight: font.weight.semibold }}>目標</th>
+                <th style={{ padding: '6px 8px', fontSize: font.size.xs, textAlign: 'right', fontWeight: font.weight.semibold }}>実績</th>
+                <th style={{ padding: '6px 8px', fontSize: font.size.xs, textAlign: 'right', fontWeight: font.weight.semibold }}>達成率</th>
+                <th style={{ padding: '6px 8px', fontSize: font.size.xs, textAlign: 'right', fontWeight: font.weight.semibold }}>最終接点</th>
+              </tr>
+            </thead>
+            <tbody>
+              {axis1Rows.map(r => (
+                <tr key={r.id} style={{ borderTop: `1px solid ${color.border}`, background: r.needsAttention ? alpha(color.danger, 0.04) : 'transparent' }}>
+                  <td style={{ padding: '6px 8px', fontSize: font.size.sm, color: color.textDark, fontWeight: r.needsAttention ? font.weight.semibold : font.weight.normal, borderLeft: r.needsAttention ? `3px solid ${color.danger}` : '3px solid transparent' }}>
+                    {r.name}
+                  </td>
+                  <td style={{ padding: '6px 8px', fontSize: font.size.sm, color: color.textMid }}>{r.contactPerson || '—'}</td>
+                  <td style={{ padding: '6px 8px', textAlign: 'right', fontSize: font.size.sm, fontFamily: font.family.mono, color: color.textMid }}>
+                    {r.target > 0 ? `${r.target}件` : '—'}
+                  </td>
+                  <td style={{ padding: '6px 8px', textAlign: 'right', fontSize: font.size.sm, fontFamily: font.family.mono, color: color.textDark }}>
+                    {r.actual}件
+                  </td>
+                  <td style={{ padding: '6px 8px', textAlign: 'right', fontSize: font.size.sm, fontFamily: font.family.mono, color: r.rate != null && r.rate < 50 ? color.danger : color.textDark }}>
+                    {r.rate != null ? Math.round(r.rate) + '%' : '—'}
+                  </td>
+                  <td style={{ padding: '6px 8px', textAlign: 'right', fontSize: font.size.sm, color: r.daysSince != null && r.daysSince > 30 ? color.danger : color.textMid }}>
+                    {r.daysSince != null ? `${r.daysSince}日前` : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      )}
+
+      {tab === 'axis2' && (
+        axis2Rows.length === 0 ? (
+          <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>開拓中の見込客なし</div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: color.navy, color: color.white }}>
+                <th style={{ padding: '6px 8px', fontSize: font.size.xs, textAlign: 'left', fontWeight: font.weight.semibold }}>クライアント</th>
+                <th style={{ padding: '6px 8px', fontSize: font.size.xs, textAlign: 'left', fontWeight: font.weight.semibold }}>商材</th>
+                <th style={{ padding: '6px 8px', fontSize: font.size.xs, textAlign: 'left', fontWeight: font.weight.semibold }}>先方担当</th>
+                <th style={{ padding: '6px 8px', fontSize: font.size.xs, textAlign: 'left', fontWeight: font.weight.semibold }}>ステータス</th>
+                <th style={{ padding: '6px 8px', fontSize: font.size.xs, textAlign: 'right', fontWeight: font.weight.semibold }}>次回接点</th>
+              </tr>
+            </thead>
+            <tbody>
+              {axis2Rows.map(r => (
+                <tr key={r.id} style={{ borderTop: `1px solid ${color.border}` }}>
+                  <td style={{ padding: '6px 8px', fontSize: font.size.sm, color: color.textDark, fontWeight: font.weight.semibold }}>{r.name}</td>
+                  <td style={{ padding: '6px 8px', fontSize: font.size.sm, color: color.textMid }}>{r.industry}</td>
+                  <td style={{ padding: '6px 8px', fontSize: font.size.sm, color: color.textMid }}>{r.contactPerson || '—'}</td>
+                  <td style={{ padding: '6px 8px', fontSize: font.size.sm, color: color.textMid }}>{r.status}</td>
+                  <td style={{ padding: '6px 8px', textAlign: 'right', fontSize: font.size.sm, fontFamily: font.family.mono, color: color.textMid }}>
+                    {r.nextContactAt ? new Date(r.nextContactAt).toISOString().slice(5, 10).replace('-', '/') : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      )}
+    </Section>
   );
 }
