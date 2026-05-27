@@ -3,6 +3,7 @@ import { color, space, radius, font, alpha } from '../../constants/design';
 import { Card } from '../ui';
 import PageHeader from '../common/PageHeader';
 import { ProgressPill } from '../common/TopListCard';
+import { useCallQueue } from './smart-queue/useCallQueue';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import {
@@ -519,6 +520,8 @@ function SectionListAnalysis({ setCallFlowScreen, callListData = [] }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [drill, setDrill] = useState(null);
+  // スマートキューと同じ「キュー連続架電」を使う
+  const { openQueue } = useCallQueue({ setCallFlowScreen, callListData });
   // 商材×タイプセレクタ (デフォルトはデータ取得後に初回グループへ自動セット)
   const [selectedKey, setSelectedKey] = useState(null);
   // ソート方向: 'worst' = 停滞度高い順, 'best' = 停滞度低い順 (= 健全順)
@@ -600,21 +603,18 @@ function SectionListAnalysis({ setCallFlowScreen, callListData = [] }) {
     );
   }, []);
 
-  const handleCallItem = useCallback((listId, itemId) => {
-    if (!setCallFlowScreen) return;
-    // 他経路 (AppoListView 等) と同じ形式で渡す。
-    // list プロパティを欠かすと SpanaviApp の localStorage 永続化で壊れた状態が
-    // 保存され、リロード後もブラックアウトし続ける事故になる。
-    const list = (callListData || []).find(l => l._supaId === listId || l.id === listId)
-                 || { _supaId: listId, id: listId, company: '' };
-    setCallFlowScreen({
-      list,
-      defaultItemId: itemId,
-      defaultListMode: false,
-      singleItemMode: true,
-    });
+  // ドリルダウン Drawer で「架電」ボタンを押した時の挙動。
+  // 表示中の全件をキュー化して、押した行から開始。架電集中ページで前後ボタンで連続架電できる。
+  const handleCallItem = useCallback((listId, startItemId, allRows) => {
+    if (!openQueue) return;
+    const queueItems = (allRows || [])
+      .filter(r => r.item_id)
+      .map(r => ({ list_id: listId, item_id: r.item_id }));
+    if (queueItems.length === 0) return;
+    const startIdx = Math.max(0, queueItems.findIndex(q => q.item_id === startItemId));
+    openQueue(queueItems, startIdx);
     setDrill(null);
-  }, [setCallFlowScreen, callListData]);
+  }, [openQueue]);
 
   // pillスタイル
   const pillStyle = (active) => ({
@@ -823,7 +823,7 @@ function DrillDownDrawer({ drill, onClose, onCallItem }) {
                     )}
                   </div>
                   {r.item_id && onCallItem && (
-                    <button onClick={() => onCallItem(drill.list.list_id, r.item_id)} style={{
+                    <button onClick={() => onCallItem(drill.list.list_id, r.item_id, drill.rows)} style={{
                       padding: '6px 14px', background: color.navy, color: color.white,
                       border: 'none', borderRadius: radius.md, cursor: 'pointer',
                       fontSize: font.size.xs, fontWeight: font.weight.semibold,
