@@ -282,7 +282,7 @@ export default function BusinessOverviewView({ appoData = [], callListData = [],
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        title="経営俯瞰"
+        title="事業俯瞰"
         description="全社の数字と目標達成状況を一目で把握"
         style={{ marginBottom: 24 }}
         right={

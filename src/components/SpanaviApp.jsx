@@ -635,7 +635,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   // 単独項目 (children=null) は本体 id を、グループは children の各 id を権限判定する。
   // children が 0 になったグループは表示しない。
   const _rawNavGroups = [
-    ...(isAdmin ? [{ id: "overview", label: "経営俯瞰", children: null }] : []),
+    ...(isAdmin ? [{ id: "overview", label: "事業俯瞰", children: null }] : []),
     { id: "dashboard", label: "ダッシュボード", children: null },
     { id: "g_call", label: "架電", children: [
       { id: "lists", label: "架電リスト" },

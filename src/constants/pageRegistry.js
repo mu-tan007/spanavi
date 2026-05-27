@@ -18,7 +18,7 @@ export const PAGE_REGISTRY = {
     { key: 'all_members', label: 'メンバー' },
   ],
   seller_sourcing: [
-    { key: 'overview', label: '経営俯瞰', group: 'OVERVIEW' },
+    { key: 'overview', label: '事業俯瞰', group: 'OVERVIEW' },
     { key: 'dashboard', label: 'ダッシュボード', group: 'OVERVIEW' },
     { key: 'lists', label: '架電リスト', group: 'CALLING' },
     { key: 'search', label: '企業・録音検索', group: 'CALLING' },
