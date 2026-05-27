@@ -7,6 +7,7 @@ import { getOrgId } from '../../lib/orgContext';
 import {
   fetchClientMonthlyTargets,
   fetchEngagementMonthlyTargets, upsertEngagementMonthlyTarget,
+  fetchListAnalysisSummary, fetchListDrillDown,
 } from '../../lib/supabaseWrite';
 
 const COUNTABLE_STATUSES = new Set(['面談済', '事前確認済', 'アポ取得']);
@@ -121,7 +122,10 @@ function MatrixCell({ count, isTotal, isEmpty }) {
   );
 }
 
-export default function BusinessOverviewView({ appoData = [], callListData = [], clientData = [] }) {
+export default function BusinessOverviewView({
+  appoData = [], callListData = [], clientData = [],
+  setCurrentTab, setSelectedList, setCallFlowScreen,
+}) {
   const [month, setMonth] = useState(getCurrentMonth());
   const [engagementsMaster, setEngagementsMaster] = useState([]); // {id, type, category_id, category_name}
   const [categoriesMaster, setCategoriesMaster] = useState([]); // {id, name, display_order}
@@ -519,10 +523,16 @@ export default function BusinessOverviewView({ appoData = [], callListData = [],
           selfClient={selfClient}
         />
 
-        {/* C/D/H プレースホルダ (Phase γ/δ) */}
-        <Section title="他セクション (Phase γ/δ で実装予定)" hint="リスト運用・見込み先プール・アポインター稼働">
+        {/* C. リスト分析 */}
+        <SectionListAnalysis
+          setCurrentTab={setCurrentTab}
+          setSelectedList={setSelectedList}
+          setCallFlowScreen={setCallFlowScreen}
+        />
+
+        {/* D/H プレースホルダ (Phase γ/δ) */}
+        <Section title="他セクション (Phase γ/δ で実装予定)" hint="見込み先プール・アポインター稼働">
           <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>
-            ・C. リスト運用と改善<br />
             ・D. 見込み先プール<br />
             ・H. アポインター稼働<br />
           </div>
@@ -530,6 +540,311 @@ export default function BusinessOverviewView({ appoData = [], callListData = [],
 
       </div>
     </div>
+  );
+}
+
+// ========================================================================
+// C. リスト分析 ─ 商材×タイプ別 停滞度ワースト + ドリルダウンドロワー
+// ========================================================================
+const STAGNATION_COLORS = {
+  0: { bg: 'transparent', fg: color.textLight, label: '—' },
+  1: { bg: color.successSoft || alpha(color.success, 0.15), fg: color.success, label: '1' },
+  2: { bg: color.infoSoft    || alpha(color.info, 0.15),    fg: color.info,    label: '2' },
+  3: { bg: color.warnSoft    || alpha(color.warn, 0.18),    fg: color.warn,    label: '3' },
+  4: { bg: alpha(color.danger, 0.15),                       fg: color.danger,  label: '4' },
+  5: { bg: color.danger,                                    fg: color.white,   label: '5' },
+};
+
+function StagnationBadge({ level }) {
+  const s = STAGNATION_COLORS[level] || STAGNATION_COLORS[0];
+  return (
+    <span style={{
+      display: 'inline-block', padding: '2px 10px', borderRadius: radius.pill || 999,
+      fontSize: font.size.xs, fontWeight: font.weight.semibold,
+      background: s.bg, color: s.fg, minWidth: 28, textAlign: 'center',
+      fontFamily: font.family.mono,
+    }}>{s.label}</span>
+  );
+}
+
+function CountBadge({ count, onClick, tone = 'navy' }) {
+  if (!count) return <span style={{ color: color.textLight, fontSize: font.size.sm }}>—</span>;
+  const tones = {
+    navy:    { bg: alpha(color.navy, 0.08),    fg: color.navy },
+    warn:    { bg: alpha(color.warn, 0.15),    fg: color.warn },
+    danger:  { bg: alpha(color.danger, 0.12),  fg: color.danger },
+  };
+  const t = tones[tone] || tones.navy;
+  return (
+    <button onClick={onClick} style={{
+      padding: '2px 10px', borderRadius: radius.pill || 999,
+      fontSize: font.size.xs, fontWeight: font.weight.semibold,
+      background: t.bg, color: t.fg, border: 'none', cursor: 'pointer',
+      fontFamily: font.family.mono,
+    }}
+    onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+    >{count}件</button>
+  );
+}
+
+function SectionListAnalysis({ setCurrentTab, setSelectedList, setCallFlowScreen }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [drill, setDrill] = useState(null); // { list, kind, kindLabel, rows, loading }
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchListAnalysisSummary().then(({ data }) => {
+      if (cancelled) return;
+      setRows(data);
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  // 商材×タイプでグループ化、停滞度高い順 (同じならアポ少ない順)
+  const groups = useMemo(() => {
+    const map = new Map();
+    for (const r of rows) {
+      const key = `${r.category_name || '—'}|${r.eng_type}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          key, category: r.category_name || '—',
+          eng_type: r.eng_type, eng_name: r.eng_name,
+          cat_order: r.cat_order || 999, rows: [],
+        });
+      }
+      map.get(key).rows.push(r);
+    }
+    const typeOrder = ['seller_sourcing', 'matching', 'client_acquisition'];
+    return Array.from(map.values())
+      .map(g => ({
+        ...g,
+        rows: g.rows.slice().sort((a, b) =>
+          (b.stagnation - a.stagnation) || (a.appo_count - b.appo_count)
+        ),
+      }))
+      .sort((a, b) =>
+        (a.cat_order - b.cat_order) ||
+        (typeOrder.indexOf(a.eng_type) - typeOrder.indexOf(b.eng_type))
+      );
+  }, [rows]);
+
+  const handleOpenList = useCallback((listId) => {
+    if (setCurrentTab) setCurrentTab('lists');
+    if (setSelectedList) setSelectedList(listId);
+  }, [setCurrentTab, setSelectedList]);
+
+  const handleOpenDrill = useCallback(async (row, kind, kindLabel) => {
+    setDrill({ list: row, kind, kindLabel, rows: [], loading: true });
+    const { data } = await fetchListDrillDown(row.list_id, kind);
+    setDrill(prev =>
+      prev && prev.list?.list_id === row.list_id && prev.kind === kind
+        ? { ...prev, rows: data, loading: false }
+        : prev
+    );
+  }, []);
+
+  const handleCallItem = useCallback((listId, itemId) => {
+    if (setCallFlowScreen) {
+      setCallFlowScreen({ listId, itemId });
+      setDrill(null);
+    }
+  }, [setCallFlowScreen]);
+
+  return (
+    <>
+      <Section title="リスト分析 ─ 既存リストでさらに伸ばす" hint="商材×タイプ別 停滞度ワースト10">
+        {loading ? (
+          <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>読み込み中…</div>
+        ) : groups.length === 0 ? (
+          <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>表示するアクティブリストがありません</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: space[4] }}>
+            {groups.map(g => (
+              <ListAnalysisGroup
+                key={g.key} group={g}
+                onOpenList={handleOpenList}
+                onOpenDrill={handleOpenDrill}
+              />
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <DrillDownDrawer drill={drill} onClose={() => setDrill(null)} onCallItem={handleCallItem} />
+    </>
+  );
+}
+
+function ListAnalysisGroup({ group, onOpenList, onOpenDrill }) {
+  const [expanded, setExpanded] = useState(false);
+  const top10 = group.rows.slice(0, 10);
+  const rest = group.rows.slice(10);
+  const visible = expanded ? group.rows : top10;
+  const hasStagnant = group.rows.some(r => r.stagnation > 0);
+
+  const th = { padding: '8px 10px', fontSize: font.size.xs, textAlign: 'left', fontWeight: font.weight.semibold, color: color.white };
+  const td = { padding: '8px 10px', fontSize: font.size.sm, borderTop: `1px solid ${color.border}` };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: space[2], marginBottom: space[2] }}>
+        <h3 style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy, margin: 0 }}>
+          {group.category} × {group.eng_name}
+        </h3>
+        <span style={{ fontSize: font.size.xs, color: color.textLight }}>
+          {group.rows.length}リスト{hasStagnant && '（停滞度高い順）'}
+        </span>
+      </div>
+      <div style={{ overflowX: 'auto', border: `1px solid ${color.border}`, borderRadius: radius.md }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+          <thead>
+            <tr style={{ background: color.navy }}>
+              <th style={th}>クライアント</th>
+              <th style={th}>リスト名</th>
+              <th style={{ ...th, textAlign: 'right' }}>社数</th>
+              <th style={{ ...th, textAlign: 'right' }}>架電進捗</th>
+              <th style={{ ...th, textAlign: 'right' }}>アポ数</th>
+              <th style={{ ...th, textAlign: 'center' }}>停滞度</th>
+              <th style={{ ...th, textAlign: 'center' }}>リスケ中</th>
+              <th style={{ ...th, textAlign: 'center' }}>キーマン<br />再コール</th>
+              <th style={{ ...th, textAlign: 'center' }}>キーマン断り<br />(高/中)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map(r => (
+              <tr key={r.list_id} style={{ background: r.stagnation >= 4 ? alpha(color.danger, 0.03) : color.white }}>
+                <td style={{ ...td, color: color.textMid, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {r.list_client || '—'}
+                </td>
+                <td style={td}>
+                  <button onClick={() => onOpenList(r.list_id)} style={{
+                    background: 'none', border: 'none', color: color.navy, cursor: 'pointer',
+                    padding: 0, fontSize: font.size.sm, fontFamily: font.family.sans,
+                    textDecoration: 'underline', textAlign: 'left',
+                  }}>{r.list_name || r.list_industry || '(無題)'}</button>
+                </td>
+                <td style={{ ...td, textAlign: 'right', fontFamily: font.family.mono, color: color.textMid }}>
+                  {Number(r.total_count || 0).toLocaleString()}
+                </td>
+                <td style={{ ...td, textAlign: 'right', fontFamily: font.family.mono, color: color.textDark }}>
+                  {Number(r.call_progress_pct || 0)}%
+                </td>
+                <td style={{ ...td, textAlign: 'right', fontFamily: font.family.mono, color: color.textDark, fontWeight: font.weight.semibold }}>
+                  {r.appo_count}
+                </td>
+                <td style={{ ...td, textAlign: 'center' }}>
+                  <StagnationBadge level={r.stagnation} />
+                </td>
+                <td style={{ ...td, textAlign: 'center' }}>
+                  <CountBadge count={r.rescheduling_count} tone="warn"
+                    onClick={() => onOpenDrill(r, 'rescheduling', 'リスケ中アポ')} />
+                </td>
+                <td style={{ ...td, textAlign: 'center' }}>
+                  <CountBadge count={r.keyman_recall_count} tone="navy"
+                    onClick={() => onOpenDrill(r, 'keyman_recall', 'キーマン再コール')} />
+                </td>
+                <td style={{ ...td, textAlign: 'center' }}>
+                  <CountBadge count={r.keyman_reject_high_med_count} tone="danger"
+                    onClick={() => onOpenDrill(r, 'keyman_reject_high_med', 'キーマン断り(温度感 高/中)')} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {rest.length > 0 && (
+        <button onClick={() => setExpanded(!expanded)} style={{
+          marginTop: space[2], padding: '6px 14px',
+          background: color.white, border: `1px solid ${color.border}`,
+          borderRadius: radius.md, fontSize: font.size.xs, color: color.textMid,
+          cursor: 'pointer', fontFamily: font.family.sans,
+        }}>{expanded ? `▲ 折りたたむ` : `▼ もっと見る (+${rest.length}件)`}</button>
+      )}
+    </div>
+  );
+}
+
+function DrillDownDrawer({ drill, onClose, onCallItem }) {
+  if (!drill) return null;
+  return (
+    <>
+      <div onClick={onClose} style={{
+        position: 'fixed', inset: 0, background: alpha(color.navyDeep || color.navy, 0.4),
+        zIndex: 9998,
+      }} />
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0,
+        width: 'min(560px, 90vw)', background: color.white,
+        boxShadow: '-4px 0 16px rgba(0,0,0,0.15)', zIndex: 9999,
+        display: 'flex', flexDirection: 'column',
+      }}>
+        <div style={{
+          padding: `${space[3]}px ${space[4]}px`, borderBottom: `1px solid ${color.border}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: color.navy, color: color.white,
+        }}>
+          <div>
+            <div style={{ fontSize: font.size.sm, opacity: 0.8 }}>{drill.list?.list_name}</div>
+            <div style={{ fontSize: font.size.md, fontWeight: font.weight.semibold, marginTop: 2 }}>
+              {drill.kindLabel}
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', color: color.white, fontSize: 24,
+            cursor: 'pointer', padding: 4,
+          }}>×</button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: space[3] }}>
+          {drill.loading ? (
+            <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>読み込み中…</div>
+          ) : drill.rows.length === 0 ? (
+            <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>該当先方がありません</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
+              {drill.rows.map((r, i) => (
+                <div key={`${r.item_id}_${i}`} style={{
+                  padding: space[3], border: `1px solid ${color.border}`,
+                  borderRadius: radius.md, background: color.white,
+                  display: 'flex', alignItems: 'flex-start', gap: space[3],
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark, marginBottom: 4 }}>
+                      {r.company || '—'}
+                    </div>
+                    {r.representative && (
+                      <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 2 }}>
+                        担当: {r.representative}
+                      </div>
+                    )}
+                    {r.phone && (
+                      <div style={{ fontSize: font.size.xs, color: color.textMid, fontFamily: font.family.mono, marginBottom: 2 }}>
+                        TEL: {r.phone}
+                      </div>
+                    )}
+                    {r.detail && (
+                      <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 4, lineHeight: 1.5 }}>
+                        {r.detail}
+                      </div>
+                    )}
+                  </div>
+                  {r.item_id && onCallItem && (
+                    <button onClick={() => onCallItem(drill.list.list_id, r.item_id)} style={{
+                      padding: '6px 14px', background: color.navy, color: color.white,
+                      border: 'none', borderRadius: radius.md, cursor: 'pointer',
+                      fontSize: font.size.xs, fontWeight: font.weight.semibold,
+                      fontFamily: font.family.sans, whiteSpace: 'nowrap',
+                    }}>架電</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 

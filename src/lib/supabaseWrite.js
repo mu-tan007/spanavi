@@ -4046,3 +4046,33 @@ export async function deletePayrollInvoice(memberId, payMonth) {
   if (error) console.error('[DB] deletePayrollInvoice error:', error)
   return { error }
 }
+
+// ============================================================
+// 事業俯瞰「リスト分析」セクション
+// ============================================================
+
+/** アクティブな全リストの進捗・停滞度・ドリルダウン件数を一括取得 */
+export async function fetchListAnalysisSummary() {
+  const orgId = getOrgId()
+  if (!orgId) return { data: [], error: null }
+  const { data, error } = await supabase.rpc('list_analysis_summary', { p_org_id: orgId })
+  if (error) console.error('[DB] fetchListAnalysisSummary error:', error)
+  return { data: data || [], error }
+}
+
+/**
+ * リスト × 状態 で該当企業の一覧を取得 (件数バッジクリック時のドリルダウン)
+ * @param {string} listId
+ * @param {'rescheduling'|'keyman_recall'|'keyman_reject_high_med'} kind
+ */
+export async function fetchListDrillDown(listId, kind) {
+  const orgId = getOrgId()
+  if (!orgId || !listId || !kind) return { data: [], error: null }
+  const { data, error } = await supabase.rpc('list_drill_down', {
+    p_org_id: orgId,
+    p_list_id: listId,
+    p_kind: kind,
+  })
+  if (error) console.error('[DB] fetchListDrillDown error:', error)
+  return { data: data || [], error }
+}
