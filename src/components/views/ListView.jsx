@@ -77,16 +77,22 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
     () => (allCategories || []).slice().sort((a, b) => (a.display_order || 0) - (b.display_order || 0)),
     [allCategories]
   );
-  // 営業代行系3業務種別（リスト作成時の選択肢）
+  // 営業代行系の業務種別（リスト作成時の選択肢）
+  // type は商材横断で共通 (seller_sourcing / matching / client_acquisition)、
+  // 商材別 slug (例: client_acquisition_saas) が違っても type 軸で扱う。
+  // 表示名は engagements.name を尊重（M&A=売り手ソーシング/買い手マッチング/クライアント開拓、
+  // SaaS/IFA/人材=リード獲得/クライアント開拓 など、DB側の登録名そのまま）。
   const salesAgencyEngagements = useMemo(() => {
     const order = ['seller_sourcing', 'matching', 'client_acquisition'];
-    const label = { seller_sourcing: '売り手ソーシング', matching: '買い手マッチング', client_acquisition: 'クライアント開拓' };
     return (allEngagements || [])
-      .filter(e => order.includes(e.slug))
-      .sort((a, b) => order.indexOf(a.slug) - order.indexOf(b.slug))
-      .map(e => ({ id: e.id, slug: e.slug, name: label[e.slug] || e.name, category_id: e.category_id }));
+      .filter(e => order.includes(e.type) && e.status === 'active')
+      .map(e => ({ id: e.id, slug: e.slug, type: e.type, name: e.name, category_id: e.category_id }))
+      .sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
   }, [allEngagements]);
-  const clientAcquisitionId = salesAgencyEngagements.find(e => e.slug === 'client_acquisition')?.id;
+  const clientAcquisitionIds = useMemo(
+    () => new Set(salesAgencyEngagements.filter(e => e.type === 'client_acquisition').map(e => e.id)),
+    [salesAgencyEngagements]
+  );
   // engagement.id → category 名 のマップ（一覧表示用）
   const engagementToCategoryName = useMemo(() => {
     const map = {};
@@ -194,7 +200,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
     if (!formData.company || !formData.industry || !formData.count) return;
     if (!formData.engagementId) { alert('タイプを選択してください'); return; }
     // クライアント開拓 engagement を選んだ場合は is_prospecting=true を自動付与
-    const derivedIsProspecting = formData.engagementId === clientAcquisitionId;
+    const derivedIsProspecting = clientAcquisitionIds.has(formData.engagementId);
     const dataToSave = { ...formData, isProspecting: derivedIsProspecting };
     if (editingListId !== null) {
       const target = callListData.find(l => l.id === editingListId);
@@ -498,7 +504,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                   });
                 })()}
               </div>
-              {formData.engagementId === clientAcquisitionId && (
+              {clientAcquisitionIds.has(formData.engagementId) && (
                 <span style={{ fontSize: font.size.xs, color: color.textLight }}>
                   （クライアント開拓は自動的に売上集計から除外され、インターン報酬のみ計上）
                 </span>
