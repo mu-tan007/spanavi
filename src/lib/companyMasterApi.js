@@ -33,6 +33,34 @@ function digitsOnly(phone) {
 }
 
 /**
+ * 住所の正規化。同一住所の表記揺れを吸収して比較できる形にする。
+ * 揺れの種類:
+ *   - 全角数字/英字 → 半角 (NFKC)
+ *   - 各種ダッシュ・カタカナ長音 (‐ – — ― ー ｰ −) → 半角ハイフン
+ *   - 郵便番号 (〒XXX-XXXX) の有無
+ *   - ビル名前の区切り (空白 / 「/」) の差異
+ *   - 全角/半角空白の有無
+ *   - 大文字小文字 (英字)
+ *
+ * 例:
+ *   入力: 「東京都立川市錦町3-5-22 YAZAWA DEUXビル5F」
+ *   DB側: 「東京都立川市錦町３-５-２２/ＹＡＺＡＷＡ ＤＥＵＸビル５Ｆ」
+ *   両方とも正規化後: 「東京都立川市錦町3-5-22yazawadeuxビル5f」 ← 一致
+ */
+function normalizeAddress(addr) {
+  if (!addr) return '';
+  return String(addr)
+    .normalize('NFKC')
+    .replace(/〒\s*\d{3}-?\d{4}\s*/g, '')   // 郵便番号除去
+    .replace(/[‐–—―ーｰ−]/g, '-')             // ダッシュ・長音 → 半角ハイフン
+    .replace(/\//g, '')                       // 「/」(ビル名区切り) 除去
+    .replace(/[、，,]/g, '')                   // カンマ除去
+    .replace(/\s+/g, '')                       // 空白(全角含む)除去
+    .toLowerCase()
+    .trim();
+}
+
+/**
  * 会社名 + 補助情報 (電話/代表者/住所) で company_master を 1 件特定する。
  *
  * 同名異会社のリスクがあるため、会社名で候補を全て取得した上で
@@ -41,7 +69,9 @@ function digitsOnly(phone) {
  * 絞り込み優先順位:
  *   (1) 会社名 + 電話番号完全一致 → 高信頼
  *   (2) 会社名 + 代表者名完全一致 → 高信頼
- *   (3) 会社名 + 都道府県一致 → 中信頼
+ *   (3) 会社名 + 住所完全一致 (正規化後) → 高信頼
+ *       ※ 同名異会社のリスクを避けるため、住所末尾までの完全一致を要求。
+ *         半角/全角・ダッシュ揺れは正規化で吸収する。
  *   (4) いずれも1件に絞れない → null (ambiguous)
  *
  * @param {Object} params
@@ -49,7 +79,7 @@ function digitsOnly(phone) {
  * @param {string} [params.representative] 代表者名
  * @param {string} [params.phone] 電話番号
  * @param {string} [params.address] 住所 (都道府県抽出に使用)
- * @returns {Promise<{ match: object|null, confidence: 'high'|'medium'|'ambiguous'|'no_match'|'no_input', candidates: number }>}
+ * @returns {Promise<{ match: object|null, confidence: 'high'|'ambiguous'|'no_match'|'no_input', candidates: number }>}
  */
 export async function fetchCompanyMasterByName({ company_name, representative, phone, address } = {}) {
   const normalized = normalizeCompanyNameForMaster(company_name);
@@ -83,13 +113,11 @@ export async function fetchCompanyMasterByName({ company_name, representative, p
     if (byRep.length === 1) return { match: byRep[0], confidence: 'high', candidates: candidates.length };
   }
 
-  // (3) 都道府県一致
-  // 入力 address から都道府県を抽出 (例: 「東京都新宿区...」「神奈川県横浜市...」)
-  const prefMatch = address ? String(address).match(/^(.{2,3}?(?:都|道|府|県))/) : null;
-  const inputPref = prefMatch?.[1] || null;
-  if (inputPref) {
-    const byPref = candidates.filter(c => c.prefecture === inputPref);
-    if (byPref.length === 1) return { match: byPref[0], confidence: 'medium', candidates: candidates.length };
+  // (3) 住所完全一致 (正規化後)。同名異会社誤マッチ防止のため都道府県一致では不十分。
+  const inputAddr = normalizeAddress(address);
+  if (inputAddr) {
+    const byAddr = candidates.filter(c => normalizeAddress(c.full_address) === inputAddr);
+    if (byAddr.length === 1) return { match: byAddr[0], confidence: 'high', candidates: candidates.length };
   }
 
   // 絞り込めず
