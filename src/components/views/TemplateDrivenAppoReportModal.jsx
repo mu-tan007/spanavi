@@ -10,7 +10,9 @@ import {
 } from '../../lib/supabaseWrite';
 import {
   resolveApplicableTemplates, renderBody, buildInitialFormValues, buildAiExtractionInstruction,
+  formatJpAmountFromThousand,
 } from '../../lib/templateRenderer';
+import { fetchCompanyMasterByName } from '../../lib/companyMasterApi';
 import { invokeGenerateCompanyDossier } from '../../lib/dossierApi';
 import { getOrgId } from '../../lib/orgContext';
 import { supabase } from '../../lib/supabase';
@@ -284,6 +286,35 @@ export default function TemplateDrivenAppoReportModal({
       .finally(() => { if (!cancelled) setHpLoadingKey(null); });
     return () => { cancelled = true; };
     // 既存値がある状態で form を依存に入れると無限ループするので template/company だけで発火
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template?.id, row?.company]);
+
+  // 売上高 / 当期純利益が架電リスト側で空のとき、自社 company_master (約49万社/TSR)
+  // から会社名で照合して自動補完する。M&A 等の報酬計算は財務値ベースなので必須情報。
+  useEffect(() => {
+    if (!template?.schema || !row?.company) return;
+    const salesField = template.schema.find(f => f.auto_fill === 'sales_thousand');
+    const netField = template.schema.find(f => f.auto_fill === 'net_income_thousand');
+    if (!salesField && !netField) return;
+    const needSales = salesField && !form[salesField.key] && (row.revenue == null);
+    const needNet = netField && !form[netField.key] && (row.net_income == null);
+    if (!needSales && !needNet) return;
+    let cancelled = false;
+    fetchCompanyMasterByName(row.company).then(master => {
+      if (cancelled || !master) return;
+      setForm(p => {
+        const next = { ...p };
+        if (needSales && master.revenue_k != null && !next[salesField.key]) {
+          next[salesField.key] = formatJpAmountFromThousand(master.revenue_k);
+        }
+        if (needNet && master.net_income_k != null && !next[netField.key]) {
+          next[netField.key] = formatJpAmountFromThousand(master.net_income_k);
+        }
+        return next;
+      });
+    }).catch(() => {});
+    return () => { cancelled = true; };
+    // form を依存に入れると無限ループ。template/company の変化のみで発火する。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template?.id, row?.company]);
 

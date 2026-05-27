@@ -1,5 +1,48 @@
 import { supabase } from './supabase';
 
+/**
+ * 会社名を company_master.normalized_name と照合するための正規化。
+ * DB側で「株式会社／(株)／（株）等の法人格を除去 + NFKC + 小文字化」した値で保持されている前提
+ * (例: 「株式会社ＣＡＧＬＡ」→「cagla」、「リング株式会社」→「リング」)。
+ */
+export function normalizeCompanyNameForMaster(name) {
+  if (!name) return '';
+  return String(name)
+    .normalize('NFKC')
+    .replace(/株式会社|有限会社|合同会社|合資会社/g, '')
+    .replace(/[（(](?:株|有|合)[)）]/g, '')
+    .replace(/\s+/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * 会社名から company_master を 1 件引き当てる。
+ * アポ報告画面で売上・純利益が空のとき、自社 49 万社 DB から自動補完する用途。
+ * 完全一致 (正規化後) のみ。複数候補は最初の 1 件を返す。
+ * 見つからなければ null。
+ *
+ * @param {string} companyName
+ * @returns {Promise<{revenue_k:number|null, net_income_k:number|null, phone:string|null,
+ *                    business_description:string|null, full_address:string|null,
+ *                    representative:string|null, employee_count:number|null,
+ *                    company_name:string, normalized_name:string}|null>}
+ */
+export async function fetchCompanyMasterByName(companyName) {
+  const normalized = normalizeCompanyNameForMaster(companyName);
+  if (!normalized) return null;
+  const { data, error } = await supabase
+    .from('company_master')
+    .select('company_name, normalized_name, revenue_k, net_income_k, phone, business_description, full_address, representative, employee_count')
+    .eq('normalized_name', normalized)
+    .limit(1);
+  if (error) {
+    console.warn('[companyMaster] lookup error:', error);
+    return null;
+  }
+  return data?.[0] || null;
+}
+
 /** カテゴリマスタ取得（キャッシュ用） */
 let _categoryCache = null;
 export async function fetchCategories() {
