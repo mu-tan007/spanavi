@@ -520,8 +520,10 @@ function SectionListAnalysis({ setCallFlowScreen, callListData = [] }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [drill, setDrill] = useState(null);
-  // スマートキューと同じ「キュー連続架電」を使う
-  const { openQueue } = useCallQueue({ setCallFlowScreen, callListData });
+  // スマートキューと同じ「キュー連続架電」を使う。
+  // suppressChecks=true で「アポ獲得/除外スキップ」「再コール警告」「他人架電警告」を全 off にする。
+  // (リスト分析からの架電は『キーマン再コール/断り状態を承知の上で意図的に再アプローチ』する経路のため)
+  const { openQueue } = useCallQueue({ setCallFlowScreen, callListData, suppressChecks: true });
   // 商材×タイプセレクタ (デフォルトはデータ取得後に初回グループへ自動セット)
   const [selectedKey, setSelectedKey] = useState(null);
   // ソート方向: 'worst' = 停滞度高い順, 'best' = 停滞度低い順 (= 健全順)
@@ -699,6 +701,7 @@ function ListAnalysisTable({ group, sortDir, onOpenDrill }) {
               <th style={{ ...th, textAlign: 'center' }}>架電進捗</th>
               <th style={{ ...th, textAlign: 'right' }}>アポ数</th>
               <th style={{ ...th, textAlign: 'center' }}>停滞度</th>
+              <th style={{ ...th, textAlign: 'right' }}>最終<br />アポから</th>
               <th style={{ ...th, textAlign: 'right' }}>最終<br />架電から</th>
               <th style={{ ...th, textAlign: 'center' }}>リスケ中</th>
               <th style={{ ...th, textAlign: 'center' }}>キーマン<br />再コール</th>
@@ -725,6 +728,10 @@ function ListAnalysisTable({ group, sortDir, onOpenDrill }) {
                 </td>
                 <td style={{ ...td, textAlign: 'center' }}>
                   <StagnationBadge level={r.stagnation} />
+                </td>
+                <td style={{ ...td, textAlign: 'right', fontFamily: font.family.mono,
+                  color: r.days_since_last_appo != null && r.days_since_last_appo > 30 ? color.danger : color.textMid }}>
+                  {r.days_since_last_appo != null ? `${r.days_since_last_appo}日` : '—'}
                 </td>
                 <td style={{ ...td, textAlign: 'right', fontFamily: font.family.mono,
                   color: r.days_since_last_call != null && r.days_since_last_call > 30 ? color.danger : color.textMid }}>

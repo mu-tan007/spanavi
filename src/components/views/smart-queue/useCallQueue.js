@@ -41,7 +41,9 @@ async function checkItem(itemId) {
   return data || null;
 }
 
-export function useCallQueue({ setCallFlowScreen, callListData }) {
+export function useCallQueue({ setCallFlowScreen, callListData, suppressChecks = false }) {
+  // suppressChecks: 「アポ獲得/除外で自動スキップ」「再コール状態で警告」「他人架電で警告」を全部off。
+  // 事業俯瞰のリスト分析からの架電など、状態を承知の上で意図的に再アプローチする経路向け。
   const queueRef = useRef({ items: [], idx: 0 });
 
   const resolveFullList = useCallback((listId) => {
@@ -62,8 +64,8 @@ export function useCallQueue({ setCallFlowScreen, callListData }) {
     // 進捗を永続化（ハードリロードでも再開可能に）
     saveQueue(q.items, q.idx);
 
-    // DB 直接チェック
-    const check = await checkItem(cur.item_id);
+    // DB 直接チェック (suppressChecks=true なら全部スキップ)
+    const check = suppressChecks ? null : await checkItem(cur.item_id);
     if (check) {
       // アポ獲得 / 除外 は自動スキップ
       if (SKIP_STATUSES.includes(check.latest_status)) {
@@ -135,7 +137,7 @@ export function useCallQueue({ setCallFlowScreen, callListData }) {
         else finishQueue();
       },
     });
-  }, [setCallFlowScreen, resolveFullList, finishQueue]);
+  }, [setCallFlowScreen, resolveFullList, finishQueue, suppressChecks]);
 
   const openQueue = useCallback((rows, startIdx = 0) => {
     const items = (rows || []).filter(r => r && r.item_id && r.list_id);
