@@ -1,36 +1,69 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 /**
- * IME 日本語入力中の中間文字確定を抑制するヘルパー。
+ * IME 日本語入力中に input value を外部 state に同期しないためのフック。
  *
  * 使用例:
  *   const [q, setQ] = useUrlState('apo_q', '');
- *   <input value={q} {...useImeSafe(setQ)} />
+ *   const ime = useImeSafeInput(q, setQ);
+ *   <input {...ime} placeholder="..." />
+ *
+ * 何が問題か:
+ *   <input value={外部state} onChange={...} /> の形で外部 state を毎打鍵で更新すると、
+ *   IME 変換中の中間文字もstateに反映 → React が input value を書き換え → IME が破棄され
+ *   「黒田」と打つと「kくくrくろくろdくろだ」のように壊れる、または何も入らなくなる。
  *
  * 仕組み:
- *   - compositionstart で IME 変換中フラグを立てる
- *   - その間 onChange を握りつぶす（外部 setter を呼ばない）
- *   - compositionend で確定値を一度だけ反映
+ *   - input value は内部 local state で管理 (IME を邪魔しない)
+ *   - IME 確定 (compositionend) or 非IME入力時に親に通知
+ *   - 外部 value が変わったら local も追従 (ただし IME中は除く)
  *
- * これがないと、useUrlState などの外部 state に変換中の中間文字が反映され、
- * input が再描画されて IME がリセットされ「kくくrくろくろdくろだ」のように壊れる。
- *
- * @param {(value: string) => void} onChange - 確定値を受け取る setter
- * @returns {{ onChange, onCompositionStart, onCompositionEnd }} input に spread する props
+ * @param {string} value - 親から渡される現在値
+ * @param {(value: string) => void} onChangeValue - 確定値を親に通知する setter
+ * @returns input に spread する props { value, onChange, onCompositionStart, onCompositionEnd }
  */
-export function useImeSafe(onChange) {
-  const [composing, setComposing] = useState(false);
+export function useImeSafeInput(value, onChangeValue) {
+  const [local, setLocal] = useState(value ?? '');
+  const composingRef = useRef(false);
+
+  // 親 value が変わった時 local を追従 (IME中以外)。
+  useEffect(() => {
+    if (!composingRef.current) setLocal(value ?? '');
+  }, [value]);
+
   const handleChange = useCallback((e) => {
-    if (!composing) onChange(e.target.value);
-  }, [composing, onChange]);
-  const handleCompositionStart = useCallback(() => setComposing(true), []);
+    const v = e.target.value;
+    setLocal(v);
+    // 非IME入力 (英字直接入力、ペースト、Backspace等) は即座に親に通知。
+    // IME中は親通知をスキップして、compositionend でまとめて通知する。
+    if (!composingRef.current) onChangeValue(v);
+  }, [onChangeValue]);
+
+  const handleCompositionStart = useCallback(() => {
+    composingRef.current = true;
+  }, []);
+
   const handleCompositionEnd = useCallback((e) => {
-    setComposing(false);
-    onChange(e.target.value);
-  }, [onChange]);
+    composingRef.current = false;
+    const v = e.target.value;
+    setLocal(v);
+    onChangeValue(v);
+  }, [onChangeValue]);
+
   return {
+    value: local,
     onChange: handleChange,
     onCompositionStart: handleCompositionStart,
     onCompositionEnd: handleCompositionEnd,
+  };
+}
+
+// 後方互換: 旧 useImeSafe(setter) シグネチャ。新規利用は useImeSafeInput を推奨。
+export function useImeSafe(setter) {
+  const composingRef = useRef(false);
+  return {
+    onChange: (e) => { if (!composingRef.current) setter(e.target.value); },
+    onCompositionStart: () => { composingRef.current = true; },
+    onCompositionEnd: (e) => { composingRef.current = false; setter(e.target.value); },
   };
 }

@@ -1,4 +1,4 @@
-import React, { useState, forwardRef } from 'react';
+import React, { useState, useEffect, useRef, forwardRef } from 'react';
 import { color, radius, font, transition, shadow } from '../../constants/design';
 
 /**
@@ -32,10 +32,14 @@ const Input = forwardRef(function Input({
   ...rest
 }, ref) {
   const [focused, setFocused] = useState(false);
-  // IME 日本語入力中フラグ。compositionstart〜end の間、外部 onChange を握りつぶす。
-  // これがないと useUrlState 等が中間文字を反映して input が再描画され、変換が壊れる
-  // (例:「黒田」と打つと「kくくrくろくろdくろだ」になる事故)。
-  const [composing, setComposing] = useState(false);
+  // IME 日本語入力中は input value を内部 state で持ち、外部 (useUrlState 等) の
+  // 書き戻しで input が再描画されて変換が壊れるのを防ぐ。
+  // (例:「黒田」と打つと「kくくrくろくろdくろだ」になる、または何も入らなくなる事故)。
+  const composingRef = useRef(false);
+  const [localValue, setLocalValue] = useState(rest.value ?? '');
+  useEffect(() => {
+    if (!composingRef.current) setLocalValue(rest.value ?? '');
+  }, [rest.value]);
   const s = SIZE[size] || SIZE.md;
 
   const borderClr = error
@@ -87,11 +91,20 @@ const Input = forwardRef(function Input({
             ...style,
           }}
           {...rest}
+          value={localValue}
           onFocus={e => { setFocused(true); rest.onFocus?.(e); }}
           onBlur={e => { setFocused(false); rest.onBlur?.(e); }}
-          onChange={e => { if (!composing) rest.onChange?.(e); }}
-          onCompositionStart={e => { setComposing(true); rest.onCompositionStart?.(e); }}
-          onCompositionEnd={e => { setComposing(false); rest.onChange?.(e); rest.onCompositionEnd?.(e); }}
+          onChange={e => {
+            setLocalValue(e.target.value);
+            if (!composingRef.current) rest.onChange?.(e);
+          }}
+          onCompositionStart={e => { composingRef.current = true; rest.onCompositionStart?.(e); }}
+          onCompositionEnd={e => {
+            composingRef.current = false;
+            setLocalValue(e.target.value);
+            rest.onChange?.(e);
+            rest.onCompositionEnd?.(e);
+          }}
         />
         {iconRight && <span style={{ paddingRight: s.padX, color: color.textMid, display: 'inline-flex' }}>{iconRight}</span>}
       </div>
