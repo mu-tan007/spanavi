@@ -264,6 +264,29 @@ export default function TemplateDrivenAppoReportModal({
     }
   };
 
+  // テンプレ切替時 / 画面オープン時、auto_fetch='homepage_url' のフィールドが
+  // 空なら裏で自動取得。アポインターが HP取得ボタンを押し忘れても URL が入る。
+  useEffect(() => {
+    if (!template?.schema || !row?.company) return;
+    const hpField = template.schema.find(f => f.auto_fetch === 'homepage_url');
+    if (!hpField) return;
+    if (form[hpField.key]) return;
+    let cancelled = false;
+    setHpLoadingKey(hpField.key);
+    invokeLookupCompanyHomepage({
+      company_name: row.company,
+      address: row.address || '',
+      representative: row.representative || '',
+    }).then(({ url }) => {
+      if (cancelled || !url) return;
+      setForm(p => (p[hpField.key] ? p : { ...p, [hpField.key]: url }));
+    }).catch(() => {})
+      .finally(() => { if (!cancelled) setHpLoadingKey(null); });
+    return () => { cancelled = true; };
+    // 既存値がある状態で form を依存に入れると無限ループするので template/company だけで発火
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template?.id, row?.company]);
+
   // 保存
   const [saving, setSaving] = useState(false);
   const handleSave = async () => {

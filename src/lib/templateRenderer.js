@@ -79,6 +79,9 @@ export function buildInitialFormValues(template, ctx) {
     return clientContacts.find(c => list_contact_ids.includes(c.id)) || null;
   })();
 
+  // JST 今日 (YYYY-MM-DD)
+  const todayJst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
   const result = {};
   for (const field of template.schema) {
     let v = '';
@@ -97,6 +100,7 @@ export function buildInitialFormValues(template, ctx) {
         case 'url':                  v = row.url || ''; break;
         case 'sales_thousand':       v = formatJpAmountFromThousand(row.revenue); break;
         case 'net_income_thousand':  v = formatJpAmountFromThousand(row.net_income); break;
+        case 'today':                v = todayJst; break;
         default: v = '';
       }
     }
