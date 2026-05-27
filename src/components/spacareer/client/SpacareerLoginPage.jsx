@@ -51,6 +51,11 @@ export default function SpacareerLoginPage() {
     }
 
     setSubmitting(false);
+    // 別アカウントでログインしていた残骸の profile キャッシュを破棄してからハードロード。
+    // (残ったままだと AuthProvider が cachedProfile で loading=false 即時化し、
+    //  getSession() 解決前に SpacareerClientApp の auth gate が session=null と誤判定して
+    //  /spacareer/login にループバックする)
+    try { sessionStorage.removeItem('_sp_profile'); } catch {}
     window.location.href = '/spacareer';
   };
 
