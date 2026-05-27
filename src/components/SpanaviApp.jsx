@@ -283,12 +283,16 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   useEffect(() => {
     try {
       if (callFlowScreen) {
-        // スマートキュー経由（useCallQueue）で開いた場合、 defaultItemId / defaultListMode も
-        // 保存しておかないと ハードリロード後に「企業未選択 + 中央が空」状態になる。
-        // ※ クロージャー関数（onQueuePrev 等）と singleItemMode はリロード後に意味を持たない
-        //   ため保存しない（通常の listMode/全件ロード経路で復元する）
+        // 防御: list._supaId が無い壊れた state は永続化しない。
+        // (callFlowScreen を { list, ... } 形式で渡さない経路があると壊れた値が保存され、
+        //  リロード後もブラックアウトし続ける事故が起きるため)
+        const lid = callFlowScreen.list?._supaId;
+        if (!lid) {
+          console.warn('[callFlowScreen] list._supaId 欠落のため localStorage 保存をスキップ', callFlowScreen);
+          return;
+        }
         localStorage.setItem("masp_v2_callFlowScreen", JSON.stringify({
-          listSupaId: callFlowScreen.list?._supaId,
+          listSupaId: lid,
           startNo: callFlowScreen.startNo ?? null,
           endNo: callFlowScreen.endNo ?? null,
           defaultItemId: callFlowScreen.defaultItemId ?? null,

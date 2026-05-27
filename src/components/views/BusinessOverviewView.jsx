@@ -455,7 +455,7 @@ export default function BusinessOverviewView({
         <SectionF stats={stats} previousStats={previousStats} />
 
         {/* C. リスト分析 */}
-        <SectionListAnalysis setCallFlowScreen={setCallFlowScreen} />
+        <SectionListAnalysis setCallFlowScreen={setCallFlowScreen} callListData={callListData} />
 
         {/* D/H プレースホルダ (Phase γ/δ) */}
         <Section title="他セクション (Phase γ/δ で実装予定)" hint="見込み先プール・アポインター稼働">
@@ -515,7 +515,7 @@ function CountBadge({ count, onClick, tone = 'navy' }) {
   );
 }
 
-function SectionListAnalysis({ setCallFlowScreen }) {
+function SectionListAnalysis({ setCallFlowScreen, callListData = [] }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [drill, setDrill] = useState(null);
@@ -601,11 +601,20 @@ function SectionListAnalysis({ setCallFlowScreen }) {
   }, []);
 
   const handleCallItem = useCallback((listId, itemId) => {
-    if (setCallFlowScreen) {
-      setCallFlowScreen({ listId, itemId });
-      setDrill(null);
-    }
-  }, [setCallFlowScreen]);
+    if (!setCallFlowScreen) return;
+    // 他経路 (AppoListView 等) と同じ形式で渡す。
+    // list プロパティを欠かすと SpanaviApp の localStorage 永続化で壊れた状態が
+    // 保存され、リロード後もブラックアウトし続ける事故になる。
+    const list = (callListData || []).find(l => l._supaId === listId || l.id === listId)
+                 || { _supaId: listId, id: listId, company: '' };
+    setCallFlowScreen({
+      list,
+      defaultItemId: itemId,
+      defaultListMode: false,
+      singleItemMode: true,
+    });
+    setDrill(null);
+  }, [setCallFlowScreen, callListData]);
 
   // pillスタイル
   const pillStyle = (active) => ({
