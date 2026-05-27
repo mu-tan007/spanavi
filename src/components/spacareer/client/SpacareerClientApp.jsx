@@ -61,10 +61,9 @@ export default function SpacareerClientApp() {
     window.location.href = '/spacareer/login';
   };
 
-  const currentUser = {
-    name: profile?.name || '受講生',
-    email: profile?.email,
-  };
+  // SidebarShell は currentUser を文字列（表示名）として描画するため、
+  // オブジェクトを渡すと React error #31 になる。
+  const currentUser = profile?.name || '受講生';
 
   // 認証ゲート: ログインしていなければスパキャリ専用ログインへ
   if (!loading && !session) {
