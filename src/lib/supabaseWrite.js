@@ -4060,6 +4060,19 @@ export async function fetchListAnalysisSummary() {
   return { data: data || [], error }
 }
 
+/** 事業俯瞰リスト分析の ToDo メモを保存 (リスト単位の Next Action) */
+export async function updateListTodoMemo(listId, todoMemo) {
+  const orgId = getOrgId()
+  if (!orgId || !listId) return { error: new Error('missing args') }
+  const { error } = await supabase
+    .from('call_lists')
+    .update({ todo_memo: todoMemo || '' })
+    .eq('id', listId)
+    .eq('org_id', orgId)
+  if (error) console.error('[DB] updateListTodoMemo error:', error)
+  return { error }
+}
+
 /**
  * リスト × 状態 で該当企業の一覧を取得 (件数バッジクリック時のドリルダウン)
  * @param {string} listId

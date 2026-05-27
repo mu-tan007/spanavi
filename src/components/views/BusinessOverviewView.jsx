@@ -9,8 +9,9 @@ import { getOrgId } from '../../lib/orgContext';
 import {
   fetchClientMonthlyTargets,
   fetchEngagementMonthlyTargets, upsertEngagementMonthlyTarget,
-  fetchListAnalysisSummary, fetchListDrillDown,
+  fetchListAnalysisSummary, fetchListDrillDown, updateListTodoMemo,
 } from '../../lib/supabaseWrite';
+import { useImeSafeInput } from '../../lib/useImeSafe';
 
 const COUNTABLE_STATUSES = new Set(['面談済', '事前確認済', 'アポ取得']);
 const SELF_CLIENT_NAME = 'M&Aソーシングパートナーズ株式会社';
@@ -706,6 +707,7 @@ function ListAnalysisTable({ group, sortDir, onOpenDrill }) {
               <th style={{ ...th, textAlign: 'center' }}>リスケ中</th>
               <th style={{ ...th, textAlign: 'center' }}>キーマン<br />再コール</th>
               <th style={{ ...th, textAlign: 'center' }}>キーマン断り<br />(高/中)</th>
+              <th style={{ ...th, textAlign: 'left', minWidth: 220 }}>ToDo</th>
             </tr>
           </thead>
           <tbody>
@@ -749,6 +751,9 @@ function ListAnalysisTable({ group, sortDir, onOpenDrill }) {
                   <CountBadge count={r.keyman_reject_high_med_count} tone="danger"
                     onClick={() => onOpenDrill(r, 'keyman_reject_high_med', 'キーマン断り(温度感 高/中)')} />
                 </td>
+                <td style={{ ...td, padding: '4px 8px' }}>
+                  <TodoMemoCell listId={r.list_id} initialValue={r.todo_memo || ''} />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -763,6 +768,46 @@ function ListAnalysisTable({ group, sortDir, onOpenDrill }) {
         }}>{expanded ? `▲ 折りたたむ` : `▼ もっと見る (+${rest.length}件)`}</button>
       )}
     </div>
+  );
+}
+
+// ToDo メモセル: blur 時に自動保存。IME safe (compositionendまで保存しない)。
+function TodoMemoCell({ listId, initialValue }) {
+  const [value, setValue] = useState(initialValue || '');
+  const [savedValue, setSavedValue] = useState(initialValue || '');
+  const [saving, setSaving] = useState(false);
+  // 親が initialValue を更新したら追従 (再fetch時)
+  useEffect(() => {
+    setValue(initialValue || '');
+    setSavedValue(initialValue || '');
+  }, [initialValue]);
+  const ime = useImeSafeInput(value, setValue);
+  const handleBlur = async () => {
+    if (value === savedValue) return;
+    setSaving(true);
+    const { error } = await updateListTodoMemo(listId, value);
+    setSaving(false);
+    if (!error) setSavedValue(value);
+  };
+  return (
+    <textarea
+      value={ime.value}
+      onChange={ime.onChange}
+      onCompositionStart={ime.onCompositionStart}
+      onCompositionEnd={ime.onCompositionEnd}
+      onBlur={handleBlur}
+      placeholder="Next Action を入力..."
+      rows={2}
+      style={{
+        width: '100%', minWidth: 200, minHeight: 38,
+        padding: '4px 8px',
+        border: `1px solid ${saving ? color.warn : color.border}`,
+        borderRadius: radius.sm,
+        fontSize: font.size.xs, fontFamily: font.family.sans,
+        color: color.textDark, background: saving ? alpha(color.warn, 0.04) : color.white,
+        resize: 'vertical', outline: 'none',
+      }}
+    />
   );
 }
 
