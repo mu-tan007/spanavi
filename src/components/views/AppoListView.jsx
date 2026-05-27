@@ -13,6 +13,7 @@ import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
+import { useImeSafe } from '../../lib/useImeSafe';
 import PageHeader from '../common/PageHeader';
 import { useUrlState } from '../../hooks/useUrlState';
 import { useSearchParams } from 'react-router-dom';
@@ -1268,7 +1269,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           <span style={{ fontSize: font.size.xs, color: color.textLight }}>{filtered.length}件</span>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="企業名・クライアント・取得者..."
+          <input value={search} {...useImeSafe(setSearch)} placeholder="企業名・クライアント・取得者..."
             style={{ padding: "6px 12px", borderRadius: radius.lg, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: "none", width: 200 }} />
           {/* 月 / 期間指定 */}
           <div style={{ display: "flex", gap: 3, alignItems: "center" }}>

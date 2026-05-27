@@ -32,6 +32,10 @@ const Input = forwardRef(function Input({
   ...rest
 }, ref) {
   const [focused, setFocused] = useState(false);
+  // IME 日本語入力中フラグ。compositionstart〜end の間、外部 onChange を握りつぶす。
+  // これがないと useUrlState 等が中間文字を反映して input が再描画され、変換が壊れる
+  // (例:「黒田」と打つと「kくくrくろくろdくろだ」になる事故)。
+  const [composing, setComposing] = useState(false);
   const s = SIZE[size] || SIZE.md;
 
   const borderClr = error
@@ -82,9 +86,12 @@ const Input = forwardRef(function Input({
             width: '100%',
             ...style,
           }}
+          {...rest}
           onFocus={e => { setFocused(true); rest.onFocus?.(e); }}
           onBlur={e => { setFocused(false); rest.onBlur?.(e); }}
-          {...rest}
+          onChange={e => { if (!composing) rest.onChange?.(e); }}
+          onCompositionStart={e => { setComposing(true); rest.onCompositionStart?.(e); }}
+          onCompositionEnd={e => { setComposing(false); rest.onChange?.(e); rest.onCompositionEnd?.(e); }}
         />
         {iconRight && <span style={{ paddingRight: s.padX, color: color.textMid, display: 'inline-flex' }}>{iconRight}</span>}
       </div>
