@@ -745,12 +745,15 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
             ));
           })()}
         </div>}
-        {/* アーカイブ済みリスト */}
-        {(displayFilter === 'archived' || displayFilter === 'all') && (() => {
-          const archivedLists = callListData.filter(l => l.is_archived);
+        {/* アーカイブ済みリスト (商材/タイプ フィルタを適用) */}
+        {displayFilter === 'archived' && (() => {
+          let archivedLists = callListData.filter(l => l.is_archived);
+          if (categoryFilter !== 'all') {
+            archivedLists = archivedLists.filter(l => engagementToCategoryId[l.engagement_id] === categoryFilter);
+          }
           if (archivedLists.length === 0) return <div style={{ padding: "24px 16px", textAlign: "center", fontSize: font.size.sm, color: color.textLight }}>— No records —</div>;
           return (
-            <div style={{ borderTop: displayFilter === 'all' ? `1px solid ${color.border}` : "none", overflowX: "auto", overflowY: "hidden" }}>
+            <div style={{ overflowX: "auto", overflowY: "hidden" }}>
               <div style={{ minWidth: arMinW }}>
               {archivedLists.map(list => (
                 <div key={list.id} style={{
