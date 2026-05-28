@@ -15,7 +15,6 @@ const GOLD = '#B8860B';
 const FILTERS = [
   { id: 'all', label: '全て' },
   { id: 'apo', label: 'アポ' },
-  { id: 'memo', label: 'メモ' },
   { id: 'call', label: '架電' },
 ];
 
@@ -113,35 +112,7 @@ export default function ActivityTimeline({ clientSupaId, contactsByClient = {} }
         console.warn('[ActivityTimeline] appointments fetch failed', e);
       }
 
-      // 2) contact_memo_events（このクライアントの担当者宛て）
-      if (myContactIds.length > 0) {
-        try {
-          const { data: memos } = await supabase
-            .from('contact_memo_events')
-            .select('id, contact_id, body_md, source, author_name, created_at')
-            .eq('org_id', orgId)
-            .in('contact_id', myContactIds)
-            .order('created_at', { ascending: false })
-            .limit(500);
-          (memos || []).forEach(m => {
-            const isVoice = m.source === 'voice_ai' || m.source === 'voice_raw';
-            const ctMeta = contactNameById[m.contact_id];
-            acc.push({
-              id: `memo-${m.id}`,
-              kind: isVoice ? 'memo_voice' : 'memo',
-              ts: m.created_at,
-              title: ctMeta ? `${ctMeta.name} のメモ` : 'メモ',
-              actor: m.author_name || '',
-              target: '',
-              body: m.body_md || '',
-            });
-          });
-        } catch (e) {
-          console.warn('[ActivityTimeline] memos fetch failed', e);
-        }
-      }
-
-      // 3) call_records は当面省略（量が多いため Phase 6 以降で集計表示）
+      // 2) call_records は当面省略（量が多いため Phase 6 以降で集計表示）
 
       // ソート
       acc.sort((a, b) => {
@@ -162,7 +133,6 @@ export default function ActivityTimeline({ clientSupaId, contactsByClient = {} }
 
   const filteredEvents = useMemo(() => {
     if (filter === 'all') return events;
-    if (filter === 'memo') return events.filter(e => e.kind === 'memo' || e.kind === 'memo_voice');
     return events.filter(e => e.kind === filter);
   }, [events, filter]);
 

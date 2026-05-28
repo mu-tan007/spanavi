@@ -10,6 +10,42 @@ import { useImeSafeInput } from '../../../lib/useImeSafe';
 const ANALYZING_PREFIX = '[AI解析中';
 const ERROR_PREFIX = '[AI解析エラー';
 
+// 全クライアントにデフォルトで用意する3枠（実DBに無ければ仮想カードで表示し、
+// 編集された時点でINSERTして実レコードに昇格する）
+const DEFAULT_TITLES = ['初回面談', 'キックオフミーティング', '定期MTG'];
+const TITLE_ALIASES = {
+  '初回面談':           ['初回面談', '初回'],
+  'キックオフミーティング': ['キックオフミーティング', 'キックオフMTG', 'キックオフ', 'KO'],
+  '定期MTG':            ['定期MTG', '定例MTG', '定例ミーティング', '定例会議', '定期', '定例'],
+};
+function matchDefaultCategory(title) {
+  const t = (title || '').trim();
+  if (!t) return null;
+  for (const [cat, aliases] of Object.entries(TITLE_ALIASES)) {
+    if (aliases.some(a => t.includes(a))) return cat;
+  }
+  return null;
+}
+function mergeWithDefaults(list) {
+  const tagged = (list || []).map(r => ({ ...r, _cat: matchDefaultCategory(r.title) }));
+  const present = new Set(tagged.map(r => r._cat).filter(Boolean));
+  const virtuals = DEFAULT_TITLES
+    .filter(t => !present.has(t))
+    .map(t => ({
+      id: `virtual:${t}`, virtual: true, title: t, meeting_at: null,
+      summary: '', next_action: '', recording_url: '', transcript: '',
+      _cat: t,
+    }));
+  // デフォルト3枠は固定順、それ以外は新しい順
+  const defaults = DEFAULT_TITLES.map(cat =>
+    tagged.find(r => r._cat === cat) || virtuals.find(v => v._cat === cat)
+  ).filter(Boolean);
+  const others = tagged
+    .filter(r => !r._cat)
+    .sort((a, b) => new Date(b.meeting_at || 0) - new Date(a.meeting_at || 0));
+  return [...defaults, ...others];
+}
+
 // 「2026-06-05」形式 → ISOタイムスタンプ (00:00 JST)
 function dateInputToIso(s) {
   if (!s) return new Date().toISOString();
@@ -26,15 +62,28 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
 
-  // 一覧取得
+  // 一覧取得 (仮想カード3枠を補完)
   const reload = useCallback(async () => {
     if (!clientId) return;
     const { data } = await fetchClientMeetings(clientId);
-    setRows(data || []);
+    setRows(mergeWithDefaults(data));
     setLoading(false);
   }, [clientId]);
 
   useEffect(() => { reload(); }, [reload]);
+
+  // 仮想カード → 実DBレコードに昇格
+  const materializeVirtual = useCallback(async (virtualMeeting, initialPatch = {}) => {
+    const { data, error } = await insertClientMeeting({
+      clientId,
+      title: initialPatch.title || virtualMeeting.title,
+      meetingAt: initialPatch.meetingAt || new Date().toISOString(),
+      createdBy: currentUser,
+    });
+    if (error) { alert('追加に失敗: ' + error.message); return null; }
+    setRows(prev => prev.map(r => (r.id === virtualMeeting.id) ? { ...data, _cat: virtualMeeting._cat } : r));
+    return data;
+  }, [clientId, currentUser]);
 
   const handleAdd = async () => {
     if (adding) return;
@@ -44,7 +93,7 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
     });
     setAdding(false);
     if (error) { alert('追加に失敗: ' + error.message); return; }
-    setRows(prev => [data, ...prev]);
+    setRows(prev => [...prev, { ...data, _cat: null }]);
   };
 
   if (!clientId) return null;
@@ -52,7 +101,7 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[2] }}>
         <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy, letterSpacing: 0.5 }}>
-          面談・議事録 ({rows.length})
+          面談・議事録 ({rows.filter(r => !r.virtual).length})
         </div>
         <button onClick={handleAdd} disabled={adding} style={{
           padding: '6px 14px', background: color.navy, color: color.white,
@@ -66,17 +115,13 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
 
       {loading ? (
         <div style={{ fontSize: font.size.xs, color: color.textMid, padding: space[2] }}>読み込み中…</div>
-      ) : rows.length === 0 ? (
-        <div style={{ fontSize: font.size.xs, color: color.textLight, padding: `${space[2]}px ${space[3]}px`, textAlign: 'center',
-          background: color.gray50, borderRadius: radius.sm, border: `1px dashed ${color.border}` }}>
-          面談記録なし — 「+ 新規面談を追加」で作成
-        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
           {rows.map(m => (
             <MeetingCard
               key={m.id} meeting={m} clientId={clientId}
-              onChange={(updated) => setRows(prev => prev.map(x => x.id === updated.id ? updated : x))}
+              onMaterialize={materializeVirtual}
+              onChange={(updated) => setRows(prev => prev.map(x => x.id === updated.id ? { ...updated, _cat: x._cat } : x))}
               onDelete={() => setRows(prev => prev.filter(x => x.id !== m.id))}
             />
           ))}
@@ -86,7 +131,8 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
   );
 }
 
-function MeetingCard({ meeting, clientId, onChange, onDelete }) {
+function MeetingCard({ meeting, clientId, onChange, onDelete, onMaterialize }) {
+  const isVirtual = !!meeting.virtual;
   const [title, setTitle] = useState(meeting.title || '面談');
   const [meetingDate, setMeetingDate] = useState(isoToDateInput(meeting.meeting_at));
   const [summary, setSummary] = useState(meeting.summary || '');
@@ -136,12 +182,22 @@ function MeetingCard({ meeting, clientId, onChange, onDelete }) {
       if (summary !== lastSavedRef.current.summary) patch.summary = summary;
       if (nextAction !== lastSavedRef.current.next_action) patch.next_action = nextAction;
       if (Object.keys(patch).length === 0) return;
+      // 仮想カード → 中身が入った時点で実DBレコードに昇格
+      if (isVirtual) {
+        const onlyTextEmpty = !summary.trim() && !nextAction.trim();
+        if (onlyTextEmpty && title === meeting.title) return;
+        const real = await onMaterialize?.(meeting, { title, meetingAt: meetingAtIso });
+        if (!real) return;
+        await updateClientMeeting(real.id, patch);
+        lastSavedRef.current = { ...lastSavedRef.current, ...patch };
+        return;
+      }
       await updateClientMeeting(meeting.id, patch);
       lastSavedRef.current = {
         ...lastSavedRef.current, ...patch,
       };
     }, 1000);
-  }, [title, meetingDate, summary, nextAction, meeting.id]);
+  }, [title, meetingDate, summary, nextAction, meeting.id, isVirtual, meeting, onMaterialize]);
 
   useEffect(() => { scheduleSave(); return () => { if (debounceRef.current) clearTimeout(debounceRef.current); }; }, [scheduleSave]);
 
@@ -172,18 +228,25 @@ function MeetingCard({ meeting, clientId, onChange, onDelete }) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const { url, error } = await uploadMeetingRecording({ clientId, meetingId: meeting.id, file });
+    // 仮想カードの場合は先に実DBレコードに昇格
+    let meetingId = meeting.id;
+    if (isVirtual) {
+      const real = await onMaterialize?.(meeting, { title, meetingAt: dateInputToIso(meetingDate) });
+      if (!real) { setUploading(false); return; }
+      meetingId = real.id;
+    }
+    const { url, error } = await uploadMeetingRecording({ clientId, meetingId, file });
     if (error || !url) {
       setUploading(false);
       alert('アップロード失敗: ' + (error?.message || ''));
       return;
     }
     setRecordingUrl(url);
-    await updateClientMeeting(meeting.id, { recording_url: url });
+    await updateClientMeeting(meetingId, { recording_url: url });
     // AI解析開始
     setSummary(`${ANALYZING_PREFIX}... 1〜2分お待ちください]`);
     setAnalyzing(true);
-    const { error: aiErr } = await invokeSummarizeMeetingRecording({ meetingId: meeting.id, recordingUrl: url });
+    const { error: aiErr } = await invokeSummarizeMeetingRecording({ meetingId, recordingUrl: url });
     setUploading(false);
     if (aiErr) {
       alert('AI解析の起動に失敗: ' + (aiErr.message || ''));
@@ -193,6 +256,11 @@ function MeetingCard({ meeting, clientId, onChange, onDelete }) {
   };
 
   const handleDelete = async () => {
+    if (isVirtual) {
+      // 仮想カードは削除不可（リセットは中身を空にする）
+      setSummary(''); setNextAction(''); setRecordingUrl('');
+      return;
+    }
     if (!window.confirm(`この面談記録「${title || '無題'}」を削除しますか?`)) return;
     const { error } = await deleteClientMeeting(meeting.id);
     if (error) { alert('削除失敗: ' + error.message); return; }
@@ -204,7 +272,7 @@ function MeetingCard({ meeting, clientId, onChange, onDelete }) {
   return (
     <div style={{
       background: color.white, border: `1px solid ${color.border}`,
-      borderLeft: `3px solid ${analyzing ? color.warn : hasError ? color.danger : color.navy}`,
+      borderLeft: `3px solid ${analyzing ? color.warn : hasError ? color.danger : isVirtual ? color.borderLight : color.navy}`,
       borderRadius: radius.md, padding: `${space[2]}px ${space[3]}px`,
     }}>
       {/* ヘッダ: タイトル + 日付 + 削除 */}
@@ -233,10 +301,12 @@ function MeetingCard({ meeting, clientId, onChange, onDelete }) {
             color: color.textDark, outline: 'none',
           }}
         />
-        <button onClick={handleDelete} title="削除" style={{
-          background: 'none', border: 'none', color: color.danger, cursor: 'pointer',
-          fontSize: font.size.sm, padding: '4px 6px',
-        }}>✕</button>
+        {!isVirtual && (
+          <button onClick={handleDelete} title="削除" style={{
+            background: 'none', border: 'none', color: color.danger, cursor: 'pointer',
+            fontSize: font.size.sm, padding: '4px 6px',
+          }}>✕</button>
+        )}
       </div>
 
       {/* 録音アップロード行 */}
@@ -273,7 +343,7 @@ function MeetingCard({ meeting, clientId, onChange, onDelete }) {
             onChange={summaryIme.onChange}
             onCompositionStart={summaryIme.onCompositionStart}
             onCompositionEnd={summaryIme.onCompositionEnd}
-            rows={2}
+            rows={5}
             placeholder="面談の概要…"
             style={{
               width: '100%', padding: '4px 8px', border: `1px solid ${color.border}`,
@@ -292,7 +362,7 @@ function MeetingCard({ meeting, clientId, onChange, onDelete }) {
             onChange={nextActionIme.onChange}
             onCompositionStart={nextActionIme.onCompositionStart}
             onCompositionEnd={nextActionIme.onCompositionEnd}
-            rows={2}
+            rows={5}
             placeholder="次のアクション…"
             style={{
               width: '100%', padding: '4px 8px', border: `1px solid ${color.border}`,
