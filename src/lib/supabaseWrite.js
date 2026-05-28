@@ -4097,6 +4097,15 @@ export async function invokeGenListFollowupEmail(payload) {
   }
 }
 
+/** 事業俯瞰「クライアントフォロー」: 支援中以外のクライアント集計を取得 */
+export async function fetchClientFollowSummary() {
+  const orgId = getOrgId()
+  if (!orgId) return { data: [], error: null }
+  const { data, error } = await supabase.rpc('client_follow_summary', { p_org_id: orgId })
+  if (error) console.error('[DB] fetchClientFollowSummary error:', error)
+  return { data: data || [], error }
+}
+
 /** 事業俯瞰リスト分析の ToDo メモを保存 (リスト単位の Next Action) */
 export async function updateListTodoMemo(listId, todoMemo) {
   const orgId = getOrgId()
