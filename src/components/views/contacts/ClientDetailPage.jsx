@@ -256,16 +256,26 @@ function EngagementRewardsInline({ clientId, rewardMaster }) {
   if (salesAgencyEngs.length === 0) return null;
 
   // rewardMaster から id 単位の詳細 map (name, tax, basis, timing, tiers[])
+  // rewardMaster は reward_tiers を flatten したもので、各 row が tier 1件 + 共通属性(name/tax/...)
   const rewardDetailMap = useMemo(() => {
     const m = {};
     (rewardMaster || []).forEach(r => {
       if (!m[r.id]) m[r.id] = { name: r.name, tax: r.tax, basis: r.basis, timing: r.timing, tiers: [] };
-      m[r.id].tiers.push(r);
+      m[r.id].tiers.push({
+        lo: r.lo, hi: r.hi, price: r.price, memo: r.memo, _tierSort: r._tierSort,
+      });
     });
     return m;
   }, [rewardMaster]);
 
-  // ツールチップ用文字列を生成
+  // ツールチップ用文字列を生成 (reward_tiers: lo/hi/price/memo)
+  const fmtMan = (n) => {
+    if (n == null) return '—';
+    const v = Number(n);
+    if (v >= 100000000) return `${(v / 100000000).toFixed(v % 100000000 === 0 ? 0 : 1)}億`;
+    if (v >= 10000) return `${(v / 10000).toFixed(v % 10000 === 0 ? 0 : 1)}万`;
+    return `¥${v.toLocaleString()}`;
+  };
   const buildTooltip = (rid) => {
     const d = rewardDetailMap[rid];
     if (!d) return rid;
@@ -276,12 +286,17 @@ function EngagementRewardsInline({ clientId, rewardMaster }) {
     if (d.basis) lines.push(`基準: ${d.basis}`);
     if (d.tiers && d.tiers.length > 0) {
       lines.push('--- 段階 ---');
-      d.tiers.forEach(t => {
-        const range = (t.min_amount != null || t.max_amount != null)
-          ? `${t.min_amount != null ? '¥' + Number(t.min_amount).toLocaleString() : '〜'} - ${t.max_amount != null ? '¥' + Number(t.max_amount).toLocaleString() : '〜'}`
-          : '';
-        const rate = t.rate != null ? `${(t.rate * 100).toFixed(1)}%` : (t.fixed_amount != null ? `¥${Number(t.fixed_amount).toLocaleString()}` : '');
-        lines.push(`  ${range} → ${rate}`);
+      // tier は _tierSort で並べる
+      const sorted = [...d.tiers].sort((a, b) => (a._tierSort ?? 0) - (b._tierSort ?? 0));
+      sorted.forEach(t => {
+        if (t.memo) {
+          // memo に既に「5000万〜1億：20万円」のような完成形が入っているのでそのまま使う
+          lines.push(`  ${t.memo}`);
+        } else {
+          const range = `${fmtMan(t.lo)} 〜 ${fmtMan(t.hi)}`;
+          const price = t.price != null ? `¥${Number(t.price).toLocaleString()}` : '';
+          lines.push(`  ${range} → ${price}`);
+        }
       });
     }
     return lines.join('\n');
@@ -344,7 +359,6 @@ function EngagementRewardsInline({ clientId, rewardMaster }) {
                   background: alpha(color.navy, 0.06),
                   color: NAVY, fontWeight: font.weight.medium,
                   border: `1px solid ${alpha(color.navy, 0.2)}`,
-                  cursor: 'help',
                 }}
               >
                 {r.name}
@@ -353,16 +367,6 @@ function EngagementRewardsInline({ clientId, rewardMaster }) {
                 </span>
               </span>
             ))}
-            {summary.missingCount > 0 && (
-              <span style={{
-                fontSize: 10, padding: '2px 6px', borderRadius: radius.sm,
-                background: alpha(color.danger, 0.08), color: color.danger,
-                border: `1px solid ${alpha(color.danger, 0.25)}`,
-                fontWeight: font.weight.medium,
-              }} title={`未設定: ${summary.missingCats.join(', ')}`}>
-                {summary.missingCats.join('/')} 未設定
-              </span>
-            )}
           </div>
         )}
       </div>
