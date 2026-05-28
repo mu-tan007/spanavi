@@ -31,7 +31,7 @@ function RewardChip({ rw, rewardMaster }) {
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}>
       <span style={{ color: color.textLight, fontSize: 10 }}>{rw.categoryName}/{rw.engName}: </span>
-      <span style={{ color: color.navy, fontWeight: font.weight.semibold, cursor: 'help', borderBottom: `1px dotted ${color.textLight}` }}>
+      <span style={{ color: color.navy, fontWeight: font.weight.semibold, borderBottom: `1px dotted ${color.textLight}` }}>
         {rw.rewardName}
       </span>
       {hover && tiers.length > 0 && (
