@@ -154,28 +154,22 @@ export default function ActivityTimeline({ clientSupaId, contactsByClient = {} }
   return (
     <div style={{ fontFamily: font.family.sans }}>
       <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        borderBottom: `1px solid ${GRAY_200}`, paddingBottom: 8, marginBottom: 12,
+        display: 'flex', justifyContent: 'flex-end', gap: 4, marginBottom: 10,
       }}>
-        <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: NAVY, letterSpacing: 1 }}>
-          Activity Timeline
-        </div>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {FILTERS.map(f => (
-            <button
-              key={f.id}
-              onClick={() => setFilter(f.id)}
-              style={{
-                padding: '3px 10px', borderRadius: radius.sm, fontSize: 10,
-                border: `1px solid ${filter === f.id ? NAVY : GRAY_200}`,
-                background: filter === f.id ? NAVY : color.white,
-                color: filter === f.id ? color.white : C.textMid,
-                cursor: 'pointer', fontFamily: font.family.sans,
-                fontWeight: filter === f.id ? font.weight.semibold : font.weight.medium,
-              }}
-            >{f.label}</button>
-          ))}
-        </div>
+        {FILTERS.map(f => (
+          <button
+            key={f.id}
+            onClick={() => setFilter(f.id)}
+            style={{
+              padding: '3px 10px', borderRadius: radius.sm, fontSize: 10,
+              border: `1px solid ${filter === f.id ? NAVY : GRAY_200}`,
+              background: filter === f.id ? NAVY : color.white,
+              color: filter === f.id ? color.white : C.textMid,
+              cursor: 'pointer', fontFamily: font.family.sans,
+              fontWeight: filter === f.id ? font.weight.semibold : font.weight.medium,
+            }}
+          >{f.label}</button>
+        ))}
       </div>
 
       {loading && (

@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { C } from '../../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
 import { Button, Input, Select, Card, Badge } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
-import { updateClientNextContactAt } from '../../../lib/supabaseWrite';
+import { updateClientNextContactAt, updateClient } from '../../../lib/supabaseWrite';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import ContactDrawer from './ContactDrawer';
 import ActivityTimeline from './ActivityTimeline';
@@ -80,6 +80,99 @@ function CollapsibleCard({ title, defaultOpen = false, badge, children }) {
           {children}
         </div>
       )}
+    </div>
+  );
+}
+
+// インライン編集可能なフィールド行 (クリック→入力→blur保存)
+function EditableField({ label, value, type = 'text', options, placeholder, onSave, mono = false, valueColor }) {
+  const [editing, setEditing] = useState(false);
+  const [localVal, setLocalVal] = useState(value ?? '');
+  const inputRef = useRef(null);
+
+  useEffect(() => { setLocalVal(value ?? ''); }, [value]);
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      if (inputRef.current.select) inputRef.current.select();
+    }
+  }, [editing]);
+
+  const commit = async () => {
+    setEditing(false);
+    if ((localVal ?? '') === (value ?? '')) return;
+    await onSave?.(localVal);
+  };
+  const cancel = () => { setLocalVal(value ?? ''); setEditing(false); };
+
+  const labelEl = (
+    <div style={{
+      fontSize: 10, color: C.textLight, fontWeight: font.weight.medium,
+      marginBottom: 2, letterSpacing: 0.5,
+    }}>{label}</div>
+  );
+
+  if (editing) {
+    return (
+      <div style={{ marginBottom: 8 }}>
+        {labelEl}
+        {type === 'select' ? (
+          <select
+            ref={inputRef}
+            value={localVal}
+            onChange={e => setLocalVal(e.target.value)}
+            onBlur={commit}
+            onKeyDown={e => { if (e.key === 'Escape') cancel(); if (e.key === 'Enter') commit(); }}
+            style={{
+              width: '100%', padding: '4px 6px', border: `1px solid ${NAVY}`,
+              borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.sans,
+              color: C.textDark, outline: 'none', background: color.white,
+            }}
+          >
+            {(options || []).map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            ref={inputRef}
+            type={type === 'email' ? 'email' : 'text'}
+            value={localVal}
+            onChange={e => setLocalVal(e.target.value)}
+            onBlur={commit}
+            onKeyDown={e => { if (e.key === 'Escape') cancel(); if (e.key === 'Enter') commit(); }}
+            placeholder={placeholder}
+            style={{
+              width: '100%', padding: '4px 6px', border: `1px solid ${NAVY}`,
+              borderRadius: radius.sm, fontSize: font.size.xs,
+              fontFamily: mono ? font.family.mono : font.family.sans,
+              color: C.textDark, outline: 'none', background: color.white, boxSizing: 'border-box',
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  const displayValue = value || placeholder || '—';
+  return (
+    <div
+      onClick={() => setEditing(true)}
+      style={{
+        marginBottom: 8, padding: '2px 4px', margin: '0 -4px 6px',
+        borderRadius: radius.sm, cursor: 'pointer', transition: 'background 0.1s',
+      }}
+      onMouseEnter={e => e.currentTarget.style.background = GRAY_50}
+      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+      title="クリックして編集"
+    >
+      {labelEl}
+      <div style={{
+        fontSize: font.size.xs, color: valueColor || (value ? C.textDark : C.textLight),
+        fontFamily: mono ? font.family.mono : font.family.sans,
+        fontWeight: value ? font.weight.medium : font.weight.normal,
+        wordBreak: 'break-all',
+      }}>{displayValue}</div>
     </div>
   );
 }
@@ -208,6 +301,17 @@ export default function ClientDetailPage({
 
   // 数字: 累計売上 / 今月着地 / 契約開始
   const [stats, setStats] = useState({ totalSales: 0, monthSales: 0, contractStart: null, loading: true });
+
+  // インライン編集: 1フィールドだけ差分更新
+  const patchClient = async (patch) => {
+    if (!c?._supaId) return;
+    const updated = { ...c, ...patch };
+    const error = await updateClient(c._supaId, updated);
+    if (error) { alert('保存に失敗: ' + (error.message || '不明なエラー')); return; }
+    if (setClientData) {
+      setClientData(prev => prev.map(x => x._supaId === c._supaId ? updated : x));
+    }
+  };
   // 担当者ドロワー
   const [contactDrawer, setContactDrawer] = useState({ isOpen: false, mode: 'add', existingContact: null });
   // モバイル時のタブ切替
@@ -292,15 +396,52 @@ export default function ClientDetailPage({
             }}
           >‹ 一覧に戻る</button>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <span style={{
-              borderLeft: `3px solid ${sc.color}`, paddingLeft: 8,
-              color: sc.color, fontSize: font.size.xs, fontWeight: font.weight.semibold,
-            }}>{c.status}</span>
-            {c.contract === '済' && (
+            {setClientData ? (
+              <select
+                value={c.status || ''}
+                onChange={async (e) => { await patchClient({ status: e.target.value, statusChangedAt: new Date().toISOString() }); }}
+                title="ステータスを変更"
+                style={{
+                  borderLeft: `3px solid ${sc.color}`, paddingLeft: 8,
+                  border: 'none', borderRadius: 0,
+                  color: sc.color, fontSize: font.size.xs, fontWeight: font.weight.semibold,
+                  background: 'transparent', cursor: 'pointer', fontFamily: font.family.sans,
+                  outline: 'none',
+                }}
+              >
+                {['準備中','支援中','停止中','保留','中期フォロー','面談予定'].map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            ) : (
               <span style={{
-                fontSize: 9, padding: '2px 8px', borderRadius: radius.sm,
-                background: NAVY + '12', color: NAVY, fontWeight: font.weight.semibold,
-              }}>契約済</span>
+                borderLeft: `3px solid ${sc.color}`, paddingLeft: 8,
+                color: sc.color, fontSize: font.size.xs, fontWeight: font.weight.semibold,
+              }}>{c.status}</span>
+            )}
+            {setClientData ? (
+              <select
+                value={c.contract || '未'}
+                onChange={async (e) => { await patchClient({ contract: e.target.value }); }}
+                title="契約状態を変更"
+                style={{
+                  fontSize: 9, padding: '2px 8px', borderRadius: radius.sm,
+                  background: c.contract === '済' ? NAVY + '12' : GRAY_50,
+                  color: c.contract === '済' ? NAVY : C.textLight,
+                  border: 'none', cursor: 'pointer', fontFamily: font.family.sans,
+                  fontWeight: font.weight.semibold, outline: 'none',
+                }}
+              >
+                <option value="未">契約未</option>
+                <option value="済">契約済</option>
+              </select>
+            ) : (
+              c.contract === '済' && (
+                <span style={{
+                  fontSize: 9, padding: '2px 8px', borderRadius: radius.sm,
+                  background: NAVY + '12', color: NAVY, fontWeight: font.weight.semibold,
+                }}>契約済</span>
+              )
             )}
             <span style={{ fontSize: 17, fontWeight: font.weight.bold, color: NAVY }}>{c.company}</span>
             {c.industry && (
@@ -462,9 +603,10 @@ export default function ClientDetailPage({
           )}
           </CollapsibleCard>
 
-          {/* 契約条件カード (デフォルト開) */}
+          {/* 契約条件カード (デフォルト開・各フィールドをクリックで編集) */}
           <CollapsibleCard title="契約条件" defaultOpen={true}>
             <NextContactRow client={c} setClientData={setClientData} />
+            {/* 報酬体系・税区分は商材タイプ別の複雑な構造のため、ここではモーダルへ誘導 */}
             <FieldRow label="報酬体系" value={
               c.rewardType ? (
                 <span onClick={(e) => { e.stopPropagation(); onShowReward?.(c.rewardType); }}
@@ -474,12 +616,55 @@ export default function ClientDetailPage({
               ) : '-'
             } />
             <FieldRow label="税区分" value={rm ? rm.tax : '-'} />
-            <FieldRow label="支払サイト" value={c.paySite} />
-            <FieldRow label="支払特記" value={c.payNote} />
-            <FieldRow label="リスト負担" value={c.listSrc} />
-            <FieldRow label="カレンダー" value={c.calendar} />
-            <FieldRow label="連絡手段" value={c.contact} />
-            {c.clientEmail && <FieldRow label="メールアドレス" value={c.clientEmail} />}
+            <EditableField
+              label="支払サイト" value={c.paySite}
+              placeholder="例: 月末締め翌月末払い"
+              onSave={v => patchClient({ paySite: v })}
+            />
+            <EditableField
+              label="支払特記" value={c.payNote}
+              placeholder="（任意）"
+              onSave={v => patchClient({ payNote: v })}
+            />
+            <EditableField
+              label="リスト負担" value={c.listSrc} type="select"
+              options={[
+                { value: '', label: '—' },
+                { value: '当社持ち', label: '当社持ち' },
+                { value: '先方持ち', label: '先方持ち' },
+                { value: '両方', label: '両方' },
+              ]}
+              onSave={v => patchClient({ listSrc: v })}
+            />
+            <EditableField
+              label="カレンダー" value={c.calendar} type="select"
+              options={[
+                { value: '', label: '—' },
+                { value: 'Google', label: 'Google' },
+                { value: 'Spir', label: 'Spir' },
+                { value: 'Outlook', label: 'Outlook' },
+                { value: 'なし', label: 'なし' },
+                { value: '調整アポ', label: '調整アポ' },
+                { value: 'Google(入力)', label: 'Google(入力)' },
+              ]}
+              onSave={v => patchClient({ calendar: v })}
+            />
+            <EditableField
+              label="連絡手段" value={c.contact} type="select"
+              options={[
+                { value: '', label: '—' },
+                { value: 'LINE', label: 'LINE' },
+                { value: 'Slack', label: 'Slack' },
+                { value: 'Chatwork', label: 'Chatwork' },
+                { value: 'メール', label: 'メール' },
+              ]}
+              onSave={v => patchClient({ contact: v })}
+            />
+            <EditableField
+              label="メールアドレス" value={c.clientEmail} type="email"
+              placeholder="client@example.com"
+              onSave={v => patchClient({ clientEmail: v })}
+            />
           </CollapsibleCard>
 
           {/* 数字カード (デフォルト開) */}
