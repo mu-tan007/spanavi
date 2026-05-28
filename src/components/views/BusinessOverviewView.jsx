@@ -860,7 +860,7 @@ function TodoMemoCell({ listId, initialValue }) {
   );
 }
 
-// 篠宮の文体で生成された署名
+// 署名2種 (gmail-auto-reply と同方式)
 const SIG_DEFAULT = `
 
 -----------------------------------------------
@@ -871,6 +871,14 @@ Tel:   080-4134-4038
 Hp: https://ma-sp.co/
 X: https://x.com/masp_007?s=21
 -----------------------------------------------`;
+const SIG_RALLY = `
+
+MASP 篠宮`;
+const SIG_OPTIONS = [
+  { key: 'default', label: 'フル署名 (初回・正式)', text: SIG_DEFAULT },
+  { key: 'rally',   label: '簡易 (MASP 篠宮)',     text: SIG_RALLY },
+  { key: 'none',    label: '署名なし',              text: '' },
+];
 
 // リスト状況フォローアップメール作成モーダル
 function EmailFollowupModal({ row, callListData, clientData, contactsByClient, currentUser, onClose }) {
@@ -892,6 +900,8 @@ function EmailFollowupModal({ row, callListData, clientData, contactsByClient, c
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const [sentOk, setSentOk] = useState(false);
+  // 署名選択: default=フル / rally=簡易 / none=なし
+  const [signatureKey, setSignatureKey] = useState('default');
   const sendingRef = useRef(false);
   const intentIme = useImeSafeInput(intent, setIntent);
   const subjectIme = useImeSafeInput(subject, setSubject);
@@ -952,7 +962,8 @@ function EmailFollowupModal({ row, callListData, clientData, contactsByClient, c
     sendingRef.current = true; setSending(true); setError(null);
     const to = toAll.map(r => r.email).join(', ');
     const cc = allCcRecipients().map(r => r.email).join(', ');
-    const finalBody = body + SIG_DEFAULT;
+    const sigText = (SIG_OPTIONS.find(o => o.key === signatureKey) || SIG_OPTIONS[0]).text;
+    const finalBody = body + sigText;
     const { error: e } = await invokeSendEmail({ to, subject, body: finalBody, cc });
     sendingRef.current = false; setSending(false);
     if (e) { setError(String(e.message || e) || '送信に失敗しました'); return; }
@@ -1099,8 +1110,19 @@ function EmailFollowupModal({ row, callListData, clientData, contactsByClient, c
                 />
               </div>
               <div>
-                <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[1] }}>
-                  本文 (編集可、署名は送信時に自動で追加)
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: space[1], flexWrap: 'wrap', gap: space[2] }}>
+                  <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid }}>
+                    本文 (編集可)
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: font.size.xs, color: color.textMid }}>署名:</span>
+                    {SIG_OPTIONS.map(opt => (
+                      <label key={opt.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: font.size.xs, cursor: 'pointer', color: color.textDark }}>
+                        <input type="radio" name="sig" value={opt.key} checked={signatureKey === opt.key} onChange={() => setSignatureKey(opt.key)} />
+                        {opt.label}
+                      </label>
+                    ))}
+                  </div>
                 </div>
                 <textarea
                   value={bodyIme.value}
