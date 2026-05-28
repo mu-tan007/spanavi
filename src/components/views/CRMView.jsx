@@ -564,6 +564,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
             monthTargetByClient={monthTargetByClient}
             maxMonthTarget={maxMonthTarget}
             rewardsByClient={rewardsByClient}
+            rewardMaster={rewardMaster}
             onRowClick={goToDetail}
             onEditRow={(c, globalIdx) => setEditForm({ ...c, _idx: globalIdx })}
           />

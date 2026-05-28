@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import { C } from '../../../constants/colors';
 import { color, space, radius, font, alpha } from '../../../constants/design';
 import {
@@ -6,6 +7,73 @@ import {
   lastTouchDisplay, nextActionFor,
   priorityScore, priorityRank, composeEmailDraft,
 } from './utils';
+
+// 報酬体系 1件分のチップ (ホバーで段階別 tier 詳細をツールチップ表示)
+function RewardChip({ rw, rewardMaster }) {
+  const [hover, setHover] = useState(false);
+  // この reward_type の全 tier を抽出
+  const tiers = useMemo(() => {
+    return (rewardMaster || [])
+      .filter(r => r.id === rw.rewardType)
+      .sort((a, b) => (a._tierSort || 0) - (b._tierSort || 0));
+  }, [rewardMaster, rw.rewardType]);
+  const head = tiers[0];
+  const isFixed = head?.calc_type === 'fixed_per_appo' || head?.basis === '-';
+
+  // 金額表示 (税別なら *1.1)
+  const fmtPrice = (price) => {
+    const p = head?.tax === '税別' ? Math.round(price * 1.1) : price;
+    return '¥' + Number(p || 0).toLocaleString();
+  };
+
+  return (
+    <span style={{ position: 'relative', display: 'inline-block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}>
+      <span style={{ color: color.textLight, fontSize: 10 }}>{rw.categoryName}/{rw.engName}: </span>
+      <span style={{ color: color.navy, fontWeight: font.weight.semibold, cursor: 'help', borderBottom: `1px dotted ${color.textLight}` }}>
+        {rw.rewardName}
+      </span>
+      {hover && tiers.length > 0 && (
+        <div onClick={e => e.stopPropagation()} style={{
+          position: 'absolute', top: '100%', left: 0, zIndex: 2000,
+          marginTop: 4, padding: '8px 10px',
+          background: color.white, border: `1px solid ${color.border}`,
+          borderRadius: radius.md, boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          minWidth: 240, fontSize: font.size.xs, color: color.textDark,
+          fontFamily: font.family.sans, fontWeight: font.weight.normal,
+        }}>
+          <div style={{ fontWeight: font.weight.bold, color: color.navy, marginBottom: 6, paddingBottom: 4, borderBottom: `1px solid ${color.border}` }}>
+            {rw.rewardName}
+            <span style={{ marginLeft: 6, fontSize: 10, color: color.textMid, fontWeight: font.weight.normal }}>
+              ({head?.basis || '—'}{head?.tax ? ` / ${head.tax}` : ''})
+            </span>
+          </div>
+          {isFixed ? (
+            <div style={{ fontFamily: font.family.mono }}>
+              アポ1件あたり {fmtPrice(head.price)}
+            </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <tbody>
+                {tiers.map((t, i) => (
+                  <tr key={i} style={{ borderTop: i > 0 ? `1px dashed ${color.borderLight}` : 'none' }}>
+                    <td style={{ padding: '3px 4px', color: color.textMid }}>
+                      {t.memo || `${(t.lo || 0).toLocaleString()}〜${t.hi >= 999999999999 ? '上限なし' : (t.hi || 0).toLocaleString()}`}
+                    </td>
+                    <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: font.family.mono, color: color.textDark, fontWeight: font.weight.semibold }}>
+                      {fmtPrice(t.price)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </span>
+  );
+}
 
 function MiniIconBtn({ label, color: btnColor = color.navy, disabled, onClick, hint }) {
   return (
@@ -58,6 +126,7 @@ export default function CRMTableRow({
   monthTargetByClient = {},
   maxMonthTarget = 0,
   rewards = [],
+  rewardMaster = [],
   onRowClick,
   onEditRow,
 }) {
@@ -171,7 +240,7 @@ export default function CRMTableRow({
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
       }}>{c.industry || '-'}</span>
 
-      {/* 4. 報酬体系 (engagement別) */}
+      {/* 4. 報酬体系 (engagement別) - ホバーで具体的な tier 詳細表示 */}
       <span style={{
         textAlign: crmCols[3]?.align,
         fontSize: font.size.xs, color: color.textMid,
@@ -181,10 +250,7 @@ export default function CRMTableRow({
           <span style={{ color: color.textLight }}>—</span>
         ) : (
           rewards.map((rw, i) => (
-            <span key={i} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              <span style={{ color: color.textLight, fontSize: 10 }}>{rw.categoryName}/{rw.engName}: </span>
-              <span style={{ color: color.navy, fontWeight: font.weight.semibold }}>{rw.rewardName}</span>
-            </span>
+            <RewardChip key={i} rw={rw} rewardMaster={rewardMaster} />
           ))
         )}
       </span>
