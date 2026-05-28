@@ -65,11 +65,11 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
       </div>
 
       {loading ? (
-        <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>読み込み中…</div>
+        <div style={{ fontSize: font.size.xs, color: color.textMid, padding: space[2] }}>読み込み中…</div>
       ) : rows.length === 0 ? (
-        <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[4], textAlign: 'center',
-          background: color.gray50, borderRadius: radius.md, border: `1px dashed ${color.border}` }}>
-          まだ面談記録がありません。「+ 新規面談を追加」から作成してください。
+        <div style={{ fontSize: font.size.xs, color: color.textLight, padding: `${space[2]}px ${space[3]}px`, textAlign: 'center',
+          background: color.gray50, borderRadius: radius.sm, border: `1px dashed ${color.border}` }}>
+          面談記録なし — 「+ 新規面談を追加」で作成
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
@@ -262,46 +262,46 @@ function MeetingCard({ meeting, clientId, onChange, onDelete }) {
         )}
       </div>
 
-      {/* 概要 */}
-      <div style={{ marginBottom: space[2] }}>
-        <div style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: 3 }}>
-          概要
+      {/* 概要 + Next Action を横並びでコンパクトに */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[2] }}>
+        <div>
+          <div style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: 2 }}>
+            概要
+          </div>
+          <textarea
+            value={summaryIme.value}
+            onChange={summaryIme.onChange}
+            onCompositionStart={summaryIme.onCompositionStart}
+            onCompositionEnd={summaryIme.onCompositionEnd}
+            rows={2}
+            placeholder="面談の概要…"
+            style={{
+              width: '100%', padding: '4px 8px', border: `1px solid ${color.border}`,
+              borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.sans,
+              color: color.textDark, resize: 'vertical', outline: 'none', boxSizing: 'border-box',
+              lineHeight: 1.5, background: color.white,
+            }}
+          />
         </div>
-        <textarea
-          value={summaryIme.value}
-          onChange={summaryIme.onChange}
-          onCompositionStart={summaryIme.onCompositionStart}
-          onCompositionEnd={summaryIme.onCompositionEnd}
-          rows={3}
-          placeholder="面談の概要…"
-          style={{
-            width: '100%', padding: '6px 10px', border: `1px solid ${color.border}`,
-            borderRadius: radius.sm, fontSize: font.size.sm, fontFamily: font.family.sans,
-            color: color.textDark, resize: 'vertical', outline: 'none', boxSizing: 'border-box',
-            lineHeight: 1.6, background: color.white,
-          }}
-        />
-      </div>
-
-      {/* Next Action */}
-      <div>
-        <div style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: 3 }}>
-          Next Action
+        <div>
+          <div style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: 2 }}>
+            Next Action
+          </div>
+          <textarea
+            value={nextActionIme.value}
+            onChange={nextActionIme.onChange}
+            onCompositionStart={nextActionIme.onCompositionStart}
+            onCompositionEnd={nextActionIme.onCompositionEnd}
+            rows={2}
+            placeholder="次のアクション…"
+            style={{
+              width: '100%', padding: '4px 8px', border: `1px solid ${color.border}`,
+              borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.sans,
+              color: color.textDark, resize: 'vertical', outline: 'none', boxSizing: 'border-box',
+              lineHeight: 1.5, background: color.white,
+            }}
+          />
         </div>
-        <textarea
-          value={nextActionIme.value}
-          onChange={nextActionIme.onChange}
-          onCompositionStart={nextActionIme.onCompositionStart}
-          onCompositionEnd={nextActionIme.onCompositionEnd}
-          rows={2}
-          placeholder="次のアクション…"
-          style={{
-            width: '100%', padding: '6px 10px', border: `1px solid ${color.border}`,
-            borderRadius: radius.sm, fontSize: font.size.sm, fontFamily: font.family.sans,
-            color: color.textDark, resize: 'vertical', outline: 'none', boxSizing: 'border-box',
-            lineHeight: 1.6, background: color.white,
-          }}
-        />
       </div>
     </div>
   );

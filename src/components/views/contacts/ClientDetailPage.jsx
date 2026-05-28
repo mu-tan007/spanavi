@@ -54,13 +54,13 @@ const fmtJa = (ts) => {
 /**
  * Section ヘッダー（左ペイン用）
  */
-// ActivityTimeline を折りたたみ可能なカードでラップ (デフォルト閉じる)
-function ActivityTimelineCard({ clientSupaId, contactsByClient }) {
-  const [open, setOpen] = useState(false);
+// 汎用 折りたたみ可能カード
+function CollapsibleCard({ title, defaultOpen = false, badge, children }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <div style={{
       background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
-      padding: '14px 16px',
+      padding: '10px 14px',
     }}>
       <button onClick={() => setOpen(o => !o)} style={{
         width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -68,15 +68,31 @@ function ActivityTimelineCard({ clientSupaId, contactsByClient }) {
         fontSize: font.size.sm, fontWeight: font.weight.bold, color: NAVY,
         fontFamily: font.family.sans, letterSpacing: 1,
       }}>
-        <span>Activity Timeline (アポ/メモ/架電の自動ログ)</span>
-        <span style={{ fontSize: font.size.xs, color: C.textLight }}>{open ? '▲ 閉じる' : '▼ 開く'}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span>{title}</span>
+          {badge}
+        </span>
+        <span style={{ fontSize: font.size.xs, color: C.textLight, fontWeight: font.weight.normal }}>
+          {open ? '▲' : '▼'}
+        </span>
       </button>
       {open && (
-        <div style={{ marginTop: 10, maxHeight: 400, overflowY: 'auto' }}>
-          <ActivityTimeline clientSupaId={clientSupaId} contactsByClient={contactsByClient} />
+        <div style={{ marginTop: 8 }}>
+          {children}
         </div>
       )}
     </div>
+  );
+}
+
+// ActivityTimeline カード (デフォルト閉)
+function ActivityTimelineCard({ clientSupaId, contactsByClient }) {
+  return (
+    <CollapsibleCard title="Activity Timeline" defaultOpen={false}>
+      <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+        <ActivityTimeline clientSupaId={clientSupaId} contactsByClient={contactsByClient} />
+      </div>
+    </CollapsibleCard>
   );
 }
 
@@ -312,6 +328,66 @@ export default function ClientDetailPage({
         </div>
       </div>
 
+      {/* サマリーバー: 重要情報を1行で */}
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16,
+        padding: '10px 16px', background: GRAY_50,
+        border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
+        marginBottom: 12, fontSize: font.size.xs, color: C.textMid,
+      }}>
+        {c.industry && (
+          <div>
+            <span style={{ color: C.textLight, marginRight: 4 }}>業種</span>
+            <span style={{ color: C.textDark, fontWeight: font.weight.medium }}>{c.industry}</span>
+          </div>
+        )}
+        {sortedContacts.length > 0 && (
+          <div>
+            <span style={{ color: C.textLight, marginRight: 4 }}>主担当</span>
+            <span style={{ color: NAVY, fontWeight: font.weight.semibold }}>
+              {sortedContacts.find(ct => ct.isPrimary)?.name || sortedContacts[0]?.name || '—'}
+            </span>
+            {sortedContacts.length > 1 && (
+              <span style={{ color: C.textLight, marginLeft: 4 }}>+{sortedContacts.length - 1}名</span>
+            )}
+          </div>
+        )}
+        {c.rewardType && (
+          <div>
+            <span style={{ color: C.textLight, marginRight: 4 }}>報酬</span>
+            <span
+              onClick={(e) => { e.stopPropagation(); onShowReward?.(c.rewardType); }}
+              style={{
+                color: NAVY, fontWeight: font.weight.semibold,
+                cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted',
+              }}
+            >{c.rewardType}</span>
+          </div>
+        )}
+        <div>
+          <span style={{ color: C.textLight, marginRight: 4 }}>次回接点</span>
+          <span style={{ color: C.textDark, fontFamily: font.family.mono }}>
+            {c.nextContactAt ? fmtDate(c.nextContactAt) : '—'}
+          </span>
+        </div>
+        {!stats.loading && (
+          <div>
+            <span style={{ color: C.textLight, marginRight: 4 }}>累計売上</span>
+            <span style={{ color: NAVY, fontWeight: font.weight.semibold, fontFamily: font.family.mono }}>
+              {yen(stats.totalSales)}
+            </span>
+          </div>
+        )}
+        {!stats.loading && stats.contractStart && (
+          <div>
+            <span style={{ color: C.textLight, marginRight: 4 }}>契約開始</span>
+            <span style={{ color: C.textDark, fontFamily: font.family.mono }}>
+              {fmtDate(stats.contractStart)}
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* モバイル時のタブ切替 */}
       {isMobile && (
         <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
@@ -348,7 +424,7 @@ export default function ClientDetailPage({
         {/* Left pane: 面談記録 (メイン) */}
         <div style={{
           background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
-          padding: '14px 16px',
+          padding: '10px 14px',
           display: isMobile && mobileTab !== 'info' ? 'none' : 'block',
         }}>
           <ClientMeetingsSection clientId={c?._supaId} currentUser={currentUser} />
@@ -372,17 +448,14 @@ export default function ClientDetailPage({
             />
           </div>
 
-          {/* 担当者カード */}
-          <div style={{
-            background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
-            padding: '14px 16px',
-          }}>
+          {/* 担当者カード (コンパクト) */}
+          <CollapsibleCard title={`担当者 (${sortedContacts.length})`} defaultOpen={true}>
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            borderBottom: `1px solid ${GRAY_200}`, paddingBottom: 8, marginBottom: 10,
+            paddingBottom: 6, marginBottom: 6,
           }}>
-            <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: NAVY, letterSpacing: 1 }}>
-              担当者 ({sortedContacts.length})
+            <div style={{ fontSize: 10, color: C.textLight }}>
+              {sortedContacts.length > 0 ? '主担当: ' + (sortedContacts.find(ct => ct.isPrimary)?.name || sortedContacts[0]?.name || '—') : ''}
             </div>
             {setContactsByClient && (
               <button
@@ -438,14 +511,10 @@ export default function ClientDetailPage({
               </div>
             ))
           )}
-          </div>
+          </CollapsibleCard>
 
-          {/* 契約条件カード */}
-          <div style={{
-            background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
-            padding: '14px 16px',
-          }}>
-            <SectionTitle>契約条件</SectionTitle>
+          {/* 契約条件カード (デフォルト閉) */}
+          <CollapsibleCard title="契約条件" defaultOpen={false}>
             <NextContactRow client={c} setClientData={setClientData} />
             <FieldRow label="報酬体系" value={
               c.rewardType ? (
@@ -462,25 +531,17 @@ export default function ClientDetailPage({
             <FieldRow label="カレンダー" value={c.calendar} />
             <FieldRow label="連絡手段" value={c.contact} />
             {c.clientEmail && <FieldRow label="メールアドレス" value={c.clientEmail} />}
-          </div>
+          </CollapsibleCard>
 
-          {/* 月別目標カード (支援中のみ) */}
+          {/* 月別目標カード (支援中のみ・デフォルト閉) */}
           {c.status === '支援中' && (
-            <div style={{
-              background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
-              padding: '14px 16px',
-            }}>
-              <SectionTitle>月別目標</SectionTitle>
+            <CollapsibleCard title="月別目標" defaultOpen={false}>
               <ClientMonthlyTargetSection clientId={c._supaId} />
-            </div>
+            </CollapsibleCard>
           )}
 
-          {/* 数字カード */}
-          <div style={{
-            background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
-            padding: '14px 16px',
-          }}>
-            <SectionTitle>数字</SectionTitle>
+          {/* 数字カード (コンパクト・デフォルト開) */}
+          <CollapsibleCard title="数字" defaultOpen={true}>
             {stats.loading ? (
               <div style={{ fontSize: font.size.xs, color: C.textLight }}>読み込み中...</div>
             ) : (
@@ -490,15 +551,11 @@ export default function ClientDetailPage({
                 <FieldRow label="契約開始" value={fmtDate(stats.contractStart)} mono />
               </>
             )}
-          </div>
+          </CollapsibleCard>
 
-          {/* 関連リストカード */}
+          {/* 関連リストカード (デフォルト閉) */}
           {relatedLists.length > 0 && (
-            <div style={{
-              background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
-              padding: '14px 16px',
-            }}>
-              <SectionTitle>関連リスト ({relatedLists.length})</SectionTitle>
+            <CollapsibleCard title={`関連リスト (${relatedLists.length})`} defaultOpen={false}>
               {relatedLists.slice(0, 8).map(l => (
                 <div key={l._supaId || l.id} style={{
                   fontSize: font.size.xs, color: C.textDark,
@@ -516,7 +573,7 @@ export default function ClientDetailPage({
               {relatedLists.length > 8 && (
                 <div style={{ fontSize: 10, color: C.textLight, marginTop: 6 }}>他 {relatedLists.length - 8} 件</div>
               )}
-            </div>
+            </CollapsibleCard>
           )}
 
           {/* Activity Timeline カード (折りたたみ) */}
