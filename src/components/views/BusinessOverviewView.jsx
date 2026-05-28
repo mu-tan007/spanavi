@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { color, space, radius, font, alpha } from '../../constants/design';
 import { Card } from '../ui';
 import PageHeader from '../common/PageHeader';
@@ -771,24 +771,42 @@ function ListAnalysisTable({ group, sortDir, onOpenDrill }) {
   );
 }
 
-// ToDo メモセル: blur 時に自動保存。IME safe (compositionendまで保存しない)。
+// ToDo メモセル:
+//   - blur 時に自動保存 (e.target.value を直接読んで state 遅延回避)
+//   - IME 確定 / 通常入力後 800ms の debounce でも自動保存 (リロードに備えて未保存を残さない)
+//   - IME safe (compositionend まで保存しない)
 function TodoMemoCell({ listId, initialValue }) {
   const [value, setValue] = useState(initialValue || '');
-  const [savedValue, setSavedValue] = useState(initialValue || '');
+  const savedRef = useRef(initialValue || '');
   const [saving, setSaving] = useState(false);
-  // 親が initialValue を更新したら追従 (再fetch時)
+  const debounceRef = useRef(null);
+
   useEffect(() => {
     setValue(initialValue || '');
-    setSavedValue(initialValue || '');
+    savedRef.current = initialValue || '';
   }, [initialValue]);
-  const ime = useImeSafeInput(value, setValue);
-  const handleBlur = async () => {
-    if (value === savedValue) return;
+
+  const doSave = async (v) => {
+    if (v === savedRef.current) return;
     setSaving(true);
-    const { error } = await updateListTodoMemo(listId, value);
+    const { error } = await updateListTodoMemo(listId, v);
     setSaving(false);
-    if (!error) setSavedValue(value);
+    if (!error) savedRef.current = v;
   };
+
+  const ime = useImeSafeInput(value, (v) => {
+    setValue(v);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => doSave(v), 800);
+  });
+
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+
+  const handleBlur = (e) => {
+    if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; }
+    doSave(e.target.value);
+  };
+
   return (
     <textarea
       value={ime.value}
