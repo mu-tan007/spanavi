@@ -522,10 +522,6 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
           setClientData={setClientData}
           currentUser={currentUser}
           onBack={goToList}
-          onEdit={(cl) => {
-            const idx = clientData.findIndex(x => x._supaId === cl._supaId);
-            setEditForm({ ...cl, _idx: idx });
-          }}
           onShowReward={(rid) => setShowRewardDetail(rid)}
         />
       )}

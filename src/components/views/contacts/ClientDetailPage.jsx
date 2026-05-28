@@ -4,7 +4,8 @@ import { color, space, radius, font, shadow, alpha } from '../../../constants/de
 import { Button, Input, Select, Card, Badge } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
-import { updateClientNextContactAt, updateClient } from '../../../lib/supabaseWrite';
+import { updateClientNextContactAt, updateClient, deleteClient } from '../../../lib/supabaseWrite';
+import { useEngagements } from '../../../hooks/useEngagements';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import ContactDrawer from './ContactDrawer';
 import ActivityTimeline from './ActivityTimeline';
@@ -177,6 +178,172 @@ function EditableField({ label, value, type = 'text', options, placeholder, onSa
   );
 }
 
+// 報酬体系 (商材エンゲージメント別) のインライン編集カード
+function InlineEngagementRewards({ clientId, rewardMaster }) {
+  const { engagements, products, categories } = useEngagements();
+  const [engRewards, setEngRewards] = useState({});
+  const [loaded, setLoaded] = useState(false);
+
+  const rewardIds = useMemo(() => [...new Set((rewardMaster || []).map(r => r.id))].sort(), [rewardMaster]);
+  const rewardNameById = useMemo(() => {
+    const m = {};
+    (rewardMaster || []).forEach(r => { if (!m[r.id]) m[r.id] = r.name; });
+    return m;
+  }, [rewardMaster]);
+
+  // 営業代行 product 配下の全 engagement (client_acquisition 以外)
+  const salesAgencyEngs = useMemo(() => {
+    const sa = (products || []).find(p => p.slug === 'sales_agency');
+    if (!sa) return [];
+    return (engagements || [])
+      .filter(e => e.product_id === sa.id && !e.isVirtual && e.type !== 'client_acquisition')
+      .sort((a, b) => {
+        const ca = categories.find(c => c.id === a.category_id);
+        const cb = categories.find(c => c.id === b.category_id);
+        const co = (ca?.display_order || 999) - (cb?.display_order || 999);
+        if (co !== 0) return co;
+        return (a.display_order || 0) - (b.display_order || 0);
+      });
+  }, [engagements, products, categories]);
+
+  // 既存の設定をロード
+  useEffect(() => {
+    if (!clientId) { setLoaded(true); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('client_engagement_reward_settings')
+        .select('engagement_id, reward_type')
+        .eq('client_id', clientId);
+      if (cancelled) return;
+      const map = {};
+      (data || []).forEach(r => { map[r.engagement_id] = r.reward_type; });
+      setEngRewards(map);
+      setLoaded(true);
+    })();
+    return () => { cancelled = true; };
+  }, [clientId]);
+
+  const handleChange = async (engId, newType) => {
+    const prevType = engRewards[engId] || '';
+    if (newType === prevType) return;
+    setEngRewards(prev => ({ ...prev, [engId]: newType }));
+    const orgId = getOrgId();
+    if (newType) {
+      const { error } = await supabase
+        .from('client_engagement_reward_settings')
+        .upsert({ org_id: orgId, client_id: clientId, engagement_id: engId, reward_type: newType },
+          { onConflict: 'org_id,client_id,engagement_id' });
+      if (error) {
+        alert('保存に失敗: ' + error.message);
+        setEngRewards(prev => ({ ...prev, [engId]: prevType }));
+      }
+    } else {
+      const { error } = await supabase
+        .from('client_engagement_reward_settings')
+        .delete()
+        .eq('org_id', orgId).eq('client_id', clientId).eq('engagement_id', engId);
+      if (error) {
+        alert('削除に失敗: ' + error.message);
+        setEngRewards(prev => ({ ...prev, [engId]: prevType }));
+      }
+    }
+  };
+
+  if (salesAgencyEngs.length === 0) return null;
+
+  return (
+    <CollapsibleCard title="報酬体系 (タイプ別)" defaultOpen={true}>
+      {!loaded ? (
+        <div style={{ fontSize: font.size.xs, color: C.textLight }}>読み込み中...</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {salesAgencyEngs.map(eng => {
+            const cat = categories.find(c => c.id === eng.category_id)?.name || '';
+            const current = engRewards[eng.id] || '';
+            const isMissing = !current;
+            return (
+              <div key={eng.id} style={{
+                display: 'grid', gridTemplateColumns: '1fr', gap: 2,
+                paddingBottom: 6, borderBottom: `1px solid ${GRAY_100}`,
+              }}>
+                <div style={{ fontSize: 10, color: C.textLight, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {cat && <span>{cat}</span>}
+                  <span style={{ color: C.textMid }}>{eng.name}</span>
+                  {isMissing && (
+                    <span style={{
+                      fontSize: 9, color: color.white, background: color.danger,
+                      padding: '1px 5px', borderRadius: radius.sm, fontWeight: font.weight.semibold,
+                    }}>未設定</span>
+                  )}
+                </div>
+                <select
+                  value={current}
+                  onChange={e => handleChange(eng.id, e.target.value)}
+                  style={{
+                    padding: '3px 6px', border: `1px solid ${GRAY_200}`,
+                    borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.sans,
+                    color: C.textDark, outline: 'none', background: color.white,
+                  }}
+                >
+                  <option value="">— (報酬計算なし)</option>
+                  {rewardIds.map(id => (
+                    <option key={id} value={id}>{id} - {rewardNameById[id] || ''}</option>
+                  ))}
+                </select>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </CollapsibleCard>
+  );
+}
+
+// 企業名をクリックで input 切替
+function InlineCompanyName({ company, editable, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(company || '');
+  const inputRef = useRef(null);
+  useEffect(() => { setVal(company || ''); }, [company]);
+  useEffect(() => { if (editing && inputRef.current) { inputRef.current.focus(); inputRef.current.select(); } }, [editing]);
+  const commit = async () => {
+    setEditing(false);
+    if ((val || '').trim() === (company || '').trim()) return;
+    if (!val.trim()) { setVal(company || ''); return; }
+    await onSave?.(val.trim());
+  };
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={val}
+        onChange={e => setVal(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === 'Escape') { setVal(company || ''); setEditing(false); } if (e.key === 'Enter') commit(); }}
+        style={{
+          fontSize: 17, fontWeight: font.weight.bold, color: NAVY,
+          border: `1px solid ${NAVY}`, borderRadius: radius.sm, padding: '2px 6px',
+          fontFamily: font.family.sans, outline: 'none', minWidth: 240,
+        }}
+      />
+    );
+  }
+  return (
+    <span
+      onClick={() => editable && setEditing(true)}
+      style={{
+        fontSize: 17, fontWeight: font.weight.bold, color: NAVY,
+        cursor: editable ? 'pointer' : 'default',
+        padding: '2px 6px', margin: '0 -6px', borderRadius: radius.sm,
+      }}
+      onMouseEnter={e => editable && (e.currentTarget.style.background = GRAY_50)}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+      title={editable ? 'クリックして編集' : ''}
+    >{company}</span>
+  );
+}
+
 // ActivityTimeline カード (デフォルト開)
 function ActivityTimelineCard({ clientSupaId, contactsByClient }) {
   return (
@@ -277,7 +444,6 @@ export default function ClientDetailPage({
   setClientData,
   currentUser = '',
   onBack,
-  onEdit,
   onShowReward,
 }) {
   const c = client;
@@ -312,6 +478,34 @@ export default function ClientDetailPage({
       setClientData(prev => prev.map(x => x._supaId === c._supaId ? updated : x));
     }
   };
+
+  // クライアント削除
+  const handleDelete = async () => {
+    if (!c?._supaId) return;
+    if (!window.confirm(`「${c.company}」を削除しますか？\nこの操作は取り消せません。`)) return;
+    const error = await deleteClient(c._supaId);
+    if (error) { alert('削除に失敗: ' + (error.message || '不明なエラー')); return; }
+    if (setClientData) {
+      setClientData(prev => prev.filter(x => x._supaId !== c._supaId));
+    }
+    onBack?.();
+  };
+
+  // 商材プルダウン (business_categories)
+  const [categoryOptions, setCategoryOptions] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('business_categories')
+        .select('name, is_active, display_order')
+        .eq('org_id', getOrgId())
+        .eq('is_active', true)
+        .order('display_order');
+      if (!cancelled) setCategoryOptions((data || []).map(x => ({ value: x.name, label: x.name })));
+    })();
+    return () => { cancelled = true; };
+  }, []);
   // 担当者ドロワー
   const [contactDrawer, setContactDrawer] = useState({ isOpen: false, mode: 'add', existingContact: null });
   // モバイル時のタブ切替
@@ -443,26 +637,23 @@ export default function ClientDetailPage({
                 }}>契約済</span>
               )
             )}
-            <span style={{ fontSize: 17, fontWeight: font.weight.bold, color: NAVY }}>{c.company}</span>
-            {c.industry && (
-              <span style={{ fontSize: font.size.xs, color: C.textLight }}>{c.industry}</span>
-            )}
+            <InlineCompanyName company={c.company} editable={!!setClientData} onSave={v => patchClient({ company: v })} />
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          {isAdmin && onEdit && (
+          {isAdmin && setClientData && (
             <button
-              onClick={() => onEdit(c)}
-              title="顧客情報を編集"
+              onClick={handleDelete}
+              title="このクライアントを削除"
               style={{
                 padding: '5px 12px', borderRadius: radius.md,
                 border: `1px solid ${GRAY_200}`, background: color.white,
-                fontSize: font.size.xs, color: C.textMid, fontWeight: font.weight.medium,
+                fontSize: font.size.xs, color: C.textLight, fontWeight: font.weight.medium,
                 cursor: 'pointer', fontFamily: font.family.sans,
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = NAVY; e.currentTarget.style.color = NAVY; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = GRAY_200; e.currentTarget.style.color = C.textMid; }}
-            >編集</button>
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = color.danger; e.currentTarget.style.color = color.danger; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = GRAY_200; e.currentTarget.style.color = C.textLight; }}
+            >削除</button>
           )}
         </div>
       </div>
@@ -474,12 +665,29 @@ export default function ClientDetailPage({
         border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
         marginBottom: 12, fontSize: font.size.xs, color: C.textMid,
       }}>
-        {c.industry && (
-          <div>
-            <span style={{ color: C.textLight, marginRight: 4 }}>業種</span>
-            <span style={{ color: C.textDark, fontWeight: font.weight.medium }}>{c.industry}</span>
-          </div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ color: C.textLight }}>業種</span>
+          {setClientData ? (
+            <select
+              value={c.industry || ''}
+              onChange={async (e) => { await patchClient({ industry: e.target.value }); }}
+              title="商材を変更"
+              style={{
+                color: c.industry ? C.textDark : C.textLight,
+                fontWeight: font.weight.medium, border: 'none',
+                background: 'transparent', cursor: 'pointer', fontFamily: font.family.sans,
+                fontSize: font.size.xs, outline: 'none', padding: 0,
+              }}
+            >
+              <option value="">—</option>
+              {categoryOptions.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          ) : (
+            <span style={{ color: C.textDark, fontWeight: font.weight.medium }}>{c.industry || '—'}</span>
+          )}
+        </div>
         {sortedContacts.length > 0 && (
           <div>
             <span style={{ color: C.textLight, marginRight: 4 }}>主担当</span>
@@ -665,7 +873,47 @@ export default function ClientDetailPage({
               placeholder="client@example.com"
               onSave={v => patchClient({ clientEmail: v })}
             />
+            {c.contact === 'Slack' && (
+              <EditableField
+                label="Slack Webhook URL (アポ報告用)" value={c.slackWebhookUrl}
+                placeholder="https://hooks.slack.com/services/..."
+                onSave={v => patchClient({ slackWebhookUrl: v })}
+              />
+            )}
+            {c.contact === 'Chatwork' && (
+              <EditableField
+                label="Chatwork ルームID" value={c.chatworkRoomId}
+                placeholder="123456789"
+                onSave={v => patchClient({ chatworkRoomId: v })}
+              />
+            )}
+            <EditableField
+              label="Slack Webhook URL (社内報告用)" value={c.slackWebhookUrlInternal}
+              placeholder="https://hooks.slack.com/services/..."
+              onSave={v => patchClient({ slackWebhookUrlInternal: v })}
+            />
+            {(c.calendar === 'Google' || c.calendar === 'Google(入力)') && (
+              <EditableField
+                label="Google Calendar ID" value={c.googleCalendarId}
+                placeholder="クライアントのGoogleメールアドレス"
+                onSave={v => patchClient({ googleCalendarId: v })}
+              />
+            )}
+            {(c.calendar === 'Spir' || c.calendar === '調整アポ') && (
+              <EditableField
+                label="日程調整URL" value={c.schedulingUrl}
+                placeholder="https://app.spir.com/..."
+                onSave={v => patchClient({ schedulingUrl: v })}
+              />
+            )}
           </CollapsibleCard>
+
+          {/* 報酬体系 (タイプ別) - 商材エンゲージメント毎に reward_type を設定 */}
+          {c?._supaId && setClientData && (
+            <InlineEngagementRewards
+              clientId={c._supaId} rewardMaster={rewardMaster}
+            />
+          )}
 
           {/* 数字カード (デフォルト開) */}
           <CollapsibleCard title="数字" defaultOpen={true}>
