@@ -9,9 +9,11 @@ import {
 } from './utils';
 
 // 報酬体系 1件分のチップ (ホバーで段階別 tier 詳細をツールチップ表示)
+// ツールチップは position:fixed で window 座標に出す。親要素の overflow:hidden に
+// 邪魔されないため。
 function RewardChip({ rw, rewardMaster }) {
   const [hover, setHover] = useState(false);
-  // この reward_type の全 tier を抽出
+  const [pos, setPos] = useState({ x: 0, y: 0 });
   const tiers = useMemo(() => {
     return (rewardMaster || [])
       .filter(r => r.id === rw.rewardType)
@@ -20,15 +22,20 @@ function RewardChip({ rw, rewardMaster }) {
   const head = tiers[0];
   const isFixed = head?.calc_type === 'fixed_per_appo' || head?.basis === '-';
 
-  // 金額表示 (税別なら *1.1)
   const fmtPrice = (price) => {
     const p = head?.tax === '税別' ? Math.round(price * 1.1) : price;
     return '¥' + Number(p || 0).toLocaleString();
   };
 
+  const handleEnter = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPos({ x: rect.left, y: rect.bottom + 4 });
+    setHover(true);
+  };
+
   return (
-    <span style={{ position: 'relative', display: 'inline-block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-      onMouseEnter={() => setHover(true)}
+    <span style={{ whiteSpace: 'nowrap' }}
+      onMouseEnter={handleEnter}
       onMouseLeave={() => setHover(false)}>
       <span style={{ color: color.textLight, fontSize: 10 }}>{rw.categoryName}/{rw.engName}: </span>
       <span style={{ color: color.navy, fontWeight: font.weight.semibold, borderBottom: `1px dotted ${color.textLight}` }}>
@@ -36,12 +43,13 @@ function RewardChip({ rw, rewardMaster }) {
       </span>
       {hover && tiers.length > 0 && (
         <div onClick={e => e.stopPropagation()} style={{
-          position: 'absolute', top: '100%', left: 0, zIndex: 2000,
-          marginTop: 4, padding: '8px 10px',
+          position: 'fixed', top: pos.y, left: pos.x, zIndex: 99999,
+          padding: '8px 10px',
           background: color.white, border: `1px solid ${color.border}`,
-          borderRadius: radius.md, boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          minWidth: 240, fontSize: font.size.xs, color: color.textDark,
+          borderRadius: radius.md, boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+          minWidth: 260, fontSize: font.size.xs, color: color.textDark,
           fontFamily: font.family.sans, fontWeight: font.weight.normal,
+          pointerEvents: 'none',
         }}>
           <div style={{ fontWeight: font.weight.bold, color: color.navy, marginBottom: 6, paddingBottom: 4, borderBottom: `1px solid ${color.border}` }}>
             {rw.rewardName}
