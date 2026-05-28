@@ -9,7 +9,6 @@ import { useIsMobile } from '../../../hooks/useIsMobile';
 import ContactDrawer from './ContactDrawer';
 import ActivityTimeline from './ActivityTimeline';
 import ClientMonthlyTargetSection from '../crm/ClientMonthlyTargetSection';
-import CRMActionPanel from '../crm/CRMActionPanel';
 import ClientMeetingsSection from '../crm/ClientMeetingsSection';
 
 const NAVY = '#0D2247';
@@ -85,11 +84,11 @@ function CollapsibleCard({ title, defaultOpen = false, badge, children }) {
   );
 }
 
-// ActivityTimeline カード (デフォルト閉)
+// ActivityTimeline カード (デフォルト開)
 function ActivityTimelineCard({ clientSupaId, contactsByClient }) {
   return (
-    <CollapsibleCard title="Activity Timeline" defaultOpen={false}>
-      <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+    <CollapsibleCard title="Activity Timeline" defaultOpen={true}>
+      <div style={{ maxHeight: 600, overflowY: 'auto' }}>
         <ActivityTimeline clientSupaId={clientSupaId} contactsByClient={contactsByClient} />
       </div>
     </CollapsibleCard>
@@ -213,7 +212,6 @@ export default function ClientDetailPage({
   const [contactDrawer, setContactDrawer] = useState({ isOpen: false, mode: 'add', existingContact: null });
   // モバイル時のタブ切替
   const isMobile = useIsMobile();
-  const [mobileTab, setMobileTab] = useState('info'); // 'info' | 'timeline' | 'actions'
 
   useEffect(() => {
     let cancelled = false;
@@ -388,66 +386,17 @@ export default function ClientDetailPage({
         )}
       </div>
 
-      {/* モバイル時のタブ切替 */}
-      {isMobile && (
-        <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
-          {[
-            { key: 'info',     label: '面談・議事録' },
-            { key: 'actions',  label: '契約・担当者' },
-          ].map(t => {
-            const active = mobileTab === t.key;
-            return (
-              <button
-                key={t.key}
-                onClick={() => setMobileTab(t.key)}
-                style={{
-                  flex: 1, padding: '10px 8px',
-                  border: `1px solid ${active ? NAVY : GRAY_200}`,
-                  background: active ? NAVY : color.white,
-                  color: active ? color.white : C.textMid,
-                  borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold,
-                  cursor: 'pointer', fontFamily: font.family.sans,
-                }}
-              >{t.label}</button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* 2-pane layout: 左=面談記録(メイン) / 右=契約・目標・担当者・Activity */}
+      {/* 3-column layout: 左=担当者/契約条件/数字 / 中=面談議事録 / 右=Activity Timeline */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '1fr 380px',
+        gridTemplateColumns: isMobile ? '1fr' : '320px 1fr 360px',
         gap: 16,
         alignItems: 'start',
       }}>
-        {/* Left pane: 面談記録 (メイン) */}
+        {/* Left column: 担当者・契約条件・数字・月別目標・関連リスト */}
         <div style={{
-          background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
-          padding: '10px 14px',
-          display: isMobile && mobileTab !== 'info' ? 'none' : 'block',
+          display: 'flex', flexDirection: 'column', gap: 12,
         }}>
-          <ClientMeetingsSection clientId={c?._supaId} currentUser={currentUser} />
-        </div>
-
-        {/* Right pane: actions + contacts + 契約・目標・数字 + Activity Timeline */}
-        <div style={{
-          display: isMobile && mobileTab !== 'actions' ? 'none' : 'flex',
-          flexDirection: 'column', gap: 12,
-        }}>
-          {/* アクションパネル */}
-          <div style={{
-            background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
-            padding: '14px 16px',
-          }}>
-            <CRMActionPanel
-              client={c}
-              primaryContact={sortedContacts.find(ct => ct.isPrimary) || sortedContacts[0]}
-              currentUser={currentUser}
-              setClientData={setClientData}
-            />
-          </div>
-
           {/* 担当者カード (コンパクト) */}
           <CollapsibleCard title={`担当者 (${sortedContacts.length})`} defaultOpen={true}>
           <div style={{
@@ -513,8 +462,8 @@ export default function ClientDetailPage({
           )}
           </CollapsibleCard>
 
-          {/* 契約条件カード (デフォルト閉) */}
-          <CollapsibleCard title="契約条件" defaultOpen={false}>
+          {/* 契約条件カード (デフォルト開) */}
+          <CollapsibleCard title="契約条件" defaultOpen={true}>
             <NextContactRow client={c} setClientData={setClientData} />
             <FieldRow label="報酬体系" value={
               c.rewardType ? (
@@ -533,14 +482,7 @@ export default function ClientDetailPage({
             {c.clientEmail && <FieldRow label="メールアドレス" value={c.clientEmail} />}
           </CollapsibleCard>
 
-          {/* 月別目標カード (支援中のみ・デフォルト閉) */}
-          {c.status === '支援中' && (
-            <CollapsibleCard title="月別目標" defaultOpen={false}>
-              <ClientMonthlyTargetSection clientId={c._supaId} />
-            </CollapsibleCard>
-          )}
-
-          {/* 数字カード (コンパクト・デフォルト開) */}
+          {/* 数字カード (デフォルト開) */}
           <CollapsibleCard title="数字" defaultOpen={true}>
             {stats.loading ? (
               <div style={{ fontSize: font.size.xs, color: C.textLight }}>読み込み中...</div>
@@ -552,6 +494,13 @@ export default function ClientDetailPage({
               </>
             )}
           </CollapsibleCard>
+
+          {/* 月別目標カード (支援中のみ・デフォルト閉) */}
+          {c.status === '支援中' && (
+            <CollapsibleCard title="月別目標" defaultOpen={false}>
+              <ClientMonthlyTargetSection clientId={c._supaId} />
+            </CollapsibleCard>
+          )}
 
           {/* 関連リストカード (デフォルト閉) */}
           {relatedLists.length > 0 && (
@@ -575,8 +524,20 @@ export default function ClientDetailPage({
               )}
             </CollapsibleCard>
           )}
+        </div>
 
-          {/* Activity Timeline カード (折りたたみ) */}
+        {/* Center column: 面談記録 (メイン) */}
+        <div style={{
+          background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
+          padding: '10px 14px',
+        }}>
+          <ClientMeetingsSection clientId={c?._supaId} currentUser={currentUser} />
+        </div>
+
+        {/* Right column: Activity Timeline (デフォルト開) */}
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: 12,
+        }}>
           <ActivityTimelineCard clientSupaId={c?._supaId} contactsByClient={contactsByClient} />
         </div>
       </div>
