@@ -1026,6 +1026,7 @@ function EmailFollowupModal({ row, callListData, clientData, contactsByClient, c
             <input
               type="text" value={extraToInput} onChange={e => setExtraToInput(e.target.value)}
               placeholder="追加のメールアドレス (カンマ区切りで複数可、テスト送信等に)"
+              autoComplete="off" name="spnv_extra_to" data-lpignore="true" data-1p-ignore="true"
               style={{
                 width: '100%', padding: '6px 10px', border: `1px solid ${color.border}`,
                 borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.mono,
@@ -1053,6 +1054,7 @@ function EmailFollowupModal({ row, callListData, clientData, contactsByClient, c
             <input
               type="text" value={extraCcInput} onChange={e => setExtraCcInput(e.target.value)}
               placeholder="追加のメールアドレス (カンマ区切りで複数可)"
+              autoComplete="off" name="spnv_extra_cc" data-lpignore="true" data-1p-ignore="true"
               style={{
                 width: '100%', padding: '6px 10px', border: `1px solid ${color.border}`,
                 borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.mono,
