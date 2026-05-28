@@ -65,34 +65,50 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
   const [draggingId, setDraggingId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
 
-  // 一覧取得 (仮想カード3枠を補完)
+  // 一覧取得: 不足分の DEFAULT_TITLES 3枠は即時 INSERT して全カードを実DB行で揃える
   const reload = useCallback(async () => {
     if (!clientId) return;
     const { data } = await fetchClientMeetings(clientId);
-    setRows(mergeWithDefaults(data));
+    const list = data || [];
+    const tagged = list.map(r => ({ ...r, _cat: matchDefaultCategory(r.title) }));
+    const present = new Set(tagged.map(r => r._cat).filter(Boolean));
+    const missing = DEFAULT_TITLES.filter(t => !present.has(t));
+    let merged = tagged;
+    if (missing.length > 0) {
+      const inserted = [];
+      for (let i = 0; i < missing.length; i++) {
+        const title = missing[i];
+        const { data: row } = await insertClientMeeting({
+          clientId, title, meetingAt: new Date().toISOString(), createdBy: currentUser,
+        });
+        if (row) {
+          // 先頭3枠の初期 sort_order を 1,2,3 として確保
+          const so = DEFAULT_TITLES.indexOf(title) + 1;
+          await updateClientMeeting(row.id, { sort_order: so });
+          inserted.push({ ...row, sort_order: so, _cat: title });
+        }
+      }
+      merged = [...tagged, ...inserted];
+    }
+    // sort_order 昇順、nullは末尾、同値は meeting_at 昇順
+    merged.sort((a, b) => {
+      const sa = a.sort_order, sb = b.sort_order;
+      if (sa != null && sb != null) return sa - sb;
+      if (sa != null) return -1;
+      if (sb != null) return 1;
+      return new Date(a.meeting_at || 0) - new Date(b.meeting_at || 0);
+    });
+    setRows(merged);
     setLoading(false);
-  }, [clientId]);
+  }, [clientId, currentUser]);
 
   useEffect(() => { reload(); }, [reload]);
-
-  // 仮想カード → 実DBレコードに昇格
-  const materializeVirtual = useCallback(async (virtualMeeting, initialPatch = {}) => {
-    const { data, error } = await insertClientMeeting({
-      clientId,
-      title: initialPatch.title || virtualMeeting.title,
-      meetingAt: initialPatch.meetingAt || new Date().toISOString(),
-      createdBy: currentUser,
-    });
-    if (error) { alert('追加に失敗: ' + error.message); return null; }
-    setRows(prev => prev.map(r => (r.id === virtualMeeting.id) ? { ...data, _cat: virtualMeeting._cat } : r));
-    return data;
-  }, [clientId, currentUser]);
 
   const handleAdd = async () => {
     if (adding) return;
     setAdding(true);
     // 末尾に追加するため、現在の最大 sort_order + 1000
-    const maxOrder = Math.max(0, ...rows.filter(r => !r.virtual).map(r => Number(r.sort_order || 0)));
+    const maxOrder = Math.max(0, ...rows.map(r => Number(r.sort_order || 0)));
     const { data, error } = await insertClientMeeting({
       clientId, title: '面談', meetingAt: new Date().toISOString(), createdBy: currentUser,
     });
@@ -105,26 +121,19 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
     setRows(prev => [...prev, { ...data, _cat: null }]);
   };
 
-  // ドラッグ並び替え (実カードのみ対象、仮想カードはドラッグ不可)
+  // ドラッグ並び替え
   const handleDrop = async (targetId) => {
     if (!draggingId || draggingId === targetId) { setDraggingId(null); setDragOverId(null); return; }
-    const realRows = rows.filter(r => !r.virtual);
-    const fromIdx = realRows.findIndex(r => r.id === draggingId);
-    const toIdx = realRows.findIndex(r => r.id === targetId);
+    const fromIdx = rows.findIndex(r => r.id === draggingId);
+    const toIdx = rows.findIndex(r => r.id === targetId);
     if (fromIdx === -1 || toIdx === -1) { setDraggingId(null); setDragOverId(null); return; }
-    const reordered = [...realRows];
+    const reordered = [...rows];
     const [moved] = reordered.splice(fromIdx, 1);
     reordered.splice(toIdx, 0, moved);
-    // ローカル更新
     const orderedIds = reordered.map(r => r.id);
-    setRows(prev => {
-      const virtuals = prev.filter(r => r.virtual);
-      const reorderedWithOrder = reordered.map((r, i) => ({ ...r, sort_order: (i + 1) * 1000 }));
-      return [...virtuals, ...reorderedWithOrder];
-    });
+    setRows(reordered.map((r, i) => ({ ...r, sort_order: (i + 1) * 1000 })));
     setDraggingId(null);
     setDragOverId(null);
-    // DB 反映
     await reorderClientMeetings(orderedIds);
   };
 
@@ -133,7 +142,7 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[2] }}>
         <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy, letterSpacing: 0.5 }}>
-          面談・議事録 ({rows.filter(r => !r.virtual).length})
+          面談・議事録 ({rows.length})
         </div>
         <button onClick={handleAdd} disabled={adding} style={{
           padding: '6px 14px', background: color.navy, color: color.white,
@@ -150,22 +159,21 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
           {rows.map(m => {
-            const isReal = !m.virtual;
             const isDragOver = dragOverId === m.id && draggingId && draggingId !== m.id;
             return (
               <div
                 key={m.id}
-                draggable={isReal}
-                onDragStart={isReal ? (e) => {
+                draggable
+                onDragStart={(e) => {
                   setDraggingId(m.id);
                   e.dataTransfer.effectAllowed = 'move';
-                } : undefined}
-                onDragOver={isReal ? (e) => {
+                }}
+                onDragOver={(e) => {
                   e.preventDefault();
                   if (dragOverId !== m.id) setDragOverId(m.id);
-                } : undefined}
-                onDragLeave={isReal ? () => { if (dragOverId === m.id) setDragOverId(null); } : undefined}
-                onDrop={isReal ? (e) => { e.preventDefault(); handleDrop(m.id); } : undefined}
+                }}
+                onDragLeave={() => { if (dragOverId === m.id) setDragOverId(null); }}
+                onDrop={(e) => { e.preventDefault(); handleDrop(m.id); }}
                 onDragEnd={() => { setDraggingId(null); setDragOverId(null); }}
                 style={{
                   opacity: draggingId === m.id ? 0.4 : 1,
@@ -175,8 +183,7 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
               >
                 <MeetingCard
                   meeting={m} clientId={clientId}
-                  draggable={isReal}
-                  onMaterialize={materializeVirtual}
+                  draggable
                   onChange={(updated) => setRows(prev => prev.map(x => x.id === updated.id ? { ...updated, _cat: x._cat } : x))}
                   onDelete={() => setRows(prev => prev.filter(x => x.id !== m.id))}
                 />
@@ -189,8 +196,7 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
   );
 }
 
-function MeetingCard({ meeting, clientId, onChange, onDelete, onMaterialize, draggable = false }) {
-  const isVirtual = !!meeting.virtual;
+function MeetingCard({ meeting, clientId, onChange, onDelete, draggable = false }) {
   const [title, setTitle] = useState(meeting.title || '面談');
   const [meetingDate, setMeetingDate] = useState(isoToDateInput(meeting.meeting_at));
   const [summary, setSummary] = useState(meeting.summary || '');
@@ -240,22 +246,12 @@ function MeetingCard({ meeting, clientId, onChange, onDelete, onMaterialize, dra
       if (summary !== lastSavedRef.current.summary) patch.summary = summary;
       if (nextAction !== lastSavedRef.current.next_action) patch.next_action = nextAction;
       if (Object.keys(patch).length === 0) return;
-      // 仮想カード → 中身が入った時点で実DBレコードに昇格
-      if (isVirtual) {
-        const onlyTextEmpty = !summary.trim() && !nextAction.trim();
-        if (onlyTextEmpty && title === meeting.title) return;
-        const real = await onMaterialize?.(meeting, { title, meetingAt: meetingAtIso });
-        if (!real) return;
-        await updateClientMeeting(real.id, patch);
-        lastSavedRef.current = { ...lastSavedRef.current, ...patch };
-        return;
-      }
       await updateClientMeeting(meeting.id, patch);
       lastSavedRef.current = {
         ...lastSavedRef.current, ...patch,
       };
     }, 1000);
-  }, [title, meetingDate, summary, nextAction, meeting.id, isVirtual, meeting, onMaterialize]);
+  }, [title, meetingDate, summary, nextAction, meeting.id]);
 
   useEffect(() => { scheduleSave(); return () => { if (debounceRef.current) clearTimeout(debounceRef.current); }; }, [scheduleSave]);
 
@@ -286,13 +282,7 @@ function MeetingCard({ meeting, clientId, onChange, onDelete, onMaterialize, dra
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    // 仮想カードの場合は先に実DBレコードに昇格
-    let meetingId = meeting.id;
-    if (isVirtual) {
-      const real = await onMaterialize?.(meeting, { title, meetingAt: dateInputToIso(meetingDate) });
-      if (!real) { setUploading(false); return; }
-      meetingId = real.id;
-    }
+    const meetingId = meeting.id;
     const { url, error } = await uploadMeetingRecording({ clientId, meetingId, file });
     if (error || !url) {
       setUploading(false);
@@ -314,11 +304,6 @@ function MeetingCard({ meeting, clientId, onChange, onDelete, onMaterialize, dra
   };
 
   const handleDelete = async () => {
-    if (isVirtual) {
-      // 仮想カードは削除不可（リセットは中身を空にする）
-      setSummary(''); setNextAction(''); setRecordingUrl('');
-      return;
-    }
     if (!window.confirm(`この面談記録「${title || '無題'}」を削除しますか?`)) return;
     const { error } = await deleteClientMeeting(meeting.id);
     if (error) { alert('削除失敗: ' + error.message); return; }
@@ -330,7 +315,7 @@ function MeetingCard({ meeting, clientId, onChange, onDelete, onMaterialize, dra
   return (
     <div style={{
       background: color.white, border: `1px solid ${color.border}`,
-      borderLeft: `3px solid ${analyzing ? color.warn : hasError ? color.danger : isVirtual ? color.borderLight : color.navy}`,
+      borderLeft: `3px solid ${analyzing ? color.warn : hasError ? color.danger : color.navy}`,
       borderRadius: radius.md, padding: `${space[2]}px ${space[3]}px`,
     }}>
       {/* ヘッダ: ドラッグハンドル + タイトル + 日付 + 削除 */}
@@ -381,12 +366,10 @@ function MeetingCard({ meeting, clientId, onChange, onDelete, onMaterialize, dra
             color: color.textDark, outline: 'none',
           }}
         />
-        {!isVirtual && (
-          <button onClick={handleDelete} title="削除" style={{
-            background: 'none', border: 'none', color: color.danger, cursor: 'pointer',
-            fontSize: font.size.sm, padding: '4px 6px',
-          }}>✕</button>
-        )}
+        <button onClick={handleDelete} title="削除" style={{
+          background: 'none', border: 'none', color: color.danger, cursor: 'pointer',
+          fontSize: font.size.sm, padding: '4px 6px',
+        }}>✕</button>
       </div>
 
       {/* 録音アップロード行 */}

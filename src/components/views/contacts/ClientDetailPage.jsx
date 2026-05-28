@@ -255,25 +255,63 @@ function EngagementRewardsInline({ clientId, rewardMaster }) {
 
   if (salesAgencyEngs.length === 0) return null;
 
-  // サマリ: 商材ごとに「M&A: F / SaaS: 未 / ...」を生成 (engagement 単位だと多いので商材単位で集約)
-  const summaryByCategory = useMemo(() => {
-    const acc = {};
-    for (const eng of salesAgencyEngs) {
-      const cat = categories.find(c => c.id === eng.category_id);
-      const catName = cat?.name || '?';
-      const reward = (engRewards[eng.id] || '').trim();
-      if (!acc[catName]) acc[catName] = { display_order: cat?.display_order ?? 999, rewards: new Set(), hasMissing: false };
-      if (reward) acc[catName].rewards.add(reward);
-      else acc[catName].hasMissing = true;
+  // rewardMaster から id 単位の詳細 map (name, tax, basis, timing, tiers[])
+  const rewardDetailMap = useMemo(() => {
+    const m = {};
+    (rewardMaster || []).forEach(r => {
+      if (!m[r.id]) m[r.id] = { name: r.name, tax: r.tax, basis: r.basis, timing: r.timing, tiers: [] };
+      m[r.id].tiers.push(r);
+    });
+    return m;
+  }, [rewardMaster]);
+
+  // ツールチップ用文字列を生成
+  const buildTooltip = (rid) => {
+    const d = rewardDetailMap[rid];
+    if (!d) return rid;
+    const lines = [];
+    lines.push(`【${rid}】${d.name}`);
+    if (d.tax) lines.push(`税区分: ${d.tax}`);
+    if (d.timing) lines.push(`支払タイミング: ${d.timing}`);
+    if (d.basis) lines.push(`基準: ${d.basis}`);
+    if (d.tiers && d.tiers.length > 0) {
+      lines.push('--- 段階 ---');
+      d.tiers.forEach(t => {
+        const range = (t.min_amount != null || t.max_amount != null)
+          ? `${t.min_amount != null ? '¥' + Number(t.min_amount).toLocaleString() : '〜'} - ${t.max_amount != null ? '¥' + Number(t.max_amount).toLocaleString() : '〜'}`
+          : '';
+        const rate = t.rate != null ? `${(t.rate * 100).toFixed(1)}%` : (t.fixed_amount != null ? `¥${Number(t.fixed_amount).toLocaleString()}` : '');
+        lines.push(`  ${range} → ${rate}`);
+      });
     }
-    return Object.entries(acc)
-      .sort(([, a], [, b]) => a.display_order - b.display_order)
-      .map(([name, v]) => ({
-        name,
-        rewards: [...v.rewards].sort().join('/'),
-        hasMissing: v.hasMissing,
-      }));
-  }, [salesAgencyEngs, categories, engRewards]);
+    return lines.join('\n');
+  };
+
+  // サマリ: 設定済 reward 単位で集約 (同じ reward が複数 engagement に設定されていれば 1 チップに統合)
+  // 表示は reward.name のみ。チップにホバーで詳細ツールチップ。
+  const summary = useMemo(() => {
+    const usedRewards = new Map(); // rid -> { categories: Set<categoryName> }
+    let missingCount = 0;
+    const missingCats = [];
+    for (const eng of salesAgencyEngs) {
+      const reward = (engRewards[eng.id] || '').trim();
+      const cat = categories.find(c => c.id === eng.category_id)?.name || '?';
+      if (reward) {
+        if (!usedRewards.has(reward)) usedRewards.set(reward, { categories: new Set() });
+        usedRewards.get(reward).categories.add(cat);
+      } else {
+        missingCount += 1;
+        if (!missingCats.includes(cat)) missingCats.push(cat);
+      }
+    }
+    const rewards = [...usedRewards.entries()].map(([rid, v]) => ({
+      rid,
+      name: rewardDetailMap[rid]?.name || rid,
+      categories: [...v.categories],
+      tooltip: buildTooltip(rid),
+    }));
+    return { rewards, missingCount, missingCats };
+  }, [salesAgencyEngs, categories, engRewards, rewardDetailMap]);
 
   return (
     <>
@@ -293,22 +331,38 @@ function EngagementRewardsInline({ clientId, rewardMaster }) {
         </div>
         {!loaded ? (
           <div style={{ fontSize: font.size.xs, color: C.textLight }}>読み込み中...</div>
-        ) : summaryByCategory.length === 0 ? (
+        ) : summary.rewards.length === 0 && summary.missingCount === 0 ? (
           <div style={{ fontSize: font.size.xs, color: C.textLight }}>—</div>
         ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {summaryByCategory.map(s => (
-              <span key={s.name} style={{
-                fontSize: 10, padding: '1px 6px', borderRadius: radius.sm,
-                background: s.rewards ? alpha(color.navy, 0.06) : alpha(color.danger, 0.08),
-                color: s.rewards ? NAVY : color.danger,
-                fontWeight: font.weight.medium,
-                border: `1px solid ${s.rewards ? alpha(color.navy, 0.2) : alpha(color.danger, 0.25)}`,
-              }}>
-                {s.name}: {s.rewards || '未設定'}
-                {s.rewards && s.hasMissing && <span style={{ color: color.danger, marginLeft: 4 }}>+未</span>}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+            {summary.rewards.map(r => (
+              <span
+                key={r.rid}
+                title={r.tooltip}
+                style={{
+                  fontSize: font.size.xs, padding: '2px 8px', borderRadius: radius.sm,
+                  background: alpha(color.navy, 0.06),
+                  color: NAVY, fontWeight: font.weight.medium,
+                  border: `1px solid ${alpha(color.navy, 0.2)}`,
+                  cursor: 'help',
+                }}
+              >
+                {r.name}
+                <span style={{ color: C.textLight, fontSize: 10, marginLeft: 4, fontWeight: font.weight.normal }}>
+                  ({r.categories.join('/')})
+                </span>
               </span>
             ))}
+            {summary.missingCount > 0 && (
+              <span style={{
+                fontSize: 10, padding: '2px 6px', borderRadius: radius.sm,
+                background: alpha(color.danger, 0.08), color: color.danger,
+                border: `1px solid ${alpha(color.danger, 0.25)}`,
+                fontWeight: font.weight.medium,
+              }} title={`未設定: ${summary.missingCats.join(', ')}`}>
+                {summary.missingCats.join('/')} 未設定
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -770,7 +824,7 @@ export default function ClientDetailPage({
         marginBottom: 12, fontSize: font.size.xs, color: C.textMid,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ color: C.textLight }}>業種</span>
+          <span style={{ color: C.textLight }}>商材</span>
           {setClientData ? (
             <select
               value={c.industry || ''}
