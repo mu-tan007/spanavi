@@ -57,6 +57,7 @@ export default function CRMTableRow({
   monthAppoCountByClient = {},
   monthTargetByClient = {},
   maxMonthTarget = 0,
+  rewards = [],
   onRowClick,
   onEditRow,
 }) {
@@ -170,20 +171,38 @@ export default function CRMTableRow({
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
       }}>{c.industry || '-'}</span>
 
-      {/* 4. 最終接点 */}
+      {/* 4. 報酬体系 (engagement別) */}
+      <span style={{
+        textAlign: crmCols[3]?.align,
+        fontSize: font.size.xs, color: color.textMid,
+        display: 'flex', flexDirection: 'column', gap: 2,
+      }}>
+        {rewards.length === 0 ? (
+          <span style={{ color: color.textLight }}>—</span>
+        ) : (
+          rewards.map((rw, i) => (
+            <span key={i} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <span style={{ color: color.textLight, fontSize: 10 }}>{rw.categoryName}/{rw.engName}: </span>
+              <span style={{ color: color.navy, fontWeight: font.weight.semibold }}>{rw.rewardName}</span>
+            </span>
+          ))
+        )}
+      </span>
+
+      {/* 5. 最終接点 */}
       <span style={{
         fontFamily: font.family.mono,
         fontSize: font.size.xs,
         fontVariantNumeric: 'tabular-nums',
         color: lt.stale ? color.gold : (lt.label === '-' ? color.textLight : color.textMid),
         fontWeight: lt.stale ? font.weight.bold : font.weight.normal,
-        textAlign: crmCols[3]?.align,
+        textAlign: crmCols[4]?.align,
       }}>{lt.label}</span>
 
-      {/* 5. 主担当 */}
+      {/* 6. 主担当 */}
       {primary ? (
         <span style={{
-          fontSize: font.size.xs, color: color.navy, textAlign: crmCols[4]?.align,
+          fontSize: font.size.xs, color: color.navy, textAlign: crmCols[5]?.align,
           display: 'inline-flex', alignItems: 'center', gap: 4,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
@@ -197,21 +216,21 @@ export default function CRMTableRow({
           <span style={{ fontWeight: font.weight.medium }}>{primary.name}</span>
         </span>
       ) : (
-        <span style={{ fontSize: font.size.xs, color: color.textLight, textAlign: crmCols[4]?.align }}>-</span>
+        <span style={{ fontSize: font.size.xs, color: color.textLight, textAlign: crmCols[5]?.align }}>-</span>
       )}
 
-      {/* 6. 次回接点予定 */}
+      {/* 7. 次回接点予定 */}
       <span style={{
         fontFamily: font.family.mono,
         fontSize: font.size.xs,
         fontVariantNumeric: 'tabular-nums',
         color: nextContact.color,
         fontWeight: nextContact.bold ? font.weight.bold : font.weight.normal,
-        textAlign: crmCols[5]?.align,
+        textAlign: crmCols[6]?.align,
       }}>{nextContact.label}</span>
 
-      {/* 7. 目標対比 */}
-      <span style={{ textAlign: crmCols[6]?.align }}>
+      {/* 8. 目標対比 */}
+      <span style={{ textAlign: crmCols[7]?.align }}>
         <span style={{
           display: 'inline-block',
           fontFamily: font.family.mono,
@@ -231,8 +250,8 @@ export default function CRMTableRow({
         )}
       </span>
 
-      {/* 8. 次のアクション */}
-      <span style={{ textAlign: crmCols[7]?.align }}>
+      {/* 9. 次のアクション */}
+      <span style={{ textAlign: crmCols[8]?.align }}>
         <span style={{
           fontSize: font.size.xs, fontWeight: font.weight.semibold,
           color: action.color,

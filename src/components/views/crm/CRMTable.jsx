@@ -135,6 +135,7 @@ export default function CRMTable({
   monthAppoCountByClient,
   monthTargetByClient,
   maxMonthTarget,
+  rewardsByClient = {},
   onRowClick,
   onEditRow,
 }) {
@@ -218,6 +219,7 @@ export default function CRMTable({
               monthAppoCountByClient={monthAppoCountByClient}
               monthTargetByClient={monthTargetByClient}
               maxMonthTarget={maxMonthTarget}
+              rewards={rewardsByClient[c._supaId] || []}
               onRowClick={onRowClick}
               onEditRow={onEditRow}
             />

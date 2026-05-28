@@ -69,13 +69,6 @@ export default function CRMHeader({
       </div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
         <AlertBadge
-          count={overdueCount}
-          label="フォロー漏れ"
-          color={color.danger}
-          active={alertFilter === 'overdue'}
-          onClick={() => setAlertFilter(alertFilter === 'overdue' ? null : 'overdue')}
-        />
-        <AlertBadge
           count={expiredCount}
           label="予定日超過"
           color="#B8860B"

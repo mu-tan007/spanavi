@@ -76,6 +76,7 @@ export const CRM_COLS_BASE = [
   { key: 'status',         width: 100, align: 'center' },
   { key: 'company',        width: 220, align: 'left' },
   { key: 'product',        width: 130, align: 'left' },
+  { key: 'rewards',        width: 200, align: 'left' },
   { key: 'lastTouch',      width: 90,  align: 'right' },
   { key: 'primaryContact', width: 130, align: 'left' },
   { key: 'nextContact',    width: 100, align: 'right' },
@@ -85,7 +86,7 @@ export const CRM_COLS_BASE = [
 
 export const CRM_COLS_EDIT = [...CRM_COLS_BASE, { key: 'edit', width: 96, align: 'center' }];
 
-export const CRM_COL_LABELS = ['ステータス','企業名','商材','最終接点','主担当','次回接点予定','目標対比','次のアクション'];
+export const CRM_COL_LABELS = ['ステータス','企業名','商材','報酬体系','最終接点','主担当','次回接点予定','目標対比','次のアクション'];
 
 // 当月の 'YYYY-MM' を取得
 export function currentYearMonth() {

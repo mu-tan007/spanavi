@@ -38,11 +38,11 @@ export default function CRMView(props) {
   );
 }
 
-function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient, callListData = [], currentUser = '', members = [] }) {
+function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient, callListData = [], currentUser = '', members = [], clientEngagementRewards = [] }) {
   // ハードリロード/URL共有で状態保持するため URL クエリに同期
   const [statusFilter, setStatusFilter] = useUrlState('crm_status', '支援中');
   const [search, setSearch]             = useUrlState('crm_q', '');
-  const [view, setView]                 = useUrlState('view', 'list', { allowed: ['list', 'detail', 'pipeline', 'targets'] });
+  const [view, setView]                 = useUrlState('view', 'list', { allowed: ['list', 'detail'] });
   const [detailClientId, setDetailClientId] = useUrlState('clientId', null);
 
   const [showRewardDetail, setShowRewardDetail] = useState(null);
@@ -144,6 +144,54 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     },
     enabled: !!orgId,
   });
+
+  // engagements マスタ (報酬体系列の eng名表示用)
+  const [engagementsMaster, setEngagementsMaster] = useState([]);
+  useEffect(() => {
+    if (!orgId) return;
+    let cancelled = false;
+    (async () => {
+      const [{ data: engs }, { data: cats }] = await Promise.all([
+        supabase.from('engagements').select('id, name, type, category_id').eq('org_id', orgId).eq('status', 'active'),
+        supabase.from('business_categories').select('id, name, display_order').eq('org_id', orgId).eq('is_active', true),
+      ]);
+      if (cancelled) return;
+      const catMap = new Map((cats || []).map(c => [c.id, c]));
+      setEngagementsMaster((engs || []).map(e => ({
+        ...e,
+        category_name: catMap.get(e.category_id)?.name || null,
+        category_order: catMap.get(e.category_id)?.display_order || 999,
+      })));
+    })();
+    return () => { cancelled = true; };
+  }, [orgId]);
+
+  // クライアント別 報酬体系マップ: { [client_id]: [{ engName, categoryName, rewardName }] }
+  const rewardsByClient = useMemo(() => {
+    const engMap = new Map(engagementsMaster.map(e => [e.id, e]));
+    const typeNameMap = new Map((rewardMaster || []).map(r => [r.id || r.type_id, r.name]));
+    const map = {};
+    for (const r of clientEngagementRewards) {
+      if (!r.reward_type) continue;
+      const eng = engMap.get(r.engagement_id);
+      if (!eng) continue;
+      if (!map[r.client_id]) map[r.client_id] = [];
+      map[r.client_id].push({
+        engName: eng.name || '—',
+        categoryName: eng.category_name || '—',
+        categoryOrder: eng.category_order || 999,
+        rewardType: r.reward_type,
+        rewardName: typeNameMap.get(r.reward_type) || r.reward_type,
+      });
+    }
+    // 各クライアント内で 商材順 → engName順 でソート
+    Object.values(map).forEach(arr => {
+      arr.sort((a, b) =>
+        (a.categoryOrder - b.categoryOrder) || a.engName.localeCompare(b.engName)
+      );
+    });
+    return map;
+  }, [clientEngagementRewards, engagementsMaster, rewardMaster]);
 
   // 当月の月別目標（テーブル目標対比%列、KPI共通キャッシュ）
   const currentYM = useMemo(() => currentYearMonth(), []);
@@ -457,58 +505,8 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
       {view !== 'detail' && (
         <PageHeader
           title="CRM"
-          description="顧客・連絡先・契約条件・月別目標の管理"
+          description="顧客・連絡先・契約条件の管理"
           style={{ marginBottom: 16 }}
-        />
-      )}
-
-      {/* サブビュー切替（list / pipeline / targets） */}
-      {view !== 'detail' && (
-        <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
-          {[
-            { key: 'list',     label: '顧客一覧' },
-            { key: 'pipeline', label: 'パイプライン' },
-            { key: 'targets',  label: '月別目標' },
-          ].map(t => {
-            const active = view === t.key;
-            return (
-              <button
-                key={t.key}
-                onClick={() => setView(t.key)}
-                style={{
-                  padding: '8px 18px',
-                  borderRadius: radius.md,
-                  border: `1px solid ${active ? NAVY : color.gray200}`,
-                  background: active ? NAVY : color.white,
-                  color: active ? color.white : color.gray500,
-                  fontSize: font.size.sm,
-                  fontWeight: font.weight.semibold,
-                  cursor: 'pointer',
-                  fontFamily: font.family.sans,
-                }}
-              >
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* 月別目標ビュー */}
-      {view === 'targets' && (
-        <MonthlyTargetsView clientData={clientData} />
-      )}
-
-      {/* パイプラインビュー */}
-      {view === 'pipeline' && (
-        <CRMPipelineView
-          clientData={clientData}
-          setClientData={setClientData}
-          contactsByClient={contactsByClient}
-          monthAppoCountByClient={monthAppoCountByClient}
-          monthTargetByClient={monthTargetByClient}
-          maxMonthTarget={maxMonthTarget}
-          onCardClick={goToDetail}
         />
       )}
 
@@ -532,10 +530,9 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
         />
       )}
 
-      {/* List mode: KPI + header + tabs + table */}
+      {/* List mode: header + tabs + table */}
       {view === 'list' && (
         <>
-          <CRMKPIDashboard clientData={displayClientData} statusCounts={statusCounts} />
           <CRMHeader
             filteredCount={filtered.length}
             search={search}
@@ -566,6 +563,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
             monthAppoCountByClient={monthAppoCountByClient}
             monthTargetByClient={monthTargetByClient}
             maxMonthTarget={maxMonthTarget}
+            rewardsByClient={rewardsByClient}
             onRowClick={goToDetail}
             onEditRow={(c, globalIdx) => setEditForm({ ...c, _idx: globalIdx })}
           />
