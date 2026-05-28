@@ -882,6 +882,9 @@ function EmailFollowupModal({ row, callListData, clientData, contactsByClient, c
   // 初期は最初の担当者をTo
   const [toIds, setToIds] = useState(contacts.length > 0 ? [contacts[0].id] : []);
   const [ccIds, setCcIds] = useState([]);
+  // フリー入力メールアドレス (カンマ/空白/改行区切りで複数可、テスト送信用途等)
+  const [extraToInput, setExtraToInput] = useState('');
+  const [extraCcInput, setExtraCcInput] = useState('');
   const [intent, setIntent] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -898,12 +901,32 @@ function EmailFollowupModal({ row, callListData, clientData, contactsByClient, c
     setter(set.includes(id) ? set.filter(x => x !== id) : [...set, id]);
   };
 
+  // カンマ/空白/改行 区切りのメアド文字列を {name, email}[] に変換
+  // メアド以外は無視、name はローカルパート (@より前) を仮置き
+  const parseExtraEmails = (raw) => {
+    if (!raw) return [];
+    return String(raw)
+      .split(/[\s,;]+/).map(s => s.trim()).filter(Boolean)
+      .filter(s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s))
+      .map(email => ({ name: email.split('@')[0], email }));
+  };
+
+  // 全宛先 (担当者選択 + フリー入力)
+  const allToRecipients = () => [
+    ...contacts.filter(c => toIds.includes(c.id)).map(c => ({ name: c.name, email: c.email })),
+    ...parseExtraEmails(extraToInput),
+  ];
+  const allCcRecipients = () => [
+    ...contacts.filter(c => ccIds.includes(c.id)).map(c => ({ name: c.name, email: c.email })),
+    ...parseExtraEmails(extraCcInput),
+  ];
+
   const handleGenerate = async () => {
-    if (toIds.length === 0) { setError('宛先 (To) を1名以上選択してください'); return; }
+    const recipients = allToRecipients();
+    const ccRecipients = allCcRecipients();
+    if (recipients.length === 0) { setError('宛先 (To) を1名以上選択またはフリー入力してください'); return; }
     if (!intent.trim()) { setError('伝えたい内容を入力してください'); return; }
     setGenerating(true); setError(null);
-    const recipients = contacts.filter(c => toIds.includes(c.id)).map(c => ({ name: c.name, email: c.email }));
-    const ccRecipients = contacts.filter(c => ccIds.includes(c.id)).map(c => ({ name: c.name, email: c.email }));
     const { subject: s, body: b, error: e } = await invokeGenListFollowupEmail({
       listContext: {
         client_name: row.list_client, list_industry: row.list_industry, eng_name: row.eng_name,
@@ -924,10 +947,11 @@ function EmailFollowupModal({ row, callListData, clientData, contactsByClient, c
   const handleSend = async () => {
     if (sendingRef.current) return;
     if (!subject.trim() || !body.trim()) { setError('件名と本文を入力してください'); return; }
-    if (toIds.length === 0) { setError('宛先 (To) を1名以上選択してください'); return; }
+    const toAll = allToRecipients();
+    if (toAll.length === 0) { setError('宛先 (To) を1名以上選択またはフリー入力してください'); return; }
     sendingRef.current = true; setSending(true); setError(null);
-    const to = contacts.filter(c => toIds.includes(c.id)).map(c => c.email).join(', ');
-    const cc = contacts.filter(c => ccIds.includes(c.id)).map(c => c.email).join(', ');
+    const to = toAll.map(r => r.email).join(', ');
+    const cc = allCcRecipients().map(r => r.email).join(', ');
     const finalBody = body + SIG_DEFAULT;
     const { error: e } = await invokeSendEmail({ to, subject, body: finalBody, cc });
     sendingRef.current = false; setSending(false);
@@ -968,49 +992,63 @@ function EmailFollowupModal({ row, callListData, clientData, contactsByClient, c
         </div>
 
         <div style={{ padding: space[4], display: 'flex', flexDirection: 'column', gap: space[3] }}>
-          {/* 担当者選択 */}
-          {contacts.length === 0 ? (
-            <div style={{
-              padding: space[3], background: alpha(color.warn, 0.08), border: `1px solid ${color.warn}`,
-              borderRadius: radius.md, fontSize: font.size.sm, color: color.textDark,
-            }}>
-              このクライアントには担当者(連絡先)が登録されていません。CRM画面で担当者を登録してください。
+          {/* 宛先 To */}
+          <div>
+            <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[1] }}>
+              宛先 (To)
             </div>
-          ) : (
-            <>
-              <div>
-                <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[1] }}>
-                  宛先 (To)
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {contacts.map(c => (
-                    <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: space[2], fontSize: font.size.sm, cursor: 'pointer' }}>
-                      <input type="checkbox" checked={toIds.includes(c.id)} onChange={() => toggleId(toIds, setToIds, c.id)} />
-                      <span style={{ fontWeight: font.weight.semibold }}>{c.name || '(名前未設定)'}</span>
-                      <span style={{ color: color.textMid, fontFamily: font.family.mono, fontSize: font.size.xs }}>{c.email || '(メール未設定)'}</span>
-                    </label>
-                  ))}
-                </div>
+            {contacts.length === 0 ? (
+              <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: space[1] }}>
+                このクライアントには担当者が登録されていません。下のフリー入力欄を使ってください。
               </div>
-              <div>
-                <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[1] }}>
-                  CC (任意)
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {contacts.filter(c => !toIds.includes(c.id)).map(c => (
-                    <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: space[2], fontSize: font.size.sm, cursor: 'pointer' }}>
-                      <input type="checkbox" checked={ccIds.includes(c.id)} onChange={() => toggleId(ccIds, setCcIds, c.id)} />
-                      <span>{c.name || '(名前未設定)'}</span>
-                      <span style={{ color: color.textMid, fontFamily: font.family.mono, fontSize: font.size.xs }}>{c.email || '(メール未設定)'}</span>
-                    </label>
-                  ))}
-                  {contacts.filter(c => !toIds.includes(c.id)).length === 0 && (
-                    <div style={{ fontSize: font.size.xs, color: color.textLight }}>CC候補なし</div>
-                  )}
-                </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: space[1] }}>
+                {contacts.map(c => (
+                  <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: space[2], fontSize: font.size.sm, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={toIds.includes(c.id)} onChange={() => toggleId(toIds, setToIds, c.id)} />
+                    <span style={{ fontWeight: font.weight.semibold }}>{c.name || '(名前未設定)'}</span>
+                    <span style={{ color: color.textMid, fontFamily: font.family.mono, fontSize: font.size.xs }}>{c.email || '(メール未設定)'}</span>
+                  </label>
+                ))}
               </div>
-            </>
-          )}
+            )}
+            <input
+              type="text" value={extraToInput} onChange={e => setExtraToInput(e.target.value)}
+              placeholder="追加のメールアドレス (カンマ区切りで複数可、テスト送信等に)"
+              style={{
+                width: '100%', padding: '6px 10px', border: `1px solid ${color.border}`,
+                borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.mono,
+                color: color.textDark, outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          {/* CC */}
+          <div>
+            <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[1] }}>
+              CC (任意)
+            </div>
+            {contacts.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: space[1] }}>
+                {contacts.filter(c => !toIds.includes(c.id)).map(c => (
+                  <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: space[2], fontSize: font.size.sm, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={ccIds.includes(c.id)} onChange={() => toggleId(ccIds, setCcIds, c.id)} />
+                    <span>{c.name || '(名前未設定)'}</span>
+                    <span style={{ color: color.textMid, fontFamily: font.family.mono, fontSize: font.size.xs }}>{c.email || '(メール未設定)'}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            <input
+              type="text" value={extraCcInput} onChange={e => setExtraCcInput(e.target.value)}
+              placeholder="追加のメールアドレス (カンマ区切りで複数可)"
+              style={{
+                width: '100%', padding: '6px 10px', border: `1px solid ${color.border}`,
+                borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.mono,
+                color: color.textDark, outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+          </div>
 
           {/* 自然言語入力 */}
           <div>
@@ -1032,7 +1070,7 @@ function EmailFollowupModal({ row, callListData, clientData, contactsByClient, c
             />
           </div>
 
-          <button onClick={handleGenerate} disabled={generating || contacts.length === 0} style={{
+          <button onClick={handleGenerate} disabled={generating} style={{
             padding: '10px 16px', background: generating ? color.gray100 : color.navy,
             color: color.white, border: 'none', borderRadius: radius.md,
             fontSize: font.size.sm, fontWeight: font.weight.semibold, cursor: generating ? 'wait' : 'pointer',
@@ -1085,7 +1123,13 @@ function EmailFollowupModal({ row, callListData, clientData, contactsByClient, c
                 cursor: sending || sentOk ? 'wait' : 'pointer',
                 fontFamily: font.family.sans, alignSelf: 'flex-start',
               }}>
-                {sentOk ? '送信完了' : sending ? '送信中...' : `メール送信 (To ${toIds.length}名${ccIds.length > 0 ? ` / CC ${ccIds.length}名` : ''})`}
+                {(() => {
+                  const toCnt = allToRecipients().length;
+                  const ccCnt = allCcRecipients().length;
+                  if (sentOk) return '送信完了';
+                  if (sending) return '送信中...';
+                  return `メール送信 (To ${toCnt}件${ccCnt > 0 ? ` / CC ${ccCnt}件` : ''})`;
+                })()}
               </button>
             </>
           )}
