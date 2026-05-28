@@ -101,14 +101,15 @@ export default function ClientFormModal({
 
   // 保存ボタンの拡張ラッパー: 親の onSave 後に engRewards も upsert/delete
   const handleSaveAll = async () => {
-    // 報酬未設定の軸① engagement があれば confirm（LGアセット事例 = 未設定のままアポで ¥0 計算事故への予防）
-    if (isEdit && missingRewardEngs.length > 0) {
-      const list = missingRewardEngs.map(e => {
-        const cat = categories.find(c => c.id === e.category_id)?.name || '';
-        return `・${cat} / ${e.name}`;
-      }).join('\n');
+    // 報酬体系が「全 engagement で未設定」の場合のみ confirm。
+    // (LGアセット事例の予防が目的だが、商材別に明示的に未対応の engagement が出るのは正常)
+    // 例: フューチャー・クリエイションは IFA リード獲得だけ設定したい場合、
+    //     M&A や他商材で未設定でも警告を出さない。
+    const totalNonClientAcq = salesAgencyEngs.filter(e => e.type !== 'client_acquisition').length;
+    const allMissing = totalNonClientAcq > 0 && missingRewardEngs.length === totalNonClientAcq;
+    if (isEdit && allMissing) {
       const proceed = window.confirm(
-        `以下の業務種別で報酬体系が未設定です:\n\n${list}\n\nこのまま保存すると、これら業務種別でアポを取った時に当社売上・インターン報酬が ¥0 で記録されます。\n\nそれでも保存しますか？`
+        `このクライアントは全ての業務種別で報酬体系が未設定です。\n\nこのまま保存すると、アポを取った時に当社売上・インターン報酬が ¥0 で記録されます。\n\nそれでも保存しますか？`
       );
       if (!proceed) return;
     }
