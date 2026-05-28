@@ -334,7 +334,11 @@ export default function TemplateDrivenAppoReportModal({
 
   // 保存
   const [saving, setSaving] = useState(false);
+  // 二重押下の最終防御: saving state の非同期更新を待たず、useRef で同期的にロック。
+  // (saving state は描画後に true になるため、ミリ秒単位の連打を素通ししてしまう)
+  const savingRef = useRef(false);
   const handleSave = async () => {
+    if (savingRef.current) return;
     if (!template) return;
     // 必須チェック
     for (const f of template.schema || []) {
@@ -345,6 +349,7 @@ export default function TemplateDrivenAppoReportModal({
         }
       }
     }
+    savingRef.current = true;
     setAiError(null);
     setSaving(true);
     try {
@@ -412,7 +417,7 @@ export default function TemplateDrivenAppoReportModal({
         const proceed = window.confirm(
           `このクライアント（${list?.company || ''}）の業務種別「${list?.engagement_id ? '該当タイプ' : ''}」に報酬体系が登録されていません。\n\nこのまま保存すると当社売上・インターン報酬が ¥0 で記録されます。\n\nそれでも保存しますか？\n（CRM のクライアント編集モーダルで報酬体系を登録してから保存し直すのが推奨）`
         );
-        if (!proceed) { setSaving(false); return; }
+        if (!proceed) { savingRef.current = false; setSaving(false); return; }
       }
 
       // クライアント開拓 (is_prospecting) のみ:
@@ -611,8 +616,15 @@ export default function TemplateDrivenAppoReportModal({
       onClose?.();
     } catch (e) {
       console.error('[TemplateModal] 保存失敗:', e);
-      setAiError(e?.message || '保存に失敗しました');
+      // DB trigger からの重複保存防止エラーを分かりやすく
+      const msg = String(e?.message || '');
+      if (msg.includes('重複保存防止')) {
+        setAiError('このアポは直前(5分以内)に同じ条件で保存されています。重複登録を防止しました。');
+      } else {
+        setAiError(msg || '保存に失敗しました');
+      }
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { color, space, radius, font, shadow } from '../../constants/design';
 import { Button, Input, Select } from '../ui';
 
@@ -33,6 +33,8 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
   const [contactPersonName, setContactPersonName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [saving, setSaving] = useState(false);
+  // 二重押下の最終防御 (saving state の非同期更新を待たず同期的にロック)
+  const savingRef = useRef(false);
   const [error, setError] = useState(null);
   // 担当者名: 末尾の「様」を取り除いた canonical 表記。後段で 様 を付与するため二重防止
   const cleanContactName = contactPersonName.trim().replace(/様$/, '').trim();
@@ -56,6 +58,8 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
       setError('メールアドレスの形式が正しくありません');
       return;
     }
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setError(null);
 
@@ -140,8 +144,14 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
       onSave?.(savedAppoData);
     } catch (e) {
       console.error('[QuickAppo] save error:', e);
-      setError('保存に失敗しました: ' + (e?.message || ''));
+      const msg = String(e?.message || '');
+      if (msg.includes('重複保存防止')) {
+        setError('このアポは直前(5分以内)に同じ条件で保存されています。重複登録を防止しました。');
+      } else {
+        setError('保存に失敗しました: ' + msg);
+      }
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };

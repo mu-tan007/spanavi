@@ -100,6 +100,8 @@ function LegacyAppoReportModal({ row, list, currentUser = '', members = [], onCl
   });
   const [copied, setCopied] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  // 二重押下防止 (saving state の非同期更新を待たず同期的にロック)
+  const savingRef = React.useRef(false);
   // 'idle' | 'saving' | 'slack' | 'ai' | 'done_slack' | 'done_no_slack' | 'error'
   const [aiStatus, setAiStatus] = React.useState('idle');
   const [slackAppoFailed, setSlackAppoFailed] = React.useState(false);
@@ -223,6 +225,8 @@ HP：${form.hp}
   };
 
   const handleSave = async () => {
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setAiStatus('saving');
     // 当社売上・アポインター報酬の計算
@@ -317,8 +321,13 @@ HP：${form.hp}
       setTimeout(() => { (onDone || onClose)(); }, 2000);
     } catch (err) {
       console.error('[AppoReportModal] Edge Function error:', err);
+      const msg = String(err?.message || '');
+      if (msg.includes('重複保存防止')) {
+        alert('このアポは直前(5分以内)に同じ条件で保存されています。重複登録を防止しました。');
+      }
       setAiStatus(slackAppoOk ? 'done_slack' : 'error');
     }
+    savingRef.current = false;
     setSaving(false);
   };
 
