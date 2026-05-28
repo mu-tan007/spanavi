@@ -4101,16 +4101,30 @@ export async function invokeGenListFollowupEmail(payload) {
 // CRM クライアント詳細「面談記録」CRUD + AI 解析呼び出し
 // ============================================================
 
-/** あるクライアントの面談記録を一覧取得 (最新順) */
+/** あるクライアントの面談記録を一覧取得 (sort_order 昇順、未設定は meeting_at で fallback) */
 export async function fetchClientMeetings(clientId) {
   if (!clientId) return { data: [], error: null }
   const { data, error } = await supabase
     .from('client_meetings')
     .select('*')
     .eq('client_id', clientId)
-    .order('meeting_at', { ascending: false })
+    .order('sort_order', { ascending: true, nullsFirst: false })
+    .order('meeting_at', { ascending: true })
   if (error) console.error('[DB] fetchClientMeetings error:', error)
   return { data: data || [], error }
+}
+
+/** 面談記録の表示順を一括更新 (ドラッグ並び替え) */
+export async function reorderClientMeetings(orderedIds) {
+  if (!orderedIds || orderedIds.length === 0) return { error: null }
+  // 1000 刻みで再採番 (将来的に間に挿入する余地を残す)
+  const ops = orderedIds.map((id, idx) =>
+    supabase.from('client_meetings').update({ sort_order: (idx + 1) * 1000 }).eq('id', id)
+  )
+  const results = await Promise.all(ops)
+  const err = results.find(r => r.error)?.error || null
+  if (err) console.error('[DB] reorderClientMeetings error:', err)
+  return { error: err }
 }
 
 /** 面談記録を新規作成 */
@@ -4134,7 +4148,7 @@ export async function insertClientMeeting({ clientId, title, meetingAt, summary 
 /** 面談記録の更新 (タイトル/日時/概要/Next Action/録音URL等の任意フィールド) */
 export async function updateClientMeeting(meetingId, patch) {
   if (!meetingId) return { error: new Error('missing meetingId') }
-  const allowed = ['title', 'meeting_at', 'recording_url', 'summary', 'next_action', 'transcript']
+  const allowed = ['title', 'meeting_at', 'recording_url', 'summary', 'next_action', 'transcript', 'sort_order']
   const update = {}
   for (const k of allowed) if (k in patch) update[k] = patch[k]
   const { error } = await supabase

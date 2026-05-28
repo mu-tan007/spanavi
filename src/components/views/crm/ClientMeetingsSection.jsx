@@ -3,6 +3,7 @@ import { color, space, radius, font } from '../../../constants/design';
 import {
   fetchClientMeetings, insertClientMeeting, updateClientMeeting,
   deleteClientMeeting, uploadMeetingRecording, invokeSummarizeMeetingRecording,
+  reorderClientMeetings,
 } from '../../../lib/supabaseWrite';
 import { useImeSafeInput } from '../../../lib/useImeSafe';
 
@@ -61,6 +62,8 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [draggingId, setDraggingId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
 
   // 一覧取得 (仮想カード3枠を補完)
   const reload = useCallback(async () => {
@@ -88,12 +91,41 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
   const handleAdd = async () => {
     if (adding) return;
     setAdding(true);
+    // 末尾に追加するため、現在の最大 sort_order + 1000
+    const maxOrder = Math.max(0, ...rows.filter(r => !r.virtual).map(r => Number(r.sort_order || 0)));
     const { data, error } = await insertClientMeeting({
       clientId, title: '面談', meetingAt: new Date().toISOString(), createdBy: currentUser,
     });
+    if (data) {
+      await updateClientMeeting(data.id, { sort_order: maxOrder + 1000 });
+      data.sort_order = maxOrder + 1000;
+    }
     setAdding(false);
     if (error) { alert('追加に失敗: ' + error.message); return; }
     setRows(prev => [...prev, { ...data, _cat: null }]);
+  };
+
+  // ドラッグ並び替え (実カードのみ対象、仮想カードはドラッグ不可)
+  const handleDrop = async (targetId) => {
+    if (!draggingId || draggingId === targetId) { setDraggingId(null); setDragOverId(null); return; }
+    const realRows = rows.filter(r => !r.virtual);
+    const fromIdx = realRows.findIndex(r => r.id === draggingId);
+    const toIdx = realRows.findIndex(r => r.id === targetId);
+    if (fromIdx === -1 || toIdx === -1) { setDraggingId(null); setDragOverId(null); return; }
+    const reordered = [...realRows];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    // ローカル更新
+    const orderedIds = reordered.map(r => r.id);
+    setRows(prev => {
+      const virtuals = prev.filter(r => r.virtual);
+      const reorderedWithOrder = reordered.map((r, i) => ({ ...r, sort_order: (i + 1) * 1000 }));
+      return [...virtuals, ...reorderedWithOrder];
+    });
+    setDraggingId(null);
+    setDragOverId(null);
+    // DB 反映
+    await reorderClientMeetings(orderedIds);
   };
 
   if (!clientId) return null;
@@ -117,21 +149,47 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
         <div style={{ fontSize: font.size.xs, color: color.textMid, padding: space[2] }}>読み込み中…</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
-          {rows.map(m => (
-            <MeetingCard
-              key={m.id} meeting={m} clientId={clientId}
-              onMaterialize={materializeVirtual}
-              onChange={(updated) => setRows(prev => prev.map(x => x.id === updated.id ? { ...updated, _cat: x._cat } : x))}
-              onDelete={() => setRows(prev => prev.filter(x => x.id !== m.id))}
-            />
-          ))}
+          {rows.map(m => {
+            const isReal = !m.virtual;
+            const isDragOver = dragOverId === m.id && draggingId && draggingId !== m.id;
+            return (
+              <div
+                key={m.id}
+                draggable={isReal}
+                onDragStart={isReal ? (e) => {
+                  setDraggingId(m.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                } : undefined}
+                onDragOver={isReal ? (e) => {
+                  e.preventDefault();
+                  if (dragOverId !== m.id) setDragOverId(m.id);
+                } : undefined}
+                onDragLeave={isReal ? () => { if (dragOverId === m.id) setDragOverId(null); } : undefined}
+                onDrop={isReal ? (e) => { e.preventDefault(); handleDrop(m.id); } : undefined}
+                onDragEnd={() => { setDraggingId(null); setDragOverId(null); }}
+                style={{
+                  opacity: draggingId === m.id ? 0.4 : 1,
+                  transition: 'opacity 0.15s',
+                  borderTop: isDragOver ? `2px solid ${color.navy}` : '2px solid transparent',
+                }}
+              >
+                <MeetingCard
+                  meeting={m} clientId={clientId}
+                  draggable={isReal}
+                  onMaterialize={materializeVirtual}
+                  onChange={(updated) => setRows(prev => prev.map(x => x.id === updated.id ? { ...updated, _cat: x._cat } : x))}
+                  onDelete={() => setRows(prev => prev.filter(x => x.id !== m.id))}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
 
-function MeetingCard({ meeting, clientId, onChange, onDelete, onMaterialize }) {
+function MeetingCard({ meeting, clientId, onChange, onDelete, onMaterialize, draggable = false }) {
   const isVirtual = !!meeting.virtual;
   const [title, setTitle] = useState(meeting.title || '面談');
   const [meetingDate, setMeetingDate] = useState(isoToDateInput(meeting.meeting_at));
@@ -275,22 +333,44 @@ function MeetingCard({ meeting, clientId, onChange, onDelete, onMaterialize }) {
       borderLeft: `3px solid ${analyzing ? color.warn : hasError ? color.danger : isVirtual ? color.borderLight : color.navy}`,
       borderRadius: radius.md, padding: `${space[2]}px ${space[3]}px`,
     }}>
-      {/* ヘッダ: タイトル + 日付 + 削除 */}
+      {/* ヘッダ: ドラッグハンドル + タイトル + 日付 + 削除 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: space[2] }}>
+        {draggable && (
+          <span
+            title="ドラッグして並び替え"
+            style={{
+              cursor: 'grab', color: color.textLight, fontSize: 14,
+              padding: '0 2px', userSelect: 'none', lineHeight: 1,
+            }}
+          >⋮⋮</span>
+        )}
         <input
           type="text" value={titleIme.value}
           onChange={titleIme.onChange}
           onCompositionStart={titleIme.onCompositionStart}
           onCompositionEnd={titleIme.onCompositionEnd}
-          placeholder="例: 6月定例 / キックオフ"
+          placeholder="タイトル (例: 6月定例)"
+          title="クリックして編集"
           style={{
-            flex: 1, padding: '4px 8px', border: 'none', borderBottom: `1px solid transparent`,
+            flex: 1, padding: '4px 8px',
+            border: `1px dashed ${color.border}`, borderRadius: radius.sm,
             fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy,
             fontFamily: font.family.sans, outline: 'none',
-            background: 'transparent',
+            background: 'transparent', cursor: 'text',
+            transition: 'border-color 0.15s, background 0.15s',
           }}
-          onFocus={e => e.target.style.borderBottomColor = color.navy}
-          onBlur={e => e.target.style.borderBottomColor = 'transparent'}
+          onMouseEnter={e => { if (document.activeElement !== e.target) e.target.style.background = color.gray50; }}
+          onMouseLeave={e => { if (document.activeElement !== e.target) e.target.style.background = 'transparent'; }}
+          onFocus={e => {
+            e.target.style.borderColor = color.navy;
+            e.target.style.borderStyle = 'solid';
+            e.target.style.background = color.white;
+          }}
+          onBlur={e => {
+            e.target.style.borderColor = color.border;
+            e.target.style.borderStyle = 'dashed';
+            e.target.style.background = 'transparent';
+          }}
         />
         <input
           type="date" value={meetingDate}

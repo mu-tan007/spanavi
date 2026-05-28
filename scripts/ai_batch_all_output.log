@@ -1,0 +1,200 @@
+
+[batch-all] === batch #1 === fetching pending IDs (limit=5000)...
+[batch-all] batch #1: 1000 ids to process (concurrency=10)
+[batch-all] batch#1 50/1000 (success=49, failed=1, total_elapsed=58s)
+[batch-all] batch#1 100/1000 (success=99, failed=1, total_elapsed=110s)
+[batch-all] batch#1 150/1000 (success=149, failed=1, total_elapsed=169s)
+[batch-all] batch#1 200/1000 (success=199, failed=1, total_elapsed=223s)
+[batch-all] batch#1 250/1000 (success=249, failed=1, total_elapsed=278s)
+[batch-all] batch#1 300/1000 (success=299, failed=1, total_elapsed=327s)
+[batch-all] batch#1 350/1000 (success=349, failed=1, total_elapsed=383s)
+[batch-all] batch#1 400/1000 (success=399, failed=1, total_elapsed=449s)
+[batch-all] batch#1 450/1000 (success=449, failed=1, total_elapsed=504s)
+[batch-all] batch#1 500/1000 (success=499, failed=1, total_elapsed=552s)
+[batch-all] batch#1 550/1000 (success=549, failed=1, total_elapsed=611s)
+[batch-all] batch#1 600/1000 (success=599, failed=1, total_elapsed=665s)
+[batch-all] batch#1 650/1000 (success=649, failed=1, total_elapsed=732s)
+[batch-all] batch#1 700/1000 (success=698, failed=2, total_elapsed=793s)
+[batch-all] batch#1 750/1000 (success=748, failed=2, total_elapsed=848s)
+[batch-all] batch#1 800/1000 (success=798, failed=2, total_elapsed=905s)
+[batch-all] batch#1 850/1000 (success=848, failed=2, total_elapsed=966s)
+[batch-all] batch#1 900/1000 (success=898, failed=2, total_elapsed=1021s)
+[batch-all] batch#1 950/1000 (success=948, failed=2, total_elapsed=1081s)
+[batch-all] batch#1 1000/1000 (success=998, failed=2, total_elapsed=1139s)
+[batch-all] batch #1 done. success=998, failed=2
+
+[batch-all] === batch #2 === fetching pending IDs (limit=5000)...
+[batch-all] batch #2: 1000 ids to process (concurrency=10)
+[batch-all] batch#2 50/1000 (success=49, failed=1, total_elapsed=1199s)
+[batch-all] batch#2 100/1000 (success=99, failed=1, total_elapsed=1260s)
+[batch-all] batch#2 150/1000 (success=149, failed=1, total_elapsed=1327s)
+[batch-all] batch#2 200/1000 (success=199, failed=1, total_elapsed=1380s)
+[batch-all] batch#2 250/1000 (success=249, failed=1, total_elapsed=1440s)
+[batch-all] batch#2 300/1000 (success=299, failed=1, total_elapsed=1499s)
+[batch-all] batch#2 350/1000 (success=349, failed=1, total_elapsed=1554s)
+[batch-all] batch#2 400/1000 (success=399, failed=1, total_elapsed=1612s)
+[batch-all] batch#2 450/1000 (success=449, failed=1, total_elapsed=1665s)
+[batch-all] batch#2 500/1000 (success=499, failed=1, total_elapsed=1718s)
+[batch-all] batch#2 550/1000 (success=549, failed=1, total_elapsed=1775s)
+[batch-all] batch#2 600/1000 (success=599, failed=1, total_elapsed=1832s)
+[batch-all] batch#2 650/1000 (success=649, failed=1, total_elapsed=1892s)
+[batch-all] batch#2 700/1000 (success=699, failed=1, total_elapsed=1954s)
+[batch-all] batch#2 750/1000 (success=748, failed=2, total_elapsed=2029s)
+[batch-all] batch#2 800/1000 (success=798, failed=2, total_elapsed=2094s)
+[batch-all] batch#2 850/1000 (success=847, failed=3, total_elapsed=2154s)
+[batch-all] batch#2 900/1000 (success=897, failed=3, total_elapsed=2208s)
+[batch-all] batch#2 950/1000 (success=947, failed=3, total_elapsed=2265s)
+[batch-all] batch#2 1000/1000 (success=997, failed=3, total_elapsed=2333s)
+[batch-all] batch #2 done. success=997, failed=3
+
+[batch-all] === batch #3 === fetching pending IDs (limit=5000)...
+[batch-all] batch #3: 1000 ids to process (concurrency=10)
+[batch-all] batch#3 50/1000 (success=49, failed=1, total_elapsed=2395s)
+[batch-all] batch#3 100/1000 (success=99, failed=1, total_elapsed=2452s)
+[batch-all] batch#3 150/1000 (success=149, failed=1, total_elapsed=2506s)
+[batch-all] batch#3 200/1000 (success=199, failed=1, total_elapsed=2558s)
+[batch-all] batch#3 250/1000 (success=249, failed=1, total_elapsed=2615s)
+[batch-all] batch#3 300/1000 (success=299, failed=1, total_elapsed=2683s)
+[batch-all] batch#3 350/1000 (success=349, failed=1, total_elapsed=2742s)
+[batch-all] batch#3 400/1000 (success=399, failed=1, total_elapsed=2805s)
+[batch-all] batch#3 450/1000 (success=449, failed=1, total_elapsed=2869s)
+[batch-all] batch#3 500/1000 (success=499, failed=1, total_elapsed=2934s)
+[batch-all] batch#3 550/1000 (success=549, failed=1, total_elapsed=3000s)
+[batch-all] batch#3 600/1000 (success=599, failed=1, total_elapsed=3056s)
+[batch-all] batch#3 650/1000 (success=649, failed=1, total_elapsed=3117s)
+[batch-all] batch#3 700/1000 (success=699, failed=1, total_elapsed=3166s)
+[batch-all] batch#3 750/1000 (success=749, failed=1, total_elapsed=3220s)
+[batch-all] batch#3 800/1000 (success=799, failed=1, total_elapsed=3266s)
+[batch-all] batch#3 850/1000 (success=849, failed=1, total_elapsed=3320s)
+[batch-all] batch#3 900/1000 (success=899, failed=1, total_elapsed=3374s)
+[batch-all] batch#3 950/1000 (success=949, failed=1, total_elapsed=3426s)
+[batch-all] batch#3 1000/1000 (success=999, failed=1, total_elapsed=3484s)
+[batch-all] batch #3 done. success=999, failed=1
+
+[batch-all] === batch #4 === fetching pending IDs (limit=5000)...
+[batch-all] batch #4: 771 ids to process (concurrency=10)
+[batch-all] batch#4 50/771 (success=49, failed=1, total_elapsed=3540s)
+[batch-all] batch#4 100/771 (success=99, failed=1, total_elapsed=3604s)
+[batch-all] batch#4 150/771 (success=149, failed=1, total_elapsed=3665s)
+[batch-all] batch#4 200/771 (success=199, failed=1, total_elapsed=3722s)
+[batch-all] batch#4 250/771 (success=249, failed=1, total_elapsed=3772s)
+[batch-all] batch#4 300/771 (success=299, failed=1, total_elapsed=3830s)
+[batch-all] batch#4 350/771 (success=349, failed=1, total_elapsed=3889s)
+[batch-all] batch#4 400/771 (success=399, failed=1, total_elapsed=3947s)
+[batch-all] batch#4 450/771 (success=449, failed=1, total_elapsed=4005s)
+[batch-all] batch#4 500/771 (success=499, failed=1, total_elapsed=4056s)
+[batch-all] batch#4 550/771 (success=549, failed=1, total_elapsed=4117s)
+[batch-all] batch#4 600/771 (success=599, failed=1, total_elapsed=4189s)
+[batch-all] batch#4 650/771 (success=649, failed=1, total_elapsed=4252s)
+[batch-all] batch#4 700/771 (success=699, failed=1, total_elapsed=4303s)
+[batch-all] batch#4 750/771 (success=749, failed=1, total_elapsed=4367s)
+[batch-all] batch#4 771/771 (success=770, failed=1, total_elapsed=4401s)
+[batch-all] batch #4 done. success=770, failed=1
+
+[batch-all] === batch #5 === fetching pending IDs (limit=5000)...
+[batch-all] batch #5: 1 ids to process (concurrency=10)
+[batch-all] batch#5 1/1 (success=0, failed=1, total_elapsed=4409s)
+[batch-all] batch #5 done. success=0, failed=1
+
+[batch-all] === batch #6 === fetching pending IDs (limit=5000)...
+[batch-all] batch #6: 1 ids to process (concurrency=10)
+[batch-all] batch#6 1/1 (success=0, failed=1, total_elapsed=4420s)
+[batch-all] batch #6 done. success=0, failed=1
+
+[batch-all] === batch #7 === fetching pending IDs (limit=5000)...
+[batch-all] batch #7: 1 ids to process (concurrency=10)
+[batch-all] batch#7 1/1 (success=0, failed=1, total_elapsed=4426s)
+[batch-all] batch #7 done. success=0, failed=1
+
+[batch-all] === batch #8 === fetching pending IDs (limit=5000)...
+[batch-all] batch #8: 1 ids to process (concurrency=10)
+[batch-all] batch#8 1/1 (success=0, failed=1, total_elapsed=4433s)
+[batch-all] batch #8 done. success=0, failed=1
+
+[batch-all] === batch #9 === fetching pending IDs (limit=5000)...
+[batch-all] batch #9: 1 ids to process (concurrency=10)
+[batch-all] batch#9 1/1 (success=0, failed=1, total_elapsed=4440s)
+[batch-all] batch #9 done. success=0, failed=1
+
+[batch-all] === batch #10 === fetching pending IDs (limit=5000)...
+[batch-all] batch #10: 1 ids to process (concurrency=10)
+[batch-all] batch#10 1/1 (success=0, failed=1, total_elapsed=4450s)
+[batch-all] batch #10 done. success=0, failed=1
+
+[batch-all] === batch #11 === fetching pending IDs (limit=5000)...
+[batch-all] batch #11: 1 ids to process (concurrency=10)
+[batch-all] batch#11 1/1 (success=0, failed=1, total_elapsed=4459s)
+[batch-all] batch #11 done. success=0, failed=1
+
+[batch-all] === batch #12 === fetching pending IDs (limit=5000)...
+[batch-all] batch #12: 1 ids to process (concurrency=10)
+[batch-all] batch#12 1/1 (success=0, failed=1, total_elapsed=4468s)
+[batch-all] batch #12 done. success=0, failed=1
+
+[batch-all] === batch #13 === fetching pending IDs (limit=5000)...
+[batch-all] batch #13: 1 ids to process (concurrency=10)
+[batch-all] batch#13 1/1 (success=0, failed=1, total_elapsed=4475s)
+[batch-all] batch #13 done. success=0, failed=1
+
+[batch-all] === batch #14 === fetching pending IDs (limit=5000)...
+[batch-all] batch #14: 1 ids to process (concurrency=10)
+[batch-all] batch#14 1/1 (success=0, failed=1, total_elapsed=4481s)
+[batch-all] batch #14 done. success=0, failed=1
+
+[batch-all] === batch #15 === fetching pending IDs (limit=5000)...
+[batch-all] batch #15: 1 ids to process (concurrency=10)
+[batch-all] batch#15 1/1 (success=0, failed=1, total_elapsed=4492s)
+[batch-all] batch #15 done. success=0, failed=1
+
+[batch-all] === batch #16 === fetching pending IDs (limit=5000)...
+[batch-all] batch #16: 1 ids to process (concurrency=10)
+[batch-all] batch#16 1/1 (success=0, failed=1, total_elapsed=4500s)
+[batch-all] batch #16 done. success=0, failed=1
+
+[batch-all] === batch #17 === fetching pending IDs (limit=5000)...
+[batch-all] batch #17: 1 ids to process (concurrency=10)
+[batch-all] batch#17 1/1 (success=0, failed=1, total_elapsed=4509s)
+[batch-all] batch #17 done. success=0, failed=1
+
+[batch-all] === batch #18 === fetching pending IDs (limit=5000)...
+[batch-all] batch #18: 1 ids to process (concurrency=10)
+[batch-all] batch#18 1/1 (success=0, failed=1, total_elapsed=4517s)
+[batch-all] batch #18 done. success=0, failed=1
+
+[batch-all] === batch #19 === fetching pending IDs (limit=5000)...
+[batch-all] batch #19: 1 ids to process (concurrency=10)
+[batch-all] batch#19 1/1 (success=0, failed=1, total_elapsed=4528s)
+[batch-all] batch #19 done. success=0, failed=1
+
+[batch-all] === batch #20 === fetching pending IDs (limit=5000)...
+[batch-all] batch #20: 1 ids to process (concurrency=10)
+[batch-all] batch#20 1/1 (success=0, failed=1, total_elapsed=4538s)
+[batch-all] batch #20 done. success=0, failed=1
+
+[batch-all] === batch #21 === fetching pending IDs (limit=5000)...
+[batch-all] batch #21: 1 ids to process (concurrency=10)
+[batch-all] batch#21 1/1 (success=0, failed=1, total_elapsed=4551s)
+[batch-all] batch #21 done. success=0, failed=1
+
+[batch-all] === batch #22 === fetching pending IDs (limit=5000)...
+[batch-all] batch #22: 1 ids to process (concurrency=10)
+[batch-all] batch#22 1/1 (success=0, failed=1, total_elapsed=4559s)
+[batch-all] batch #22 done. success=0, failed=1
+
+[batch-all] === batch #23 === fetching pending IDs (limit=5000)...
+[batch-all] batch #23: 1 ids to process (concurrency=10)
+[batch-all] batch#23 1/1 (success=0, failed=1, total_elapsed=4570s)
+[batch-all] batch #23 done. success=0, failed=1
+
+[batch-all] === batch #24 === fetching pending IDs (limit=5000)...
+[batch-all] batch #24: 1 ids to process (concurrency=10)
+[batch-all] batch#24 1/1 (success=0, failed=1, total_elapsed=4580s)
+[batch-all] batch #24 done. success=0, failed=1
+
+[batch-all] === batch #25 === fetching pending IDs (limit=5000)...
+[batch-all] batch #25: 1 ids to process (concurrency=10)
+[batch-all] batch#25 1/1 (success=0, failed=1, total_elapsed=4590s)
+[batch-all] batch #25 done. success=0, failed=1
+
+[batch-all] === batch #26 === fetching pending IDs (limit=5000)...
+[batch-all] batch #26: 1 ids to process (concurrency=10)

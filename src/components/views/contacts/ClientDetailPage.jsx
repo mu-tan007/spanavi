@@ -178,11 +178,14 @@ function EditableField({ label, value, type = 'text', options, placeholder, onSa
   );
 }
 
-// 報酬体系 (商材エンゲージメント別) のインライン編集カード
-function InlineEngagementRewards({ clientId, rewardMaster }) {
+// 報酬体系 (商材エンゲージメント別) のサマリ表示 + モーダル編集
+// - 表示: 商材ごとに "M&A: F / SaaS: 未設定 / IFA: - / 人材: A" 形式のチップ
+// - クリック: モーダルを開いてタイプ別の reward_type を select で編集
+function EngagementRewardsInline({ clientId, rewardMaster }) {
   const { engagements, products, categories } = useEngagements();
   const [engRewards, setEngRewards] = useState({});
   const [loaded, setLoaded] = useState(false);
+  const [open, setOpen] = useState(false);
 
   const rewardIds = useMemo(() => [...new Set((rewardMaster || []).map(r => r.id))].sort(), [rewardMaster]);
   const rewardNameById = useMemo(() => {
@@ -252,51 +255,152 @@ function InlineEngagementRewards({ clientId, rewardMaster }) {
 
   if (salesAgencyEngs.length === 0) return null;
 
+  // サマリ: 商材ごとに「M&A: F / SaaS: 未 / ...」を生成 (engagement 単位だと多いので商材単位で集約)
+  const summaryByCategory = useMemo(() => {
+    const acc = {};
+    for (const eng of salesAgencyEngs) {
+      const cat = categories.find(c => c.id === eng.category_id);
+      const catName = cat?.name || '?';
+      const reward = (engRewards[eng.id] || '').trim();
+      if (!acc[catName]) acc[catName] = { display_order: cat?.display_order ?? 999, rewards: new Set(), hasMissing: false };
+      if (reward) acc[catName].rewards.add(reward);
+      else acc[catName].hasMissing = true;
+    }
+    return Object.entries(acc)
+      .sort(([, a], [, b]) => a.display_order - b.display_order)
+      .map(([name, v]) => ({
+        name,
+        rewards: [...v.rewards].sort().join('/'),
+        hasMissing: v.hasMissing,
+      }));
+  }, [salesAgencyEngs, categories, engRewards]);
+
   return (
-    <CollapsibleCard title="報酬体系 (タイプ別)" defaultOpen={true}>
-      {!loaded ? (
-        <div style={{ fontSize: font.size.xs, color: C.textLight }}>読み込み中...</div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {salesAgencyEngs.map(eng => {
-            const cat = categories.find(c => c.id === eng.category_id)?.name || '';
-            const current = engRewards[eng.id] || '';
-            const isMissing = !current;
-            return (
-              <div key={eng.id} style={{
-                display: 'grid', gridTemplateColumns: '1fr', gap: 2,
-                paddingBottom: 6, borderBottom: `1px solid ${GRAY_100}`,
+    <>
+      {/* 契約条件カード内の表示部分 (クリックでモーダル開) */}
+      <div
+        onClick={() => setOpen(true)}
+        style={{
+          marginBottom: 8, padding: '2px 4px', margin: '0 -4px 6px',
+          borderRadius: radius.sm, cursor: 'pointer', transition: 'background 0.1s',
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = GRAY_50}
+        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        title="クリックでタイプ別の報酬体系を編集"
+      >
+        <div style={{ fontSize: 10, color: C.textLight, fontWeight: font.weight.medium, marginBottom: 2, letterSpacing: 0.5 }}>
+          報酬体系 (タイプ別)
+        </div>
+        {!loaded ? (
+          <div style={{ fontSize: font.size.xs, color: C.textLight }}>読み込み中...</div>
+        ) : summaryByCategory.length === 0 ? (
+          <div style={{ fontSize: font.size.xs, color: C.textLight }}>—</div>
+        ) : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {summaryByCategory.map(s => (
+              <span key={s.name} style={{
+                fontSize: 10, padding: '1px 6px', borderRadius: radius.sm,
+                background: s.rewards ? alpha(color.navy, 0.06) : alpha(color.danger, 0.08),
+                color: s.rewards ? NAVY : color.danger,
+                fontWeight: font.weight.medium,
+                border: `1px solid ${s.rewards ? alpha(color.navy, 0.2) : alpha(color.danger, 0.25)}`,
               }}>
-                <div style={{ fontSize: 10, color: C.textLight, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {cat && <span>{cat}</span>}
-                  <span style={{ color: C.textMid }}>{eng.name}</span>
-                  {isMissing && (
-                    <span style={{
-                      fontSize: 9, color: color.white, background: color.danger,
-                      padding: '1px 5px', borderRadius: radius.sm, fontWeight: font.weight.semibold,
-                    }}>未設定</span>
-                  )}
-                </div>
-                <select
-                  value={current}
-                  onChange={e => handleChange(eng.id, e.target.value)}
-                  style={{
-                    padding: '3px 6px', border: `1px solid ${GRAY_200}`,
-                    borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.sans,
-                    color: C.textDark, outline: 'none', background: color.white,
-                  }}
-                >
-                  <option value="">— (報酬計算なし)</option>
-                  {rewardIds.map(id => (
-                    <option key={id} value={id}>{id} - {rewardNameById[id] || ''}</option>
-                  ))}
-                </select>
+                {s.name}: {s.rewards || '未設定'}
+                {s.rewards && s.hasMissing && <span style={{ color: color.danger, marginLeft: 4 }}>+未</span>}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* タイプ別編集モーダル */}
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: alpha(color.navyDeep, 0.5), zIndex: 20002,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: color.white, border: `1px solid ${color.border}`,
+              borderRadius: radius.lg, width: 560, maxHeight: '80vh', overflow: 'auto',
+              boxShadow: shadow.xl, fontFamily: font.family.sans,
+            }}
+          >
+            <div style={{
+              padding: '12px 20px', background: color.navy,
+              borderRadius: `${radius.lg}px ${radius.lg}px 0 0`,
+              color: color.white, fontWeight: font.weight.semibold, fontSize: font.size.md,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <span>報酬体系 (タイプ別)</span>
+              <button onClick={() => setOpen(false)} style={{
+                background: 'none', border: 'none', color: color.white,
+                fontSize: 18, cursor: 'pointer',
+              }}>✕</button>
+            </div>
+            <div style={{ padding: '16px 20px' }}>
+              <div style={{ fontSize: font.size.xs, color: C.textLight, marginBottom: 12, lineHeight: 1.6 }}>
+                各業務種別 (商材×タイプ) ごとに reward 体系 (A〜F) を設定します。<br />
+                未設定の業務種別はアポ取得時に当社売上・インターン報酬が ¥0 で記録されます。
               </div>
-            );
-          })}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {salesAgencyEngs.map(eng => {
+                  const cat = categories.find(c => c.id === eng.category_id)?.name || '';
+                  const current = engRewards[eng.id] || '';
+                  const isMissing = !current;
+                  return (
+                    <div key={eng.id} style={{
+                      display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, alignItems: 'center',
+                      paddingBottom: 8, borderBottom: `1px solid ${GRAY_100}`,
+                    }}>
+                      <div style={{ fontSize: font.size.xs, color: C.textMid, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {cat && <span style={{ fontSize: 10, color: C.textLight }}>{cat}</span>}
+                        <span style={{ fontWeight: font.weight.medium }}>{eng.name}</span>
+                        {isMissing && (
+                          <span style={{
+                            fontSize: 9, color: color.white, background: color.danger,
+                            padding: '1px 5px', borderRadius: radius.sm, fontWeight: font.weight.semibold,
+                          }}>未設定</span>
+                        )}
+                      </div>
+                      <select
+                        value={current}
+                        onChange={e => handleChange(eng.id, e.target.value)}
+                        style={{
+                          padding: '5px 8px', border: `1px solid ${GRAY_200}`,
+                          borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.sans,
+                          color: C.textDark, outline: 'none', background: color.white,
+                        }}
+                      >
+                        <option value="">— (報酬計算なし)</option>
+                        {rewardIds.map(id => (
+                          <option key={id} value={id}>{id} - {rewardNameById[id] || ''}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div style={{
+              padding: '10px 20px', borderTop: `1px solid ${color.border}`,
+              display: 'flex', justifyContent: 'flex-end', gap: 8,
+            }}>
+              <button onClick={() => setOpen(false)} style={{
+                padding: '6px 16px', background: color.navy, color: color.white,
+                border: 'none', borderRadius: radius.md, fontSize: font.size.xs,
+                fontWeight: font.weight.semibold, cursor: 'pointer', fontFamily: font.family.sans,
+              }}>閉じる</button>
+            </div>
+          </div>
         </div>
       )}
-    </CollapsibleCard>
+    </>
   );
 }
 
@@ -814,16 +918,19 @@ export default function ClientDetailPage({
           {/* 契約条件カード (デフォルト開・各フィールドをクリックで編集) */}
           <CollapsibleCard title="契約条件" defaultOpen={true}>
             <NextContactRow client={c} setClientData={setClientData} />
-            {/* 報酬体系・税区分は商材タイプ別の複雑な構造のため、ここではモーダルへ誘導 */}
-            <FieldRow label="報酬体系" value={
-              c.rewardType ? (
-                <span onClick={(e) => { e.stopPropagation(); onShowReward?.(c.rewardType); }}
-                  style={{ color: NAVY, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
-                  {c.rewardType} {rm ? `(${rm.name})` : ''}
-                </span>
-              ) : '-'
-            } />
-            <FieldRow label="税区分" value={rm ? rm.tax : '-'} />
+            {/* 報酬体系: タイプ別をクリックでモーダル編集 */}
+            {c?._supaId && setClientData ? (
+              <EngagementRewardsInline clientId={c._supaId} rewardMaster={rewardMaster} />
+            ) : (
+              <FieldRow label="報酬体系" value={
+                c.rewardType ? (
+                  <span onClick={(e) => { e.stopPropagation(); onShowReward?.(c.rewardType); }}
+                    style={{ color: NAVY, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+                    {c.rewardType} {rm ? `(${rm.name})` : ''}
+                  </span>
+                ) : '-'
+              } />
+            )}
             <EditableField
               label="支払サイト" value={c.paySite}
               placeholder="例: 月末締め翌月末払い"
@@ -907,13 +1014,6 @@ export default function ClientDetailPage({
               />
             )}
           </CollapsibleCard>
-
-          {/* 報酬体系 (タイプ別) - 商材エンゲージメント毎に reward_type を設定 */}
-          {c?._supaId && setClientData && (
-            <InlineEngagementRewards
-              clientId={c._supaId} rewardMaster={rewardMaster}
-            />
-          )}
 
           {/* 数字カード (デフォルト開) */}
           <CollapsibleCard title="数字" defaultOpen={true}>
