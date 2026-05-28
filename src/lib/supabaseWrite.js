@@ -4060,6 +4060,43 @@ export async function fetchListAnalysisSummary() {
   return { data: data || [], error }
 }
 
+/**
+ * 事業俯瞰リスト分析: リスト状況フォローアップメールを Claude (Haiku 4.5) で生成。
+ * 篠宮の文体ガイドとリスト数字を Edge Function に渡し、件名と本文を受け取る。
+ *
+ * @param {Object} payload
+ * @param {Object} payload.listContext   リストの各種数字
+ * @param {Array}  payload.recipients    [{ name, email }] 宛先
+ * @param {Array}  payload.ccRecipients  [{ name, email }] CC (空配列可)
+ * @param {string} payload.userIntent    篠宮の自然言語指示
+ * @returns {Promise<{ subject: string, body: string, error?: any }>}
+ */
+export async function invokeGenListFollowupEmail(payload) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) return { subject: '', body: '', error: new Error('not authenticated') }
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gen-list-followup-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      console.error('[invokeGenListFollowupEmail] HTTP', res.status, json)
+      return { subject: '', body: '', error: new Error(json.error || `HTTP ${res.status}`) }
+    }
+    return { subject: json.subject || '', body: json.body || '' }
+  } catch (e) {
+    console.error('[invokeGenListFollowupEmail] error:', e)
+    return { subject: '', body: '', error: e }
+  }
+}
+
 /** 事業俯瞰リスト分析の ToDo メモを保存 (リスト単位の Next Action) */
 export async function updateListTodoMemo(listId, todoMemo) {
   const orgId = getOrgId()

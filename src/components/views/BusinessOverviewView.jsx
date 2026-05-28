@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { color, space, radius, font, alpha } from '../../constants/design';
+import { color, space, radius, font, alpha, shadow } from '../../constants/design';
 import { Card } from '../ui';
 import PageHeader from '../common/PageHeader';
 import { ProgressPill } from '../common/TopListCard';
@@ -10,6 +10,7 @@ import {
   fetchClientMonthlyTargets,
   fetchEngagementMonthlyTargets, upsertEngagementMonthlyTarget,
   fetchListAnalysisSummary, fetchListDrillDown, updateListTodoMemo,
+  invokeGenListFollowupEmail, invokeSendEmail,
 } from '../../lib/supabaseWrite';
 import { useImeSafeInput } from '../../lib/useImeSafe';
 
@@ -127,6 +128,7 @@ function MatrixCell({ count, isTotal, isEmpty }) {
 
 export default function BusinessOverviewView({
   appoData = [], callListData = [], clientData = [],
+  contactsByClient = {}, currentUser = '',
   setCallFlowScreen,
 }) {
   const [month, setMonth] = useState(getCurrentMonth());
@@ -457,7 +459,13 @@ export default function BusinessOverviewView({
         <SectionF stats={stats} previousStats={previousStats} />
 
         {/* C. リスト分析 */}
-        <SectionListAnalysis setCallFlowScreen={setCallFlowScreen} callListData={callListData} />
+        <SectionListAnalysis
+          setCallFlowScreen={setCallFlowScreen}
+          callListData={callListData}
+          clientData={clientData}
+          contactsByClient={contactsByClient}
+          currentUser={currentUser}
+        />
 
         {/* D/H プレースホルダ (Phase γ/δ) */}
         <Section title="他セクション (Phase γ/δ で実装予定)" hint="見込み先プール・アポインター稼働">
@@ -517,10 +525,11 @@ function CountBadge({ count, onClick, tone = 'navy' }) {
   );
 }
 
-function SectionListAnalysis({ setCallFlowScreen, callListData = [] }) {
+function SectionListAnalysis({ setCallFlowScreen, callListData = [], clientData = [], contactsByClient = {}, currentUser = '' }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [drill, setDrill] = useState(null);
+  const [emailRow, setEmailRow] = useState(null); // メール送信モーダル対象
   // スマートキューと同じ「キュー連続架電」を使う。
   // suppressChecks=true で「アポ獲得/除外スキップ」「再コール警告」「他人架電警告」を全 off にする。
   // (リスト分析からの架電は『キーマン再コール/断り状態を承知の上で意図的に再アプローチ』する経路のため)
@@ -667,18 +676,28 @@ function SectionListAnalysis({ setCallFlowScreen, callListData = [] }) {
             </div>
             {/* テーブル */}
             {activeGroup && (
-              <ListAnalysisTable group={activeGroup} sortDir={sortDir} onOpenDrill={handleOpenDrill} />
+              <ListAnalysisTable group={activeGroup} sortDir={sortDir} onOpenDrill={handleOpenDrill} onOpenEmail={setEmailRow} />
             )}
           </div>
         )}
       </Section>
 
       <DrillDownDrawer drill={drill} onClose={() => setDrill(null)} onCallItem={handleCallItem} />
+      {emailRow && (
+        <EmailFollowupModal
+          row={emailRow}
+          callListData={callListData}
+          clientData={clientData}
+          contactsByClient={contactsByClient}
+          currentUser={currentUser}
+          onClose={() => setEmailRow(null)}
+        />
+      )}
     </>
   );
 }
 
-function ListAnalysisTable({ group, sortDir, onOpenDrill }) {
+function ListAnalysisTable({ group, sortDir, onOpenDrill, onOpenEmail }) {
   const [expanded, setExpanded] = useState(false);
   const top10 = group.rows.slice(0, 10);
   const rest = group.rows.slice(10);
@@ -708,6 +727,7 @@ function ListAnalysisTable({ group, sortDir, onOpenDrill }) {
               <th style={{ ...th, textAlign: 'center' }}>キーマン<br />再コール</th>
               <th style={{ ...th, textAlign: 'center' }}>キーマン断り<br />(高/中)</th>
               <th style={{ ...th, textAlign: 'left', minWidth: 220 }}>ToDo</th>
+              <th style={{ ...th, textAlign: 'center' }}>メール送信</th>
             </tr>
           </thead>
           <tbody>
@@ -753,6 +773,17 @@ function ListAnalysisTable({ group, sortDir, onOpenDrill }) {
                 </td>
                 <td style={{ ...td, padding: '4px 8px' }}>
                   <TodoMemoCell listId={r.list_id} initialValue={r.todo_memo || ''} />
+                </td>
+                <td style={{ ...td, textAlign: 'center' }}>
+                  <button onClick={() => onOpenEmail?.(r)} style={{
+                    padding: '5px 12px', background: color.white, color: color.navy,
+                    border: `1px solid ${color.navy}`, borderRadius: radius.md,
+                    fontSize: font.size.xs, fontWeight: font.weight.semibold,
+                    cursor: 'pointer', fontFamily: font.family.sans, whiteSpace: 'nowrap',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = alpha(color.navy, 0.08); }}
+                  onMouseLeave={e => { e.currentTarget.style.background = color.white; }}
+                  >メール作成</button>
                 </td>
               </tr>
             ))}
@@ -826,6 +857,251 @@ function TodoMemoCell({ listId, initialValue }) {
         resize: 'vertical', outline: 'none',
       }}
     />
+  );
+}
+
+// 篠宮の文体で生成された署名
+const SIG_DEFAULT = `
+
+-----------------------------------------------
+M&Aソーシングパートナーズ株式会社
+代表取締役　篠宮　拓武
+Mail: shinomiya@ma-sp.co
+Tel:   080-4134-4038
+Hp: https://ma-sp.co/
+X: https://x.com/masp_007?s=21
+-----------------------------------------------`;
+
+// リスト状況フォローアップメール作成モーダル
+function EmailFollowupModal({ row, callListData, clientData, contactsByClient, currentUser, onClose }) {
+  // クライアント・担当者解決
+  const list = (callListData || []).find(l => l._supaId === row.list_id);
+  const clientId = list?.client_id || list?._client_supaId || null;
+  const contacts = (clientId && contactsByClient?.[clientId]) || [];
+
+  // 初期は最初の担当者をTo
+  const [toIds, setToIds] = useState(contacts.length > 0 ? [contacts[0].id] : []);
+  const [ccIds, setCcIds] = useState([]);
+  const [intent, setIntent] = useState('');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState(null);
+  const [sentOk, setSentOk] = useState(false);
+  const sendingRef = useRef(false);
+  const intentIme = useImeSafeInput(intent, setIntent);
+  const subjectIme = useImeSafeInput(subject, setSubject);
+  const bodyIme = useImeSafeInput(body, setBody);
+
+  const toggleId = (set, setter, id) => {
+    setter(set.includes(id) ? set.filter(x => x !== id) : [...set, id]);
+  };
+
+  const handleGenerate = async () => {
+    if (toIds.length === 0) { setError('宛先 (To) を1名以上選択してください'); return; }
+    if (!intent.trim()) { setError('伝えたい内容を入力してください'); return; }
+    setGenerating(true); setError(null);
+    const recipients = contacts.filter(c => toIds.includes(c.id)).map(c => ({ name: c.name, email: c.email }));
+    const ccRecipients = contacts.filter(c => ccIds.includes(c.id)).map(c => ({ name: c.name, email: c.email }));
+    const { subject: s, body: b, error: e } = await invokeGenListFollowupEmail({
+      listContext: {
+        client_name: row.list_client, list_industry: row.list_industry, eng_name: row.eng_name,
+        total_count: row.total_count, call_progress_pct: Number(row.call_progress_pct || 0),
+        appo_count: row.appo_count, rescheduling_count: row.rescheduling_count,
+        keyman_recall_count: row.keyman_recall_count,
+        keyman_reject_high_med_count: row.keyman_reject_high_med_count,
+        last_appo_days: row.days_since_last_appo, last_call_days: row.days_since_last_call,
+        stagnation: row.stagnation,
+      },
+      recipients, ccRecipients, userIntent: intent,
+    });
+    setGenerating(false);
+    if (e) { setError(String(e.message || e) || 'AI生成に失敗しました'); return; }
+    setSubject(s); setBody(b);
+  };
+
+  const handleSend = async () => {
+    if (sendingRef.current) return;
+    if (!subject.trim() || !body.trim()) { setError('件名と本文を入力してください'); return; }
+    if (toIds.length === 0) { setError('宛先 (To) を1名以上選択してください'); return; }
+    sendingRef.current = true; setSending(true); setError(null);
+    const to = contacts.filter(c => toIds.includes(c.id)).map(c => c.email).join(', ');
+    const cc = contacts.filter(c => ccIds.includes(c.id)).map(c => c.email).join(', ');
+    const finalBody = body + SIG_DEFAULT;
+    const { error: e } = await invokeSendEmail({ to, subject, body: finalBody, cc });
+    sendingRef.current = false; setSending(false);
+    if (e) { setError(String(e.message || e) || '送信に失敗しました'); return; }
+    setSentOk(true);
+    setTimeout(() => onClose(), 1500);
+  };
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: alpha(color.navyDeep || color.navy, 0.5),
+      zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: space[4],
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: color.white, borderRadius: radius.lg, boxShadow: shadow.xl,
+        width: '100%', maxWidth: 720, maxHeight: '92vh', overflowY: 'auto',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        {/* ヘッダ */}
+        <div style={{
+          padding: `${space[3]}px ${space[4]}px`, background: color.navy, color: color.white,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          borderRadius: `${radius.lg}px ${radius.lg}px 0 0`,
+        }}>
+          <div>
+            <div style={{ fontSize: font.size.sm, opacity: 0.8 }}>{row.list_client} / {row.eng_name}</div>
+            <div style={{ fontSize: font.size.md, fontWeight: font.weight.semibold, marginTop: 2 }}>
+              リスト状況フォローアップメール作成
+            </div>
+            <div style={{ fontSize: font.size.xs, opacity: 0.7, marginTop: 2 }}>
+              対象リスト: {row.list_industry || '(無題)'}
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', color: color.white, fontSize: 24,
+            cursor: 'pointer', padding: 4,
+          }}>×</button>
+        </div>
+
+        <div style={{ padding: space[4], display: 'flex', flexDirection: 'column', gap: space[3] }}>
+          {/* 担当者選択 */}
+          {contacts.length === 0 ? (
+            <div style={{
+              padding: space[3], background: alpha(color.warn, 0.08), border: `1px solid ${color.warn}`,
+              borderRadius: radius.md, fontSize: font.size.sm, color: color.textDark,
+            }}>
+              このクライアントには担当者(連絡先)が登録されていません。CRM画面で担当者を登録してください。
+            </div>
+          ) : (
+            <>
+              <div>
+                <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[1] }}>
+                  宛先 (To)
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {contacts.map(c => (
+                    <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: space[2], fontSize: font.size.sm, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={toIds.includes(c.id)} onChange={() => toggleId(toIds, setToIds, c.id)} />
+                      <span style={{ fontWeight: font.weight.semibold }}>{c.name || '(名前未設定)'}</span>
+                      <span style={{ color: color.textMid, fontFamily: font.family.mono, fontSize: font.size.xs }}>{c.email || '(メール未設定)'}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[1] }}>
+                  CC (任意)
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {contacts.filter(c => !toIds.includes(c.id)).map(c => (
+                    <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: space[2], fontSize: font.size.sm, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={ccIds.includes(c.id)} onChange={() => toggleId(ccIds, setCcIds, c.id)} />
+                      <span>{c.name || '(名前未設定)'}</span>
+                      <span style={{ color: color.textMid, fontFamily: font.family.mono, fontSize: font.size.xs }}>{c.email || '(メール未設定)'}</span>
+                    </label>
+                  ))}
+                  {contacts.filter(c => !toIds.includes(c.id)).length === 0 && (
+                    <div style={{ fontSize: font.size.xs, color: color.textLight }}>CC候補なし</div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* 自然言語入力 */}
+          <div>
+            <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[1] }}>
+              現状や伝えたい内容 (篠宮の言葉でラフに書いてOK。AI が文体ガイドに沿って整えます)
+            </div>
+            <textarea
+              value={intentIme.value}
+              onChange={intentIme.onChange}
+              onCompositionStart={intentIme.onCompositionStart}
+              onCompositionEnd={intentIme.onCompositionEnd}
+              rows={5}
+              placeholder="例: このリストはもう500社以上架電してアポも数件取れたけど、ここ1ヶ月停滞している。そろそろ新しいリストいただきたいので前向きに検討してほしい旨を伝えたい"
+              style={{
+                width: '100%', padding: space[2], border: `1px solid ${color.border}`,
+                borderRadius: radius.sm, fontSize: font.size.sm, fontFamily: font.family.sans,
+                color: color.textDark, resize: 'vertical', outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <button onClick={handleGenerate} disabled={generating || contacts.length === 0} style={{
+            padding: '10px 16px', background: generating ? color.gray100 : color.navy,
+            color: color.white, border: 'none', borderRadius: radius.md,
+            fontSize: font.size.sm, fontWeight: font.weight.semibold, cursor: generating ? 'wait' : 'pointer',
+            fontFamily: font.family.sans, alignSelf: 'flex-start',
+          }}>
+            {generating ? 'AI 生成中...' : 'AI でメール作成'}
+          </button>
+
+          {/* 生成結果プレビュー (編集可) */}
+          {(subject || body) && (
+            <>
+              <div style={{ borderTop: `1px solid ${color.border}`, paddingTop: space[3] }}>
+                <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[1] }}>
+                  件名 (編集可)
+                </div>
+                <input
+                  value={subjectIme.value}
+                  onChange={subjectIme.onChange}
+                  onCompositionStart={subjectIme.onCompositionStart}
+                  onCompositionEnd={subjectIme.onCompositionEnd}
+                  style={{
+                    width: '100%', padding: space[2], border: `1px solid ${color.border}`,
+                    borderRadius: radius.sm, fontSize: font.size.sm, fontFamily: font.family.sans,
+                    color: color.textDark, outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div>
+                <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[1] }}>
+                  本文 (編集可、署名は送信時に自動で追加)
+                </div>
+                <textarea
+                  value={bodyIme.value}
+                  onChange={bodyIme.onChange}
+                  onCompositionStart={bodyIme.onCompositionStart}
+                  onCompositionEnd={bodyIme.onCompositionEnd}
+                  rows={16}
+                  style={{
+                    width: '100%', padding: space[2], border: `1px solid ${color.border}`,
+                    borderRadius: radius.sm, fontSize: font.size.sm, fontFamily: font.family.sans,
+                    color: color.textDark, resize: 'vertical', outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <button onClick={handleSend} disabled={sending || sentOk} style={{
+                padding: '10px 16px',
+                background: sentOk ? color.success : (sending ? color.gray100 : color.gold || color.navy),
+                color: color.white, border: 'none', borderRadius: radius.md,
+                fontSize: font.size.sm, fontWeight: font.weight.semibold,
+                cursor: sending || sentOk ? 'wait' : 'pointer',
+                fontFamily: font.family.sans, alignSelf: 'flex-start',
+              }}>
+                {sentOk ? '送信完了' : sending ? '送信中...' : `メール送信 (To ${toIds.length}名${ccIds.length > 0 ? ` / CC ${ccIds.length}名` : ''})`}
+              </button>
+            </>
+          )}
+
+          {error && (
+            <div style={{
+              padding: space[2], background: alpha(color.danger, 0.08),
+              border: `1px solid ${color.danger}`, borderRadius: radius.sm,
+              fontSize: font.size.xs, color: color.danger,
+            }}>
+              {error}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
