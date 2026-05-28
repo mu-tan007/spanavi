@@ -870,6 +870,20 @@ function TodoMemoCell({ listId, initialValue }) {
   );
 }
 
+// File → base64 文字列 (data URL のヘッダー除いたbody部のみ)
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result || '';
+      const comma = String(result).indexOf(',');
+      resolve(comma >= 0 ? String(result).slice(comma + 1) : String(result));
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 // 署名2種 (gmail-auto-reply と同方式)
 const SIG_DEFAULT = `
 
@@ -906,6 +920,8 @@ function SectionClientFollow({ callListData, clientData, contactsByClient, curre
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [emailCtx, setEmailCtx] = useState(null);
+  // タブごとの展開状態 ({ '中期フォロー': true, '停止中': false, ... })
+  const [expanded, setExpanded] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -921,6 +937,11 @@ function SectionClientFollow({ callListData, clientData, contactsByClient, curre
     if (statusFilter === 'all') return rows;
     return rows.filter(r => r.status === statusFilter);
   }, [rows, statusFilter]);
+
+  // 各タブで 10件まで表示、それ以降は「もっと見る」展開
+  const isExpanded = expanded[statusFilter] || false;
+  const visible = isExpanded ? filtered : filtered.slice(0, 10);
+  const restCount = filtered.length - visible.length;
 
   const countByStatus = useMemo(() => {
     const m = {};
@@ -974,7 +995,7 @@ function SectionClientFollow({ callListData, clientData, contactsByClient, curre
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(r => (
+                  {visible.map(r => (
                     <tr key={r.client_id} style={{ background: color.white }}>
                       <td style={{ ...td, color: color.textDark, fontWeight: font.weight.semibold, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {r.client_name}
@@ -1016,6 +1037,22 @@ function SectionClientFollow({ callListData, clientData, contactsByClient, curre
                 </tbody>
               </table>
             </div>
+            {restCount > 0 && (
+              <button onClick={() => setExpanded(e => ({ ...e, [statusFilter]: true }))} style={{
+                alignSelf: 'flex-start', padding: '6px 14px',
+                background: color.white, border: `1px solid ${color.border}`,
+                borderRadius: radius.md, fontSize: font.size.xs, color: color.textMid,
+                cursor: 'pointer', fontFamily: font.family.sans,
+              }}>▼ もっと見る (+{restCount}件)</button>
+            )}
+            {isExpanded && filtered.length > 10 && (
+              <button onClick={() => setExpanded(e => ({ ...e, [statusFilter]: false }))} style={{
+                alignSelf: 'flex-start', padding: '6px 14px',
+                background: color.white, border: `1px solid ${color.border}`,
+                borderRadius: radius.md, fontSize: font.size.xs, color: color.textMid,
+                cursor: 'pointer', fontFamily: font.family.sans,
+              }}>▲ 折りたたむ</button>
+            )}
           </div>
         )}
       </Section>
@@ -1092,6 +1129,9 @@ function EmailFollowupModal({ modalCtx, callListData, clientData, contactsByClie
   const [sentOk, setSentOk] = useState(false);
   // 署名選択: default=フル / rally=簡易 / none=なし
   const [signatureKey, setSignatureKey] = useState('default');
+  // 添付ファイル: [{ filename, data (base64), mimeType, size }]
+  const [attachments, setAttachments] = useState([]);
+  const fileInputRef = useRef(null);
   const sendingRef = useRef(false);
   const intentIme = useImeSafeInput(intent, setIntent);
   const subjectIme = useImeSafeInput(subject, setSubject);
@@ -1146,11 +1186,39 @@ function EmailFollowupModal({ modalCtx, callListData, clientData, contactsByClie
     const cc = allCcRecipients().map(r => r.email).join(', ');
     const sigText = (SIG_OPTIONS.find(o => o.key === signatureKey) || SIG_OPTIONS[0]).text;
     const finalBody = body + sigText;
-    const { error: e } = await invokeSendEmail({ to, subject, body: finalBody, cc });
+    const attPayload = attachments.length > 0
+      ? attachments.map(a => ({ filename: a.filename, data: a.data, mimeType: a.mimeType }))
+      : undefined;
+    const { error: e } = await invokeSendEmail({ to, subject, body: finalBody, cc, attachments: attPayload });
     sendingRef.current = false; setSending(false);
     if (e) { setError(String(e.message || e) || '送信に失敗しました'); return; }
     setSentOk(true);
     setTimeout(() => onClose(), 1500);
+  };
+
+  // ファイル添付処理
+  const handleFilePick = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    const MAX_TOTAL = 24 * 1024 * 1024; // Gmail添付合計上限の安全側目安 (25MBより少し低め)
+    const currentTotal = attachments.reduce((s, a) => s + (a.size || 0), 0);
+    let total = currentTotal;
+    const newOnes = [];
+    for (const f of files) {
+      total += f.size;
+      if (total > MAX_TOTAL) {
+        setError(`添付ファイル合計が ${(MAX_TOTAL / 1024 / 1024).toFixed(0)}MB を超えるためスキップしました: ${f.name}`);
+        continue;
+      }
+      const data = await fileToBase64(f);
+      newOnes.push({ filename: f.name, data, mimeType: f.type || 'application/octet-stream', size: f.size });
+    }
+    setAttachments(prev => [...prev, ...newOnes]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeAttachment = (idx) => {
+    setAttachments(prev => prev.filter((_, i) => i !== idx));
   };
 
   return (
@@ -1320,6 +1388,43 @@ function EmailFollowupModal({ modalCtx, callListData, clientData, contactsByClie
                   }}
                 />
               </div>
+              {/* 添付ファイル */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: space[1], flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid }}>
+                    添付ファイル (任意・合計24MBまで)
+                  </span>
+                  <button type="button" onClick={() => fileInputRef.current?.click()} style={{
+                    padding: '4px 12px', background: color.white, color: color.navy,
+                    border: `1px solid ${color.navy}`, borderRadius: radius.sm,
+                    fontSize: font.size.xs, fontWeight: font.weight.semibold, cursor: 'pointer',
+                    fontFamily: font.family.sans,
+                  }}>+ ファイル追加</button>
+                  <input ref={fileInputRef} type="file" multiple onChange={handleFilePick} style={{ display: 'none' }} />
+                </div>
+                {attachments.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {attachments.map((a, i) => (
+                      <div key={i} style={{
+                        display: 'flex', alignItems: 'center', gap: space[2],
+                        padding: '4px 8px', background: alpha(color.navy, 0.04),
+                        borderRadius: radius.sm, fontSize: font.size.xs,
+                      }}>
+                        <span style={{ flex: 1, color: color.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {a.filename}
+                        </span>
+                        <span style={{ color: color.textMid, fontFamily: font.family.mono }}>
+                          {(a.size / 1024).toFixed(1)} KB
+                        </span>
+                        <button onClick={() => removeAttachment(i)} style={{
+                          background: 'none', border: 'none', color: color.danger,
+                          cursor: 'pointer', fontSize: font.size.sm, padding: '0 4px',
+                        }}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button onClick={handleSend} disabled={sending || sentOk} style={{
                 padding: '10px 16px',
                 background: sentOk ? color.success : (sending ? color.gray100 : color.gold || color.navy),
@@ -1333,7 +1438,8 @@ function EmailFollowupModal({ modalCtx, callListData, clientData, contactsByClie
                   const ccCnt = allCcRecipients().length;
                   if (sentOk) return '送信完了';
                   if (sending) return '送信中...';
-                  return `メール送信 (To ${toCnt}件${ccCnt > 0 ? ` / CC ${ccCnt}件` : ''})`;
+                  const attLabel = attachments.length > 0 ? ` / 添付 ${attachments.length}件` : '';
+                  return `メール送信 (To ${toCnt}件${ccCnt > 0 ? ` / CC ${ccCnt}件` : ''}${attLabel})`;
                 })()}
               </button>
             </>
