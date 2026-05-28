@@ -4097,6 +4097,109 @@ export async function invokeGenListFollowupEmail(payload) {
   }
 }
 
+// ============================================================
+// CRM クライアント詳細「面談記録」CRUD + AI 解析呼び出し
+// ============================================================
+
+/** あるクライアントの面談記録を一覧取得 (最新順) */
+export async function fetchClientMeetings(clientId) {
+  if (!clientId) return { data: [], error: null }
+  const { data, error } = await supabase
+    .from('client_meetings')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('meeting_at', { ascending: false })
+  if (error) console.error('[DB] fetchClientMeetings error:', error)
+  return { data: data || [], error }
+}
+
+/** 面談記録を新規作成 */
+export async function insertClientMeeting({ clientId, title, meetingAt, summary = '', nextAction = '', createdBy = null }) {
+  const orgId = getOrgId()
+  if (!orgId || !clientId) return { data: null, error: new Error('missing args') }
+  const { data, error } = await supabase
+    .from('client_meetings')
+    .insert({
+      org_id: orgId, client_id: clientId,
+      title: title || '面談',
+      meeting_at: meetingAt || new Date().toISOString(),
+      summary, next_action: nextAction, created_by: createdBy,
+    })
+    .select()
+    .single()
+  if (error) console.error('[DB] insertClientMeeting error:', error)
+  return { data, error }
+}
+
+/** 面談記録の更新 (タイトル/日時/概要/Next Action/録音URL等の任意フィールド) */
+export async function updateClientMeeting(meetingId, patch) {
+  if (!meetingId) return { error: new Error('missing meetingId') }
+  const allowed = ['title', 'meeting_at', 'recording_url', 'summary', 'next_action', 'transcript']
+  const update = {}
+  for (const k of allowed) if (k in patch) update[k] = patch[k]
+  const { error } = await supabase
+    .from('client_meetings')
+    .update(update)
+    .eq('id', meetingId)
+  if (error) console.error('[DB] updateClientMeeting error:', error)
+  return { error }
+}
+
+/** 面談記録の削除 */
+export async function deleteClientMeeting(meetingId) {
+  if (!meetingId) return { error: new Error('missing meetingId') }
+  const { error } = await supabase
+    .from('client_meetings')
+    .delete()
+    .eq('id', meetingId)
+  if (error) console.error('[DB] deleteClientMeeting error:', error)
+  return { error }
+}
+
+/**
+ * 面談録音を Supabase Storage にアップロードして public URL を返す。
+ * パス: meetings/{client_id}/{meeting_id}/{timestamp}_{filename}
+ */
+export async function uploadMeetingRecording({ clientId, meetingId, file }) {
+  if (!clientId || !meetingId || !file) return { url: null, error: new Error('missing args') }
+  const ts = Date.now()
+  const safeName = (file.name || 'rec').replace(/[^a-zA-Z0-9._-]/g, '_')
+  const path = `meetings/${clientId}/${meetingId}/${ts}_${safeName}`
+  const { error: upErr } = await supabase.storage
+    .from('recordings')
+    .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false })
+  if (upErr) {
+    console.error('[Storage] uploadMeetingRecording error:', upErr)
+    return { url: null, error: upErr }
+  }
+  const { data: pub } = supabase.storage.from('recordings').getPublicUrl(path)
+  return { url: pub?.publicUrl || null, error: null }
+}
+
+/** AI 解析を起動 (fire-and-forget、フロントは summary をポーリングして完了検知) */
+export async function invokeSummarizeMeetingRecording({ meetingId, recordingUrl }) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) return { error: new Error('not authenticated') }
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/summarize-meeting-recording`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ meeting_id: meetingId, recording_url: recordingUrl }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) return { error: new Error(json.error || `HTTP ${res.status}`) }
+    return { ok: true }
+  } catch (e) {
+    console.error('[invokeSummarizeMeetingRecording] error:', e)
+    return { error: e }
+  }
+}
+
 /** 事業俯瞰「クライアントフォロー」: 支援中以外のクライアント集計を取得 */
 export async function fetchClientFollowSummary() {
   const orgId = getOrgId()

@@ -10,6 +10,7 @@ import ContactDrawer from './ContactDrawer';
 import ActivityTimeline from './ActivityTimeline';
 import ClientMonthlyTargetSection from '../crm/ClientMonthlyTargetSection';
 import CRMActionPanel from '../crm/CRMActionPanel';
+import ClientMeetingsSection from '../crm/ClientMeetingsSection';
 
 const NAVY = '#0D2247';
 const BLUE = '#1E40AF';
@@ -53,6 +54,32 @@ const fmtJa = (ts) => {
 /**
  * Section ヘッダー（左ペイン用）
  */
+// ActivityTimeline を折りたたみ可能なカードでラップ (デフォルト閉じる)
+function ActivityTimelineCard({ clientSupaId, contactsByClient }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{
+      background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
+      padding: '14px 16px',
+    }}>
+      <button onClick={() => setOpen(o => !o)} style={{
+        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+        fontSize: font.size.sm, fontWeight: font.weight.bold, color: NAVY,
+        fontFamily: font.family.sans, letterSpacing: 1,
+      }}>
+        <span>Activity Timeline (アポ/メモ/架電の自動ログ)</span>
+        <span style={{ fontSize: font.size.xs, color: C.textLight }}>{open ? '▲ 閉じる' : '▼ 開く'}</span>
+      </button>
+      {open && (
+        <div style={{ marginTop: 10, maxHeight: 400, overflowY: 'auto' }}>
+          <ActivityTimeline clientSupaId={clientSupaId} contactsByClient={contactsByClient} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SectionTitle({ children }) {
   return (
     <div style={{
@@ -289,9 +316,8 @@ export default function ClientDetailPage({
       {isMobile && (
         <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
           {[
-            { key: 'info',     label: '情報' },
-            { key: 'timeline', label: '履歴' },
-            { key: 'actions',  label: '操作' },
+            { key: 'info',     label: '面談・議事録' },
+            { key: 'actions',  label: '契約・担当者' },
           ].map(t => {
             const active = mobileTab === t.key;
             return (
@@ -312,142 +338,45 @@ export default function ClientDetailPage({
         </div>
       )}
 
-      {/* 3-pane layout (モバイルでは選択タブのみ表示) */}
+      {/* 2-pane layout: 左=面談記録(メイン) / 右=契約・目標・担当者・Activity */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '280px 1fr 320px',
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 380px',
         gap: 16,
         alignItems: 'start',
       }}>
-        {/* Left pane: profile / contract / numbers / lists / notes */}
+        {/* Left pane: 面談記録 (メイン) */}
         <div style={{
           background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
           padding: '14px 16px',
-          maxHeight: isMobile ? 'none' : 'calc(100vh - 200px)',
-          overflowY: isMobile ? 'visible' : 'auto',
           display: isMobile && mobileTab !== 'info' ? 'none' : 'block',
         }}>
-          <SectionTitle>契約条件</SectionTitle>
-          <NextContactRow client={c} setClientData={setClientData} />
-          <FieldRow label="報酬体系" value={
-            c.rewardType ? (
-              <span
-                onClick={(e) => { e.stopPropagation(); onShowReward?.(c.rewardType); }}
-                style={{ color: NAVY, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
-              >{c.rewardType} {rm ? `(${rm.name})` : ''}</span>
-            ) : '-'
-          } />
-          <FieldRow label="税区分" value={rm ? rm.tax : '-'} />
-          <FieldRow label="支払サイト" value={c.paySite} />
-          <FieldRow label="支払特記" value={c.payNote} />
-          <FieldRow label="リスト負担" value={c.listSrc} />
-          <FieldRow label="カレンダー" value={c.calendar} />
-          <FieldRow label="連絡手段" value={c.contact} />
-          {c.clientEmail && <FieldRow label="メールアドレス" value={c.clientEmail} />}
-          {c.googleCalendarId && <FieldRow label="Google Calendar ID" value={c.googleCalendarId} />}
-          {c.schedulingUrl && <FieldRow label="日程調整 URL" value={c.schedulingUrl} />}
-
-          {c.status === '支援中' && (
-            <>
-              <SectionTitle>月別目標</SectionTitle>
-              <ClientMonthlyTargetSection clientId={c._supaId} />
-            </>
-          )}
-
-          <SectionTitle>数字</SectionTitle>
-          {stats.loading ? (
-            <div style={{ fontSize: font.size.xs, color: C.textLight }}>読み込み中...</div>
-          ) : (
-            <>
-              <FieldRow label="累計売上" value={yen(stats.totalSales)} mono valueColor={NAVY} />
-              <FieldRow label="今月着地" value={yen(stats.monthSales)} mono />
-              <FieldRow label="契約開始" value={fmtDate(stats.contractStart)} mono />
-            </>
-          )}
-
-          <SectionTitle>関連リスト ({relatedLists.length})</SectionTitle>
-          {relatedLists.length === 0 ? (
-            <div style={{ fontSize: font.size.xs, color: C.textLight }}>登録なし</div>
-          ) : (
-            relatedLists.slice(0, 8).map(l => (
-              <div key={l._supaId || l.id} style={{
-                fontSize: font.size.xs, color: C.textDark,
-                padding: '5px 0', borderBottom: `1px solid ${GRAY_100}`,
-                display: 'flex', justifyContent: 'space-between', gap: 6,
-              }}>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {l.industry || '(無題)'}
-                </span>
-                <span style={{
-                  fontFamily: font.family.mono, fontSize: 10,
-                  color: C.textLight, fontVariantNumeric: 'tabular-nums', flexShrink: 0,
-                }}>{l.count || 0}件</span>
-              </div>
-            ))
-          )}
-          {relatedLists.length > 8 && (
-            <div style={{ fontSize: 10, color: C.textLight, marginTop: 6 }}>他 {relatedLists.length - 8} 件</div>
-          )}
-
-          {(c.noteFirst || c.noteKickoff || c.noteRegular) && (
-            <>
-              <SectionTitle>備考</SectionTitle>
-              {[
-                { label: '初回面談時', val: c.noteFirst },
-                { label: 'キックオフ MTG 時', val: c.noteKickoff },
-                { label: '定期 MTG 時', val: c.noteRegular },
-              ].filter(n => n.val).map((n, ni) => (
-                <div key={ni} style={{ marginBottom: 8 }}>
-                  <div style={{
-                    fontSize: 9, fontWeight: font.weight.bold, color: NAVY, marginBottom: 3,
-                    display: 'flex', alignItems: 'center', gap: 4,
-                  }}>
-                    <span style={{ width: 4, height: 4, borderRadius: '50%', background: NAVY, display: 'inline-block' }} />
-                    {n.label}
-                  </div>
-                  <div style={{
-                    fontSize: font.size.xs, color: C.textMid, whiteSpace: 'pre-wrap', lineHeight: 1.6,
-                    padding: '4px 0 4px 8px', borderLeft: `2px solid ${GRAY_200}`,
-                    maxHeight: 180, overflow: 'auto',
-                  }}>
-                    {String(n.val).replace(/\\n/g, '\n')}
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
+          <ClientMeetingsSection clientId={c?._supaId} currentUser={currentUser} />
         </div>
 
-        {/* Center pane: Activity Timeline */}
+        {/* Right pane: actions + contacts + 契約・目標・数字 + Activity Timeline */}
         <div style={{
-          background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
-          padding: '14px 16px',
-          maxHeight: isMobile ? 'none' : 'calc(100vh - 200px)',
-          overflowY: isMobile ? 'visible' : 'auto',
-          display: isMobile && mobileTab !== 'timeline' ? 'none' : 'block',
-        }}>
-          <ActivityTimeline
-            clientSupaId={c?._supaId}
-            contactsByClient={contactsByClient}
-          />
-        </div>
-
-        {/* Right pane: actions + contacts */}
-        <div style={{
-          background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
-          padding: '14px 16px',
-          maxHeight: isMobile ? 'none' : 'calc(100vh - 200px)',
-          overflowY: isMobile ? 'visible' : 'auto',
-          display: isMobile && mobileTab !== 'actions' ? 'none' : 'block',
+          display: isMobile && mobileTab !== 'actions' ? 'none' : 'flex',
+          flexDirection: 'column', gap: 12,
         }}>
           {/* アクションパネル */}
-          <CRMActionPanel
-            client={c}
-            primaryContact={sortedContacts.find(ct => ct.isPrimary) || sortedContacts[0]}
-            currentUser={currentUser}
-            setClientData={setClientData}
-          />
+          <div style={{
+            background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
+            padding: '14px 16px',
+          }}>
+            <CRMActionPanel
+              client={c}
+              primaryContact={sortedContacts.find(ct => ct.isPrimary) || sortedContacts[0]}
+              currentUser={currentUser}
+              setClientData={setClientData}
+            />
+          </div>
 
+          {/* 担当者カード */}
+          <div style={{
+            background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
+            padding: '14px 16px',
+          }}>
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             borderBottom: `1px solid ${GRAY_200}`, paddingBottom: 8, marginBottom: 10,
@@ -509,6 +438,89 @@ export default function ClientDetailPage({
               </div>
             ))
           )}
+          </div>
+
+          {/* 契約条件カード */}
+          <div style={{
+            background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
+            padding: '14px 16px',
+          }}>
+            <SectionTitle>契約条件</SectionTitle>
+            <NextContactRow client={c} setClientData={setClientData} />
+            <FieldRow label="報酬体系" value={
+              c.rewardType ? (
+                <span onClick={(e) => { e.stopPropagation(); onShowReward?.(c.rewardType); }}
+                  style={{ color: NAVY, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+                  {c.rewardType} {rm ? `(${rm.name})` : ''}
+                </span>
+              ) : '-'
+            } />
+            <FieldRow label="税区分" value={rm ? rm.tax : '-'} />
+            <FieldRow label="支払サイト" value={c.paySite} />
+            <FieldRow label="支払特記" value={c.payNote} />
+            <FieldRow label="リスト負担" value={c.listSrc} />
+            <FieldRow label="カレンダー" value={c.calendar} />
+            <FieldRow label="連絡手段" value={c.contact} />
+            {c.clientEmail && <FieldRow label="メールアドレス" value={c.clientEmail} />}
+          </div>
+
+          {/* 月別目標カード (支援中のみ) */}
+          {c.status === '支援中' && (
+            <div style={{
+              background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
+              padding: '14px 16px',
+            }}>
+              <SectionTitle>月別目標</SectionTitle>
+              <ClientMonthlyTargetSection clientId={c._supaId} />
+            </div>
+          )}
+
+          {/* 数字カード */}
+          <div style={{
+            background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
+            padding: '14px 16px',
+          }}>
+            <SectionTitle>数字</SectionTitle>
+            {stats.loading ? (
+              <div style={{ fontSize: font.size.xs, color: C.textLight }}>読み込み中...</div>
+            ) : (
+              <>
+                <FieldRow label="累計売上" value={yen(stats.totalSales)} mono valueColor={NAVY} />
+                <FieldRow label="今月着地" value={yen(stats.monthSales)} mono />
+                <FieldRow label="契約開始" value={fmtDate(stats.contractStart)} mono />
+              </>
+            )}
+          </div>
+
+          {/* 関連リストカード */}
+          {relatedLists.length > 0 && (
+            <div style={{
+              background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
+              padding: '14px 16px',
+            }}>
+              <SectionTitle>関連リスト ({relatedLists.length})</SectionTitle>
+              {relatedLists.slice(0, 8).map(l => (
+                <div key={l._supaId || l.id} style={{
+                  fontSize: font.size.xs, color: C.textDark,
+                  padding: '5px 0', borderBottom: `1px solid ${GRAY_100}`,
+                  display: 'flex', justifyContent: 'space-between', gap: 6,
+                }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {l.industry || '(無題)'}
+                  </span>
+                  <span style={{ fontFamily: font.family.mono, fontSize: 10, color: C.textLight, flexShrink: 0 }}>
+                    {l.count || 0}件
+                  </span>
+                </div>
+              ))}
+              {relatedLists.length > 8 && (
+                <div style={{ fontSize: 10, color: C.textLight, marginTop: 6 }}>他 {relatedLists.length - 8} 件</div>
+              )}
+            </div>
+          )}
+
+          {/* Activity Timeline カード (折りたたみ) */}
+          <ActivityTimelineCard clientSupaId={c?._supaId} contactsByClient={contactsByClient} />
         </div>
       </div>
 
