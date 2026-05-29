@@ -2,14 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { color, space, radius, font } from '../../../constants/design';
 import {
   fetchClientMeetings, insertClientMeeting, updateClientMeeting,
-  deleteClientMeeting, uploadMeetingRecording, invokeSummarizeMeetingRecording,
-  reorderClientMeetings,
+  deleteClientMeeting, reorderClientMeetings,
 } from '../../../lib/supabaseWrite';
 import { useImeSafeInput } from '../../../lib/useImeSafe';
 
-// AI解析の進行中マーカー (DB側 summary が このプレフィックスの間ポーリング)
-const ANALYZING_PREFIX = '[AI解析中';
-const ERROR_PREFIX = '[AI解析エラー';
 
 // 全クライアントにデフォルトで用意する3枠（実DBに無ければ仮想カードで表示し、
 // 編集された時点でINSERTして実レコードに昇格する）
@@ -201,12 +197,6 @@ function MeetingCard({ meeting, clientId, onChange, onDelete, draggable = false 
   const [meetingDate, setMeetingDate] = useState(isoToDateInput(meeting.meeting_at));
   const [summary, setSummary] = useState(meeting.summary || '');
   const [nextAction, setNextAction] = useState(meeting.next_action || '');
-  const [recordingUrl, setRecordingUrl] = useState(meeting.recording_url || '');
-  const [uploading, setUploading] = useState(false);
-  const [analyzing, setAnalyzing] = useState(
-    (meeting.summary || '').startsWith(ANALYZING_PREFIX)
-  );
-  const fileInputRef = useRef(null);
   const debounceRef = useRef(null);
   const lastSavedRef = useRef({
     title: meeting.title || '',
@@ -220,13 +210,12 @@ function MeetingCard({ meeting, clientId, onChange, onDelete, draggable = false 
   const summaryIme = useImeSafeInput(summary, setSummary);
   const nextActionIme = useImeSafeInput(nextAction, setNextAction);
 
-  // 親から meeting prop が更新されたら反映 (AI解析完了時等)
+  // 親から meeting prop が更新されたら反映
   useEffect(() => {
     setTitle(meeting.title || '面談');
     setMeetingDate(isoToDateInput(meeting.meeting_at));
     setSummary(meeting.summary || '');
     setNextAction(meeting.next_action || '');
-    setRecordingUrl(meeting.recording_url || '');
     lastSavedRef.current = {
       title: meeting.title || '',
       meeting_at: meeting.meeting_at,
@@ -255,54 +244,6 @@ function MeetingCard({ meeting, clientId, onChange, onDelete, draggable = false 
 
   useEffect(() => { scheduleSave(); return () => { if (debounceRef.current) clearTimeout(debounceRef.current); }; }, [scheduleSave]);
 
-  // AI 解析中ポーリング (summary が完了形になるまで 3秒毎、最大10分)
-  useEffect(() => {
-    if (!analyzing) return;
-    let cancelled = false;
-    const pollUntil = Date.now() + 10 * 60 * 1000;
-    const tick = async () => {
-      if (cancelled) return;
-      const { data } = await fetchClientMeetings(clientId);
-      const updated = (data || []).find(x => x.id === meeting.id);
-      if (!updated) return;
-      const s = updated.summary || '';
-      if (!s.startsWith(ANALYZING_PREFIX)) {
-        setAnalyzing(false);
-        onChange(updated);
-        return;
-      }
-      if (Date.now() < pollUntil) setTimeout(tick, 3000);
-      else { setAnalyzing(false); }
-    };
-    const t = setTimeout(tick, 3000);
-    return () => { cancelled = true; clearTimeout(t); };
-  }, [analyzing, clientId, meeting.id, onChange]);
-
-  const handleUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    const meetingId = meeting.id;
-    const { url, error } = await uploadMeetingRecording({ clientId, meetingId, file });
-    if (error || !url) {
-      setUploading(false);
-      alert('アップロード失敗: ' + (error?.message || ''));
-      return;
-    }
-    setRecordingUrl(url);
-    await updateClientMeeting(meetingId, { recording_url: url });
-    // AI解析開始
-    setSummary(`${ANALYZING_PREFIX}... 1〜2分お待ちください]`);
-    setAnalyzing(true);
-    const { error: aiErr } = await invokeSummarizeMeetingRecording({ meetingId, recordingUrl: url });
-    setUploading(false);
-    if (aiErr) {
-      alert('AI解析の起動に失敗: ' + (aiErr.message || ''));
-      setAnalyzing(false);
-    }
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
   const handleDelete = async () => {
     if (!window.confirm(`この面談記録「${title || '無題'}」を削除しますか?`)) return;
     const { error } = await deleteClientMeeting(meeting.id);
@@ -310,21 +251,10 @@ function MeetingCard({ meeting, clientId, onChange, onDelete, draggable = false 
     onDelete();
   };
 
-  // 録音を削除 (recording_url を空に + transcript もクリア)。文字起こし/概要は残す。
-  const handleDeleteRecording = async () => {
-    if (!recordingUrl) return;
-    if (!window.confirm('この録音ファイルを削除しますか？\n(文字起こし・概要・Next Action は残ります)')) return;
-    const { error } = await updateClientMeeting(meeting.id, { recording_url: null });
-    if (error) { alert('削除失敗: ' + (error.message || '')); return; }
-    setRecordingUrl('');
-  };
-
-  const hasError = (summary || '').startsWith(ERROR_PREFIX);
-
   return (
     <div style={{
       background: color.white, border: `1px solid ${color.border}`,
-      borderLeft: `3px solid ${analyzing ? color.warn : hasError ? color.danger : color.navy}`,
+      borderLeft: `3px solid ${color.navy}`,
       borderRadius: radius.md, padding: `${space[2]}px ${space[3]}px`,
     }}>
       {/* ヘッダ: ドラッグハンドル + タイトル + 日付 + 削除 */}
@@ -381,46 +311,6 @@ function MeetingCard({ meeting, clientId, onChange, onDelete, draggable = false 
         }}>✕</button>
       </div>
 
-      {/* 録音アップロード行 (ghost) */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: space[2], flexWrap: 'wrap' }}>
-        <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading || analyzing} style={{
-          padding: '2px 8px', background: 'transparent', color: color.textLight,
-          border: `1px solid ${color.borderLight}`, borderRadius: radius.sm,
-          fontSize: 10, fontWeight: font.weight.normal,
-          cursor: uploading || analyzing ? 'wait' : 'pointer', fontFamily: font.family.sans,
-          transition: 'color 0.12s, border-color 0.12s',
-        }}
-        onMouseEnter={e => { e.currentTarget.style.color = color.navy; e.currentTarget.style.borderColor = color.navy; }}
-        onMouseLeave={e => { e.currentTarget.style.color = color.textLight; e.currentTarget.style.borderColor = color.borderLight; }}
-        >
-          {uploading ? 'アップロード中…' : analyzing ? 'AI解析中…' : recordingUrl ? '別の録音に差し替え' : '+ 録音をアップロード'}
-        </button>
-        <input ref={fileInputRef} type="file" accept="audio/*,video/*" onChange={handleUpload} style={{ display: 'none' }} />
-        {recordingUrl && (
-          <>
-            <a href={recordingUrl} target="_blank" rel="noreferrer" style={{
-              fontSize: 10, color: color.textMid, textDecoration: 'underline',
-            }}>録音を開く</a>
-            <button
-              type="button"
-              onClick={handleDeleteRecording}
-              title="この録音を削除"
-              style={{
-                background: 'transparent', border: 'none', padding: 0,
-                color: color.textLight, fontSize: 10, cursor: 'pointer',
-                textDecoration: 'underline', fontFamily: font.family.sans,
-              }}
-              onMouseEnter={e => e.currentTarget.style.color = color.danger}
-              onMouseLeave={e => e.currentTarget.style.color = color.textLight}
-            >録音を削除</button>
-          </>
-        )}
-        {analyzing && (
-          <span style={{ fontSize: 10, color: color.warn }}>
-            (Whisper + Claude で要約生成中…)
-          </span>
-        )}
-      </div>
 
       {/* 概要 + Next Action を横並びでコンパクトに */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[2] }}>
