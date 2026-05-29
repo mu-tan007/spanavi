@@ -480,7 +480,7 @@ export default function BusinessOverviewView({
 // M. メンバーパフォーマンス ─ アサインメンバーの架電/接続/アポを期間集計
 // ========================================================================
 function SectionMemberPerformance() {
-  // 期間プリセット: 今月 / 先月 / 今期 (4-3月) / 累計 / カスタム
+  // 期間プリセット: 今月 / カスタム
   const [periodMode, setPeriodMode] = useState('current_month');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -488,6 +488,47 @@ function SectionMemberPerformance() {
   const [sortDir, setSortDir] = useState('desc');
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sendingId, setSendingId] = useState(null); // 送信中の member_id
+  const [toast, setToast] = useState(null); // { type:'ok'|'ng', text }
+
+  const requestRoleplayBooking = async (member) => {
+    if (!member?.member_email) {
+      alert('このメンバーのメールアドレスが登録されていません');
+      return;
+    }
+    const ok = window.confirm(
+      `${member.member_name} 様 (${member.member_email}) に\n「ロープレ予約依頼」メールを送信しますか？`
+    );
+    if (!ok) return;
+    setSendingId(member.member_id);
+    const surname = (member.member_name || '').split(/[\s　]/)[0];
+    const subject = '【Spanavi】AIロープレ予約のお願い';
+    const body = [
+      `${surname}さん`,
+      '',
+      'お疲れ様です。Spanavi 運営です。',
+      '',
+      '次回 AI ロープレの予約が確認できておりません。',
+      'ご都合の良い日時で予約をお願いいたします。',
+      '',
+      '予約はこちらから:',
+      'https://spanavi.jp/sourcing?tab=edu_roleplay',
+      '',
+      '--',
+      'Spanavi',
+    ].join('\n');
+    const { error } = await invokeSendEmail({
+      to: member.member_email,
+      subject, body,
+    });
+    setSendingId(null);
+    if (error) {
+      setToast({ type: 'ng', text: `送信失敗: ${String(error.message || error)}` });
+    } else {
+      setToast({ type: 'ok', text: `${member.member_name} 様にロープレ予約依頼を送信しました` });
+    }
+    setTimeout(() => setToast(null), 4000);
+  };
 
   // 期間プリセット → 実日付 (このページは月次パフォーマンス前提のため 今月/カスタム のみ)
   const resolveRange = (mode) => {
@@ -596,7 +637,16 @@ function SectionMemberPerformance() {
   };
 
   return (
-    <Section title="メンバーパフォーマンス" hint="営業代行アサインメンバー (チームリーダー除く)">
+    <Section title="メンバーパフォーマンス" hint="営業代行アサインメンバー (チームリーダー除く)" right={
+      toast && (
+        <span style={{
+          padding: '4px 12px', borderRadius: radius.md, fontSize: font.size.xs,
+          background: toast.type === 'ok' ? alpha(color.success, 0.12) : alpha(color.danger, 0.12),
+          color: toast.type === 'ok' ? color.success : color.danger,
+          fontWeight: font.weight.semibold, border: `1px solid ${toast.type === 'ok' ? color.success : color.danger}`,
+        }}>{toast.text}</span>
+      )
+    }>
       <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
         {/* 期間セレクタ (月次パフォーマンス用に 今月/カスタム のみ) */}
         <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
@@ -635,6 +685,7 @@ function SectionMemberPerformance() {
                   {th('アポ率', 'apo_rate')}
                   {th('最終ロープレ', 'last_roleplay_at')}
                   {th('次回ロープレ', 'next_roleplay_at')}
+                  {th('予約依頼', null, 'center')}
                 </tr>
               </thead>
               <tbody>
@@ -688,6 +739,27 @@ function SectionMemberPerformance() {
                           </td>
                         );
                       })()}
+                      {/* 予約依頼ボタン */}
+                      <td style={{ ...td, textAlign: 'center' }}>
+                        <button
+                          onClick={() => requestRoleplayBooking(r)}
+                          disabled={sendingId === r.member_id || !r.member_email}
+                          title={r.member_email ? `${r.member_email} にメール送信` : 'メールアドレス未登録'}
+                          style={{
+                            padding: '4px 10px', fontSize: 10, fontWeight: font.weight.semibold,
+                            border: `1px solid ${color.navy}`,
+                            background: sendingId === r.member_id ? color.gray100 : color.white,
+                            color: color.navy, borderRadius: radius.sm,
+                            cursor: sendingId === r.member_id || !r.member_email ? 'not-allowed' : 'pointer',
+                            opacity: !r.member_email ? 0.4 : 1,
+                            fontFamily: font.family.sans,
+                          }}
+                          onMouseEnter={e => { if (!e.currentTarget.disabled) { e.currentTarget.style.background = color.navy; e.currentTarget.style.color = color.white; } }}
+                          onMouseLeave={e => { e.currentTarget.style.background = sendingId === r.member_id ? color.gray100 : color.white; e.currentTarget.style.color = color.navy; }}
+                        >
+                          {sendingId === r.member_id ? '送信中…' : '予約依頼'}
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
