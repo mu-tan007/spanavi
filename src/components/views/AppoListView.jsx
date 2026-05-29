@@ -1413,12 +1413,22 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           : (engsByCategory[productFilter] || []);
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: space[2], marginBottom: space[3] }}>
-            {/* Row 1: 商材 */}
+            {/* Row 1: 商材 (productFilter と typeFilter を同時更新するため単一 setSearchParams を使用) */}
             <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
               <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, minWidth: 40 }}>商材:</span>
-              <button onClick={() => { setProductFilter('all'); setTypeFilter('all'); }} style={pillStyle(productFilter === 'all')}>全商材</button>
+              <button onClick={() => setSearchParams(prev => {
+                const np = new URLSearchParams(prev);
+                np.delete('apo_product');
+                np.delete('apo_type');
+                return np;
+              })} style={pillStyle(productFilter === 'all')}>全商材</button>
               {productList.map(p => (
-                <button key={p} onClick={() => setProductFilter(p)} style={pillStyle(productFilter === p)}>{p}</button>
+                <button key={p} onClick={() => setSearchParams(prev => {
+                  const np = new URLSearchParams(prev);
+                  np.set('apo_product', p);
+                  np.delete('apo_type');
+                  return np;
+                })} style={pillStyle(productFilter === p)}>{p}</button>
               ))}
             </div>
             {/* Row 2: タイプ (商材選択中のみ表示) */}
