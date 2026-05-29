@@ -469,7 +469,7 @@ export default function BusinessOverviewView({
         />
 
         {/* M. メンバーパフォーマンス */}
-        <SectionMemberPerformance />
+        <SectionMemberPerformance month={month} />
 
       </div>
     </div>
@@ -479,11 +479,8 @@ export default function BusinessOverviewView({
 // ========================================================================
 // M. メンバーパフォーマンス ─ アサインメンバーの架電/接続/アポを期間集計
 // ========================================================================
-function SectionMemberPerformance() {
-  // 期間プリセット: 今月 / カスタム
-  const [periodMode, setPeriodMode] = useState('current_month');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+function SectionMemberPerformance({ month }) {
+  // ページヘッダの月セレクタ (month=YYYY-MM) から期間を導出。カスタム期間UIは廃止。
   const [sortKey, setSortKey] = useState('call_count');
   const [sortDir, setSortDir] = useState('desc');
   const [rows, setRows] = useState([]);
@@ -541,31 +538,20 @@ function SectionMemberPerformance() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  // 期間プリセット → 実日付 (このページは月次パフォーマンス前提のため 今月/カスタム のみ)
-  const resolveRange = (mode) => {
-    if (mode === 'current_month') {
-      const today = new Date();
-      const y = today.getFullYear();
-      const m = today.getMonth();
-      const pad = (n) => String(n).padStart(2, '0');
-      const first = `${y}-${pad(m + 1)}-01`;
-      const last = new Date(y, m + 1, 0);
-      return [first, `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`];
-    }
-    return null;
-  };
+  // month (YYYY-MM) → その月初〜月末の日付範囲を算出
+  const monthRange = useMemo(() => {
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) return null;
+    const [y, m] = month.split('-').map(Number);
+    const pad = (n) => String(n).padStart(2, '0');
+    const first = `${y}-${pad(m)}-01`;
+    const last = new Date(y, m, 0); // 月末
+    return [first, `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`];
+  }, [month]);
 
   useEffect(() => {
+    if (!monthRange) return;
     let cancelled = false;
-    let from, to;
-    if (periodMode === 'custom') {
-      if (!fromDate || !toDate) return;
-      from = fromDate; to = toDate;
-    } else {
-      const r = resolveRange(periodMode);
-      if (!r) return;
-      [from, to] = r;
-    }
+    const [from, to] = monthRange;
     setLoading(true);
     fetchBusinessOverviewMemberPerformance(from, to).then(({ data }) => {
       if (cancelled) return;
@@ -573,7 +559,7 @@ function SectionMemberPerformance() {
       setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [periodMode, fromDate, toDate]);
+  }, [monthRange]);
 
   const sortedRows = useMemo(() => {
     const arr = [...rows];
@@ -595,14 +581,6 @@ function SectionMemberPerformance() {
       setSortDir(key === 'member_name' || key === 'team' ? 'asc' : 'desc');
     }
   };
-
-  const pillStyle = (active) => ({
-    padding: '4px 12px', borderRadius: radius.sm, fontSize: font.size.xs,
-    fontWeight: font.weight.semibold, cursor: 'pointer', fontFamily: font.family.sans,
-    border: '1px solid ' + (active ? color.navy : color.border),
-    background: active ? color.navy : color.white,
-    color: active ? color.white : color.textMid,
-  });
 
   const th = (label, key, align = 'right') => {
     const active = sortKey === key;
@@ -659,23 +637,7 @@ function SectionMemberPerformance() {
       )
     }>
       <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
-        {/* 期間セレクタ (月次パフォーマンス用に 今月/カスタム のみ) */}
-        <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, minWidth: 40 }}>期間:</span>
-          <button onClick={() => setPeriodMode('current_month')} style={pillStyle(periodMode === 'current_month')}>今月</button>
-          <button onClick={() => setPeriodMode('custom')} style={pillStyle(periodMode === 'custom')}>カスタム</button>
-          {periodMode === 'custom' && (
-            <>
-              <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
-                style={{ padding: '4px 8px', border: `1px solid ${color.border}`, borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.mono }} />
-              <span style={{ fontSize: font.size.xs, color: color.textLight }}>〜</span>
-              <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
-                style={{ padding: '4px 8px', border: `1px solid ${color.border}`, borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.mono }} />
-            </>
-          )}
-        </div>
-
-        {/* テーブル */}
+        {/* テーブル (期間はページヘッダの月セレクタに連動) */}
         {loading ? (
           <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>読み込み中…</div>
         ) : rows.length === 0 ? (
