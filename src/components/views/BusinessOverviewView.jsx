@@ -467,14 +467,6 @@ export default function BusinessOverviewView({
           currentUser={currentUser}
         />
 
-        {/* D/H プレースホルダ (Phase γ/δ) */}
-        <Section title="他セクション (Phase γ/δ で実装予定)" hint="見込み先プール・アポインター稼働">
-          <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>
-            ・D. 見込み先プール<br />
-            ・H. アポインター稼働<br />
-          </div>
-        </Section>
-
       </div>
     </div>
   );
