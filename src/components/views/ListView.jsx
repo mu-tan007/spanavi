@@ -370,14 +370,22 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                   <button key={e.slug} onClick={() => setDisplayFilter(e.slug)} style={pillStyle(displayFilter === e.slug)}>{e.name}</button>
                 ))}
                 <span style={{ flex: 1 }} />
-                <button onClick={() => setDisplayFilter('archived')} style={pillStyle(displayFilter === 'archived')}>アーカイブ</button>
+                <button
+                  onClick={() => setDisplayFilter(displayFilter === 'archived' ? 'all' : 'archived')}
+                  title={displayFilter === 'archived' ? 'クリックでアーカイブ表示を解除' : 'アーカイブされたリストを表示'}
+                  style={pillStyle(displayFilter === 'archived')}
+                >アーカイブ</button>
               </div>
             )}
             {/* 商材=全商材 のときはアーカイブだけ右端に置く */}
             {categoryFilter === 'all' && (
               <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ flex: 1 }} />
-                <button onClick={() => setDisplayFilter('archived')} style={pillStyle(displayFilter === 'archived')}>アーカイブ</button>
+                <button
+                  onClick={() => setDisplayFilter(displayFilter === 'archived' ? 'all' : 'archived')}
+                  title={displayFilter === 'archived' ? 'クリックでアーカイブ表示を解除' : 'アーカイブされたリストを表示'}
+                  style={pillStyle(displayFilter === 'archived')}
+                >アーカイブ</button>
               </div>
             )}
           </div>
