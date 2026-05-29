@@ -584,6 +584,16 @@ function SectionMemberPerformance() {
       return { label, days };
     } catch { return '—'; }
   };
+  // 次回ロープレ用: N日後の表記
+  const fmtFuture = (ts) => {
+    if (!ts) return '—';
+    try {
+      const d = new Date(ts);
+      const days = Math.ceil((d.getTime() - Date.now()) / 86400000);
+      const label = `${d.getMonth() + 1}/${d.getDate()}`;
+      return { label, days };
+    } catch { return '—'; }
+  };
 
   return (
     <Section title="メンバーパフォーマンス" hint="営業代行アサインメンバー (チームリーダー除く)">
@@ -624,6 +634,7 @@ function SectionMemberPerformance() {
                   {th('アポ', 'apo_count')}
                   {th('アポ率', 'apo_rate')}
                   {th('最終ロープレ', 'last_roleplay_at')}
+                  {th('次回ロープレ', 'next_roleplay_at')}
                 </tr>
               </thead>
               <tbody>
@@ -660,6 +671,23 @@ function SectionMemberPerformance() {
                           </>
                         )}
                       </td>
+                      {(() => {
+                        const np = fmtFuture(r.next_roleplay_at);
+                        return (
+                          <td style={tdMono}>
+                            {np === '—' ? (
+                              <span style={{ color: color.danger, fontWeight: font.weight.semibold }}>未予約</span>
+                            ) : (
+                              <>
+                                <span style={{ color: color.success, fontWeight: font.weight.semibold }}>{np.label}</span>
+                                <span style={{ color: color.textLight, fontSize: 9, marginLeft: 4 }}>
+                                  ({np.days <= 0 ? '本日' : `${np.days}日後`})
+                                </span>
+                              </>
+                            )}
+                          </td>
+                        );
+                      })()}
                     </tr>
                   );
                 })}
