@@ -11,6 +11,7 @@ import {
   fetchEngagementMonthlyTargets, upsertEngagementMonthlyTarget,
   fetchListAnalysisSummary, fetchListDrillDown, updateListTodoMemo,
   invokeGenListFollowupEmail, invokeSendEmail,
+  fetchBusinessOverviewMemberPerformance,
 } from '../../lib/supabaseWrite';
 import { useImeSafeInput } from '../../lib/useImeSafe';
 
@@ -467,8 +468,191 @@ export default function BusinessOverviewView({
           currentUser={currentUser}
         />
 
+        {/* M. メンバーパフォーマンス */}
+        <SectionMemberPerformance />
+
       </div>
     </div>
+  );
+}
+
+// ========================================================================
+// M. メンバーパフォーマンス ─ アサインメンバーの架電/接続/アポを期間集計
+// ========================================================================
+function SectionMemberPerformance() {
+  // 期間プリセット: 今月 / 先月 / 今期 (4-3月) / 累計 / カスタム
+  const [periodMode, setPeriodMode] = useState('current_month');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [sortKey, setSortKey] = useState('call_count');
+  const [sortDir, setSortDir] = useState('desc');
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // 期間プリセット → 実日付
+  const resolveRange = (mode) => {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = today.getMonth(); // 0-indexed
+    const pad = (n) => String(n).padStart(2, '0');
+    if (mode === 'current_month') {
+      const first = `${y}-${pad(m + 1)}-01`;
+      const last = new Date(y, m + 1, 0);
+      return [first, `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`];
+    }
+    if (mode === 'last_month') {
+      const pm = m === 0 ? 11 : m - 1;
+      const py = m === 0 ? y - 1 : y;
+      const last = new Date(py, pm + 1, 0);
+      return [`${py}-${pad(pm + 1)}-01`, `${py}-${pad(pm + 1)}-${pad(last.getDate())}`];
+    }
+    if (mode === 'fiscal_year') {
+      // 4月始まり (1-3月は前年4月始まり)
+      const fy = m >= 3 ? y : y - 1;
+      return [`${fy}-04-01`, `${fy + 1}-03-31`];
+    }
+    if (mode === 'all') {
+      return ['2024-01-01', `${y}-${pad(m + 1)}-${pad(today.getDate())}`];
+    }
+    return null; // custom
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    let from, to;
+    if (periodMode === 'custom') {
+      if (!fromDate || !toDate) return;
+      from = fromDate; to = toDate;
+    } else {
+      const r = resolveRange(periodMode);
+      if (!r) return;
+      [from, to] = r;
+    }
+    setLoading(true);
+    fetchBusinessOverviewMemberPerformance(from, to).then(({ data }) => {
+      if (cancelled) return;
+      setRows(data || []);
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [periodMode, fromDate, toDate]);
+
+  const sortedRows = useMemo(() => {
+    const arr = [...rows];
+    const dir = sortDir === 'desc' ? -1 : 1;
+    arr.sort((a, b) => {
+      const va = a[sortKey];
+      const vb = b[sortKey];
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      return String(va || '').localeCompare(String(vb || ''), 'ja') * dir;
+    });
+    return arr;
+  }, [rows, sortKey, sortDir]);
+
+  const toggleSort = (key) => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'member_name' || key === 'team' ? 'asc' : 'desc');
+    }
+  };
+
+  const pillStyle = (active) => ({
+    padding: '4px 12px', borderRadius: radius.sm, fontSize: font.size.xs,
+    fontWeight: font.weight.semibold, cursor: 'pointer', fontFamily: font.family.sans,
+    border: '1px solid ' + (active ? color.navy : color.border),
+    background: active ? color.navy : color.white,
+    color: active ? color.white : color.textMid,
+  });
+
+  const th = (label, key, align = 'right') => {
+    const active = sortKey === key;
+    return (
+      <th
+        onClick={key ? () => toggleSort(key) : undefined}
+        style={{
+          padding: '8px 10px', fontSize: font.size.xs,
+          textAlign: align, fontWeight: font.weight.semibold, color: color.white,
+          cursor: key ? 'pointer' : 'default', userSelect: 'none',
+        }}
+      >{label}{active ? (sortDir === 'desc' ? ' ▼' : ' ▲') : ''}</th>
+    );
+  };
+  const td = { padding: '8px 10px', fontSize: font.size.sm, borderTop: `1px solid ${color.border}` };
+  const tdMono = { ...td, fontFamily: font.family.mono, textAlign: 'right' };
+
+  const fmtHours = (h) => {
+    if (!h) return '—';
+    const hh = Math.floor(h);
+    const mm = Math.round((h - hh) * 60);
+    return mm === 0 ? `${hh}h` : `${hh}h${pad2(mm)}m`;
+  };
+  const pad2 = (n) => String(n).padStart(2, '0');
+
+  return (
+    <Section title="メンバーパフォーマンス" hint="営業代行アサインメンバー (チームリーダー除く)">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
+        {/* 期間セレクタ */}
+        <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, minWidth: 40 }}>期間:</span>
+          <button onClick={() => setPeriodMode('current_month')} style={pillStyle(periodMode === 'current_month')}>今月</button>
+          <button onClick={() => setPeriodMode('last_month')} style={pillStyle(periodMode === 'last_month')}>先月</button>
+          <button onClick={() => setPeriodMode('fiscal_year')} style={pillStyle(periodMode === 'fiscal_year')}>今期 (4-3月)</button>
+          <button onClick={() => setPeriodMode('all')} style={pillStyle(periodMode === 'all')}>累計</button>
+          <button onClick={() => setPeriodMode('custom')} style={pillStyle(periodMode === 'custom')}>カスタム</button>
+          {periodMode === 'custom' && (
+            <>
+              <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
+                style={{ padding: '4px 8px', border: `1px solid ${color.border}`, borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.mono }} />
+              <span style={{ fontSize: font.size.xs, color: color.textLight }}>〜</span>
+              <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
+                style={{ padding: '4px 8px', border: `1px solid ${color.border}`, borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.mono }} />
+            </>
+          )}
+        </div>
+
+        {/* テーブル */}
+        {loading ? (
+          <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>読み込み中…</div>
+        ) : rows.length === 0 ? (
+          <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>対象メンバーがいません</div>
+        ) : (
+          <div style={{ overflowX: 'auto', border: `1px solid ${color.border}`, borderRadius: radius.md }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+              <thead>
+                <tr style={{ background: color.navy }}>
+                  {th('メンバー', 'member_name', 'left')}
+                  {th('チーム', 'team', 'left')}
+                  {th('シフト', 'shift_hours')}
+                  {th('稼働', 'worked_hours')}
+                  {th('架電', 'call_count')}
+                  {th('キーマン接続', 'keyman_connect_count')}
+                  {th('接続率', 'keyman_connect_rate')}
+                  {th('アポ', 'apo_count')}
+                  {th('アポ率', 'apo_rate')}
+                </tr>
+              </thead>
+              <tbody>
+                {sortedRows.map((r, i) => (
+                  <tr key={r.member_id} style={{ background: i % 2 === 0 ? color.white : color.gray50 }}>
+                    <td style={{ ...td, fontWeight: font.weight.semibold, color: color.navy }}>{r.member_name}</td>
+                    <td style={{ ...td, color: color.textMid }}>{r.team}</td>
+                    <td style={tdMono}>{fmtHours(Number(r.shift_hours))}</td>
+                    <td style={tdMono}>{fmtHours(Number(r.worked_hours))}</td>
+                    <td style={{ ...tdMono, color: color.navy, fontWeight: font.weight.semibold }}>{Number(r.call_count).toLocaleString()}</td>
+                    <td style={tdMono}>{Number(r.keyman_connect_count).toLocaleString()}</td>
+                    <td style={{ ...tdMono, color: Number(r.keyman_connect_rate) >= 10 ? color.success : color.textMid }}>{Number(r.keyman_connect_rate).toFixed(1)}%</td>
+                    <td style={{ ...tdMono, color: color.navy, fontWeight: font.weight.bold }}>{Number(r.apo_count).toLocaleString()}</td>
+                    <td style={{ ...tdMono, color: Number(r.apo_rate) >= 0.5 ? color.success : color.textMid }}>{Number(r.apo_rate).toFixed(2)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </Section>
   );
 }
 

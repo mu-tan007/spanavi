@@ -4115,6 +4115,16 @@ export async function fetchClientMeetings(clientId) {
   return { data: data || [], error }
 }
 
+/** 事業俯瞰: メンバーパフォーマンス (期間内のシフト/稼働/架電/キーマン接続/アポ) */
+export async function fetchBusinessOverviewMemberPerformance(fromDate, toDate) {
+  const { data, error } = await supabase.rpc('business_overview_member_performance', {
+    p_from: fromDate,
+    p_to: toDate,
+  })
+  if (error) console.error('[DB] fetchBusinessOverviewMemberPerformance error:', error)
+  return { data: data || [], error }
+}
+
 /** 全クライアントの「最終面談日」(client_meetings.meeting_at の最大値) を一括取得 */
 export async function fetchLastMeetingByClient() {
   const orgId = getOrgId()
