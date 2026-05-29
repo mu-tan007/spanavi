@@ -46,10 +46,9 @@ function MobileCard({
 
   return (
     <div
-      onClick={() => onRowClick(c)}
       style={{
         background: color.white, border: '1px solid ' + GRAY_200, borderRadius: radius.md,
-        padding: '12px 14px', marginBottom: space[2], cursor: 'pointer',
+        padding: '12px 14px', marginBottom: space[2],
         borderLeft: '4px solid ' + sc.color,
       }}
     >
@@ -78,7 +77,14 @@ function MobileCard({
           fontFamily: font.family.mono,
         }}>{lt.label}</span>
       </div>
-      <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: NAVY, marginBottom: space[1.5], lineHeight: 1.3 }}>
+      <div
+        onClick={() => onRowClick(c)}
+        style={{
+          fontSize: font.size.md, fontWeight: font.weight.bold, color: NAVY,
+          marginBottom: space[1.5], lineHeight: 1.3, cursor: 'pointer',
+          textDecoration: 'underline',
+        }}
+      >
         {c.company}
       </div>
       <div style={{

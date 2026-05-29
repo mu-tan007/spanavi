@@ -215,10 +215,9 @@ export default function CRMTableRow({
         padding: '8px 16px', fontSize: font.size.sm, alignItems: 'center',
         borderBottom: `1px solid ${color.border}`,
         background: altBg,
-        cursor: 'pointer', transition: 'background 0.15s',
+        transition: 'background 0.15s',
       }}
-      onClick={() => onRowClick(c)}
-      onMouseEnter={e => { e.currentTarget.style.background = '#EAF4FF'; }}
+      onMouseEnter={e => { e.currentTarget.style.background = '#F5F8FC'; }}
       onMouseLeave={e => { e.currentTarget.style.background = altBg; }}
     >
       {/* 1. ステータス */}
@@ -246,7 +245,7 @@ export default function CRMTableRow({
         );
       })()}
 
-      {/* 2. 企業名（優先度バッジ付き） */}
+      {/* 2. 企業名（優先度バッジ付き / クリックで詳細ページに移動） */}
       <span style={{
         textAlign: crmCols[1]?.align,
         display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -267,10 +266,18 @@ export default function CRMTableRow({
         >
           {score}
         </span>
-        <span style={{
-          fontWeight: font.weight.semibold, color: color.navy,
-          overflow: 'hidden', textOverflow: 'ellipsis',
-        }}>{c.company}</span>
+        <span
+          onClick={(e) => { e.stopPropagation(); onRowClick(c); }}
+          title="クリックで詳細ページを開く"
+          style={{
+            fontWeight: font.weight.semibold, color: color.navy,
+            overflow: 'hidden', textOverflow: 'ellipsis',
+            cursor: 'pointer',
+            textDecoration: 'none',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
+        >{c.company}</span>
       </span>
 
       {/* 3. 商材 */}
