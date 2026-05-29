@@ -489,32 +489,18 @@ function SectionMemberPerformance() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 期間プリセット → 実日付
+  // 期間プリセット → 実日付 (このページは月次パフォーマンス前提のため 今月/カスタム のみ)
   const resolveRange = (mode) => {
-    const today = new Date();
-    const y = today.getFullYear();
-    const m = today.getMonth(); // 0-indexed
-    const pad = (n) => String(n).padStart(2, '0');
     if (mode === 'current_month') {
+      const today = new Date();
+      const y = today.getFullYear();
+      const m = today.getMonth();
+      const pad = (n) => String(n).padStart(2, '0');
       const first = `${y}-${pad(m + 1)}-01`;
       const last = new Date(y, m + 1, 0);
       return [first, `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`];
     }
-    if (mode === 'last_month') {
-      const pm = m === 0 ? 11 : m - 1;
-      const py = m === 0 ? y - 1 : y;
-      const last = new Date(py, pm + 1, 0);
-      return [`${py}-${pad(pm + 1)}-01`, `${py}-${pad(pm + 1)}-${pad(last.getDate())}`];
-    }
-    if (mode === 'fiscal_year') {
-      // 4月始まり (1-3月は前年4月始まり)
-      const fy = m >= 3 ? y : y - 1;
-      return [`${fy}-04-01`, `${fy + 1}-03-31`];
-    }
-    if (mode === 'all') {
-      return ['2024-01-01', `${y}-${pad(m + 1)}-${pad(today.getDate())}`];
-    }
-    return null; // custom
+    return null;
   };
 
   useEffect(() => {
@@ -582,24 +568,30 @@ function SectionMemberPerformance() {
   const td = { padding: '8px 10px', fontSize: font.size.sm, borderTop: `1px solid ${color.border}` };
   const tdMono = { ...td, fontFamily: font.family.mono, textAlign: 'right' };
 
+  const pad2 = (n) => String(n).padStart(2, '0');
   const fmtHours = (h) => {
     if (!h) return '—';
     const hh = Math.floor(h);
     const mm = Math.round((h - hh) * 60);
     return mm === 0 ? `${hh}h` : `${hh}h${pad2(mm)}m`;
   };
-  const pad2 = (n) => String(n).padStart(2, '0');
+  const fmtDate = (ts) => {
+    if (!ts) return '—';
+    try {
+      const d = new Date(ts);
+      const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+      const label = `${d.getMonth() + 1}/${d.getDate()}`;
+      return { label, days };
+    } catch { return '—'; }
+  };
 
   return (
     <Section title="メンバーパフォーマンス" hint="営業代行アサインメンバー (チームリーダー除く)">
       <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
-        {/* 期間セレクタ */}
+        {/* 期間セレクタ (月次パフォーマンス用に 今月/カスタム のみ) */}
         <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, minWidth: 40 }}>期間:</span>
           <button onClick={() => setPeriodMode('current_month')} style={pillStyle(periodMode === 'current_month')}>今月</button>
-          <button onClick={() => setPeriodMode('last_month')} style={pillStyle(periodMode === 'last_month')}>先月</button>
-          <button onClick={() => setPeriodMode('fiscal_year')} style={pillStyle(periodMode === 'fiscal_year')}>今期 (4-3月)</button>
-          <button onClick={() => setPeriodMode('all')} style={pillStyle(periodMode === 'all')}>累計</button>
           <button onClick={() => setPeriodMode('custom')} style={pillStyle(periodMode === 'custom')}>カスタム</button>
           {periodMode === 'custom' && (
             <>
@@ -619,7 +611,7 @@ function SectionMemberPerformance() {
           <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>対象メンバーがいません</div>
         ) : (
           <div style={{ overflowX: 'auto', border: `1px solid ${color.border}`, borderRadius: radius.md }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1000 }}>
               <thead>
                 <tr style={{ background: color.navy }}>
                   {th('メンバー', 'member_name', 'left')}
@@ -631,22 +623,46 @@ function SectionMemberPerformance() {
                   {th('接続率', 'keyman_connect_rate')}
                   {th('アポ', 'apo_count')}
                   {th('アポ率', 'apo_rate')}
+                  {th('最終ロープレ', 'last_roleplay_at')}
                 </tr>
               </thead>
               <tbody>
-                {sortedRows.map((r, i) => (
-                  <tr key={r.member_id} style={{ background: i % 2 === 0 ? color.white : color.gray50 }}>
-                    <td style={{ ...td, fontWeight: font.weight.semibold, color: color.navy }}>{r.member_name}</td>
-                    <td style={{ ...td, color: color.textMid }}>{r.team}</td>
-                    <td style={tdMono}>{fmtHours(Number(r.shift_hours))}</td>
-                    <td style={tdMono}>{fmtHours(Number(r.worked_hours))}</td>
-                    <td style={{ ...tdMono, color: color.navy, fontWeight: font.weight.semibold }}>{Number(r.call_count).toLocaleString()}</td>
-                    <td style={tdMono}>{Number(r.keyman_connect_count).toLocaleString()}</td>
-                    <td style={{ ...tdMono, color: Number(r.keyman_connect_rate) >= 10 ? color.success : color.textMid }}>{Number(r.keyman_connect_rate).toFixed(1)}%</td>
-                    <td style={{ ...tdMono, color: color.navy, fontWeight: font.weight.bold }}>{Number(r.apo_count).toLocaleString()}</td>
-                    <td style={{ ...tdMono, color: Number(r.apo_rate) >= 0.5 ? color.success : color.textMid }}>{Number(r.apo_rate).toFixed(2)}%</td>
-                  </tr>
-                ))}
+                {sortedRows.map((r, i) => {
+                  const shiftAlert = Number(r.shift_hours) < 80;
+                  const apoAlert = Number(r.apo_count) === 0;
+                  const rp = fmtDate(r.last_roleplay_at);
+                  return (
+                    <tr key={r.member_id} style={{ background: i % 2 === 0 ? color.white : color.gray50 }}>
+                      <td style={{ ...td, fontWeight: font.weight.semibold, color: color.navy }}>{r.member_name}</td>
+                      <td style={{ ...td, color: color.textMid }}>{r.team}</td>
+                      <td style={{
+                        ...tdMono,
+                        color: shiftAlert ? color.danger : color.textMid,
+                        fontWeight: shiftAlert ? font.weight.bold : font.weight.normal,
+                      }}>{fmtHours(Number(r.shift_hours))}</td>
+                      <td style={tdMono}>{fmtHours(Number(r.worked_hours))}</td>
+                      <td style={{ ...tdMono, color: color.navy, fontWeight: font.weight.semibold }}>{Number(r.call_count).toLocaleString()}</td>
+                      <td style={tdMono}>{Number(r.keyman_connect_count).toLocaleString()}</td>
+                      <td style={{ ...tdMono, color: Number(r.keyman_connect_rate) >= 10 ? color.success : color.textMid }}>{Number(r.keyman_connect_rate).toFixed(1)}%</td>
+                      <td style={{
+                        ...tdMono,
+                        color: apoAlert ? color.danger : color.navy,
+                        fontWeight: font.weight.bold,
+                      }}>{Number(r.apo_count).toLocaleString()}</td>
+                      <td style={{ ...tdMono, color: Number(r.apo_rate) >= 0.5 ? color.success : color.textMid }}>{Number(r.apo_rate).toFixed(2)}%</td>
+                      <td style={tdMono}>
+                        {rp === '—' ? (
+                          <span style={{ color: color.textLight }}>—</span>
+                        ) : (
+                          <>
+                            <span style={{ color: rp.days >= 30 ? color.danger : (rp.days >= 14 ? color.gold : color.textMid) }}>{rp.label}</span>
+                            <span style={{ color: color.textLight, fontSize: 9, marginLeft: 4 }}>({rp.days}日前)</span>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
