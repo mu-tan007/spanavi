@@ -10,6 +10,7 @@ import PageHeader from '../common/PageHeader';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import ClientDetailPage from './contacts/ClientDetailPage';
+import { EmailFollowupModal } from './BusinessOverviewView';
 import { dbFieldsToFe } from '../../utils/clientFieldsMap';
 import { insertClientContact as insertClientContactFn } from '../../lib/supabaseWrite';
 import { NAVY, CRM_COLS_BASE, CRM_COLS_EDIT, currentYearMonth } from './crm/utils';
@@ -50,6 +51,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   const [addForm, setAddForm] = useState(null);
   const [addSaving, setAddSaving] = useState(false);
   const [addToast, setAddToast] = useState(null);
+  const [emailCtx, setEmailCtx] = useState(null); // クライアント向けフォローメール作成 ctx
   // 新規顧客追加で AI が抽出した「追加候補の担当者」をキューする
   const [pendingNewContacts, setPendingNewContacts] = useState([]);
   // 既存顧客の編集で AI が抽出した「追加候補の担当者」をキューする
@@ -622,6 +624,20 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
             sortState={sortState}
             setSortState={setSortState}
             onRowClick={goToDetail}
+            onComposeEmail={(c) => setEmailCtx({
+              kind: 'client',
+              client: {
+                client_id: c._supaId,
+                client_name: c.company,
+                status: c.status,
+                industry: c.industry,
+                days_since_status_change: c.statusChangedAt
+                  ? Math.floor((Date.now() - new Date(c.statusChangedAt).getTime()) / 86400000)
+                  : null,
+                contact_count: (contactsByClient?.[c._supaId] || []).length,
+                past_appo_count: 0,
+              },
+            })}
           />
         </>
       )}
@@ -683,6 +699,16 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
         onClose={() => setShowRewardDetail(null)}
       />
 
+      {emailCtx && (
+        <EmailFollowupModal
+          modalCtx={emailCtx}
+          callListData={callListData}
+          clientData={clientData}
+          contactsByClient={contactsByClient}
+          currentUser={currentUser}
+          onClose={() => setEmailCtx(null)}
+        />
+      )}
 
     </div>
   );

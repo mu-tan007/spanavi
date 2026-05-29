@@ -176,6 +176,7 @@ export default function CRMTableRow({
   rewards = [],
   rewardMaster = [],
   onRowClick,
+  onComposeEmail,
 }) {
   const c = client;
   const sc = statusStyle(c.status);
@@ -359,8 +360,25 @@ export default function CRMTableRow({
         fontSize: font.size.xs, color: lastMeeting.color,
       }}>{lastMeeting.label}</span>
 
-      {/* 9. メモ (インライン編集可) */}
-      <MemoCell client={c} setClientData={setClientData} align={crmCols[8]?.align} />
+      {/* 9. メール作成 */}
+      <span style={{ textAlign: crmCols[8]?.align }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); onComposeEmail?.(c); }}
+          title="この企業向けにフォローメールを作成"
+          style={{
+            padding: '4px 10px', background: color.white,
+            border: `1px solid ${color.navy}`, borderRadius: radius.sm,
+            color: color.navy, fontSize: 10, fontWeight: font.weight.semibold,
+            cursor: 'pointer', fontFamily: font.family.sans,
+            transition: 'background 0.12s, color 0.12s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = color.navy; e.currentTarget.style.color = color.white; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = color.white; e.currentTarget.style.color = color.navy; }}
+        >メール作成</button>
+      </span>
+
+      {/* 10. メモ (インライン編集可) */}
+      <MemoCell client={c} setClientData={setClientData} align={crmCols[9]?.align} />
     </div>
   );
 }

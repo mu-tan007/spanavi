@@ -1075,7 +1075,7 @@ function SectionClientFollow({ callListData, clientData, contactsByClient, curre
 // modalCtx:
 //   { kind: 'list', row }        ... リスト分析行
 //   { kind: 'client', client }   ... 支援中以外クライアント
-function EmailFollowupModal({ modalCtx, callListData, clientData, contactsByClient, currentUser, onClose }) {
+export function EmailFollowupModal({ modalCtx, callListData, clientData, contactsByClient, currentUser, onClose }) {
   // クライアント・担当者解決
   let clientId = null;
   let headerTitle = '';

@@ -149,6 +149,7 @@ export default function CRMTable({
   sortState = { key: null, dir: null },
   setSortState,
   onRowClick,
+  onComposeEmail,
 }) {
   const isMobile = useIsMobile();
 
@@ -251,6 +252,7 @@ export default function CRMTable({
               rewards={rewardsByClient[c._supaId] || []}
               rewardMaster={rewardMaster}
               onRowClick={onRowClick}
+              onComposeEmail={onComposeEmail}
             />
           ))
         )}
