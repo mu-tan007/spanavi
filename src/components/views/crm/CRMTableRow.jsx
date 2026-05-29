@@ -98,18 +98,18 @@ function formatLastMeeting(ts) {
 // メモのインライン編集 (clients.notes)
 function MemoCell({ client, setClientData, align }) {
   const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState(client.noteFirst || '');
+  const [val, setVal] = useState(client.memo || '');
   const taRef = useRef(null);
-  useEffect(() => { setVal(client.noteFirst || ''); }, [client.noteFirst]);
+  useEffect(() => { setVal(client.memo || ''); }, [client.memo]);
   useEffect(() => {
     if (editing && taRef.current) { taRef.current.focus(); taRef.current.select(); }
   }, [editing]);
 
   const commit = async () => {
     setEditing(false);
-    if ((val || '') === (client.noteFirst || '')) return;
+    if ((val || '') === (client.memo || '')) return;
     if (!client._supaId) return;
-    const updated = { ...client, noteFirst: val };
+    const updated = { ...client, memo: val };
     const error = await updateClient(client._supaId, updated);
     if (error) { alert('保存失敗: ' + (error.message || '')); return; }
     if (setClientData) {
@@ -126,7 +126,7 @@ function MemoCell({ client, setClientData, align }) {
         onClick={e => e.stopPropagation()}
         onBlur={commit}
         onKeyDown={e => {
-          if (e.key === 'Escape') { setVal(client.noteFirst || ''); setEditing(false); }
+          if (e.key === 'Escape') { setVal(client.memo || ''); setEditing(false); }
         }}
         rows={2}
         style={{
@@ -153,7 +153,7 @@ function MemoCell({ client, setClientData, align }) {
       onMouseEnter={e => { e.currentTarget.style.background = GRAY_50; }}
       onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
     >
-      {client.noteFirst ? client.noteFirst : <span style={{ color: color.textLight }}>—</span>}
+      {client.memo ? client.memo : <span style={{ color: color.textLight }}>—</span>}
     </span>
   );
 }

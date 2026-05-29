@@ -139,6 +139,7 @@ export function useSpanaviData(authOrgId) {
         noteFirst: (c.notes || '').replace(/\\n/g, '\n'),
         noteKickoff: (c.note_kickoff || '').replace(/\\n/g, '\n'),
         noteRegular: (c.note_regular || '').replace(/\\n/g, '\n'),
+        memo: c.memo || '',
         googleCalendarId: c.google_calendar_id || '',
         clientEmail: c.client_email || '',
         schedulingUrl: c.scheduling_url || '',

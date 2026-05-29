@@ -246,6 +246,7 @@ export async function updateClient(supaId, data) {
       notes: data.noteFirst,
       note_kickoff: data.noteKickoff || null,
       note_regular: data.noteRegular || null,
+      memo: data.memo === undefined ? undefined : data.memo,
       google_calendar_id: data.googleCalendarId ?? undefined,
       client_email: data.clientEmail ?? undefined,
       scheduling_url: data.schedulingUrl ?? undefined,
