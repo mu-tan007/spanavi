@@ -11,7 +11,6 @@ import {
   fetchEngagementMonthlyTargets, upsertEngagementMonthlyTarget,
   fetchListAnalysisSummary, fetchListDrillDown, updateListTodoMemo,
   invokeGenListFollowupEmail, invokeSendEmail,
-  fetchClientFollowSummary,
 } from '../../lib/supabaseWrite';
 import { useImeSafeInput } from '../../lib/useImeSafe';
 
@@ -468,14 +467,6 @@ export default function BusinessOverviewView({
           currentUser={currentUser}
         />
 
-        {/* C2. クライアントフォロー (支援中以外への再アプローチ) */}
-        <SectionClientFollow
-          callListData={callListData}
-          clientData={clientData}
-          contactsByClient={contactsByClient}
-          currentUser={currentUser}
-        />
-
         {/* D/H プレースホルダ (Phase γ/δ) */}
         <Section title="他セクション (Phase γ/δ で実装予定)" hint="見込み先プール・アポインター稼働">
           <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>
@@ -905,173 +896,7 @@ const SIG_OPTIONS = [
 ];
 
 // ========================================================================
-// クライアントフォロー (中期フォロー/停止中/準備中/保留 への再アプローチ)
-// ========================================================================
-const CLIENT_STATUS_OPTIONS = [
-  { key: 'all',     label: '全て' },
-  { key: '中期フォロー', label: '中期フォロー' },
-  { key: '停止中',     label: '停止中' },
-  { key: '準備中',     label: '準備中' },
-  { key: '保留',       label: '保留' },
-];
-
-function SectionClientFollow({ callListData, clientData, contactsByClient, currentUser }) {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [emailCtx, setEmailCtx] = useState(null);
-  // タブごとの展開状態 ({ '中期フォロー': true, '停止中': false, ... })
-  const [expanded, setExpanded] = useState({});
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchClientFollowSummary().then(({ data }) => {
-      if (cancelled) return;
-      setRows(data || []);
-      setLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, []);
-
-  const filtered = useMemo(() => {
-    if (statusFilter === 'all') return rows;
-    return rows.filter(r => r.status === statusFilter);
-  }, [rows, statusFilter]);
-
-  // 各タブで 10件まで表示、それ以降は「もっと見る」展開
-  const isExpanded = expanded[statusFilter] || false;
-  const visible = isExpanded ? filtered : filtered.slice(0, 10);
-  const restCount = filtered.length - visible.length;
-
-  const countByStatus = useMemo(() => {
-    const m = {};
-    for (const r of rows) m[r.status] = (m[r.status] || 0) + 1;
-    return m;
-  }, [rows]);
-
-  const pillStyle = (active) => ({
-    padding: '5px 14px', borderRadius: radius.md, fontSize: font.size.xs,
-    fontWeight: font.weight.semibold, cursor: 'pointer', fontFamily: font.family.sans,
-    ...(active
-      ? { background: color.navy, color: color.white, border: `1px solid ${color.navy}` }
-      : { background: color.white, color: color.textMid, border: `1px solid ${color.border}` }),
-  });
-
-  const th = { padding: '8px 10px', fontSize: font.size.xs, textAlign: 'left', fontWeight: font.weight.semibold, color: color.white };
-  const td = { padding: '8px 10px', fontSize: font.size.sm, borderTop: `1px solid ${color.border}` };
-
-  return (
-    <>
-      <Section title="クライアントフォロー ─ 支援中以外への再アプローチ" hint="ステータス別">
-        {loading ? (
-          <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>読み込み中…</div>
-        ) : rows.length === 0 ? (
-          <div style={{ fontSize: font.size.sm, color: color.textMid, padding: space[3] }}>対象クライアントがありません</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
-            {/* ステータスタブ */}
-            <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, minWidth: 60 }}>ステータス:</span>
-              {CLIENT_STATUS_OPTIONS.map(opt => (
-                <button key={opt.key} onClick={() => setStatusFilter(opt.key)} style={pillStyle(statusFilter === opt.key)}>
-                  {opt.label} {opt.key === 'all' ? `(${rows.length})` : `(${countByStatus[opt.key] || 0})`}
-                </button>
-              ))}
-            </div>
-
-            {/* テーブル */}
-            <div style={{ overflowX: 'auto', border: `1px solid ${color.border}`, borderRadius: radius.md }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
-                <thead>
-                  <tr style={{ background: color.navy }}>
-                    <th style={th}>クライアント</th>
-                    <th style={th}>ステータス</th>
-                    <th style={th}>業種</th>
-                    <th style={{ ...th, textAlign: 'right' }}>ステータス変更日</th>
-                    <th style={{ ...th, textAlign: 'right' }}>経過</th>
-                    <th style={{ ...th, textAlign: 'right' }}>過去アポ</th>
-                    <th style={{ ...th, textAlign: 'right' }}>担当者数</th>
-                    <th style={{ ...th, textAlign: 'center' }}>メール作成</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visible.map(r => (
-                    <tr key={r.client_id} style={{ background: color.white }}>
-                      <td style={{ ...td, color: color.textDark, fontWeight: font.weight.semibold, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {r.client_name}
-                      </td>
-                      <td style={td}>
-                        <span style={{
-                          padding: '2px 10px', borderRadius: radius.pill || 999,
-                          fontSize: font.size.xs, fontWeight: font.weight.semibold,
-                          background: alpha(color.navy, 0.06), color: color.navy,
-                        }}>{r.status}</span>
-                      </td>
-                      <td style={{ ...td, color: color.textMid }}>{r.industry || '—'}</td>
-                      <td style={{ ...td, textAlign: 'right', fontFamily: font.family.mono, color: color.textMid }}>
-                        {r.status_changed_at ? String(r.status_changed_at).slice(0, 10) : '—'}
-                      </td>
-                      <td style={{ ...td, textAlign: 'right', fontFamily: font.family.mono,
-                        color: r.days_since_status_change != null && r.days_since_status_change > 60 ? color.danger : color.textMid }}>
-                        {r.days_since_status_change != null ? `${r.days_since_status_change}日` : '—'}
-                      </td>
-                      <td style={{ ...td, textAlign: 'right', fontFamily: font.family.mono, color: color.textMid }}>
-                        {r.past_appo_count}件
-                      </td>
-                      <td style={{ ...td, textAlign: 'right', fontFamily: font.family.mono, color: color.textMid }}>
-                        {r.contact_count}名
-                      </td>
-                      <td style={{ ...td, textAlign: 'center' }}>
-                        <button onClick={() => setEmailCtx({ kind: 'client', client: r })} style={{
-                          padding: '5px 12px', background: color.white, color: color.navy,
-                          border: `1px solid ${color.navy}`, borderRadius: radius.md,
-                          fontSize: font.size.xs, fontWeight: font.weight.semibold,
-                          cursor: 'pointer', fontFamily: font.family.sans, whiteSpace: 'nowrap',
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.background = alpha(color.navy, 0.08); }}
-                        onMouseLeave={e => { e.currentTarget.style.background = color.white; }}
-                        >メール作成</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {restCount > 0 && (
-              <button onClick={() => setExpanded(e => ({ ...e, [statusFilter]: true }))} style={{
-                alignSelf: 'flex-start', padding: '6px 14px',
-                background: color.white, border: `1px solid ${color.border}`,
-                borderRadius: radius.md, fontSize: font.size.xs, color: color.textMid,
-                cursor: 'pointer', fontFamily: font.family.sans,
-              }}>▼ もっと見る (+{restCount}件)</button>
-            )}
-            {isExpanded && filtered.length > 10 && (
-              <button onClick={() => setExpanded(e => ({ ...e, [statusFilter]: false }))} style={{
-                alignSelf: 'flex-start', padding: '6px 14px',
-                background: color.white, border: `1px solid ${color.border}`,
-                borderRadius: radius.md, fontSize: font.size.xs, color: color.textMid,
-                cursor: 'pointer', fontFamily: font.family.sans,
-              }}>▲ 折りたたむ</button>
-            )}
-          </div>
-        )}
-      </Section>
-
-      {emailCtx && (
-        <EmailFollowupModal
-          modalCtx={emailCtx}
-          callListData={callListData}
-          clientData={clientData}
-          contactsByClient={contactsByClient}
-          currentUser={currentUser}
-          onClose={() => setEmailCtx(null)}
-        />
-      )}
-    </>
-  );
-}
-
-// リスト状況 or クライアントフォロー メール作成モーダル
+// リスト状況 メール作成モーダル
 // modalCtx:
 //   { kind: 'list', row }        ... リスト分析行
 //   { kind: 'client', client }   ... 支援中以外クライアント
