@@ -149,16 +149,19 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
 
   // engagements マスタ (報酬体系列の eng名表示用)
   const [engagementsMaster, setEngagementsMaster] = useState([]);
+  // 商材マスタ (商材タブ表示順用)
+  const [categoryOptions, setCategoryOptions] = useState([]);
   useEffect(() => {
     if (!orgId) return;
     let cancelled = false;
     (async () => {
       const [{ data: engs }, { data: cats }] = await Promise.all([
         supabase.from('engagements').select('id, name, type, category_id').eq('org_id', orgId).eq('status', 'active'),
-        supabase.from('business_categories').select('id, name, display_order').eq('org_id', orgId).eq('is_active', true),
+        supabase.from('business_categories').select('id, name, display_order').eq('org_id', orgId).eq('is_active', true).order('display_order'),
       ]);
       if (cancelled) return;
       const catMap = new Map((cats || []).map(c => [c.id, c]));
+      setCategoryOptions((cats || []).map(c => ({ value: c.name, label: c.name })));
       setEngagementsMaster((engs || []).map(e => ({
         ...e,
         category_name: catMap.get(e.category_id)?.name || null,
@@ -221,6 +224,18 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
 
   // テーブル並び替え state: { key: 'product'|'lastMeeting'|..., dir: 'asc'|'desc' }
   const [sortState, setSortState] = useState({ key: null, dir: null });
+  // 商材フィルタ ('all' or '商材名')
+  const [productFilter, setProductFilter] = useUrlState('product', 'all');
+
+  // クライアントが持つ商材一覧 (タブのカウント用)
+  const productCounts = useMemo(() => {
+    const m = {};
+    (clientData || []).forEach(c => {
+      if (!c.industry || c.company === 'M&Aソーシングパートナーズ株式会社') return;
+      m[c.industry] = (m[c.industry] || 0) + 1;
+    });
+    return m;
+  }, [clientData]);
 
   // 当月の月別目標（テーブル目標対比%列、KPI共通キャッシュ）
   const currentYM = useMemo(() => currentYearMonth(), []);
@@ -313,6 +328,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
 
   const filtered = displayClientData.filter(c => {
     if (statusFilter !== "all" && c.status !== statusFilter) return false;
+    if (productFilter !== "all" && c.industry !== productFilter) return false;
     if (search && !c.company.includes(search) && !c.industry.includes(search)) return false;
     if (alertFilter === 'overdue' && !isOverdue(c)) return false;
     if (alertFilter === 'expired' && !isExpired(c)) return false;
@@ -603,6 +619,48 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
             statusCounts={statusCounts}
             totalCount={displayClientData.length}
           />
+          {/* 商材タブ */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: color.textLight, fontWeight: font.weight.semibold, marginRight: 4 }}>商材:</span>
+            {(() => {
+              const baseBtn = {
+                padding: '4px 12px', borderRadius: radius.sm, fontSize: 11, fontWeight: font.weight.semibold,
+                cursor: 'pointer', fontFamily: font.family.sans,
+              };
+              const total = displayClientData.length;
+              const ordered = categoryOptions.length > 0
+                ? categoryOptions.map(o => o.value).filter(v => productCounts[v] > 0)
+                : Object.keys(productCounts).sort();
+              return (
+                <>
+                  <button
+                    onClick={() => setProductFilter('all')}
+                    style={{
+                      ...baseBtn,
+                      border: '1px solid ' + (productFilter === 'all' ? NAVY : color.border),
+                      background: productFilter === 'all' ? NAVY : color.white,
+                      color: productFilter === 'all' ? color.white : color.textMid,
+                    }}
+                  >全て <span style={{ fontSize: 10, opacity: 0.7 }}>{total}</span></button>
+                  {ordered.map(p => {
+                    const active = productFilter === p;
+                    return (
+                      <button
+                        key={p}
+                        onClick={() => setProductFilter(p)}
+                        style={{
+                          ...baseBtn,
+                          border: '1px solid ' + (active ? NAVY : color.border),
+                          background: active ? NAVY : color.white,
+                          color: active ? color.white : color.textMid,
+                        }}
+                      >{p} <span style={{ fontSize: 10, opacity: 0.7 }}>{productCounts[p]}</span></button>
+                    );
+                  })}
+                </>
+              );
+            })()}
+          </div>
           <CRMTable
             filtered={filtered}
             clientData={clientData}

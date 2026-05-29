@@ -224,6 +224,7 @@ export function useSpanaviData(authOrgId) {
         isOnline: a.is_online || false,
         list_id: a.list_id || null,
         item_id: a.item_id || null,
+        engagement_id: a.engagement_id || null,
         // クライアント開拓リスト由来のアポは売上集計から除外し、インターン報酬のみカウントする
         isProspecting: !!(a.list_id && listProspectingMap.get(a.list_id)),
         // 録音 AI 再生成時に Zoom 検索ウィンドウを called_at 周辺に合わせるための原値

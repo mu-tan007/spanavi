@@ -328,6 +328,30 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
 export default function AppoListView({ appoData, setAppoData, members = [], setMembers, clientData = [], rewardMaster = [], setCallFlowScreen, callListData = [], contactsByClient = {} }) {
   const isMobile = useIsMobile();
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
+
+  // engagements + categories マスタ (軸/商材/タイプ フィルタ用)
+  const [engagementMap, setEngagementMap] = useState({}); // { [engId]: { type, categoryName, productSlug } }
+  const [categoryOrderedList, setCategoryOrderedList] = useState([]); // [{ name, display_order }]
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const orgId = getOrgId();
+      if (!orgId) return;
+      const [{ data: engs }, { data: cats }] = await Promise.all([
+        supabase.from('engagements').select('id, type, category_id, product_id').eq('org_id', orgId).eq('status', 'active'),
+        supabase.from('business_categories').select('id, name, display_order').eq('org_id', orgId).eq('is_active', true).order('display_order'),
+      ]);
+      if (cancelled) return;
+      const catMap = new Map((cats || []).map(c => [c.id, c]));
+      const map = {};
+      (engs || []).forEach(e => {
+        map[e.id] = { type: e.type, categoryName: catMap.get(e.category_id)?.name || null };
+      });
+      setEngagementMap(map);
+      setCategoryOrderedList((cats || []).map(c => ({ name: c.name, display_order: c.display_order })));
+    })();
+    return () => { cancelled = true; };
+  }, []);
   // ── ランク・レート自動計算 ──────────────────────────────────────
   // ハードリロード/URL共有対応で URL クエリに同期。既存 localStorage は初期値だけ参照（後方互換）。
   const _ls = (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
@@ -342,6 +366,10 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [apCustomFrom, setApCustomFrom] = useUrlState('apo_from', _ls('spanavi_appo_from') || '');
   const [apCustomTo, setApCustomTo] = useUrlState('apo_to', _ls('spanavi_appo_to') || '');
   const [statusFilter, setStatusFilter] = useUrlState('apo_status', 'all');
+  // 軸 / 商材 / タイプ フィルタ (engagement_id 経由)
+  const [axisFilter, setAxisFilter] = useUrlState('apo_axis', 'all');   // 'all' | '1' | '2'
+  const [productFilter, setProductFilter] = useUrlState('apo_product', 'all'); // 'all' | 商材名
+  const [typeFilter, setTypeFilter] = useUrlState('apo_type', 'all'); // 'all' | engagement.type
   const [search, setSearch] = useUrlState('apo_q', '');
   const [sortKey, setSortKey] = useUrlState('apo_sort', 'status');
   const [sortDir, setSortDir] = useUrlState('apo_dir', 'asc', { allowed: ['asc', 'desc'] });
@@ -492,7 +520,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   }, [apPeriod, apSelectedMonth, apCustomFrom, apCustomTo]);
 
   // フィルター変更時に選択をクリア
-  useEffect(() => { setSelectedIds(new Set()); }, [statusFilter, apPeriod, apSelectedMonth, apCustomFrom, apCustomTo, search]);
+  useEffect(() => { setSelectedIds(new Set()); }, [statusFilter, apPeriod, apSelectedMonth, apCustomFrom, apCustomTo, search, axisFilter, productFilter, typeFilter]);
 
   const statuses = [...new Set(appoData.map(a => a.status))];
 
@@ -506,6 +534,14 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     }
     if (statusFilter !== "all" && a.status !== statusFilter) return false;
     if (search && !a.company.includes(search) && !a.client.includes(search) && !a.getter.includes(search)) return false;
+    // 軸/商材/タイプ フィルタ
+    if (axisFilter !== 'all' || productFilter !== 'all' || typeFilter !== 'all') {
+      const eng = a.engagement_id ? engagementMap[a.engagement_id] : null;
+      if (axisFilter === '2' && eng?.type !== 'client_acquisition') return false;
+      if (axisFilter === '1' && (!eng || eng.type === 'client_acquisition')) return false;
+      if (productFilter !== 'all' && eng?.categoryName !== productFilter) return false;
+      if (typeFilter !== 'all' && eng?.type !== typeFilter) return false;
+    }
     return true;
   }).sort((a, b) => {
     if (sortKey === 'status') {
@@ -1345,6 +1381,62 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           )}
         </div>
       </div>
+
+      {/* 軸 / 商材 / タイプ フィルタ */}
+      {(() => {
+        const baseBtn = {
+          padding: '4px 12px', borderRadius: radius.sm, fontSize: 11, fontWeight: font.weight.semibold,
+          cursor: 'pointer', fontFamily: font.family.sans,
+        };
+        const btnStyle = (active) => ({
+          ...baseBtn,
+          border: '1px solid ' + (active ? color.navy : color.border),
+          background: active ? color.navy : color.white,
+          color: active ? color.white : color.textMid,
+        });
+        // 軸選択時は対応するタイプだけ列挙、それ以外は全タイプ
+        const TYPE_LABELS = {
+          seller_sourcing: '売り手ソーシング',
+          matching: 'マッチング',
+          lead_generation: 'リード獲得',
+          client_acquisition: 'クライアント開拓',
+        };
+        const allTypes = ['seller_sourcing', 'matching', 'lead_generation', 'client_acquisition'];
+        const typesToShow = axisFilter === '2'
+          ? ['client_acquisition']
+          : axisFilter === '1'
+            ? allTypes.filter(t => t !== 'client_acquisition')
+            : allTypes;
+        const productList = categoryOrderedList.map(c => c.name);
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+            {/* 軸 */}
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, color: color.textLight, fontWeight: font.weight.semibold, minWidth: 50 }}>軸:</span>
+              <button onClick={() => { setAxisFilter('all'); setTypeFilter('all'); }} style={btnStyle(axisFilter === 'all')}>全て</button>
+              <button onClick={() => { setAxisFilter('1'); setTypeFilter('all'); }} style={btnStyle(axisFilter === '1')}>軸① 案件実行</button>
+              <button onClick={() => { setAxisFilter('2'); setTypeFilter('all'); }} style={btnStyle(axisFilter === '2')}>軸② クライアント開拓</button>
+            </div>
+            {/* 商材 */}
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, color: color.textLight, fontWeight: font.weight.semibold, minWidth: 50 }}>商材:</span>
+              <button onClick={() => setProductFilter('all')} style={btnStyle(productFilter === 'all')}>全て</button>
+              {productList.map(p => (
+                <button key={p} onClick={() => setProductFilter(p)} style={btnStyle(productFilter === p)}>{p}</button>
+              ))}
+            </div>
+            {/* タイプ */}
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, color: color.textLight, fontWeight: font.weight.semibold, minWidth: 50 }}>タイプ:</span>
+              <button onClick={() => setTypeFilter('all')} style={btnStyle(typeFilter === 'all')}>全て</button>
+              {typesToShow.map(t => (
+                <button key={t} onClick={() => setTypeFilter(t)} style={btnStyle(typeFilter === t)}>{TYPE_LABELS[t] || t}</button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Summary */}
       <div style={{ marginBottom: 16 }}>
