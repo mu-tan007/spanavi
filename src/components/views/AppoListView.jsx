@@ -1394,19 +1394,15 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           background: active ? color.navy : color.white,
           color: active ? color.white : color.textMid,
         });
-        // 軸選択時は対応するタイプだけ列挙、それ以外は全タイプ
+        // タイプは軸①の細分 (seller_sourcing/matching/lead_generation) のみ
+        // クライアント開拓は軸②と同義なので重複を避けて除外
         const TYPE_LABELS = {
           seller_sourcing: '売り手ソーシング',
           matching: 'マッチング',
           lead_generation: 'リード獲得',
-          client_acquisition: 'クライアント開拓',
         };
-        const allTypes = ['seller_sourcing', 'matching', 'lead_generation', 'client_acquisition'];
-        const typesToShow = axisFilter === '2'
-          ? ['client_acquisition']
-          : axisFilter === '1'
-            ? allTypes.filter(t => t !== 'client_acquisition')
-            : allTypes;
+        const typesToShow = ['seller_sourcing', 'matching', 'lead_generation'];
+        const showTypeRow = axisFilter !== '2';
         const productList = categoryOrderedList.map(c => c.name);
 
         return (
@@ -1426,14 +1422,16 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 <button key={p} onClick={() => setProductFilter(p)} style={btnStyle(productFilter === p)}>{p}</button>
               ))}
             </div>
-            {/* タイプ */}
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 11, color: color.textLight, fontWeight: font.weight.semibold, minWidth: 50 }}>タイプ:</span>
-              <button onClick={() => setTypeFilter('all')} style={btnStyle(typeFilter === 'all')}>全て</button>
-              {typesToShow.map(t => (
-                <button key={t} onClick={() => setTypeFilter(t)} style={btnStyle(typeFilter === t)}>{TYPE_LABELS[t] || t}</button>
-              ))}
-            </div>
+            {/* タイプ (軸②選択時は隠す: クライアント開拓と重複するため) */}
+            {showTypeRow && (
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, color: color.textLight, fontWeight: font.weight.semibold, minWidth: 50 }}>タイプ:</span>
+                <button onClick={() => setTypeFilter('all')} style={btnStyle(typeFilter === 'all')}>全て</button>
+                {typesToShow.map(t => (
+                  <button key={t} onClick={() => setTypeFilter(t)} style={btnStyle(typeFilter === t)}>{TYPE_LABELS[t] || t}</button>
+                ))}
+              </div>
+            )}
           </div>
         );
       })()}
