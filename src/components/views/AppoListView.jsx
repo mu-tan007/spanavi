@@ -329,26 +329,38 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const isMobile = useIsMobile();
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
 
-  // engagements + categories マスタ (軸/商材/タイプ フィルタ用)
-  const [engagementMap, setEngagementMap] = useState({}); // { [engId]: { type, categoryName, productSlug } }
+  // engagements + categories マスタ (商材→タイプ 2階層フィルタ用)
+  const [engagementMap, setEngagementMap] = useState({}); // { [engId]: { id, type, name, slug, categoryName } }
   const [categoryOrderedList, setCategoryOrderedList] = useState([]); // [{ name, display_order }]
+  const [engsByCategory, setEngsByCategory] = useState({}); // { [categoryName]: [{ id, type, name, slug }] }
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const orgId = getOrgId();
       if (!orgId) return;
       const [{ data: engs }, { data: cats }] = await Promise.all([
-        supabase.from('engagements').select('id, type, category_id, product_id').eq('org_id', orgId).eq('status', 'active'),
-        supabase.from('business_categories').select('id, name, display_order').eq('org_id', orgId).eq('is_active', true).order('display_order'),
+        supabase.from('engagements').select('id, slug, name, type, category_id, product_id, display_order')
+          .eq('org_id', orgId).eq('status', 'active'),
+        supabase.from('business_categories').select('id, name, display_order')
+          .eq('org_id', orgId).eq('is_active', true).order('display_order'),
       ]);
       if (cancelled) return;
       const catMap = new Map((cats || []).map(c => [c.id, c]));
       const map = {};
+      const byCat = {};
       (engs || []).forEach(e => {
-        map[e.id] = { type: e.type, categoryName: catMap.get(e.category_id)?.name || null };
+        const catName = catMap.get(e.category_id)?.name || null;
+        map[e.id] = { id: e.id, type: e.type, slug: e.slug, name: e.name, categoryName: catName };
+        if (catName) {
+          if (!byCat[catName]) byCat[catName] = [];
+          byCat[catName].push({ id: e.id, type: e.type, slug: e.slug, name: e.name, display_order: e.display_order || 0 });
+        }
       });
+      // 各 category 内で display_order 昇順に並べる
+      Object.values(byCat).forEach(arr => arr.sort((a, b) => a.display_order - b.display_order));
       setEngagementMap(map);
       setCategoryOrderedList((cats || []).map(c => ({ name: c.name, display_order: c.display_order })));
+      setEngsByCategory(byCat);
     })();
     return () => { cancelled = true; };
   }, []);
@@ -366,8 +378,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [apCustomFrom, setApCustomFrom] = useUrlState('apo_from', _ls('spanavi_appo_from') || '');
   const [apCustomTo, setApCustomTo] = useUrlState('apo_to', _ls('spanavi_appo_to') || '');
   const [statusFilter, setStatusFilter] = useUrlState('apo_status', 'all');
-  // 軸 / 商材 / タイプ フィルタ (engagement_id 経由)
-  const [axisFilter, setAxisFilter] = useUrlState('apo_axis', 'all');   // 'all' | '1' | '2'
+  // 商材 / タイプ フィルタ (engagement_id 経由)
   const [productFilter, setProductFilter] = useUrlState('apo_product', 'all'); // 'all' | 商材名
   const [typeFilter, setTypeFilter] = useUrlState('apo_type', 'all'); // 'all' | engagement.type
   const [search, setSearch] = useUrlState('apo_q', '');
@@ -520,7 +531,14 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   }, [apPeriod, apSelectedMonth, apCustomFrom, apCustomTo]);
 
   // フィルター変更時に選択をクリア
-  useEffect(() => { setSelectedIds(new Set()); }, [statusFilter, apPeriod, apSelectedMonth, apCustomFrom, apCustomTo, search, axisFilter, productFilter, typeFilter]);
+  useEffect(() => { setSelectedIds(new Set()); }, [statusFilter, apPeriod, apSelectedMonth, apCustomFrom, apCustomTo, search, productFilter, typeFilter]);
+  // 商材切替時、選択中の typeFilter が新商材に存在しなければ 'all' に戻す
+  useEffect(() => {
+    if (typeFilter === 'all') return;
+    if (productFilter === 'all') { setTypeFilter('all'); return; }
+    const list = engsByCategory[productFilter] || [];
+    if (!list.some(e => e.id === typeFilter)) setTypeFilter('all');
+  }, [productFilter, typeFilter, engsByCategory, setTypeFilter]);
 
   const statuses = [...new Set(appoData.map(a => a.status))];
 
@@ -534,13 +552,11 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     }
     if (statusFilter !== "all" && a.status !== statusFilter) return false;
     if (search && !a.company.includes(search) && !a.client.includes(search) && !a.getter.includes(search)) return false;
-    // 軸/商材/タイプ フィルタ
-    if (axisFilter !== 'all' || productFilter !== 'all' || typeFilter !== 'all') {
+    // 商材/タイプ フィルタ
+    if (productFilter !== 'all' || typeFilter !== 'all') {
       const eng = a.engagement_id ? engagementMap[a.engagement_id] : null;
-      if (axisFilter === '2' && eng?.type !== 'client_acquisition') return false;
-      if (axisFilter === '1' && (!eng || eng.type === 'client_acquisition')) return false;
       if (productFilter !== 'all' && eng?.categoryName !== productFilter) return false;
-      if (typeFilter !== 'all' && eng?.type !== typeFilter) return false;
+      if (typeFilter !== 'all' && eng?.id !== typeFilter) return false;
     }
     return true;
   }).sort((a, b) => {
@@ -1382,53 +1398,36 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         </div>
       </div>
 
-      {/* 軸 / 商材 / タイプ フィルタ */}
+      {/* 商材 → タイプ の2階層フィルタ (架電リスト一覧と同じ仕様) */}
       {(() => {
-        const baseBtn = {
-          padding: '4px 12px', borderRadius: radius.sm, fontSize: 11, fontWeight: font.weight.semibold,
-          cursor: 'pointer', fontFamily: font.family.sans,
-        };
-        const btnStyle = (active) => ({
-          ...baseBtn,
-          border: '1px solid ' + (active ? color.navy : color.border),
-          background: active ? color.navy : color.white,
-          color: active ? color.white : color.textMid,
+        const pillStyle = (active) => ({
+          padding: '6px 16px', borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold,
+          cursor: 'pointer', transition: 'all 0.15s', fontFamily: font.family.sans,
+          ...(active
+            ? { background: color.navy, color: color.white, border: `1px solid ${color.navy}` }
+            : { background: color.white, color: color.textMid, border: `1px solid ${color.border}` }),
         });
-        // タイプは軸①の細分 (seller_sourcing/matching/lead_generation) のみ
-        // クライアント開拓は軸②と同義なので重複を避けて除外
-        const TYPE_LABELS = {
-          seller_sourcing: '売り手ソーシング',
-          matching: 'マッチング',
-          lead_generation: 'リード獲得',
-        };
-        const typesToShow = ['seller_sourcing', 'matching', 'lead_generation'];
-        const showTypeRow = axisFilter !== '2';
         const productList = categoryOrderedList.map(c => c.name);
-
+        const typesForCategory = productFilter === 'all'
+          ? []
+          : (engsByCategory[productFilter] || []);
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
-            {/* 軸 */}
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 11, color: color.textLight, fontWeight: font.weight.semibold, minWidth: 50 }}>軸:</span>
-              <button onClick={() => { setAxisFilter('all'); setTypeFilter('all'); }} style={btnStyle(axisFilter === 'all')}>全て</button>
-              <button onClick={() => { setAxisFilter('1'); setTypeFilter('all'); }} style={btnStyle(axisFilter === '1')}>軸① 案件実行</button>
-              <button onClick={() => { setAxisFilter('2'); setTypeFilter('all'); }} style={btnStyle(axisFilter === '2')}>軸② クライアント開拓</button>
-            </div>
-            {/* 商材 */}
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 11, color: color.textLight, fontWeight: font.weight.semibold, minWidth: 50 }}>商材:</span>
-              <button onClick={() => setProductFilter('all')} style={btnStyle(productFilter === 'all')}>全て</button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: space[2], marginBottom: space[3] }}>
+            {/* Row 1: 商材 */}
+            <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, minWidth: 40 }}>商材:</span>
+              <button onClick={() => { setProductFilter('all'); setTypeFilter('all'); }} style={pillStyle(productFilter === 'all')}>全商材</button>
               {productList.map(p => (
-                <button key={p} onClick={() => setProductFilter(p)} style={btnStyle(productFilter === p)}>{p}</button>
+                <button key={p} onClick={() => setProductFilter(p)} style={pillStyle(productFilter === p)}>{p}</button>
               ))}
             </div>
-            {/* タイプ (軸②選択時は隠す: クライアント開拓と重複するため) */}
-            {showTypeRow && (
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 11, color: color.textLight, fontWeight: font.weight.semibold, minWidth: 50 }}>タイプ:</span>
-                <button onClick={() => setTypeFilter('all')} style={btnStyle(typeFilter === 'all')}>全て</button>
-                {typesToShow.map(t => (
-                  <button key={t} onClick={() => setTypeFilter(t)} style={btnStyle(typeFilter === t)}>{TYPE_LABELS[t] || t}</button>
+            {/* Row 2: タイプ (商材選択中のみ表示) */}
+            {productFilter !== 'all' && typesForCategory.length > 0 && (
+              <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, minWidth: 40 }}>タイプ:</span>
+                <button onClick={() => setTypeFilter('all')} style={pillStyle(typeFilter === 'all')}>全て</button>
+                {typesForCategory.map(e => (
+                  <button key={e.id} onClick={() => setTypeFilter(e.id)} style={pillStyle(typeFilter === e.id)}>{e.name}</button>
                 ))}
               </div>
             )}
