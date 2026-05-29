@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
@@ -363,6 +363,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   };
   const [editForm, setEditForm] = useState(null);
   const [addAppoForm, setAddAppoForm] = useState(null);
+  const [addAppoSaving, setAddAppoSaving] = useState(false);
+  const addAppoSavingRef = useRef(false);
   const [reportDetail, setReportDetail] = useState(null); // Appointment detail modal
   const [showRecordingDetail, setShowRecordingDetail] = useState(false);
   const [detailEditing, setDetailEditing] = useState(false);
@@ -2086,26 +2088,34 @@ MASP 篠宮`}
               </div>
               <div style={{ padding: "10px 20px", borderTop: `1px solid ${color.border}`, display: "flex", justifyContent: "flex-end", gap: 8 }}>
                 <Button onClick={() => setAddAppoForm(null)} variant="outline" size="sm">キャンセル</Button>
-                <Button variant="primary" size="sm" onClick={async () => {
+                <Button variant="primary" size="sm" disabled={addAppoSaving} onClick={async () => {
                   if (!addAppoForm.company.trim()) return;
-                  const newAppo = {
-                    client: addAppoForm.client,
-                    company: addAppoForm.company,
-                    getter: addAppoForm.getter,
-                    getDate: addAppoForm.getDate,
-                    meetDate: addAppoForm.meetDate,
-                    status: addAppoForm.status,
-                    sales: addAppoForm.sales,
-                    reward: addAppoForm.reward,
-                    note: addAppoForm.note,
-                    month: addAppoForm.meetDate ? (parseInt(addAppoForm.meetDate.slice(5, 7), 10) + '月') : '',
-                  };
-                  const { result, error } = await insertAppointment(addAppoForm);
-                  if (error || !result) { alert('保存に失敗しました: ' + (error?.message || '不明なエラー')); return; }
-                  newAppo._supaId = result.id;
-                  setAppoData(prev => [...prev, newAppo]);
-                  setAddAppoForm(null);
-                }}>保存</Button>
+                  if (addAppoSavingRef.current) return;
+                  addAppoSavingRef.current = true;
+                  setAddAppoSaving(true);
+                  try {
+                    const newAppo = {
+                      client: addAppoForm.client,
+                      company: addAppoForm.company,
+                      getter: addAppoForm.getter,
+                      getDate: addAppoForm.getDate,
+                      meetDate: addAppoForm.meetDate,
+                      status: addAppoForm.status,
+                      sales: addAppoForm.sales,
+                      reward: addAppoForm.reward,
+                      note: addAppoForm.note,
+                      month: addAppoForm.meetDate ? (parseInt(addAppoForm.meetDate.slice(5, 7), 10) + '月') : '',
+                    };
+                    const { result, error } = await insertAppointment(addAppoForm);
+                    if (error || !result) { alert('保存に失敗しました: ' + (error?.message || '不明なエラー')); return; }
+                    newAppo._supaId = result.id;
+                    setAppoData(prev => [...prev, newAppo]);
+                    setAddAppoForm(null);
+                  } finally {
+                    addAppoSavingRef.current = false;
+                    setAddAppoSaving(false);
+                  }
+                }}>{addAppoSaving ? '保存中…' : '保存'}</Button>
               </div>
             </div>
           </div>
