@@ -490,33 +490,44 @@ function SectionMemberPerformance() {
   const [loading, setLoading] = useState(true);
   const [sendingId, setSendingId] = useState(null); // 送信中の member_id
   const [toast, setToast] = useState(null); // { type:'ok'|'ng', text }
+  // プレビューモーダル: { member, subject, body } | null
+  const [previewModal, setPreviewModal] = useState(null);
 
-  const requestRoleplayBooking = async (member) => {
+  const buildBookingMail = (member) => {
+    const surname = (member.member_name || '').split(/[\s　]/)[0];
+    return {
+      subject: '【Spanavi】AIロープレ予約のお願い',
+      body: [
+        `${surname}さん`,
+        '',
+        'お疲れ様です。Spanavi 運営です。',
+        '',
+        '次回 AI ロープレの予約が確認できておりません。',
+        'ご都合の良い日時で予約をお願いいたします。',
+        '',
+        '予約はこちらから:',
+        'https://spanavi.jp/sourcing?tab=edu_roleplay',
+        '',
+        '--',
+        'Spanavi',
+      ].join('\n'),
+    };
+  };
+
+  const openBookingPreview = (member) => {
     if (!member?.member_email) {
       alert('このメンバーのメールアドレスが登録されていません');
       return;
     }
-    const ok = window.confirm(
-      `${member.member_name} 様 (${member.member_email}) に\n「ロープレ予約依頼」メールを送信しますか？`
-    );
-    if (!ok) return;
+    const { subject, body } = buildBookingMail(member);
+    setPreviewModal({ member, subject, body });
+  };
+
+  const sendBookingMail = async () => {
+    if (!previewModal) return;
+    const { member, subject, body } = previewModal;
     setSendingId(member.member_id);
-    const surname = (member.member_name || '').split(/[\s　]/)[0];
-    const subject = '【Spanavi】AIロープレ予約のお願い';
-    const body = [
-      `${surname}さん`,
-      '',
-      'お疲れ様です。Spanavi 運営です。',
-      '',
-      '次回 AI ロープレの予約が確認できておりません。',
-      'ご都合の良い日時で予約をお願いいたします。',
-      '',
-      '予約はこちらから:',
-      'https://spanavi.jp/sourcing?tab=edu_roleplay',
-      '',
-      '--',
-      'Spanavi',
-    ].join('\n');
+    setPreviewModal(null);
     const { error } = await invokeSendEmail({
       to: member.member_email,
       subject, body,
@@ -742,7 +753,7 @@ function SectionMemberPerformance() {
                       {/* 予約依頼ボタン */}
                       <td style={{ ...td, textAlign: 'center' }}>
                         <button
-                          onClick={() => requestRoleplayBooking(r)}
+                          onClick={() => openBookingPreview(r)}
                           disabled={sendingId === r.member_id || !r.member_email}
                           title={r.member_email ? `${r.member_email} にメール送信` : 'メールアドレス未登録'}
                           style={{
@@ -768,6 +779,82 @@ function SectionMemberPerformance() {
           </div>
         )}
       </div>
+
+      {/* プレビュー&編集モーダル */}
+      {previewModal && (
+        <div
+          onClick={() => setPreviewModal(null)}
+          style={{
+            position: 'fixed', inset: 0, background: alpha('#000', 0.5),
+            zIndex: 20000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: color.white, borderRadius: radius.lg, width: 620, maxWidth: '95vw',
+              maxHeight: '85vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+              fontFamily: font.family.sans,
+            }}
+          >
+            <div style={{ padding: '12px 20px', background: color.navy, color: color.white, borderRadius: `${radius.lg}px ${radius.lg}px 0 0`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: font.size.md, fontWeight: font.weight.semibold }}>
+                ロープレ予約依頼メール (プレビュー / 編集可)
+              </span>
+              <button onClick={() => setPreviewModal(null)} style={{
+                background: 'none', border: 'none', color: color.white, fontSize: 18, cursor: 'pointer',
+              }}>✕</button>
+            </div>
+            <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: space[3] }}>
+              <div>
+                <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>宛先 (To)</div>
+                <div style={{ padding: '6px 10px', background: color.gray50, borderRadius: radius.sm, fontSize: font.size.sm, color: color.textDark, fontFamily: font.family.mono }}>
+                  {previewModal.member.member_name} &lt;{previewModal.member.member_email}&gt;
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>件名</div>
+                <input
+                  type="text"
+                  value={previewModal.subject}
+                  onChange={e => setPreviewModal(p => ({ ...p, subject: e.target.value }))}
+                  style={{
+                    width: '100%', padding: '8px 10px', border: `1px solid ${color.border}`,
+                    borderRadius: radius.sm, fontSize: font.size.sm, color: color.textDark,
+                    outline: 'none', boxSizing: 'border-box', fontFamily: font.family.sans,
+                  }}
+                />
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>本文</div>
+                <textarea
+                  value={previewModal.body}
+                  onChange={e => setPreviewModal(p => ({ ...p, body: e.target.value }))}
+                  rows={14}
+                  style={{
+                    width: '100%', padding: '10px 12px', border: `1px solid ${color.border}`,
+                    borderRadius: radius.sm, fontSize: font.size.sm, color: color.textDark,
+                    outline: 'none', boxSizing: 'border-box', fontFamily: font.family.sans,
+                    lineHeight: 1.6, resize: 'vertical',
+                  }}
+                />
+              </div>
+            </div>
+            <div style={{ padding: '10px 20px', borderTop: `1px solid ${color.border}`, display: 'flex', justifyContent: 'flex-end', gap: space[2] }}>
+              <button onClick={() => setPreviewModal(null)} style={{
+                padding: '6px 16px', background: color.white, color: color.textMid,
+                border: `1px solid ${color.border}`, borderRadius: radius.md,
+                fontSize: font.size.xs, fontWeight: font.weight.semibold, cursor: 'pointer', fontFamily: font.family.sans,
+              }}>キャンセル</button>
+              <button onClick={sendBookingMail} style={{
+                padding: '6px 16px', background: color.navy, color: color.white,
+                border: 'none', borderRadius: radius.md,
+                fontSize: font.size.xs, fontWeight: font.weight.semibold, cursor: 'pointer', fontFamily: font.family.sans,
+              }}>送信する</button>
+            </div>
+          </div>
+        </div>
+      )}
     </Section>
   );
 }
