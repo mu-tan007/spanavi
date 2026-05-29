@@ -975,7 +975,6 @@ export default function ClientDetailPage({
 
           {/* 契約条件カード (デフォルト開・各フィールドをクリックで編集) */}
           <CollapsibleCard title="契約条件" defaultOpen={true}>
-            <NextContactRow client={c} setClientData={setClientData} />
             {/* 報酬体系: タイプ別をクリックでモーダル編集 */}
             {c?._supaId && setClientData ? (
               <EngagementRewardsInline clientId={c._supaId} rewardMaster={rewardMaster} />

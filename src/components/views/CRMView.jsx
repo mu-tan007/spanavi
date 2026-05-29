@@ -193,6 +193,33 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     return map;
   }, [clientEngagementRewards, engagementsMaster, rewardMaster]);
 
+  // 最終接点 (client_meetings.meeting_at の最大値)
+  const lastMeetingQuery = useQuery({
+    queryKey: ['crm-last-meeting-by-client', orgId],
+    queryFn: async () => {
+      const { fetchLastMeetingByClient } = await import('../../lib/supabaseWrite');
+      const { data } = await fetchLastMeetingByClient();
+      return data || {};
+    },
+    enabled: !!orgId,
+    staleTime: 2 * 60 * 1000,
+  });
+  const lastMeetingByClient = lastMeetingQuery.data || {};
+
+  // 各クライアントの「アクティブな架電リスト数」
+  const listCountByClient = useMemo(() => {
+    const map = {};
+    (callListData || []).forEach(l => {
+      if (l.is_archived) return;
+      if (!l.client_id) return;
+      map[l.client_id] = (map[l.client_id] || 0) + 1;
+    });
+    return map;
+  }, [callListData]);
+
+  // テーブル並び替え state: { key: 'product'|'lastMeeting'|..., dir: 'asc'|'desc' }
+  const [sortState, setSortState] = useState({ key: null, dir: null });
+
   // 当月の月別目標（テーブル目標対比%列、KPI共通キャッシュ）
   const currentYM = useMemo(() => currentYearMonth(), []);
   const monthlyTargetsQuery = useQuery({
@@ -295,6 +322,34 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
       const ta = a.nextContactAt ? new Date(a.nextContactAt).getTime() : Number.POSITIVE_INFINITY;
       const tb = b.nextContactAt ? new Date(b.nextContactAt).getTime() : Number.POSITIVE_INFINITY;
       return ta - tb;
+    });
+  }
+  // ユーザー指定ソート (商材/企業名/最終接点/リスト数/目標対比 等)
+  if (sortState.key) {
+    const dir = sortState.dir === 'desc' ? -1 : 1;
+    const sortKey = sortState.key;
+    const getVal = (c) => {
+      switch (sortKey) {
+        case 'product':     return (c.industry || '').toString();
+        case 'company':     return (c.company || '').toString();
+        case 'status':      return (c.status || '').toString();
+        case 'lastMeeting': {
+          const ts = lastMeetingByClient[c._supaId];
+          return ts ? new Date(ts).getTime() : -Infinity;
+        }
+        case 'listCount':   return listCountByClient[c._supaId] || 0;
+        case 'targetRatio': {
+          const tgt = monthTargetByClient[c._supaId] || 0;
+          if (!tgt) return -Infinity;
+          return ((monthAppoCountByClient[c._supaId] || 0) / tgt);
+        }
+        default: return '';
+      }
+    };
+    filtered.sort((a, b) => {
+      const va = getVal(a), vb = getVal(b);
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      return va.toString().localeCompare(vb.toString(), 'ja') * dir;
     });
   }
 
@@ -549,20 +604,24 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
           <CRMTable
             filtered={filtered}
             clientData={clientData}
+            setClientData={setClientData}
             isEditable={!!setClientData}
             crmCols={crmCols}
             crmGrid={crmGrid}
             crmMinW={crmMinW}
             crmResize={crmResize}
             lastTouchByClient={lastTouchByClient}
+            lastMeetingByClient={lastMeetingByClient}
+            listCountByClient={listCountByClient}
             contactsByClient={contactsByClient}
             monthAppoCountByClient={monthAppoCountByClient}
             monthTargetByClient={monthTargetByClient}
             maxMonthTarget={maxMonthTarget}
             rewardsByClient={rewardsByClient}
             rewardMaster={rewardMaster}
+            sortState={sortState}
+            setSortState={setSortState}
             onRowClick={goToDetail}
-            onEditRow={(c, globalIdx) => setEditForm({ ...c, _idx: globalIdx })}
           />
         </>
       )}

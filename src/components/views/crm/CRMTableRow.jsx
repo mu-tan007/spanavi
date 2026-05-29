@@ -1,16 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { C } from '../../../constants/colors';
 import { color, space, radius, font, alpha } from '../../../constants/design';
 import {
   NAVY, GRAY_200, GRAY_50, GOLD,
   statusStyle, statusCategory, statusCategoryStyle,
-  lastTouchDisplay, nextActionFor,
-  priorityScore, priorityRank, composeEmailDraft,
+  priorityScore, priorityRank,
 } from './utils';
+import { updateClient } from '../../../lib/supabaseWrite';
 
 // 報酬体系 1件分のチップ (ホバーで段階別 tier 詳細をツールチップ表示)
-// ツールチップは position:fixed で window 座標に出す。親要素の overflow:hidden に
-// 邪魔されないため。
 function RewardChip({ rw, rewardMaster }) {
   const [hover, setHover] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0 });
@@ -83,52 +81,94 @@ function RewardChip({ rw, rewardMaster }) {
   );
 }
 
-function MiniIconBtn({ label, color: btnColor = color.navy, disabled, onClick, hint }) {
-  return (
-    <button
-      onClick={e => { e.stopPropagation(); if (!disabled) onClick(); }}
-      title={hint}
-      disabled={disabled}
-      style={{
-        width: 24, height: 22, borderRadius: radius.sm,
-        border: `1px solid ${disabled ? color.border : btnColor}`,
-        background: disabled ? color.gray50 : color.white,
-        color: disabled ? color.textLight : btnColor,
-        fontSize: font.size.xs, fontWeight: font.weight.bold, padding: 0,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        fontFamily: font.family.sans,
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
-// 'YYYY-MM-DD' or ISO → 'M/D' / 過去なら赤
-function formatNextContact(ts) {
-  if (!ts) return { label: '—', color: color.textLight, bold: false };
+// 最終接点 (client_meetings.meeting_at) を「M/D」or「N日前」で表示
+function formatLastMeeting(ts) {
+  if (!ts) return { label: '—', color: color.textLight };
   const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return { label: '—', color: color.textLight, bold: false };
-  const now = new Date();
-  const isPast = d.getTime() < now.setHours(0, 0, 0, 0);
+  if (Number.isNaN(d.getTime())) return { label: '—', color: color.textLight };
+  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
   const m = d.getMonth() + 1;
   const day = d.getDate();
-  return {
-    label: `${m}/${day}`,
-    color: isPast ? color.danger : color.navy,
-    bold: isPast,
+  const label = `${m}/${day}`;
+  if (days >= 30) return { label, color: color.danger };
+  if (days >= 14) return { label, color: color.gold };
+  return { label, color: color.textMid };
+}
+
+// メモのインライン編集 (clients.notes)
+function MemoCell({ client, setClientData, align }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(client.noteFirst || '');
+  const taRef = useRef(null);
+  useEffect(() => { setVal(client.noteFirst || ''); }, [client.noteFirst]);
+  useEffect(() => {
+    if (editing && taRef.current) { taRef.current.focus(); taRef.current.select(); }
+  }, [editing]);
+
+  const commit = async () => {
+    setEditing(false);
+    if ((val || '') === (client.noteFirst || '')) return;
+    if (!client._supaId) return;
+    const updated = { ...client, noteFirst: val };
+    const error = await updateClient(client._supaId, updated);
+    if (error) { alert('保存失敗: ' + (error.message || '')); return; }
+    if (setClientData) {
+      setClientData(prev => prev.map(x => x._supaId === client._supaId ? updated : x));
+    }
   };
+
+  if (editing) {
+    return (
+      <textarea
+        ref={taRef}
+        value={val}
+        onChange={e => setVal(e.target.value)}
+        onClick={e => e.stopPropagation()}
+        onBlur={commit}
+        onKeyDown={e => {
+          if (e.key === 'Escape') { setVal(client.noteFirst || ''); setEditing(false); }
+        }}
+        rows={2}
+        style={{
+          width: '100%', padding: '4px 6px',
+          border: `1px solid ${color.navy}`, borderRadius: radius.sm,
+          fontSize: font.size.xs, fontFamily: font.family.sans, color: color.textDark,
+          resize: 'vertical', outline: 'none', boxSizing: 'border-box', lineHeight: 1.4,
+          background: color.white,
+        }}
+      />
+    );
+  }
+
+  return (
+    <span
+      onClick={e => { e.stopPropagation(); setEditing(true); }}
+      title="クリックして編集"
+      style={{
+        textAlign: align, fontSize: font.size.xs, color: color.textMid,
+        display: 'inline-block', width: '100%', maxHeight: 36, overflow: 'hidden',
+        whiteSpace: 'pre-wrap', lineHeight: 1.35, cursor: 'pointer',
+        padding: '2px 4px', borderRadius: radius.sm,
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = GRAY_50; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+    >
+      {client.noteFirst ? client.noteFirst : <span style={{ color: color.textLight }}>—</span>}
+    </span>
+  );
 }
 
 export default function CRMTableRow({
   client,
   rowIndex,
   globalIdx,
+  setClientData,
   crmCols,
   crmGrid,
   isEditable,
   lastTouchByClient,
+  lastMeetingAt,
+  listCount = 0,
   contactsByClient,
   monthAppoCountByClient = {},
   monthTargetByClient = {},
@@ -136,16 +176,12 @@ export default function CRMTableRow({
   rewards = [],
   rewardMaster = [],
   onRowClick,
-  onEditRow,
 }) {
   const c = client;
   const sc = statusStyle(c.status);
   const altBg = rowIndex % 2 === 0 ? color.white : color.gray50;
-  const lt = lastTouchDisplay(lastTouchByClient[c._supaId]);
   const contactList = contactsByClient[c._supaId] || [];
   const primary = contactList.find(ct => ct.isPrimary) || contactList[0];
-
-  const nextContact = formatNextContact(c.nextContactAt);
 
   // 当月の実績/目標から目標対比%を計算
   const monthAppoCount = monthAppoCountByClient[c._supaId] || 0;
@@ -161,12 +197,6 @@ export default function CRMTableRow({
     ratioDisplay = { label: `${ratio}%`, color: ratioColor, sub: `${monthAppoCount}/${monthTarget}` };
   }
 
-  // 次のアクション（自動判定）
-  const action = nextActionFor(c, {
-    lastTouchAt: lastTouchByClient[c._supaId],
-    monthAppoCount,
-  });
-
   // 優先度スコア
   const score = priorityScore(c, {
     lastTouchAt: lastTouchByClient[c._supaId],
@@ -175,6 +205,8 @@ export default function CRMTableRow({
     maxMonthTarget,
   });
   const rank = priorityRank(score);
+
+  const lastMeeting = formatLastMeeting(lastMeetingAt);
 
   return (
     <div
@@ -189,7 +221,7 @@ export default function CRMTableRow({
       onMouseEnter={e => { e.currentTarget.style.background = '#EAF4FF'; }}
       onMouseLeave={e => { e.currentTarget.style.background = altBg; }}
     >
-      {/* 1. ステータス (上に カテゴリ ラベル / 下に ステータス) */}
+      {/* 1. ステータス */}
       {(() => {
         const cat = statusCategory(c.status);
         const catStyle = statusCategoryStyle(cat);
@@ -241,42 +273,17 @@ export default function CRMTableRow({
         }}>{c.company}</span>
       </span>
 
-      {/* 3. 商材（旧: 業界） */}
+      {/* 3. 商材 */}
       <span style={{
         textAlign: crmCols[2]?.align,
         fontSize: font.size.xs, color: color.textMid,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
       }}>{c.industry || '-'}</span>
 
-      {/* 4. 報酬体系 (engagement別) - ホバーで具体的な tier 詳細表示 */}
-      <span style={{
-        textAlign: crmCols[3]?.align,
-        fontSize: font.size.xs, color: color.textMid,
-        display: 'flex', flexDirection: 'column', gap: 2,
-      }}>
-        {rewards.length === 0 ? (
-          <span style={{ color: color.textLight }}>—</span>
-        ) : (
-          rewards.map((rw, i) => (
-            <RewardChip key={i} rw={rw} rewardMaster={rewardMaster} />
-          ))
-        )}
-      </span>
-
-      {/* 5. 最終接点 */}
-      <span style={{
-        fontFamily: font.family.mono,
-        fontSize: font.size.xs,
-        fontVariantNumeric: 'tabular-nums',
-        color: lt.stale ? color.gold : (lt.label === '-' ? color.textLight : color.textMid),
-        fontWeight: lt.stale ? font.weight.bold : font.weight.normal,
-        textAlign: crmCols[4]?.align,
-      }}>{lt.label}</span>
-
-      {/* 6. 主担当 */}
+      {/* 4. 主担当 */}
       {primary ? (
         <span style={{
-          fontSize: font.size.xs, color: color.navy, textAlign: crmCols[5]?.align,
+          fontSize: font.size.xs, color: color.navy, textAlign: crmCols[3]?.align,
           display: 'inline-flex', alignItems: 'center', gap: 4,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
@@ -290,21 +297,35 @@ export default function CRMTableRow({
           <span style={{ fontWeight: font.weight.medium }}>{primary.name}</span>
         </span>
       ) : (
-        <span style={{ fontSize: font.size.xs, color: color.textLight, textAlign: crmCols[5]?.align }}>-</span>
+        <span style={{ fontSize: font.size.xs, color: color.textLight, textAlign: crmCols[3]?.align }}>-</span>
       )}
 
-      {/* 7. 次回接点予定 */}
+      {/* 5. 報酬体系 */}
       <span style={{
-        fontFamily: font.family.mono,
-        fontSize: font.size.xs,
-        fontVariantNumeric: 'tabular-nums',
-        color: nextContact.color,
-        fontWeight: nextContact.bold ? font.weight.bold : font.weight.normal,
-        textAlign: crmCols[6]?.align,
-      }}>{nextContact.label}</span>
+        textAlign: crmCols[4]?.align,
+        fontSize: font.size.xs, color: color.textMid,
+        display: 'flex', flexDirection: 'column', gap: 2,
+      }}>
+        {rewards.length === 0 ? (
+          <span style={{ color: color.textLight }}>—</span>
+        ) : (
+          rewards.map((rw, i) => (
+            <RewardChip key={i} rw={rw} rewardMaster={rewardMaster} />
+          ))
+        )}
+      </span>
 
-      {/* 8. 目標対比 */}
-      <span style={{ textAlign: crmCols[7]?.align }}>
+      {/* 6. リスト数 (アクティブのみ) */}
+      <span style={{
+        textAlign: crmCols[5]?.align,
+        fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums',
+        fontSize: font.size.xs,
+        color: listCount > 0 ? color.textDark : color.textLight,
+        fontWeight: listCount > 0 ? font.weight.semibold : font.weight.normal,
+      }}>{listCount > 0 ? listCount : '—'}</span>
+
+      {/* 7. 目標対比 */}
+      <span style={{ textAlign: crmCols[6]?.align }}>
         <span style={{
           display: 'inline-block',
           fontFamily: font.family.mono,
@@ -324,54 +345,15 @@ export default function CRMTableRow({
         )}
       </span>
 
-      {/* 9. 次のアクション */}
-      <span style={{ textAlign: crmCols[8]?.align }}>
-        <span style={{
-          fontSize: font.size.xs, fontWeight: font.weight.semibold,
-          color: action.color,
-          padding: '2px 6px',
-          borderRadius: radius.sm,
-          background: action.color === '#9CA3AF' ? 'transparent' : action.color + '15',
-        }}>
-          {action.label}
-        </span>
-      </span>
+      {/* 8. 最終接点 (client_meetings 由来) */}
+      <span style={{
+        textAlign: crmCols[7]?.align,
+        fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums',
+        fontSize: font.size.xs, color: lastMeeting.color,
+      }}>{lastMeeting.label}</span>
 
-      {/* メール・電話・編集の3アイコン */}
-      {isEditable && (() => {
-        const draft = composeEmailDraft(c, primary);
-        const phone = c.contactPhone || '';
-        return (
-          <span style={{ display: 'inline-flex', gap: 4, justifyContent: 'center', alignItems: 'center' }}>
-            <MiniIconBtn
-              label="@"
-              color={color.navy}
-              disabled={!draft.to}
-              hint={draft.to ? `メール: ${draft.to}` : 'メールアドレス未登録'}
-              onClick={() => window.open(draft.mailto, '_blank')}
-            />
-            <MiniIconBtn
-              label="TEL"
-              color={color.navy}
-              disabled={!phone}
-              hint={phone ? `電話: ${phone}` : '電話番号未登録'}
-              onClick={() => { window.location.href = 'tel:' + phone; }}
-            />
-            <button
-              onClick={e => { e.stopPropagation(); onEditRow(c, globalIdx); }}
-              title="編集"
-              style={{
-                width: 24, height: 22, borderRadius: radius.sm,
-                border: `1px solid ${color.border}`, background: color.white,
-                cursor: 'pointer', fontSize: font.size.sm, padding: 0,
-                color: color.textMid,
-              }}
-            >
-              &#9998;
-            </button>
-          </span>
-        );
-      })()}
+      {/* 9. メモ (インライン編集可) */}
+      <MemoCell client={c} setClientData={setClientData} align={crmCols[8]?.align} />
     </div>
   );
 }

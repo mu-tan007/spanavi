@@ -4114,6 +4114,25 @@ export async function fetchClientMeetings(clientId) {
   return { data: data || [], error }
 }
 
+/** 全クライアントの「最終面談日」(client_meetings.meeting_at の最大値) を一括取得 */
+export async function fetchLastMeetingByClient() {
+  const orgId = getOrgId()
+  if (!orgId) return { data: {}, error: null }
+  const { data, error } = await supabase
+    .from('client_meetings')
+    .select('client_id, meeting_at')
+    .eq('org_id', orgId)
+  if (error) { console.error('[DB] fetchLastMeetingByClient error:', error); return { data: {}, error } }
+  const map = {}
+  ;(data || []).forEach(r => {
+    if (!r.client_id || !r.meeting_at) return
+    if (!map[r.client_id] || r.meeting_at > map[r.client_id]) {
+      map[r.client_id] = r.meeting_at
+    }
+  })
+  return { data: map, error: null }
+}
+
 /** 面談記録の表示順を一括更新 (ドラッグ並び替え) */
 export async function reorderClientMeetings(orderedIds) {
   if (!orderedIds || orderedIds.length === 0) return { error: null }

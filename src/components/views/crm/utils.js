@@ -74,19 +74,23 @@ export function lastTouchDisplay(ts) {
 
 export const CRM_COLS_BASE = [
   { key: 'status',         width: 100, align: 'center' },
-  { key: 'company',        width: 220, align: 'left' },
-  { key: 'product',        width: 130, align: 'left' },
-  { key: 'rewards',        width: 200, align: 'left' },
-  { key: 'lastTouch',      width: 90,  align: 'right' },
-  { key: 'primaryContact', width: 130, align: 'left' },
-  { key: 'nextContact',    width: 100, align: 'right' },
-  { key: 'targetRatio',    width: 100, align: 'right' },
-  { key: 'nextAction',     width: 150, align: 'left' },
+  { key: 'company',        width: 220, align: 'left'   },
+  { key: 'product',        width: 110, align: 'left'   },
+  { key: 'primaryContact', width: 120, align: 'left'   },
+  { key: 'rewards',        width: 200, align: 'left'   },
+  { key: 'listCount',      width: 80,  align: 'right'  },
+  { key: 'targetRatio',    width: 100, align: 'right'  },
+  { key: 'lastMeeting',    width: 100, align: 'right'  },
+  { key: 'memo',           width: 220, align: 'left'   },
 ];
 
-export const CRM_COLS_EDIT = [...CRM_COLS_BASE, { key: 'edit', width: 96, align: 'center' }];
+// 編集モードでもカラム構成は同じ (右端アイコン群は廃止)
+export const CRM_COLS_EDIT = [...CRM_COLS_BASE];
 
-export const CRM_COL_LABELS = ['ステータス','企業名','商材','報酬体系','最終接点','主担当','次回接点予定','目標対比','次のアクション'];
+export const CRM_COL_LABELS = ['ステータス','企業名','商材','主担当','報酬体系','リスト数','目標対比','最終接点','メモ'];
+
+// 商材ソート可能なカラムキー一覧
+export const CRM_SORTABLE_KEYS = new Set(['product','company','status','lastMeeting','listCount','targetRatio']);
 
 // 当月の 'YYYY-MM' を取得
 export function currentYearMonth() {

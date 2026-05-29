@@ -3,7 +3,7 @@ import { Button } from '../../ui';
 import ColumnResizeHandle from '../../common/ColumnResizeHandle';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import {
-  NAVY, GRAY_200, GRAY_50, GOLD, CRM_COL_LABELS,
+  NAVY, GRAY_200, GRAY_50, GOLD, CRM_COL_LABELS, CRM_SORTABLE_KEYS,
   statusStyle, statusCategory, statusCategoryStyle,
   lastTouchDisplay, nextActionFor, priorityScore, priorityRank,
 } from './utils';
@@ -125,20 +125,24 @@ function MobileCard({
 export default function CRMTable({
   filtered,
   clientData,
+  setClientData,
   isEditable,
   crmCols,
   crmGrid,
   crmMinW,
   crmResize,
   lastTouchByClient,
+  lastMeetingByClient = {},
+  listCountByClient = {},
   contactsByClient,
   monthAppoCountByClient,
   monthTargetByClient,
   maxMonthTarget,
   rewardsByClient = {},
   rewardMaster = [],
+  sortState = { key: null, dir: null },
+  setSortState,
   onRowClick,
-  onEditRow,
 }) {
   const isMobile = useIsMobile();
 
@@ -185,19 +189,34 @@ export default function CRMTable({
           fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.white,
           verticalAlign: 'middle',
         }}>
-          {CRM_COL_LABELS.map((label, idx) => (
-            <span
-              key={label}
-              style={{
-                position: 'relative', verticalAlign: 'middle',
-                textAlign: crmCols[idx]?.align || 'left', paddingRight: 6,
-              }}
-            >
-              {label}
-              <ColumnResizeHandle colIndex={idx} onResizeStart={crmResize} />
-            </span>
-          ))}
-          {isEditable && <span></span>}
+          {CRM_COL_LABELS.map((label, idx) => {
+            const col = crmCols[idx];
+            const sortable = col && CRM_SORTABLE_KEYS.has(col.key);
+            const active = sortState.key === col?.key;
+            const arrow = active ? (sortState.dir === 'desc' ? ' ▼' : ' ▲') : '';
+            return (
+              <span
+                key={label}
+                onClick={sortable && setSortState ? () => {
+                  setSortState(prev => {
+                    if (prev.key !== col.key) return { key: col.key, dir: 'asc' };
+                    if (prev.dir === 'asc') return { key: col.key, dir: 'desc' };
+                    return { key: null, dir: null };
+                  });
+                } : undefined}
+                style={{
+                  position: 'relative', verticalAlign: 'middle',
+                  textAlign: col?.align || 'left', paddingRight: 6,
+                  cursor: sortable ? 'pointer' : 'default',
+                  userSelect: 'none',
+                }}
+                title={sortable ? 'クリックでソート' : ''}
+              >
+                {label}{arrow}
+                <ColumnResizeHandle colIndex={idx} onResizeStart={crmResize} />
+              </span>
+            );
+          })}
         </div>
 
         {/* Body */}
@@ -212,10 +231,13 @@ export default function CRMTable({
               client={c}
               rowIndex={i}
               globalIdx={clientData.indexOf(c)}
+              setClientData={setClientData}
               crmCols={crmCols}
               crmGrid={crmGrid}
               isEditable={isEditable}
               lastTouchByClient={lastTouchByClient}
+              lastMeetingAt={lastMeetingByClient[c._supaId]}
+              listCount={listCountByClient[c._supaId] || 0}
               contactsByClient={contactsByClient}
               monthAppoCountByClient={monthAppoCountByClient}
               monthTargetByClient={monthTargetByClient}
@@ -223,7 +245,6 @@ export default function CRMTable({
               rewards={rewardsByClient[c._supaId] || []}
               rewardMaster={rewardMaster}
               onRowClick={onRowClick}
-              onEditRow={onEditRow}
             />
           ))
         )}
