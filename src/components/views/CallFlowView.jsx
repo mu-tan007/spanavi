@@ -884,6 +884,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
   const handleAppoSave = async (formData) => {
     if (!appoModal || selectedRound === null) return;
+    // 再入防止 (同一 appoModal インスタンスに対し handleAppoSave が 2回呼ばれた場合に弾く)
+    if (handleAppoSave._inFlight === appoModal.id) {
+      console.warn('[handleAppoSave] 再入検知: 既に処理中のため skip', appoModal.id);
+      return;
+    }
+    handleAppoSave._inFlight = appoModal.id;
+    try {
 
     const calledAtAppo = new Date().toISOString();
     const _prevRecAppo = callRecords
@@ -991,6 +998,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     }
     // zoom.us URLをSupabase Storageに変換（非ブロッキング）
     if (recordingUrlAppo && newRec?.id) uploadRecordingToStorage(newRec.id, recordingUrlAppo);
+    } finally {
+      handleAppoSave._inFlight = null;
+    }
   };
 
   const handleRecallSave = async (recallData) => {
