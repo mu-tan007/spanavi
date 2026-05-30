@@ -232,7 +232,7 @@ export function formatRewardTable(rewardSummary) {
 export function buildClientPlaceholders({
   clientName, clientAddress, clientRepresentative,
   contractDate, periodStart, periodEnd,
-  rewardTableText, tax, paymentSite,
+  rewardTableText, tax, paymentSite, customClauses,
 }) {
   return {
     client_name: clientName || '',
@@ -244,6 +244,8 @@ export function buildClientPlaceholders({
     reward_table: rewardTableText || '',
     tax: tax || '税別',
     payment_site: paymentSite || '',
+    // 入力が空なら空文字で展開 (テンプレ側で {{custom_clauses}} を残す/消す判断は運用次第)
+    custom_clauses: customClauses || '',
   };
 }
 
@@ -251,13 +253,13 @@ export function buildClientPlaceholders({
 export async function generateAndDownloadClientContract({
   template, clientName, clientAddress, clientRepresentative,
   contractDate, periodStart, periodEnd,
-  rewardTableText, tax, paymentSite,
+  rewardTableText, tax, paymentSite, customClauses,
 }) {
   const ab = await downloadTemplateBlob(template.file_path);
   const placeholders = buildClientPlaceholders({
     clientName, clientAddress, clientRepresentative,
     contractDate, periodStart, periodEnd,
-    rewardTableText, tax, paymentSite,
+    rewardTableText, tax, paymentSite, customClauses,
   });
   const blob = renderDocxBlob(ab, placeholders);
   const safeName = (clientName || 'client').replace(/[\\/:*?"<>|]/g, '_');

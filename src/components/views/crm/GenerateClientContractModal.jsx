@@ -35,6 +35,7 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
   const [tax, setTax] = useState('税別');
   const [paymentSite, setPaymentSite] = useState('毎月末日〆翌月15日払い');
   const [rewardTableText, setRewardTableText] = useState('');
+  const [customClauses, setCustomClauses] = useState('');
   const [error, setError] = useState(null);
   const [generating, setGenerating] = useState(false);
 
@@ -136,6 +137,7 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
         rewardTableText,
         tax,
         paymentSite: paymentSite.trim(),
+        customClauses: customClauses.trim(),
       });
       // 履歴に記録
       const { data: { user } } = await supabase.auth.getUser();
@@ -290,6 +292,23 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
               rows={8}
               style={{ ...input, fontFamily: font.family.mono, fontSize: font.size.xs, lineHeight: 1.6, resize: 'vertical' }}
               placeholder="CRMの報酬体系から自動入力されます。編集可"
+            />
+          </div>
+
+          {/* 追加条項 (任意) */}
+          <div>
+            <label style={label}>
+              追加条項 (任意)
+              <span style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.normal, marginLeft: 6 }}>
+                — ひな形と異なる特約や個別条項があればここに記入 (テンプレ {'{{custom_clauses}}'} に差し込み)
+              </span>
+            </label>
+            <textarea
+              value={customClauses}
+              onChange={e => setCustomClauses(e.target.value)}
+              rows={5}
+              style={{ ...input, fontSize: font.size.xs, lineHeight: 1.6, resize: 'vertical' }}
+              placeholder={'例:\n1. 報告は毎週金曜午後に Slack で実施するものとする。\n2. 振込口座は ●●銀行 ●●支店 限定とする。'}
             />
           </div>
 
