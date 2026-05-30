@@ -1,30 +1,51 @@
 // =====================================================================
-// 業務委託契約書 テンプレ管理セクション (MASP Members ページ内)
+// 業務委託契約書 / NDA テンプレ管理セクション
 // ---------------------------------------------------------------------
 // admin 専用。.docx テンプレを複数アップロード/削除できる。
-// プレースホルダ命名規則をユーザーに見せておく。
+// scope_type で「メンバー向け (業務委託)」と「クライアント向け (NDA/業務委託)」
+// を分けて管理する。
 // =====================================================================
 
 import { useEffect, useState, useRef } from 'react';
-import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
+import { color, space, radius, font } from '../../../constants/design';
 import { Button, Card } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import { templateStoragePath } from '../../../lib/contractGenerator';
 
-const PLACEHOLDER_LIST = [
+// メンバー向け (既存仕様)
+const MEMBER_PLACEHOLDERS = [
   ['{{name}}', '氏名'],
   ['{{address}}', '住所'],
   ['{{start_date}}', '契約開始日 (例: 2026年5月18日)'],
   ['{{end_date}}', '契約終了日 (例: 2027年5月17日)'],
-  ['{{bank_name}}', '銀行名 (フルネーム。〜銀行 / 〜信用金庫 / 〜信金 等まで含む)'],
-  ['{{bank_branch}}', '支店名 (フルネーム。〜支店 / 〜営業部 等まで含む)'],
+  ['{{bank_name}}', '銀行名'],
+  ['{{bank_branch}}', '支店名'],
   ['{{account_type}}', '口座種別 (普通/当座/貯蓄)'],
   ['{{account_number}}', '口座番号'],
   ['{{account_holder}}', '口座名義'],
 ];
 
+// クライアント向け (新規)
+const CLIENT_PLACEHOLDERS = [
+  ['{{client_name}}', 'クライアント企業名 (例: 株式会社○○)'],
+  ['{{client_address}}', 'クライアント住所 (漢数字込みの当社表記)'],
+  ['{{client_representative}}', 'クライアント代表者氏名'],
+  ['{{contract_date}}', '契約締結日 (例: 令和8年6月1日)'],
+  ['{{period_start}}', '契約開始日 (例: 令和8年6月1日)'],
+  ['{{period_end}}', '契約終了日 (例: 令和9年5月31日)'],
+  ['{{reward_table}}', '報酬体系 (タイプ別) — CRMの「報酬体系(タイプ別)」を自動表記化'],
+  ['{{tax}}', '消費税表記 (例: 税別 / 税込)'],
+  ['{{payment_site}}', '支払サイト (例: 毎月末日〆翌月15日払い)'],
+];
+
+const SCOPE_TABS = [
+  { key: 'member', label: 'メンバー向け', desc: '業務委託契約書' },
+  { key: 'client', label: 'クライアント向け', desc: 'NDA / 業務委託契約書' },
+];
+
 export default function ContractTemplateManager({ isAdmin }) {
+  const [scopeType, setScopeType] = useState('member');
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -38,16 +59,17 @@ export default function ContractTemplateManager({ isAdmin }) {
     const orgId = getOrgId();
     const { data, error: err } = await supabase
       .from('contract_templates')
-      .select('id, name, file_path, uploaded_at, is_active')
+      .select('id, name, file_path, uploaded_at, is_active, scope_type')
       .eq('org_id', orgId)
       .eq('is_active', true)
+      .eq('scope_type', scopeType)
       .order('uploaded_at', { ascending: false });
     if (err) setError(err.message);
     else setTemplates(data || []);
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [scopeType]);
 
   const handleUpload = async (file) => {
     if (!file) return;
@@ -60,7 +82,6 @@ export default function ContractTemplateManager({ isAdmin }) {
     const orgId = getOrgId();
     const baseName = file.name.replace(/\.docx$/i, '').slice(0, 80);
 
-    // 1. contract_templates に INSERT して id を確定
     const { data: { user } } = await supabase.auth.getUser();
     const { data: row, error: insErr } = await supabase
       .from('contract_templates')
@@ -69,6 +90,7 @@ export default function ContractTemplateManager({ isAdmin }) {
         name: baseName,
         file_path: 'pending',
         uploaded_by: user?.id || null,
+        scope_type: scopeType,
       })
       .select('id')
       .single();
@@ -78,7 +100,6 @@ export default function ContractTemplateManager({ isAdmin }) {
       return;
     }
 
-    // 2. Storage アップロード
     const path = templateStoragePath(orgId, row.id);
     const { error: upErr } = await supabase.storage
       .from('contract-templates')
@@ -87,14 +108,12 @@ export default function ContractTemplateManager({ isAdmin }) {
         upsert: true,
       });
     if (upErr) {
-      // ロールバック: 行も消す
       await supabase.from('contract_templates').delete().eq('id', row.id);
       setError(`アップロード失敗: ${upErr.message}`);
       setUploading(false);
       return;
     }
 
-    // 3. file_path を更新
     await supabase.from('contract_templates').update({ file_path: path }).eq('id', row.id);
 
     setUploading(false);
@@ -104,12 +123,15 @@ export default function ContractTemplateManager({ isAdmin }) {
 
   const handleDelete = async (t) => {
     if (!confirm(`テンプレ「${t.name}」を削除しますか？`)) return;
-    // Storage から削除
     await supabase.storage.from('contract-templates').remove([t.file_path]);
-    // is_active=false で論理削除（過去 contracts からの参照は残す）
     await supabase.from('contract_templates').update({ is_active: false }).eq('id', t.id);
     load();
   };
+
+  const placeholderList = scopeType === 'client' ? CLIENT_PLACEHOLDERS : MEMBER_PLACEHOLDERS;
+  const currentDesc = scopeType === 'client'
+    ? 'クライアントとの契約開始時に、CRMクライアント詳細画面から差し込み生成できます (NDA / 業務委託)'
+    : 'メンバー追加時にワンクリックで差し込み生成できます (業務委託契約書)';
 
   return (
     <Card
@@ -120,9 +142,9 @@ export default function ContractTemplateManager({ isAdmin }) {
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[3] }}>
         <div>
-          <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>業務委託契約書テンプレ</div>
+          <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>契約書テンプレ管理</div>
           <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: 2 }}>
-            Word (.docx) をアップロードしておくと、メンバー追加時にワンクリックで差し込み生成できます
+            Word (.docx) ひな形を事前アップロード、差し込みで自動生成
           </div>
         </div>
         <div style={{ display: 'flex', gap: space[2] }}>
@@ -151,6 +173,34 @@ export default function ContractTemplateManager({ isAdmin }) {
         </div>
       </div>
 
+      {/* scope タブ */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: space[3] }}>
+        {SCOPE_TABS.map(t => {
+          const active = scopeType === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setScopeType(t.key)}
+              style={{
+                padding: '6px 14px', borderRadius: radius.sm,
+                fontSize: font.size.xs, fontWeight: font.weight.semibold,
+                cursor: 'pointer', fontFamily: font.family.sans,
+                border: '1px solid ' + (active ? color.navy : color.border),
+                background: active ? color.navy : color.white,
+                color: active ? color.white : color.textMid,
+              }}
+            >
+              {t.label}
+              <span style={{ fontSize: 9, opacity: 0.7, marginLeft: 6 }}>{t.desc}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ fontSize: 11, color: color.textLight, marginBottom: space[2] }}>
+        {currentDesc}
+      </div>
+
       {showHelp && (
         <div style={{
           background: color.cream, border: `1px solid ${color.border}`,
@@ -158,14 +208,14 @@ export default function ContractTemplateManager({ isAdmin }) {
           fontSize: font.size.xs, lineHeight: font.lineHeight.relaxed, color: color.textDark,
         }}>
           <div style={{ fontWeight: font.weight.bold, color: color.navy, marginBottom: 4 }}>
-            Word テンプレ作成時のルール
+            Word テンプレ作成時のルール ({scopeType === 'client' ? 'クライアント向け' : 'メンバー向け'})
           </div>
-          差し込みたい箇所に以下のプレースホルダをそのまま記入してください。Word で「{'{{'}name{'}}'} 様」のように書けば、生成時に氏名へ置換されます。
+          差し込みたい箇所に以下のプレースホルダをそのまま記入してください。
           <table style={{ marginTop: 8, fontFamily: font.family.mono, fontSize: 11, borderCollapse: 'collapse' }}>
             <tbody>
-              {PLACEHOLDER_LIST.map(([k, v]) => (
+              {placeholderList.map(([k, v]) => (
                 <tr key={k}>
-                  <td style={{ padding: '2px 12px 2px 0', color: color.navy, fontWeight: font.weight.bold }}>{k}</td>
+                  <td style={{ padding: '2px 12px 2px 0', color: color.navy, fontWeight: font.weight.bold, verticalAlign: 'top', whiteSpace: 'nowrap' }}>{k}</td>
                   <td style={{ padding: '2px 0', color: color.textMid, fontFamily: font.family.sans }}>{v}</td>
                 </tr>
               ))}

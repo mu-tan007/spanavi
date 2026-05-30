@@ -6,6 +6,7 @@ import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import { updateClientNextContactAt, updateClient, deleteClient } from '../../../lib/supabaseWrite';
 import { useEngagements } from '../../../hooks/useEngagements';
+import GenerateClientContractModal from '../crm/GenerateClientContractModal';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import ContactDrawer from './ContactDrawer';
 import ActivityTimeline from './ActivityTimeline';
@@ -641,6 +642,9 @@ export default function ClientDetailPage({
     }
   };
 
+  // 契約書作成モーダル
+  const [contractModalOpen, setContractModalOpen] = useState(false);
+
   // クライアント削除
   const handleDelete = async () => {
     if (!c?._supaId) return;
@@ -803,6 +807,20 @@ export default function ClientDetailPage({
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
+          {setClientData && (
+            <button
+              onClick={() => setContractModalOpen(true)}
+              title="このクライアントの契約書 (NDA/業務委託) を作成"
+              style={{
+                padding: '5px 12px', borderRadius: radius.md,
+                border: `1px solid ${NAVY}`, background: color.white,
+                fontSize: font.size.xs, color: NAVY, fontWeight: font.weight.semibold,
+                cursor: 'pointer', fontFamily: font.family.sans,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = NAVY; e.currentTarget.style.color = color.white; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = color.white; e.currentTarget.style.color = NAVY; }}
+            >契約書作成</button>
+          )}
           {isAdmin && setClientData && (
             <button
               onClick={handleDelete}
@@ -1170,6 +1188,15 @@ export default function ClientDetailPage({
               }));
             }
           }}
+        />
+      )}
+
+      {/* 契約書作成モーダル */}
+      {contractModalOpen && (
+        <GenerateClientContractModal
+          client={c}
+          rewardMaster={rewardMaster}
+          onClose={() => setContractModalOpen(false)}
         />
       )}
     </div>

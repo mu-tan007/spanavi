@@ -129,3 +129,140 @@ export async function generateAndDownloadContract({
   saveAs(blob, filename);
   return { placeholders, filename };
 }
+
+// =====================================================================
+// クライアント契約書 (NDA / 業務委託) 向け
+// =====================================================================
+
+// YYYY-MM-DD → 「令和8年6月1日」形式 (明治5年=1873以降を簡易対応)
+export function formatJpDateWareki(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!y || !m || !d) return dateStr;
+  // 令和: 2019/05/01〜
+  if (y > 2019 || (y === 2019 && m >= 5)) {
+    const ry = y - 2018;
+    return `令和${ry}年${m}月${d}日`;
+  }
+  // 平成: 1989/01/08〜2019/04/30
+  if (y > 1989 || (y === 1989 && m >= 1 && d >= 8)) {
+    const hy = y - 1988;
+    return `平成${hy}年${m}月${d}日`;
+  }
+  return `${y}年${m}月${d}日`;
+}
+
+// 契約期間の終了日を自動計算 (開始日 + N月 - 1日)
+export function calcPeriodEnd(startDateStr, months = 12) {
+  if (!startDateStr) return '';
+  const d = new Date(startDateStr + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return '';
+  d.setMonth(d.getMonth() + months);
+  d.setDate(d.getDate() - 1);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// 住所を当社表記 (一丁目1-2 形式) に正規化
+// 例: 「東京都港区赤坂1-11-44」→「東京都港区赤坂一丁目11-44」
+//     「東京都港区赤坂1丁目11番44号」→「東京都港区赤坂一丁目11-44」
+// 例外: 都道府県/市区町村の数字は触らない (例: 旧東京市1区... 等は対象外)
+const KANSUJI = ['〇','一','二','三','四','五','六','七','八','九','十'];
+function toKanji(n) {
+  if (n < 0 || n > 10) return String(n);
+  return KANSUJI[n];
+}
+export function normalizeAddressToCompanyStyle(addr) {
+  if (!addr) return '';
+  let s = String(addr).trim();
+  // (1) 「N丁目」「N-」のN(町名直後の最初の数字) を漢数字+「丁目」に変換
+  //     パターン: 町名(漢字/かな) + 数字 + (丁目|-)
+  s = s.replace(/([一-龥ぁ-んァ-ヶ々]{1,12}?)(\d{1,2})(丁目|-)/, (_m, name, num, sep) => {
+    return `${name}${toKanji(Number(num))}丁目`;
+  });
+  // (2) 全角数字を半角化
+  s = s.replace(/[0-9]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  // (3) 「番N号」「N番N号」を「N-N」表記に
+  s = s.replace(/(\d+)番(\d+)号?/g, '$1-$2');
+  // (4) 単独の「番」「号」を - / 空 に
+  s = s.replace(/番/g, '-').replace(/号/g, '');
+  // (5) 連続ハイフン圧縮
+  s = s.replace(/-+/g, '-').replace(/-$/, '');
+  return s;
+}
+
+// CRM の報酬体系 (タイプ別) を契約書文面に表記化
+// rewardSummary: [{ name, categories: [商材名], rid, tiers: [{ memo, lo, hi, price }], tax, basis }]
+// 出力例:
+//   ■M&A 売り手ソーシング (中単価利益連動4段階 / 当期純利益 / 税込)
+//   ・5000万円未満：15万円
+//   ・5000万〜1億：20万円
+//   ・1億〜3億：30万円
+//   ・3億以上：50万円
+export function formatRewardTable(rewardSummary) {
+  if (!Array.isArray(rewardSummary) || rewardSummary.length === 0) return '報酬体系未設定';
+  const lines = [];
+  for (const r of rewardSummary) {
+    const cats = (r.categories || []).join('/');
+    const header = `■${cats} (${r.name}${r.basis ? ' / ' + r.basis : ''}${r.tax ? ' / ' + r.tax : ''})`;
+    lines.push(header);
+    const tiers = r.tiers || [];
+    if (tiers.length === 0) {
+      lines.push('・段階情報なし');
+    } else {
+      tiers.forEach(t => {
+        if (t.memo) {
+          lines.push(`・${t.memo}`);
+        } else {
+          const lo = t.lo != null ? Number(t.lo).toLocaleString() : '';
+          const hi = t.hi != null && t.hi < 999999999999 ? Number(t.hi).toLocaleString() : '上限なし';
+          const price = t.price != null ? '¥' + Number(t.price).toLocaleString() : '';
+          lines.push(`・${lo}〜${hi} → ${price}`);
+        }
+      });
+    }
+    lines.push('');
+  }
+  return lines.join('\n').trim();
+}
+
+// クライアント契約書 用 placeholders
+export function buildClientPlaceholders({
+  clientName, clientAddress, clientRepresentative,
+  contractDate, periodStart, periodEnd,
+  rewardTableText, tax, paymentSite,
+}) {
+  return {
+    client_name: clientName || '',
+    client_address: clientAddress || '',
+    client_representative: clientRepresentative || '',
+    contract_date: formatJpDateWareki(contractDate),
+    period_start: formatJpDateWareki(periodStart),
+    period_end: formatJpDateWareki(periodEnd),
+    reward_table: rewardTableText || '',
+    tax: tax || '税別',
+    payment_site: paymentSite || '',
+  };
+}
+
+// クライアント契約書の生成 + ダウンロード
+export async function generateAndDownloadClientContract({
+  template, clientName, clientAddress, clientRepresentative,
+  contractDate, periodStart, periodEnd,
+  rewardTableText, tax, paymentSite,
+}) {
+  const ab = await downloadTemplateBlob(template.file_path);
+  const placeholders = buildClientPlaceholders({
+    clientName, clientAddress, clientRepresentative,
+    contractDate, periodStart, periodEnd,
+    rewardTableText, tax, paymentSite,
+  });
+  const blob = renderDocxBlob(ab, placeholders);
+  const safeName = (clientName || 'client').replace(/[\\/:*?"<>|]/g, '_');
+  const safeTpl = (template?.name || 'contract').replace(/[\\/:*?"<>|]/g, '_');
+  const filename = `${safeTpl}_${safeName}_${contractDate || ''}.docx`;
+  saveAs(blob, filename);
+  return { placeholders, filename };
+}
