@@ -99,6 +99,36 @@ export default function TemplateDrivenAppoReportModal({
     return isNaN(n) ? null : n;
   };
 
+  // 件数連動型 (basis='アポ件数') 用: 当月の同getter+同クライアントの既存アポ件数
+  const [priorApoCount, setPriorApoCount] = useState(null);
+  const acquirerNameForCount = form.acquirer || currentUser;
+  useEffect(() => {
+    if (!rewardRows.length) return;
+    const basis = rewardRows[0].basis;
+    if (basis !== 'アポ件数' && basis !== '累計アポ件数') return;
+    if (!acquirerNameForCount || !list?._supaId) return;
+    // 当月 YYYY-MM (JST)
+    const ym = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 7);
+    const monthStart = ym + '-01';
+    const [y, m] = ym.split('-').map(Number);
+    const monthEndDay = new Date(y, m, 0).getDate();
+    const monthEnd = ym + '-' + String(monthEndDay).padStart(2, '0');
+    let cancelled = false;
+    (async () => {
+      const { count, error } = await (await import('../../lib/supabase')).supabase
+        .from('appointments')
+        .select('id', { count: 'exact', head: true })
+        .eq('list_id', list._supaId)
+        .eq('getter_name', acquirerNameForCount)
+        .gte('appointment_date', monthStart)
+        .lte('appointment_date', monthEnd);
+      if (cancelled) return;
+      if (error) { console.warn('[appo-count] fetch error:', error); return; }
+      setPriorApoCount(count || 0);
+    })();
+    return () => { cancelled = true; };
+  }, [rewardRows, acquirerNameForCount, list?._supaId]);
+
   // 当社売上を rewardRows + salesAmount/netIncome から自動計算
   // 旧 AppoReportModal の computeOurSales 相当。手動編集後は上書きしない。
   useEffect(() => {
@@ -109,6 +139,12 @@ export default function TemplateDrivenAppoReportModal({
     let computed = null;
     if (basis === '-') {
       computed = applyTax(rewardRows[0].price);
+    } else if (basis === 'アポ件数' || basis === '累計アポ件数') {
+      // 件数連動: 当月既存件数 + 1 (今登録するアポ自身) で tier 判定
+      if (priorApoCount == null) return;
+      const nextCount = priorApoCount + 1;
+      const match = rewardRows.find(r => nextCount >= r.lo && nextCount < r.hi);
+      if (match) computed = applyTax(match.price);
     } else {
       // テキスト入力 ("5.0億円" 等) を優先、無ければマスタの revenue/net_income (千円) を円換算
       const salesYen = parseJpAmount(form.salesAmount) ?? (row?.revenue != null ? row.revenue * 1000 : null);
@@ -123,7 +159,7 @@ export default function TemplateDrivenAppoReportModal({
       setForm(prev => prev.ourSales === next ? prev : { ...prev, ourSales: next });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.salesAmount, form.netIncome, rewardRows, row?.revenue, row?.net_income, ourSalesEdited]);
+  }, [form.salesAmount, form.netIncome, rewardRows, row?.revenue, row?.net_income, ourSalesEdited, priorApoCount]);
 
   // 録音URL + 状態
   const [recordingUrl, setRecordingUrl] = useState(initialRecordingUrl);
