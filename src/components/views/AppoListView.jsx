@@ -922,7 +922,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
         const { error } = await invokeSendEmail({
           to: bulkSendTo[clientName],
-          subject: `業務委託料_${monthLabel}分`,
+          subject: `【業務委託料_${monthLabel}分】M&Aソーシングパートナーズ`,
           body: emailBody,
           cc: bulkSendCc[clientName] || undefined,
           attachments: [{ filename, data: pdfBase64, mimeType: 'application/pdf' }],
@@ -2224,7 +2224,7 @@ MASP 篠宮`}
                           ccIds: [],
                           extraTo: '',
                           extraCc: '',
-                          subject: `業務委託料_${monthLabel}分`,
+                          subject: `【業務委託料_${monthLabel}分】M&Aソーシングパートナーズ`,
                           body, filename, pdfBase64, monthLabel,
                           contacts: contacts.map(ct => ({ id: ct.id, name: ct.name, email: ct.email, isPrimary: ct.isPrimary })),
                         });
