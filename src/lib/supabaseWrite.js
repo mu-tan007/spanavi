@@ -416,6 +416,46 @@ export async function ensureProspectingClient({ name, industry, contactPerson, c
   return { data, error }
 }
 
+// 請求書メール送付ログを記録 + PDF を Storage 'invoices' に保存
+// pdfBlob: Blob (PDFバイナリ)
+// 戻り値: { file_path, error }
+export async function saveSentInvoiceArchive({ clientId, clientName, invoiceMonth, filename, pdfBlob, toEmails, ccEmails, subject }) {
+  const orgId = getOrgId()
+  if (!orgId) return { file_path: null, error: new Error('no org_id') }
+  if (!clientName || !invoiceMonth || !pdfBlob || !filename) {
+    return { file_path: null, error: new Error('missing required fields') }
+  }
+  // パス: {orgId}/{YYYY-MM}/{clientId or 'no-client'}/{timestamp}_{filename}
+  const safeFilename = filename.replace(/[\\/:*?"<>|]/g, '_')
+  const ts = Date.now()
+  const filePath = `${orgId}/${invoiceMonth}/${clientId || 'no-client'}/${ts}_${safeFilename}`
+  const { error: upErr } = await supabase.storage
+    .from('invoices')
+    .upload(filePath, pdfBlob, {
+      contentType: 'application/pdf',
+      upsert: false,
+    })
+  if (upErr) {
+    console.error('[saveSentInvoiceArchive] storage upload error:', upErr)
+    return { file_path: null, error: upErr }
+  }
+  const { data: { user } } = await supabase.auth.getUser()
+  const { error: logErr } = await supabase.from('invoice_sent_log').insert({
+    org_id: orgId,
+    client_id: clientId || null,
+    client_name: clientName,
+    invoice_month: invoiceMonth,
+    file_path: filePath,
+    filename,
+    to_emails: toEmails || [],
+    cc_emails: ccEmails && ccEmails.length > 0 ? ccEmails : null,
+    subject: subject || null,
+    sent_by: user?.id || null,
+  })
+  if (logErr) console.error('[saveSentInvoiceArchive] log insert error:', logErr)
+  return { file_path: filePath, error: logErr || null }
+}
+
 // チャットUIで契約書情報を対話的に収集 (Claude Sonnet 4-6)
 export async function invokeChatContractAssistant({ conversation, client_name, reward_table_text, current_values }) {
   try {

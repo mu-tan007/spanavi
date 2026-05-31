@@ -6,7 +6,7 @@ import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/formatters';
-import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage, updateCallListItem } from '../../lib/supabaseWrite';
+import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage, updateCallListItem, saveSentInvoiceArchive } from '../../lib/supabaseWrite';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -920,13 +920,37 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         const client = clientData.find(c => c.company === clientName);
         const emailBody = `${clientName} 様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\nこのたび、${monthLabel}分の請求書を添付にてお送り申し上げます。\n記載日までに、下記口座へお振込みいただけますと幸甚に存じます。\n\n― 振込先口座 ―\n GMOあおぞらネット銀行　法人営業部（101）\n 普通預金　2370528\n M&Aソーシングパートナーズ株式会社\n\n今後とも、貴社にとって有益となるアポイントの取得に尽力してまいりますので、変わらぬご高配を賜れますようお願い申し上げます。\n何卒よろしくお願い申し上げます。\n\nMASP 篠宮`;
 
+        const subject = `【業務委託料_${monthLabel}分】M&Aソーシングパートナーズ`;
         const { error } = await invokeSendEmail({
           to: bulkSendTo[clientName],
-          subject: `【業務委託料_${monthLabel}分】M&Aソーシングパートナーズ`,
+          subject,
           body: emailBody,
           cc: bulkSendCc[clientName] || undefined,
           attachments: [{ filename, data: pdfBase64, mimeType: 'application/pdf' }],
         });
+        if (!error) {
+          // 自動保存: Storage + DB
+          try {
+            const byteChars = atob(pdfBase64);
+            const byteArr = new Uint8Array(byteChars.length);
+            for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+            const pdfBlob = new Blob([byteArr], { type: 'application/pdf' });
+            const toEmails = String(bulkSendTo[clientName] || '').split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+            const ccEmails = String(bulkSendCc[clientName] || '').split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+            await saveSentInvoiceArchive({
+              clientId: client?._supaId || null,
+              clientName,
+              invoiceMonth: bulkSendMonth,
+              filename,
+              pdfBlob,
+              toEmails,
+              ccEmails,
+              subject,
+            });
+          } catch (saveErr) {
+            console.warn(`[bulkSend] archive save failed for ${clientName}:`, saveErr);
+          }
+        }
         setBulkSendStatus(prev => ({ ...prev, [clientName]: error ? 'error' : 'sent' }));
       } catch (e) {
         console.error(`[bulkSend] ${clientName}:`, e);
@@ -2053,12 +2077,37 @@ MASP 篠宮`}
                           mimeType: 'application/pdf',
                         }],
                       });
-                      setInvoiceMailSending(false);
                       if (error) {
+                        setInvoiceMailSending(false);
                         alert('送信失敗: ' + (error.message || error));
                         return;
                       }
-                      alert(`${invoiceClient} 様に請求書を送信しました\n宛先: ${toEmails.join(', ')}`);
+                      // 自動保存: (1) ローカルDL (2) Supabase Storage 保存 + (3) DB履歴記録
+                      try {
+                        // (1) ローカル DL
+                        const byteChars = atob(invoiceMailPreview.pdfBase64);
+                        const byteArr = new Uint8Array(byteChars.length);
+                        for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+                        const pdfBlob = new Blob([byteArr], { type: 'application/pdf' });
+                        const { saveAs } = await import('file-saver');
+                        saveAs(pdfBlob, invoiceMailPreview.filename);
+                        // (2)+(3) Storage + DB
+                        const client = clientData.find(c => c.company === invoiceClient);
+                        await saveSentInvoiceArchive({
+                          clientId: client?._supaId || null,
+                          clientName: invoiceClient,
+                          invoiceMonth: invoiceMonth,
+                          filename: invoiceMailPreview.filename,
+                          pdfBlob,
+                          toEmails,
+                          ccEmails,
+                          subject: invoiceMailPreview.subject,
+                        });
+                      } catch (e) {
+                        console.warn('[invoice] archive save failed:', e);
+                      }
+                      setInvoiceMailSending(false);
+                      alert(`${invoiceClient} 様に請求書を送信しました\n宛先: ${toEmails.join(', ')}\n\n請求書PDFをローカル保存 + Spanaviにアーカイブしました`);
                       setInvoiceMailPreview(null);
                       setInvoiceModal(false);
                     }}>
