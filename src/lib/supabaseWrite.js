@@ -416,6 +416,30 @@ export async function ensureProspectingClient({ name, industry, contactPerson, c
   return { data, error }
 }
 
+// クライアント契約書用に「公式HP/住所/代表者」を一括取得 (Claude + web search)
+export async function invokeExtractClientProfileForContract({ company_name, address_hint }) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) throw new Error('not authenticated')
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-client-profile-for-contract`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ company_name, address_hint }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) return { hp_url: null, address: null, representative: null, confidence: 'low', reason: json.reason || `HTTP ${res.status}` }
+    return json
+  } catch (e) {
+    console.warn('[extract-client-profile] error:', e)
+    return { hp_url: null, address: null, representative: null, confidence: 'low', reason: e?.message || String(e) }
+  }
+}
+
 // 企業名・住所・代表者から公式 HP URL を AI + web search で推定
 export async function invokeLookupCompanyHomepage({ company_name, address, prefecture, representative }) {
   try {

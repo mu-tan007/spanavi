@@ -10,6 +10,7 @@ import { Button } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import { useEngagements } from '../../../hooks/useEngagements';
+import { invokeExtractClientProfileForContract } from '../../../lib/supabaseWrite';
 import {
   generateAndDownloadClientContract,
   calcPeriodEnd,
@@ -38,6 +39,9 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
   const [customClauses, setCustomClauses] = useState('');
   const [error, setError] = useState(null);
   const [generating, setGenerating] = useState(false);
+  // HP から自動取得
+  const [autoFilling, setAutoFilling] = useState(false);
+  const [autoFillResult, setAutoFillResult] = useState(null); // { hp_url, confidence, reason }
 
   // 契約期間自動算出
   useEffect(() => {
@@ -113,6 +117,32 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
 
   const handleNormalizeAddress = () => {
     setClientAddress(prev => normalizeAddressToCompanyStyle(prev));
+  };
+
+  // HP から「住所・代表者・HP URL」を一括取得 (Claude + web search)
+  const handleAutoFillFromHomepage = async () => {
+    if (!clientName.trim()) {
+      setError('まずクライアント企業名を入力してください');
+      return;
+    }
+    setAutoFilling(true);
+    setError(null);
+    setAutoFillResult(null);
+    const res = await invokeExtractClientProfileForContract({
+      company_name: clientName.trim(),
+      address_hint: clientAddress.trim() || undefined,
+    });
+    setAutoFilling(false);
+    setAutoFillResult(res);
+    // 既存入力を上書きしすぎないよう、空欄のみセット (確信度 high の場合は上書き)
+    const overwrite = res.confidence === 'high';
+    if (res.address && (overwrite || !clientAddress.trim())) {
+      // 念のため当社表記に整形をかけ直す
+      setClientAddress(normalizeAddressToCompanyStyle(res.address));
+    }
+    if (res.representative && (overwrite || !clientRepresentative.trim())) {
+      setClientRepresentative(res.representative);
+    }
   };
 
   const selectedTemplate = useMemo(
@@ -213,6 +243,47 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
                   <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
               </select>
+            )}
+          </div>
+
+          {/* HP から自動取得バー */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 12px', background: color.gray50, borderRadius: radius.sm,
+            border: `1px dashed ${color.border}`,
+          }}>
+            <span style={{ fontSize: 10, color: color.textMid }}>
+              HP から住所・代表者・HP URL を自動取得 (Claude + web search):
+            </span>
+            <button
+              type="button"
+              onClick={handleAutoFillFromHomepage}
+              disabled={autoFilling || !clientName.trim()}
+              style={{
+                padding: '3px 12px', fontSize: 11, fontWeight: font.weight.semibold,
+                background: autoFilling ? color.gray100 : color.navy,
+                color: autoFilling ? color.textLight : color.white,
+                border: 'none', borderRadius: radius.sm,
+                cursor: autoFilling || !clientName.trim() ? 'not-allowed' : 'pointer',
+                fontFamily: font.family.sans,
+              }}
+            >
+              {autoFilling ? '取得中… (10〜30秒)' : 'HPから自動取得'}
+            </button>
+            {autoFillResult && (
+              <span style={{
+                fontSize: 10,
+                color: autoFillResult.confidence === 'high' ? color.success
+                  : autoFillResult.confidence === 'medium' ? color.gold : color.danger,
+              }}>
+                {autoFillResult.confidence === 'high' ? '✓ ' : autoFillResult.confidence === 'medium' ? '△ ' : '⚠ '}
+                {autoFillResult.confidence} — {autoFillResult.reason || ''}
+                {autoFillResult.hp_url && (
+                  <a href={autoFillResult.hp_url} target="_blank" rel="noreferrer" style={{ marginLeft: 6, color: color.navy }}>
+                    {autoFillResult.hp_url}
+                  </a>
+                )}
+              </span>
             )}
           </div>
 
