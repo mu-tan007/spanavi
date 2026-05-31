@@ -2176,11 +2176,17 @@ MASP 篠宮`}
                         });
                         sendError = error;
                       } else {
-                        // Slack/Chatwork: 署名URLを生成して投稿
-                        let signedUrl = null;
-                        if (archiveFilePath) {
-                          const { url } = await createInvoiceSignedUrl(archiveFilePath);
-                          signedUrl = url;
+                        // Slack/Chatwork: Storage 保存成功が前提 (PDF添付がURL形式のため)
+                        if (!archiveFilePath) {
+                          setInvoiceMailSending(false);
+                          alert('PDFのStorage保存に失敗したため、Slack/Chatwork送信を中断しました。\n\n管理者に連絡してください (Supabase Storage RLS の問題の可能性)。');
+                          return;
+                        }
+                        const { url: signedUrl, error: urlErr } = await createInvoiceSignedUrl(archiveFilePath);
+                        if (!signedUrl) {
+                          setInvoiceMailSending(false);
+                          alert('PDFの署名URL生成に失敗: ' + (urlErr?.message || '不明'));
+                          return;
                         }
                         const target = channel === 'slack' ? invoiceMailPreview.slackWebhookUrl : invoiceMailPreview.chatworkRoomId;
                         const { ok, error } = await invokeSendInvoiceToChannel({
