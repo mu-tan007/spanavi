@@ -431,6 +431,10 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [bulkProcessing, setBulkProcessing] = useState(false);
   // ── 請求書作成 ──
   const [invoiceModal, setInvoiceModal] = useState(false);
+  // 単発請求書のメール送信プレビュー
+  const [invoiceMailPreview, setInvoiceMailPreview] = useState(null); // { to, cc, subject, body, filename, pdfBase64 }
+  const [invoiceMailSending, setInvoiceMailSending] = useState(false);
+  const [invoiceMailGenerating, setInvoiceMailGenerating] = useState(false);
   const [invoiceMonth, setInvoiceMonth] = useState(AVAILABLE_MONTHS[0]?.yyyymm || '');
   const [invoiceClient, setInvoiceClient] = useState('');
   const [invoiceItems, setInvoiceItems] = useState([]);   // [{ company, quantity, unitPrice, amount }]
@@ -1886,6 +1890,104 @@ MASP 篠宮`}
       })()}
 
       {/* Invoice Modal */}
+      {/* 単発請求書メール送信プレビュー */}
+      {invoiceMailPreview && (
+        <div
+          onClick={() => !invoiceMailSending && setInvoiceMailPreview(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            zIndex: 20001, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{
+            background: color.white, borderRadius: radius.lg, width: 640, maxWidth: '95vw',
+            maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            fontFamily: font.family.sans,
+          }}>
+            <div style={{
+              padding: '12px 20px', background: color.navy, color: color.white,
+              borderRadius: `${radius.lg}px ${radius.lg}px 0 0`,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <span style={{ fontSize: font.size.md, fontWeight: font.weight.semibold }}>
+                請求書メール送付 — {invoiceClient}
+              </span>
+              <button onClick={() => !invoiceMailSending && setInvoiceMailPreview(null)} style={{
+                background: 'none', border: 'none', color: color.white, fontSize: 18, cursor: 'pointer',
+              }}>✕</button>
+            </div>
+            <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>宛先 (To)</div>
+                <input value={invoiceMailPreview.to} onChange={e => setInvoiceMailPreview(p => ({ ...p, to: e.target.value }))}
+                  placeholder="client@example.com"
+                  style={{ width: '100%', padding: '6px 10px', border: `1px solid ${color.border}`, borderRadius: radius.sm,
+                    fontSize: font.size.sm, fontFamily: font.family.mono, color: color.textDark, outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>Cc (任意、複数はカンマ区切り)</div>
+                <input value={invoiceMailPreview.cc} onChange={e => setInvoiceMailPreview(p => ({ ...p, cc: e.target.value }))}
+                  style={{ width: '100%', padding: '6px 10px', border: `1px solid ${color.border}`, borderRadius: radius.sm,
+                    fontSize: font.size.sm, fontFamily: font.family.mono, color: color.textDark, outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>件名</div>
+                <input value={invoiceMailPreview.subject} onChange={e => setInvoiceMailPreview(p => ({ ...p, subject: e.target.value }))}
+                  style={{ width: '100%', padding: '6px 10px', border: `1px solid ${color.border}`, borderRadius: radius.sm,
+                    fontSize: font.size.sm, color: color.textDark, outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>本文</div>
+                <textarea value={invoiceMailPreview.body} onChange={e => setInvoiceMailPreview(p => ({ ...p, body: e.target.value }))}
+                  rows={14}
+                  style={{ width: '100%', padding: '8px 12px', border: `1px solid ${color.border}`, borderRadius: radius.sm,
+                    fontSize: font.size.sm, color: color.textDark, outline: 'none', boxSizing: 'border-box',
+                    fontFamily: font.family.sans, lineHeight: 1.6, resize: 'vertical' }} />
+              </div>
+              <div style={{
+                padding: '8px 12px', background: color.gray50, borderRadius: radius.sm,
+                fontSize: font.size.xs, color: color.textMid, display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+                <span>📎 添付:</span>
+                <span style={{ color: color.navy, fontWeight: font.weight.semibold }}>{invoiceMailPreview.filename}</span>
+              </div>
+            </div>
+            <div style={{ padding: '10px 20px', borderTop: `1px solid ${color.border}`, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Button variant="outline" size="sm" disabled={invoiceMailSending} onClick={() => setInvoiceMailPreview(null)}>
+                キャンセル
+              </Button>
+              <Button variant="primary" size="sm" loading={invoiceMailSending} disabled={invoiceMailSending || !invoiceMailPreview.to.trim()}
+                onClick={async () => {
+                  if (invoiceMailSending) return;
+                  if (!invoiceMailPreview.to.trim()) { alert('宛先 (To) を入力してください'); return; }
+                  setInvoiceMailSending(true);
+                  const { error } = await invokeSendEmail({
+                    to: invoiceMailPreview.to.trim(),
+                    cc: invoiceMailPreview.cc.trim() || undefined,
+                    subject: invoiceMailPreview.subject,
+                    body: invoiceMailPreview.body,
+                    attachments: [{
+                      filename: invoiceMailPreview.filename,
+                      data: invoiceMailPreview.pdfBase64,
+                      mimeType: 'application/pdf',
+                    }],
+                  });
+                  setInvoiceMailSending(false);
+                  if (error) {
+                    alert('送信失敗: ' + (error.message || error));
+                    return;
+                  }
+                  alert(`${invoiceClient} 様に請求書を送信しました`);
+                  setInvoiceMailPreview(null);
+                  setInvoiceModal(false);
+                }}>
+                {invoiceMailSending ? '送信中…' : '送信する'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {invoiceModal && setAppoData && (() => {
         const isBulkEdit = !!bulkInvoiceEditingClient;
         const invoiceClientsBase = [...new Set(appoData.filter(a => a.status === '面談済' && a.meetDate && a.meetDate.slice(0, 7) === invoiceMonth).map(a => a.client))].filter(Boolean);
@@ -2024,10 +2126,33 @@ MASP 篠宮`}
                     保存して一覧に戻る
                   </Button>
                 ) : (
-                  <Button onClick={handleInvoiceExport} disabled={!invoiceClient || invoiceItems.length === 0 || invoiceExporting}
-                    loading={invoiceExporting} variant="primary" size="sm">
-                    {invoiceExporting ? 'PDF生成中...' : 'PDFダウンロード'}
-                  </Button>
+                  <>
+                    <Button onClick={async () => {
+                      if (!invoiceClient || invoiceItems.length === 0) return;
+                      setInvoiceMailGenerating(true);
+                      try {
+                        const { pdfBase64, filename, monthLabel } = await generateInvoicePdfBase64(invoiceClient, invoiceMonth);
+                        const client = clientData.find(c => c.company === invoiceClient);
+                        const defaultTo = client?.clientEmail || '';
+                        const body = `${invoiceClient} 様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\nこのたび、${monthLabel}分の請求書を添付にてお送り申し上げます。\n記載日までに、下記口座へお振込みいただけますと幸甚に存じます。\n\n― 振込先口座 ―\n GMOあおぞらネット銀行　法人営業部（101）\n 普通預金　2370528\n M&Aソーシングパートナーズ株式会社\n\n今後とも、貴社にとって有益となるアポイントの取得に尽力してまいりますので、変わらぬご高配を賜れますようお願い申し上げます。\n何卒よろしくお願い申し上げます。\n\nMASP 篠宮`;
+                        setInvoiceMailPreview({
+                          to: defaultTo, cc: '',
+                          subject: `業務委託料_${monthLabel}分`,
+                          body, filename, pdfBase64, monthLabel,
+                        });
+                      } catch (e) {
+                        alert('PDF生成に失敗: ' + (e.message || ''));
+                      }
+                      setInvoiceMailGenerating(false);
+                    }} disabled={!invoiceClient || invoiceItems.length === 0 || invoiceMailGenerating || invoiceExporting}
+                      loading={invoiceMailGenerating} variant="outline" size="sm">
+                      {invoiceMailGenerating ? 'PDF生成中…' : 'メールで送付'}
+                    </Button>
+                    <Button onClick={handleInvoiceExport} disabled={!invoiceClient || invoiceItems.length === 0 || invoiceExporting}
+                      loading={invoiceExporting} variant="primary" size="sm">
+                      {invoiceExporting ? 'PDF生成中...' : 'PDFダウンロード'}
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
