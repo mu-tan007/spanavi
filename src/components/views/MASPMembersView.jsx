@@ -10,6 +10,7 @@ import { getOrgId } from '../../lib/orgContext';
 import PageHeader from '../common/PageHeader';
 import { useMemberProfile } from '../common/MemberProfileDrawer';
 import ContractTemplateManager from './masp/ContractTemplateManager';
+import RewardTypeManager from './masp/RewardTypeManager';
 import GenerateContractModal from './masp/GenerateContractModal';
 import { autoEndDate, generateAndDownloadContract } from '../../lib/contractGenerator';
 
@@ -493,6 +494,7 @@ export default function MASPMembersView({ isAdmin }) {
 
       <div style={{ padding: '24px 16px 0' }}>
         <ContractTemplateManager isAdmin={isAdmin} />
+        <RewardTypeManager isAdmin={isAdmin} />
       </div>
 
       <div style={{ padding: '8px 16px 16px', overflowX: 'auto' }}>
