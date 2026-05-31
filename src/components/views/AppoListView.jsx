@@ -6,7 +6,7 @@ import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/formatters';
-import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage, updateCallListItem, saveSentInvoiceArchive } from '../../lib/supabaseWrite';
+import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage, updateCallListItem, saveSentInvoiceArchive, createInvoiceSignedUrl, invokeSendInvoiceToChannel } from '../../lib/supabaseWrite';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -1937,15 +1937,51 @@ MASP 篠宮`}
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
               <span style={{ fontSize: font.size.md, fontWeight: font.weight.semibold }}>
-                請求書メール送付 — {invoiceClient}
+                請求書送付 — {invoiceClient}
               </span>
               <button onClick={() => !invoiceMailSending && setInvoiceMailPreview(null)} style={{
                 background: 'none', border: 'none', color: color.white, fontSize: 18, cursor: 'pointer',
               }}>✕</button>
             </div>
             <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {/* 宛先 (To): クライアント担当者から選択 + フリー入力 */}
-              {(() => {
+              {/* 送付方法タブ */}
+              <div>
+                <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>送付方法</div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {[
+                    { key: 'email', label: '✉ メール', enabled: true },
+                    { key: 'slack', label: '💬 Slack', enabled: !!invoiceMailPreview.slackWebhookUrl, hint: invoiceMailPreview.slackWebhookUrl ? '' : 'クライアントに Slack Webhook URL が未登録' },
+                    { key: 'chatwork', label: '💬 Chatwork', enabled: !!invoiceMailPreview.chatworkRoomId, hint: invoiceMailPreview.chatworkRoomId ? '' : 'クライアントに Chatwork ルームID が未登録' },
+                  ].map(t => {
+                    const active = invoiceMailPreview.channel === t.key;
+                    return (
+                      <button
+                        key={t.key}
+                        onClick={() => t.enabled && setInvoiceMailPreview(p => ({ ...p, channel: t.key }))}
+                        disabled={!t.enabled}
+                        title={t.hint}
+                        style={{
+                          padding: '5px 14px', fontSize: 11, fontWeight: font.weight.semibold,
+                          border: '1px solid ' + (active ? color.navy : color.border),
+                          background: active ? color.navy : color.white,
+                          color: active ? color.white : (t.enabled ? color.textMid : color.textLight),
+                          borderRadius: radius.sm,
+                          cursor: t.enabled ? 'pointer' : 'not-allowed',
+                          opacity: t.enabled ? 1 : 0.4,
+                          fontFamily: font.family.sans,
+                        }}
+                      >{t.label}</button>
+                    );
+                  })}
+                </div>
+                {invoiceMailPreview.channel !== 'email' && (
+                  <div style={{ fontSize: 10, color: color.textLight, marginTop: 4 }}>
+                    Slack/Chatwork は PDF を本文中の<strong>署名付きURL</strong>として送付します (有効期限30日)
+                  </div>
+                )}
+              </div>
+              {/* メール時のみ: 宛先 (To): クライアント担当者から選択 + フリー入力 */}
+              {invoiceMailPreview.channel === 'email' && (() => {
                 const ContactChips = ({ ids, setIds, exclude = [] }) => {
                   const validContacts = invoiceMailPreview.contacts.filter(c => c.email);
                   if (validContacts.length === 0) {
@@ -2028,12 +2064,35 @@ MASP 篠宮`}
                   </>
                 );
               })()}
-              <div>
-                <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>件名</div>
-                <input value={invoiceMailPreview.subject} onChange={e => setInvoiceMailPreview(p => ({ ...p, subject: e.target.value }))}
-                  style={{ width: '100%', padding: '6px 10px', border: `1px solid ${color.border}`, borderRadius: radius.sm,
-                    fontSize: font.size.sm, color: color.textDark, outline: 'none', boxSizing: 'border-box' }} />
-              </div>
+              {/* Slack/Chatwork 時の宛先表示 */}
+              {invoiceMailPreview.channel === 'slack' && (
+                <div>
+                  <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>Slack 投稿先 Webhook</div>
+                  <div style={{ padding: '6px 10px', background: color.gray50, borderRadius: radius.sm,
+                    fontSize: font.size.xs, color: color.textMid, fontFamily: font.family.mono,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {invoiceMailPreview.slackWebhookUrl}
+                  </div>
+                </div>
+              )}
+              {invoiceMailPreview.channel === 'chatwork' && (
+                <div>
+                  <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>Chatwork ルームID</div>
+                  <div style={{ padding: '6px 10px', background: color.gray50, borderRadius: radius.sm,
+                    fontSize: font.size.xs, color: color.textMid, fontFamily: font.family.mono }}>
+                    {invoiceMailPreview.chatworkRoomId}
+                  </div>
+                </div>
+              )}
+              {/* メール時のみ: 件名 */}
+              {invoiceMailPreview.channel === 'email' && (
+                <div>
+                  <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>件名</div>
+                  <input value={invoiceMailPreview.subject} onChange={e => setInvoiceMailPreview(p => ({ ...p, subject: e.target.value }))}
+                    style={{ width: '100%', padding: '6px 10px', border: `1px solid ${color.border}`, borderRadius: radius.sm,
+                      fontSize: font.size.sm, color: color.textDark, outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              )}
               <div>
                 <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>本文</div>
                 <textarea value={invoiceMailPreview.body} onChange={e => setInvoiceMailPreview(p => ({ ...p, body: e.target.value }))}
@@ -2060,58 +2119,99 @@ MASP 篠宮`}
                 const ccContacts = invoiceMailPreview.contacts.filter(c => invoiceMailPreview.ccIds.includes(c.id) && c.email);
                 const toEmails = [...toContacts.map(c => c.email), ...parseExtra(invoiceMailPreview.extraTo)];
                 const ccEmails = [...ccContacts.map(c => c.email), ...parseExtra(invoiceMailPreview.extraCc)];
-                const canSend = toEmails.length > 0 && !invoiceMailSending;
+                const channel = invoiceMailPreview.channel;
+                const canSend = !invoiceMailSending && (
+                  channel === 'email' ? toEmails.length > 0
+                  : channel === 'slack' ? !!invoiceMailPreview.slackWebhookUrl
+                  : channel === 'chatwork' ? !!invoiceMailPreview.chatworkRoomId
+                  : false
+                );
+                const btnLabel = invoiceMailSending ? '送信中…'
+                  : channel === 'email' ? `送信する (To: ${toEmails.length}件${ccEmails.length > 0 ? ' / Cc: ' + ccEmails.length + '件' : ''})`
+                  : channel === 'slack' ? 'Slack に送信'
+                  : channel === 'chatwork' ? 'Chatwork に送信'
+                  : '送信する';
                 return (
                   <Button variant="primary" size="sm" loading={invoiceMailSending} disabled={!canSend}
                     onClick={async () => {
                       if (!canSend) return;
                       setInvoiceMailSending(true);
-                      const { error } = await invokeSendEmail({
-                        to: toEmails.join(', '),
-                        cc: ccEmails.length > 0 ? ccEmails.join(', ') : undefined,
-                        subject: invoiceMailPreview.subject,
-                        body: invoiceMailPreview.body,
-                        attachments: [{
-                          filename: invoiceMailPreview.filename,
-                          data: invoiceMailPreview.pdfBase64,
-                          mimeType: 'application/pdf',
-                        }],
-                      });
-                      if (error) {
-                        setInvoiceMailSending(false);
-                        alert('送信失敗: ' + (error.message || error));
-                        return;
-                      }
-                      // 自動保存: (1) ローカルDL (2) Supabase Storage 保存 + (3) DB履歴記録
+
+                      // (1) PDF Blob 作成 + (2) Storage 保存 + (3) DB履歴記録
+                      const byteChars = atob(invoiceMailPreview.pdfBase64);
+                      const byteArr = new Uint8Array(byteChars.length);
+                      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+                      const pdfBlob = new Blob([byteArr], { type: 'application/pdf' });
+
+                      let archiveFilePath = null;
                       try {
-                        // (1) ローカル DL
-                        const byteChars = atob(invoiceMailPreview.pdfBase64);
-                        const byteArr = new Uint8Array(byteChars.length);
-                        for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
-                        const pdfBlob = new Blob([byteArr], { type: 'application/pdf' });
-                        const { saveAs } = await import('file-saver');
-                        saveAs(pdfBlob, invoiceMailPreview.filename);
-                        // (2)+(3) Storage + DB
-                        const client = clientData.find(c => c.company === invoiceClient);
-                        await saveSentInvoiceArchive({
-                          clientId: client?._supaId || null,
+                        const archiveRes = await saveSentInvoiceArchive({
+                          clientId: invoiceMailPreview.clientId,
                           clientName: invoiceClient,
                           invoiceMonth: invoiceMonth,
                           filename: invoiceMailPreview.filename,
                           pdfBlob,
-                          toEmails,
-                          ccEmails,
+                          toEmails: channel === 'email' ? toEmails : [`(${channel})${channel === 'slack' ? invoiceMailPreview.slackWebhookUrl : invoiceMailPreview.chatworkRoomId}`],
+                          ccEmails: channel === 'email' ? ccEmails : [],
                           subject: invoiceMailPreview.subject,
                         });
+                        archiveFilePath = archiveRes.file_path;
                       } catch (e) {
                         console.warn('[invoice] archive save failed:', e);
                       }
+
+                      // 送信処理
+                      let sendError = null;
+                      if (channel === 'email') {
+                        const { error } = await invokeSendEmail({
+                          to: toEmails.join(', '),
+                          cc: ccEmails.length > 0 ? ccEmails.join(', ') : undefined,
+                          subject: invoiceMailPreview.subject,
+                          body: invoiceMailPreview.body,
+                          attachments: [{
+                            filename: invoiceMailPreview.filename,
+                            data: invoiceMailPreview.pdfBase64,
+                            mimeType: 'application/pdf',
+                          }],
+                        });
+                        sendError = error;
+                      } else {
+                        // Slack/Chatwork: 署名URLを生成して投稿
+                        let signedUrl = null;
+                        if (archiveFilePath) {
+                          const { url } = await createInvoiceSignedUrl(archiveFilePath);
+                          signedUrl = url;
+                        }
+                        const target = channel === 'slack' ? invoiceMailPreview.slackWebhookUrl : invoiceMailPreview.chatworkRoomId;
+                        const { ok, error } = await invokeSendInvoiceToChannel({
+                          channel_type: channel,
+                          target,
+                          text: invoiceMailPreview.body,
+                          attachment_url: signedUrl,
+                          attachment_filename: invoiceMailPreview.filename,
+                        });
+                        if (!ok) sendError = new Error(error || `${channel} 送信失敗`);
+                      }
+
+                      if (sendError) {
+                        setInvoiceMailSending(false);
+                        alert('送信失敗: ' + (sendError.message || sendError));
+                        return;
+                      }
+
+                      // (1') ローカルDL (email/slack/chatwork どれでも控えとしてDL)
+                      try {
+                        const { saveAs } = await import('file-saver');
+                        saveAs(pdfBlob, invoiceMailPreview.filename);
+                      } catch (e) { console.warn(e); }
+
                       setInvoiceMailSending(false);
-                      alert(`${invoiceClient} 様に請求書を送信しました\n宛先: ${toEmails.join(', ')}\n\n請求書PDFをローカル保存 + Spanaviにアーカイブしました`);
+                      const channelName = channel === 'email' ? 'メール' : channel === 'slack' ? 'Slack' : 'Chatwork';
+                      alert(`${invoiceClient} 様に請求書を${channelName}で送信しました\n\n請求書PDFをローカル保存 + Spanaviにアーカイブしました`);
                       setInvoiceMailPreview(null);
                       setInvoiceModal(false);
                     }}>
-                    {invoiceMailSending ? '送信中…' : `送信する (To: ${toEmails.length}件${ccEmails.length > 0 ? ' / Cc: ' + ccEmails.length + '件' : ''})`}
+                    {btnLabel}
                   </Button>
                 );
               })()}
@@ -2267,8 +2367,14 @@ MASP 篠宮`}
                         const client = clientData.find(c => c.company === invoiceClient);
                         const contacts = (client?._supaId && contactsByClient[client._supaId]) || [];
                         const primary = contacts.find(ct => ct.isPrimary) || contacts[0];
+                        // 連絡手段の自動判定: メール優先、Slack/Chatworkは webhook/room_id が登録されていれば候補
+                        const cm = client?.contact;
+                        let defaultChannel = 'email';
+                        if (cm === 'Slack' && client?.slackWebhookUrl) defaultChannel = 'slack';
+                        else if (cm === 'Chatwork' && client?.chatworkRoomId) defaultChannel = 'chatwork';
                         const body = `${invoiceClient} 様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\nこのたび、${monthLabel}分の請求書を添付にてお送り申し上げます。\n記載日までに、下記口座へお振込みいただけますと幸甚に存じます。\n\n― 振込先口座 ―\n GMOあおぞらネット銀行　法人営業部（101）\n 普通預金　2370528\n M&Aソーシングパートナーズ株式会社\n\n今後とも、貴社にとって有益となるアポイントの取得に尽力してまいりますので、変わらぬご高配を賜れますようお願い申し上げます。\n何卒よろしくお願い申し上げます。\n\nMASP 篠宮`;
                         setInvoiceMailPreview({
+                          channel: defaultChannel,
                           toIds: primary ? [primary.id] : [],
                           ccIds: [],
                           extraTo: '',
@@ -2276,6 +2382,9 @@ MASP 篠宮`}
                           subject: `【業務委託料_${monthLabel}分】M&Aソーシングパートナーズ`,
                           body, filename, pdfBase64, monthLabel,
                           contacts: contacts.map(ct => ({ id: ct.id, name: ct.name, email: ct.email, isPrimary: ct.isPrimary })),
+                          slackWebhookUrl: client?.slackWebhookUrl || '',
+                          chatworkRoomId: client?.chatworkRoomId || '',
+                          clientId: client?._supaId || null,
                         });
                       } catch (e) {
                         alert('PDF生成に失敗: ' + (e.message || ''));

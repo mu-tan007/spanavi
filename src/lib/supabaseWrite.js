@@ -456,6 +456,43 @@ export async function saveSentInvoiceArchive({ clientId, clientName, invoiceMont
   return { file_path: filePath, error: logErr || null }
 }
 
+// 保存済 invoice PDF への期限付き署名URLを発行 (Slack/Chatwork 投稿用)
+export async function createInvoiceSignedUrl(filePath, expiresInSec = 60 * 60 * 24 * 30) {
+  if (!filePath) return { url: null, error: new Error('no filePath') }
+  const { data, error } = await supabase.storage
+    .from('invoices')
+    .createSignedUrl(filePath, expiresInSec)
+  if (error) {
+    console.error('[createInvoiceSignedUrl] error:', error)
+    return { url: null, error }
+  }
+  return { url: data?.signedUrl || null, error: null }
+}
+
+// 請求書を Slack / Chatwork に送信 (Edge Function 経由)
+export async function invokeSendInvoiceToChannel({ channel_type, target, text, attachment_url, attachment_filename }) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) throw new Error('not authenticated')
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-invoice-to-channel`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ channel_type, target, text, attachment_url, attachment_filename }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, error: json.error || `HTTP ${res.status}` }
+    return json
+  } catch (e) {
+    console.warn('[send-invoice-to-channel] error:', e)
+    return { ok: false, error: e?.message || String(e) }
+  }
+}
+
 // チャットUIで契約書情報を対話的に収集 (Claude Sonnet 4-6)
 export async function invokeChatContractAssistant({ conversation, client_name, reward_table_text, current_values }) {
   try {
