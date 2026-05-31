@@ -432,7 +432,10 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   // ── 請求書作成 ──
   const [invoiceModal, setInvoiceModal] = useState(false);
   // 単発請求書のメール送信プレビュー
-  const [invoiceMailPreview, setInvoiceMailPreview] = useState(null); // { to, cc, subject, body, filename, pdfBase64 }
+  // toIds/ccIds: クライアント担当者の選択 (contact.id 配列)
+  // extraTo/extraCc: フリー入力 (カンマ/空白/改行区切り、複数可)
+  const [invoiceMailPreview, setInvoiceMailPreview] = useState(null);
+  // { toIds, ccIds, extraTo, extraCc, subject, body, filename, pdfBase64, monthLabel, contacts: [{id,name,email}] }
   const [invoiceMailSending, setInvoiceMailSending] = useState(false);
   const [invoiceMailGenerating, setInvoiceMailGenerating] = useState(false);
   const [invoiceMonth, setInvoiceMonth] = useState(AVAILABLE_MONTHS[0]?.yyyymm || '');
@@ -1917,19 +1920,90 @@ MASP 篠宮`}
               }}>✕</button>
             </div>
             <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>宛先 (To)</div>
-                <input value={invoiceMailPreview.to} onChange={e => setInvoiceMailPreview(p => ({ ...p, to: e.target.value }))}
-                  placeholder="client@example.com"
-                  style={{ width: '100%', padding: '6px 10px', border: `1px solid ${color.border}`, borderRadius: radius.sm,
-                    fontSize: font.size.sm, fontFamily: font.family.mono, color: color.textDark, outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>Cc (任意、複数はカンマ区切り)</div>
-                <input value={invoiceMailPreview.cc} onChange={e => setInvoiceMailPreview(p => ({ ...p, cc: e.target.value }))}
-                  style={{ width: '100%', padding: '6px 10px', border: `1px solid ${color.border}`, borderRadius: radius.sm,
-                    fontSize: font.size.sm, fontFamily: font.family.mono, color: color.textDark, outline: 'none', boxSizing: 'border-box' }} />
-              </div>
+              {/* 宛先 (To): クライアント担当者から選択 + フリー入力 */}
+              {(() => {
+                const ContactChips = ({ ids, setIds, exclude = [] }) => {
+                  const validContacts = invoiceMailPreview.contacts.filter(c => c.email);
+                  if (validContacts.length === 0) {
+                    return (
+                      <div style={{ fontSize: 10, color: color.textLight, padding: '4px 0' }}>
+                        このクライアントには担当者(メール付き)が登録されていません
+                      </div>
+                    );
+                  }
+                  return (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {validContacts.map(c => {
+                        const checked = ids.includes(c.id);
+                        const disabled = exclude.includes(c.id) && !checked;
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => {
+                              setIds(checked ? ids.filter(x => x !== c.id) : [...ids, c.id]);
+                            }}
+                            title={c.email}
+                            style={{
+                              padding: '3px 10px', borderRadius: radius.sm, fontSize: 11,
+                              fontWeight: font.weight.semibold, fontFamily: font.family.sans,
+                              border: '1px solid ' + (checked ? color.navy : color.border),
+                              background: checked ? color.navy : color.white,
+                              color: checked ? color.white : (disabled ? color.textLight : color.textMid),
+                              cursor: disabled ? 'not-allowed' : 'pointer',
+                              opacity: disabled ? 0.4 : 1,
+                              display: 'inline-flex', alignItems: 'center', gap: 4,
+                            }}
+                          >
+                            {c.isPrimary && <span style={{ fontSize: 8, opacity: 0.7 }}>主</span>}
+                            {c.name}
+                            <span style={{ fontSize: 9, opacity: 0.7 }}>({c.email})</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                };
+                return (
+                  <>
+                    <div>
+                      <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>
+                        宛先 (To) — 担当者から選択
+                      </div>
+                      <ContactChips
+                        ids={invoiceMailPreview.toIds}
+                        setIds={(ids) => setInvoiceMailPreview(p => ({ ...p, toIds: ids }))}
+                        exclude={invoiceMailPreview.ccIds}
+                      />
+                      <input value={invoiceMailPreview.extraTo}
+                        onChange={e => setInvoiceMailPreview(p => ({ ...p, extraTo: e.target.value }))}
+                        placeholder="その他のメールアドレス (任意、複数はカンマ/空白/改行区切り)"
+                        autoComplete="off"
+                        style={{ width: '100%', marginTop: 4, padding: '5px 8px', border: `1px solid ${color.border}`,
+                          borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.mono,
+                          color: color.textDark, outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>
+                        Cc (任意) — 担当者から選択
+                      </div>
+                      <ContactChips
+                        ids={invoiceMailPreview.ccIds}
+                        setIds={(ids) => setInvoiceMailPreview(p => ({ ...p, ccIds: ids }))}
+                        exclude={invoiceMailPreview.toIds}
+                      />
+                      <input value={invoiceMailPreview.extraCc}
+                        onChange={e => setInvoiceMailPreview(p => ({ ...p, extraCc: e.target.value }))}
+                        placeholder="その他のメールアドレス (任意、複数はカンマ/空白/改行区切り)"
+                        autoComplete="off"
+                        style={{ width: '100%', marginTop: 4, padding: '5px 8px', border: `1px solid ${color.border}`,
+                          borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.mono,
+                          color: color.textDark, outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                  </>
+                );
+              })()}
               <div>
                 <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>件名</div>
                 <input value={invoiceMailPreview.subject} onChange={e => setInvoiceMailPreview(p => ({ ...p, subject: e.target.value }))}
@@ -1956,33 +2030,42 @@ MASP 篠宮`}
               <Button variant="outline" size="sm" disabled={invoiceMailSending} onClick={() => setInvoiceMailPreview(null)}>
                 キャンセル
               </Button>
-              <Button variant="primary" size="sm" loading={invoiceMailSending} disabled={invoiceMailSending || !invoiceMailPreview.to.trim()}
-                onClick={async () => {
-                  if (invoiceMailSending) return;
-                  if (!invoiceMailPreview.to.trim()) { alert('宛先 (To) を入力してください'); return; }
-                  setInvoiceMailSending(true);
-                  const { error } = await invokeSendEmail({
-                    to: invoiceMailPreview.to.trim(),
-                    cc: invoiceMailPreview.cc.trim() || undefined,
-                    subject: invoiceMailPreview.subject,
-                    body: invoiceMailPreview.body,
-                    attachments: [{
-                      filename: invoiceMailPreview.filename,
-                      data: invoiceMailPreview.pdfBase64,
-                      mimeType: 'application/pdf',
-                    }],
-                  });
-                  setInvoiceMailSending(false);
-                  if (error) {
-                    alert('送信失敗: ' + (error.message || error));
-                    return;
-                  }
-                  alert(`${invoiceClient} 様に請求書を送信しました`);
-                  setInvoiceMailPreview(null);
-                  setInvoiceModal(false);
-                }}>
-                {invoiceMailSending ? '送信中…' : '送信する'}
-              </Button>
+              {(() => {
+                const parseExtra = (raw) => String(raw || '').split(/[\s,;]+/).map(s => s.trim()).filter(Boolean).filter(s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s));
+                const toContacts = invoiceMailPreview.contacts.filter(c => invoiceMailPreview.toIds.includes(c.id) && c.email);
+                const ccContacts = invoiceMailPreview.contacts.filter(c => invoiceMailPreview.ccIds.includes(c.id) && c.email);
+                const toEmails = [...toContacts.map(c => c.email), ...parseExtra(invoiceMailPreview.extraTo)];
+                const ccEmails = [...ccContacts.map(c => c.email), ...parseExtra(invoiceMailPreview.extraCc)];
+                const canSend = toEmails.length > 0 && !invoiceMailSending;
+                return (
+                  <Button variant="primary" size="sm" loading={invoiceMailSending} disabled={!canSend}
+                    onClick={async () => {
+                      if (!canSend) return;
+                      setInvoiceMailSending(true);
+                      const { error } = await invokeSendEmail({
+                        to: toEmails.join(', '),
+                        cc: ccEmails.length > 0 ? ccEmails.join(', ') : undefined,
+                        subject: invoiceMailPreview.subject,
+                        body: invoiceMailPreview.body,
+                        attachments: [{
+                          filename: invoiceMailPreview.filename,
+                          data: invoiceMailPreview.pdfBase64,
+                          mimeType: 'application/pdf',
+                        }],
+                      });
+                      setInvoiceMailSending(false);
+                      if (error) {
+                        alert('送信失敗: ' + (error.message || error));
+                        return;
+                      }
+                      alert(`${invoiceClient} 様に請求書を送信しました\n宛先: ${toEmails.join(', ')}`);
+                      setInvoiceMailPreview(null);
+                      setInvoiceModal(false);
+                    }}>
+                    {invoiceMailSending ? '送信中…' : `送信する (To: ${toEmails.length}件${ccEmails.length > 0 ? ' / Cc: ' + ccEmails.length + '件' : ''})`}
+                  </Button>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -2133,12 +2216,17 @@ MASP 篠宮`}
                       try {
                         const { pdfBase64, filename, monthLabel } = await generateInvoicePdfBase64(invoiceClient, invoiceMonth);
                         const client = clientData.find(c => c.company === invoiceClient);
-                        const defaultTo = client?.clientEmail || '';
+                        const contacts = (client?._supaId && contactsByClient[client._supaId]) || [];
+                        const primary = contacts.find(ct => ct.isPrimary) || contacts[0];
                         const body = `${invoiceClient} 様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\nこのたび、${monthLabel}分の請求書を添付にてお送り申し上げます。\n記載日までに、下記口座へお振込みいただけますと幸甚に存じます。\n\n― 振込先口座 ―\n GMOあおぞらネット銀行　法人営業部（101）\n 普通預金　2370528\n M&Aソーシングパートナーズ株式会社\n\n今後とも、貴社にとって有益となるアポイントの取得に尽力してまいりますので、変わらぬご高配を賜れますようお願い申し上げます。\n何卒よろしくお願い申し上げます。\n\nMASP 篠宮`;
                         setInvoiceMailPreview({
-                          to: defaultTo, cc: '',
+                          toIds: primary ? [primary.id] : [],
+                          ccIds: [],
+                          extraTo: '',
+                          extraCc: '',
                           subject: `業務委託料_${monthLabel}分`,
                           body, filename, pdfBase64, monthLabel,
+                          contacts: contacts.map(ct => ({ id: ct.id, name: ct.name, email: ct.email, isPrimary: ct.isPrimary })),
                         });
                       } catch (e) {
                         alert('PDF生成に失敗: ' + (e.message || ''));
