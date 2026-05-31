@@ -416,6 +416,30 @@ export async function ensureProspectingClient({ name, industry, contactPerson, c
   return { data, error }
 }
 
+// チャットUIで契約書情報を対話的に収集 (Claude Sonnet 4-6)
+export async function invokeChatContractAssistant({ conversation, client_name, reward_table_text, current_values }) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) throw new Error('not authenticated')
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-contract-assistant`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ conversation, client_name, reward_table_text, current_values }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) return { reply: '', extracted: {}, ready: false, error: json.error || `HTTP ${res.status}` }
+    return json
+  } catch (e) {
+    console.warn('[chat-contract-assistant] error:', e)
+    return { reply: '', extracted: {}, ready: false, error: e?.message || String(e) }
+  }
+}
+
 // クライアント契約書用に「公式HP/住所/代表者」を一括取得 (Claude + web search)
 export async function invokeExtractClientProfileForContract({ company_name, address_hint }) {
   try {

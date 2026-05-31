@@ -10,7 +10,7 @@ import { Button } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import { useEngagements } from '../../../hooks/useEngagements';
-import { invokeExtractClientProfileForContract } from '../../../lib/supabaseWrite';
+import { invokeExtractClientProfileForContract, invokeChatContractAssistant } from '../../../lib/supabaseWrite';
 import {
   generateAndDownloadClientContract,
   calcPeriodEnd,
@@ -42,6 +42,14 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
   // HP から自動取得
   const [autoFilling, setAutoFilling] = useState(false);
   const [autoFillResult, setAutoFillResult] = useState(null); // { hp_url, confidence, reason }
+
+  // 入力モード切替: 'form' | 'chat'
+  const [inputMode, setInputMode] = useState('form');
+  // チャット会話履歴
+  const [chatMessages, setChatMessages] = useState([]); // [{ role, content }]
+  const [chatInput, setChatInput] = useState('');
+  const [chatSending, setChatSending] = useState(false);
+  const [chatReady, setChatReady] = useState(false);
 
   // 契約期間自動算出
   useEffect(() => {
@@ -150,6 +158,78 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
     [templates, templateId]
   );
 
+  // チャット送信: 抽出値を既存フォームに反映
+  const sendChat = async (userText) => {
+    if (!userText.trim() || chatSending) return;
+    const newMessages = [...chatMessages, { role: 'user', content: userText.trim() }];
+    setChatMessages(newMessages);
+    setChatInput('');
+    setChatSending(true);
+    setError(null);
+    const current = {
+      address: clientAddress,
+      representative: clientRepresentative,
+      contract_date: contractDate,
+      period_start: periodStart,
+      period_months: periodMonths,
+      tax,
+      payment_site: paymentSite,
+      custom_clauses: customClauses,
+    };
+    const res = await invokeChatContractAssistant({
+      conversation: newMessages,
+      client_name: clientName.trim(),
+      reward_table_text: rewardTableText,
+      current_values: current,
+    });
+    setChatSending(false);
+    if (res.error) {
+      setError(`チャット失敗: ${res.error}`);
+      return;
+    }
+    setChatMessages([...newMessages, { role: 'assistant', content: res.reply || '' }]);
+    setChatReady(!!res.ready);
+    // 抽出値をフォームに反映
+    const ex = res.extracted || {};
+    if (ex.client_address) setClientAddress(ex.client_address);
+    if (ex.client_representative) setClientRepresentative(ex.client_representative);
+    if (ex.contract_date) setContractDate(ex.contract_date);
+    if (ex.period_start) setPeriodStart(ex.period_start);
+    if (ex.period_months) setPeriodMonths(Number(ex.period_months) || 12);
+    if (ex.tax) setTax(ex.tax);
+    if (ex.payment_site) setPaymentSite(ex.payment_site);
+    if (ex.custom_clauses) setCustomClauses(ex.custom_clauses);
+  };
+
+  // チャット初回起動: 自動で挨拶
+  const startChat = async () => {
+    if (chatMessages.length > 0) return;
+    setChatSending(true);
+    setError(null);
+    const current = {
+      address: clientAddress, representative: clientRepresentative,
+      contract_date: contractDate, period_start: periodStart, period_months: periodMonths,
+      tax, payment_site: paymentSite, custom_clauses: customClauses,
+    };
+    const res = await invokeChatContractAssistant({
+      conversation: [],
+      client_name: clientName.trim(),
+      reward_table_text: rewardTableText,
+      current_values: current,
+    });
+    setChatSending(false);
+    if (res.error) { setError(`チャット失敗: ${res.error}`); return; }
+    setChatMessages([{ role: 'assistant', content: res.reply || '' }]);
+    setChatReady(!!res.ready);
+  };
+
+  useEffect(() => {
+    if (inputMode === 'chat' && chatMessages.length === 0 && clientName.trim()) {
+      startChat();
+    }
+    // eslint-disable-next-line
+  }, [inputMode]);
+
   const handleGenerate = async () => {
     if (!selectedTemplate) { setError('テンプレを選択してください'); return; }
     if (!clientName.trim()) { setError('クライアント企業名を入力してください'); return; }
@@ -223,6 +303,107 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
         </div>
 
         <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* 入力モード切替 */}
+          <div style={{ display: 'flex', gap: 4, borderBottom: `1px solid ${color.border}`, paddingBottom: 8 }}>
+            {[
+              { key: 'form', label: '📋 フォーム入力' },
+              { key: 'chat', label: '💬 AI と対話で入力' },
+            ].map(t => {
+              const active = inputMode === t.key;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => setInputMode(t.key)}
+                  style={{
+                    padding: '6px 14px', fontSize: font.size.xs, fontWeight: font.weight.semibold,
+                    border: 'none', background: 'transparent',
+                    color: active ? color.navy : color.textLight,
+                    borderBottom: '2px solid ' + (active ? color.navy : 'transparent'),
+                    cursor: 'pointer', fontFamily: font.family.sans,
+                  }}
+                >{t.label}</button>
+              );
+            })}
+          </div>
+
+          {/* チャット入力パネル */}
+          {inputMode === 'chat' && (
+            <div style={{
+              background: color.gray50, borderRadius: radius.sm,
+              border: `1px solid ${color.border}`, padding: 12,
+              display: 'flex', flexDirection: 'column', gap: 8,
+            }}>
+              <div style={{
+                background: color.white, borderRadius: radius.sm, padding: 10,
+                minHeight: 200, maxHeight: 360, overflowY: 'auto',
+                display: 'flex', flexDirection: 'column', gap: 8,
+                border: `1px solid ${color.borderLight}`,
+              }}>
+                {chatMessages.length === 0 && !chatSending ? (
+                  <div style={{ fontSize: font.size.xs, color: color.textLight, textAlign: 'center', padding: 20 }}>
+                    {clientName.trim() ? 'AI に話しかけて契約書情報を入力してください' : 'まずクライアント企業名を入力してください'}
+                  </div>
+                ) : (
+                  chatMessages.map((m, i) => (
+                    <div key={i} style={{
+                      alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
+                      maxWidth: '80%',
+                      padding: '8px 12px',
+                      borderRadius: radius.md,
+                      background: m.role === 'user' ? color.navy : alpha(color.navy, 0.06),
+                      color: m.role === 'user' ? color.white : color.textDark,
+                      fontSize: font.size.xs,
+                      lineHeight: 1.5,
+                      whiteSpace: 'pre-wrap',
+                    }}>
+                      {m.content}
+                    </div>
+                  ))
+                )}
+                {chatSending && (
+                  <div style={{ alignSelf: 'flex-start', fontSize: 10, color: color.textLight, padding: '4px 10px' }}>
+                    考え中…
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                      e.preventDefault();
+                      sendChat(chatInput);
+                    }
+                  }}
+                  placeholder={chatReady ? '✓ 準備完了 — 下の「契約書をダウンロード」を押してください' : '例: 契約は6月1日開始、1年契約、報酬は税別で'}
+                  disabled={chatSending || !clientName.trim()}
+                  style={{
+                    flex: 1, padding: '8px 12px', border: `1px solid ${color.border}`,
+                    borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.sans,
+                    color: color.textDark, outline: 'none',
+                  }}
+                />
+                <button
+                  onClick={() => sendChat(chatInput)}
+                  disabled={chatSending || !chatInput.trim() || !clientName.trim()}
+                  style={{
+                    padding: '6px 16px', background: color.navy, color: color.white,
+                    border: 'none', borderRadius: radius.sm, fontSize: font.size.xs,
+                    fontWeight: font.weight.semibold, cursor: chatSending ? 'wait' : 'pointer',
+                    fontFamily: font.family.sans,
+                    opacity: !chatInput.trim() ? 0.4 : 1,
+                  }}
+                >送信</button>
+              </div>
+              {chatReady && (
+                <div style={{ fontSize: 10, color: color.success, fontWeight: font.weight.semibold }}>
+                  ✓ AI が「準備完了」を確認。下のフォームで値を最終確認し「契約書をダウンロード」を押してください。
+                </div>
+              )}
+            </div>
+          )}
+
           {/* テンプレ選択 */}
           <div>
             <label style={label}>契約書テンプレ</label>
