@@ -233,7 +233,8 @@ export function formatRewardTable(rewardSummary) {
     tiers.forEach(t => {
       if (t.memo) {
         // memo に「5000万円未満：15万円」のような完成形がある時はそれを使う
-        lines.push('　' + t.memo);
+        // (memo 先頭の空白を一旦除いてから '　' を付けて、全行で字下げを揃える)
+        lines.push('　' + String(t.memo).replace(/^[\s　]+/, ''));
       } else {
         // lo/hi/price から自動生成 — オリジナルひな形に合わせ「売上高がN円未満の会社：X万円」型
         const basis = (r.basis || '売上高') + 'が';
