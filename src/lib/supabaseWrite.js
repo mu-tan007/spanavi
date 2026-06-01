@@ -426,7 +426,11 @@ export async function saveSentInvoiceArchive({ clientId, clientName, invoiceMont
     return { file_path: null, error: new Error('missing required fields') }
   }
   // パス: {orgId}/{YYYY-MM}/{clientId or 'no-client'}/{timestamp}_{filename}
-  const safeFilename = filename.replace(/[\\/:*?"<>|]/g, '_')
+  // Supabase Storage はパスに半角/全角スペース・特殊文字を許容しないため _ に置換
+  const safeFilename = filename
+    .replace(/[\\/:*?"<>|#%&{}<>\s　]/g, '_')  // 特殊文字 + 半角/全角スペース
+    .replace(/_+/g, '_')  // 連続_を1つに
+    .slice(0, 200)  // 念のため長さ制限
   const ts = Date.now()
   const filePath = `${orgId}/${invoiceMonth}/${clientId || 'no-client'}/${ts}_${safeFilename}`
   const { error: upErr } = await supabase.storage
