@@ -2168,6 +2168,7 @@ MASP 篠宮`}
                       const pdfBlob = new Blob([byteArr], { type: 'application/pdf' });
 
                       let archiveFilePath = null;
+                      let archiveError = null;
                       try {
                         const archiveRes = await saveSentInvoiceArchive({
                           clientId: invoiceMailPreview.clientId,
@@ -2180,8 +2181,10 @@ MASP 篠宮`}
                           subject: invoiceMailPreview.subject,
                         });
                         archiveFilePath = archiveRes.file_path;
+                        archiveError = archiveRes.error;
                       } catch (e) {
                         console.warn('[invoice] archive save failed:', e);
+                        archiveError = e;
                       }
 
                       // 送信処理
@@ -2203,7 +2206,8 @@ MASP 篠宮`}
                         // Slack/Chatwork: Storage 保存成功が前提 (PDF添付がURL形式のため)
                         if (!archiveFilePath) {
                           setInvoiceMailSending(false);
-                          alert('PDFのStorage保存に失敗したため、Slack/Chatwork送信を中断しました。\n\n管理者に連絡してください (Supabase Storage RLS の問題の可能性)。');
+                          const errDetail = archiveError ? `\n\n詳細エラー:\n${archiveError.message || JSON.stringify(archiveError)}` : '';
+                          alert('PDFのStorage保存に失敗したため、Slack/Chatwork送信を中断しました。' + errDetail);
                           return;
                         }
                         const { url: signedUrl, error: urlErr } = await createInvoiceSignedUrl(archiveFilePath);
