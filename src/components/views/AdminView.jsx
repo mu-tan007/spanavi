@@ -38,7 +38,7 @@ const TABS = [
   { id: 'clients',     label: 'クライアント・リスト管理', icon: '' },
   { id: 'classification', label: 'タイプ 仕分け',       icon: '' },
   { id: 'report_templates', label: 'アポ取得報告テンプレ', icon: '' },
-  { id: 'member_contract_templates', label: 'メンバー契約書テンプレ', icon: '' },
+  { id: 'member_contract_templates', label: 'メンバー業務委託契約書テンプレ', icon: '' },
   { id: 'products',       label: '事業マスタ',           icon: '' },
   { id: 'business_categories', label: '商材・業務マスタ', icon: '' },
 ];

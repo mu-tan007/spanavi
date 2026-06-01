@@ -411,8 +411,8 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
               <div style={{ fontSize: font.size.xs, color: color.textLight }}>読み込み中…</div>
             ) : templates.length === 0 ? (
               <div style={{ fontSize: font.size.xs, color: color.danger }}>
-                クライアント向けテンプレがまだ登録されていません。MASP {'>'} メンバー画面の
-                「契約書テンプレ管理」→「クライアント向け」タブから事前にアップロードしてください。
+                クライアント向けテンプレがまだ登録されていません。
+                <strong>CRM {'>'} 「契約書テンプレ」サブタブ</strong> から事前にアップロードしてください。
               </div>
             ) : (
               <select

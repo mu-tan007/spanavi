@@ -132,8 +132,14 @@ export default function ContractTemplateManager({ isAdmin, lockedScope = null })
 
   const placeholderList = scopeType === 'client' ? CLIENT_PLACEHOLDERS : MEMBER_PLACEHOLDERS;
   const currentDesc = scopeType === 'client'
-    ? 'クライアントとの契約開始時に、CRMクライアント詳細画面から差し込み生成できます (NDA / 業務委託)'
-    : 'メンバー追加時にワンクリックで差し込み生成できます (業務委託契約書)';
+    ? 'クライアントとの契約開始時に、CRM > クライアント詳細 > 「契約書作成」ボタンから差し込み生成できます (NDA / 業務委託)'
+    : 'メンバー追加時に、MASP > メンバー画面 > 行の鉛筆メニュー > 「契約書を生成」から差し込み生成できます (業務委託契約書)';
+  // lockedScope 指定時はタイトルも明確化
+  const sectionTitle = lockedScope === 'client'
+    ? 'クライアント向け契約書テンプレ (NDA / 業務委託)'
+    : lockedScope === 'member'
+      ? 'メンバー向け業務委託契約書テンプレ'
+      : '契約書テンプレ管理';
 
   return (
     <Card
@@ -144,7 +150,7 @@ export default function ContractTemplateManager({ isAdmin, lockedScope = null })
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[3] }}>
         <div>
-          <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>契約書テンプレ管理</div>
+          <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>{sectionTitle}</div>
           <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: 2 }}>
             Word (.docx) ひな形を事前アップロード、差し込みで自動生成
           </div>
