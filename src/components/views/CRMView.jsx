@@ -11,6 +11,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import ClientDetailPage from './contacts/ClientDetailPage';
 import { EmailFollowupModal } from './BusinessOverviewView';
+import RewardTypeManager from './masp/RewardTypeManager';
 import { dbFieldsToFe } from '../../utils/clientFieldsMap';
 import { insertClientContact as insertClientContactFn } from '../../lib/supabaseWrite';
 import { NAVY, CRM_COLS_BASE, CRM_COLS_EDIT, currentYearMonth } from './crm/utils';
@@ -226,6 +227,8 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   const [sortState, setSortState] = useState({ key: null, dir: null });
   // 商材フィルタ ('all' or '商材名')
   const [productFilter, setProductFilter] = useUrlState('product', 'all');
+  // CRM内サブセクション ('clients' = クライアント一覧 / 'rewards' = 報酬体系マスタ)
+  const [crmSection, setCrmSection] = useUrlState('crm_section', 'clients', { allowed: ['clients', 'rewards'] });
 
   // クライアントが持つ商材一覧 (タブのカウント用)
   const productCounts = useMemo(() => {
@@ -583,6 +586,37 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
         />
       )}
 
+      {/* CRMサブタブ切替 (詳細ページ表示中は非表示) */}
+      {view !== 'detail' && (
+        <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: `1px solid ${color.border}` }}>
+          {[
+            { key: 'clients', label: 'クライアント一覧' },
+            { key: 'rewards', label: '報酬体系マスタ' },
+          ].map(t => {
+            const active = crmSection === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setCrmSection(t.key)}
+                style={{
+                  padding: '8px 18px', fontSize: font.size.sm, fontWeight: font.weight.semibold,
+                  background: 'transparent', border: 'none',
+                  color: active ? NAVY : color.textLight,
+                  borderBottom: `2px solid ${active ? NAVY : 'transparent'}`,
+                  cursor: 'pointer', fontFamily: font.family.sans,
+                  marginBottom: -1,
+                }}
+              >{t.label}</button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 報酬体系マスタ画面 */}
+      {view !== 'detail' && crmSection === 'rewards' && (
+        <RewardTypeManager isAdmin={isAdmin} />
+      )}
+
       {/* 詳細ページモード */}
       {view === 'detail' && detailClient && (
         <ClientDetailPage
@@ -599,8 +633,8 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
         />
       )}
 
-      {/* List mode: header + tabs + table */}
-      {view === 'list' && (
+      {/* List mode: header + tabs + table (rewards サブタブ時は非表示) */}
+      {view === 'list' && crmSection === 'clients' && (
         <>
           <CRMHeader
             filteredCount={filtered.length}
