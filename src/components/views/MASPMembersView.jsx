@@ -9,8 +9,10 @@ import { deactivateMember, updateMemberProfile, updateMember } from '../../lib/s
 import { getOrgId } from '../../lib/orgContext';
 import PageHeader from '../common/PageHeader';
 import { useMemberProfile } from '../common/MemberProfileDrawer';
-import ContractTemplateManager from './masp/ContractTemplateManager';
-// 報酬体系マスタ管理は CRM > 報酬体系マスタ サブタブに移管 (2026-06-01)
+// 契約書テンプレ管理:
+//   メンバー向け  → 管理者設定 > メンバー契約書テンプレ (AdminView)
+//   クライアント向け → CRM > 契約書テンプレ サブタブ
+// 報酬体系マスタ管理 → CRM > 報酬体系マスタ サブタブ
 import GenerateContractModal from './masp/GenerateContractModal';
 import { autoEndDate, generateAndDownloadContract } from '../../lib/contractGenerator';
 
@@ -492,10 +494,6 @@ export default function MASPMembersView({ isAdmin }) {
         />
       </PageHeader>
 
-      <div style={{ padding: '24px 16px 0' }}>
-        {/* メンバー向け業務委託テンプレのみ表示 (クライアント向けは CRM > 契約書テンプレ サブタブへ移管) */}
-        <ContractTemplateManager isAdmin={isAdmin} lockedScope="member" />
-      </div>
 
       <div style={{ padding: '8px 16px 16px', overflowX: 'auto' }}>
         <table style={{

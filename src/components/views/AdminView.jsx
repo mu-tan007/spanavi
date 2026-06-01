@@ -9,6 +9,7 @@ import SlackZoomSettings from '../admin/SlackZoomSettings';
 import ClientManagement from '../admin/ClientManagement';
 import EngagementClassification from '../admin/EngagementClassification';
 import ReportTemplatesManagement from '../admin/ReportTemplatesManagement';
+import ContractTemplateManager from './masp/ContractTemplateManager';
 import ProductsManagement from '../admin/ProductsManagement';
 import BusinessCategoriesManagement from '../admin/BusinessCategoriesManagement';
 import IndustryRuleSettings from '../admin/IndustryRuleSettings';
@@ -37,6 +38,7 @@ const TABS = [
   { id: 'clients',     label: 'クライアント・リスト管理', icon: '' },
   { id: 'classification', label: 'タイプ 仕分け',       icon: '' },
   { id: 'report_templates', label: 'アポ取得報告テンプレ', icon: '' },
+  { id: 'member_contract_templates', label: 'メンバー契約書テンプレ', icon: '' },
   { id: 'products',       label: '事業マスタ',           icon: '' },
   { id: 'business_categories', label: '商材・業務マスタ', icon: '' },
 ];
@@ -311,6 +313,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
         {activeTab === 'clients' && <ClientManagement  onToast={showToast} />}
         {activeTab === 'classification' && <EngagementClassification onToast={showToast} />}
         {activeTab === 'report_templates' && <ReportTemplatesManagement onToast={showToast} />}
+        {activeTab === 'member_contract_templates' && <ContractTemplateManager isAdmin={isAdmin} lockedScope="member" />}
         {activeTab === 'products' && <ProductsManagement onToast={showToast} />}
         {activeTab === 'business_categories' && <BusinessCategoriesManagement onToast={showToast} />}
       </div>
