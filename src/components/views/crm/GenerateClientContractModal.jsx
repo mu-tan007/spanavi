@@ -36,6 +36,8 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
   const [tax, setTax] = useState('税別');
   const [paymentSite, setPaymentSite] = useState('毎月末日〆翌月15日払い');
   const [rewardTableText, setRewardTableText] = useState('');
+  // 報酬体系マスタから1件選択用
+  const [selectedMasterRewardType, setSelectedMasterRewardType] = useState('');
   const [customClauses, setCustomClauses] = useState('');
   const [error, setError] = useState(null);
   const [generating, setGenerating] = useState(false);
@@ -153,6 +155,36 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
     () => templates.find(t => t.id === templateId),
     [templates, templateId]
   );
+
+  // 報酬体系マスタの選択肢 (type_id 単位に集約)
+  const rewardTypeOptions = useMemo(() => {
+    const map = new Map();
+    (rewardMaster || []).forEach(r => {
+      if (!map.has(r.id)) {
+        map.set(r.id, {
+          id: r.id, name: r.name, tax: r.tax, basis: r.basis, calc_type: r.calc_type, tiers: [],
+        });
+      }
+      map.get(r.id).tiers.push({ lo: r.lo, hi: r.hi, price: r.price, memo: r.memo, _tierSort: r._tierSort });
+    });
+    // tierソート + type sort
+    [...map.values()].forEach(o => o.tiers.sort((a, b) => (a._tierSort ?? 0) - (b._tierSort ?? 0)));
+    return [...map.values()].sort((a, b) => a.id.localeCompare(b.id));
+  }, [rewardMaster]);
+
+  // マスタから1件選択 → reward_table_text と税区分に反映
+  const applyRewardTypeFromMaster = (rewardTypeId) => {
+    setSelectedMasterRewardType(rewardTypeId);
+    if (!rewardTypeId) return;
+    const r = rewardTypeOptions.find(x => x.id === rewardTypeId);
+    if (!r) return;
+    const summary = [{
+      rid: r.id, name: r.name, tax: r.tax, basis: r.basis,
+      tiers: r.tiers, categories: [],
+    }];
+    setRewardTableText(formatRewardTable(summary));
+    if (r.tax) setTax(r.tax);
+  };
 
   // チャット送信: 抽出値を既存フォームに反映
   const sendChat = async (userText) => {
@@ -525,16 +557,47 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
             </div>
           </div>
 
-          {/* 報酬体系 (テキスト編集可) */}
+          {/* 報酬体系 (自動 / マスタ選択 / 手動編集) */}
           <div>
-            <label style={label}>報酬体系 (CRMの「報酬体系(タイプ別)」から自動生成、編集可)</label>
+            <label style={label}>報酬体系</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 10, color: color.textLight }}>報酬体系マスタから選択:</span>
+              <select
+                value={selectedMasterRewardType}
+                onChange={e => applyRewardTypeFromMaster(e.target.value)}
+                style={{ ...input, width: 'auto', minWidth: 240, padding: '4px 8px', fontSize: font.size.xs }}
+              >
+                <option value="">— 選択してください —</option>
+                {rewardTypeOptions.map(r => (
+                  <option key={r.id} value={r.id}>{r.id} : {r.name}</option>
+                ))}
+              </select>
+              <span style={{ fontSize: 10, color: color.textLight }}>
+                or
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedMasterRewardType('')}
+                style={{
+                  padding: '3px 10px', fontSize: 10,
+                  border: `1px solid ${color.border}`, background: color.white,
+                  color: color.textMid, borderRadius: radius.sm, cursor: 'pointer',
+                }}
+              >下のテキストを直接編集</button>
+            </div>
             <textarea
               value={rewardTableText}
-              onChange={e => setRewardTableText(e.target.value)}
+              onChange={e => {
+                setRewardTableText(e.target.value);
+                setSelectedMasterRewardType(''); // 手動編集したらマスタ選択解除
+              }}
               rows={8}
               style={{ ...input, fontFamily: font.family.mono, fontSize: font.size.xs, lineHeight: 1.6, resize: 'vertical' }}
-              placeholder="CRMの報酬体系から自動入力されます。編集可"
+              placeholder="CRMの「報酬体系(タイプ別)」から自動入力、またはマスタから選択。手動編集可"
             />
+            <div style={{ fontSize: 10, color: color.textLight, marginTop: 2 }}>
+              ※ デフォルトは CRM のクライアント別「報酬体系(タイプ別)」から自動生成。マスタ選択でテンプレ型に切替可
+            </div>
           </div>
 
           {/* 追加条項 (任意) */}
