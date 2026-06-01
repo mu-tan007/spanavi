@@ -258,10 +258,20 @@ export function buildClientPlaceholders({
   contractDate, periodStart, periodEnd,
   rewardTableText, tax, paymentSite, customClauses,
 }) {
+  // 署名欄: 乙と同形式で住所 / 会社名 / 代表取締役 名前 を縦並びにする
+  // テンプレ側に直接 \n を書いても Word は文字扱いするので、値側に \n を入れて
+  // docxtemplater (linebreaks:true) に <w:br/> 変換させる
+  const sigIndent = '　'.repeat(10);
+  const signatureBlock = [
+    clientAddress || '',
+    sigIndent + (clientName || ''),
+    sigIndent + '代表取締役　' + (clientRepresentative || ''),
+  ].join('\n');
   return {
     client_name: clientName || '',
     client_address: clientAddress || '',
     client_representative: clientRepresentative || '',
+    signature_block: signatureBlock,
     contract_date: formatJpDateWareki(contractDate),
     period_start: formatJpDateWareki(periodStart),
     period_end: formatJpDateWareki(periodEnd),
