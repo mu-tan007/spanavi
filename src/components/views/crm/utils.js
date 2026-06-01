@@ -93,6 +93,18 @@ export const CRM_COL_LABELS = ['ステータス','企業名','商材','主担当
 // 商材ソート可能なカラムキー一覧
 export const CRM_SORTABLE_KEYS = new Set(['product','company','status','lastMeeting','listCount','targetRatio']);
 
+// 支払サイトの一般的な選択肢 (datalist 候補。手入力もできる)
+export const PAYMENT_SITE_OPTIONS = [
+  '毎月末日〆翌月10日払い',
+  '毎月末日〆翌月15日払い',
+  '毎月末日〆翌月25日払い',
+  '毎月末日〆翌月末払い',
+  '毎月末日〆翌々月10日払い',
+  '毎月末日〆翌々月15日払い',
+  '毎月末日〆翌々月25日払い',
+  '毎月末日〆翌々月末払い',
+];
+
 // 当月の 'YYYY-MM' を取得
 export function currentYearMonth() {
   const d = new Date();

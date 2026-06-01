@@ -7,6 +7,7 @@ import { getOrgId } from '../../../lib/orgContext';
 import { updateClientNextContactAt, updateClient, deleteClient } from '../../../lib/supabaseWrite';
 import { useEngagements } from '../../../hooks/useEngagements';
 import GenerateClientContractModal from '../crm/GenerateClientContractModal';
+import { PAYMENT_SITE_OPTIONS } from '../crm/utils';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import ContactDrawer from './ContactDrawer';
 import ActivityTimeline from './ActivityTimeline';
@@ -87,7 +88,7 @@ function CollapsibleCard({ title, defaultOpen = false, badge, children }) {
 }
 
 // インライン編集可能なフィールド行 (クリック→入力→blur保存)
-function EditableField({ label, value, type = 'text', options, placeholder, onSave, mono = false, valueColor }) {
+function EditableField({ label, value, type = 'text', options, datalistOptions, placeholder, onSave, mono = false, valueColor }) {
   const [editing, setEditing] = useState(false);
   const [localVal, setLocalVal] = useState(value ?? '');
   const inputRef = useRef(null);
@@ -136,21 +137,29 @@ function EditableField({ label, value, type = 'text', options, placeholder, onSa
             ))}
           </select>
         ) : (
-          <input
-            ref={inputRef}
-            type={type === 'email' ? 'email' : 'text'}
-            value={localVal}
-            onChange={e => setLocalVal(e.target.value)}
-            onBlur={commit}
-            onKeyDown={e => { if (e.key === 'Escape') cancel(); if (e.key === 'Enter') commit(); }}
-            placeholder={placeholder}
-            style={{
-              width: '100%', padding: '4px 6px', border: `1px solid ${NAVY}`,
-              borderRadius: radius.sm, fontSize: font.size.xs,
-              fontFamily: mono ? font.family.mono : font.family.sans,
-              color: C.textDark, outline: 'none', background: color.white, boxSizing: 'border-box',
-            }}
-          />
+          <>
+            <input
+              ref={inputRef}
+              type={type === 'email' ? 'email' : 'text'}
+              value={localVal}
+              onChange={e => setLocalVal(e.target.value)}
+              onBlur={commit}
+              onKeyDown={e => { if (e.key === 'Escape') cancel(); if (e.key === 'Enter') commit(); }}
+              placeholder={placeholder}
+              list={datalistOptions ? `dl-${label}` : undefined}
+              style={{
+                width: '100%', padding: '4px 6px', border: `1px solid ${NAVY}`,
+                borderRadius: radius.sm, fontSize: font.size.xs,
+                fontFamily: mono ? font.family.mono : font.family.sans,
+                color: C.textDark, outline: 'none', background: color.white, boxSizing: 'border-box',
+              }}
+            />
+            {datalistOptions && (
+              <datalist id={`dl-${label}`}>
+                {datalistOptions.map(o => <option key={o} value={o} />)}
+              </datalist>
+            )}
+          </>
         )}
       </div>
     );
@@ -1008,7 +1017,8 @@ export default function ClientDetailPage({
             )}
             <EditableField
               label="支払サイト" value={c.paySite}
-              placeholder="例: 月末締め翌月末払い"
+              placeholder="例: 毎月末日〆翌月末払い"
+              datalistOptions={PAYMENT_SITE_OPTIONS}
               onSave={v => patchClient({ paySite: v })}
             />
             <EditableField
