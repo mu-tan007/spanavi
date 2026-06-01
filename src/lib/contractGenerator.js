@@ -235,14 +235,15 @@ export function formatRewardTable(rewardSummary) {
         // memo に「5000万円未満：15万円」のような完成形がある時はそれを使う
         lines.push(t.memo);
       } else {
-        // lo/hi/price から自動生成 (例: 「売上高5,000万円未満：15万円」)
+        // lo/hi/price から自動生成 — オリジナルひな形に合わせ「売上高がN円未満の会社：X万円」型
+        const basis = (r.basis || '売上高') + 'が';
         let range;
         if (t.lo == null || t.lo === 0) {
-          range = (r.basis || '売上高') + fmtJpYen(t.hi) + '未満';
+          range = basis + fmtJpYen(t.hi) + '未満';
         } else if (t.hi == null || t.hi >= 999999999999) {
-          range = (r.basis || '売上高') + fmtJpYen(t.lo) + '以上';
+          range = basis + fmtJpYen(t.lo) + '以上';
         } else {
-          range = (r.basis || '売上高') + fmtJpYen(t.lo) + '以上' + fmtJpYen(t.hi) + '未満';
+          range = basis + fmtJpYen(t.lo) + '以上' + fmtJpYen(t.hi) + '未満';
         }
         lines.push(range + 'の会社：' + fmtJpYen(t.price));
       }
