@@ -348,21 +348,14 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
             )}
           </div>
 
-          {/* HP から自動取得バー */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '8px 12px', background: color.gray50, borderRadius: radius.sm,
-            border: `1px dashed ${color.border}`,
-          }}>
-            <span style={{ fontSize: 10, color: color.textMid }}>
-              HP から住所・代表者・HP URL を自動取得 (Claude + web search):
-            </span>
+          {/* HP から自動取得 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={handleAutoFillFromHomepage}
               disabled={autoFilling || !clientName.trim()}
               style={{
-                padding: '3px 12px', fontSize: 11, fontWeight: font.weight.semibold,
+                padding: '5px 14px', fontSize: 11, fontWeight: font.weight.semibold,
                 background: autoFilling ? color.gray100 : color.navy,
                 color: autoFilling ? color.textLight : color.white,
                 border: 'none', borderRadius: radius.sm,
@@ -372,20 +365,11 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
             >
               {autoFilling ? '取得中… (10〜30秒)' : 'HPから自動取得'}
             </button>
-            {autoFillResult && (
-              <span style={{
-                fontSize: 10,
-                color: autoFillResult.confidence === 'high' ? color.success
-                  : autoFillResult.confidence === 'medium' ? color.gold : color.danger,
-              }}>
-                {autoFillResult.confidence === 'high' ? '✓ ' : autoFillResult.confidence === 'medium' ? '△ ' : '⚠ '}
-                {autoFillResult.confidence} — {autoFillResult.reason || ''}
-                {autoFillResult.hp_url && (
-                  <a href={autoFillResult.hp_url} target="_blank" rel="noreferrer" style={{ marginLeft: 6, color: color.navy }}>
-                    {autoFillResult.hp_url}
-                  </a>
-                )}
-              </span>
+            {autoFillResult?.hp_url && (
+              <a href={autoFillResult.hp_url} target="_blank" rel="noreferrer"
+                style={{ fontSize: 10, color: color.textMid, textDecoration: 'underline' }}>
+                {autoFillResult.hp_url}
+              </a>
             )}
           </div>
 
