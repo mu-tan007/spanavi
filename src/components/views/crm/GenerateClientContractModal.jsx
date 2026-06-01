@@ -123,10 +123,6 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
     return () => { cancelled = true; };
   }, [client?._supaId, engagements, products, categories, rewardMaster]);
 
-  const handleNormalizeAddress = () => {
-    setClientAddress(prev => normalizeAddressToCompanyStyle(prev));
-  };
-
   // HP から「住所・代表者・HP URL」を一括取得 (Claude + web search)
   const handleAutoFillFromHomepage = async () => {
     if (!clientName.trim()) {
@@ -306,8 +302,8 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
           {/* 入力モード切替 */}
           <div style={{ display: 'flex', gap: 4, borderBottom: `1px solid ${color.border}`, paddingBottom: 8 }}>
             {[
-              { key: 'form', label: '📋 フォーム入力' },
-              { key: 'chat', label: '💬 AI と対話で入力' },
+              { key: 'form', label: 'フォーム入力' },
+              { key: 'chat', label: 'AI と対話で入力' },
             ].map(t => {
               const active = inputMode === t.key;
               return (
@@ -481,15 +477,9 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={label}>
                 住所
-                <button
-                  type="button"
-                  onClick={handleNormalizeAddress}
-                  style={{
-                    marginLeft: 8, padding: '1px 8px', fontSize: 10,
-                    border: `1px solid ${color.navy}`, background: color.white,
-                    color: color.navy, borderRadius: radius.sm, cursor: 'pointer',
-                  }}
-                >当社表記に整形 (一丁目1-2)</button>
+                <span style={{ marginLeft: 6, fontSize: 10, color: color.textLight, fontWeight: font.weight.normal }}>
+                  (HPから自動取得時は当社表記「赤坂一丁目11-44」に自動整形されます)
+                </span>
               </label>
               <input
                 value={clientAddress}

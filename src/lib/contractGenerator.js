@@ -177,18 +177,23 @@ function toKanji(n) {
 export function normalizeAddressToCompanyStyle(addr) {
   if (!addr) return '';
   let s = String(addr).trim();
-  // (1) 「N丁目」「N-」のN(町名直後の最初の数字) を漢数字+「丁目」に変換
-  //     パターン: 町名(漢字/かな) + 数字 + (丁目|-)
-  s = s.replace(/([一-龥ぁ-んァ-ヶ々]{1,12}?)(\d{1,2})(丁目|-)/, (_m, name, num, sep) => {
-    return `${name}${toKanji(Number(num))}丁目`;
-  });
-  // (2) 全角数字を半角化
-  s = s.replace(/[0-9]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
-  // (3) 「番N号」「N番N号」を「N-N」表記に
+  // (-1) 文字化け文字を除去 (Claude web search で時々混入する Œ, œ, æ, ß や 0x2000 系の不可視文字等)
+  //      日本住所で使う文字 (漢字/ひらがな/カタカナ/英数字/半角空白/-/丁目/番/号/カッコ) のみ許可
+  s = s.replace(/[^　-ヿ一-鿿㐀-䶿a-zA-Z0-9 \-丁目番号()（）]/g, '');
+  // (0) 全角数字を半角化 (先にやらないと丁目検出ミスする)
+  s = s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  // (1) 既に「丁目」が含まれていなければ、「N丁目」「N-」のN(町名直後の最初の数字) を漢数字+「丁目」に変換
+  //     既に「三丁目5-1」のような表記なら触らない (誤って「三丁目五丁目」にならないように)
+  if (!s.includes('丁目')) {
+    s = s.replace(/([一-龥ぁ-んァ-ヶ々]{1,12}?)(\d{1,2})(?=-)/, (_m, name, num) => {
+      return `${name}${toKanji(Number(num))}丁目`;
+    });
+  }
+  // (2) 「番N号」「N番N号」を「N-N」表記に
   s = s.replace(/(\d+)番(\d+)号?/g, '$1-$2');
-  // (4) 単独の「番」「号」を - / 空 に
+  // (3) 単独の「番」「号」を - / 空 に
   s = s.replace(/番/g, '-').replace(/号/g, '');
-  // (5) 連続ハイフン圧縮
+  // (4) 連続ハイフン圧縮
   s = s.replace(/-+/g, '-').replace(/-$/, '');
   return s;
 }
