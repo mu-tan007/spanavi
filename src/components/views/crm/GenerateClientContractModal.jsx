@@ -497,29 +497,13 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
             </div>
           </div>
 
-          {/* 追加条項 (任意) */}
-          <div>
-            <label style={label}>
-              追加条項 (任意)
-              <span style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.normal, marginLeft: 6 }}>
-                — ひな形と異なる特約や個別条項があればここに記入 (テンプレ {'{{custom_clauses}}'} に差し込み)
-              </span>
-            </label>
-            <textarea
-              value={customClauses}
-              onChange={e => setCustomClauses(e.target.value)}
-              rows={5}
-              style={{ ...input, fontSize: font.size.xs, lineHeight: 1.6, resize: 'vertical' }}
-              placeholder={'例:\n1. 報告は毎週金曜午後に Slack で実施するものとする。\n2. 振込口座は ●●銀行 ●●支店 限定とする。'}
-            />
-          </div>
-
-          {/* AI で一括入力 (任意) — 必要な時だけ折りたたみから展開 */}
+          {/* AI と対話で入力 (追加条項や上のフォーム値の一括変更に使う) */}
           <details style={{ border: `1px dashed ${color.border}`, borderRadius: radius.sm, padding: '8px 12px' }}>
             <summary style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, cursor: 'pointer' }}>
-              AI と対話で一括入力する (任意)
+              AI と対話で入力 / 追加条項を決める (任意)
               <span style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.normal, marginLeft: 6 }}>
-                — 「6月1日開始、1年契約、報酬は税別で」のように自然文で複数項目を伝えると上のフォームに反映
+                — 「6月1日開始、1年契約」のような自然文で上のフォームに一括反映。
+                「報告は毎週金曜午後に Slack で」等と伝えれば特約条項として差し込み
               </span>
             </summary>
             <div style={{
