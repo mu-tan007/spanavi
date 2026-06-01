@@ -2535,9 +2535,14 @@ MASP 篠宮`}
                     if ((isKanryo || wasKanryo) && setMembers) {
                       const member = members.find(m => typeof m !== 'string' && m.name === updated.getter);
                       if (member?._supaId) {
-                        // cumulative_sales の増減のみ（rewardは触らない）
+                        // cumulative_sales の増減を 4パターン分岐:
+                        // 1) アポ取得→面談済: +新売上
+                        // 2) 面談済→アポ取得: -元売上
+                        // 3) 面談済→面談済 (額変更): +(新売上-元売上) ← 売上額編集の差分
+                        // 4) 両方面談済以外: 0
                         const delta = (isKanryo && !wasKanryo)  ?  (updated.sales  || 0)
                                     : (!isKanryo && wasKanryo)  ? -(original.sales || 0)
+                                    : (isKanryo && wasKanryo)   ?  ((updated.sales || 0) - (original.sales || 0))
                                     : 0;
                         if (delta !== 0) {
                           const newTotal = Math.max(0, (member.totalSales || 0) + delta);
@@ -2727,7 +2732,11 @@ MASP 篠宮`}
                       if ((isKanryo || wasKanryo) && setMembers) {
                         const member = members.find(m => typeof m !== 'string' && m.name === updated.getter);
                         if (member?._supaId) {
-                          const delta = (isKanryo && !wasKanryo) ? (updated.sales || 0) : (!isKanryo && wasKanryo) ? -(original.sales || 0) : 0;
+                          // 4パターン: ①取得→面談済 +新売上 / ②面談済→取得 -元売上 / ③面談済→面談済 売上額差分 / ④それ以外 0
+                          const delta = (isKanryo && !wasKanryo) ? (updated.sales || 0)
+                                      : (!isKanryo && wasKanryo) ? -(original.sales || 0)
+                                      : (isKanryo && wasKanryo)  ? ((updated.sales || 0) - (original.sales || 0))
+                                      : 0;
                           if (delta !== 0) {
                             const newTotal = Math.max(0, (member.totalSales || 0) + delta);
                             const { rank: newRank, rate: newRate } = calcRankAndRate(newTotal);
