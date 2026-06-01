@@ -333,6 +333,28 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [engagementMap, setEngagementMap] = useState({}); // { [engId]: { id, type, name, slug, categoryName } }
   const [categoryOrderedList, setCategoryOrderedList] = useState([]); // [{ name, display_order }]
   const [engsByCategory, setEngsByCategory] = useState({}); // { [categoryName]: [{ id, type, name, slug }] }
+
+  // メンバーのインセンティブ率 (当社売上変更時のインターン報酬自動再計算用)
+  // props.members は名前文字列配列なので、ここで別途フル情報を取得する
+  const [memberRateByName, setMemberRateByName] = useState({}); // { '氏名': 0.22, ... }
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const orgId = getOrgId();
+      if (!orgId) return;
+      const { data } = await supabase.from('members')
+        .select('name, incentive_rate')
+        .eq('org_id', orgId)
+        .eq('is_active', true);
+      if (cancelled) return;
+      const map = {};
+      (data || []).forEach(m => {
+        if (m.name) map[m.name] = parseFloat(m.incentive_rate || 0) || 0;
+      });
+      setMemberRateByName(map);
+    })();
+    return () => { cancelled = true; };
+  }, []);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -2462,9 +2484,8 @@ MASP 篠宮`}
                       value={editForm.sales}
                       onChange={e => {
                         const newSales = Number(e.target.value) || 0;
-                        // 担当アポインターのincentive率取得
-                        const member = members.find(m => (m.name || (typeof m === 'string' ? m : '')) === editForm.getter);
-                        const rate = parseFloat(member?.incentive_rate ?? member?.rate ?? 0) || 0;
+                        // 担当アポインターのincentive率取得 (DBから取得した実マップを使用)
+                        const rate = memberRateByName[editForm.getter] || 0;
                         // 該当クライアントの calc_type を判定
                         const client = clientData.find(c => c.company === editForm.client);
                         const rewardRow = client?.rewardType ? rewardMaster.find(r => r.id === client.rewardType) : null;
