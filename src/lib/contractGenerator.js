@@ -286,8 +286,15 @@ export async function generateAndDownloadClientContract({
   });
   const blob = renderDocxBlob(ab, placeholders);
   const safeName = (clientName || 'client').replace(/[\\/:*?"<>|]/g, '_');
-  const safeTpl = (template?.name || 'contract').replace(/[\\/:*?"<>|]/g, '_');
-  const filename = `${safeTpl}_${safeName}_${contractDate || ''}.docx`;
+  // テンプレ名から運用識別子 (Spanaviテンプレ/テンプレ/ひな形) を除去して
+  // 契約書本来の名称 (秘密保持契約書/業務委託契約書 等) に整える
+  const baseType = (template?.name || 'contract')
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .replace(/[_\s]*Spanaviテンプレ$/, '')
+    .replace(/[_\s]*テンプレ$/, '')
+    .replace(/[_\s]*ひな形$/, '');
+  // 例: 業務委託契約書_M&Aソーシングパートナーズ株式会社 御中.docx
+  const filename = `${baseType}_${safeName} 御中.docx`;
   saveAs(blob, filename);
   return { placeholders, filename };
 }
