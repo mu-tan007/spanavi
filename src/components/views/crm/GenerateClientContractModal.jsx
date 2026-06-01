@@ -542,19 +542,10 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
             </div>
           </div>
 
-          {/* 支払条件 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10 }}>
-            <div>
-              <label style={label}>消費税</label>
-              <select value={tax} onChange={e => setTax(e.target.value)} style={input}>
-                <option value="税別">税別</option>
-                <option value="税込">税込</option>
-              </select>
-            </div>
-            <div>
-              <label style={label}>支払サイト</label>
-              <input value={paymentSite} onChange={e => setPaymentSite(e.target.value)} style={input} />
-            </div>
+          {/* 支払条件 (消費税は報酬体系マスタの tax に連動するので別欄不要) */}
+          <div>
+            <label style={label}>支払サイト</label>
+            <input value={paymentSite} onChange={e => setPaymentSite(e.target.value)} style={input} />
           </div>
 
           {/* 報酬体系 (自動 / マスタ選択 / 手動編集) */}
