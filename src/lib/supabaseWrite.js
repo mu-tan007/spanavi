@@ -425,14 +425,12 @@ export async function saveSentInvoiceArchive({ clientId, clientName, invoiceMont
   if (!clientName || !invoiceMonth || !pdfBlob || !filename) {
     return { file_path: null, error: new Error('missing required fields') }
   }
-  // パス: {orgId}/{YYYY-MM}/{clientId or 'no-client'}/{timestamp}_{filename}
-  // Supabase Storage はパスに半角/全角スペース・特殊文字を許容しないため _ に置換
-  const safeFilename = filename
-    .replace(/[\\/:*?"<>|#%&{}<>\s　]/g, '_')  // 特殊文字 + 半角/全角スペース
-    .replace(/_+/g, '_')  // 連続_を1つに
-    .slice(0, 200)  // 念のため長さ制限
+  // パスは ASCII セーフな形式 ({orgId}/{YYYY-MM}/{clientId}/{timestamp}.pdf) に統一
+  // Supabase Storage は日本語/特殊文字を含むパスを 'Invalid key' で拒否するため
+  // 表示用ファイル名 (日本語含む) は invoice_sent_log.filename に保持
+  const ext = filename.match(/\.[^.]+$/)?.[0]?.toLowerCase() || '.pdf'
   const ts = Date.now()
-  const filePath = `${orgId}/${invoiceMonth}/${clientId || 'no-client'}/${ts}_${safeFilename}`
+  const filePath = `${orgId}/${invoiceMonth}/${clientId || 'no-client'}/${ts}${ext}`
   const { error: upErr } = await supabase.storage
     .from('invoices')
     .upload(filePath, pdfBlob, {
