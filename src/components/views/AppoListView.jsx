@@ -2450,8 +2450,42 @@ MASP 篠宮`}
                   </div>
                   <div><label style={labelStyle}>取得日</label><input type="date" value={editForm.getDate} onChange={e => u("getDate", e.target.value)} style={inputStyle} /></div>
                   <div><label style={labelStyle}>面談日</label><input type="date" value={editForm.meetDate} onChange={e => u("meetDate", e.target.value)} style={inputStyle} /></div>
-                  <div><label style={labelStyle}>当社売上</label><input type="number" value={editForm.sales} onChange={e => u("sales", Number(e.target.value))} style={inputStyle} /></div>
-                  <div><label style={labelStyle}>インターン報酬</label><input type="number" value={editForm.reward} onChange={e => u("reward", Number(e.target.value))} style={inputStyle} /></div>
+                  <div>
+                    <label style={labelStyle}>
+                      当社売上
+                      <span style={{ marginLeft: 6, fontSize: 9, color: color.textLight, fontWeight: font.weight.normal }}>
+                        ※ 変更するとインターン報酬を担当者のインセンティブ率で自動再計算
+                      </span>
+                    </label>
+                    <input
+                      type="number"
+                      value={editForm.sales}
+                      onChange={e => {
+                        const newSales = Number(e.target.value) || 0;
+                        // 担当アポインターのincentive率取得
+                        const member = members.find(m => (m.name || (typeof m === 'string' ? m : '')) === editForm.getter);
+                        const rate = parseFloat(member?.incentive_rate ?? member?.rate ?? 0) || 0;
+                        // 該当クライアントの calc_type を判定
+                        const client = clientData.find(c => c.company === editForm.client);
+                        const rewardRow = client?.rewardType ? rewardMaster.find(r => r.id === client.rewardType) : null;
+                        const isFixedPerAppo = rewardRow?.calc_type === 'fixed_per_appo';
+                        // calc_type='fixed_per_appo' の場合は sales=reward 一律 (個別レート無視)
+                        // それ以外 (rate) は sales × member.incentive_rate
+                        const newReward = isFixedPerAppo ? newSales : (rate ? Math.round(newSales * rate) : 0);
+                        setEditForm(p => ({ ...p, sales: newSales, reward: newReward }));
+                      }}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>
+                      インターン報酬
+                      <span style={{ marginLeft: 6, fontSize: 9, color: color.textLight, fontWeight: font.weight.normal }}>
+                        (自動計算、手動上書き可)
+                      </span>
+                    </label>
+                    <input type="number" value={editForm.reward} onChange={e => u("reward", Number(e.target.value))} style={inputStyle} />
+                  </div>
                   <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>備考</label><input value={editForm.note} onChange={e => u("note", e.target.value)} style={inputStyle} /></div>
                 </div>
               </div>
