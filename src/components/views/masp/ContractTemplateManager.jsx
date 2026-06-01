@@ -45,8 +45,9 @@ const SCOPE_TABS = [
   { key: 'client', label: 'クライアント向け', desc: 'NDA / 業務委託契約書' },
 ];
 
-export default function ContractTemplateManager({ isAdmin }) {
-  const [scopeType, setScopeType] = useState('member');
+// lockedScope = 'member' | 'client' を渡すと scope タブを非表示にして固定表示
+export default function ContractTemplateManager({ isAdmin, lockedScope = null }) {
+  const [scopeType, setScopeType] = useState(lockedScope || 'member');
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -174,29 +175,31 @@ export default function ContractTemplateManager({ isAdmin }) {
         </div>
       </div>
 
-      {/* scope タブ */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: space[3] }}>
-        {SCOPE_TABS.map(t => {
-          const active = scopeType === t.key;
-          return (
-            <button
-              key={t.key}
-              onClick={() => setScopeType(t.key)}
-              style={{
-                padding: '6px 14px', borderRadius: radius.sm,
-                fontSize: font.size.xs, fontWeight: font.weight.semibold,
-                cursor: 'pointer', fontFamily: font.family.sans,
-                border: '1px solid ' + (active ? color.navy : color.border),
-                background: active ? color.navy : color.white,
-                color: active ? color.white : color.textMid,
-              }}
-            >
-              {t.label}
-              <span style={{ fontSize: 9, opacity: 0.7, marginLeft: 6 }}>{t.desc}</span>
-            </button>
-          );
-        })}
-      </div>
+      {/* scope タブ (lockedScope 指定時は非表示) */}
+      {!lockedScope && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: space[3] }}>
+          {SCOPE_TABS.map(t => {
+            const active = scopeType === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setScopeType(t.key)}
+                style={{
+                  padding: '6px 14px', borderRadius: radius.sm,
+                  fontSize: font.size.xs, fontWeight: font.weight.semibold,
+                  cursor: 'pointer', fontFamily: font.family.sans,
+                  border: '1px solid ' + (active ? color.navy : color.border),
+                  background: active ? color.navy : color.white,
+                  color: active ? color.white : color.textMid,
+                }}
+              >
+                {t.label}
+                <span style={{ fontSize: 9, opacity: 0.7, marginLeft: 6 }}>{t.desc}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div style={{ fontSize: 11, color: color.textLight, marginBottom: space[2] }}>
         {currentDesc}

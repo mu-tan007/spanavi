@@ -493,7 +493,8 @@ export default function MASPMembersView({ isAdmin }) {
       </PageHeader>
 
       <div style={{ padding: '24px 16px 0' }}>
-        <ContractTemplateManager isAdmin={isAdmin} />
+        {/* メンバー向け業務委託テンプレのみ表示 (クライアント向けは CRM > 契約書テンプレ サブタブへ移管) */}
+        <ContractTemplateManager isAdmin={isAdmin} lockedScope="member" />
       </div>
 
       <div style={{ padding: '8px 16px 16px', overflowX: 'auto' }}>

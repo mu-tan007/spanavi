@@ -12,6 +12,7 @@ import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import ClientDetailPage from './contacts/ClientDetailPage';
 import { EmailFollowupModal } from './BusinessOverviewView';
 import RewardTypeManager from './masp/RewardTypeManager';
+import ContractTemplateManager from './masp/ContractTemplateManager';
 import { dbFieldsToFe } from '../../utils/clientFieldsMap';
 import { insertClientContact as insertClientContactFn } from '../../lib/supabaseWrite';
 import { NAVY, CRM_COLS_BASE, CRM_COLS_EDIT, currentYearMonth } from './crm/utils';
@@ -227,8 +228,8 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   const [sortState, setSortState] = useState({ key: null, dir: null });
   // 商材フィルタ ('all' or '商材名')
   const [productFilter, setProductFilter] = useUrlState('product', 'all');
-  // CRM内サブセクション ('clients' = クライアント一覧 / 'rewards' = 報酬体系マスタ)
-  const [crmSection, setCrmSection] = useUrlState('crm_section', 'clients', { allowed: ['clients', 'rewards'] });
+  // CRM内サブセクション ('clients' = クライアント一覧 / 'rewards' = 報酬体系マスタ / 'contracts' = 契約書テンプレ)
+  const [crmSection, setCrmSection] = useUrlState('crm_section', 'clients', { allowed: ['clients', 'rewards', 'contracts'] });
 
   // クライアントが持つ商材一覧 (タブのカウント用)
   const productCounts = useMemo(() => {
@@ -590,8 +591,9 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
       {view !== 'detail' && (
         <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: `1px solid ${color.border}` }}>
           {[
-            { key: 'clients', label: 'クライアント一覧' },
-            { key: 'rewards', label: '報酬体系マスタ' },
+            { key: 'clients',   label: 'クライアント一覧' },
+            { key: 'rewards',   label: '報酬体系マスタ' },
+            { key: 'contracts', label: '契約書テンプレ' },
           ].map(t => {
             const active = crmSection === t.key;
             return (
@@ -615,6 +617,11 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
       {/* 報酬体系マスタ画面 */}
       {view !== 'detail' && crmSection === 'rewards' && (
         <RewardTypeManager isAdmin={isAdmin} />
+      )}
+
+      {/* 契約書テンプレ画面 (クライアント向け固定) */}
+      {view !== 'detail' && crmSection === 'contracts' && (
+        <ContractTemplateManager isAdmin={isAdmin} lockedScope="client" />
       )}
 
       {/* 詳細ページモード */}
