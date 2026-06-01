@@ -206,29 +206,47 @@ export function normalizeAddressToCompanyStyle(addr) {
 //   ・5000万〜1億：20万円
 //   ・1億〜3億：30万円
 //   ・3億以上：50万円
+// 金額表記: 1234567 → 「123万4567円」、5000万 → 「5,000万円」
+function fmtJpYen(n) {
+  if (n == null) return '';
+  const v = Number(n);
+  if (v >= 100000000) {
+    const oku = v / 100000000;
+    return (oku % 1 === 0 ? oku.toString() : oku.toFixed(1)) + '億円';
+  }
+  if (v >= 10000) {
+    const man = v / 10000;
+    return (man % 1 === 0 ? man.toString() : man.toFixed(1)) + '万円';
+  }
+  return v.toLocaleString() + '円';
+}
+
 export function formatRewardTable(rewardSummary) {
   if (!Array.isArray(rewardSummary) || rewardSummary.length === 0) return '報酬体系未設定';
   const lines = [];
   for (const r of rewardSummary) {
-    const cats = (r.categories || []).join('/');
-    const header = `■${cats} (${r.name}${r.basis ? ' / ' + r.basis : ''}${r.tax ? ' / ' + r.tax : ''})`;
-    lines.push(header);
     const tiers = r.tiers || [];
     if (tiers.length === 0) {
-      lines.push('・段階情報なし');
-    } else {
-      tiers.forEach(t => {
-        if (t.memo) {
-          lines.push(`・${t.memo}`);
-        } else {
-          const lo = t.lo != null ? Number(t.lo).toLocaleString() : '';
-          const hi = t.hi != null && t.hi < 999999999999 ? Number(t.hi).toLocaleString() : '上限なし';
-          const price = t.price != null ? '¥' + Number(t.price).toLocaleString() : '';
-          lines.push(`・${lo}〜${hi} → ${price}`);
-        }
-      });
+      lines.push('（段階情報未設定）');
+      continue;
     }
-    lines.push('');
+    tiers.forEach(t => {
+      if (t.memo) {
+        // memo に「5000万円未満：15万円」のような完成形がある時はそれを使う
+        lines.push(t.memo);
+      } else {
+        // lo/hi/price から自動生成 (例: 「売上高5,000万円未満：15万円」)
+        let range;
+        if (t.lo == null || t.lo === 0) {
+          range = (r.basis || '売上高') + fmtJpYen(t.hi) + '未満';
+        } else if (t.hi == null || t.hi >= 999999999999) {
+          range = (r.basis || '売上高') + fmtJpYen(t.lo) + '以上';
+        } else {
+          range = (r.basis || '売上高') + fmtJpYen(t.lo) + '以上' + fmtJpYen(t.hi) + '未満';
+        }
+        lines.push(range + 'の会社：' + fmtJpYen(t.price));
+      }
+    });
   }
   return lines.join('\n').trim();
 }
