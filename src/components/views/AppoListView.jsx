@@ -325,7 +325,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
   );
 }
 
-export default function AppoListView({ appoData, setAppoData, members = [], setMembers, clientData = [], rewardMaster = [], setCallFlowScreen, callListData = [], contactsByClient = {} }) {
+export default function AppoListView({ appoData, setAppoData, members = [], setMembers, clientData = [], rewardMaster = [], setCallFlowScreen, callListData = [], contactsByClient = {}, onDataRefetch }) {
   const isMobile = useIsMobile();
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
 
@@ -696,6 +696,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       if (errors.length > 0) alert(`${targetAppos.length - errors.length}件更新成功、${errors.length}件失敗しました。`);
       setSelectedIds(new Set());
       setBulkStatus('');
+      // 一括更新後はデータ全体を refetch して画面表示と DB を完全同期
+      if (memberUpdates.length > 0 && onDataRefetch) onDataRefetch();
     } catch (e) {
       alert('一括更新に失敗しました: ' + (e.message || '不明なエラー'));
     } finally {
@@ -2560,6 +2562,8 @@ MASP 篠宮`}
                                 : m
                             ));
                             if (original?._supaId) await updateAppoCounted(original._supaId, isKanryo);
+                            // データ全体を refetch して画面表示と DB を完全同期
+                            if (onDataRefetch) onDataRefetch();
                           }
                         }
                       }
@@ -2745,6 +2749,7 @@ MASP 篠宮`}
                             else {
                               setMembers(prev => prev.map(m => (typeof m !== 'string' && m._supaId === member._supaId) ? { ...m, totalSales: newTotal, rank: newRank, rate: newRate } : m));
                               if (original?._supaId) await updateAppoCounted(original._supaId, isKanryo);
+                              if (onDataRefetch) onDataRefetch();
                             }
                           }
                         }
@@ -3407,6 +3412,7 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
                         }
                         setMembers(prev => prev.map(m => m.id === editForm.id ? { ...m, ...editForm } : m));
                         setEditForm(null);
+                        if (onDataRefetch) onDataRefetch();
                       }}
                     >
                       保存
