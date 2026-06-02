@@ -530,6 +530,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     if (searchQuery) { const q = searchQuery.toLowerCase(); lists = lists.filter(l => l.company.toLowerCase().includes(q) || l.industry.toLowerCase().includes(q) || l.manager.toLowerCase().includes(q)); }
     if (sortBy === "date") lists = [...lists].sort((a, b) => a.id - b.id);
     else if (sortBy === "manager") lists = [...lists].sort((a, b) => (a.manager || '').localeCompare(b.manager || ''));
+    else if (sortBy === "client") lists = [...lists].sort((a, b) => (a.company || '').localeCompare(b.company || '', 'ja'));
     return lists;
   }, [enrichedLists, filterStatus, filterType, searchQuery, sortBy]);
 

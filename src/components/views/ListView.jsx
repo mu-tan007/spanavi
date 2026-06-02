@@ -434,6 +434,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={inputStyle}>
           <option value="date">日付順</option>
           <option value="manager">担当者別</option>
+          <option value="client">クライアント順</option>
         </select>
         <span style={{ fontSize: font.size.xs, color: color.textLight, fontWeight: font.weight.semibold, fontFamily: font.family.mono }}>{(() => {
           const archivedCount = callListData.filter(l => l.is_archived).length;
@@ -753,11 +754,28 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
             ));
           })()}
         </div>}
-        {/* アーカイブ済みリスト (商材/タイプ フィルタを適用) */}
+        {/* アーカイブ済みリスト (商材/タイプ フィルタ + 検索 + ソート を適用) */}
         {displayFilter === 'archived' && (() => {
           let archivedLists = callListData.filter(l => l.is_archived);
           if (categoryFilter !== 'all') {
             archivedLists = archivedLists.filter(l => engagementToCategoryId[l.engagement_id] === categoryFilter);
+          }
+          // 検索 (企業名・業種・担当者で部分一致) — 通常リストと同じロジック
+          if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            archivedLists = archivedLists.filter(l =>
+              (l.company || '').toLowerCase().includes(q) ||
+              (l.industry || '').toLowerCase().includes(q) ||
+              (l.manager || '').toLowerCase().includes(q)
+            );
+          }
+          // ソート
+          if (sortBy === 'client') {
+            archivedLists = [...archivedLists].sort((a, b) => (a.company || '').localeCompare(b.company || '', 'ja'));
+          } else if (sortBy === 'manager') {
+            archivedLists = [...archivedLists].sort((a, b) => (a.manager || '').localeCompare(b.manager || ''));
+          } else if (sortBy === 'date') {
+            archivedLists = [...archivedLists].sort((a, b) => a.id - b.id);
           }
           if (archivedLists.length === 0) return <div style={{ padding: "24px 16px", textAlign: "center", fontSize: font.size.sm, color: color.textLight }}>— No records —</div>;
           return (
