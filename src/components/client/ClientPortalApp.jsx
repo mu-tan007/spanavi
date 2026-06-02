@@ -5,7 +5,6 @@ import { useAuth } from '../../hooks/useAuth';
 import { color, space, radius, font, alpha } from '../../constants/design';
 import { Button } from '../ui';
 import ClientDealsView from './ClientDealsView';
-import ClientOnboardingView from './ClientOnboardingView';
 import ClientSetPasswordPage from './ClientSetPasswordPage';
 import SpanaviLogo from '../common/SpanaviLogo';
 import { RecordingPlayerProvider } from '../common/RecordingPlayerProvider';
@@ -33,21 +32,12 @@ function readAdminBackup() {
   }
 }
 
-// クライアントポータルのタブ
-// - onboarding: 架電開始前の準備フロー (契約/リスト/スクリプト/カレンダー)
-// - deals:      架電開始後のアポ・面談状況
-const PORTAL_TABS = [
-  { key: 'onboarding', label: 'オンボーディング' },
-  { key: 'deals',      label: 'アポ・面談' },
-];
-
 export default function ClientPortalApp() {
   const { session, loading: authLoading, signOut } = useAuth();
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [adminBackup, setAdminBackup] = useState(() => readAdminBackup());
   const [restoring, setRestoring] = useState(false);
-  const [currentTab, setCurrentTab] = useState('onboarding');
 
   useEffect(() => {
     // backupがlocalStorageから消えたケース等を反映するため、定期的に再読込
@@ -209,48 +199,12 @@ export default function ClientPortalApp() {
         </div>
       </header>
 
-      {/* タブナビゲーション */}
-      <nav style={{
-        background: color.white,
-        borderBottom: `1px solid ${color.border}`,
-        padding: `0 ${space[6]}px`,
-        display: 'flex', gap: space[1],
-      }}>
-        {PORTAL_TABS.map(t => {
-          const active = currentTab === t.key;
-          return (
-            <button
-              key={t.key}
-              onClick={() => setCurrentTab(t.key)}
-              style={{
-                padding: `${space[3]}px ${space[4]}px`,
-                background: 'transparent',
-                border: 'none',
-                borderBottom: active ? `2px solid ${color.navy}` : '2px solid transparent',
-                marginBottom: -1,
-                color: active ? color.navy : color.textMid,
-                fontSize: font.size.sm,
-                fontWeight: active ? font.weight.bold : font.weight.medium,
-                fontFamily: font.family.sans,
-                cursor: 'pointer',
-                transition: 'color 0.15s',
-              }}
-            >{t.label}</button>
-          );
-        })}
-      </nav>
-
       <main style={{ padding: space[4] }}>
-        {currentTab === 'onboarding' && (
-          <ClientOnboardingView client={client} />
-        )}
-        {currentTab === 'deals' && (
-          <ClientDealsView
-            client={client}
-            canEditDossier={!!adminBackup}
-            adminAccessToken={adminBackup?.access_token || null}
-          />
-        )}
+        <ClientDealsView
+          client={client}
+          canEditDossier={!!adminBackup}
+          adminAccessToken={adminBackup?.access_token || null}
+        />
       </main>
     </div>
     </RecordingPlayerProvider>
