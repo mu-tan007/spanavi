@@ -212,13 +212,13 @@ function fmtJpYen(n) {
   const v = Number(n);
   if (v >= 100000000) {
     const oku = v / 100000000;
-    return (oku % 1 === 0 ? oku.toString() : oku.toFixed(1)) + '億円';
+    return (oku % 1 === 0 ? oku.toLocaleString('ja-JP') : oku.toFixed(1)) + '億円';
   }
   if (v >= 10000) {
     const man = v / 10000;
-    return (man % 1 === 0 ? man.toString() : man.toFixed(1)) + '万円';
+    return (man % 1 === 0 ? man.toLocaleString('ja-JP') : man.toFixed(1)) + '万円';
   }
-  return v.toLocaleString() + '円';
+  return v.toLocaleString('ja-JP') + '円';
 }
 
 export function formatRewardTable(rewardSummary) {
@@ -231,18 +231,12 @@ export function formatRewardTable(rewardSummary) {
       continue;
     }
     tiers.forEach(t => {
-      if (t.memo) {
-        // memo に「5000万円未満：15万円」のような完成形がある時はそれを使う
-        // basis (売上高 / 当期純利益 / 営業利益 等) を前置して、何を基準にした
-        // 段階かを契約書上で明示する
-        const m = String(t.memo).replace(/^[\s　]+/, '');
-        const basis = r.basis || '売上高';
-        // memo に basis や「が」が既に含まれていなければ前置
-        const prefix = (m.includes(basis) || m.startsWith('が')) ? '' : basis + 'が';
-        lines.push('　' + prefix + m);
-      } else {
-        // lo/hi/price から自動生成 — オリジナルひな形に合わせ「売上高がN円未満の会社：X万円」型
-        const basis = (r.basis || '売上高') + 'が';
+      // 契約書なので、波線「〜」や省略形でなく必ず「N円以上N円未満の会社：X万円」型で書く
+      // lo/hi/price が揃っていればそれを優先、揃わない場合のみ memo を fallback
+      const hasPrice = t.price != null;
+      const hasRange = (t.lo != null) || (t.hi != null);
+      const basis = (r.basis || '売上高') + 'が';
+      if (hasPrice && hasRange) {
         let range;
         if (t.lo == null || t.lo === 0) {
           range = basis + fmtJpYen(t.hi) + '未満';
@@ -252,6 +246,11 @@ export function formatRewardTable(rewardSummary) {
           range = basis + fmtJpYen(t.lo) + '以上' + fmtJpYen(t.hi) + '未満';
         }
         lines.push('　' + range + 'の会社：' + fmtJpYen(t.price));
+      } else if (t.memo) {
+        // memo fallback (件数連動など、lo/hi で表現できないもの)
+        const m = String(t.memo).replace(/^[\s　]+/, '');
+        const prefix = (m.includes(r.basis || '売上高') || m.startsWith('が')) ? '' : basis;
+        lines.push('　' + prefix + m);
       }
     });
   }
@@ -282,7 +281,9 @@ export function buildClientPlaceholders({
     period_start: formatJpDateWareki(periodStart),
     period_end: formatJpDateWareki(periodEnd),
     reward_table: rewardTableText || '',
-    tax: tax || '税別',
+    // テンプレ側が「（消費税{{tax}}）」なので {{tax}} は「別」「込」だけにする
+    // → 「（消費税別）」「（消費税込）」 (オリジナルひな形流の表記)
+    tax: tax === '税込' ? '込' : tax === '税別' ? '別' : (tax || '別'),
     payment_site: paymentSite || '',
     // 入力が空なら空文字で展開 (テンプレ側で {{custom_clauses}} を残す/消す判断は運用次第)
     custom_clauses: customClauses || '',
