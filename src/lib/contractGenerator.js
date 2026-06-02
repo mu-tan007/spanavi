@@ -230,26 +230,48 @@ export function formatRewardTable(rewardSummary) {
       lines.push('（段階情報未設定）');
       continue;
     }
+    // basis が「件」を含む場合は件数連動 (アポ件数等)
+    // → 「3件目までは15,000円」「4件目以降は17,500円」形式
+    const isCountBased = String(r.basis || '').includes('件');
     tiers.forEach(t => {
-      // 契約書なので、波線「〜」や省略形でなく必ず「N円以上N円未満の会社：X万円」型で書く
-      // lo/hi/price が揃っていればそれを優先、揃わない場合のみ memo を fallback
       const hasPrice = t.price != null;
       const hasRange = (t.lo != null) || (t.hi != null);
-      const basis = (r.basis || '売上高') + 'が';
       if (hasPrice && hasRange) {
-        let range;
-        if (t.lo == null || t.lo === 0) {
-          range = basis + fmtJpYen(t.hi) + '未満';
-        } else if (t.hi == null || t.hi >= 999999999999) {
-          range = basis + fmtJpYen(t.lo) + '以上';
+        if (isCountBased) {
+          // 件数連動: lo/hi は件数 (1, 4, ...)。価格は円表記、'万円' に丸めない
+          const lo = t.lo;
+          const hi = t.hi;
+          const isFirst = (lo == null || lo <= 1);
+          const isLast = (hi == null || hi >= 999999);
+          let label;
+          if (isFirst && !isLast) {
+            label = `${hi - 1}件目までは`;
+          } else if (isLast && !isFirst) {
+            label = `${lo}件目以降は`;
+          } else if (!isFirst && !isLast) {
+            label = `${lo}件目から${hi - 1}件目までは`;
+          } else {
+            label = '全件';
+          }
+          lines.push('　' + label + Number(t.price).toLocaleString('ja-JP') + '円');
         } else {
-          range = basis + fmtJpYen(t.lo) + '以上' + fmtJpYen(t.hi) + '未満';
+          // 金額連動 (売上高 / 当期純利益等): 「N円以上N円未満の会社：X万円」型
+          const basis = (r.basis || '売上高') + 'が';
+          let range;
+          if (t.lo == null || t.lo === 0) {
+            range = basis + fmtJpYen(t.hi) + '未満';
+          } else if (t.hi == null || t.hi >= 999999999999) {
+            range = basis + fmtJpYen(t.lo) + '以上';
+          } else {
+            range = basis + fmtJpYen(t.lo) + '以上' + fmtJpYen(t.hi) + '未満';
+          }
+          lines.push('　' + range + 'の会社：' + fmtJpYen(t.price));
         }
-        lines.push('　' + range + 'の会社：' + fmtJpYen(t.price));
       } else if (t.memo) {
-        // memo fallback (件数連動など、lo/hi で表現できないもの)
+        // memo fallback
         const m = String(t.memo).replace(/^[\s　]+/, '');
-        const prefix = (m.includes(r.basis || '売上高') || m.startsWith('が')) ? '' : basis;
+        const basisPrefix = (r.basis || '売上高') + 'が';
+        const prefix = (m.includes(r.basis || '売上高') || m.startsWith('が')) ? '' : basisPrefix;
         lines.push('　' + prefix + m);
       }
     });
