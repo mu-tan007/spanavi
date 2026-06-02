@@ -122,7 +122,7 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards }) {
       style={{
         fontFamily: font.family.mono, fontSize: font.size.xs,
         color: color.navy, fontWeight: font.weight.semibold,
-        borderBottom: `1px dotted ${color.textLight}`, cursor: 'help',
+        borderBottom: `1px dotted ${color.textLight}`, cursor: 'default',
       }}
     >
       {label}
@@ -137,13 +137,15 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards }) {
           pointerEvents: 'none',
         }}>
           <div style={{
-            fontWeight: font.weight.bold, color: color.navy, marginBottom: 6,
+            fontWeight: font.weight.bold, color: color.navy, marginBottom: 2,
             paddingBottom: 4, borderBottom: `1px solid ${color.border}`,
           }}>
             {head.name}
-            <span style={{ marginLeft: 6, fontSize: 10, color: color.textMid, fontWeight: font.weight.normal }}>
-              ({head.basis || '—'}{head.tax ? ` / ${head.tax}` : ''})
-            </span>
+            <div style={{ fontSize: 10, color: color.textMid, fontWeight: font.weight.normal, marginTop: 2 }}>
+              {head.basis || '—'}
+              {head.tax === '税別' && <span> / 税別表記 <span style={{ color: color.textLight }}>(税込換算で表示)</span></span>}
+              {head.tax === '税込' && <span> / 税込</span>}
+            </div>
           </div>
           {isFixed ? (
             <div style={{ fontFamily: font.family.mono }}>
