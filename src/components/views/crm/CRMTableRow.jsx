@@ -210,8 +210,6 @@ export default function CRMTableRow({
   });
   const rank = priorityRank(score);
 
-  const lastMeeting = formatLastMeeting(lastMeetingAt);
-
   return (
     <div
       style={{
@@ -381,32 +379,46 @@ export default function CRMTableRow({
         )}
       </span>
 
-      {/* 8. 最終接点 (client_meetings 由来) */}
-      <span style={{
-        textAlign: crmCols[9]?.align,
-        fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums',
-        fontSize: font.size.xs, color: lastMeeting.color,
-      }}>{lastMeeting.label}</span>
-
-      {/* 9. メール作成 */}
-      <span style={{ textAlign: crmCols[10]?.align }}>
-        <button
-          onClick={(e) => { e.stopPropagation(); onComposeEmail?.(c); }}
-          title="この企業向けにフォローメールを作成"
-          style={{
-            padding: '4px 10px', background: color.white,
-            border: `1px solid ${color.navy}`, borderRadius: radius.sm,
-            color: color.navy, fontSize: 10, fontWeight: font.weight.semibold,
-            cursor: 'pointer', fontFamily: font.family.sans,
-            transition: 'background 0.12s, color 0.12s',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = color.navy; e.currentTarget.style.color = color.white; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = color.white; e.currentTarget.style.color = color.navy; }}
-        >メール作成</button>
+      {/* 8. メール作成 (主担当のメアド未登録なら薄く表示) */}
+      <span style={{ textAlign: crmCols[9]?.align }}>
+        {(() => {
+          const hasEmail = !!(primary?.email);
+          return (
+            <button
+              onClick={(e) => { e.stopPropagation(); if (hasEmail) onComposeEmail?.(c); }}
+              disabled={!hasEmail}
+              title={hasEmail
+                ? 'この企業向けにフォローメールを作成'
+                : '主担当のメールアドレスが未登録です'}
+              style={{
+                padding: '4px 10px',
+                background: color.white,
+                border: `1px solid ${hasEmail ? color.navy : color.border}`,
+                borderRadius: radius.sm,
+                color: hasEmail ? color.navy : color.textLight,
+                fontSize: 10, fontWeight: font.weight.semibold,
+                cursor: hasEmail ? 'pointer' : 'not-allowed',
+                opacity: hasEmail ? 1 : 0.45,
+                fontFamily: font.family.sans,
+                transition: 'background 0.12s, color 0.12s',
+              }}
+              onMouseEnter={(e) => {
+                if (!hasEmail) return;
+                e.currentTarget.style.background = color.navy;
+                e.currentTarget.style.color = color.white;
+              }}
+              onMouseLeave={(e) => {
+                if (!hasEmail) return;
+                e.currentTarget.style.background = color.white;
+                e.currentTarget.style.color = color.navy;
+              }}
+            >メール作成</button>
+          );
+        })()}
       </span>
 
-      {/* 10. メモ (インライン編集可) */}
-      <MemoCell client={c} setClientData={setClientData} align={crmCols[11]?.align} />
+      {/* 9. メモ (インライン編集可) */}
+      <MemoCell client={c} setClientData={setClientData} align={crmCols[10]?.align} />
     </div>
   );
 }
