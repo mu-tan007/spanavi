@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { color, space, radius, font, alpha } from '../../constants/design';
-import { Button, Input, Card } from '../ui';
-import { supabase } from '../../lib/supabase';
-import { getOrgId } from '../../lib/orgContext';
+import { color, space, radius, font, alpha } from '../../../constants/design';
+import { Button, Input, Card } from '../../ui';
+import { supabase } from '../../../lib/supabase';
+import { getOrgId } from '../../../lib/orgContext';
 
 // rejection_reason は AI 分析バッチで `HIGH/MEDIUM/LOW\n要約` 形式で保存される。
 const TEMP_BADGE = {
@@ -19,10 +19,10 @@ function parseRejection(raw) {
   return { temp: null, summary: String(raw).trim() };
 }
 
-// クライアントポータル「再アプローチ候補」タブ
+// 「再アプローチ候補」タブ (社内 DealsView / クライアントポータル ClientDealsView 共通)
 // 過去にキーマン断りとなった企業について、AI 分析した温度感 (HIGH/MEDIUM/LOW) と
 // 断り理由要約を一覧表示する。HIGH (将来期待値が高い断り) を上位に並べる。
-export default function ClientRejectionCandidatesTab({ client }) {
+export default function RejectionCandidatesTab({ client }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('');

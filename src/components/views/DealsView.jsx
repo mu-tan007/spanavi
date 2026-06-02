@@ -10,10 +10,12 @@ import ClientSelector from '../common/ClientSelector';
 import PageHeader from '../common/PageHeader';
 import CallResultsTab from './deals/CallResultsTab';
 import AppointmentsTab from './deals/AppointmentsTab';
+import RejectionCandidatesTab from './deals/RejectionCandidatesTab';
 
 const TABS = [
-  { id: 'calls', label: '架電結果' },
-  { id: 'appos', label: '獲得アポ詳細' },
+  { id: 'calls',     label: '架電結果' },
+  { id: 'appos',     label: '獲得アポ詳細' },
+  { id: 'rejection', label: '再アプローチ候補' },
 ];
 const TAB_IDS = TABS.map(t => t.id);
 
@@ -151,6 +153,9 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
             clients={clients}
             canEditDossier={true}
           />
+        )}
+        {activeTab === 'rejection' && (
+          <RejectionCandidatesTab client={selectedClient} />
         )}
       </div>
     </div>

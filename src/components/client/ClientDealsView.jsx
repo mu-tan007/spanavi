@@ -3,7 +3,7 @@ import { color, space, radius, font } from '../../constants/design';
 import PageHeader from '../common/PageHeader';
 import CallResultsTab from '../views/deals/CallResultsTab';
 import AppointmentsTab from '../views/deals/AppointmentsTab';
-import ClientRejectionCandidatesTab from './ClientRejectionCandidatesTab';
+import RejectionCandidatesTab from '../views/deals/RejectionCandidatesTab';
 
 const TABS = [
   { id: 'calls',     label: '架電結果' },
@@ -74,7 +74,7 @@ export default function ClientDealsView({ client, canEditDossier = false, adminA
           />
         )}
         {activeTab === 'rejection' && (
-          <ClientRejectionCandidatesTab client={{ id: client.id, name: client.name }} />
+          <RejectionCandidatesTab client={{ id: client.id, name: client.name }} />
         )}
       </div>
     </div>
