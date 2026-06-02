@@ -139,12 +139,19 @@ export function okuToK(oku) {
   return Math.round(n * 100_000);
 }
 
-// engagement slug → 日本語ラベル (3種) — 純関数。Hookではない
+// engagement.type → タイプ別の選択肢 — 純関数。Hookではない
+// 型 (type='seller_sourcing'/'matching'/'client_acquisition') ベースで全 engagement を返す。
+// 商材 (category_id) で絞り込まれた後は1商材1 engagement になる前提。
+// 旧実装は slug ベースで M&A 配下の3つしか拾えず、人材/IFA/SaaS の「リード獲得」が
+// タイプフィルタに出てこない不具合があった。
 export function salesAgencyEngagementOptions(allEngagements) {
-  const order = ['seller_sourcing', 'matching', 'client_acquisition'];
-  const label = { seller_sourcing: '売り手ソーシング', matching: '買い手マッチング', client_acquisition: 'クライアント開拓' };
+  const typeOrder = ['seller_sourcing', 'matching', 'client_acquisition'];
   return (allEngagements || [])
-    .filter(e => order.includes(e.slug))
-    .sort((a, b) => order.indexOf(a.slug) - order.indexOf(b.slug))
-    .map(e => ({ id: e.id, slug: e.slug, name: label[e.slug] || e.name }));
+    .filter(e => typeOrder.includes(e.type))
+    .sort((a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type))
+    .map(e => ({
+      id: e.id, slug: e.slug, type: e.type,
+      name: (e.name || '').trim(),
+      category_id: e.category_id,
+    }));
 }
