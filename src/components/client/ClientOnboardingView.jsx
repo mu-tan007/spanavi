@@ -10,18 +10,11 @@ const STATUS = {
 };
 
 // オンボーディング 4ステップ定義
+// (契約締結は本ポータル招待前にメールで完了している前提)
 const STEPS = [
   {
-    id: 'contract',
-    number: 1,
-    title: '契約締結',
-    summary: '弊社の雛形またはクライアント様提供の雛形をベースに、修正事項をすり合わせの上で GMO サインにて電子契約を締結します。',
-    details: ['雛形のアップロード / 共有', '修正事項のすり合わせ', 'GMO サインによる電子契約'],
-    cta: '契約書を確認・締結する',
-  },
-  {
     id: 'list',
-    number: 2,
+    number: 1,
     title: '架電リストの準備',
     summary: '弊社の東京商工リサーチ 50万社 DB / クライアント様提供リスト / 両者持ち寄りのいずれかでリストを作成します。1,000 件以上を推奨。',
     details: ['希望条件 (業種・売上規模・エリア) の入力', 'リストファイルのアップロード (任意)', '精査・最終確定'],
@@ -29,7 +22,7 @@ const STEPS = [
   },
   {
     id: 'script',
-    number: 3,
+    number: 2,
     title: 'トークスクリプトの作成',
     summary: 'クライアント様にベースがあれば共有いただき微調整、なければ弊社にてゼロから作成します。',
     details: ['ベーススクリプトの共有 (任意)', '弊社による調整', '最終版の確認'],
@@ -37,11 +30,19 @@ const STEPS = [
   },
   {
     id: 'calendar',
-    number: 4,
+    number: 3,
     title: 'カレンダー連携と日程調整ルールの設定',
     summary: '面談担当者のカレンダーと日程調整ツールを連携いただき、調整ルール (バッファー / 空き時間 / 土日対応) を設定します。',
     details: ['カレンダー (Google / Outlook) の連携', '日程調整ツール URL の共有', 'バッファー / 前後空き時間 / 土日対応'],
     cta: 'カレンダーを連携する',
+  },
+  {
+    id: 'misc',
+    number: 4,
+    title: 'その他の確認事項',
+    summary: 'NGリスト・トークの注意事項・連絡手段など、円滑な運用に必要な事項をヒアリングします。',
+    details: ['NGリスト (架電してはいけない先) の共有', 'トーク上の注意事項・禁止表現', '日次/週次の報告ルール', '緊急連絡先・連絡手段 (Slack / Chatwork 等)'],
+    cta: '確認事項を入力する',
   },
 ];
 
@@ -56,7 +57,7 @@ export default function ClientOnboardingView({ client }) {
       const raw = localStorage.getItem(storageKey);
       if (raw) return JSON.parse(raw);
     } catch {}
-    return { contract: 'todo', list: 'todo', script: 'todo', calendar: 'todo' };
+    return { list: 'todo', script: 'todo', calendar: 'todo', misc: 'todo' };
   });
 
   const updateStatus = (id, next) => {
