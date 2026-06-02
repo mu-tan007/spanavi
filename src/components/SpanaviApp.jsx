@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import React from "react";
-import { useSearchParams } from 'react-router-dom';
 import { C } from '../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../constants/design';
 import { Button, Input, Select, Card, Badge } from './ui';
@@ -381,19 +380,22 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       return (saved && _VALID_TABS.includes(saved)) ? saved : "lists";
     } catch(e) { return "lists"; }
   });
-  const [, setSearchParams] = useSearchParams();
   // 事業俯瞰のリスト分析等から CRM 詳細ページにジャンプするための共通遷移
+  // (Router の useSearchParams は SpanaviApp が早期 return する経路で
+  //  描画ツリーから外れて crash する場合があるため、history API を直接使う)
   const navigateToCrmDetail = useCallback((clientSupaId) => {
     if (!clientSupaId) return;
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('view', 'detail');
+      url.searchParams.set('clientId', clientSupaId);
+      url.searchParams.delete('crm_section');
+      window.history.replaceState({}, '', url.toString());
+      // popstate を発火して React Router の useSearchParams を同期させる
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    } catch (e) { console.warn('navigateToCrmDetail url update failed:', e); }
     setCurrentTab('crm');
-    setSearchParams(prev => {
-      const np = new URLSearchParams(prev);
-      np.set('view', 'detail');
-      np.set('clientId', clientSupaId);
-      np.delete('crm_section');
-      return np;
-    }, { replace: true });
-  }, [setSearchParams]);
+  }, []);
   useEffect(() => {
     try { localStorage.setItem("masp_v2_currentTab", currentTab); } catch(e) {}
   }, [currentTab]);
