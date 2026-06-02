@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge } from '../ui';
@@ -125,7 +126,7 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards }) {
       }}
     >
       {label}
-      {hover && (
+      {hover && createPortal(
         <div style={{
           position: 'fixed', top: pos.y, left: pos.x, zIndex: 99999,
           padding: '10px 12px', background: '#FFFFFF',
@@ -168,7 +169,8 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards }) {
               </tbody>
             </table>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </span>
   );
@@ -240,7 +242,9 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   const [showRec, setShowRec] = useState(true);
   // 'sourcing' = 通常ソーシング, 'prospecting' = クライアント開拓, 'archived' = アーカイブ, 'all' = 全て
   // displayFilter: engagement slug ('seller_sourcing' / 'matching' / 'client_acquisition' / 'client_acquisition_saas' 等) | 'archived' | 'all'
-  const [displayFilter, setDisplayFilter] = useState('seller_sourcing');
+  // 初期値は 'all' — 商材フィルタ 'all' との組み合わせで全リストが見えるようにする
+  // (初期値 'seller_sourcing' だと「全商材」を選んでいても売り手ソーシングだけになる問題があった)
+  const [displayFilter, setDisplayFilter] = useState('all');
   // categoryFilter: 商材 ('all' | business_categories.id) ── 2階層フィルタの親
   const [categoryFilter, setCategoryFilter] = useState('all');
   // 商材切替時に、選択中タイプが新商材に存在しなければ自動的に「全て」に戻す
