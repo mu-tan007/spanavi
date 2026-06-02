@@ -330,41 +330,6 @@ export default function ContactDrawer({
           >閉じる</button>
         </div>
 
-        {/* Tabs */}
-        <div style={{
-          display: 'flex',
-          borderBottom: `1px solid ${GRAY_200}`,
-          background: color.white,
-        }}>
-          {[
-            { id: 'basic', label: '基本' },
-            { id: 'memo', label: 'メモ', disabled: mode === 'add' },
-          ].map(t => (
-            <button
-              key={t.id}
-              onClick={() => !t.disabled && setTab(t.id)}
-              disabled={t.disabled}
-              style={{
-                padding: '12px 24px',
-                border: 'none',
-                background: 'transparent',
-                color: tab === t.id ? NAVY : (t.disabled ? '#ccc' : C.textLight),
-                fontSize: font.size.sm,
-                fontWeight: tab === t.id ? font.weight.bold : font.weight.medium,
-                fontFamily: font.family.sans,
-                cursor: t.disabled ? 'not-allowed' : 'pointer',
-                borderBottom: tab === t.id ? `2px solid ${NAVY}` : '2px solid transparent',
-                marginBottom: -1,
-              }}
-            >
-              {t.label}
-              {t.id === 'memo' && t.disabled && (
-                <span style={{ fontSize: 9, color: '#aaa', marginLeft: 6 }}>(保存後)</span>
-              )}
-            </button>
-          ))}
-        </div>
-
         {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
           {errorMsg && (
@@ -377,8 +342,7 @@ export default function ContactDrawer({
             </div>
           )}
 
-          {tab === 'basic' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={labelStyle}>名前 <span style={{ color: color.danger }}>*</span></label>
                 <input value={form.name} onChange={e => u('name', e.target.value)} style={inputStyle} placeholder="田中 一郎" />
@@ -435,176 +399,7 @@ export default function ContactDrawer({
                 </div>
               </div>
             </div>
-          )}
 
-          {tab === 'memo' && (
-            <div>
-              {/* 入力エリア（手入力 + 右上のマイクアイコン） */}
-              <div style={{
-                position: 'relative',
-                marginBottom: 12,
-              }}>
-                <div style={{
-                  position: 'absolute', top: 6, right: 6, zIndex: 1,
-                }}>
-                  <VoiceRecorderInline
-                    targetKind="contact_memo"
-                    contactId={existingContact?.id}
-                    onProcessed={handleVoiceProcessed}
-                    onError={(msg) => setErrorMsg(msg)}
-                    disabled={!!voicePending}
-                    size={28}
-                  />
-                </div>
-                <textarea
-                  value={manualMemoText}
-                  onChange={e => setManualMemoText(e.target.value)}
-                  rows={4}
-                  placeholder="メモを入力するか、右上のマイクから音声で追記"
-                  style={{
-                    ...inputStyle,
-                    paddingRight: 44,
-                    resize: 'vertical',
-                    lineHeight: 1.6,
-                    background: color.white,
-                  }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
-                  <button
-                    onClick={handleAppendManualMemo}
-                    disabled={!manualMemoText.trim() || manualMemoSaving}
-                    style={{
-                      padding: '6px 14px', borderRadius: radius.md,
-                      border: `1px solid ${NAVY}`,
-                      background: color.white, color: NAVY,
-                      fontSize: font.size.xs, fontWeight: font.weight.semibold,
-                      cursor: (!manualMemoText.trim() || manualMemoSaving) ? 'not-allowed' : 'pointer',
-                      fontFamily: font.family.sans,
-                      opacity: (!manualMemoText.trim() || manualMemoSaving) ? 0.5 : 1,
-                    }}
-                  >{manualMemoSaving ? '追記中...' : '追記する'}</button>
-                </div>
-              </div>
-
-              {voicePending && (
-                <div style={{
-                  border: `1px solid ${GOLD}`,
-                  borderLeft: `3px solid ${GOLD}`,
-                  borderRadius: radius.md,
-                  padding: '12px 14px',
-                  marginBottom: 12,
-                  background: '#FFFBF0',
-                }}>
-                  <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: GOLD, letterSpacing: 1, marginBottom: 6 }}>
-                    AI 整理プレビュー
-                  </div>
-                  <div style={{
-                    whiteSpace: 'pre-wrap', fontSize: font.size.sm, color: C.textDark, lineHeight: 1.7,
-                    background: color.white, padding: 10, borderRadius: radius.sm, border: `1px solid ${GRAY_200}`,
-                  }}>
-                    {voicePending.ai_summary || '(AI から空の応答が返りました)'}
-                  </div>
-                  <details style={{ marginTop: 8 }}>
-                    <summary style={{ fontSize: 10, color: C.textLight, cursor: 'pointer' }}>元の文字起こしを見る</summary>
-                    <div style={{
-                      whiteSpace: 'pre-wrap', fontSize: font.size.xs, color: C.textMid, lineHeight: 1.6,
-                      background: GRAY_50, padding: 8, borderRadius: radius.sm, border: `1px solid ${GRAY_200}`, marginTop: 6,
-                    }}>
-                      {voicePending.transcript || '(文字起こし空)'}
-                    </div>
-                  </details>
-                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
-                    <button
-                      onClick={handleDiscardVoiceMemo}
-                      disabled={manualMemoSaving}
-                      style={{
-                        padding: '6px 14px', borderRadius: radius.md,
-                        border: `1px solid ${GRAY_200}`, background: color.white,
-                        fontSize: font.size.xs, color: C.textMid, cursor: manualMemoSaving ? 'not-allowed' : 'pointer',
-                        fontFamily: font.family.sans,
-                      }}
-                    >破棄</button>
-                    <button
-                      onClick={handleConfirmVoiceMemo}
-                      disabled={manualMemoSaving}
-                      style={{
-                        padding: '6px 14px', borderRadius: radius.md,
-                        border: 'none', background: NAVY, color: color.white,
-                        fontSize: font.size.xs, fontWeight: font.weight.semibold,
-                        cursor: manualMemoSaving ? 'not-allowed' : 'pointer',
-                        fontFamily: font.family.sans,
-                        opacity: manualMemoSaving ? 0.6 : 1,
-                      }}
-                    >{manualMemoSaving ? '追記中...' : 'これで追記する'}</button>
-                  </div>
-                </div>
-              )}
-
-              <div style={{
-                marginTop: 16, paddingTop: 12, borderTop: `1px solid ${GRAY_200}`,
-                fontSize: font.size.xs, fontWeight: font.weight.bold, color: NAVY,
-              }}>
-                これまでのメモ（{memoEvents.length}件）
-              </div>
-              {memosLoading && (
-                <div style={{ fontSize: font.size.xs, color: C.textLight, padding: 12 }}>読み込み中...</div>
-              )}
-              {!memosLoading && memoEvents.length === 0 && (
-                <div style={{ fontSize: font.size.xs, color: C.textLight, padding: 12 }}>
-                  まだメモはありません。
-                </div>
-              )}
-              {memoEvents.map(ev => {
-                const tag = ev.source === 'voice_ai' ? '音声+AI'
-                          : ev.source === 'voice_raw' ? '音声(原文)'
-                          : ev.source === 'manual_ai' ? '手入力+AI'
-                          : '手入力'
-                const tagColor = ev.source?.startsWith('voice') ? GOLD : NAVY
-                return (
-                  <div key={ev.id} style={{
-                    border: `1px solid ${GRAY_200}`,
-                    borderRadius: radius.md,
-                    padding: '10px 12px',
-                    marginTop: 8,
-                    background: color.white,
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, color: C.textLight }}>
-                      <span style={{ fontFamily: font.family.mono }}>{fmtDate(ev.created_at)}</span>
-                      <span>·</span>
-                      <span>{ev.author_name || '不明'}</span>
-                      <span style={{
-                        marginLeft: 'auto',
-                        fontSize: 9, fontWeight: font.weight.bold, letterSpacing: 1,
-                        color: tagColor, padding: '1px 6px',
-                        border: `1px solid ${tagColor}40`,
-                        borderRadius: radius.sm,
-                      }}>{tag}</span>
-                    </div>
-                    <div style={{
-                      whiteSpace: 'pre-wrap', fontSize: font.size.sm, color: C.textDark, lineHeight: 1.7,
-                      marginTop: 6,
-                    }}>
-                      {ev.body_md}
-                    </div>
-                    {ev.raw_transcript && (
-                      <details style={{ marginTop: 6 }}>
-                        <summary
-                          style={{ fontSize: 10, color: C.textLight, cursor: 'pointer' }}
-                          onClick={() => setShowRawTranscriptId(prev => prev === ev.id ? null : ev.id)}
-                        >元の文字起こしを見る</summary>
-                        <div style={{
-                          whiteSpace: 'pre-wrap', fontSize: 10, color: C.textMid, lineHeight: 1.6,
-                          background: GRAY_50, padding: 8, borderRadius: radius.sm, border: `1px solid ${GRAY_200}`, marginTop: 4,
-                        }}>
-                          {ev.raw_transcript}
-                        </div>
-                      </details>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
         </div>
 
         {/* Footer */}
