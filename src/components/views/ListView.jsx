@@ -52,7 +52,8 @@ const LISTVIEW_COLS = [
   { key: 'engagementType', width: 140, align: 'center' },
   { key: 'industry', width: 140, align: 'left' },
   { key: 'count', width: 72, align: 'right' },
-  { key: 'manager', width: 180, align: 'center' },
+  { key: 'manager', width: 160, align: 'center' },
+  { key: 'reward', width: 110, align: 'right' },
   { key: 'progress', width: 110, align: 'center' },
   { key: 'score', width: 125, align: 'center' },
   { key: 'actions', width: 65, align: 'left' },
@@ -69,7 +70,106 @@ const LISTVIEW_ARCHIVE_COLS = [
   { key: 'actions', width: 80, align: 'right' },
 ];
 
-export default function ListView({ filteredLists, allLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [], contactsByClient = {}, setCallFlowScreen, onOpenIndustryRules }) {
+// 架電リスト1行に表示する報酬チップ
+// 通常: ¥X (固定) or ¥X〜¥Y (段階別レンジ) を mono フォントで表示
+// ホバー: 段階別 tier 詳細をツールチップで表示 (CRM の RewardChip と同設計)
+function RewardCell({ list, rewardMaster, clientEngagementRewards }) {
+  const [hover, setHover] = useState(false);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const reward = useMemo(() => {
+    if (!list.client_id || !list.engagement_id) return null;
+    return (clientEngagementRewards || []).find(
+      r => r.client_id === list.client_id && r.engagement_id === list.engagement_id
+    );
+  }, [list.client_id, list.engagement_id, clientEngagementRewards]);
+  const tiers = useMemo(() => {
+    if (!reward?.reward_type) return [];
+    return (rewardMaster || [])
+      .filter(r => r.id === reward.reward_type)
+      .sort((a, b) => (a._tierSort || 0) - (b._tierSort || 0));
+  }, [rewardMaster, reward]);
+  const head = tiers[0];
+  if (!head) {
+    return <span style={{ color: color.textLight, fontSize: 10 }}>—</span>;
+  }
+  const isFixed = head.calc_type === 'fixed_per_appo' || head.basis === '-';
+  const withTax = (p) => head.tax === '税別' ? Math.round((p || 0) * 1.1) : (p || 0);
+  let label;
+  if (isFixed) {
+    label = '¥' + withTax(head.price).toLocaleString();
+  } else {
+    const prices = tiers.map(t => withTax(t.price));
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    label = min === max ? `¥${min.toLocaleString()}` : `¥${min.toLocaleString()}〜¥${max.toLocaleString()}`;
+  }
+  const handleEnter = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPos({ x: rect.left, y: rect.bottom + 4 });
+    setHover(true);
+  };
+  return (
+    <span
+      onMouseEnter={handleEnter}
+      onMouseLeave={() => setHover(false)}
+      onClick={e => e.stopPropagation()}
+      style={{
+        fontFamily: font.family.mono, fontSize: font.size.xs,
+        color: color.navy, fontWeight: font.weight.semibold,
+        borderBottom: `1px dotted ${color.textLight}`, cursor: 'help',
+      }}
+    >
+      {label}
+      {hover && (
+        <div style={{
+          position: 'fixed', top: pos.y, left: pos.x, zIndex: 99999,
+          padding: '8px 10px', background: color.white,
+          border: `1px solid ${color.border}`, borderRadius: radius.md,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+          minWidth: 260, fontSize: font.size.xs, color: color.textDark,
+          fontFamily: font.family.sans, fontWeight: font.weight.normal,
+          pointerEvents: 'none',
+        }}>
+          <div style={{
+            fontWeight: font.weight.bold, color: color.navy, marginBottom: 6,
+            paddingBottom: 4, borderBottom: `1px solid ${color.border}`,
+          }}>
+            {head.name}
+            <span style={{ marginLeft: 6, fontSize: 10, color: color.textMid, fontWeight: font.weight.normal }}>
+              ({head.basis || '—'}{head.tax ? ` / ${head.tax}` : ''})
+            </span>
+          </div>
+          {isFixed ? (
+            <div style={{ fontFamily: font.family.mono }}>
+              アポ1件あたり ¥{withTax(head.price).toLocaleString()}
+            </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <tbody>
+                {tiers.map((t, i) => (
+                  <tr key={i} style={{ borderTop: i > 0 ? `1px dashed ${color.borderLight}` : 'none' }}>
+                    <td style={{ padding: '3px 4px', color: color.textMid }}>
+                      {t.memo || `${(t.lo || 0).toLocaleString()}〜${t.hi >= 999999999999 ? '上限なし' : (t.hi || 0).toLocaleString()}`}
+                    </td>
+                    <td style={{
+                      padding: '3px 4px', textAlign: 'right',
+                      fontFamily: font.family.mono, color: color.textDark,
+                      fontWeight: font.weight.semibold,
+                    }}>
+                      ¥{withTax(t.price).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </span>
+  );
+}
+
+export default function ListView({ filteredLists, allLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [], contactsByClient = {}, setCallFlowScreen, onOpenIndustryRules, rewardMaster = [], clientEngagementRewards = [] }) {
   const isMobile = useIsMobile();
   const { currentEngagement, engagements: allEngagements, categories: allCategories } = useEngagements();
   // 商材（business_categories）：現状はM&Aのみ
@@ -658,10 +758,10 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
           padding: isMobile ? "6px 10px" : "8px 16px", background: color.navy,
           fontSize: isMobile ? 10 : font.size.xs, fontWeight: font.weight.semibold, color: color.white, verticalAlign: 'middle',
         }}>
-          {['クライアント', '商材', 'タイプ', 'リスト名', '社数', '担当者', '架電進捗率', 'おすすめ度', ''].map((label, i) => (
+          {['クライアント', '商材', 'タイプ', 'リスト名', '社数', '担当者', '報酬', '架電進捗率', 'おすすめ度', ''].map((label, i) => (
             <span key={i} style={{ position: 'relative', textAlign: lvCols[i]?.align || 'left', minWidth: 0, cursor: 'default', userSelect: 'none' }}>
               {label}
-              {i < 8 && <ColumnResizeHandle colIndex={i} onResizeStart={lvResize} />}
+              {i < 9 && <ColumnResizeHandle colIndex={i} onResizeStart={lvResize} />}
             </span>
           ))}
         </div>
@@ -731,8 +831,11 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                       <span style={{ color: color.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[3]?.align || 'left' }}>{list.industry}</span>
                       <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.textMid, textAlign: lvCols[4]?.align || 'right' }}>{list.count.toLocaleString()}</span>
                       <span style={{ color: color.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[5]?.align || 'center' }}>{shortManagerName(list)}</span>
-                      <span style={{ display: "flex", justifyContent: lvCols[6]?.align === 'right' ? 'flex-end' : lvCols[6]?.align === 'center' ? 'center' : 'flex-start' }}><ProgressPill pct={list.call_progress_pct} /></span>
-                      <span style={{ display: "flex", justifyContent: lvCols[7]?.align === 'right' ? 'flex-end' : lvCols[7]?.align === 'center' ? 'center' : 'flex-start' }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
+                      <span style={{ textAlign: lvCols[6]?.align || 'right', display: 'block' }}>
+                        <RewardCell list={list} rewardMaster={rewardMaster} clientEngagementRewards={clientEngagementRewards} />
+                      </span>
+                      <span style={{ display: "flex", justifyContent: lvCols[7]?.align === 'right' ? 'flex-end' : lvCols[7]?.align === 'center' ? 'center' : 'flex-start' }}><ProgressPill pct={list.call_progress_pct} /></span>
+                      <span style={{ display: "flex", justifyContent: lvCols[8]?.align === 'right' ? 'flex-end' : lvCols[8]?.align === 'center' ? 'center' : 'flex-start' }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
                       {isAdmin && (
                         <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 4 }}>
                           <button onClick={() => handleOpenEdit(list)} title="編集" style={{
