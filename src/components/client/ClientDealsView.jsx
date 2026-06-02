@@ -3,10 +3,12 @@ import { color, space, radius, font } from '../../constants/design';
 import PageHeader from '../common/PageHeader';
 import CallResultsTab from '../views/deals/CallResultsTab';
 import AppointmentsTab from '../views/deals/AppointmentsTab';
+import ClientRejectionCandidatesTab from './ClientRejectionCandidatesTab';
 
 const TABS = [
-  { id: 'calls', label: '架電結果' },
-  { id: 'appos', label: '獲得アポ詳細' },
+  { id: 'calls',     label: '架電結果' },
+  { id: 'appos',     label: '獲得アポ詳細' },
+  { id: 'rejection', label: '再アプローチ候補' },
 ];
 
 // クライアント向け最小 Deals ページ。client はサーバー側で RLS により制約済み。
@@ -70,6 +72,9 @@ export default function ClientDealsView({ client, canEditDossier = false, adminA
             canEditDossier={canEditDossier}
             adminAccessToken={adminAccessToken}
           />
+        )}
+        {activeTab === 'rejection' && (
+          <ClientRejectionCandidatesTab client={{ id: client.id, name: client.name }} />
         )}
       </div>
     </div>
