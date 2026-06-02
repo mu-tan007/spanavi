@@ -176,7 +176,7 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards }) {
           </div>
           {isFixed ? (
             <div style={{ color: color.textDark }}>
-              アポ1件あたり {fmtYen(withTax(head.price))}
+              アポ1件あたり <span style={{ fontFamily: font.family.mono, fontWeight: font.weight.semibold }}>¥{withTax(head.price).toLocaleString()}</span>
             </div>
           ) : (
             <div>
@@ -186,8 +186,8 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards }) {
                   borderTop: i > 0 ? `1px dashed ${color.borderLight}` : 'none',
                 }}>
                   {rangeFromMemo(t.memo, t.lo, t.hi)}：
-                  <span style={{ fontWeight: font.weight.semibold }}>
-                    {fmtYen(withTax(t.price))}
+                  <span style={{ fontFamily: font.family.mono, fontWeight: font.weight.semibold }}>
+                    ¥{withTax(t.price).toLocaleString()}
                   </span>
                 </div>
               ))}
