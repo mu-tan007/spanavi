@@ -105,7 +105,12 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards }) {
   }
   const handleEnter = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    setPos({ x: rect.left, y: rect.bottom + 4 });
+    const TIP_W = 300;
+    const vw = window.innerWidth;
+    // 画面右端を超えそうなら左にシフト (ホバー対象の右端を基準に右側合わせ)
+    let x = rect.left;
+    if (x + TIP_W > vw - 10) x = Math.max(10, vw - TIP_W - 10);
+    setPos({ x, y: rect.bottom + 4 });
     setHover(true);
   };
   return (
@@ -123,10 +128,10 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards }) {
       {hover && (
         <div style={{
           position: 'fixed', top: pos.y, left: pos.x, zIndex: 99999,
-          padding: '8px 10px', background: color.white,
+          padding: '10px 12px', background: '#FFFFFF',
           border: `1px solid ${color.border}`, borderRadius: radius.md,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
-          minWidth: 260, fontSize: font.size.xs, color: color.textDark,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.25), 0 2px 4px rgba(0,0,0,0.12)',
+          width: 300, fontSize: font.size.xs, color: color.textDark,
           fontFamily: font.family.sans, fontWeight: font.weight.normal,
           pointerEvents: 'none',
         }}>
