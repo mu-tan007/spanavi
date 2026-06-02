@@ -39,3 +39,26 @@ reward_types マスタには少なくとも3パターンある:
 1. **報酬体系を扱う時は必ず3パターン (固定/件数連動/金額連動) を最初から想定する**。lo/hi/price/basis の組み合わせで「これは何パターン？」を分岐してから整形する。
 2. **新しい型を見たら、まず reward_types マスタを覗いて basis の値分布を確認する**。`select distinct basis from reward_types` のような事前確認を怠らない。
 3. **fmtJpYen のような汎用整形関数は、basis が金額型と確定した時のみ使う**。件数/件名/固定はそれぞれ別整形。
+
+## 2026-06-03: ハンドラを「親関数の closure」に作って子関数で呼んで ReferenceError
+
+### 症状
+ハードリロードで画面が真っ青のまま動かない。コンソールに
+`Uncaught ReferenceError: handleClientNameClick is not defined`
+
+### 真因
+事業俯瞰のクライアント名リンク化で `handleClientNameClick` を
+**`BusinessOverviewView` 直下** で定義したが、実際に渡す対象の `ListAnalysisTable` は
+**`SectionListAnalysis` という別の関数コンポーネント** の中で呼ばれていた。
+JSX のスコープ判定は親関数の closure を継承しない (Reactコンポーネントの境界で切れる) ため、
+子コンポーネントからは「未定義」となって render 中に throw。
+ビルド時には検出できない (実行時に到達して初めて crash する) ため、ハードリロードで一発全滅。
+
+### ルール (自分宛)
+1. **ハンドラ/値を JSX に渡す前に、その JSX を `return` している関数 (コンポーネント) と同じ closure で定義されているか必ず確認する**。
+   1ファイルに複数コンポーネントが定義されている時 (Section系) は特に注意。
+2. **「props で渡す」が正解。親関数で作って子関数で参照、は React では成立しない**。
+3. **Hooks (useMemo/useCallback) を依存配列ごと書いて満足しない**。
+   そのフックが**どの関数の中にいるか**で利用可能スコープが決まる。
+4. **大きい変更を push する前に、開発サーバ (`npm run dev`) で1回ハードリロードして確認する**。
+   ビルド成功=動作保証ではない。今回は build OK でも runtime で crash した。
