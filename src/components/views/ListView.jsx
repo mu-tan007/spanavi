@@ -101,9 +101,10 @@ function rangeFromMemo(memo, lo, hi) {
 }
 
 // 架電リスト1行に表示する報酬チップ
-// 通常: ¥X (固定) or ¥X〜¥Y (段階別レンジ) を mono フォントで表示
-// ホバー: 段階別 tier 詳細をツールチップで表示 (税込換算額のみ)
-function RewardCell({ list, rewardMaster, clientEngagementRewards }) {
+// - 通常リスト (売り手ソーシング/買い手マッチング): 当社売上 = ¥X〜¥Y
+// - クライアント開拓: 当社売上ゼロ。表示しているのはインターン報酬 (定額)
+//   → ラベル「インターン」を付けて混同を避ける + 色をグレー寄りに
+function RewardCell({ list, rewardMaster, clientEngagementRewards, isInternFee = false }) {
   const [hover, setHover] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const reward = useMemo(() => {
@@ -150,10 +151,17 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards }) {
       onClick={e => e.stopPropagation()}
       style={{
         fontFamily: font.family.mono, fontSize: font.size.xs,
-        color: color.navy, fontWeight: font.weight.semibold,
+        color: isInternFee ? color.textMid : color.navy,
+        fontWeight: font.weight.semibold,
         borderBottom: `1px dotted ${color.textLight}`, cursor: 'default',
       }}
     >
+      {isInternFee && (
+        <span style={{
+          fontFamily: font.family.sans, fontSize: 9, fontWeight: font.weight.medium,
+          color: color.textLight, marginRight: 4, letterSpacing: 0.5,
+        }}>インターン</span>
+      )}
       {label}
       {hover && createPortal(
         <div style={{
@@ -173,6 +181,11 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards }) {
             <span style={{ marginLeft: 6, fontSize: 10, color: color.textMid, fontWeight: font.weight.normal }}>
               ({head.basis === '-' ? '固定' : head.basis})
             </span>
+            {isInternFee && (
+              <div style={{ fontSize: 10, color: color.gold, fontWeight: font.weight.semibold, marginTop: 2, letterSpacing: 0.5 }}>
+                ※ 当社売上なし / インターン報酬のみ
+              </div>
+            )}
           </div>
           {isFixed ? (
             <div style={{ color: color.textDark }}>
@@ -239,6 +252,13 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
     salesAgencyEngagements.forEach(e => { map[e.id] = e.name; });
     return map;
   }, [salesAgencyEngagements]);
+  // engagement.id → type ('seller_sourcing' / 'matching' / 'client_acquisition')
+  // client_acquisition の場合は当社売上ゼロ、インターン報酬のみなので報酬列の意味が違う
+  const engagementToType = useMemo(() => {
+    const map = {};
+    (allEngagements || []).forEach(e => { map[e.id] = e.type; });
+    return map;
+  }, [allEngagements]);
   const { columns: lvCols, gridTemplateColumns: lvGrid, contentMinWidth: lvMinW, onResizeStart: lvResize } = useColumnConfig('listView', LISTVIEW_COLS);
   const { columns: arCols, gridTemplateColumns: arGrid, contentMinWidth: arMinW, onResizeStart: arResize } = useColumnConfig('listViewArchive', LISTVIEW_ARCHIVE_COLS);
   // 「支援中」のクライアントのみ選択候補にする
@@ -865,7 +885,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                       <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.textMid, textAlign: lvCols[4]?.align || 'right' }}>{list.count.toLocaleString()}</span>
                       <span style={{ color: color.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[5]?.align || 'center' }}>{shortManagerName(list)}</span>
                       <span style={{ textAlign: lvCols[6]?.align || 'right', display: 'block' }}>
-                        <RewardCell list={list} rewardMaster={rewardMaster} clientEngagementRewards={clientEngagementRewards} />
+                        <RewardCell list={list} rewardMaster={rewardMaster} clientEngagementRewards={clientEngagementRewards} isInternFee={engagementToType[list.engagement_id] === 'client_acquisition'} />
                       </span>
                       <span style={{ display: "flex", justifyContent: lvCols[7]?.align === 'right' ? 'flex-end' : lvCols[7]?.align === 'center' ? 'center' : 'flex-start' }}><ProgressPill pct={list.call_progress_pct} /></span>
                       <span style={{ display: "flex", justifyContent: lvCols[8]?.align === 'right' ? 'flex-end' : lvCols[8]?.align === 'center' ? 'center' : 'flex-start' }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
