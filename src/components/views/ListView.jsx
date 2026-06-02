@@ -769,13 +769,20 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
               (l.manager || '').toLowerCase().includes(q)
             );
           }
-          // ソート
-          if (sortBy === 'client') {
-            archivedLists = [...archivedLists].sort((a, b) => (a.company || '').localeCompare(b.company || '', 'ja'));
-          } else if (sortBy === 'manager') {
-            archivedLists = [...archivedLists].sort((a, b) => (a.manager || '').localeCompare(b.manager || ''));
-          } else if (sortBy === 'date') {
-            archivedLists = [...archivedLists].sort((a, b) => a.id - b.id);
+          // アーカイブ画面は「クライアント順」がデフォルト。
+          // 通常リスト共通の sortBy は初期値 'date' だが、アーカイブを開く目的は
+          // 「あの会社のリスト過去にあったよな」を探すケースが多いので、
+          // selector がデフォルト ('date') の時は client にフォールバックする。
+          // selector で明示的に 'manager' や 'client' を選べばそれを反映。
+          const effectiveSort = (sortBy === 'date') ? 'client' : sortBy;
+          if (effectiveSort === 'client') {
+            archivedLists = [...archivedLists].sort((a, b) =>
+              (a.company || '').localeCompare(b.company || '', 'ja')
+            );
+          } else if (effectiveSort === 'manager') {
+            archivedLists = [...archivedLists].sort((a, b) =>
+              (a.manager || '').localeCompare(b.manager || '', 'ja')
+            );
           }
           if (archivedLists.length === 0) return <div style={{ padding: "24px 16px", textAlign: "center", fontSize: font.size.sm, color: color.textLight }}>— No records —</div>;
           return (
