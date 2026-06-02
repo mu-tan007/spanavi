@@ -781,10 +781,15 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   }, [currentTab, navGroups, engSlug, isAdmin, engagements, switchEngagement]);
 
   // engagement async ロード中は描画しない（タブ誤遷移防止）
+  // 背景は index.html の splash と同じ navy グラデーション (ログイン画面とも統一)
   if (engLoading || !engSlug) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F3F2F2', fontFamily: font.family.sans }}>
-        <div style={{ color: '#8896a6', fontSize: font.size.sm, letterSpacing: 2 }}>読み込み中...</div>
+      <div style={{
+        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'linear-gradient(135deg,#1456C7 0%,#1E3A8A 30%,#0D2247 60%,#081636 100%)',
+        fontFamily: font.family.sans,
+      }}>
+        <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: font.size.sm, letterSpacing: 2 }}>読み込み中...</div>
       </div>
     );
   }
