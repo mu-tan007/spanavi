@@ -53,7 +53,7 @@ function MainApp() {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: '#F3F2F2', fontFamily: "'Noto Sans JP', sans-serif",
+        background: 'linear-gradient(135deg,#1456C7 0%,#1E3A8A 30%,#0D2247 60%,#081636 100%)', fontFamily: "'Noto Sans JP', sans-serif",
       }}>
         <div style={{ textAlign: 'center' }}>
           <p style={{ color: '#c0392b', fontSize: 14, marginBottom: 16 }}>アカウント情報の取得に失敗しました。再ログインしてください。</p>
@@ -71,7 +71,7 @@ function MainApp() {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: '#F3F2F2', fontFamily: "'Noto Sans JP', sans-serif",
+        background: 'linear-gradient(135deg,#1456C7 0%,#1E3A8A 30%,#0D2247 60%,#081636 100%)', fontFamily: "'Noto Sans JP', sans-serif",
       }}>
         <div style={{ textAlign: 'center' }}>
           <style>{`
@@ -104,7 +104,7 @@ function MainApp() {
               </g>
             </g>
           </svg>
-          <p style={{ color: '#8896a6', fontSize: 12, letterSpacing: 2, animation: 'fadeInText 1.5s ease-out' }}>読み込み中...</p>
+          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, letterSpacing: 2, animation: 'fadeInText 1.5s ease-out' }}>読み込み中...</p>
         </div>
       </div>
     )
@@ -118,7 +118,7 @@ function MainApp() {
   // Supabase fetch 失敗
   if (dataError && !supabaseData) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F3F2F2', fontFamily: "'Noto Sans JP', sans-serif" }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#1456C7 0%,#1E3A8A 30%,#0D2247 60%,#081636 100%)', fontFamily: "'Noto Sans JP', sans-serif" }}>
         <div style={{ textAlign: 'center' }}>
           <p style={{ color: '#c0392b', fontSize: 14, marginBottom: 16 }}>データの読み込みに失敗しました。リロードしてください。</p>
           <button onClick={() => window.location.reload()} style={{ padding: '8px 20px', borderRadius: 6, background: '#0176D3', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: "'Noto Sans JP', sans-serif" }}>
