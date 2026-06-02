@@ -1444,12 +1444,6 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               請求書一括作成
             </Button>
           )}
-          {setAppoData && (
-            <Button onClick={() => { setBulkSendModal(true); setBulkSendChecked(new Set()); setBulkSendStatus({}); setBulkSendCc({}); setBulkSendTo({}); }}
-              variant="outline" size="sm">
-              請求書一斉送信
-            </Button>
-          )}
         </div>
       </div>
 
@@ -1795,6 +1789,22 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button onClick={() => setBulkInvoiceModal(false)} disabled={bulkInvoiceGenerating} variant="outline" size="sm">
                     閉じる
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      // 一斉送信モーダルを開く (対象月を引き継ぐ)
+                      setBulkSendMonth?.(bulkInvoiceMonth);
+                      setBulkSendChecked(new Set());
+                      setBulkSendStatus({});
+                      setBulkSendCc({});
+                      setBulkSendTo({});
+                      setBulkInvoiceModal(false);
+                      setBulkSendModal(true);
+                    }}
+                    disabled={bulkInvoiceGenerating}
+                    variant="outline" size="sm"
+                  >
+                    メールで一斉送信
                   </Button>
                   <Button onClick={handleBulkInvoiceExport} disabled={bulkInvoiceChecked.size === 0 || bulkInvoiceGenerating}
                     loading={bulkInvoiceGenerating} variant="primary" size="sm">
