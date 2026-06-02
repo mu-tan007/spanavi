@@ -133,18 +133,6 @@ export default function BusinessOverviewView({
   setCallFlowScreen,
   onNavigateToCrmDetail,
 }) {
-  // 会社名 → clients._supaId (CRM detail への遷移用)
-  const clientNameToSupaId = useMemo(() => {
-    const m = new Map();
-    (clientData || []).forEach(c => {
-      if (c.company && c._supaId) m.set(c.company, c._supaId);
-    });
-    return m;
-  }, [clientData]);
-  const handleClientNameClick = useCallback((clientName) => {
-    const id = clientNameToSupaId.get(clientName);
-    if (id && onNavigateToCrmDetail) onNavigateToCrmDetail(id);
-  }, [clientNameToSupaId, onNavigateToCrmDetail]);
   const [month, setMonth] = useState(getCurrentMonth());
   const [engagementsMaster, setEngagementsMaster] = useState([]); // {id, type, category_id, category_name}
   const [categoriesMaster, setCategoriesMaster] = useState([]); // {id, name, display_order}
@@ -479,6 +467,7 @@ export default function BusinessOverviewView({
           clientData={clientData}
           contactsByClient={contactsByClient}
           currentUser={currentUser}
+          onNavigateToCrmDetail={onNavigateToCrmDetail}
         />
 
         {/* M. メンバーパフォーマンス */}
@@ -879,10 +868,15 @@ function CountBadge({ count, onClick, tone = 'navy' }) {
   );
 }
 
-function SectionListAnalysis({ setCallFlowScreen, callListData = [], clientData = [], contactsByClient = {}, currentUser = '' }) {
+function SectionListAnalysis({ setCallFlowScreen, callListData = [], clientData = [], contactsByClient = {}, currentUser = '', onNavigateToCrmDetail }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [drill, setDrill] = useState(null);
+  // クライアント名 (list_client) → clients._supaId をマップして CRM 詳細へ遷移
+  const handleClientNameClick = useCallback((clientName) => {
+    const c = (clientData || []).find(x => x.company === clientName);
+    if (c?._supaId && onNavigateToCrmDetail) onNavigateToCrmDetail(c._supaId);
+  }, [clientData, onNavigateToCrmDetail]);
   // スマートキューと同じ「キュー連続架電」を使う。
   // suppressChecks=true で「アポ獲得/除外スキップ」「再コール警告」「他人架電警告」を全 off にする。
   // (リスト分析からの架電は『キーマン再コール/断り状態を承知の上で意図的に再アプローチ』する経路のため)
