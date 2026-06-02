@@ -233,8 +233,13 @@ export function formatRewardTable(rewardSummary) {
     tiers.forEach(t => {
       if (t.memo) {
         // memo に「5000万円未満：15万円」のような完成形がある時はそれを使う
-        // (memo 先頭の空白を一旦除いてから '　' を付けて、全行で字下げを揃える)
-        lines.push('　' + String(t.memo).replace(/^[\s　]+/, ''));
+        // basis (売上高 / 当期純利益 / 営業利益 等) を前置して、何を基準にした
+        // 段階かを契約書上で明示する
+        const m = String(t.memo).replace(/^[\s　]+/, '');
+        const basis = r.basis || '売上高';
+        // memo に basis や「が」が既に含まれていなければ前置
+        const prefix = (m.includes(basis) || m.startsWith('が')) ? '' : basis + 'が';
+        lines.push('　' + prefix + m);
       } else {
         // lo/hi/price から自動生成 — オリジナルひな形に合わせ「売上高がN円未満の会社：X万円」型
         const basis = (r.basis || '売上高') + 'が';
