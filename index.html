@@ -7,7 +7,7 @@
     <meta name="description" content="架電管理SaaS — 架電・アポ管理・録音・スクリプトを一元管理" />
     <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
     <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
-    <meta name="theme-color" content="#032D60" />
+    <meta name="theme-color" content="#0D2247" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/x-icon" sizes="256x256" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -16,15 +16,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
-  <body class="bg-navy-dark text-white font-sans">
+  <body class="bg-navy-dark text-white font-sans" style="margin:0;background:#0D2247">
     <div id="root">
       <style>
-        @keyframes splashShieldGlow{0%,100%{filter:drop-shadow(0 0 6px rgba(200,164,90,.2))}50%{filter:drop-shadow(0 0 18px rgba(200,164,90,.5))}}
+        @keyframes splashShieldGlow{0%,100%{filter:drop-shadow(0 0 8px rgba(255,255,255,.18))}50%{filter:drop-shadow(0 0 22px rgba(255,255,255,.42))}}
         @keyframes splashFadeIn{0%,40%{opacity:0}100%{opacity:1}}
-        .splash-root{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#F3F2F2;font-family:'Noto Sans JP',sans-serif}
+        /* ログイン画面と同じグラデーションでハードリロード中の背景を統一 */
+        .splash-root{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1456C7 0%,#1E3A8A 30%,#0D2247 60%,#081636 100%);font-family:'Noto Sans JP',sans-serif}
         .splash-center{text-align:center}
         .splash-shield{margin-bottom:20px;animation:splashShieldGlow 2s ease-in-out infinite}
-        .splash-loading{color:#8896a6;font-size:12px;letter-spacing:2px;margin:0;animation:splashFadeIn 1.5s ease-out}
+        .splash-loading{color:rgba(255,255,255,0.7);font-size:12px;letter-spacing:2px;margin:0;animation:splashFadeIn 1.5s ease-out}
       </style>
       <div class="splash-root">
         <div class="splash-center">
