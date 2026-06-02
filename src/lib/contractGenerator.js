@@ -233,6 +233,18 @@ export function formatRewardTable(rewardSummary) {
     // basis が「件」を含む場合は件数連動 (アポ件数等)
     // → 「3件目までは15,000円」「4件目以降は17,500円」形式
     const isCountBased = String(r.basis || '').includes('件');
+    // 固定報酬: tier 1つで basis が空/「-」/「固定」等
+    // → 「アポイント1件あたり10万円」形式
+    const basisStr = String(r.basis || '').trim();
+    const looksLikeNoBasis = basisStr === '' || basisStr === '-'
+      || basisStr === 'ー' || basisStr === '—' || basisStr === 'なし'
+      || /固定/.test(basisStr);
+    const isFixed = !isCountBased && tiers.length === 1 && looksLikeNoBasis;
+    if (isFixed) {
+      const t = tiers[0];
+      lines.push('　アポイント1件あたり' + Number(t.price ?? 0).toLocaleString('ja-JP') + '円');
+      continue;
+    }
     tiers.forEach(t => {
       const hasPrice = t.price != null;
       const hasRange = (t.lo != null) || (t.hi != null);
