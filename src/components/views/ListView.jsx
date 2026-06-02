@@ -811,7 +811,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
           padding: isMobile ? "6px 10px" : "8px 16px", background: color.navy,
           fontSize: isMobile ? 10 : font.size.xs, fontWeight: font.weight.semibold, color: color.white, verticalAlign: 'middle',
         }}>
-          {['クライアント', '商材', 'タイプ', 'リスト名', '社数', '担当者', '報酬', '架電進捗率', 'おすすめ度', ''].map((label, i) => (
+          {['クライアント', '商材', 'タイプ', 'リスト名', '社数', '担当者', '当社売上', '架電進捗率', 'おすすめ度', ''].map((label, i) => (
             <span key={i} style={{ position: 'relative', textAlign: lvCols[i]?.align || 'left', minWidth: 0, cursor: 'default', userSelect: 'none' }}>
               {label}
               {i < 9 && <ColumnResizeHandle colIndex={i} onResizeStart={lvResize} />}
