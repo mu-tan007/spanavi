@@ -71,9 +71,38 @@ const LISTVIEW_ARCHIVE_COLS = [
   { key: 'actions', width: 80, align: 'right' },
 ];
 
+// 100,000 → 「10万円」 / 165,000 → 「16万5,000円」 / 300,000,000 → 「3億円」
+function fmtYen(n) {
+  if (n == null) return '';
+  const v = Math.round(Number(n));
+  if (v >= 100000000) {
+    const oku = Math.floor(v / 100000000);
+    const rest = v % 100000000;
+    if (rest === 0) return `${oku.toLocaleString('ja-JP')}億円`;
+    return `${oku.toLocaleString('ja-JP')}億${fmtYen(rest)}`;
+  }
+  if (v >= 10000) {
+    const man = Math.floor(v / 10000);
+    const rest = v % 10000;
+    if (rest === 0) return `${man.toLocaleString('ja-JP')}万円`;
+    return `${man.toLocaleString('ja-JP')}万${rest.toLocaleString('ja-JP')}円`;
+  }
+  return v.toLocaleString('ja-JP') + '円';
+}
+
+// memo「5億円未満：10万円」→ 「5億円未満」のように範囲だけ抽出
+function rangeFromMemo(memo, lo, hi) {
+  if (memo) {
+    const idx = memo.indexOf('：');
+    if (idx > 0) return memo.slice(0, idx).trim();
+    return memo.trim();
+  }
+  return `${(lo || 0).toLocaleString()}〜${hi >= 999999999999 ? '上限なし' : (hi || 0).toLocaleString()}`;
+}
+
 // 架電リスト1行に表示する報酬チップ
 // 通常: ¥X (固定) or ¥X〜¥Y (段階別レンジ) を mono フォントで表示
-// ホバー: 段階別 tier 詳細をツールチップで表示 (CRM の RewardChip と同設計)
+// ホバー: 段階別 tier 詳細をツールチップで表示 (税込換算額のみ)
 function RewardCell({ list, rewardMaster, clientEngagementRewards }) {
   const [hover, setHover] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0 });
@@ -137,39 +166,32 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards }) {
           pointerEvents: 'none',
         }}>
           <div style={{
-            fontWeight: font.weight.bold, color: color.navy, marginBottom: 2,
+            fontWeight: font.weight.bold, color: color.navy, marginBottom: 6,
             paddingBottom: 4, borderBottom: `1px solid ${color.border}`,
           }}>
             {head.name}
-            <div style={{ fontSize: 10, color: color.textMid, fontWeight: font.weight.normal, marginTop: 2 }}>
-              {head.basis || '—'}
-              {head.tax === '税別' && <span> / 税別表記 <span style={{ color: color.textLight }}>(税込換算で表示)</span></span>}
-              {head.tax === '税込' && <span> / 税込</span>}
-            </div>
+            <span style={{ marginLeft: 6, fontSize: 10, color: color.textMid, fontWeight: font.weight.normal }}>
+              ({head.basis === '-' ? '固定' : head.basis})
+            </span>
           </div>
           {isFixed ? (
-            <div style={{ fontFamily: font.family.mono }}>
-              アポ1件あたり ¥{withTax(head.price).toLocaleString()}
+            <div style={{ color: color.textDark }}>
+              アポ1件あたり {fmtYen(withTax(head.price))}
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <tbody>
-                {tiers.map((t, i) => (
-                  <tr key={i} style={{ borderTop: i > 0 ? `1px dashed ${color.borderLight}` : 'none' }}>
-                    <td style={{ padding: '3px 4px', color: color.textMid }}>
-                      {t.memo || `${(t.lo || 0).toLocaleString()}〜${t.hi >= 999999999999 ? '上限なし' : (t.hi || 0).toLocaleString()}`}
-                    </td>
-                    <td style={{
-                      padding: '3px 4px', textAlign: 'right',
-                      fontFamily: font.family.mono, color: color.textDark,
-                      fontWeight: font.weight.semibold,
-                    }}>
-                      ¥{withTax(t.price).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div>
+              {tiers.map((t, i) => (
+                <div key={i} style={{
+                  padding: '3px 0', color: color.textDark,
+                  borderTop: i > 0 ? `1px dashed ${color.borderLight}` : 'none',
+                }}>
+                  {rangeFromMemo(t.memo, t.lo, t.hi)}：
+                  <span style={{ fontWeight: font.weight.semibold }}>
+                    {fmtYen(withTax(t.price))}
+                  </span>
+                </div>
+              ))}
+            </div>
           )}
         </div>,
         document.body
