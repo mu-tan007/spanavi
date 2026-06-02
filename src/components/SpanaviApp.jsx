@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import React from "react";
+import { useSearchParams } from 'react-router-dom';
 import { C } from '../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../constants/design';
 import { Button, Input, Select, Card, Badge } from './ui';
@@ -380,6 +381,19 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       return (saved && _VALID_TABS.includes(saved)) ? saved : "lists";
     } catch(e) { return "lists"; }
   });
+  const [, setSearchParams] = useSearchParams();
+  // 事業俯瞰のリスト分析等から CRM 詳細ページにジャンプするための共通遷移
+  const navigateToCrmDetail = useCallback((clientSupaId) => {
+    if (!clientSupaId) return;
+    setCurrentTab('crm');
+    setSearchParams(prev => {
+      const np = new URLSearchParams(prev);
+      np.set('view', 'detail');
+      np.set('clientId', clientSupaId);
+      np.delete('crm_section');
+      return np;
+    }, { replace: true });
+  }, [setSearchParams]);
   useEffect(() => {
     try { localStorage.setItem("masp_v2_currentTab", currentTab); } catch(e) {}
   }, [currentTab]);
@@ -1361,7 +1375,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "database" && <DatabaseView isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView onBack={() => setCurrentTab('lists')} />}
         {currentTab === "dashboard" && <SourcingDashboardView currentUser={currentUser} userId={userId} members={members} now={now} appoData={appoData} isAdmin={isAdmin} />}
-        {currentTab === "overview" && isAdmin && <BusinessOverviewView appoData={appoData} callListData={callListData} clientData={clientData} contactsByClient={contactsByClient} currentUser={currentUser} setCallFlowScreen={setCallFlowScreen} />}
+        {currentTab === "overview" && isAdmin && <BusinessOverviewView appoData={appoData} callListData={callListData} clientData={clientData} contactsByClient={contactsByClient} currentUser={currentUser} setCallFlowScreen={setCallFlowScreen} onNavigateToCrmDetail={navigateToCrmDetail} />}
         {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} onDataRefetch={onDataRefetch} />}
         {currentTab === "library" && <LibraryView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
         {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} />}

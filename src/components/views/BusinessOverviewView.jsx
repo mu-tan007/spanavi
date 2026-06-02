@@ -131,7 +131,20 @@ export default function BusinessOverviewView({
   appoData = [], callListData = [], clientData = [],
   contactsByClient = {}, currentUser = '',
   setCallFlowScreen,
+  onNavigateToCrmDetail,
 }) {
+  // 会社名 → clients._supaId (CRM detail への遷移用)
+  const clientNameToSupaId = useMemo(() => {
+    const m = new Map();
+    (clientData || []).forEach(c => {
+      if (c.company && c._supaId) m.set(c.company, c._supaId);
+    });
+    return m;
+  }, [clientData]);
+  const handleClientNameClick = useCallback((clientName) => {
+    const id = clientNameToSupaId.get(clientName);
+    if (id && onNavigateToCrmDetail) onNavigateToCrmDetail(id);
+  }, [clientNameToSupaId, onNavigateToCrmDetail]);
   const [month, setMonth] = useState(getCurrentMonth());
   const [engagementsMaster, setEngagementsMaster] = useState([]); // {id, type, category_id, category_name}
   const [categoriesMaster, setCategoriesMaster] = useState([]); // {id, name, display_order}
@@ -870,7 +883,6 @@ function SectionListAnalysis({ setCallFlowScreen, callListData = [], clientData 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [drill, setDrill] = useState(null);
-  const [emailCtx, setEmailCtx] = useState(null); // { kind:'list', row } メール送信モーダル対象
   // スマートキューと同じ「キュー連続架電」を使う。
   // suppressChecks=true で「アポ獲得/除外スキップ」「再コール警告」「他人架電警告」を全 off にする。
   // (リスト分析からの架電は『キーマン再コール/断り状態を承知の上で意図的に再アプローチ』する経路のため)
@@ -1017,29 +1029,23 @@ function SectionListAnalysis({ setCallFlowScreen, callListData = [], clientData 
             </div>
             {/* テーブル */}
             {activeGroup && (
-              <ListAnalysisTable group={activeGroup} sortDir={sortDir} onOpenDrill={handleOpenDrill}
-                onOpenEmail={(row) => setEmailCtx({ kind: 'list', row })} />
+              <ListAnalysisTable
+                group={activeGroup}
+                sortDir={sortDir}
+                onOpenDrill={handleOpenDrill}
+                onClientClick={handleClientNameClick}
+              />
             )}
           </div>
         )}
       </Section>
 
       <DrillDownDrawer drill={drill} onClose={() => setDrill(null)} onCallItem={handleCallItem} />
-      {emailCtx && (
-        <EmailFollowupModal
-          modalCtx={emailCtx}
-          callListData={callListData}
-          clientData={clientData}
-          contactsByClient={contactsByClient}
-          currentUser={currentUser}
-          onClose={() => setEmailCtx(null)}
-        />
-      )}
     </>
   );
 }
 
-function ListAnalysisTable({ group, sortDir, onOpenDrill, onOpenEmail }) {
+function ListAnalysisTable({ group, sortDir, onOpenDrill, onClientClick }) {
   const [expanded, setExpanded] = useState(false);
   const top10 = group.rows.slice(0, 10);
   const rest = group.rows.slice(10);
@@ -1069,14 +1075,27 @@ function ListAnalysisTable({ group, sortDir, onOpenDrill, onOpenEmail }) {
               <th style={{ ...th, textAlign: 'center' }}>キーマン<br />再コール</th>
               <th style={{ ...th, textAlign: 'center' }}>キーマン断り<br />(高/中)</th>
               <th style={{ ...th, textAlign: 'left', minWidth: 220 }}>ToDo</th>
-              <th style={{ ...th, textAlign: 'center' }}>メール送信</th>
             </tr>
           </thead>
           <tbody>
             {visible.map(r => (
               <tr key={r.list_id} style={{ background: r.stagnation >= 4 ? alpha(color.danger, 0.03) : color.white }}>
                 <td style={{ ...td, color: color.textMid, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {r.list_client || '—'}
+                  {r.list_client ? (
+                    <button
+                      type="button"
+                      onClick={() => onClientClick?.(r.list_client)}
+                      title={`${r.list_client} の CRM 詳細を開く`}
+                      style={{
+                        background: 'none', border: 'none', padding: 0,
+                        color: color.navy, fontWeight: font.weight.semibold,
+                        textDecoration: 'underline', cursor: 'pointer',
+                        fontFamily: font.family.sans, fontSize: 'inherit',
+                        maxWidth: '100%', overflow: 'hidden',
+                        textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}
+                    >{r.list_client}</button>
+                  ) : '—'}
                 </td>
                 <td style={{ ...td, color: color.textDark }}>
                   {r.list_industry || '(無題)'}
@@ -1115,17 +1134,6 @@ function ListAnalysisTable({ group, sortDir, onOpenDrill, onOpenEmail }) {
                 </td>
                 <td style={{ ...td, padding: '4px 8px' }}>
                   <TodoMemoCell listId={r.list_id} initialValue={r.todo_memo || ''} />
-                </td>
-                <td style={{ ...td, textAlign: 'center' }}>
-                  <button onClick={() => onOpenEmail?.(r)} style={{
-                    padding: '5px 12px', background: color.white, color: color.navy,
-                    border: `1px solid ${color.navy}`, borderRadius: radius.md,
-                    fontSize: font.size.xs, fontWeight: font.weight.semibold,
-                    cursor: 'pointer', fontFamily: font.family.sans, whiteSpace: 'nowrap',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = alpha(color.navy, 0.08); }}
-                  onMouseLeave={e => { e.currentTarget.style.background = color.white; }}
-                  >メール作成</button>
                 </td>
               </tr>
             ))}

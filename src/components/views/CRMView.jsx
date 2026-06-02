@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { updateClient, insertClient, deleteClient } from '../../lib/supabaseWrite';
@@ -11,6 +11,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import ClientDetailPage from './contacts/ClientDetailPage';
 import { EmailFollowupModal } from './BusinessOverviewView';
+import BulkEmailModal from './crm/BulkEmailModal';
 import RewardTypeManager from './masp/RewardTypeManager';
 import ContractTemplateManager from './masp/ContractTemplateManager';
 import { dbFieldsToFe } from '../../utils/clientFieldsMap';
@@ -54,6 +55,40 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   const [addSaving, setAddSaving] = useState(false);
   const [addToast, setAddToast] = useState(null);
   const [emailCtx, setEmailCtx] = useState(null); // クライアント向けフォローメール作成 ctx
+  // 一括選択 (一斉メール送信用)
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const handleToggleSelect = useCallback((id) => {
+    if (!id) return;
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+  const handleToggleSelectAll = useCallback((rows, on) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      rows.forEach(r => { if (on) next.add(r._supaId); else next.delete(r._supaId); });
+      return next;
+    });
+  }, []);
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+  // お気に入りトグル
+  const handleToggleFavorite = useCallback(async (cli) => {
+    if (!cli?._supaId || !setClientData) return;
+    const next = !cli.isFavorite;
+    // optimistic update
+    setClientData(prev => prev.map(c => c._supaId === cli._supaId ? { ...c, isFavorite: next } : c));
+    const { error } = await supabase
+      .from('clients')
+      .update({ is_favorite: next })
+      .eq('id', cli._supaId);
+    if (error) {
+      // rollback
+      setClientData(prev => prev.map(c => c._supaId === cli._supaId ? { ...c, isFavorite: !next } : c));
+      alert('お気に入り更新に失敗しました: ' + (error.message || ''));
+    }
+  }, [setClientData]);
   // 新規顧客追加で AI が抽出した「追加候補の担当者」をキューする
   const [pendingNewContacts, setPendingNewContacts] = useState([]);
   // 既存顧客の編集で AI が抽出した「追加候補の担当者」をキューする
@@ -374,6 +409,13 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
       return va.toString().localeCompare(vb.toString(), 'ja') * dir;
     });
   }
+
+  // お気に入りは常にタブ上位 (各タブの中で最上段に並べる)
+  filtered.sort((a, b) => {
+    const af = a.isFavorite ? 1 : 0;
+    const bf = b.isFavorite ? 1 : 0;
+    return bf - af;
+  });
 
   const statusCounts = {};
   displayClientData.forEach(c => { statusCounts[c.status] = (statusCounts[c.status] || 0) + 1; });
@@ -737,8 +779,49 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
                 past_appo_count: 0,
               },
             })}
+            selectedIds={selectedIds}
+            onToggleSelect={handleToggleSelect}
+            onToggleSelectAll={handleToggleSelectAll}
+            onToggleFavorite={handleToggleFavorite}
           />
         </>
+      )}
+
+      {/* 一斉メール送信バー (1件以上選択中のみ表示) */}
+      {selectedIds.size > 0 && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          background: color.navy, color: color.white,
+          padding: '10px 18px', borderRadius: radius.md, boxShadow: shadow.lg,
+          fontSize: font.size.sm, fontFamily: font.family.sans,
+          display: 'flex', alignItems: 'center', gap: space[3], zIndex: 9999,
+        }}>
+          <span style={{ fontWeight: font.weight.semibold }}>
+            {selectedIds.size} 社選択中
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              const targets = (clientData || []).filter(c => selectedIds.has(c._supaId));
+              setEmailCtx({ kind: 'bulk', clients: targets });
+            }}
+            style={{
+              padding: '6px 14px', background: color.white, color: color.navy,
+              border: 'none', borderRadius: radius.sm,
+              fontSize: font.size.xs, fontWeight: font.weight.bold,
+              cursor: 'pointer', fontFamily: font.family.sans,
+            }}
+          >一斉メール作成</button>
+          <button
+            type="button"
+            onClick={clearSelection}
+            style={{
+              padding: '6px 10px', background: 'transparent', color: color.white,
+              border: `1px solid ${alpha(color.white, 0.4)}`, borderRadius: radius.sm,
+              fontSize: font.size.xs, cursor: 'pointer', fontFamily: font.family.sans,
+            }}
+          >解除</button>
+        </div>
       )}
 
       {/* Toast */}
@@ -798,11 +881,19 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
         onClose={() => setShowRewardDetail(null)}
       />
 
-      {emailCtx && (
+      {emailCtx && emailCtx.kind !== 'bulk' && (
         <EmailFollowupModal
           modalCtx={emailCtx}
           callListData={callListData}
           clientData={clientData}
+          contactsByClient={contactsByClient}
+          currentUser={currentUser}
+          onClose={() => setEmailCtx(null)}
+        />
+      )}
+      {emailCtx?.kind === 'bulk' && (
+        <BulkEmailModal
+          clients={emailCtx.clients}
           contactsByClient={contactsByClient}
           currentUser={currentUser}
           onClose={() => setEmailCtx(null)}
