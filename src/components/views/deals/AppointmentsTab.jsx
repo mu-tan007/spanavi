@@ -9,6 +9,7 @@ import {
   extractKeymanMaIntent, extractPrefecture, parseRevenueOku,
   extractRevenueFromReport, extractAddressFromReport,
 } from '../../../utils/apppoReportParse';
+import { useKeymanIntentsForClient } from '../../../hooks/useKeymanIntents';
 import { PlayRecordingButton } from '../../common/RecordingPlayerProvider';
 import { fetchDossiersByAppointmentIds, invokeGenerateCompanyDossier, subscribeDossierByAppointment } from '../../../lib/dossierApi';
 import CompanyDossierPanel from './CompanyDossierPanel';
@@ -17,17 +18,15 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
 
-// Spanavi テーマに準拠。ラベルは 前向き/様子見/消極的/不明 の 4 グループ。
-//   前向き  ← 前向き・比較的高い(と思われる)・角度高い方です
-//   様子見  ← 様子見・普通・中
-//   消極的  ← 消極的・やや低め・低め・やや消極的・やや低い・やんわり断り(気味)
-//   不明    ← 不明・面談化には成功したが・空欄
-const CEO_INTENT_OPTIONS = [
-  { value: 'positive', label: '前向き', color: C.gold },      // ゴールド
-  { value: 'wait',     label: '様子見', color: C.navy },      // ネイビー
-  { value: 'negative', label: '消極的', color: C.navyLight }, // ブルー
-  { value: 'unknown',  label: '不明',   color: C.textLight }, // グレー
-];
+// 既存 4 グループ (positive/wait/negative/unknown) は維持。
+// ラベルは engagement 別 (売却意向/買収意向/導入意向 等) を useKeymanIntents で動的取得。
+// チャート/集計用の色トーンは旧仕様を維持。
+const INTENT_COLOR_MAP = {
+  positive: C.gold,
+  wait:     C.navy,
+  negative: C.navyLight,
+  unknown:  C.textLight,
+};
 
 function bucketRevenue(oku) {
   if (oku == null) return '不明';
@@ -112,6 +111,12 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
   }, [periodMode, monthlyKey, weeklyKey, dailyDate, monthlyOpts, weeklyOpts]);
 
   const orgId = getOrgId();
+
+  // engagement 別キーマン意向ラベル
+  const { options: intentOptions } = useKeymanIntentsForClient(client?.id);
+  // タイトルに「意向」軸を表示するため最初の選択肢ラベルから軸名を抽出
+  // (例: '売却意向: 高い' → '売却意向')
+  const intentAxisName = (intentOptions[0]?.label || 'キーマン意向').split(':')[0].trim();
 
   useEffect(() => {
     if (!orgId || !client?.id) { setRows([]); setExtraByName({}); return; }
@@ -290,7 +295,11 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
 
   if (!client) return <EmptyCard>クライアントを選択してください</EmptyCard>;
 
-  const intentChartData = CEO_INTENT_OPTIONS.map(o => ({ name: o.label, value: stats.intentCount[o.value] || 0, color: o.color }))
+  const intentChartData = intentOptions.map(o => ({
+    name: o.short_label || o.label,
+    value: stats.intentCount[o.value] || 0,
+    color: INTENT_COLOR_MAP[o.value] || C.textLight,
+  }))
     .filter(d => d.value > 0);
   const prefChartData = Object.entries(stats.prefCount).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 8);
   const revChartData = ['〜1億','1〜3億','3〜10億','10〜30億','30億〜','不明']
@@ -367,11 +376,11 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
         <SummaryCard label="アポ数" value={stats.total} />
         <SummaryCard label="キャンセル" value={`${stats.canceled} (${stats.total > 0 ? ((stats.canceled / stats.total) * 100).toFixed(1) : 0}%)`} />
         <SummaryCard label="リスケ中" value={stats.rescheduled} />
-        <SummaryCard label="前向き" value={stats.intentCount.positive || 0} />
+        <SummaryCard label={`${intentAxisName} 高`} value={stats.intentCount.positive || 0} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-        <SectionCard title="キーマンのM&A意向">
+        <SectionCard title={`キーマンの${intentAxisName}`}>
           <div style={{ height: 200 }}>
             <ResponsiveContainer>
               <PieChart margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
@@ -471,7 +480,7 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
                 const variant = r.status === 'キャンセル' ? 'danger' : r.status === 'リスケ中' ? 'warn' : r.status === '面談済' ? 'success' : 'primary';
                 return r.status ? <Badge variant={variant} dot size="sm">{r.status}</Badge> : '—';
               } },
-            { key: 'intent', label: 'キーマンのM&A意向', width: 150, align: 'center',
+            { key: 'intent', label: `キーマンの${intentAxisName}`, width: 170, align: 'center',
               cellStyle: { overflow: 'visible', whiteSpace: 'nowrap' },
               render: r => (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -484,7 +493,7 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
                     onChange={e => handleIntentChange(r.id, e.target.value)}
                     options={[
                       { value: '', label: '—' },
-                      ...CEO_INTENT_OPTIONS.map(o => ({ value: o.value, label: o.label })),
+                      ...intentOptions.map(o => ({ value: o.value, label: o.label })),
                     ]}
                   />
                 </div>
