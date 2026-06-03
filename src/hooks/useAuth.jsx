@@ -80,6 +80,25 @@ export function AuthProvider({ children }) {
 
   const fetchProfile = async (userId) => {
     try {
+      // クライアントポータルログイン (auth.users.raw_user_meta_data.role==='client') を先に判定。
+      // この経路のユーザーは members テーブルに存在せず、後段の members fallback では
+      // org_id が解決できずデフォルト本物org に落ちて全データが見えなくなる事故が起きるため、
+      // 最初に user_metadata から org_id/client_id を取り出して setOrgId する。
+      const { data: { user: authUserEarly } } = await supabase.auth.getUser()
+      const meta = authUserEarly?.user_metadata || {}
+      if (meta.role === 'client' && meta.org_id) {
+        setOrgId(meta.org_id)
+        updateProfile({
+          id: userId,
+          name: meta.name || 'クライアント',
+          email: authUserEarly?.email || '',
+          role: 'client',
+          org_id: meta.org_id,
+          client_id: meta.client_id || null,
+        })
+        return
+      }
+
       const { data, error } = await supabase
         .from('users')
         .select('*')
