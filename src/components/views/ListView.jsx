@@ -384,7 +384,11 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       const { result, error } = await insertCallList(dataToSave, dataToSave.engagementId || currentEngagement?.id);
       if (error || !result) { alert('保存に失敗しました: ' + (error?.message || '不明なエラー')); return; }
       const newId = Math.max(0, ...callListData.map(l => l.id)) + 1;
-      setCallListData(prev => [...prev, { id: newId, ...dataToSave, contactIds: dataToSave.contactIds, count: parseInt(dataToSave.count) || 0, is_prospecting: derivedIsProspecting, engagement_id: dataToSave.engagementId, _supaId: result.id }]);
+      // client_id を補完: 会社名から clientData の _supaId を逆引きしておかないと
+      // RewardCell が list.client_id を読めず「当社売上」列が — になる
+      const matchedClient = (clientData || []).find(c => c.company === dataToSave.company);
+      const clientSupaId = matchedClient?._supaId || null;
+      setCallListData(prev => [...prev, { id: newId, ...dataToSave, contactIds: dataToSave.contactIds, count: parseInt(dataToSave.count) || 0, is_prospecting: derivedIsProspecting, engagement_id: dataToSave.engagementId, client_id: clientSupaId, _supaId: result.id }]);
     }
     setListFormOpen(false);
     setEditingListId(null);
