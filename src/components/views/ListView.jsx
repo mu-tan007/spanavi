@@ -338,10 +338,15 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       );
       if (extractError) throw extractError;
       if (extractData?.error) {
+        if (extractData.error === 'not_found') {
+          throw new Error(
+            'ホームページから企業情報を取得できませんでした。\n' +
+            `(参考URL: ${lookupData.url})\n` +
+            'サイトが JavaScript で動的に表示される / アクセス拒否されている等の理由が考えられます。お手数ですが企業概要は手動でご入力ください。'
+          );
+        }
         const detail = extractData.raw ? `\n\nAI出力(冒頭):\n${String(extractData.raw).slice(0, 300)}` : '';
-        throw new Error((extractData.error === 'not_found'
-          ? '該当する企業情報が見つかりませんでした。'
-          : `${extractData.error}`) + detail);
+        throw new Error(`${extractData.error}${detail}`);
       }
       if (!extractData?.overview) throw new Error('企業概要の抽出に失敗しました。');
       setFormData(p => ({ ...p, companyInfo: extractData.overview }));
