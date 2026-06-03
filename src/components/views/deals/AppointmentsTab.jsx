@@ -550,6 +550,7 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
               initialDossier={dossiersById[r.id] || null}
               canEditDossier={canEditDossier}
               adminAccessToken={adminAccessToken}
+              engagementId={client?.engagement_id || null}
             />
           )}
         />

@@ -14,6 +14,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { fetchCompanyPagesFromDomain } from '../_shared/fetchPageText.ts'
+import { getDossierAiSpec, DossierAiSpec } from '../_shared/engagementDossierSpec.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,9 +65,10 @@ function extractMaspMemoFromAppoReport(text: string | null): {
     const v = m[1].trim()
     return v && v !== '確認できず' ? v : undefined
   }
-  result.personality      = grab(/[　\s]*・\s*(?:先方のお人柄|先方の温度感)\s*[→:：]\s*([^\n]+)/)
-  result.meeting_exp      = grab(/[　\s]*・\s*面談経験の有無\s*[→:：]\s*([^\n]+)/)
-  result.future_consider  = grab(/[　\s]*・\s*将来的な検討可否\s*[→:：]\s*([^\n]+)/)
+  // engagement 横断で類似ラベルを許容: お人柄/温度感, 面談経験/運用状況/既存ツール/採用課題, 検討可否/検討時期
+  result.personality      = grab(/[　\s]*・\s*(?:先方のお人柄|先方の温度感|担当者のお人柄|担当者の温度感)\s*[→:：]\s*([^\n]+)/)
+  result.meeting_exp      = grab(/[　\s]*・\s*(?:面談経験の有無|既存ツール|現在の運用状況|過去の買収.{0,10}実績|現在の協業状況|現在の採用課題)\s*[→:：]\s*([^\n]+)/)
+  result.future_consider  = grab(/[　\s]*・\s*(?:将来的な検討可否|導入検討時期|今後の運用方針|今後の買収方針|今後の採用計画|今後の提携方針|検討時期)\s*[→:：]\s*([^\n]+)/)
   result.other            = grab(/[　\s]*・\s*その他\s*[→:：]\s*([^\n]+)/)
   return result
 }
@@ -78,6 +80,7 @@ interface AppointmentRow {
   company_name: string
   appo_report: string | null
   list_id: string | null
+  client_id: string | null
 }
 
 interface CallListItemRow {
@@ -131,10 +134,11 @@ async function loadAppointmentContext(appointmentId: string): Promise<{
   item: CallListItemRow | null
   list: CallListRow | null
   master: CompanyMasterRow | null
+  engagementSlug: string | null
 } | null> {
   const { data: appt, error: apptErr } = await supabase
     .from('appointments')
-    .select('id, org_id, item_id, company_name, appo_report, list_id')
+    .select('id, org_id, item_id, company_name, appo_report, list_id, client_id')
     .eq('id', appointmentId)
     .maybeSingle()
   if (apptErr || !appt) return null
@@ -178,11 +182,30 @@ async function loadAppointmentContext(appointmentId: string): Promise<{
     }
   }
 
+  // engagement.slug を取得 (client_id → clients.engagement_id → engagements.slug)
+  let engagementSlug: string | null = null
+  if (appt.client_id) {
+    const { data: clientRow } = await supabase
+      .from('clients')
+      .select('engagement_id')
+      .eq('id', appt.client_id)
+      .maybeSingle()
+    if (clientRow?.engagement_id) {
+      const { data: engRow } = await supabase
+        .from('engagements')
+        .select('slug')
+        .eq('id', clientRow.engagement_id)
+        .maybeSingle()
+      engagementSlug = engRow?.slug || null
+    }
+  }
+
   return {
     appointment: appt as AppointmentRow,
     item: (itemRes.data || null) as CallListItemRow | null,
     list: (listRes.data || null) as CallListRow | null,
     master,
+    engagementSlug,
   }
 }
 
@@ -234,6 +257,7 @@ function buildCompanyCorePrompt(args: {
   master: CompanyMasterRow | null
   hpUrl: string | null
   hpPages: { url: string; text: string }[]
+  spec: DossierAiSpec
 }): string {
   const { identityBlock, masterBlock } = buildContextBlocks(args)
   const hpBlock = args.hpPages.length > 0 ? `
@@ -245,7 +269,7 @@ ${args.hpPages.map(p => `=== ${p.url} ===\n${p.text}`).join('\n\n')}
 【対象企業HP】未指定 (web_search で企業を特定)
 `
 
-  return `あなたは M&A アドバイザリーのアナリストです。対象企業の基本情報を構造化してください。
+  return `あなたは法人営業アナリストです (${args.spec.industryTrendFocus})。対象企業の基本情報を構造化してください。
 
 ${JSON_GUARDRAIL}
 
@@ -277,15 +301,20 @@ ${hpBlock}
 }`
 }
 
-// === Call 2: 同業界M&Aニュース (web_search 中心) ===
+// === Call 2: 同業界ニュース (web_search 中心) ===
+// engagement 別 spec で切替: M&Aニュース / SaaS導入トレンド / 採用市場動向 等
 function buildIndustryMaNewsPrompt(args: {
   targetCompany: string
   targetRep: string | null
   targetAddress: string | null
   master: CompanyMasterRow | null
+  spec: DossierAiSpec
 }): string {
   const { identityBlock, masterBlock, industryHint } = buildContextBlocks(args)
-  return `あなたは M&A アドバイザリーのアナリストです。「${industryHint}」の M&A 関連ニュースを構造化してください。
+  const sitesDirective = args.spec.newsSearchSites.map(s => `site:${s}`).join(' / ')
+  const dealTypeOptions = args.spec.newsDealTypes.map(t => `'${t}'`).join(' | ')
+
+  return `あなたは法人営業アナリストです (${args.spec.industryTrendFocus})。「${industryHint}」の ${args.spec.axisLabel} 関連ニュースを構造化してください。
 
 ${JSON_GUARDRAIL}
 
@@ -294,13 +323,13 @@ ${identityBlock}
 ${masterBlock}
 
 【生成セクション】
-industry_ma_news: 「${industryHint}」の M&A 関連ニュース最大 5 件
+industry_ma_news (キー名は固定): 「${industryHint}」の ${args.spec.axisLabel} 関連ニュース最大 5 件
   [{date, title, url, summary, source, deal_type}]
-  deal_type は 'M&A' | 'TOB' | '資本業務提携' | '事業譲渡' | '子会社化' 等
-  対象企業そのものでなく、同業界の他社M&A案件が主軸
+  deal_type は ${dealTypeOptions} 等
+  対象企業そのものでなく、同業界の他社事例/動向が主軸
 
 【web_search 使用方針】
-- site:ma-cp.com / site:strike-ma.co.jp / site:nikkei.com / site:diamond.jp 等を優先
+- ${sitesDirective} 等を優先
 - 直近1-2年の案件中心
 - identity_match='medium' でOK
 
@@ -308,7 +337,7 @@ industry_ma_news: 「${industryHint}」の M&A 関連ニュース最大 5 件
 {
   "content": {
     "industry_ma_news": [
-      {"date": "2026-04-15", "title": "...", "url": "...", "summary": "...", "source": "M&A Capital", "deal_type": "M&A"}
+      {"date": "2026-04-15", "title": "...", "url": "...", "summary": "...", "source": "${args.spec.newsSearchSites[0] || ''}", "deal_type": "${args.spec.newsDealTypes[0]}"}
     ]
   },
   "sources": [{"type": "web_search", "url": "...", "identity_match": "medium"}]
@@ -456,7 +485,8 @@ async function runDossierGeneration(appointmentId: string, providedHpUrl: string
     console.error('[generate-company-dossier] appointment not found:', appointmentId)
     return
   }
-  const { appointment, item, list, master } = ctx
+  const { appointment, item, list, master, engagementSlug } = ctx
+  const spec = getDossierAiSpec(engagementSlug)
 
   const targetCompany = item?.company || master?.company_name || appointment.company_name
   const targetRep = item?.representative || master?.representative || extractRepresentativeFromAppoReport(appointment.appo_report)
@@ -498,7 +528,7 @@ async function runDossierGeneration(appointmentId: string, providedHpUrl: string
   // Call 1: 企業コア（HP本文ベース、web_search 1回まで）
   // Call 2: 同業界M&Aニュース（web_search 2回まで）
   // 最遅 call の時間で完了する → 直列なら 60-120秒、並列なら 30-70秒程度を目標
-  const coreBaseArgs = { targetCompany, targetRep, targetAddress, master }
+  const coreBaseArgs = { targetCompany, targetRep, targetAddress, master, spec }
   const [coreResult, maNewsResult] = await Promise.all([
     callClaude({
       prompt: buildCompanyCorePrompt({ ...coreBaseArgs, hpUrl, hpPages }),
@@ -512,7 +542,7 @@ async function runDossierGeneration(appointmentId: string, providedHpUrl: string
       maxTokens: 2500,
       maxWebSearches: 2,
       timeoutMs: 120_000,
-      label: 'ma_news',
+      label: `news_${spec.axisLabel}`,
     }),
   ])
 

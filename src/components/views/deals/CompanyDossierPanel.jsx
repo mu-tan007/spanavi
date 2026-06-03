@@ -13,9 +13,9 @@ import {
   DOSSIER_SECTION_LABELS,
   BASIC_INFO_LABELS,
   BASIC_INFO_ORDER,
-  MASP_MEMO_LABELS,
   MASP_MEMO_ORDER,
 } from '../../../types/dossier';
+import { useDossierSpec } from '../../../hooks/useDossierSpec';
 
 // =====================================================================
 // CompanyDossierPanel
@@ -68,7 +68,16 @@ export default function CompanyDossierPanel({
   initialDossier = null,
   canEditDossier = false,
   adminAccessToken = null,
+  engagementId = null,
 }) {
+  // engagement 別 spec (M&A ニュース / SaaS 導入トレンド / 採用市場 等)
+  const { spec } = useDossierSpec(engagementId);
+  // セクションラベルを spec.newsSectionLabel と spec.maspMemoLabels で上書き
+  const sectionLabels = {
+    ...DOSSIER_SECTION_LABELS,
+    industry_ma_news: spec.newsSectionLabel,
+  };
+  const maspMemoLabels = spec.maspMemoLabels;
   const [dossier, setDossier] = useState(initialDossier);
   const [loading, setLoading] = useState(!initialDossier);
   const [saving, setSaving] = useState(false);
@@ -216,7 +225,7 @@ export default function CompanyDossierPanel({
             <DossierSection
               key={key}
               sectionKey={key}
-              label={DOSSIER_SECTION_LABELS[key]}
+              label={sectionLabels[key]}
               value={dossier.content?.[key]}
               editing={editingKey === key}
               draft={editingDraft}
@@ -227,6 +236,7 @@ export default function CompanyDossierPanel({
               onSave={saveEdit}
               saving={saving}
               sourceUrl={getSectionSourceUrl(key, dossier.sources)}
+              maspMemoLabels={maspMemoLabels}
             />
           ))}
 
@@ -255,7 +265,7 @@ function getSectionSourceUrl(sectionKey, sources) {
   return null;
 }
 
-function DossierSection({ sectionKey, label, value, editing, draft, setDraft, canEditDossier, onEdit, onCancel, onSave, saving, sourceUrl }) {
+function DossierSection({ sectionKey, label, value, editing, draft, setDraft, canEditDossier, onEdit, onCancel, onSave, saving, sourceUrl, maspMemoLabels }) {
   const stringKeys = new Set(['executive_summary']);
   return (
     <div style={sectionStyle}>
@@ -296,7 +306,7 @@ function DossierSection({ sectionKey, label, value, editing, draft, setDraft, ca
           </div>
         </div>
       ) : (
-        <SectionRender sectionKey={sectionKey} value={value} />
+        <SectionRender sectionKey={sectionKey} value={value} maspMemoLabels={maspMemoLabels} />
       )}
     </div>
   );
@@ -331,7 +341,7 @@ function isEmptyValue(v) {
   return false;
 }
 
-function SectionRender({ sectionKey, value }) {
+function SectionRender({ sectionKey, value, maspMemoLabels }) {
   if (isEmptyValue(value)) return emptyHint();
 
   // 1. 基本情報（全項目を1つの表に統合）
@@ -345,11 +355,11 @@ function SectionRender({ sectionKey, value }) {
     return <NumberedCardList items={value} />;
   }
 
-  // 5. M&Aニュース
+  // 5. M&Aニュース (engagement 別: M&A/SaaS導入/採用ニュース等)
   if (sectionKey === 'industry_ma_news') return <MaNewsRender items={value} />;
 
-  // 6. MASP メモ
-  if (sectionKey === 'masp_memo') return <MaspMemoRender value={value} />;
+  // 6. MASP メモ (engagement 別ラベル)
+  if (sectionKey === 'masp_memo') return <MaspMemoRender value={value} labels={maspMemoLabels} />;
 
   // フォールバック
   return <pre style={{ fontSize: font.size.xs - 1, color: color.textMid, background: color.gray50, padding: space[2], borderRadius: radius.sm, overflow: 'auto' }}>{JSON.stringify(value, null, 2)}</pre>;
@@ -554,8 +564,8 @@ function MaNewsRender({ items }) {
   );
 }
 
-// ── 7. MASP メモ ──
-function MaspMemoRender({ value }) {
+// ── 7. MASP メモ ── (engagement 別ラベル)
+function MaspMemoRender({ value, labels }) {
   const entries = MASP_MEMO_ORDER
     .map(k => [k, value[k]])
     .filter(([_, v]) => v !== null && v !== undefined && v !== '' && v !== '確認できず');
@@ -568,7 +578,7 @@ function MaspMemoRender({ value }) {
           borderRadius: radius.sm, border: `1px solid ${alpha(color.gold, 0.2)}`,
         }}>
           <div style={{ fontSize: font.size.xs, color: color.navy, fontWeight: font.weight.semibold, marginBottom: 4 }}>
-            {MASP_MEMO_LABELS[k] || k}
+            {labels?.[k] || k}
           </div>
           <div style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: font.lineHeight.relaxed, whiteSpace: 'pre-wrap' }}>
             {String(v)}
