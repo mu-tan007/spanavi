@@ -115,8 +115,13 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
   // engagement 別キーマン意向ラベル
   const { options: intentOptions } = useKeymanIntentsForClient(client?.id);
   // タイトルに「意向」軸を表示するため最初の選択肢ラベルから軸名を抽出
-  // (例: '売却意向: 高い' → '売却意向')
-  const intentAxisName = (intentOptions[0]?.label || 'キーマン意向').split(':')[0].trim();
+  // (例: '売却意向: 高い' → '売却意向'。「:」が無い fallback ラベル時は「キーマン意向」)
+  const intentAxisName = (() => {
+    const first = intentOptions[0]?.label || '';
+    if (first.includes(':')) return first.split(':')[0].trim();
+    if (first.includes('：')) return first.split('：')[0].trim();
+    return 'キーマン意向';
+  })();
 
   useEffect(() => {
     if (!orgId || !client?.id) { setRows([]); setExtraByName({}); return; }
