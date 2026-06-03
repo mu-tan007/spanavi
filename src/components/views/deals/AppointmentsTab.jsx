@@ -126,7 +126,7 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
       let q = supabase
         .from('appointments')
         .select(`
-          id, company_name, meeting_date, status, cancel_reason, keyman_ma_intent, sales_amount, appo_report, recording_url,
+          id, company_name, meeting_date, status, cancel_reason, keyman_ma_intent, sales_amount, appo_report, recording_url, engagement_id,
           item:call_list_items(id, company, address, revenue, business)
         `)
         .eq('org_id', orgId)
@@ -550,7 +550,7 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
               initialDossier={dossiersById[r.id] || null}
               canEditDossier={canEditDossier}
               adminAccessToken={adminAccessToken}
-              engagementId={client?.engagement_id || null}
+              engagementId={r.engagement_id || client?.engagement_id || null}
             />
           )}
         />

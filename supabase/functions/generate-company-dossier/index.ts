@@ -81,6 +81,7 @@ interface AppointmentRow {
   appo_report: string | null
   list_id: string | null
   client_id: string | null
+  engagement_id: string | null
 }
 
 interface CallListItemRow {
@@ -138,7 +139,7 @@ async function loadAppointmentContext(appointmentId: string): Promise<{
 } | null> {
   const { data: appt, error: apptErr } = await supabase
     .from('appointments')
-    .select('id, org_id, item_id, company_name, appo_report, list_id, client_id')
+    .select('id, org_id, item_id, company_name, appo_report, list_id, client_id, engagement_id')
     .eq('id', appointmentId)
     .maybeSingle()
   if (apptErr || !appt) return null
@@ -182,22 +183,26 @@ async function loadAppointmentContext(appointmentId: string): Promise<{
     }
   }
 
-  // engagement.slug を取得 (client_id → clients.engagement_id → engagements.slug)
+  // engagement.slug を取得
+  // 優先順位: appointment.engagement_id > clients.engagement_id (フォールバック)
+  // 売り手/買い手両方やっているクライアント (例: LST) では appointment 側が正しい商材
   let engagementSlug: string | null = null
-  if (appt.client_id) {
+  let resolvedEngagementId: string | null = appt.engagement_id || null
+  if (!resolvedEngagementId && appt.client_id) {
     const { data: clientRow } = await supabase
       .from('clients')
       .select('engagement_id')
       .eq('id', appt.client_id)
       .maybeSingle()
-    if (clientRow?.engagement_id) {
-      const { data: engRow } = await supabase
-        .from('engagements')
-        .select('slug')
-        .eq('id', clientRow.engagement_id)
-        .maybeSingle()
-      engagementSlug = engRow?.slug || null
-    }
+    resolvedEngagementId = clientRow?.engagement_id || null
+  }
+  if (resolvedEngagementId) {
+    const { data: engRow } = await supabase
+      .from('engagements')
+      .select('slug')
+      .eq('id', resolvedEngagementId)
+      .maybeSingle()
+    engagementSlug = engRow?.slug || null
   }
 
   return {
