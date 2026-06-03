@@ -62,3 +62,21 @@ JSX のスコープ判定は親関数の closure を継承しない (Reactコン
    そのフックが**どの関数の中にいるか**で利用可能スコープが決まる。
 4. **大きい変更を push する前に、開発サーバ (`npm run dev`) で1回ハードリロードして確認する**。
    ビルド成功=動作保証ではない。今回は build OK でも runtime で crash した。
+
+## 2026-06-03: デモ org のデータが本番 Slack ランキングに合算された
+
+### 症状
+デモ org 構築時に `call_records.getter_name='篠宮 拓武'` で 7,150 件投入。
+直後の cron 起動で `notify-ranking` が「篠宮 架電150件・キーマン接続150件・アポ取得150件」を本番 Slack に投稿。
+
+### 真因
+2つ重なった:
+1. **Edge Function `notify-ranking` が org_id でフィルタしていなかった** (全 org の call_records を集計して本物 org の Slack に投稿)
+2. **デモデータの getter_name に本物社員名 (`篠宮 拓武`) を入れてしまった** (ListView の manager_name デフォルト挙動と合わせるためだったが、これにより全 org 集計時に本物の篠宮さんの行と合算)
+
+### ルール (自分宛)
+1. **マルチ org 環境では、Edge Function の全クエリが特定 org に限定されているかを必ず確認する**。
+   `notify-ranking` / `generate-daily-report` / `notify-team-report` / `post-*` 系を一通り見ること。slug ベース (`engagements.slug='seller_sourcing'`) のフィルタは複数 org でヒットするので注意。
+2. **デモ/テスト org のテキストフィールド (getter_name / manager_name / contact_person 等) に本物社員名を絶対に入れない**。
+   どこかの集計がテキスト一致でやっていれば即混入する。
+3. **大規模なデータ投入を行う org を立てたら、cron 起動系の Edge Function を全部 grep して org_id 限定の有無を確認する** ことを構築前のチェックリストに入れる。
