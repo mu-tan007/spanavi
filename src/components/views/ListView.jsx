@@ -312,22 +312,40 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   const [viewMode, setViewMode] = useUrlState('lv_view', 'lists', { allowed: ['lists', 'smart_queue'] });
   const [extractingUrl, setExtractingUrl] = useState(false);
 
-  const handleExtractFromUrl = async () => {
-    const url = (formData.companyUrl || '').trim();
-    if (!url) { alert('HP URL を入力してください。'); return; }
-    if (!/^https?:\/\//i.test(url)) { alert('URL は http:// または https:// で始まる必要があります。'); return; }
+  // 「企業概要」ボタン: 会社名から HP URL を AI で推定 → そのページから企業情報を抽出
+  // (旧: 手動で URL を貼って自動入力 → 廃止。ワンクリックで完結させる)
+  const handleGenerateOverview = async () => {
+    const company = (formData.company || '').trim();
+    if (!company) { alert('先に「クライアント企業名」を入力してください。'); return; }
     if ((formData.companyInfo || '').trim().length > 0) {
       if (!window.confirm('企業概要に既存の内容があります。AI抽出結果で置き換えますか？')) return;
     }
     setExtractingUrl(true);
     try {
-      const { data, error } = await supabase.functions.invoke('extract-company-from-url', { body: { url } });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error === 'not_found' ? '該当する企業情報が見つかりませんでした。URLをご確認ください。' : data.error);
-      if (!data?.overview) throw new Error('企業概要の抽出に失敗しました。');
-      setFormData(p => ({ ...p, companyInfo: data.overview }));
+      // Step 1: 会社名から HP URL を推定
+      const { data: lookupData, error: lookupError } = await supabase.functions.invoke(
+        'lookup-company-homepage',
+        { body: { company_name: company } }
+      );
+      if (lookupError) throw lookupError;
+      if (!lookupData?.url) {
+        throw new Error(`公式ホームページが見つかりませんでした (${lookupData?.reason || 'no url'})`);
+      }
+      // Step 2: 取得した URL から企業情報を抽出
+      const { data: extractData, error: extractError } = await supabase.functions.invoke(
+        'extract-company-from-url',
+        { body: { url: lookupData.url } }
+      );
+      if (extractError) throw extractError;
+      if (extractData?.error) {
+        throw new Error(extractData.error === 'not_found'
+          ? '該当する企業情報が見つかりませんでした。'
+          : extractData.error);
+      }
+      if (!extractData?.overview) throw new Error('企業概要の抽出に失敗しました。');
+      setFormData(p => ({ ...p, companyInfo: extractData.overview }));
     } catch (e) {
-      alert('抽出に失敗しました: ' + (e?.message || '不明なエラー'));
+      alert('自動生成に失敗しました: ' + (e?.message || '不明なエラー'));
     } finally {
       setExtractingUrl(false);
     }
@@ -739,30 +757,27 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                 );
               })()}
             </div>
-<div style={{ gridColumn: "span 3" }}>
-              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>クライアント企業ホームページ URL</label>
-              <div style={{ display: "flex", gap: space[2] }}>
-                <input
-                  type="url"
-                  value={formData.companyUrl}
-                  onChange={e => setFormData(p => ({ ...p, companyUrl: e.target.value }))}
-                  style={{ ...formInputStyle, flex: 1 }}
-                  placeholder="https://example.co.jp/about/"
-                />
-                <Button
-                  variant="secondary"
-                  size="md"
-                  onClick={handleExtractFromUrl}
-                  loading={extractingUrl}
-                  disabled={extractingUrl || !(formData.companyUrl || '').trim()}
-                >URLから自動入力</Button>
-              </div>
-              <div style={{ fontSize: 10, color: color.textLight, marginTop: 4 }}>
-                URLを入力して「URLから自動入力」を押すと、AIがホームページを読み取り企業概要を自動生成します。
-              </div>
-            </div>
             <div style={{ gridColumn: "span 3" }}>
-              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>企業概要</label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <label style={{ fontSize: font.size.xs, color: color.textLight, fontWeight: font.weight.semibold }}>企業概要</label>
+                <button
+                  type="button"
+                  onClick={handleGenerateOverview}
+                  disabled={extractingUrl || !(formData.company || '').trim()}
+                  title={(formData.company || '').trim()
+                    ? 'クライアント企業名から AI がホームページを検索して企業概要を自動生成'
+                    : '先にクライアント企業名を入力してください'}
+                  style={{
+                    padding: '3px 10px', fontSize: 10, fontWeight: font.weight.semibold,
+                    background: extractingUrl ? color.gray100 : color.white,
+                    color: extractingUrl ? color.textLight : color.navy,
+                    border: `1px solid ${color.navy}`, borderRadius: radius.sm,
+                    cursor: extractingUrl || !(formData.company || '').trim() ? 'not-allowed' : 'pointer',
+                    opacity: !(formData.company || '').trim() ? 0.4 : 1,
+                    fontFamily: font.family.sans, letterSpacing: 0.5,
+                  }}
+                >{extractingUrl ? '生成中…' : 'AIで自動生成'}</button>
+              </div>
               <textarea
                 value={formData.companyInfo}
                 onChange={e => setFormData(p => ({ ...p, companyInfo: e.target.value }))}
