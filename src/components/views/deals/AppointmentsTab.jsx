@@ -78,7 +78,7 @@ function buildWeeklyPeriods() {
 
 // canEditDossier=true は MASP メンバー権限あり（管理画面 or クライアントポータル代理ログイン中）。
 // adminAccessToken は代理ログイン中の編集経路で使う admin の access_token。null なら supabase 直接書込。
-export default function AppointmentsTab({ client, canEditDossier = false, adminAccessToken = null }) {
+export default function AppointmentsTab({ client, canEditDossier = false, adminAccessToken = null, filterEngagementId = null }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(null);
@@ -131,6 +131,8 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
         `)
         .eq('org_id', orgId)
         .eq('client_id', client.id);
+      // 兼業クライアントで engagement サブタブが選択されている場合のみフィルタ
+      if (filterEngagementId) q = q.eq('engagement_id', filterEngagementId);
       // 期間フィルタ: 獲得日 (created_at) ベース。架電結果の集計と揃える。
       if (periodRange.from) q = q.gte('created_at', periodRange.from);
       if (periodRange.to)   q = q.lt('created_at', periodRange.to);
@@ -176,7 +178,7 @@ export default function AppointmentsTab({ client, canEditDossier = false, adminA
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [orgId, client?.id, periodRange.from, periodRange.to]);
+  }, [orgId, client?.id, periodRange.from, periodRange.to, filterEngagementId]);
 
   // appointments 取得後にドシエも一括取得（RLS で見える範囲のみ）
   useEffect(() => {

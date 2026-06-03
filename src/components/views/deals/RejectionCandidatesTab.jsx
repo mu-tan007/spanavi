@@ -22,25 +22,31 @@ function parseRejection(raw) {
 // 「再アプローチ候補」タブ (社内 DealsView / クライアントポータル ClientDealsView 共通)
 // 過去にキーマン断りとなった企業について、AI 分析した温度感 (HIGH/MEDIUM/LOW) と
 // 断り理由要約を一覧表示する。HIGH (将来期待値が高い断り) を上位に並べる。
-export default function RejectionCandidatesTab({ client }) {
+export default function RejectionCandidatesTab({ client, filterEngagementId = null }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('');
   const [tempFilter, setTempFilter] = useState('ALL'); // 'ALL' | 'HIGH' | 'MEDIUM' | 'LOW'
+  // list_id → engagement_id マップ (兼業クライアント post-filter 用)
+  const [listEngMap, setListEngMap] = useState({});
 
   const orgId = getOrgId();
 
   useEffect(() => {
-    if (!orgId || !client?.id) { setRows([]); return; }
+    if (!orgId || !client?.id) { setRows([]); setListEngMap({}); return; }
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase.rpc('client_keyman_rejections', {
-        p_client_id: client.id, p_org_id: orgId,
-      });
+      const [{ data, error }, listsRes] = await Promise.all([
+        supabase.rpc('client_keyman_rejections', { p_client_id: client.id, p_org_id: orgId }),
+        supabase.from('call_lists').select('id, engagement_id').eq('org_id', orgId).eq('client_id', client.id),
+      ]);
       if (cancelled) return;
       if (error) console.error('[ClientRejectionCandidatesTab]', error);
       setRows(data || []);
+      const map = {};
+      for (const l of (listsRes.data || [])) map[l.id] = l.engagement_id;
+      setListEngMap(map);
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -48,7 +54,10 @@ export default function RejectionCandidatesTab({ client }) {
 
   // 温度感パース + ソート (HIGH 優先 → 日付新しい順)
   const parsed = useMemo(() => {
-    return (rows || []).map(r => {
+    const base = filterEngagementId
+      ? (rows || []).filter(r => listEngMap[r.list_id] === filterEngagementId)
+      : (rows || []);
+    return base.map(r => {
       const rej = parseRejection(r.rejection_reason);
       return { ...r, _temp: rej.temp || 'OTHER', _summary: rej.summary };
     }).sort((a, b) => {
@@ -57,7 +66,7 @@ export default function RejectionCandidatesTab({ client }) {
       if (ta !== tb) return ta - tb;
       return new Date(b.called_at).getTime() - new Date(a.called_at).getTime();
     });
-  }, [rows]);
+  }, [rows, filterEngagementId, listEngMap]);
 
   const counts = useMemo(() => {
     const m = { HIGH: 0, MEDIUM: 0, LOW: 0, OTHER: 0 };

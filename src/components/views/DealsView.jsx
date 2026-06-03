@@ -4,7 +4,9 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { useEngagements } from '../../hooks/useEngagements';
 import { useEngagementClients } from '../../hooks/useEngagementClients';
+import { useClientEngagements } from '../../hooks/useClientEngagements';
 import { useUrlState } from '../../hooks/useUrlState';
+import { getOrgId } from '../../lib/orgContext';
 import { invokeAdminImpersonateClient } from '../../lib/supabaseWrite';
 import ClientSelector from '../common/ClientSelector';
 import PageHeader from '../common/PageHeader';
@@ -26,6 +28,8 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
   // ハードリロード/共有URL対応のため URL クエリに同期
   const [selectedClientId, setSelectedClientId] = useUrlState('client', null);
   const [activeTab, setActiveTab] = useUrlState('tab', 'calls', { allowed: TAB_IDS });
+  // 同一クライアントが複数 engagement (例 LST=売り手+買い手) を持つ場合のサブタブ
+  const [subEngagementId, setSubEngagementId] = useUrlState('subEng', null);
 
   const [impersonating, setImpersonating] = useState(false);
 
@@ -33,6 +37,24 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
     () => clients.find(c => c.id === selectedClientId) || null,
     [clients, selectedClientId]
   );
+
+  // クライアントが扱う engagement 一覧 (appointments ベース)
+  const orgId = getOrgId();
+  const { engagements: clientEngagements } = useClientEngagements(selectedClientId, orgId);
+
+  // 現サイドバー engagement が clientEngagements に含まれていれば最優先で選択
+  // 含まれない場合は先頭の clientEngagements を採用
+  // clientEngagements が空 (アポ未存在) なら currentEngagement にフォールバック
+  const effectiveSubEngagementId = useMemo(() => {
+    if (clientEngagements.length === 0) return currentEngagement?.id || null;
+    if (subEngagementId && clientEngagements.some(e => e.id === subEngagementId)) {
+      return subEngagementId;
+    }
+    if (currentEngagement && clientEngagements.some(e => e.id === currentEngagement.id)) {
+      return currentEngagement.id;
+    }
+    return clientEngagements[0].id;
+  }, [clientEngagements, subEngagementId, currentEngagement]);
 
   const handleImpersonate = async () => {
     if (!selectedClient?.id) return;
@@ -138,12 +160,41 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
         )}
       </div>
 
+      {/* engagement サブタブ (兼業クライアント時のみ表示) */}
+      {selectedClient && clientEngagements.length >= 2 && (
+        <div style={{
+          display: 'flex', gap: space[1], padding: `${space[2]}px ${space[5]}px 0`,
+          alignItems: 'center', flexWrap: 'wrap',
+        }}>
+          <span style={{ fontSize: font.size.xs, color: color.textLight, marginRight: space[2] }}>商材:</span>
+          {clientEngagements.map(eng => {
+            const active = effectiveSubEngagementId === eng.id;
+            return (
+              <button
+                key={eng.id} type="button"
+                onClick={() => setSubEngagementId(eng.id)}
+                style={{
+                  fontSize: font.size.xs, padding: '4px 10px',
+                  background: active ? color.navy : color.white,
+                  color: active ? color.white : color.navy,
+                  border: `1px solid ${color.navy}`,
+                  borderRadius: radius.pill,
+                  cursor: 'pointer', fontFamily: font.family.sans,
+                  fontWeight: active ? font.weight.semibold : font.weight.normal,
+                }}
+              >{eng.name}</button>
+            );
+          })}
+        </div>
+      )}
+
       <div style={{ padding: '16px 20px', flex: 1, minHeight: 'calc(100vh - 260px)' }}>
         {activeTab === 'calls' && (
           <CallResultsTab
             engagementId={currentEngagement.id}
             client={selectedClient}
             clients={clients}
+            filterEngagementId={selectedClient && clientEngagements.length >= 2 ? effectiveSubEngagementId : null}
           />
         )}
         {activeTab === 'appos' && (
@@ -152,10 +203,14 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
             client={selectedClient}
             clients={clients}
             canEditDossier={true}
+            filterEngagementId={selectedClient && clientEngagements.length >= 2 ? effectiveSubEngagementId : null}
           />
         )}
         {activeTab === 'rejection' && (
-          <RejectionCandidatesTab client={selectedClient} />
+          <RejectionCandidatesTab
+            client={selectedClient}
+            filterEngagementId={selectedClient && clientEngagements.length >= 2 ? effectiveSubEngagementId : null}
+          />
         )}
       </div>
     </div>

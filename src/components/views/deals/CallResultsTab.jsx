@@ -59,12 +59,14 @@ function buildWeeklyPeriods() {
 
 // クライアント選択時のリスト別 架電結果サマリ + 時系列
 // DB 側で期間絞り込みと集計。
-export default function CallResultsTab({ client }) {
+export default function CallResultsTab({ client, filterEngagementId = null }) {
   const { keymanConnectLabels } = useCallStatuses();
   const [rows, setRows] = useState([]);
   const [byDay, setByDay] = useState([]);
   const [loading, setLoading] = useState(false);
   const [detailList, setDetailList] = useState(null);
+  // list_id → engagement_id マップ (filterEngagementId が指定された時の post-filter 用)
+  const [listEngMap, setListEngMap] = useState({});
 
   // 期間モード
   const [periodMode, setPeriodMode] = useState('total'); // 'total'|'monthly'|'weekly'|'daily'
@@ -112,20 +114,40 @@ export default function CallResultsTab({ client }) {
       if (cancelled) return;
       setRows(sumRes.data || []);
       setByDay(dayRes.data || []);
+      // call_lists の engagement_id マップを構築 (兼業クライアント post-filter 用)
+      const { data: listRows } = await supabase
+        .from('call_lists')
+        .select('id, engagement_id')
+        .eq('org_id', orgId)
+        .eq('client_id', client.id);
+      if (!cancelled) {
+        const map = {};
+        for (const l of (listRows || [])) map[l.id] = l.engagement_id;
+        setListEngMap(map);
+      }
       setLoading(false);
     })();
     return () => { cancelled = true; };
   }, [orgId, client?.id, keymanConnectLabels, periodRange.from, periodRange.to]);
 
-  const totals = useMemo(() => rows.reduce((a, s) => ({
+  // 兼業クライアントの engagement サブタブ選択時、list_id を engagement_id で post-filter
+  const filteredRows = useMemo(() => {
+    if (!filterEngagementId) return rows;
+    return rows.filter(r => {
+      const lid = r.list_id || r.id;
+      return listEngMap[lid] === filterEngagementId;
+    });
+  }, [rows, filterEngagementId, listEngMap]);
+
+  const totals = useMemo(() => filteredRows.reduce((a, s) => ({
     calls:           a.calls           + Number(s.calls || 0),
     keymanConnects:  a.keymanConnects  + Number(s.keyman_connects || 0),
     appos:           a.appos           + Number(s.appos || 0),
-  }), { calls: 0, keymanConnects: 0, appos: 0 }), [rows]);
+  }), { calls: 0, keymanConnects: 0, appos: 0 }), [filteredRows]);
 
   // アクティブ / アーカイブで分割
-  const activeRows   = useMemo(() => rows.filter(s => !s.is_archived), [rows]);
-  const archivedRows = useMemo(() => rows.filter(s =>  s.is_archived), [rows]);
+  const activeRows   = useMemo(() => filteredRows.filter(s => !s.is_archived), [filteredRows]);
+  const archivedRows = useMemo(() => filteredRows.filter(s =>  s.is_archived), [filteredRows]);
 
   const sumRows = (list) => list.reduce((a, s) => ({
     calls:          a.calls          + Number(s.calls || 0),
@@ -213,7 +235,7 @@ export default function CallResultsTab({ client }) {
 
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: color.textMid }}>読み込み中...</div>
-      ) : rows.length === 0 ? (
+      ) : filteredRows.length === 0 ? (
         <EmptyCard>
           {periodMode === 'total'
             ? 'このクライアントに紐付くリストがありません'
