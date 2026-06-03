@@ -150,6 +150,9 @@ export function useSpanaviData(authOrgId) {
         nextContactAt: c.next_contact_at || null,
         contactPhone: c.contact_phone || '',
         isFavorite: c.is_favorite === true,
+        address: c.address || '',
+        representativeName: c.representative_name || '',
+        hpUrl: c.hp_url || '',
       }))
 
       // members → 既存DEFAULT_MEMBERSフォーマット（名前のリスト）

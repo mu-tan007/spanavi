@@ -24,8 +24,9 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [templateId, setTemplateId] = useState('');
   const [clientName, setClientName] = useState(client?.company || '');
-  const [clientAddress, setClientAddress] = useState('');
-  const [clientRepresentative, setClientRepresentative] = useState('');
+  // 過去に HP 自動取得した結果を clients テーブルから初期値として復元 (再入力の手間ゼロ)
+  const [clientAddress, setClientAddress] = useState(client?.address || '');
+  const [clientRepresentative, setClientRepresentative] = useState(client?.representativeName || '');
   const [contractDate, setContractDate] = useState(
     new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
   );
@@ -141,12 +142,23 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
     setAutoFillResult(res);
     // 既存入力を上書きしすぎないよう、空欄のみセット (確信度 high の場合は上書き)
     const overwrite = res.confidence === 'high';
-    if (res.address && (overwrite || !clientAddress.trim())) {
-      // 念のため当社表記に整形をかけ直す
-      setClientAddress(normalizeAddressToCompanyStyle(res.address));
-    }
-    if (res.representative && (overwrite || !clientRepresentative.trim())) {
-      setClientRepresentative(res.representative);
+    const nextAddress = res.address && (overwrite || !clientAddress.trim())
+      ? normalizeAddressToCompanyStyle(res.address)
+      : clientAddress;
+    const nextRepresentative = res.representative && (overwrite || !clientRepresentative.trim())
+      ? res.representative
+      : clientRepresentative;
+    if (nextAddress !== clientAddress) setClientAddress(nextAddress);
+    if (nextRepresentative !== clientRepresentative) setClientRepresentative(nextRepresentative);
+    // clients テーブルに保存 → 次回モーダル起動時の初期値として復元される
+    if (client?._supaId) {
+      const patch = {};
+      if (nextAddress && nextAddress !== client.address) patch.address = nextAddress;
+      if (nextRepresentative && nextRepresentative !== client.representativeName) patch.representative_name = nextRepresentative;
+      if (res.hp_url && res.hp_url !== client.hpUrl) patch.hp_url = res.hp_url;
+      if (Object.keys(patch).length > 0) {
+        await supabase.from('clients').update(patch).eq('id', client._supaId);
+      }
     }
   };
 
@@ -258,6 +270,17 @@ export default function GenerateClientContractModal({ client, rewardMaster = [],
     setGenerating(true);
     setError(null);
     try {
+      // 手動編集分も含めて clients に保存 (次回モーダル起動時の初期値として復元)
+      if (client?._supaId) {
+        const patch = {};
+        const addrTrim = clientAddress.trim();
+        const repTrim = clientRepresentative.trim();
+        if (addrTrim && addrTrim !== (client.address || '')) patch.address = addrTrim;
+        if (repTrim  && repTrim  !== (client.representativeName || '')) patch.representative_name = repTrim;
+        if (Object.keys(patch).length > 0) {
+          await supabase.from('clients').update(patch).eq('id', client._supaId);
+        }
+      }
       const { filename, placeholders } = await generateAndDownloadClientContract({
         template: selectedTemplate,
         clientName: clientName.trim(),
