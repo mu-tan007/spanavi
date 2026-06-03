@@ -146,7 +146,7 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
       console.error('[QuickAppo] save error:', e);
       const msg = String(e?.message || '');
       if (msg.includes('重複保存防止')) {
-        setError('このアポは直前(5分以内)に同じ条件で保存されています。重複登録を防止しました。');
+        setError('同じリスト・同じ企業・同じアポ日のアポが既に登録されています。既存アポを編集してください。');
       } else {
         setError('保存に失敗しました: ' + msg);
       }

@@ -323,7 +323,7 @@ HP：${form.hp}
       console.error('[AppoReportModal] Edge Function error:', err);
       const msg = String(err?.message || '');
       if (msg.includes('重複保存防止')) {
-        alert('このアポは直前(5分以内)に同じ条件で保存されています。重複登録を防止しました。');
+        alert('同じリスト・同じ企業・同じアポ日のアポが既に登録されています。\n既存のアポを編集してください (新規ではなく一覧から該当行を選択)。');
       }
       setAiStatus(slackAppoOk ? 'done_slack' : 'error');
     }

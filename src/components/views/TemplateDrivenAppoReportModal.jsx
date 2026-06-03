@@ -655,7 +655,7 @@ export default function TemplateDrivenAppoReportModal({
       // DB trigger からの重複保存防止エラーを分かりやすく
       const msg = String(e?.message || '');
       if (msg.includes('重複保存防止')) {
-        setAiError('このアポは直前(5分以内)に同じ条件で保存されています。重複登録を防止しました。');
+        setAiError('同じリスト・同じ企業・同じアポ日のアポが既に登録されています。既存アポを編集してください。');
       } else {
         setAiError(msg || '保存に失敗しました');
       }
