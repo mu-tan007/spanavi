@@ -338,9 +338,10 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       );
       if (extractError) throw extractError;
       if (extractData?.error) {
-        throw new Error(extractData.error === 'not_found'
+        const detail = extractData.raw ? `\n\nAI出力(冒頭):\n${String(extractData.raw).slice(0, 300)}` : '';
+        throw new Error((extractData.error === 'not_found'
           ? '該当する企業情報が見つかりませんでした。'
-          : extractData.error);
+          : `${extractData.error}`) + detail);
       }
       if (!extractData?.overview) throw new Error('企業概要の抽出に失敗しました。');
       setFormData(p => ({ ...p, companyInfo: extractData.overview }));
