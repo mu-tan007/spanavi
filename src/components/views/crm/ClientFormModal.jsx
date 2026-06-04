@@ -222,7 +222,12 @@ export default function ClientFormModal({
                           onChange={e => setEngRewards(prev => ({ ...prev, [eng.id]: e.target.value }))}
                           options={[
                             { value: '', label: '-（未設定／報酬計算なし）' },
-                            ...rewardIds.map(id => ({ value: id, label: `${id} - ${rewardMap[id] ? rewardMap[id].name : ''}` })),
+                            ...rewardIds.map(id => {
+                              const rm = rewardMap[id];
+                              const baseLabel = `${id} - ${rm ? rm.name : ''}`;
+                              const tax = rm?.tax ? ` (${rm.tax})` : '';
+                              return { value: id, label: baseLabel + tax };
+                            }),
                           ]}
                         />
                       </React.Fragment>

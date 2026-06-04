@@ -203,6 +203,12 @@ function EngagementRewardsInline({ clientId, rewardMaster }) {
     (rewardMaster || []).forEach(r => { if (!m[r.id]) m[r.id] = r.name; });
     return m;
   }, [rewardMaster]);
+  // type_id → tax (税別/税込) 識別のため select option に併記する
+  const rewardTaxById = useMemo(() => {
+    const m = {};
+    (rewardMaster || []).forEach(r => { if (!m[r.id]) m[r.id] = r.tax || ''; });
+    return m;
+  }, [rewardMaster]);
 
   // 営業代行 product 配下の全 engagement (client_acquisition 以外)
   const salesAgencyEngs = useMemo(() => {
@@ -447,7 +453,9 @@ function EngagementRewardsInline({ clientId, rewardMaster }) {
                       >
                         <option value="">— (報酬計算なし)</option>
                         {rewardIds.map(id => (
-                          <option key={id} value={id}>{id} - {rewardNameById[id] || ''}</option>
+                          <option key={id} value={id}>
+                            {id} - {rewardNameById[id] || ''}{rewardTaxById[id] ? ` (${rewardTaxById[id]})` : ''}
+                          </option>
                         ))}
                       </select>
                     </div>
