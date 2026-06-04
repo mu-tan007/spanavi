@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { color, space, font, radius, shadow, alpha } from '../../../../constants/design';
 import { Button, Card, Badge, Input } from '../../../ui';
 import { useAuth } from '../../../../hooks/useAuth';
+import { useIsMobile } from '../../../../hooks/useIsMobile';
 import { supabase } from '../../../../lib/supabase';
 
 // 仕様書: tasks/spacareer-spec.md §6.2A 第1回前ヒアリングシート（キックオフ専用・70問固定）
@@ -19,6 +20,7 @@ import { supabase } from '../../../../lib/supabase';
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
 export default function ClientKickoffHearingView() {
+  const isMobile = useIsMobile();
   const { profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -315,7 +317,7 @@ export default function ClientKickoffHearingView() {
         </div>
       </Card>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: space[4], alignItems: 'flex-start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 280px', gap: space[4], alignItems: 'flex-start' }}>
         {/* 中央: セクションA〜J + BONUS */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
           {sections.map(sec => (
