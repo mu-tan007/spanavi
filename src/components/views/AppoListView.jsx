@@ -1211,6 +1211,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         recording_url: recordingUrl,
         item_id: '',
         personality: '', meetingExp: '', futureConsider: '', other: '',
+        appointment_id: reportDetail?._supaId || null,
       });
       if (error || data?.error) throw new Error(error?.message || data?.error);
       setTranscribeStep('enhancing');
@@ -1266,6 +1267,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         recording_url: replaceUrl,
         item_id: reportDetail.item_id || '',
         personality: '', meetingExp: '', futureConsider: '', other: '',
+        appointment_id: reportDetail?._supaId || null,
       });
       if (error || data?.error) throw new Error(error?.message || data?.error);
       setReplaceStep('enhancing');
@@ -1329,6 +1331,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         recording_url: url,
         item_id: reportDetail.item_id || '',
         personality: '', meetingExp: '', futureConsider: '', other: '',
+        appointment_id: reportDetail?._supaId || null,
       });
       if (error || data?.error) throw new Error(error?.message || data?.error);
       setReplaceStep('enhancing');
@@ -1572,7 +1575,81 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         </div>
       )}
 
-      {/* Table */}
+      {/* Table (mobile: card list) */}
+      {isMobile && (
+        <div>
+          {filtered.length === 0 ? (
+            <div style={{
+              padding: '40px 16px', textAlign: 'center',
+              background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
+              color: color.textLight, fontSize: font.size.sm,
+            }}>データがありません</div>
+          ) : filtered.map((a, i) => {
+            const sc = statusColor(a.status);
+            const isSelected = a._supaId && selectedIds.has(a._supaId);
+            return (
+              <div
+                key={i}
+                onClick={() => setReportDetail(a)}
+                style={{
+                  background: isSelected ? '#EAF4FF' : color.white,
+                  border: `1px solid ${color.border}`, borderRadius: radius.md,
+                  padding: '12px 14px', marginBottom: space[2],
+                  cursor: 'pointer', minHeight: 44,
+                  borderLeft: `3px solid ${sc.color}`,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: space[1.5], marginBottom: space[1] }}>
+                  {setAppoData && a._supaId && (
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onClick={e => e.stopPropagation()}
+                      onChange={() => setSelectedIds(prev => {
+                        const next = new Set(prev);
+                        if (next.has(a._supaId)) next.delete(a._supaId); else next.add(a._supaId);
+                        return next;
+                      })}
+                      style={{ cursor: 'pointer', accentColor: color.success, minWidth: 16, minHeight: 16 }}
+                    />
+                  )}
+                  <span style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: sc.color }}>{a.status}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 10, fontFamily: font.family.mono, color: color.textLight }}>
+                    取得 {a.getDate?.slice(5)} / 面談 {a.meetDate?.slice(5)}
+                  </span>
+                </div>
+                <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy, marginBottom: 2, textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>
+                  {a.company}
+                  {a.isProspecting && (
+                    <span style={{ marginLeft: 6, fontSize: 9, fontWeight: font.weight.semibold, color: color.info, background: alpha(color.info, 0.1), padding: '1px 5px', borderRadius: radius.sm }}>クライアント開拓</span>
+                  )}
+                </div>
+                <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[1] }}>{a.client}</div>
+                <div style={{
+                  display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
+                  gap: space[1], fontSize: 10, color: color.textMid,
+                }}>
+                  <div>
+                    <span style={{ color: color.textLight }}>取得者: </span>
+                    <span style={{ fontWeight: font.weight.semibold, color: color.textDark }}>{a.getter}</span>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ color: color.textLight }}>売上: </span>
+                    <span style={{ fontFamily: font.family.mono, fontWeight: font.weight.semibold, color: a.isProspecting ? color.textLight : color.navy }}>
+                      {a.isProspecting ? '-' : (a.sales > 0 ? formatCurrency(a.sales) : '-')}
+                    </span>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ color: color.textLight }}>イン: </span>
+                    <span style={{ fontFamily: font.family.mono }}>{a.reward > 0 ? formatCurrency(a.reward) : '-'}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {!isMobile && (
       <div style={{ background: color.white, borderRadius: selectedIds.size > 0 ? '0 0 4px 4px' : radius.md, overflowX: "auto", overflowY: "hidden", border: `1px solid ${color.border}` }}>
         <div style={{ minWidth: appoMinWWithCheckbox }}>
         <div style={{
@@ -1667,6 +1744,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         })}
         </div>
       </div>
+      )}
 
       {/* Bulk Invoice Create Modal (ZIP) — 編集モーダル表示中は隠す */}
       {bulkInvoiceModal && setAppoData && !bulkInvoiceEditingClient && (() => {
