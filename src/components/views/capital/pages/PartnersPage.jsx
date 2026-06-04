@@ -5,7 +5,6 @@ import FirmContractsPanel from '../components/firm/FirmContractsPanel'
 import PageHeader from '../../../common/PageHeader'
 import { color, space, radius, font, shadow, alpha } from '../../../../constants/design'
 import { Button, Input, Select, Card } from '../../../ui'
-import { useIsMobile } from '../../../../hooks/useIsMobile'
 
 const TYPE_STYLE = {
   intermediary: { bg: color.gray50,   fg: color.navy,    label: '仲介会社' },
@@ -42,7 +41,6 @@ function useContacts(intermediaryId) {
 }
 
 export default function PartnersPage() {
-  const isMobile = useIsMobile()
   const qc = useQueryClient()
   const { data: intermediaries = [], isLoading } = useIntermediaries()
   const [selected, setSelected] = useState(null)
@@ -96,9 +94,9 @@ export default function PartnersPage() {
           </Button>
         }
       />
-      <div style={{ padding: isMobile ? '0 12px' : '0 24px' }}>
+      <div style={{ padding: '0 24px' }}>
 
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '320px 1fr', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 14 }}>
         {/* List */}
         <Card padding="md" style={{ borderRadius: 12 }}>
           <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 10, letterSpacing: '0.5px' }}>一覧</div>

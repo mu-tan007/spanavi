@@ -5,7 +5,6 @@ import { DEAL_STATUSES } from '../lib/constants'
 import PageHeader from '../../../common/PageHeader'
 import { color, space, radius, font, shadow, alpha } from '../../../../constants/design'
 import { Button, Input, Select } from '../../../ui'
-import { useIsMobile } from '../../../../hooks/useIsMobile'
 
 const STATUS_STYLE = {
   nn_review:       { bg: color.gray100,  fg: '#2a4a7a',     label: 'NN精査' },
@@ -60,7 +59,6 @@ const COLS = '32px 10px 1fr 120px 90px 80px 80px 80px 80px 80px 56px 90px'
 const HEADERS = ['#', '', '案件名', '業種', 'ステータス', '売上高', '営業利益', 'EBITDA', '純資産', 'Nキャッシュ', 'スコア', '担当']
 
 export default function DealsPage() {
-  const isMobile = useIsMobile()
   const [search, setSearch]       = useState('')
   const [filterStatus, setFilter] = useState('')
   const [showModal, setModal]     = useState(false)
@@ -109,23 +107,23 @@ export default function DealsPage() {
           </Button>
         }
       />
-      <div style={{ padding: isMobile ? '0 12px' : '0 24px' }}>
+      <div style={{ padding: '0 24px' }}>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
         <Input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="案件名で検索..."
           fullWidth={false}
-          containerStyle={{ width: isMobile ? '100%' : 240 }}
+          containerStyle={{ width: 240 }}
           style={{ color: color.navy }}
         />
         <Select
           value={filterStatus}
           onChange={e => setFilter(e.target.value)}
           fullWidth={false}
-          containerStyle={{ width: isMobile ? '100%' : 160 }}
+          containerStyle={{ width: 160 }}
           style={{ color: color.navy }}
         >
           <option value="">全ステータス</option>
@@ -135,67 +133,7 @@ export default function DealsPage() {
         </Select>
       </div>
 
-      {/* モバイル: カード形式 */}
-      {isMobile && (
-        <div>
-          {isLoading ? (
-            <div style={{ padding: '40px 16px', textAlign: 'center', color: color.textMid, fontSize: font.size.base }}>読み込み中...</div>
-          ) : deals.length === 0 ? (
-            <div style={{ padding: '40px 16px', textAlign: 'center', color: color.textMid, fontSize: font.size.base }}>案件がありません</div>
-          ) : (
-            deals.map((d) => {
-              const fin = getLatest(d)
-              const netCash = (fin.cash != null && fin.interest_bearing_debt != null)
-                ? fin.cash - fin.interest_bearing_debt
-                : null
-              return (
-                <Link
-                  key={d.id}
-                  to={`/deals/${d.id}`}
-                  style={{
-                    display: 'block', textDecoration: 'none',
-                    background: color.white, border: `1px solid ${color.border}`,
-                    borderRadius: radius.md, padding: '12px 14px', marginBottom: space[2],
-                    minHeight: 44,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: space[1.5], marginBottom: space[1] }}>
-                    <PriDot p={d.priority} />
-                    <StatusBadge status={d.status} />
-                    <span style={{ marginLeft: 'auto', fontSize: font.size.xs, color: color.textMid }}>{d.industry_label || '—'}</span>
-                  </div>
-                  <div style={{ fontSize: font.size.base, fontWeight: font.weight.medium, color: color.navy, marginBottom: space[1] }}>
-                    {d.name}
-                  </div>
-                  {d.intermediaries?.name && (
-                    <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[1] }}>{d.intermediaries.name}</div>
-                  )}
-                  <div style={{
-                    display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
-                    gap: space[1], fontSize: font.size.xs, color: color.textMid,
-                  }}>
-                    <div>
-                      <div style={{ color: color.textLight }}>売上</div>
-                      <div style={{ color: color.navy, fontWeight: font.weight.medium }}>{fmtK(fin.revenue)}</div>
-                    </div>
-                    <div>
-                      <div style={{ color: color.textLight }}>EBITDA</div>
-                      <div style={{ color: color.navy, fontWeight: font.weight.medium }}>{fmtK(fin.ebitda)}</div>
-                    </div>
-                    <div>
-                      <div style={{ color: color.textLight }}>スコア</div>
-                      <Score score={d.score} />
-                    </div>
-                  </div>
-                </Link>
-              )
-            })
-          )}
-        </div>
-      )}
-
       {/* Table */}
-      {!isMobile && (
       <div style={{ background: color.white, border: `0.5px solid ${color.border}`, borderRadius: 12, overflow: 'hidden', overflowX: 'auto' }}>
         {/* Table header */}
         <div style={{
@@ -270,7 +208,6 @@ export default function DealsPage() {
           })
         )}
       </div>
-      )}
 
       {/* New deal modal */}
       {showModal && (

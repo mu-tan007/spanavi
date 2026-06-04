@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { color, space, font, radius, shadow, alpha } from '../../../../constants/design';
 import { Button, Card, Badge, Select } from '../../../ui';
 import { useAuth } from '../../../../hooks/useAuth';
-import { useIsMobile } from '../../../../hooks/useIsMobile';
 import { supabase } from '../../../../lib/supabase';
 
 // 仕様書: tasks/spacareer-spec.md §6.2 事前課題
@@ -20,7 +19,6 @@ const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50MB
 const HOMEWORK_BUCKET = 'spacareer-homework-files';
 
 export default function ClientHomeworkView() {
-  const isMobile = useIsMobile();
   const { profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [customer, setCustomer] = useState(null);
@@ -248,7 +246,7 @@ export default function ClientHomeworkView() {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 320px', gap: space[4] }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: space[4] }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
           {items.map((item, idx) => (
             <QuestionCard

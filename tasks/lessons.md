@@ -101,7 +101,3 @@ JSX のスコープ判定は親関数の closure を継承しない (Reactコン
    (今回は trigger 強化のみだが、再々発したら UNIQUE 化を検討)。
 3. **時間窓パラメータを修正する時は「もっと長くする」より「設計の不変条件」で考える**。
    「5分」のような魔法の数字は再発の温床。「同じ日の同じ会社のアポは1件」のような事業ルールベースで書く。
-
-## 2026-06-04: モバイル対応の標準パターン
-
-Spanavi のモバイル対応は「別コンポーネント切替」ではなく「同コンポーネント内で `useIsMobile()` 判定して条件分岐」が原則。`useIsMobile` (768px breakpoint) を画面の先頭で呼び、(1) DataTable / 横長テーブルは縦カードリストに、(2) 多列グリッド (`repeat(4,1fr)` 等) は 2 列 or 1 列に、(3) 1fr+固定px のサイドバー併用レイアウトは 1 列縦積みに、(4) `position: fixed bottom` のバーは `calc(24px + 56px + env(safe-area-inset-bottom))` で下部ナビ上にオフセットする。タップ領域は最低 44x44px、design tokens (`color.*` / `space[N]` / `font.*`) と既存 UI 部品 (`Button`/`Card`/`Badge`/`DataTable`) を必ず使用、絵文字は禁止。

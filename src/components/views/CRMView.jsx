@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useIsMobile } from '../../hooks/useIsMobile';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { updateClient, insertClient, deleteClient } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
@@ -44,7 +43,6 @@ export default function CRMView(props) {
 }
 
 function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], contactsByClient = {}, setContactsByClient, callListData = [], currentUser = '', members = [], clientEngagementRewards = [] }) {
-  const isMobile = useIsMobile();
   // ハードリロード/URL共有で状態保持するため URL クエリに同期
   const [statusFilter, setStatusFilter] = useUrlState('crm_status', '支援中');
   const [search, setSearch]             = useUrlState('crm_q', '');
@@ -789,13 +787,10 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
         </>
       )}
 
-      {/* 一斉メール送信バー (1件以上選択中のみ表示)
-          モバイル時は下部ナビ(56px)+safe-area分を上にオフセット */}
+      {/* 一斉メール送信バー (1件以上選択中のみ表示) */}
       {selectedIds.size > 0 && (
         <div style={{
-          position: 'fixed',
-          bottom: `calc(24px + ${isMobile ? '56px' : '0px'} + env(safe-area-inset-bottom, 0px))`,
-          left: '50%', transform: 'translateX(-50%)',
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
           background: color.navy, color: color.white,
           padding: '10px 18px', borderRadius: radius.md, boxShadow: shadow.lg,
           fontSize: font.size.sm, fontFamily: font.family.sans,

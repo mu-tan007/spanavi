@@ -1,4 +1,4 @@
-import { color, space, radius, font, alpha } from '../../../constants/design';
+import { color, space, radius, font } from '../../../constants/design';
 import { Button } from '../../ui';
 import ColumnResizeHandle from '../../common/ColumnResizeHandle';
 import { useIsMobile } from '../../../hooks/useIsMobile';
@@ -13,9 +13,7 @@ function MobileCard({
   client, isEditable,
   lastTouchByClient, contactsByClient,
   monthAppoCountByClient, monthTargetByClient, maxMonthTarget,
-  onRowClick, onEditRow, onToggleFavorite,
-  isSelected, onToggleSelect,
-  globalIdx,
+  onRowClick, onEditRow, globalIdx,
 }) {
   const c = client;
   const sc = statusStyle(c.status);
@@ -49,35 +47,12 @@ function MobileCard({
   return (
     <div
       style={{
-        background: isSelected ? alpha(color.navyLight, 0.06) : color.white,
-        border: '1px solid ' + GRAY_200, borderRadius: radius.md,
+        background: color.white, border: '1px solid ' + GRAY_200, borderRadius: radius.md,
         padding: '12px 14px', marginBottom: space[2],
         borderLeft: '4px solid ' + sc.color,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: space[1.5], marginBottom: space[1.5] }}>
-        {onToggleSelect && (
-          <input
-            type="checkbox"
-            checked={!!isSelected}
-            onClick={e => e.stopPropagation()}
-            onChange={() => onToggleSelect(c._supaId)}
-            style={{ cursor: 'pointer', minWidth: 16, minHeight: 16, accentColor: color.navy }}
-          />
-        )}
-        {onToggleFavorite && (
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); onToggleFavorite(c); }}
-            title={c.isFavorite ? 'お気に入り解除' : 'お気に入りに登録'}
-            style={{
-              background: 'none', border: 'none', padding: 4, cursor: 'pointer',
-              fontSize: 18, lineHeight: 1, color: c.isFavorite ? color.gold : color.borderLight,
-              minWidth: 44, minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              marginLeft: -8, marginRight: -8,
-            }}
-          >{c.isFavorite ? '★' : '☆'}</button>
-        )}
         <span style={{
           fontSize: 9, fontWeight: font.weight.bold, color: rank.color,
           border: '1px solid ' + rank.color, borderRadius: radius.sm,
@@ -175,7 +150,6 @@ export default function CRMTable({
   setSortState,
   onRowClick,
   onComposeEmail,
-  onEditRow,
   selectedIds = new Set(),
   onToggleSelect,
   onToggleSelectAll,
@@ -210,9 +184,6 @@ export default function CRMTable({
             maxMonthTarget={maxMonthTarget}
             onRowClick={onRowClick}
             onEditRow={onEditRow}
-            onToggleFavorite={onToggleFavorite}
-            isSelected={selectedIds.has(c._supaId)}
-            onToggleSelect={onToggleSelect}
           />
         ))}
       </div>

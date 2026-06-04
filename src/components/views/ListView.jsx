@@ -837,122 +837,6 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       )}
 
       {/* Table */}
-      {isMobile && displayFilter !== 'archived' && (() => {
-        const filterEng = salesAgencyEngagements.find(e => e.slug === displayFilter);
-        let activeLists = filteredLists;
-        if (categoryFilter !== 'all') {
-          activeLists = activeLists.filter(l => engagementToCategoryId[l.engagement_id] === categoryFilter);
-        }
-        if (filterEng) {
-          activeLists = activeLists.filter(l => l.engagement_id === filterEng.id);
-        }
-        if (activeLists.length === 0) {
-          return (
-            <div style={{
-              padding: '40px 16px', textAlign: 'center',
-              background: color.white, border: `1px solid ${color.border}`,
-              borderRadius: radius.md, color: color.textLight, fontSize: font.size.sm,
-            }}>該当する架電リストがありません</div>
-          );
-        }
-        const grouped = {};
-        activeLists.forEach(list => {
-          const key = list.company;
-          if (!grouped[key]) grouped[key] = [];
-          grouped[key].push(list);
-        });
-        return (
-          <div>
-            {Object.entries(grouped).map(([client, lists]) => (
-              <div key={client} style={{ marginBottom: space[3] }}>
-                <div style={{
-                  padding: '6px 12px', background: alpha(color.navy, 0.04),
-                  borderRadius: radius.md, marginBottom: space[1.5],
-                  display: 'flex', alignItems: 'center', gap: space[2],
-                }}>
-                  <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy }}>{client}</span>
-                  <span style={{ fontSize: 10, color: color.textLight }}>{lists.length}リスト・{lists.reduce((s, l) => s + l.count, 0).toLocaleString()}社</span>
-                </div>
-                {lists.map(list => {
-                  const typeName = engagementToEngagementName[list.engagement_id] || '—';
-                  const tone = typeName === '売り手ソーシング' ? color.navy
-                             : typeName === '買い手マッチング' ? '#6366F1'
-                             : typeName === 'クライアント開拓' ? color.gold
-                             : color.textMid;
-                  return (
-                    <div
-                      key={list.id}
-                      onClick={() => setSelectedList(list.id)}
-                      style={{
-                        background: color.white, border: `1px solid ${color.border}`,
-                        borderRadius: radius.md, padding: '12px 14px', marginBottom: space[2],
-                        cursor: 'pointer', minHeight: 44,
-                        opacity: list.status === '架電停止' ? 0.5 : 1,
-                        borderLeft: list.status === '架電停止' ? `3px solid ${color.danger}` : `3px solid ${tone}`,
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: space[1.5], marginBottom: space[1.5], flexWrap: 'wrap' }}>
-                        <TypeBadge color={tone} small>{typeName}</TypeBadge>
-                        <span style={{ fontSize: 10, color: color.textLight }}>{engagementToCategoryName[list.engagement_id] || '—'}</span>
-                        {list.status === '架電可能' && <span style={{ marginLeft: 'auto' }}><ScorePill score={list.recommendation.score} /></span>}
-                      </div>
-                      <div style={{ fontSize: font.size.sm, fontWeight: font.weight.medium, color: color.textDark, marginBottom: space[1] }}>
-                        {list.industry}
-                      </div>
-                      <div style={{
-                        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[1.5],
-                        fontSize: font.size.xs, color: color.textMid,
-                      }}>
-                        <div>
-                          <span style={{ color: color.textLight }}>社数: </span>
-                          <span style={{ fontFamily: font.family.mono, fontWeight: font.weight.semibold }}>{list.count.toLocaleString()}</span>
-                        </div>
-                        <div>
-                          <span style={{ color: color.textLight }}>担当: </span>
-                          <span>{shortManagerName(list) || '—'}</span>
-                        </div>
-                        <div>
-                          <span style={{ color: color.textLight }}>進捗: </span>
-                          <ProgressPill pct={list.call_progress_pct} />
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <RewardCell list={list} rewardMaster={rewardMaster} clientEngagementRewards={clientEngagementRewards} isInternFee={engagementToType[list.engagement_id] === 'client_acquisition'} />
-                        </div>
-                      </div>
-                      {isAdmin && (
-                        <div style={{
-                          marginTop: space[2], paddingTop: space[2], borderTop: `1px dashed ${color.border}`,
-                          display: 'flex', justifyContent: 'flex-end', gap: space[1.5],
-                        }}>
-                          <button
-                            onClick={e => { e.stopPropagation(); handleOpenEdit(list); }}
-                            style={{
-                              minWidth: 44, minHeight: 36, padding: '6px 14px',
-                              borderRadius: radius.md, background: color.offWhite,
-                              border: `1px solid ${color.border}`, color: color.textMid, cursor: 'pointer',
-                              fontSize: font.size.xs, fontFamily: font.family.sans,
-                            }}
-                          >編集</button>
-                          <button
-                            onClick={e => { e.stopPropagation(); handleDelete(list.id); }}
-                            style={{
-                              minWidth: 44, minHeight: 36, padding: '6px 14px',
-                              borderRadius: radius.md, background: color.dangerSoft,
-                              border: `1px solid ${alpha(color.danger, 0.13)}`, color: color.danger, cursor: 'pointer',
-                              fontSize: font.size.xs, fontFamily: font.family.sans,
-                            }}
-                          >削除</button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        );
-      })()}
-      {!isMobile && (
       <div style={{
         background: color.white, border: `1px solid ${color.border}`,
         borderRadius: radius.md, overflowX: "auto", overflowY: "hidden",
@@ -1128,7 +1012,6 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         })()}
         </div>
       </div>
-      )}
       </>}
     </div>
   );

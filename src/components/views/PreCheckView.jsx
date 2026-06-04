@@ -502,70 +502,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
               }}>{items.length}件</span>
             </div>
 
-            {/* モバイル: カード形式 */}
-            {isMobile ? (
-              <div style={{
-                background: color.white,
-                border: `1px solid ${g.border}`, borderTop: 'none',
-                borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg,
-                padding: space[2],
-              }}>
-                {items.map((a, i) => {
-                  const pcs = a.preCheckStatus;
-                  return (
-                    <div
-                      key={`${g.key}-${i}`}
-                      onClick={() => setSelectedAppo(a)}
-                      style={{
-                        background: color.white, border: `1px solid ${color.border}`,
-                        borderRadius: radius.md, padding: '12px 14px', marginBottom: space[2],
-                        cursor: 'pointer', minHeight: 44,
-                        borderLeft: `3px solid ${g.color}`,
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: space[1.5], marginBottom: space[1] }}>
-                        <span style={{ fontSize: font.size.xs, fontFamily: font.family.mono, color: color.textLight }}>
-                          {a.meetDate?.slice(5)}
-                        </span>
-                        <span style={{ marginLeft: 'auto' }}>
-                          {pcs
-                            ? <Badge variant={preCheckBadgeVariant(pcs)} dot>{pcs}</Badge>
-                            : <span style={{ fontSize: font.size.xs, color: color.textLight }}>未入力</span>
-                          }
-                        </span>
-                      </div>
-                      <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy, marginBottom: space[0.5] }}>
-                        {a.company}
-                      </div>
-                      <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[1] }}>
-                        {a.client}
-                      </div>
-                      <div style={{ fontSize: font.size.xs, color: color.textLight }}>
-                        取得者: <span style={{ color: color.textDark, fontWeight: font.weight.semibold }}>{a.getter}</span>
-                      </div>
-                      {['確認完了', 'リスケ', 'キャンセル'].includes(pcs) && (
-                        <div style={{ marginTop: space[2], paddingTop: space[2], borderTop: `1px dashed ${color.border}`, display: 'flex', justifyContent: 'flex-end' }}>
-                          <Button
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const cl = clientData.find(c => c.company === a.client);
-                              const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
-                              const contactName = contacts[0]?.name || cl?.company || a.client;
-                              setReportAppo(a);
-                              setReportResultType(pcs);
-                              setReportBody(buildPreCheckReport(a, contactName, pcs));
-                              setReportStep('compose');
-                              setReportError('');
-                            }}
-                          >報告</Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
+            {/* DataTable (height='auto' で自然伸縮、グループ色の左border) */}
             <DataTable
               ariaLabel={`${g.label} 事前確認対象`}
               height="auto"
@@ -631,7 +568,6 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
                 },
               ]}
             />
-            )}
           </div>
         );
       })}

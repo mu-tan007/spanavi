@@ -4,7 +4,6 @@ import { Card } from '../ui';
 import PageHeader from '../common/PageHeader';
 import { ProgressPill } from '../common/TopListCard';
 import { useCallQueue } from './smart-queue/useCallQueue';
-import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import {
@@ -134,7 +133,6 @@ export default function BusinessOverviewView({
   setCallFlowScreen,
   onNavigateToCrmDetail,
 }) {
-  const isMobile = useIsMobile();
   const [month, setMonth] = useState(getCurrentMonth());
   const [engagementsMaster, setEngagementsMaster] = useState([]); // {id, type, category_id, category_name}
   const [categoriesMaster, setCategoriesMaster] = useState([]); // {id, name, display_order}
@@ -316,7 +314,7 @@ export default function BusinessOverviewView({
 
         {/* A. 今月の数字サマリー + 商材×タイプ マトリクス */}
         <Section title="今月の数字" hint="軸① 案件実行 / 軸② クライアント開拓">
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: space[3] }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[3] }}>
 
             {/* 軸① */}
             <div style={{
@@ -326,7 +324,7 @@ export default function BusinessOverviewView({
               <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy, marginBottom: space[2] }}>
                 ① 案件実行
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr', gap: space[2], marginBottom: space[3] }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[2], marginBottom: space[3] }}>
                 <NumberCard label="アポ取得" value={`${fmtNum(stats.axis1.count)}件`} />
                 <NumberCard label="当社売上" value={yen(stats.axis1.sales)} />
                 <NumberCard label="インターン報酬" value={yen(stats.axis1.reward)} />
@@ -337,8 +335,8 @@ export default function BusinessOverviewView({
                 />
               </div>
               {/* 軸① 商材×タイプマトリクス */}
-              <div style={{ background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}`, overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 480 : 'auto' }}>
+              <div style={{ background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}`, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ background: color.navy, color: color.white }}>
                       <th style={{ padding: '6px 8px', fontSize: font.size.xs, textAlign: 'left', fontWeight: font.weight.semibold }}>商材</th>
@@ -385,7 +383,7 @@ export default function BusinessOverviewView({
               <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy, marginBottom: space[2] }}>
                 ② クライアント開拓
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr', gap: space[2], marginBottom: space[3] }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[2], marginBottom: space[3] }}>
                 <NumberCard label="アポ取得" value={`${fmtNum(stats.axis2.count)}件`} />
                 <NumberCard label="インターン報酬" value={yen(stats.axis2.reward)} />
                 <NumberCard
@@ -395,8 +393,8 @@ export default function BusinessOverviewView({
                 />
               </div>
               {/* 軸② 商材別 実績 + 目標入力 */}
-              <div style={{ background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}`, overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 360 : 'auto' }}>
+              <div style={{ background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}`, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ background: color.navy, color: color.white }}>
                       <th style={{ padding: '6px 8px', fontSize: font.size.xs, textAlign: 'left', fontWeight: font.weight.semibold }}>商材</th>
