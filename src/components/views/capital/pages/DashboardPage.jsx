@@ -5,6 +5,7 @@ import CaesarLogo from '../components/ui/CaesarLogo'
 import PageHeader from '../../../common/PageHeader'
 import { color, space, radius, font, shadow, alpha } from '../../../../constants/design'
 import { Card, Badge } from '../../../ui'
+import { useIsMobile } from '../../../../hooks/useIsMobile'
 
 // ---- ステータスバッジ ----
 const STATUS_STYLE = {
@@ -132,6 +133,7 @@ function formatDate(ts) {
 
 // ---- メインページ ----
 export default function DashboardPage() {
+  const isMobile = useIsMobile()
   const { data, isLoading, error } = useDashboard()
 
   if (isLoading) return (
@@ -172,10 +174,10 @@ export default function DashboardPage() {
         description="M&A案件の進捗と主要KPI"
         style={{ marginBottom: 20 }}
       />
-      <div style={{ padding: '0 24px' }}>
+      <div style={{ padding: isMobile ? '0 12px' : '0 24px' }}>
 
       {/* KPI */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
         <KpiCard label="進行中案件" value={kpi.activeCount} sub={`ストップ ${stopped.length} / ブレイク ${broken.length}`} />
         <KpiCard label="優先案件（高）" value={kpi.priority1Count} sub="優先度 高" />
         <KpiCard label="今月のトップ面談" value={kpi.topMeetingCount} sub="予定あり" />
@@ -183,7 +185,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Row 2: Pipeline + Meetings */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14, marginBottom: 20 }}>
 
         <Card padding="md" style={{ borderRadius: 12 }}>
           <div style={{ fontSize: font.size.sm, fontWeight: font.weight.medium, color: color.textMid, marginBottom: 12 }}>案件パイプライン</div>
@@ -225,7 +227,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Row 3: Deal list + Notif + TODO */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 14, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.6fr 1fr', gap: 14, marginBottom: 20 }}>
 
         <Card padding="md" style={{ borderRadius: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
