@@ -27,6 +27,9 @@ const blankTier = () => ({ lo: 0, hi: 999999, price: 0, memo: '' });
 export default function RewardTypeManager({ isAdmin }) {
   const [types, setTypes] = useState([]); // [{ type_id, name, basis, tax, calc_type, sort_order, tiers: [] }]
   const [usageCounts, setUsageCounts] = useState({}); // { type_id: 使用クライアント数 }
+  // 使用列クリックで一覧表示するため、type_id → [{clientName, status, engagementName}] を保持
+  const [usageByType, setUsageByType] = useState({});
+  const [usagePopup, setUsagePopup] = useState(null); // { type_id, name } | null
   const [loading, setLoading] = useState(true);
   const [editTarget, setEditTarget] = useState(null); // { isNew, ...fields }
   const [saving, setSaving] = useState(false);
@@ -35,10 +38,18 @@ export default function RewardTypeManager({ isAdmin }) {
   const load = async () => {
     setLoading(true);
     setError(null);
-    const [{ data: tTypes, error: e1 }, { data: tTiers, error: e2 }, { data: usage }] = await Promise.all([
+    const [
+      { data: tTypes, error: e1 },
+      { data: tTiers, error: e2 },
+      { data: usage },
+      { data: clientsAll },
+      { data: engagementsAll },
+    ] = await Promise.all([
       supabase.from('reward_types').select('type_id, name, basis, tax, calc_type, sort_order').order('sort_order').order('type_id'),
       supabase.from('reward_tiers').select('id, type_id, lo, hi, price, memo, sort_order').order('type_id').order('sort_order'),
-      supabase.from('client_engagement_reward_settings').select('reward_type'),
+      supabase.from('client_engagement_reward_settings').select('reward_type, client_id, engagement_id'),
+      supabase.from('clients').select('id, name, status'),
+      supabase.from('engagements').select('id, name, slug'),
     ]);
     if (e1 || e2) {
       setError((e1 || e2).message);
@@ -51,9 +62,33 @@ export default function RewardTypeManager({ isAdmin }) {
       byType[t.type_id].push(t);
     });
     setTypes((tTypes || []).map(t => ({ ...t, tiers: byType[t.type_id] || [] })));
+
+    // client_id / engagement_id → 表示名のマップ
+    const clientMap = new Map((clientsAll || []).map(c => [c.id, { name: c.name, status: c.status }]));
+    const engMap = new Map((engagementsAll || []).map(e => [e.id, { name: e.name, slug: e.slug }]));
+
     const counts = {};
-    (usage || []).forEach(u => { if (u.reward_type) counts[u.reward_type] = (counts[u.reward_type] || 0) + 1; });
+    const usageList = {};
+    (usage || []).forEach(u => {
+      if (!u.reward_type) return;
+      counts[u.reward_type] = (counts[u.reward_type] || 0) + 1;
+      if (!usageList[u.reward_type]) usageList[u.reward_type] = [];
+      const c = clientMap.get(u.client_id);
+      const e = engMap.get(u.engagement_id);
+      usageList[u.reward_type].push({
+        clientId: u.client_id,
+        clientName: c?.name || '(不明)',
+        status: c?.status || '',
+        engagementName: e?.name || '',
+        engagementSlug: e?.slug || '',
+      });
+    });
+    // 各タイプ内ではクライアント名でソート
+    Object.keys(usageList).forEach(k => {
+      usageList[k].sort((a, b) => a.clientName.localeCompare(b.clientName, 'ja'));
+    });
     setUsageCounts(counts);
+    setUsageByType(usageList);
     setLoading(false);
   };
 
@@ -215,8 +250,22 @@ export default function RewardTypeManager({ isAdmin }) {
                   <td style={{ padding: '8px 10px', textAlign: 'center', color: color.textMid }}>{t.tax || '—'}</td>
                   <td style={{ padding: '8px 10px', textAlign: 'center', color: color.textLight, fontSize: 10, fontFamily: font.family.mono }}>{t.calc_type}</td>
                   <td style={{ padding: '8px 10px', textAlign: 'right', fontFamily: font.family.mono, color: color.textMid }}>{t.tiers.length}</td>
-                  <td style={{ padding: '8px 10px', textAlign: 'right', fontFamily: font.family.mono, color: (usageCounts[t.type_id] || 0) > 0 ? color.navy : color.textLight }}>
-                    {usageCounts[t.type_id] || 0}社
+                  <td style={{ padding: '8px 10px', textAlign: 'right', fontFamily: font.family.mono }}>
+                    {(usageCounts[t.type_id] || 0) > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setUsagePopup({ type_id: t.type_id, name: t.name })}
+                        title="クリックで該当クライアント一覧を表示"
+                        style={{
+                          background: 'none', border: 'none', padding: 0,
+                          color: color.navy, cursor: 'pointer', fontWeight: font.weight.semibold,
+                          fontFamily: font.family.mono, fontSize: font.size.xs,
+                          textDecoration: 'underline',
+                        }}
+                      >{usageCounts[t.type_id]}社</button>
+                    ) : (
+                      <span style={{ color: color.textLight }}>0社</span>
+                    )}
                   </td>
                   {isAdmin && (
                     <td style={{ padding: '8px 10px', textAlign: 'center' }}>
@@ -228,6 +277,70 @@ export default function RewardTypeManager({ isAdmin }) {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* 使用クライアント一覧ポップアップ */}
+      {usagePopup && (
+        <div onClick={() => setUsagePopup(null)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 20000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: color.white, borderRadius: radius.lg, width: 560, maxWidth: '90vw',
+            maxHeight: '80vh', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            display: 'flex', flexDirection: 'column',
+          }}>
+            <div style={{
+              padding: '12px 20px', background: color.navy, color: color.white,
+              borderRadius: `${radius.lg}px ${radius.lg}px 0 0`,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <div>
+                <div style={{ fontSize: font.size.md, fontWeight: font.weight.semibold }}>
+                  {usagePopup.type_id} - {usagePopup.name}
+                </div>
+                <div style={{ fontSize: font.size.xs, opacity: 0.85, marginTop: 2 }}>
+                  この報酬体系を使用しているクライアント: {(usageByType[usagePopup.type_id] || []).length}社
+                </div>
+              </div>
+              <button onClick={() => setUsagePopup(null)} style={{
+                background: 'none', border: 'none', color: color.white, fontSize: 18, cursor: 'pointer',
+              }}>✕</button>
+            </div>
+            <div style={{ overflowY: 'auto', padding: '0' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.xs }}>
+                <thead>
+                  <tr style={{ background: color.gray50, color: color.textMid, fontSize: 10 }}>
+                    <th style={{ padding: '6px 12px', textAlign: 'left', fontWeight: font.weight.semibold }}>クライアント名</th>
+                    <th style={{ padding: '6px 12px', textAlign: 'left', fontWeight: font.weight.semibold }}>商材</th>
+                    <th style={{ padding: '6px 12px', textAlign: 'center', fontWeight: font.weight.semibold }}>ステータス</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(usageByType[usagePopup.type_id] || []).map((row, idx) => (
+                    <tr key={idx} style={{
+                      borderTop: `1px solid ${color.borderLight}`,
+                      background: idx % 2 === 0 ? color.white : color.gray50,
+                    }}>
+                      <td style={{ padding: '8px 12px', color: color.textDark, fontWeight: font.weight.medium }}>
+                        {row.clientName}
+                      </td>
+                      <td style={{ padding: '8px 12px', color: color.textMid }}>
+                        {row.engagementName}{row.engagementSlug ? ` (${row.engagementSlug})` : ''}
+                      </td>
+                      <td style={{ padding: '8px 12px', textAlign: 'center', color: color.textMid }}>
+                        {row.status || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ padding: '8px 20px', borderTop: `1px solid ${color.border}`, display: 'flex', justifyContent: 'flex-end' }}>
+              <Button variant="outline" size="sm" onClick={() => setUsagePopup(null)}>閉じる</Button>
+            </div>
+          </div>
         </div>
       )}
 
