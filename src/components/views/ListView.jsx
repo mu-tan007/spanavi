@@ -281,7 +281,9 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       return sameSurname.length > 0 ? `${surname}(${parts[1][0]})` : surname;
     }).join('・');
   };
-  const emptyForm = { name: "", company: "", type: "M&A仲介", status: "架電可能", industry: "", count: "", manager: "", contactIds: [], companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "", isProspecting: false, engagementId: "" };
+  // type (call_lists.list_type) は engagementから商材カテゴリ名を引いて自動連動する。
+  // 過去にデフォルト"M&A仲介"固定だった事で、IFA/人材リードでも"M&A仲介"が保存される事故があった。
+  const emptyForm = { name: "", company: "", type: "", status: "架電可能", industry: "", count: "", manager: "", contactIds: [], companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "", isProspecting: false, engagementId: "" };
   const [formData, setFormData] = useState(emptyForm);
   const [showRec, setShowRec] = useState(true);
   // 'sourcing' = 通常ソーシング, 'prospecting' = クライアント開拓, 'archived' = アーカイブ, 'all' = 全て
@@ -372,20 +374,24 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   };
 
   const handleOpenAdd = () => {
-    setFormData({ ...emptyForm, engagementId: defaultEngagementId() });
+    const engId = defaultEngagementId();
+    setFormData({ ...emptyForm, engagementId: engId, type: engagementToCategoryName[engId] || "" });
     setEditingListId(null);
     setListFormOpen(true);
   };
 
   const handleOpenEdit = (list) => {
+    const engId = list.engagement_id || defaultEngagementId();
     setFormData({
       name: list.name || "",
-      company: list.company, type: list.type, status: list.status,
+      company: list.company,
+      type: engagementToCategoryName[engId] || list.type || "",
+      status: list.status,
       industry: list.industry, count: String(list.count), manager: list.manager,
       contactIds: list.contactIds || [],
       companyInfo: list.companyInfo || "", companyUrl: list.companyUrl || "", scriptBody: list.scriptBody || "", cautions: list.cautions || "", notes: list.notes || "",
       isProspecting: !!list.is_prospecting,
-      engagementId: list.engagement_id || defaultEngagementId(),
+      engagementId: engId,
     });
     setEditingListId(list.id);
     setListFormOpen(true);
@@ -396,7 +402,10 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
     if (!formData.engagementId) { alert('タイプを選択してください'); return; }
     // クライアント開拓 engagement を選んだ場合は is_prospecting=true を自動付与
     const derivedIsProspecting = clientAcquisitionIds.has(formData.engagementId);
-    const dataToSave = { ...formData, isProspecting: derivedIsProspecting };
+    // list_type は engagement の商材カテゴリ名で常に上書き(IFA/M&A/SaaS/人材)。
+    // フォーム表示中の値より engagementId が最新なので、ここで強制連動させる。
+    const derivedType = engagementToCategoryName[formData.engagementId] || formData.type || '';
+    const dataToSave = { ...formData, isProspecting: derivedIsProspecting, type: derivedType };
     if (editingListId !== null) {
       const target = callListData.find(l => l.id === editingListId);
       if (target?._supaId) {

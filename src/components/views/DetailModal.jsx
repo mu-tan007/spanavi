@@ -257,7 +257,11 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
           <div>
             <div style={{ fontSize: font.size.lg + 2, fontWeight: font.weight.black, color: color.navy, marginBottom: space[1.5], fontFamily: "'Noto Serif JP', serif" }}>{list.company}</div>
             <div style={{ display: "flex", gap: space[1.5], flexWrap: "wrap" }}>
-              <Badge color={color.navy} glow>{list.type}</Badge>
+              {(list.productCategoryName || list.engagementName || list.type) && (
+                <Badge color={color.navy} glow>
+                  {[list.productCategoryName, list.engagementName].filter(Boolean).join(' / ') || list.type}
+                </Badge>
+              )}
               <Badge color={list.status === "架電可能" ? '#1E40AF' : color.danger} glow>{list.status}</Badge>
               <Badge color={'#1E40AF'} glow>{list.industry}</Badge>
             </div>
@@ -307,7 +311,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
                 ["担当者", list.manager],
                 ["業種",   list.industry],
                 ["企業数", list.count.toLocaleString() + "社"],
-                ["リストタイプ", list.type],
+                ["商材", [list.productCategoryName, list.engagementName].filter(Boolean).join(' / ') || list.type],
               ].map(([k, v]) => v ? [
                 <span key={k + "_k"} style={{ color: color.textLight, whiteSpace: "nowrap" }}>{k}</span>,
                 <span key={k + "_v"} style={{ color: color.textDark, fontWeight: font.weight.semibold }}>{v}</span>,

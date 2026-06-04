@@ -36,6 +36,8 @@ export function useSpanaviData(authOrgId) {
         clientContactsRes,
         sourcingEngRes,
         clientEngagementRewardsRes,
+        engagementsRes,
+        businessCategoriesRes,
       ] = await Promise.all([
         supabase.from('clients').select('*').eq('org_id', orgId).order('sort_order'),
         supabase.from('call_lists').select('*').eq('org_id', orgId).order('sort_order'),
@@ -45,6 +47,8 @@ export function useSpanaviData(authOrgId) {
         supabase.from('client_contacts').select('*').eq('org_id', orgId).order('created_at'),
         supabase.from('engagements').select('id').eq('org_id', orgId).eq('slug', 'seller_sourcing').maybeSingle(),
         supabase.from('client_engagement_reward_settings').select('client_id, engagement_id, reward_type').eq('org_id', orgId),
+        supabase.from('engagements').select('id, name, slug, category_id').eq('org_id', orgId),
+        supabase.from('business_categories').select('id, name').eq('org_id', orgId),
       ])
 
       // Sourcing 事業の member_engagements.role_id → engagement_roles.name を取得
@@ -95,12 +99,31 @@ export function useSpanaviData(authOrgId) {
       const clientMap = {}
       clients.forEach(c => { clientMap[c.id] = c })
 
+      // engagement_id → 商材カテゴリ名 / engagement.name のマップを構築
+      // 表示上の「リストタイプ」は商材カテゴリ(IFA/M&A/SaaS/人材)を最優先で出す
+      const engagementsAll = engagementsRes?.data || []
+      const businessCategoriesAll = businessCategoriesRes?.data || []
+      const categoryNameMap = new Map(businessCategoriesAll.map(c => [c.id, c.name]))
+      const engagementMetaMap = new Map(
+        engagementsAll.map(e => [
+          e.id,
+          {
+            engagementName: e.name || '',
+            productCategoryName: e.category_id ? (categoryNameMap.get(e.category_id) || '') : '',
+          },
+        ])
+      )
+
       // call_lists → 既存CALL_LISTSフォーマットに変換
-      const callListsFormatted = callLists.map((cl, idx) => ({
+      const callListsFormatted = callLists.map((cl, idx) => {
+        const meta = cl.engagement_id ? engagementMetaMap.get(cl.engagement_id) : null
+        return ({
         id: idx + 1,
         _supaId: cl.id,
         company: clientMap[cl.client_id]?.name || cl.name?.split(' - ')[0] || '',
         type: cl.list_type || '',
+        productCategoryName: meta?.productCategoryName || '',
+        engagementName: meta?.engagementName || '',
         status: cl.status || '架電可能',
         industry: cl.industry || '',
         count: cl.total_count || 0,
@@ -119,7 +142,8 @@ export function useSpanaviData(authOrgId) {
         client_id: cl.client_id || null,
         contactIds: (cl.contact_ids && cl.contact_ids.length > 0) ? cl.contact_ids : (cl.contact_id ? [cl.contact_id] : []),
         created_at: cl.created_at || null,
-      }))
+      });
+      })
 
       // clients → 既存CLIENT_DATAフォーマットに変換
       const clientDataFormatted = clients.map(c => ({
