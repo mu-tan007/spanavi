@@ -609,8 +609,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
   const prefOptions = [...new Set(items.map(r => extractPref(r.address)).filter(Boolean))].sort();
 
-  const COL_KEY_MAP = { 'No': 'no', '企業名': 'company', '事業内容': 'business', '代表者': 'representative', '電話番号': 'phone', '結果': 'call_status', '売上高': 'revenue' };
-  const NUMERIC_COLS = new Set(['no', 'revenue']);
+  const COL_KEY_MAP = { 'No': 'no', '企業名': 'company', '事業内容': 'business', '代表者': 'representative', '電話番号': 'phone', '結果': 'call_status', '売上高': 'revenue', '当期純利益': 'net_income' };
+  const NUMERIC_COLS = new Set(['no', 'revenue', 'net_income']);
   const sorted = sortState.column && sortState.direction
     ? [...filtered].sort((a, b) => {
         const key = COL_KEY_MAP[sortState.column];
@@ -2051,7 +2051,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.xs }}>
                     <thead>
                       <tr style={{ background: color.navyDeep, position: 'sticky', top: 0, zIndex: 1 }}>
-                        {[['No', '52px'], ['企業名', null], ['事業内容', null], ['住所', '90px'], ['売上高', '90px'], ['代表者', '90px'], ['電話番号', '112px'], ['最終架電日', '80px'], ['担当者', '70px'], ['結果', '80px']].map(([h, w]) => {
+                        {[['No', '52px'], ['企業名', null], ['事業内容', null], ['住所', '90px'], ['売上高', '90px'], ['当期純利益', '90px'], ['代表者', '90px'], ['電話番号', '112px'], ['最終架電日', '80px'], ['担当者', '70px'], ['結果', '80px']].map(([h, w]) => {
                           const dir = sortState.column === h ? sortState.direction : null;
                           return (
                             <th key={h} onClick={() => handleSort(h)}
@@ -2078,6 +2078,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                             <td style={{ padding: '7px 8px', color: color.gray500, fontSize: 9, width: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.address || '—'}</td>
                             <td style={{ padding: '7px 8px', fontFamily: font.family.mono, fontSize: 9, color: color.gray500, whiteSpace: 'nowrap', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                               {item.revenue != null ? `${Number(item.revenue).toLocaleString()}千円` : <span style={{ color: color.gray400 }}>-</span>}
+                            </td>
+                            <td style={{ padding: '7px 8px', fontFamily: font.family.mono, fontSize: 9, color: color.gray500, whiteSpace: 'nowrap', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                              {item.net_income != null ? `${Number(item.net_income).toLocaleString()}千円` : <span style={{ color: color.gray400 }}>-</span>}
                             </td>
                             <td style={{ padding: '7px 8px', color: color.gray500, fontSize: font.size.xs - 1, whiteSpace: 'nowrap' }}>{item.representative}</td>
                             <td style={{ padding: '7px 8px' }}>
@@ -2151,12 +2154,16 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                       </span>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 20px', marginBottom: 14 }}>
-                      {[
-                        { label: '事業内容', value: selectedRow.business },
-                        { label: '代表者', value: selectedRow.representative },
-                        { label: '住所', value: (selectedRow.address || '').replace(/\/\s*$/, '') },
-                        { label: '売上', value: selectedRow.revenue != null ? Number(selectedRow.revenue).toLocaleString() + ' 千円' : null },
-                      ].filter(x => x.value).map(({ label, value }) => (
+                      {(() => {
+                        const netIncome = selectedRow.net_income ?? parsedMemo?.net_income ?? null;
+                        return [
+                          { label: '事業内容', value: selectedRow.business },
+                          { label: '代表者', value: selectedRow.representative },
+                          { label: '住所', value: (selectedRow.address || '').replace(/\/\s*$/, '') },
+                          { label: '売上', value: selectedRow.revenue != null ? Number(selectedRow.revenue).toLocaleString() + ' 千円' : null },
+                          { label: '当期純利益', value: netIncome != null ? Number(netIncome).toLocaleString() + ' 千円' : null },
+                        ];
+                      })().filter(x => x.value).map(({ label, value }) => (
                         <div key={label} style={{ display: 'flex', gap: space[2], alignItems: 'flex-start' }}>
                           <span style={{ fontSize: font.size.xs - 1, color: color.gray400, flexShrink: 0, paddingTop: 2, minWidth: 56 }}>{label}</span>
                           <span style={{ fontSize: font.size.sm, color: color.navyDeep, fontWeight: font.weight.medium, wordBreak: 'break-all' }}>{value}</span>
