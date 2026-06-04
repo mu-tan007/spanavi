@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { AuthProvider } from './hooks/useAuth'
 import { AccessControlProvider } from './hooks/useAccessControl'
+import ErrorBoundary from './components/ErrorBoundary'
 import './index.css'
 
 // === dynamic import 失敗の自動リロード ===
@@ -39,12 +40,14 @@ window.addEventListener('unhandledrejection', (e) => {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <AccessControlProvider>
-          <App />
-        </AccessControlProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <AccessControlProvider>
+            <App />
+          </AccessControlProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </React.StrictMode>
 )
