@@ -150,6 +150,7 @@ export default function CRMTable({
   setSortState,
   onRowClick,
   onComposeEmail,
+  onEditRow,
   selectedIds = new Set(),
   onToggleSelect,
   onToggleSelectAll,
