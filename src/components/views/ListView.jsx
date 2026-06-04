@@ -90,10 +90,12 @@ function fmtYen(n) {
   return v.toLocaleString('ja-JP') + '円';
 }
 
-// memo「5億円未満：10万円」→ 「5億円未満」のように範囲だけ抽出
+// memo「5億円未満：10万円」「1〜3件目: 15,000円」→ 範囲ラベル部分だけ抽出
+// 全角「：」/ 半角「:」どちらの区切りにも対応し、金額部分(税別額)を捨てる。
+// 表示時は別途 fmtPrice/withTax で税込換算した額を後ろに付ける運用。
 function rangeFromMemo(memo, lo, hi) {
   if (memo) {
-    const idx = memo.indexOf('：');
+    const idx = memo.search(/[：:]/);
     if (idx > 0) return memo.slice(0, idx).trim();
     return memo.trim();
   }

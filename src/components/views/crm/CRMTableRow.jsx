@@ -62,16 +62,26 @@ function RewardChip({ rw, rewardMaster }) {
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <tbody>
-                {tiers.map((t, i) => (
-                  <tr key={i} style={{ borderTop: i > 0 ? `1px dashed ${color.borderLight}` : 'none' }}>
-                    <td style={{ padding: '3px 4px', color: color.textMid }}>
-                      {t.memo || `${(t.lo || 0).toLocaleString()}〜${t.hi >= 999999999999 ? '上限なし' : (t.hi || 0).toLocaleString()}`}
-                    </td>
-                    <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: font.family.mono, color: color.textDark, fontWeight: font.weight.semibold }}>
-                      {fmtPrice(t.price)}
-                    </td>
-                  </tr>
-                ))}
+                {tiers.map((t, i) => {
+                  // memo「5億円未満：10万円」「1〜3件目: 15,000円」→ 範囲ラベル部分だけ抽出
+                  // (税別額の二重表示を避けるため、金額は右セルの fmtPrice 側で税込換算済みを出す)
+                  const rangeLabel = (() => {
+                    if (t.memo) {
+                      const idx = t.memo.search(/[：:]/);
+                      if (idx > 0) return t.memo.slice(0, idx).trim();
+                      return t.memo.trim();
+                    }
+                    return `${(t.lo || 0).toLocaleString()}〜${t.hi >= 999999999999 ? '上限なし' : (t.hi || 0).toLocaleString()}`;
+                  })();
+                  return (
+                    <tr key={i} style={{ borderTop: i > 0 ? `1px dashed ${color.borderLight}` : 'none' }}>
+                      <td style={{ padding: '3px 4px', color: color.textMid }}>{rangeLabel}</td>
+                      <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: font.family.mono, color: color.textDark, fontWeight: font.weight.semibold }}>
+                        {fmtPrice(t.price)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

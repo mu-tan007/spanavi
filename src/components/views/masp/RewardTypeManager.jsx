@@ -234,7 +234,6 @@ export default function RewardTypeManager({ isAdmin }) {
                 <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: font.weight.semibold }}>ID</th>
                 <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: font.weight.semibold }}>名称</th>
                 <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: font.weight.semibold }}>基準</th>
-                <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: font.weight.semibold }}>税</th>
                 <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: font.weight.semibold }}>計算</th>
                 <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: font.weight.semibold }}>段階数</th>
                 <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: font.weight.semibold }}>使用</th>
@@ -247,7 +246,6 @@ export default function RewardTypeManager({ isAdmin }) {
                   <td style={{ padding: '8px 10px', fontFamily: font.family.mono, color: color.navy, fontWeight: font.weight.bold }}>{t.type_id}</td>
                   <td style={{ padding: '8px 10px', color: color.textDark, fontWeight: font.weight.medium }}>{t.name}</td>
                   <td style={{ padding: '8px 10px', color: color.textMid }}>{t.basis || '—'}</td>
-                  <td style={{ padding: '8px 10px', textAlign: 'center', color: color.textMid }}>{t.tax || '—'}</td>
                   <td style={{ padding: '8px 10px', textAlign: 'center', color: color.textLight, fontSize: 10, fontFamily: font.family.mono }}>{t.calc_type}</td>
                   <td style={{ padding: '8px 10px', textAlign: 'right', fontFamily: font.family.mono, color: color.textMid }}>{t.tiers.length}</td>
                   <td style={{ padding: '8px 10px', textAlign: 'right', fontFamily: font.family.mono }}>
