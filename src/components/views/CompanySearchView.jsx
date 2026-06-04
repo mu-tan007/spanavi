@@ -6,6 +6,7 @@ import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { CALL_RESULTS } from '../../constants/callResults';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
+import { TEMP_BADGE, extractTemp, stripTempPrefix } from '../../utils/rejectionParse';
 import {
   updateCallList,
   fetchCallListItems,
@@ -1764,6 +1765,15 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
               const calledLabel = rec.called_at
                 ? new Date(new Date(rec.called_at).getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 16).replace('T', ' ')
                 : '';
+              // キーマン断り行のみ温度感 Badge + 断り理由メモ snippet を表示（それ以外の行は「—」）
+              const isKeymanReject = rec.status === 'キーマン断り';
+              const tempCode = isKeymanReject ? extractTemp(rec.rejection_reason) : null;
+              const tempConf = tempCode ? TEMP_BADGE[tempCode] : TEMP_BADGE.UNCERTAIN;
+              const rejMemoFull = isKeymanReject ? stripTempPrefix(rec.rejection_reason) : '';
+              const REJ_PREVIEW_LEN = 80;
+              const rejMemoSnippet = rejMemoFull.length > REJ_PREVIEW_LEN
+                ? rejMemoFull.slice(0, REJ_PREVIEW_LEN) + '…'
+                : rejMemoFull;
               return (
                 <div key={rec.id} style={{ borderBottom: `1px solid ${color.borderLight}`, padding: '10px 16px', background: idx % 2 === 0 ? color.white : color.snow }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: font.size.sm, fontFamily: font.family.sans }}>
@@ -1797,6 +1807,33 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
                       style={{ padding: '6px 10px', borderRadius: radius.md, border: `1px solid ${color.border}`, background: color.white, cursor: 'pointer', fontSize: font.size.md, color: isBookmarked ? '#F59E0B' : color.textLight }}>
                       {isBookmarked ? '★' : '☆'}
                     </button>
+                  </div>
+                  {/* 温度感 + 断り理由メモ（キーマン断り行のみ。それ以外は「—」） */}
+                  <div style={{
+                    marginTop: space[2],
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: space[2],
+                    paddingLeft: space[1],
+                  }}>
+                    {isKeymanReject ? (
+                      <>
+                        {rec.rejection_reason
+                          ? <Badge variant={tempConf.variant} dot>{tempConf.label}</Badge>
+                          : <Badge variant="neutral">未判定</Badge>}
+                        <span style={{
+                          fontSize: font.size.xs,
+                          color: color.textDark,
+                          lineHeight: font.lineHeight.relaxed,
+                          flex: 1,
+                          minWidth: 0,
+                        }}>
+                          {rejMemoSnippet || <span style={{ color: color.textLight }}>—</span>}
+                        </span>
+                      </>
+                    ) : (
+                      <span style={{ fontSize: font.size.xs, color: color.textLight }}>—</span>
+                    )}
                   </div>
                 </div>
               );

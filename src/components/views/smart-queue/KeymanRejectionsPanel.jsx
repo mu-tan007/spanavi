@@ -6,23 +6,11 @@ import { supabase } from '../../../lib/supabase';
 import { PanelHeader, KPI, FilterBar } from './smartQueueHelpers';
 import MultiSelectDropdown from './MultiSelectDropdown';
 import { useCallQueue } from './useCallQueue';
+import { TEMP_BADGE, extractTemp, stripTempPrefix } from '../../../utils/rejectionParse';
 
 // ① キーマン断り一覧
 //   表示は 200件/ページ（軽量）、 架電キューは ids RPC で全件対象
 const PAGE_SIZE = 200;
-
-const TEMP_BADGE = {
-  HIGH:      { variant: 'success', label: '温度感: 高' },
-  MEDIUM:    { variant: 'info',    label: '温度感: 中' },
-  LOW:       { variant: 'danger',  label: '温度感: 低' },
-  UNCERTAIN: { variant: 'neutral', label: '判定困難' },
-};
-
-function extractTemp(text) {
-  if (!text) return null;
-  const m = text.match(/^(HIGH|MEDIUM|LOW)/i);
-  return m ? m[1].toUpperCase() : null;
-}
 
 export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData = [], categoryId = null, engIds = [], allEngagements = [] }) {
   const [page, setPage] = useState(0);
@@ -132,7 +120,7 @@ export default function KeymanRejectionsPanel({ setCallFlowScreen, callListData 
     { key: 'memo', label: '断り理由メモ', width: 320, align: 'left',
       render: (r) => {
         // 冒頭の温度感プレフィックス（HIGH\n / MEDIUM\n / LOW\n）は表示から除去
-        const text = (r.rejection_reason || '').replace(/^(HIGH|MEDIUM|LOW)\s*\n?/, '').trim();
+        const text = stripTempPrefix(r.rejection_reason);
         if (!text) return <span style={{ color: color.textLight, fontSize: font.size.xs }}>—</span>;
         const isOpen = expanded.has(r.record_id);
         const PREVIEW_LEN = 80;

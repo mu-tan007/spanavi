@@ -705,7 +705,7 @@ export async function updateAppointmentReport(supaId, { style, supplement }) {
 }
 
 // 担当者・ステータス・期間で録音ありの架電レコードを取得（searchページ録音一覧用）
-// 戻り値: [{ id, status, called_at, recording_url, getter_name, item_id, list_id, round, company_name, appointment_id?, report_style?, report_supplement?, appo_report? }]
+// 戻り値: [{ id, status, called_at, recording_url, getter_name, item_id, list_id, round, company_name, rejection_reason?, appointment_id?, report_style?, report_supplement?, appo_report? }]
 export async function fetchCallRecordsWithRecordings({
   getter = null,
   status = null,
@@ -716,7 +716,7 @@ export async function fetchCallRecordsWithRecordings({
 } = {}) {
   let q = supabase
     .from('call_records')
-    .select('id, status, called_at, recording_url, getter_name, item_id, list_id, round, report_style, report_supplement, memo, call_list_items!inner(company)')
+    .select('id, status, called_at, recording_url, getter_name, item_id, list_id, round, report_style, report_supplement, memo, rejection_reason, call_list_items!inner(company)')
     .eq('org_id', getOrgId())
     .not('recording_url', 'is', null)
     .neq('recording_url', '')
@@ -743,6 +743,7 @@ export async function fetchCallRecordsWithRecordings({
     report_style: r.report_style,
     report_supplement: r.report_supplement,
     memo: r.memo,
+    rejection_reason: r.rejection_reason,
     company_name: r.call_list_items?.company || '—',
   }))
 
