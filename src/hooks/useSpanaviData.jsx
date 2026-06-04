@@ -46,7 +46,7 @@ export function useSpanaviData(authOrgId) {
         supabase.from('reward_types').select('*').order('type_id'),
         supabase.from('client_contacts').select('*').eq('org_id', orgId).order('created_at'),
         supabase.from('engagements').select('id').eq('org_id', orgId).eq('slug', 'seller_sourcing').maybeSingle(),
-        supabase.from('client_engagement_reward_settings').select('client_id, engagement_id, reward_type').eq('org_id', orgId),
+        supabase.from('client_engagement_reward_settings').select('client_id, engagement_id, reward_type, intro_count, intro_reward_type').eq('org_id', orgId),
         supabase.from('engagements').select('id, name, slug, category_id').eq('org_id', orgId),
         supabase.from('business_categories').select('id, name').eq('org_id', orgId),
       ])

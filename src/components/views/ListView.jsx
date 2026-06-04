@@ -121,14 +121,33 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards, isInternFee =
       .filter(r => r.id === reward.reward_type)
       .sort((a, b) => (a._tierSort || 0) - (b._tierSort || 0));
   }, [rewardMaster, reward]);
+  // intro 切替が設定されていれば intro 用 tiers も用意（無ければ空配列）
+  const introTiers = useMemo(() => {
+    if (!reward?.intro_reward_type || !(Number(reward.intro_count) > 0)) return [];
+    return (rewardMaster || [])
+      .filter(r => r.id === reward.intro_reward_type)
+      .sort((a, b) => (a._tierSort || 0) - (b._tierSort || 0));
+  }, [rewardMaster, reward]);
   const head = tiers[0];
+  const introHead = introTiers[0];
   if (!head) {
     return <span style={{ color: color.textLight, fontSize: 10 }}>—</span>;
   }
   const isFixed = head.calc_type === 'fixed_per_appo' || head.basis === '-';
   const withTax = (p) => head.tax === '税別' ? Math.round((p || 0) * 1.1) : (p || 0);
+  const withTaxIntro = (p) => introHead?.tax === '税別' ? Math.round((p || 0) * 1.1) : (p || 0);
+  const hasIntro = !!introHead;
+  const introIsFixed = hasIntro && (introHead.calc_type === 'fixed_per_appo' || introHead.basis === '-');
   let label;
-  if (isFixed) {
+  if (hasIntro) {
+    // intro + tail 両方を含むレンジを表示
+    const introPrices = introTiers.map(t => withTaxIntro(t.price));
+    const tailPrices = tiers.map(t => withTax(t.price));
+    const all = [...introPrices, ...tailPrices];
+    const min = Math.min(...all);
+    const max = Math.max(...all);
+    label = min === max ? `¥${min.toLocaleString()}` : `¥${min.toLocaleString()}〜¥${max.toLocaleString()}`;
+  } else if (isFixed) {
     label = '¥' + withTax(head.price).toLocaleString();
   } else {
     const prices = tiers.map(t => withTax(t.price));
@@ -171,24 +190,66 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards, isInternFee =
           padding: '10px 12px', background: '#FFFFFF',
           border: `1px solid ${color.border}`, borderRadius: radius.md,
           boxShadow: '0 8px 24px rgba(0,0,0,0.25), 0 2px 4px rgba(0,0,0,0.12)',
-          width: 300, fontSize: font.size.xs, color: color.textDark,
+          width: 320, fontSize: font.size.xs, color: color.textDark,
           fontFamily: font.family.sans, fontWeight: font.weight.normal,
           pointerEvents: 'none',
         }}>
-          <div style={{
-            fontWeight: font.weight.bold, color: color.navy, marginBottom: 6,
-            paddingBottom: 4, borderBottom: `1px solid ${color.border}`,
-          }}>
-            {head.name}
-            <span style={{ marginLeft: 6, fontSize: 10, color: color.textMid, fontWeight: font.weight.normal }}>
-              ({head.basis === '-' ? '固定' : head.basis})
-            </span>
-            {isInternFee && (
-              <div style={{ fontSize: 10, color: color.gold, fontWeight: font.weight.semibold, marginTop: 2, letterSpacing: 0.5 }}>
-                ※ 当社売上なし / インターン報酬のみ
+          {hasIntro && (
+            <>
+              <div style={{
+                fontWeight: font.weight.bold, color: color.navy, marginBottom: 4,
+              }}>
+                初回 {reward.intro_count} 件
+                <span style={{ marginLeft: 6, fontSize: 10, color: color.textMid, fontWeight: font.weight.normal }}>
+                  {introHead.name} ({introHead.basis === '-' ? '固定' : introHead.basis})
+                </span>
               </div>
-            )}
-          </div>
+              {introIsFixed ? (
+                <div style={{ color: color.textDark, marginBottom: 8 }}>
+                  アポ1件あたり <span style={{ fontFamily: font.family.mono, fontWeight: font.weight.semibold }}>¥{withTaxIntro(introHead.price).toLocaleString()}</span>
+                </div>
+              ) : (
+                <div style={{ marginBottom: 8 }}>
+                  {introTiers.map((t, i) => (
+                    <div key={i} style={{
+                      padding: '3px 0', color: color.textDark,
+                      borderTop: i > 0 ? `1px dashed ${color.borderLight}` : 'none',
+                    }}>
+                      {rangeFromMemo(t.memo, t.lo, t.hi)}：
+                      <span style={{ fontFamily: font.family.mono, fontWeight: font.weight.semibold }}>
+                        ¥{withTaxIntro(t.price).toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{
+                fontWeight: font.weight.bold, color: color.navy, marginBottom: 4,
+                paddingTop: 6, borderTop: `1px solid ${color.border}`,
+              }}>
+                {reward.intro_count + 1} 件目以降
+                <span style={{ marginLeft: 6, fontSize: 10, color: color.textMid, fontWeight: font.weight.normal }}>
+                  {head.name} ({head.basis === '-' ? '固定' : head.basis})
+                </span>
+              </div>
+            </>
+          )}
+          {!hasIntro && (
+            <div style={{
+              fontWeight: font.weight.bold, color: color.navy, marginBottom: 6,
+              paddingBottom: 4, borderBottom: `1px solid ${color.border}`,
+            }}>
+              {head.name}
+              <span style={{ marginLeft: 6, fontSize: 10, color: color.textMid, fontWeight: font.weight.normal }}>
+                ({head.basis === '-' ? '固定' : head.basis})
+              </span>
+              {isInternFee && (
+                <div style={{ fontSize: 10, color: color.gold, fontWeight: font.weight.semibold, marginTop: 2, letterSpacing: 0.5 }}>
+                  ※ 当社売上なし / インターン報酬のみ
+                </div>
+              )}
+            </div>
+          )}
           {isFixed ? (
             <div style={{ color: color.textDark }}>
               アポ1件あたり <span style={{ fontFamily: font.family.mono, fontWeight: font.weight.semibold }}>¥{withTax(head.price).toLocaleString()}</span>
@@ -206,6 +267,14 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards, isInternFee =
                   </span>
                 </div>
               ))}
+            </div>
+          )}
+          {hasIntro && (
+            <div style={{
+              marginTop: 6, paddingTop: 4, borderTop: `1px dashed ${color.borderLight}`,
+              fontSize: 10, color: color.textLight,
+            }}>
+              ※ status=「面談済」になったアポを件数カウント
             </div>
           )}
         </div>,

@@ -16,6 +16,7 @@ import { fetchCompanyMasterByName } from '../../lib/companyMasterApi';
 import { invokeGenerateCompanyDossier } from '../../lib/dossierApi';
 import { getOrgId } from '../../lib/orgContext';
 import { supabase } from '../../lib/supabase';
+import { resolveActiveRewardType, fetchPastDoneCount } from '../../lib/rewardResolver';
 
 /**
  * テンプレ駆動アポ取得報告モーダル。
@@ -65,6 +66,7 @@ export default function TemplateDrivenAppoReportModal({
   };
 
   // クライアント×タイプの報酬体系を購読 (当社売上の onChange 自動計算用)
+  // intro 切替 (例: 1〜3 件目は固定、4 件目以降は売上連動) にも対応。
   const [rewardRows, setRewardRows] = useState([]);
   useEffect(() => {
     let cancelled = false;
@@ -73,13 +75,19 @@ export default function TemplateDrivenAppoReportModal({
       if (!clientInfo?._supaId || !list?.engagement_id) { if (!cancelled) setRewardRows([]); return; }
       const { data: setting } = await supabase
         .from('client_engagement_reward_settings')
-        .select('reward_type')
+        .select('reward_type, intro_count, intro_reward_type')
         .eq('client_id', clientInfo._supaId)
         .eq('engagement_id', list.engagement_id)
         .maybeSingle();
       if (cancelled) return;
-      const rt = setting?.reward_type;
-      setRewardRows(rt ? (rewardMaster || []).filter(r => r.id === rt) : []);
+      if (!setting) { setRewardRows([]); return; }
+      // intro 期間内かどうかは status='面談済' の累計件数で判定する
+      const pastDone = (Number(setting.intro_count) || 0) > 0
+        ? await fetchPastDoneCount(clientInfo._supaId, list.engagement_id)
+        : 0;
+      if (cancelled) return;
+      const activeTypeId = resolveActiveRewardType(setting, pastDone);
+      setRewardRows(activeTypeId ? (rewardMaster || []).filter(r => r.id === activeTypeId) : []);
     })();
     return () => { cancelled = true; };
   }, [list?.engagement_id, list?.company, clientData, rewardMaster]);
