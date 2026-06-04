@@ -13,14 +13,18 @@ export function useEngagementClients(engagementId) {
       if (!orgId || !engagementId) { setLoading(false); return; }
       const { data, error } = await supabase
         .from('clients')
-        .select('id, name, status')
+        .select('id, name, status, auth_user_id')
         .eq('org_id', orgId)
         .eq('engagement_id', engagementId)
         .in('status', ['支援中', '停止中'])
         .order('name', { nullsFirst: false });
       if (cancelled) return;
       if (!error && data) {
-        setClients(data.map(c => ({ id: c.id, name: c.name || '（名称未設定）' })));
+        setClients(data.map(c => ({
+          id: c.id,
+          name: c.name || '（名称未設定）',
+          authUserId: c.auth_user_id || null,
+        })));
       } else {
         setClients([]);
       }

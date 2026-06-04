@@ -140,24 +140,37 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
             onSelect={setSelectedClientId}
           />
         </div>
-        {isAdmin && selectedClient && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleImpersonate}
-            disabled={impersonating}
-            title={`「${selectedClient.name}」のクライアントポータルを開く（代理ログイン）`}
-            style={{
-              fontSize: font.size.xs,
-              background: impersonating ? color.cream : color.white,
-              cursor: impersonating ? 'wait' : 'pointer',
-              flexShrink: 0,
-              marginRight: 4,
-            }}
-          >
-            {impersonating ? '生成中...' : '代理ログイン →'}
-          </Button>
-        )}
+        {isAdmin && selectedClient && (() => {
+          const noPortalUser = !selectedClient.authUserId;
+          const disabled = impersonating || noPortalUser;
+          const label = impersonating
+            ? '生成中...'
+            : noPortalUser
+              ? 'ポータル未招待'
+              : '代理ログイン →';
+          const title = noPortalUser
+            ? `「${selectedClient.name}」のクライアントポータルユーザーが未作成のため代理ログインできません。クライアント管理画面からポータル招待を実行してください。`
+            : `「${selectedClient.name}」のクライアントポータルを開く（代理ログイン）`;
+          return (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleImpersonate}
+              disabled={disabled}
+              title={title}
+              style={{
+                fontSize: font.size.xs,
+                background: impersonating ? color.cream : color.white,
+                cursor: impersonating ? 'wait' : noPortalUser ? 'not-allowed' : 'pointer',
+                opacity: noPortalUser ? 0.55 : 1,
+                flexShrink: 0,
+                marginRight: 4,
+              }}
+            >
+              {label}
+            </Button>
+          );
+        })()}
       </div>
 
       {/* engagement サブタブ (兼業クライアント時のみ表示) */}
