@@ -329,6 +329,14 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const isMobile = useIsMobile();
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
 
+  // クライアント選択時の sales 初期値: 税別マスターは×1.1で税込額にしてから sales_amount に入れる。
+  // (sales_amount は税込額として運用しているため。AppoReportModal/TemplateDriven も applyTax 済の額を保存している)
+  const initialSalesForReward = (rewardRow) => {
+    if (!rewardRow) return 0;
+    const p = Number(rewardRow.price || 0);
+    return rewardRow.tax === '税別' ? Math.round(p * 1.1) : p;
+  };
+
   // engagements + categories マスタ (商材→タイプ 2階層フィルタ用)
   const [engagementMap, setEngagementMap] = useState({}); // { [engId]: { id, type, name, slug, categoryName } }
   const [categoryOrderedList, setCategoryOrderedList] = useState([]); // [{ name, display_order }]
@@ -2547,7 +2555,7 @@ MASP 篠宮`}
                       const name = e.target.value;
                       const client = clientOptions.find(c => c.company === name);
                       const rewardRow = client?.rewardType ? rewardMaster.find(r => r.id === client.rewardType) : null;
-                      setEditForm(p => ({ ...p, client: name, ...(name && rewardRow ? { sales: rewardRow.price } : {}) }));
+                      setEditForm(p => ({ ...p, client: name, ...(name && rewardRow ? { sales: initialSalesForReward(rewardRow) } : {}) }));
                     }} style={inputStyle}>
                       <option value="">選択...</option>
                       {clientOptions.map(c => (
@@ -2694,7 +2702,7 @@ MASP 篠宮`}
                       const name = e.target.value;
                       const client = clientOptions.find(c => c.company === name);
                       const rewardRow = client?.rewardType ? rewardMaster.find(r => r.id === client.rewardType) : null;
-                      setAddAppoForm(p => ({ ...p, client: name, ...(name && rewardRow ? { sales: rewardRow.price } : {}) }));
+                      setAddAppoForm(p => ({ ...p, client: name, ...(name && rewardRow ? { sales: initialSalesForReward(rewardRow) } : {}) }));
                     }} style={inputStyle}>
                       <option value="">選択...</option>
                       {clientOptions.map(c => (
@@ -2879,7 +2887,7 @@ MASP 篠宮`}
                       <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
                         <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>クライアント</div>
                         {detailEditing
-                          ? <select value={ef.client} onChange={e => { const name = e.target.value; const cl = clientOptions.find(c => c.company === name); const rr = cl?.rewardType ? rewardMaster.find(r => r.id === cl.rewardType) : null; u("client", name); if (name && rr) u("sales", rr.price); }} style={iS}>
+                          ? <select value={ef.client} onChange={e => { const name = e.target.value; const cl = clientOptions.find(c => c.company === name); const rr = cl?.rewardType ? rewardMaster.find(r => r.id === cl.rewardType) : null; u("client", name); if (name && rr) u("sales", initialSalesForReward(rr)); }} style={iS}>
                               <option value="">選択...</option>
                               {clientOptions.map(c => <option key={c._supaId || c.company} value={c.company}>{c.company}{c.status === "停止中" ? "（停止中）" : ""}</option>)}
                             </select>
