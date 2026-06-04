@@ -370,10 +370,12 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
     attachRecordingInBackground(rec.id, company.phone, calledAt, prevCalledAtAppo);
 
     // 2) clients への新規登録 or 既存の更新
+    // engagementId は渡さない: clients は営業代行(seller_sourcing)に集約。
+    // 商材区分は call_lists.engagement_id 側で保持する。
     if (!company.promoted_to_client_id) {
       const { data: client, error: e2 } = await promoteLeadCompanyToClient(company, {
         contactPerson: details.contactName || null,
-      }, list?.engagement_id || null);
+      });
       if (e2) {
         console.warn('[CRM Lead] promote failed', e2);
       } else if (client) {

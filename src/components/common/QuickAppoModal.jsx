@@ -74,13 +74,17 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
       // Step 1: クライアント開拓の場合、CRM clientsテーブルへ upsert（面談予定）
       // 担当者名・メアドはここで clients.contact_person / contact_email に自動入力される
       if (isProspecting) {
+        // engagementId はあえて渡さない: 商材別(lead_generation_ifa等)ではなく
+        // 営業代行(seller_sourcing)に集約する運用。resolveEngagementId が
+        // null → seller_sourcing slug の engagement にフォールバックする。
+        // 商材区分は call_lists.engagement_id 側で保持する。
         await ensureProspectingClient({
           name: row?.company || '',
           industry: list?.type || list?.list_type || '',
           contactPerson: cleanContactName,
           contactEmail: cleanContactEmail,
           nextContactAt: startISO,
-        }, list?.engagement_id || null);
+        });
       }
 
       // Step 2: Google Calendar イベント作成（クライアント開拓のみ）

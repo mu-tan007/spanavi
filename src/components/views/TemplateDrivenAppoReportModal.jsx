@@ -464,6 +464,8 @@ export default function TemplateDrivenAppoReportModal({
       let gcalEventId = null;
       if (list?.is_prospecting) {
         try {
+          // engagementId は渡さない: clients は営業代行(seller_sourcing)に集約。
+          // 商材区分は call_lists.engagement_id 側で保持する。
           await ensureProspectingClient({
             name: row?.company || '',
             industry: list?.type || list?.list_type || '',
@@ -473,7 +475,7 @@ export default function TemplateDrivenAppoReportModal({
             nextContactAt: form.appoDate && form.appoTime
               ? `${form.appoDate}T${form.appoTime}:00+09:00`
               : null,
-          }, list?.engagement_id || null);
+          });
         } catch (e) { console.warn('[TemplateModal] ensureProspectingClient failed:', e); }
 
         if (form.appoDate && form.appoTime) {
