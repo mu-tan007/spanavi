@@ -473,7 +473,7 @@ export default function TemplateDrivenAppoReportModal({
             nextContactAt: form.appoDate && form.appoTime
               ? `${form.appoDate}T${form.appoTime}:00+09:00`
               : null,
-          });
+          }, list?.engagement_id || null);
         } catch (e) { console.warn('[TemplateModal] ensureProspectingClient failed:', e); }
 
         if (form.appoDate && form.appoTime) {

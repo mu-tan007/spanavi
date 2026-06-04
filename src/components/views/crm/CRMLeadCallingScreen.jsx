@@ -373,7 +373,7 @@ export default function CRMLeadCallingScreen({ list, companies, records, current
     if (!company.promoted_to_client_id) {
       const { data: client, error: e2 } = await promoteLeadCompanyToClient(company, {
         contactPerson: details.contactName || null,
-      });
+      }, list?.engagement_id || null);
       if (e2) {
         console.warn('[CRM Lead] promote failed', e2);
       } else if (client) {

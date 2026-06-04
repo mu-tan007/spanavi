@@ -361,12 +361,16 @@ export async function deleteReportTemplate(id) {
 // クライアント開拓アポ取得時、CRM の clients テーブルへ upsert する。
 // 既存(name一致)があれば「面談予定」に更新、無ければ新規作成。
 // 進行段階が支援中/準備中の場合は status は変更しない。
-export async function ensureProspectingClient({ name, industry, contactPerson, contactEmail, contactPhone, nextContactAt }) {
+// engagementId はリスト等から渡す。未指定/無効時は resolveEngagementId が
+// seller_sourcing にフォールバックするので、clients.engagement_id が NULL のまま
+// 案件ページのセレクタから漏れる事故を防ぐ。
+export async function ensureProspectingClient({ name, industry, contactPerson, contactEmail, contactPhone, nextContactAt }, engagementId = null) {
   if (!name) return { data: null, error: new Error('no name') }
   const orgId = getOrgId()
+  const resolvedEngagementId = await resolveEngagementId(engagementId)
   const { data: existing, error: e0 } = await supabase
     .from('clients')
-    .select('id, status')
+    .select('id, status, engagement_id')
     .eq('org_id', orgId)
     .eq('name', name)
     .maybeSingle()
@@ -380,6 +384,10 @@ export async function ensureProspectingClient({ name, industry, contactPerson, c
     if (contactEmail) updates.contact_email = contactEmail
     if (contactPhone) updates.contact_phone = contactPhone
     if (industry) updates.industry = industry
+    // engagement_id が空のレガシー行は埋め直す（案件ページに出ない事故を防ぐ）
+    if (!existing.engagement_id && resolvedEngagementId) {
+      updates.engagement_id = resolvedEngagementId
+    }
     // 既に進行段階が進んでいる場合は status を巻き戻さない
     if (existing.status !== '支援中' && existing.status !== '準備中') {
       updates.status = '面談予定'
@@ -400,6 +408,7 @@ export async function ensureProspectingClient({ name, industry, contactPerson, c
     .from('clients')
     .insert({
       org_id: orgId,
+      engagement_id: resolvedEngagementId,
       name,
       status: '面談予定',
       contract_status: '未',
@@ -3811,16 +3820,21 @@ export async function fetchAllPendingRecalls() {
 }
 
 // アポ獲得時: clients に新規追加し、lead_company に promoted_to_client_id を保持
-export async function promoteLeadCompanyToClient(leadCompany, { contactPerson } = {}) {
+// engagementId は呼び出し元の call_lists.engagement_id を渡す。
+// 渡し漏れ/無効時は resolveEngagementId が seller_sourcing にフォールバックするので
+// clients.engagement_id が NULL のまま案件ページから漏れる事故を防ぐ。
+export async function promoteLeadCompanyToClient(leadCompany, { contactPerson } = {}, engagementId = null) {
   if (!leadCompany?.id || !leadCompany?.company) {
     return { data: null, error: new Error('invalid leadCompany') }
   }
   const orgId = getOrgId()
+  const resolvedEngagementId = await resolveEngagementId(engagementId)
   // 1) clients に INSERT (status='面談予定')
   const { data: client, error: e1 } = await supabase
     .from('clients')
     .insert({
       org_id: orgId,
+      engagement_id: resolvedEngagementId,
       name: leadCompany.company,
       status: '面談予定',
       contract_status: '未',

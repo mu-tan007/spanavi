@@ -80,7 +80,7 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
           contactPerson: cleanContactName,
           contactEmail: cleanContactEmail,
           nextContactAt: startISO,
-        });
+        }, list?.engagement_id || null);
       }
 
       // Step 2: Google Calendar イベント作成（クライアント開拓のみ）
