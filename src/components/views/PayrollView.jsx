@@ -3,6 +3,7 @@ import React from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag, DataTable } from '../ui';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { calcRankAndRate } from '../../utils/calculations';
 import { supabase } from '../../lib/supabase';
 import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, fetchPayrollAdjustment, upsertPayrollAdjustment, markMembersReferralPaid, clearMembersReferralPaid, fetchPayrollInvoicesByMonth } from '../../lib/supabaseWrite';
@@ -81,6 +82,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
 }
 
 function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetch, currentUser, onSelectMember }) {
+  const isMobile = useIsMobile();
   const payrollMonths = (() => {
     const now = new Date();
     const result = [];
@@ -516,7 +518,7 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
       />
 
       {/* ── Summary cards ────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: space[5] }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 12, marginBottom: space[5] }}>
         {[
           { label: "総支給額",   value: fmt(grandTotal), color: TH_BG },
           { label: "総売上",     value: fmt(grandSales), color: TH_BG },
