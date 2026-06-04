@@ -10,13 +10,18 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
+const VALID_PATTERNS = new Set([
+  'smooth', 'negative_to_positive', 'keyman_difficulty',
+  'after_concern', 'standard', 'unknown',
+])
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { recording_url, item_id, personality, meetingExp, futureConsider, other } = await req.json()
+    const { recording_url, item_id, personality, meetingExp, futureConsider, other, appointment_id } = await req.json()
 
     if (!recording_url) {
       return new Response(
@@ -25,7 +30,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    // ── 1. Zoom Bearer token 取得 ──────────────────────────────────────────
     const zoomAccountId    = Deno.env.get('ZOOM_ACCOUNT_ID')
     const zoomClientId     = Deno.env.get('ZOOM_CLIENT_ID')
     const zoomClientSecret = Deno.env.get('ZOOM_CLIENT_SECRET')
@@ -57,8 +61,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    // ── 2. 音声バイナリをダウンロード ─────────────────────────────────────
-    // Zoom URL の場合のみ Bearer token で認証、それ以外は直接 fetch
     const isZoomUrl = /zoom\.us/i.test(recording_url)
     const audioRes = isZoomUrl
       ? await fetch(recording_url, { headers: { 'Authorization': `Bearer ${zoomToken}` } })
@@ -74,9 +76,7 @@ Deno.serve(async (req) => {
     const audioBuffer = await audioRes.arrayBuffer()
     const audioBlob   = new Blob([audioBuffer], { type: 'audio/mp4' })
 
-    // ── 2.5. Supabase Storage へアップロード ─────────────────────────────
     let publicRecordingUrl = ''
-
     try {
       const now     = new Date()
       const dateStr = now.getFullYear().toString()
@@ -94,20 +94,16 @@ Deno.serve(async (req) => {
 
       if (uploadError) {
         console.error('[transcribe-recording] Storage upload 失敗:', uploadError.message)
-        // アップロード失敗でも後続処理は継続
       } else {
         const { data: urlData } = supabase.storage
           .from('recordings')
           .getPublicUrl(fileName)
         publicRecordingUrl = urlData.publicUrl
-        console.log('[transcribe-recording] Storage upload 成功:', publicRecordingUrl)
       }
     } catch (storageErr) {
       console.error('[transcribe-recording] Storage error:', storageErr)
-      // Storage エラーでも後続処理は継続
     }
 
-    // ── 3. Whisper API で文字起こし ────────────────────────────────────────
     const openaiKey = Deno.env.get('OPENAI_API_KEY')
     if (!openaiKey) {
       return new Response(
@@ -138,7 +134,6 @@ Deno.serve(async (req) => {
     const whisperData = await whisperRes.json()
     const transcript: string = whisperData.text || ''
 
-    // ── 4. Claude で各フィールドを添削 ────────────────────────────────────
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!anthropicKey) {
       return new Response(
@@ -153,48 +148,38 @@ Deno.serve(async (req) => {
 必ず以下のJSONフォーマットのみで回答してください（他のテキストなし）：
 
 {
-  "personality": "先方のお人柄について録音から読み取れる特徴を詳述。話し方の特徴（落ち着いている/早口/論理的/感情的）、思考の傾向（慎重/即断/数字重視/感覚重視/全体俯瞰/詳細追求）、コミュニケーションスタイル（聞き上手/話し上手/質問が多い/結論を急ぐ/間を取る）、価値観の片鱗（事業愛/従業員思い/数字至上/品質重視/挑戦志向）、態度（柔和/威圧的/警戒的/オープン）等を 3-5 文で具体的に。アポインターの記入があればそれを足場に肉付けする",
+  "personality": "先方のお人柄を詳述。3-5文で具体的に。",
   "meetingExp": "他のM&A仲介会社との面談経験の有無と詳細",
   "futureConsider": "将来的な検討可否（お断りの強度・後継者問題への言及・検討時期等を踏まえて）",
   "other": "上記3項目以外でM&Aに関する重要事項があれば自然な文章で記載。なければ空欄",
-  "keyman_ma_intent": "positive | wait | negative | unknown のいずれか1語のみ。録音全体から先方のM&A意向を総合判定"
+  "keyman_ma_intent": "positive | wait | negative | unknown のいずれか1語のみ",
+  "appo_pattern": "smooth | negative_to_positive | keyman_difficulty | after_concern | standard | unknown のいずれか1語",
+  "talk_style_tags": ["話し方タグ最大5個。日本語短語"],
+  "talk_strength": "このアポ取得で特に効いた話し方を1-2文の日本語で簡潔に"
 }
 
-【各フィールドの補完・修正ルール】
-- アポインターの記入内容をベースに、録音から読み取れる情報で追記・修正する
-- 録音の内容がアポインターの記入と矛盾する場合は録音を優先する
-- 録音から判断できない場合は「確認できず」と記載する（keyman_ma_intent は unknown）
-
-【録音分析の観点】
-以下の観点で録音を分析し、各フィールドの内容に反映すること：
-
-1. M&Aの趣旨が先方に伝わっているか
-   「資本提携」「M&A」「会社の譲渡」「株式の譲渡」等のキーワードが使われているか確認する。
-   単なる「提携」「業務提携」のみでは不十分とみなし、futureConsider や keyman_ma_intent に影響する可能性として記録する。
-
-2. お断りの有無とその強度
-   「興味ない」「検討していない」「結構です」等のお断りがあれば、
-   その回数・強さのニュアンス（強い拒否 / やんわり断り）を futureConsider に詳述し、
-   keyman_ma_intent の判定（negative かどうか）に反映する。
-
-3. お人柄の手がかり（personality に反映）
-   - 話速・声のトーン・抑揚・間の取り方
-   - 質問の質と量（深掘りタイプ / 表面的）
-   - 数字や具体例への反応
-   - 従業員・取引先・家族に対する言及の温度
-   - 当社（アポインター側）への評価・指摘の出方
-
-4. M&Aに関わる重要事項（該当があれば「その他」に自然な文章で記載）
-   - 後継者問題・事業承継への言及
-   - 他社からのM&A提案・打診の有無
-   - 会社の将来・経営方針に関する発言
-   - 株主構成・経営体制に関する言及
-
 【keyman_ma_intent 判定ガイド】
-- positive: 前向き／積極的／関心が高い／検討の具体性あり／「もう少し話を聞きたい」等
-- wait:     様子見／中立／「いずれ考えるかも」／結論を保留／業績次第
-- negative: 消極的／拒否／「今は考えていない」／やんわり断り／強い拒絶
-- unknown:  判断材料不足／会話が短い／本人不在／代理応答
+- positive: 前向き／積極的／関心が高い
+- wait:     様子見／中立
+- negative: 消極的／拒否
+- unknown:  判断材料不足
+
+【appo_pattern 判定ガイド】
+- smooth:                先方が最初から好意的で、ほぼ抵抗なくアポ取得に至った
+- negative_to_positive:  最初は興味なし／断りモードだったが、アポインターの切り返しで好転しアポ取得
+- keyman_difficulty:     キーマン（決裁者）に繋がりにくく、複数の関門突破や別事業所経由などを経てアポ取得
+- after_concern:         先方が懸念（時間・費用・社内反応・既存付き合い等）を表明したが、解消説明を経てアポ取得
+- standard:              特筆すべき山なく、業務的に淡々と進んでアポ取得
+- unknown:               録音が短すぎる／音質悪い／本人不在のため判定不能
+
+【talk_style_tags 抽出ガイド】
+アポインターの「話し方の特徴」を端的に表す日本語短語タグを最大5個。
+例: 共感的傾聴 / 質問深掘り / ベネフィット訴求 / 即決クロージング / 業界知識アピール /
+    お悩み代弁 / 数字根拠提示 / リフレーミング / 雑談アイスブレイク / 後継者課題喚起 /
+    二者択一クローズ / 社長称賛 / 競合言及 / 第三者話法
+
+【talk_strength 抽出ガイド】
+このアポでアポインターの "決め手" になったと推定される話し方を1-2文で。
 
 【文字起こし】
 ${transcript}
@@ -214,7 +199,7 @@ ${transcript}
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2048,
+        max_tokens: 2560,
         messages: [{ role: 'user', content: prompt }],
       }),
     })
@@ -236,24 +221,56 @@ ${transcript}
       futureConsider?: string
       other?: string
       keyman_ma_intent?: string
+      appo_pattern?: string
+      talk_style_tags?: unknown
+      talk_strength?: string
     } = {}
     try {
-      // JSON ブロックが含まれる場合は抽出
       const jsonMatch = claudeText.match(/\{[\s\S]*\}/)
       enhanced = jsonMatch ? JSON.parse(jsonMatch[0]) : {}
     } catch (parseErr) {
       console.error('[transcribe-recording] JSON parse error:', parseErr, 'raw:', claudeText)
-      // パース失敗時は元の値を返す
     }
 
-    // keyman_ma_intent は 4 値以外を unknown に正規化
     const intentRaw = String(enhanced.keyman_ma_intent || '').toLowerCase().trim()
     const intent: 'positive' | 'wait' | 'negative' | 'unknown' =
       intentRaw === 'positive' || intentRaw === 'wait' || intentRaw === 'negative'
         ? intentRaw
         : 'unknown'
 
-    // ── 5. 構造化 JSON を返却 ──────────────────────────────────────────────
+    const patternRaw = String(enhanced.appo_pattern || '').toLowerCase().trim()
+    const appoPattern: string = VALID_PATTERNS.has(patternRaw) ? patternRaw : 'unknown'
+
+    let talkStyleTags: string[] = []
+    if (Array.isArray(enhanced.talk_style_tags)) {
+      talkStyleTags = (enhanced.talk_style_tags as unknown[])
+        .filter((t): t is string => typeof t === 'string')
+        .map((t: string) => t.trim())
+        .filter((t: string) => t.length > 0 && t.length <= 40)
+        .slice(0, 5)
+    }
+
+    const talkStrength = typeof enhanced.talk_strength === 'string'
+      ? enhanced.talk_strength.trim().slice(0, 500)
+      : ''
+
+    if (appointment_id) {
+      try {
+        const { error: updErr } = await supabase
+          .from('appointments')
+          .update({
+            appo_pattern:    appoPattern,
+            talk_style_tags: talkStyleTags,
+            talk_strength:   talkStrength,
+            keyman_ma_intent: intent,
+          })
+          .eq('id', appointment_id)
+        if (updErr) console.error('[transcribe-recording] appointments update error:', updErr.message)
+      } catch (updateErr) {
+        console.error('[transcribe-recording] appointments update unhandled:', updateErr)
+      }
+    }
+
     return new Response(
       JSON.stringify({
         transcript,
@@ -262,6 +279,9 @@ ${transcript}
         futureConsider:      enhanced.futureConsider || futureConsider || '',
         other:               enhanced.other          || other          || '',
         keyman_ma_intent:    intent,
+        appo_pattern:        appoPattern,
+        talk_style_tags:     talkStyleTags,
+        talk_strength:       talkStrength,
         publicRecordingUrl,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -21,6 +21,7 @@ import Heatmap from './analytics/Heatmap';
 import MemberRanking from './analytics/MemberRanking';
 import StrengthWeakness from './analytics/StrengthWeakness';
 import IndustryAnalytics from './analytics/IndustryAnalytics';
+import AppoPatternAnalytics from './analytics/AppoPatternAnalytics';
 import StatsView from './StatsView';
 
 const NAVY = '#0D2247';
@@ -290,6 +291,12 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
           orgStats={orgStats}
         />
       )}
+
+      <AppoPatternAnalytics
+        from={range.from}
+        to={range.to}
+        memberName={scope === 'member' ? scopeId : null}
+      />
 
       <IndustryAnalytics />
 
