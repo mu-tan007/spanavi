@@ -149,15 +149,19 @@ export function AuthProvider({ children }) {
         console.warn('Profile fetch failed (RLS or missing row):', error?.message)
         updateProfile(null)
       } else {
-        // users テーブルから取得成功 → members テーブルから org_id を補完（user_idで一意検索）
+        // users テーブルから取得成功 → members テーブルから org_id と実メアドを補完。
+        // public.users.email は公開SaaS時代の名残で内部メアド (user_xxx@*.spanavi.internal や *@masp-internal.com)
+        // のまま残っているケースがあるため、members.email（実メアド）で上書きする。
+        // ※profile.email を実メアド前提で使う allowlist 判定（例: スパキャリ代理ログイン許可リスト）
+        //   が一致しなくなる事故を防ぐ。
         const { data: memberRow } = await supabase
           .from('members')
-          .select('org_id')
+          .select('org_id, email')
           .eq('user_id', userId)
           .maybeSingle()
         const orgId = memberRow?.org_id || null
         if (orgId) setOrgId(orgId)
-        updateProfile({ ...data, org_id: orgId })
+        updateProfile({ ...data, email: memberRow?.email || data.email, org_id: orgId })
       }
     } catch (err) {
       console.error('Profile fetch error:', err)
