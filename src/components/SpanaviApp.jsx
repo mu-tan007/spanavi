@@ -739,12 +739,16 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const hoverTimeout = React.useRef(null);
 
   // Keyboard shortcut: Ctrl+←/→ で事業（engagement）タブ切替
+  // 巡回対象は EngagementHeader (画面上部の事業タブ) と同じ「画面実装あり」のみ。
+  // engagements テーブルには商材×ステージの全組合せ (IFAリード獲得 等) が存在するが、
+  // それらは EngagementPlaceholder にフォールバックするだけのため巡回から除外する。
   useEffect(() => {
+    const IMPLEMENTED_ENG_SLUGS = ['masp', 'seller_sourcing', 'spartia_career'];
     const handleKeyDown = (e) => {
       if (!e.ctrlKey) return;
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         const slugs = (engagements || [])
-          .filter(eg => eg.status === 'active')
+          .filter(eg => eg.status === 'active' && IMPLEMENTED_ENG_SLUGS.includes(eg.slug))
           .map(eg => eg.slug);
         if (slugs.length === 0) return;
         const cur = engSlug && slugs.includes(engSlug) ? engSlug : slugs[0];
