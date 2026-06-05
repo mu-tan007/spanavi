@@ -76,7 +76,10 @@ Deno.serve(async (req) => {
   const serviceRoleKey = (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim()
   const resendApiKey = (Deno.env.get('RESEND_NEWSLETTER_API_KEY') ?? '').trim()
   const hmacSecret = (Deno.env.get('UNSUBSCRIBE_HMAC_SECRET') ?? '').trim()
-  const siteUrl = (Deno.env.get('SITE_URL') ?? 'https://app.spanavi.jp').trim()
+  const siteUrl = (Deno.env.get('SITE_URL') ?? 'https://spanavi.jp').trim()
+  // オプトアウトリンクは Supabase Edge Function を直叩き
+  // （フロントエンド側に /unsubscribe route がないため、本番 URL では 404 になる）
+  const unsubscribeBase = `${supabaseUrl}/functions/v1/unsubscribe`
 
   if (!resendApiKey || !hmacSecret) {
     return new Response(
@@ -194,7 +197,7 @@ Deno.serve(async (req) => {
       const batch = recipientRows.slice(i, i + BATCH_SIZE)
 
       const payload = batch.map((r) => {
-        const unsubUrl = `${siteUrl}/unsubscribe?rid=${r.id}&token=${r.unsubscribe_token}`
+        const unsubUrl = `${unsubscribeBase}?rid=${r.id}&token=${r.unsubscribe_token}`
         const mergeVars = { ...(r.merge_vars as Record<string, string>), unsubscribe_url: unsubUrl }
         const subject = renderTemplate(campaign.subject, mergeVars)
         const html = appendUnsubscribeFooter(
