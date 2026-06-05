@@ -1244,7 +1244,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
               </div>
             </div>
             <iframe
-              src={overviewPdfPreview.url}
+              src={`${overviewPdfPreview.url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
               title={overviewPdfPreview.name}
               style={{ flex: 1, border: 'none', width: '100%' }}
             />

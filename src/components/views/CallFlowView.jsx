@@ -2570,7 +2570,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   )}
                   {pdfs.length > 0 && (
                     <>
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', flexShrink: 0, borderBottom: `1px solid ${color.gray200}`, paddingBottom: space[2] }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', flexShrink: 0, borderBottom: `1px solid ${color.gray200}`, paddingBottom: space[2] }}>
                         {pdfs.map(pdf => {
                           const active = pdf.path === (selectedPdf?.path);
                           return (
@@ -2591,18 +2591,18 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                             </button>
                           );
                         })}
+                        {iframeUrl && (
+                          <a href={iframeUrl} target="_blank" rel="noopener noreferrer"
+                            style={{ marginLeft: 'auto', fontSize: font.size.xs - 1, color: color.gray500, textDecoration: 'underline', flexShrink: 0 }}>
+                            新規タブで開く
+                          </a>
+                        )}
                       </div>
                       {selectedPdf && (
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 200, borderRadius: radius.md, border: `1px solid ${color.gray200}`, overflow: 'hidden', background: color.white }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', background: color.offWhite, borderBottom: `1px solid ${color.gray200}`, flexShrink: 0 }}>
-                            <span style={{ fontSize: font.size.xs - 1, color: color.gray500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedPdf.name}</span>
-                            {iframeUrl && (
-                              <a href={iframeUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: font.size.xs - 1, color: color.navyDeep, textDecoration: 'underline', flexShrink: 0, marginLeft: 4 }}>新規タブで開く</a>
-                            )}
-                          </div>
                           {iframeUrl ? (
                             <iframe
-                              src={iframeUrl}
+                              src={`${iframeUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
                               title={selectedPdf.name}
                               style={{ flex: 1, border: 'none', width: '100%', minHeight: 0 }}
                             />
@@ -2785,7 +2785,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               </div>
             </div>
             <iframe
-              src={pdfPreview.url}
+              src={`${pdfPreview.url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
               title={pdfPreview.name}
               style={{ flex: 1, border: 'none', width: '100%' }}
             />
