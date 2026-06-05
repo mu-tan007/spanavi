@@ -31,12 +31,20 @@ export default function ClientKickoffHearingView() {
   const [savedAt, setSavedAt] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [toast, setToast] = useState(null); // { message: string }
 
   // 1秒ごとにカウントダウン更新
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  // トースト自動非表示
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2800);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // 初期ロード
   useEffect(() => {
@@ -105,9 +113,16 @@ export default function ClientKickoffHearingView() {
   }, [questions]);
 
   // 進捗計算（必須項目のみ）
+  // 必須項目は「未回答」または「min_chars 未満」だと進捗にカウントしない
   const requiredQuestions = useMemo(() => questions.filter(q => q.is_required), [questions]);
+  const isRequiredFulfilled = (q, raw) => {
+    const v = (raw || '').trim();
+    if (v.length === 0) return false;
+    if (q.min_chars && v.length < q.min_chars) return false;
+    return true;
+  };
   const requiredAnswered = useMemo(
-    () => requiredQuestions.filter(q => (responses[q.id] || '').trim().length > 0).length,
+    () => requiredQuestions.filter(q => isRequiredFulfilled(q, responses[q.id])).length,
     [requiredQuestions, responses],
   );
   const requiredProgress = requiredQuestions.length
@@ -115,12 +130,12 @@ export default function ClientKickoffHearingView() {
     : 0;
   const canSubmit = requiredAnswered === requiredQuestions.length && requiredQuestions.length > 0;
 
-  // セクションごとの必須未回答数
+  // セクションごとの必須未回答数（min_chars 未満も未回答扱い）
   const sectionStats = useMemo(() => {
     const m = {};
     sections.forEach(sec => {
       const req = sec.items.filter(it => it.is_required);
-      const answered = req.filter(it => (responses[it.id] || '').trim().length > 0).length;
+      const answered = req.filter(it => isRequiredFulfilled(it, responses[it.id])).length;
       m[sec.code] = {
         requiredTotal: req.length,
         requiredDone: answered,
@@ -215,6 +230,7 @@ export default function ClientKickoffHearingView() {
         .upsert(rows, { onConflict: 'customer_id,question_id' });
       if (e) throw e;
       setSavedAt(new Date());
+      setToast({ message: '回答内容を保存しました' });
     } catch (e) {
       console.error('[ClientKickoffHearing] saveAll error:', e);
       alert('一時保存に失敗しました: ' + (e.message || e));
@@ -229,7 +245,21 @@ export default function ClientKickoffHearingView() {
 
   const handleSubmit = async () => {
     if (!canSubmit) {
-      alert('必須項目すべてに回答してから提出してください');
+      // 文字数下限を満たさない必須項目だけ抽出して具体的に提示
+      const insufficient = requiredQuestions
+        .filter(q => {
+          const v = (responses[q.id] || '').trim();
+          return v.length > 0 && q.min_chars && v.length < q.min_chars;
+        })
+        .map(q => `Q${q.question_number}: ${q.question_text.slice(0, 30)}... （現在 ${(responses[q.id] || '').trim().length} / 最低 ${q.min_chars} 文字）`);
+      const empty = requiredQuestions.filter(q => !(responses[q.id] || '').trim().length).length;
+      const lines = [];
+      if (empty > 0) lines.push(`未回答の必須項目が ${empty} 問あります`);
+      if (insufficient.length > 0) {
+        lines.push('以下の必須項目が最低文字数を満たしていません:');
+        lines.push(...insufficient);
+      }
+      alert(lines.join('\n'));
       return;
     }
     if (!window.confirm('回答を提出します。\n提出後は内容変更ができません。よろしいですか？')) return;
@@ -390,6 +420,24 @@ export default function ClientKickoffHearingView() {
           </Button>
         </div>
       </div>
+
+      {/* トースト */}
+      {toast && (
+        <div style={{
+          position: 'fixed',
+          bottom: 96, right: 32,
+          background: color.navy,
+          color: color.white,
+          padding: `${space[3]}px ${space[4]}px`,
+          borderRadius: radius.md,
+          boxShadow: shadow.lg,
+          fontSize: font.size.sm,
+          fontWeight: font.weight.semibold,
+          letterSpacing: font.letterSpacing.wide,
+          zIndex: 100,
+          animation: 'fadeIn 0.2s ease',
+        }}>{toast.message}</div>
+      )}
     </div>
   );
 }
@@ -467,6 +515,22 @@ function SectionCard({ section, stats, collapsed, onToggle, responses, savingMap
       </button>
       {!collapsed && (
         <div style={{ padding: space[4], display: 'flex', flexDirection: 'column', gap: space[4] }}>
+          {/* 動機・価値観の深掘りセクションは、本人が後で見返した時の価値を出すため冒頭に注意書きを出す */}
+          {section.code === 'D' && (
+            <div style={{
+              padding: `${space[2]}px ${space[3]}px`,
+              background: alpha(color.gold, 0.10),
+              border: `1px solid ${alpha(color.gold, 0.30)}`,
+              borderRadius: radius.md,
+              fontSize: font.size.sm,
+              color: color.textDark,
+              lineHeight: font.lineHeight.relaxed,
+            }}>
+              <strong style={{ color: color.navy }}>このセクションは具体的に記載してください。</strong>
+              <br />
+              数ヶ月後の自分が見返したときに、いま抱えているもやもや・想い・覚悟をはっきり言語化しておくことが、その後の意思決定の軸になります。
+            </div>
+          )}
           {section.items.map((q, idx) => (
             <QuestionItem
               key={q.id}
@@ -580,15 +644,29 @@ function QuestionItem({ index, question, answer, saving, onAnswerChange }) {
         <span style={{ fontSize: font.size.xs, color: saving ? color.info : color.textLight }}>
           {saving ? '保存中...' : (answer ? '保存済み' : '未回答')}
         </span>
-        {max && (
-          <span style={{
-            fontSize: font.size.xs,
-            color: len > max ? color.danger : color.textLight,
-            fontVariantNumeric: 'tabular-nums',
-          }}>
-            {len} / {max} 文字
-          </span>
-        )}
+        {(max || question.min_chars) && (() => {
+          const minChars = question.min_chars || null;
+          const underMin = minChars != null && len > 0 && len < minChars;
+          const overMax = max != null && len > max;
+          const color2 = underMin || overMax ? color.danger : color.textLight;
+          const remaining = minChars != null && len < minChars ? (minChars - len) : 0;
+          return (
+            <span style={{
+              fontSize: font.size.xs,
+              color: color2,
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              {len}{max ? ` / ${max}` : ''} 文字
+              {minChars && (
+                <>
+                  {' '}（最低 {minChars} 文字
+                  {underMin && <>・あと {remaining} 文字必要</>}
+                  ）
+                </>
+              )}
+            </span>
+          );
+        })()}
       </div>
     </div>
   );

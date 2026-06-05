@@ -3,7 +3,7 @@ import { color, space, font, radius, shadow, alpha } from '../../../../constants
 import { Button, Card, Badge } from '../../../ui';
 import { useAuth } from '../../../../hooks/useAuth';
 import { supabase } from '../../../../lib/supabase';
-import { extractDrivingPhrase, generateDailyMessage, extractGoalCards } from '../../../../lib/spacareer/ai/mock';
+import { generateDailyMessage, extractGoalCards } from '../../../../lib/spacareer/ai/mock';
 
 // 仕様書: tasks/spacareer-spec.md §6.1 基本情報（マイページ）
 // 参考: イメージ画像⑦
@@ -25,7 +25,6 @@ export default function ClientMyPageView() {
   const [nextSession, setNextSession] = useState(null);
   const [latestFeedback, setLatestFeedback] = useState(null);
   const [videoStats, setVideoStats] = useState({ watched: 0, watching: 0, notWatched: 0 });
-  const [phrase, setPhrase] = useState(null);
   const [dailyMessage, setDailyMessage] = useState(null);
   const [goalCards, setGoalCards] = useState([]);
 
@@ -87,13 +86,11 @@ export default function ClientMyPageView() {
         setVideoStats({ watched, watching, notWatched });
       }
 
-      const [p, d, g] = await Promise.all([
-        extractDrivingPhrase({ customerId: cust.id, homeworkTexts: [] }),
+      const [d, g] = await Promise.all([
         generateDailyMessage({ customerId: cust.id }),
         extractGoalCards({ customerId: cust.id, homeworkAnswers: {} }),
       ]);
       if (!cancelled) {
-        setPhrase(p);
         setDailyMessage(d);
         setGoalCards(g);
       }
@@ -147,7 +144,7 @@ export default function ClientMyPageView() {
         </p>
       </div>
 
-      <DrivingPhraseHero phrase={phrase?.phrase} />
+      <DrivingPhraseHero phrase={customer?.driving_phrase} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: space[5] }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[5] }}>
@@ -232,7 +229,15 @@ function DrivingPhraseHero({ phrase }) {
           lineHeight: font.lineHeight.relaxed,
           maxWidth: 720,
         }}>
-          {phrase || '第1回の事前課題を提出すると、ここにあなただけのフレーズが表示されます。'}
+          {phrase || 'キックオフヒアリングを提出すると、ここに AI が抽出したあなただけのフレーズが表示されます。'}
+        </div>
+        <div style={{
+          fontSize: font.size.xs,
+          color: alpha(color.white, 0.65),
+          marginTop: space[3],
+          letterSpacing: font.letterSpacing.wide,
+        }}>
+          ※ キックオフヒアリングの回答から AI が生成し、このマイページ上部に反映されます。
         </div>
       </div>
     </div>
