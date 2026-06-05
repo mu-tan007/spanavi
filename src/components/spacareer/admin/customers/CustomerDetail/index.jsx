@@ -3,12 +3,21 @@ import { color, space, radius, font } from '../../../../../constants/design';
 import { Badge, Button } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
 import { invokeAdminImpersonateSpacareerCustomer } from '../../../../../lib/supabaseWrite';
+import { useAuth } from '../../../../../hooks/useAuth';
 import { useCustomerDetail } from '../lib/useCustomers';
 
 // 代理ログイン時に現在の管理者セッションを退避する localStorage キー。
 // 営業代行ポータルの `spanavi_admin_session_backup` とは別キーで管理し、
 // 両ポータルで代理ログイン中に session を取り違える事故を物理的に防ぐ。
 const ADMIN_BACKUP_KEY_SPACAREER = 'spanavi_admin_session_backup_spacareer';
+
+// スパキャリ受講生の代理ログインを許可されたメンバーのメールアドレス。
+// 全体 admin（isAdmin=true）以外で代理ログインを使う人をここに追加する。
+// Edge Function `admin-impersonate-spacareer-customer` の SUPER_ADMIN_EMAILS と
+// 必ず同じ内容を保つこと（片方だけ追加するとボタンは出るが押すと403になる、もしくは押せない）。
+const SPACAREER_IMPERSONATE_ALLOWED_EMAILS = [
+  'koyama@ma-sp.co', // 小山（スパキャリ事業責任者）
+];
 import ProgressStepper from './ProgressStepper';
 import TabBasicInfo from './TabBasicInfo';
 import TabKickoffHearing from './TabKickoffHearing';
@@ -51,8 +60,13 @@ function ageFromBirthdate(b) {
 
 export default function CustomerDetail({ customerId, isAdmin }) {
   const { detail, loading, refresh } = useCustomerDetail(customerId);
+  const { profile } = useAuth();
   const [tab, setTab] = useState('basic');
   const [impersonating, setImpersonating] = useState(false);
+
+  // 代理ログイン可否: 全体adminか、スパキャリ専用許可リストに載っているか
+  const canImpersonate = isAdmin
+    || SPACAREER_IMPERSONATE_ALLOWED_EMAILS.includes(profile?.email);
 
   // スパキャリ受講生として代理ログインする。営業代行 DealsView の handleImpersonate と同じ構造。
   // 退避キーだけ別物（ADMIN_BACKUP_KEY_SPACAREER）にしてあるため、営業代行ポータルとは混線しない。
@@ -182,7 +196,7 @@ export default function CustomerDetail({ customerId, isAdmin }) {
                 )}
               </div>
             </div>
-            {isAdmin && (() => {
+            {canImpersonate && (() => {
               const noPortalUser = !member?.user_id;
               const disabled = impersonating || noPortalUser;
               const label = impersonating

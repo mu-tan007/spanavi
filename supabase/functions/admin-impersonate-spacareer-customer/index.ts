@@ -14,8 +14,14 @@ const corsHeaders = {
 }
 
 // 受講生代理ログイン権限を持つ管理者の email
-//   将来的には members.role や専用フラグに移行する想定。今は篠宮のみ。
-const SUPER_ADMIN_EMAILS = ['shinomiya@ma-sp.co']
+//   スパキャリ事業に関わる運営者だけが代理ログインできる。
+//   営業代行ポータルの admin-impersonate-client とは別配列で管理し、
+//   「スパキャリにだけ権限を渡したい人」を独立して制御できる構造にしている。
+//   将来的には members.role や専用フラグに移行する想定。
+const SUPER_ADMIN_EMAILS = [
+  'shinomiya@ma-sp.co', // 篠宮（全体管理者）
+  'koyama@ma-sp.co',    // 小山（スパキャリ事業責任者）
+]
 
 // スパキャリ受講生ポータルへの redirect は固定。営業代行と混線させない。
 const SPACAREER_REDIRECT_PATH = '/spacareer'
