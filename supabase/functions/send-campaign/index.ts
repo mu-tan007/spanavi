@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
   try {
     // ===== 2. セグメント解釈 → 重複排除 =====
     const { data: segRows, error: segError } = await supabase
-      .rpc('compute_campaign_segment', { p_segment: campaign.segment_definition })
+      .rpc('compute_campaign_segment', { p_segment: campaign.segment_definition, p_org_id: campaign.org_id })
 
     if (segError) throw new Error('Segment computation failed: ' + segError.message)
 

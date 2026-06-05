@@ -198,7 +198,7 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
         template_id: templateId || null,
         name: name.trim() || subject.trim(),
         subject: subject.trim(),
-        from_email: 'newsletter@ma-sp.co',
+        from_email: 'noreply@newsletter.ma-sp.co',
         from_name: fromName.trim() || 'M&Aソーシングパートナーズ',
         body_html: bodyHtml,
         body_text: null,
@@ -335,7 +335,7 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
                 placeholder="M&Aソーシングパートナーズ"
               />
               <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: -space[1] }}>
-                送信元アドレス: <code style={{ fontFamily: font.family.mono }}>newsletter@ma-sp.co</code> (固定)
+                送信元アドレス: <code style={{ fontFamily: font.family.mono }}>noreply@newsletter.ma-sp.co</code> (固定)
               </div>
             </div>
 
