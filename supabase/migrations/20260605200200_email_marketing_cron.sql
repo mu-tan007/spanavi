@@ -1,13 +1,13 @@
 -- メルマガ予約配信 pg_cron
 --
--- 前提:
---   ALTER DATABASE postgres SET app.functions_url = 'https://<proj>.supabase.co/functions/v1';
---   ALTER DATABASE postgres SET app.service_role_key = '<service_role_jwt>';
---   SELECT pg_reload_conf();
---
 -- 1分毎に status='scheduled' かつ scheduled_at <= now() のキャンペーンを拾い、
 -- send-campaign Edge Function を pg_net で非同期起動する。
 -- 1ティックあたり最大5キャンペーンに制限（同時並行で大量起動しない）。
+--
+-- Authorization は anon key (publishable, クライアント側で公開される) を使用。
+-- send-campaign 内部では SUPABASE_SERVICE_ROLE_KEY env var で client 作成し RLS バイパス。
+-- ※ Supabase platform 制約で ALTER DATABASE による app.* GUC 設定が拒否されるため、
+--    URL と anon key を関数内に直接 hardcode する設計を採用。
 
 set local search_path = public, extensions;
 
@@ -21,17 +21,10 @@ security definer
 set search_path = public, extensions
 as $$
 declare
-  v_url    text;
-  v_key    text;
-  r        record;
+  r record;
+  v_url text := 'https://baiiznjzvzhxwwqzsozn.supabase.co/functions/v1/send-campaign';
+  v_key text := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhaWl6bmp6dnpoeHd3cXpzb3puIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyODk2NzQsImV4cCI6MjA4Njg2NTY3NH0.ZKo6JH3R3K0STIbRkVaCXe_V6R22zZsVhQx62Bl7J_g';
 begin
-  v_url := current_setting('app.functions_url', true);
-  v_key := current_setting('app.service_role_key', true);
-  if v_url is null or v_key is null then
-    raise warning 'email cron settings not configured (app.functions_url / app.service_role_key)';
-    return;
-  end if;
-
   for r in
     select id from public.email_campaigns
     where status = 'scheduled'
@@ -41,7 +34,7 @@ begin
     limit 5
   loop
     perform net.http_post(
-      url     := v_url || '/send-campaign',
+      url     := v_url,
       headers := jsonb_build_object(
         'Content-Type', 'application/json',
         'Authorization', 'Bearer ' || v_key,
@@ -65,5 +58,5 @@ end $$;
 select cron.schedule(
   'email-campaigns-scheduled',
   '* * * * *',
-  $$select public.kick_scheduled_email_campaigns();$$
+  $cron$select public.kick_scheduled_email_campaigns();$cron$
 );
