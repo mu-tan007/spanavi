@@ -1,6 +1,7 @@
 import React from 'react';
 import { color, space, font, radius } from '../../../../../constants/design';
 import { Card, Badge } from '../../../../ui';
+import { SOCIAL_STYLE_DESCRIPTIONS } from '../../social-style/socialStyleQuestions';
 
 // ============================================================
 // 1. 基本情報タブ
@@ -59,23 +60,30 @@ export default function TabBasicInfo({ detail }) {
       </Card>
 
       <Card padding="md" title="ソーシャルスタイル診断"
-        description="運営内部のみ閲覧可。受講生にも一部表示されます。">
+        description="運営内部のみ閲覧可。タイプに応じた接し方の注意点も表示されます。">
         {socialStyle && socialStyle.completed_at ? (
-          <Grid>
-            <Row label="タイプ"
-              value={<Badge variant={SS_VARIANT[socialStyle.result_type] || 'primary'} dot solid>
-                {SS_LABEL[socialStyle.result_type] || socialStyle.result_type}
-              </Badge>} />
-            <Row label="完了日時" value={dateOnly(socialStyle.completed_at)} />
-            <Row label="スコアバランス"
-              value={socialStyle.result_scores
-                ? Object.entries(socialStyle.result_scores)
-                    .map(([k, v]) => `${SS_LABEL[k] || k}: ${v}`).join(' / ')
-                : '—'}
-              mono />
-          </Grid>
+          <>
+            <Grid>
+              <Row label="タイプ"
+                value={<Badge variant={SS_VARIANT[socialStyle.result_type] || 'primary'} dot solid>
+                  {SS_LABEL[socialStyle.result_type] || socialStyle.result_type}
+                </Badge>} />
+              <Row label="完了日時" value={dateOnly(socialStyle.completed_at)} />
+              <Row label="スコアバランス"
+                value={socialStyle.result_scores
+                  ? Object.entries(socialStyle.result_scores)
+                      .map(([k, v]) => `${SS_LABEL[k] || k}: ${v}`).join(' / ')
+                  : '—'}
+                mono />
+            </Grid>
+            {SOCIAL_STYLE_DESCRIPTIONS[socialStyle.result_type] && (
+              <SocialStyleCoachingBlock def={SOCIAL_STYLE_DESCRIPTIONS[socialStyle.result_type]} />
+            )}
+          </>
         ) : (
-          <div style={{ color: color.textLight, fontSize: font.size.sm }}>診断未完了です</div>
+          <div style={{ color: color.textLight, fontSize: font.size.sm }}>
+            診断未完了です。スパキャリ &gt; ソーシャルスタイル管理画面から診断招待を発行してください。
+          </div>
         )}
       </Card>
 
@@ -96,6 +104,44 @@ export default function TabBasicInfo({ detail }) {
           </div>
         )}
       </Card>
+    </div>
+  );
+}
+
+// タイプ別の強み/注意点/接し方tipsをまとめて表示するブロック。
+// 運営・トレーナー向け。受講生のマイページには出さない。
+function SocialStyleCoachingBlock({ def }) {
+  return (
+    <div style={{ marginTop: space[3] }}>
+      <div style={{
+        padding: space[3], background: color.cream, borderRadius: radius.md,
+        fontSize: font.size.sm, color: color.textDark, lineHeight: font.lineHeight.relaxed,
+        marginBottom: space[3],
+      }}>
+        <div style={{ fontWeight: font.weight.semibold, color: color.navy, marginBottom: space[1] }}>
+          {def.headline}
+        </div>
+        {def.summary}
+      </div>
+      <CoachingList title="強み" items={def.strengths} variant="success" />
+      <CoachingList title="注意点" items={def.cautions} variant="warn" />
+      <CoachingList title="接し方のポイント（トレーナー向け）" items={def.coach_tips} variant="info" />
+    </div>
+  );
+}
+
+function CoachingList({ title, items, variant }) {
+  if (!items || !items.length) return null;
+  return (
+    <div style={{ marginBottom: space[3] }}>
+      <div style={{
+        fontSize: font.size.xs, color: color.textMid,
+        letterSpacing: font.letterSpacing.wider,
+        fontWeight: font.weight.semibold, marginBottom: space[1],
+      }}>{title}</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {items.map((it, i) => <Badge key={i} variant={variant}>{it}</Badge>)}
+      </div>
     </div>
   );
 }

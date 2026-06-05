@@ -247,6 +247,7 @@ export default function SpacareerSocialStyleView() {
         <DetailDrawer
           row={selected}
           onClose={() => setSelected(null)}
+          onCustomerCreated={() => { loadResponses(); }}
         />
       )}
 
@@ -261,10 +262,51 @@ export default function SpacareerSocialStyleView() {
 }
 
 // ────────────────────────────────────────────────────────────
-function DetailDrawer({ row, onClose }) {
+function DetailDrawer({ row, onClose, onCustomerCreated }) {
   const type = row.result_type;
   const def = type ? SOCIAL_STYLE_DESCRIPTIONS[type] : null;
   const scores = row.result_scores || null;
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState(null);
+  const [createResult, setCreateResult] = useState(null); // { email, initial_password, login_url, reused_existing_user }
+  const [copiedField, setCopiedField] = useState(null);
+
+  const canCreate = !!row.completed_at && !row.customer_id && !createResult;
+
+  const handleCreateCustomer = async () => {
+    if (!canCreate) return;
+    if (!window.confirm(
+      '受講生アカウントを発行します。\n'
+      + `メール: ${row.invite_email}\n\n`
+      + '招待先メールアドレスで auth.users / members / spacareer_customers を作成し、'
+      + 'この診断結果と紐付けます。よろしいですか？'
+    )) return;
+    setCreating(true); setCreateError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('spacareer-create-customer-from-diagnosis', {
+        body: { response_id: row.id },
+      });
+      if (error) throw new Error(error.message || JSON.stringify(error));
+      if (data?.error) throw new Error(data.error);
+      setCreateResult(data);
+      onCustomerCreated && onCustomerCreated();
+    } catch (e) {
+      console.error('[DetailDrawer] create customer error:', e);
+      setCreateError(e.message || String(e));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleCopy = async (text, field) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 1800);
+    } catch {
+      /* noop */
+    }
+  };
 
   return (
     <div
@@ -336,7 +378,80 @@ function DetailDrawer({ row, onClose }) {
           {!row.completed_at && (
             <Card padding="md" variant="subtle">
               <div style={{ fontSize: font.size.sm, color: color.textMid }}>
-                この受講予定者はまだ診断を完了していません。診断完了をもって自動で受講生アカウントが発行されます。
+                この受講予定者はまだ診断を完了していません。完了後に「顧客として登録」が押せるようになります。
+              </div>
+            </Card>
+          )}
+
+          {canCreate && (
+            <Card padding="md"
+              title="受講生アカウント発行"
+              description="この診断結果に紐付くスパキャリ受講生アカウントを作成し、ログイン情報を発行します。"
+            >
+              <Button variant="primary" size="md" loading={creating} onClick={handleCreateCustomer}>
+                顧客として登録
+              </Button>
+              {createError && (
+                <div style={{
+                  marginTop: space[3], padding: space[3],
+                  background: alpha(color.danger, 0.08),
+                  border: `1px solid ${alpha(color.danger, 0.3)}`,
+                  borderRadius: radius.md, color: color.danger, fontSize: font.size.sm,
+                }}>
+                  発行失敗: {createError}
+                </div>
+              )}
+            </Card>
+          )}
+
+          {createResult && (
+            <Card padding="md"
+              title="アカウント発行完了"
+              description="受講生にお伝えするログイン情報です。Slackで送付してください。"
+            >
+              {createResult.reused_existing_user && (
+                <div style={{
+                  padding: space[2], marginBottom: space[3],
+                  background: alpha(color.warn, 0.1), border: `1px solid ${alpha(color.warn, 0.3)}`,
+                  borderRadius: radius.md, fontSize: font.size.xs, color: color.textDark,
+                }}>
+                  ※ 同じメールアドレスの auth.users が既に存在したため、それを再利用しました。
+                  初期パスワードは発行していません。本人がパスワードを忘れている場合は、ログイン画面の「パスワードを忘れた方」から再設定してください。
+                </div>
+              )}
+              <Row label="ログイン URL">
+                <span style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
+                  <code style={{ fontSize: font.size.xs }}>{createResult.login_url}</code>
+                  <Button size="sm" variant="outline" onClick={() => handleCopy(createResult.login_url, 'url')}>
+                    {copiedField === 'url' ? 'コピー済' : 'コピー'}
+                  </Button>
+                </span>
+              </Row>
+              <Row label="メールアドレス">
+                <span style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
+                  <code style={{ fontSize: font.size.xs }}>{createResult.email}</code>
+                  <Button size="sm" variant="outline" onClick={() => handleCopy(createResult.email, 'email')}>
+                    {copiedField === 'email' ? 'コピー済' : 'コピー'}
+                  </Button>
+                </span>
+              </Row>
+              {createResult.initial_password && (
+                <Row label="初期パスワード">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
+                    <code style={{ fontSize: font.size.sm, fontWeight: font.weight.bold }}>{createResult.initial_password}</code>
+                    <Button size="sm" variant="outline" onClick={() => handleCopy(createResult.initial_password, 'pw')}>
+                      {copiedField === 'pw' ? 'コピー済' : 'コピー'}
+                    </Button>
+                  </span>
+                </Row>
+              )}
+              <div style={{
+                marginTop: space[3], padding: space[2],
+                background: color.cream, borderRadius: radius.md,
+                fontSize: font.size.xs, color: color.textMid, lineHeight: font.lineHeight.relaxed,
+              }}>
+                スパナビの「スパキャリ &gt; 顧客一覧」に新しい受講生が追加されました。
+                メンバータブから担当トレーナーをアサインしてください。
               </div>
             </Card>
           )}
