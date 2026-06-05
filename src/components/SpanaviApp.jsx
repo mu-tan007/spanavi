@@ -42,6 +42,7 @@ import MyPageView from './views/MyPageView';
 import SourcingDashboardView from './views/SourcingDashboardView';
 import BusinessOverviewView from './views/BusinessOverviewView';
 import CRMView from './views/CRMView';
+import EmailMarketingView from './views/EmailMarketingView';
 import AppoListView, { MembersView } from './views/AppoListView';
 import PayrollView from './views/PayrollView';
 import ListView from './views/ListView';
@@ -373,7 +374,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
-  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","appo","precheck","deals","crm","members","search","stats","recall","payroll","shift","rules","database","firms","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","sessions","homework","social_style","ai_courses","templates","analytics","settings","all_members","admin_settings"];
+  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","appo","precheck","deals","crm","email_marketing","members","search","stats","recall","payroll","shift","rules","database","firms","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","sessions","homework","social_style","ai_courses","templates","analytics","settings","all_members","admin_settings"];
   const [currentTab, setCurrentTab] = useState(() => {
     try {
       const saved = localStorage.getItem("masp_v2_currentTab");
@@ -410,7 +411,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     // 有効ならそのまま、無効ならデフォルトに揃える。
     _prevEngSlugRef.current = engSlug;
     const MASP_TABS = ['database', 'firms', 'all_members', 'admin_settings', 'mypage'];
-    const SOURCING_TABS = ['overview','dashboard','live','incoming','lists','appo','precheck','deals','crm','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','edu_performance','ai','manager_admin'];
+    const SOURCING_TABS = ['overview','dashboard','live','incoming','lists','appo','precheck','deals','crm','email_marketing','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','edu_performance','ai','manager_admin'];
     const CAREER_TABS = ['customers','sessions','homework','social_style','ai_courses','templates','analytics','settings','mypage'];
     if (engSlug === 'masp') {
       if (!MASP_TABS.includes(currentTab)) setCurrentTab('database');
@@ -678,6 +679,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     { id: "g_admin", label: "管理", children: [
       { id: "members", label: "メンバー" },
       { id: "crm", label: "CRM" },
+      { id: "email_marketing", label: "メルマガ" },
       { id: "payroll", label: "報酬" },
       { id: "shift", label: "シフト" },
     ]},
@@ -1366,6 +1368,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "precheck" && <PreCheckView appoData={appoData} setAppoData={isAdmin ? setAppoData : null} setCallFlowScreen={setCallFlowScreen} callListData={callListData} clientData={clientData} contactsByClient={contactsByClient} />}
         {currentTab === "deals" && <DealsView isAdmin={isAdmin} currentUser={currentUser} />}
         {currentTab === "crm" && <CRMView isAdmin={isAdmin} clientData={clientData} setClientData={isAdmin ? setClientData : null} rewardMaster={rewardMaster} contactsByClient={contactsByClient} setContactsByClient={setContactsByClient} callListData={callListData} currentUser={currentUser} members={members} clientEngagementRewards={supabaseData?.clientEngagementRewards || []} />}
+        {currentTab === "email_marketing" && <EmailMarketingView orgId={orgId} currentUser={currentUser} isAdmin={isAdmin} />}
 
         {currentTab === "members" && <EngagementMembersView isAdmin={isAdmin} />}
         {currentTab === "search" && <CompanySearchView importedCSVs={importedCSVs} callListData={callListData} setCallingScreen={setCallingScreen} setImportedCSVs={setImportedCSVs} clientData={clientData} currentUser={currentUser} members={members} setCallFlowScreen={setCallFlowScreen} rewardMaster={rewardMaster} />}
