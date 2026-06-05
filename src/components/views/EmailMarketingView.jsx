@@ -174,7 +174,7 @@ export default function EmailMarketingView({ orgId, currentUser, isAdmin }) {
         }
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 480px' : '1fr', gap: space[4], marginTop: space[4] }}>
+      <div style={{ display: 'grid', gridTemplateColumns: selected ? 'minmax(0, 1fr) 520px' : '1fr', gap: space[3], marginTop: space[4] }}>
         <Card padding="none">
           <DataTable
             columns={columns}

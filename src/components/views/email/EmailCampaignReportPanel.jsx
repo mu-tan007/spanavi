@@ -95,25 +95,25 @@ export default function EmailCampaignReportPanel({ campaign, onClose, onDuplicat
     {
       key: 'display_name', label: '宛先', width: 180, align: 'left',
       render: (row) => (
-        <div>
-          <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textDark }}>
+        <div style={{ overflow: 'hidden' }}>
+          <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textDark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {row.display_name || '(名前なし)'}
           </div>
-          <div style={{ fontSize: 10, color: color.textMid, fontFamily: font.family.mono }}>
+          <div style={{ fontSize: 10, color: color.textMid, fontFamily: font.family.mono, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {row.email}
           </div>
         </div>
       ),
     },
     {
-      key: 'status', label: '状態', width: 90, align: 'center',
+      key: 'status', label: '状態', width: 80, align: 'center',
       render: (row) => {
         const s = RECIPIENT_STATUS_LABEL[row.status] || { text: row.status, variant: 'neutral' };
         return <Badge variant={s.variant}>{s.text}</Badge>;
       },
     },
     {
-      key: 'first_opened_at', label: '開封', width: 90, align: 'right',
+      key: 'first_opened_at', label: '開封', width: 80, align: 'right',
       render: (row) => row.first_opened_at
         ? <span style={{ fontSize: 11, fontFamily: font.family.mono, color: color.success }}>
             {new Date(row.first_opened_at).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
@@ -123,7 +123,7 @@ export default function EmailCampaignReportPanel({ campaign, onClose, onDuplicat
   ], []);
 
   return (
-    <Card padding="md">
+    <Card padding="sm" style={{ overflow: 'hidden' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: space[2] }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: font.size.xs, color: color.textMid }}>キャンペーン</div>
@@ -137,13 +137,11 @@ export default function EmailCampaignReportPanel({ campaign, onClose, onDuplicat
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: space[1], marginBottom: space[3] }}>
-        <KpiTile label="配信" value={campaign.sent_count || 0} sub={`/ ${campaign.total_recipients || 0}件`} />
-        <KpiTile label="開封率" value={openRate} sub={`${campaign.opened_count || 0}件`} />
-        <KpiTile label="クリック率" value={clickRate} sub={`${campaign.clicked_count || 0}件`} />
-      </div>
-      <div style={{ display: 'flex', gap: space[1], marginBottom: space[3] }}>
-        <KpiTile label="バウンス" value={bounceRate} sub={`${campaign.bounced_count || 0}件`} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: space[1], marginBottom: space[3] }}>
+        <KpiTile label="配信" value={campaign.sent_count || 0} sub={`/${campaign.total_recipients || 0}`} />
+        <KpiTile label="開封" value={openRate} sub={`${campaign.opened_count || 0}件`} />
+        <KpiTile label="クリック" value={clickRate} sub={`${campaign.clicked_count || 0}件`} />
+        <KpiTile label="ﾊﾞｳﾝｽ" value={bounceRate} sub={`${campaign.bounced_count || 0}件`} />
         <KpiTile label="停止" value={campaign.unsubscribed_count || 0} sub="件" />
       </div>
 
@@ -173,7 +171,7 @@ export default function EmailCampaignReportPanel({ campaign, onClose, onDuplicat
           rowKey="id"
           loading={loading}
           emptyMessage="受信者なし"
-          height={300}
+          height={260}
           fillWidth
         />
       </div>
