@@ -33,6 +33,7 @@ export const PAGE_REGISTRY = {
     { key: 'edu_roleplay', label: 'ロープレ', group: 'INSIGHTS' },
     { key: 'members', label: 'メンバー', group: 'ADMIN' },
     { key: 'crm', label: 'CRM', group: 'ADMIN' },
+    { key: 'email_marketing', label: 'メルマガ', group: 'ADMIN' },
     { key: 'payroll', label: '報酬', group: 'ADMIN' },
     { key: 'shift', label: 'シフト', group: 'ADMIN' },
   ],
