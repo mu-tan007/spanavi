@@ -174,7 +174,7 @@ export default function EmailMarketingView({ orgId, currentUser, isAdmin }) {
         }
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: selected ? 'minmax(0, 1fr) 520px' : '1fr', gap: space[3], marginTop: space[4] }}>
+      <div style={{ marginTop: space[4] }}>
         <Card padding="none">
           <DataTable
             columns={columns}
@@ -188,16 +188,34 @@ export default function EmailMarketingView({ orgId, currentUser, isAdmin }) {
             fillWidth
           />
         </Card>
-
-        {selected && (
-          <EmailCampaignReportPanel
-            campaign={selected}
-            onClose={() => setSelectedId(null)}
-            onDuplicate={() => handleDuplicate(selected)}
-            onReload={loadCampaigns}
-          />
-        )}
       </div>
+
+      {selected && (
+        <div
+          onClick={() => setSelectedId(null)}
+          style={{
+            position: 'fixed', inset: 0, background: alpha(color.navyDeep, 0.5),
+            zIndex: 9998, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: space[4],
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: 880, maxHeight: '90vh',
+              background: color.white, borderRadius: radius.lg, boxShadow: shadow.xl,
+              overflow: 'auto',
+            }}
+          >
+            <EmailCampaignReportPanel
+              campaign={selected}
+              onClose={() => setSelectedId(null)}
+              onDuplicate={() => handleDuplicate(selected)}
+              onReload={loadCampaigns}
+            />
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <EmailCampaignFormModal
