@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { color, space, radius, font, alpha } from '../../../../../constants/design';
 import { Button, Input, Card, Badge } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
 import { getOrgId } from '../../../../../lib/orgContext';
+import { generateMinutesDraft } from '../../../../../lib/spacareer/ai/mock';
 import SessionCompleteFlow from './SessionCompleteFlow';
 
 // ============================================================
@@ -39,6 +40,10 @@ export default function TabKickoff({ detail, onRefresh }) {
   const [form, setForm] = useState(() => buildForm(kickoff));
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [generatingMinutes, setGeneratingMinutes] = useState(false);
+  const [videoErr, setVideoErr] = useState(null);
+  const videoFileRef = useRef(null);
 
   useEffect(() => { setForm(buildForm(kickoff)); }, [kickoff]);
 
@@ -49,6 +54,48 @@ export default function TabKickoff({ detail, onRefresh }) {
   const hasVideo = useMemo(
     () => (videos || []).some((v) => v.session?.session_no === 0), [videos]);
   const hasMinutes = !!kickoffSession?.minutes_draft;
+  const kickoffStatus = kickoffSession?.status;
+
+  async function handleVideoUpload(e) {
+    const f = e.target.files?.[0];
+    if (!f || !kickoffSession) return;
+    setUploading(true); setVideoErr(null);
+    try {
+      const orgId = getOrgId();
+      const path = `${orgId}/${customerId}/${kickoffSession.id}/${Date.now()}_${f.name}`;
+      const { error: upErr } = await supabase.storage.from('spacareer-session-videos').upload(path, f, { upsert: false });
+      if (upErr) throw upErr;
+      const { error: insErr } = await supabase.from('spacareer_session_videos').insert({
+        org_id: orgId, session_id: kickoffSession.id,
+        storage_path: path, file_size_bytes: f.size, ai_status: 'pending',
+      });
+      if (insErr) throw insErr;
+      onRefresh && (await onRefresh());
+    } catch (e2) {
+      console.error('[TabKickoff] video upload error:', e2);
+      setVideoErr(`アップロードに失敗しました: ${e2.message || e2}`);
+    } finally {
+      setUploading(false);
+      if (videoFileRef.current) videoFileRef.current.value = '';
+    }
+  }
+
+  async function handleGenerateMinutes() {
+    if (!kickoffSession) return;
+    setGeneratingMinutes(true); setVideoErr(null);
+    try {
+      const r = await generateMinutesDraft({ sessionId: kickoffSession.id });
+      const { error } = await supabase.from('spacareer_sessions')
+        .update({ minutes_draft: r.minutesDraft }).eq('id', kickoffSession.id);
+      if (error) throw error;
+      onRefresh && (await onRefresh());
+    } catch (e) {
+      console.error('[TabKickoff] minutes error:', e);
+      setVideoErr(`議事録生成に失敗しました: ${e.message || e}`);
+    } finally {
+      setGeneratingMinutes(false);
+    }
+  }
 
   async function handleSave() {
     if (!customerId) return;
@@ -87,6 +134,45 @@ export default function TabKickoff({ detail, onRefresh }) {
 
   return (
     <div style={{ display: 'grid', gap: space[4] }}>
+      <Card padding="md"
+        title="キックオフ動画・AI議事録"
+        description="キックオフミーティングの録画ファイルをアップロードし、AI議事録を生成します。セッション完了の必須ゲートです。"
+        action={
+          <div style={{ display: 'flex', gap: space[2] }}>
+            <Badge variant={hasVideo ? 'success' : 'warn'} dot>
+              {hasVideo ? '動画アップ済' : '動画未アップ'}
+            </Badge>
+            <Badge variant={hasMinutes ? 'success' : 'warn'} dot>
+              {hasMinutes ? '議事録あり' : '議事録未生成'}
+            </Badge>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', gap: space[2], flexWrap: 'wrap', alignItems: 'center' }}>
+          <input ref={videoFileRef} type="file" accept="video/*" onChange={handleVideoUpload} style={{ display: 'none' }} />
+          <Button variant="primary" size="md" loading={uploading}
+            onClick={() => videoFileRef.current?.click()} disabled={kickoffStatus === 'completed'}>
+            {hasVideo ? '動画を差し替える' : '動画をアップロード'}
+          </Button>
+          <Button variant="outline" size="md" loading={generatingMinutes}
+            onClick={handleGenerateMinutes} disabled={!hasVideo || kickoffStatus === 'completed'}>
+            AI議事録を生成
+          </Button>
+          {hasMinutes && (
+            <span style={{ fontSize: font.size.xs, color: color.textLight }}>
+              下部「議事録ドラフト」で確認できます
+            </span>
+          )}
+        </div>
+        {videoErr && (
+          <div style={{
+            marginTop: space[3], padding: space[3],
+            background: color.dangerSoft, color: '#A20018',
+            fontSize: font.size.sm, borderRadius: radius.md,
+          }}>{videoErr}</div>
+        )}
+      </Card>
+
       <Card padding="md"
         title="ヒアリングシート（PDF §4.3.1〜4.3.9）"
         description={`全${CHECK_FIELDS.length}項目チェック完了で「セッション完了」が押下可能になります（必須ゲート）。`}
@@ -160,7 +246,7 @@ export default function TabKickoff({ detail, onRefresh }) {
         )}
       </div>
 
-      <SessionCompleteFlow session={kickoffSession} customerId={customerId}
+      <SessionCompleteFlow session={kickoffSession} customerId={customerId} detail={detail}
         hearingSheetChecked={allChecked}
         hasVideo={hasVideo} hasMinutes={hasMinutes}
         onCompleted={onRefresh} />
