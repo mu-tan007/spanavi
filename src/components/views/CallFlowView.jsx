@@ -9,7 +9,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getScriptPdfSignedUrl, updateCallListCautions } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getScriptPdfSignedUrl, getCompanyOverviewPdfSignedUrl, updateCallListCautions } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -251,11 +251,31 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [qaSubTab, setQaSubTab] = useState('reception');
   const [pdfPreview, setPdfPreview] = useState(null); // { name, url }
   const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
+  // 企業概要PDF: タブ切替＋インラインiframe（focusモード用）
+  const [overviewPdfUrls, setOverviewPdfUrls] = useState({}); // { [path]: signedUrl }
+  const [selectedOverviewPdfPath, setSelectedOverviewPdfPath] = useState(null);
 
   const handleOpenScriptPdf = async (pdf) => {
     if (!pdf?.path) return;
     setPdfPreviewLoading(true);
     const { url, error } = await getScriptPdfSignedUrl(pdf.path);
+    setPdfPreviewLoading(false);
+    if (error || !url) { alert('PDFを開けませんでした'); return; }
+    setPdfPreview({ name: pdf.name, url });
+  };
+
+  // 企業概要PDFの署名URLをキャッシュ（再レンダリングで毎回作り直さない）
+  const ensureOverviewPdfUrl = async (pdf) => {
+    if (!pdf?.path || overviewPdfUrls[pdf.path]) return;
+    const { url } = await getCompanyOverviewPdfSignedUrl(pdf.path);
+    if (url) setOverviewPdfUrls(prev => ({ ...prev, [pdf.path]: url }));
+  };
+
+  // list mode の下部スクリプトパネルは120pxしかないので、モーダルで開く
+  const handleOpenOverviewPdfModal = async (pdf) => {
+    if (!pdf?.path) return;
+    setPdfPreviewLoading(true);
+    const { url, error } = await getCompanyOverviewPdfSignedUrl(pdf.path);
     setPdfPreviewLoading(false);
     if (error || !url) { alert('PDFを開けませんでした'); return; }
     setPdfPreview({ name: pdf.name, url });
@@ -272,6 +292,18 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   useEffect(() => {
     try { sessionStorage.setItem('callflow_list_mode', String(listMode)); } catch {}
   }, [listMode]);
+
+  // 企業概要タブを開いた時、先頭PDFを自動選択＋署名URL取得
+  useEffect(() => {
+    if (scriptTab !== 'info') return;
+    const pdfs = Array.isArray(list?.companyOverviewPdfs) ? list.companyOverviewPdfs : [];
+    if (pdfs.length === 0) return;
+    const stillValid = selectedOverviewPdfPath && pdfs.some(p => p.path === selectedOverviewPdfPath);
+    const target = stillValid ? pdfs.find(p => p.path === selectedOverviewPdfPath) : pdfs[0];
+    if (!stillValid) setSelectedOverviewPdfPath(target.path);
+    ensureOverviewPdfUrl(target);
+  }, [scriptTab, list?._supaId, list?.companyOverviewPdfs]);
+
   const toggleAutoDial = () => {
     setAutoDial(prev => {
       const next = !prev;
@@ -1695,11 +1727,32 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 </div>
               );
             })()}
-            {scriptTab === 'info' && (
-              list.companyInfo
-                ? <pre style={{ fontSize: 11, color: C.textMid, whiteSpace: 'pre-wrap', lineHeight: 1.7, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.companyInfo}</pre>
-                : <div style={{ color: C.textLight, fontSize: 11 }}>企業概要未設定</div>
-            )}
+            {scriptTab === 'info' && (() => {
+              const pdfs = Array.isArray(list.companyOverviewPdfs) ? list.companyOverviewPdfs : [];
+              if (!list.companyInfo && pdfs.length === 0) {
+                return <div style={{ color: C.textLight, fontSize: 11 }}>企業概要未設定</div>;
+              }
+              return (
+                <>
+                  {list.companyInfo
+                    ? <pre style={{ fontSize: 11, color: C.textMid, whiteSpace: 'pre-wrap', lineHeight: 1.7, margin: 0, fontFamily: "'Noto Sans JP'" }}>{list.companyInfo}</pre>
+                    : null}
+                  {pdfs.length > 0 && (
+                    <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px dashed ' + C.borderLight }}>
+                      <div style={{ fontSize: 9, fontWeight: 600, color: C.navy, marginBottom: 4 }}>添付PDF</div>
+                      {pdfs.map((pdf, i) => (
+                        <button key={pdf.path || i}
+                          onClick={() => handleOpenOverviewPdfModal(pdf)}
+                          title={pdf.name}
+                          style={{ display: 'block', width: '100%', textAlign: 'left', background: '#F8F9FA', border: '1px solid ' + C.borderLight, borderLeft: '2px solid ' + C.navy, borderRadius: 3, padding: '3px 6px', fontSize: 10, color: C.navy, fontWeight: 500, cursor: 'pointer', marginBottom: 3, textDecoration: 'underline', fontFamily: "'Noto Sans JP'", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {pdf.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             {scriptTab === 'cautions' && (
               list.cautions
                 ? <CautionsCards text={list.cautions} fontSize={11} filter="non-calendar" />
@@ -2503,11 +2556,66 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 </div>
               );
             })()}
-            {scriptTab === 'info' && (
-              list.companyInfo
-                ? <pre style={{ fontSize: font.size.sm, color: '#4a4a4a', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: font.family.sans }}>{list.companyInfo}</pre>
-                : <div style={{ color: color.gray400, fontSize: font.size.sm }}>企業概要未設定</div>
-            )}
+            {scriptTab === 'info' && (() => {
+              const pdfs = Array.isArray(list.companyOverviewPdfs) ? list.companyOverviewPdfs : [];
+              const selectedPdf = pdfs.find(p => p.path === selectedOverviewPdfPath) || pdfs[0] || null;
+              const iframeUrl = selectedPdf ? overviewPdfUrls[selectedPdf.path] : null;
+              if (!list.companyInfo && pdfs.length === 0) {
+                return <div style={{ color: color.gray400, fontSize: font.size.sm }}>企業概要未設定</div>;
+              }
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: space[3] }}>
+                  {list.companyInfo && (
+                    <pre style={{ fontSize: font.size.sm, color: '#4a4a4a', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: font.family.sans, flexShrink: 0, maxHeight: pdfs.length > 0 ? '30%' : 'none', overflowY: 'auto' }}>{list.companyInfo}</pre>
+                  )}
+                  {pdfs.length > 0 && (
+                    <>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', flexShrink: 0, borderBottom: `1px solid ${color.gray200}`, paddingBottom: space[2] }}>
+                        {pdfs.map(pdf => {
+                          const active = pdf.path === (selectedPdf?.path);
+                          return (
+                            <button key={pdf.path}
+                              onClick={() => { setSelectedOverviewPdfPath(pdf.path); ensureOverviewPdfUrl(pdf); }}
+                              title={pdf.name}
+                              style={{
+                                padding: '4px 10px', fontSize: font.size.xs,
+                                borderRadius: radius.sm,
+                                border: active ? `1px solid ${color.navyDeep}` : `1px solid ${color.gray200}`,
+                                background: active ? color.navyDeep : color.white,
+                                color: active ? color.white : color.navyDeep,
+                                cursor: 'pointer', fontWeight: active ? font.weight.semibold : font.weight.normal,
+                                fontFamily: font.family.sans,
+                                maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              }}>
+                              {pdf.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {selectedPdf && (
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 200, borderRadius: radius.md, border: `1px solid ${color.gray200}`, overflow: 'hidden', background: color.white }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', background: color.offWhite, borderBottom: `1px solid ${color.gray200}`, flexShrink: 0 }}>
+                            <span style={{ fontSize: font.size.xs - 1, color: color.gray500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedPdf.name}</span>
+                            {iframeUrl && (
+                              <a href={iframeUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: font.size.xs - 1, color: color.navyDeep, textDecoration: 'underline', flexShrink: 0, marginLeft: 4 }}>新規タブで開く</a>
+                            )}
+                          </div>
+                          {iframeUrl ? (
+                            <iframe
+                              src={iframeUrl}
+                              title={selectedPdf.name}
+                              style={{ flex: 1, border: 'none', width: '100%', minHeight: 0 }}
+                            />
+                          ) : (
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color.gray400, fontSize: font.size.xs }}>PDFを読み込み中...</div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
             {scriptTab === 'cautions' && (
               list.cautions
                 ? <CautionsCards text={list.cautions} fontSize={12} filter="non-calendar" />

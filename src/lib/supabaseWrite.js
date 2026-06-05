@@ -2127,6 +2127,57 @@ export async function getScriptPdfSignedUrl(path, expiresIn = 600) {
   return { url: data?.signedUrl || null, error }
 }
 
+// ============================================================
+// Company Overview PDFs (架電リスト「企業概要」添付PDF)
+// 既存 script-pdfs バケットを overview/ プレフィックスで間借り
+// ============================================================
+export async function uploadCompanyOverviewPdf(listId, file) {
+  if (!listId || !file) return { item: null, error: new Error('invalid args') }
+  const orgId = getOrgId()
+  const safeName = file.name.replace(/[^\w.\-]+/g, '_')
+  const path = `${orgId}/${listId}/overview/${Date.now()}_${safeName}`
+  const { error: upErr } = await supabase.storage
+    .from(SCRIPT_PDF_BUCKET)
+    .upload(path, file, { contentType: 'application/pdf', upsert: false })
+  if (upErr) {
+    console.error('[DB] uploadCompanyOverviewPdf error:', upErr)
+    return { item: null, error: upErr }
+  }
+  const item = {
+    path,
+    name: file.name,
+    size: file.size,
+    uploaded_at: new Date().toISOString(),
+  }
+  return { item, error: null }
+}
+
+export async function deleteCompanyOverviewPdfObject(path) {
+  if (!path) return null
+  const { error } = await supabase.storage.from(SCRIPT_PDF_BUCKET).remove([path])
+  if (error) console.error('[DB] deleteCompanyOverviewPdfObject error:', error)
+  return error
+}
+
+export async function updateCallListCompanyOverviewPdfs(supaId, pdfs) {
+  if (!supaId) { console.warn('[DB] updateCallListCompanyOverviewPdfs: no supaId'); return null }
+  const { error } = await supabase
+    .from('call_lists')
+    .update({ company_overview_pdfs: pdfs })
+    .eq('id', supaId)
+  if (error) console.error('[DB] updateCallListCompanyOverviewPdfs error:', error)
+  return error
+}
+
+export async function getCompanyOverviewPdfSignedUrl(path, expiresIn = 600) {
+  if (!path) return { url: null, error: new Error('no path') }
+  const { data, error } = await supabase.storage
+    .from(SCRIPT_PDF_BUCKET)
+    .createSignedUrl(path, expiresIn)
+  if (error) console.error('[DB] getCompanyOverviewPdfSignedUrl error:', error)
+  return { url: data?.signedUrl || null, error }
+}
+
 export async function updateCallListCount(supaId, count) {
   if (!supaId) { console.warn('[DB] updateCallListCount: no supaId'); return null }
   const { error } = await supabase

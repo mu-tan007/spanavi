@@ -134,6 +134,7 @@ export function useSpanaviData(authOrgId) {
         cautions: cl.cautions || '',
         rebuttalData: cl.rebuttal_data || '',
         scriptPdfs: Array.isArray(cl.script_pdfs) ? cl.script_pdfs : [],
+        companyOverviewPdfs: Array.isArray(cl.company_overview_pdfs) ? cl.company_overview_pdfs : [],
         script: cl.script_name || '',
         notes: cl.notes || '',
         is_archived: cl.is_archived || false,

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge } from '../ui';
-import { updateCallList, insertCallList, archiveCallList, restoreCallList } from '../../lib/supabaseWrite';
+import { updateCallList, insertCallList, archiveCallList, restoreCallList, uploadCompanyOverviewPdf, deleteCompanyOverviewPdfObject, updateCallListCompanyOverviewPdfs, getCompanyOverviewPdfSignedUrl } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
 import { useEngagements } from '../../hooks/useEngagements';
 import useColumnConfig from '../../hooks/useColumnConfig';
@@ -384,6 +384,76 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   // URLに保持してハードリロード/共有/戻る進むでも保持。プレフィックス lv_ で他画面と衝突回避。
   const [viewMode, setViewMode] = useUrlState('lv_view', 'lists', { allowed: ['lists', 'smart_queue'] });
   const [extractingUrl, setExtractingUrl] = useState(false);
+
+  // 企業概要PDF添付
+  const [overviewPdfUploading, setOverviewPdfUploading] = useState(false);
+  const [overviewPdfDeletingPath, setOverviewPdfDeletingPath] = useState(null);
+  const [overviewPdfPreview, setOverviewPdfPreview] = useState(null); // { name, url }
+  const [overviewPdfPreviewLoading, setOverviewPdfPreviewLoading] = useState(false);
+  const overviewPdfInputRef = useRef(null);
+
+  // 編集中リスト（_supaIdが取れたものだけPDF添付可能）
+  const editingListRow = editingListId !== null
+    ? (callListData || []).find(l => l.id === editingListId)
+    : null;
+  const editingListSupaId = editingListRow?._supaId || null;
+  const overviewPdfs = Array.isArray(editingListRow?.companyOverviewPdfs)
+    ? editingListRow.companyOverviewPdfs
+    : [];
+
+  const formatFileSize = (bytes) => {
+    if (!bytes && bytes !== 0) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  };
+
+  const handleUploadOverviewPdf = async (file) => {
+    if (!editingListSupaId || !file) return;
+    if (file.type !== 'application/pdf') { alert('PDFファイルのみアップロードできます'); return; }
+    if (file.size > 20 * 1024 * 1024) { alert('ファイルサイズは20MB以下にしてください'); return; }
+    setOverviewPdfUploading(true);
+    const { item, error } = await uploadCompanyOverviewPdf(editingListSupaId, file);
+    if (error || !item) {
+      setOverviewPdfUploading(false);
+      alert('PDFのアップロードに失敗しました');
+      return;
+    }
+    const nextPdfs = [...overviewPdfs, item];
+    const updErr = await updateCallListCompanyOverviewPdfs(editingListSupaId, nextPdfs);
+    setOverviewPdfUploading(false);
+    if (updErr) {
+      await deleteCompanyOverviewPdfObject(item.path);
+      alert('PDFの保存に失敗しました');
+      return;
+    }
+    setCallListData(prev => prev.map(l => l._supaId === editingListSupaId ? { ...l, companyOverviewPdfs: nextPdfs } : l));
+  };
+
+  const handleDeleteOverviewPdf = async (pdf) => {
+    if (!editingListSupaId || !pdf?.path) return;
+    if (!window.confirm(`「${pdf.name}」を削除しますか？`)) return;
+    setOverviewPdfDeletingPath(pdf.path);
+    const nextPdfs = overviewPdfs.filter(p => p.path !== pdf.path);
+    const updErr = await updateCallListCompanyOverviewPdfs(editingListSupaId, nextPdfs);
+    if (updErr) {
+      setOverviewPdfDeletingPath(null);
+      alert('PDFの削除に失敗しました');
+      return;
+    }
+    await deleteCompanyOverviewPdfObject(pdf.path);
+    setOverviewPdfDeletingPath(null);
+    setCallListData(prev => prev.map(l => l._supaId === editingListSupaId ? { ...l, companyOverviewPdfs: nextPdfs } : l));
+  };
+
+  const handleOpenOverviewPdfPreview = async (pdf) => {
+    if (!pdf?.path) return;
+    setOverviewPdfPreviewLoading(true);
+    const { url, error } = await getCompanyOverviewPdfSignedUrl(pdf.path);
+    setOverviewPdfPreviewLoading(false);
+    if (error || !url) { alert('PDFを開けませんでした'); return; }
+    setOverviewPdfPreview({ name: pdf.name, url });
+  };
 
   // 「企業概要」ボタン: 会社名から HP URL を AI で推定 → そのページから企業情報を抽出
   // (旧: 手動で URL を貼って自動入力 → 廃止。ワンクリックで完結させる)
@@ -870,6 +940,79 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                 style={{ ...formInputStyle, minHeight: 60, resize: 'vertical' }}
                 placeholder="クライアントの企業概要を入力..."
               />
+              {/* 添付PDFセクション: 編集中の既存リスト(_supaIdあり)のみアップロード可 */}
+              <div style={{ marginTop: space[2], border: `1px solid ${color.border}`, borderRadius: radius.md, background: color.offWhite, overflow: 'hidden' }}>
+                <div style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: color.gray50, borderBottom: `1px solid ${color.border}` }}>
+                  <span style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy }}>添付PDF（会社紹介資料など）</span>
+                  {editingListSupaId ? (
+                    <>
+                      <input
+                        ref={overviewPdfInputRef}
+                        type="file"
+                        accept="application/pdf"
+                        style={{ display: 'none' }}
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) handleUploadOverviewPdf(file);
+                          e.target.value = '';
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        loading={overviewPdfUploading}
+                        onClick={() => overviewPdfInputRef.current?.click()}
+                        style={{ fontSize: font.size.xs - 1 }}>
+                        {overviewPdfUploading ? 'アップロード中...' : '＋ 追加'}
+                      </Button>
+                    </>
+                  ) : (
+                    <span style={{ fontSize: font.size.xs - 1, color: color.textLight, fontStyle: 'italic' }}>保存後に添付できます</span>
+                  )}
+                </div>
+                {editingListSupaId && overviewPdfs.length === 0 ? (
+                  <div style={{ padding: '6px 12px 10px', fontSize: font.size.xs, color: color.textLight, fontStyle: 'italic' }}>未添付</div>
+                ) : null}
+                {overviewPdfs.length > 0 && (
+                  <div style={{ padding: '6px 12px 10px' }}>
+                    {overviewPdfs.map((pdf, i) => (
+                      <div key={pdf.path || i} style={{
+                        display: 'flex', alignItems: 'center', gap: space[2],
+                        padding: '5px 8px', borderRadius: radius.sm,
+                        background: color.white, borderLeft: `2px solid ${color.navy}`,
+                        marginBottom: 4,
+                      }}>
+                        <button
+                          onClick={() => handleOpenOverviewPdfPreview(pdf)}
+                          style={{
+                            flex: 1, textAlign: 'left', background: 'transparent',
+                            border: 'none', cursor: 'pointer', padding: 0,
+                            fontSize: font.size.xs, color: color.navy,
+                            fontWeight: font.weight.medium, textDecoration: 'underline',
+                            fontFamily: font.family.sans,
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }}
+                          title={pdf.name}
+                        >
+                          {pdf.name}
+                        </button>
+                        <span style={{ fontSize: font.size.xs - 1, color: color.gray400, flexShrink: 0 }}>{formatFileSize(pdf.size)}</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          loading={overviewPdfDeletingPath === pdf.path}
+                          onClick={() => handleDeleteOverviewPdf(pdf)}
+                          style={{
+                            borderColor: '#fca5a5', color: color.danger,
+                            fontSize: font.size.xs - 1, flexShrink: 0,
+                          }}>
+                          {overviewPdfDeletingPath === pdf.path ? '...' : '削除'}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div style={{ gridColumn: "span 3" }}>
               <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>スクリプト <span style={{ fontSize: 9, color: color.gray400, fontWeight: font.weight.normal }}>（Scriptsページでマーカー編集可）</span></label>
@@ -1082,6 +1225,32 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         </div>
       </div>
       </>}
+      {/* 企業概要PDF プレビューモーダル（CallFlowViewと同形） */}
+      {overviewPdfPreviewLoading && (
+        <div style={{ position: 'fixed', inset: 0, background: alpha('#000000', 0.4), zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color.white, fontSize: font.size.base }}>
+          PDFを読み込み中...
+        </div>
+      )}
+      {overviewPdfPreview && (
+        <div onClick={() => setOverviewPdfPreview(null)}
+          style={{ position: 'fixed', inset: 0, background: alpha('#000000', 0.75), zIndex: 9600, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: space[5] }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width: '95vw', height: '92vh', maxWidth: 1200, borderRadius: radius.md, background: color.white, border: `1px solid ${color.gray200}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ background: color.navyDeep, padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, fontWeight: font.weight.semibold, fontSize: font.size.base, color: color.white }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{overviewPdfPreview.name}</span>
+              <div style={{ display: 'flex', gap: space[2], alignItems: 'center', flexShrink: 0 }}>
+                <a href={overviewPdfPreview.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: font.size.xs, color: color.white, textDecoration: 'underline' }}>新規タブで開く</a>
+                <button onClick={() => setOverviewPdfPreview(null)} style={{ background: 'none', border: 'none', color: color.white, fontSize: font.size.lg + 2, cursor: 'pointer', lineHeight: 1 }}>×</button>
+              </div>
+            </div>
+            <iframe
+              src={overviewPdfPreview.url}
+              title={overviewPdfPreview.name}
+              style={{ flex: 1, border: 'none', width: '100%' }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
