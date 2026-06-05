@@ -1,9 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { color, space, font } from '../../../constants/design';
+import { color, space, font, radius } from '../../../constants/design';
 import { useAuth } from '../../../hooks/useAuth';
 import { supabase } from '../../../lib/supabase';
 import SpacareerClientSidebar from './SpacareerClientSidebar';
+
+// スパキャリ専用の代理ログインセッション退避キー。
+// 営業代行ポータルの `spanavi_admin_session_backup` とは別物。
+// 両ポータルで代理ログイン中に session を取り違える事故を物理的に防ぐ。
+const ADMIN_BACKUP_KEY_SPACAREER = 'spanavi_admin_session_backup_spacareer';
+const ADMIN_BACKUP_TTL_MS = 12 * 60 * 60 * 1000; // 12時間
+
+function readAdminBackupSpacareer() {
+  try {
+    const raw = localStorage.getItem(ADMIN_BACKUP_KEY_SPACAREER);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data?.refresh_token || !data?.access_token) return null;
+    if (data.saved_at && Date.now() - data.saved_at > ADMIN_BACKUP_TTL_MS) {
+      localStorage.removeItem(ADMIN_BACKUP_KEY_SPACAREER);
+      return null;
+    }
+    return data;
+  } catch {
+    return null;
+  }
+}
 
 // クライアントポータルの各画面
 import ClientMyPageView from './views/ClientMyPageView';
@@ -23,6 +45,43 @@ export default function SpacareerClientApp() {
   const [currentTab, setCurrentTab] = useState('mypage');
   const [hearingActive, setHearingActive] = useState(false); // キックオフヒアリングを表示するか
   const [bootstrapped, setBootstrapped] = useState(false);
+  const [adminBackup, setAdminBackup] = useState(() => readAdminBackupSpacareer());
+  const [restoring, setRestoring] = useState(false);
+
+  // localStorage の代理ログインバックアップ状態を定期的に再読込
+  useEffect(() => {
+    const id = setInterval(() => setAdminBackup(readAdminBackupSpacareer()), 5000);
+    return () => clearInterval(id);
+  }, []);
+
+  // 「社内アカウントに戻る」: 退避した管理者セッションを復元してダッシュボードへ
+  const handleReturnToAdmin = async () => {
+    const backup = readAdminBackupSpacareer();
+    if (!backup) {
+      alert('社内アカウントの情報が保存されていません。');
+      return;
+    }
+    setRestoring(true);
+    try {
+      await supabase.auth.signOut();
+      const { error } = await supabase.auth.setSession({
+        access_token: backup.access_token,
+        refresh_token: backup.refresh_token,
+      });
+      if (error) {
+        console.error('Failed to restore admin session:', error);
+        alert('社内アカウントへの復帰に失敗しました。再ログインしてください。');
+        localStorage.removeItem(ADMIN_BACKUP_KEY_SPACAREER);
+        window.location.href = '/login';
+        return;
+      }
+      localStorage.removeItem(ADMIN_BACKUP_KEY_SPACAREER);
+      window.location.href = '/';
+    } catch (e) {
+      console.error(e);
+      setRestoring(false);
+    }
+  };
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -107,13 +166,47 @@ export default function SpacareerClientApp() {
         onLogout={handleLogout}
         showKickoffHearing={hearingActive}
       />
-      <main style={{ flex: 1, marginLeft: 220, padding: space[6] }}>
-        {currentTab === 'kickoff_hearing' && <ClientKickoffHearingView />}
-        {currentTab === 'mypage' && <ClientMyPageView />}
-        {currentTab === 'homework' && <ClientHomeworkView />}
-        {currentTab === 'feedback' && <ClientFeedbackView />}
-        {currentTab === 'courses' && <ClientCoursesView />}
-        {currentTab === 'history' && <ClientHistoryView />}
+      <main style={{ flex: 1, marginLeft: 220, padding: 0 }}>
+        {/* 代理ログイン中バナー（通常ログインでは表示されない） */}
+        {adminBackup && (
+          <div style={{
+            position: 'sticky', top: 0, zIndex: 20,
+            background: `linear-gradient(90deg, ${color.navyLight} 0%, ${color.navyDark} 100%)`,
+            color: color.white,
+            padding: `${space[2]}px ${space[6]}px`,
+            fontSize: font.size.sm,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: space[3], flexWrap: 'wrap',
+          }}>
+            <span style={{ letterSpacing: font.letterSpacing.wide }}>
+              管理者として「{adminBackup.impersonating_customer_name || currentUser}」を代理表示中
+            </span>
+            <button
+              onClick={handleReturnToAdmin}
+              disabled={restoring}
+              style={{
+                padding: `5px ${space[3] + 2}px`,
+                fontSize: font.size.xs,
+                fontWeight: font.weight.semibold,
+                background: color.white,
+                color: color.navyDark,
+                border: 'none',
+                borderRadius: radius.sm,
+                cursor: restoring ? 'not-allowed' : 'pointer',
+                letterSpacing: font.letterSpacing.wide,
+                opacity: restoring ? 0.6 : 1,
+              }}
+            >{restoring ? '復帰中...' : '← 社内アカウントに戻る'}</button>
+          </div>
+        )}
+        <div style={{ padding: space[6] }}>
+          {currentTab === 'kickoff_hearing' && <ClientKickoffHearingView />}
+          {currentTab === 'mypage' && <ClientMyPageView />}
+          {currentTab === 'homework' && <ClientHomeworkView />}
+          {currentTab === 'feedback' && <ClientFeedbackView />}
+          {currentTab === 'courses' && <ClientCoursesView />}
+          {currentTab === 'history' && <ClientHistoryView />}
+        </div>
       </main>
     </div>
   );

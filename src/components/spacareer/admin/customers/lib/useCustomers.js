@@ -106,7 +106,7 @@ export function useCustomerDetail(customerId) {
         khSession, khAi, khResponses, khQuestions,
       ] = await Promise.all([
         supabase.from('spacareer_customers')
-          .select(`*, member:members!spacareer_customers_member_id_fkey ( id, name, email )`)
+          .select(`*, member:members!spacareer_customers_member_id_fkey ( id, name, email, user_id )`)
           .eq('id', customerId).single(),
         supabase.from('spacareer_sessions')
           .select('*').eq('customer_id', customerId).order('session_no'),

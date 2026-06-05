@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
 import { color, space, radius, font } from '../../../../../constants/design';
-import { Badge } from '../../../../ui';
+import { Badge, Button } from '../../../../ui';
+import { supabase } from '../../../../../lib/supabase';
+import { invokeAdminImpersonateSpacareerCustomer } from '../../../../../lib/supabaseWrite';
 import { useCustomerDetail } from '../lib/useCustomers';
+
+// 代理ログイン時に現在の管理者セッションを退避する localStorage キー。
+// 営業代行ポータルの `spanavi_admin_session_backup` とは別キーで管理し、
+// 両ポータルで代理ログイン中に session を取り違える事故を物理的に防ぐ。
+const ADMIN_BACKUP_KEY_SPACAREER = 'spanavi_admin_session_backup_spacareer';
 import ProgressStepper from './ProgressStepper';
 import TabBasicInfo from './TabBasicInfo';
 import TabKickoffHearing from './TabKickoffHearing';
@@ -45,6 +52,42 @@ function ageFromBirthdate(b) {
 export default function CustomerDetail({ customerId, isAdmin }) {
   const { detail, loading, refresh } = useCustomerDetail(customerId);
   const [tab, setTab] = useState('basic');
+  const [impersonating, setImpersonating] = useState(false);
+
+  // スパキャリ受講生として代理ログインする。営業代行 DealsView の handleImpersonate と同じ構造。
+  // 退避キーだけ別物（ADMIN_BACKUP_KEY_SPACAREER）にしてあるため、営業代行ポータルとは混線しない。
+  const handleImpersonate = async () => {
+    const cust = detail?.customer;
+    if (!cust?.id) return;
+    setImpersonating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.refresh_token) {
+        localStorage.setItem(ADMIN_BACKUP_KEY_SPACAREER, JSON.stringify({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+          saved_at: Date.now(),
+          impersonating_customer_id: cust.id,
+          impersonating_customer_name: cust.member?.name || '',
+        }));
+      }
+    } catch (e) {
+      console.warn('admin session backup failed', e);
+    }
+    const { data, error } = await invokeAdminImpersonateSpacareerCustomer(cust.id);
+    setImpersonating(false);
+    if (error) {
+      alert('代理ログインに失敗しました: ' + (error.message || error.error || 'unknown'));
+      return;
+    }
+    if (data?.error) {
+      alert('代理ログインに失敗しました: ' + data.error);
+      return;
+    }
+    if (data?.url) {
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   if (!customerId) {
     return (
@@ -139,6 +182,26 @@ export default function CustomerDetail({ customerId, isAdmin }) {
                 )}
               </div>
             </div>
+            {isAdmin && (() => {
+              const noPortalUser = !member?.user_id;
+              const disabled = impersonating || noPortalUser;
+              const label = impersonating
+                ? '生成中...'
+                : noPortalUser ? 'ポータル未招待' : '代理ログイン →';
+              const title = noPortalUser
+                ? `「${member.name || ''}」の受講生ポータルユーザー（auth.users）が紐付いていないため代理ログインできません。`
+                : `「${member.name || ''}」のスパキャリ受講生ポータルを開く（代理ログイン）`;
+              return (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={disabled}
+                  onClick={handleImpersonate}
+                  title={title}
+                  style={{ flexShrink: 0 }}
+                >{label}</Button>
+              );
+            })()}
           </div>
 
           <div style={{ marginTop: space[3] }}>

@@ -3749,6 +3749,19 @@ export async function invokeAdminImpersonateClient(clientId, redirectPath = '/cl
   return { data, error }
 }
 
+// 管理者がスパキャリ受講生の代理ログイン用 magic link を発行
+//   - 営業代行の invokeAdminImpersonateClient とは完全別系統
+//   - redirect 先は Edge Function 側で /spacareer 固定
+//   - 結果: { url, customer_name, customer_email_masked } または { error }
+export async function invokeAdminImpersonateSpacareerCustomer(customerId) {
+  if (!customerId) return { data: null, error: new Error('customerId required') }
+  const { data, error } = await supabase.functions.invoke('admin-impersonate-spacareer-customer', {
+    body: { customer_id: customerId },
+  })
+  if (error) console.error('[Edge] admin-impersonate-spacareer-customer error:', error)
+  return { data, error }
+}
+
 // 全リスト横断で「最新ラウンドが再コール待ち」の企業を抽出
 //   memo の "[再コール予定: ...]" から予定日時を取り出して付加
 export async function fetchAllPendingRecalls() {
