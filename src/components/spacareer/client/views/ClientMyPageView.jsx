@@ -3,7 +3,18 @@ import { color, space, font, radius, shadow, alpha } from '../../../../constants
 import { Button, Card, Badge } from '../../../ui';
 import { useAuth } from '../../../../hooks/useAuth';
 import { supabase } from '../../../../lib/supabase';
-import { generateDailyMessage, extractGoalCards } from '../../../../lib/spacareer/ai/mock';
+import { generateDailyMessage } from '../../../../lib/spacareer/ai/mock';
+
+// マイページ「あなたの目標」3カードは、キックオフヒアリングの Q33/Q34/Q35 の回答を引用する。
+//   Q33: 今回のスパキャリで「絶対に手に入れたい」ものを3つ
+//   Q34: お金以外で本当に大切にしているもの（価値観）を3つ
+//   Q35: 尊敬している人物（実在／著名人）とその理由
+const GOAL_QUESTION_NUMBERS = [33, 34, 35];
+const GOAL_CARD_TITLES = {
+  33: '今回のスパキャリで絶対に手に入れたいもの',
+  34: 'お金以外で本当に達成したい価値観',
+  35: '尊敬している人物とその理由',
+};
 
 // 仕様書: tasks/spacareer-spec.md §6.1 基本情報（マイページ）
 // 参考: イメージ画像⑦
@@ -86,14 +97,34 @@ export default function ClientMyPageView() {
         setVideoStats({ watched, watching, notWatched });
       }
 
-      const [d, g] = await Promise.all([
-        generateDailyMessage({ customerId: cust.id }),
-        extractGoalCards({ customerId: cust.id, homeworkAnswers: {} }),
-      ]);
-      if (!cancelled) {
-        setDailyMessage(d);
-        setGoalCards(g);
-      }
+      const d = await generateDailyMessage({ customerId: cust.id });
+      if (!cancelled) setDailyMessage(d);
+
+      // 「あなたの目標」3カード: キックオフヒアリングQ33/Q34/Q35の回答から構築。
+      // questionsテーブルでquestion_number→idを引いて、responsesから answer_text を取る。
+      const { data: goalQuestions } = await supabase
+        .from('spacareer_kickoff_hearing_questions')
+        .select('id, question_number')
+        .eq('org_id', cust.org_id)
+        .in('question_number', GOAL_QUESTION_NUMBERS);
+      const { data: goalResponses } = await supabase
+        .from('spacareer_kickoff_hearing_responses')
+        .select('question_id, answer_text, is_draft')
+        .eq('customer_id', cust.id)
+        .in('question_id', (goalQuestions || []).map(q => q.id));
+      const qNumById = new Map((goalQuestions || []).map(q => [q.id, q.question_number]));
+      const answerByQNum = new Map();
+      (goalResponses || []).forEach(r => {
+        if (r.is_draft) return; // 未提出のドラフトはマイページに出さない
+        const qNum = qNumById.get(r.question_id);
+        if (qNum) answerByQNum.set(qNum, r.answer_text || '');
+      });
+      const cards = GOAL_QUESTION_NUMBERS.map(qNum => ({
+        title: GOAL_CARD_TITLES[qNum],
+        body: (answerByQNum.get(qNum) || '').trim()
+          || 'キックオフヒアリングを提出すると、ここに自動で表示されます。',
+      }));
+      if (!cancelled) setGoalCards(cards);
       setLoading(false);
     })().catch(err => {
       console.error('[ClientMyPage] load error:', err);
@@ -229,7 +260,7 @@ function DrivingPhraseHero({ phrase }) {
           lineHeight: font.lineHeight.relaxed,
           maxWidth: 720,
         }}>
-          {phrase || 'キックオフヒアリングを提出すると、ここに AI が抽出したあなただけのフレーズが表示されます。'}
+          {phrase || 'キックオフヒアリングの「あなたの原動力」セクションに書いた一文が、ここに表示されます。'}
         </div>
         <div style={{
           fontSize: font.size.xs,
@@ -237,7 +268,7 @@ function DrivingPhraseHero({ phrase }) {
           marginTop: space[3],
           letterSpacing: font.letterSpacing.wide,
         }}>
-          ※ キックオフヒアリングの回答から AI が生成し、このマイページ上部に反映されます。
+          ※ キックオフヒアリングの最後「あなたの原動力」セクションで記入した一文がそのまま反映されます。心がくじけそうな時に見返してください。
         </div>
       </div>
     </div>

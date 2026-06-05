@@ -172,6 +172,14 @@ export function useCustomerDetail(customerId) {
   return { detail, loading, refresh };
 }
 
+// スパキャリの担当トレーナー候補に明示追加するメールアドレス。
+// 既存の rank フィルタ ('admin','trainer','manager') 以外で、スパキャリ運営に関わる人を追加する。
+// 将来運営追加時はこの配列に1行追加すれば候補に出る。
+const SPACAREER_TRAINER_ALLOWED_EMAILS = [
+  'shinomiya@ma-sp.co', // 篠宮（全体管理者）
+  'koyama@ma-sp.co',    // 小山（スパキャリ事業責任者）
+];
+
 /** トレーナー一覧 */
 export function useTrainers() {
   const { orgId } = useAuth();
@@ -179,11 +187,13 @@ export function useTrainers() {
   useEffect(() => {
     if (!orgId) return;
     (async () => {
+      // rank が trainer 系の人 OR 許可リストのメンバー
+      const allowedEmailsCsv = SPACAREER_TRAINER_ALLOWED_EMAILS.map(e => `"${e}"`).join(',');
       const { data } = await supabase
         .from('members')
         .select('id, name, email, rank')
         .eq('org_id', orgId)
-        .in('rank', ['admin', 'trainer', 'manager'])
+        .or(`rank.in.(admin,trainer,manager),email.in.(${allowedEmailsCsv})`)
         .order('name');
       setTrainers(data || []);
     })();

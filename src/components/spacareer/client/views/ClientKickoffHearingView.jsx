@@ -279,6 +279,20 @@ export default function ClientKickoffHearingView() {
         .upsert(rows, { onConflict: 'customer_id,question_id' });
       if (upErr) throw upErr;
 
+      // 「あなたの原動力」(K セクション 1問) の回答を customer.driving_phrase に書き写す。
+      // マイページ上部に常時表示される一文。AI 生成ではなく受講生本人の言葉をそのまま使う。
+      const drivingQuestion = questions.find(q => q.section_code === 'K');
+      if (drivingQuestion) {
+        const drivingText = (responses[drivingQuestion.id] || '').trim();
+        if (drivingText) {
+          const { error: dpErr } = await supabase
+            .from('spacareer_customers')
+            .update({ driving_phrase: drivingText, updated_at: new Date().toISOString() })
+            .eq('id', customer.id);
+          if (dpErr) console.error('[ClientKickoffHearing] driving_phrase save error:', dpErr);
+        }
+      }
+
       // セッションを submitted に
       const { data: sess, error: sErr } = await supabase
         .from('spacareer_kickoff_hearing_sessions')

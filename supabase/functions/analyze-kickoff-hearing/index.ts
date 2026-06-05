@@ -15,9 +15,12 @@
 //   即時: { status: 'processing', customer_id }
 //   バックグラウンド完了後:
 //     - spacareer_kickoff_hearing_ai_extractions に2行 (highlight_top5, deep_dive_3)
-//     - spacareer_customers.driving_phrase（マイページ上部の「あなたの原動力」フレーズ）
 //     - spacareer_kickoff_hearing_sessions.{ status='ai_extracted', ai_extracted_at }
-//     - spacareer_ai_usage_logs に3行 (kickoff_highlight, kickoff_deep_dive, kickoff_driving_phrase)
+//     - spacareer_ai_usage_logs に2行 (kickoff_highlight, kickoff_deep_dive)
+//
+// 注: driving_phrase（マイページ上部の「あなたの原動力」）は AI 生成ではなく、
+// 受講生本人がキックオフヒアリング Q74（K セクション）に書いた一文をそのまま使う。
+// 受講生UI ClientKickoffHearingView の handleSubmit で spacareer_customers.driving_phrase に直接UPDATE。
 // ============================================================
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -123,23 +126,6 @@ const DEEP_DIVE_PROMPT = `あなたはキャリアコーチング「スパキャ
 - topic は重複しないように
 - suggested_question は受講生に直接投げかける文体で書く`
 
-const DRIVING_PHRASE_PROMPT = `あなたはキャリアコーチング「スパキャリ」のAIアシスタントです。
-以下は受講生が第1回前に回答した「70問キックオフヒアリング」の全回答です。
-
-受講生がこの先苦しい瞬間に立ち戻れる「原動力フレーズ」を1〜2文（80字以内）で抽出してください。
-このフレーズはマイページ上部に常に表示され、受講生が日々目にする「自分を奮い立たせる言葉」になります。
-
-選定基準:
-- 受講生本人の言葉や本人にしか書けない固有名詞をできるだけ尊重する
-- 動機・未来像・大切な人・覚悟、いずれかの核心を捉える
-- 抽象的な励まし（「頑張ろう」「大丈夫」等）は禁止
-- 第三者目線の解説ではなく、受講生本人の一人称として書く
-
-出力は必ず以下の JSON フォーマットのみを返してください（前後のテキストは一切不要）：
-
-{
-  "phrase": "受講生本人視点の1〜2文（80字以内）"
-}`
 
 // ============================================================
 // Claude API 呼び出し（1回分）
@@ -177,13 +163,6 @@ function extractJsonArray(text: string): unknown[] {
   // 最初に出てくる [ ... ] を取る（厳密性より頑健性優先）
   const m = text.match(/\[[\s\S]*\]/)
   if (!m) throw new Error('AI 応答に JSON 配列が含まれていません')
-  return JSON.parse(m[0])
-}
-
-function extractJsonObject(text: string): Record<string, unknown> {
-  // 最初に出てくる { ... } を取る（driving_phrase 用）
-  const m = text.match(/\{[\s\S]*\}/)
-  if (!m) throw new Error('AI 応答に JSON オブジェクトが含まれていません')
   return JSON.parse(m[0])
 }
 
@@ -261,11 +240,10 @@ async function processInBackground(customer_id: string, force_rerun: boolean) {
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!anthropicKey) { await fail('ANTHROPIC_API_KEY not configured'); return }
 
-    // ── 5. 並列で3回呼び出し ─────────────────────────────────
-    const [highlightResult, deepDiveResult, drivingPhraseResult] = await Promise.allSettled([
+    // ── 5. 並列で2回呼び出し ─────────────────────────────────
+    const [highlightResult, deepDiveResult] = await Promise.allSettled([
       callClaude(`${HIGHLIGHT_PROMPT}\n\n【回答全文】\n${context}`, anthropicKey),
       callClaude(`${DEEP_DIVE_PROMPT}\n\n【回答全文】\n${context}`, anthropicKey),
-      callClaude(`${DRIVING_PHRASE_PROMPT}\n\n【回答全文】\n${context}`, anthropicKey),
     ])
 
     // ── 6. 既存抽出を非アクティブ化 (再実行時 or 初回) ───────
@@ -390,56 +368,6 @@ async function processInBackground(customer_id: string, force_rerun: boolean) {
         model: MODEL,
         status: 'error',
         error_message: String(deepDiveResult.reason).slice(0, 500),
-      })
-    }
-
-    // driving_phrase: 受講生本人視点の原動力フレーズを spacareer_customers.driving_phrase に保存
-    if (drivingPhraseResult.status === 'fulfilled') {
-      try {
-        const obj = extractJsonObject(drivingPhraseResult.value.text)
-        const phrase = typeof obj.phrase === 'string' ? obj.phrase.trim() : ''
-        if (!phrase) throw new Error('phrase が空')
-        const { error: updErr } = await supabase
-          .from('spacareer_customers')
-          .update({ driving_phrase: phrase, updated_at: now })
-          .eq('id', customer_id)
-        if (updErr) throw updErr
-        anySuccess = true
-        const u = drivingPhraseResult.value.usage
-        const cost = Number(
-          (((u.input_tokens || 0) / 1_000_000) * PRICE_IN
-           + ((u.output_tokens || 0) / 1_000_000) * PRICE_OUT).toFixed(6)
-        )
-        await supabase.from('spacareer_ai_usage_logs').insert({
-          org_id: orgId,
-          customer_id,
-          feature: 'kickoff_driving_phrase',
-          model: MODEL,
-          input_tokens: u.input_tokens ?? null,
-          output_tokens: u.output_tokens ?? null,
-          cost_usd: cost,
-          status: 'success',
-        })
-      } catch (e) {
-        console.error('[analyze-kickoff-hearing] driving_phrase parse/save error:', e, 'raw:', drivingPhraseResult.value.text.slice(0, 300))
-        await supabase.from('spacareer_ai_usage_logs').insert({
-          org_id: orgId,
-          customer_id,
-          feature: 'kickoff_driving_phrase',
-          model: MODEL,
-          status: 'error',
-          error_message: (e as Error).message,
-        })
-      }
-    } else {
-      console.error('[analyze-kickoff-hearing] driving_phrase API error:', drivingPhraseResult.reason)
-      await supabase.from('spacareer_ai_usage_logs').insert({
-        org_id: orgId,
-        customer_id,
-        feature: 'kickoff_driving_phrase',
-        model: MODEL,
-        status: 'error',
-        error_message: String(drivingPhraseResult.reason).slice(0, 500),
       })
     }
 

@@ -92,7 +92,7 @@ export default function TabBasicInfo({ detail }) {
             padding: space[3], background: color.dangerSoft, color: '#A20018',
             fontSize: font.size.sm, borderRadius: radius.md,
           }}>
-            担当トレーナー未アサイン。顧客一覧「要対応」から手動でアサインしてください。
+            担当トレーナー未アサイン。上部の「メンバー」タブから手動でアサインしてください。
           </div>
         )}
       </Card>
