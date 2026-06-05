@@ -4,6 +4,12 @@ import { getOrgId } from '../lib/orgContext';
 
 const STORAGE_KEY = 'spanavi_current_engagement_slug';
 
+// 画面実装がある engagement のみを「初期着地・切替可能」とみなす。
+// engagements テーブルには商材×ステージの全組合せ (IFAリード獲得 等) が active で
+// 存在するが、それらは EngagementPlaceholder にフォールバックするだけのため、
+// localStorage に古い slug が残っていてもプレースホルダーに戻らないようにする。
+const IMPLEMENTED_ENG_SLUGS = ['masp', 'seller_sourcing', 'spartia_career'];
+
 // MASP (全社モード) を表す仮想エンゲージメント。DBには存在しない。
 export const MASP_ENGAGEMENT = {
   id: 'masp_global',
@@ -58,7 +64,7 @@ export function EngagementProvider({ children }) {
           setDbEngagements(engRes.data);
           const saved = (() => { try { return localStorage.getItem(STORAGE_KEY); } catch { return null; } })();
           const all = [MASP_ENGAGEMENT, ...engRes.data];
-          const initial = all.find(e => e.slug === saved)
+          const initial = all.find(e => e.slug === saved && IMPLEMENTED_ENG_SLUGS.includes(e.slug))
             || all.find(e => e.slug === 'seller_sourcing')
             || all[0];
           setCurrentSlug(initial?.slug || null);
