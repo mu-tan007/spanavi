@@ -112,21 +112,30 @@ export default function ClientKickoffHearingView() {
     return Array.from(map.values());
   }, [questions]);
 
-  // 進捗計算（必須項目のみ）
-  // 必須項目は「未回答」または「min_chars 未満」だと進捗にカウントしない
+  // 進捗計算
+  // ・記入率（メイン進捗）: 必須+任意の全項目を対象
+  //   - 必須: min_chars 満たさないと未記入扱い
+  //   - 任意: min_chars があれば満たす必要あり、なければ1文字以上で記入扱い
+  // ・提出可否: 必須項目がすべて min_chars を満たしているかで判定（任意は不問）
   const requiredQuestions = useMemo(() => questions.filter(q => q.is_required), [questions]);
-  const isRequiredFulfilled = (q, raw) => {
+  const isAnswered = (q, raw) => {
     const v = (raw || '').trim();
     if (v.length === 0) return false;
     if (q.min_chars && v.length < q.min_chars) return false;
     return true;
   };
+  // 後方互換: 既存表示で使っている名前を残す
+  const isRequiredFulfilled = isAnswered;
   const requiredAnswered = useMemo(
-    () => requiredQuestions.filter(q => isRequiredFulfilled(q, responses[q.id])).length,
+    () => requiredQuestions.filter(q => isAnswered(q, responses[q.id])).length,
     [requiredQuestions, responses],
   );
-  const requiredProgress = requiredQuestions.length
-    ? Math.round((requiredAnswered / requiredQuestions.length) * 100)
+  const totalAnswered = useMemo(
+    () => questions.filter(q => isAnswered(q, responses[q.id])).length,
+    [questions, responses],
+  );
+  const overallProgress = questions.length
+    ? Math.round((totalAnswered / questions.length) * 100)
     : 0;
   const canSubmit = requiredAnswered === requiredQuestions.length && requiredQuestions.length > 0;
 
@@ -262,7 +271,11 @@ export default function ClientKickoffHearingView() {
       alert(lines.join('\n'));
       return;
     }
-    if (!window.confirm('回答を提出します。\n提出後は内容変更ができません。よろしいですか？')) return;
+    if (!window.confirm(
+      `回答を提出します。\n` +
+      `現在の記入率は ${overallProgress}% です（全 ${totalAnswered} / ${questions.length} 問回答済み）。\n` +
+      `提出後は内容変更ができません。よろしいですか？`
+    )) return;
     setSubmitting(true);
     try {
       // 全件 is_draft=false で確定
@@ -346,9 +359,9 @@ export default function ClientKickoffHearingView() {
             >{countdown.label}</Badge>
           )}
           <div style={{ flex: 1, minWidth: 240 }}>
-            <ProgressBar pct={requiredProgress} />
+            <ProgressBar pct={overallProgress} />
             <div style={{ marginTop: space[1], fontSize: font.size.xs, color: color.textMid }}>
-              必須項目 {requiredAnswered} / {requiredQuestions.length} 回答済み
+              記入率 {overallProgress}%（全 {totalAnswered} / {questions.length} 回答済み・うち必須 {requiredAnswered} / {requiredQuestions.length}）
             </div>
           </div>
           {savedAt && (
