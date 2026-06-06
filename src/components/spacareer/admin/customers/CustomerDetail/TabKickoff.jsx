@@ -10,16 +10,24 @@ import SessionCompleteFlow from './SessionCompleteFlow';
 // 2. キックオフ管理タブ
 // 仕様書 §7.1 キックオフ管理タブ / §5.2 キックオフ
 // ============================================================
+// キックオフ管理 ヒアリング/説明チェックリスト（運用最新版）
+// 仕様: tasks/spacareer-social-style-onboarding.md / 運用合意 2026-06-07
+//   - 全額返金ポリシーは契約書読み合わせで実施済みのためここからは除外
+//   - スケジュール調整完了の項目は削除（個別の日程確定で代替）
 const CHECK_FIELDS = [
-  { key: 'check_unclear_points',          label: '4.3.1 不明点・不安点のヒアリング' },
-  { key: 'check_session_content',         label: '4.3.2 セッション内容の説明' },
-  { key: 'check_refund_policy',           label: '4.3.3 全額返金保証ポリシーの説明（第3回まで）' },
-  { key: 'check_reschedule_rules',        label: '4.3.4 振替・キャンセル規定の説明' },
-  { key: 'check_weekly_pace',             label: '4.3.5 週1回連続実施ペースの確認' },
-  { key: 'check_zoom_recording',          label: '4.3.6 Zoom録画・保管方針の説明' },
-  { key: 'check_schedule_done',           label: '4.3.7 スケジュール調整の完了' },
-  { key: 'check_all_sessions_dated',      label: '4.3.8 第1〜第8回 全回の日程確定' },
-  { key: 'check_first_session_confirmed', label: '4.3.9 第1回開始日時の確定' },
+  { key: 'check_unclear_points',          label: '不明点・不安点のヒアリング' },
+  { key: 'check_slide_explained',         label: 'キックオフスライドの説明' },
+  { key: 'check_login_explained',         label: 'スパナビのログイン説明' },
+  { key: 'check_ai_community',            label: 'AIコミュニティについての説明' },
+  { key: 'check_ai_course',               label: 'AI講座に関しての説明' },
+  { key: 'check_zoom_recording',          label: 'Zoom録画などについての説明' },
+  { key: 'check_reschedule_rules',        label: '振替・キャンセル規定の説明' },
+  { key: 'check_next_session_content',    label: '次回のセッション内容についての説明' },
+  { key: 'check_pre_assignment',          label: '事前課題についての説明' },
+  { key: 'check_session_feedback',        label: 'セッション感想についての説明' },
+  { key: 'check_deadline',                label: '締め切りについての説明' },
+  { key: 'check_first_session_confirmed', label: '第1回の開始日時の確定' },
+  { key: 'check_all_sessions_dated',      label: '第2回〜第8回 全回の仮日程の確定' },
 ];
 
 function pad(n) { return n < 10 ? `0${n}` : String(n); }
@@ -63,12 +71,15 @@ export default function TabKickoff({ detail, onRefresh }) {
     try {
       const orgId = getOrgId();
       // Supabase Storage の key は ASCII セーフでないと Invalid key になる。
-      // 元のファイル名に日本語等が含まれていても安全に保存できるよう、拡張子だけ残す。
+      // 元のファイル名は使わず、UUID で完全に置き換えて確実に ASCII にする。
       const extMatch = f.name.match(/\.([a-zA-Z0-9]+)$/);
       const ext = (extMatch ? extMatch[1] : 'mp4').toLowerCase();
-      const safeName = `${Date.now()}_video.${ext}`;
+      const uid = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const safeName = `${uid}.${ext}`;
       const path = `${orgId}/${customerId}/${kickoffSession.id}/${safeName}`;
-      const { error: upErr } = await supabase.storage.from('spacareer-session-videos').upload(path, f, { upsert: false });
+      const { error: upErr } = await supabase.storage.from('spacareer-session-videos').upload(path, f, { upsert: false, contentType: f.type || 'video/mp4' });
       if (upErr) throw upErr;
       const { error: insErr } = await supabase.from('spacareer_session_videos').insert({
         org_id: orgId, session_id: kickoffSession.id,

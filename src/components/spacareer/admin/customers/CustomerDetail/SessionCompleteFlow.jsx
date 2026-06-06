@@ -64,12 +64,15 @@ export default function SessionCompleteFlow({
     try {
       const orgId = getOrgId();
       // Supabase Storage の key は ASCII セーフでないと Invalid key になる。
-      // 元のファイル名に日本語等が含まれていても安全に保存できるよう、拡張子だけ残す。
+      // 元のファイル名は使わず、UUID で完全に置き換えて確実に ASCII にする。
       const extMatch = f.name.match(/\.([a-zA-Z0-9]+)$/);
       const ext = (extMatch ? extMatch[1] : 'mp4').toLowerCase();
-      const safeName = `${Date.now()}_video.${ext}`;
+      const uid = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const safeName = `${uid}.${ext}`;
       const path = `${orgId}/${customerId}/${session.id}/${safeName}`;
-      const { error: upErr } = await supabase.storage.from('spacareer-session-videos').upload(path, f, { upsert: false });
+      const { error: upErr } = await supabase.storage.from('spacareer-session-videos').upload(path, f, { upsert: false, contentType: f.type || 'video/mp4' });
       if (upErr) throw upErr;
       const { error: insErr } = await supabase.from('spacareer_session_videos').insert({
         org_id: orgId, session_id: session.id,
