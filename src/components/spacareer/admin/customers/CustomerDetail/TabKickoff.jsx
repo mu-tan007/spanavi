@@ -67,6 +67,14 @@ export default function TabKickoff({ detail, onRefresh }) {
   async function handleVideoUpload(e) {
     const f = e.target.files?.[0];
     if (!f || !kickoffSession) return;
+    // バケット上限（2GB）の事前チェック。プロジェクトレベルの上限はDashboard設定次第のため、
+    // 超過時は「Supabase Dashboard で上限を引き上げてください」のヒントを添えて案内する。
+    const BUCKET_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
+    if (f.size > BUCKET_LIMIT_BYTES) {
+      setVideoErr(`動画サイズ ${(f.size / 1024 / 1024).toFixed(1)} MB はバケット上限の 2 GB を超えています。動画を分割してください。`);
+      if (videoFileRef.current) videoFileRef.current.value = '';
+      return;
+    }
     setUploading(true); setVideoErr(null);
     try {
       const orgId = getOrgId();
@@ -89,7 +97,16 @@ export default function TabKickoff({ detail, onRefresh }) {
       onRefresh && (await onRefresh());
     } catch (e2) {
       console.error('[TabKickoff] video upload error:', e2);
-      setVideoErr(`アップロードに失敗しました: ${e2.message || e2}`);
+      let msg = `アップロードに失敗しました: ${e2.message || e2}`;
+      // プロジェクトレベルの File Upload Size Limit を超過した時のメッセージ。
+      // むー様自身が Supabase Dashboard で設定変更する必要があるため、操作場所を併記。
+      if ((e2.message || '').includes('exceeded the maximum allowed size')) {
+        msg = (
+          `動画ファイル（${(f.size / 1024 / 1024).toFixed(1)} MB）がプロジェクトの File Upload Size Limit を超過しました。\n`
+          + `Supabase Dashboard → Settings → Storage の「File upload size limit」を引き上げてください。`
+        );
+      }
+      setVideoErr(msg);
     } finally {
       setUploading(false);
       if (videoFileRef.current) videoFileRef.current.value = '';

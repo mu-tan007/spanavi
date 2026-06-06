@@ -60,6 +60,12 @@ export default function SessionCompleteFlow({
   async function handleUpload(e) {
     const f = e.target.files?.[0];
     if (!f) return;
+    // バケット上限（2GB）の事前チェック
+    const BUCKET_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
+    if (f.size > BUCKET_LIMIT_BYTES) {
+      setErr(`動画サイズ ${(f.size / 1024 / 1024).toFixed(1)} MB はバケット上限の 2 GB を超えています。動画を分割してください。`);
+      return;
+    }
     setUploading(true); setErr(null);
     try {
       const orgId = getOrgId();
@@ -82,7 +88,14 @@ export default function SessionCompleteFlow({
       onCompleted && onCompleted({ event: 'video_uploaded' });
     } catch (e2) {
       console.error('[SessionCompleteFlow] upload error:', e2);
-      setErr(`アップロードに失敗しました: ${e2.message || e2}`);
+      let msg = `アップロードに失敗しました: ${e2.message || e2}`;
+      if ((e2.message || '').includes('exceeded the maximum allowed size')) {
+        msg = (
+          `動画ファイル（${(f.size / 1024 / 1024).toFixed(1)} MB）がプロジェクトの File Upload Size Limit を超過しました。\n`
+          + `Supabase Dashboard → Settings → Storage の「File upload size limit」を引き上げてください。`
+        );
+      }
+      setErr(msg);
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
