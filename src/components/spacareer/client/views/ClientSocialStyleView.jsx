@@ -60,6 +60,8 @@ export default function ClientSocialStyleView({ customerId, onCompleted }) {
   const [answersMap, setAnswersMap] = useState({}); // {question_id: value}
   const [saving, setSaving] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+  // 診断完了後の案内ポップアップ。閉じると onCompleted（キックオフヒアリング/マイページへ遷移）が走る
+  const [completionDialog, setCompletionDialog] = useState(null); // null | { type, scores }
 
   useEffect(() => {
     if (!customerId) return;
@@ -176,7 +178,8 @@ export default function ClientSocialStyleView({ customerId, onCompleted }) {
       if (uErr) throw uErr;
       setResponse(prev => ({ ...prev, result_type: topType, result_scores: scores, completed_at: completedAt }));
       setPhase('result');
-      if (onCompleted) onCompleted({ type: topType, scores });
+      // すぐ onCompleted は呼ばず、案内ポップアップを表示する。閉じるタイミングで遷移させる。
+      setCompletionDialog({ type: topType, scores });
     } catch (e) {
       console.error('[ClientSocialStyle] finalize error:', e);
       alert('診断結果の保存に失敗しました。お手数ですが時間を置いて再度お試しください。');
@@ -185,24 +188,41 @@ export default function ClientSocialStyleView({ customerId, onCompleted }) {
     }
   };
 
+  const handleCloseCompletionDialog = () => {
+    const payload = completionDialog;
+    setCompletionDialog(null);
+    if (onCompleted) onCompleted(payload || {});
+  };
+
   if (loading) return <Centered>読み込み中...</Centered>;
   if (error) return <Centered>{error}</Centered>;
   if (!response) return <Centered>診断データが見つかりません。運営にお問い合わせください。</Centered>;
 
-  if (phase === 'intro') return <IntroView onStart={handleStart} />;
-  if (phase === 'result') return <ResultView response={response} />;
+  let mainView;
+  if (phase === 'intro') {
+    mainView = <IntroView onStart={handleStart} />;
+  } else if (phase === 'result') {
+    mainView = <ResultView response={response} />;
+  } else {
+    mainView = (
+      <QuizView
+        currentIdx={currentIdx}
+        total={SOCIAL_STYLE_QUESTIONS.length}
+        question={SOCIAL_STYLE_QUESTIONS[currentIdx]}
+        selectedValue={answersMap[SOCIAL_STYLE_QUESTIONS[currentIdx].id]}
+        saving={saving}
+        finalizing={finalizing}
+        onAnswer={handleAnswer}
+        onBack={handleBack}
+      />
+    );
+  }
 
   return (
-    <QuizView
-      currentIdx={currentIdx}
-      total={SOCIAL_STYLE_QUESTIONS.length}
-      question={SOCIAL_STYLE_QUESTIONS[currentIdx]}
-      selectedValue={answersMap[SOCIAL_STYLE_QUESTIONS[currentIdx].id]}
-      saving={saving}
-      finalizing={finalizing}
-      onAnswer={handleAnswer}
-      onBack={handleBack}
-    />
+    <>
+      {mainView}
+      {completionDialog && <CompletionDialog onClose={handleCloseCompletionDialog} />}
+    </>
   );
 }
 
@@ -454,6 +474,75 @@ function DetailRow({ label, body }) {
       </div>
       <div style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: font.lineHeight.relaxed }}>
         {body}
+      </div>
+    </div>
+  );
+}
+
+// 診断完了 案内ポップアップ
+// 仕様:
+//   - 「診断が完了しました」見出し
+//   - キックオフヒアリングの記入期限案内（第1回セッションの3日前 JST 23:59:59 まで）
+//   - 「キックオフヒアリングへ進む」ボタンで onClose → 親が次タブへ遷移
+//   - 背景クリックでは閉じない（取りこぼし防止）
+function CompletionDialog({ onClose }) {
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1100,
+        background: alpha(color.navyDeep, 0.55),
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: space[4],
+      }}
+    >
+      <div
+        style={{
+          width: '100%', maxWidth: 520,
+          background: color.white,
+          borderRadius: radius.lg,
+          overflow: 'hidden',
+          boxShadow: '0 24px 48px rgba(8,22,54,0.35)',
+        }}
+      >
+        <div style={{
+          background: color.navy,
+          color: color.white,
+          padding: `${space[4]}px ${space[5]}px`,
+        }}>
+          <div style={{
+            fontSize: font.size.lg,
+            fontWeight: font.weight.bold,
+            letterSpacing: font.letterSpacing.wide,
+          }}>
+            診断が完了しました
+          </div>
+        </div>
+
+        <div style={{ padding: space[5], display: 'flex', flexDirection: 'column', gap: space[4] }}>
+          <div style={{
+            fontSize: font.size.md,
+            color: color.textDark,
+            lineHeight: font.lineHeight.relaxed,
+          }}>
+            ご回答ありがとうございました。
+          </div>
+          <div style={{
+            padding: space[3],
+            background: color.cream,
+            borderRadius: radius.md,
+            fontSize: font.size.sm,
+            color: color.textDark,
+            lineHeight: font.lineHeight.relaxed,
+          }}>
+            第1回セッションの前日までに、<strong>キックオフヒアリング</strong>の記入をお願いします。<br/>
+            期限は、<strong>第1回セッションの3日前（JST 23:59:59）</strong>までとなります。
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button variant="primary" size="md" onClick={onClose}>
+              キックオフヒアリングへ進む
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

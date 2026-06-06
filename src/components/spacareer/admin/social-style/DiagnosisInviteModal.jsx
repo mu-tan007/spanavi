@@ -94,9 +94,8 @@ export default function DiagnosisInviteModal({ open, onClose, onCreated }) {
       `受講開始にあたり、専用のログイン情報をご案内いたします。\n\n` +
       `■ ログインURL\n${result.login_url}\n\n` +
       `■ ログインID（メールアドレス）\n${result.email}\n\n` +
-      `■ 初期パスワード\n${result.initial_password}\n\n` +
-      `ログイン後、最初に「ソーシャルスタイル診断」（全30問・約5分）にご回答ください。\n` +
-      `セキュリティのため、初回ログイン後はパスワードの変更を推奨いたします。\n\n` +
+      `■ パスワード\n${result.initial_password}\n\n` +
+      `ログイン後、最初に「ソーシャルスタイル診断」（全30問・約5分）にご回答ください。\n\n` +
       `スパキャリ事務局`
     );
   };
@@ -135,7 +134,7 @@ export default function DiagnosisInviteModal({ open, onClose, onCreated }) {
               受講生を招待 / アカウント発行
             </div>
             <div style={{ fontSize: font.size.xs, opacity: 0.85, marginTop: 4 }}>
-              氏名とメールアドレスを入力すると、初期パスワードを発行してログイン情報の招待メールを自動送信します
+              氏名とメールアドレスを入力すると、パスワードを発行してログイン情報の招待メールを自動送信します
             </div>
           </div>
           <button
@@ -238,7 +237,7 @@ export default function DiagnosisInviteModal({ open, onClose, onCreated }) {
                   mono
                 />
                 <CredentialRow
-                  label="初期パスワード"
+                  label="パスワード"
                   value={result.initial_password}
                   copied={copiedField === 'pw'}
                   onCopy={() => handleCopy(result.initial_password, 'pw')}
