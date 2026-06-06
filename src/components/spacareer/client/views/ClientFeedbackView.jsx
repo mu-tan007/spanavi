@@ -198,15 +198,19 @@ export default function ClientFeedbackView() {
       )}
 
       <div style={{ display: 'flex', gap: space[3], alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ minWidth: 280 }}>
+        <div style={{ minWidth: 320 }}>
           <Select
             size="sm"
             value={selectedFeedbackId}
             onChange={e => setSelectedFeedbackId(e.target.value)}
-            options={feedbacks.map(f => ({
-              value: f.id,
-              label: `第${f.spacareer_sessions?.session_no ?? '?'}回 感想 (${f.submitted_at ? '提出済み' : '未提出'})`,
-            }))}
+            options={feedbacks.map(f => {
+              const no = f.spacareer_sessions?.session_no;
+              const sessionLabel = no === 0 ? '第0回 キックオフミーティング感想' : `第${no ?? '?'}回 感想`;
+              return {
+                value: f.id,
+                label: `${sessionLabel} (${f.submitted_at ? '提出済み' : '未提出'})`,
+              };
+            })}
           />
         </div>
         {overdueButOk && <Badge variant="warn" dot>期限超過（事後回答可）</Badge>}
@@ -218,7 +222,7 @@ export default function ClientFeedbackView() {
           <div>
             <div style={{ fontSize: font.size.xs, color: color.textLight }}>対象セッション</div>
             <div style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: color.navy }}>
-              第{sessionNo ?? '?'}回
+              {sessionNo === 0 ? '第0回 キックオフミーティング' : `第${sessionNo ?? '?'}回`}
             </div>
             {completedAt && (
               <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: space[1] }}>

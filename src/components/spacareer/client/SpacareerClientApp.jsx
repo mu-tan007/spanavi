@@ -34,6 +34,7 @@ import ClientFeedbackView from './views/ClientFeedbackView';
 import ClientCoursesView from './views/ClientCoursesView';
 import ClientHistoryView from './views/ClientHistoryView';
 import ClientKickoffHearingView from './views/ClientKickoffHearingView';
+import ClientSocialStyleView from './views/ClientSocialStyleView';
 
 // 受講生（rank='student'）向けのスパキャリ・クライアントポータル本体。
 // 仕様書: tasks/spacareer-spec.md §6 / §6.2A
@@ -44,6 +45,8 @@ export default function SpacareerClientApp() {
   const { session, profile, loading, signOut, isStudent } = useAuth();
   const [currentTab, setCurrentTab] = useState('mypage');
   const [hearingActive, setHearingActive] = useState(false); // キックオフヒアリングを表示するか
+  const [socialStyleActive, setSocialStyleActive] = useState(false); // ソーシャルスタイル診断を表示するか
+  const [customerId, setCustomerId] = useState(null);
   const [bootstrapped, setBootstrapped] = useState(false);
   const [adminBackup, setAdminBackup] = useState(() => readAdminBackupSpacareer());
   const [restoring, setRestoring] = useState(false);
@@ -92,18 +95,33 @@ export default function SpacareerClientApp() {
           .from('members').select('id').eq('user_id', profile.id).maybeSingle();
         if (!member) { if (!cancelled) setBootstrapped(true); return; }
         const { data: cust } = await supabase
-          .from('spacareer_customers').select('id').eq('member_id', member.id).maybeSingle();
+          .from('spacareer_customers')
+          .select('id, social_style_completed_at')
+          .eq('member_id', member.id)
+          .maybeSingle();
         if (!cust) { if (!cancelled) setBootstrapped(true); return; }
+        if (!cancelled) setCustomerId(cust.id);
+
+        // ソーシャルスタイル診断の状態
+        const socialStyleDone = !!cust.social_style_completed_at;
+        if (!cancelled) setSocialStyleActive(!socialStyleDone);
+
+        // キックオフヒアリングの状態
         const { data: sess } = await supabase
           .from('spacareer_kickoff_hearing_sessions')
           .select('status')
           .eq('customer_id', cust.id)
           .maybeSingle();
         if (cancelled) return;
-        const stillActive = sess && !['completed'].includes(sess.status);
-        setHearingActive(!!stillActive);
-        // 提出前ならデフォルトでヒアリング画面に飛ばす
-        if (stillActive && ['unnotified','unstarted','in_progress'].includes(sess.status)) {
+        const hearingStillActive = sess && !['completed'].includes(sess.status);
+        setHearingActive(!!hearingStillActive);
+
+        // 強制リダイレクト優先順位:
+        //   1. ソーシャルスタイル診断 未完了
+        //   2. キックオフヒアリング 未完了
+        if (!socialStyleDone) {
+          setCurrentTab('social_style');
+        } else if (hearingStillActive && ['unnotified','unstarted','in_progress'].includes(sess.status)) {
           setCurrentTab('kickoff_hearing');
         }
       } catch (e) {
@@ -114,6 +132,29 @@ export default function SpacareerClientApp() {
     })();
     return () => { cancelled = true; };
   }, [profile?.id]);
+
+  // ソーシャルスタイル診断 未完了の間は他タブを選んでも強制的に診断画面に戻す
+  // （キックオフヒアリングと同じ強制度）
+  const guardedSetCurrentTab = (tabId) => {
+    if (socialStyleActive && tabId !== 'social_style') {
+      return; // 強制的に診断画面のまま
+    }
+    if (hearingActive && !socialStyleActive && tabId !== 'kickoff_hearing') {
+      // 診断完了済 & ヒアリング未完了 → ヒアリングのみ許可
+      return;
+    }
+    setCurrentTab(tabId);
+  };
+
+  // 診断完了コールバック（ClientSocialStyleView から呼ばれる）
+  const handleSocialStyleCompleted = () => {
+    setSocialStyleActive(false);
+    if (hearingActive) {
+      setCurrentTab('kickoff_hearing');
+    } else {
+      setCurrentTab('mypage');
+    }
+  };
 
   const handleLogout = async () => {
     try { await signOut(); } catch (e) { console.error('Logout error:', e); }
@@ -146,6 +187,7 @@ export default function SpacareerClientApp() {
           onUserClick={() => setCurrentTab('mypage')}
           onLogout={handleLogout}
           showKickoffHearing={false}
+          showSocialStyle={false}
         />
         <main style={{ flex: 1, marginLeft: 220, padding: space[6], color: color.textLight, fontSize: font.size.sm }}>
           読み込み中...
@@ -158,13 +200,14 @@ export default function SpacareerClientApp() {
     <div style={{ display: 'flex', minHeight: '100vh', background: color.snow, fontFamily: font.family.sans }}>
       <SpacareerClientSidebar
         currentTab={currentTab}
-        setCurrentTab={setCurrentTab}
+        setCurrentTab={guardedSetCurrentTab}
         branding={null}
         currentUser={currentUser}
         currentMemberAvatar={null}
-        onUserClick={() => setCurrentTab('mypage')}
+        onUserClick={() => guardedSetCurrentTab('mypage')}
         onLogout={handleLogout}
         showKickoffHearing={hearingActive}
+        showSocialStyle={socialStyleActive}
       />
       <main style={{ flex: 1, marginLeft: 220, padding: 0 }}>
         {/* 代理ログイン中バナー（通常ログインでは表示されない） */}
@@ -200,6 +243,12 @@ export default function SpacareerClientApp() {
           </div>
         )}
         <div style={{ padding: space[6] }}>
+          {currentTab === 'social_style' && (
+            <ClientSocialStyleView
+              customerId={customerId}
+              onCompleted={handleSocialStyleCompleted}
+            />
+          )}
           {currentTab === 'kickoff_hearing' && <ClientKickoffHearingView />}
           {currentTab === 'mypage' && <ClientMyPageView />}
           {currentTab === 'homework' && <ClientHomeworkView />}

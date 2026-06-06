@@ -11,12 +11,13 @@ import DiagnosisInviteModal from './DiagnosisInviteModal';
 // ============================================================
 // ソーシャルスタイル診断 管理画面（運営ダッシュボード）
 // ----------------------------------------------------------------
-// 仕様書: tasks/spacareer-spec.md §7.4 / §8.3
-// 機能:
-//   - 招待トークン発行（DiagnosisInviteModal）
-//   - 招待一覧（メール / 進捗 / 完了日 / 判定タイプ）
-//   - 4タイプ別件数サマリ（KPI）
-//   - 完了診断の詳細プレビュー
+// 仕様書: tasks/spacareer-social-style-onboarding.md
+//
+// 新フロー（2026-06-06〜）:
+//   1. 「受講生を招待」: 氏名+メアドで招待メール自動送信
+//      → auth.users + members(rank='student') + spacareer_customers + diagnosis row 一気に生成
+//   2. 受講生がメールリンクからログイン → 自動で診断画面（強制リダイレクト）
+//   3. 完了後は管理画面で判定タイプを参照、トレーナーが顧客詳細から接し方指針を確認
 // ============================================================
 
 const TYPE_BADGE = {
@@ -133,11 +134,10 @@ export default function SpacareerSocialStyleView() {
       },
     },
     {
-      key: 'assigned', label: 'アサイン', width: 110, align: 'center',
+      key: 'customer', label: '受講生', width: 110, align: 'center',
       render: (r) => {
-        if (!r.completed_at) return <span style={{ color: color.textLight, fontSize: font.size.sm }}>—</span>;
-        if (r.customer_id) return <Badge variant="primary">紐付済</Badge>;
-        return <Badge variant="danger" dot>要対応</Badge>;
+        if (r.customer_id) return <Badge variant="primary">受講中</Badge>;
+        return <span style={{ color: color.textLight, fontSize: font.size.sm }}>—</span>;
       },
     },
   ]), []);
@@ -145,11 +145,11 @@ export default function SpacareerSocialStyleView() {
   return (
     <div style={{ paddingBottom: space[6], animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        title="ソーシャルスタイル診断"
-        description="招待発行・回答状況・4タイプ別の判定結果を一元管理します"
+        title="受講生招待 / ソーシャルスタイル診断"
+        description="氏名とメールで受講生を招待 → ログイン後の診断状況・4タイプ別判定結果を一元管理します"
         right={(
           <Button variant="primary" onClick={() => setInviteOpen(true)}>
-            診断招待を発行
+            受講生を招待
           </Button>
         )}
         style={{ marginBottom: space[4] }}
@@ -198,7 +198,7 @@ export default function SpacareerSocialStyleView() {
           { key: 'all', label: `すべて (${rows.length})` },
           { key: 'in_progress', label: `進行中 (${kpis.inProgress})` },
           { key: 'completed', label: `完了 (${kpis.completed})` },
-          { key: 'unassigned', label: `要対応 (${rows.filter(r => r.completed_at && !r.customer_id).length})` },
+          { key: 'unassigned', label: `未紐付け (${rows.filter(r => r.completed_at && !r.customer_id).length})` },
         ].map(tab => (
           <button
             key={tab.key}

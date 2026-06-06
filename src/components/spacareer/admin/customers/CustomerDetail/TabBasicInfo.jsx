@@ -125,7 +125,62 @@ function SocialStyleCoachingBlock({ def }) {
       </div>
       <CoachingList title="強み" items={def.strengths} variant="success" />
       <CoachingList title="注意点" items={def.cautions} variant="warn" />
-      <CoachingList title="接し方のポイント（トレーナー向け）" items={def.coach_tips} variant="info" />
+      <CoachingList title="接し方のポイント（トレーナー向け 要約）" items={def.coach_tips} variant="info" />
+      {def.coach_detailed_guide && (
+        <DetailedGuideBlock guide={def.coach_detailed_guide} />
+      )}
+    </div>
+  );
+}
+
+// タイプ別「トレーナーがどう接するか」の詳細指針を6項目で展開する
+function DetailedGuideBlock({ guide }) {
+  const sections = [
+    { key: 'conversation_opener', label: '会話の入り方' },
+    { key: 'feedback_style',      label: 'フィードバックの伝え方' },
+    { key: 'motivation_design',   label: '動機付け方' },
+    { key: 'homework_design',     label: '宿題の設計傾向' },
+    { key: 'avoid',               label: '避けるべき関わり方' },
+    { key: 'growth_arc',          label: '期待される成長パターン' },
+  ].filter(s => guide[s.key]);
+  if (!sections.length) return null;
+  return (
+    <div style={{ marginTop: space[3] }}>
+      <div style={{
+        fontSize: font.size.xs, color: color.navy,
+        letterSpacing: font.letterSpacing.wider,
+        fontWeight: font.weight.bold, marginBottom: space[2],
+        padding: `${space[2]}px ${space[3]}px`,
+        background: color.cream, borderRadius: radius.sm,
+      }}>
+        トレーナー向け 詳細指針
+      </div>
+      <div style={{ display: 'grid', gap: space[3] }}>
+        {sections.map(s => (
+          <div key={s.key} style={{
+            border: `1px solid ${color.borderLight}`,
+            borderRadius: radius.md,
+            padding: space[3],
+            background: color.white,
+          }}>
+            <div style={{
+              fontSize: font.size.xs, color: color.textMid,
+              letterSpacing: font.letterSpacing.wider,
+              fontWeight: font.weight.semibold,
+              marginBottom: space[1],
+            }}>
+              {s.label}
+            </div>
+            <div style={{
+              fontSize: font.size.sm, color: color.textDark,
+              lineHeight: font.lineHeight.relaxed,
+              whiteSpace: 'pre-line',
+            }}>
+              {guide[s.key]}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

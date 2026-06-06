@@ -27,6 +27,7 @@ export function useCustomersList() {
           current_session_no, progress_percent,
           assigned_trainer_id, assigned_at,
           contract_started_at, occupation, birthdate,
+          social_style_type, social_style_completed_at,
           created_at,
           member:members!spacareer_customers_member_id_fkey ( id, name, email )
         `)

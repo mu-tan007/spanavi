@@ -3,6 +3,14 @@ import { color, space, radius, font, alpha } from '../../../../constants/design'
 import { Input, Badge } from '../../../ui';
 import { composeAttention, topAttentionCode, ATTENTION_LABEL } from './lib/needAttention';
 
+// ソーシャルスタイル判定タイプ → 顧客カードのバッジ表記
+const SS_BADGE = {
+  analytical: { variant: 'info',    label: '論理分析型' },
+  driver:     { variant: 'danger',  label: '行動推進型' },
+  expressive: { variant: 'warn',    label: '感情表現型' },
+  amiable:    { variant: 'success', label: '協調共感型' },
+};
+
 // ============================================================
 // 顧客一覧（左カラム）
 // 仕様書 §7.1 / §10.1
@@ -173,10 +181,18 @@ function CustomerCard({ row, active, onClick }) {
           color: color.textDark,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>{name}</div>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 2 }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 2, flexWrap: 'wrap' }}>
           <Badge variant={STATUS_VARIANT[row.status] || 'neutral'} size="sm" dot>
             {STATUS_LABEL[row.status] || row.status}
           </Badge>
+          {row.social_style_type && SS_BADGE[row.social_style_type] && (
+            <Badge variant={SS_BADGE[row.social_style_type].variant} size="sm">
+              {SS_BADGE[row.social_style_type].label}
+            </Badge>
+          )}
+          {!row.social_style_type && (
+            <Badge variant="neutral" size="sm">診断未完了</Badge>
+          )}
           {top && <Badge variant="danger" size="sm">{ATTENTION_LABEL[top]}</Badge>}
         </div>
         <div style={{
