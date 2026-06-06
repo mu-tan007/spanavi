@@ -111,9 +111,33 @@ Deno.serve(async (req) => {
     if (userErr || !userData?.user) {
       return jsonResp({ error: 'unauthorized: invalid session' }, 401)
     }
-    const callerEmail = (userData.user.email || '').toLowerCase()
+    // user.email が null のレガシーアカウントもあるため user_metadata.email にもフォールバック。
+    // さらに members テーブルに登録されている実メアドも参照し、運用上の同一人物を取りこぼさない。
+    const metaEmail = (userData.user.user_metadata as Record<string, unknown> | null)?.email
+    let callerEmail = (
+      userData.user.email
+      || (typeof metaEmail === 'string' ? metaEmail : '')
+      || ''
+    ).toLowerCase()
+
+    // members.email にもフォールバック（旧 *.spanavi.internal メアドで auth.users に残っているケース）
     if (!SPACAREER_ADMIN_EMAILS.includes(callerEmail)) {
-      return jsonResp({ error: 'forbidden: not allowed to invite customers' }, 403)
+      const adminClientForLookup = createClient(supabaseUrl, serviceKey)
+      const { data: memberRow } = await adminClientForLookup
+        .from('members')
+        .select('email')
+        .eq('user_id', userData.user.id)
+        .maybeSingle()
+      const memberEmail = (memberRow?.email || '').toLowerCase()
+      if (memberEmail && SPACAREER_ADMIN_EMAILS.includes(memberEmail)) {
+        callerEmail = memberEmail
+      }
+    }
+
+    if (!SPACAREER_ADMIN_EMAILS.includes(callerEmail)) {
+      return jsonResp({
+        error: `forbidden: '${callerEmail || '(email 不明)'}' は招待発行権限がありません。許可リスト: ${SPACAREER_ADMIN_EMAILS.join(', ')}`,
+      }, 403)
     }
 
     // ────────────────────────────────────────────────────────
