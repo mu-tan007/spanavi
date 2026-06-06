@@ -8,13 +8,14 @@ import { supabase } from '../../../../lib/supabase';
 // ----------------------------------------------------------------
 // 仕様書: tasks/spacareer-social-style-onboarding.md Phase 2
 //
-// 旧 DiagnosisInviteModal（メアド + Slack 文面コピペ）から
-// 「氏名 + メアド → 招待メール自動送信」フローに刷新。
-//
-// Edge Function `spacareer-invite-customer` を呼ぶと:
-//   - auth.users 招待メール送信（Resend: noreply@spanavi.jp）
-//   - members(rank='student') + spacareer_customers 作成
-//   - spacareer_social_style_responses 行を customer_id 紐付きで先回し挿入
+// フロー:
+//   1. 氏名+メアドを入力
+//   2. Edge Function `spacareer-invite-customer` 呼び出し
+//      - auth.users 作成（初期パスワード16文字発行）
+//      - members(rank='student') + spacareer_customers + 診断行を一括生成
+//      - send-email Edge Function 経由でログインURL/ID/パスワード3点を本文に含めた招待メール送信
+//   3. 発行されたログイン情報3点を画面に表示（コピー可）
+//      - メール送信失敗時は警告 + 手動コピペでSlack等で送付できる導線
 // ============================================================
 
 export default function DiagnosisInviteModal({ open, onClose, onCreated }) {
@@ -22,7 +23,8 @@ export default function DiagnosisInviteModal({ open, onClose, onCreated }) {
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const [result, setResult] = useState(null); // { customer_id, member_id, email, existing_user }
+  const [result, setResult] = useState(null);
+  const [copiedField, setCopiedField] = useState(null);
 
   if (!open) return null;
 
@@ -54,12 +56,38 @@ export default function DiagnosisInviteModal({ open, onClose, onCreated }) {
     }
   };
 
+  const handleCopy = async (text, field) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 1800);
+    } catch {
+      /* noop */
+    }
+  };
+
   const handleClose = () => {
     setName('');
     setEmail('');
     setError(null);
     setResult(null);
+    setCopiedField(null);
     onClose && onClose();
+  };
+
+  const buildClipboardSummary = () => {
+    if (!result) return '';
+    return (
+      `${name || result.email} 様\n\n` +
+      `この度はスパキャリにお申し込みいただき、誠にありがとうございます。\n` +
+      `受講開始にあたり、専用のログイン情報をご案内いたします。\n\n` +
+      `■ ログインURL\n${result.login_url}\n\n` +
+      `■ ログインID（メールアドレス）\n${result.email}\n\n` +
+      `■ 初期パスワード\n${result.initial_password}\n\n` +
+      `ログイン後、最初に「ソーシャルスタイル診断」（全30問・約5分）にご回答ください。\n` +
+      `セキュリティのため、初回ログイン後はパスワードの変更を推奨いたします。\n\n` +
+      `スパキャリ事務局`
+    );
   };
 
   return (
@@ -75,11 +103,13 @@ export default function DiagnosisInviteModal({ open, onClose, onCreated }) {
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          width: '100%', maxWidth: 560,
+          width: '100%', maxWidth: 620,
           background: color.white,
           borderRadius: radius.lg,
           boxShadow: shadow.xl,
           overflow: 'hidden',
+          maxHeight: '92vh',
+          display: 'flex', flexDirection: 'column',
         }}
       >
         {/* Header */}
@@ -91,10 +121,10 @@ export default function DiagnosisInviteModal({ open, onClose, onCreated }) {
         }}>
           <div>
             <div style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, letterSpacing: font.letterSpacing.wide }}>
-              受講生を招待
+              受講生を招待 / アカウント発行
             </div>
             <div style={{ fontSize: font.size.xs, opacity: 0.85, marginTop: 4 }}>
-              お名前とメールアドレスを入力すると、招待メールが自動送信されます
+              氏名とメールアドレスを入力すると、初期パスワードを発行してログイン情報の招待メールを自動送信します
             </div>
           </div>
           <button
@@ -107,7 +137,7 @@ export default function DiagnosisInviteModal({ open, onClose, onCreated }) {
         </div>
 
         {/* Body */}
-        <div style={{ padding: space[5], display: 'flex', flexDirection: 'column', gap: space[4] }}>
+        <div style={{ padding: space[5], display: 'flex', flexDirection: 'column', gap: space[4], overflowY: 'auto' }}>
           {!result && (
             <>
               <Input
@@ -117,7 +147,7 @@ export default function DiagnosisInviteModal({ open, onClose, onCreated }) {
                 value={name}
                 onChange={e => setName(e.target.value)}
                 disabled={submitting}
-                hint="本人確認用に必要です。後から管理画面で編集できます。"
+                hint="メール冒頭の宛名・受講生プロフィールの氏名として使用します"
               />
               <Input
                 label="メールアドレス"
@@ -127,7 +157,7 @@ export default function DiagnosisInviteModal({ open, onClose, onCreated }) {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 disabled={submitting}
-                hint="このアドレスに招待メールが届きます（差出人: noreply@spanavi.jp）"
+                hint="このアドレスに「ログインURL / ID / 初期パスワード」を含む招待メールが届きます"
               />
             </>
           )}
@@ -147,34 +177,118 @@ export default function DiagnosisInviteModal({ open, onClose, onCreated }) {
           )}
 
           {result && (
-            <Card padding="md" title="招待を送信しました" variant="subtle">
-              <div style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: font.lineHeight.relaxed }}>
-                <strong>{result.email}</strong> 宛に
-                {result.existing_user ? 'パスワード再設定リンク' : '初回ログイン用の招待リンク'}
-                を送信しました。
-              </div>
-              <div style={{
-                marginTop: space[3],
-                padding: space[3],
-                background: color.cream,
-                borderRadius: radius.md,
-                fontSize: font.size.xs,
-                color: color.textMid,
-                lineHeight: font.lineHeight.relaxed,
-              }}>
-                受講生はメール内のリンクからパスワードを設定するとログインでき、
-                <strong>ログイン直後にソーシャルスタイル診断（全30問）が自動的に表示</strong>されます。
-                診断完了までは他のメニューに進めません。
-              </div>
-              <div style={{ marginTop: space[3], display: 'flex', justifyContent: 'flex-end', gap: space[2] }}>
-                <Button variant="outline" size="sm" onClick={() => { setResult(null); setName(''); setEmail(''); }}>
+            <>
+              {result.email_sent ? (
+                <div style={{
+                  padding: space[3],
+                  background: alpha(color.success, 0.08),
+                  border: `1px solid ${alpha(color.success, 0.3)}`,
+                  borderRadius: radius.md,
+                  color: color.textDark,
+                  fontSize: font.size.sm,
+                  lineHeight: font.lineHeight.relaxed,
+                }}>
+                  <strong>{result.email}</strong> 宛に招待メールを送信しました（差出人: 篠宮 shinomiya@ma-sp.co）。<br/>
+                  下記のログイン情報は、念のため運営側でも控えとして保管できます。
+                </div>
+              ) : (
+                <div style={{
+                  padding: space[3],
+                  background: alpha(color.warn, 0.1),
+                  border: `1px solid ${alpha(color.warn, 0.4)}`,
+                  borderRadius: radius.md,
+                  color: color.textDark,
+                  fontSize: font.size.sm,
+                  lineHeight: font.lineHeight.relaxed,
+                }}>
+                  <strong>アカウントは発行されましたが、招待メールの自動送信に失敗しました。</strong><br/>
+                  下記の「メール文面（コピー用）」をそのままSlack/メールで受講生にお送りください。<br/>
+                  {result.email_error && (
+                    <span style={{ display: 'block', marginTop: 6, fontSize: font.size.xs, color: color.textMid }}>
+                      送信エラー: {result.email_error}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <Card variant="subtle" padding="md" title="ログイン情報">
+                <CredentialRow
+                  label="ログインURL"
+                  value={result.login_url}
+                  copied={copiedField === 'url'}
+                  onCopy={() => handleCopy(result.login_url, 'url')}
+                  mono
+                />
+                <CredentialRow
+                  label="ログインID（メール）"
+                  value={result.email}
+                  copied={copiedField === 'email'}
+                  onCopy={() => handleCopy(result.email, 'email')}
+                  mono
+                />
+                <CredentialRow
+                  label="初期パスワード"
+                  value={result.initial_password}
+                  copied={copiedField === 'pw'}
+                  onCopy={() => handleCopy(result.initial_password, 'pw')}
+                  mono
+                  bold
+                />
+              </Card>
+
+              <Card variant="subtle" padding="md" title="メール文面（コピー用）"
+                description="メール送信に失敗した場合や、Slack 等で別送したい場合にご利用ください">
+                <textarea
+                  readOnly
+                  value={buildClipboardSummary()}
+                  rows={11}
+                  style={{
+                    width: '100%',
+                    padding: space[3],
+                    fontSize: font.size.sm,
+                    fontFamily: font.family.sans,
+                    color: color.textDark,
+                    background: color.white,
+                    border: `1px solid ${color.border}`,
+                    borderRadius: radius.md,
+                    resize: 'vertical',
+                    lineHeight: font.lineHeight.normal,
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <div style={{ marginTop: space[2], display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button
+                    size="sm"
+                    variant={copiedField === 'msg' ? 'primary' : 'outline'}
+                    onClick={() => handleCopy(buildClipboardSummary(), 'msg')}
+                  >
+                    {copiedField === 'msg' ? 'コピー済' : '文面をコピー'}
+                  </Button>
+                </div>
+              </Card>
+
+              {result.existing_user && (
+                <div style={{
+                  padding: space[2],
+                  background: color.cream,
+                  borderRadius: radius.md,
+                  fontSize: font.size.xs,
+                  color: color.textMid,
+                  lineHeight: font.lineHeight.relaxed,
+                }}>
+                  ※ 同じメールアドレスが既に登録済みだったため、パスワードを上記の新しい値に再設定しました。
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: space[2] }}>
+                <Button variant="outline" onClick={() => { setResult(null); setName(''); setEmail(''); setCopiedField(null); }}>
                   続けて別の受講生を招待
                 </Button>
-                <Button variant="primary" size="sm" onClick={handleClose}>
+                <Button variant="primary" onClick={handleClose}>
                   閉じる
                 </Button>
               </div>
-            </Card>
+            </>
           )}
         </div>
 
@@ -188,11 +302,39 @@ export default function DiagnosisInviteModal({ open, onClose, onCreated }) {
           }}>
             <Button variant="outline" onClick={handleClose} disabled={submitting}>キャンセル</Button>
             <Button variant="primary" onClick={handleSubmit} loading={submitting}>
-              招待メールを送信する
+              アカウント発行 + 招待メール送信
             </Button>
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function CredentialRow({ label, value, copied, onCopy, mono, bold }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: space[2],
+      padding: `${space[2]}px 0`,
+      borderBottom: `1px solid ${color.borderLight}`,
+    }}>
+      <div style={{
+        width: 140, flexShrink: 0,
+        fontSize: font.size.xs, color: color.textMid,
+        fontWeight: font.weight.semibold,
+        letterSpacing: font.letterSpacing.wide,
+      }}>{label}</div>
+      <div style={{
+        flex: 1, minWidth: 0,
+        fontSize: font.size.sm,
+        color: color.textDark,
+        fontFamily: mono ? font.family.mono : undefined,
+        fontWeight: bold ? font.weight.bold : font.weight.normal,
+        wordBreak: 'break-all',
+      }}>{value}</div>
+      <Button size="sm" variant={copied ? 'primary' : 'outline'} onClick={onCopy}>
+        {copied ? 'コピー済' : 'コピー'}
+      </Button>
     </div>
   );
 }
