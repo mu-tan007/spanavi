@@ -44,7 +44,18 @@ export default function DiagnosisInviteModal({ open, onClose, onCreated }) {
       const { data, error: fnError } = await supabase.functions.invoke('spacareer-invite-customer', {
         body: { name: trimmedName, email: trimmedEmail },
       });
-      if (fnError) throw new Error(fnError.message || JSON.stringify(fnError));
+      if (fnError) {
+        // supabase-js は non-2xx 時に Response 本体を error.context に持つ。
+        // そこから JSON を読み出して Edge Function 側の error メッセージを表示する。
+        let detail = fnError.message || 'Edge Function でエラーが発生しました';
+        try {
+          if (fnError.context && typeof fnError.context.json === 'function') {
+            const body = await fnError.context.json();
+            if (body?.error) detail = `${detail}\n詳細: ${body.error}`;
+          }
+        } catch { /* noop */ }
+        throw new Error(detail);
+      }
       if (data?.error) throw new Error(data.error);
       setResult(data);
       if (onCreated) onCreated(data);
