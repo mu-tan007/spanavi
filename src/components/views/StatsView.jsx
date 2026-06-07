@@ -711,72 +711,138 @@ export default function StatsView({ callListData, currentUser, appoData, members
       </div>
 
       {/* ========== セクション3: 個人・チーム別ランキング ========== */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 8 : 14, marginBottom: 20 }}>
-        {/* ② 個人売上ランキング */}
-        <div style={{ background: C.white, borderRadius: 4, padding: '18px 20px', border: '1px solid #E5E7EB' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 6 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>個人売上ランキング</span>
-            </div>
-            {simplePeriodSelector(rankPersonPeriod, setRankPersonPeriod, rankPersonFrom, setRankPersonFrom, rankPersonTo, setRankPersonTo)}
-          </div>
-          {personRankData.length === 0 ? (
-            <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
-          ) : personRankData.map(([name, d], idx) => {
-            const isMe = name === currentUser;
-            const maxVal = personRankData[0]?.[1]?.total || 1;
-            const barPct = Math.max(d.total / maxVal * 100, 2);
-            const medalBg = idx === 0 ? 'linear-gradient(135deg,#C8A84B,#e0c97a)' : idx === 1 ? 'linear-gradient(135deg,#b0b0b0,#d8d8d8)' : idx === 2 ? 'linear-gradient(135deg,#cd7f32,#e8a060)' : C.offWhite;
-            return (
-              <div key={name} style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8, background: isMe ? NAVY + '08' : 'transparent', borderLeft: isMe ? '3px solid #1E40AF' : '3px solid transparent' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                  <span style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: idx < 3 ? 11 : 9, fontWeight: 700, background: medalBg, color: idx < 3 ? '#fff' : C.textLight, flexShrink: 0 }}>
-                    {idx + 1}
-                  </span>
-                  <span style={{ flex: 1, fontSize: 12, fontWeight: isMe ? 700 : 500, color: isMe ? NAVY : C.textDark }}>{name}{isMe ? ' ★' : ''}</span>
-                  <span style={{ fontSize: 13, fontWeight: 900, fontFamily: "'JetBrains Mono'", color: '#111827' }}>{fmt(d.total)}</span>
-                  <span style={{ fontSize: 10, color: C.textLight, fontFamily: "'JetBrains Mono'" }}>{d.count}件</span>
-                </div>
-                <div style={{ height: 5, borderRadius: 3, background: C.offWhite, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: 3, background: idx === 0 ? 'linear-gradient(90deg,' + NAVY + ',#1a3a6b)' : 'linear-gradient(90deg,#9CA3AF,#d1d5db)', width: barPct + '%', transition: 'width 0.5s ease' }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      {(() => {
+        const medalBgFor = (idx) =>
+          idx === 0 ? 'linear-gradient(135deg,#C8A84B,#e0c97a)' :
+          idx === 1 ? 'linear-gradient(135deg,#b0b0b0,#d8d8d8)' :
+          idx === 2 ? 'linear-gradient(135deg,#cd7f32,#e8a060)' :
+          C.offWhite;
+        const barBgFor = (idx) =>
+          idx === 0 ? 'linear-gradient(90deg,' + NAVY + ',#1a3a6b)' :
+          'linear-gradient(90deg,#9CA3AF,#d1d5db)';
 
-        {/* ③ チーム別売上ランキング */}
-        <div style={{ background: C.white, borderRadius: 4, padding: '18px 20px', border: '1px solid #E5E7EB' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 6 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>チーム別売上ランキング</span>
-            </div>
-            {simplePeriodSelector(rankTeamPeriod, setRankTeamPeriod, rankTeamFrom, setRankTeamFrom, rankTeamTo, setRankTeamTo, NAVY)}
-          </div>
-          {teamRankData.length === 0 ? (
-            <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
-          ) : teamRankData.map(([tn, d], idx) => {
-            const maxVal = teamRankData[0]?.[1]?.total || 1;
-            const barPct = Math.max(d.total / maxVal * 100, 2);
-            const medalBg = idx === 0 ? 'linear-gradient(135deg,#C8A84B,#e0c97a)' : idx === 1 ? 'linear-gradient(135deg,#b0b0b0,#d8d8d8)' : idx === 2 ? 'linear-gradient(135deg,#cd7f32,#e8a060)' : C.offWhite;
-            return (
-              <div key={tn} style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                  <span style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: idx < 3 ? 11 : 9, fontWeight: 700, background: medalBg, color: idx < 3 ? '#fff' : C.textLight, flexShrink: 0 }}>
-                    {idx + 1}
-                  </span>
-                  <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: NAVY }}>{tn}</span>
-                  <span style={{ fontSize: 13, fontWeight: 900, fontFamily: "'JetBrains Mono'", color: '#111827' }}>{fmt(d.total)}</span>
-                  <span style={{ fontSize: 10, color: C.textLight, fontFamily: "'JetBrains Mono'" }}>{d.count}件 / {d.memberCount}人</span>
-                </div>
-                <div style={{ height: 5, borderRadius: 3, background: C.offWhite, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: 3, background: idx === 0 ? 'linear-gradient(90deg,' + NAVY + ',#1a3a6b)' : 'linear-gradient(90deg,#9CA3AF,#d1d5db)', width: barPct + '%', transition: 'width 0.5s ease' }} />
-                </div>
+        // TOP3 リッチ行（個人用：★/自分ハイライト対応）
+        const renderTopRow = (name, d, idx, maxVal, opts = {}) => {
+          const { isMe = false, subText = `${d.count}件` } = opts;
+          const barPct = Math.max((d.total || 0) / maxVal * 100, 2);
+          return (
+            <div key={name} style={{
+              padding: '10px 12px', borderRadius: 8, marginBottom: 6,
+              background: isMe ? NAVY + '0F' : 'transparent',
+              borderLeft: isMe ? '3px solid #1E40AF' : '3px solid transparent',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                <span style={{
+                  width: 28, height: 28, borderRadius: '50%', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  fontSize: 12, fontWeight: 700, color: '#fff',
+                  background: medalBgFor(idx), flexShrink: 0,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.12)',
+                }}>{idx + 1}</span>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: isMe ? 700 : 600, color: isMe ? NAVY : C.textDark }}>
+                  {name}{isMe ? ' ★' : ''}
+                </span>
+                <span style={{ fontSize: 14, fontWeight: 900, fontFamily: "'JetBrains Mono'", color: '#111827' }}>{fmt(d.total)}</span>
+                <span style={{ fontSize: 10, color: C.textLight, fontFamily: "'JetBrains Mono'", minWidth: 60, textAlign: 'right' }}>{subText}</span>
               </div>
-            );
-          })}
-        </div>
-      </div>
+              <div style={{ height: 5, borderRadius: 3, background: C.offWhite, overflow: 'hidden' }}>
+                <div style={{ height: '100%', borderRadius: 3, background: barBgFor(idx), width: barPct + '%', transition: 'width 0.5s ease' }} />
+              </div>
+            </div>
+          );
+        };
+
+        // 4位以降コンパクト行
+        const renderCompactRow = (name, d, idx, opts = {}) => {
+          const { isMe = false, subText = `${d.count}件` } = opts;
+          const isZero = (d.total || 0) === 0;
+          return (
+            <div key={name} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '5px 12px', borderRadius: 6,
+              background: isMe ? NAVY + '0A' : 'transparent',
+              borderLeft: isMe ? '3px solid #1E40AF' : '3px solid transparent',
+              opacity: isZero ? 0.55 : 1,
+            }}>
+              <span style={{
+                width: 22, fontSize: 11, fontWeight: 600,
+                color: C.textLight, fontFamily: "'JetBrains Mono'", textAlign: 'right', flexShrink: 0,
+              }}>{idx + 1}</span>
+              <span style={{ flex: 1, fontSize: 12, fontWeight: isMe ? 700 : 500, color: isMe ? NAVY : C.textDark }}>
+                {name}{isMe ? ' ★' : ''}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono'", color: isZero ? C.textLight : '#111827' }}>{fmt(d.total)}</span>
+              <span style={{ fontSize: 10, color: C.textLight, fontFamily: "'JetBrains Mono'", minWidth: 60, textAlign: 'right' }}>{subText}</span>
+            </div>
+          );
+        };
+
+        const cardStyle = {
+          background: C.white, borderRadius: 4, padding: '18px 20px',
+          border: '1px solid #E5E7EB',
+          display: 'flex', flexDirection: 'column',
+        };
+        const titleRowStyle = {
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 12, flexWrap: 'wrap', gap: 6, flexShrink: 0,
+        };
+        const titleTextStyle = { fontSize: 13, fontWeight: 700, color: NAVY };
+        // 個人側は全員表示で長くなるため内部スクロールで圧縮。チーム側は自然高さ。
+        // alignItems: 'start' でグリッドの相互ストレッチを切り、カード単位の余白を解消。
+        const personListStyle = { maxHeight: 360, overflowY: 'auto', marginRight: -6, paddingRight: 6 };
+        const teamListStyle = {};
+
+        const personMax = personRankData[0]?.[1]?.total || 1;
+        const personTop = personRankData.slice(0, 3);
+        const personRest = personRankData.slice(3);
+        const teamMax = teamRankData[0]?.[1]?.total || 1;
+        const teamTop = teamRankData.slice(0, 3);
+        const teamRest = teamRankData.slice(3);
+
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 8 : 14, marginBottom: 20, alignItems: 'start' }}>
+            {/* ② 個人売上ランキング */}
+            <div style={cardStyle}>
+              <div style={titleRowStyle}>
+                <span style={titleTextStyle}>個人売上ランキング</span>
+                {simplePeriodSelector(rankPersonPeriod, setRankPersonPeriod, rankPersonFrom, setRankPersonFrom, rankPersonTo, setRankPersonTo)}
+              </div>
+              {personRankData.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
+              ) : (
+                <div style={personListStyle}>
+                  {personTop.map(([name, d], i) => renderTopRow(name, d, i, personMax, { isMe: name === currentUser }))}
+                  {personRest.length > 0 && (
+                    <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed ' + C.borderLight }}>
+                      {personRest.map(([name, d], i) => renderCompactRow(name, d, i + 3, { isMe: name === currentUser }))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ③ チーム別売上ランキング */}
+            <div style={cardStyle}>
+              <div style={titleRowStyle}>
+                <span style={titleTextStyle}>チーム別売上ランキング</span>
+                {simplePeriodSelector(rankTeamPeriod, setRankTeamPeriod, rankTeamFrom, setRankTeamFrom, rankTeamTo, setRankTeamTo, NAVY)}
+              </div>
+              {teamRankData.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', color: C.textLight, fontSize: 12 }}>— No records —</div>
+              ) : (
+                <div style={teamListStyle}>
+                  {teamTop.map(([tn, d], i) => renderTopRow(tn, d, i, teamMax, { subText: `${d.count}件 / ${d.memberCount}人` }))}
+                  {teamRest.length > 0 && (
+                    <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed ' + C.borderLight }}>
+                      {teamRest.map(([tn, d], i) => renderCompactRow(tn, d, i + 3, { subText: `${d.count}件 / ${d.memberCount}人` }))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ========== セクション4: クライアント別売上分析 ========== */}
       {(() => {
