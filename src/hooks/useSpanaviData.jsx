@@ -41,7 +41,9 @@ export function useSpanaviData(authOrgId) {
       ] = await Promise.all([
         supabase.from('clients').select('*').eq('org_id', orgId).order('sort_order'),
         supabase.from('call_lists').select('*').eq('org_id', orgId).order('sort_order'),
-        supabase.from('members').select('*').eq('org_id', orgId).neq('is_active', false).order('sort_order'),
+        // スパキャリ受講生(rank='student')は営業代行のメンバー集計に出さない。
+        // 受講生は members に登録されるが本データセットは営業代行向け（ランキング・売上・KPI等の源流）。
+        supabase.from('members').select('*').eq('org_id', orgId).neq('is_active', false).neq('rank', 'student').order('sort_order'),
         supabase.from('appointments').select('*').eq('org_id', orgId).order('appointment_date', { ascending: false }),
         supabase.from('reward_types').select('*').order('type_id'),
         supabase.from('client_contacts').select('*').eq('org_id', orgId).order('created_at'),

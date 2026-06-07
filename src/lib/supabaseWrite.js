@@ -1838,10 +1838,12 @@ export async function fetchCalledCountForSession(listSupaId, startedAt, finished
 
 export async function fetchZoomUserId(name) {
   if (!name) return null
+  // 営業代行メンバーの Zoom 連携用。スパキャリ受講生と同名の人が居た時の誤マッチ防止。
   const { data } = await supabase
     .from('members')
     .select('zoom_user_id')
     .eq('name', name)
+    .neq('rank', 'student')
     .limit(1)
   return data?.[0]?.zoom_user_id || null
 }

@@ -94,9 +94,10 @@ Deno.serve(async (req) => {
       const engagementId = eng.id as string
 
       // org の全メンバー（id, name, team で後でグルーピング用）
+      // スパキャリ受講生(rank='student')は営業代行の日報集計に出さない
       const { data: members } = await supabase
         .from('members').select('id, name, user_id, team, avatar_url')
-        .eq('org_id', orgId).eq('is_active', true)
+        .eq('org_id', orgId).eq('is_active', true).neq('rank', 'student')
       const memberById: Record<string, any> = {}
       const memberByName: Record<string, any> = {}
       ;(members || []).forEach(m => {

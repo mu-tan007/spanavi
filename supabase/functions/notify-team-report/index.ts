@@ -123,11 +123,13 @@ Deno.serve(async (req) => {
     const toUtc = new Date(to + 'T23:59:59.999+09:00').toISOString()
 
     // --- メンバー取得（チーム情報） ---
+    // スパキャリ受講生(rank='student')はチーム報告対象に含めない
     const { data: members, error: membersErr } = await supabase
       .from('members')
       .select('name, team')
       .eq('org_id', ORG_ID)
       .eq('is_active', true)
+      .neq('rank', 'student')
     if (membersErr) throw new Error(`Members fetch error: ${membersErr.message}`)
 
     const teamMap: Record<string, string> = {}
