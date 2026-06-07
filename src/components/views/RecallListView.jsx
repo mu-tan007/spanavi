@@ -1,12 +1,17 @@
 import { useState } from "react";
-import { color, radius, font, shadow, alpha } from '../../constants/design';
-import { Select, Badge, DataTable } from '../ui';
+import { color, radius, font, shadow, alpha, space } from '../../constants/design';
+import { Select, DataTable } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { useUrlState } from '../../hooks/useUrlState';
 import PageHeader from '../common/PageHeader';
+
+const KEYMAN_STATUSES = new Set(['キーマン再コール', '社長再コール', 'keyman_recall']);
+const isKeymanRecall = (status) => KEYMAN_STATUSES.has(status);
 
 export default function RecallListView({ callListData, supaRecalls = [], members = [], currentUser = '', isAdmin = false, isManagerRole = false, setCallFlowScreen }) {
   const isMobile = useIsMobile();
   const canSeeAll = isAdmin || isManagerRole;
+  const [subTab, setSubTab] = useUrlState('recall_subtab', 'reception');
   const [sortBy, setSortBy] = useState("date");
   const [filterAssignee, setFilterAssignee] = useState(canSeeAll ? '' : currentUser);
   const [assigneeQuery, setAssigneeQuery] = useState(canSeeAll ? '' : currentUser);
@@ -51,9 +56,14 @@ export default function RecallListView({ callListData, supaRecalls = [], members
   }));
 
   const baseRecallItems = canSeeAll ? recallItems : recallItems.filter(item => item.assignee === currentUser);
+  const receptionCount = baseRecallItems.filter(item => !isKeymanRecall(item.status)).length;
+  const keymanCount = baseRecallItems.filter(item => isKeymanRecall(item.status)).length;
+  const subTabFiltered = subTab === 'keyman'
+    ? baseRecallItems.filter(item => isKeymanRecall(item.status))
+    : baseRecallItems.filter(item => !isKeymanRecall(item.status));
   const filteredRecallItems = (canSeeAll && filterAssignee)
-    ? baseRecallItems.filter(item => item.assignee === filterAssignee)
-    : baseRecallItems;
+    ? subTabFiltered.filter(item => item.assignee === filterAssignee)
+    : subTabFiltered;
 
   const sorted = [...filteredRecallItems].sort((a, b) => {
     if (sortBy === "date") return (a.recallDate + a.recallTime).localeCompare(b.recallDate + b.recallTime);
@@ -77,9 +87,40 @@ export default function RecallListView({ callListData, supaRecalls = [], members
     <div style={{ animation: "fadeIn 0.3s ease", height: 'calc(100vh - 130px)', display: 'flex', flexDirection: 'column' }}>
       <PageHeader
         title="再架電"
-        description="再コール・キーマン断り14日経過の管理"
-        style={{ marginBottom: 24 }}
+        description="受付再コール・キーマン再コールの管理"
+        style={{ marginBottom: space[3] }}
       />
+
+      {/* サブタブ (受付再コール / キーマン再コール) */}
+      <div style={{ display: 'flex', gap: 0, marginBottom: space[4], flexShrink: 0 }}>
+        {[
+          { id: 'reception', label: '受付再コール', count: receptionCount },
+          { id: 'keyman', label: 'キーマン再コール', count: keymanCount },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setSubTab(tab.id)}
+            style={{
+              padding: '10px 24px', fontSize: font.size.sm, fontWeight: font.weight.bold,
+              cursor: 'pointer', fontFamily: font.family.sans,
+              border: `1px solid ${color.border}`,
+              borderBottom: subTab === tab.id ? `2px solid ${color.navy}` : '2px solid transparent',
+              background: subTab === tab.id ? color.white : color.cream,
+              color: subTab === tab.id ? color.navy : color.textLight,
+              borderRadius: `${radius.md}px ${radius.md}px 0 0`, marginRight: -1,
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+            }}
+          >
+            <span>{tab.label}</span>
+            <span style={{
+              fontSize: font.size.xs - 1, fontWeight: font.weight.bold,
+              color: subTab === tab.id ? color.white : color.textLight,
+              background: subTab === tab.id ? color.navy : alpha(color.navy, 0.08),
+              borderRadius: radius.pill, padding: '1px 8px', minWidth: 22, textAlign: 'center',
+            }}>{tab.count}</span>
+          </button>
+        ))}
+      </div>
 
       {/* ツールバー (担当者フィルター + ソート) */}
       <div style={{
@@ -87,9 +128,11 @@ export default function RecallListView({ callListData, supaRecalls = [], members
         gap: 8, marginBottom: 12, flexShrink: 0, flexWrap: 'wrap',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>再コール一覧</span>
+          <span style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>
+            {subTab === 'keyman' ? 'キーマン再コール一覧' : '受付再コール一覧'}
+          </span>
           <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>
-            {sorted.length}{filterAssignee ? `/${baseRecallItems.length}` : ''}件
+            {sorted.length}{filterAssignee ? `/${subTabFiltered.length}` : ''}件
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -190,11 +233,11 @@ export default function RecallListView({ callListData, supaRecalls = [], members
 
       {/* DataTable */}
       <DataTable
-        ariaLabel="再コール一覧"
+        ariaLabel={subTab === 'keyman' ? 'キーマン再コール一覧' : '受付再コール一覧'}
         height="100%"
         rows={sorted}
         rowKey={(_, idx) => idx}
-        emptyMessage="再コール予定はありません"
+        emptyMessage={subTab === 'keyman' ? 'キーマン再コール予定はありません' : '受付再コール予定はありません'}
         onRowClick={handleRowClick}
         style={{ flex: 1, minHeight: 0 }}
         rowAccent={(item) => isOverdue(item.recallDate, item.recallTime) ? 'danger' : null}
@@ -237,14 +280,6 @@ export default function RecallListView({ callListData, supaRecalls = [], members
           {
             key: 'phone', label: '電話番号', width: 110, align: 'left',
             cellStyle: { fontFamily: font.family.mono, fontSize: 10, color: color.navy },
-          },
-          {
-            key: 'type', label: '種別', width: 100, align: 'center',
-            render: (item) => (
-              <Badge variant="primary" size="sm">
-                {item.status === 'keyman_recall' || item.status === 'キーマン再コール' ? 'キーマン' : '受付'}
-              </Badge>
-            ),
           },
           {
             key: 'assignee', label: '担当', width: 130, align: 'left',
