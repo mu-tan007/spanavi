@@ -26,7 +26,6 @@ export const PAGE_REGISTRY = {
     { key: 'recall', label: '再架電', group: 'CALLING' },
     { key: 'incoming', label: '着信対応', group: 'CALLING' },
     { key: 'appo', label: 'アポ一覧', group: 'PIPELINE' },
-    { key: 'precheck', label: '事前確認', group: 'PIPELINE' },
     { key: 'deals', label: '案件', group: 'PIPELINE' },
     { key: 'stats', label: 'アナリティクス', group: 'INSIGHTS' },
     { key: 'library', label: 'ライブラリ', group: 'INSIGHTS' },

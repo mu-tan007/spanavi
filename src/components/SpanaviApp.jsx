@@ -668,7 +668,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     ]},
     { id: "g_appo", label: "商談", children: [
       { id: "appo", label: "アポ一覧" },
-      { id: "precheck", label: "事前確認" },
       { id: "deals", label: "案件" },
     ]},
     { id: "g_insights", label: "分析・教育", children: [
