@@ -98,10 +98,11 @@ Deno.serve(async (req) => {
     // 平日18時台（hourly cron の 09:00 UTC = JST 18:00）に今月の売上 TOP5 を追加
     // cron 'notify-ranking-hourly' は平日のみ '0 0,3,6,9 * * 1-5' で発火するため曜日判定は不要
     if (jstHour === 18) {
-      const monthStartUtc = new Date(jstDateStr.slice(0, 7) + '-01T00:00:00+09:00').toISOString()
-      const monthEndUtc = todayEndUtc
+      // 「面談実施分」基準: appointment_date (DATE型) が当月かつ今日以前で絞る
+      // appointment_date は JST 日付の DATE 型なので、UTC 変換せず 'YYYY-MM-DD' 文字列のままで OK
+      const monthStartDate = jstDateStr.slice(0, 7) + '-01'  // 'YYYY-MM-01'
+      const monthEndDate = jstDateStr                         // 当日まで（未来分は実施されてないので除外）
 
-      // 今月の appointments を取得（ページネーション）
       type AppoRow = { getter_name: string | null; sales_amount: number | null; status: string | null; list_id: string | null }
       let appos: AppoRow[] = []
       let aFrom = 0
@@ -109,10 +110,10 @@ Deno.serve(async (req) => {
         const { data, error: aErr } = await supabase
           .from('appointments')
           .select('getter_name, sales_amount, status, list_id')
-          .gte('created_at', monthStartUtc)
-          .lte('created_at', monthEndUtc)
+          .gte('appointment_date', monthStartDate)
+          .lte('appointment_date', monthEndDate)
           .not('getter_name', 'is', null)
-          .order('created_at', { ascending: true })
+          .order('appointment_date', { ascending: true })
           .range(aFrom, aFrom + PAGE_SIZE - 1)
         if (aErr) throw new Error(`appointments fetch error: ${aErr.message}`)
         if (!data || data.length === 0) break
@@ -151,7 +152,7 @@ Deno.serve(async (req) => {
       const monthLabel = `${parseInt(jstDateStr.slice(5, 7), 10)}月`
       const fmtYen = (n: number) => '¥' + Math.round(n).toLocaleString('ja-JP')
       lines.push('')
-      lines.push(`今月（${monthLabel}）の売上ランキング TOP5`)
+      lines.push(`今月（${monthLabel}）面談実施分 売上ランキング TOP5`)
       if (top5.length === 0) {
         lines.push('該当なし')
       } else {

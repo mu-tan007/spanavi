@@ -126,6 +126,11 @@ export default function StatsView({ callListData, currentUser, appoData, members
   const [rankTeamFrom, setRankTeamFrom] = useState('');
   const [rankTeamTo, setRankTeamTo] = useState('');
 
+  // ── 個人/チーム共通: 売上集計の日付基準 ──
+  //   apo_date  = アポ取得日 (created_at)   … 「いつ取ったか」基準
+  //   meet_date = 面談実施日 (appointmentDate) … 「いつ面談したか」基準
+  const [salesBasis, setSalesBasis] = useUrlState('statsSalesBasis', 'apo_date');
+
   // ── ④ クライアント別売上分析 ──────────────────────────────────────────────
   const [rankClientPeriod, setRankClientPeriod] = useState('week');
   const [rankClientFrom, setRankClientFrom] = useState('');
@@ -324,9 +329,13 @@ export default function StatsView({ callListData, currentUser, appoData, members
   }, [appoData, chartCustomFrom, chartCustomTo, todayStr]);
 
   // ── ② 個人売上ランキング ──────────────────────────────────────────────────
-  const personFiltered = useMemo(() => (appoData || []).filter(a =>
-    COUNTABLE.has(a.status) && filterBySimplePeriod(a.getDate, rankPersonPeriod, rankPersonFrom, rankPersonTo)
-  ), [appoData, rankPersonPeriod, rankPersonFrom, rankPersonTo, todayStr, weekStartStr, monthStr]);
+  // 基準日: salesBasis に応じて 取得日 (getDate) / 面談実施日 (appointmentDate) を切替
+  const personFiltered = useMemo(() => {
+    const dateOf = (a) => salesBasis === 'meet_date' ? a.appointmentDate : a.getDate;
+    return (appoData || []).filter(a =>
+      COUNTABLE.has(a.status) && filterBySimplePeriod(dateOf(a), rankPersonPeriod, rankPersonFrom, rankPersonTo)
+    );
+  }, [appoData, salesBasis, rankPersonPeriod, rankPersonFrom, rankPersonTo, todayStr, weekStartStr, monthStr]);
 
   const personRankData = useMemo(() => {
     const m = {};
@@ -348,9 +357,12 @@ export default function StatsView({ callListData, currentUser, appoData, members
   }, [personFiltered, members]);
 
   // ── ③ チーム別売上ランキング ──────────────────────────────────────────────
-  const teamFilteredData = useMemo(() => (appoData || []).filter(a =>
-    COUNTABLE.has(a.status) && filterBySimplePeriod(a.getDate, rankTeamPeriod, rankTeamFrom, rankTeamTo)
-  ), [appoData, rankTeamPeriod, rankTeamFrom, rankTeamTo, todayStr, weekStartStr, monthStr]);
+  const teamFilteredData = useMemo(() => {
+    const dateOf = (a) => salesBasis === 'meet_date' ? a.appointmentDate : a.getDate;
+    return (appoData || []).filter(a =>
+      COUNTABLE.has(a.status) && filterBySimplePeriod(dateOf(a), rankTeamPeriod, rankTeamFrom, rankTeamTo)
+    );
+  }, [appoData, salesBasis, rankTeamPeriod, rankTeamFrom, rankTeamTo, todayStr, weekStartStr, monthStr]);
 
   const teamRankData = useMemo(() => {
     const m = {};
@@ -799,7 +811,46 @@ export default function StatsView({ callListData, currentUser, appoData, members
         const teamTop = teamRankData.slice(0, 3);
         const teamRest = teamRankData.slice(3);
 
+        const basisToggle = (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: C.textLight, letterSpacing: 0.3 }}>売上集計基準</span>
+            <div style={{ display: 'inline-flex', borderRadius: 6, border: '1px solid ' + C.border, overflow: 'hidden' }}>
+              {[
+                { value: 'apo_date', label: 'アポ取得日' },
+                { value: 'meet_date', label: '面談実施日' },
+              ].map(opt => {
+                const active = salesBasis === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setSalesBasis(opt.value)}
+                    style={{
+                      padding: '5px 14px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      background: active ? NAVY : C.white,
+                      color: active ? '#fff' : C.textMid,
+                      border: 'none',
+                      borderLeft: opt.value === 'meet_date' ? '1px solid ' + C.border : 'none',
+                      cursor: 'pointer',
+                      transition: 'background 0.15s',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+            <span style={{ fontSize: 10, color: C.textLight }}>
+              {salesBasis === 'meet_date' ? '面談予定日が期間内のアポを集計' : 'アポ取得日時が期間内のアポを集計'}
+            </span>
+          </div>
+        );
+
         return (
+          <>
+          {basisToggle}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 8 : 14, marginBottom: 20, alignItems: 'start' }}>
             {/* ② 個人売上ランキング */}
             <div style={cardStyle}>
@@ -841,6 +892,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
               )}
             </div>
           </div>
+          </>
         );
       })()}
 
