@@ -37,7 +37,10 @@ export function useAllMembersWithEngagements() {
       supabase.from('members')
         .select('id, name, email, phone_number, position, rank, team, start_date, is_active, avatar_url')
         .eq('org_id', orgId)
-        .eq('is_active', true),
+        .eq('is_active', true)
+        // スパキャリ受講生 (rank='student') は社内メンバー一覧に出さない。
+        // 受講生は members に登録されるが、MASP「メンバー」タブはあくまで社内スタッフの一覧。
+        .neq('rank', 'student'),
       supabase.from('member_engagements')
         .select('member_id, engagement_id')
         .eq('org_id', orgId),
