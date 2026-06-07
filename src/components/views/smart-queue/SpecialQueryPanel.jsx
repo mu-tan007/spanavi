@@ -40,9 +40,29 @@ export default function SpecialQueryPanel({ setCallFlowScreen, callListData }) {
     });
   }, [categoryId, salesAgencyEngagements, allEngagements]);
 
-  const toggleEng = (id) => {
-    if (engIds.includes(id)) setEngIds(engIds.filter(x => x !== id));
-    else setEngIds([...engIds, id]);
+  // 商材未選択時は同名 engagement (=商材違いで複数存在) を1ボタンに集約。
+  // 商材選択時は1商材1 engagement なのでそのまま。
+  const typeButtons = useMemo(() => {
+    if (categoryId) {
+      return visibleEngagements.map(e => ({ key: e.id, label: e.name, ids: [e.id] }));
+    }
+    const groups = new Map();
+    for (const e of visibleEngagements) {
+      if (!groups.has(e.name)) groups.set(e.name, { key: e.name, label: e.name, ids: [] });
+      groups.get(e.name).ids.push(e.id);
+    }
+    return Array.from(groups.values());
+  }, [visibleEngagements, categoryId]);
+
+  const toggleEngGroup = (ids) => {
+    const allSelected = ids.every(id => engIds.includes(id));
+    if (allSelected) {
+      setEngIds(engIds.filter(x => !ids.includes(x)));
+    } else {
+      const next = new Set(engIds);
+      ids.forEach(id => next.add(id));
+      setEngIds(Array.from(next));
+    }
   };
 
   // 各サブパネルに渡す共通フィルタ
@@ -65,8 +85,12 @@ export default function SpecialQueryPanel({ setCallFlowScreen, callListData }) {
         <span style={{ color: color.border }}>|</span>
         <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>タイプ:</span>
         <FilterButton active={engIds.length === 0} onClick={() => setEngIds([])}>全て</FilterButton>
-        {visibleEngagements.map(e => (
-          <FilterButton key={e.id} active={engIds.includes(e.id)} onClick={() => toggleEng(e.id)}>{e.name}</FilterButton>
+        {typeButtons.map(opt => (
+          <FilterButton
+            key={opt.key}
+            active={opt.ids.some(id => engIds.includes(id))}
+            onClick={() => toggleEngGroup(opt.ids)}
+          >{opt.label}</FilterButton>
         ))}
       </div>
 
