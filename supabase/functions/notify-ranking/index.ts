@@ -8,6 +8,9 @@ const corsHeaders = {
 // キーマン接続とみなすステータス（Analytics の _perf_keyman_connect_labels() と一致させること）
 const KEYMAN_STATUSES = new Set(['キーマン再コール', 'アポ獲得', 'キーマン断り'])
 
+// 個人売上ランキングと同じ集計条件（StatsView.jsx の COUNTABLE）
+const APPO_COUNTABLE = new Set(['面談済', '事前確認済', 'アポ取得'])
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -79,7 +82,7 @@ Deno.serve(async (req) => {
     const timeStr = `${String(jstHour).padStart(2, '0')}:${String(jstMin).padStart(2, '0')}`
 
     const callEntries = topN('calls', null) // 1件以上全員
-    const text = [
+    const lines = [
       `📊 本日の架電ランキング（${timeStr}時点）`,
       '',
       `🔥 架電件数（全${callEntries.length}名）`,
@@ -90,7 +93,73 @@ Deno.serve(async (req) => {
       '',
       '🎯 アポ取得数 TOP3',
       formatSection(topN('appo', 3)),
-    ].join('\n')
+    ]
+
+    // 平日18時台（hourly cron の 09:00 UTC = JST 18:00）に今月の売上 TOP5 を追加
+    // cron 'notify-ranking-hourly' は平日のみ '0 0,3,6,9 * * 1-5' で発火するため曜日判定は不要
+    if (jstHour === 18) {
+      const monthStartUtc = new Date(jstDateStr.slice(0, 7) + '-01T00:00:00+09:00').toISOString()
+      const monthEndUtc = todayEndUtc
+
+      // 今月の appointments を取得（ページネーション）
+      type AppoRow = { getter_name: string | null; sales_amount: number | null; status: string | null; list_id: string | null }
+      let appos: AppoRow[] = []
+      let aFrom = 0
+      while (true) {
+        const { data, error: aErr } = await supabase
+          .from('appointments')
+          .select('getter_name, sales_amount, status, list_id')
+          .gte('created_at', monthStartUtc)
+          .lte('created_at', monthEndUtc)
+          .not('getter_name', 'is', null)
+          .order('created_at', { ascending: true })
+          .range(aFrom, aFrom + PAGE_SIZE - 1)
+        if (aErr) throw new Error(`appointments fetch error: ${aErr.message}`)
+        if (!data || data.length === 0) break
+        appos = appos.concat(data as AppoRow[])
+        if (data.length < PAGE_SIZE) break
+        aFrom += PAGE_SIZE
+      }
+
+      // クライアント開拓リスト由来は売上集計から除外（StatsView と同じ仕様）
+      const listIds = Array.from(new Set(appos.map(a => a.list_id).filter(Boolean) as string[]))
+      const prospectingMap: Record<string, boolean> = {}
+      const CHUNK = 100
+      for (let i = 0; i < listIds.length; i += CHUNK) {
+        const chunk = listIds.slice(i, i + CHUNK)
+        const { data: lists } = await supabase
+          .from('call_lists').select('id, is_prospecting').in('id', chunk)
+        ;(lists || []).forEach(l => {
+          prospectingMap[l.id as string] = (l as { is_prospecting: boolean }).is_prospecting === true
+        })
+      }
+
+      const salesMap: Record<string, number> = {}
+      for (const a of appos) {
+        const name = a.getter_name
+        if (!name) continue
+        if (!APPO_COUNTABLE.has(a.status || '')) continue
+        if (a.list_id && prospectingMap[a.list_id]) continue
+        salesMap[name] = (salesMap[name] || 0) + Number(a.sales_amount || 0)
+      }
+
+      const top5 = Object.entries(salesMap)
+        .filter(([, v]) => v > 0)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+
+      const monthLabel = `${parseInt(jstDateStr.slice(5, 7), 10)}月`
+      const fmtYen = (n: number) => '¥' + Math.round(n).toLocaleString('ja-JP')
+      lines.push('')
+      lines.push(`今月（${monthLabel}）の売上ランキング TOP5`)
+      if (top5.length === 0) {
+        lines.push('該当なし')
+      } else {
+        lines.push(...top5.map(([name, amt], i) => `${i + 1}. ${name} — ${fmtYen(amt)}`))
+      }
+    }
+
+    const text = lines.join('\n')
 
     // org_settings から Webhook URL を取得（なければ env var にフォールバック）
     const { data: orgSetting } = await supabase

@@ -330,6 +330,10 @@ export default function StatsView({ callListData, currentUser, appoData, members
 
   const personRankData = useMemo(() => {
     const m = {};
+    // 売上0のメンバーもランキングに含めるため、全アクティブメンバーを 0 で初期化
+    (members || []).forEach(mb => {
+      if (mb.name) m[mb.name] = { total: 0, reward: 0, count: 0 };
+    });
     personFiltered.forEach(a => {
       const k = a.getter || '不明';
       if (!m[k]) m[k] = { total: 0, reward: 0, count: 0 };
@@ -338,8 +342,10 @@ export default function StatsView({ callListData, currentUser, appoData, members
       m[k].reward += a.reward || 0;
       m[k].count++;
     });
-    return Object.entries(m).sort((a, b) => b[1].total - a[1].total);
-  }, [personFiltered]);
+    return Object.entries(m).sort((a, b) =>
+      (b[1].total - a[1].total) || (b[1].count - a[1].count) || a[0].localeCompare(b[0], 'ja')
+    );
+  }, [personFiltered, members]);
 
   // ── ③ チーム別売上ランキング ──────────────────────────────────────────────
   const teamFilteredData = useMemo(() => (appoData || []).filter(a =>
