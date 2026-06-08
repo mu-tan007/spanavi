@@ -10,13 +10,6 @@ import SpacareerLoginPage from './components/spacareer/client/SpacareerLoginPage
 import DesignPreview from './components/views/DesignPreview'
 import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { supabase } from './lib/supabase'
-import {
-  readClientAdminBackup,
-  readSpacareerAdminBackup,
-  clearClientAdminBackup,
-  clearSpacareerAdminBackup,
-} from './lib/adminBackup'
 
 function MainApp() {
   const { session, profile, loading, signOut, isAdmin, isStudent, recoveryMode, clearRecoveryMode, orgId } = useAuth()
@@ -36,73 +29,10 @@ function MainApp() {
     return () => clearTimeout(profileTimeoutRef.current)
   }, [loading, session, orgId])
 
-  // 代理ログイン戻し忘れの自動復元:
-  //   代理ログイン（営業代行クライアント / スパキャリ受講生 共通）は magic link を
-  //   新タブで開く実装のため、Supabase クライアントが localStorage の auth トークンを
-  //   新セッションで上書きする。元タブを後で操作すると、本来の管理者が
-  //   「クライアント」「受講生」として認識され、強制リダイレクトで /client や
-  //   /spacareer に飛ばされる事故が起きる（小山さんが /dashboard を開くと
-  //   スパキャリ受講生画面に飛ぶ現象の原因）。
-  //   ここで「現セッションが student/client かつ管理者バックアップが残っている」
-  //   = 戻し忘れ ケースを検知し、退避してあった管理者セッションを自動復元する。
-  const inClientArea = location.pathname.startsWith('/client')
-  const inSpacareerArea = location.pathname.startsWith('/spacareer')
-  const isClientRole = session?.user?.user_metadata?.role === 'client'
-  const needRestoreSpacareer = !loading && !!session && isStudent && !inSpacareerArea
-    && !!readSpacareerAdminBackup()
-  const needRestoreClient = !loading && !!session && isClientRole && !inClientArea
-    && !!readClientAdminBackup()
-  const needAutoRestore = needRestoreSpacareer || needRestoreClient
-
-  useEffect(() => {
-    if (!needAutoRestore) return
-    let cancelled = false
-    ;(async () => {
-      try {
-        const backup = needRestoreSpacareer
-          ? readSpacareerAdminBackup()
-          : readClientAdminBackup()
-        if (!backup) return
-        // ループ防止: setSession 前に backup を消す（失敗時も再発火させない）
-        if (needRestoreSpacareer) clearSpacareerAdminBackup()
-        else clearClientAdminBackup()
-        const { error } = await supabase.auth.setSession({
-          access_token: backup.access_token,
-          refresh_token: backup.refresh_token,
-        })
-        if (cancelled) return
-        if (error) {
-          console.warn('[App] Auto-restore admin session failed:', error)
-          return
-        }
-        // セッション差し替え後はフルリロードして再ブートストラップ
-        window.location.href = '/dashboard'
-      } catch (e) {
-        console.error('[App] Auto-restore error:', e)
-      }
-    })()
-    return () => { cancelled = true }
-  }, [needAutoRestore, needRestoreSpacareer])
-
   // パスワードリカバリーモード（profile取得より優先：新規招待ユーザーはusers/membersがRLSで引けずprofileがnullのままになるため、
   // この判定を下に置くと「アカウント情報取得失敗」画面にリダイレクトされてパスワード再設定に辿り着けない）
   if (recoveryMode && session) {
     return <ResetPasswordPage onComplete={clearRecoveryMode} />
-  }
-
-  // 代理ログイン戻し忘れの自動復元中（useEffect 側で setSession → /dashboard へリロード）
-  if (needAutoRestore) {
-    return (
-      <div style={{
-        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'linear-gradient(135deg,#1456C7 0%,#1E3A8A 30%,#0D2247 60%,#081636 100%)',
-        fontFamily: "'Noto Sans JP', sans-serif",
-      }}>
-        <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, letterSpacing: 2 }}>
-          社内アカウントに復帰中…
-        </p>
-      </div>
-    )
   }
 
   // クライアント・ロールは members プロフィールを持たない → 先に /client へ逃がす
