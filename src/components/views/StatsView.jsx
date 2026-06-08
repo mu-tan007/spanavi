@@ -127,8 +127,8 @@ export default function StatsView({ callListData, currentUser, appoData, members
   const [rankTeamTo, setRankTeamTo] = useState('');
 
   // ── 個人/チーム共通: 売上集計の日付基準 ──
-  //   apo_date  = アポ取得日 (created_at)   … 「いつ取ったか」基準
-  //   meet_date = 面談実施日 (appointmentDate) … 「いつ面談したか」基準
+  //   apo_date  = アポ取得日 (created_at) … 「いつ取ったか」基準
+  //   meet_date = 面談実施日 (meeting_date) … 「いつ面談したか」基準 (アポ一覧の月集計と整合)
   const [salesBasis, setSalesBasis] = useUrlState('statsSalesBasis', 'apo_date');
 
   // ── ④ クライアント別売上分析 ──────────────────────────────────────────────
@@ -329,9 +329,10 @@ export default function StatsView({ callListData, currentUser, appoData, members
   }, [appoData, chartCustomFrom, chartCustomTo, todayStr]);
 
   // ── ② 個人売上ランキング ──────────────────────────────────────────────────
-  // 基準日: salesBasis に応じて 取得日 (getDate) / 面談実施日 (appointmentDate) を切替
+  // 基準日: salesBasis に応じて 取得日 (getDate) / 面談実施日 (meetDate) を切替
+  // meet_date 側は appointments.meeting_date を参照（アポ一覧の月集計と整合させるため）
   const personFiltered = useMemo(() => {
-    const dateOf = (a) => salesBasis === 'meet_date' ? a.appointmentDate : a.getDate;
+    const dateOf = (a) => salesBasis === 'meet_date' ? a.meetDate : a.getDate;
     return (appoData || []).filter(a =>
       COUNTABLE.has(a.status) && filterBySimplePeriod(dateOf(a), rankPersonPeriod, rankPersonFrom, rankPersonTo)
     );
@@ -358,7 +359,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
 
   // ── ③ チーム別売上ランキング ──────────────────────────────────────────────
   const teamFilteredData = useMemo(() => {
-    const dateOf = (a) => salesBasis === 'meet_date' ? a.appointmentDate : a.getDate;
+    const dateOf = (a) => salesBasis === 'meet_date' ? a.meetDate : a.getDate;
     return (appoData || []).filter(a =>
       COUNTABLE.has(a.status) && filterBySimplePeriod(dateOf(a), rankTeamPeriod, rankTeamFrom, rankTeamTo)
     );
@@ -843,7 +844,7 @@ export default function StatsView({ callListData, currentUser, appoData, members
               })}
             </div>
             <span style={{ fontSize: 10, color: C.textLight }}>
-              {salesBasis === 'meet_date' ? '面談予定日が期間内のアポを集計' : 'アポ取得日時が期間内のアポを集計'}
+              {salesBasis === 'meet_date' ? '面談実施日が期間内のアポを集計' : 'アポ取得日時が期間内のアポを集計'}
             </span>
           </div>
         );
