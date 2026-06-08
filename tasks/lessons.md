@@ -101,3 +101,38 @@ JSX のスコープ判定は親関数の closure を継承しない (Reactコン
    (今回は trigger 強化のみだが、再々発したら UNIQUE 化を検討)。
 3. **時間窓パラメータを修正する時は「もっと長くする」より「設計の不変条件」で考える**。
    「5分」のような魔法の数字は再発の温床。「同じ日の同じ会社のアポは1件」のような事業ルールベースで書く。
+
+## 2026-06-08: 代理ログイン戻し忘れ自動復元が代理ログイン自体を破壊 (1e0a84a → revert)
+
+### 症状
+むー様が DealsView から「代理ログイン」ボタンを押すと、新タブが社内 Spanavi 画面 (DealsView の「案件」一覧) に着地し、他の全クライアントが選択肢に出てくる。
+クライアントポータルに遷移できない＝代理ログイン機能が完全に死亡。
+フラーレン側メンバーからも「ログインできない」と連絡 (auth log では login 200 が 3 回連続 = ログインしてもループしている状態)。
+
+### 真因
+コミット `1e0a84a fix(auth): 代理ログイン戻し忘れを自動検知して管理者セッションを復元` で App.jsx に追加した自動復元ロジックが、**代理ログインの新タブ着地時に意図せず発火**していた。
+
+```js
+const needRestoreClient = !loading && session && isClientRole && !inClientArea
+  && readClientAdminBackup()
+```
+
+代理ログイン flow:
+1. DealsView で admin session を `spanavi_admin_session_backup` に退避
+2. magic link 新タブで開く → `/client` 着地予定
+3. しかし「session が admin から client に切り替わる過渡期」+「ClientPortalApp が role 不一致で一瞬 `/` に Navigate する瞬間」に、App.jsx MainApp が描画されて `needRestoreClient` 全条件マッチ
+4. → `setSession(admin)` で社内アカウントに「復元」されてしまう → `/dashboard` リロード
+
+つまり「戻し忘れ」を検知するつもりが、「代理ログイン直後の正常な過渡状態」も同じパターンに見える。
+
+### ルール (自分宛)
+1. **「localStorage の状態だけで現在のユーザー意図を判定する」設計は、同じ localStorage を使う正常 flow と区別できない**。
+   今回は backup 存在 = 戻し忘れと判定したが、代理ログインの新タブも同じ瞬間 backup を持っている。区別するには「backup 保存からの経過時間 (例: > 30 秒)」「現在のタブが magic link 由来か (hash に access_token があるか)」など、**時間・経路の情報を足す**必要がある。
+2. **App.jsx の最上位ガードに副作用 (setSession + reload) を仕込むときは、全 auth 経路 (社内 login / クライアント代理ログイン / スパキャリ代理ログイン / magic link / password recovery) で発火条件を机上シミュレートする**。
+   一つでも誤発火 flow があると本番が止まる。
+3. **小山さん「/dashboard 開くとスパキャリに飛ぶ」のような UX 不都合を直すときは、root cause (新タブ magic link が同一 localStorage を上書きする) に手を入れるべき**。
+   - 例: 代理ログインを Supabase クライアントの storage key を別 prefix に切る別 instance で開く
+   - 例: 代理ログイン用 URL に `?impersonate=1` を付け、ClientPortalApp 側でその場で `signOut → setSession(impersonatedClient)` する
+   症状側で if 文 1 個足すと別経路が壊れる。
+4. **代理ログイン経路の変更は本番に出す前に必ず「自分の手でフルに動かす」**。
+   今回は元タブで起きる症状 (小山さん問題) しか手で確認していなかったため、新タブ着地経路の副作用に気付かなかった。代理ログイン系の変更チェックリストに「①代理ログインを実行 ②新タブで Deals が描画される ③『社内に戻る』が機能 ④元タブで /dashboard が今までどおり動く」の 4 点を加える。
