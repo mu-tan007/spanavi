@@ -112,6 +112,25 @@ const SPECS_BY_SLUG = {
     },
   },
 
+  // コンサルリード獲得
+  lead_generation_consulting: {
+    axisLabel:        'コンサル',
+    newsSectionLabel: '同業界の経営課題・コンサル活用動向',
+    newsDealTypes:    ['コンサル導入', '経営改革', 'DX/業務改革', '組織開発'],
+    maspMemoLabels: {
+      personality:     '担当者のお人柄 / 経営観',
+      meeting_exp:     '現在の経営課題 / 既存コンサル利用状況',
+      future_consider: 'コンサル導入検討時期 / 予算感',
+    },
+    aiTheme: {
+      industryTrendFocus: '経営コンサルティング・業務改革・組織開発の文脈',
+      memoExtractionGuide:
+        '- personality: 担当者の人柄、経営観、意思決定スタイル\n' +
+        '- meeting_exp: 現在の経営課題、既存コンサル利用状況、内製/外注の使い分け\n' +
+        '- future_consider: コンサル導入検討時期、対象領域、予算感',
+    },
+  },
+
   // クライアント開拓系 (共通テーマ)
   client_acquisition: {
     axisLabel:        '提携',
@@ -132,10 +151,11 @@ const SPECS_BY_SLUG = {
   },
 };
 
-// SaaS/IFA/人材 配下のクライアント開拓も共通仕様に向ける
-SPECS_BY_SLUG.client_acquisition_saas   = SPECS_BY_SLUG.client_acquisition;
-SPECS_BY_SLUG.client_acquisition_ifa    = SPECS_BY_SLUG.client_acquisition;
-SPECS_BY_SLUG.client_acquisition_jinzai = SPECS_BY_SLUG.client_acquisition;
+// SaaS/IFA/人材/コンサル 配下のクライアント開拓も共通仕様に向ける
+SPECS_BY_SLUG.client_acquisition_saas       = SPECS_BY_SLUG.client_acquisition;
+SPECS_BY_SLUG.client_acquisition_ifa        = SPECS_BY_SLUG.client_acquisition;
+SPECS_BY_SLUG.client_acquisition_jinzai     = SPECS_BY_SLUG.client_acquisition;
+SPECS_BY_SLUG.client_acquisition_consulting = SPECS_BY_SLUG.client_acquisition;
 
 // engagement の slug から spec を引く。null/未定義は DEFAULT。
 export function getDossierSpecBySlug(slug) {
