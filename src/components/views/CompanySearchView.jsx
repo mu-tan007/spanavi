@@ -1103,22 +1103,28 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           </div>
         ) : sortedResults.map((c, i) => {
           const listInfo = callListData.find(l => l._supaId === c.list_id);
+          const isArchived = listInfo?.is_archived === true;
           const rounds = pageRecords[c.id] || {};
           const latestCalled = (() => { let latest = ""; Object.values(rounds).forEach(r => { if (r.called_at && r.called_at > latest) latest = r.called_at; }); return latest; })();
           const stColor = getStatusColor(c.call_status).color;
           return (
-            <div key={c.id} onClick={() => setSelectedItem(c)} style={{
+            <div key={c.id} onClick={isArchived ? undefined : () => setSelectedItem(c)} style={{
               display: "grid", gridTemplateColumns: scGrid,
               padding: "8px 16px", fontSize: font.size.xs, alignItems: "center",
               borderBottom: `1px solid ${color.border}`,
-              background: i % 2 === 0 ? color.white : color.cream,
-              cursor: "pointer",
+              background: isArchived ? color.gray50 : (i % 2 === 0 ? color.white : color.cream),
+              cursor: isArchived ? "not-allowed" : "pointer",
+              opacity: isArchived ? 0.55 : 1,
+              color: isArchived ? color.textLight : undefined,
             }}>
               <span style={{ fontWeight: font.weight.medium, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[0]?.align || 'left' }}>{c.company}</span>
-              <span style={{ color: color.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[1]?.align || 'left' }}>{c.representative || "-"}</span>
-              <span style={{ fontFamily: font.family.mono, fontSize: 10, color: color.navy, textAlign: scCols[2]?.align || 'left' }}>{c.phone || "-"}</span>
-              <span style={{ fontSize: 10, color: color.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[3]?.align || 'left' }}>
-                {listInfo ? listInfo.company : "-"}
+              <span style={{ color: isArchived ? color.textLight : color.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[1]?.align || 'left' }}>{c.representative || "-"}</span>
+              <span style={{ fontFamily: font.family.mono, fontSize: 10, color: isArchived ? color.textLight : color.navy, textAlign: scCols[2]?.align || 'left' }}>{c.phone || "-"}</span>
+              <span style={{ fontSize: 10, color: isArchived ? color.textLight : color.textMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[3]?.align || 'left', display: 'flex', alignItems: 'center', gap: 4, justifyContent: (scCols[3]?.align === 'right') ? 'flex-end' : (scCols[3]?.align === 'center' ? 'center' : 'flex-start') }}>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{listInfo ? listInfo.company : "-"}</span>
+                {isArchived && (
+                  <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: radius.md, background: color.gray200, color: color.textMid, fontWeight: font.weight.semibold, whiteSpace: "nowrap", flexShrink: 0 }}>アーカイブ</span>
+                )}
               </span>
               <span style={{ fontSize: 10, color: color.textLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: scCols[4]?.align || 'left' }}>
                 {listInfo?.industry || "-"}
