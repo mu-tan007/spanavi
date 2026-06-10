@@ -35,6 +35,14 @@ const supabase = createClient(
 
 const STORAGE_BUCKET = 'spacareer-session-videos'
 
+// 議事録生成モデル。ロープレ(Haiku 4.5)より情報密度の濃い議事録が要件のため、
+// 長尺文字起こしの構造化に強い Sonnet 4.6 を使う（$3/$15 per 1M tokens）。
+const MINUTES_MODEL = 'claude-sonnet-4-6'
+const MINUTES_MAX_TOKENS = 8192
+// cost_usd 計算用 (USD per 1M tokens)
+const COST_INPUT_PER_M = 3.0
+const COST_OUTPUT_PER_M = 15.0
+
 // Whisper の上限: 25 MB
 // セッションは60〜90分が普通なので、ロープレ(15MB)より広めに取り
 // 32kbps mono MP3 で約100分まで丸ごと文字起こしできるようにする。
@@ -62,34 +70,72 @@ const MIME_MAP: Record<string, string> = {
 }
 
 // プロンプト：スパキャリ向け議事録生成
-const SYSTEM_PROMPT = `あなたはキャリアコーチング「スパキャリ」のセッション議事録作成アシスタントです。
-受講生（お客様）とトレーナーの会話の文字起こしを読み、構造化された議事録ドラフトを作成します。
+// 営業代行ロープレ（総評+課題+ドリルの「評価レポート」型）とは別物として設計。
+// キャリアコーチングのセッション記録として、
+//   1) トレーナーが次回前に読み返す「申し送り資料」
+//   2) 受講生に渡せる「セッションの記録」
+// の両方を1本で満たす、情報密度の高い議事録を作る。
+const SYSTEM_PROMPT = `あなたはキャリアコーチング「スパキャリ」のセッション議事録作成の専門家です。
+受講生（お客様）とトレーナーの1on1セッションの文字起こしを読み、情報密度の高い構造化議事録を作成します。
+この議事録は (1)トレーナーが次回セッション前に読み返す申し送り資料、(2)受講生に共有するセッション記録、の両方に使われます。
+
 出力は必ず以下の JSON フォーマットのみを返してください（前後のテキストは一切不要）：
 
 {
-  "summary": "今回のセッションの全体要約（300字程度）",
-  "sections": [
-    { "heading": "現状確認", "bullets": ["...", "..."] },
-    { "heading": "深掘りされた論点", "bullets": ["...", "..."] },
-    { "heading": "次回までのアクション", "bullets": ["...", "..."] },
-    { "heading": "次回までの宿題", "bullets": ["...", "..."] }
+  "summary": "セッション全体の要約（400〜600字。何を扱い、どこまで進み、何が決まったかが一読で分かるように）",
+  "homeworkReview": ["事前課題・前回宿題の振り返りで話された内容（提出状況、回答内容への言及、そこから広がった話）"],
+  "topics": [
+    {
+      "heading": "トピック名（具体的に。例:「現職の評価制度への不満と転職動機の整理」）",
+      "points": ["議論の流れと具体的内容。固有名詞・数値・経緯を省略せずに書く", "..."],
+      "quotes": ["受講生本人の重要発言を原文のまま「」で引用（言い回し・ニュアンスを保持）", "..."],
+      "takeaways": ["このトピックで得られた気づき・結論", "..."]
+    }
   ],
-  "nextActions": ["...", "..."],
-  "trainerNotes": "トレーナーが追記する欄に置く所感のヒント（150字以内）"
+  "studentCondition": ["受講生の状態観察（モチベーションの高低、感情の動き、迷い・不安、前回からの変化）"],
+  "decisions": ["このセッションで決まったこと（方針・選択・合意事項）"],
+  "openIssues": ["話し切れなかった・結論が出なかった持ち越し論点"],
+  "nextActionsStudent": ["受講生が次回までにやること（期限・回数など数値があれば必ず含める）"],
+  "nextActionsTrainer": ["トレーナー側がやること（資料準備、紹介、確認事項など）"],
+  "homework": ["次回までの宿題として明示されたもの"],
+  "nextSessionFocus": ["次回セッションで深掘りすべき論点・トレーナーが投げるべき問い"],
+  "trainerNotes": "トレーナー専用の申し送りメモ（200字以内。受講生には見せない前提で、扱いの注意点・本音の兆候・リスクなど）"
 }
 
-評価・記述の観点:
-- 受講生本人の言葉を優先して引用する（要約しすぎず原文ニュアンスを残す）
-- 結論・気づき・次のアクションを明確に分離する
-- トレーナーが後で編集することを前提に、推測や憶測は避ける
+記述ルール（情報密度を最優先）:
+- 固有名詞（企業名・職種名・人名・サービス名）、数値（年収・期限・回数・年数）は絶対に丸めず原文どおり書く
+- topics はセッションの時系列順に4〜8個。1トピックにつき points 3〜8個、quotes 1〜4個を目安に厚く書く
+- 引用 quotes は要約せず、受講生の言い回しをそのまま残す（「」で括る）
+- 結論・気づき・宿題・アクションは必ず分離し、重複させない
+- 文字起こしに無いことは書かない。推測・憶測・一般論での水増しは禁止
+- 該当する内容が無い項目は空配列 [] にする（無理に埋めない）
 - 日本語、敬体ではなく簡潔な箇条書きスタイル`
 
-function buildMinutesDraftText(ai: {
+type MinutesAI = {
   summary?: string
+  homeworkReview?: string[]
+  topics?: Array<{ heading?: string; points?: string[]; quotes?: string[]; takeaways?: string[] }>
+  studentCondition?: string[]
+  decisions?: string[]
+  openIssues?: string[]
+  nextActionsStudent?: string[]
+  nextActionsTrainer?: string[]
+  homework?: string[]
+  nextSessionFocus?: string[]
+  trainerNotes?: string
+  // 旧フォーマット互換（再分析前の既存データ表示用）
   sections?: Array<{ heading?: string; bullets?: string[] }>
   nextActions?: string[]
-  trainerNotes?: string
-}): string {
+}
+
+function pushList(lines: string[], heading: string, items?: string[]) {
+  if (!items || !items.length) return
+  lines.push(`### ${heading}`)
+  for (const it of items) lines.push(`- ${it}`)
+  lines.push('')
+}
+
+function buildMinutesDraftText(ai: MinutesAI): string {
   const lines: string[] = []
   lines.push('## セッション議事録（AI 自動生成ドラフト）')
   lines.push('')
@@ -98,19 +144,31 @@ function buildMinutesDraftText(ai: {
     lines.push(ai.summary)
     lines.push('')
   }
+  pushList(lines, '事前課題・前回宿題の振り返り', ai.homeworkReview)
+  for (const t of ai.topics || []) {
+    if (!t.heading) continue
+    lines.push(`### ${t.heading}`)
+    for (const p of t.points || []) lines.push(`- ${p}`)
+    for (const q of t.quotes || []) lines.push(`- 発言: ${q}`)
+    for (const k of t.takeaways || []) lines.push(`- 気づき: ${k}`)
+    lines.push('')
+  }
+  // 旧フォーマット互換
   for (const s of ai.sections || []) {
     if (!s.heading) continue
     lines.push(`### ${s.heading}`)
     for (const b of s.bullets || []) lines.push(`- ${b}`)
     lines.push('')
   }
-  if (ai.nextActions && ai.nextActions.length) {
-    lines.push('### 次回までのアクション')
-    for (const a of ai.nextActions) lines.push(`- ${a}`)
-    lines.push('')
-  }
+  pushList(lines, '受講生の状態', ai.studentCondition)
+  pushList(lines, '決定事項', ai.decisions)
+  pushList(lines, '持ち越し論点', ai.openIssues)
+  pushList(lines, '次回までのアクション（受講生）', ai.nextActionsStudent || ai.nextActions)
+  pushList(lines, '次回までのアクション（トレーナー）', ai.nextActionsTrainer)
+  pushList(lines, '次回までの宿題', ai.homework)
+  pushList(lines, '次回セッションの焦点', ai.nextSessionFocus)
   if (ai.trainerNotes) {
-    lines.push('### トレーナーメモ（編集用）')
+    lines.push('### トレーナー専用メモ（受講生向けに共有する場合はこの節を削除）')
     lines.push(ai.trainerNotes)
     lines.push('')
   }
@@ -151,7 +209,7 @@ async function processInBackground(
         org_id: orgId,
         customer_id: customer_id ?? null,
         feature: 'minutes_generation',
-        model: 'claude-haiku-4-5-20251001',
+        model: MINUTES_MODEL,
         status: 'error',
         error_message: detail ? `${message}: ${detail}` : message,
       })
@@ -243,7 +301,7 @@ async function processInBackground(
     const whisperData = await whisperRes.json()
     const transcript: string = whisperData.text || ''
 
-    // ── 5. Claude Haiku 4.5 で構造化議事録 ────────────────────
+    // ── 5. Claude で構造化議事録 ────────────────────────────
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!anthropicKey) {
       await failVideo('ANTHROPIC_API_KEY が設定されていません')
@@ -260,11 +318,13 @@ async function processInBackground(
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 3072,
+        model: MINUTES_MODEL,
+        max_tokens: MINUTES_MAX_TOKENS,
         messages: [{ role: 'user', content: userPrompt }],
       }),
-      signal: AbortSignal.timeout(60_000),
+      // 長尺transcript + 8K出力のため余裕を持たせる（Whisper180s + ここ180sでも
+      // Edge Function の wall clock 400s 以内に収まる）
+      signal: AbortSignal.timeout(180_000),
     })
 
     if (!claudeRes.ok) {
@@ -279,12 +339,7 @@ async function processInBackground(
     const usage = claudeData.usage || {}
 
     // JSON 抽出
-    let aiFeedback: {
-      summary?: string
-      sections?: Array<{ heading?: string; bullets?: string[] }>
-      nextActions?: string[]
-      trainerNotes?: string
-    } = {}
+    let aiFeedback: MinutesAI = {}
     let parseError: string | null = null
     try {
       const m = claudeText.match(/\{[\s\S]*\}/)
@@ -296,7 +351,10 @@ async function processInBackground(
     }
 
     const hasContent = !!(aiFeedback.summary
+      || (aiFeedback.topics && aiFeedback.topics.length)
+      || (aiFeedback.decisions && aiFeedback.decisions.length)
       || (aiFeedback.sections && aiFeedback.sections.length)
+      || (aiFeedback.nextActionsStudent && aiFeedback.nextActionsStudent.length)
       || (aiFeedback.nextActions && aiFeedback.nextActions.length))
     if (!hasContent) {
       await supabase.from('spacareer_session_videos').update({
@@ -315,7 +373,7 @@ async function processInBackground(
           org_id: orgId,
           customer_id: customer_id ?? null,
           feature: 'minutes_generation',
-          model: 'claude-haiku-4-5-20251001',
+          model: MINUTES_MODEL,
           input_tokens: usage.input_tokens ?? null,
           output_tokens: usage.output_tokens ?? null,
           status: 'error',
@@ -349,13 +407,13 @@ async function processInBackground(
     // 利用ログ
     const inputTokens = usage.input_tokens ?? 0
     const outputTokens = usage.output_tokens ?? 0
-    const costUsd = Number(((inputTokens / 1_000_000) * 1.0 + (outputTokens / 1_000_000) * 5.0).toFixed(6))
+    const costUsd = Number(((inputTokens / 1_000_000) * COST_INPUT_PER_M + (outputTokens / 1_000_000) * COST_OUTPUT_PER_M).toFixed(6))
     if (orgId) {
       await supabase.from('spacareer_ai_usage_logs').insert({
         org_id: orgId,
         customer_id: customer_id ?? null,
         feature: 'minutes_generation',
-        model: 'claude-haiku-4-5-20251001',
+        model: MINUTES_MODEL,
         input_tokens: inputTokens,
         output_tokens: outputTokens,
         cost_usd: costUsd,
