@@ -2,6 +2,22 @@ import React from 'react';
 
 const MARKER_STYLE = 'background:linear-gradient(transparent 60%,#FFE066 60%);font-weight:700';
 
+// アウト返しチップ [[Q:質問文]] の編集画面(contentEditable)内での見た目。
+// contenteditable=false で「1文字のように丸ごと消せる」アトミックな部品にする。
+const CHIP_STYLE = 'display:inline-block;background:#EFF6FF;border:1px solid rgba(30,64,175,0.35);color:#1E3A8A;border-radius:10px;padding:0 8px;font-size:0.85em;font-weight:600;margin:0 2px;line-height:1.6;user-select:none;cursor:default;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:baseline';
+
+/**
+ * アウト返しチップのDOM要素を生成（エディタへのカーソル挿入用）
+ */
+export function createChipElement(question) {
+  const span = document.createElement('span');
+  span.setAttribute('data-chip', '1');
+  span.setAttribute('contenteditable', 'false');
+  span.style.cssText = CHIP_STYLE;
+  span.textContent = question;
+  return span;
+}
+
 /**
  * ==テキスト== 構文をパースしてマーカーハイライト付きで描画する
  */
@@ -26,7 +42,7 @@ export function renderMarkedScript(text, style = {}) {
 }
 
 /**
- * ==text== 構文 → contentEditable用HTML
+ * ==text== / [[Q:...]] 構文 → contentEditable用HTML
  */
 export function toHtml(text) {
   if (!text) return '';
@@ -35,16 +51,18 @@ export function toHtml(text) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+    .replace(/\[\[Q:([\s\S]+?)\]\]/g, `<span style="${CHIP_STYLE}" data-chip="1" contenteditable="false">$1</span>`)
     .replace(/==([\s\S]+?)==/g, `<span style="${MARKER_STYLE}" data-marker="1">$1</span>`)
     .replace(/\n/g, '<br>');
 }
 
 /**
- * contentEditableのHTML → ==text== 構文
+ * contentEditableのHTML → ==text== / [[Q:...]] 構文
  */
 export function fromHtml(html) {
   // 改行を含むマーカー span も拾えるよう `[\s\S]*?` を使用
-  let text = html.replace(/<span[^>]*data-marker="1"[^>]*>([\s\S]*?)<\/span>/gi, '==$1==');
+  let text = html.replace(/<span[^>]*data-chip="1"[^>]*>([\s\S]*?)<\/span>/gi, '[[Q:$1]]');
+  text = text.replace(/<span[^>]*data-marker="1"[^>]*>([\s\S]*?)<\/span>/gi, '==$1==');
   text = text.replace(/<br\s*\/?>/gi, '\n');
   text = text.replace(/<\/div>\s*<div[^>]*>/gi, '\n');
   text = text.replace(/<div[^>]*>/gi, '\n');

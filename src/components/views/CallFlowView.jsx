@@ -20,7 +20,8 @@ import { useSearchParams } from 'react-router-dom';
 import ClientCalendarPanel from '../common/ClientCalendarPanel';
 import MultiCalendarPanel from '../common/MultiCalendarPanel';
 import QuickAppoModal from '../common/QuickAppoModal';
-import { renderMarkedScript } from '../../utils/scriptMarker';
+import ScriptBody from '../common/ScriptBody';
+import RebuttalQuickSearch from '../common/RebuttalQuickSearch';
 import { resolveListContacts } from '../../utils/listContacts';
 
 // ============================================================
@@ -1708,10 +1709,15 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           <div style={{ height: 120, overflowY: 'auto', padding: '8px 16px' }}>
             {scriptTab === 'script' && (() => {
               const pdfs = Array.isArray(list.scriptPdfs) ? list.scriptPdfs : [];
+              // チップ・即時検索が参照するアウト返し（リスト別優先、なければ共通）
+              let rdScript = null;
+              try { rdScript = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
+              const rebuttal = rdScript || qaData;
               return (
                 <>
+                  <RebuttalQuickSearch rebuttal={rebuttal} compact />
                   {list.scriptBody
-                    ? renderMarkedScript(list.scriptBody, { fontSize: 11, color: C.textDark, lineHeight: 1.7 })
+                    ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} style={{ fontSize: 11, color: C.textDark, lineHeight: 1.7 }} />
                     : <div style={{ color: C.textLight, fontSize: 11 }}>スクリプト未設定</div>}
                   {pdfs.length > 0 && (
                     <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px dashed ' + C.borderLight }}>
@@ -2551,10 +2557,15 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           <div style={{ flex: 1, overflowY: 'auto', padding: space[5] }}>
             {scriptTab === 'script' && (() => {
               const pdfs = Array.isArray(list.scriptPdfs) ? list.scriptPdfs : [];
+              // チップ・即時検索が参照するアウト返し（リスト別優先、なければ共通）
+              let rdScript = null;
+              try { rdScript = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
+              const rebuttal = rdScript || qaData;
               return (
                 <>
+                  <RebuttalQuickSearch rebuttal={rebuttal} />
                   {list.scriptBody
-                    ? renderMarkedScript(list.scriptBody, { fontSize: font.size.sm, color: color.navyDeep, lineHeight: 1.8 })
+                    ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} style={{ fontSize: font.size.sm, color: color.navyDeep, lineHeight: 1.8 }} />
                     : <div style={{ color: color.gray400, fontSize: font.size.sm }}>スクリプト未設定</div>}
                   {pdfs.length > 0 && (
                     <div style={{ marginTop: 14, paddingTop: 10, borderTop: `1px dashed ${color.gray200}` }}>

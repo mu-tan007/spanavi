@@ -4,8 +4,9 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { DEFAULT_BASIC_SCRIPT } from '../../constants/scripts';
 import { fetchSetting, saveSetting, updateCallListRebuttal, updateCallListScript, uploadScriptPdf, deleteScriptPdfObject, updateCallListScriptPdfs, getScriptPdfSignedUrl } from '../../lib/supabaseWrite';
-import { renderMarkedScript, toHtml, fromHtml, isSelectionMarked, applyMarker, removeMarker } from '../../utils/scriptMarker';
+import { toHtml, fromHtml, isSelectionMarked, applyMarker, removeMarker, createChipElement } from '../../utils/scriptMarker';
 import PageHeader from '../common/PageHeader';
+import ScriptBody, { flattenRebuttal } from '../common/ScriptBody';
 
 export default function ScriptView({ isAdmin, clientData, callListData, setCallListData, embedded = false }) {
   const [basicScript, setBasicScript] = useState(DEFAULT_BASIC_SCRIPT);
@@ -32,17 +33,65 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
     return () => { window.removeEventListener('click', close); window.removeEventListener('scroll', close, true); };
   }, [ctxMenu]);
 
-  const handleContextMenu = useCallback((e, editorEl) => {
+  const handleContextMenu = useCallback((e, editorEl, rebuttal) => {
+    if (!editorEl) return;
     const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || !sel.toString().trim()) return; // 選択なしならデフォルトメニュー
+    const hasSelection = !!(sel && !sel.isCollapsed && sel.toString().trim());
+    const hasChips = flattenRebuttal(rebuttal).length > 0;
+    // 選択なし＆アウト返し未登録なら出すものが無いのでデフォルトメニュー
+    if (!hasSelection && !hasChips) return;
     e.preventDefault();
+    // チップ挿入位置: 選択があれば選択の直後、なければ右クリックした位置のキャレット
+    let range = null;
+    if (hasSelection) {
+      range = sel.getRangeAt(0).cloneRange();
+    } else if (document.caretRangeFromPoint) {
+      range = document.caretRangeFromPoint(e.clientX, e.clientY);
+    } else if (document.caretPositionFromPoint) {
+      const pos = document.caretPositionFromPoint(e.clientX, e.clientY);
+      if (pos) { range = document.createRange(); range.setStart(pos.offsetNode, pos.offset); range.collapse(true); }
+    }
     setCtxMenu({
       x: e.clientX,
       y: e.clientY,
       editorEl,
-      isMarked: isSelectionMarked(editorEl),
+      hasSelection,
+      hasChips,
+      isMarked: hasSelection ? isSelectionMarked(editorEl) : false,
+      range,
+      rebuttal,
     });
   }, []);
+
+  // アウト返しチップ挿入ダイアログ { editorEl, range, rebuttal, isBasic }
+  const [chipDialog, setChipDialog] = useState(null);
+  const [chipSelected, setChipSelected] = useState([]);
+
+  const handleInsertChips = () => {
+    if (!chipDialog) return;
+    const { editorEl, range, isBasic } = chipDialog;
+    if (!editorEl || chipSelected.length === 0) { setChipDialog(null); return; }
+    // 右クリック時に保存した位置がエディタ内なら使う。無効なら末尾に挿入
+    let r = (range && editorEl.contains(range.commonAncestorContainer)) ? range.cloneRange() : null;
+    if (!r) {
+      r = document.createRange();
+      r.selectNodeContents(editorEl);
+    }
+    r.collapse(false);
+    chipSelected.forEach(q => {
+      const chip = createChipElement(q);
+      r.insertNode(chip);
+      r.setStartAfter(chip);
+      r.collapse(true);
+      const sp = document.createTextNode(' ');
+      r.insertNode(sp);
+      r.setStartAfter(sp);
+      r.collapse(true);
+    });
+    if (isBasic) setBasicScriptEdit(fromHtml(editorEl.innerHTML));
+    setChipDialog(null);
+    setChipSelected([]);
+  };
   const [savedOk, setSavedOk] = useState(false);
   const [saving, setSaving] = useState(false);
   const [clientTabs, setClientTabs] = useState({});
@@ -248,13 +297,13 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
         <Card padding="md">
           {isAdmin ? (
             <>
-              <div style={{ fontSize: font.size.xs - 1, color: color.gray400, marginBottom: 6 }}>テキストを選択して右クリックでマーカーを付けられます</div>
+              <div style={{ fontSize: font.size.xs - 1, color: color.gray400, marginBottom: 6 }}>右クリックでマーカー（テキスト選択時）／アウト返しチップの挿入ができます</div>
               <div
                 ref={editorRef}
                 contentEditable
                 suppressContentEditableWarning
                 onInput={() => setBasicScriptEdit(fromHtml(editorRef.current?.innerHTML || ''))}
-                onContextMenu={e => handleContextMenu(e, editorRef.current)}
+                onContextMenu={e => handleContextMenu(e, editorRef.current, qaData)}
                 style={{
                   width: "100%", border: "none", outline: "none", minHeight: 180,
                   fontSize: font.size.base, color: color.textDark, fontFamily: font.family.sans,
@@ -272,7 +321,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
           ) : (
             <div style={{ minHeight: 120 }}>
               {basicScript
-                ? renderMarkedScript(basicScript, { fontSize: font.size.base, color: color.textDark, lineHeight: 1.8 })
+                ? <ScriptBody text={basicScript} rebuttal={qaData} style={{ fontSize: font.size.base, color: color.textDark, lineHeight: 1.8 }} />
                 : <span style={{ color: color.textLight, fontStyle: "italic" }}>（スクリプト未設定）</span>}
             </div>
           )}
@@ -336,7 +385,13 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                           }}
                           contentEditable
                           suppressContentEditableWarning
-                          onContextMenu={e => activeList?._supaId && handleContextMenu(e, clientEditorRefs.current[activeList._supaId])}
+                          onContextMenu={e => {
+                            if (!activeList?._supaId) return;
+                            // チップ候補はこのリストのアウト返し（未設定なら共通）
+                            let rb = null;
+                            try { rb = activeList.rebuttalData ? JSON.parse(activeList.rebuttalData) : null; } catch {}
+                            handleContextMenu(e, clientEditorRefs.current[activeList._supaId], rb || qaData);
+                          }}
                           style={{
                             fontSize: font.size.sm, color: color.textDark, lineHeight: 1.8,
                             whiteSpace: "pre-wrap", outline: "none", minHeight: 40,
@@ -369,9 +424,11 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                         </div>
                       </>
                     ) : (
-                      activeList?.scriptBody ? (
-                        renderMarkedScript(activeList.scriptBody, { fontSize: font.size.sm, color: color.textDark, lineHeight: 1.8 })
-                      ) : (
+                      activeList?.scriptBody ? (() => {
+                        let rb = null;
+                        try { rb = activeList.rebuttalData ? JSON.parse(activeList.rebuttalData) : null; } catch {}
+                        return <ScriptBody text={activeList.scriptBody} rebuttal={rb || qaData} style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: 1.8 }} />;
+                      })() : (
                         <div style={{ fontSize: font.size.sm, color: color.textLight, fontStyle: "italic" }}>スクリプト未設定</div>
                       )
                     )}
@@ -777,13 +834,20 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
       )}
 
       {/* 右クリックコンテキストメニュー */}
-      {ctxMenu && (
+      {ctxMenu && (() => {
+        const menuItemStyle = {
+          display: 'block', width: '100%', padding: '8px 16px',
+          border: 'none', background: 'transparent', textAlign: 'left',
+          fontSize: font.size.sm, color: color.gray700, cursor: 'pointer',
+          fontFamily: font.family.sans,
+        };
+        return (
         <div style={{
           position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 99999,
           background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.lg,
-          boxShadow: shadow.lg, padding: '4px 0', minWidth: 140,
+          boxShadow: shadow.lg, padding: '4px 0', minWidth: 180,
         }}>
-          {ctxMenu.isMarked ? (
+          {ctxMenu.hasSelection && (ctxMenu.isMarked ? (
             <button onClick={() => {
               removeMarker(ctxMenu.editorEl);
               // state同期
@@ -791,12 +855,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                 setBasicScriptEdit(fromHtml(editorRef.current.innerHTML));
               }
               setCtxMenu(null);
-            }} style={{
-              display: 'block', width: '100%', padding: '8px 16px',
-              border: 'none', background: 'transparent', textAlign: 'left',
-              fontSize: font.size.sm, color: color.gray700, cursor: 'pointer',
-              fontFamily: font.family.sans,
-            }}
+            }} style={menuItemStyle}
               onMouseEnter={e => e.target.style.background = color.gray100}
               onMouseLeave={e => e.target.style.background = 'transparent'}>
               取り消す
@@ -809,19 +868,107 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                 setBasicScriptEdit(fromHtml(editorRef.current.innerHTML));
               }
               setCtxMenu(null);
-            }} style={{
-              display: 'block', width: '100%', padding: '8px 16px',
-              border: 'none', background: 'transparent', textAlign: 'left',
-              fontSize: font.size.sm, color: color.gray700, cursor: 'pointer',
-              fontFamily: font.family.sans,
-            }}
+            }} style={menuItemStyle}
               onMouseEnter={e => e.target.style.background = color.gray100}
               onMouseLeave={e => e.target.style.background = 'transparent'}>
               <span style={{ background: 'linear-gradient(transparent 60%, #FFE066 60%)', fontWeight: font.weight.bold, padding: '0 2px', marginRight: 6 }}>A</span>強調する
             </button>
+          ))}
+          {ctxMenu.hasChips && (
+            <button onClick={() => {
+              setChipSelected([]);
+              setChipDialog({
+                editorEl: ctxMenu.editorEl,
+                range: ctxMenu.range,
+                rebuttal: ctxMenu.rebuttal,
+                isBasic: ctxMenu.editorEl === editorRef.current,
+              });
+              setCtxMenu(null);
+            }} style={{ ...menuItemStyle, borderTop: ctxMenu.hasSelection ? `1px solid ${color.borderLight || color.border}` : 'none' }}
+              onMouseEnter={e => e.target.style.background = color.gray100}
+              onMouseLeave={e => e.target.style.background = 'transparent'}>
+              <span style={{
+                display: 'inline-block', background: alpha(color.info, 0.1),
+                border: `1px solid ${alpha(color.navyLight, 0.4)}`, color: color.navyDark,
+                borderRadius: radius.pill, padding: '0 6px', fontSize: font.size.xs - 1,
+                fontWeight: font.weight.semibold, marginRight: 6,
+              }}>Q</span>
+              アウト返しチップを挿入
+            </button>
           )}
         </div>
-      )}
+        );
+      })()}
+
+      {/* アウト返しチップ挿入ダイアログ */}
+      {chipDialog && (() => {
+        const groups = [
+          ['受付対応', (chipDialog.rebuttal?.reception || []).filter(it => (it.q || '').trim())],
+          ['キーマン対応', (chipDialog.rebuttal?.president || []).filter(it => (it.q || '').trim())],
+        ];
+        const toggle = (q) => setChipSelected(prev =>
+          prev.includes(q) ? prev.filter(x => x !== q) : [...prev, q]);
+        return (
+          <div onClick={() => { setChipDialog(null); setChipSelected([]); }}
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{
+                width: '90vw', maxWidth: 540, maxHeight: '75vh', borderRadius: radius.lg,
+                background: color.white, boxShadow: shadow.xl,
+                display: 'flex', flexDirection: 'column', overflow: 'hidden',
+              }}>
+              <div style={{
+                background: color.navy, color: color.white, padding: '12px 20px',
+                fontSize: font.size.base, fontWeight: font.weight.semibold, flexShrink: 0,
+              }}>
+                アウト返しチップを挿入
+              </div>
+              <div style={{ padding: '14px 20px', overflowY: 'auto', flex: 1 }}>
+                <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 10, lineHeight: 1.6 }}>
+                  選んだ質問が、右クリックした位置にチップとして入ります。架電者がスクリプト上のチップを押すと、その場で回答が表示されます。
+                </div>
+                {groups.map(([label, items]) => items.length > 0 && (
+                  <div key={label} style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.gray400, marginBottom: 6 }}>{label}</div>
+                    {items.map((it, i) => (
+                      <label key={i} style={{
+                        display: 'flex', alignItems: 'flex-start', gap: 8,
+                        padding: '6px 10px', marginBottom: 4, borderRadius: radius.md,
+                        background: chipSelected.includes(it.q) ? alpha(color.navyLight, 0.08) : color.gray50,
+                        border: `1px solid ${chipSelected.includes(it.q) ? alpha(color.navyLight, 0.4) : 'transparent'}`,
+                        cursor: 'pointer',
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={chipSelected.includes(it.q)}
+                          onChange={() => toggle(it.q)}
+                          style={{ accentColor: color.navy, marginTop: 3 }}
+                        />
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ display: 'block', fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.gray700 }}>Q: {it.q}</span>
+                          <span style={{ display: 'block', fontSize: font.size.xs, color: color.textMid, lineHeight: 1.5, marginTop: 2 }}>A: {it.a}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <div style={{
+                padding: '10px 20px', borderTop: `1px solid ${color.border}`, flexShrink: 0,
+                display: 'flex', justifyContent: 'flex-end', gap: 8,
+              }}>
+                <Button size="sm" variant="outline" onClick={() => { setChipDialog(null); setChipSelected([]); }}>キャンセル</Button>
+                <Button size="sm" variant="primary" disabled={chipSelected.length === 0} onClick={handleInsertChips}>
+                  挿入する{chipSelected.length > 0 ? `（${chipSelected.length}件）` : ''}
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
