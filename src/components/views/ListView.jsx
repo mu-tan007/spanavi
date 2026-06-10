@@ -5,6 +5,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge } from '../ui';
 import { updateCallList, insertCallList, archiveCallList, restoreCallList, uploadCompanyOverviewPdf, deleteCompanyOverviewPdfObject, updateCallListCompanyOverviewPdfs, getCompanyOverviewPdfSignedUrl } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
+import { applyTaxIfPretax } from '../../utils/money';
 import { useEngagements } from '../../hooks/useEngagements';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -134,8 +135,8 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards, isInternFee =
     return <span style={{ color: color.textLight, fontSize: 10 }}>—</span>;
   }
   const isFixed = head.calc_type === 'fixed_per_appo' || head.basis === '-';
-  const withTax = (p) => head.tax === '税別' ? Math.round((p || 0) * 1.1) : (p || 0);
-  const withTaxIntro = (p) => introHead?.tax === '税別' ? Math.round((p || 0) * 1.1) : (p || 0);
+  const withTax = (p) => applyTaxIfPretax(p, head.tax);
+  const withTaxIntro = (p) => applyTaxIfPretax(p, introHead?.tax);
   const hasIntro = !!introHead;
   const introIsFixed = hasIntro && (introHead.calc_type === 'fixed_per_appo' || introHead.basis === '-');
   let label;

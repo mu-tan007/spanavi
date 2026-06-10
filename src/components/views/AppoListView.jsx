@@ -5,6 +5,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
+import { applyTaxIfPretax, calcInvoiceTax, calcInternReward } from '../../utils/money';
 import { formatCurrency } from '../../utils/formatters';
 import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage, updateCallListItem, saveSentInvoiceArchive, createInvoiceSignedUrl, invokeSendInvoiceToChannel } from '../../lib/supabaseWrite';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
@@ -333,8 +334,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   // (sales_amount は税込額として運用しているため。AppoReportModal/TemplateDriven も applyTax 済の額を保存している)
   const initialSalesForReward = (rewardRow) => {
     if (!rewardRow) return 0;
-    const p = Number(rewardRow.price || 0);
-    return rewardRow.tax === '税別' ? Math.round(p * 1.1) : p;
+    return applyTaxIfPretax(rewardRow.price, rewardRow.tax);
   };
 
   // engagements + categories マスタ (商材→タイプ 2階層フィルタ用)
@@ -746,10 +746,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       // 明細行はinvoiceItems stateから（編集済みの値を使用）
       const items = invoiceItems;
       const subtotal = items.reduce((s, it) => s + it.amount, 0);
-      const tax = taxType === '税別'
-        ? Math.floor(subtotal * 0.1)
-        : Math.floor(subtotal - subtotal / 1.1);  // 内税の消費税額
-      const total = taxType === '税別' ? subtotal + tax : subtotal;
+      const { tax, total } = calcInvoiceTax(subtotal, taxType);
 
       // 月ラベル
       const monthNum = parseInt(invoiceMonth.split('-')[1], 10);
@@ -2513,10 +2510,9 @@ MASP 篠宮`}
                         // 該当クライアントの calc_type を判定
                         const client = clientData.find(c => c.company === editForm.client);
                         const rewardRow = client?.rewardType ? rewardMaster.find(r => r.id === client.rewardType) : null;
-                        const isFixedPerAppo = rewardRow?.calc_type === 'fixed_per_appo';
                         // calc_type='fixed_per_appo' の場合は sales=reward 一律 (個別レート無視)
-                        // それ以外 (rate) は sales × member.incentive_rate
-                        const newReward = isFixedPerAppo ? newSales : (rate ? Math.round(newSales * rate) : 0);
+                        // それ以外 (rate) は sales × member.incentive_rate（utils/money.js でテスト固定）
+                        const newReward = calcInternReward(newSales, rate, rewardRow?.calc_type);
                         setEditForm(p => ({ ...p, sales: newSales, reward: newReward }));
                       }}
                       style={inputStyle}

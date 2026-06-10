@@ -7,6 +7,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { invokeAppoAiReport, invokeTranscribeRecording, fetchZoomUserId, insertAppointment, fetchReportTemplates } from '../../lib/supabaseWrite';
 import { invokeGenerateCompanyDossier } from '../../lib/dossierApi';
 import { getOrgId } from '../../lib/orgContext';
+import { applyTaxIfPretax } from '../../utils/money';
 import { MemberSuggestInput } from './AppoListView';
 import TemplateDrivenAppoReportModal from './TemplateDrivenAppoReportModal';
 import { resolveApplicableTemplates } from '../../lib/templateRenderer';
@@ -63,7 +64,7 @@ function LegacyAppoReportModal({ row, list, currentUser = '', members = [], onCl
   // フォームオープン時に ourSales も計算済みにする
   const initialOurSales = (() => {
     if (!rewardRows.length) return '';
-    const applyTax = p => rewardRows[0].tax === '税別' ? Math.round(p * 1.1) : p;
+    const applyTax = p => applyTaxIfPretax(p, rewardRows[0].tax);
     if (isFixed) return String(applyTax(rewardRows[0].price));
     const basis = rewardRows[0].basis;
     const amount = basis === '売上高'
@@ -154,7 +155,7 @@ function LegacyAppoReportModal({ row, list, currentUser = '', members = [], onCl
   // REWARD_MASTERから当社売上を自動計算
   const computeOurSales = (salesYen, netYen) => {
     if (!rewardRows.length) return null;
-    const applyTax = p => rewardRows[0].tax === '税別' ? Math.round(p * 1.1) : p;
+    const applyTax = p => applyTaxIfPretax(p, rewardRows[0].tax);
     const basis = rewardRows[0].basis;
     if (basis === '-') return applyTax(rewardRows[0].price); // 固定単価
     const amount = basis === '売上高' ? salesYen : netYen;

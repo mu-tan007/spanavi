@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Badge, Select } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { applyTaxIfPretax } from '../../utils/money';
 import {
   insertAppointment, invokeTranscribeAndExtract,
   invokeLookupCompanyHomepage, invokeGetZoomRecording, updateCallListItem,
@@ -142,7 +143,7 @@ export default function TemplateDrivenAppoReportModal({
   useEffect(() => {
     if (ourSalesEdited) return;
     if (!rewardRows.length) return;
-    const applyTax = p => rewardRows[0].tax === '税別' ? Math.round(p * 1.1) : p;
+    const applyTax = p => applyTaxIfPretax(p, rewardRows[0].tax);
     const basis = rewardRows[0].basis;
     let computed = null;
     if (basis === '-') {
@@ -439,7 +440,7 @@ export default function TemplateDrivenAppoReportModal({
       const isFixedPerAppo = rewardRows.length > 0 && rewardRows[0].calc_type === 'fixed_per_appo';
       const initialOurSales = (() => {
         if (!rewardRows.length) return 0;
-        const applyTax = p => rewardRows[0].tax === '税別' ? Math.round(p * 1.1) : p;
+        const applyTax = p => applyTaxIfPretax(p, rewardRows[0].tax);
         if (isFixed) return applyTax(rewardRows[0].price);
         const basis = rewardRows[0].basis;
         const amount = basis === '売上高'

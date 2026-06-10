@@ -3,6 +3,7 @@ import React from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag, DataTable } from '../ui';
+import { calcMonthlyPayroll, calcReferralBonuses } from '../../utils/money';
 import { calcRankAndRate } from '../../utils/calculations';
 import { supabase } from '../../lib/supabase';
 import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, fetchPayrollAdjustment, upsertPayrollAdjustment, markMembersReferralPaid, clearMembersReferralPaid, fetchPayrollInvoicesByMonth } from '../../lib/supabaseWrite';
@@ -13,9 +14,6 @@ import PayrollSelfDetailView from './PayrollSelfDetailView';
 import { useUrlState } from '../../hooks/useUrlState';
 
 const PAYROLL_DATA = [];
-
-// 報酬計算に含めるステータス（アポ取得・事前確認済・面談済）
-const PAYROLL_COUNTABLE = new Set(['アポ取得', '事前確認済', '面談済']);
 
 // ── Design tokens ──────────────────────────────────────────────────────────
 const TH_BG   = '#0D2247';          // テーブルヘッダー背景
@@ -206,141 +204,26 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
     ? new Date(snapshots[0].confirmed_at).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
     : null;
 
-  // リファラル採用インセンティブ計算
-  const referralMap = React.useMemo(() => {
-    const map = {};
+  // リファラル採用インセンティブ計算（ロジック本体は utils/money.js でテスト固定）
+  const referralCalc = React.useMemo(() => {
     const sel = payrollMonths.find(x => x.label === monthTab) ?? { year: 2026, month: 3 };
-    const monthStart = new Date(sel.year, sel.month - 1, 1);
-    const monthEnd = new Date(sel.year, sel.month, 0);
-    members.forEach(m => {
-      if (typeof m !== 'object' || !m.referrerName || !m.operationStartDate) return;
-      // 他月で既に支払済なら除外（同じ被紹介者の二重支給防止）
-      if (m.referralPaidPayMonth && m.referralPaidPayMonth !== payMonth) return;
-      const opDate = new Date(m.operationStartDate);
-      const deadline = new Date(opDate);
-      deadline.setDate(deadline.getDate() + 30);
-      const salesWithin30Days = appoData
-        .filter(a =>
-          a.getter === m.name &&
-          !a.isProspecting &&
-          PAYROLL_COUNTABLE.has(a.status) &&
-          a.appointmentDate && new Date(a.appointmentDate) >= opDate && new Date(a.appointmentDate) <= deadline
-        )
-        .reduce((sum, a) => sum + (a.sales || 0), 0);
-      if (salesWithin30Days >= 100000 && opDate <= monthEnd && deadline >= monthStart) {
-        map[m.referrerName] = (map[m.referrerName] || 0) + 50000;
-      }
+    return calcReferralBonuses({
+      members,
+      appoData,
+      payMonth,
+      monthStart: new Date(sel.year, sel.month - 1, 1),
+      monthEnd: new Date(sel.year, sel.month, 0),
     });
-    return map;
   }, [members, appoData, monthTab, payMonth]);
-
+  const referralMap = referralCalc.bonusByReferrer;
   // 当月支払対象の被紹介者IDリスト（確定/解除時にマーキング更新するため）
-  const referralPaidMemberIds = React.useMemo(() => {
-    const sel = payrollMonths.find(x => x.label === monthTab) ?? { year: 2026, month: 3 };
-    const monthStart = new Date(sel.year, sel.month - 1, 1);
-    const monthEnd = new Date(sel.year, sel.month, 0);
-    const ids = [];
-    members.forEach(m => {
-      if (typeof m !== 'object' || !m.referrerName || !m.operationStartDate || !m._supaId) return;
-      if (m.referralPaidPayMonth && m.referralPaidPayMonth !== payMonth) return;
-      const opDate = new Date(m.operationStartDate);
-      const deadline = new Date(opDate);
-      deadline.setDate(deadline.getDate() + 30);
-      const salesWithin30Days = appoData
-        .filter(a =>
-          a.getter === m.name &&
-          !a.isProspecting &&
-          PAYROLL_COUNTABLE.has(a.status) &&
-          a.appointmentDate && new Date(a.appointmentDate) >= opDate && new Date(a.appointmentDate) <= deadline
-        )
-        .reduce((sum, a) => sum + (a.sales || 0), 0);
-      if (salesWithin30Days >= 100000 && opDate <= monthEnd && deadline >= monthStart) {
-        ids.push(m._supaId);
-      }
-    });
-    return ids;
-  }, [members, appoData, monthTab, payMonth]);
+  const referralPaidMemberIds = referralCalc.paidMemberIds;
 
-  // 月次報酬計算
-  const calcData = React.useMemo(() => {
-    const yyyymm = payMonth;
-    const monthAppos = (appoData || []).filter(a => {
-      const dateKey = (a.meetDate || a.getDate || '').slice(0, 7);
-      return dateKey === yyyymm && PAYROLL_COUNTABLE.has(a.status);
-    });
-    const memberMap = {};
-    members.forEach(m => { if (typeof m === 'object' && m.name) memberMap[m.name] = m; });
-    // Phase 5: 役割は member_engagements.role_id 経由で判定（members.position は使わない）
-    const getRole = (mem) => (mem && mem.id) ? (memberRoleMap[mem.id] || '') : '';
-    const teamSales = {};
-    const byGetter = {};
-    monthAppos.forEach(a => {
-      const mem = memberMap[a.getter] || {};
-      const { rank, rate } = calcRankAndRate(mem.totalSales || 0, orgSettings);
-      const team = mem.team || '';
-      if (!byGetter[a.getter]) {
-        byGetter[a.getter] = {
-          name: a.getter, team, rank, rate,
-          role: getRole(mem),
-          totalSales: mem.totalSales || 0,
-          sales: 0, incentive: 0, teamBonus: 0, total: 0,
-        };
-      }
-      // クライアント開拓リスト由来のアポは売上集計・チームボーナス計算から除外
-      // インターン報酬（reward / intern_reward）はクライアント開拓でも計上する
-      if (!a.isProspecting) {
-        byGetter[a.getter].sales += a.sales || 0;
-        teamSales[team] = (teamSales[team] || 0) + (a.sales || 0);
-      }
-      byGetter[a.getter].incentive += a.reward || 0;
-    });
-    members.forEach(m => {
-      if (typeof m !== 'object' || !m.name) return;
-      const role = getRole(m);
-      if (!['リーダー', '副リーダー'].includes(role)) return;
-      if (byGetter[m.name]) return;
-      const { rank, rate } = calcRankAndRate(m.totalSales || 0, orgSettings);
-      byGetter[m.name] = {
-        name: m.name, team: m.team || '', rank, rate,
-        role, totalSales: m.totalSales || 0,
-        sales: 0, incentive: 0, teamBonus: 0, total: 0,
-      };
-    });
-    // リーダーボーナス段階料率（org_settingsから取得、なければデフォルト）
-    let leaderTiers = [
-      { threshold: 0, rate: 0.5 }, { threshold: 1000000, rate: 1.0 }, { threshold: 2000000, rate: 1.5 },
-      { threshold: 3000000, rate: 2.0 }, { threshold: 4000000, rate: 2.5 }, { threshold: 5000000, rate: 3.0 },
-      { threshold: 6000000, rate: 3.5 }, { threshold: 7000000, rate: 4.0 }, { threshold: 8000000, rate: 4.5 },
-      { threshold: 9000000, rate: 5.0 }, { threshold: 10000000, rate: 5.5 },
-    ];
-    if (orgSettings.leader_bonus_tiers) {
-      try {
-        const parsed = JSON.parse(orgSettings.leader_bonus_tiers);
-        if (Array.isArray(parsed) && parsed.length > 0) leaderTiers = parsed;
-      } catch { /* use defaults */ }
-    }
-    const subleaderRate = parseFloat(orgSettings.subleader_bonus_rate) || 1.2;
-    const getLeaderRate = (sales) => {
-      const sorted = [...leaderTiers].sort((a, b) => b.threshold - a.threshold);
-      const tier = sorted.find(t => sales >= t.threshold);
-      return tier ? tier.rate : 0;
-    };
-
-    [...new Set(Object.values(byGetter).map(p => p.team))].forEach(team => {
-      const sales = teamSales[team] || 0;
-      const tm = Object.values(byGetter).filter(p => p.team === team);
-      const leaders = tm.filter(p => p.role === 'リーダー');
-      const subs = tm.filter(p => p.role === '副リーダー');
-      // リーダー: チーム売上 × 段階料率（リーダーが複数の場合は均等配分）
-      const leaderPool = Math.round(sales * getLeaderRate(sales) / 100);
-      leaders.forEach(p => { p.teamBonus = leaders.length ? Math.round(leaderPool / leaders.length) : 0; });
-      // 副リーダー: チーム売上 × 副リーダー率 ÷ 副リーダー人数
-      const subPool = Math.round(sales * subleaderRate / 100);
-      subs.forEach(p => { p.teamBonus = subs.length ? Math.round(subPool / subs.length) : 0; });
-    });
-    Object.values(byGetter).forEach(p => { p.total = p.incentive + p.teamBonus; });
-    return Object.values(byGetter);
-  }, [appoData, members, payMonth, orgSettings, memberRoleMap]);
+  // 月次報酬計算（ロジック本体は utils/money.js でテスト固定）
+  const calcData = React.useMemo(
+    () => calcMonthlyPayroll({ appoData, members, payMonth, orgSettings, memberRoleMap }),
+    [appoData, members, payMonth, orgSettings, memberRoleMap],
+  );
 
   const data = React.useMemo(() => {
     if (!isConfirmed) return calcData;

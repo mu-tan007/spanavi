@@ -7,6 +7,7 @@ import {
   priorityScore, priorityRank,
 } from './utils';
 import { updateClient } from '../../../lib/supabaseWrite';
+import { applyTaxIfPretax } from '../../../utils/money';
 
 // 報酬体系 1件分のチップ (ホバーで段階別 tier 詳細をツールチップ表示)
 function RewardChip({ rw, rewardMaster }) {
@@ -21,7 +22,7 @@ function RewardChip({ rw, rewardMaster }) {
   const isFixed = head?.calc_type === 'fixed_per_appo' || head?.basis === '-';
 
   const fmtPrice = (price) => {
-    const p = head?.tax === '税別' ? Math.round(price * 1.1) : price;
+    const p = applyTaxIfPretax(price, head?.tax);
     return '¥' + Number(p || 0).toLocaleString();
   };
 

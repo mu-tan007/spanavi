@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { color, space, radius, font, alpha } from '../../constants/design';
 import { Button, Card, Badge, DataTable } from '../ui';
 import { calcRankAndRate } from '../../utils/calculations';
+import { PAYROLL_COUNTABLE } from '../../utils/money';
 import {
   fetchOrgSettings,
   fetchMemberPayrollAdjustments,
@@ -14,7 +15,6 @@ import { getOrgId } from '../../lib/orgContext';
 import PageHeader from '../common/PageHeader';
 import PayrollInvoiceGenerator from './PayrollInvoiceGenerator';
 
-const PAYROLL_COUNTABLE = new Set(['アポ取得', '事前確認済', '面談済']);
 const MONO = "'JetBrains Mono'";
 
 const fmtYen = (v) => (v > 0 ? '¥' + Math.round(v).toLocaleString() : '-');

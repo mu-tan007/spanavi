@@ -1,3 +1,29 @@
+# 金額計算のテスト固定 + Edge Function同期チェック（基盤強化①）
+
+お金の計算規約（税別×1.1、sales_amount税込、報酬=売上×rate、紹介フィー¥50k等）が
+コンポーネント内に散在し「運用の記憶」で守られている状態を、共通モジュール+テストで固定する。
+
+## 計画
+- [x] 1. `src/utils/money.js` 新設: applyTaxIfPretax / calcInvoiceTax / calcInternReward /
+       PAYROLL_COUNTABLE / calcMonthlyPayroll（給与画面の月次報酬計算を抽出）/
+       calcReferralBonuses（紹介フィー+重複排除を抽出）
+- [x] 2. テスト: `src/utils/money.test.js` + `src/utils/calculations.test.js`（calcRankAndRate）
+- [x] 3. 呼び出し元の置換（挙動同一のリファクタ）:
+  - PayrollView の referralMap / referralPaidMemberIds / calcData 3つのuseMemo
+  - AppoListView: initialSalesForReward / 請求書税計算(L749) / インターン報酬再計算(L2519)
+  - applyTax重複: AppoReportModal×2 / TemplateDrivenAppoReportModal×2 / CRMTableRow / ListView×2
+  - PayrollSelfDetailView の PAYROLL_COUNTABLE を共通importに
+- [x] 4. `scripts/check-edge-functions.mjs`: repo⇔本番のEdge Function乖離検出
+       （本番にあるが repo に無い / repo にあるが未デプロイ / repo の方が新しい=デプロイ漏れ）
+- [x] 5. GitHub Actions CI（push/PRで vitest + build、tokenがあれば同期チェック）
+- [x] 6. `npm test` 全通過 + `npm run build` 通過 → push
+
+## 残課題（次回パス）
+- AppoListView の内税/外税インライン計算の残り（L729/855/862/1696/1838/2287）を calcInvoiceTax / toPretax に置換
+- 本番にあるが repo に無い Edge Function（deal-*系, create_client_credentials, invite_client 等）のソース回収
+
+---
+
 # スパキャリ セッション動画アップロード＋AI議事録の本実装
 
 ロープレ機能（Whisper文字起こし→Claude分析）と同じ要領で、スパキャリの受講生面談動画から議事録を生成できるようにする。
