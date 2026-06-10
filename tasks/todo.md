@@ -20,7 +20,15 @@
 
 ## 残課題（次回パス）
 - AppoListView の内税/外税インライン計算の残り（L729/855/862/1696/1838/2287）を calcInvoiceTax / toPretax に置換
-- 本番にあるが repo に無い Edge Function（deal-*系, create_client_credentials, invite_client 等）のソース回収
+- 本番にあるが repo に無い Edge Function 28本（deal-*系, create_client_credentials, invite_client, cf-stream 等）のソース回収
+- 同期チェックWARNの stale 候補の棚卸し（get-zoom-recording=50日差, invite-member=3週差,
+  post-appo-to-slack, analyze-rejection-recording, auto-close-sessions 等 → repoの方が新しい。再デプロイ要否を確認）
+
+## 完了メモ（2026-06-10 追記）
+- GitHub Secrets に SUPABASE_ACCESS_TOKEN 設定済み → CIの同期チェック有効・グリーン確認済み
+- 未デプロイだった process-contact-voice / spacareer-slack-channel-create をデプロイ済み
+- CRM Phase1 の本番未適用分（contact_voice_inputs/contact-audioバケット/FK）を補完適用済み
+  → CRM音声入力（担当者メモ/クライアント更新/新規登録）はインフラ揃った。UI実テストが次の確認ポイント
 
 ---
 
