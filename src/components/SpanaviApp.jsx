@@ -283,15 +283,18 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   // useCallQueue は callListData を closure 参照する設計なので、 依存変更で都度 hook 再評価される
   const { openQueue: restoreQueue } = useCallQueue({ setCallFlowScreen, callListData });
 
-  // プッシュ通知の自動購読リフレッシュ。
-  // 既に通知を許可済み（permission==='granted'）なら、ログインのたびに購読を冪等 upsert し、
-  // 「設定でONにし忘れ」「SW更新や期限切れで購読が無効化」されたまま通知が来ない事故を防ぐ。
-  // permission が 'default'（未許可）/'denied' の場合は何もしない（許可ダイアログは MyPage の手動操作に委ねる）。
+  // プッシュ通知のデフォルトON。ログインのたびに購読を冪等 upsert する。
+  //  - permission==='granted': 無言で購読を最新化（設定し忘れ・SW更新/期限切れの取りこぼし防止）
+  //  - permission==='default': 自動で許可をリクエスト（subscribeToPush 内で requestPermission）。
+  //      → メンバーは「ログインするだけ」で通知ONになる。許可ダイアログでブロックしない限り購読される。
+  //  - permission==='denied': ブラウザ仕様上こちらから購読できない（ユーザーがブラウザ設定で解除要）。
+  // ※ Web Push はブラウザが鍵付きで購読を生成するため、サーバー側から他人の端末を購読登録できない。
+  //    全員ONに最も近いのが「ログイン時の自動許可+購読」。
   useEffect(() => {
     if (!userId || !orgId) return;
-    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    if (typeof Notification === 'undefined' || Notification.permission === 'denied') return;
     subscribeToPush(userId, orgId).catch(e =>
-      console.warn('[Push] auto-resubscribe failed:', e?.message || e)
+      console.warn('[Push] auto-subscribe failed:', e?.message || e)
     );
   }, [userId, orgId]);
   useEffect(() => {
