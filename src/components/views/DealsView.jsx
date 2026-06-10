@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
@@ -7,19 +7,23 @@ import { useEngagementClients } from '../../hooks/useEngagementClients';
 import { useClientEngagements } from '../../hooks/useClientEngagements';
 import { useUrlState } from '../../hooks/useUrlState';
 import { getOrgId } from '../../lib/orgContext';
+import { supabase } from '../../lib/supabase';
 import { invokeAdminImpersonateClient } from '../../lib/supabaseWrite';
 import ClientSelector from '../common/ClientSelector';
 import PageHeader from '../common/PageHeader';
 import CallResultsTab from './deals/CallResultsTab';
 import AppointmentsTab from './deals/AppointmentsTab';
 import RejectionCandidatesTab from './deals/RejectionCandidatesTab';
+import BuyerMatchingNeedsTab from './deals/BuyerMatchingNeedsTab';
 
-const TABS = [
+const BASE_TABS = [
   { id: 'calls',     label: '架電結果' },
   { id: 'appos',     label: '獲得アポ詳細' },
   { id: 'rejection', label: '再アプローチ候補' },
 ];
-const TAB_IDS = TABS.map(t => t.id);
+// 'needs'(ニーズヒアリング) は買い手マッチングのリストを持つクライアント選択時のみ表示。
+// useUrlState の allowed には常に含めておく(URL直叩き/リロード対応)。
+const TAB_IDS = [...BASE_TABS.map(t => t.id), 'needs'];
 
 export default function DealsView({ isAdmin = false, currentUser = '' }) {
   const { currentEngagement } = useEngagements();
@@ -37,6 +41,41 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
     () => clients.find(c => c.id === selectedClientId) || null,
     [clients, selectedClientId]
   );
+
+  // 買い手マッチング(slug=matching)の架電リストを持つクライアントだけ
+  // 「ニーズヒアリング」タブを出す(クライアントポータルと同条件・リスト駆動)
+  const [hasMatchingList, setHasMatchingList] = useState(false);
+  useEffect(() => {
+    if (!selectedClientId) { setHasMatchingList(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: engs } = await supabase.from('engagements').select('id').eq('slug', 'matching');
+        const matchingIds = new Set((engs || []).map(e => e.id));
+        let has = false;
+        if (matchingIds.size) {
+          const { data: mlists } = await supabase.from('call_lists').select('engagement_id').eq('client_id', selectedClientId);
+          has = (mlists || []).some(l => matchingIds.has(l.engagement_id));
+        }
+        if (!cancelled) setHasMatchingList(has);
+      } catch (e) {
+        console.warn('[DealsView] matching list check failed:', e);
+        if (!cancelled) setHasMatchingList(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedClientId]);
+
+  // 表示するタブ(needs は買い手マッチング契約クライアント選択時のみ追加)
+  const TABS = useMemo(
+    () => (hasMatchingList ? [...BASE_TABS, { id: 'needs', label: 'ニーズヒアリング' }] : BASE_TABS),
+    [hasMatchingList]
+  );
+
+  // needs タブを開いたままタブが消える状況(別クライアント選択等)では架電結果へ戻す
+  useEffect(() => {
+    if (activeTab === 'needs' && !hasMatchingList) setActiveTab('calls');
+  }, [activeTab, hasMatchingList, setActiveTab]);
 
   // クライアントが扱う engagement 一覧 (appointments ベース)
   const orgId = getOrgId();
@@ -223,6 +262,11 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
           <RejectionCandidatesTab
             client={selectedClient}
             filterEngagementId={selectedClient && clientEngagements.length >= 2 ? effectiveSubEngagementId : null}
+          />
+        )}
+        {activeTab === 'needs' && selectedClient && (
+          <BuyerMatchingNeedsTab
+            client={{ id: selectedClient.id, name: selectedClient.name, org_id: selectedClient.orgId }}
           />
         )}
       </div>
