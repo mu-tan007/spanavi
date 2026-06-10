@@ -4,8 +4,9 @@ import PageHeader from '../common/PageHeader';
 import CallResultsTab from '../views/deals/CallResultsTab';
 import AppointmentsTab from '../views/deals/AppointmentsTab';
 import RejectionCandidatesTab from '../views/deals/RejectionCandidatesTab';
+import BuyerMatchingNeedsTab from '../views/deals/BuyerMatchingNeedsTab';
 
-const TABS = [
+const BASE_TABS = [
   { id: 'calls',     label: '架電結果' },
   { id: 'appos',     label: '獲得アポ詳細' },
   { id: 'rejection', label: '再アプローチ候補' },
@@ -20,6 +21,12 @@ export default function ClientDealsView({ client, canEditDossier = false, adminA
   // Ctrl+←/→ は事業タブ切替に統一されたため subtab 切替ショートカットは廃止
 
   if (!client) return null;
+
+  // 買い手マッチング（matching）の架電リストを持つクライアントだけ
+  // 「ニーズヒアリング」タブを出す（リスト駆動）
+  const TABS = client.hasMatchingList
+    ? [...BASE_TABS, { id: 'needs', label: 'ニーズヒアリング' }]
+    : BASE_TABS;
 
   return (
     <div style={{
@@ -75,6 +82,9 @@ export default function ClientDealsView({ client, canEditDossier = false, adminA
         )}
         {activeTab === 'rejection' && (
           <RejectionCandidatesTab client={{ id: client.id, name: client.name }} />
+        )}
+        {activeTab === 'needs' && (
+          <BuyerMatchingNeedsTab client={{ id: client.id, name: client.name, org_id: client.org_id }} />
         )}
       </div>
     </div>

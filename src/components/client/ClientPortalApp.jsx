@@ -58,7 +58,20 @@ export default function ClientPortalApp() {
         .eq('auth_user_id', session.user.id)
         .maybeSingle();
       if (cancelled) return;
-      setClient(data || null);
+      if (!data) { setClient(null); setLoading(false); return; }
+      // 買い手マッチング（matching）の架電リストを持つクライアントだけ
+      // ポータルに「ニーズヒアリング」タブを出す（リスト駆動・自動）
+      let hasMatchingList = false;
+      try {
+        const { data: engs } = await supabase.from('engagements').select('id').eq('slug', 'matching');
+        const matchingIds = new Set((engs || []).map(e => e.id));
+        if (matchingIds.size) {
+          const { data: mlists } = await supabase.from('call_lists').select('engagement_id').eq('client_id', data.id);
+          hasMatchingList = (mlists || []).some(l => matchingIds.has(l.engagement_id));
+        }
+      } catch (e) { console.warn('[ClientPortalApp] matching list check failed:', e); }
+      if (cancelled) return;
+      setClient({ ...data, hasMatchingList });
       setLoading(false);
     })();
     return () => { cancelled = true; };

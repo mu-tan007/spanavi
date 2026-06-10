@@ -111,6 +111,7 @@ export function useSpanaviData(authOrgId) {
           e.id,
           {
             engagementName: e.name || '',
+            engagementSlug: e.slug || '',
             productCategoryName: e.category_id ? (categoryNameMap.get(e.category_id) || '') : '',
           },
         ])
@@ -126,6 +127,7 @@ export function useSpanaviData(authOrgId) {
         type: cl.list_type || '',
         productCategoryName: meta?.productCategoryName || '',
         engagementName: meta?.engagementName || '',
+        engagementSlug: meta?.engagementSlug || '',
         status: cl.status || '架電可能',
         industry: cl.industry || '',
         count: cl.total_count || 0,

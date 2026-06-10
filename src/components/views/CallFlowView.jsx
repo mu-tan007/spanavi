@@ -9,7 +9,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getScriptPdfSignedUrl, getCompanyOverviewPdfSignedUrl, updateCallListCautions } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getScriptPdfSignedUrl, getCompanyOverviewPdfSignedUrl, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -226,6 +226,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [localMemo, setLocalMemo] = useState('');
   const [savingMemo, setSavingMemo] = useState(false);
   const [appoModal, setAppoModal] = useState(null); // holds selectedRow when アポ獲得 is clicked
+  const [needsModal, setNeedsModal] = useState(null); // 買い手マッチング ニーズヒアリング: holds selectedRow when 開く
   const [aiGenerating, setAiGenerating] = useState({}); // { [itemId]: true }
   const [aiError, setAiError] = useState({}); // { [itemId]: 'parse_failed'|'not_found'|'error' }
   const [scriptPanelOpen, setScriptPanelOpen] = useState(true);
@@ -1036,6 +1037,27 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     }
   };
 
+  // 買い手マッチング ニーズヒアリング保存（アポとは独立。売上/報酬計算には一切干渉しない）
+  const handleNeedsSave = async (fields) => {
+    if (!needsModal) return false;
+    const { error } = await insertBuyerNeedsHearing({
+      company_name: needsModal.company,
+      item_id: needsModal.id || null,
+      list_id: list?._supaId || null,
+      client_id: list?.client_id || null,
+      getter_name: currentUser,
+      industry: fields.industry,
+      area: fields.area,
+      revenue: fields.revenue,
+      operating_profit: fields.operating_profit,
+      budget: fields.budget,
+      purpose: fields.purpose,
+      memo: fields.memo,
+    });
+    if (error) { alert('買収ニーズの保存に失敗しました: ' + (error.message || '不明なエラー')); return false; }
+    return true;
+  };
+
   const handleRecallSave = async (recallData) => {
     if (!recallModal) return;
     const { row, round, label } = recallModal;
@@ -1514,6 +1536,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                         );
                       })}
                     </div>
+                    {list?.engagementSlug === 'matching' && (
+                      <Button variant="outline" size="sm" onClick={() => setNeedsModal(selectedRow)}
+                        style={{ width: '100%' }}>買収ニーズを記録</Button>
+                    )}
                   </div>
                 );
               })()}
@@ -1812,6 +1838,16 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           initialRecordingUrl={initialRecordingUrl || ''}
           dialedPhone={lastDialedPhone || initialDialedPhone || appoModal.phone || ''}
           onFetchRecordingUrl={() => handleAppoFetchRecording(appoModal.id, lastDialedPhone || initialDialedPhone || appoModal.phone)}
+        />
+      )}
+
+      {/* ─── 買い手マッチング 買収ニーズ ヒアリングモーダル ─── */}
+      {needsModal && (
+        <NeedsHearingModal
+          row={needsModal}
+          currentUser={currentUser}
+          onClose={() => setNeedsModal(null)}
+          onSave={handleNeedsSave}
         />
       )}
 
@@ -2337,6 +2373,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                         );
                       })}
                     </div>
+                    {list?.engagementSlug === 'matching' && (
+                      <Button variant="outline" size="sm" onClick={() => setNeedsModal(selectedRow)}
+                        style={{ width: '100%', marginTop: space[2] + 2 }}>買収ニーズを記録</Button>
+                    )}
                   </div>
                 );
               })()}
@@ -2678,6 +2718,16 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         />
       )}
 
+      {/* ─── 買い手マッチング 買収ニーズ ヒアリングモーダル ─── */}
+      {needsModal && (
+        <NeedsHearingModal
+          row={needsModal}
+          currentUser={currentUser}
+          onClose={() => setNeedsModal(null)}
+          onSave={handleNeedsSave}
+        />
+      )}
+
       {/* ─── 再コール日時設定モーダル（既存） ─── */}
       {recallModal && (
         <RecallModal
@@ -2793,6 +2843,74 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// 買い手マッチング 買収ニーズ ヒアリング入力モーダル。
+// 7項目（業種/エリア/売上/営業利益/予算/目的/メモ）を自由記述。
+// 入力された項目だけ保存。アポとは独立（売上/報酬計算に干渉しない）。
+function NeedsHearingModal({ row, currentUser, onClose, onSave }) {
+  const [f, setF] = useState({ industry: '', area: '', revenue: '', operating_profit: '', budget: '', purpose: '', memo: '' });
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setF(p => ({ ...p, [k]: v }));
+  const hasAny = Object.values(f).some(v => (v || '').trim());
+
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    const ok = await onSave(f);
+    setSaving(false);
+    if (ok) onClose();
+  };
+
+  const textFields = [
+    { key: 'industry', label: '業種', ph: '例: 製造業（金属加工）' },
+    { key: 'area', label: 'エリア', ph: '例: 関東一円 / 西日本' },
+    { key: 'revenue', label: '売上', ph: '例: 5億〜30億' },
+    { key: 'operating_profit', label: '営業利益', ph: '例: 5,000万以上 / EBITDA1億〜' },
+    { key: 'budget', label: '予算', ph: '例: 〜10億' },
+  ];
+  const areaStyle = {
+    width: '100%', boxSizing: 'border-box', padding: '6px 10px', borderRadius: radius.md,
+    border: `1px solid ${color.border}`, fontSize: font.size.sm, fontFamily: font.family.sans,
+    color: color.textDark, background: color.gray50, outline: 'none', resize: 'vertical', lineHeight: 1.6,
+  };
+  const lbl = { fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, display: 'block', marginBottom: 2 };
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: alpha('#000000', 0.45), zIndex: 10004, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: space[5] }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: 560, maxWidth: '100%', maxHeight: '90vh', overflow: 'auto', background: color.white, borderRadius: radius.lg, boxShadow: shadow.xl, border: `1px solid ${color.gray200}` }}>
+        <div style={{ background: color.navy, color: color.white, padding: '14px 20px', borderRadius: `${radius.lg}px ${radius.lg}px 0 0` }}>
+          <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold }}>買収ニーズを記録</div>
+          <div style={{ fontSize: font.size.xs, opacity: 0.85, marginTop: 2 }}>{row?.company || ''}</div>
+        </div>
+        <div style={{ padding: space[5] }}>
+          <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: space[3], lineHeight: 1.6 }}>
+            このアプローチ先がどんな会社を買収したいか（買収ニーズ）を記録します。アポの成否とは独立した実績です。入力した項目だけ保存されます。
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[3] }}>
+            {textFields.map(fd => (
+              <div key={fd.key}>
+                <label style={lbl}>{fd.label}</label>
+                <Input size="sm" value={f[fd.key]} onChange={e => set(fd.key, e.target.value)} placeholder={fd.ph} />
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: space[3] }}>
+            <label style={lbl}>目的</label>
+            <textarea value={f.purpose} onChange={e => set('purpose', e.target.value)} rows={2} style={areaStyle} placeholder="例: 商圏拡大 / 技術獲得 / 人材確保" />
+          </div>
+          <div style={{ marginTop: space[3] }}>
+            <label style={lbl}>メモ</label>
+            <textarea value={f.memo} onChange={e => set('memo', e.target.value)} rows={3} style={areaStyle} placeholder="その他、先方から聞いた買収ニーズの詳細" />
+          </div>
+        </div>
+        <div style={{ padding: '12px 20px', borderTop: `1px solid ${color.border}`, display: 'flex', justifyContent: 'flex-end', gap: space[2] }}>
+          <Button variant="outline" size="sm" onClick={onClose} disabled={saving}>キャンセル</Button>
+          <Button variant="primary" size="sm" onClick={handleSave} loading={saving} disabled={saving || !hasAny}>保存</Button>
+        </div>
+      </div>
     </div>
   );
 }

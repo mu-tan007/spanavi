@@ -4174,6 +4174,65 @@ export async function upsertMemberInvoiceProfile(memberId, patch) {
   return { data, error }
 }
 
+// ============================================================
+// 買い手マッチング ニーズヒアリング（buyer_needs_hearings）
+// アポとは独立した買収ニーズの実績。org単位の共有プール。
+// ============================================================
+export async function insertBuyerNeedsHearing(payload) {
+  const orgId = getOrgId()
+  const { data, error } = await supabase
+    .from('buyer_needs_hearings')
+    .insert({
+      org_id: orgId,
+      company_name: payload.company_name,
+      industry: payload.industry || null,
+      area: payload.area || null,
+      revenue: payload.revenue || null,
+      operating_profit: payload.operating_profit || null,
+      budget: payload.budget || null,
+      purpose: payload.purpose || null,
+      memo: payload.memo || null,
+      getter_name: payload.getter_name || null,
+      hearing_date: payload.hearing_date || new Date().toISOString().slice(0, 10),
+      list_id: payload.list_id || null,
+      item_id: payload.item_id || null,
+      client_id: payload.client_id || null,
+    })
+    .select()
+    .single()
+  if (error) console.error('[DB] insertBuyerNeedsHearing error:', error)
+  return { data, error }
+}
+
+export async function fetchBuyerNeedsHearings({ limit = 300 } = {}) {
+  const orgId = getOrgId()
+  const { data, error } = await supabase
+    .from('buyer_needs_hearings')
+    .select('*')
+    .eq('org_id', orgId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) console.error('[DB] fetchBuyerNeedsHearings error:', error)
+  return { data: data || [], error }
+}
+
+export async function updateBuyerNeedsHearing(id, patch) {
+  const { data, error } = await supabase
+    .from('buyer_needs_hearings')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) console.error('[DB] updateBuyerNeedsHearing error:', error)
+  return { data, error }
+}
+
+export async function deleteBuyerNeedsHearing(id) {
+  const { error } = await supabase.from('buyer_needs_hearings').delete().eq('id', id)
+  if (error) console.error('[DB] deleteBuyerNeedsHearing error:', error)
+  return { error }
+}
+
 // ── メンバー × 月 単位の任意調整項目（特別ボーナス/控除） ──
 // 既存 payroll_adjustments は org 全体の月次ディスカウントで別物
 export async function fetchMemberPayrollAdjustments(memberId, payMonth) {
