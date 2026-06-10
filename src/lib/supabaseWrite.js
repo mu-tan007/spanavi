@@ -1592,7 +1592,10 @@ export async function fetchAllRecallRecords() {
       .in('status', ['受付再コール', 'キーマン再コール', '社長再コール'])
       .order('called_at', { ascending: false })
       .range(from, from + PAGE - 1)
-    if (error) { console.error('[DB] fetchAllRecallRecords error:', error); return { data: records, error } }
+    // エラー時は「_memoObj/_item を付ける前の生レコード」を返さない。
+    // 整形前データが消費側（SpanaviApp / RecallListView）に渡ると
+    // r._memoObj.recall_date 等で画面全体がクラッシュするため、空配列で安全に縮退させる。
+    if (error) { console.error('[DB] fetchAllRecallRecords error:', error); return { data: [], error } }
     records.push(...(data || []))
     if ((data || []).length < PAGE) break
     from += PAGE

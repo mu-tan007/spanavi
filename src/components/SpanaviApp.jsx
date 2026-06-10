@@ -536,12 +536,12 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
     const nowTimeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
     supaRecalls.forEach(r => {
-      const rDate = r._memoObj.recall_date;
-      const rTime = r._memoObj.recall_time;
-      const assignee = r._memoObj.assignee || '';
+      const rDate = r._memoObj?.recall_date;
+      const rTime = r._memoObj?.recall_time;
+      const assignee = r._memoObj?.assignee || '';
       if (assignee !== currentUser) return;
       if (rDate === todayStr && rTime === nowTimeStr && !notifiedIdsRef.current.has(r.id)) {
-        new Notification("再コール予定", { body: `${r._item.company || ''} - ${r.status} ${rTime}` });
+        new Notification("再コール予定", { body: `${r._item?.company || ''} - ${r.status} ${rTime}` });
         notifiedIdsRef.current.add(r.id);
       }
     });
@@ -588,8 +588,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     return new Date(`${date}T${time || '00:00'}:00`) <= now;
   };
   const overdueSupaRecalls = supaRecalls.filter(r =>
-    isOverdue(r._memoObj.recall_date, r._memoObj.recall_time) &&
-    (isAdmin || (r._memoObj.assignee || '') === currentUser)
+    isOverdue(r._memoObj?.recall_date, r._memoObj?.recall_time) &&
+    (isAdmin || (r._memoObj?.assignee || '') === currentUser)
   );
   // 事前確認未完了通知（面談1営業日前以内）
   const _addBizDay = (d) => { const r = new Date(d); while (true) { r.setDate(r.getDate() + 1); if (r.getDay() !== 0 && r.getDay() !== 6) return r; } };
@@ -1211,8 +1211,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
                     {overdueSupaRecalls.map(r => (
                       <div key={r.id} style={{ padding: "8px 14px", borderBottom: "1px solid " + C.borderLight, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: C.navy }}>{r._item.company || "企業名不明"}</div>
-                          <div style={{ fontSize: 9, color: C.textLight }}>{r.status} / {r._memoObj.recall_time || "--:--"}</div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: C.navy }}>{r._item?.company || "企業名不明"}</div>
+                          <div style={{ fontSize: 9, color: C.textLight }}>{r.status} / {r._memoObj?.recall_time || "--:--"}</div>
                         </div>
                       </div>
                     ))}
