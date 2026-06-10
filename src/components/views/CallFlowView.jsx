@@ -736,9 +736,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   // 録音URLを同期取得して返す（insert前に呼び出す）
   // calledAt: 架電日時（insert直前に生成したISO文字列）
   // prevCalledAt: 同一企業の1つ前の架電レコードの called_at（時間窓の下限）
-  const fetchRecordingUrl = async (phone, calledAt, prevCalledAt = null) => {
+  // getterName: 録音を引くZoomアカウントの持ち主（過去レコードの手動取得時は架電した本人を指定）
+  const fetchRecordingUrl = async (phone, calledAt, prevCalledAt = null, getterName = currentUser) => {
     try {
-      const member = members.find(m => (typeof m === 'string' ? m : m.name) === currentUser);
+      const member = members.find(m => (typeof m === 'string' ? m : m.name) === getterName);
       const zoomUserId = typeof member === 'object' ? member?.zoomUserId : null;
       if (!zoomUserId || !phone) return null;
       const normalizedPhone = phone.replace(/[^\d]/g, '');
@@ -893,7 +894,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     const prevRec = callRecords
       .filter(r => r.item_id === rec.item_id && r.called_at < rec.called_at)
       .sort((a, b) => (b.called_at || '').localeCompare(a.called_at || ''))[0];
-    const url = await fetchRecordingUrl(item.phone, rec.called_at, prevRec?.called_at || null);
+    const url = await fetchRecordingUrl(item.phone, rec.called_at, prevRec?.called_at || null, rec.getter_name || currentUser);
     if (!url) { alert('録音URLを取得できませんでした'); return; }
     const dbError = await updateCallRecordRecordingUrl(rec.id, url);
     if (dbError) { alert('録音URLのDB保存に失敗しました: ' + dbError.message); return; }

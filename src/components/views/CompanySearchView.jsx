@@ -992,9 +992,11 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
 
   const handleDetailFetchRecording = async (rec) => {
     if (!selectedItem?.phone) return;
-    const member = (members || []).find(m => (typeof m === 'string' ? m : m.name) === currentUser);
+    // 録音は架電した本人のZoomアカウントに紐づくため、閲覧者ではなくレコードのgetter_nameで引く
+    const targetName = rec.getter_name || currentUser;
+    const member = (members || []).find(m => (typeof m === 'string' ? m : m.name) === targetName);
     const zoomUserId = typeof member === 'object' ? member?.zoomUserId : null;
-    if (!zoomUserId) { alert('ZoomユーザーIDが設定されていません'); return; }
+    if (!zoomUserId) { alert(`${targetName} のZoomユーザーIDが設定されていません`); return; }
     try {
       const { data } = await invokeGetZoomRecording({ zoom_user_id: zoomUserId, callee_phone: selectedItem.phone.replace(/[^\d]/g, ''), called_at: rec.called_at, prev_called_at: null });
       const url = data?.recording_url || null;
