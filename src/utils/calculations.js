@@ -12,12 +12,9 @@ const DEFAULT_RANKS = [
   { name: 'トレーニー',          threshold: 0 },
 ];
 
-// ランクとインセンティブ率の自動計算（累計売上から判定）
-// orgSettings: org_settingsテーブルから取得した { setting_key: setting_value } マップ（省略時はデフォルト値）
-export const calcRankAndRate = (totalSales, orgSettings = null) => {
+// org_settingsからランク定義を解決（未設定・破損時はデフォルト）
+const resolveRanks = (orgSettings) => {
   const s = orgSettings || {};
-
-  // org_settingsからランク定義を取得（未設定時はデフォルト）
   let ranks = DEFAULT_RANKS;
   if (s.rank_definitions) {
     try {
@@ -25,6 +22,21 @@ export const calcRankAndRate = (totalSales, orgSettings = null) => {
       if (Array.isArray(parsed) && parsed.length > 0) ranks = parsed;
     } catch { /* use defaults */ }
   }
+  return ranks;
+};
+
+// 次のランクと、そこまでの不足額を返す。最上位到達済みなら null。
+export const getNextRankInfo = (totalSales, orgSettings = null) => {
+  const asc = [...resolveRanks(orgSettings)].sort((a, b) => a.threshold - b.threshold);
+  const next = asc.find(r => (totalSales || 0) < r.threshold);
+  return next ? { nextRank: next.name, gap: next.threshold - (totalSales || 0) } : null;
+};
+
+// ランクとインセンティブ率の自動計算（累計売上から判定）
+// orgSettings: org_settingsテーブルから取得した { setting_key: setting_value } マップ（省略時はデフォルト値）
+export const calcRankAndRate = (totalSales, orgSettings = null) => {
+  const s = orgSettings || {};
+  const ranks = resolveRanks(orgSettings);
 
   // 閾値降順でソートしてマッチ
   const sorted = [...ranks].sort((a, b) => b.threshold - a.threshold);

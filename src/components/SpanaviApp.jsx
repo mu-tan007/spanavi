@@ -1384,7 +1384,19 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "rules" && <RulesView onBack={() => setCurrentTab('lists')} />}
         {currentTab === "dashboard" && <SourcingDashboardView currentUser={currentUser} userId={userId} members={members} now={now} appoData={appoData} isAdmin={isAdmin} />}
         {currentTab === "overview" && isAdmin && <BusinessOverviewView appoData={appoData} callListData={callListData} clientData={clientData} contactsByClient={contactsByClient} currentUser={currentUser} setCallFlowScreen={setCallFlowScreen} onNavigateToCrmDetail={navigateToCrmDetail} />}
-        {currentTab === "mypage" && <MyPageView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} onDataRefetch={onDataRefetch} />}
+        {currentTab === "mypage" && (
+          <MyPageView
+            currentUser={currentUser}
+            userId={userId}
+            members={members}
+            isAdmin={isAdmin}
+            onDataRefetch={onDataRefetch}
+            appoData={appoData}
+            onOpenPayroll={engagements.some(e => e.slug === 'seller_sourcing')
+              ? () => { switchEngagement('seller_sourcing'); setCurrentTab('payroll'); }
+              : null}
+          />
+        )}
         {currentTab === "library" && <LibraryView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
         {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} />}
         {currentTab === "ai" && <AIAssistantView appoData={appoData} members={members} callListData={callListData} industryRules={industryRules} currentUser={currentUser} />}

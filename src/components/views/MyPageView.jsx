@@ -8,13 +8,25 @@ import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import {
   getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl,
   updateMember, updateMemberProfile,
+  fetchOrgSettings, fetchMemberInvoiceProfile,
 } from '../../lib/supabaseWrite';
 import { subscribeToPush, unsubscribeFromPush, isPushSubscribed, resetPushSubscription } from '../../lib/pushNotification';
 import { getOrgId } from '../../lib/orgContext';
+import { calcRankAndRate, getNextRankInfo } from '../../utils/calculations';
+import { PAYROLL_COUNTABLE } from '../../utils/money';
+
+const fmtYen = (v) => '¥' + Math.round(v || 0).toLocaleString();
 
 // 組織共通の個人プロフィール画面。事業を跨いで同じ内容が表示される。
-export default function MyPageView({ currentUser, userId, members, isAdmin = false, onDataRefetch }) {
+export default function MyPageView({ currentUser, userId, members, isAdmin = false, onDataRefetch, appoData = [], onOpenPayroll = null }) {
   const isMobile = useIsMobile();
+
+  // ログイン中ユーザー本人のページか（AdminView 等から他メンバーを閲覧するケースと区別）
+  const [authUserId, setAuthUserId] = useState(null);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setAuthUserId(data?.user?.id || null));
+  }, []);
+  const isSelf = !!authUserId && authUserId === userId;
 
   // 自分のメンバー情報を user_id で検索（名前変更後も追従するため）
   // user_id が無い場合は名前で fallback（後方互換）
@@ -107,6 +119,68 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
       phone_number: memberInfo?.phone_number || '',
       start_date: memberInfo?.start_date || memberInfo?.joinDate || '',
     });
+  };
+
+  // ランク・当月実績（org_settings のランク定義/料率を反映）
+  const [orgSettings, setOrgSettings] = useState({});
+  useEffect(() => {
+    let cancelled = false;
+    fetchOrgSettings().then(({ data }) => { if (!cancelled) setOrgSettings(data || {}); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const totalSales = memberInfo?.totalSales || 0;
+  const rankInfo = useMemo(() => calcRankAndRate(totalSales, orgSettings), [totalSales, orgSettings]);
+  const nextRank = useMemo(() => getNextRankInfo(totalSales, orgSettings), [totalSales, orgSettings]);
+
+  // 当月のアポ・売上・インセンティブ（給与計算と同じ規約: PAYROLL_COUNTABLE / meetDate優先 / 開拓除外）
+  const payMonth = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+  const monthLabel = `${parseInt(payMonth.split('-')[1], 10)}月`;
+  const monthSummary = useMemo(() => {
+    const name = memberInfo?.name || currentUser;
+    if (!name || !Array.isArray(appoData) || appoData.length === 0) return null;
+    const mine = appoData.filter(a =>
+      a.getter === name &&
+      PAYROLL_COUNTABLE.has(a.status) &&
+      (a.meetDate || a.getDate || '').slice(0, 7) === payMonth
+    );
+    return {
+      count: mine.length,
+      sales: mine.filter(a => !a.isProspecting).reduce((s, a) => s + (a.sales || 0), 0),
+      incentive: mine.reduce((s, a) => s + (a.reward || 0), 0),
+    };
+  }, [appoData, memberInfo?.name, currentUser, payMonth]);
+
+  // 請求書プロフィール（口座情報）の登録状況
+  const [invoiceProfile, setInvoiceProfile] = useState(null);
+  useEffect(() => {
+    if (!supaId) return;
+    let cancelled = false;
+    fetchMemberInvoiceProfile(supaId).then(({ data }) => { if (!cancelled) setInvoiceProfile(data || null); });
+    return () => { cancelled = true; };
+  }, [supaId]);
+
+  // パスワード変更（本人のみ）
+  const [pwForm, setPwForm] = useState({ pw1: '', pw2: '' });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMessage, setPwMessage] = useState(null); // { ok: boolean, text: string }
+  const handleChangePassword = async () => {
+    setPwMessage(null);
+    if (pwForm.pw1.length < 8) { setPwMessage({ ok: false, text: 'パスワードは8文字以上にしてください' }); return; }
+    if (pwForm.pw1 !== pwForm.pw2) { setPwMessage({ ok: false, text: '確認用パスワードが一致しません' }); return; }
+    setPwSaving(true);
+    const { error } = await supabase.auth.updateUser({ password: pwForm.pw1 });
+    setPwSaving(false);
+    if (error) {
+      setPwMessage({ ok: false, text: '変更に失敗しました: ' + (error.message || '') });
+      return;
+    }
+    setPwForm({ pw1: '', pw2: '' });
+    setPwMessage({ ok: true, text: 'パスワードを変更しました。次回ログインから新しいパスワードをご利用ください。' });
+    setTimeout(() => setPwMessage(null), 8000);
   };
 
   // Zoom Phone 番号
@@ -271,49 +345,6 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
     }
   };
 
-  // ローカル通知テスト（Push経由ではなく Notification API を直接呼ぶ）
-  // サーバー/FCM/SW を一切経由せず、ブラウザ/OS が通知UIを出せるか判定する
-  const handleLocalNotificationTest = async () => {
-    if (typeof Notification === 'undefined') {
-      setPushTestResult('✗ Notification API 非対応');
-      return;
-    }
-    if (Notification.permission === 'denied') {
-      setPushTestResult('✗ ブラウザで通知がブロックされています');
-      return;
-    }
-    if (Notification.permission === 'default') {
-      const result = await Notification.requestPermission();
-      if (result !== 'granted') {
-        setPushTestResult('✗ 通知が許可されませんでした');
-        return;
-      }
-    }
-    // ① まず new Notification() で直接テスト（SW非経由）
-    try {
-      const n = new Notification('🔔 直接通知テスト #1', {
-        body: 'これが見えればOSの通知は完全に正常',
-        icon: '/pwa-192x192.png',
-      });
-      n.onclick = () => { window.focus(); n.close(); };
-    } catch (e) {
-      console.error('[notif] direct fail:', e);
-    }
-    // ② 次に SW 経由でテスト
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      await reg.showNotification('🔔 SW通知テスト #2', {
-        body: 'これが見えればSWからの通知も正常',
-        icon: '/pwa-192x192.png',
-        requireInteraction: true,
-      });
-      setPushTestResult('✓ 2種類の通知を発火 — Win+N で通知センターも確認してください');
-      setTimeout(() => setPushTestResult(null), 15000);
-    } catch (err) {
-      setPushTestResult('✗ SW通知失敗: ' + (err?.message || ''));
-    }
-  };
-
   const handleResetPush = async () => {
     if (!confirm('プッシュ通知を完全にリセットして再設定します。\n\nページが自動で再読み込みされます。よろしいですか？')) return;
     setPushLoading(true);
@@ -335,7 +366,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
       const { data, error } = await supabase.functions.invoke('send-push', {
         body: {
           type: 'test',
-          title: '🔔 テスト通知',
+          title: 'テスト通知',
           body: 'プッシュ通知は正常に動作しています',
           user_ids: [userId],
           org_id: getOrgId(),
@@ -400,7 +431,31 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
           <div style={{ fontSize: font.size['2xl'] - 2, fontWeight: font.weight.black, marginBottom: 6 }}>{currentUser}</div>
           <div style={{ display: 'flex', gap: 14, fontSize: font.size.xs, color: color.goldLight, flexWrap: 'wrap' }}>
             {memberInfo?.position && <span>{memberInfo.position}</span>}
+            {memberInfo?.team && <span>{memberInfo.team}チーム</span>}
           </div>
+          {memberInfo && (
+            <div style={{
+              marginTop: 12, display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 16,
+              flexWrap: 'wrap', fontSize: font.size.xs,
+            }}>
+              <span style={{
+                padding: '3px 12px', borderRadius: radius.pill,
+                background: alpha(color.gold, 0.18), border: `1px solid ${alpha(color.gold, 0.5)}`,
+                color: color.goldLight, fontWeight: font.weight.bold,
+              }}>{rankInfo.rank}</span>
+              <span style={{ color: alpha(color.white, 0.85) }}>
+                累計売上 <span style={{ fontFamily: font.family.mono, fontWeight: font.weight.bold, color: color.white }}>{fmtYen(totalSales)}</span>
+              </span>
+              <span style={{ color: alpha(color.white, 0.85) }}>
+                インセンティブ率 <span style={{ fontFamily: font.family.mono, fontWeight: font.weight.bold, color: color.white }}>{Math.round(rankInfo.rate * 100)}%</span>
+              </span>
+              {nextRank && (
+                <span style={{ color: alpha(color.white, 0.65) }}>
+                  次の「{nextRank.nextRank}」まで あと{fmtYen(nextRank.gap)}
+                </span>
+              )}
+            </div>
+          )}
           {uploadError && <div style={{ marginTop: 6, fontSize: font.size.xs - 1, color: '#FCA5A5' }}>{uploadError}</div>}
         </div>
       </div>
@@ -422,7 +477,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
                 containerStyle={{ maxWidth: 320 }}
               />
             </EditRow>
-            <EditRow label="メールアドレス">
+            <EditRow label="連絡先メール">
               <Input
                 size="sm"
                 type="email"
@@ -432,6 +487,9 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
                 placeholder="example@example.com"
                 containerStyle={{ maxWidth: 320 }}
               />
+              <div style={{ marginTop: 4, fontSize: font.size.xs - 1, color: color.textLight }}>
+                通知・請求書などの連絡先です。ログイン用メールアドレスは変わりません。
+              </div>
             </EditRow>
             <EditRow label="携帯番号">
               <Input
@@ -444,16 +502,27 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
                 containerStyle={{ maxWidth: 320 }}
               />
             </EditRow>
-            <EditRow label="入社日">
-              <Input
-                size="sm"
-                type="date"
-                value={profileForm.start_date || ''}
-                onChange={e => setProfileForm(s => ({ ...s, start_date: e.target.value }))}
-                style={{ fontFamily: font.family.mono }}
-                containerStyle={{ maxWidth: 320 }}
-              />
-            </EditRow>
+            {isAdmin ? (
+              <EditRow label="入社日">
+                <Input
+                  size="sm"
+                  type="date"
+                  value={profileForm.start_date || ''}
+                  onChange={e => setProfileForm(s => ({ ...s, start_date: e.target.value }))}
+                  style={{ fontFamily: font.family.mono }}
+                  containerStyle={{ maxWidth: 320 }}
+                />
+              </EditRow>
+            ) : (
+              <EditRow label="入社日">
+                <div style={{ fontSize: font.size.sm, color: color.textMid, fontFamily: font.family.mono }}>
+                  {profileForm.start_date || '—'}
+                  <span style={{ marginLeft: 8, fontSize: font.size.xs - 1, color: color.textLight, fontFamily: font.family.sans }}>
+                    （変更は管理者にご依頼ください）
+                  </span>
+                </div>
+              </EditRow>
+            )}
             {profileError && <div style={{ fontSize: font.size.xs, color: color.danger, padding: '4px 0' }}>{profileError}</div>}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
               <Button size="sm" variant="secondary" onClick={handleCancelProfile} disabled={profileSaving}>キャンセル</Button>
@@ -465,7 +534,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
         ) : (
           <>
             <InfoRow label="氏名" value={memberInfo?.name || currentUser || '—'} />
-            <InfoRow label="メールアドレス" value={memberInfo?.email || '—'} mono />
+            <InfoRow label="連絡先メール" value={memberInfo?.email || '—'} mono />
             <InfoRow label="携帯番号" value={memberInfo?.phone_number || '—'} mono />
             <InfoRow label="入社日" value={memberInfo?.start_date || memberInfo?.joinDate || '—'} mono />
             {profileSavedAt && Date.now() - profileSavedAt < 4000 && (
@@ -474,6 +543,79 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
           </>
         )}
       </InfoCard>
+
+      {/* 報酬・請求書 */}
+      <InfoCard
+        title="報酬・請求書"
+        right={onOpenPayroll ? (
+          <Button size="sm" variant="secondary" onClick={onOpenPayroll}>報酬明細を開く</Button>
+        ) : null}
+      >
+        {monthSummary ? (
+          <>
+            <InfoRow label={`${monthLabel}のアポ`} value={`${monthSummary.count}件`} mono />
+            <InfoRow label={`${monthLabel}の当社売上`} value={fmtYen(monthSummary.sales)} mono />
+            <InfoRow label={`${monthLabel}のインセンティブ`} value={fmtYen(monthSummary.incentive)} mono />
+            <div style={{ marginTop: 8, fontSize: font.size.xs - 1, color: color.textLight }}>
+              チームボーナス・紹介フィー・調整を含む確定額は報酬明細でご確認ください。
+            </div>
+          </>
+        ) : (
+          <div style={{ fontSize: font.size.sm, color: color.textLight, padding: '4px 0' }}>
+            {monthLabel}の実績はまだありません。
+          </div>
+        )}
+        <div style={{ height: 1, background: color.borderLight, margin: '10px 0' }} />
+        <InfoRow
+          label="口座情報"
+          value={invoiceProfile?.bank_name
+            ? `登録済み（${invoiceProfile.bank_name}${invoiceProfile.branch_name ? ' ' + invoiceProfile.branch_name : ''}）`
+            : '未登録（報酬明細の請求書作成から登録できます）'}
+        />
+      </InfoCard>
+
+      {/* セキュリティ（本人のみ表示。他メンバーのページ閲覧時はログイン中ユーザーのパスワードを変えてしまうため出さない） */}
+      {isSelf && (
+        <InfoCard title="セキュリティ">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <EditRow label="新しいパスワード">
+              <Input
+                size="sm"
+                type="password"
+                value={pwForm.pw1}
+                onChange={e => setPwForm(s => ({ ...s, pw1: e.target.value }))}
+                placeholder="8文字以上"
+                autoComplete="new-password"
+                containerStyle={{ maxWidth: 320 }}
+              />
+            </EditRow>
+            <EditRow label="確認用">
+              <Input
+                size="sm"
+                type="password"
+                value={pwForm.pw2}
+                onChange={e => setPwForm(s => ({ ...s, pw2: e.target.value }))}
+                placeholder="同じパスワードをもう一度"
+                autoComplete="new-password"
+                containerStyle={{ maxWidth: 320 }}
+              />
+            </EditRow>
+            {pwMessage && (
+              <div style={{ fontSize: font.size.xs, color: pwMessage.ok ? color.success : color.danger }}>
+                {pwMessage.text}
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                size="sm"
+                onClick={handleChangePassword}
+                loading={pwSaving}
+                disabled={pwSaving || !pwForm.pw1 || !pwForm.pw2}
+              >{pwSaving ? '変更中…' : 'パスワードを変更'}</Button>
+            </div>
+          </div>
+        </InfoCard>
+      )}
 
       {/* 連携・通知設定 */}
       <InfoCard title="連携 / 通知設定">
@@ -516,14 +658,9 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
               <div style={{ fontSize: font.size.sm, color: color.textDark, fontWeight: font.weight.semibold }}>プッシュ通知</div>
               <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 2 }}>
                 アポ獲得・日次レポートなどをブラウザで受け取る
-                {typeof Notification !== 'undefined' && (
-                  <span style={{
-                    marginLeft: 6, fontFamily: font.family.mono,
-                    color: Notification.permission === 'granted' ? color.success
-                      : Notification.permission === 'denied' ? color.danger
-                      : color.textLight,
-                  }}>
-                    [permission: {Notification.permission}]
+                {typeof Notification !== 'undefined' && Notification.permission === 'denied' && (
+                  <span style={{ marginLeft: 6, color: color.danger, fontWeight: font.weight.semibold }}>
+                    ブラウザで通知がブロックされています。ブラウザ設定から許可してください。
                   </span>
                 )}
               </div>
@@ -531,28 +668,23 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               {pushEnabled && (
                 <>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={handleLocalNotificationTest}
-                    style={{ fontSize: font.size.xs - 1 }}
-                    title="サーバー経由せず、ブラウザ/OS の通知UI が出るか直接テスト"
-                  >ローカル通知</Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={handleResetPush}
-                    loading={pushLoading}
-                    style={{ fontSize: font.size.xs - 1 }}
-                    title="古いService Workerを削除して通知を再設定"
-                  >{pushLoading ? '処理中…' : 'リセット'}</Button>
+                  {isAdmin && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={handleResetPush}
+                      loading={pushLoading}
+                      style={{ fontSize: font.size.xs - 1 }}
+                      title="古いService Workerを削除して通知を再設定（トラブルシュート用）"
+                    >{pushLoading ? '処理中…' : 'リセット'}</Button>
+                  )}
                   <Button
                     size="sm"
                     variant="secondary"
                     onClick={handleTestPush}
                     loading={pushTestSending}
                     style={{ fontSize: font.size.xs - 1 }}
-                    title="このデバイスにテスト通知を送信（サーバー経由）"
+                    title="このデバイスにテスト通知を送信"
                   >{pushTestSending ? '送信中…' : 'テスト送信'}</Button>
                 </>
               )}
@@ -647,9 +779,6 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
         </div>
       </InfoCard>
 
-      <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 20, textAlign: 'center' }}>
-        日々の実績や KPI の入力は、各事業タブの「Dashboard」からご確認ください。
-      </div>
     </div>
   );
 }
