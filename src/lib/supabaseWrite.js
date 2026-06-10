@@ -3578,6 +3578,8 @@ async function sendAppointmentPushNotification(appoData, orgId) {
   })
   if (userIds.length === 0) return
 
+  // engagement_id は敢えて渡さない: 事業別の個人 opt-out（push_notification_preferences）は
+  // 廃止し、通知の可否はプッシュ購読の有無だけで決まる仕様に統一した。
   await supabase.functions.invoke('send-push', {
     body: {
       type: 'appointment_created',
@@ -3585,7 +3587,6 @@ async function sendAppointmentPushNotification(appoData, orgId) {
       body: `${appoData.getter || ''} さんが ${appoData.company || ''} のアポイントを取りました`,
       user_ids: userIds,
       org_id: orgId,
-      engagement_id: engagementId,
     },
   })
 }

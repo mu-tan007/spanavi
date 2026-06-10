@@ -39,6 +39,7 @@ import AppoReportModal from './views/AppoReportModal';
 import CallFlowView from './views/CallFlowView';
 import ScriptView from './views/ScriptView';
 import MyPageView from './views/MyPageView';
+import { subscribeToPush } from '../lib/pushNotification';
 import SourcingDashboardView from './views/SourcingDashboardView';
 import BusinessOverviewView from './views/BusinessOverviewView';
 import CRMView from './views/CRMView';
@@ -281,6 +282,18 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   // 注: callListData を渡すため、 callListData 宣言より下で再宣言するわけにいかない。
   // useCallQueue は callListData を closure 参照する設計なので、 依存変更で都度 hook 再評価される
   const { openQueue: restoreQueue } = useCallQueue({ setCallFlowScreen, callListData });
+
+  // プッシュ通知の自動購読リフレッシュ。
+  // 既に通知を許可済み（permission==='granted'）なら、ログインのたびに購読を冪等 upsert し、
+  // 「設定でONにし忘れ」「SW更新や期限切れで購読が無効化」されたまま通知が来ない事故を防ぐ。
+  // permission が 'default'（未許可）/'denied' の場合は何もしない（許可ダイアログは MyPage の手動操作に委ねる）。
+  useEffect(() => {
+    if (!userId || !orgId) return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    subscribeToPush(userId, orgId).catch(e =>
+      console.warn('[Push] auto-resubscribe failed:', e?.message || e)
+    );
+  }, [userId, orgId]);
   useEffect(() => {
     try {
       if (callFlowScreen) {
@@ -1392,6 +1405,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
             isAdmin={isAdmin}
             onDataRefetch={onDataRefetch}
             appoData={appoData}
+            engSlug={engSlug}
             onOpenPayroll={engagements.some(e => e.slug === 'seller_sourcing')
               ? () => { switchEngagement('seller_sourcing'); setCurrentTab('payroll'); }
               : null}

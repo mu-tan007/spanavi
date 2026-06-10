@@ -18,8 +18,11 @@ import { PAYROLL_COUNTABLE } from '../../utils/money';
 const fmtYen = (v) => '¥' + Math.round(v || 0).toLocaleString();
 
 // 組織共通の個人プロフィール画面。事業を跨いで同じ内容が表示される。
-export default function MyPageView({ currentUser, userId, members, isAdmin = false, onDataRefetch, appoData = [], onOpenPayroll = null }) {
+export default function MyPageView({ currentUser, userId, members, isAdmin = false, onDataRefetch, appoData = [], onOpenPayroll = null, engSlug = null }) {
   const isMobile = useIsMobile();
+  // 営業代行(seller_sourcing)タブで開いた時だけ売上・ランク・報酬を表示する。
+  // MASP（自社）/スパキャリタブでは営業代行固有の数字を出さない。
+  const showSourcingStats = engSlug === 'seller_sourcing';
 
   // ログイン中ユーザー本人のページか（AdminView 等から他メンバーを閲覧するケースと区別）
   const [authUserId, setAuthUserId] = useState(null);
@@ -222,110 +225,6 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
     return () => navigator.serviceWorker.removeEventListener('message', handler);
   }, []);
 
-  // 自分が所属する事業 × 通知種類のマトリクス
-  // 形: [{ id, name, masterEnabled, types: [{ typeId, label, userEnabled }] }]
-  const [userEngagements, setUserEngagements] = useState([]);
-  const [prefSaving, setPrefSaving] = useState(null); // 'eng:{id}:_all' または 'eng:{id}:{typeId}'
-
-  useEffect(() => {
-    if (!supaId || !userId) return;
-    let cancelled = false;
-    (async () => {
-      const orgId = getOrgId();
-      const [assignmentsRes, catalogRes, hiddenRes] = await Promise.all([
-        supabase.from('member_engagements')
-          .select('engagement_id, engagement:engagements!inner(id, name, slug, status)')
-          .eq('member_id', supaId)
-          .eq('engagement.status', 'active'),
-        supabase.from('notification_type_catalog')
-          .select('id, label_jp, default_recipients_scope, display_order, is_active')
-          .eq('is_active', true)
-          .order('display_order'),
-        supabase.from('org_hidden_notification_types')
-          .select('notification_type').eq('org_id', orgId),
-      ]);
-      const engs = (assignmentsRes.data || [])
-        .map(a => a.engagement)
-        .filter(Boolean)
-        .filter(e => e.slug !== 'masp');
-      const hiddenTypes = new Set((hiddenRes.data || []).map(r => r.notification_type));
-      const catalog = (catalogRes.data || []).filter(c => !hiddenTypes.has(c.id));
-      if (engs.length === 0) { if (!cancelled) setUserEngagements([]); return; }
-
-      const engIds = engs.map(e => e.id);
-      const [orgRulesRes, prefsRes] = await Promise.all([
-        supabase.from('engagement_notification_settings')
-          .select('engagement_id, notification_type, enabled')
-          .in('engagement_id', engIds),
-        supabase.from('push_notification_preferences')
-          .select('engagement_id, notification_type, enabled')
-          .eq('user_id', userId)
-          .eq('org_id', orgId)
-          .in('engagement_id', engIds),
-      ]);
-
-      // 事業 × 通知種類で組織側の有効/無効を判定
-      const orgRule = {}; // engId -> { typeId -> enabled }
-      (orgRulesRes.data || []).forEach(r => {
-        if (!orgRule[r.engagement_id]) orgRule[r.engagement_id] = {};
-        orgRule[r.engagement_id][r.notification_type] = r.enabled;
-      });
-
-      // 個人の opt-out
-      const userPref = {}; // engId -> { typeId -> enabled }
-      (prefsRes.data || []).forEach(r => {
-        if (!userPref[r.engagement_id]) userPref[r.engagement_id] = {};
-        userPref[r.engagement_id][r.notification_type] = r.enabled;
-      });
-
-      if (cancelled) return;
-      setUserEngagements(engs.map(e => {
-        const masterEnabled = userPref[e.id]?.['_all'] !== false;
-        const types = catalog
-          .filter(c => orgRule[e.id]?.[c.id] !== false) // 組織側 OFF は表示しない（デフォルト ON）
-          .map(c => ({
-            typeId: c.id,
-            label: c.label_jp,
-            userEnabled: userPref[e.id]?.[c.id] !== false,
-          }));
-        return { id: e.id, name: e.name, masterEnabled, types };
-      }));
-    })();
-    return () => { cancelled = true; };
-  }, [supaId, userId]);
-
-  const upsertPref = async (engagementId, notificationType, nextEnabled) => {
-    const key = `${engagementId}:${notificationType}`;
-    setPrefSaving(key);
-    const orgId = getOrgId();
-    // 楽観更新
-    setUserEngagements(prev => prev.map(e => {
-      if (e.id !== engagementId) return e;
-      if (notificationType === '_all') return { ...e, masterEnabled: nextEnabled };
-      return { ...e, types: e.types.map(t => t.typeId === notificationType ? { ...t, userEnabled: nextEnabled } : t) };
-    }));
-    const { error } = await supabase
-      .from('push_notification_preferences')
-      .upsert({
-        user_id: userId,
-        engagement_id: engagementId,
-        org_id: orgId,
-        notification_type: notificationType,
-        enabled: nextEnabled,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id,engagement_id,notification_type' });
-    setPrefSaving(null);
-    if (error) {
-      console.error('[MyPage] upsertPref error:', error);
-      // ロールバック
-      setUserEngagements(prev => prev.map(e => {
-        if (e.id !== engagementId) return e;
-        if (notificationType === '_all') return { ...e, masterEnabled: !nextEnabled };
-        return { ...e, types: e.types.map(t => t.typeId === notificationType ? { ...t, userEnabled: !nextEnabled } : t) };
-      }));
-    }
-  };
-
   const handleTogglePush = async () => {
     setPushLoading(true);
     try {
@@ -433,7 +332,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
             {memberInfo?.position && <span>{memberInfo.position}</span>}
             {memberInfo?.team && <span>{memberInfo.team}チーム</span>}
           </div>
-          {memberInfo && (
+          {memberInfo && showSourcingStats && (
             <div style={{
               marginTop: 12, display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 16,
               flexWrap: 'wrap', fontSize: font.size.xs,
@@ -544,7 +443,8 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
         )}
       </InfoCard>
 
-      {/* 報酬・請求書 */}
+      {/* 報酬・請求書（営業代行タブのみ） */}
+      {showSourcingStats && (
       <InfoCard
         title="報酬・請求書"
         right={onOpenPayroll ? (
@@ -573,6 +473,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
             : '未登録（報酬明細の請求書作成から登録できます）'}
         />
       </InfoCard>
+      )}
 
       {/* セキュリティ（本人のみ表示。他メンバーのページ閲覧時はログイン中ユーザーのパスワードを変えてしまうため出さない） */}
       {isSelf && (
@@ -709,72 +610,6 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
             }}>
               {pushTestResult}
             </div>
-          )}
-
-          {pushEnabled && userEngagements.length > 0 && (
-            <>
-              <div style={{ height: 1, background: color.borderLight, marginTop: 4 }} />
-              <div>
-                <div style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, marginBottom: 8 }}>
-                  事業ごとの通知 ON/OFF
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {userEngagements.map(e => {
-                    const masterKey = `${e.id}:_all`;
-                    const masterBusy = prefSaving === masterKey;
-                    return (
-                      <div key={e.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {/* 事業全体マスター */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
-                          <div style={{ fontSize: font.size.sm, color: color.textDark, fontWeight: font.weight.semibold }}>{e.name}</div>
-                          <button
-                            onClick={() => upsertPref(e.id, '_all', !e.masterEnabled)}
-                            disabled={masterBusy}
-                            style={{
-                              padding: '4px 14px', borderRadius: radius.pill, border: 'none',
-                              background: e.masterEnabled ? color.navy : color.border,
-                              color: e.masterEnabled ? color.white : color.textLight,
-                              fontSize: font.size.xs - 1, fontWeight: font.weight.bold,
-                              cursor: masterBusy ? 'wait' : 'pointer',
-                              opacity: masterBusy ? 0.6 : 1,
-                              minWidth: 56,
-                            }}
-                          >{masterBusy ? '…' : (e.masterEnabled ? 'ON' : 'OFF')}</button>
-                        </div>
-
-                        {/* 通知種類別 ON/OFF（マスター ON のときのみ表示） */}
-                        {e.masterEnabled && e.types.length > 0 && (
-                          <div style={{ paddingLeft: 14, display: 'flex', flexDirection: 'column', gap: 4, borderLeft: `2px solid ${color.borderLight}` }}>
-                            {e.types.map(t => {
-                              const tKey = `${e.id}:${t.typeId}`;
-                              const tBusy = prefSaving === tKey;
-                              return (
-                                <div key={t.typeId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 0 2px 8px' }}>
-                                  <div style={{ fontSize: font.size.xs, color: color.textMid }}>{t.label}</div>
-                                  <button
-                                    onClick={() => upsertPref(e.id, t.typeId, !t.userEnabled)}
-                                    disabled={tBusy}
-                                    style={{
-                                      padding: '2px 10px', borderRadius: radius.pill, border: 'none',
-                                      background: t.userEnabled ? color.navy : color.border,
-                                      color: t.userEnabled ? color.white : color.textLight,
-                                      fontSize: 9, fontWeight: font.weight.bold,
-                                      cursor: tBusy ? 'wait' : 'pointer',
-                                      opacity: tBusy ? 0.6 : 1,
-                                      minWidth: 48,
-                                    }}
-                                  >{tBusy ? '…' : (t.userEnabled ? 'ON' : 'OFF')}</button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
           )}
         </div>
       </InfoCard>
