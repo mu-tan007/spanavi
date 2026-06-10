@@ -386,6 +386,10 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   const [viewMode, setViewMode] = useUrlState('lv_view', 'lists', { allowed: ['lists', 'smart_queue'] });
   const [extractingUrl, setExtractingUrl] = useState(false);
 
+  // 「既存リストから転記」: 新規リスト追加時、同じクライアントの既存リストから
+  // 企業概要・スクリプト・アウト返し・注意事項・備考・担当者を引き継ぐ
+  const [copySourceId, setCopySourceId] = useState('');
+
   // 企業概要PDF添付
   const [overviewPdfUploading, setOverviewPdfUploading] = useState(false);
   const [overviewPdfDeletingPath, setOverviewPdfDeletingPath] = useState(null);
@@ -518,8 +522,37 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   const handleOpenAdd = () => {
     const engId = defaultEngagementId();
     setFormData({ ...emptyForm, engagementId: engId, type: engagementToCategoryName[engId] || "" });
+    setCopySourceId('');
     setEditingListId(null);
     setListFormOpen(true);
+  };
+
+  // 同じクライアントの既存リスト（転記元の候補）。アーカイブ済みも含める
+  // （リストを使い切ってアーカイブ後に次のリストを作る運用があるため）
+  const copySourceLists = useMemo(() => {
+    const company = (formData.company || '').trim();
+    if (!company || editingListId !== null) return [];
+    return (callListData || []).filter(l => l.company === company);
+  }, [formData.company, editingListId, callListData]);
+
+  const handleCopyFromList = () => {
+    const src = copySourceLists.find(l => String(l.id) === String(copySourceId)) || copySourceLists[0];
+    if (!src) return;
+    const hasContent = [formData.companyInfo, formData.scriptBody, formData.cautions, formData.notes]
+      .some(v => (v || '').trim());
+    if (hasContent && !window.confirm('入力済みの企業概要・スクリプト・注意事項・備考を転記内容で上書きします。よろしいですか？')) return;
+    setFormData(p => ({
+      ...p,
+      companyInfo: src.companyInfo || '',
+      companyUrl: src.companyUrl || '',
+      scriptBody: src.scriptBody || '',
+      cautions: src.cautions || '',
+      notes: src.notes || '',
+      // アウト返しも引き継ぐ（insertCallList が rebuttal_data として保存する）
+      rebuttalData: src.rebuttalData || undefined,
+      contactIds: src.contactIds || [],
+      manager: src.manager || '',
+    }));
   };
 
   const handleOpenEdit = (list) => {
@@ -871,10 +904,40 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
               <ClientCombobox
                 value={formData.company}
                 options={clientOptions}
-                onChange={(company) => setFormData(p => ({ ...p, company, contactIds: [], manager: '' }))}
+                onChange={(company) => { setFormData(p => ({ ...p, company, contactIds: [], manager: '' })); setCopySourceId(''); }}
                 inputStyle={formInputStyle}
               />
             </div>
+            {/* 既存リストから転記: 新規追加時のみ。同じクライアントの既存リストがあれば
+                企業概要・スクリプト・アウト返し・注意事項・備考・担当者を引き継げる */}
+            {copySourceLists.length > 0 && (
+              <div style={{
+                gridColumn: "span 3",
+                display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap',
+                padding: `${space[2]}px ${space[3]}px`,
+                background: color.offWhite, border: `1px dashed ${color.border}`, borderRadius: radius.md,
+              }}>
+                <span style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy, flexShrink: 0 }}>
+                  既存リストから転記
+                </span>
+                <Select
+                  size="sm"
+                  value={copySourceId || String(copySourceLists[0].id)}
+                  onChange={e => setCopySourceId(e.target.value)}
+                  options={copySourceLists.map(l => ({
+                    value: String(l.id),
+                    label: `${l.industry || l.name || 'リスト'}${l.engagementName ? `（${l.engagementName}）` : ''}${l.is_archived ? '【アーカイブ済】' : ''}`,
+                  }))}
+                  containerStyle={{ flex: 1, minWidth: 200 }}
+                />
+                <Button size="sm" variant="outline" onClick={handleCopyFromList} style={{ flexShrink: 0 }}>
+                  転記する
+                </Button>
+                <span style={{ fontSize: font.size.xs - 1, color: color.textLight, width: '100%' }}>
+                  企業概要・スクリプト・アウト返し・注意事項・備考・クライアント担当者を引き継ぎます（添付PDFは対象外）
+                </span>
+              </div>
+            )}
             <div>
               <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>リスト名 *</label>
               <input value={formData.industry} onChange={e => setFormData(p => ({ ...p, industry: e.target.value }))} style={formInputStyle} placeholder="例: 建設、プラスチック成形、IT、食品⑤" />
