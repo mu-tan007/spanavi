@@ -58,7 +58,6 @@ const DETAIL_FIELDS = [
   { key: 'officers', label: '役員' },
   { key: 'clients', label: '取引先' },
   { key: 'remarks', label: '備考' },
-  { key: 'source_file', label: 'ソースファイル' },
 ];
 
 function formatNumber(val) {

@@ -4,7 +4,9 @@ import { Button } from '../ui';
 import { X } from 'lucide-react';
 
 export default function DatabaseExportColumnModal({ columns, totalCount, onCancel, onConfirm }) {
-  const [selected, setSelected] = useState(() => new Set(columns.map(c => c.key)));
+  // 初期選択は「納品標準フォーマット」(defaultExport:true の14列)。
+  const standardKeys = useMemo(() => columns.filter(c => c.defaultExport).map(c => c.key), [columns]);
+  const [selected, setSelected] = useState(() => new Set(standardKeys));
 
   const toggle = (key) => {
     setSelected(prev => {
@@ -16,6 +18,7 @@ export default function DatabaseExportColumnModal({ columns, totalCount, onCance
 
   const selectAll = () => setSelected(new Set(columns.map(c => c.key)));
   const clearAll = () => setSelected(new Set());
+  const selectStandard = () => setSelected(new Set(standardKeys));
 
   const selectedKeys = useMemo(
     () => columns.filter(c => selected.has(c.key)).map(c => c.key),
@@ -80,6 +83,7 @@ export default function DatabaseExportColumnModal({ columns, totalCount, onCance
               {' / '}{columns.length} 列を選択中
             </div>
             <div style={{ display: 'flex', gap: space[2] }}>
+              <Button variant="ghost" size="sm" onClick={selectStandard}>標準フォーマット</Button>
               <Button variant="ghost" size="sm" onClick={selectAll}>全選択</Button>
               <Button variant="ghost" size="sm" onClick={clearAll}>全解除</Button>
             </div>

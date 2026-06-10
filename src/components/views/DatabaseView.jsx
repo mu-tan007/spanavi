@@ -14,27 +14,39 @@ import { searchCompanies } from '../../lib/companyMasterApi';
 import { supabase } from '../../lib/supabase';
 import PageHeader from '../common/PageHeader';
 
-// CSVエクスポート対象カラム（label = CSVヘッダ, key = company_master のカラム名）
+// CSVエクスポート対象カラム。
+// 先頭14列は Spanavi の企業リスト納品標準フォーマット（クライアント渡し・NGチェック用）。
+// この順序・ヘッダ名・マッピングは固定（reference: 企業リストCSV標準カラム構成）。
+// defaultExport:true の14列が初期選択。それ以降は任意で追加できる参考列。
+//   - 住所は full_address 優先（無ければ address）
+//   - 業種は industry_sub（細分類）。大分類は標準に含めない
 const EXPORT_COLUMNS = [
-  { key: 'industry_major',       label: '大分類' },
-  { key: 'industry_sub',         label: '細分類' },
-  { key: 'company_name',         label: '企業名' },
-  { key: 'business_description', label: '事業内容' },
-  { key: 'prefecture',           label: '都道府県' },
-  { key: 'city',                 label: '市区郡' },
-  { key: 'address',              label: '住所' },
-  { key: 'revenue_k',            label: '売上高(千円)' },
-  { key: 'net_income_k',         label: '当期純利益(千円)' },
-  { key: 'representative',       label: '代表者' },
-  { key: 'representative_age',   label: '年齢' },
-  { key: 'shareholders',         label: '株主' },
-  { key: 'officers',             label: '役員' },
-  { key: 'employee_count',       label: '従業員数' },
-  { key: 'established_year',     label: '設立年' },
-  { key: 'phone',                label: '電話番号' },
-  { key: 'clients',              label: '取引先' },
-  { key: 'remarks',              label: '備考' },
+  // ── 標準14カラム（順序固定・デフォルトON） ──
+  { key: 'company_name',         label: '企業名',     defaultExport: true },
+  { key: 'tsr_id',               label: 'tsr_id',     defaultExport: true },
+  { key: 'prefecture',           label: '都道府県',   defaultExport: true },
+  { key: 'city',                 label: '市区町村',   defaultExport: true },
+  { key: 'address',              label: '住所',       defaultExport: true, get: r => r.full_address || r.address || '' },
+  { key: 'phone',                label: '電話番号',   defaultExport: true },
+  { key: 'revenue_k',            label: '売上千円',   defaultExport: true },
+  { key: 'employee_count',       label: '従業員数',   defaultExport: true },
+  { key: 'established_year',     label: '設立年',     defaultExport: true },
+  { key: 'representative',       label: '代表者',     defaultExport: true },
+  { key: 'industry_sub',         label: '業種',       defaultExport: true },
+  { key: 'business_description', label: '事業内容',   defaultExport: true },
+  { key: 'shareholders',         label: '株主',       defaultExport: true },
+  { key: 'officers',             label: '役員',       defaultExport: true },
+  // ── 任意追加列（デフォルトOFF。明示的に選んだ時だけ末尾に付く） ──
+  { key: 'industry_major',       label: '大分類',           defaultExport: false },
+  { key: 'net_income_k',         label: '当期純利益(千円)', defaultExport: false },
+  { key: 'representative_age',   label: '代表者年齢',       defaultExport: false },
+  { key: 'capital_k',            label: '資本金(千円)',     defaultExport: false },
+  { key: 'clients',              label: '取引先',           defaultExport: false },
+  { key: 'remarks',              label: '備考',             defaultExport: false },
 ];
+
+// 納品フォーマットは全フィールド QUOTE_ALL（カンマ・改行・前後空白の事故防止）
+const csvQuote = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 
 export default function DatabaseView({ isAdmin }) {
   const {
@@ -67,7 +79,11 @@ export default function DatabaseView({ isAdmin }) {
   const executeExport = useCallback(async (selectedKeys) => {
     setShowColumnPicker(false);
     if (!selectedKeys || selectedKeys.length === 0) return;
-    if (!window.confirm(`${totalCount.toLocaleString()}件をCSV出力します。よろしいですか？`)) return;
+    // 大量件数はブラウザ負荷が大きいので段階的に警告する
+    const msg = totalCount > 50000
+      ? `${totalCount.toLocaleString()}件は大量です。全件取得に時間がかかり、ブラウザが重くなる場合があります。続行しますか？`
+      : `${totalCount.toLocaleString()}件をCSV出力します。よろしいですか？`;
+    if (!window.confirm(msg)) return;
 
     try {
       // 全件取得（Supabase PostgREST max_rows=1000のためページ分割）
@@ -80,28 +96,22 @@ export default function DatabaseView({ isAdmin }) {
       }
       const rows = allRows;
 
-      // EXPORT_COLUMNS の並び順を維持しつつ、選択されたカラムだけ抽出
+      // EXPORT_COLUMNS の並び順（=納品標準の順序）を維持しつつ選択列だけ抽出
       const cols = EXPORT_COLUMNS.filter(c => selectedKeys.includes(c.key));
-      const headers = cols.map(c => c.label);
-      const keys = cols.map(c => c.key);
+      const headers = cols.map(c => csvQuote(c.label));
 
       const csvRows = [headers.join(',')];
       for (const row of rows) {
-        const vals = keys.map(k => {
-          const v = row[k];
-          if (v == null) return '';
-          const s = String(v).replace(/"/g, '""');
-          return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s;
-        });
+        const vals = cols.map(c => csvQuote(c.get ? c.get(row) : row[c.key]));
         csvRows.push(vals.join(','));
       }
 
       const bom = '﻿';
-      const blob = new Blob([bom + csvRows.join('\n')], { type: 'text/csv;charset=utf-8' });
+      const blob = new Blob([bom + csvRows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `企業データベース_${new Date().toISOString().slice(0,10)}.csv`;
+      a.download = `企業リスト_${new Date().toISOString().slice(0,10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {

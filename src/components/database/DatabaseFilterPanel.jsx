@@ -157,7 +157,7 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
       </div>
 
       {/* Row 5: Ranges */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: space[2.5] }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: space[2.5] }}>
         <div>
           <div style={labelStyle}>売上高（千円）</div>
           <div style={rowStyle}>
@@ -224,6 +224,14 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
                 {o.l}
               </label>
             ))}
+          </div>
+        </div>
+        <div>
+          <div style={labelStyle}>設立年（西暦）</div>
+          <div style={rowStyle}>
+            <Input size="sm" type="number" value={filters.establishedMin} onChange={e => setFilter('establishedMin', e.target.value)} onKeyDown={handleKeyDown} placeholder="以降" containerStyle={{ width: '50%' }} />
+            <span style={{ color: color.textLight, fontSize: font.size.sm }}>〜</span>
+            <Input size="sm" type="number" value={filters.establishedMax} onChange={e => setFilter('establishedMax', e.target.value)} onKeyDown={handleKeyDown} placeholder="以前" containerStyle={{ width: '50%' }} />
           </div>
         </div>
       </div>
