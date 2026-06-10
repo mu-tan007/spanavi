@@ -10,8 +10,12 @@
 //   （または supabase CLI ログイン済みならトークンを自動検出）
 //
 // 終了コード:
-//   1 = 重大な乖離あり（repoにあるのに未デプロイ / repoの方が新しい）
-//   0 = 問題なし、または警告のみ（本番にあるがrepoに無い）/ トークン未設定でスキップ
+//   1 = 重大な乖離あり（repoにあるのに本番未デプロイ）
+//   0 = 問題なし、または警告のみ / トークン未設定でスキップ
+//
+// 注: 「repoの方が新しい」は WARN 扱い。この repo の通常フローは
+//     「MCP/CLIでデプロイ → 直後に commit & push」なので、commit が
+//     デプロイより数分新しいのは正常。許容幅(30分)を超えたものだけ警告する。
 // ============================================================
 import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { execSync } from 'node:child_process';
@@ -93,12 +97,14 @@ async function main() {
   const notDeployed = localSlugs.filter(s => !deployedBySlug.has(s));
 
   // 2. repo の方が新しい（mainマージ後にデプロイされていない可能性）
+  //    「デプロイ → 直後にcommit」が通常フローのため、30分以内の差は正常とみなす
+  const STALE_TOLERANCE_MS = 30 * 60 * 1000;
   const stale = [];
   for (const slug of localSlugs) {
     const fn = deployedBySlug.get(slug);
     if (!fn) continue;
     const commitMs = lastCommitMs(slug);
-    if (commitMs && fn.updated_at && commitMs > fn.updated_at) {
+    if (commitMs && fn.updated_at && commitMs > fn.updated_at + STALE_TOLERANCE_MS) {
       stale.push({
         slug,
         committed: new Date(commitMs).toISOString(),
@@ -119,15 +125,14 @@ async function main() {
     notDeployed.forEach(s => console.error(`  - ${s}`));
   }
   if (stale.length) {
-    hasError = true;
-    console.error('\n■ ERROR: repo の方が新しい（マージ後にデプロイされていない可能性）:');
-    stale.forEach(x => console.error(`  - ${x.slug}  commit=${x.committed}  deploy=${x.deployed}`));
+    console.warn('\n■ WARN: commit がデプロイより30分以上新しい（再デプロイ漏れの可能性。確認推奨）:');
+    stale.forEach(x => console.warn(`  - ${x.slug}  commit=${x.committed}  deploy=${x.deployed}`));
   }
   if (missingInRepo.length) {
     console.warn('\n■ WARN: 本番で稼働中だがソースが repo に無い（要ソース回収）:');
     missingInRepo.forEach(s => console.warn(`  - ${s}`));
   }
-  if (!hasError && !missingInRepo.length) {
+  if (!hasError && !stale.length && !missingInRepo.length) {
     console.log('OK: repo と本番は同期しています。');
   }
   process.exit(hasError ? 1 : 0);
