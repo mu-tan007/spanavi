@@ -29,7 +29,7 @@ export default function SpacareerLoginPage() {
     // ログイン成功後、users.role === 'student' を確認
     const userId = data?.user?.id;
     if (!userId) {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
       setSubmitting(false);
       setError('ログインに失敗しました。再度お試しください。');
       return;
@@ -44,7 +44,7 @@ export default function SpacareerLoginPage() {
       role = memberRow?.rank;
     }
     if (role !== 'student') {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
       setSubmitting(false);
       setError('このアカウントはスパキャリ受講生用ではありません。\n運営向けログインは別ページからアクセスしてください。');
       return;

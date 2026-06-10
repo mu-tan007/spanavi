@@ -27,7 +27,7 @@ export default function ClientLoginPage() {
     }
     const role = data?.user?.user_metadata?.role;
     if (role !== 'client') {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
       setError('このアカウントはクライアント・ポータル用ではありません。');
       return;
     }

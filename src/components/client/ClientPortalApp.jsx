@@ -73,7 +73,10 @@ export default function ClientPortalApp() {
     setRestoring(true);
     try {
       // 1) クライアントセッションを破棄
-      await supabase.auth.signOut();
+      //    scope 既定値の 'global' だと実クライアントが自分の端末で使っている
+      //    セッションまで全失効させてしまう（「たびたびログアウトされる」事故の原因）。
+      //    このブラウザのセッションだけ破棄する 'local' を必ず指定する。
+      await supabase.auth.signOut({ scope: 'local' });
       // 2) 退避したadminセッションを復元
       const { error } = await supabase.auth.setSession({
         access_token: backup.access_token,

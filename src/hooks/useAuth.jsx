@@ -198,7 +198,10 @@ export function AuthProvider({ children }) {
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
+    // 'global'（既定値）だと同一アカウントの全端末セッションを失効させる。
+    // クライアントポータルは1社1アカウントを複数名で共用するため、
+    // 誰かのログアウトが他メンバーを巻き込んで強制ログアウトさせてしまう。
+    const { error } = await supabase.auth.signOut({ scope: 'local' })
     if (error) throw error
     clearOrgId()
     setSession(null)

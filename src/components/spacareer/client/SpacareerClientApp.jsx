@@ -66,7 +66,8 @@ export default function SpacareerClientApp() {
     }
     setRestoring(true);
     try {
-      await supabase.auth.signOut();
+      // 'global' だと受講生本人の端末のセッションまで全失効させるため 'local' 指定
+      await supabase.auth.signOut({ scope: 'local' });
       const { error } = await supabase.auth.setSession({
         access_token: backup.access_token,
         refresh_token: backup.refresh_token,
